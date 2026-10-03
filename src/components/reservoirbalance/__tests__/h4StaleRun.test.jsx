@@ -29,6 +29,7 @@ jest.mock('@/pages/apps/reservoir-balance/lib/api', () => ({
   upsertCaseDefaultConfig: jest.fn(async (caseId, patch) => { mockDb.defaultCfg = { ...mockDb.defaultCfg, ...patch }; return { data: mockDb.defaultCfg, error: null }; }),
   updateCase: jest.fn(async (caseId, patch) => { mockDb.caseData = { ...mockDb.caseData, ...patch }; return { data: mockDb.caseData, error: null }; }),
   setCaseReadOnly: jest.fn(),
+  setCaseSharingStore: jest.fn(),
   createCase: jest.fn(),
   replaceProductionData: jest.fn(),
 }));

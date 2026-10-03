@@ -66,6 +66,17 @@ const num = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
+/**
+ * Per-timestep values of a handoff (pressures taken from a VRR project, keyed
+ * by timestep): kept only when present, so older records save as before.
+ */
+function handoffRows(h) {
+  if (!isRecord(h.rows)) return {};
+  const rows = {};
+  for (const [k, v] of Object.entries(h.rows)) if (/^\d+$/.test(k) && num(v) != null) rows[k] = num(v);
+  return Object.keys(rows).length ? { rows } : {};
+}
+
 /** An empty study record. */
 export const emptyStudy = () => ({
   v: STUDY_VERSION,
@@ -76,6 +87,8 @@ export const emptyStudy = () => ({
   contacts: { initial_owc_ft: null, initial_goc_ft: null, area_owc_acres: null, area_goc_acres: null, porosity: null, sor_water: null, sor_gas: null },
   // values that arrived from another app: { <input key>: { app, record, value, at, text } }
   handoffs: {},
+  // MBAL-U2-003: why each excluded timestep is out of the fit: { <timestep>: reason }
+  exclusions: {},
 });
 
 /**
@@ -103,8 +116,11 @@ export function readStudy(cfg) {
   if (isRecord(raw.handoffs)) {
     for (const [key, h] of Object.entries(raw.handoffs)) {
       if (!isRecord(h)) continue;
-      out.handoffs[key] = { app: text(h.app), record: text(h.record), value: num(h.value), at: text(h.at), text: text(h.text) };
+      out.handoffs[key] = { app: text(h.app), record: text(h.record), value: num(h.value), at: text(h.at), text: text(h.text), ...handoffRows(h) };
     }
+  }
+  if (isRecord(raw.exclusions)) {
+    for (const [key, why] of Object.entries(raw.exclusions)) if (/^\d+$/.test(key) && text(why)) out.exclusions[key] = text(why);
   }
   return out;
 }
@@ -124,12 +140,15 @@ export function serializeStudy(study) {
   for (const key of CONTACT_FIELDS) if (num(s.contacts?.[key]) != null) contacts[key] = num(s.contacts[key]);
   const handoffs = {};
   for (const [key, h] of Object.entries(isRecord(s.handoffs) ? s.handoffs : {})) {
-    if (isRecord(h) && text(h.app)) handoffs[key] = { app: text(h.app), record: text(h.record), value: num(h.value), at: text(h.at), text: text(h.text) };
+    if (isRecord(h) && text(h.app)) handoffs[key] = { app: text(h.app), record: text(h.record), value: num(h.value), at: text(h.at), text: text(h.text), ...handoffRows(h) };
   }
+  const exclusions = {};
+  for (const [key, why] of Object.entries(isRecord(s.exclusions) ? s.exclusions : {})) if (/^\d+$/.test(key) && text(why)) exclusions[key] = text(why);
   return {
     v: STUDY_VERSION, identification, datum, inputMeta: serializeProvenance(s.inputMeta),
     ...(Object.keys(contacts).length ? { contacts } : {}),
     ...(Object.keys(handoffs).length ? { handoffs } : {}),
+    ...(Object.keys(exclusions).length ? { exclusions } : {}),
   };
 }
 

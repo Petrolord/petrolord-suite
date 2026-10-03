@@ -22,9 +22,13 @@ import { pvtOriginRows, PVT_ORIGIN_KIND } from './pvtIntake';
 import { RUN_SNAPSHOT_KEY, DEPTH_REFERENCES, PRESSURE_BASES } from './studyMeta';
 import { RUN_INPUT_DEFAULTS } from './runStaleness';
 import {
-  buildMbalSeries, driveIndexDefs, inPlaceOf, POINT_STATUS,
+  buildMbalSeries, driveIndexDefs, inPlaceOf, POINT_STATUS, runHasInjection,
 } from './mbalSeries';
 import { OILFIELD_UNITS } from './mbalUnits';
+import { excludedOf, exclusionRows } from './exclusions';
+import { volumetricBasis } from './rcpVolumetricIntake';
+import { pressureProvenance } from './vrrPressureIntake';
+import { readStudy } from './studyMeta';
 import tierMatrix from './tierMatrix.json';
 
 export const REPORT_TITLE = 'Material Balance Report';
@@ -374,7 +378,7 @@ export function mbalInputRows(a) {
   // ── the fit and the data ──
   const excluded = (cfg.excluded_timesteps ?? []).slice().sort((x, y) => x - y);
   row('Fit and data', 'excluded_timesteps', ['excluded_timesteps'], 'Timesteps excluded from the fit by the analyst', excluded.length ? excluded.join(', ') : 'none', '',
-    excluded.length ? 'Held in the run settings of the case; each one is marked in the data table' : 'Every timestep after the initial state is offered to the fit');
+    excluded.length ? 'Picked by the analyst on the regression plot or the data table; each one is listed with its reason and marked in the data table' : 'Every timestep after the initial state is offered to the fit');
   const nRows = result?.plot_data?.timestep_index?.length ?? caseData?.production_data?.length ?? 0;
   row('Fit and data', 'production_data', ['production_data'], 'Pressure and production table', `${nRows} rows`, '', src('production_data', null));
   return rows;
@@ -471,11 +475,42 @@ export function dataSummary(a) {
   if (anyWinj) totals.push([`Cumulative water injected at the cut-off (${winj.label})`, volFmt(winj, last?.cum_water_inj_stb)]);
   if (anyGinj) totals.push([`Cumulative gas injected at the cut-off (${ginj.label})`, volFmt(ginj, last?.cum_gas_inj_scf)]);
   const notes = ['Volumes are cumulative from the initial state. Np, Wp and injected water are stock-tank volumes; We is a reservoir volume.'];
-  if (anyWinj || anyGinj) notes.push(INJECTION_NOTE);
+  if (anyWinj || anyGinj) notes.push(injectionState(series).legacy ? INJECTION_LEGACY_NOTE : INJECTION_NOTE);
+  const taken = pressureProvenance(a.study, rows);
+  if (taken) notes.push(taken.text);
   return { head, body, totals, note: notes.join(' '), injection: anyWinj || anyGinj, counts };
 }
 
-export const INJECTION_NOTE = 'Injected volumes are on the data table and are NOT in this balance: the withdrawal term F of this engine version has no injection term. A reservoir under water or gas injection will read a larger in-place volume than it holds until injection is netted out of the produced volumes.';
+export const INJECTION_NOTE = 'Injected volumes are in this balance: F is the net withdrawal, the production voidage less Winj Bw and Ginj Bginj (Havlena-Odeh; Ahmed, Reservoir Engineering Handbook, Ch. 11). Injected water takes the Bw of each timestep and injected gas the Bg of the reservoir gas at each pressure, so the injected gas is taken to be the produced gas. Water injected into the aquifer belongs in the aquifer model.';
+
+/** The note of a result stored before the engine read injection, on rows that hold injection. */
+export const INJECTION_LEGACY_NOTE = 'This run was made before the engine read injection: its F leaves the injected volumes out, so its in-place volume is too high for a reservoir under injection. Run the engine again to net them out.';
+
+/** Whether the data rows of a run hold injection, and whether the run netted it out of F. */
+export function injectionState(series) {
+  const rows = series?.rows ?? [];
+  const onRows = rows.some((r) => (r.cum_water_inj_stb ?? 0) > 0 || (r.cum_gas_inj_scf ?? 0) > 0);
+  return { onRows, inBalance: runHasInjection(rows), legacy: onRows && !runHasInjection(rows) };
+}
+
+/**
+ * The timesteps the run left out of the fit at the analyst's choice, with
+ * the reason given (MBAL-U2-003). Null when there are none.
+ */
+export function exclusionsBlock(a) {
+  const u = a.units ?? OILFIELD_UNITS;
+  const excluded = excludedOf(a.runConfig);
+  if (!excluded.length) return null;
+  // the reasons of the current study; a reason recorded with the run stands in for one since removed
+  const reasons = { ...(readStudy(a.runConfig).exclusions ?? {}), ...(a.study?.exclusions ?? {}) };
+  const rows = exclusionRows(excluded, a.series.rows, reasons);
+  const pDigits = pressureDigits(u.unit('pressure'));
+  return {
+    head: ['Step', 'Date', `p (${u.label('pressure')})`, 'Reason'],
+    body: rows.map((r) => [String(r.timestep_index), r.date, fmt(u.to('pressure', r.pressure), pDigits), r.reason]),
+    note: 'These points are in the data table and were left out of the regression by the analyst. Restoring one and running again puts it back in the fit.',
+  };
+}
 
 // ---- results ----------------------------------------------------------------
 
@@ -577,6 +612,8 @@ export function historyMatchBlock(a) {
 
 // ---- drive indices (RL3, RL7) -----------------------------------------------
 
+export const DRIVE_INJECTION_CONVENTION = 'With injection the hydrocarbon voidage is A = F + Winj Bw + Ginj Bginj - Wp Bw, since F is the net withdrawal, and the injected volumes over A are the water and gas injection indices WIDI and GIDI; the sum stays an identity of the balance.';
+
 export const DRIVE_CONVENTION = Object.freeze({
   oil: 'Convention: each index is its energy term over the hydrocarbon voidage A = F - Wp Bw = Np [Bt + (Rp - Rsi) Bg] (Ahmed, Reservoir Engineering Handbook, Example 11-1). Water produced is netted inside the water drive index, WDI = (We - Wp Bw) / A. CDI is the rock and connate water expansion (Ahmed calls it EDI); GDI is the gas cap (Ahmed calls it SDI).',
   gas: 'Convention: each index is its energy term over the hydrocarbon voidage Gp Bg (Pletcher, SPE 75354, Eqs. 8 to 10). Water produced is netted inside the water drive index, WDI = (We - Wp Bw) / (Gp Bg). CDI is the rock and connate water expansion (Pletcher calls it ICD).',
@@ -591,9 +628,11 @@ export const DRIVE_CONVENTION = Object.freeze({
 export function driveIndexBlock(a) {
   const { result, series } = a;
   const { isGas } = series;
-  const defs = driveIndexDefs(isGas);
+  const injection = runHasInjection(series.rows);
+  const defs = driveIndexDefs(isGas, { injection });
   const value = (key) => {
-    const v = key === 'cdi' ? (result?.final_cdi ?? result?.final_sdi) : result?.[`final_${key}`];
+    // the final injection indices have no rb_results column; they are stored in plot_data
+    const v = key === 'cdi' ? (result?.final_cdi ?? result?.final_sdi) : (result?.[`final_${key}`] ?? result?.plot_data?.[`final_${key}`]);
     return finite(v) ? v : null;
   };
   const parts = defs.map((d) => ({ ...d, value: value(d.key) }));
@@ -601,9 +640,10 @@ export function driveIndexBlock(a) {
   const partSum = parts.reduce((s, p) => s + (p.value ?? 0), 0);
   const closes = sum != null && Math.abs(partSum - sum) < 5e-7;
   const rows = parts.map((p) => [p.label, p.numerator, fmt(p.value, 4)]);
-  rows.push(['Sum', isGas ? '(G Et + We - Wp Bw)' : '(N Et + We - Wp Bw)', fmt(sum, 4)]);
+  rows.push(['Sum', `(${isGas ? 'G' : 'N'} Et + We - Wp Bw${injection ? ' + Winj Bw + Ginj Bginj' : ''})`, fmt(sum, 4)]);
   const hm = result?.plot_data?.history_match ?? null;
   const lines = [DRIVE_CONVENTION[isGas ? 'gas' : 'oil']];
+  if (injection) lines.push(DRIVE_INJECTION_CONVENTION);
   if (sum != null) {
     const off = sum - 1;
     lines.push(Math.abs(off) < 5e-5
@@ -617,7 +657,7 @@ export function driveIndexBlock(a) {
 /** Drive indices of every timestep, as a table. */
 export function driveIndexTable(a) {
   const { drive } = a.series;
-  const head = ['Step', 'Date', ...drive.defs.map((d) => d.key.toUpperCase()), 'Sum'];
+  const head = ['Step', 'Date', ...drive.defs.map((d) => d.short ?? d.key.toUpperCase()), 'Sum'];
   const body = drive.steps.map((s) => [
     String(s.timestep_index), s.date ? String(s.date).slice(0, 10) : EMPTY_VALUE,
     ...drive.defs.map((d) => fmt(s[d.key], 3)), fmt(s.sum, 3),
@@ -637,34 +677,39 @@ export function expansionTable(a) {
   const { rows, isGas, regression } = series;
   const m = regression.variant.m;
   const f = u.scaled('resVolume', rows.reduce((mx, r) => Math.max(mx, Math.abs(r.F ?? 0)), 0));
+  // MBAL-U2-002: on a run with injection, the injected reservoir volumes F nets out
+  const inj = runHasInjection(rows);
+  const injHead = inj ? [`Winj Bw (${f.label})`, `Ginj Bginj (${f.label})`] : [];
+  const injCells = (r) => (inj ? [fmt(f.to(r.winj_bw_rb ?? 0), 4), fmt(f.to(r.ginj_bg_rb ?? 0), 4)] : []);
+  const injFormula = inj ? ' - Winj Bw - Ginj Bginj, the net withdrawal; the injected gas is taken at the Bg of the reservoir gas' : '';
   if (isGas) {
     const eUnit = u.label('expansionGas');
-    const head = ['Step', `F (${f.label})`, `Eg (${eUnit})`, `Efw (${eUnit})`, `Et (${eUnit})`];
+    const head = ['Step', `F (${f.label})`, ...injHead, `Eg (${eUnit})`, `Efw (${eUnit})`, `Et (${eUnit})`];
     const body = rows.map((r) => [
-      String(r.timestep_index), fmt(f.to(r.F), 4),
+      String(r.timestep_index), fmt(f.to(r.F), 4), ...injCells(r),
       sigFmt(u.to('expansionGas', finite(r.Eg_rb_mscf) ? r.Eg_rb_mscf / 1000 : null), 4),
       sigFmt(u.to('expansionGas', r.Efw), 4), sigFmt(u.to('expansionGas', r.Et), 4),
     ]);
     return {
       head, body, m,
-      formula: 'Et = Eg + Efw, with Eg = Bg - Bgi and Efw = Bgi (Swi cw + cf) (pi - p) / (1 - Swi). F = Gp Bg + Wp Bw.',
+      formula: `Et = Eg + Efw, with Eg = Bg - Bgi and Efw = Bgi (Swi cw + cf) (pi - p) / (1 - Swi). F = Gp Bg + Wp Bw${injFormula}.`,
       closure: rows.map((r) => (finite(r.Et) && finite(r.Eg_rb_mscf) && finite(r.Efw) ? r.Et - (r.Eg_rb_mscf / 1000 + r.Efw) : null)),
     };
   }
   const eUnit = u.label('fvfOil');
   const withCap = m > 0;
-  const head = ['Step', `F (${f.label})`, `Eo (${eUnit})`];
+  const head = ['Step', `F (${f.label})`, ...injHead, `Eo (${eUnit})`];
   if (withCap) head.push(`Eg (${eUnit})`);
   head.push(`Efw (${eUnit})`, `Et (${eUnit})`);
   const body = rows.map((r) => {
-    const cells = [String(r.timestep_index), fmt(f.to(r.F), 4), sigFmt(u.to('fvfOil', r.Eo), 4)];
+    const cells = [String(r.timestep_index), fmt(f.to(r.F), 4), ...injCells(r), sigFmt(u.to('fvfOil', r.Eo), 4)];
     if (withCap) cells.push(sigFmt(u.to('fvfOil', r.Eg_oil), 4));
     cells.push(sigFmt(u.to('fvfOil', r.Efw), 4), sigFmt(u.to('fvfOil', r.Et), 4));
     return cells;
   });
   return {
     head, body, m,
-    formula: `Et = Eo + m Eg + Efw${withCap ? `, with m = ${sigFmt(m, 4)}` : ' (m = 0, so the gas cap term is absent)'}. Eo = Bt - Bti, Eg = Bti (Bg / Bgi - 1), Efw = Bti (1 + m) (Swi cw + cf) (pi - p) / (1 - Swi). F = Np [Bt + (Rp - Rsi) Bg] + Wp Bw.`,
+    formula: `Et = Eo + m Eg + Efw${withCap ? `, with m = ${sigFmt(m, 4)}` : ' (m = 0, so the gas cap term is absent)'}. Eo = Bt - Bti, Eg = Bti (Bg / Bgi - 1), Efw = Bti (1 + m) (Swi cw + cf) (pi - p) / (1 - Swi). F = Np [Bt + (Rp - Rsi) Bg] + Wp Bw${injFormula}.`,
     closure: rows.map((r) => (finite(r.Et) && finite(r.Eo) && finite(r.Efw) ? r.Et - (r.Eo + m * (finite(r.Eg_oil) ? r.Eg_oil : 0) + r.Efw) : null)),
   };
 }
@@ -751,7 +796,8 @@ export function crossCheckRows(a) {
       p ? `Fitted, 95% confidence ${inPlaceText(u, p.ci95_low, isGas, 2)} to ${inPlaceText(u, p.ci95_high, isGas, 2)}${hm.converged ? '' : '; the search stopped at the iteration cap'}` : 'Held at its start value while other parameters were fitted', true);
   }
   if (isGas && series.pz) {
-    if (finite(series.pz.apparentOgip)) add('p/z straight line to p/z = 0', series.pz.apparentOgip, `Apparent value: no aquifer or compaction term, r2 ${r2Text(series.pz.fit?.r2)}`);
+    const noInj = runHasInjection(series.rows) ? '; and no injection term, so under gas cycling it is not an estimate of G' : '';
+    if (finite(series.pz.apparentOgip)) add('p/z straight line to p/z = 0', series.pz.apparentOgip, `Apparent value: no aquifer or compaction term${noInj}, r2 ${r2Text(series.pz.fit?.r2)}`);
     if (finite(series.pz.ramagostOgip)) add('p/z corrected for rock and water (Ramagost-Farshad)', series.pz.ramagostOgip, 'Compressibility corrected; no aquifer term');
   }
   if (!isGas && series.campbell?.points.length) {
@@ -759,7 +805,7 @@ export function crossCheckRows(a) {
     add('F/Et at the last timestep (Campbell level)', lastPt.y, 'Apparent value: equals N only when no water influx supports the pressure');
   }
   const vol = isGas ? numOrNull(caseData?.volumetric_ogip_scf) : numOrNull(caseData?.volumetric_ooip_stb);
-  if (vol != null && vol > 0) add('Volumetric estimate', vol, caseData?.volumetric_estimate_source ? `Entered on the case: ${caseData.volumetric_estimate_source}` : 'Entered on the case, source not stated');
+  if (vol != null && vol > 0) add('Volumetric estimate', vol, volumetricBasis(caseData, a.study));
   return rows;
 }
 
@@ -800,7 +846,7 @@ export function limitsBlock(a) {
     isGas
       ? 'Gas case: dry gas, one phase in the reservoir. Condensate drop-out and water vapour are not modelled.'
       : 'Oil case: black-oil PVT with the formation and connate water compressibilities held constant; the gas cap ratio m is fixed over the history.',
-    'Injected water and gas are not in the withdrawal term of this engine version.',
+    'Injection: injected water and gas enter the withdrawal term F at the Bw and the reservoir gas Bg of each timestep, so the injected gas is taken to be the produced gas. Water injected into the aquifer is not in F and belongs in the aquifer model. A run made before the engine read injection leaves it out.',
     `Pressure datum: ${Number.isFinite(study?.datum?.datum_depth_ft) ? 'stated in the inputs' : 'not stated'}. No correction to datum is applied.`,
   ];
   const used = [];
@@ -813,16 +859,74 @@ export function limitsBlock(a) {
       ? 'The correlations compute the PVT of this run.'
       : 'The correlations are used only where the PVT table or a data row gives no value.',
   };
-  const flags = (result?.warnings ?? []).filter(isRangeFlag);
-  // the engine says nothing when a pressure falls outside the PVT table: the app does
-  const coverage = pvtCoverageWarning(a.caseData, runConfig);
-  if (coverage) flags.unshift(coverage);
-  const hasTable = pvtTableCoverage(a.caseData, runConfig) != null;
+  // MBAL-U2-006: the engine records where it left the PVT table and says so
+  // in a warning, which leads the flags. A run stored before the engine did
+  // has no coverage block; for it the app's own check stands in, and says so.
+  const engine = engineCoverageOf(result);
+  const warnings = result?.warnings ?? [];
+  const isCoverage = (w) => /^PVT table coverage:/.test(w);
+  const flags = [...warnings.filter((w) => isRangeFlag(w) && isCoverage(w)), ...warnings.filter((w) => isRangeFlag(w) && !isCoverage(w))];
+  let hasTable;
+  if (engine.recorded) {
+    hasTable = engine.coverage != null;
+  } else {
+    const coverage = pvtCoverageWarning(a.caseData, runConfig);
+    if (coverage) flags.unshift(`${coverage} (Checked by the app: the engine build of this run did not record where it left the table.)`);
+    hasTable = pvtTableCoverage(a.caseData, runConfig) != null;
+  }
   return { assumptions, ranges, flags, noFlagsText: `The engine flagged no input outside the published range of a correlation in use${hasTable ? ', and the PVT table covers every pressure of the case' : ''}.` };
+}
+
+/**
+ * The PVT table coverage the engine recorded for a run (MBAL-U2-006).
+ * recorded false: the result was stored by an engine build that did not
+ * record it. coverage null: the run had no PVT table.
+ */
+export function engineCoverageOf(result) {
+  const pd = result?.plot_data ?? {};
+  const recorded = Object.prototype.hasOwnProperty.call(pd, 'pvt_table_coverage');
+  return { recorded, coverage: recorded ? pd.pvt_table_coverage : null };
 }
 
 /** Engine warnings that are not range flags (those go in the limits block). */
 export const otherWarnings = (result) => (result?.warnings ?? []).filter((w) => !isRangeFlag(w));
+
+// ---- one-page summary (Batch B) -----------------------------------------------
+
+/**
+ * The summary at the front of the report, for the reader who reads one page:
+ * the answer and how sure, how the other methods compare, the drive, the
+ * data, and what limits it. Every value is one the later pages print in full.
+ * @param {object} m the model collectMbalReportArgs builds (without summary)
+ * @returns {{rows: Array<[string, string]>, note: string}}
+ */
+export function summaryBlock(m) {
+  const { series, result } = m;
+  const { isGas } = series;
+  const rows = [];
+  const headline = m.crossCheck.find((c) => c.difference === 'headline') ?? m.crossCheck[0];
+  const tier = m.headline.tier;
+  rows.push([isGas ? 'Gas initially in place' : 'Oil initially in place',
+    `${headline?.text ?? EMPTY_VALUE} (${headline ? headline.method : EMPTY_VALUE})`]);
+  rows.push(['How it is backed', tier.tier ? `${TIER_LABELS[tier.tier] ?? tier.tier} engine path${finite(tier.tolerancePct) ? `, ${tier.tolerancePct} percent against its benchmark` : ''}; r2 ${r2Text(result?.r_squared)} on ${finite(result?.n_data_points) ? result.n_data_points : EMPTY_VALUE} points` : EMPTY_VALUE]);
+  const others = m.crossCheck.filter((c) => c !== headline && finite(c.value));
+  rows.push(['Other methods', others.length ? others.map((c) => `${c.method}: ${c.text} (${c.difference})`).join('; ') : 'None on this case']);
+  const parts = m.drive.parts.filter((p) => finite(p.value)).sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+  rows.push(['Drive at the last timestep', `${DRIVE_WORDS(result?.drive_mechanism)}${parts.length ? `; largest index ${parts[0].label} ${fmt(parts[0].value, 3)}` : ''}; aquifer ${DRIVE_WORDS(result?.aquifer_strength)}`]);
+  const d = m.data;
+  const counts = d.counts;
+  const dated = series.rows.filter((r) => r.date);
+  rows.push(['Data', `${series.rows.length} timesteps${dated.length >= 2 ? `, ${String(dated[0].date).slice(0, 10)} to ${String(dated[dated.length - 1].date).slice(0, 10)}` : ''}; ${counts.fit} in the fit${counts.excluded ? `, ${counts.excluded} excluded by the analyst (listed with the reasons)` : ''}`]);
+  const inj = injectionState(series);
+  rows.push(['Injection', inj.onRows ? (inj.legacy ? 'On the data table and left out by this earlier run' : 'In the balance (net withdrawal)') : 'None on the data table']);
+  const flagCount = m.limits.flags.length;
+  rows.push(['Flags', `${flagCount} input${flagCount === 1 ? '' : 's'} outside a published range or the PVT table; ${m.warnings.length} other engine warning${m.warnings.length === 1 ? '' : 's'}`]);
+  if (flagCount) rows.push(['First flag', m.limits.flags[0].length > 300 ? `${m.limits.flags[0].slice(0, 297)}...` : m.limits.flags[0]]);
+  return {
+    rows,
+    note: 'This page summarises the pages after it: every value here is printed there in full, with its inputs, sources, method and limits.',
+  };
+}
 
 // ---- the whole model --------------------------------------------------------
 
@@ -837,12 +941,13 @@ export function collectMbalReportArgs(ctx) {
   const units = ctx.units ?? OILFIELD_UNITS;
   const series = buildMbalSeries({ result: ctx.result, runConfig: ctx.runConfig, caseData: ctx.caseData });
   const a = { ...ctx, units, series };
-  return {
+  const model = {
     ...a,
     identification: identificationPairs(a),
     inputs: mbalInputRows(a),
     datum: [...datumRows(a), ...contactRows(a)],
     data: dataSummary(a),
+    exclusions: exclusionsBlock(a),
     headline: headlineRows(a),
     regressionText: regressionStatement(a),
     historyMatch: historyMatchBlock(a),
@@ -856,4 +961,5 @@ export function collectMbalReportArgs(ctx) {
     limits: limitsBlock(a),
     warnings: otherWarnings(ctx.result),
   };
+  return { ...model, summary: summaryBlock(model) };
 }

@@ -34,7 +34,7 @@ export const PVT_CORRELATION_KEYS = [
   "water",
 ] as const;
 
-/** rb_production_data columns the engine reads (injection is listed apart, below). */
+/** rb_production_data columns the engine reads. */
 export const PRODUCTION_ENGINE_COLUMNS = [
   "timestep_index",
   "pressure_psia",
@@ -42,6 +42,9 @@ export const PRODUCTION_ENGINE_COLUMNS = [
   "cum_oil_stb",
   "cum_gas_scf",
   "cum_water_stb",
+  // MBAL-U2-002 (engines PR #300): injection enters F with a minus sign.
+  "cum_water_inj_stb",
+  "cum_gas_inj_scf",
   "bo_rb_stb",
   "rs_scf_stb",
   "bg_rb_mscf",
@@ -51,11 +54,11 @@ export const PRODUCTION_ENGINE_COLUMNS = [
 ] as const;
 
 /**
- * Columns that are passed to the engine and that the engine does not use:
- * cumulative water and gas injection are in the input type, and the
- * withdrawal term F has no injection term in this engine version.
+ * Columns passed to the engine that it does not use. Empty since MBAL-U2-002:
+ * until then the two injection columns were listed here (the engine took them
+ * and never read them).
  */
-export const PRODUCTION_UNUSED_COLUMNS = ["cum_water_inj_stb", "cum_gas_inj_scf"] as const;
+export const PRODUCTION_UNUSED_COLUMNS = [] as const;
 
 // deno-lint-ignore no-explicit-any
 type Row = Record<string, any>;
@@ -177,6 +180,17 @@ export function buildPlotData(
     cdi: col((p) => (p as Row).cdi ?? null),
     sdi: col((p) => (p as Row).cdi ?? null),
     drive_index_sum: col((p) => p.drive_index_sum ?? null),
+    // MBAL-U2-002: the injected reservoir volumes netted out of F and the two
+    // injection drive indices. rb_results has no column for the final
+    // injection indices, so they live here; no migration is needed.
+    winj_bw_rb: col((p) => p.winj_bw_rb ?? null),
+    ginj_bg_rb: col((p) => p.ginj_bg_rb ?? null),
+    winj_di: col((p) => p.winj_di ?? null),
+    ginj_di: col((p) => p.ginj_di ?? null),
+    final_winj_di: engineResult.final_winj_di ?? null,
+    final_ginj_di: engineResult.final_ginj_di ?? null,
+    // MBAL-U2-006: where the run left the PVT table, as the engine recorded it.
+    pvt_table_coverage: engineResult.pvt_table_coverage ?? null,
     // Production cumulatives from input (passed through for plotting)
     cum_oil_stb: production_data.map((p: ProductionDataPoint) => p.cum_oil_stb ?? null),
     cum_gas_scf: production_data.map((p: ProductionDataPoint) => p.cum_gas_scf ?? null),
@@ -195,8 +209,7 @@ export function buildPlotData(
     Rs: col((p) => p.rs_scf_stb ?? null),
     Bg_rb_mscf: col((p) => p.bg_rb_mscf ?? null),
     z: col((p) => p.z_factor ?? null),
-    // The dates of the observations and the cumulative injection read in
-    // (injection is echoed so the report can state that F does not use it).
+    // The dates of the observations and the cumulative injection read in.
     observation_date: production_data.map((p: ProductionDataPoint) => p.observation_date ?? null),
     cum_water_inj_stb: production_data.map((p: ProductionDataPoint) => p.cum_water_inj_stb ?? null),
     cum_gas_inj_scf: production_data.map((p: ProductionDataPoint) => p.cum_gas_inj_scf ?? null),

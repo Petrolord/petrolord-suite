@@ -41,6 +41,15 @@ const refused = (caseId) => (readOnly && (caseId === undefined || caseId === rea
   ? { data: null, error: { code: 'MBAL_READ_ONLY', message: readOnly.reason } }
   : null);
 
+// MBAL-U2-001: colleague editing under a check-out. A save of the case row
+// goes through the record sharing store, which sends the version the editor
+// opened and turns a refusal (a newer version saved, the check-out not held)
+// into a sentence. The studio context hands the store in; without one (a
+// test, the database before the migration) the plain update is made.
+let caseStore = null;
+/** @param {?{update: Function, trackOpened: Function}} store the record sharing store, or null */
+export function setCaseSharingStore(store) { caseStore = store || null; }
+
 // =============================================================================
 // CASE CRUD (rb_cases)
 // =============================================================================
@@ -110,6 +119,11 @@ export async function updateCase(caseId, patch) {
   // run's own snapshot with the case (lib/runStaleness.js), so nothing is
   // stamped here. (Step 0e stamped updated_at; the record sharing guard
   // trigger now owns that column and keeps it unless the content changed.)
+  if (caseStore) {
+    const { data, error } = await caseStore.update('rb_cases', caseId, patch, { note: patch?.change_note ?? null });
+    if (error) return { data: null, error: { code: error.kind ? 'MBAL_CONFLICT' : error.code, kind: error.kind ?? null, message: error.message } };
+    return { data, error: null };
+  }
   const { data, error } = await supabase
     .from('rb_cases')
     .update(patch)

@@ -85,6 +85,12 @@ export function buildRunRows(plotData, { productionData } = {}) {
       // both fluid systems; oil results stored before that have it under
       // `sdi` with `cdi` null, so fall back per row.
       cdi: at(plotData.cdi, i) ?? at(plotData.sdi, i),
+      // MBAL-U2-002: injection netted out of F and its two drive indices
+      // (null on a result stored before the engine read injection)
+      winj_bw_rb: at(plotData.winj_bw_rb, i),
+      ginj_bg_rb: at(plotData.ginj_bg_rb, i),
+      winj_di: at(plotData.winj_di, i),
+      ginj_di: at(plotData.ginj_di, i),
       drive_index_sum: at(plotData.drive_index_sum, i),
       point_in_fit: plotData.point_in_fit?.[i] === true,
       simulated_pressure: at(hm?.simulated_pressure_psia, i),
@@ -287,9 +293,18 @@ export function pzSeries({ rows, result, runConfig, caseData }) {
   };
 }
 
-/** The drive index names of a fluid system, in stacking order. */
-export function driveIndexDefs(isGas) {
-  return isGas
+/** The two injection drive indices (MBAL-U2-002), shown only on a run that has injection. */
+export const INJECTION_DRIVE_DEFS = Object.freeze([
+  { key: 'winj_di', short: 'WIDI', label: 'Water injection (WIDI)', numerator: 'Winj Bw' },
+  { key: 'ginj_di', short: 'GIDI', label: 'Gas injection (GIDI)', numerator: 'Ginj Bginj' },
+]);
+
+/** True when the run netted injection out of F (the engine stored a non-zero injected volume). */
+export const runHasInjection = (rows) => rows.some((r) => (finite(r.winj_bw_rb) && r.winj_bw_rb !== 0) || (finite(r.ginj_bg_rb) && r.ginj_bg_rb !== 0));
+
+/** The drive index names of a fluid system, in stacking order; the injection indices last when the run has them. */
+export function driveIndexDefs(isGas, { injection = false } = {}) {
+  const natural = isGas
     ? [
       { key: 'gdi', label: 'Gas expansion (GDI)', numerator: 'G Eg' },
       { key: 'cdi', label: 'Rock and connate water (CDI)', numerator: 'G Efw' },
@@ -301,16 +316,19 @@ export function driveIndexDefs(isGas) {
       { key: 'cdi', label: 'Rock and connate water (CDI)', numerator: 'N Efw' },
       { key: 'wdi', label: 'Water drive (WDI)', numerator: 'We - Wp Bw' },
     ];
+  return injection ? [...natural, ...INJECTION_DRIVE_DEFS] : natural;
 }
 
 /** Drive indices of every timestep after the initial state. */
 export function driveIndexSeries({ rows, isGas }) {
   const dated = rowsHaveDates(rows);
-  const defs = driveIndexDefs(isGas);
+  const injection = runHasInjection(rows);
+  const defs = driveIndexDefs(isGas, { injection });
   const steps = rows.filter((r) => r.timestep_index > 0 && finite(r.drive_index_sum));
   return {
     dated,
     defs,
+    injection,
     steps: steps.map((r) => ({
       timestep_index: r.timestep_index, date: r.date, x: timeOf(r, dated), pressure: r.pressure,
       ...Object.fromEntries(defs.map((d) => [d.key, finite(r[d.key]) ? r[d.key] : 0])),

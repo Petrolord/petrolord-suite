@@ -10,7 +10,10 @@
  */
 import React from 'react';
 import '@testing-library/jest-dom';
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act, configure } from '@testing-library/react';
+
+// the studio mounts its whole tab tree; on a loaded runner the first paint takes seconds
+configure({ asyncUtilTimeout: 20000 });
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 const mockToast = jest.fn();
@@ -180,8 +183,8 @@ describe('the studio under record sharing', () => {
     expect(screen.getByTestId('mbal-edit-case')).toBeInTheDocument();
     await act(async () => { fireEvent.click(sw); });
     await waitFor(() => expect(mockStore.db.rb_cases.find((c) => c.id === SAMPLE_CASE_IDS.ahmed)).toMatchObject({ visibility: 'organization', organization_id: SAMPLE_ORG_ID, org_access: 'view' }));
-    expect(await screen.findByTestId('share-view-only')).toHaveTextContent('Colleagues can view it and save their own copy.');
-    expect(screen.queryByTestId('share-access')).toBeNull(); // editing by colleagues is not offered in this round
+    expect(await screen.findByTestId('share-access')).toHaveValue('view');
+    expect(screen.getByTestId('share-access')).toBeInTheDocument(); // MBAL-U2-001: colleagues can be let edit
     await act(async () => { fireEvent.click(screen.getByTestId('share-switch')); });
     await waitFor(() => expect(mockStore.db.rb_cases.find((c) => c.id === SAMPLE_CASE_IDS.ahmed)).toMatchObject({ visibility: 'private', organization_id: null }));
   });

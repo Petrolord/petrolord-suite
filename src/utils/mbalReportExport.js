@@ -60,6 +60,10 @@ export function buildMbalPdf(args, { logo = null, generatedAt = new Date() } = {
   // ---- who, what, when (RL4) ----
   report.header({ identification: model.identification, displayUnits: u.displayUnits(), generatedAt });
 
+  // ---- one page for the reader who reads one page (Batch B) ----
+  table('Summary', ['Item', 'Value'], model.summary.rows, { columnStyles: { 0: { cellWidth: 46 } }, note: model.summary.note });
+  report.layout.newPage();
+
   // ---- headline (RL8) ----
   table('Headline results', ['Quantity', 'Value'], model.headline.rows, {
     columnStyles: { 0: { cellWidth: 92 } },
@@ -110,6 +114,12 @@ export function buildMbalPdf(args, { logo = null, generatedAt = new Date() } = {
     `Pressure and production history${dataRows.length > MAX_DATA_ROWS ? ` (first ${MAX_DATA_ROWS} of ${dataRows.length} timesteps; the series CSV holds them all)` : ''}`,
     model.data.head, dataRows.slice(0, MAX_DATA_ROWS), { note: model.data.note },
   );
+  if (model.exclusions) {
+    table('Timesteps excluded by the analyst', model.exclusions.head, model.exclusions.body, {
+      columnStyles: { 0: { cellWidth: 14 }, 1: { cellWidth: 26 }, 2: { cellWidth: 26 } },
+      note: model.exclusions.note,
+    });
+  }
 
   // ---- the terms of the fit (RL2) ----
   table('Withdrawal and expansion terms', model.expansion.head, model.expansion.body.slice(0, MAX_DATA_ROWS), { note: model.expansion.formula });

@@ -15,6 +15,7 @@ import MapGenerationPanel from './tools/MapGenerationPanel';
 import SurfaceDataManager from './tools/SurfaceDataManager';
 import AOIPanel from './AOIPanel';
 import EarthModelProspectNote from './EarthModelProspectNote'; // Earth Modeling U2-009 handoff
+import MbalCrossCheckNote from './MbalCrossCheckNote'; // Material Balance U2-004 cross-check (mbal-1)
 import RegistryPanel from './RegistryPanel';
 import AreaDepthPanel from './AreaDepthPanel';
 import SaturationHeightPanel from './SaturationHeightPanel';
@@ -151,6 +152,7 @@ const ExpertInputPanel = () => {
     return (
         <div className="h-full flex flex-col p-2 overflow-hidden space-y-2">
             <EarthModelProspectNote />
+            <MbalCrossCheckNote />
             <Collapsible open={isSettingsOpen} onOpenChange={setSettingsOpen} className="space-y-2 flex-shrink-0">
                 <Card className="overflow-hidden">
                     <div className="flex items-center justify-between p-3 bg-pl-surface cursor-pointer hover:bg-pl-sunken transition-colors" onClick={() => setSettingsOpen(!isSettingsOpen)}>
