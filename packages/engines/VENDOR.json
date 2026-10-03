@@ -22,5 +22,22 @@
     "manifestPaths": 750,
     "vendoredPaths": 750
   },
-  "knownDeviations": []
+  "knownDeviations": [
+    {
+      "path": "engines/dca/groupRollup.js",
+      "kind": "differing",
+      "vendoredSha": "5eb6b007835314918b35bdf2c1fe26fbd285e65c",
+      "group": "dca-u1 (engines PR #301)",
+      "reason": "Decline Curve Analysis U1 (DCA-U1-006): the group roll-up summed the remaining volume as EUR and added a month of daily rates as one rate. Vendored byte-identical from Petrolord/petrolord-engines branch feat/dca-u1-group-rollup (PR #301), which the build agent may not merge.",
+      "burnDownWhen": "engines PR #301 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest and delete every dca-u1 row."
+    },
+    {
+      "path": "__tests__/dca.groupRollup.volumes.test.js",
+      "kind": "extra",
+      "vendoredSha": "e88b083bc7efb0f8baf17c3ed7d903a95aba55b8",
+      "group": "dca-u1 (engines PR #301)",
+      "reason": "The gate of DCA-U1-006 (group EUR is produced plus remaining; a month of daily points is a daily rate), with the old arithmetic as negative control. New in engines PR #301.",
+      "burnDownWhen": "engines PR #301 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest and delete every dca-u1 row."
+    }
+  ]
 }
