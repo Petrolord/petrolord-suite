@@ -23,6 +23,7 @@ import EpeRunConsole from '../EpeRunConsole';
 import EpeRunComparison from '../EpeRunComparison';
 import EpeHelpGuide from '../EpeHelpGuide';
 import RUN from './ekeneRun.json';
+import { loadDcaRows } from '@/dev/dcaProjectsStore';
 
 const NOW = '2026-09-26T10:00:00Z';
 const PROD_ROWS = RUN.cashFlowData.slice(0, 12).map((r) => ({ year: r.year, oil_bbl: r.oil_bbl || 0, gas_mscf: r.gas_mscf || 0 }));
@@ -45,18 +46,41 @@ const DB = {
   epe_run_configs: { id: 'cfg1', case_id: 'c1', config_name: 'Episode 26 case', ...RUN.cfg },
   epe_sensitivity_runs: [],
   epe_sensitivity_results: [],
+  // DCA-U1-008: the Decline Curve Analysis projects saved on /dev/dca in this tab
+  saved_dca_projects: [],
 };
 
+let seq = 0;
+
 function query(table) {
+  // eq filters are applied to array tables and an insert is kept, so a
+  // handoff written on the harness (Import from Decline Curve Analysis) is
+  // there when the page reads the case again; other writes are no-ops
   const q = {};
+  const filters = [];
+  let inserted = null;
   const chain = () => q;
-  ['select', 'eq', 'order', 'limit', 'in', 'gte', 'lte', 'not', 'is', 'or', 'neq', 'range'].forEach((m) => { q[m] = chain; });
-  ['insert', 'update', 'upsert', 'delete'].forEach((m) => { q[m] = chain; });
-  const v = DB[table];
-  const one = () => ({ data: Array.isArray(v) ? (v[0] ?? null) : (v ?? null), error: v == null ? { message: 'no rows' } : null });
+  ['select', 'order', 'limit', 'in', 'gte', 'lte', 'not', 'is', 'or', 'neq', 'range'].forEach((m) => { q[m] = chain; });
+  ['update', 'upsert', 'delete'].forEach((m) => { q[m] = chain; });
+  q.eq = (col, val) => { filters.push([col, val]); return q; };
+  q.insert = (rows) => {
+    const list = (Array.isArray(rows) ? rows : [rows]).map((r) => ({ id: `ins-${(seq += 1)}`, created_at: new Date().toISOString(), ...r }));
+    if (Array.isArray(DB[table])) DB[table].push(...list);
+    inserted = list;
+    return q;
+  };
+  // only the tables of the handoff are filtered; every other table answers
+  // as it always did on this harness (its specs rely on that)
+  const FILTERED = ['saved_dca_projects', 'epe_production_volumes'];
+  const current = () => {
+    const v = inserted || DB[table];
+    if (!Array.isArray(v) || !FILTERED.includes(table)) return v;
+    return v.filter((r) => filters.every(([c, x]) => r[c] === x));
+  };
+  const one = () => { const v = current(); return { data: Array.isArray(v) ? (v[0] ?? null) : (v ?? null), error: v == null ? { message: 'no rows' } : null }; };
   q.single = () => Promise.resolve(one());
   q.maybeSingle = () => Promise.resolve({ ...one(), error: null });
-  q.then = (res, rej) => Promise.resolve({ data: Array.isArray(v) ? v : v ? [v] : [], error: null }).then(res, rej);
+  q.then = (res, rej) => { const v = current(); return Promise.resolve({ data: Array.isArray(v) ? v : v ? [v] : [], error: null }).then(res, rej); };
   return q;
 }
 
@@ -64,6 +88,7 @@ export default function EpeHarness() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
     const saved = { from: supabase.from, invoke: supabase.functions?.invoke, getUser: supabase.auth?.getUser };
+    DB.saved_dca_projects = loadDcaRows();
     supabase.from = (t) => query(t);
     if (supabase.auth) supabase.auth.getUser = async () => ({ data: { user: DEV_AUTH.user }, error: null });
     if (supabase.functions) supabase.functions.invoke = async () => ({ data: null, error: { message: 'edge functions are not available on the harness' } });

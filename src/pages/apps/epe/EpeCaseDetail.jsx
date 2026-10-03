@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import EpeDataUploader from '@/components/epe/EpeDataUploader';
 import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
+import EpeDcaImport from '@/pages/apps/epe/EpeDcaImport';
     import { Helmet } from 'react-helmet';
     import { useParams, Link, useNavigate } from 'react-router-dom';
     import { useToast } from '@/components/ui/use-toast';
@@ -425,6 +426,7 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                           <Button variant="outline" size="sm" onClick={openFshDialog} className="w-full">
                             <GitBranch className="w-4 h-4 mr-2" />Import from Forecast Scenario Hub
                           </Button>
+                          <EpeDcaImport caseId={caseId} userId={user?.id} productionVolumes={productionVolumes} onDone={fetchData} toast={toast} />
                         </>
                       )}
                     </CardContent>

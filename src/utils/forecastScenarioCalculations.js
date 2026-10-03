@@ -59,12 +59,17 @@ export function runCase(caseDef, startDateIso = '2026-01-01T00:00:00Z') {
   }
   const Di = dailyDecline(declineAnnualPct);
   const params = { qi, Di, b, modelType: modelTypeFor(b) };
+  // HUB-U1: a case may carry its own start (a case received from Decline
+  // Curve Analysis starts the day after the data cut-off)
+  const start = caseDef.startDate ? `${String(caseDef.startDate).slice(0, 10)}T00:00:00Z` : startDateIso;
   const hasLimit = economicLimit > 0;
   const horizonDays = Math.round(years * DAYS_PER_YEAR);
   const run = (days) => generateForecast(
     params,
     { durationDays: days, economicLimit: hasLimit ? economicLimit : null, stopAtLimit: hasLimit },
-    startDateIso,
+    // the engine dates day 1 as the day after its start: start one day early
+    // so the first day of the case is its start date
+    new Date(Date.parse(start) - 86400000).toISOString(),
   );
   const result = run(horizonDays);
   const limitInHorizon = hasLimit && result.rates.length < horizonDays;
@@ -79,6 +84,7 @@ export function runCase(caseDef, startDateIso = '2026-01-01T00:00:00Z') {
   const last = result.rates[result.rates.length - 1];
   return {
     ...caseDef,
+    startDate: start.slice(0, 10),
     rates: result.rates,             // daily {date, rate, cumulative} over the horizon
     cumHorizon: result.eur,          // bbl produced inside the horizon
     eur,                             // bbl to the economic limit or EUR_MAX_YEARS
@@ -149,6 +155,7 @@ export function compareCases(caseDefs, econ, startDateIso) {
     return {
       id: c.id,
       name: c.name,
+      startDate: c.startDate,
       model: modelTypeFor(c.b),
       eurMMbbl: c.eur / 1e6,
       eurCapped: c.eurCapped,

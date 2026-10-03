@@ -109,7 +109,8 @@ export const DeclineCurveProvider = ({ children, sharingStore = null }) => {
   const { notifications, addNotification, removeNotification } = useStudioNotifications();
 
   // --- Helpers ---
-  const currentProject = projects.find(p => p.id === currentProjectId);
+  // my projects and those shared with me: a colleague's project keeps its name when I save it
+  const currentProject = projectsState.find(p => p.id === currentProjectId);
   const currentWell = wells[currentWellId];
   const currentData = useMemo(() => currentWell?.data || [], [currentWell]);
   const currentAnalysis = analysisOf(currentWell);
