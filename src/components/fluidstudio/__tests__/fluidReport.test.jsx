@@ -408,6 +408,7 @@ describe('RL9: the limits of the method are printed', () => {
       ['Dranchuk-Abou-Kassem (Z), on Sutton pseudo-critical properties', 'Gas deviation factor Z', 'Gas gravity 0.57 to 1.68 air = 1; Pseudo-reduced temperature 1.2 to 3; Pseudo-reduced pressure 0 to 15'],
       ['Lee-Gonzalez-Eakin', 'Gas viscosity', 'Pressure 100 to 8,000 psia; Temperature 100 to 340 degF; Gas gravity 0.55 to 1 air = 1'],
       ['McCain (water FVF)', 'Water formation volume factor Bw', 'Pressure 0 to 5,000 psia; Temperature 0 to 260 degF'],
+      ['Numbere, Brigham and Standing (brine Bw)', 'Brine correction of Bw', 'Pressure 0 to 10,000 psia; Temperature 60 to 400 degF; Salinity 0 to 250,000 ppm'],
       ['McCain (water viscosity)', 'Water viscosity', 'Pressure 0 to 10,000 psia; Temperature 100 to 400 degF; Salinity 0 to 260,000 ppm'],
     ]);
     for (const row of ranges) for (const cell of row) expect(inOrder(text, cell)).toBe(true);

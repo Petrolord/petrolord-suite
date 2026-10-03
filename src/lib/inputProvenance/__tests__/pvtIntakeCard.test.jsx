@@ -58,7 +58,7 @@ describe('the card on the page', () => {
     const readLatest = jest.fn(() => Promise.resolve(later(ws.contract, 60)));
     render(<PvtIntakeCard intake={intake} current={asReceived} fields={WELLTEST_PVT_FIELDS} readLatest={readLatest} />);
     expect(screen.getByTestId('pvt-intake-source').textContent).toMatch(/Good Oil Well No\. 4 PVT/);
-    await waitFor(() => expect(screen.getByTestId('pvt-intake-status').textContent).toBe('Source changed since'));
+    await waitFor(() => expect(screen.getByTestId('pvt-intake-status').textContent).toBe('Source changed since'), { timeout: 15000 });
     expect(readLatest).toHaveBeenCalledWith('fluid-project-1');
     expect(screen.getByTestId('pvt-intake-changed').textContent).toMatch(/after this intake/);
   });

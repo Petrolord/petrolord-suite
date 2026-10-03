@@ -539,7 +539,7 @@ describe('RL11: PVT taken from a Fluid Systems Studio project keeps its provenan
     expect(rows['PVT contract']).toBe('pvt-1');
     expect(rows.Source).toBe('Fluid Systems Studio, project "Wedge reservoir oil PVT"');
     expect(rows['Method, Bo']).toBe('Standing (Standing (1947))');
-    expect(rows['Method, Z']).toMatch(/Papay/);
+    expect(rows['Method, Z']).toMatch(/Dranchuk-Abou-Kassem/);
     expect(rows['Bubble point']).toBe('bubble point entered by the user');
     expect(rows['Pressure range of the table']).toBe('15 to 4,740 psia, 41 rows');
     expect(text).toMatch(/PVT provenance/);

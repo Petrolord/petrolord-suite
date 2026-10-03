@@ -126,7 +126,7 @@ describe('what the report says about it', () => {
   });
 
   test('the methods are grouped by name', () => {
-    expect(originMethodsText(origin)).toBe('Entered by the user (Pb); Standing, scaled to the entered bubble point (Rs); Standing (Bo); Beggs-Robinson (oil viscosity); Papay, with Sutton pseudo-critical properties (Z); Real gas law, Bg = 0.00504 Z T / p (Bg); Lee-Gonzalez-Eakin (gas viscosity); McCain (Bw)');
+    expect(originMethodsText(origin)).toBe('Entered by the user (Pb); Standing, scaled to the entered bubble point (Rs); Standing (Bo); Beggs-Robinson (oil viscosity); Dranchuk-Abou-Kassem, with Sutton pseudo-critical properties (Z); Real gas law, Bg = 0.00504 Z T / p (Bg); Lee-Gonzalez-Eakin (gas viscosity); McCain (Bw)');
     expect(originMethodsText(origin, { isGas: true })).not.toMatch(/Standing/);
   });
 

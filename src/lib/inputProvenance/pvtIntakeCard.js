@@ -38,7 +38,8 @@ export function pvtIntakeCardModel({ intake, current = {}, fields = [], latest =
     const now = current[f.storeKey || f.key];
     const edited = received != null && now != null && String(now) !== '' && Number(now) !== Number(received);
     const m = c?.methods?.[METHOD_OF[f.property]];
-    const method = intake.fieldText?.[f.key] ? (m ? m.method : 'Result of the fluid model') : 'Input of the fluid model';
+    // a result of the fluid model names the method that produced it; an input is said to be one
+    const method = METHOD_OF[f.property] ? (m ? m.method : 'Result of the fluid model, method not stated') : 'Input of the fluid model';
     return { key: f.key, label: f.label, received: received == null ? null : String(received), current: now == null ? null : String(now), edited, method };
   });
   const flags = (c?.range_flags || []).map((x) => x.text).filter(Boolean);
