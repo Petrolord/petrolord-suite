@@ -30,6 +30,8 @@ import RrvReportPanel from './RrvReportPanel';
 import RrvEconomicsPanel from './RrvEconomicsPanel';
 import RrvEpePanel from './RrvEpePanel';
 import RrvSensitivityPanel from './RrvSensitivityPanel';
+import RrvRankingPanel from './RrvRankingPanel';
+import { rankingCsv } from '../services/rrvRanking';
 import NumCell, { cell } from './NumCell';
 import {
   fromRcpProspect, blankProspect, inputProblem, loadStored, storeLocal, mergeSaved, fromRow, valuationCsv, unitValueSource,
@@ -535,7 +537,7 @@ function RrvWorkstationContent({ backend, rcpHref = RCP_PATH }) {
         {selected && (
           <div className="flex flex-wrap items-center gap-2" data-testid="rrv-tabs">
             <div className="inline-flex rounded border border-pl-border overflow-hidden" role="tablist" aria-label="Views of the selected prospect">
-              {[['valuation', 'Valuation'], ['economics', 'Economics'], ['sensitivity', 'Sensitivity'], ['report', 'Report']].map(([id, label]) => (
+              {[['valuation', 'Valuation'], ['economics', 'Economics'], ['sensitivity', 'Sensitivity'], ['report', 'Report'], ['ranking', 'Ranking']].map(([id, label]) => (
                 <button key={id} type="button" role="tab" aria-selected={tab === id} data-testid={`rrv-tab-${id}`}
                   className={`px-3 py-1 text-xs ${tab === id ? 'bg-pl-primary text-pl-primary-fg' : 'bg-pl-surface text-pl-text hover:bg-pl-sunken'}`} onClick={() => setTab(id)}>{label}</button>
               ))}
@@ -578,6 +580,20 @@ function RrvWorkstationContent({ backend, rcpHref = RCP_PATH }) {
               }}
               onUseAgain={() => touch(selected.p.id, (p) => setValueBasis(p, 'epe'))} />
           </RrvEconomicsPanel>
+        )}
+
+        {selected && tab === 'ranking' && (
+          <RrvRankingPanel units={units}
+            entries={valued.map((x) => ({ ...x, up: upstream.get(x.p.id), epe: epeOf(x.p) }))}
+            sharedEntries={sharedValued.map((x) => ({ ...x, owner: names?.[x.p.row?.user_id] || null, up: upstream.get(x.p.id), epe: epeOf(x.p) }))}
+            onSelect={(id) => { setSelectedId(id); }}
+            onExport={(ranked, withShared) => {
+              const text = rankingCsv(ranked, { build: buildLabel(), generatedAt: new Date(), units, includeShared: withShared, savedWhere: storage.table ? (dirtyCount ? `Petrolord account, with ${dirtyCount} valuation${dirtyCount === 1 ? '' : 's'} holding edits kept in this browser only` : 'Petrolord account') : 'this browser only' });
+              const blob = new Blob([text], { type: 'text/csv' });
+              const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'risked-valuation-ranking.csv'; a.click();
+              setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+              setStatus(`Exported the ranking as risked-valuation-ranking.csv, ranked by ${ranked.by === 'emv' ? 'EMV' : ranked.by === 'pc' ? 'commercial chance' : 'risked volume'}, with its basis and provenance in the header lines.`);
+            }} />
         )}
 
         {selected && tab === 'sensitivity' && (

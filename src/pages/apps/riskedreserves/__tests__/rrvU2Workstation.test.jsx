@@ -372,3 +372,49 @@ describe('U2-006: "Re-run prospect", to ReservoirCalc Pro and back', () => {
   });
 });
 
+describe('U2-008: the Ranking tab', () => {
+  test('the user\'s and shared valuations ranked by EMV, risked volume and chance, with the basis of each, and the CSV', async () => {
+    const backend = makeInMemoryRrvBackend(RRV_SEED_PROSPECTS, { sharedValuations: true, sharedRows: true });
+    mount(backend);
+    await settled();
+    await importAll();
+    fireEvent.click(el('rrv-tab-ranking'));
+    expect(el('rrv-ranking').getAttribute('data-by')).toBe('emv');
+    const names = () => screen.getAllByTestId(/^rrv-rank-row-/).map((r) => r.getAttribute('data-name'));
+    expect(names()).toHaveLength(3);
+    expect(names()).toContain('Ada Deep (shared)');
+    expect(text('rrv-rank-row-1')).toMatch(/^1/);
+    // ordered by the EMV the table shows
+    const emv = (n) => Number(text(`rrv-emv-${n}`).replace(/,/g, ''));
+    const ownOrder = names().filter((n) => !n.includes('shared'));
+    expect(emv(ownOrder[0])).toBeGreaterThanOrEqual(emv(ownOrder[1]));
+    expect(screen.getAllByTestId(/^rrv-rank-row-/).find((r) => r.getAttribute('data-name') === 'Ada Deep (shared)').textContent).toMatch(/shared by/);
+    expect(screen.getAllByTestId(/^rrv-rank-row-/)[0].textContent).toMatch(/volumes from ReservoirCalc Pro ".+"; value: (economic model|entered); MEFS (derived|typed)/);
+    fireEvent.click(el('rrv-rank-by-riskedMean'));
+    expect(el('rrv-ranking').getAttribute('data-by')).toBe('riskedMean');
+    expect(names()[0]).toBe('Ekene Deep'); // 21 MMboe risked against 12
+    fireEvent.click(el('rrv-rank-by-pc'));
+    expect(text('rrv-rank-note')).toMatch(/^Ranked by commercial chance Pc/);
+    fireEvent.click(el('rrv-rank-shared'));
+    expect(names()).toHaveLength(2);
+    // an unfinished valuation is listed as not ranked, with the reason
+    type('rrv-pg-Ekene North', '');
+    fireEvent.click(el('rrv-tab-ranking'));
+    expect(text('rrv-rank-unranked')).toMatch(/Not ranked until their inputs are fixed: Ekene North \(Enter Pg/);
+    // the export
+    const created = [];
+    const orig = URL.createObjectURL;
+    URL.createObjectURL = (b) => { created.push(b); return 'blob:x'; };
+    URL.revokeObjectURL = () => {};
+    HTMLAnchorElement.prototype.click = () => {};
+    fireEvent.click(el('rrv-rank-csv'));
+    URL.createObjectURL = orig;
+    expect(created).toHaveLength(1);
+    const csv = await created[0].text();
+    expect(csv).toMatch(/^# Risked Reserves Valuation, ranking, Petrolord Suite\n# Build: /);
+    expect(csv).toContain('# Ranked by: commercial chance Pc (Pg x chance of at least the MEFS), largest first');
+    expect(csv).toContain('# Rows: your valuations only');
+    expect(csv).toContain('# Not ranked: Ekene North: Enter Pg');
+    expect(text('rrv-status')).toMatch(/Exported the ranking as risked-valuation-ranking\.csv, ranked by commercial chance/);
+  });
+});

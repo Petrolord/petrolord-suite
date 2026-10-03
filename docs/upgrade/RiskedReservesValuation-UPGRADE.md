@@ -285,7 +285,7 @@ valuation holds lives in its existing `valuation` JSON payload.
 | U2-001 value per barrel from Petroleum Economics Studio | Done | Sender: `src/pages/apps/epe/__tests__/epeUnitValue.test.js` (11): the contract built from the Ekene demo run the cash-flow engine itself computed (NPV 1.980235 $MM over 0.721833 MMboe is 2.7433 $/boe; before capex 18.3602 $/boe; the line gives the run NPV back at the run's size; the engine's own DPI agrees with the PV of capex read), refusals, the fingerprint, the service by id, the results-page card. Receiver: `__tests__/rrvU2Epe.test.js` (10, PDF read back) and `rrvU2Workstation.test.jsx` U2-001 block (5): pick by id, provenance kept, save and reload, "source changed since" with Refresh, typed over, the link from the run, no runs and an unreadable store | See "U2-001" below. Petroleum Economics Studio had no sender; one was built there. |
 | U2-003 EMV tornado | Done | `__tests__/rrvU2Sensitivity.test.js` (9): a worked hand calculation (Pg 0.25, P90 10, P10 60, MEFS 10, 8 $/boe, 100 $MM, 25 $MM: well cost, development cost, value per barrel and Pg by 25%, and the charge factor 0.5 by 0.1, each to three decimals) against `emvSensitivity`, which asks `valueProspect` again for every case; negative control (a tornado that scales the EMV itself, forgetting the dry hole, misses by more than 6 $MM); ordering, clamping, refusals. `rrvU2Report.test.js` (2 more: the figure drawn as bars and counted in the file, the table, the well-cost row by hand, the analyst's own ranges). `rrvU2Workstation.test.jsx` (Sensitivity tab) | See "U2-003" below. Fills the figure Step 1 stated as absent (RRV-U1-019 closed). |
 | U2-006 "Re-run prospect" deep link | Done | `ReservoirCalcPro/__tests__/prospectRerun.test.js` (4, the plan: ready, read-only, missing, no source, typed, project gone, reservoir gone, return path kept inside the app) and `rerunProspect.test.jsx` (5: the project and reservoir open, the seed is set, Prospect Risking is filled, the re-run names the old record and retires it, the valuation's upstream check follows it, a colleague's prospect opens read-only and theirs is left alone). `rrvU2Workstation.test.jsx` U2-006 block (4: the link on a re-risked or flagged row and in the readout, back with `?refresh=` takes the re-run and keeps the economics, back with nothing re-run). e2e: valuation to ReservoirCalc Pro and back, and the read-only case | See "U2-006" below. Closes RRV-U1-022 and ReservoirCalc Pro owner item 3. |
-| U2-008 ranking | Building | `__tests__/rrvU2Ranking.test.js` (4): three prospects built so the three keys disagree, each order checked against the engine's own numbers, the unfinished one listed with its reason, shared rows owned and marked, the basis words, the CSV header line by line with one pinned conversion. `rrvU2Workstation.test.jsx` Ranking block (1) | See "U2-008" below. |
+| U2-008 ranking | Done | `__tests__/rrvU2Ranking.test.js` (4): three prospects built so the three keys disagree, each order checked against the engine's own numbers, the unfinished one listed with its reason, shared rows owned and marked, the basis words, the CSV header line by line with one pinned conversion. `rrvU2Workstation.test.jsx` Ranking block (1) | See "U2-008" below. |
 | U2-009 send to Capital Portfolio | Deferred | none | Capital Portfolio Studio has a typed intake (`portfolio_projects` with `pos`, `fail_cost`, `source_type`, `source_ref`), so no DDL is needed, but the mapping has three questions for the owner. See "Deferred, with reasons". |
 
 ### U2-002: the derived MEFS and the value of a discovery
@@ -546,3 +546,32 @@ browser test walks the two halves and joins them with a harness seam
 On the live site both apps read the same `rcp_prospects` table, which jest
 covers on one in-memory database.
 
+### U2-008: ranking
+
+A Ranking tab orders the user's valuations, and (switchable) those
+colleagues shared, by EMV, by risked mean volume or by commercial chance Pc,
+largest first, ties by name (`services/rrvRanking.js`, `RrvRankingPanel.jsx`).
+Each row prints Pg, Pc, the risked mean in the display unit, the EMV, the EMV
+per well dollar, the owner ("you" or "shared by" the colleague) and its
+basis in words: where the volumes came from (ReservoirCalc Pro record, with
+"changed there since", "risked again there since" or "IN PLACE" when so),
+where the value of a discovery came from (economic model, a Petroleum
+Economics Studio run with "changed since", sent by ReservoirCalc Pro, or
+entered) and whether the MEFS is derived or typed. A valuation that cannot
+be valued is listed under the table as not ranked, with the reason. The CSV
+opens with a provenance header: build, time, the key and its meaning, units,
+the percentile convention, the independence statement, which rows are
+included, where the valuations are saved, and one line per unranked
+prospect. Every number is the valuation engine's; the module only orders.
+
+## Deferred, with reasons (2026-10-02)
+
+| Item | Reason |
+|---|---|
+| U2-009 send to Capital Portfolio | That app has a typed intake and a provenance pattern (`source_type`, `source_ref`, `source_label`, the EPE Monte Carlo link), so it needs no DDL. The mapping needs three owner decisions first: (1) the optimizer reads `npv_p50` as the success-case NPV in its EMV (`pos x npv_p50 - (1 - pos) x fail_cost`), so the valuation's EMV is reproduced only if the mean commercial value is put in the field labelled P50; (2) whether a prospect's budget line is the exploration well (the decision to drill) or the development capex that follows a discovery; (3) the intake requires a risk score from 1 to 10 that this app has no meaning for. With those answered it is an S to M build (a "Risked Reserves valuation" picker in the project form, as the EPE Monte Carlo picker is). |
+| U2-004 play and prospect chance split | After NAPE, with ReservoirCalc Pro U2-010 (it changes how Pg is entered upstream). |
+| U2-007 portfolio distribution with dependence | L. Needs the canonical Monte Carlo module (`src/lib/monteCarlo.js`) and a dependence model, which builds on U2-004. |
+| U2-005 multi-zone and multi-segment prospects | L. Belongs upstream (ReservoirCalc Pro U2-003). |
+| U2-010 colleague editing of a valuation | Sharing stays view-only for valuations for now (owner question 3 default). |
+| U2-011 upstream distribution in place of the lognormal | M, after NAPE. |
+| U2-012 appraisal cost and a staged decision | L. |
