@@ -354,3 +354,28 @@ finish each item one at a time; history is not rewritten.
 
 - Every table lookup goes through one recorder, so the engine reports the lookups that actually fell outside the table (no re-derivation): `pvt_table_coverage` on the result (table range, each fallback with its timestep, pressure, property and what was used: a correlation, or the fixed co above Pb) and one warning that starts "PVT table coverage:". Gate GATE 13 (C-1 to C-5), oil and gas.
 - The coverage is stored in `plot_data`; the Run tab shows it after a run; the report puts the engine's sentence at the top of the limits flags. A run stored before this falls back to the app's own check, which says it is the app's.
+
+### U2-003 Excluded timesteps with a reason (MBAL-U1-020 closed)
+
+- Picked on the Data tab (a column "In the fit") and under a clicked point of the regression plot; a reason is required; Restore puts the point back. The list is the engine input `excluded_timesteps` of the case default config, so a change withdraws the stored run (stale rule); the reasons live in the study record (`study.exclusions`), so a reason edit alone does not. The initial state and a fit of fewer than two points are refused.
+- The report lists each excluded timestep with date, pressure and reason ("No reason recorded" for one excluded before reasons were kept); the inputs table names where they were picked.
+- Tests: `lib/__tests__/mbalExclusions.test.js` (rules, study round trip, the real engine leaves the points out, stale both ways, the PDF read back, negative control); e2e excludes a point from the data table, runs, and reads the PDF.
+
+### U2-001 Colleague editing under the check-out
+
+- `rb_cases` and its four child tables follow one hold, as migration 20261002130000 enforces. The owner may choose "Colleagues can edit"; then everyone, the owner included, takes the case with Start editing; the others read it and see who holds it; Run, every tab's save and a data import are refused without the hold (the `lib/api.js` guard first, the database behind it); the case row is saved through the sharing store with the version it was opened at, so a stale save is refused with who saved the newer one; taking the case reloads it; History lists who did what. `calculate-mbal` now answers a run refused by the sharing rule with 403 and the reason (deploy owed).
+- Tests: `__tests__/mbalEditing.test.jsx`, two users on the in-memory mirror (`memoryDb` gained a generic child-of-parent rule, `canWriteChildOf`/`logChildOf`, beside the wells one): child writes by whoever holds; the owner refused while the colleague holds; stale save refused naming the colleague; the studio read-only until taken, Run refused without the hold, a run after taking; view-only sharing never offers editing (negative control); the owner can choose edit. `mbalSharing.test.jsx` updated (editing now offered). The /dev harness gained the check-out functions and a change log, so e2e walks share, edit, done, start and History.
+- Weaker than asked: no two-account walk on staging (owner item since U1).
+
+### U2-004 The sender: `mbal-1` to ReservoirCalc Pro
+
+- Contract in `src/lib/mbalCaseSource.js` (every field documented there): case, run (id, time, engine, solver, tier), in-place volume with method, r2, points and the history-match interval, drive mechanism and indices, the pressure history with the last average pressure (absolute, as entered), status current or earlier run. ReservoirCalc Pro reads it by id (`?mbalCase=<rb_cases id>`, row level security decides), prints it beside its deterministic STOIIP or GIIP with the difference and the provenance, and keeps a record with the project inputs (`mbalCheck`). The Run tab button is off for a stale run.
+- Petroleum Economics Studio and Forecast Scenario Hub: no typed intake for an in-place volume, a drive or a pressure exists (PES reads production CSV columns; the Hub exports profiles), so nothing is sent there; recorded under the deferrals.
+- Tests: `lib/__tests__/mbalCaseSource.test.jsx` (the record from the real engine run, read back by id, refusals, known unit factors, the ReservoirCalc Pro note with its negative control).
+- Not done: ReservoirCalc Pro's PDF does not print the cross-check yet; it is on screen and saved with the project.
+
+### Batch B
+
+- **ReservoirCalc Pro volumetric intake** (`lib/rcpVolumetricIntake.js`, left rail "Take from ReservoirCalc Pro"): by project id, per reservoir with a deterministic result, sm3 converted (1 m3 = 6.28981077 bbl pinned); the source sentence and a handoff record; the report says when the value was edited after. Tests `rcpVolumetricIntake.test.js` (ReservoirCalc Pro's own saved-row fixtures, the PDF read back, edit negative control); e2e on the harness.
+- **Pressure rows from Voidage Replacement Monitor** (`lib/vrrPressureIntake.js`, Data tab): by project id, surveys matched by day or month, a preview of every change, unmatched surveys listed; the handoff names the timesteps and the report says which were edited after. Tests `vrrPressureIntake.test.js`; e2e. Well Test Analysis Studio saves no average pressure with a project, so there is no saved source to read by id; its report handoff remains.
+- **One-page summary** at the front of the report (`summaryBlock`, page 1; the full report starts on page 2). Tests `mbalSummary.test.js` read page 1 of the PDF. Every report golden is regenerated on purpose for this page and for the U2 changes (injection limits line, the volumetric source sentence).
