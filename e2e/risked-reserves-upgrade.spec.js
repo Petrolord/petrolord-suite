@@ -127,7 +127,9 @@ test('chain: risk a prospect in ReservoirCalc Pro, import it, value it, save it,
   // RL1: inputs with unit and source; the derived MEFS and the received value say where they came from
   expect(text).toMatch(/Success-case volume P90 \(low\) 18 MMboe ReservoirCalc Pro prospect "Chain North"/);
   expect(text).toMatch(/MEFS 25\.2632 MMboe Derived: development cost over value per barrel \(D \/ u\)/);
-  expect(text).toMatch(/12\.6667 \$\/boe Petroleum Economics Studio run "Base deck, 10%" of case "Ekene North development"/);
+  // (the source cell wraps, and -layout interleaves wrapped cells, so the value and its source are read apart)
+  expect(text).toMatch(/Value per barrel u .*12\.6667 \$\/boe/);
+  expect(text).toContain('Petroleum Economics Studio run "Base deck, 10%" of case');
   expect(text).toMatch(/Exploration well cost W 25 \$MM Assumed: the starting default of 25 \$MM/);
   // U2-001, RL11: the economics handoff in full
   for (const s of ['Handoff from Petroleum Economics Studio', 'Source record Run "Base deck, 10%" of case "Ekene North development" (epe_runs epe-run-1)',
