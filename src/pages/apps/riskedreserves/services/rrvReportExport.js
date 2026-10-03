@@ -34,14 +34,24 @@ export function buildRrvReport(model, { logo = null, generatedAt = new Date() } 
   } else {
     r.section('Handoff from ReservoirCalc Pro', 'None: this prospect was typed in Risked Reserves Valuation. Its sources are the ones stated in the inputs table.');
   }
+  if (model.epeHandoff) {
+    r.table('Handoff from Petroleum Economics Studio', ['Item', 'As recorded'], model.epeHandoff, {
+      columnStyles: KEY_VALUE, note: 'The development case behind the value per barrel and the development cost: which run, on which price deck and discount rate, when, and whether the run still says what it said.',
+    });
+  } else {
+    r.section('Handoff from Petroleum Economics Studio', 'None: no Petroleum Economics Studio case was received for this prospect. The value per barrel and the development cost come from the source stated on their rows of the inputs table.');
+  }
   if (model.chance.rows) {
     r.table('Chance of success', ['Factor', 'Chance (fraction)', 'Chance (%)'], model.chance.rows, { note: model.chance.note, columnStyles: { 0: { cellWidth: 70 } } });
   } else {
     r.section('Chance of success', model.chance.statement);
   }
   r.table('Volumes: unrisked and risked', model.volumes.head, model.volumes.body, { note: model.volumes.note, columnStyles: { 0: { cellWidth: 58 } } });
+  r.table('Economics: the MEFS and the value of a discovery', ['Item', 'As used'], model.economics.basis, { columnStyles: KEY_VALUE });
+  r.table('Value by field size', model.economics.table.head, model.economics.table.body, { note: model.economics.table.note, columnStyles: { 0: { cellWidth: 34 } } });
   r.table('Expected monetary value, in its parts', model.value.head, model.value.body, { note: model.value.note, columnStyles: { 0: { cellWidth: 58 }, 1: { cellWidth: 24, halign: 'right' } } });
   r.table('Outcomes of the exploration well', model.outcomes.head, model.outcomes.body, { note: model.outcomes.note, columnStyles: { 0: { cellWidth: 62 } } });
+  r.table('Sensitivity of the EMV', model.sensitivity.table.head, model.sensitivity.table.body, { note: model.sensitivity.table.note, columnStyles: { 0: { cellWidth: 36 } } });
   if (model.portfolio) r.table('Portfolio context', model.portfolio.head, model.portfolio.body, { note: model.portfolio.note });
 
   // Limits of this analysis (RL9): what the method assumes, then the flags on this prospect

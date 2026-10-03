@@ -92,7 +92,7 @@ const DistInput = ({ label, value, baseValue, onChange, consistencyMode, paramKe
 };
 
 const ProbabilisticPanel = () => {
-    const { state, calculate, mcProgress, cancelSimulation } = useReservoirCalc();
+    const { state, calculate, mcProgress, cancelSimulation, rerun } = useReservoirCalc();
     const { toast } = useToast();
     const [currentStep, setCurrentStep] = useState(0);
     const [consistencyMode, setConsistencyMode] = useState(true);
@@ -101,6 +101,13 @@ const ProbabilisticPanel = () => {
     // longer freeze the page
     const ITERATION_OPTIONS = [1000, 5000, 10000, 50000, 100000, 250000];
     const [seedText, setSeedText] = useState('');
+    // Risked Reserves Valuation U2-006: a prospect opened to be re-run sets
+    // the seed and the realizations of the run behind it
+    useEffect(() => {
+        if (!rerun) return;
+        if (Number.isFinite(rerun.seed)) setSeedText(String(rerun.seed));
+        if (Number.isFinite(rerun.iterations) && ITERATION_OPTIONS.includes(rerun.iterations)) setIterations(rerun.iterations);
+    }, [rerun]); // eslint-disable-line react-hooks/exhaustive-deps
     // U2-002: the correlation pairs the engine applies (starts from the
     // long-standing porosity-Sw -0.8)
     const [correlations, setCorrelations] = useState([{ a: 'porosity', b: 'sw', rho: -0.8 }]);

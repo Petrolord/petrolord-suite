@@ -24,6 +24,7 @@ import { reviewerLines } from '../../services/reportInfo';
 import { sourceForProspect } from '../../services/prospectSource';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import BasinChargeNote from './BasinChargeNote';
+import { replacing, returnHref } from '../../services/prospectRerun';
 
 const inputCls = COMPACT_FIELD_THEMED;
 const fmt = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v) ? EMPTY_VALUE : Number(v).toLocaleString(undefined, { maximumFractionDigits: d }));
@@ -41,7 +42,7 @@ function ProspectSharing({ store, row, onChange }) {
   return <RecordSharingBar sharing={sharing} label="prospect" allowEdit={false} fieldLabels={{ pg_factors: 'chance factors', inputs: 'volumes', risked: 'risked volumes' }} />;
 }
 
-export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 'MMbbl', valuationHref = '/dashboard/apps/reservoir/risked-reserves-valuation', reviewer = null, context = null, projectName = null, source = null }) {
+export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 'MMbbl', valuationHref = '/dashboard/apps/reservoir/risked-reserves-valuation', reviewer = null, context = null, projectName = null, source = null, rerun = null }) {
   const [name, setName] = useState('');
   const [factors, setFactors] = useState(DEFAULT_FACTORS);
   const [vol, setVol] = useState({ mean: '', p90: '', p50: '', p10: '' });
@@ -64,6 +65,19 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
   const [econ, setEcon] = useState({ ...ECONOMICS_DEFAULTS });
   // BF-U2-017: a charge handed from Basin & Charge Modeling (src/lib/basinCharge.js)
   const [bfCharge, setBfCharge] = useState(null);
+
+  // Risked Reserves Valuation U2-006: a prospect opened to be re-run fills in
+  // its name and chance factors; the re-run is added as a new record that
+  // names the one it replaces, and an owner's old record is retired
+  const [rerunDone, setRerunDone] = useState(false);
+  useEffect(() => {
+    if (!rerun?.prospect) return;
+    setName(rerun.prospect.name || '');
+    const f = rerun.prospect.pg_factors || {};
+    if (Object.keys(f).length) setFactors({ ...DEFAULT_FACTORS, ...f });
+    if (rerun.prospect.inputs?.economics?.assumptions) { setEcon({ ...ECONOMICS_DEFAULTS, ...rerun.prospect.inputs.economics.assumptions }); setEconOn(true); }
+    setRerunDone(false);
+  }, [rerun?.prospect?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // seed volumes from RCP's latest run when available
   useEffect(() => {
@@ -125,17 +139,26 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
         inputs: {
           mean: unriskedObj.mean, p90: unriskedObj.p90, p50: unriskedObj.p50, p10: unriskedObj.p10, unit, basis,
           ...(bfCharge ? { bfCharge: { ...bfCharge, appliedFactor: factors.charge } } : {}),
-          ...(source ? { source: sourceForProspect(source, { seeded, vol }) } : {}),
+          ...(source ? { source: replacingIf(sourceForProspect(source, { seeded, vol })) } : (rerun?.own ? { source: replacingIf(null) } : {})),
           ...(econRes?.ok ? { economics: { npvMM: econRes.npvMM, unitValue: econRes.unitValue, devCost: econRes.devCost, assumptions: econRes.assumptions, engine: econRes.engine } } : {}),
         },
         risked: { pg: live.pg, risked_mean: live.riskedMean, success: live.successCase },
       });
-      setStatus(`Added ${name.trim()} to the inventory.`);
+      // the re-run of a prospect the user owns retires the record it replaces
+      let retired = '';
+      if (rerun?.own && rerun.prospect && !rerunDone) {
+        try { await backend.deleteProspect(rerun.prospect); retired = ' The record it replaces was retired, so the valuation follows the new one.'; }
+        catch (e) { retired = ` The old record was kept: ${e.message}`; }
+      }
+      if (rerun?.prospect) setRerunDone(true);
+      setStatus(`Added ${name.trim()} to the inventory.${retired}`);
       setAdded(true);
       setName('');
       await refresh();
     } catch (e) { setStatus(e.message); }
   };
+
+  const replacingIf = (src) => (rerun?.own && rerun.prospect && !rerunDone ? replacing(src, rerun.prospect.id) : src);
 
   const remove = async (p) => {
     try { await backend.deleteProspect(p); await refresh(); }
@@ -270,6 +293,18 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
           Prospect summary PDF
         </button>
         {status && <p className="mt-1 text-[11px] text-pl-muted" data-testid="prospect-status">{status}</p>}
+        {rerun?.prospect && (
+          <p className="mt-1 text-[11px] text-pl-muted" data-testid="prospect-rerun-note">
+            {rerun.own
+              ? (rerunDone ? `Re-run of "${rerun.prospect.name}" added.` : `Re-run of "${rerun.prospect.name}": the name and chance factors are filled in. Add to inventory saves the new record and retires the old one.`)
+              : `"${rerun.prospect.name}" belongs to a colleague: adding saves your own version, and theirs is left as it is.`}
+          </p>
+        )}
+        {added && rerun?.prospect && (
+          <a href={returnHref(rerun.returnTo, rerun.prospect.id)} className="mt-1 mr-3 inline-block text-[11px] text-pl-primary-text hover:text-pl-primary-text-hover hover:underline" data-testid="prospect-return-link">
+            Return to the valuation, which takes the re-run
+          </a>
+        )}
         {added && (
           <a href={valuationHref} className="mt-1 inline-block text-[11px] text-pl-primary-text hover:text-pl-primary-text-hover hover:underline" data-testid="prospect-value-link">
             Value the inventory in Risked Reserves Valuation (commercial chance, EMV, break-even Pg)

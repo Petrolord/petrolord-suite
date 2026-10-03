@@ -9,7 +9,7 @@ import { tableSpec, getFamily, rootTable, importOrder } from '@/lib/portability/
 import { BACKUP_KINDS } from '@/lib/portability/backup';
 import schema from '../../../../test-data/portability/manifest.schema.json';
 import {
-  fromRcpProspect, toRow, fromRow, payloadOf, upstreamState, RRV_KIND,
+  fromRcpProspect, setInput, toRow, fromRow, payloadOf, upstreamState, RRV_KIND,
 } from '@/pages/apps/riskedreserves/services/rrvStore';
 import { RRV_SEED_PROSPECTS } from '@/pages/apps/riskedreserves/services/rrvFixtures';
 
@@ -24,7 +24,7 @@ const P = '00000001-0000-4000-8000-000000000000';
 const V = '00000002-0000-4000-8000-000000000000';
 
 const prospect = { id: P, user_id: USER, schema_version: 1, ...RRV_SEED_PROSPECTS[0] };
-const valued = { ...fromRcpProspect(prospect, { now: new Date('2026-10-02T15:00:00Z') }), mefs: 15, touched: { mefs: true }, ident: { company: 'Lordsway Energy', licence: 'OML 143', play: 'Agbada', analyst: 'A. Analyst' } };
+const valued = { ...setInput(fromRcpProspect(prospect, { now: new Date('2026-10-02T15:00:00Z') }), 'mefs', 15), ident: { company: 'Lordsway Energy', licence: 'OML 143', play: 'Agbada', analyst: 'A. Analyst' } };
 const valuation = {
   id: V, user_id: USER, schema_version: 1, app_build: 'abc', created_at: '2026-10-02T15:01:00Z', updated_at: '2026-10-02T15:01:00Z',
   visibility: 'organization', organization_id: '0000000a-0000-4000-8000-000000000000', org_access: 'view', version: 3, updated_by: USER,

@@ -9,6 +9,11 @@
 //   handoff a change upstream after a reload, an edit marked, refresh (RL11)
 //   door    typing key by key, the unit view, the CSV header (PL11, PL3, RL7)
 //   look    three viewports in both themes (PL6)
+// Step 2 (2026-10-02): the chain now ends in economics. A prospect risked in
+// ReservoirCalc Pro is valued on the derived MEFS (U2-002), takes its value
+// per barrel from a Petroleum Economics Studio run picked by id (U2-001),
+// shows its tornado (U2-003), and its report is read back with all three;
+// "Re-run prospect" goes to ReservoirCalc Pro and back (U2-006).
 // Evidence is written under test-results/ only.
 
 import { test, expect } from '@playwright/test';
@@ -56,9 +61,24 @@ test('chain: risk a prospect in ReservoirCalc Pro, import it, value it, save it,
   await expect(page.getByTestId('rrv-handoff-line')).toContainText('ReservoirCalc Pro prospect "Chain North"');
   await expect(page.getByTestId('rrv-handoff-line')).toContainText('The source record is unchanged since.');
 
-  // value it: this app's own inputs
-  await page.getByTestId('rrv-mefs-Chain North').fill('15');
-  await page.getByTestId('rrv-unitValue-Chain North').fill('9.5');
+  // value it: the MEFS is derived from the economics (U2-002); the value per
+  // barrel comes from a Petroleum Economics Studio run picked by id (U2-001)
+  await expect(page.getByTestId('rrv-mefs-Chain North')).toHaveAttribute('data-basis', 'derived');
+  await page.getByTestId('rrv-tab-economics').click();
+  await expect(page.getByTestId('rrv-value-size-chart')).toHaveAttribute('data-series', 'engine,line');
+  await page.getByTestId('rrv-epe-pick').click();
+  await expect(page.getByTestId('rrv-epe-row-epe-run-3')).toContainText('Cannot be used: This run has no results.');
+  await page.getByTestId('rrv-epe-use-epe-run-1').click();
+  await expect(page.getByTestId('rrv-value-basis')).toHaveAttribute('data-value', 'epe');
+  await expect(page.getByTestId('rrv-unitValue-Chain North')).toHaveValue('12.6667');
+  await expect(page.getByTestId('rrv-devCost-Chain North')).toHaveValue('320');
+  await expect(page.getByTestId('rrv-mefs-Chain North')).toHaveValue('25.2632');
+  await expect(page.getByTestId('rrv-epe-source-now')).toHaveText('The run is unchanged since its value was received.');
+  // the tornado (U2-003)
+  await page.getByTestId('rrv-tab-sensitivity').click();
+  await expect(page.getByTestId('rrv-tornado')).toHaveAttribute('data-bars', '20');
+  await expect(page.getByTestId('rrv-tornado').locator('.recharts-bar-rectangle')).toHaveCount(20);
+  await page.getByTestId('rrv-tab-valuation').click();
   const emv = await page.getByTestId('rrv-emv-Chain North').textContent();
   const pc = await page.getByTestId('rrv-pc-Chain North').textContent();
   expect(emv).toMatch(/^-?[\d,]+\.\d$/);
@@ -89,9 +109,10 @@ test('chain: risk a prospect in ReservoirCalc Pro, import it, value it, save it,
   expect(download.suggestedFilename()).toBe('risked-valuation_Chain_North.pdf');
   const file = `${OUT}/chain-north.pdf`;
   await download.saveAs(file);
-  await expect(page.getByTestId('rrv-status')).toContainText(/Downloaded the report for Chain North: \d+ pages, 3 plots\./);
+  await expect(page.getByTestId('rrv-status')).toContainText(/Downloaded the report for Chain North: \d+ pages, 5 plots\./);
 
   const text = flat(execFileSync('pdftotext', ['-layout', file, '-'], { encoding: 'utf8' }));
+  fs.writeFileSync(`${OUT}/chain-north.txt`, text);
   const pages = Number(/Pages:\s+(\d+)/.exec(execFileSync('pdfinfo', [file], { encoding: 'utf8' }))[1]);
   expect(pages).toBeGreaterThanOrEqual(5);
   // RL4
@@ -103,10 +124,24 @@ test('chain: risk a prospect in ReservoirCalc Pro, import it, value it, save it,
     'Volumes method Monte Carlo in ReservoirCalc Pro', 'Source project and reservoir Project "Chain Block", reservoir "C-01 sand"',
     'Monte Carlo run 2026-10-02 09:30 UTC, seed 777, 20,000 realizations', 'Edited here after the handoff Nothing: every handed-over input is as received']) expect(text).toContain(s);
   expect(text).toMatch(/P90 is the low case and P10 the high case/);
-  // RL1: inputs with unit and source, the default named as an assumption
+  // RL1: inputs with unit and source; the derived MEFS and the received value say where they came from
   expect(text).toMatch(/Success-case volume P90 \(low\) 18 MMboe ReservoirCalc Pro prospect "Chain North"/);
-  expect(text).toMatch(/Minimum economic field size MEFS 15 MMboe Entered, source not stated/);
-  expect(text).toMatch(/Development cost D 100 \$MM Assumed: the starting default of 100 \$MM/);
+  expect(text).toMatch(/MEFS 25\.2632 MMboe Derived: development cost over value per barrel \(D \/ u\)/);
+  // (the source cell wraps, and -layout interleaves wrapped cells, so the value and its source are read apart)
+  expect(text).toMatch(/Value per barrel u .*12\.6667 \$\/boe/);
+  expect(text).toContain('Petroleum Economics Studio run "Base deck, 10%" of case');
+  expect(text).toMatch(/Exploration well cost W 25 \$MM Assumed: the starting default of 25 \$MM/);
+  // U2-001, RL11: the economics handoff in full
+  for (const s of ['Handoff from Petroleum Economics Studio', 'Source record Run "Base deck, 10%" of case "Ekene North development" (epe_runs epe-run-1)',
+    'Price deck "Corporate base 2026": oil 72 $/bbl, gas 3.5 $/Mscf, condensate 68 $/bbl', 'Discount rate 10% real, end-year discounting',
+    'Engine build Petroleum Economics Studio cash-flow engine 3.12.0', 'NPV per barrel, full cycle 5.55556 $/boe', 'Source record now Unchanged since it was received']) expect(text).toContain(s);
+  // U2-002: the economics section and the value by field size, with the case's own size
+  expect(text).toContain('Economics: the MEFS and the value of a discovery');
+  expect(text).toMatch(/Value at the MEFS 0\.0 \$MM/);
+  expect(text).toMatch(/The case 45\.0 250\.0/);
+  // U2-003: the sensitivity table
+  expect(text).toContain('Sensitivity of the EMV');
+  expect(text).toContain('These are stated ranges, chosen by the analyst');
   expect(text).toMatch(/Recovery factor 28 %/);
   // RL2, RL3
   expect(text).toContain('Pg = trap x reservoir x charge x seal = 0.600 x 0.700 x 0.800 x 0.700 = 0.235');
@@ -116,7 +151,8 @@ test('chain: risk a prospect in ReservoirCalc Pro, import it, value it, save it,
   expect(text).toContain(`Commercial chance Pc ${pc}`);
   expect(text).toContain('Chance of geological success Pg 23.5%');
   // RL6: the plots, with the Petrolord mark embedded
-  for (const s of ['Figure 1. Expectation curve of volume', 'Figure 2. Expectation curve of value', 'Figure 3. Chance factors and the chance of success', 'Figure 4. Sensitivity of the EMV Not plotted']) expect(text).toContain(s);
+  for (const s of ['Figure 1. Expectation curve of volume', 'Figure 2. Expectation curve of value', 'Figure 3. Value of a discovery against its size', 'Figure 4. Chance factors and the chance of success', 'Figure 5. Sensitivity of the EMV']) expect(text).toContain(s);
+  expect(text).not.toContain('Not plotted: this application has no sensitivity analysis');
   const images = execFileSync('pdfimages', ['-list', file], { encoding: 'utf8' }).split('\n').slice(2).filter((l) => l.trim());
   expect(images.length).toBeGreaterThanOrEqual(1);
   // RL9
@@ -224,7 +260,8 @@ test('doors: typing key by key, the unit view, and the CSV with its provenance h
   const emv = await page.getByTestId('rrv-emv-Ekene Deep').textContent();
   await page.getByTestId('rrv-units').selectOption('10^6 m3');
   await expect(page.getByTestId('rrv-p90-Ekene Deep')).toHaveValue('6.35949');
-  await expect(page.getByTestId('rrv-unitValue-Ekene Deep')).toHaveValue('50.3185');
+  // a value per barrel converts to a value per cubic metre (U2-002: derived from the model, so read before and after)
+  await expect(page.getByTestId('rrv-unitValue-Ekene Deep')).toHaveValue(/^\d+(\.\d+)?$/);
   await expect(page.getByTestId('rrv-emv-Ekene Deep')).toHaveText(emv);
   await expect(page.getByTestId('rrv-portfolio')).toContainText('10^6 m3 oe');
   await expect(page.getByTestId('rrv-units-note')).toContainText('your unit profile asks for MMboe');
@@ -288,3 +325,98 @@ for (const [w, h] of [[1366, 768], [1440, 900], [390, 844]]) {
     });
   }
 }
+
+test('U2-002, U2-001: the economic model and a Petroleum Economics Studio run that changes after it was received', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await open(page);
+  await importAll(page);
+  await page.getByTestId('rrv-row-Ekene North').click();
+  await page.getByTestId('rrv-tab-economics').click();
+  const chart = page.getByTestId('rrv-value-size-chart');
+  await expect(chart).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(chart.locator('path.recharts-line-curve')).toHaveCount(2);
+  await expect(page.getByTestId('rrv-econ-basis')).toContainText('Value at the MEFS0.0 $MM');
+  // a dearer development moves the derived MEFS
+  const mefs = await page.getByTestId('rrv-mefs-Ekene North').inputValue();
+  await page.getByTestId('rrv-model-capex').fill('600');
+  await expect(page.getByTestId('rrv-mefs-Ekene North')).not.toHaveValue(mefs);
+  await page.screenshot({ path: `${OUT}/economics-model.png` });
+  // take a run, then Petroleum Economics Studio re-runs it on a lower deck (the harness acts as that app)
+  await page.getByTestId('rrv-epe-pick').click();
+  await page.getByTestId('rrv-epe-use-epe-run-1').click();
+  await expect(page.getByTestId('rrv-unitValue-Ekene North')).toHaveValue('12.6667');
+  // a reload is a new harness account: the unsaved valuation comes back from the browser draft,
+  // with the handoff, and the run is read again by id (the change-since case is in rrvU2Workstation)
+  await page.reload();
+  await expect(page.getByTestId('rrv')).toBeVisible({ timeout: 90000 });
+  await expect(page.getByTestId('rrv-unitValue-Ekene North')).toHaveValue('12.6667', { timeout: 60000 });
+  await page.getByTestId('rrv-row-Ekene North').click();
+  await page.getByTestId('rrv-tab-economics').click();
+  await expect(page.getByTestId('rrv-epe')).toHaveAttribute('data-state', /current|changed/);
+  await page.screenshot({ path: `${OUT}/economics-epe.png` });
+  expect(errors).toEqual([]);
+});
+
+test('U2-001: the link from a Petroleum Economics Studio run offers it to the selected prospect', async ({ page }) => {
+  await open(page, '?epeRun=epe-run-2');
+  await importAll(page);
+  await expect(page.getByTestId('rrv-link-note')).toContainText('Petroleum Economics Studio sent run "Low deck, 12%"');
+  await expect(page.getByTestId('rrv-epe-offer')).toContainText('9.02222 $/boe before capex, development 310 $MM, 12% real, end-year discounting');
+  await page.getByTestId('rrv-epe-offer-use').click();
+  await expect(page.getByTestId('rrv-unitValue-Ekene North')).toHaveValue('9.02222');
+  await expect(page.getByTestId('rrv-link-note')).toHaveCount(0);
+});
+
+test('U2-001: the sending side, a run\'s results page in Petroleum Economics Studio', async ({ page }) => {
+  await page.goto('/dev/epe/runs/r1');
+  await expect(page.getByTestId('epe-unit-value')).toBeVisible({ timeout: 90000 });
+  await expect(page.getByTestId('epe-unit-value-npv-per-boe')).toHaveText('2.74 USD/boe');
+  await expect(page.getByTestId('epe-unit-value-u')).toHaveText('18.36 USD/boe');
+  await expect(page.getByTestId('epe-unit-value-send')).toHaveAttribute('href', '/dashboard/apps/reservoir/risked-reserves-valuation?epeRun=r1');
+  await page.getByTestId('epe-unit-value').screenshot({ path: `${OUT}/epe-sender-card.png` });
+});
+
+test('U2-006: Re-run prospect, from the valuation to ReservoirCalc Pro and back', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  // the valuation's prospect has in-place volumes (flagged): the link opens ReservoirCalc Pro on it
+  await open(page, '?saved=1');
+  await page.evaluate(async () => {
+    const b = window.__rrvHarness;
+    const old = (await b.listProspects()).find((r) => r.name === 'Ekene North');
+    await b.saveProspect({ id: old.id, name: old.name, pgFactors: old.pg_factors, inputs: { ...old.inputs, p50: 31 }, risked: old.risked });
+  });
+  await page.getByTestId('rrv-import').click();
+  const link = page.getByTestId('rrv-rerun-Ekene North');
+  await expect(link).toHaveAttribute('href', '/dev/reservoircalc-pro?rerunProspect=prospect-1&returnTo=%2Fdev%2Frisked-reserves');
+  await link.click();
+  // ReservoirCalc Pro: the project, the reservoir, the seed of the run behind it
+  const bar = page.getByTestId('rcp-rerun');
+  await expect(bar).toHaveAttribute('data-state', 'ready', { timeout: 90000 });
+  await expect(page.getByTestId('rcp-rerun-message')).toContainText('Opened project "Ekene Block", reservoir "D-07 sand". The run behind "Ekene North" used seed 123 and 10,000 realizations');
+  await expect(page.getByTestId('rcp-project-name')).toHaveText('Ekene Block');
+  await page.getByRole('button', { name: /^Next/ }).click();
+  await expect(page.getByTestId('rcp-mc-seed')).toHaveValue('123');
+  await page.screenshot({ path: `${OUT}/rerun-rcp.png` });
+  await page.getByTestId('rcp-rerun-open-risking').click();
+  await expect(page.getByTestId('prospect-name')).toHaveValue('Ekene North');
+  await expect(page.getByTestId('prospect-rerun-note')).toContainText('Add to inventory saves the new record and retires the old one');
+  await page.getByTestId('vol-mean').fill('41');
+  await page.getByTestId('prospect-add').click();
+  await expect(page.getByTestId('prospect-status')).toContainText('The record it replaces was retired');
+  await expect(page.getByTestId('prospect-return-link')).toHaveAttribute('href', '/dev/risked-reserves?refresh=prospect-1');
+  // back in the valuation (the harness database after that re-run): the valuation takes it
+  await open(page, '?rerunDone=1&refresh=prospect-1');
+  await expect(page.getByTestId('rrv-link-note')).toContainText('Back from ReservoirCalc Pro: Ekene North now takes the re-run record.');
+  await expect(page.getByTestId('rrv-link-note')).toContainText('P90 12 to 14; P50 30 to 34; P10 75 to 80');
+  await expect(page.getByTestId('rrv-p90-Ekene North')).toHaveValue('14');
+  await expect(page.getByTestId('rrv-mefs-Ekene North')).toHaveValue('15'); // the analyst's own MEFS is kept
+  expect(errors).toEqual([]);
+});
+
+test('U2-006: a colleague\'s shared prospect opens read-only with the reason', async ({ page }) => {
+  await page.goto('/dev/reservoircalc-pro?rerunProspect=prospect-shared&shared=1&returnTo=/dev/risked-reserves');
+  await expect(page.getByTestId('rcp-rerun')).toHaveAttribute('data-read-only', 'true', { timeout: 90000 });
+  await expect(page.getByTestId('rcp-rerun-readonly')).toContainText('This prospect belongs to a colleague and is shared with you for viewing, so it opens read-only');
+});

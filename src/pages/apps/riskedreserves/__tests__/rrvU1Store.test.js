@@ -6,7 +6,7 @@
  */
 import {
   fromRcpProspect, blankProspect, inputProblem, engineInput, rcpFingerprint, editedKeys, upstreamState, refreshFromRcp,
-  upgradeProspect, loadStored, storeLocal, mergeSaved, toRow, fromRow, payloadOf, valuationCsv,
+  upgradeProspect, setInput, loadStored, storeLocal, mergeSaved, toRow, fromRow, payloadOf, valuationCsv,
   RRV_KEY, RRV_STORE_KEY, DEFAULT_ECONOMICS, INPUT_KEYS, PERCENTILE_CONVENTION,
 } from '../services/rrvStore';
 import { rrvUnits } from '../services/rrvUnits';
@@ -99,7 +99,7 @@ describe('RL11: a change upstream after the valuation (the "Re-run prospect" fol
     expect(upstreamState(p, [older, newer]).row.id).toBe('b');
   });
   test('refresh takes Pg, the volumes and the factors; this app\'s own inputs and a typed value per barrel stay', () => {
-    const mine = { ...p, mefs: 15, wellCost: 30, unitValue: 9.5, p50: 31, touched: { mefs: true, wellCost: true, unitValue: true, p50: true }, ident: { company: 'Lordsway', licence: 'OML 143', play: '', analyst: 'A' }, row: { id: 'row-1', version: 3 }, dirty: false };
+    const mine = { ...['mefs', 'wellCost', 'unitValue', 'p50'].reduce((q, k) => setInput(q, k, { mefs: 15, wellCost: 30, unitValue: 9.5, p50: 31 }[k]), p), ident: { company: 'Lordsway', licence: 'OML 143', play: '', analyst: 'A' }, row: { id: 'row-1', version: 3 }, dirty: false };
     const edited = { ...north, updated_at: '2026-10-03T08:00:00.000Z', pg_factors: { ...north.pg_factors, charge: 0.4 }, risked: { ...north.risked, pg: 0.256, success: { p90: 14, p50: 34, p10: 80, mean: 41 } } };
     const next = refreshFromRcp(mine, edited, { now: NOW });
     expect(next).toMatchObject({ pg: 0.256, p90: 14, p50: 34, p10: 80, mefs: 15, wellCost: 30, unitValue: 9.5, ident: mine.ident, row: mine.row });
@@ -111,8 +111,11 @@ describe('RL11: a change upstream after the valuation (the "Re-run prospect" fol
   });
   test('refresh from a record that now carries economics takes them unless the user typed their own', () => {
     const withEcon = { ...north, inputs: { ...north.inputs, economics: { unitValue: 11.5, devCost: 240, engine: 'calculateEconomics' } } };
-    expect(refreshFromRcp(P(), withEcon, { now: NOW })).toMatchObject({ unitValue: 11.5, devCost: 240, rcpUnitValue: 11.5 });
-    expect(refreshFromRcp({ ...P(), unitValue: 9.5, touched: { unitValue: true } }, withEcon, { now: NOW })).toMatchObject({ unitValue: 9.5, devCost: 240 });
+    // a valuation on entered values takes what the record now sends; one on the economic model keeps its model
+    const asStep1 = upgradeProspect({ ...P(), econ: null, ...DEFAULT_ECONOMICS, touched: {} });
+    expect(refreshFromRcp(asStep1, withEcon, { now: NOW })).toMatchObject({ unitValue: 11.5, devCost: 240, rcpUnitValue: 11.5, mefs: 10 });
+    expect(refreshFromRcp(P(), withEcon, { now: NOW })).toMatchObject({ unitValue: P().unitValue, rcpUnitValue: 11.5, econ: { value: 'model' } });
+    expect(refreshFromRcp(setInput(P(), 'unitValue', 9.5), withEcon, { now: NOW })).toMatchObject({ unitValue: 9.5, devCost: 240 });
   });
   test('a prospect risked again gets the new record\'s key, so its saved row follows it', () => {
     const again = { ...north, id: '99999999-9999-4999-8999-999999999999' };
@@ -145,7 +148,7 @@ describe('PL5, RL12: saved state', () => {
     expect(JSON.parse(localStorage.getItem(RRV_STORE_KEY)).v).toBe(2);
   });
   test('a row is the valuation itself: it reads back to the same state', () => {
-    const p = { ...P(), mefs: 15, touched: { mefs: true }, ident: { company: 'Lordsway', licence: 'OML 143', play: 'Agbada', analyst: 'A. Analyst' }, inputMeta: { mefs: { source: 'economics', note: 'FDP screening 2026' } }, notes: 'n' };
+    const p = { ...setInput(P(), 'mefs', 15), ident: { company: 'Lordsway', licence: 'OML 143', play: 'Agbada', analyst: 'A. Analyst' }, inputMeta: { mefs: { source: 'economics', note: 'FDP screening 2026' } }, notes: 'n' };
     const row = { id: 'row-1', user_id: 'u1', version: 4, visibility: 'private', updated_at: '2026-10-02T15:01:00.000Z', schema_version: 1, ...toRow(p) };
     expect(row).toMatchObject({ prospect_key: `rcp-${UUID}`, rcp_prospect_id: UUID, name: 'Ekene North' });
     expect(row.valuation).toEqual(payloadOf(p));
@@ -162,13 +165,13 @@ describe('PL5, RL12: saved state', () => {
     expect(toRow({ ...blankProspect(1), name: '  ' }).name).toBe('Unnamed prospect');
   });
   test('merging the account with the browser: unsaved edits win, never-saved ones wait, deleted ones go', () => {
-    const a = { ...P(), mefs: 15 };
+    const a = setInput(P(), 'mefs', 15);
     const rows = [{ id: 'row-a', version: 2, ...toRow(a) }];
     const draft = { ...a, mefs: 20, row: { id: 'row-a', version: 1 }, dirty: true };
     const never = { ...blankProspect(2), row: null, dirty: true };
     const deletedElsewhere = { ...blankProspect(3), id: 'own-gone', row: { id: 'row-gone' }, dirty: false };
     const merged = mergeSaved([draft, never, deletedElsewhere], rows);
-    expect(merged.map((m) => [m.id, m.mefs, m.dirty, m.row?.id ?? null])).toEqual([[a.id, 20, true, 'row-a'], [never.id, 10, true, null]]);
+    expect(merged.map((m) => [m.id, m.mefs, m.dirty, m.row?.id ?? null])).toEqual([[a.id, 20, true, 'row-a'], [never.id, never.mefs, true, null]]);
     // the draft is saved over the row's CURRENT version
     expect(merged[0].row.version).toBe(2);
     // with nothing unsaved in the browser the row is what shows
@@ -222,7 +225,7 @@ describe('RL1, RL7: the CSV says what it is', () => {
     const head = lines.find((l) => l.startsWith('prospect,'));
     // the gap matrix finding: volumes converted to MMboe were labelled MMbbl, and the CSV left out the commercial case
     expect(head).toMatch(/p90_mmboe,p50_mmboe,p10_mmboe,mefs_mmboe,value_usd_per_boe/);
-    expect(head).toMatch(/mean_if_commercial_mmboe,npv_if_commercial_musd,volume_basis,source_record,source_record_saved,edited_after_handoff,problem$/);
+    expect(head).toMatch(/mean_if_commercial_mmboe,npv_if_commercial_musd,volume_basis,source_record,source_record_saved,edited_after_handoff,problem,mefs_basis,value_basis$/);
     const data = lines[lines.length - 1].split(',');
     expect(data.slice(0, 6)).toEqual(['Ekene North', 'rcp', '0.32', '12', '34', '75']);
     expect(data).toContain('recoverable');
@@ -236,9 +239,9 @@ describe('RL1, RL7: the CSV says what it is', () => {
     expect(head).toMatch(/p90_mm_m3_oe,.*value_usd_per_m3_oe/);
     const data = csv.split('\n').pop().split(',');
     expect(Number(data[3])).toBeCloseTo(12 * 0.158987294928, 6);
-    expect(Number(data[7])).toBeCloseTo(DEFAULT_ECONOMICS.unitValue / 0.158987294928, 4);
+    expect(Number(data[7])).toBeCloseTo(rows[0].p.unitValue / 0.158987294928, 4);
     // money does not convert
-    expect(data[8]).toBe('100');
+    expect(Number(data[8])).toBe(rows[0].p.devCost);
   });
   test('without the header the plain table is as before (the T1 export)', () => {
     const csv = valuationCsv(rows);

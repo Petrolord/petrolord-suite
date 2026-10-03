@@ -106,6 +106,9 @@ export default function RrvReportPanel({ model, prospect, readOnly = false, ownS
       {model.handoff
         ? <Table testId="rrv-report-handoff" title="Handoff from ReservoirCalc Pro" head={['Item', 'As recorded']} body={model.handoff} />
         : <div className={card} data-testid="rrv-report-handoff"><div className={h}>Handoff from ReservoirCalc Pro</div><p className="text-xs text-pl-muted">None: this prospect was typed in Risked Reserves Valuation.</p></div>}
+      {model.epeHandoff
+        ? <Table testId="rrv-report-epe" title="Handoff from Petroleum Economics Studio" head={['Item', 'As recorded']} body={model.epeHandoff} />
+        : <div className={card} data-testid="rrv-report-epe"><div className={h}>Handoff from Petroleum Economics Studio</div><p className="text-xs text-pl-muted">None: no Petroleum Economics Studio case was received for this prospect.</p></div>}
       {model.chance.rows
         ? <Table testId="rrv-report-chance" title="Chance of success" head={['Factor', 'Chance (fraction)', 'Chance (%)']} body={model.chance.rows} note={model.chance.note} />
         : <div className={card} data-testid="rrv-report-chance"><div className={h}>Chance of success</div><p className="text-xs text-pl-muted">{model.chance.statement}</p></div>}
@@ -113,8 +116,11 @@ export default function RrvReportPanel({ model, prospect, readOnly = false, ownS
         <>
           <Table testId="rrv-report-headline" title="Headline results" head={model.headline.head} body={model.headline.body} note={model.headline.note} />
           <Table testId="rrv-report-volumes" title="Volumes: unrisked and risked" head={model.volumes.head} body={model.volumes.body} note={model.volumes.note} />
+          <Table testId="rrv-report-economics" title="Economics: the MEFS and the value of a discovery" head={['Item', 'As used']} body={model.economics.basis} />
+          <Table testId="rrv-report-value-size" title="Value by field size" head={model.economics.table.head} body={model.economics.table.body} note={model.economics.table.note} />
           <Table testId="rrv-report-value" title="Expected monetary value, in its parts" head={model.value.head} body={model.value.body} note={model.value.note} />
           <Table testId="rrv-report-outcomes" title="Outcomes of the exploration well" head={model.outcomes.head} body={model.outcomes.body} note={model.outcomes.note} />
+          <Table testId="rrv-report-sensitivity" title="Sensitivity of the EMV" head={model.sensitivity.table.head} body={model.sensitivity.table.body} note={model.sensitivity.table.note} />
           {model.portfolio && <Table testId="rrv-report-portfolio" title="Portfolio context" head={model.portfolio.head} body={model.portfolio.body} note={model.portfolio.note} />}
           <div className={card} data-testid="rrv-report-limits">
             <div className={h}>Limits of this analysis</div>
