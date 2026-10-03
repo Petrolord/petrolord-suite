@@ -17,6 +17,7 @@ import DCADataImporter from '@/components/declineCurve/DCADataImporter';
 import DCAModelFitting from '@/components/declineCurve/DCAModelFitting';
 import DCAForecastEngine from '@/components/declineCurve/DCAForecastEngine';
 import DCARateCumCrossCheck from '@/components/declineCurve/DCARateCumCrossCheck';
+import DCABatchFit from '@/components/declineCurve/DCABatchFit';
 import DCAScenarioBuilder from '@/components/declineCurve/DCAScenarioBuilder';
 import DCAFitDiagnostics from '@/components/declineCurve/DCAFitDiagnostics';
 import DCAScenarioComparison from '@/components/declineCurve/DCAScenarioComparison';
@@ -174,6 +175,10 @@ const DeclineCurveContent = () => {
     </div>
   ) : (
     <div className="space-y-6">
+      <section>
+        <DCABatchFit />
+      </section>
+      <Separator />
       <section>
         <DCAGroupRollup />
       </section>

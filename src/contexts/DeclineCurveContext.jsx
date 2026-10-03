@@ -18,6 +18,7 @@ import { formatNominalAnnual } from '@/utils/declineCurve/declineDisplay';
 import { sampleWell } from '@/utils/declineCurve/sampleWell';
 import { terminalDeclinePerDay } from '@/utils/declineCurve/declineInput';
 import { fitRateCumWell, rateCumOf, rateCumStatus } from '@/utils/declineCurve/rateCumFit';
+import { batchFitWells } from '@/utils/declineCurve/batchFit';
 import {
   analysisOf, migrateDcaPayload, analysisStatus, staleText,
   DCA_PAYLOAD_VERSION, DEFAULT_MC_SEED as MODEL_MC_SEED, DEFAULT_ECON_LIMIT_UNCERTAINTY as MODEL_ECON_UNC,
@@ -497,6 +498,21 @@ export const DeclineCurveProvider = ({ children, sharingStore = null }) => {
     return true;
   }, [currentWell, currentWellId, selectedStream, updateStream, addNotification]);
 
+  // DCA U2-005: fit and forecast every well on one window rule, then review
+  const [batchRows, setBatchRows] = useState(null);
+  const runBatchFit = useCallback(({ stream = selectedStream, rule = 'whole', months = 24 } = {}) => {
+    if (!currentProjectId || Object.keys(wells).length === 0) {
+      addNotification('Open a project with wells before a batch fit.', 'warning');
+      return null;
+    }
+    const res = batchFitWells(wells, stream, { rule, months });
+    setWells(res.wells);
+    setBatchRows({ stream, rule, months, rows: res.rows, at: new Date().toISOString() });
+    const ok = res.rows.filter((r) => r.ok).length;
+    addNotification(`Batch fit: ${ok} of ${res.rows.length} wells fitted and forecast (${stream})`, ok === res.rows.length ? 'success' : 'warning');
+    return res.rows;
+  }, [currentProjectId, wells, selectedStream, addNotification]);
+
   const runForecast = useCallback(async () => {
     if (isForecasting || !streamState[selectedStream].fitResults) return;
     const fitState = analysisStatus(currentWell, selectedStream);
@@ -882,6 +898,8 @@ export const DeclineCurveProvider = ({ children, sharingStore = null }) => {
     runForecast,
     rateCum,
     rateCumState,
+    batchRows,
+    runBatchFit,
     setRateCumWindow,
     runRateCumFit,
     
