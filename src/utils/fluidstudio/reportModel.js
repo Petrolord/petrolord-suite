@@ -15,7 +15,7 @@ import { PVT1_PB_SOURCES } from '@/lib/inputProvenance/pvtContract';
 import {
   normalizeFluid, publishedRange, PB_RS_BO_METHODS, OIL_VISCOSITY_METHODS, pbRsBoMethod, oilViscosityMethod, GAS_Z_METHOD_RECORDS, gasZMethod,
 } from '@/utils/fluidStudioCalculations';
-import { tuningState, isActiveStage } from '@/utils/fluidstudio/eosAnalysis';
+import { tuningState, isActiveStage, knobIntervalWords } from '@/utils/fluidstudio/eosAnalysis';
 import { COMPONENT_ORDER, PLUS_FRACTION_KEY } from '@/utils/fluidstudio/eos/components';
 import { untunedKnobs } from '@/utils/fluidstudio/eos/labTune';
 import { fluidUnits } from '@/utils/fluidstudio/units';
@@ -580,14 +580,20 @@ function tuningSection({ inputs, mode, u }) {
     return { status: 'none', text: 'No lab tuning. The C7+ fraction uses generalised correlations and the model is not matched to laboratory data.', table: null, parameters: null };
   }
   const start = Number(c?.plus?.mw) > 0 && Number(c?.plus?.sg) > 0 ? untunedKnobs({ mw: Number(c.plus.mw), sg: Number(c.plus.sg) }) : null;
+  // FLUID-U2-008: the 95 percent interval of each tuned knob, while the record of the fit holds
+  const unc = t.status === 'tuned' ? (t.fit?.uncertainty ?? null) : undefined;
+  const interval = (k) => (unc === undefined ? 'Withdrawn with the record of the match' : knobIntervalWords(unc, k, (v) => fx(v, 4)));
   const parameters = {
-    head: ['Parameter', 'Before tuning', 'Applied'],
+    head: ['Parameter', 'Before tuning', 'Applied', '95 percent interval'],
     rows: [
-      ['C7+ critical temperature multiplier', start ? fx(start.fTc, 4) : EMPTY_VALUE, fx(t.applied.fTc, 4)],
-      ['C7+ critical pressure multiplier', start ? fx(start.fPc, 4) : EMPTY_VALUE, fx(t.applied.fPc, 4)],
-      ['Methane to C7+ interaction coefficient', start ? fx(start.kC1, 4) : EMPTY_VALUE, fx(t.applied.kC1, 4)],
-      ['C7+ volume shift', start ? fx(start.sPlus, 4) : EMPTY_VALUE, fx(t.applied.sPlus, 4)],
+      ['C7+ critical temperature multiplier', start ? fx(start.fTc, 4) : EMPTY_VALUE, fx(t.applied.fTc, 4), interval('fTc')],
+      ['C7+ critical pressure multiplier', start ? fx(start.fPc, 4) : EMPTY_VALUE, fx(t.applied.fPc, 4), interval('fPc')],
+      ['Methane to C7+ interaction coefficient', start ? fx(start.kC1, 4) : EMPTY_VALUE, fx(t.applied.kC1, 4), interval('kC1')],
+      ['C7+ volume shift', start ? fx(start.sPlus, 4) : EMPTY_VALUE, fx(t.applied.sPlus, 4), interval('sPlus')],
     ],
+    note: unc
+      ? `Student t interval from the regression covariance (${unc.targets} measured value${unc.targets === 1 ? '' : 's'} and four prior pulls, ${unc.dof} degree${unc.dof === 1 ? '' : 's'} of freedom, t = ${unc.tValue}). It says how firmly the measured values hold each parameter, and nothing about the accuracy of the laboratory data.`
+      : undefined,
   };
   if (t.status === 'stale') {
     return { status: 'stale', text: 'Tuning parameters are applied, but the composition, the reservoir conditions, the separator stages or the measured values changed after the fit. The record of the match no longer describes this fluid and is withdrawn. Run the tuning again.', table: null, parameters };

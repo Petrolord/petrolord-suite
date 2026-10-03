@@ -44,6 +44,14 @@ export function tuningBlock(composition, stages) {
       target: r.name, unit: r.unit, measured: r.measured, untuned: r.untuned, tuned: r.tuned,
       error_before: r.untunedErr, error_after: r.tunedErr, error_unit: r.name === 'stoApi' ? 'degAPI' : 'percent',
     }));
+    // FLUID-U2-008, by addition: the uncertainty of the tuned knobs
+    const u = t.fit.uncertainty;
+    block.uncertainty = u
+      ? {
+        method: 'Student t 95 percent interval from the regression covariance', degrees_of_freedom: u.dof, t_value: u.tValue, withheld: u.withheld,
+        parameters: Object.fromEntries(Object.entries(u.knobs).map(([k, v]) => [k, { value: v.value, standard_error: v.standardError, ci95: v.ci95, at_bound: v.atBound }])),
+      }
+      : { withheld: 'The fit was recorded before the app kept its uncertainty.' };
   }
   return block;
 }
