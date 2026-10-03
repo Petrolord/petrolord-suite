@@ -32,8 +32,8 @@ describe('DCA-U1-010: a year is 365.25 days in every decline app', () => {
     // 0.0012 x 365.25 = 0.4383 per year nominal
     expect(nominalAnnualPct(0.0012)).toBeCloseTo(43.83, 10);
     expect(convert('declineRate', 0.0012, '1/d', '%/yr')).toBeCloseTo(43.83, 10);
-    // effective over one year, exponential: 1 - exp(-0.4383) = 35.4876 percent
-    expect(effectiveFirstYearPct(0.0012, 0)).toBeCloseTo(35.4876, 3);
+    // effective over one year, exponential: 1 - exp(-0.4383) = 35.48678 percent
+    expect(effectiveFirstYearPct(0.0012, 0)).toBeCloseTo(35.48678, 4);
     // per month: 0.0012 x 30.4375
     expect(createDcaUnits({ decline: '1/month' }).declineTo(0.0012)).toBeCloseTo(0.036525, 10);
     // negative control: the 365-day year prints 43.80
