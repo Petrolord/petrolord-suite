@@ -13,7 +13,7 @@ import { useScalStudio } from '@/contexts/ScalStudioContext';
 import { exportProjectAsJSON, importProjectFromJSON } from '@/utils/savedProjects';
 import { krContractCsvHeader, KR_PROJECT_PARAM, KR_HANDOFF_STATE_KEY } from '@/lib/inputProvenance/krContract';
 import { buildScalKrHandoffV2 } from '@/utils/scalstudio/krHandoff';
-import { buildKrCsv, buildHeightCsv, buildPcCsv, downloadCsv } from './exports';
+import { buildKrCsv, buildGoKrCsv, buildHeightCsv, buildPcCsv, downloadCsv } from './exports';
 
 const slug = (s) => (s || 'scal').replace(/[^a-z0-9-]+/gi, '-').toLowerCase();
 
@@ -28,7 +28,7 @@ const ExportTab = () => {
   const fileRef = useRef(null);
   const c = useScalStudio();
   const {
-    projectName, curves, ow, heightProfile, reservoirPc, height, unitSystem,
+    projectName, curves, ow, go, heightProfile, reservoirPc, height, unitSystem,
     addNotification, currentProjectId, manualSave, contractFor,
   } = c;
 
@@ -61,6 +61,16 @@ const ExportTab = () => {
       return;
     }
     downloadCsv(csv, `scal-kr-${slug(projectName)}.csv`);
+  };
+
+  // SCAL-U2-002: the gas-oil set leaves the studio too (at connate water)
+  const exportGo = () => {
+    const csv = buildGoKrCsv(go.params, 25, { header: header('gas-oil relative permeability at connate water, working Corey set, 26 rows') });
+    if (!csv) {
+      addNotification('Fix the gas-oil Corey set on the Curves tab first.', 'error');
+      return;
+    }
+    downloadCsv(csv, `scal-kr-gas-oil-${slug(projectName)}.csv`);
   };
 
   const exportHeight = () => {
@@ -130,14 +140,18 @@ const ExportTab = () => {
         <CardHeader>
           <CardTitle className="text-base">CSV exports</CardTitle>
           <CardDescription>
-            Working tables for simulators and spreadsheets: the Corey kr set (25 intervals), the reservoir Pc curve,
+            Working tables for simulators and spreadsheets: the oil-water and gas-oil Corey sets (25 intervals each; the
+            gas-oil set at connate water), the reservoir Pc curve,
             and the saturation-height profile (with TVDSS when a FWL is set). Each file opens with lines starting with #
             that say where it came from and in which units; Pc and heights are in the display units.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={exportKr} data-testid="scal-csv-kr">
-            <FileSpreadsheet className="w-4 h-4 mr-1.5" /> kr table
+            <FileSpreadsheet className="w-4 h-4 mr-1.5" /> Oil-water kr table
+          </Button>
+          <Button variant="outline" onClick={exportGo} data-testid="scal-csv-go">
+            <FileSpreadsheet className="w-4 h-4 mr-1.5" /> Gas-oil kr table
           </Button>
           <Button variant="outline" onClick={exportPc} data-testid="scal-csv-pc">
             <FileSpreadsheet className="w-4 h-4 mr-1.5" /> Reservoir Pc

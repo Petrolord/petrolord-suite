@@ -314,3 +314,4 @@ Progress per item, in build order. Each row names the test that proves it.
 
 | ID | State | Proving test | Notes |
 |---|---|---|---|
+| SCAL-U2-002 | Done | `scalU2GasOil.test.js` (5): the CSV rows are `buildCoreyGasOil` at the stated precision with the end points pinned; the kr-1 provenance lines name the gas-oil set; a consumer stores the gas-oil set with `krIntakeRecord({ set: "gas_oil" })` and sees a content change at the source | Export tab "Gas-oil kr table" (Sg, krg, krog at connate water, 26 rows, `#` provenance lines). The handoff is the `gas_oil` set of the kr-1 block, read by id; the Simulation intake is its round (owner default). No new handoff to Fluid: Fluid has no use for kr. |

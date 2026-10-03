@@ -89,7 +89,7 @@ const ScalHelpContent = () => (
       id and print its source.
     </P>
     <P>
-      The CSV files (kr, reservoir Pc, saturation-height) open with lines starting with # that say where they came
+      The CSV files (oil-water kr, gas-oil kr at connate water, reservoir Pc, saturation-height) open with lines starting with # that say where they came
       from and in which units. The project JSON is the saved payload itself; importing it restores the whole
       project on screen. Every chart has a PNG download button.
     </P>
