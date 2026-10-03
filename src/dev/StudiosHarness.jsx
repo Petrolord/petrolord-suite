@@ -10,7 +10,7 @@ import React, { lazy, Suspense, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import InMemorySupabase, { createStore, DEV_USER } from './InMemorySupabase';
 import DevAuth from './DevAuth';
-import { loadScalRows, watchScalRows, SCAL_TABLE } from './scalProjectsStore';
+import { loadScalRows, watchScalRows, persistScalRows, SCAL_TABLE } from './scalProjectsStore';
 import { savedScalRows } from '@/components/scalstudio/__fixtures__/savedProjects';
 
 const APPS = {
@@ -143,8 +143,14 @@ const storeFor = (app) => (stores[app] ||= createStore(SEEDS[app] ? SEEDS[app]()
 // the SCAL rows of the tab: kept in sessionStorage while SCAL is open, read
 // again by Waterflood on every mount (a project may have been saved since)
 function useScalRows(app) {
-  // read during render, before the app's own mount effects ask for a project by id
-  if (app === 'waterflood') storeFor('waterflood')[SCAL_TABLE] = loadScalRows();
+  // read during render, before the app's own mount effects ask for a project
+  // by id. /dev/studio/scal and /dev/studio/waterflood are one component, so
+  // the SCAL watcher's last tick runs after this render: write the SCAL store
+  // first, or a save made just before the handoff is missed (CI, PR #869).
+  if (app === 'waterflood') {
+    if (stores.scal) persistScalRows(stores.scal);
+    storeFor('waterflood')[SCAL_TABLE] = loadScalRows();
+  }
   useEffect(() => (app === 'scal' ? watchScalRows(storeFor('scal')) : undefined), [app]);
 }
 
