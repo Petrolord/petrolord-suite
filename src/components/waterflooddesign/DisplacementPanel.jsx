@@ -1,6 +1,9 @@
 // Left-rail inputs for the Displacement tab: rel-perm source (Corey or
 // tabular), fluids, dip/gravity, polymer screening.
 import React, { useState } from 'react';
+import KrIntakeCard from '@/lib/inputProvenance/KrIntakeCard';
+import { SCAL_INTAKE_FIELDS } from '@/components/waterflooddesign/scalKrIntake';
+import { readScalProjectKr } from '@/lib/krSource';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -115,6 +118,9 @@ const DisplacementPanel = () => {
           </TabsList>
         </Tabs>
         <div className="mt-3 space-y-3">
+          {d.krIntake && (
+            <KrIntakeCard intake={d.krIntake} current={d} fields={SCAL_INTAKE_FIELDS} readLatest={readScalProjectKr} />
+          )}
           {d.krSource === 'corey' ? (
             <div className="grid grid-cols-2 gap-3">
               {COREY_FIELDS.map((f) => (

@@ -31,7 +31,8 @@ import SurveillanceResults from '@/components/waterflooddesign/SurveillanceResul
 import ScenarioCompare from '@/components/waterflooddesign/ScenarioCompare';
 import DiagnosticsRail from '@/components/waterflooddesign/DiagnosticsRail';
 import WDSHelpContent from '@/components/waterflooddesign/WDSHelpContent';
-import { mapScalKrIntake } from '@/components/waterflooddesign/scalKrIntake';
+import { mapScalKrIntake, scalKrFromContract } from '@/components/waterflooddesign/scalKrIntake';
+import { readScalProjectKr, KR_PROJECT_PARAM } from '@/lib/krSource';
 
 // Design system rollout batch 1D (docs/scope/DesignSystem-Rollout.md): the
 // page sits in the dashboard scope, so every class below is a theme role.
@@ -79,19 +80,30 @@ const WaterfloodDesignContent = () => {
 
   // Rel-perm set from SCAL Studio (SC5; same navigate-state contract).
   // Mapping is the jest-guarded pure function in scalKrIntake.js.
+  // SCAL-U1: with ?scalProject=<id> and no router state (a fresh visit, a
+  // copied link, a new tab), the kr-1 block is read from the saved SCAL
+  // project by id and taken the same way.
   const scalIntakeDone = useRef(false);
   useEffect(() => {
     const scalKr = location.state?.scalKr;
-    if (!scalKr || scalIntakeDone.current) return;
+    const projectId = new URLSearchParams(location.search).get(KR_PROJECT_PARAM);
+    if ((!scalKr && !projectId) || scalIntakeDone.current) return;
     scalIntakeDone.current = true;
-    const mapped = mapScalKrIntake(scalKr);
-    if (!mapped) {
-      addNotification('A SCAL handoff arrived but its rel-perm payload was not usable.', 'error');
-      return;
-    }
-    setDisplacementInputs((prev) => ({ ...prev, ...mapped.patch }));
-    addNotification(mapped.note, 'success');
-  }, [location.state, setDisplacementInputs, addNotification]);
+    const take = (payload) => {
+      const mapped = mapScalKrIntake(payload);
+      if (!mapped) {
+        addNotification('A SCAL handoff arrived but its rel-perm payload was not usable.', 'error');
+        return;
+      }
+      setDisplacementInputs((prev) => ({ ...prev, ...mapped.patch }));
+      addNotification(mapped.note, 'success');
+    };
+    if (scalKr) { take(scalKr); return; }
+    readScalProjectKr(projectId).then((res) => {
+      if (!res.ok) { addNotification(res.reason, 'error'); return; }
+      take(scalKrFromContract(res.contract));
+    });
+  }, [location.state, location.search, setDisplacementInputs, addNotification]);
 
   const leftPanel = (
     <div className="space-y-6">
