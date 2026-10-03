@@ -285,3 +285,32 @@ lock, owner decides): 008, 013, 014, 015, 016.
 | 4 | Poston and Poe and the Leverett scan | Owner supplies the PDFs when convenient; gates stay pending and say so |
 | 5 | Coreflood history matching (U2-016) | Not before NAPE; it is the CYDAR and Sendra core and a large build |
 | 6 | Waterflood's report printing the `kr-1` source | In the Waterflood round (app 6), already planned |
+
+## Batch decision (programme lead, 2026-10-03)
+
+Recorded verbatim:
+
+> Stay INSIDE the owner's thin-real lock (Corey and Leverett J). BUILD in this order, one commit per item:
+> - Batch A, all five: U2-002 gas-oil export (S); U2-004 gas-oil fit (S); U2-003 Corey fit with entered Swc and Sor when the lab table lacks an end point (S, engines-first; validated with a negative control); U2-001 SWOF and SGOF keyword export with capillary pressure (M; units and conventions in comment lines; round-trip tested against the Simulation deck builder's own reader; the Simulation intake itself stays for the Simulation round, the owner's default); U2-011 xlsx at the lab doors (S, through the existing shared xlsx reader).
+> - Batch B: U2-005 IFT and densities from `pvt-1` (M: the Leverett and saturation-height inputs taken from a saved Fluid project by id with provenance, edits marked); U2-006 fit Swirr (S); U2-012 one-page summary (S); U2-009 Earth Modeling and ReservoirCalc Pro reports print the kr-1 source (S); U2-010 core k and porosity from Petrophysics (S) if time remains; U2-007 J by rock type (M) only if time remains.
+> - Also fix, in its own commit with a failing-first test: the same "source changed since" flaw SCAL-U1-023 fixed in SCAL also exists in Fluid's PVT intake card (it compares save times, so any re-save shows "changed"); make it compare the content fingerprint the way SCAL now does.
+> - DEFERRED (record reasons): all of Batch C (end-point scaling, LET, hysteresis, three-phase, coreflood history matching): outside the lock; hysteresis and three-phase go to the Simulation round; the owner decides on LET and end-point scaling after NAPE with a published validation case each.
+>
+> Owner-question defaults in force: keyword export now, Simulation intake in the Simulation round; Poston and Poe and the Leverett scan stay pending until the owner supplies the PDFs; the Waterflood report prints the kr-1 source in the Waterflood round.
+
+Deferred, with reasons:
+
+| ID | Item | Why deferred |
+|---|---|---|
+| SCAL-U2-008 | End-point scaling by rock type | Outside the thin-real lock; the owner decides after NAPE with a published validation case |
+| SCAL-U2-013 | LET kr | Outside the lock; the owner decides after NAPE with a published validation case |
+| SCAL-U2-014 | Hysteresis and the imbibition Pc branch | Outside the lock; goes to the Simulation round |
+| SCAL-U2-015 | Three-phase kro | Outside the lock; goes to the Simulation round |
+| SCAL-U2-016 | Coreflood history matching | Outside the lock; a large build, not before NAPE |
+
+## Step 2 build (branch `feat/scal-u2`)
+
+Progress per item, in build order. Each row names the test that proves it.
+
+| ID | State | Proving test | Notes |
+|---|---|---|---|
