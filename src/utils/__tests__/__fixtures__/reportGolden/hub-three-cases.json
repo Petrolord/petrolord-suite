@@ -1,0 +1,76 @@
+{
+  "pages": 4,
+  "sha256": "f63cff431ee320ade778a71e0c4c16c101050e3734e8fa99619d7210b51edd46",
+  "figures": [
+    {
+      "id": "hub-rate",
+      "number": 1,
+      "page": 3,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 29,
+            "w": 182,
+            "h": 80
+          },
+          "drawn": {
+            "Infill (entered)": 184,
+            "Obodo-7 (DCA)": 245,
+            "Obodo-7 edited": 245
+          },
+          "total": 674,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "hub-cum",
+      "number": 2,
+      "page": 3,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 126.36,
+            "w": 182,
+            "h": 70
+          },
+          "drawn": {
+            "Infill (entered)": 184,
+            "Obodo-7 (DCA)": 245,
+            "Obodo-7 edited": 245
+          },
+          "total": 674,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "hub-eur",
+      "number": 3,
+      "page": 4,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 60
+          },
+          "drawn": {
+            "EUR": 3
+          },
+          "total": 3,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    }
+  ]
+}

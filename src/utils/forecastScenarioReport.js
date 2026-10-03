@@ -180,7 +180,7 @@ export function collectHubReportArgs({ cases, econ, setStart = HUB_DEFAULT_START
     const st = sourceStates?.[c.id];
     if (st && st.state !== 'unchanged') flags.push(`${c.name}: ${st.text}`);
   }
-  if (cases.some((c) => ['base', 'high', 'low'].includes(c.id))) flags.push('The set holds the hub\'s sample cases, not field data.');
+  if (cases.some((c) => ['base', 'high', 'low'].includes(c.id))) flags.push('The set holds the hub\'s sample cases, which are illustrative values.');
   const assumptions = [
     'Each case is an Arps decline (exponential, harmonic or hyperbolic) from its start, run day by day by the same engine as Decline Curve Analysis. A case from Decline Curve Analysis restarts the fitted curve at the data cut-off and reproduces that forecast day for day until it is edited here.',
     `A decline is typed in percent per year on the basis printed with it and run as the nominal (instantaneous) decline at the case start; a year is ${DAYS_PER_YEAR} days. A terminal decline Dmin switches a hyperbolic case to an exponential at Dmin where its nominal decline falls to it.`,

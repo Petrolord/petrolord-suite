@@ -36,7 +36,7 @@ Life
 
 
 
-Decline Curve Analysis Report, Ekene-1 (sample), oil                                                                                       Page 1 of 6
+Decline Curve Analysis Report, Ekene-1 (sample), oil                                                                                       Page 1 of 7
 Inputs
  Input                                       Value                                   Unit         Source and quality
 
@@ -71,6 +71,12 @@ Decline Curve Analysis Report, Ekene-1 (sample), oil                            
 
  Forecast horizon after the data cut-off     10.00 years (3,653 days)                             App default (not changed)
 
+ Terminal decline Dmin (modified             not set                                              Not set: the app has no default. The forecast is the
+ hyperbolic)                                                                                      fitted Arps curve to the end
+
+ Downtime after the cut-off                  none                                                 App default (none): the forecast is the fitted
+                                                                                                  calendar-day rate
+
  Facility limit (maximum rate)               none                                                 App default (none)
 
  Probabilistic forecast (Monte Carlo)        off                                                  App default (off)
@@ -98,7 +104,7 @@ share of the initial rate lost over the first year, read off the fitted curve.
 
 
 
-Decline Curve Analysis Report, Ekene-1 (sample), oil                                                                                           Page 2 of 6
+Decline Curve Analysis Report, Ekene-1 (sample), oil                                                                                           Page 2 of 7
 Regression
  Item                           Value
 
@@ -123,8 +129,16 @@ Decline Curve Analysis Report, Ekene-1 (sample), oil                            
  Interval method                Delta method on the standard errors of the linearised regression, 1.96 sigma
 
 
+Rate against cumulative cross-check
+Not run. Fit rate against cumulative in the Analysis panel for a cross-check of the rate-time fit.
+
+
 Monte Carlo EUR
 Not run: the forecast is deterministic.
+
+
+Scenarios compared
+None saved for this well and stream.
 
 
 Data used and left out
@@ -165,79 +179,88 @@ Production data
 
  2020-09-01                                            89.54                                               used
 
- 2020-10-01                                            86.37                                               used
-
- 2020-11-01                                            83.22                                               used
-
- 2020-12-01                                            80.28                                               used
-
- 2021-01-01                                            77.35                                               used
 
 
+Decline Curve Analysis Report, Ekene-1 (sample), oil                                                                           Page 3 of 7
+ Date                                                  Rate (bbl/d)                                             In the fit
 
+ 2020-10-01                                            86.37                                                    used
 
-Decline Curve Analysis Report, Ekene-1 (sample), oil                                                                           Page 3 of 6
- Date                                                   Rate (bbl/d)                                            In the fit
+ 2020-11-01                                            83.22                                                    used
 
- 2021-02-01                                             74.52                                                   used
+ 2020-12-01                                            80.28                                                    used
 
- 2021-03-01                                             72.06                                                   used
+ 2021-01-01                                            77.35                                                    used
 
- 2021-04-01                                             69.43                                                   used
+ 2021-02-01                                            74.52                                                    used
 
- 2021-05-01                                             66.97                                                   used
+ 2021-03-01                                            72.06                                                    used
 
- 2021-06-01                                             64.53                                                   used
+ 2021-04-01                                            69.43                                                    used
 
- 2021-07-01                                             62.25                                                   used
+ 2021-05-01                                            66.97                                                    used
 
- 2021-08-01                                             59.97                                                   used
+ 2021-06-01                                            64.53                                                    used
 
- 2021-09-01                                             57.78                                                   used
+ 2021-07-01                                            62.25                                                    used
 
- 2021-10-01                                             55.74                                                   used
+ 2021-08-01                                            59.97                                                    used
 
- 2021-11-01                                             53.70                                                   used
+ 2021-09-01                                            57.78                                                    used
 
- 2021-12-01                                             51.81                                                   used
+ 2021-10-01                                            55.74                                                    used
 
- 2022-01-01                                             49.91                                                   used
+ 2021-11-01                                            53.70                                                    used
 
- 2022-02-01                                             48.09                                                   used
+ 2021-12-01                                            51.81                                                    used
 
- 2022-03-01                                             46.50                                                   used
+ 2022-01-01                                            49.91                                                    used
 
- 2022-04-01                                             44.80                                                   used
+ 2022-02-01                                            48.09                                                    used
 
- 2022-05-01                                             43.22                                                   used
+ 2022-03-01                                            46.50                                                    used
 
- 2022-06-01                                             41.64                                                   used
+ 2022-04-01                                            44.80                                                    used
 
- 2022-07-01                                             40.17                                                   used
+ 2022-05-01                                            43.22                                                    used
 
- 2022-08-01                                             38.70                                                   used
+ 2022-06-01                                            41.64                                                    used
 
- 2022-09-01                                             37.29                                                   used
+ 2022-07-01                                            40.17                                                    used
 
- 2022-10-01                                             35.97                                                   used
+ 2022-08-01                                            38.70                                                    used
 
- 2022-11-01                                             34.66                                                   used
+ 2022-09-01                                            37.29                                                    used
 
- 2022-12-01                                             33.43                                                   used
+ 2022-10-01                                            35.97                                                    used
+
+ 2022-11-01                                            34.66                                                    used
+
+ 2022-12-01                                            33.43                                                    used
 
 
 Limits of this analysis
 - Arps decline describes boundary-dominated flow at constant bottom-hole pressure and unchanged operating conditions. A change of choke,
 artificial lift, completion or offset injection starts a new decline that this fit does not see.
 - The fit is one segment over the fit window. Earlier behaviour outside the window is shown on the plots and not used.
-- b above 1 is not boundary-dominated behaviour; it overstates late rates when held to the end of the forecast.
+- b above 1 is not boundary-dominated behaviour; it overstates late rates when held to the end of the forecast. A terminal decline Dmin, when set,
+switches the forecast to an exponential where the hyperbolic decline falls to Dmin (the modified hyperbolic); Dmin is the analyst's choice, usually
+from analogue wells, and the report prints it.
 - Forecasting extrapolates the fitted curve beyond the data; the further it runs, the less the data constrain it.
 - Rates are daily rates at stock-tank conditions from the imported history; produced to date is the trapezoid sum of those rates and can differ from
 metered cumulative production.
 - The economic limit is a fixed rate with no cost model; remaining reserves stop there.
+- The fitted rates are calendar-day rates of the history, so the history's own downtime is already in them. A downtime factor, when set, is the further
+share of calendar time shut in after the cut-off: it lowers each forecast day's volume and leaves the decline and the limit date where the fitted curve
+puts them.
 - Intervals are first-order (delta method) estimates from the linearised regression; the b interval is assumed. The probabilistic forecast samples
 those intervals and is not an independent uncertainty assessment.
-- Units: state is held in bbl/d, Mscf/d and a per-day decline; this report prints the display units named in its header. A year is 365.25 days.
+
+
+
+
+Decline Curve Analysis Report, Ekene-1 (sample), oil                                                                                       Page 4 of 7
+- Units: state is held in bbl/d, Mscf/d and a per-day decline; this report prints the display units named in its header. A year is 365.25 days.
 
 Inputs outside a published range
 - This is the sample well, built from published test data. It is not field data.
@@ -245,7 +268,7 @@ Inputs outside a published range
 
 
 
-Decline Curve Analysis Report, Ekene-1 (sample), oil                                                                                         Page 4 of 6
+Decline Curve Analysis Report, Ekene-1 (sample), oil                                                                                         Page 5 of 7
 Plots
 Figure 1. Rate against time (log rate)
 
@@ -309,7 +332,7 @@ bbl.
 
 
 
-Decline Curve Analysis Report, Ekene-1 (sample), oil                                                                                                                     Page 5 of 6
+Decline Curve Analysis Report, Ekene-1 (sample), oil                                                                                                                     Page 6 of 7
 Figure 3. Cumulative production against time
 
                                  Cumulative to the cut-off   Forecast
@@ -343,11 +366,15 @@ Decline Curve Analysis Report, Ekene-1 (sample), oil                            
 Cumulative from the first row: the history (trapezoids of the rates) and the forecast on top of what was produced, ending at EUR 91,655 bbl.
 
 
-Figure 4. EUR distribution (Monte Carlo)
+Figure 4. Scenarios: forecast rate against time
+Does not apply: no scenario is saved for this well and stream. Save one from the Scenarios panel to compare it here.
+
+
+Figure 5. EUR distribution (Monte Carlo)
 Does not apply: the forecast is deterministic. Switch on probabilistic mode and run the forecast again for a distribution.
 
 
 
 
-Decline Curve Analysis Report, Ekene-1 (sample), oil                                                                                   Page 6 of 6
+Decline Curve Analysis Report, Ekene-1 (sample), oil                                                                                   Page 7 of 7
 

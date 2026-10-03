@@ -289,7 +289,7 @@ test('U2: Forecast Scenario Hub report, typed decline basis and downtime, read b
   const pdf = readPdfFile(file);
   expect(pdf.pages).toBeGreaterThanOrEqual(3);
   for (const s of ['Forecast Scenario Hub Report', 'Analyst E2E Analyst', 'Results by case', 'Where each case came from', 'Entered in Forecast Scenario Hub',
-    'Figure 1. Rate against time, every case (log rate)', 'Figure 3. EUR by case', 'The set holds the hub\'s sample cases, not field data.']) {
+    'Figure 1. Rate against time, every case (log rate)', 'Figure 3. EUR by case', 'The set holds the hub\'s sample cases, which are illustrative values.']) {
     expect(pdf.flat).toContain(s);
   }
   // table cells wrap in the PDF: the typed value and the nominal it became
