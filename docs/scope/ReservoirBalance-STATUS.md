@@ -2,7 +2,7 @@
 
 > Companion to `docs/scope/ReservoirBalance.md` (full scope, decision log,
 > process patterns). This file is the fast-read snapshot.
-> Last updated: 2026-10-02 (upgrade Step 1, MBAL-U1; see the last section).
+> Last updated: 2026-10-03 (upgrade Step 2, MBAL-U2, and the deploy of the U1 mapping; see the last section).
 > Before that: 2026-09-11 · **MB PROGRAM COMPLETE (MB1-MB7)**; prior state
 > as of the 2026-05-17 patch series. Newest entries: the oil drive-index
 > denominator fix (engines #165), the physical-sanity guards (engines #166) and
@@ -867,3 +867,9 @@ Doc: `docs/upgrade/MaterialBalanceStudio-UPGRADE.md` (the twenty-four checks,
   `productionImport` (19), `pvtIntake` (16), `mbalInputsU1` (12),
   `mbalSharing` (9), `mbalSavedCase` (4), `materialBalanceFamily` (5),
   `reportKitStackedBars` (12); e2e `material-balance-upgrade.spec.js` (20).
+
+## 2026-10-03: deploy of the U1 mapping, and the U2 build
+
+- **2026-10-03 07:22 UTC: the owner deployed `calculate-mbal`** (`supabase functions deploy calculate-mbal --use-api`, version 24, ACTIVE; boots and validates). The U1 aquifer-flag fix (MBAL-U1-003) is live from then: a history match now reads the aquifer of the run config. Live cases with an aquifer model and the flag unset (DEMI, ochem new, WHYTE) need one rerun.
+- **U2 (branch `feat/mbal-u2`, engines PR #300):** injection in the balance (U2-002), the engine's own PVT table coverage warning (U2-006), Bo above the bubble point (U2-007, an S1 found on the way), excluded timesteps with reasons (U2-003), colleague editing under the check-out (U2-001), the `mbal-1` sender to ReservoirCalc Pro (U2-004), the ReservoirCalc Pro volumetric intake. Details and evidence: `docs/upgrade/MaterialBalanceStudio-UPGRADE.md`, "Step 2 build".
+- **Owed after U2 merges** (engine and function change): `supabase functions deploy calculate-mbal --use-api`. Until then production keeps the U1 engine: no injection term, Boi at the bubble point for undersaturated cases without row PVT, no engine coverage warning, and the plain 500 message when a run is refused by the sharing rule.
