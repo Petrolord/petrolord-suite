@@ -8,7 +8,8 @@
  * `pvtCalculations.js` (Standing / Vasquez-Beggs / Glaso for Rs & Bo,
  * Beggs-Robinson / Beal-Cook-Spillman for oil viscosity) and adds the pieces
  * those primitives lack: a bubble-point solve consistent with the chosen Rs
- * correlation, a real gas Z-factor (Papay + Sutton pseudo-criticals), gas FVF
+ * correlation, a real gas Z-factor (Dranchuk-Abou-Kassem or Hall-Yarborough on
+ * Sutton pseudo-criticals, from the engines library since FLUID-U2-006), gas FVF
  * and viscosity (Lee-Gonzalez-Eakin), oil compressibility (Vasquez-Beggs) and
  * the undersaturated oil-viscosity rise, plus a black-oil separator-train
  * staged-liberation flash.
@@ -23,7 +24,9 @@
  */
 
 import { pvtCalcs } from './pvtCalculations.js';
-import { mccainBw, mccainMuW } from '../../packages/engines/engines/fluid/blackOil';
+import {
+  mccainBw, mccainMuW, gasZDetail, GAS_Z_METHODS, DEFAULT_GAS_Z_METHOD,
+} from '../../packages/engines/engines/fluid/blackOil';
 import { readPtProfile } from './fluidstudio/ptProfileImport.js';
 import { labDataOf } from './fluidstudio/labData.js';
 
@@ -135,6 +138,8 @@ export const normalizeFluid = (inputs) => {
     correlations: {
       pb_rs_bo: corr.pb_rs_bo || 'standing',
       viscosity: corr.viscosity || 'beggs_robinson',
+      // FLUID-U2-006: the z-factor of the canonical engines library (was Papay)
+      z_factor: GAS_Z_METHODS[corr.z_factor] ? corr.z_factor : DEFAULT_GAS_Z_METHOD,
     },
     feed: { oilRate: num(inputs?.feed?.oilRate, 1000) },
     // FLUID-U2-001: with laboratory tables loaded the pressure table is
@@ -460,7 +465,15 @@ const suttonPseudoCriticals = (gasGravity) => ({
   tpc: 169.2 + 349.5 * gasGravity - 74.0 * gasGravity * gasGravity, // °R
 });
 
-/** Gas Z-factor via the Papay correlation (dimensionless). */
+/**
+ * LEGACY: gas Z-factor via the Papay correlation (dimensionless), held in
+ * 0.25 to 1.15. The Fluid Systems Studio table no longer uses it
+ * (FLUID-U2-006: gasZ below, from the canonical engines library, gated on
+ * the Standing-Katz chart). It stays exported, unchanged, for the apps that
+ * still call it until their own rounds move them: Nodal Analysis
+ * (utils/nodal/pvt.js, cullenderSmith.js) and the gas well deliverability
+ * of Production Operations (utils/production/gasWell.js).
+ */
 export const zFactor = (p, tempF, gasGravity) => {
   const { ppc, tpc } = suttonPseudoCriticals(gasGravity);
   const ppr = p / ppc;
@@ -472,6 +485,24 @@ export const zFactor = (p, tempF, gasGravity) => {
     (0.274 * ppr * ppr) / Math.pow(10, 0.8157 * tpr);
   // Clamp to a physical band; Papay drifts outside its fit range.
   return Math.min(Math.max(z, 0.25), 1.15);
+};
+
+/** The z-factor methods of the table, with their report names (from the engines library). */
+export const GAS_Z_METHOD_RECORDS = GAS_Z_METHODS;
+export const gasZMethod = (fluid) => (GAS_Z_METHODS[fluid?.correlations?.z_factor] ? fluid.correlations.z_factor : DEFAULT_GAS_Z_METHOD);
+
+/**
+ * Gas Z-factor of the black-oil table (FLUID-U2-006): Sutton pseudo-critical
+ * properties into Dranchuk-Abou-Kassem (default) or Hall-Yarborough, from the
+ * canonical engines library (engines/fluid/blackOil gasZDetail), gated there
+ * on readings of the Standing-Katz chart.
+ */
+export const gasZ = (p, tempF, gasGravity, method = DEFAULT_GAS_Z_METHOD) => gasZDetail(p, tempF, gasGravity, method).z;
+
+/** The pseudo-reduced temperature of a gas at a temperature (Sutton pseudo-criticals, 459.67 offset). */
+export const pseudoReducedState = (p, tempF, gasGravity) => {
+  const d = gasZDetail(p, tempF, gasGravity);
+  return { ppr: d.ppr, tpr: d.tpr, ppc: d.ppc, tpc: d.tpc };
 };
 
 /** Gas FVF (rb/scf). Bg = 0.00504 · Z · T[°R] / p. */
@@ -668,7 +699,7 @@ export const computeFlowAssurance = (fluid, fa, ptRaw, ptUnits) => {
 /** Assemble one PVT row at pressure p for a fluid whose bubble point is pb. */
 export const computePvtRow = (p, fluid, pb) => {
   const saturated = p <= pb;
-  const z = zFactor(p, fluid.temp, fluid.gasGravity);
+  const z = gasZ(p, fluid.temp, fluid.gasGravity, gasZMethod(fluid));
 
   // Solution GOR: capped at Rsb at/above the bubble point. With an entered
   // bubble point the correlation is scaled by one constant (fluid.rsScale,
@@ -734,8 +765,8 @@ export const computePvtTable = (fluid) => {
     rsb: Number(fluid.rsb.toFixed(1)),
     bo_at_pb: Number(boAt(fluid.rsb, fluid).toFixed(4)),
     mu_o_at_pb: Number(muObAt(fluid.rsb, fluid).toFixed(4)),
-    bg_at_pb: Number(bgAt(pb, fluid.temp, zFactor(pb, fluid.temp, fluid.gasGravity)).toFixed(6)),
-    z_at_pb: Number(zFactor(pb, fluid.temp, fluid.gasGravity).toFixed(4)),
+    bg_at_pb: Number(bgAt(pb, fluid.temp, gasZ(pb, fluid.temp, fluid.gasGravity, gasZMethod(fluid))).toFixed(6)),
+    z_at_pb: Number(gasZ(pb, fluid.temp, fluid.gasGravity, gasZMethod(fluid)).toFixed(4)),
     co_at_pb: Number(coAt(fluid, pb).toExponential(3)),
     mu_od: Number(muOdAt(fluid).toFixed(4)),
     bw_at_pb: Number(bwAt(pb, fluid.temp).toFixed(4)),
@@ -846,8 +877,9 @@ export const BLACK_OIL_STANDARD_CONDITIONS = Object.freeze({ pressure_psia: STOC
  * mccainMuW) for Beggs-Robinson, Beal, the Vasquez-Beggs undersaturated
  * viscosity and Lee-Gonzalez-Eakin; Vasquez and Beggs (1980) for the oil
  * compressibility (the same data set as their Rs and Bo); Sutton (1985) for
- * the pseudo-critical fit; McCain (1990) for the water FVF. Papay's Z has
- * no range here: none could be verified, and the engine clamps Z instead.
+ * the pseudo-critical fit; McCain (1990) for the water FVF. The z-factor
+ * window is the pseudo-reduced window over which the engines library checked
+ * each method against readings of the Standing-Katz chart (GAS_Z_METHODS).
  */
 export const FIXED_CORRELATION_RANGES = Object.freeze({
   beggs_robinson: { api: [16, 58], temp: [70, 295], rs: [20, 2070] },
@@ -858,10 +890,13 @@ export const FIXED_CORRELATION_RANGES = Object.freeze({
   lee_gonzalez_eakin: { pressure: [100, 8000], temp: [100, 340], gasGravity: [0.55, 1.0] },
   mccain_bw: { pressure: [0, 5000], temp: [0, 260] },
   mccain_mu_w: { pressure: [0, 10000], temp: [100, 400], salinity: [0, 260000] },
+  // the z-factor: Sutton's gas gravity range and the pseudo-reduced window of the chart check
+  dranchuk_abou_kassem: { gasGravity: [0.57, 1.68], tpr: GAS_Z_METHODS.dranchuk_abou_kassem.chartTpr, ppr: [0, GAS_Z_METHODS.dranchuk_abou_kassem.chartPpr[1]] },
+  hall_yarborough: { gasGravity: [0.57, 1.68], tpr: GAS_Z_METHODS.hall_yarborough.chartTpr, ppr: [0, GAS_Z_METHODS.hall_yarborough.chartPpr[1]] },
 });
 /** Published pressure ranges of the Pb / Rs / Bo correlations (psia). */
 export const PB_RS_BO_PRESSURE_RANGES = Object.freeze({ standing: [130, 7000], vasquez_beggs: [50, 5250], glaso: [150, 7127] });
-/** The band the engine holds Papay's Z inside (zFactor clamps to it). */
+/** LEGACY: the band the Papay zFactor clamps to (no longer used by the table). */
 export const Z_CLAMP = Object.freeze([0.25, 1.15]);
 
 /** The liberation basis of the black-oil correlation table, in words. */
@@ -877,6 +912,8 @@ const RANGE_VARIABLES = Object.freeze({
   gasGravity: { label: 'gas gravity', unit: 'air = 1', family: null },
   pressure: { label: 'pressure', unit: 'psia', family: 'pressure' },
   salinity: { label: 'salinity', unit: 'ppm', family: null },
+  tpr: { label: 'pseudo-reduced temperature', unit: '', family: null },
+  ppr: { label: 'pseudo-reduced pressure', unit: '', family: null },
 });
 
 /**
@@ -931,7 +968,14 @@ export function blackOilMethods(fluid, pbDetail) {
     row('mu_od', 'Dead oil viscosity', { method: muWords, reference: visc.reference, kind: 'correlation', rangeKey: viscKey }),
     row('mu_o', 'Live (saturated) oil viscosity', { method: muWords, reference: visc.reference, kind: 'correlation', rangeKey: viscKey }),
     row('mu_o_undersaturated', 'Undersaturated oil viscosity', { method: 'Vasquez-Beggs', reference: 'Vasquez and Beggs (1980)', kind: 'correlation', rangeKey: 'vasquez_beggs_undersaturated' }),
-    row('z', 'Gas deviation factor Z', { method: 'Papay, with Sutton pseudo-critical properties', reference: 'Papay (1968); Sutton (1985)', kind: 'correlation', rangeKey: 'sutton', note: `Held between ${Z_CLAMP[0]} and ${Z_CLAMP[1]}.` }),
+    row('z', 'Gas deviation factor Z', (() => {
+      const zm = gasZMethod(fluid);
+      const rec = GAS_Z_METHODS[zm];
+      return {
+        method: `${rec.label}, with Sutton pseudo-critical properties`, reference: `${rec.reference}; Sutton (1985)`, kind: 'correlation', rangeKey: zm,
+        note: `Within ${(rec.chartError * 100).toFixed(2)} percent of the Standing-Katz chart from pseudo-reduced temperature ${rec.chartTpr[0]} to ${rec.chartTpr[1]} and pressure ${rec.chartPpr[0]} to ${rec.chartPpr[1]}. ${rec.nearCritical}`,
+      };
+    })()),
     row('mu_g', 'Gas viscosity', { method: 'Lee-Gonzalez-Eakin', reference: 'Lee, Gonzalez and Eakin (1966)', kind: 'correlation', rangeKey: 'lee_gonzalez_eakin' }),
     row('bg', 'Gas formation volume factor Bg', { method: 'Real gas law, Bg = 0.00504 Z T / p', reference: '', kind: 'definition', rangeKey: null, note: 'The constant is for field units (RB/scf, T in degR, p in psia), at the standard conditions of this report.' }),
     row('bw', 'Water formation volume factor Bw', { method: 'McCain', reference: 'McCain (1990)', kind: 'correlation', rangeKey: 'mccain_bw', note: 'Pure water form: salinity is not applied to Bw.' }),
@@ -956,7 +1000,9 @@ export const publishedRange = (rangeKey) => {
  *   family: ?string, value: number, low: number, high: number, scope: 'input'|'table', rows?: number, text: string}>}
  */
 export function blackOilRangeFlags(fluid, methods, table = []) {
-  const values = { rs: fluid.rsb, temp: fluid.temp, api: fluid.api, gasGravity: fluid.gasGravity, salinity: fluid.salinity };
+  // the gas at the table temperature: its pseudo-reduced temperature, and the pseudo-critical pressure that scales the rows
+  const reduced = fluid.gasGravity > 0 && Number.isFinite(fluid.temp) ? pseudoReducedState(1, fluid.temp, fluid.gasGravity) : null;
+  const values = { rs: fluid.rsb, temp: fluid.temp, api: fluid.api, gasGravity: fluid.gasGravity, salinity: fluid.salinity, tpr: reduced ? Number(reduced.tpr.toFixed(3)) : null };
   // one flag per (correlation range, variable), listing every property it reaches
   const groups = new Map();
   for (const m of methods || []) {
@@ -970,13 +1016,26 @@ export function blackOilRangeFlags(fluid, methods, table = []) {
     }
   }
   const nameOf = (rangeKey, members) => CORRELATION_RANGES[rangeKey]?.label
-    || (rangeKey === 'sutton' ? 'Sutton pseudo-critical properties' : members[0].method);
+    || (rangeKey === 'sutton' ? 'Sutton pseudo-critical properties' : GAS_Z_METHODS[rangeKey]?.label || members[0].method);
   const out = [];
   for (const g of groups.values()) {
     const word = RANGE_VARIABLES[g.variable];
     const name = nameOf(g.rangeKey, g.members);
     const base = { id: g.id, key: g.members[0].key, method: name, variable: g.variable, label: word.label, unit: word.unit, family: word.family, low: g.low, high: g.high };
     const bounds = `${g.low} to ${g.high} ${word.unit}`;
+    if (g.variable === 'ppr') {
+      // the z-factor sweeps pseudo-reduced pressure with the table
+      if (!reduced) continue;
+      const rows = table.filter((r) => r.pressure / reduced.ppc > g.high);
+      if (!rows.length) continue;
+      const lo = Math.min(...rows.map((r) => r.pressure));
+      const hi = Math.max(...rows.map((r) => r.pressure));
+      out.push({
+        ...base, scope: 'table', value: null, valueLow: lo, valueHigh: hi, rows: rows.length, properties: g.members.map((m) => m.label), family: null,
+        text: `${name}: ${rows.length} table row${rows.length === 1 ? '' : 's'} (${lo === hi ? lo : `${lo} to ${hi}`} psia) above pseudo-reduced pressure ${g.high}, the end of the window the method was checked over.`,
+      });
+      continue;
+    }
     if (g.variable !== 'pressure') {
       const v = Number(values[g.variable]);
       if (!Number.isFinite(v) || (v >= g.low && v <= g.high)) continue;
@@ -1005,15 +1064,6 @@ export function blackOilRangeFlags(fluid, methods, table = []) {
     out.push({
       ...base, key: swept[0].key, scope: 'table', value: null, valueLow: lo, valueHigh: hi, rows: rows.length, properties: swept.map((m) => m.label),
       text: `${name}: ${rows.length} table row${rows.length === 1 ? '' : 's'} (${lo === hi ? lo : `${lo} to ${hi}`} psia) outside its published pressure range (${bounds}).`,
-    });
-  }
-  // Papay's Z has no verified range; the clamp acting is the flag
-  const papay = (methods || []).some((m) => m.key === 'z' && m.rangeKey === 'sutton');
-  const clamped = papay ? table.filter((r) => Number.isFinite(r.Z) && (r.Z <= Z_CLAMP[0] || r.Z >= Z_CLAMP[1])) : [];
-  if (clamped.length) {
-    out.push({
-      id: 'papay:z', key: 'z', method: 'Papay', variable: 'z', label: 'Z', unit: '', family: null, value: null, low: Z_CLAMP[0], high: Z_CLAMP[1], scope: 'table', rows: clamped.length, properties: ['Gas deviation factor Z'],
-      text: `Papay: ${clamped.length} table row${clamped.length === 1 ? '' : 's'} sit on the ${Z_CLAMP[0]} to ${Z_CLAMP[1]} limit the engine holds Z inside.`,
     });
   }
   return out;
@@ -1216,7 +1266,7 @@ export const sampleFluidStudioData = () => ({
       envelope: { tMinF: 40, tMaxF: 400, nT: 15 },
     },
   },
-  correlations: { pb_rs_bo: 'standing', viscosity: 'beggs_robinson' },
+  correlations: { pb_rs_bo: 'standing', viscosity: 'beggs_robinson', z_factor: 'dranchuk_abou_kassem' },
   feed: { oilRate: 1000 },
   separatorTrain: {
     stages: [

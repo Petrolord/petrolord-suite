@@ -160,6 +160,16 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <Label className="text-sm font-medium text-pl-text">Gas z-factor</Label>
+                <Select value={correlations.z_factor ?? 'dranchuk_abou_kassem'} onValueChange={(v) => handleCorrelationChange('z_factor', v)}>
+                  <SelectTrigger className="mt-1" data-testid="corr-z-factor"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="dranchuk_abou_kassem">Dranchuk-Abou-Kassem (default)</SelectItem>
+                    <SelectItem value="hall_yarborough">Hall-Yarborough</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <p className="text-xs text-pl-muted">Standing and Beggs-Robinson are the defaults. The Report tab lists the method behind every property and the published range of each.</p>
             </div>
           </TabsContent>

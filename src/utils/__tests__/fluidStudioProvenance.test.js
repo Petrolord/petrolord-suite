@@ -233,11 +233,25 @@ describe('inputs outside a published range are flagged, each once, with the prop
     for (const id of ['beggs_robinson:api', 'lee_gonzalez_eakin:temp', 'mccain_bw:temp']) expect(ok).not.toContain(id);
   });
 
-  test('a Z held on the engine limit is flagged', () => {
+  test('a gas outside the window the z-factor was checked over is flagged (FLUID-U2-006)', () => {
+    // gas gravity 1.6 at 80 degF: pseudo-reduced temperature 1.00, below the 1.2 where the chart check starts
     const res = analyzeFluidSystem(withInputs({ gasSg: 1.6, temp: 80 }));
-    const onLimit = res.pvt.table.filter((r) => r.Z <= Z_CLAMP[0] || r.Z >= Z_CLAMP[1]).length;
-    expect(onLimit).toBeGreaterThan(0);
-    expect(res.meta.rangeFlags.find((f) => f.id === 'papay:z').rows).toBe(onLimit);
+    const f = res.meta.rangeFlags.find((x) => x.id === 'dranchuk_abou_kassem:tpr');
+    expect(f).toBeDefined();
+    expect(f.value).toBeCloseTo(1.001, 3);
+    expect(f.properties).toEqual(['Gas deviation factor Z']);
+    expect(res.meta.rangeFlags.some((x) => x.id === 'papay:z')).toBe(false);
+    // rows above pseudo-reduced pressure 15 are flagged as a stretch of the table
+    const fluid = res.meta.fluid;
+    const ppc = 756.8 - 131.0 * 1.6 - 3.6 * 1.6 * 1.6;
+    const flags = blackOilRangeFlags(fluid, res.meta.methods, [{ pressure: 14 * ppc, Z: 1 }, { pressure: 16 * ppc, Z: 1.5 }, { pressure: 17 * ppc, Z: 1.6 }]);
+    const ppr = flags.find((x) => x.id === 'dranchuk_abou_kassem:ppr');
+    expect(ppr.rows).toBe(2);
+    expect(ppr.text).toMatch(/above pseudo-reduced pressure 15, the end of the window the method was checked over/);
+    // negative control: the sample gas raises neither
+    const ok = analyzeFluidSystem(sampleFluidStudioData()).meta.rangeFlags.map((x) => x.id);
+    expect(ok.filter((id) => /dranchuk|hall/.test(id))).toEqual([]);
+    // the legacy Papay function is unchanged for the apps that still call it
     expect(zFactor(3000, 80, 1.6)).toBeGreaterThanOrEqual(Z_CLAMP[0]);
   });
 

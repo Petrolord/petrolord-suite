@@ -13,7 +13,7 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { sourceText, NOT_PROVIDED } from '@/lib/inputProvenance';
 import { PVT1_PB_SOURCES } from '@/lib/inputProvenance/pvtContract';
 import {
-  normalizeFluid, publishedRange, PB_RS_BO_METHODS, OIL_VISCOSITY_METHODS, pbRsBoMethod, oilViscosityMethod,
+  normalizeFluid, publishedRange, PB_RS_BO_METHODS, OIL_VISCOSITY_METHODS, pbRsBoMethod, oilViscosityMethod, GAS_Z_METHOD_RECORDS, gasZMethod,
 } from '@/utils/fluidStudioCalculations';
 import { tuningState, isActiveStage } from '@/utils/fluidstudio/eosAnalysis';
 import { COMPONENT_ORDER, PLUS_FRACTION_KEY } from '@/utils/fluidstudio/eos/components';
@@ -272,6 +272,7 @@ function blackOilInputRows({ inputs, results, u }) {
     }
   }
   row({ key: 'corr.pb_rs_bo', engineKeys: ['correlations.pb_rs_bo'], label: 'Bubble point, Rs and Bo correlation', value: pbRsBoMethod(fluid).label, unit: '', source: inputs?.correlations?.pb_rs_bo && PB_RS_BO_METHODS[inputs.correlations.pb_rs_bo] ? 'Selected in the app' : 'Assumed default (none selected)' });
+  row({ key: 'corr.z_factor', engineKeys: ['correlations.z_factor'], label: 'Gas z-factor method', value: GAS_Z_METHOD_RECORDS[gasZMethod(fluid)].label, unit: '', source: inputs?.correlations?.z_factor && GAS_Z_METHOD_RECORDS[inputs.correlations.z_factor] ? 'Selected in the app' : 'Assumed default (none selected)' });
   row({ key: 'corr.viscosity', engineKeys: ['correlations.viscosity'], label: 'Oil viscosity correlation', value: oilViscosityMethod(fluid).label, unit: '', source: inputs?.correlations?.viscosity && OIL_VISCOSITY_METHODS[inputs.correlations.viscosity] ? 'Selected in the app' : 'Assumed default (none selected)' });
   const rateGiven = inputs?.feed?.oilRate != null && inputs.feed.oilRate !== '';
   row({ key: 'oilRate', engineKeys: ['feed.oilRate'], label: 'Stock-tank oil basis for stage gas rates', value: SHOW.rate(u, fluid.feed.oilRate), unit: u.label('liquidRate'), source: rateGiven ? 'Entered (a reporting basis)' : 'Assumed default 1,000 STB/d (no value entered)' });
@@ -430,7 +431,7 @@ function methodsTable(methods) {
   };
 }
 
-const RANGE_WORD = { rs: ['Solution GOR', 'gor'], temp: ['Temperature', 'temperature'], api: ['API gravity', 'api'], gasGravity: ['Gas gravity', 'gasGravity'], pressure: ['Pressure', 'pressure'], salinity: ['Salinity', 'salinity'] };
+const RANGE_WORD = { rs: ['Solution GOR', 'gor'], temp: ['Temperature', 'temperature'], api: ['API gravity', 'api'], gasGravity: ['Gas gravity', 'gasGravity'], pressure: ['Pressure', 'pressure'], salinity: ['Salinity', 'salinity'], tpr: ['Pseudo-reduced temperature', 'dimensionless'], ppr: ['Pseudo-reduced pressure', 'dimensionless'] };
 
 /** "20 to 1,425 scf/STB" in the display unit. */
 function rangeWords(u, variable, [lo, hi]) {
@@ -446,7 +447,7 @@ function rangeWords(u, variable, [lo, hi]) {
 const RANGE_NAME = {
   standing: 'Standing', vasquez_beggs: 'Vasquez-Beggs', glaso: 'Glaso', beggs_robinson: 'Beggs-Robinson', beal_cook_spillman: 'Beal-Cook-Spillman',
   vasquez_beggs_co: 'Vasquez-Beggs (compressibility)', vasquez_beggs_undersaturated: 'Vasquez-Beggs (undersaturated viscosity)',
-  sutton: 'Sutton pseudo-critical properties', lee_gonzalez_eakin: 'Lee-Gonzalez-Eakin', mccain_bw: 'McCain (water FVF)', mccain_mu_w: 'McCain (water viscosity)',
+  sutton: 'Sutton pseudo-critical properties', dranchuk_abou_kassem: 'Dranchuk-Abou-Kassem (Z), on Sutton pseudo-critical properties', hall_yarborough: 'Hall-Yarborough (Z), on Sutton pseudo-critical properties', lee_gonzalez_eakin: 'Lee-Gonzalez-Eakin', mccain_bw: 'McCain (water FVF)', mccain_mu_w: 'McCain (water viscosity)',
 };
 
 function rangesTable(methods, u) {
@@ -755,7 +756,7 @@ export function buildFluidReportModel({ inputs, results, eos, system = 'oilfield
         : rangesTable(methods, u),
       rangesNote: mode === 'eos'
         ? 'The equation of state itself has no data range; its accuracy rests on the characterisation and the tuning.'
-        : 'Ranges are those of the data each correlation was fitted to, as held in the Petrolord engines library and the app. Papay\'s Z has no range here: none could be verified, so the engine holds Z inside 0.25 to 1.15 and flags a row on that limit.',
+        : 'Ranges are those of the data each correlation was fitted to, as held in the Petrolord engines library and the app. For the z-factor the window is the one over which the engines library checked the method against readings of the Standing-Katz chart; below a pseudo-reduced pressure of 0.2 Z tends to 1 and no flag is raised.',
       flags: flagLines,
     },
     // FLUID-U2-001: the laboratory tables against the table this report prints
