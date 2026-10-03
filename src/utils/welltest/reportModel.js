@@ -131,7 +131,7 @@ export function gasPvtSourceText(source) {
 
 // What this studio takes from the fluid backbone (the PVT provenance
 // contract, lib/inputProvenance/pvtContract), in the order it is applied.
-const WELLTEST_PVT_FIELDS = Object.freeze([
+export const WELLTEST_PVT_FIELDS = Object.freeze([
   { property: 'bo_at_pb', key: 'B', label: 'Bo' },
   { property: 'mu_o_at_pb', key: 'mu', label: 'viscosity' },
   { property: 'oil_gravity', key: 'apiGravity', label: 'API gravity' },
