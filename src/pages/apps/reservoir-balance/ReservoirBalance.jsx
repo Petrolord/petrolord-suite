@@ -51,6 +51,7 @@ import RbDiagnosticPlots from '@/components/reservoirbalance/RbDiagnosticPlots';
 import ValidationTierBadge from '@/components/reservoirbalance/ValidationTierBadge';
 import NewCaseDialog, { fluidSystemDisplay } from '@/components/reservoirbalance/NewCaseDialog';
 import MbsHelpContent from '@/components/reservoirbalance/MbsHelpContent';
+import VolumetricSource from '@/components/reservoirbalance/VolumetricSource';
 import { mapWellTestIntake } from './lib/wellTestIntake';
 import { staleRunMessage } from './lib/runStaleness';
 import {
@@ -456,6 +457,7 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
       </section>
       <CaseSummary onEdit={canWriteCase ? () => setEditCaseOpen(true) : undefined} />
       {caseData && <UnitsControl />}
+      {caseData && <VolumetricSource />}
       {caseData && (
         <p className="text-[11px] text-pl-muted leading-relaxed">
           Edits on every tab save straight to the case database when you apply them. Results are those of the last completed run. When an input changes after that run, the studio says so and the report waits for a new run.

@@ -26,6 +26,7 @@ import {
 } from './mbalSeries';
 import { OILFIELD_UNITS } from './mbalUnits';
 import { excludedOf, exclusionRows } from './exclusions';
+import { volumetricBasis } from './rcpVolumetricIntake';
 import { readStudy } from './studyMeta';
 import tierMatrix from './tierMatrix.json';
 
@@ -801,7 +802,7 @@ export function crossCheckRows(a) {
     add('F/Et at the last timestep (Campbell level)', lastPt.y, 'Apparent value: equals N only when no water influx supports the pressure');
   }
   const vol = isGas ? numOrNull(caseData?.volumetric_ogip_scf) : numOrNull(caseData?.volumetric_ooip_stb);
-  if (vol != null && vol > 0) add('Volumetric estimate', vol, caseData?.volumetric_estimate_source ? `Entered on the case: ${caseData.volumetric_estimate_source}` : 'Entered on the case, source not stated');
+  if (vol != null && vol > 0) add('Volumetric estimate', vol, volumetricBasis(caseData, a.study));
   return rows;
 }
 

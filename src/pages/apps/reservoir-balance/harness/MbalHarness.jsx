@@ -16,6 +16,7 @@ import {
 import { makeSharingStore } from '@/lib/recordSharing';
 import { buildRunConfigInput } from '../lib/runStaleness';
 import { runEngineOnStore, pvtPreviewStandIn } from './engineStandIn';
+import { SAVED_PROJECT_ROWS } from '@/pages/apps/ReservoirCalcPro/services/savedFixtures';
 
 const USER = SAMPLE_USER;
 const NOW = () => new Date().toISOString();
@@ -34,6 +35,8 @@ const DB = addSharingToStore(seedSampleStore());
   DB.rb_run_configs.push(runCfg);
   runEngineOnStore(DB, { run_config_id: runCfg.id }, { now: NOW });
 }
+// a saved ReservoirCalc Pro project, for the volumetric intake (Batch B)
+DB.saved_quickvol_projects = [{ ...SAVED_PROJECT_ROWS[0].row, project_name: 'Main sand volumetrics', updated_at: '2026-10-01T12:00:00.000Z' }];
 let seq = 0;
 const newId = (p) => `${p}-${Date.now()}-${++seq}`;
 
