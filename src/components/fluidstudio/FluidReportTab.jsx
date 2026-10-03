@@ -15,6 +15,7 @@ import { INPUTS_HEAD, inputsBody } from '@/lib/reportKit/report';
 import { describePvtContract } from '@/lib/inputProvenance/pvtContract';
 import { IDENTIFICATION_FIELDS, SOURCE_KEYS, identificationOf, SAMPLE_NOTE } from '@/utils/fluidstudio/reportModel';
 import { figureListRows } from '@/utils/fluidstudio/reportFigures';
+import FluidRegistryProposal from '@/components/fluidstudio/FluidRegistryProposal';
 
 const blank = (v) => (v == null || String(v).trim() === '' ? EMPTY_VALUE : v);
 
@@ -81,6 +82,7 @@ const FluidReportTab = ({ report, inputs, organizationName = '', onIdentificatio
       </Card>
 
       <Section title="Identification" testId="fluid-identification" note="Saved with the project. A field left blank prints as n/a.">
+        <FluidRegistryProposal identification={id} onApply={(changes) => changes.forEach(([k, v]) => onIdentification(k, v))} />
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {IDENTIFICATION_FIELDS.map(([key, label, hint]) => (
             <div key={key}>
