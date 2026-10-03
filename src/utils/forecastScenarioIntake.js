@@ -19,6 +19,7 @@ export function caseValuesFromContract(c) {
   return {
     qi: r6(c.atCutoff.rate),
     declineAnnualPct: r6(c.atCutoff.diNominalPctPerYear),
+    declineBasis: 'nominal',
     b: r6(c.decline.b),
     years: r6(c.forecast.horizonDays / DAYS_PER_YEAR),
     economicLimit: c.forecast.economicLimit ? r6(c.forecast.economicLimit) : 0,
@@ -48,8 +49,8 @@ export function caseFromDcaContract(contract, { id = `dca-${Date.now()}`, receiv
   };
 }
 
-const KEYS = ['qi', 'declineAnnualPct', 'b', 'years', 'economicLimit', 'startDate', 'terminalDeclinePct', 'terminalDeclineBasis'];
-const LABELS = { qi: 'qi', declineAnnualPct: 'decline', b: 'b', years: 'horizon', economicLimit: 'economic limit', startDate: 'start date', terminalDeclinePct: 'terminal decline', terminalDeclineBasis: 'terminal decline basis' };
+const KEYS = ['qi', 'declineAnnualPct', 'declineBasis', 'b', 'years', 'economicLimit', 'startDate', 'terminalDeclinePct', 'terminalDeclineBasis'];
+const LABELS = { qi: 'qi', declineAnnualPct: 'decline', declineBasis: 'decline basis', b: 'b', years: 'horizon', economicLimit: 'economic limit', startDate: 'start date', terminalDeclinePct: 'terminal decline', terminalDeclineBasis: 'terminal decline basis' };
 const TEXT_KEYS = new Set(['startDate', 'terminalDeclineBasis']);
 const numOrNull = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) || Number(v) === 0 ? null : Number(v));
 
@@ -58,6 +59,7 @@ export function editedAfterHandoff(c) {
   if (!c?.source?.contract) return [];
   const sent = caseValuesFromContract(c.source.contract);
   return KEYS.filter((k) => {
+    if (k === 'declineBasis') return (c[k] || 'nominal') !== (sent[k] || 'nominal');
     if (TEXT_KEYS.has(k)) return String(c[k] || '') !== String(sent[k] || '');
     if (k === 'terminalDeclinePct') {
       const a = numOrNull(c[k]); const b = numOrNull(sent[k]);

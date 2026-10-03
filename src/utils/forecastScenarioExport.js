@@ -30,7 +30,9 @@ export function buildHubCsv(summary, c, { econ = null, setStart = HUB_DEFAULT_ST
   const lines = [
     `# Forecast Scenario Hub annual profile, Petrolord Suite${build ? ` build ${build}` : ''}`,
     `# Case: ${summary.name}; model ${summary.model}; oil at stock-tank conditions`,
-    `# qi ${n(rate(c?.qi))} ${rateU}; decline ${n(c?.declineAnnualPct)} %/yr nominal at the case start (a year of ${DAYS_PER_YEAR} days); b ${n(c?.b)}`,
+    summary.declineBasis && summary.declineBasis !== 'nominal'
+      ? `# qi ${n(rate(c?.qi))} ${rateU}; decline ${n(c?.declineAnnualPct)} %/yr ${summary.declineBasis === 'effective-secant' ? 'effective (secant, with this b)' : 'effective (tangent)'} at the case start, ${n(summary.diNominalPctPerYear)} %/yr nominal (a year of ${DAYS_PER_YEAR} days); b ${n(c?.b)}`
+      : `# qi ${n(rate(c?.qi))} ${rateU}; decline ${n(c?.declineAnnualPct)} %/yr nominal at the case start (a year of ${DAYS_PER_YEAR} days); b ${n(c?.b)}`,
     `# Start ${start}; horizon ${n(c?.years)} years; economic limit ${c?.economicLimit > 0 ? `${n(rate(c.economicLimit))} ${rateU}` : 'none'}`,
     summary.terminal ? `# Terminal decline Dmin ${n(c?.terminalDeclinePct)} %/yr ${c?.terminalDeclineBasis === 'nominal' ? 'nominal' : 'effective (tangent)'}, ${n(summary.terminal.dminPerDay * DAYS_PER_YEAR * 100)} %/yr nominal; switch to exponential ${summary.terminal.fromStart ? 'from the start' : `on ${summary.terminal.switchDate}`}` : null,
     `# EUR ${n(vol((summary.eurMMbbl || 0) * 1e6))} ${volU}${summary.eurCapped ? ` (stopped at the ${50} year maximum life)` : ''}; cumulative to horizon ${n(vol((summary.cumHorizonMMbbl || 0) * 1e6))} ${volU}`,
