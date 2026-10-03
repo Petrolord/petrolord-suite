@@ -286,7 +286,7 @@ valuation holds lives in its existing `valuation` JSON payload.
 | U2-003 EMV tornado | Done | `__tests__/rrvU2Sensitivity.test.js` (9): a worked hand calculation (Pg 0.25, P90 10, P10 60, MEFS 10, 8 $/boe, 100 $MM, 25 $MM: well cost, development cost, value per barrel and Pg by 25%, and the charge factor 0.5 by 0.1, each to three decimals) against `emvSensitivity`, which asks `valueProspect` again for every case; negative control (a tornado that scales the EMV itself, forgetting the dry hole, misses by more than 6 $MM); ordering, clamping, refusals. `rrvU2Report.test.js` (2 more: the figure drawn as bars and counted in the file, the table, the well-cost row by hand, the analyst's own ranges). `rrvU2Workstation.test.jsx` (Sensitivity tab) | See "U2-003" below. Fills the figure Step 1 stated as absent (RRV-U1-019 closed). |
 | U2-006 "Re-run prospect" deep link | Done | `ReservoirCalcPro/__tests__/prospectRerun.test.js` (4, the plan: ready, read-only, missing, no source, typed, project gone, reservoir gone, return path kept inside the app) and `rerunProspect.test.jsx` (5: the project and reservoir open, the seed is set, Prospect Risking is filled, the re-run names the old record and retires it, the valuation's upstream check follows it, a colleague's prospect opens read-only and theirs is left alone). `rrvU2Workstation.test.jsx` U2-006 block (4: the link on a re-risked or flagged row and in the readout, back with `?refresh=` takes the re-run and keeps the economics, back with nothing re-run). e2e: valuation to ReservoirCalc Pro and back, and the read-only case | See "U2-006" below. Closes RRV-U1-022 and ReservoirCalc Pro owner item 3. |
 | U2-008 ranking | Done | `__tests__/rrvU2Ranking.test.js` (4): three prospects built so the three keys disagree, each order checked against the engine's own numbers, the unfinished one listed with its reason, shared rows owned and marked, the basis words, the CSV header line by line with one pinned conversion. `rrvU2Workstation.test.jsx` Ranking block (1) | See "U2-008" below. |
-| U2-009 send to Capital Portfolio | Deferred | none | Capital Portfolio Studio has a typed intake (`portfolio_projects` with `pos`, `fail_cost`, `source_type`, `source_ref`), so no DDL is needed, but the mapping has three questions for the owner. See "Deferred, with reasons". |
+| U2-009 send to Capital Portfolio | Done (2026-10-03, owner decisions below) | Sender: `__tests__/rrvPortfolioCandidate.test.js` (11: the contract, the success-case mean against an independent quadrature, its EMV against the engine's, negative control, the Petroleum Economics Studio run as provenance, a colleague's valuation, refusals, the fingerprint, read by id). Intake: `capitalportfoliostudio/__tests__/rrvIntake.test.js` (10: the slots, portfolio EMV = valuation EMV, a negative control per swapped field, edited and changed states, Refresh, the saved fixture against main, the risk score never read) and `rrvIntakePage.test.jsx` (6). `rrvU2Portfolio.test.jsx` (5). e2e `e2e/rrv-capital-portfolio.spec.js` (2) | See "U2-009" below. |
 
 ### U2-002: the derived MEFS and the value of a discovery
 
@@ -564,11 +564,76 @@ the percentile convention, the independence statement, which rows are
 included, where the valuations are saved, and one line per unranked
 prospect. Every number is the valuation engine's; the module only orders.
 
+### U2-009: send to Capital Portfolio (2026-10-03)
+
+**Owner decisions, 2026-10-03.** The owner said "go with your defaults".
+Recorded verbatim as the programme lead put them:
+
+> 1. Capital Portfolio's optimizer reads `npv_p50`. The sender supplies the SUCCESS-CASE MEAN value from the valuation in that slot, and the intake labels it as such everywhere it shows it (a mean of the success case, not a median), so nobody reads it as a P50.
+> 2. The budget line is the WELL COST (the exploration spend the portfolio decision commits), with the development cost carried as information only.
+> 3. The intake's 1 to 10 risk score has no meaning for a risked valuation: the sender leaves it BLANK and the intake shows "not provided by Risked Reserves Valuation" with the chance of success beside it. Do not invent a mapping from Pg to a score. If the optimizer cannot run with a blank score, make it treat a blank as "not scored" in a way that does not change any existing project's results, and say exactly what you did.
+
+**The contract `rrv-portfolio-candidate-1`** (sender
+`services/rrvPortfolioCandidate.js`, reads `services/rrvPortfolioService.js`:
+`getRrvPortfolioCandidate(supabase, id)` and `listRrvPortfolioCandidates`,
+plain selects on `rrv_valuations` under its existing rules, no DDL). Built
+from the SAVED row by its id (`fromRow`, then the valuation engine through
+`valueOrProblem`; no second valuation, no NPV or Monte Carlo code):
+valuation id, prospect key and name, created and saved times, owner and
+whether it is a colleague's (`sharedFromColleague`), identification, Pg, Pc,
+P(V >= MEFS | discovery), the success-case mean value after the well
+(`successMeanValueMM`), the same before the well, NPV and mean size if
+commercial, EMV, well and development cost, MEFS, value per barrel, success
+and risked mean volumes, units and the basis of each value in words, the
+economics source (basis, the model's assumptions, or the Petroleum Economics
+Studio run with its id, name, case, price deck, discount rate, results time,
+engine build, fingerprint and when it was received), where Pg and the
+volumes came from, the sending build, and an FNV-1a fingerprint over what
+the valuation says (not the sender, the reader, or a re-save time).
+
+**The success-case mean value.** The success case is a discovery (chance
+Pg). Its mean value after the well is Pc/Pg x NPV if commercial minus the
+well cost (a discovery below the MEFS is not developed and loses the well).
+With pos = Pg and fail_cost = well cost, Capital Portfolio's
+`pos x npv_p50 - (1 - pos) x fail_cost` is the valuation's EMV exactly.
+Held against an independent midpoint quadrature of the lognormal (to 1e-4
+$MM on about 415 $MM) and against the engine's EMV (1e-9).
+
+**The intake in Capital Portfolio Studio** (`capitalportfoliostudio/rrvIntake.js`):
+capex = well cost, npv_p50 = success-case mean value, pos = Pg, fail_cost =
+well cost, npv_p90 / npv_p10 / npv_stddev blank (no spread is sent; the
+risk summary treats the success case at its mean, and the form says so),
+risk_score blank, source_type `rrv`, source_ref the valuation id. The
+received contract is kept as JSON in `source_label` (the only free column;
+no migration). See the Capital Portfolio STATUS doc for what the page shows.
+
+**The blank risk score.** The optimizer never reads `risk_score` (engines
+`economics/portfolio.js`: the knapsack, the EMV, the moments and the Monte
+Carlo read capex, pos, npv_p50, fail_cost and the spread only), so a blank
+needs no "not scored" treatment there and NOTHING in the optimizer changed.
+The only place that required a score was the typed-project form; it still
+does for a typed project, and does not for a Risked Reserves one. Proof:
+`rrvIntake.test.js` runs the saved fixture
+`__fixtures__/existingPortfolio.json` (7 projects: typed, EPE Monte Carlo
+linked, a legacy row with no pos, a free one; 2 portfolios, correlation 0
+and 0.45) and requires every field of `optimizePortfolio` to equal
+`existingPortfolio.results.json`, written from main fb9da7ccd in its own
+commit before any change; and the same set with the score blank, 1 or 10
+gives identical results. `rrvIntakePage.test.jsx` opens that fixture on the
+page and finds main's EMVs and funded set.
+
+**Open, for the owner:** whether the live `portfolio_projects.risk_score`
+(and `npv_p90`, `npv_p10`) allow NULL could not be read from this box (the
+table predates the migrations folder). If one does not, saving the intake
+fails with the database's message and a sentence that nothing was filled
+in; no value is invented. Check: `select column_name, is_nullable from
+information_schema.columns where table_name = 'portfolio_projects'`.
+
 ## Deferred, with reasons (2026-10-02)
 
 | Item | Reason |
 |---|---|
-| U2-009 send to Capital Portfolio | That app has a typed intake and a provenance pattern (`source_type`, `source_ref`, `source_label`, the EPE Monte Carlo link), so it needs no DDL. The mapping needs three owner decisions first: (1) the optimizer reads `npv_p50` as the success-case NPV in its EMV (`pos x npv_p50 - (1 - pos) x fail_cost`), so the valuation's EMV is reproduced only if the mean commercial value is put in the field labelled P50; (2) whether a prospect's budget line is the exploration well (the decision to drill) or the development capex that follows a discovery; (3) the intake requires a risk score from 1 to 10 that this app has no meaning for. With those answered it is an S to M build (a "Risked Reserves valuation" picker in the project form, as the EPE Monte Carlo picker is). |
+| U2-009 send to Capital Portfolio (BUILT 2026-10-03, see "U2-009" above; the reason it waited is kept here) | That app has a typed intake and a provenance pattern (`source_type`, `source_ref`, `source_label`, the EPE Monte Carlo link), so it needs no DDL. The mapping needs three owner decisions first: (1) the optimizer reads `npv_p50` as the success-case NPV in its EMV (`pos x npv_p50 - (1 - pos) x fail_cost`), so the valuation's EMV is reproduced only if the mean commercial value is put in the field labelled P50; (2) whether a prospect's budget line is the exploration well (the decision to drill) or the development capex that follows a discovery; (3) the intake requires a risk score from 1 to 10 that this app has no meaning for. With those answered it is an S to M build (a "Risked Reserves valuation" picker in the project form, as the EPE Monte Carlo picker is). |
 | U2-004 play and prospect chance split | After NAPE, with ReservoirCalc Pro U2-010 (it changes how Pg is entered upstream). |
 | U2-007 portfolio distribution with dependence | L. Needs the canonical Monte Carlo module (`src/lib/monteCarlo.js`) and a dependence model, which builds on U2-004. |
 | U2-005 multi-zone and multi-segment prospects | L. Belongs upstream (ReservoirCalc Pro U2-003). |

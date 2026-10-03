@@ -103,3 +103,19 @@ app still works without it. No DDL in Step 2.
   `epe/__tests__/epeUnitValue.test.js`,
   `ReservoirCalcPro/__tests__/prospectRerun.test.js` and
   `rerunProspect.test.jsx`; `e2e/risked-reserves-upgrade.spec.js` extended.
+
+## 2026-10-03: send to Capital Portfolio (U2-009, Reservoir round, app 4)
+
+- "Send to Capital Portfolio" on the tab bar of a saved valuation (own or a
+  colleague's shared one, which goes as read-only provenance). It opens
+  Capital Portfolio Studio with `?rrvValuation=<id>`; that app reads the
+  saved row by id through the `rrv-portfolio-candidate-1` contract
+  (`services/rrvPortfolioCandidate.js`, `services/rrvPortfolioService.js`).
+  Held until the valuation is saved to the account and has no unsaved edits;
+  the button says why.
+- The owner's three decisions, the contract, the success-case mean value and
+  the proofs: `docs/upgrade/RiskedReservesValuation-UPGRADE.md`, "U2-009".
+- Fixtures `services/rrvPortfolioFixtures.js` are shared by both harnesses
+  (Ekene North as `valuation-1`, the colleague's Ada Deep as
+  `valuation-shared`). No DDL.
+
