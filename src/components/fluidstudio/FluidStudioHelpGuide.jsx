@@ -6,6 +6,20 @@ import {
 
 const helpContent = [
   {
+    id: 'labData',
+    icon: Beaker,
+    title: 'Laboratory tables and matching the correlations',
+    content:
+      "The Lab data tab loads the tables of a PVT report: the constant composition expansion (pressure and relative volume), the differential liberation (pressure with Rsd, Bod and what else was measured) and the viscosity table, from a CSV or text file, an Excel sheet or a pasted block. Columns are found by their header in any order; the unit of each comes from the header or from the choices at the door; gauge pressures are brought to absolute; and the door reads back what it read and every line it did not before anything is stored. Enter the separator test Bofb and Rsfb so the differential rows are adjusted to the separator basis of the model; without them they are drawn as differential, for reference. The tables are saved with the project, drawn on every PVT plot, checked (trends, the Y function and the mass balance of the differential liberation: flagged, never corrected), and set against the model in the report with the misfit of each property. On the PVT Analysis tab, Match to lab data sets the bubble point to the laboratory one and fits a multiplier and a shift to Rs and Bo and a multiplier to the oil viscosity, with the error before and after and the 95 percent interval of each parameter. The status says Matched to lab only while the fluid, the correlations and the tables are the ones the match was fitted on. A consuming app can ask for a longer table (Highest table pressure on Stream A).",
+  },
+  {
+    id: 'exports',
+    icon: Share2,
+    title: 'Exports: simulator keywords and the pvt-1 block',
+    content:
+      "Simulator keywords writes PVTO, PVDG and PVTW in FIELD units, with the origin, the method of every property, the basis, the units and the conventions as comment lines above them; for the same fluid the blocks are those the Simulation Studio deck builder writes. pvt-1 JSON downloads the block other Petrolord apps receive. The gas z-factor is Dranchuk-Abou-Kassem by default (Hall-Yarborough on the Correlations tab), from the Petrolord engines library. Vasquez-Beggs corrects the gas gravity from the first separator stage. Salinity enters Bw through the brine correction of Numbere, Brigham and Standing.",
+  },
+  {
     id: 'overview',
     icon: FlaskConical,
     title: 'What is the Fluid Systems & Flow Behavior Studio?',
