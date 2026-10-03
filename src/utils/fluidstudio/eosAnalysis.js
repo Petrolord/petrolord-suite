@@ -462,7 +462,7 @@ export const runEosPvtTable = (composition, stages, { salinityPpm = 0 } = {}) =>
     mu_o: round(r.mu_o, 4),
     mu_g: round(r.mu_g, 5),
     // water is outside the EOS: the canonical McCain forms at the row pressure
-    Bw: round(bwAt(r.pressure, parsed.tempF), 4),
+    Bw: round(bwAt(r.pressure, parsed.tempF, salinityPpm), 4),
     mu_w: round(muWaterAt(r.pressure, parsed.tempF, salinityPpm), 4),
     phase: r.phase,
   }));

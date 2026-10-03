@@ -26,7 +26,7 @@
 import { pvtCalcs } from './pvtCalculations.js';
 import {
   mccainBw, mccainMuW, gasZDetail, GAS_Z_METHODS, DEFAULT_GAS_Z_METHOD,
-  vasquezBeggsReferenceGasGravity, VASQUEZ_BEGGS_REFERENCE_SEPARATOR_PSIA,
+  vasquezBeggsReferenceGasGravity, VASQUEZ_BEGGS_REFERENCE_SEPARATOR_PSIA, brineBw, BRINE_FVF_RANGE,
 } from '../../packages/engines/engines/fluid/blackOil';
 import { readPtProfile } from './fluidstudio/ptProfileImport.js';
 import { labDataOf } from './fluidstudio/labData.js';
@@ -599,10 +599,12 @@ export const undersaturatedMuO = (muob, p, pb) => {
 
 /**
  * Formation water FVF (RB/STB) and viscosity (cp) from the canonical
- * engines library (McCain 1990 and 1991). Salinity enters the viscosity
- * only: the engine's Bw is the pure-water form and says so.
+ * engines library: McCain's Bw of gas-free water times the Numbere,
+ * Brigham and Standing (1977) brine ratio for the salinity (FLUID-U2-022;
+ * before, salinity entered the viscosity only), and McCain's viscosity.
+ * With no salinity Bw is McCain's exactly.
  */
-export const bwAt = (p, tempF) => mccainBw(p, tempF);
+export const bwAt = (p, tempF, salinityPpm = 0) => brineBw(p, tempF, Math.max(0, num(salinityPpm)));
 export const muWaterAt = (p, tempF, salinityPpm) => mccainMuW(p, tempF, Math.max(0, num(salinityPpm)));
 
 // ---------------------------------------------------------------------------
@@ -769,7 +771,7 @@ export const computePvtRow = (p, fluid, pb) => {
     mu_o: Number(muO.toFixed(4)),
     mu_g: Number(muGas(p, fluid.temp, fluid.gasGravity, z).toFixed(5)),
     co: co === null ? null : Number(co.toExponential(3)),
-    Bw: Number(bwAt(p, fluid.temp).toFixed(4)),
+    Bw: Number(bwAt(p, fluid.temp, fluid.salinity).toFixed(4)),
     mu_w: Number(muWaterAt(p, fluid.temp, fluid.salinity).toFixed(4)),
     phase: saturated ? 'saturated' : 'undersaturated',
   };
@@ -805,7 +807,7 @@ export const computePvtTable = (fluid) => {
     z_at_pb: Number(gasZ(pb, fluid.temp, fluid.gasGravity, gasZMethod(fluid)).toFixed(4)),
     co_at_pb: Number(coAt(fluid, pb).toExponential(3)),
     mu_od: Number(muOdAt(fluid).toFixed(4)),
-    bw_at_pb: Number(bwAt(pb, fluid.temp).toFixed(4)),
+    bw_at_pb: Number(bwAt(pb, fluid.temp, fluid.salinity).toFixed(4)),
     mu_w_at_pb: Number(muWaterAt(pb, fluid.temp, fluid.salinity).toFixed(4)),
     api: fluid.api,
     gasSg: fluid.gasGravity,
@@ -925,6 +927,8 @@ export const FIXED_CORRELATION_RANGES = Object.freeze({
   sutton: { gasGravity: [0.57, 1.68] },
   lee_gonzalez_eakin: { pressure: [100, 8000], temp: [100, 340], gasGravity: [0.55, 1.0] },
   mccain_bw: { pressure: [0, 5000], temp: [0, 260] },
+  // the brine ratio of Numbere, Brigham and Standing: to 10,000 psia, 60 to 400 degF, 25 weight percent
+  numbere_brine: { pressure: BRINE_FVF_RANGE.pressure, temp: BRINE_FVF_RANGE.temp, salinity: BRINE_FVF_RANGE.salinity },
   mccain_mu_w: { pressure: [0, 10000], temp: [100, 400], salinity: [0, 260000] },
   // the z-factor: Sutton's gas gravity range and the pseudo-reduced window of the chart check
   dranchuk_abou_kassem: { gasGravity: [0.57, 1.68], tpr: GAS_Z_METHODS.dranchuk_abou_kassem.chartTpr, ppr: [0, GAS_Z_METHODS.dranchuk_abou_kassem.chartPpr[1]] },
@@ -1014,7 +1018,10 @@ export function blackOilMethods(fluid, pbDetail) {
     })()),
     row('mu_g', 'Gas viscosity', { method: 'Lee-Gonzalez-Eakin', reference: 'Lee, Gonzalez and Eakin (1966)', kind: 'correlation', rangeKey: 'lee_gonzalez_eakin' }),
     row('bg', 'Gas formation volume factor Bg', { method: 'Real gas law, Bg = 0.00504 Z T / p', reference: '', kind: 'definition', rangeKey: null, note: 'The constant is for field units (RB/scf, T in degR, p in psia), at the standard conditions of this report.' }),
-    row('bw', 'Water formation volume factor Bw', { method: 'McCain', reference: 'McCain (1990)', kind: 'correlation', rangeKey: 'mccain_bw', note: 'Pure water form: salinity is not applied to Bw.' }),
+    row('bw', 'Water formation volume factor Bw', fluid.salinity > 0
+      ? { method: 'McCain, with the Numbere-Brigham-Standing salinity correction', reference: 'McCain (1990); Numbere, Brigham and Standing (1977)', kind: 'correlation', rangeKey: 'mccain_bw', note: `Gas-free water. The brine ratio for ${fluid.salinity} ppm is applied (Equation 10 of the Stanford report).` }
+      : { method: 'McCain', reference: 'McCain (1990)', kind: 'correlation', rangeKey: 'mccain_bw', note: 'Gas-free water; no salinity is entered.' }),
+    ...(fluid.salinity > 0 ? [row('bw_brine', 'Brine correction of Bw', { method: 'Numbere, Brigham and Standing', reference: 'Numbere, Brigham and Standing (1977)', kind: 'correlation', rangeKey: 'numbere_brine' })] : []),
     row('mu_w', 'Water viscosity', { method: 'McCain', reference: 'McCain (1991)', kind: 'correlation', rangeKey: 'mccain_mu_w' }),
   ];
 }

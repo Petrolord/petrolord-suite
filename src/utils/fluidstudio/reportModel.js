@@ -297,7 +297,7 @@ function blackOilInputRows({ inputs, results, u }) {
   }
   return {
     rows,
-    note: `The PVT table uses the API gravity, the solution GOR, the gas gravity, the temperature, the bubble point when one is entered and the two correlation choices. Salinity enters the water viscosity only. The stock-tank oil basis scales the stage gas rates and nothing else. Flowline geometry is recorded in the app and enters no calculation.${rows.some((r) => String(r.key).startsWith('lab.')) ? ' The laboratory tables are compared with the model and enter no calculation.' : ''}`,
+    note: `The PVT table uses the API gravity, the solution GOR, the gas gravity, the temperature, the bubble point when one is entered and the two correlation choices. Salinity enters the water viscosity and, through the brine correction, Bw. The stock-tank oil basis scales the stage gas rates and nothing else. Flowline geometry is recorded in the app and enters no calculation.${rows.some((r) => String(r.key).startsWith('lab.')) ? ' The laboratory tables are compared with the model and enter no calculation.' : ''}`,
   };
 }
 
@@ -354,7 +354,7 @@ function eosInputRows({ inputs, eos, u }) {
   }
   return {
     rows,
-    note: 'The compositional model uses the feed composition, the C7+ description, the reservoir pressure and temperature, the separator stages and, when applied, the tuning parameters. Salinity enters the water viscosity only. The measured values enter only through the tuning.',
+    note: 'The compositional model uses the feed composition, the C7+ description, the reservoir pressure and temperature, the separator stages and, when applied, the tuning parameters. Salinity enters the water viscosity and Bw. The measured values enter only through the tuning.',
   };
 }
 
@@ -460,7 +460,7 @@ function rangeWords(u, variable, [lo, hi]) {
 const RANGE_NAME = {
   standing: 'Standing', vasquez_beggs: 'Vasquez-Beggs', glaso: 'Glaso', beggs_robinson: 'Beggs-Robinson', beal_cook_spillman: 'Beal-Cook-Spillman',
   vasquez_beggs_co: 'Vasquez-Beggs (compressibility)', vasquez_beggs_undersaturated: 'Vasquez-Beggs (undersaturated viscosity)',
-  sutton: 'Sutton pseudo-critical properties', dranchuk_abou_kassem: 'Dranchuk-Abou-Kassem (Z), on Sutton pseudo-critical properties', hall_yarborough: 'Hall-Yarborough (Z), on Sutton pseudo-critical properties', lee_gonzalez_eakin: 'Lee-Gonzalez-Eakin', mccain_bw: 'McCain (water FVF)', mccain_mu_w: 'McCain (water viscosity)',
+  sutton: 'Sutton pseudo-critical properties', dranchuk_abou_kassem: 'Dranchuk-Abou-Kassem (Z), on Sutton pseudo-critical properties', hall_yarborough: 'Hall-Yarborough (Z), on Sutton pseudo-critical properties', lee_gonzalez_eakin: 'Lee-Gonzalez-Eakin', mccain_bw: 'McCain (water FVF)', mccain_mu_w: 'McCain (water viscosity)', numbere_brine: 'Numbere, Brigham and Standing (brine Bw)',
 };
 
 function rangesTable(methods, u) {
@@ -511,7 +511,7 @@ const BLACK_OIL_LIMITS = [
   'The correlations take no account of non-hydrocarbon gases (nitrogen, carbon dioxide, hydrogen sulphide).',
   'Gas properties are computed at every pressure of the table. Above the bubble point there is no free gas in the reservoir, so Z, Bg and gas viscosity there describe the solution gas only as a reference.',
   'The separator results are a staged liberation by the Rs correlation at each stage. It is an approximation and no compositional flash; the multistage Bo is an estimate.',
-  'Water properties are for water with no dissolved gas.',
+  'Water properties are for water with no dissolved gas; the salinity correction of Bw is the brine ratio of Numbere, Brigham and Standing (1977).',
 ];
 const EOS_LIMITS = [
   'Peng-Robinson (1978) equation of state with one C7+ pseudo-component. A heavy fraction split into several pseudo-components is not modelled.',
