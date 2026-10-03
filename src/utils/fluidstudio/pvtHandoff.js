@@ -16,6 +16,7 @@ import { blackOilRangeFlags } from '@/utils/fluidStudioCalculations';
 import { tuningState, isActiveStage } from '@/utils/fluidstudio/eosAnalysis';
 import { labContractBlock, blackOilEvaluator } from '@/utils/fluidstudio/labReport';
 import { labMatchState } from '@/utils/fluidstudio/labMatch';
+import { pressureRangeBlock } from '@/utils/fluidstudio/tableRange';
 
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
 
@@ -138,6 +139,7 @@ export function buildFluidPvtContract({ inputs, results, eos, projectId = null, 
         Bw: pbRow?.Bw ?? null, mu_w: pbRow?.mu_w ?? null, Bod: t.kpis.bodb, Rsd: t.kpis.rsdb,
       },
       labData: labContractBlock({ inputs, rows: t.rows, pb: t.pb }),
+      pressureRange: { ...pressureRangeBlock(inputs, t.rows), note: 'The compositional table keeps its own span; a set top applies to the black-oil table.' },
       table: t.rows,
     });
   }
@@ -167,6 +169,7 @@ export function buildFluidPvtContract({ inputs, results, eos, projectId = null, 
       Bw: k.bw_at_pb, mu_w: k.mu_w_at_pb, mu_od: k.mu_od,
     },
     labData: labContractBlock({ inputs, rows: results.pvt.table, pb: k.pb, evaluate: blackOilEvaluator(results) }),
+    pressureRange: pressureRangeBlock(inputs, results.pvt.table),
     table: results.pvt.table,
   });
 }

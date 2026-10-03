@@ -24,6 +24,7 @@ import { isEosHandoff, eosRangeFlags } from '@/utils/fluidstudio/pvtHandoff';
 import { labDataOf, LAB_KINDS } from '@/utils/fluidstudio/labData';
 import { buildLabSection, blackOilEvaluator } from '@/utils/fluidstudio/labReport';
 import { labMatchState } from '@/utils/fluidstudio/labMatch';
+import { tableRangeOf } from '@/utils/fluidstudio/tableRange';
 
 export const REPORT_TITLE = 'Fluid Properties Report';
 export const APP_NAME = 'Petrolord Fluid Systems Studio';
@@ -279,6 +280,10 @@ function blackOilInputRows({ inputs, results, u }) {
   rows.push(...stageRows(inputs, u, meta));
   rows.push({ key: 'stockTank', label: 'Stock tank (last stage)', value: `${SHOW.pressure1(u, m?.standardConditions?.pressure_psia ?? 14.7)} / ${SHOW.temperature(u, m?.standardConditions?.temperature_degF ?? 60)}`, unit: `${u.label('pressure')} / ${u.label('temperature')}`, source: 'Standard conditions, always added by the app' });
   rows.push(...labInputRows(inputs, u));
+  if (fluid.sweep?.pTop != null) {
+    const tr = tableRangeOf(inputs);
+    row({ key: 'sweep.pTop', engineKeys: ['sweep.pTop'], label: 'Highest table pressure (optional input)', value: SHOW.pressure(u, fluid.sweep.pTop), unit: u.label('pressure'), source: tr.from === 'consumer' ? `Requested by ${tr.requestedBy || 'a consuming app'} through the address of the page` : 'Entered: the table is carried at least to this pressure' });
+  }
   if (fluid.sweep?.pCover != null) {
     row({ key: 'sweep.pCover', engineKeys: ['sweep.pCover'], label: 'Pressure the table is carried up to', value: SHOW.pressure(u, fluid.sweep.pCover), unit: u.label('pressure'), source: 'Computed: the highest pressure of the laboratory tables' });
   }

@@ -327,6 +327,8 @@ export function buildPvtContract(a) {
     ...(a.identification ? { identification: a.identification } : {}),
     // added 2026-10-02 (Fluid U2): the laboratory tables the project holds and the misfit of this table against them
     ...(a.labData ? { lab_data: a.labData } : {}),
+    // added 2026-10-03 (Fluid U2): the pressure span of the table, and whether it was set or asked for by a consumer
+    ...(a.pressureRange ? { pressure_range: a.pressureRange } : {}),
     table: a.table || [],
   };
 }

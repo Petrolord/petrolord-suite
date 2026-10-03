@@ -29,6 +29,7 @@ import {
 } from '../../packages/engines/engines/fluid/blackOil';
 import { readPtProfile } from './fluidstudio/ptProfileImport.js';
 import { labDataOf } from './fluidstudio/labData.js';
+import { tableRangeOf } from './fluidstudio/tableRange.js';
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -145,7 +146,7 @@ export const normalizeFluid = (inputs) => {
     // FLUID-U2-001: with laboratory tables loaded the pressure table is
     // carried up to their highest pressure, so every lab row has a model
     // value beside it. Absent when no table is loaded.
-    ...labSweep(inputs),
+    ...tableSweep(inputs),
   };
 };
 
@@ -174,6 +175,17 @@ export const appliedLabMatch = (inputs) => {
 };
 
 /** The highest pressure of the loaded laboratory tables (psia), as the table's cover, or nothing. */
+/**
+ * The cover of the pressure table: the highest laboratory pressure
+ * (FLUID-U2-001) and the top set in the app or asked for by a consumer
+ * (FLUID-U2-026). Absent when neither is there, so the default span holds.
+ */
+const tableSweep = (inputs) => {
+  const lab = labSweep(inputs).sweep?.pCover ?? 0;
+  const top = tableRangeOf(inputs).pMax ?? 0;
+  return lab > 0 || top > 0 ? { sweep: { ...(lab > 0 ? { pCover: lab } : {}), ...(top > 0 ? { pTop: top } : {}) } } : {};
+};
+
 const labSweep = (inputs) => {
   const d = labDataOf(inputs);
   const top = Math.max(0, ...[d.cce, d.dl, d.viscosity].filter(Boolean).flatMap((t) => t.rows.map((r) => r.pressure)));
@@ -748,7 +760,7 @@ export const computePvtTable = (fluid) => {
   const sweep = fluid.sweep ?? {};
   const pMin = num(sweep.pMin, 14.7);
   // the default span, widened to cover the laboratory pressures when there are any
-  const pMax = num(sweep.pMax, Math.max(pb * 1.4, pb + 2000, num(sweep.pCover, 0)));
+  const pMax = num(sweep.pMax, Math.max(pb * 1.4, pb + 2000, num(sweep.pCover, 0), num(sweep.pTop, 0)));
   const nPoints = Math.max(8, Math.round(num(sweep.nPoints, 40)));
 
   const pressures = new Set([pMin, pMax, pb, 14.7]);

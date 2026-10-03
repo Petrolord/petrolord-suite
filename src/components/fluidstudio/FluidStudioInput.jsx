@@ -119,6 +119,14 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
               <InputField label="Reservoir Temperature" id="temp" value={streamA.temp} onChange={(v) => handleStreamChange('temp', v)} kind="temperature" />
               <InputField label="Bubble Point (optional)" id="pb" value={streamA.pb} onChange={(v) => handleStreamChange('pb', v)} kind="pressure" placeholder="auto" hint="Leave blank to solve Pb from the GOR." />
               <InputField label="Water Salinity" id="salinity" value={streamA.salinity} onChange={(v) => handleStreamChange('salinity', v)} kind="salinity" />
+              <InputField
+                label="Highest table pressure (optional)" id="table-top" kind="pressure" placeholder="default"
+                value={inputs.tableRange?.pMax ?? null}
+                onChange={(v) => setInputs((prev) => ({ ...prev, tableRange: v > 0 ? { pMax: v, from: 'entered' } : undefined }))}
+                hint={inputs.tableRange?.from === 'consumer'
+                  ? `Asked for by ${inputs.tableRange.requestedBy || 'a consuming app'}. Save the project so it can read the longer table.`
+                  : 'By default the table ends at the larger of 1.4 times Pb and Pb plus 2,000 psi. Set a higher pressure for a reservoir further above its bubble point.'}
+              />
             </div>
           </TabsContent>
 

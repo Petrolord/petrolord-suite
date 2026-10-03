@@ -67,3 +67,8 @@ export function handoffFromContract(contract) {
     contract: b,
   };
 }
+
+// A consumer whose case reaches above the table (FLUID-U2-026) opens Fluid
+// Systems Studio at rangeRequestUrl(base, projectId, pMaxPsia, appName); the
+// user saves, and the block's `pressure_range` then covers the request.
+export { rangeRequestUrl, PVT_RANGE_PARAM, PVT_RANGE_FOR_PARAM } from '@/utils/fluidstudio/tableRange';
