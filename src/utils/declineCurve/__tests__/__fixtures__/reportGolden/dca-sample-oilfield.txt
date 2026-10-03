@@ -1,0 +1,353 @@
+Decline Curve Analysis Report
+Petrolord Decline Curve Analysis
+
+Company                    Petrolord Sample Co                              Field                   Ekene (sample)
+Licence or block           Sample                                           Well                    Ekene-1 (sample)
+Reservoir or zone          Ekene sand (sample)                              Stream                  oil
+Data dates                 2020-01-01 to 2022-12-01                         Data cut-off            2022-12-01
+Analysis type              Decline curve analysis, Exponential              Analyst                 A. Analyst
+                           (chosen by best fit)
+Project                    Sample project                                   Fitted                  2026-10-03
+Software build             Petrolord Suite test (dca-u1)                    Sample data             Yes: the sample well, not field data
+Display units              Oilfield (bbl/d, Mscf/d, bbl, Mscf, Di           Generated               2026-10-03 12:00 UTC
+                           nominal %/yr)
+
+
+Headline results
+ Quantity                                                      Value           Unit   How
+
+ Produced to the data cut-off (2022-12-01)                     72,149          bbl    Trapezoids of the rate history from the first row
+
+ Remaining, data cut-off to the economic limit                 19,507          bbl    Daily sum of the fitted forecast after the cut-off
+
+ EUR (produced + remaining)                                    91,655          bbl    Closes on the sum above
+
+EUR is the sum of the two rows above it.
+
+Life
+ Quantity                                                              Value
+
+ Rate of the fit at the cut-off                                        33.43 bbl/d
+
+ Time from the cut-off to the end of the forecast                      2.75 years (1,006 days)
+
+ End of the forecast                                                   The forecast reaches the economic limit on 2025-09-02
+
+
+
+
+Decline Curve Analysis Report, Ekene-1 (sample), oil                                                                                       Page 1 of 6
+Inputs
+ Input                                       Value                                   Unit         Source and quality
+
+ Production history, oil rate                36 rows                                 bbl/d        Imported from Ekene-1 sample (engines test data)
+
+ Decline model                               Auto (best of exponential,                           App default (not changed)
+                                             harmonic, hyperbolic by RMSE):
+                                             Exponential
+
+ b lower limit of the hyperbolic search      0                                                    App default (none)
+
+ b upper limit of the hyperbolic search      1                                                    App default (not changed)
+
+ Fit window start                            2020-01-01                              date         First date of the data (set at import)
+
+ Fit window end                              2022-12-01                              date         Last date of the data (set at import)
+
+ Points excluded by the analyst              0                                                    None excluded
+
+ Data cut-off (forecast starts the next      2022-12-01                              date         The last date of the data
+ day)
+
+ qi, initial rate at the fit start           120.00                                  bbl/d        Fitted, at 2020-01-01
+
+ Di, initial decline (nominal)               0.0012 per day; 43.83 %/yr                           Fitted. Nominal (instantaneous) decline at the fit
+                                                                                                  start; a year is 365.25 days
+
+ b, Arps exponent                            0                                                    Fixed by the model (Exponential)
+
+ Economic limit rate                         10.00                                   bbl/d        App default (not changed). A fixed rate below which
+                                                                                                  the well no longer pays; no cost model behind it
+
+ Forecast horizon after the data cut-off     10.00 years (3,653 days)                             App default (not changed)
+
+ Facility limit (maximum rate)               none                                                 App default (none)
+
+ Probabilistic forecast (Monte Carlo)        off                                                  App default (off)
+
+ Monte Carlo seed                            not used                                             Not used: the forecast is deterministic
+
+ Economic limit uncertainty                  not used                                             Not used: the forecast is deterministic
+
+Every value the fit and the forecast read. "App default" means the value the app starts with was not changed; it is printed so a reader can judge it.
+
+Decline rate and its basis
+ Basis                                                                                              Value                           Unit
+
+ Nominal, per day (as fitted)                                                                       0.0012                          1/d
+
+ Nominal, per year                                                                                  43.83                           %/yr
+
+ Nominal, in the display unit                                                                       43.83                           %/yr
+
+ Effective, first year                                                                              35.49                           %/yr
+
+The fit holds Di as the nominal (instantaneous) decline per day at the fit start. Per year it is that times 365.25. The effective first-year decline is the
+share of the initial rate lost over the first year, read off the fitted curve.
+
+
+
+
+Decline Curve Analysis Report, Ekene-1 (sample), oil                                                                                           Page 2 of 6
+Regression
+ Item                           Value
+
+ Model                          Arps exponential (b = 0)
+
+ Method                         Least squares of ln q against time
+
+ Model choice                   Lowest RMSE on rates of the three Arps forms
+
+ Points used                    36
+
+ R2 (on rates)                  1.0000
+
+ RMSE (on rates)                0.00 bbl/d
+
+ qi, 95% interval               120.00 plus or minus 0.00 bbl/d
+
+ Di, 95% interval               43.83 plus or minus 0.00 %/yr nominal
+
+ b, interval                    fixed by the model
+
+ Interval method                Delta method on the standard errors of the linearised regression, 1.96 sigma
+
+
+Monte Carlo EUR
+Not run: the forecast is deterministic.
+
+
+Data used and left out
+ Count                                                                                                                  Rows
+
+ Rows imported                                                                                                          36
+
+ Rows with a oil rate                                                                                                   36
+
+ Outside the fit window                                                                                                 0
+
+ At or below zero (left out by the engine)                                                                              0
+
+ Excluded by the analyst                                                                                                0
+
+ Used in the fit                                                                                                        36
+
+Used plus outside the window plus at or below zero plus excluded plus rows with no rate equals the rows imported.
+
+Production data
+ Date                                                  Rate (bbl/d)                                        In the fit
+
+ 2020-01-01                                            120.00                                              used
+
+ 2020-02-01                                            115.62                                              used
+
+ 2020-03-01                                            111.66                                              used
+
+ 2020-04-01                                            107.59                                              used
+
+ 2020-05-01                                            103.78                                              used
+
+ 2020-06-01                                            99.99                                               used
+
+ 2020-07-01                                            96.46                                               used
+
+ 2020-08-01                                            92.93                                               used
+
+ 2020-09-01                                            89.54                                               used
+
+ 2020-10-01                                            86.37                                               used
+
+ 2020-11-01                                            83.22                                               used
+
+ 2020-12-01                                            80.28                                               used
+
+ 2021-01-01                                            77.35                                               used
+
+
+
+
+Decline Curve Analysis Report, Ekene-1 (sample), oil                                                                           Page 3 of 6
+ Date                                                   Rate (bbl/d)                                            In the fit
+
+ 2021-02-01                                             74.52                                                   used
+
+ 2021-03-01                                             72.06                                                   used
+
+ 2021-04-01                                             69.43                                                   used
+
+ 2021-05-01                                             66.97                                                   used
+
+ 2021-06-01                                             64.53                                                   used
+
+ 2021-07-01                                             62.25                                                   used
+
+ 2021-08-01                                             59.97                                                   used
+
+ 2021-09-01                                             57.78                                                   used
+
+ 2021-10-01                                             55.74                                                   used
+
+ 2021-11-01                                             53.70                                                   used
+
+ 2021-12-01                                             51.81                                                   used
+
+ 2022-01-01                                             49.91                                                   used
+
+ 2022-02-01                                             48.09                                                   used
+
+ 2022-03-01                                             46.50                                                   used
+
+ 2022-04-01                                             44.80                                                   used
+
+ 2022-05-01                                             43.22                                                   used
+
+ 2022-06-01                                             41.64                                                   used
+
+ 2022-07-01                                             40.17                                                   used
+
+ 2022-08-01                                             38.70                                                   used
+
+ 2022-09-01                                             37.29                                                   used
+
+ 2022-10-01                                             35.97                                                   used
+
+ 2022-11-01                                             34.66                                                   used
+
+ 2022-12-01                                             33.43                                                   used
+
+
+Limits of this analysis
+- Arps decline describes boundary-dominated flow at constant bottom-hole pressure and unchanged operating conditions. A change of choke,
+artificial lift, completion or offset injection starts a new decline that this fit does not see.
+- The fit is one segment over the fit window. Earlier behaviour outside the window is shown on the plots and not used.
+- b above 1 is not boundary-dominated behaviour; it overstates late rates when held to the end of the forecast.
+- Forecasting extrapolates the fitted curve beyond the data; the further it runs, the less the data constrain it.
+- Rates are daily rates at stock-tank conditions from the imported history; produced to date is the trapezoid sum of those rates and can differ from
+metered cumulative production.
+- The economic limit is a fixed rate with no cost model; remaining reserves stop there.
+- Intervals are first-order (delta method) estimates from the linearised regression; the b interval is assumed. The probabilistic forecast samples
+those intervals and is not an independent uncertainty assessment.
+- Units: state is held in bbl/d, Mscf/d and a per-day decline; this report prints the display units named in its header. A year is 365.25 days.
+
+Inputs outside a published range
+- This is the sample well, built from published test data. It is not field data.
+
+
+
+
+Decline Curve Analysis Report, Ekene-1 (sample), oil                                                                                         Page 4 of 6
+Plots
+Figure 1. Rate against time (log rate)
+
+                                Data used in the fit            Fitted model      Forecast
+                 1000
+                            Fit window                                                                 Data cut-off                  qi 120.0 bbl/d, Di 43.83 %/yr nominal, b 0
+  Rate (bbl/d)
+
+
+
+
+                 100
+
+
+
+
+                            Economic limit 10.00 bbl/d
+                  10
+                   2020                                  2021                    2022                 2023                    2024                 2025                      2026
+
+                                                                                                      Date
+
+Ekene-1 (sample), oil. Data used in the fit, data left out, the fitted Arps model over the fit window (shaded) and the forecast from the data cut-off;
+the economic limit of 10.00 bbl/d dashed. The fit is one segment: no segment boundary to mark.
+
+
+Figure 2. Rate against cumulative production
+
+                                Data           Fitted model           Forecast
+                 120
+                                                                                                                                                                   EUR
+
+
+                 100
+
+
+                  80
+  Rate (bbl/d)
+
+
+
+
+                  60
+
+
+                  40
+
+
+                  20
+                            Economic limit
+
+
+                   0
+                        0                                   20000                        40000                        60000                  80000                            1e5
+
+                                                                                                 Cumulative (bbl)
+
+The rate history against the cumulative produced from the first row (trapezoids), the fitted rate at the data dates, and the forecast to EUR 91,655
+bbl.
+
+
+
+
+Decline Curve Analysis Report, Ekene-1 (sample), oil                                                                                                                     Page 5 of 6
+Figure 3. Cumulative production against time
+
+                                 Cumulative to the cut-off   Forecast
+                      1e5
+                             EUR 91,655 bbl
+
+
+                     80000
+  Cumulative (bbl)
+
+
+
+
+                     60000
+
+
+
+                     40000
+
+
+
+                     20000
+
+
+
+                        0
+                        2020                        2021                2022   2023                 2024                     2025              2026
+
+                                                                               Date
+
+Cumulative from the first row: the history (trapezoids of the rates) and the forecast on top of what was produced, ending at EUR 91,655 bbl.
+
+
+Figure 4. EUR distribution (Monte Carlo)
+Does not apply: the forecast is deterministic. Switch on probabilistic mode and run the forecast again for a distribution.
+
+
+
+
+Decline Curve Analysis Report, Ekene-1 (sample), oil                                                                                   Page 6 of 6
+

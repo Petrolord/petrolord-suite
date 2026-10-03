@@ -40,10 +40,11 @@ const DCAHelpContent = () => {
             <ol className="list-decimal pl-4 text-xs space-y-2">
               <li><strong>Create a project</strong> using the Project dropdown in the top-left.</li>
               <li><strong>Add a well</strong> using the + button next to the Well dropdown.</li>
-              <li><strong>Upload a CSV</strong> by dragging into the upload box. The file needs a date column and at least one rate column. After upload, the box turns green showing the filename, record count, and date range.</li>
+              <li><strong>Import production data</strong> by dropping a CSV, text or Excel file on the upload box, or click <em>Add the sample well</em> for Ekene-1, a labelled sample. The import door shows what it read (which column became which stream, in which unit, the rows left out and why) and asks anything the file cannot settle. Nothing is imported until you press <em>Import</em>.</li>
               <li><strong>Pick a stream</strong> if the file carried more than one. The Production Stream strip under the importer switches between oil, gas and water.</li>
               <li><strong>Fit a model</strong>: leave Decline Model at "Auto-Select (Best Fit)" and click <em>Fit Model</em>. The fitted curve overlays the historical points on the Model Fit tab.</li>
               <li><strong>Generate a forecast</strong>: set your limits in Forecast Settings, then click <em>Generate Forecast</em>. Switch to the <strong>Forecast Results</strong> tab for the rate and cumulative table, the EUR cards and the CSV export.</li>
+              <li><strong>Report</strong>: the <strong>Report</strong> tab names the well (field, licence, reservoir, analyst), shows the rows the PDF prints and exports the PDF.</li>
             </ol>
             <div className="bg-pl-info-bg border border-pl-info/40 text-pl-text p-3 rounded text-xs">
               That is the minimum path. The next sections cover the full feature set.
@@ -58,7 +59,7 @@ const DCAHelpContent = () => {
           </AccordionTrigger>
           <AccordionContent className="text-sm text-pl-muted space-y-3 pb-4 pt-1">
             <p className="text-xs">
-              Petrolord auto-detects the date and rate columns from common header names. You need a date column and at least one rate column. A single file can carry all three streams at once:
+              The import door finds the date and rate columns by their header names, in any order. You need a date column and at least one of oil, gas or water. A single file can carry all three streams at once:
             </p>
             <div className="bg-pl-sunken p-3 rounded border border-pl-border font-pl-mono text-xs">
               <div className="text-pl-text">date,oilRate,gasRate,waterRate</div>
@@ -68,12 +69,13 @@ const DCAHelpContent = () => {
               <div className="text-pl-muted">...</div>
             </div>
             <ul className="text-xs list-disc pl-4 space-y-1">
-              <li>A plain <code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">rate</code> column is still accepted and is read as the oil stream.</li>
-              <li>Date column accepts ISO format (YYYY-MM-DD), MM/DD/YYYY, or DD/MM/YYYY.</li>
-              <li>Rates are in <strong>bbl/d</strong> for oil and water, <strong>Mscf/d</strong> for gas.</li>
-              <li>Zero rates are interpreted as shut-ins; the segment detector handles them automatically.</li>
-              <li>Additional columns are tolerated but ignored.</li>
-              <li>After upload, the data quality summary reports the record count, the date range and any gaps or outliers found.</li>
+              <li>A plain <code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">rate</code> column is accepted and read as the oil stream.</li>
+              <li><strong>Units</strong> are read from the header (<code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">Oil (bbl/d)</code>, <code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">gas_mscfd</code>, <code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">Oil (m3/d)</code>) or chosen at the door. Daily rates and monthly volumes are both accepted: a monthly volume becomes a calendar-day rate (the volume over the days in its month). A header with a volume unit and no time, such as <code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">oil_bbl</code>, is asked about, never guessed.</li>
+              <li><strong>Dates</strong>: ISO dates, month names (Jan 2020) and numeric day and month in either order. When no date in the file settles day first against month first, the door asks.</li>
+              <li><strong>Decimal commas</strong> and semicolon or tab columns are read; when the file cannot settle the decimal mark, the door says which reading it took and offers the other.</li>
+              <li>Title lines, totals rows and repeated headers are left out and listed. Columns the app does not read (a cumulative, a pressure) are listed as not used.</li>
+              <li>Zero and negative rates are kept and counted; the fit leaves them out and the report says how many.</li>
+              <li>One well per file: a file that names two or more wells is refused with their names.</li>
             </ul>
             <div className="bg-pl-warning-bg border border-pl-warning/40 text-pl-text p-3 rounded flex gap-2">
               <AlertTriangle aria-hidden="true" className="text-pl-warning-text shrink-0" size={16} />
@@ -97,7 +99,8 @@ const DCAHelpContent = () => {
             <ul className="text-xs space-y-1 list-disc pl-4">
               <li>Only the streams present in your CSV are offered.</li>
               <li>Each stream carries its own fit and its own forecast, so a gas fit is never overwritten by refitting oil.</li>
-              <li><strong className="text-pl-text">The fit belongs to the stream and does not follow the well.</strong> Switching wells leaves the previous well's fit, diagnostics, KPI cards and forecast on screen, now shown against the new well. Re-fit immediately after every well change, and treat any result you did not just generate as belonging to the previous well.</li>
+              <li><strong className="text-pl-text">Each well keeps its own fit, forecast, settings and fit window</strong> for each stream. Switching wells shows that well's own results. A project saved before this change opens with its one fit on the well it was fitted on.</li>
+              <li>A fit or forecast that no longer describes its inputs (the data, the window, the model, the b limits or the excluded points changed) says so above the KPI cards, is not reported or sent, and comes back when you put the input back or fit again.</li>
               <li>Switching streams re-renders the charts against that stream's units.</li>
             </ul>
             <div className="bg-pl-sunken p-3 rounded border border-pl-border">
@@ -340,7 +343,7 @@ const DCAHelpContent = () => {
                 <li>In the right sidebar's Scenarios section, type a name such as "Base Case P50" and click <strong>+</strong>.</li>
                 <li>Re-fit with different parameters; save another scenario.</li>
                 <li>Click the empty circles to <strong>select</strong> scenarios. Selected ones appear in the comparison table below.</li>
-                <li>Compare Qi, Di, b, and EUR side by side. Di is shown everywhere as a nominal decline in percent per year (the fitted per-day decline times 365); the Diagnostics and KPI cards add the effective first-year decline, the share of the initial rate lost in the first 365 days.</li>
+                <li>Compare Qi, Di, b, and EUR side by side. Di is shown everywhere as a nominal decline, in percent per year by default (the fitted per-day decline times 365.25; the Display units box offers per month and per day); the Diagnostics and KPI cards add the effective first-year decline, the share of the initial rate lost in the first year.</li>
               </ol>
             </div>
             <div className="text-xs">
@@ -357,18 +360,18 @@ const DCAHelpContent = () => {
           </AccordionTrigger>
           <AccordionContent className="text-sm text-pl-muted space-y-3 pb-4 pt-1">
             <p className="text-xs">
-              <strong>This app has no direct send to another app yet.</strong> The two cards that used to sit
-              in the right sidebar showed a tick and sent nothing, so they have been removed.
+              The <strong>Send this forecast</strong> card in the right sidebar sends the forecast of the well and
+              stream on screen. The project is saved first; the receiving app reads the forecast from the saved
+              project by its project, well and stream.
             </p>
+            <ul className="text-xs list-disc pl-4 space-y-1">
+              <li><strong>Forecast Scenario Hub</strong> (oil): a case that starts the day after the data cut-off, with the fitted curve restarted there (qi the fitted rate at the cut-off, Di the nominal decline there, b unchanged), so it reproduces this forecast day for day.</li>
+              <li><strong>Petroleum Economics Studio</strong> (oil, gas or water): a production file of calendar-year volumes. In a case open Production, then <em>Import from Decline Curve Analysis</em>.</li>
+              <li>Both keep where the numbers came from (the project, the well, the fit and its date, the decline basis, the build) and print it, and both say when the forecast here has changed since it was sent.</li>
+              <li>A fit or forecast that is out of date is not sent; the card says why.</li>
+            </ul>
             <p className="text-xs">
-              <strong>Use the CSV export.</strong> The Export CSV button on the Forecast Results tab
-              writes the rate and cumulative profile, and that file is the working handoff into NPV Scenario
-              Builder, Petroleum Economics Studio and FDP Accelerator.
-            </p>
-            <p className="text-xs">
-              For a route that carries a profile between apps today, build the case in Forecast
-              Scenario Hub. Petroleum Economics Studio reads saved scenario sets from that app
-              directly.
+              The Export CSV button on the Forecast Results tab still writes the daily profile, now headed with the well, the parameters, the decline basis and the units.
             </p>
           </AccordionContent>
         </AccordionItem>
@@ -382,12 +385,12 @@ const DCAHelpContent = () => {
           <AccordionContent className="text-sm text-pl-muted space-y-3 pb-4 pt-1">
             <div className="space-y-3 text-xs">
               <div>
-                <h4 className="text-pl-text font-semibold mb-1">"Could not auto-detect Date or Rate columns"</h4>
-                <p>Header names like <code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">date_time</code>, <code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">prod_date</code>, <code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">qo</code>, <code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">oil_rate</code> are recognized. Rename your columns to clear matches if detection fails.</p>
+                <h4 className="text-pl-text font-semibold mb-1">"No date column was found" or "No oil, gas or water rate column was found"</h4>
+                <p>Header names like <code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">date</code>, <code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">prod_date</code>, <code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">month</code>, <code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">qo</code>, <code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">oil_rate</code>, <code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">bopd</code> are recognized. Rename your columns to clear matches if detection fails.</p>
               </div>
               <div>
                 <h4 className="text-pl-text font-semibold mb-1">A stream is missing from the Production Stream strip</h4>
-                <p>Only streams found in the CSV are offered. If gas or water is absent, the importer did not recognize that column. Rename it to <code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">gasRate</code> or <code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">waterRate</code> and re-upload with Replace File.</p>
+                <p>The import door lists which column became which stream. If gas or water is absent, it did not recognize that column: rename it to <code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">gas_rate</code> or <code className="bg-pl-sunken text-pl-text font-pl-mono px-1 rounded">water_rate</code> and import again with Replace File.</p>
               </div>
               <div>
                 <h4 className="text-pl-text font-semibold mb-1">R² is below 0.7 (Poor Fit)</h4>
@@ -407,7 +410,7 @@ const DCAHelpContent = () => {
               </div>
               <div>
                 <h4 className="text-pl-text font-semibold mb-1">EUR seems unrealistically high</h4>
-                <p>Check the b factor. Values at or above 1.5 produce optimistic late-time forecasts. Either constrain the b range using the B-FACTOR CONSTRAINTS sliders, or set a realistic Economic Limit Rate.</p>
+                <p>Check the b factor. Values above 1 describe transient flow and produce optimistic late-time forecasts when held to the end. Keep the b upper limit at 1 (the default) unless you have a reason, and set a realistic economic limit rate; the report flags b above 1.</p>
               </div>
             </div>
           </AccordionContent>

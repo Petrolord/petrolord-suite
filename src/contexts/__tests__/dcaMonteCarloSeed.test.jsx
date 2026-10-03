@@ -76,7 +76,8 @@ const runProbabilisticForecast = async () => {
 };
 
 describe('DCA Studio: a Monte Carlo forecast can be repeated', () => {
-  jest.setTimeout(30000);
+  // a loaded runner takes 25 to 40 s per test here (DCA-U1)
+  jest.setTimeout(120000);
 
   it('defaults every stream to the shared seed', async () => {
     await mountProvider();

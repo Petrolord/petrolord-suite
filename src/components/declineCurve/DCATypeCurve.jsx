@@ -1,4 +1,5 @@
-import { formatNominalAnnual, describeNominalAnnual, DI_BASIS_LABEL } from '@/utils/declineCurve/declineDisplay';
+import { formatDecline, declineBasisLabel } from '@/utils/declineCurve/declineDisplay';
+import { useDcaUnits } from '@/components/declineCurve/DcaUnits';
 import React, { useState, useMemo } from 'react';
 import { useDeclineCurve } from '@/contexts/DeclineCurveContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +24,7 @@ const DCATypeCurve = () => {
     deleteTypeCurve,
     applyTypeCurveToWell
   } = useDeclineCurve();
+  const u = useDcaUnits();
 
   const [newCurveName, setNewCurveName] = useState('');
   const [selectedWells, setSelectedWells] = useState([]);
@@ -177,7 +179,7 @@ const DCATypeCurve = () => {
                 <CardHeader className="py-2 px-4 border-b border-pl-border flex flex-row justify-between items-center bg-pl-sunken">
                   <CardTitle className="text-xs font-medium text-pl-text">Type Curve Plot: {activeCurve.name}</CardTitle>
                   <Badge variant="secondary">
-                    {activeCurve.fit?.quality || 'N/A'} Fit
+                    {activeCurve.fit?.quality || 'n/a'} Fit
                   </Badge>
                 </CardHeader>
                 <CardContent className="flex-1 p-0 relative">
@@ -194,8 +196,8 @@ const DCATypeCurve = () => {
                   <div className="text-sm font-pl-mono tabular-nums text-pl-text">{activeCurve.fit?.qi.toFixed(3)}</div>
                 </div>
                 <div className="bg-pl-surface p-2 rounded border border-pl-border shadow-pl-sm">
-                  <div className="text-[10px] text-pl-muted">Avg Di ({DI_BASIS_LABEL})</div>
-                  <div className="text-sm font-pl-mono tabular-nums text-pl-text">{formatNominalAnnual(activeCurve.fit?.Di, 1)}</div>
+                  <div className="text-[10px] text-pl-muted">Di ({declineBasisLabel(u)})</div>
+                  <div className="text-sm font-pl-mono tabular-nums text-pl-text">{formatDecline(activeCurve.fit?.Di, u)}</div>
                 </div>
                 <div className="bg-pl-surface p-2 rounded border border-pl-border shadow-pl-sm">
                   <div className="text-[10px] text-pl-muted">b-Factor</div>
@@ -251,7 +253,7 @@ const DCATypeCurve = () => {
                           <div key={wellId} className="grid grid-cols-5 gap-2 items-center text-xs bg-pl-surface rounded px-2 py-1.5 border border-pl-border">
                             <div className="text-pl-text truncate">{app.targetWellName}</div>
                             <div className="font-pl-mono tabular-nums text-pl-text">qi: {app.result.qi.toFixed(0)}</div>
-                            <div className="font-pl-mono tabular-nums text-pl-text">Di: {describeNominalAnnual(app.result.Di, 1)}</div>
+                            <div className="font-pl-mono tabular-nums text-pl-text">Di: {formatDecline(app.result.Di, u)} {declineBasisLabel(u)}</div>
                             <div className="font-pl-mono tabular-nums text-pl-text">R²: {app.result.R2.toFixed(3)}</div>
                             <div>
                               <Badge className="text-[10px]" variant={

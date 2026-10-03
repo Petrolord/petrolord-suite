@@ -8,11 +8,19 @@
 //
 // Nominal and effective differ and must not share a label. The effective
 // first-year decline is the fraction of the initial rate lost over the first
-// 365 days, read off the engine's own rate function so it holds for any b.
+// year, read off the engine's own rate function so it holds for any b.
+//
+// The year (DCA-U1-010): 365.25 days, the Suite registry's year (the Julian
+// year of the SPE metric standard), used by Decline Curve Analysis, Forecast
+// Scenario Hub and Well Spacing alike. The engine fits on calendar dates, so
+// its day is a calendar day and a calendar year averages 365.2425 days; 365
+// was a quarter of a day short. Moving from 365 raised every printed %/yr by
+// 0.068 percent and changed no fitted number.
 import { calculateArpsHyperbolic } from '@/utils/declineCurve/dcaEngine';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { DAYS_PER_YEAR as REGISTRY_YEAR } from '@/lib/units/registry';
 
-export const DAYS_PER_YEAR = 365;
+export const DAYS_PER_YEAR = REGISTRY_YEAR;
 
 /** The words that go beside every nominal annual Di on the screen. */
 export const DI_BASIS_LABEL = 'nominal, %/yr';
@@ -25,7 +33,7 @@ export function nominalAnnualPct(diPerDay) {
   return ok(diPerDay) ? diPerDay * DAYS_PER_YEAR * 100 : null;
 }
 
-/** Percent of the initial rate lost in the first 365 days (secant effective decline). */
+/** Percent of the initial rate lost in the first year of 365.25 days (secant effective decline). */
 export function effectiveFirstYearPct(diPerDay, b = 0) {
   if (!ok(diPerDay)) return null;
   const q = calculateArpsHyperbolic(1, diPerDay, ok(b) ? b : 0, DAYS_PER_YEAR);
@@ -34,18 +42,33 @@ export function effectiveFirstYearPct(diPerDay, b = 0) {
 
 const fixed = (v, digits) => (ok(v) ? v.toFixed(digits) : EMPTY_VALUE);
 
-/** "43.80" for 0.0012 per day; EMPTY_VALUE when there is no Di. */
+/** "43.83" for 0.0012 per day; EMPTY_VALUE when there is no Di. */
 export function formatNominalAnnual(diPerDay, digits = 2) {
   return fixed(nominalAnnualPct(diPerDay), digits);
 }
 
-/** "35.47" for 0.0012 per day, b = 0. */
+/** "35.49" for 0.0012 per day, b = 0. */
 export function formatEffectiveFirstYear(diPerDay, b = 0, digits = 2) {
   return fixed(effectiveFirstYearPct(diPerDay, b), digits);
 }
 
-/** A whole phrase for a tight spot: "43.80 %/yr nominal". */
+/** A whole phrase for a tight spot: "43.83 %/yr nominal". */
 export function describeNominalAnnual(diPerDay, digits = 2) {
   const v = nominalAnnualPct(diPerDay);
   return ok(v) ? `${v.toFixed(digits)} %/yr nominal` : EMPTY_VALUE;
+}
+
+// ---- the display unit of the decline (DCA-U1, PL3) ----------------------
+
+/** "nominal, %/yr" in the view's decline unit (dcaUnits.js); %/yr without a view. */
+export function declineBasisLabel(u) {
+  return `nominal, ${u?.declineLabel || '%/yr'}`;
+}
+
+/** A per-day nominal Di in the view's decline unit: two decimals in %/yr, four figures otherwise. */
+export function formatDecline(diPerDay, u, digits = 2) {
+  if (!ok(diPerDay)) return EMPTY_VALUE;
+  if (!u || u.declineUnit === '%/yr') return formatNominalAnnual(diPerDay, digits);
+  const v = u.declineTo(diPerDay);
+  return ok(v) ? String(parseFloat(v.toPrecision(4))) : EMPTY_VALUE;
 }

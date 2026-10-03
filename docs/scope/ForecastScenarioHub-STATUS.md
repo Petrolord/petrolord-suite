@@ -29,3 +29,25 @@ save or export change.
   and the load dialog use theme roles; the rate chart sits in a white
   `ChartPanel`. Case colours are unchanged.
 - Test: `src/pages/apps/__tests__/ForecastScenarioHub.theme.test.jsx`.
+
+## 2026-10-03: Reservoir round app 3 with Decline Curve Analysis (HUB-U1, branch `feat/dca-u1`)
+
+Doc: `docs/upgrade/DeclineCurveAnalysis-UPGRADE.md` (HUB-U1 findings).
+
+- Decline labelled nominal at the case start, a year of 365.25 days (was
+  365): saved sets show numbers about 0.1 percent different.
+- A start date for the set and per case (was a fixed 2026-01-01 shown
+  nowhere); the comparison table prints it.
+- Typable fields (`DcaNumberField`); rates and volumes on the unit profile.
+- Annual CSV with case, parameters, basis, units, start and source
+  (`src/utils/forecastScenarioExport.js`).
+- Intake from Decline Curve Analysis (`dca-forecast-1`,
+  `src/utils/forecastScenarioIntake.js`): a case starting the day after the
+  DCA cut-off that reproduces the DCA forecast day for day; source printed,
+  "edited after the handoff", "source changed since" with Refresh; deep link
+  `?dcaProject=&dcaWell=&dcaStream=`.
+- Scenario sets under record sharing (own and shared, check-out, Save a
+  copy) through `useSharedSavedProjects`; saving through
+  `createSavedProjectsService`.
+- Open: no report (U2-018); the hub to Petroleum Economics Studio import
+  keeps no source (U2-013).

@@ -51,28 +51,29 @@ beforeEach(() => {
 });
 
 describe('H2: one basis for Di on the screen', () => {
-  it('nominal annual decline is the per-day Di times 365, in percent', () => {
-    expect(nominalAnnualPct(0.0012)).toBeCloseTo(43.8, 10);
-    expect(formatNominalAnnual(0.0012)).toBe('43.80');
+  // DCA-U1-010: a year is 365.25 days (the registry's year), so 43.83, not 43.80
+  it('nominal annual decline is the per-day Di times 365.25, in percent', () => {
+    expect(nominalAnnualPct(0.0012)).toBeCloseTo(43.83, 10);
+    expect(formatNominalAnnual(0.0012)).toBe('43.83');
     expect(formatNominalAnnual(null)).toBe('n/a');
     expect(DI_BASIS_LABEL).toBe('nominal, %/yr');
   });
 
   it('effective first-year decline is read off the engine rate, for any b', () => {
     for (const b of [0, 0.5, 1]) {
-      const q365 = calculateArpsHyperbolic(120, 0.0012, b, 365);
+      const q365 = calculateArpsHyperbolic(120, 0.0012, b, 365.25);
       expect(effectiveFirstYearPct(0.0012, b)).toBeCloseTo((1 - q365 / 120) * 100, 9);
     }
     // exponential closed form, 1 - exp(-D): about 35.5 percent, well below
     // the 43.8 percent nominal, which is why the two must not share a label
-    expect(effectiveFirstYearPct(0.0012, 0)).toBeCloseTo((1 - Math.exp(-0.438)) * 100, 6);
+    expect(effectiveFirstYearPct(0.0012, 0)).toBeCloseTo((1 - Math.exp(-0.4383)) * 100, 6);
   });
 
   it('the KPI card and the Diagnostics card show the same Di, with the basis named', () => {
     render(<><DCAKPICardsEnhanced /><DCAFitDiagnostics /></>);
     const kpi = screen.getByTestId('dca-di-kpi');
     const diag = screen.getByTestId('dca-di-diagnostics');
-    expect(kpi).toHaveTextContent('43.80');
+    expect(kpi).toHaveTextContent('43.83');
     expect(diag.textContent).toBe(kpi.textContent);
     // negative control: the old diagnostics number was Di x 100
     expect(diag.textContent).not.toBe('0.12');

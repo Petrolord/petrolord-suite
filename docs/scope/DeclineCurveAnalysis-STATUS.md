@@ -296,3 +296,33 @@ Doc: `docs/upgrade/Reservoir-Step0e-HonestySweep.md` (branch `fix/reservoir-hone
   Remaining Reserves. A scenario now keeps produced, remaining and EUR
   apart; the sheet, the comparison table and the scenario list name each
   for what it is. A scenario saved before the fix prints `n/a` for EUR.
+
+## 2026-10-03: Reservoir round app 3, Step 1 (DCA-U1, branch `feat/dca-u1`)
+
+Doc: `docs/upgrade/DeclineCurveAnalysis-UPGRADE.md` (findings, checks, the
+report, the sender contract, the year-length decision, Step 2 backlog).
+
+- **Fits belong to the well** (DCA-U1-001, S2): `well.analysis` per well
+  (`src/utils/declineCurve/dcaModel.js`); a version 1 project moves its one
+  analysis onto the well it was fitted on. The help's "re-fit after every
+  well change" workaround is gone.
+- **Stale rule** (003): fits and forecasts record what they were made on;
+  out-of-date results say why and are not forecast from, saved as
+  scenarios, reported or sent.
+- **Report** (002): `dcaReport.js` on the Report Kit, the Report tab, the
+  PDF; goldens under `src/utils/declineCurve/__tests__/__fixtures__/`.
+- **Import door** (004, 009): `productionImport.js` on `tabularParse`;
+  hostile set `e2e/fixtures/dca/hostile/`.
+- **Sender** (008): `dca-forecast-1` (`dcaForecastContract.js`,
+  `dcaForecastService.js`), received by Forecast Scenario Hub and Petroleum
+  Economics Studio, read by id, with "source changed since".
+- **Group roll-up** (006, S2): engines PR #301 (not merged), vendored with
+  ledger rows.
+- **Units** (018): `dcaUnits.js`, `DcaUnits.jsx`; one year of 365.25 days
+  (010) in DCA, the hub and Well Spacing.
+- **Sharing** (011): `src/lib/recordSharing/useSharedSavedProjects.js`.
+- **Sample well** (024): Ekene-1 primary decline, labelled sample.
+- One fit path for the app, the tests and the sender: `dcaAnalysis.js`.
+- Removed dead code: keyboard shortcut hook, unused undo manager, LAS/CSV
+  writers in the engine shim, the type-curve CSV writer, the invented
+  confidence intervals.

@@ -38,7 +38,8 @@ describe('dcaDiagnostics hand-computed pins', () => {
     expect(res.map((r) => r.absolute)).toEqual([2, 2, 3, 3]);
   });
 
-  test('verdict bands: >=0.95 excellent, >=0.85 caution, below poor', () => {
+  // DCA-U1-014: one scale with getFitQuality (Fair from 0.80) and the badge
+  test('verdict bands: >=0.95 excellent, >=0.80 caution, below poor', () => {
     expect(getVerdictInfo(0.99).title).toMatch(/Excellent/);
     expect(getVerdictInfo(0.99).icon).toBe('check');
     expect(getVerdictInfo(0.9).title).toMatch(/Caution/);
@@ -46,5 +47,7 @@ describe('dcaDiagnostics hand-computed pins', () => {
     // band edges belong to the higher verdict
     expect(getVerdictInfo(0.95).title).toMatch(/Excellent/);
     expect(getVerdictInfo(0.85).title).toMatch(/Caution/);
+    expect(getVerdictInfo(0.8).title).toMatch(/Caution/);
+    expect(getVerdictInfo(0.79).title).toMatch(/Poor/);
   });
 });

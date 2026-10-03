@@ -1,4 +1,5 @@
-import { formatNominalAnnual, DI_BASIS_LABEL } from '@/utils/declineCurve/declineDisplay';
+import { formatDecline, declineBasisLabel } from '@/utils/declineCurve/declineDisplay';
+import { useDcaUnits } from '@/components/declineCurve/DcaUnits';
 import React from 'react';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { useDeclineCurve } from '@/contexts/DeclineCurveContext';
@@ -9,6 +10,8 @@ import { exportScenarioComparison } from '@/utils/declineCurve/dcaExport';
 
 const DCAScenarioComparison = () => {
   const { scenarios, selectedScenarios, selectedStream, currentWell } = useDeclineCurve();
+  const u = useDcaUnits();
+  const vol = (v) => (Number.isFinite(v) ? Math.round(u.volumeTo(selectedStream, v)).toLocaleString() : EMPTY_VALUE);
   
   const relevantScenarios = scenarios.filter(s => selectedScenarios.includes(s.id) && s.stream === selectedStream);
 
@@ -17,7 +20,7 @@ const DCAScenarioComparison = () => {
   }
 
   const handleExport = () => {
-    exportScenarioComparison(relevantScenarios, currentWell?.name || 'Well');
+    exportScenarioComparison(relevantScenarios, currentWell?.name || 'Well', u);
   };
 
   return (
@@ -34,23 +37,23 @@ const DCAScenarioComparison = () => {
           <TableHeader>
             <TableRow>
               <TableHead className="text-xs h-8">Scenario</TableHead>
-              <TableHead className="text-xs h-8 text-right">Qi</TableHead>
-              <TableHead className="text-xs h-8 text-right">Di ({DI_BASIS_LABEL})</TableHead>
+              <TableHead className="text-xs h-8 text-right">qi ({u.rateLabel(selectedStream)})</TableHead>
+              <TableHead className="text-xs h-8 text-right">Di ({declineBasisLabel(u)})</TableHead>
               <TableHead className="text-xs h-8 text-right">b</TableHead>
-              <TableHead className="text-xs h-8 text-right">Remaining</TableHead>
-              <TableHead className="text-xs h-8 text-right">EUR</TableHead>
+              <TableHead className="text-xs h-8 text-right">Remaining ({u.volumeLabel(selectedStream)})</TableHead>
+              <TableHead className="text-xs h-8 text-right">EUR ({u.volumeLabel(selectedStream)})</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {relevantScenarios.map(s => (
               <TableRow key={s.id}>
                 <TableCell className="py-2 text-xs font-medium text-pl-text">{s.name}</TableCell>
-                <TableCell className="py-2 text-xs text-right font-pl-mono tabular-nums">{s.fitResults.qi.toFixed(1)}</TableCell>
-                <TableCell className="py-2 text-xs text-right font-pl-mono tabular-nums">{formatNominalAnnual(s.fitResults.Di, 1)}</TableCell>
+                <TableCell className="py-2 text-xs text-right font-pl-mono tabular-nums">{u.rateTo(selectedStream, s.fitResults.qi).toFixed(1)}</TableCell>
+                <TableCell className="py-2 text-xs text-right font-pl-mono tabular-nums">{formatDecline(s.fitResults.Di, u)}</TableCell>
                 <TableCell className="py-2 text-xs text-right font-pl-mono tabular-nums">{s.fitResults.b.toFixed(2)}</TableCell>
                 {/* H3: the stored `eur` key is the remaining volume; EUR adds the produced volume */}
-                <TableCell className="py-2 text-xs text-right font-pl-mono tabular-nums">{s.forecastResults.eur.toLocaleString(undefined, {maximumFractionDigits:0})}</TableCell>
-                <TableCell className="py-2 text-xs text-right font-pl-mono tabular-nums font-semibold">{Number.isFinite(s.forecastResults.eurTotal) ? s.forecastResults.eurTotal.toLocaleString(undefined, {maximumFractionDigits:0}) : EMPTY_VALUE}</TableCell>
+                <TableCell className="py-2 text-xs text-right font-pl-mono tabular-nums">{vol(s.forecastResults.remaining ?? s.forecastResults.eur)}</TableCell>
+                <TableCell className="py-2 text-xs text-right font-pl-mono tabular-nums font-semibold">{vol(s.forecastResults.eurTotal)}</TableCell>
               </TableRow>
             ))}
           </TableBody>

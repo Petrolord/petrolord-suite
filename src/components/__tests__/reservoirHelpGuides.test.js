@@ -42,11 +42,14 @@ const COVERAGE = {
     // as if it were per year, so probabilistic EUR is ~25x high. The guide
     // must keep warning until the engine fix lands.
     /probabilistic EUR was overstated/i,
-    // H1: the Integration cards that showed success and sent nothing are
-    // removed; the guide says there is no direct send and names the CSV.
-    /has no direct send to another app yet/i,
-    // Fits are keyed by stream, so switching wells silently reattributes them.
-    /belongs to the stream and does not follow the well/i,
+    // DCA-U1-008: the one real sender (H1 removed the cards that sent nothing)
+    /Send this forecast/,
+    /Import from Decline Curve Analysis/,
+    // DCA-U1-001: fits are kept per well (they were per project and followed
+    // whichever well was open)
+    /Each well keeps its own fit/i,
+    // DCA-U1-004: the import door asks what a file cannot settle
+    /asked about, never guessed/i,
   ],
   'Waterflood Design Studio': [
     /SCAL Studio/i,

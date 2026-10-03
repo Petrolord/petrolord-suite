@@ -8,6 +8,7 @@ import {
   getStreamPalette,
 } from '@/utils/chartTheme';
 import { Layers, AlertTriangle } from 'lucide-react';
+import { useDcaUnits } from '@/components/declineCurve/DcaUnits';
 
 // R1: real group roll-up from saved scenarios. Each member well
 // contributes its most recent scenario for the selected stream; the
@@ -16,6 +17,8 @@ import { Layers, AlertTriangle } from 'lucide-react';
 // silently. Replaced the pre-R1 "coming in next update" placeholder.
 const DCAGroupRollup = () => {
   const { wellGroups, selectedWellGroup, wells, scenarios, selectedStream } = useDeclineCurve();
+  const u = useDcaUnits();
+  const vol = (v) => Math.round(u.volumeTo(selectedStream, v) || 0).toLocaleString();
   const group = wellGroups.find(g => g.id === selectedWellGroup);
 
   const rollup = useMemo(
@@ -54,8 +57,9 @@ const DCAGroupRollup = () => {
 
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="p-2 rounded border border-pl-border bg-pl-surface">
-          <div className="text-pl-muted">Group EUR</div>
-          <div className="text-pl-text font-semibold font-pl-mono tabular-nums">{Math.round(rollup.totalEur).toLocaleString()} {selectedStream === 'gas' ? 'Mscf' : 'bbl'}</div>
+          <div className="text-pl-muted">Group EUR (produced + remaining)</div>
+          <div className="text-pl-text font-semibold font-pl-mono tabular-nums" data-testid="dca-group-eur">{vol(rollup.totalEur)} {u.volumeLabel(selectedStream)}</div>
+          <div className="text-[10px] text-pl-muted">remaining {vol(rollup.totalRemaining)}</div>
         </div>
         <div className="p-2 rounded border border-pl-border bg-pl-surface">
           <div className="text-pl-muted">Wells summed</div>
@@ -68,12 +72,17 @@ const DCAGroupRollup = () => {
           {rollup.perWell.map(w => (
             <div key={w.wellId} className="flex justify-between text-pl-muted">
               <span className="truncate">{w.wellName}</span>
-              <span className="tabular-nums">{Math.round(w.eur).toLocaleString()}</span>
+              <span className="tabular-nums">{vol(w.eur)}{w.eurBasis === 'remaining' ? ' (remaining only)' : ''}</span>
             </div>
           ))}
         </div>
       )}
 
+      {rollup.partial && (
+        <div className="p-2 rounded border border-pl-warning/40 bg-pl-warning-bg text-[11px] text-pl-warning-text">
+          A scenario saved before EUR was kept apart from the remaining volume counts with its remaining volume only. Save it again to include what that well produced.
+        </div>
+      )}
       {rollup.missingWells.length > 0 && (
         <div className="p-2 rounded border border-pl-warning/40 bg-pl-warning-bg text-[11px] text-pl-warning-text flex gap-2">
           <AlertTriangle size={13} className="shrink-0 mt-0.5" />
@@ -86,15 +95,15 @@ const DCAGroupRollup = () => {
 
       {rollup.combinedRates.length > 0 && (
         <div data-canvas="chart" className="bg-pl-chart-surface border border-pl-border rounded-lg p-2">
-          <div className="text-[11px] font-semibold text-pl-text mb-1">Combined forecast rate</div>
+          <div className="text-[11px] font-semibold text-pl-text mb-1">Combined forecast rate ({u.rateLabel(selectedStream)}, each well's mean daily rate in the month, summed)</div>
           <ChartFrame height={160}>
-            <LineChart data={rollup.combinedRates} margin={CHART_MARGINS.standard}>
+            <LineChart data={rollup.combinedRates.map((r) => ({ ...r, rateView: u.rateTo(selectedStream, r.rate) }))} margin={CHART_MARGINS.standard}>
               <CartesianGrid {...GRID_STYLE} />
               <XAxis dataKey="month" tick={axisTick} minTickGap={28} stroke={CHART_COLORS.axisLine} />
               <YAxis tick={axisTick} stroke={CHART_COLORS.axisLine} width={52} />
               <Tooltip contentStyle={TOOLTIP_STYLE}
-                formatter={(v, n) => [typeof v === 'number' ? Math.round(v).toLocaleString() : v, n === 'rate' ? 'Group rate' : n]} />
-              <Line type="monotone" dataKey="rate" stroke={palette.forecast} strokeWidth={2} dot={false} isAnimationActive={false} />
+                formatter={(v, n) => [typeof v === 'number' ? `${Math.round(v).toLocaleString()} ${u.rateLabel(selectedStream)}` : v, n === 'rateView' ? 'Group rate' : n]} />
+              <Line type="monotone" dataKey="rateView" stroke={palette.forecast} strokeWidth={2} dot={false} isAnimationActive={false} />
             </LineChart>
           </ChartFrame>
         </div>
