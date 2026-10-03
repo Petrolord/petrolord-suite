@@ -6,7 +6,8 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useScalStudio } from '@/contexts/ScalStudioContext';
-import { Field, SectionLabel } from '@/components/waterflooddesign/primitives';
+import { SectionLabel } from '@/components/waterflooddesign/primitives';
+import ScalField from './ScalField';
 
 const OW_FIELDS = [
   { k: 'Swc', label: 'Swc, connate water' },
@@ -29,7 +30,7 @@ const GO_FIELDS = [
 
 const CurvesPanel = () => {
   const {
-    curves, setCurveField, setOwField, setGoField, ow, go,
+    curves, setCurveField, setOwField, setGoField, ow, go, owStatus,
   } = useScalStudio();
   const isOw = curves.phase === 'oilwater';
 
@@ -48,8 +49,9 @@ const CurvesPanel = () => {
       <section className="space-y-3">
         <SectionLabel>Corey parameters</SectionLabel>
         {(isOw ? OW_FIELDS : GO_FIELDS).map(({ k, label }) => (
-          <Field
+          <ScalField
             key={k}
+            testId={`corey-${isOw ? 'ow' : 'go'}-${k}`}
             label={label}
             value={isOw ? curves.ow[k] : curves.go[k]}
             onChange={(v) => (isOw ? setOwField(k, v) : setGoField(k, v))}
@@ -57,6 +59,14 @@ const CurvesPanel = () => {
         ))}
         {(isOw ? ow.error : go.error) && (
           <p className="text-xs text-pl-danger-text">{isOw ? ow.error : go.error}</p>
+        )}
+        {isOw && (
+          <p className={`text-[11px] ${owStatus.kind === 'edited-after-fit' ? 'text-pl-warning-text' : 'text-pl-muted'}`} data-testid="scal-ow-origin" data-origin={owStatus.kind}>
+            Source of this set: {owStatus.text}.
+          </p>
+        )}
+        {!isOw && (
+          <p className="text-[11px] text-pl-muted">Source of this set: entered by the user. Gas-oil sets are not fitted in this app.</p>
         )}
       </section>
 
@@ -72,8 +82,8 @@ const CurvesPanel = () => {
           </div>
           {curves.fwPreviewOn && (
             <>
-              <Field label="μw, water viscosity (cp)" value={curves.muW} onChange={(v) => setCurveField('muW', v)} />
-              <Field label="μo, oil viscosity (cp)" value={curves.muO} onChange={(v) => setCurveField('muO', v)} />
+              <ScalField kind="viscosity" label="μw, water viscosity" value={curves.muW} onChange={(v) => setCurveField('muW', v)} />
+              <ScalField kind="viscosity" label="μo, oil viscosity" value={curves.muO} onChange={(v) => setCurveField('muO', v)} />
               <p className="text-[11px] text-pl-muted">
                 Curves only. Welge tangents, breakthrough and displacement design live in the Waterflood Design
                 Studio; send these curves there from the Export tab.

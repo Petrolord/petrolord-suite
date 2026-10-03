@@ -1,0 +1,15 @@
+Core Laboratories SCAL report SCAL-2026-0117
+Sample 12A, unsteady state waterflood, 150 degF
+# exported from the lab system
+
+Water saturation (%),Krw,Kro,
+20,0.0000,0.9000,
+30,0.0080,0.6100,
+40,0.0350,0.3800,
+50,0.0900,0.2000,
+,,,
+60,0.1800,0.0800,
+70,0.3000,0.0150,
+n/a,0.31,n/a,
+75,0.3500,0.0000,
+Average,0.135,0.30,

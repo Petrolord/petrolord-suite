@@ -20,3 +20,10 @@ export {
   buildPvtContract, pvtContractOf, validatePvtContract, pvtContractOrigin, pvtContractTuningText, pvtContractSourceText,
   describePvtContract, pvtContractCsvHeader, pvtContractSummary, editedAfterHandoffText,
 } from './pvtContract.js';
+// kr-1: relative permeability and capillary pressure from SCAL Studio (SCAL-U1)
+export {
+  KR1_SCHEMA, KR_PRODUCER, KR_PROJECT_PARAM, KR_CONTRACT_PAYLOAD_KEY, KR_HANDOFF_STATE_KEY, KR1_UNITS, KR1_ORIGINS, KR1_SCOPE_TEXT,
+  buildKrContract, krContractOf, validateKrContract, krContractOrigin, krSetText, krContractSourceText, krCapillaryText,
+  describeKrContract, krContractCsvHeader,
+} from './krContract.js';
+export { krContractSummary, krIntakeRecord, krIntakeCardModel } from './krIntakeCard.js';

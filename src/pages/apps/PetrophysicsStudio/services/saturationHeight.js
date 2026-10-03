@@ -14,7 +14,8 @@
 // Nothing here restates the J, Pc or height formulas.
 
 import { makeJFunction, pcFromJ, heightFromPc } from '@/utils/scalCalculations';
-import { buildJSpec, buildReservoirProps } from '@/contexts/ScalStudioContext';
+import { buildJSpec, buildReservoirProps, deriveSamples } from '@/utils/scalstudio/workspace';
+import { krContractOf, krCapillaryText } from '@/lib/inputProvenance/krContract';
 import { makeWellFrame } from '@/lib/wellDatum';
 
 const M_PER_FT = 0.3048;
@@ -30,7 +31,9 @@ const num = (v) => (v === '' || v === null || v === undefined ? NaN : Number(v))
 export function shmFromScalProject(payload) {
   if (!payload || !payload.capillary) return { ok: false, errors: ['This SCAL Studio project has no capillary-pressure set-up.'] };
   // SCAL Studio's own builders: the J spec and the rock exactly as SCAL shows them
-  const { jSpec, error } = buildJSpec(payload.capillary, payload.samples || []);
+  // SCAL-U1-015: the saved samples hold the lab Pc tables only; their J rows
+  // are derived. Without this every project averaged from samples was refused.
+  const { jSpec, error } = buildJSpec(payload.capillary, deriveSamples(payload.samples || []));
   if (!jSpec) return { ok: false, errors: [error || 'No J function in this project.'] };
   const { props: reservoir, error: rockError } = buildReservoirProps(payload.capillary.reservoir || {});
   if (!reservoir) return { ok: false, errors: [rockError] };
@@ -38,7 +41,10 @@ export function shmFromScalProject(payload) {
   const fluids = { gammaW: num(h.gammaW), gammaHc: num(h.gammaHc) };
   if (!(fluids.gammaW > fluids.gammaHc)) return { ok: false, errors: ['The project needs a water gradient above the hydrocarbon gradient.'] };
   const fwlFt = num(h.fwl_tvdss);
-  return { ok: true, name: payload.name || 'SCAL project', jSpec, reservoir, fluids, fwlTvdssM: Number.isFinite(fwlFt) ? fwlFt * M_PER_FT : null };
+  // SCAL-U1 (RL11): where the J came from, in the kr-1 words, when the project carries the block
+  const block = krContractOf(payload);
+  const sourceText = block?.capillary ? krCapillaryText(block) : `SCAL Studio project "${payload.name || 'SCAL project'}" (saved before it carried its kr-1 block: open and save it in SCAL Studio to state the source)`;
+  return { ok: true, name: payload.name || 'SCAL project', jSpec, reservoir, fluids, fwlTvdssM: Number.isFinite(fwlFt) ? fwlFt * M_PER_FT : null, sourceText };
 }
 
 /** Height above the FWL (ft) at which SCAL Studio's chain gives this Sw. */

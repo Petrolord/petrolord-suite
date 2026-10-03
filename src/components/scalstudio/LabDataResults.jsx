@@ -1,6 +1,7 @@
 // Lab Data tab, main area (SC4): per-sample kr data with the Corey fit
 // overlay (CIs, fit quality, apply-to-Curves), plus the normalized overlay
 // across samples for exponent-consistency judgment.
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 import React, { useMemo } from 'react';
 import {
   ComposedChart, Line, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -17,7 +18,8 @@ import {
 const UNIT_TICKS = [0, 0.2, 0.4, 0.6, 0.8, 1];
 import { useScalStudio } from '@/contexts/ScalStudioContext';
 import { buildCoreyOilWater, normalizeKrTable } from '@/utils/scalCalculations';
-import { Kpi, LINE, fmt, SCENARIO_COLORS } from '@/components/waterflooddesign/primitives';
+import { Kpi, LINE, SCENARIO_COLORS } from '@/components/waterflooddesign/primitives';
+import { sfmt as fmt } from '@/utils/scalstudio/format';
 
 const axisProps = {
   stroke: CHART_COLORS.axisLine,
@@ -26,7 +28,7 @@ const axisProps = {
 
 const ci = (pair) => (Array.isArray(pair) && pair.every(Number.isFinite)
   ? `${pair[0].toFixed(2)} to ${pair[1].toFixed(2)}`
-  : 'n/a');
+  : EMPTY_VALUE);
 
 const LabDataResults = ({ selectedId }) => {
   const { samplesDerived, applyKrFitToCurves } = useScalStudio();

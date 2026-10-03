@@ -14,7 +14,9 @@ import {
 // Senior test T1: one-decimal labels on auto ticks printed 0.25 as 0.3.
 const UNIT_TICKS = [0, 0.2, 0.4, 0.6, 0.8, 1];
 import { useScalStudio } from '@/contexts/ScalStudioContext';
-import { Kpi, LINE, fmt } from '@/components/waterflooddesign/primitives';
+import { Kpi, LINE } from '@/components/waterflooddesign/primitives';
+import { sfmt as fmt } from '@/utils/scalstudio/format';
+import { crossoverSw } from '@/utils/scalstudio/series';
 
 const axisProps = {
   stroke: CHART_COLORS.axisLine,
@@ -58,7 +60,7 @@ const CurvesResults = () => {
             <Kpi title="Mobile saturation span" value={fmt.f3(mobileSpan)} />
             <Kpi title="krw @ Sor" value={fmt.f3(ow.params.krwMax)} />
             <Kpi title="kro @ Swc" value={fmt.f3(ow.params.kroMax)} />
-            <Kpi title="Crossover Sw" value={fmt.f3(rows.find((r) => r.krw >= r.kro)?.Sw)} />
+            <Kpi title="Crossover Sw" value={fmt.f3(crossoverSw(ow.params))} />
           </>
         ) : (
           <>

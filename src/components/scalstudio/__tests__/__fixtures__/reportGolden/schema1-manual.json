@@ -1,0 +1,132 @@
+{
+  "pages": 9,
+  "sha256": "182c639719d5c40034ae65c2637914f134487b20da148de27294692545b863e7",
+  "figures": [
+    {
+      "id": "kr-ow",
+      "number": 1,
+      "page": 8,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 29,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "krw (working Corey)": 102,
+            "kro (working Corey)": 102
+          },
+          "total": 204,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "kr-lab",
+      "number": 2,
+      "page": 8,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "kr-normalised",
+      "number": 3,
+      "page": 8,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "kr-go",
+      "number": 4,
+      "page": 8,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 139.44,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "krg": 102,
+            "krog": 102
+          },
+          "total": 204,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "j",
+      "number": 5,
+      "page": 9,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "Working J": 81
+          },
+          "total": 81,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "pc",
+      "number": 6,
+      "page": 9,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 105.72,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "Pc from the working J": 62
+          },
+          "total": 62,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "height",
+      "number": 7,
+      "page": 9,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 185.08,
+            "w": 182,
+            "h": 70
+          },
+          "drawn": {
+            "Sw against height": 62
+          },
+          "total": 62,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    }
+  ]
+}

@@ -89,6 +89,7 @@ export default function SaturationHeightDialog({
             J = {shm.jSpec.type === 'power' ? `${fmt(shm.jSpec.a)} ((Sw - ${fmt(shm.jSpec.Swirr, 2)}) / (1 - ${fmt(shm.jSpec.Swirr, 2)}))^-${fmt(shm.jSpec.b, 2)}` : 'tabulated'};
             rock k {shm.reservoir.k_md} mD, φ {shm.reservoir.phi}, σ cos θ from {shm.reservoir.sigma_dyncm} dyn/cm at {shm.reservoir.thetaDeg}°;
             gradients water {shm.fluids.gammaW}, hydrocarbon {shm.fluids.gammaHc} (specific gravity).
+            {shm.sourceText && <span className="block mt-1" data-testid="petro-shm-source">Source: {shm.sourceText}.</span>}
           </p>
         )}
         {error && <p className="text-xs text-pl-danger-text" data-testid="petro-shm-error">{error}</p>}

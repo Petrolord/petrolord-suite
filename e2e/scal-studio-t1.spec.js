@@ -10,7 +10,8 @@ test('T1: Corey and J-function checks, exact height at Sw 0.5, clean axes', asyn
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.goto('/dev/studio/scal', { timeout: 120000 });
   await expect(page.getByText('0.550')).toBeVisible({ timeout: 60000 });
-  await expect(page.getByText('0.554')).toBeVisible();
+  // SCAL-U1-006: the crossover is solved on the curves (0.5528); the card showed the grid row past it (0.554)
+  await expect(page.getByText('0.553')).toBeVisible();
   const x = await page.locator('.recharts-xAxis .recharts-cartesian-axis-tick-value').allTextContents();
   expect(x).toEqual(['0.0', '0.2', '0.4', '0.6', '0.8', '1.0']);
   await page.getByRole('button', { name: 'Height & Saturation' }).or(page.getByRole('tab', { name: 'Height & Saturation' })).first().click();

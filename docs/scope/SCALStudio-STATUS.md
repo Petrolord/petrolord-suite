@@ -273,3 +273,29 @@ fixtures, so neither added a user surface. Narrow corrections only:
 - Added per-chart PNG download and the SC7 armed literature goldens,
   including that a gate waiting on its source document is recorded as
   pending rather than passed.
+
+## 2026-10-03: upgrade programme, Reservoir round app 5, Step 1 (SCAL-U1)
+
+Branch `feat/scal-u1`; working doc `docs/upgrade/SCALStudio-UPGRADE.md`
+(22 findings: 18 fixed, 2 kept, 2 open to Step 2; no S1 or S2 open).
+Inside the thin-real lock; the engine is unchanged (no engines PR).
+
+- **S1 fixed (SCAL-U1-001):** the averaged J of several samples used two
+  different Swirr (in and out): 16 percent low at Sw 0.5 for samples starting
+  at different Sw. No live project was of that kind.
+- **S2 fixed:** no report (002); Waterflood handoff without provenance (003);
+  lab doors read a kPa Pc as psi and refused common files (007); the four
+  saturation-height readers refused every samples-mode project (015).
+- **New:** Special Core Analysis Report on the Report Kit (Report tab, PDF);
+  the `kr-1` contract (`src/lib/inputProvenance/krContract.js`, saved under
+  payload key `kr`, read by id with `src/lib/krSource.js`), Waterflood intake
+  card; Suite unit profile; lab doors on `src/lib/tabularParse.js` with a
+  hostile file set; FWL through `src/lib/wellDatum.js`; sample pedigree and
+  identification; the fit trail; record sharing (`useScalProjects`); the
+  project file is the payload; pure pipeline `src/utils/scalstudio/workspace.js`.
+- Shared changes: `tabularParse` keeps a header-named, mostly empty last
+  column; `reportKit.limits()` takes `flagsTitle` (default unchanged, Well
+  Test goldens untouched).
+- Sample report: `/root/scal-report-sample.pdf`.
+- Step 2 analysis: 16 items, batches A (inside the lock: SWOF/SGOF, gas-oil
+  export and fit, fit without end points, xlsx) B and C (outside the lock).
