@@ -231,15 +231,18 @@ Errors are model minus measured: percent, or API degrees for the stock-tank grav
 
 Fluid Properties Report, BHS-2 recombined, Field Ekene                                                                                     Page 4 of 10
 Tuning parameters
- Parameter                                                                                Before tuning                         Applied
+ Parameter                                                          Before tuning                Applied           95 percent interval
 
- C7+ critical temperature multiplier                                                      1.0000                                0.9748
+ C7+ critical temperature multiplier                                1.0000                       0.9748            0.9166 to 1.0330
 
- C7+ critical pressure multiplier                                                         1.0000                                0.9545
+ C7+ critical pressure multiplier                                   1.0000                       0.9545            0.8338 to 1.0752
 
- Methane to C7+ interaction coefficient                                                   0.0566                                0.0704
+ Methane to C7+ interaction coefficient                             0.0566                       0.0704            0.0281 to 0.1127
 
- C7+ volume shift                                                                         0.1324                                0.1126
+ C7+ volume shift                                                   0.1324                       0.1126            -0.0432 to 0.2685
+
+Student t interval from the regression covariance (3 measured values and four prior pulls, 3 degrees of freedom, t = 3.182). It says how firmly the
+measured values hold each parameter, and nothing about the accuracy of the laboratory data.
 
 
 Limits of this analysis
