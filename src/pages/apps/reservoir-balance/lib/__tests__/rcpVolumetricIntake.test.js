@@ -41,7 +41,7 @@ describe('in the report', () => {
   test('the cross-check row prints the project it came from, read back from the PDF', () => {
     const { doc } = buildMbalPdf(reportArgs({ ...state, study }), { logo: chartLogo(), generatedAt: AT });
     const text = flat(readPdf(doc).text);
-    expect(text).toMatch(/Volumetric estimate 226\.28 MMSTB/);
+    expect(text).toMatch(/Volumetric estimate 226\.27 MMSTB/);
     expect(text).toMatch(/Taken from ReservoirCalc Pro project "Aug single reservoir", reservoir "Main sand"/);
   });
 

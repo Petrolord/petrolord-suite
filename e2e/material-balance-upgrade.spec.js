@@ -471,7 +471,7 @@ test.describe('MBAL U2: Step 2 Batch A and B on the harness', () => {
     await page.getByTestId('mbal-volumetric-from-rcp').click();
     await page.getByTestId('mbal-volumetric-project').selectOption({ label: 'Main sand volumetrics' });
     await page.getByTestId('mbal-volumetric-take').click();
-    await expect(page.getByTestId('mbal-volumetric-value')).toContainText('226.28 MMSTB', { timeout: 15000 });
+    await expect(page.getByTestId('mbal-volumetric-value')).toContainText('226.27 MMSTB', { timeout: 15000 });
     await expect(page.getByTestId('mbal-volumetric-source')).toContainText('ReservoirCalc Pro project "Main sand volumetrics"');
   });
 

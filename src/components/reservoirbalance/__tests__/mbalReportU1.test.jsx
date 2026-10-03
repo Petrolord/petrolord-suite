@@ -258,7 +258,7 @@ describe('RL5: the data the analysis used, and what it left out', () => {
     expect(text).toMatch(/Cumulative gas at the cut-off \(Bscf\) 54\.750/);
     // Wp 378 STB in MSTB, We = (cw + cf) W (pi - p) = 9e-6 x 69.04e6 x 464 = 0.288 MMRB
     expect(text).toMatch(/1 2001-01-01 5,947\.0 5\.475 0\.378 0\.288 Excluded by the analyst/);
-    expect(model.inputs.find((r) => r.key === 'excluded_timesteps')).toMatchObject({ value: '1', source: 'Held in the run settings of the case; each one is marked in the data table' });
+    expect(model.inputs.find((r) => r.key === 'excluded_timesteps')).toMatchObject({ value: '1', source: 'Picked by the analyst on the regression plot or the data table; each one is listed with its reason and marked in the data table' });
   });
 
   test('an undated table says so, and prints n/a for the date', () => {
@@ -591,9 +591,10 @@ describe('RL11: PVT taken from a Fluid Systems Studio project keeps its provenan
     });
     expect(pvtTableCoverage(short.caseData, short.runConfig).outside.map((o) => o.timestep_index)).toEqual([0, 1]);
     const { doc, model } = build(short);
-    expect(model.limits.flags[0]).toMatch(/^PVT table coverage: 2 timesteps \(0, 1\) lie outside the PVT table of the run \(15 to 2,\d{3} psia\)/);
+    // MBAL-U2-006: the engine's own sentence, from the lookups it made
+    expect(model.limits.flags[0]).toMatch(/^PVT table coverage: at 2 timesteps \(0, 1\) a pressure fell outside the PVT table of the run \(15 to 2,\d{3} psia\)/);
     expect(model.limits.flags[0]).toMatch(/The initial state is one of them/);
-    expect(flat(readPdf(doc).text)).toMatch(/PVT table coverage: 2 timesteps/);
+    expect(flat(readPdf(doc).text)).toMatch(/PVT table coverage: at 2 timesteps/);
     // rows that carry their own PVT need no table: the published case is not flagged
     expect(pvtCoverageWarning(dake.caseData, { ...dake.runConfig, pvt_lab_table: cut })).toBeNull();
     expect(pvtTableCoverage(dake.caseData, dake.runConfig)).toBeNull();
