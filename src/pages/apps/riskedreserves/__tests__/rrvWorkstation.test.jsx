@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import RrvWorkstation from '../components/RrvWorkstation';
 import { makeInMemoryProspectsBackend } from '../../ReservoirCalcPro/services/prospectsService';
 import { valueProspect } from '@/utils/prospectValuation';
+import { fromRcpProspect, engineInput } from '../services/rrvStore';
 
 jest.mock('recharts', () => {
   const R = jest.requireActual('recharts');
@@ -20,7 +21,8 @@ test('imports the RCP inventory and shows the engine EMV', async () => {
   expect(screen.getByTestId('rrv-empty')).toBeTruthy();
   await waitFor(() => expect(screen.getByTestId('rrv-import').disabled).toBe(false));
   fireEvent.click(screen.getByTestId('rrv-import'));
-  const v = valueProspect({ pg: 0.3, p90: 12, p50: 30, p10: 75, mefs: 10, unitValue: 8, devCost: 100, wellCost: 25 });
+  // U2-002: an imported prospect starts on the economic model (derived MEFS and value line)
+  const v = valueProspect(engineInput(fromRcpProspect({ id: 'x', ...seed[0] })));
   expect(screen.getByTestId('rrv-emv-North').textContent).toBe(v.emv.toLocaleString(undefined, { maximumFractionDigits: 1, minimumFractionDigits: 1 }));
   expect(screen.getByTestId('rrv-pc-North').textContent).toBe(`${(v.pc * 100).toFixed(1)}%`);
   expect(screen.getByTestId('rrv-readout')).toBeTruthy();

@@ -11,7 +11,7 @@ import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-li
 import { MemoryRouter } from 'react-router-dom';
 import RrvWorkstation from '../components/RrvWorkstation';
 import { makeInMemoryRrvBackend } from '../services/rrvBackend';
-import { RRV_KEY, RRV_STORE_KEY, fromRcpProspect, toRow } from '../services/rrvStore';
+import { RRV_KEY, RRV_STORE_KEY, fromRcpProspect, toRow, engineInput } from '../services/rrvStore';
 import { RRV_SEED_PROSPECTS, RRV_T1_BROWSER_LIST } from '../services/rrvFixtures';
 import { valueProspect } from '@/utils/prospectValuation';
 import { VIEW_PREFIX } from '@/lib/units/useAppUnits';
@@ -244,7 +244,8 @@ describe('PL11, PL4: inputs a person can type', () => {
     expect(text('rrv-problem')).toMatch(/Enter Pg, the geological chance of success/);
     fireEvent.change(pg, { target: { value: '0,3' } });
     expect(pg.value).toBe('0,3'); // the text stays the user's while the field has focus
-    expect(text('rrv-pc-Ekene North')).toBe(`${(valueProspect({ pg: 0.3, p90: 12, p50: 30, p10: 75, mefs: 10, unitValue: 8, devCost: 100, wellCost: 25 }).pc * 100).toFixed(1)}%`);
+    // U2-002: the import starts on the economic model, whose MEFS does not depend on Pg
+    expect(text('rrv-pc-Ekene North')).toBe(`${(valueProspect({ ...engineInput(fromRcpProspect({ id: 'x', ...RRV_SEED_PROSPECTS[0] })), pg: 0.3 }).pc * 100).toFixed(1)}%`);
     fireEvent.blur(pg);
     expect(pg.value).toBe('0.3');
     const mefs = screen.getByTestId('rrv-mefs-Ekene North');
@@ -268,8 +269,10 @@ describe('PL3: the unit view', () => {
     const pc = text('rrv-pc-Ekene North');
     fireEvent.change(screen.getByTestId('rrv-units'), { target: { value: '10^6 m3' } });
     expect(screen.getByTestId('rrv-p90-Ekene North').value).toBe('1.90785');
-    expect(screen.getByTestId('rrv-unitValue-Ekene North').value).toBe('50.3185');
-    expect(screen.getByTestId('rrv-devCost-Ekene North').value).toBe('100');
+    const model = fromRcpProspect({ id: 'x', ...RRV_SEED_PROSPECTS[0] });
+    expect(screen.getByTestId('rrv-unitValue-Ekene North').value).toBe(String(parseFloat((model.unitValue / 0.158987294928).toPrecision(6))));
+    // money does not convert
+    expect(screen.getByTestId('rrv-devCost-Ekene North').value).toBe(String(parseFloat(model.devCost.toPrecision(6))));
     expect(text('rrv-emv-Ekene North')).toBe(emv);
     expect(text('rrv-pc-Ekene North')).toBe(pc);
     expect(text('rrv-portfolio')).toMatch(/10\^6 m3 oe/);
@@ -310,18 +313,27 @@ describe('RL12: the Report tab is the report', () => {
     expect(text('rrv-header-Display units')).toMatch(/^Oilfield \(MMboe, \$\/boe, \$MM\)/);
     const inputs = within(screen.getByTestId('rrv-report-inputs'));
     expect(inputs.getByText('Success-case volume P90 (low)')).toBeTruthy();
-    expect(inputs.getByText(/Assumed: the starting default of 10 MMboe, never changed on this screen/)).toBeTruthy();
+    // U2-002: the MEFS is derived from the economic model, whose ten assumptions are rows of their own
+    expect(inputs.getByText(/Derived: the smallest size whose net present value is at or above zero under the economic model below/)).toBeTruthy();
+    expect(inputs.getAllByText(/Assumed: the starting screening default/)).toHaveLength(10);
+    expect(inputs.getByText(/Assumed: the starting default of 25 \$MM, never changed on this screen/)).toBeTruthy();
     // the headline EMV in the Report tab is the EMV in the table
     expect(within(screen.getByTestId('rrv-report-headline')).getByText(text('rrv-emv-Ekene North'))).toBeTruthy();
     expect(text('rrv-report-handoff')).toMatch(/Monte Carlo run2026-10-01 11:00 UTC, seed 123, 10,000 realizations/);
     expect(text('rrv-report-chance')).toMatch(/Pg = trap x reservoir x charge x seal = 0\.800 x 0\.800 x 0\.500 x 1\.000 = 0\.320/);
     expect(text('rrv-report-limits')).toMatch(/Single prospect\./);
-    expect(text('rrv-report-flags')).toMatch(/starting defaults that were never changed/);
-    expect(text('rrv-report-figures')).toMatch(/Expectation curve of volume.*Expectation curve of value.*Chance factors and the chance of success.*Sensitivity of the EMV\. Not plotted/);
+    expect(text('rrv-report-flags')).toMatch(/a starting default that was never changed/);
+    expect(text('rrv-report-flags')).toMatch(/The economic model is the starting screening default/);
+    expect(text('rrv-report-figures')).toMatch(/Expectation curve of volume.*Expectation curve of value.*Value of a discovery against its size.*Chance factors and the chance of success.*Sensitivity of the EMV/);
     // stating a source changes the row; typing the input changes the wording too
-    fireEvent.change(within(screen.getByTestId('rrv-source-mefs')).getByLabelText('MEFS note'), { target: { value: 'Screening economics 2026' } });
-    expect(inputs.getByText(/Assumed: the starting default of 10 MMboe, never changed on this screen\. Screening economics 2026/)).toBeTruthy();
+    expect(screen.queryByTestId('rrv-source-mefs')).toBeNull(); // a derived input has no source of its own to state
+    fireEvent.change(within(screen.getByTestId('rrv-source-wellCost')).getByLabelText('Exploration well cost note'), { target: { value: 'Rig quote 2026' } });
+    expect(inputs.getByText(/Assumed: the starting default of 25 \$MM, never changed on this screen\. Rig quote 2026/)).toBeTruthy();
+    type('rrv-wellCost-Ekene North', '30');
+    expect(inputs.getByText('Entered, source not stated. Rig quote 2026')).toBeTruthy();
+    // typing the MEFS takes it over, and it then has a source to state
     type('rrv-mefs-Ekene North', '15');
+    fireEvent.change(within(screen.getByTestId('rrv-source-mefs')).getByLabelText('MEFS note'), { target: { value: 'Screening economics 2026' } });
     expect(inputs.getByText('Entered, source not stated. Screening economics 2026')).toBeTruthy();
     expect(screen.getByTestId('rrv-report-pdf').disabled).toBe(false);
     fireEvent.click(screen.getByTestId('rrv-save'));

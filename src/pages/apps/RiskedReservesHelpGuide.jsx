@@ -4,11 +4,15 @@
 // break-even Pg and the risked expectation curve, closed form from a
 // lognormal fitted to P90 and P10.
 //
+// Step 2 (2026-10-02): economics and the derived MEFS, the Petroleum
+// Economics Studio handoff, sensitivity, re-run, ranking.
+//
 // Copy rule: no em dashes, no "X, not Y" contrastives.
 
 import React from 'react';
 import {
   BookOpen, Zap, Sliders, Calculator, LineChart, Layers, AlertTriangle, Save, GitBranch, FileText,
+  Coins, BarChart3, RotateCcw, ListOrdered,
 } from 'lucide-react';
 import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para,
@@ -22,6 +26,11 @@ const sections = [
   { id: 'saving', icon: Save, title: 'Saving and sharing' },
   { id: 'handoff', icon: GitBranch, title: 'From ReservoirCalc Pro' },
   { id: 'inputs', icon: Sliders, title: 'The inputs' },
+  { id: 'economics', icon: Coins, title: 'Economics and the MEFS' },
+  { id: 'epe', icon: Coins, title: 'From Petroleum Economics Studio' },
+  { id: 'sensitivity', icon: BarChart3, title: 'Sensitivity' },
+  { id: 'rerun', icon: RotateCcw, title: 'Re-run a prospect' },
+  { id: 'ranking', icon: ListOrdered, title: 'Ranking' },
   { id: 'engine', icon: Calculator, title: 'How it is valued' },
   { id: 'results', icon: LineChart, title: 'Reading the results' },
   { id: 'report', icon: FileText, title: 'The report and the CSV' },
@@ -78,9 +87,11 @@ const RiskedReservesHelpGuideContent = () => (
         Import from ReservoirCalc Pro brings in every prospect you risked there, with its Pg
         and success-case P90, P50 and P10. Or add a prospect and type the values here.
       </Step>
-      <Step n={2} title="Set the economics for each prospect">
-        The minimum economic field size, the value of a developed barrel, the development cost
-        and the exploration well cost. Defaults are placeholders; replace them.
+      <Step n={2} title="Check the economics of each prospect">
+        On the Economics tab, the minimum economic field size and the value of a discovery come
+        from one economic model, or from a Petroleum Economics Studio run you pick. Set the
+        exploration well cost in the table. The starting model is a screening default; replace
+        it with the prospect's own assumptions.
       </Step>
       <Step n={3} title="Read Pc and EMV in the table">
         Pick a row to see its expectation curve and the full readout beside it.
@@ -143,9 +154,9 @@ const RiskedReservesHelpGuideContent = () => (
         rows={[
           ['Pg', '0 to 1', 'Geological chance of success from the risking in ReservoirCalc Pro'],
           ['P90, P50, P10', 'MMboe', 'Success-case recoverable volumes in oil equivalent; P50 is optional and used for the Swanson check'],
-          ['MEFS', 'MMboe', 'Minimum economic field size: the smallest discovery worth developing'],
-          ['Value per barrel', '$/boe', 'NPV per barrel of a developed discovery. Typed here (a new prospect starts at 8 $/bbl, an assumption), or sent with a prospect valued in ReservoirCalc Pro'],
-          ['Development cost', '$MM', 'Spent only when the discovery is commercial'],
+          ['MEFS', 'MMboe', 'Minimum economic field size: the smallest discovery worth developing. Derived from the value of a discovery unless you type it'],
+          ['Value per barrel', '$/boe', 'Slope u of the value of a discovery, value = u x volume - D. From the economic model, a Petroleum Economics Studio run, a prospect valued in ReservoirCalc Pro, or typed here'],
+          ['Development cost', '$MM', 'Offset D of the same line; spent only when the discovery is commercial'],
           ['Well cost', '$MM', 'The exploration well, spent in every outcome'],
         ]}
       />
@@ -158,6 +169,84 @@ const RiskedReservesHelpGuideContent = () => (
         A field left empty is never read as zero. The row shows "check inputs" and the line
         under the table names what is missing. Zero is allowed for the MEFS and the costs when
         you type it.
+      </Para>
+    </GuideSection>
+
+    <GuideSection id="economics">
+      <SectionHeading icon={Coins}>Economics and the MEFS</SectionHeading>
+      <Para>
+        The minimum economic field size and the value of a discovery follow from one stated
+        economic model, so they cannot contradict each other. The model has ten assumptions:
+        price, variable and fixed operating cost, development capex as a fixed part and a part
+        per barrel, producing life, decline, royalty, tax and discount rate. It starts from the
+        ReservoirCalc Pro screening model, and every net present value is the Suite screening
+        engine.
+      </Para>
+      <Formula>MEFS = the smallest size whose net present value is zero or more</Formula>
+      <Para>
+        The valuation reads the value of a discovery as a straight line, value = u x volume - D,
+        drawn through the model's net present value at the MEFS (zero) and at the mean
+        commercial size. The Economics tab shows the line beside the model's own curve, and the
+        table "Value by field size" prints both at the MEFS, P90, P50, the mean and P10. The
+        report adds a cross-check: the EMV with the curve itself, which says how much the line
+        costs.
+      </Para>
+      <Para>
+        Typing over a derived value takes it over: a typed MEFS stops following the economics,
+        and a typed value per barrel or development cost leaves the model for entered values.
+        The Economics tab switches back. With entered values the derived MEFS is D / u, the
+        size at which the line is zero.
+      </Para>
+    </GuideSection>
+
+    <GuideSection id="epe">
+      <SectionHeading icon={Coins}>From Petroleum Economics Studio</SectionHeading>
+      <Para>
+        On the Economics tab, Pick a Petroleum Economics Studio run lists your saved runs with
+        their case, date, price deck, discount rate, NPV per barrel, value before capex and
+        capex. Use takes one: its NPV before development capex per barrel becomes u and the
+        present value of its capex becomes D, so at the run's own size the line gives the run's
+        NPV. A run's results page in Petroleum Economics Studio has a link that opens this app
+        with the run offered to the selected prospect.
+      </Para>
+      <Para>
+        The run, its case, price deck, discount rate, dates and builds stay with the valuation
+        and are printed in the report. Each time the page opens the run is read again: if it
+        changed, the tab says what moved and offers Refresh; if it is gone, that is said too. If
+        you type over the value, the run is kept on record as no longer in use.
+      </Para>
+    </GuideSection>
+
+    <GuideSection id="sensitivity">
+      <SectionHeading icon={BarChart3}>Sensitivity</SectionHeading>
+      <Para>
+        The Sensitivity tab moves one input at a time to a low and a high case and values the
+        prospect again: Pg, each chance factor, the volumes, the value per barrel, the costs and
+        the MEFS. The bars show the change in EMV, largest first. You set the ranges (25 percent
+        either way, and 0.1 for a chance factor, to start); they are printed with the figure.
+        They are stated ranges and not probabilities, and the bars do not add.
+      </Para>
+    </GuideSection>
+
+    <GuideSection id="rerun">
+      <SectionHeading icon={RotateCcw}>Re-run a prospect</SectionHeading>
+      <Para>
+        When a prospect changed in ReservoirCalc Pro, or its volumes are flagged, its row offers
+        Re-run in ReservoirCalc Pro. That opens the prospect's project and reservoir with the
+        seed and realizations of its run set, and Prospect Risking filled in. Adding the re-run
+        there replaces the old record, and Return to the valuation brings you back: the
+        valuation takes the new record, says what moved and keeps your economics. A colleague's
+        shared prospect opens read-only, with the reason.
+      </Para>
+    </GuideSection>
+
+    <GuideSection id="ranking">
+      <SectionHeading icon={ListOrdered}>Ranking</SectionHeading>
+      <Para>
+        The Ranking tab orders your valuations, and those colleagues shared with you, by EMV, by
+        risked volume or by commercial chance. Each row says what it rests on: where its volumes
+        came from, where the value of a discovery came from, and whether its MEFS is derived or
+        typed. CSV writes the ranking with the same provenance at the top of the file.
       </Para>
     </GuideSection>
 
@@ -207,15 +296,17 @@ const RiskedReservesHelpGuideContent = () => (
         The results are split: the chance of success as the product of its factors, unrisked
         and risked volumes, the expected monetary value in its three terms with the formula,
         and the three outcomes of the well with their chances and values. The plots are the
-        expectation curve of volume, the expectation curve of value and the chance factors. A
-        plot that does not apply is replaced by one line that says why.
+        expectation curve of volume, the expectation curve of value, the value of a discovery
+        against its size, the chance factors and the sensitivity of the EMV. A plot that does
+        not apply is replaced by one line that says why.
       </Para>
       <Callout tone="info" title="Limits and flags">
         The last page of text lists what the method assumes: one prospect at a time,
-        independent chance factors, a lognormal success case, one value per barrel for every
-        field size. Under it are the flags on this prospect, for example in-place volumes, an
-        MEFS that would lose money, defaults never replaced, or a source prospect that changed
-        after it was valued. Clear the flags before the report is signed.
+        independent chance factors, a lognormal success case, a straight-line value of a
+        discovery. Under it are the flags on this prospect, for example in-place volumes, a
+        typed MEFS that would lose money, a starting economic model never replaced, or a source
+        prospect or economics run that changed after it was valued. Clear the flags before the
+        report is signed.
       </Callout>
     </GuideSection>
 
@@ -232,11 +323,14 @@ const RiskedReservesHelpGuideContent = () => (
     <GuideSection id="pitfalls">
       <SectionHeading icon={AlertTriangle}>Pitfalls</SectionHeading>
       <Para>
-        Value per barrel is a single number per prospect. No app sends it here except ReservoirCalc
-        Pro, for a prospect valued there. To base it on a full development case, run that case in the
-        Petroleum Economics Studio and type its NPV per barrel into this screen; the readout under
-        the chart says where the current number came from. It changes with field size, so revisit it
-        for prospects far larger or smaller than the case you ran.
+        A Petroleum Economics Studio run values one development at one size. Taken here, its
+        capex is held fixed and the rest scales with volume, which is exact only at the run's
+        own size; for a prospect far larger or smaller, run a case nearer its size. The readout
+        under the chart says where the current value per barrel came from.
+      </Para>
+      <Para>
+        The starting economic model expenses the development capex in the year before first
+        production, where it earns no tax relief, so its MEFS is on the cautious side.
       </Para>
       <Para>
         Volumes are oil equivalent. A gas prospect handed over in gas units is converted at

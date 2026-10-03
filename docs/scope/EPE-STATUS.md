@@ -73,3 +73,18 @@ the framework named in chart titles (a PIA-then-NTA run was titled "PIA
 waterfall opens on the first valued year, and the PDF report carries every
 chart whichever tab is open. New dev harness `/dev/epe/runs/r1` on the
 Ekene demo run computed by the engines cash flow. Engine untouched.
+
+## 2026-10-02: sender to Risked Reserves Valuation (RRV U2-001)
+
+Branch `feat/rrv-u2`. Petroleum Economics Studio now publishes a run as the
+`epe-unit-value-1` contract (`src/pages/apps/epe/epeUnitValue.js`, read by id
+through `epeUnitValueService.js`): NPV per barrel, the NPV before capex per
+barrel and the present value of capex, with the run, case, price deck,
+discount rate and basis, date, fiscal regime and engine build. Every figure
+is read from the run's own KPIs; nothing is recomputed and no run, engine,
+export or policy changes. The results page shows a read-only card "Value per
+barrel for a prospect valuation" with a link that opens Risked Reserves
+Valuation with the run offered to the selected prospect. Tests:
+`src/pages/apps/epe/__tests__/epeUnitValue.test.js` (on the Ekene demo run
+the engine computed). Detail: `docs/upgrade/RiskedReservesValuation-UPGRADE.md`,
+section "U2-001".

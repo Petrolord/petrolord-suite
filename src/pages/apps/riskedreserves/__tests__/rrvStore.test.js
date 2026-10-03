@@ -1,10 +1,13 @@
-import { fromRcpProspect, inputProblem, blankProspect, valuationCsv, DEFAULT_ECONOMICS } from '../services/rrvStore';
+import { fromRcpProspect, inputProblem, blankProspect, valuationCsv, engineInput, DEFAULT_ECONOMICS } from '../services/rrvStore';
 import { valueProspect } from '@/utils/prospectValuation';
 
 describe('Risked Reserves store', () => {
   test('an RCP row maps Pg and success-case volumes', () => {
     const p = fromRcpProspect({ id: 'a1', name: 'North', pg_factors: { trap: 0.8, charge: 0.5 }, inputs: { p90: 1, p10: 2 }, risked: { pg: 0.32, success: { p90: 12, p50: 30, p10: 75 } } });
-    expect(p).toMatchObject({ id: 'rcp-a1', source: 'rcp', name: 'North', pg: 0.32, p90: 12, p50: 30, p10: 75, ...DEFAULT_ECONOMICS });
+    expect(p).toMatchObject({ id: 'rcp-a1', source: 'rcp', name: 'North', pg: 0.32, p90: 12, p50: 30, p10: 75, wellCost: DEFAULT_ECONOMICS.wellCost });
+    // U2-002: the MEFS and the value line start from the economic model, where a discovery of the MEFS is worth zero
+    expect(p.econ).toMatchObject({ value: 'model', mefs: 'derived' });
+    expect(Math.abs(p.unitValue * p.mefs - p.devCost)).toBeLessThan(1e-6);
   });
   test('Pg falls back to the product of the factors', () => {
     const p = fromRcpProspect({ id: 'b', name: 'B', pg_factors: { trap: 0.8, reservoir: 0.5, charge: 0.5, seal: 1 }, inputs: { p90: 10, p50: 20, p10: 40 }, risked: {} });
@@ -26,7 +29,7 @@ describe('Risked Reserves store', () => {
   });
   test('CSV carries the engine EMV', () => {
     const p = blankProspect(1);
-    const v = valueProspect(p);
+    const v = valueProspect(engineInput(p));
     const csv = valuationCsv([{ p, v }]).split('\n');
     expect(csv[0]).toMatch(/^prospect,source,pg/);
     expect(csv[1]).toContain(v.emv.toFixed(3));

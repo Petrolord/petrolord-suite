@@ -69,3 +69,37 @@ Doc: `docs/upgrade/RiskedReservesValuation-UPGRADE.md` (branch `feat/rrv-u1`).
   `src/lib/portability/__tests__/rrvValuationFamily.test.js`,
   `e2e/risked-reserves-upgrade.spec.js`; pentest and scratch runner in
   `tools/validation/rrv-valuations/`.
+
+## 2026-10-03: comprehensive upgrade, Step 2 (Reservoir round, app 4)
+
+Doc: `docs/upgrade/RiskedReservesValuation-UPGRADE.md` (sections "Batch
+decision", "Step 2 build", "Deferred, with reasons"; branch `feat/rrv-u2`).
+The `rrv_valuations` table was applied and verified on 2026-10-02 (#861); the
+app still works without it. No DDL in Step 2.
+
+- **U2-002 Economics.** The MEFS and the value of a discovery follow from one
+  stated economic model on the canonical `calculateEconomics` (the
+  ReservoirCalc Pro screening case): derived MEFS = smallest size with NPV at
+  or above zero; the valuation reads the line through the engine NPV at the
+  MEFS and at the mean commercial size; a cross-check integrates the curve.
+  New prospects start there, so the Step 1 defaults that contradicted each
+  other are gone (default valuation: MEFS 10 to 20.58 MMboe, Pc 22.5% to
+  15.0%, EMV 13.6 to 46.4 $MM). Saved valuations open as they were valued.
+  Economics tab, report section, value-by-size table and figure.
+- **U2-001 Petroleum Economics Studio.** A saved run is picked by id; its
+  NPV per barrel, price deck, discount rate, dates and builds travel with the
+  valuation, are printed, and the run is re-read so a change since is said.
+  The sender (`epe-unit-value-1`) was built in that app, read-only.
+- **U2-003 Sensitivity.** The EMV tornado over stated ranges, on a
+  Sensitivity tab and as Figure 5 (kit bar panel).
+- **U2-006 Re-run prospect.** From a valuation into ReservoirCalc Pro on the
+  prospect's project, reservoir and seed, and back with the refreshed
+  handoff; a colleague's prospect opens read-only with the reason.
+- **U2-008 Ranking.** Own and shared valuations by EMV, risked volume or
+  chance, with the basis of each; CSV with a provenance header.
+- **Deferred:** U2-009 (Capital Portfolio mapping needs three owner
+  decisions), U2-004, U2-007, U2-005, U2-010, U2-011, U2-012.
+- **Tests:** `riskedreserves/__tests__/rrvU2*.test.*`,
+  `epe/__tests__/epeUnitValue.test.js`,
+  `ReservoirCalcPro/__tests__/prospectRerun.test.js` and
+  `rerunProspect.test.jsx`; `e2e/risked-reserves-upgrade.spec.js` extended.
