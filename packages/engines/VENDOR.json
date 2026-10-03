@@ -2,14 +2,14 @@
   "$comment": "Vendoring contract for packages/engines. Checked by tools/check-vendored-engines.mjs; see that file for the model. The check is against the PINNED commit below and its committed manifest, never against engines HEAD: a guard pointed at HEAD goes red the moment canonical moves and then blocks every unrelated Suite PR. Moving the pin is a deliberate, reviewed vendoring pass. The Suite vendors the WHOLE canonical tree, so the expected state of this file is the one it is in: an EMPTY knownDeviations list. Any deviation that is genuinely deliberate goes in that list with a reason, a group and a burnDownWhen, and every differing or extra path is pinned to the blob currently vendored, so a second drift on an already-known path still fails. burnDownWhen states the condition under which the row must be removed, because a bare reason goes stale on its own: in NextGen a row reading \"pull only with the recut in the same deploy window\" became false the moment the recut merged and nothing in the file said so. A ledger entry whose deviation has gone is also a failure, so the list can only shrink.",
   "canonical": {
     "repo": "git@github.com:Petrolord/petrolord-engines.git",
-    "commit": "5ae5a8024d2bc49a5283277c4deceb77b767de61",
+    "commit": "f46215e26959dae0d86b503ca560f7c168cbba11",
     "manifest": "VENDOR.manifest"
   },
   "vendoring": {
     "method": "file-by-file reconciliation against a canonical clone, verified by blob hash with this guard, hashed from the files on disk rather than from the git index",
     "$comment": "NOT a whole-tree `git subtree pull`. That silently DELETED 24 Suite-only downstream files on 2026-09-14. Vendor the paths the canonical range actually touched, then run the guard, which is what proves nothing else moved.",
     "lastVendored": "2026-10-03",
-    "lastVendoredRange": "3fa4834aec9ed4ddb72fb267834ba97928a47cca..5ae5a8024d2bc49a5283277c4deceb77b767de61 (engines PR #299, Fluid Systems Studio U2 engines: gas z on the Standing-Katz chart with DAK and HY first-root safeguards, Sutton pseudo-criticals, the Vasquez-Beggs 114.7 psia reference gas gravity, brine Bw of Numbere, Brigham and Standing, tuned-parameter uncertainty; and engines PR #300, Material Balance U2 engines: injection terms in mbalEngine.ts with their gate, goldens, oracle and the Ahmed Ex 11-3 depletion data; the README; pinned at the merge commit 5ae5a80)"
+    "lastVendoredRange": "5ae5a8024d2bc49a5283277c4deceb77b767de61..f46215e26959dae0d86b503ca560f7c168cbba11 (engines PR #301, Decline Curve Analysis U1: the group roll-up sums EUR as produced plus remaining and averages a month of daily rates, with its gate; pinned at the merge commit f46215e; the files were already vendored byte-identical as recorded deviations)"
   },
   "testing": {
     "$comment": "The Suite needs no equivalent of NextGen's tools/run-vendored-engine-tests.mjs. jest.config.js uses testMatch '**/__tests__/**/*.test.(js|jsx|ts)' with no testPathIgnorePatterns, so all 179 suites under packages/engines/__tests__ already run in `npm test` beside the Suite's own. There is no allow-list of known engine test failures because there are none: the vendored suites are green.",
@@ -22,22 +22,5 @@
     "manifestPaths": 750,
     "vendoredPaths": 750
   },
-  "knownDeviations": [
-    {
-      "path": "engines/dca/groupRollup.js",
-      "kind": "differing",
-      "vendoredSha": "5eb6b007835314918b35bdf2c1fe26fbd285e65c",
-      "group": "dca-u1 (engines PR #301)",
-      "reason": "Decline Curve Analysis U1 (DCA-U1-006): the group roll-up summed the remaining volume as EUR and added a month of daily rates as one rate. Vendored byte-identical from Petrolord/petrolord-engines branch feat/dca-u1-group-rollup (PR #301), which the build agent may not merge.",
-      "burnDownWhen": "engines PR #301 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest and delete every dca-u1 row."
-    },
-    {
-      "path": "__tests__/dca.groupRollup.volumes.test.js",
-      "kind": "extra",
-      "vendoredSha": "e88b083bc7efb0f8baf17c3ed7d903a95aba55b8",
-      "group": "dca-u1 (engines PR #301)",
-      "reason": "The gate of DCA-U1-006 (group EUR is produced plus remaining; a month of daily points is a daily rate), with the old arithmetic as negative control. New in engines PR #301.",
-      "burnDownWhen": "engines PR #301 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest and delete every dca-u1 row."
-    }
-  ]
+  "knownDeviations": []
 }
