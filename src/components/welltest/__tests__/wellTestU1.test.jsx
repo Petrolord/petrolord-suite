@@ -211,3 +211,45 @@ describe('WTA-U1-006: the gauge readings left out of the analysis, each with its
     studio.unmount();
   }, 600000);
 });
+
+describe('WTA-U1-007: the limits of the method in the report, with out-of-range inputs flagged', () => {
+  test('an oil report states the general limits', async () => {
+    const studio = await sample();
+    const t = flat(readPdf(build(studio.ctx).doc).text);
+    expect(t).toMatch(/Method and its limits/);
+    expect(t).toMatch(/Single-phase flow of a slightly compressible liquid/);
+    expect(t).toMatch(/Constant wellbore storage/);
+    expect(t).toMatch(/no limited-entry \(spherical flow\) model/);
+    expect(t).toMatch(/at the gauge depth/);
+    studio.unmount();
+  }, 600000);
+
+  test('a gas report gives the reduced state of the test against the window of its z method, and flags it outside', async () => {
+    const studio = await sample((c) => {
+      c.setReservoirField('fluid', 'gas');
+      c.setReservoirField('ct', '');
+      c.setReservoirField('q', '5000');
+    });
+    let t = flat(readPdf(build(studio.ctx).doc).text);
+    expect(t).toMatch(/Dranchuk-Abou-Kassem z-factor: Tpr 1\.\d+ and ppr [\d.]+ to [\d.]+ at this test, inside the window it was checked over against the Standing-Katz chart \(Tpr 1\.2 to 3, ppr 0\.2 to 15;/);
+    // a cold, heavy gas takes Tpr below 1.2: flagged
+    await studio.act((c) => { c.setReservoirField('tempF', '60'); c.setReservoirField('gasGravity', '1.0'); });
+    t = flat(readPdf(build(studio.ctx).doc).text);
+    expect(t).toMatch(/OUTSIDE the window/);
+    studio.unmount();
+  }, 600000);
+});
+
+describe('WTA-U1-008: a rate history that disagrees with the test rate or tp is stated', () => {
+  test('q changed after the rate history was entered: the report and the Data tab say the analysis uses q', async () => {
+    const studio = await sample((c) => c.setReservoirField('q', '500'));
+    expect(studio.ctx.flowSummary.mismatch).toEqual([expect.stringMatching(/test rate q \(500 STB\/D\) differs from the last rate of the rate history \(450 STB\/D\); the analysis uses q/)]);
+    const t = flat(readPdf(build(studio.ctx).doc).text);
+    expect(t).toMatch(/differs from the last rate of the rate history/);
+    await studio.act((c) => { c.setReservoirField('q', '450'); c.setTestField('tp', '30'); });
+    expect(studio.ctx.flowSummary.mismatch).toEqual([expect.stringMatching(/producing time tp \(30 hr\) differs from the shut-in time of the rate history \(36 hr\)/)]);
+    await studio.act((c) => c.setTestField('tp', '36'));
+    expect(studio.ctx.flowSummary.mismatch).toEqual([]);
+    studio.unmount();
+  }, 600000);
+});

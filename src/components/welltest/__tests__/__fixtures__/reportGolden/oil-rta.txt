@@ -184,22 +184,42 @@ Gauge data used and left out
 
 Well Test Analysis Report, Well Sample well 1                                                                                           Page 3 of 7
 Rate transient analysis (production data)
- Quantity                                       Value
+ Quantity                                                                                                                       Value
 
- OOIP N, flowing material balance (MMSTB)       2.00
+ OOIP N, flowing material balance (MMSTB)                                                                                       2.00
 
- Productivity index J (STB/D per psi)           1.50
+ Productivity index J (STB/D per psi)                                                                                           1.50
 
- FMB fit r2                                     1.00
+ FMB fit r2                                                                                                                     1.00
 
- Production points                              80
+ Production points                                                                                                              80
 
- Transient linear xf sqrt(k) (ft sqrt(md))      38.3
-
-
+ Transient linear xf sqrt(k) (ft sqrt(md))                                                                                      38.3
 
 
-Well Test Analysis Report, Well Sample well 1           Page 4 of 7
+Method and its limits
+ Topic                          Statement
+
+ Fluid                          Single-phase flow of a slightly compressible liquid with constant viscosity, formation volume factor and total
+                                compressibility. Gas coming out of solution near the well is not modelled.
+
+ Wellbore storage               Constant wellbore storage. Changing storage (phase redistribution, a closing valve) has no model in the catalog; its
+                                hump on the derivative is not matched.
+
+ Well geometry                  Homogeneous reservoir model. A vertical well open over the net pay unless the horizontal model is chosen. Partial
+                                penetration enters as a pseudo-skin only (Papatzacos 1987, vertical wells): there is no limited-entry (spherical flow)
+                                model, and a deviated well is treated as vertical.
+
+ Time basis                     Buildup on Agarwal equivalent time with the producing time tp, or on superposition of the rate history when one is
+                                entered.
+
+ Pressures                      Analysed and reported at the gauge depth; no correction to a datum and no gravity or friction correction between
+                                gauge and sandface.
+
+
+
+
+Well Test Analysis Report, Well Sample well 1                                                                                              Page 4 of 7
 Plots
 Figure 1. Test overview
 

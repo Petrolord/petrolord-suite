@@ -21,7 +21,7 @@ import { provenanceFromPayload, setProvenanceField } from '@/lib/inputProvenance
 import {
   DEFAULT_IDENTIFICATION, DEFAULT_COMPLETION, resolveTotalCompressibility,
   buildSkinBreakdown, buildInputsTable, buildFlowSummary, buildIdentificationRows,
-  buildPressureBasisRows, buildDataUseRows,
+  buildPressureBasisRows, buildDataUseRows, buildLimitsRows,
 } from '@/utils/welltest/reportModel';
 import { buildHistoryMatch, buildOverviewData, thinRows } from '@/utils/welltest/plotData';
 
@@ -916,6 +916,9 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
   // for the Report tab and the PDF
   const pressureBasisRows = useMemo(() => buildPressureBasisRows({ completion, gaugeImport, unitSystem }), [completion, gaugeImport, unitSystem]);
   const dataUse = useMemo(() => buildDataUseRows({ prepared, unitSystem }), [prepared, unitSystem]);
+  const limitsRows = useMemo(() => buildLimitsRows({
+    reservoir: reservoirSpec.reservoir, config: configSpec.config, model, prepared,
+  }), [reservoirSpec, configSpec, model, prepared]);
 
   // History match (model against the gauge over the whole record) and the
   // test overview: one calculation, drawn on the tabs and in the PDF.
@@ -1183,7 +1186,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
     multiRateResult, deliverabilityResult,
     // report model and shared plot series (tester round 2)
     skinBreakdown, inputsTable, flowSummary, identificationRows, historyMatch, overview,
-    pressureBasisRows, dataUse,
+    pressureBasisRows, dataUse, limitsRows,
     // auto-fit
     fitResult, isFitting, fitStale, runAutoFit, matchMethod,
     // sample

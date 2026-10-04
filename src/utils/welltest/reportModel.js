@@ -21,6 +21,7 @@ import { partialPenetrationSkin } from './partialPenetration.js';
 import { totalCompressibility } from './compressibility.js';
 import { summarizeFlowPeriods } from './flowSummary.js';
 import { PRESSURE_UNITS, TIME_UNITS, gaugeTime } from './gaugeImport.js';
+import { suttonPseudoCriticals, GAS_Z_METHODS } from '../../../packages/engines/engines/fluid/blackOil';
 
 const num = (v) => {
   if (v == null || v === '') return NaN;
@@ -442,13 +443,30 @@ export function buildFlowSummary({ rateRows = [], config, reservoir, prepared, p
       raw: p,
     };
   });
+  // WTA-U1-008: the analysis reads the test rate q (and tp); an entered rate
+  // history that says otherwise is stated, never silently reconciled
+  const mismatch = [];
+  if (!derived && reservoir?.q > 0) {
+    const sorted = [...history].sort((a, b) => a.t - b.t);
+    const shutIn = isBuildup ? sorted.find((r) => r.q === 0 && r.t > 0) : null;
+    const flowing = sorted.filter((r) => r.q !== 0 && (!shutIn || r.t < shutIn.t));
+    const qHist = flowing.length ? Math.abs(flowing[flowing.length - 1].q) : NaN;
+    const show = (v) => `${plain(fromOilfield(rateKind, v, unitSystem))} ${unitLabel(rateKind, unitSystem)}`;
+    if (Number.isFinite(qHist) && Math.abs(qHist - reservoir.q) > 0.005 * reservoir.q) {
+      mismatch.push(`The test rate q (${show(reservoir.q)}) differs from the last rate of the rate history (${show(qHist)}); the analysis uses q.`);
+    }
+    if (isBuildup && shutIn && Number.isFinite(config?.tp) && Math.abs(shutIn.t - config.tp) > 0.005 * Math.max(config.tp, 1e-9)) {
+      mismatch.push(`The producing time tp (${plain(config.tp)} hr) differs from the shut-in time of the rate history (${plain(shutIn.t)} hr); the analysis uses tp.`);
+    }
+  }
   return {
     rows,
     derived,
+    mismatch,
     empty: rows.length === 0,
-    note: derived
+    note: (derived
       ? `No rate history was entered: the periods are taken from the test setup (${isBuildup ? 'rate q for the producing time tp, then the shut-in' : 'rate q over the gauge record'}).`
-      : 'Periods from the entered rate history.',
+      : 'Periods from the entered rate history.') + (mismatch.length ? ` ${mismatch.join(' ')}` : ''),
     rateKind,
     volKind,
     totalVolume: summary.totalVolume,
@@ -575,4 +593,60 @@ export function buildDataUseRows({ prepared, unitSystem = 'oilfield' }) {
   const spikes = ex.spikes.slice(0, SPIKE_LIST_MAX).map((r) => [plain(r.t), plain(fromOilfield('pressure', r.p, unitSystem))]);
   const spikeNote = ex.spikes.length > SPIKE_LIST_MAX ? `The first ${SPIKE_LIST_MAX} of ${ex.spikes.length} are listed.` : null;
   return { rows, spikes, spikeNote, spikeHead: [buildup ? 'Shut-in time dt (hr)' : 'Elapsed time (hr)', `Pressure (${P})`] };
+}
+
+// ---- the method and its limits (WTA-U1-007, RL9) -----------------------------
+
+const r2 = (v) => (Number.isFinite(v) ? String(parseFloat(v.toPrecision(3))) : EMPTY_VALUE);
+
+/**
+ * The gas z-factor at this test against the window its method was checked
+ * over (the Standing-Katz chart readings of engines/fluid). Sutton
+ * pseudo-criticals from the engine, never restated.
+ */
+export function gasRangeCheck({ reservoir, pressures = [] }) {
+  if (reservoir?.fluid !== 'gas') return null;
+  const method = reservoir.zMethod || 'papay';
+  const { ppc, tpc } = suttonPseudoCriticals(reservoir.gasGravity);
+  const tempF = reservoir.tempR - 460;
+  const tpr = (tempF + 459.67) / tpc;
+  const ps = [reservoir.pi, ...pressures].filter((p) => Number.isFinite(p) && p > 0);
+  const pprMin = Math.min(...ps) / ppc;
+  const pprMax = Math.max(...ps) / ppc;
+  const w = GAS_Z_METHODS[method];
+  if (!w) {
+    return { method, label: 'Papay', tpr, pprMin, pprMax, inside: null,
+      text: `Papay z-factor: Tpr ${r2(tpr)} and ppr ${r2(pprMin)} to ${r2(pprMax)} at this test. No checked range is held for Papay in the Suite; it is kept for projects interpreted with it.` };
+  }
+  const inside = tpr >= w.chartTpr[0] && tpr <= w.chartTpr[1] && pprMin >= w.chartPpr[0] && pprMax <= w.chartPpr[1];
+  const win = `Tpr ${w.chartTpr[0]} to ${w.chartTpr[1]}, ppr ${w.chartPpr[0]} to ${w.chartPpr[1]}`;
+  return {
+    method, label: w.label, tpr, pprMin, pprMax, inside,
+    text: `${w.label} z-factor: Tpr ${r2(tpr)} and ppr ${r2(pprMin)} to ${r2(pprMax)} at this test, ${inside
+      ? `inside the window it was checked over against the Standing-Katz chart (${win}; largest departure ${(w.chartError * 100).toFixed(2)} percent)`
+      : `OUTSIDE the window it was checked over against the Standing-Katz chart (${win}). ${w.nearCritical}`}.`,
+  };
+}
+
+/**
+ * What the interpretation assumes, and where its methods stop, as
+ * [topic, statement] rows. The gas row carries the reduced state of the
+ * test against its z method's window.
+ */
+export function buildLimitsRows({ reservoir, config, model, prepared }) {
+  const gas = reservoir?.fluid === 'gas';
+  const rows = [
+    ['Fluid', gas
+      ? 'Single-phase real gas in pseudo-pressure m(p); dimensionless time at the initial mu ct unless pseudo-time is chosen. The skin is the apparent skin s\', which includes any rate-dependent skin; separating it needs tests at more than one rate.'
+      : 'Single-phase flow of a slightly compressible liquid with constant viscosity, formation volume factor and total compressibility. Gas coming out of solution near the well is not modelled.'],
+    ['Wellbore storage', 'Constant wellbore storage. Changing storage (phase redistribution, a closing valve) has no model in the catalog; its hump on the derivative is not matched.'],
+    ['Well geometry', `${model?.label ? `${model.label} model. ` : ''}A vertical well open over the net pay unless the horizontal model is chosen. Partial penetration enters as a pseudo-skin only (Papatzacos 1987, vertical wells): there is no limited-entry (spherical flow) model, and a deviated well is treated as vertical.`],
+    ['Time basis', config?.family === 'buildup'
+      ? 'Buildup on Agarwal equivalent time with the producing time tp, or on superposition of the rate history when one is entered.'
+      : 'Drawdown on elapsed time from the start of flow; a rate history with more than one rate is analysed by superposition (Odeh-Jones).'],
+    ['Pressures', 'Analysed and reported at the gauge depth; no correction to a datum and no gravity or friction correction between gauge and sandface.'],
+  ];
+  const range = gasRangeCheck({ reservoir, pressures: (prepared?.points || []).map((p) => p.p) });
+  if (range) rows.push(['Gas z-factor range', range.text]);
+  return rows;
 }

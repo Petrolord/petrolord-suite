@@ -60,7 +60,7 @@ const DataResults = () => {
 
   return (
     <div className="space-y-4 overflow-y-auto">
-      <WarningBanner warnings={[...errors, ...prepared.warnings]} />
+      <WarningBanner warnings={[...errors, ...prepared.warnings, ...(flowSummary.mismatch || [])]} />
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <Kpi title="Gauge points" value={fmt.int(gaugeRows.length)} />

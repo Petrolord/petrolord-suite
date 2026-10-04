@@ -140,6 +140,7 @@ export const collectReportArgs = (ctx) => ({
   skinBreakdown: ctx.skinBreakdown,
   flowSummary: ctx.flowSummary,
   pressureBasisRows: ctx.pressureBasisRows,
+  limitsRows: ctx.limitsRows,
   dataUse: ctx.dataUse,
   figures: buildReportFigures(ctx),
 });
@@ -158,7 +159,7 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
     semilogResult, sqrtResult, pssResult, multiRateResult, deliverabilityResult,
     rtaResult, regimes, notes, unitSystem = 'oilfield',
     inputsTable = [], skinBreakdown = null, flowSummary = null, figures = [],
-    pressureBasisRows = [], dataUse = null,
+    pressureBasisRows = [], dataUse = null, limitsRows = [],
   } = a;
   const report = createReport({ title: TITLE, appName: 'Petrolord Well Test Analysis Studio', logo });
   const { table, section } = report;
@@ -340,6 +341,11 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
       rows.push([`Transient linear xf sqrt(k) (${unitSystem === 'si' ? 'm' : 'ft'} sqrt(md))`, sig3(u('xfSqrtK', rtaResult.linear.xfSqrtK))]);
     }
     table('Rate transient analysis (production data)', ['Quantity', 'Value'], rows);
+  }
+
+  // WTA-U1-007 (RL9): what the interpretation assumes, and the z range
+  if (limitsRows.length) {
+    table('Method and its limits', ['Topic', 'Statement'], limitsRows, { columnStyles: { 0: { cellWidth: 36 } } });
   }
 
   if (notes) {

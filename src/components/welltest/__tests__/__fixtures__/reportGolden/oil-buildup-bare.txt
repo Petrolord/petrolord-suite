@@ -58,7 +58,7 @@ Perforated interval not entered. The skin is reported as a total and is not spli
 
 
 
-Well Test Analysis Report, Well Sample well 1                                                                                            Page 1 of 5
+Well Test Analysis Report, Well Sample well 1                                                                                            Page 1 of 6
 Straight-line analyses
  Analysis                                                                                                Result
 
@@ -95,7 +95,7 @@ above is in shut-in time.
 
 
 
-Well Test Analysis Report, Well Sample well 1                                                                                          Page 2 of 5
+Well Test Analysis Report, Well Sample well 1                                                                                          Page 2 of 6
 Reservoir and fluid inputs
  Input                                          Value                 Unit              Source and quality
 
@@ -161,7 +161,30 @@ Gauge data used and left out
 
 
 
-Well Test Analysis Report, Well Sample well 1                                                                                              Page 3 of 5
+Well Test Analysis Report, Well Sample well 1                                                                                              Page 3 of 6
+Method and its limits
+ Topic                         Statement
+
+ Fluid                         Single-phase flow of a slightly compressible liquid with constant viscosity, formation volume factor and total
+                               compressibility. Gas coming out of solution near the well is not modelled.
+
+ Wellbore storage              Constant wellbore storage. Changing storage (phase redistribution, a closing valve) has no model in the catalog; its
+                               hump on the derivative is not matched.
+
+ Well geometry                 Homogeneous reservoir model. A vertical well open over the net pay unless the horizontal model is chosen. Partial
+                               penetration enters as a pseudo-skin only (Papatzacos 1987, vertical wells): there is no limited-entry (spherical flow)
+                               model, and a deviated well is treated as vertical.
+
+ Time basis                    Buildup on Agarwal equivalent time with the producing time tp, or on superposition of the rate history when one is
+                               entered.
+
+ Pressures                     Analysed and reported at the gauge depth; no correction to a datum and no gravity or friction correction between
+                               gauge and sandface.
+
+
+
+
+Well Test Analysis Report, Well Sample well 1                                                                                             Page 4 of 6
 Plots
 Figure 1. Test overview
 
@@ -231,7 +254,7 @@ bands mark the detected flow regimes: transition between regimes 0.212 to 1.57 h
 
 
 
-Well Test Analysis Report, Well Sample well 1                                                                                                              Page 4 of 5
+Well Test Analysis Report, Well Sample well 1                                                                                                              Page 5 of 6
 Figure 3. Horner semilog plot
 
                               pws         Straight line
@@ -285,5 +308,5 @@ Rate transient analysis was not run: no production data is loaded on the RTA tab
 
 
 
-Well Test Analysis Report, Well Sample well 1                                                                                                    Page 5 of 5
+Well Test Analysis Report, Well Sample well 1                                                                                                    Page 6 of 6
 

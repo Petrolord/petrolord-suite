@@ -54,7 +54,7 @@ const ReportResults = () => {
     matchParams, semilogResult, sqrtResult, pssResult, derivedKpis, sqrtMeaningful,
     multiRateResult, deliverabilityResult, fitResult, matchMethod, regimes, notes, model,
     unitSystem, rtaResult,
-    identificationRows, inputsTable, skinBreakdown, flowSummary, pressureBasisRows, dataUse,
+    identificationRows, inputsTable, skinBreakdown, flowSummary, pressureBasisRows, dataUse, limitsRows,
   } = ctx;
   const uL = (kind) => unitLabel(kind, unitSystem);
 
@@ -218,6 +218,10 @@ const ReportResults = () => {
       <Card title="Flow and shut-in summary" testId="wts-report-flow">
         {flowSummary.rows.length > 0 && <Table head={flowSummaryHead(flowSummary, unitSystem)} body={flowSummaryBody(flowSummary)} minWidth={640} />}
         <p className="text-[11px] text-pl-muted mt-2">{flowSummary.note} Choke and recovered volume are entered on the Data tab.</p>
+      </Card>
+
+      <Card title="Method and its limits" testId="wts-report-limits">
+        <Table head={['Topic', 'Statement']} body={limitsRows} minWidth={420} />
       </Card>
 
       {dataUse.rows.length > 0 && (
