@@ -7,7 +7,7 @@ import { CHART_COLORS, CHART_TYPOGRAPHY, PINNED_TOOLTIP_PROPS, LEGEND_PROPS, XAX
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { buildSemilogData, buildSqrtData } from '@/utils/welltest/plotData';
 import { unitLabel, fromOilfield } from '@/utils/welltest/units';
-import { deliverabilityUnits } from '@/utils/welltest/reportModel';
+import { deliverabilityUnits, rateSkinRows, RATE_SKIN_METHOD_TEXT } from '@/utils/welltest/reportModel';
 import { ChartCard, Kpi, LINE, WarningBanner, fmt, fmtU, logTicks, logTickFormatter } from './primitives';
 
 const axisProps = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize } };
@@ -18,7 +18,7 @@ const legendProps = LEGEND_PROPS;
 const SpecializedResults = () => {
   const {
     prepared, configSpec, reservoirSpec, semilogResult, sqrtResult, pssResult,
-    multiRateResult, deliverabilityResult, deliverabilityInputs, semilogWindowSource,
+    multiRateResult, deliverabilityResult, deliverabilityInputs, semilogWindowSource, rateSkin,
   } = useWellTestStudio();
   const { unitSystem } = useWellTestStudio();
   const isBuildup = configSpec.config?.family === 'buildup';
@@ -139,6 +139,20 @@ const SpecializedResults = () => {
               Enter at least two flow-after-flow points (rate and stabilized pwf) in the left rail to compute the Rawlins-Schellhardt and LIT deliverability and the AOF.
             </p>
           )}
+        </div>
+      )}
+
+      {isGas && (
+        <div className="rounded-lg border border-pl-border bg-pl-surface p-4" data-testid="wts-rate-skin-result">
+          <p className="text-xs font-semibold text-pl-muted uppercase tracking-wider mb-2">Rate-dependent skin</p>
+          <table className="w-full text-xs">
+            <tbody>
+              {rateSkinRows(rateSkin, unitSystem).map(([q, v, b]) => (
+                <tr key={q} className="border-t border-pl-border"><td className="py-1 text-pl-muted">{q}</td><td className="py-1 text-pl-text font-medium text-right whitespace-nowrap px-2">{v}</td><td className="py-1 text-pl-muted">{b}</td></tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-[11px] text-pl-muted mt-2">{RATE_SKIN_METHOD_TEXT}</p>
         </div>
       )}
 

@@ -320,6 +320,17 @@ const WTSHelpContent = () => (
       dimensionless C_phiD and alpha_D.
     </P>
 
+    <H>Rate-dependent skin</H>
+    <P>
+      The skin of a gas test is the apparent skin s&apos; = s + D q: turbulence near the well adds a skin that grows with
+      the rate. On the Specialized tab, enter the apparent skin of the well at two or more rates (flow periods or
+      separate tests, each long enough to reach radial flow; Add this test takes the current one). The straight line
+      through them gives the skin s at its intercept and D at its slope. A deliverability test entered in
+      pseudo-pressure gives D too, from its turbulent coefficient b (D = b k h / 1422 T). When D is known the skin
+      table splits the rate-dependent part D q from the mechanical skin, and the report and the results sent to other
+      apps carry it.
+    </P>
+
     <H>Conventions</H>
     <P>
       Display units follow the selector on the Data tab, in either oilfield (md, ft, cp, psi, STB/D, RB/STB, hours) or

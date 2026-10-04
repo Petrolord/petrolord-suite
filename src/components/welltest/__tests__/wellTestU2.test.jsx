@@ -192,3 +192,52 @@ describe('WTA-U2-002: changing wellbore storage (Hegeman) in the studio', () => 
     studio.unmount();
   }, 600000);
 });
+
+describe("WTA-U2-003: rate-dependent skin, s' = s + D q", () => {
+  test('two rates give s and D; this test splits into s and D q in the skin table, the PDF and wta-1', async () => {
+    const studio = await gasSample();
+    await studio.act((c) => c.setRateSkinRows([{ q: '2000', skin: '3' }, { q: '8000', skin: '6' }]));
+    const rs = studio.ctx.rateSkin;
+    expect(rs.fit.ok).toBe(true);
+    expect(rs.fit.s).toBeCloseTo(2, 12);
+    expect(rs.fit.D).toBeCloseTo(5e-4, 15);
+    expect(rs.Dq).toBeCloseTo(2.5, 12); // q 5000 Mscf/D
+    const sPrime = studio.ctx.derivedKpis.skin;
+    expect(rs.trueSkin).toBeCloseTo(sPrime - 2.5, 12);
+    const rows = studio.ctx.skinBreakdown;
+    expect(rows.rate.Dq).toBeCloseTo(2.5, 12);
+    const t = flat(readPdf(build(studio.ctx).doc).text);
+    expect(t).toMatch(/Rate-dependent skin/);
+    expect(t).toMatch(/D, multi-rate line \(1\/\(Mscf\/D\)\) 5e-4/);
+    expect(t).toMatch(/Rate-dependent skin D q \(q 5,?000 Mscf\/D\) 2\.50/);
+    expect(studio.ctx.wtaRecord.skin.rate_dependent.D_per_mscfd).toBeCloseTo(5e-4, 15);
+    // SI: D per 10^3 m3/d is 35.3147 times the oilfield number
+    await studio.act((c) => c.setUnitSystem('si'));
+    const si = flat(readPdf(build(studio.ctx).doc).text);
+    const m = si.match(/D, multi-rate line \(1\/\(10.m.\/d\)\) ([\d.e-]+)/);
+    expect(Number(m[1])).toBeCloseTo(5e-4 * 35.31466672, 5);
+    studio.unmount();
+  }, 600000);
+
+  test('the pseudo-pressure LIT b gives D = b k h / (1422 T); a pressure-squared b gives none (negative control); one rate gives no line', async () => {
+    const studio = await gasSample();
+    await studio.act((c) => {
+      c.setDeliverabilityField('method', 'pseudo-pressure');
+      c.setDeliverabilityRows([{ q: '2000', pwf: '4500' }, { q: '4000', pwf: '4100' }, { q: '6000', pwf: '3600' }]);
+      c.setRateSkinRows([{ q: '5000', skin: '4' }]);
+    });
+    const r = studio.ctx.reservoirSpec.reservoir;
+    const b = studio.ctx.deliverabilityResult.lit.b;
+    expect(b).toBeGreaterThan(0);
+    const rs = studio.ctx.rateSkin;
+    expect(rs.fit.ok).toBe(false);
+    expect(rs.fit.reason).toMatch(/different rates/);
+    expect(rs.source).toBe('lit');
+    expect(rs.litD).toBeCloseTo((b * studio.ctx.derivedKpis.k * r.h) / (1422 * r.tempR), 15);
+    await studio.act((c) => c.setDeliverabilityField('method', 'pressure-squared'));
+    expect(Number.isFinite(studio.ctx.rateSkin.litD)).toBe(false);
+    expect(studio.ctx.rateSkin.source).toBeNull();
+    expect(studio.ctx.skinBreakdown.rate).toBeNull();
+    studio.unmount();
+  }, 600000);
+});

@@ -3,7 +3,7 @@ import React from 'react';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { unitLabel, fromOilfield, kindForCatalogUnit } from '@/utils/welltest/units';
 import { gaugeTime, PWF_SOURCE_TEXT } from '@/utils/welltest/gaugeImport';
-import { skinBreakdownRows, flowSummaryHead, flowSummaryBody, inputsFootnote } from '@/utils/welltest/reportModel';
+import { skinBreakdownRows, flowSummaryHead, flowSummaryBody, inputsFootnote, rateSkinRows, RATE_SKIN_METHOD_TEXT } from '@/utils/welltest/reportModel';
 import { buildReportFigures } from '@/utils/welltest/reportFigures';
 import { buildCrossCheckRows } from '@/utils/wellTestReportExport';
 import { Kpi, fmt, fmtU, MATCH_METHOD_LABEL } from './primitives';
@@ -54,7 +54,7 @@ const ReportResults = () => {
     matchParams, semilogResult, sqrtResult, pssResult, derivedKpis, sqrtMeaningful,
     multiRateResult, deliverabilityResult, fitResult, matchMethod, regimes, notes, model,
     unitSystem, rtaResult,
-    identificationRows, inputsTable, skinBreakdown, flowSummary, pressureBasisRows, dataUse, limitsRows, changingStorage,
+    identificationRows, inputsTable, skinBreakdown, flowSummary, pressureBasisRows, dataUse, limitsRows, changingStorage, rateSkin,
   } = ctx;
   const uL = (kind) => unitLabel(kind, unitSystem);
 
@@ -152,6 +152,13 @@ const ReportResults = () => {
         )}
         {skinBreakdown.message && <p className="text-[11px] text-pl-muted mt-1" data-testid="wts-report-skin-note">{skinBreakdown.message}</p>}
       </Card>
+
+      {isGas && rateSkin && (rateSkin.points.length > 0 || Number.isFinite(rateSkin.litD)) && (
+        <Card title="Rate-dependent skin" testId="wts-report-rate-skin">
+          <Table head={['Quantity', 'Value', 'Basis']} body={rateSkinRows(rateSkin, unitSystem)} minWidth={420} />
+          <p className="text-[11px] text-pl-muted mt-1">{RATE_SKIN_METHOD_TEXT}</p>
+        </Card>
+      )}
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className="rounded-lg border border-pl-border bg-pl-surface p-4">

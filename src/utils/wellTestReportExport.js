@@ -26,6 +26,7 @@ import { loadPetrolordLogo } from '@/lib/pdfBrand';
 import { buildLabel } from '@/lib/platformBuild';
 import {
   buildIdentificationRows, skinBreakdownRows, flowSummaryHead, flowSummaryBody, inputsFootnote, orNA, deliverabilityUnits,
+  rateSkinRows, RATE_SKIN_METHOD_TEXT,
 } from '@/utils/welltest/reportModel';
 import { buildReportFigures } from '@/utils/welltest/reportFigures';
 import {
@@ -145,6 +146,8 @@ export const collectReportArgs = (ctx) => ({
   dataUse: ctx.dataUse,
   // WTA-U2-002: only while the match is the interpretation
   changingStorage: ctx.derivedKpis?.source === 'match' ? (ctx.changingStorage || []) : [],
+  // WTA-U2-003: shown once a route has data (rates entered or a pseudo-pressure LIT)
+  rateSkin: ctx.rateSkin && (ctx.rateSkin.points.length || Number.isFinite(ctx.rateSkin.litD)) ? ctx.rateSkin : null,
   figures: buildReportFigures(ctx),
 });
 
@@ -215,6 +218,14 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
     table('Skin components', ['Component', 'Value', 'Basis'], sbRows, {
       columnStyles: { 0: { cellWidth: 80 }, 1: { cellWidth: 26 } },
       note: lines.join(' '),
+    });
+  }
+
+  // WTA-U2-003: the rate-dependent part of a gas skin, with its method and data needs
+  if (isGas && a.rateSkin) {
+    table('Rate-dependent skin', ['Quantity', 'Value', 'Basis'], rateSkinRows(a.rateSkin, unitSystem).map((r) => r.map(pdfText)), {
+      columnStyles: { 0: { cellWidth: 62 }, 1: { cellWidth: 30 } },
+      note: RATE_SKIN_METHOD_TEXT,
     });
   }
 

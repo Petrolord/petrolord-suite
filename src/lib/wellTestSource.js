@@ -21,7 +21,8 @@
 //   permeability   { value (md), kh (md-ft), method (words), ci95: [lo, hi] | null,
 //                    window: { from_hr, to_hr, basis } | null }
 //   skin           { total, mechanical, partial_penetration, method (words),
-//                    apparent (gas: includes rate-dependent skin), withheld: reason | null }
+//                    apparent (gas: includes rate-dependent skin), withheld: reason | null,
+//                    rate_dependent: { D_per_mscfd, Dq, skin_without_rate_part, method } | null (U2-003) }
 //   pressure       { initial_psia (entered), p_star_psia (Horner extrapolation or null),
 //                    average_psia, average_method (words), basis (words),
 //                    gauge_depth_md_ft, gauge_depth_tvd_ft, datum_tvdss_ft, datum_correction: 'none' }
@@ -98,6 +99,13 @@ export function buildWtaRecord(ctx, { now = new Date().toISOString(), projectId 
       method: fromMatch ? permMethod : lineName,
       apparent: isGas,
       withheld: ctx.prepared?.skinWithheld || null,
+      // WTA-U2-003: the rate-dependent part, when a route gave D
+      rate_dependent: isGas && finite(ctx.rateSkin?.D) ? {
+        D_per_mscfd: ctx.rateSkin.D,
+        Dq: orNull(ctx.rateSkin.Dq),
+        skin_without_rate_part: orNull(ctx.rateSkin.trueSkin),
+        method: ctx.rateSkin.source === 'multi-rate' ? "multi-rate line of apparent skins, s' = s + D q" : 'pseudo-pressure LIT b as the non-Darcy coefficient F, D = F k h / (1422 T)',
+      } : null,
     },
     pressure: {
       initial_psia: orNull(r.pi),

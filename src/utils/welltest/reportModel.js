@@ -261,6 +261,31 @@ export function resolveTotalCompressibility(r, { cgFallback = NaN } = {}) {
   };
 }
 
+// ---- rate-dependent skin (WTA-U2-003) ----------------------------------------
+
+export const RATE_SKIN_METHOD_TEXT = "s' = s + D q (Ahmed 2010, eq. 6-160). Route 1: the apparent skin of each of two or more flow periods or tests at different rates, each from its own analysis reaching radial flow, on a straight line against the rate (intercept s, slope D). Route 2: the turbulent coefficient b of a pseudo-pressure LIT deliverability fit is the non-Darcy coefficient F, and D = F k h / (1422 T) (eq. 6-159); a pressure-squared b is not F and is not used.";
+
+/**
+ * Rows of the rate-dependent skin table: [quantity, value, basis], in the display system.
+ */
+export function rateSkinRows(rs, system = 'oilfield') {
+  if (!rs) return [];
+  const f2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : EMPTY_VALUE);
+  const dU = unitLabel('nonDarcySkin', system);
+  const D = (v) => plain(fromOilfield('nonDarcySkin', v, system));
+  const rows = [];
+  if (rs.fit?.ok) {
+    rows.push([`D, multi-rate line (${dU})`, D(rs.fit.D), `${rs.fit.n} points at ${rs.fit.rates} rates${rs.fit.r2 != null ? `, r2 ${rs.fit.r2.toFixed(3)}` : ''}`]);
+    rows.push(['s, intercept of the multi-rate line', f2(rs.fit.s), rs.fit.method]);
+  } else {
+    rows.push([`D, multi-rate line (${dU})`, EMPTY_VALUE, rs.fit?.reason || 'Not computed']);
+  }
+  rows.push([`D, from the LIT b (${dU})`, Number.isFinite(rs.litD) ? D(rs.litD) : EMPTY_VALUE, Number.isFinite(rs.litD) ? 'D = F k h / (1422 T), F = b of the pseudo-pressure LIT fit, k of this test' : 'Needs a pseudo-pressure deliverability fit with b above zero']);
+  rows.push([`D q at this test's rate`, f2(rs.Dq), rs.source === 'multi-rate' ? 'D of the multi-rate line' : rs.source === 'lit' ? 'D from the LIT b' : 'No D: the skin stays apparent']);
+  rows.push(["This test: s' and s = s' - D q", `${f2(rs.apparentSkin)} and ${f2(rs.trueSkin)}`, 'From the interpretation']);
+  return rows;
+}
+
 // ---- completion and the skin split ------------------------------------------
 
 /** kv/kh used when none is entered. Stated as an assumption wherever it is used. */
@@ -299,8 +324,16 @@ export function buildCompletion(completion) {
  *   'refused' (the engine would not compute, with its reason),
  *   'full' (the whole pay is open), 'ok'.
  */
-export function buildSkinBreakdown({ totalSkin, reservoir, completion, kvkhInput, isGas = false }) {
+export function buildSkinBreakdown({ totalSkin, reservoir, completion, kvkhInput, isGas = false, rateSkin = null }) {
   const comp = buildCompletion(completion);
+  // WTA-U2-003: the rate-dependent part D q of a gas skin, when a route gave D
+  const Dq = isGas && Number.isFinite(rateSkin?.Dq) ? rateSkin.Dq : NaN;
+  const rate = Number.isFinite(Dq) ? {
+    Dq, D: rateSkin.D, q: rateSkin.q,
+    source: rateSkin.source === 'multi-rate'
+      ? `D from the apparent skins at ${rateSkin.fit?.rates} rates (${rateSkin.fit?.method})`
+      : 'D from the pseudo-pressure LIT b as the non-Darcy coefficient F: D = F k h / (1422 T) (Ahmed 2010, eq. 6-159)',
+  } : null;
   const kvkhEntered = num(kvkhInput);
   const kvkhGiven = kvkhInput != null && String(kvkhInput).trim() !== '';
   const kvkh = kvkhGiven ? kvkhEntered : DEFAULT_KVKH;
@@ -311,7 +344,8 @@ export function buildSkinBreakdown({ totalSkin, reservoir, completion, kvkhInput
     basis: comp.basis || null, kvkh, kvkhDefaulted: !kvkhGiven,
     method: null, formula: null, splitFormula: null, reference: null, splitReference: null,
     totalLabel: isGas ? "Apparent skin s'" : 'Total skin s',
-    mechanicalLabel: isGas ? 'Mechanical and rate-dependent skin' : 'Mechanical (damage) skin s_d',
+    mechanicalLabel: isGas && !rate ? 'Mechanical and rate-dependent skin' : 'Mechanical (damage) skin s_d',
+    rate,
   };
   if (comp.status === 'none') {
     return { ...base, status: 'not-entered', message: `${comp.reason} The skin is reported as a total and is not split.` };
@@ -327,7 +361,8 @@ export function buildSkinBreakdown({ totalSkin, reservoir, completion, kvkhInput
     ...base, spp: out.spp, hpD: out.hpD, h1D: out.h1D, rD: out.rD,
     method: out.method, formula: out.formula, reference: out.reference,
     splitFormula: out.split?.formula || null, splitReference: out.split?.reference || null,
-    mechanicalSkin: out.split?.ok ? out.split.mechanicalSkin : NaN,
+    mechanicalSkin: out.split?.ok ? out.split.mechanicalSkin - (rate ? rate.Dq : 0) : NaN,
+    splitFormula: (out.split?.formula || null) && (rate ? `${out.split.formula} - D q` : out.split.formula),
   };
   const notes = [];
   if (comp.basis === 'MD') notes.push('Lengths are measured depths, which is exact for a vertical hole only.');
@@ -346,6 +381,10 @@ export function skinBreakdownRows(sb, system = 'oilfield') {
   const f2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : EMPTY_VALUE);
   const L = unitLabel('length', system);
   const rows = [[sb.totalLabel, f2(sb.totalSkin), 'From the interpretation']];
+  if (sb.rate) {
+    rows.push([`Rate-dependent skin D q (q ${plain(fromOilfield('gasRate', sb.rate.q, system))} ${unitLabel('gasRate', system)})`, f2(sb.rate.Dq), sb.rate.source]);
+    rows.push(["Skin without the rate-dependent part s = s' - D q", f2(sb.totalSkin - sb.rate.Dq), 'From the interpretation and D']);
+  }
   if (sb.status === 'ok' || sb.status === 'full') {
     rows.push(['Partial-penetration pseudo-skin s_pp', f2(sb.spp), sb.method]);
     rows.push([sb.mechanicalLabel, f2(sb.mechanicalSkin), sb.splitFormula || EMPTY_VALUE]);

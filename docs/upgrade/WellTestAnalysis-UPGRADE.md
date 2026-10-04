@@ -239,6 +239,14 @@ merged; vendored byte-identical with `welltest-u2` ledger rows meanwhile).
 
 ## Step 2 build log
 
+### U2-003 Rate-dependent skin D: done (engines-first, PR #311)
+
+- Method, stated on the Specialized tab, the Report tab and the PDF: s' = s + D q (Ahmed, Reservoir Engineering Handbook 4th ed. 2010, eq. 6-160). Route 1: the apparent skins of two or more flow periods or tests at different rates, each from its own analysis that reached radial flow, on a straight line against rate (engine `rateDependentSkinFit`; two rates exact, three or more least squares with r2). Route 2: the pseudo-pressure LIT b is the non-Darcy coefficient F, D = F k h / (1422 T) (eq. 6-159, engine `nonDarcyDFromF`); a pressure-squared b carries mu z and is not used. Data needs: two or more rates with their own apparent skins, or a stabilized deliverability fit in pseudo-pressure.
+- Studio: rows of (q, s') on the Specialized tab with "Add this test"; saved with the project (`rateSkinRows`). The skin table gains "Rate-dependent skin D q" and "s = s' - D q", and the mechanical skin of the partial-penetration split subtracts D q. `wta-1` carries `skin.rate_dependent` (D, D q, the skin without it, the method). New unit kind `nonDarcySkin` (1/(Mscf/D) to 1/(10^3 m3/d)), pinned.
+- Validation: route 2 on the published Ahmed Example 6-20 step 4 (F 0.14, k 55 md, h 20 ft, T 600 degR give D = 1.805e-4 per Mscf/D; negative control with 1637 in place of 1422 misses). Route 1 by a round trip through the engine: drawdowns at three rates with skin s + D q, each analysed by the engine's MDH line, recover s and D (negative control: the apparent skin read as the true skin misses by D q). The published example's own Step 5 multiplies D by 20,000 for a rate stated as 20 Mscf/day, so it is not used as a gate.
+- Proving tests: engines `welltest.u2RateSkinDatum.test.js` (3 for D); Suite `wellTestU2.test.jsx` U2-003 (2): s and D from two rates, D q 2.50 at 5,000 Mscf/D in the skin table, the PDF, wta-1, D converted under SI; the LIT route equals b k h / (1422 T) with this test's k; a pressure-squared fit gives no D (negative control); one rate gives no line with the data need.
+- Numbers: none change until a rate or a pseudo-pressure deliverability fit is entered; goldens unchanged.
+
 ### U2-002 Changing wellbore storage, Hegeman first: done (engines-first, PR #311)
 
 - Engine `engines/welltest/models/changingStorage.js`: Fair's wellbore balance q_sf/q = 1 - C_D (dp_wD/dt_D - dp_phiD/dt_D) in Laplace space, p_w = p_sf (1 + C_D u^2 p_phi) / (1 + C_D u^2 p_sf), with p_sf any catalog model at cd = 0. Hegeman p_phiD = C_phiD erf(t_D/alpha_D) (Laplace C_phiD erfcx(u alpha_D/2)/u); Fair p_phiD = C_phiD (1 - exp(-t_D/alpha_D)). The user states C (final), Ci/C and alpha (hours); C_phiD follows from the early-time limit 1/C_iD = 1/C_D + dp_phiD/dt_D(0).

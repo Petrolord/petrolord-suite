@@ -14,7 +14,7 @@ import { bourdetDerivative, logDecimate, trimSpikes, detectFlowRegimes } from '@
 import { agarwalEquivalentTime, rateStepsFromHistory, detectFlowPeriods, equivalentProducingTime } from '@/utils/welltest/superposition';
 import { mdhAnalysis, hornerAnalysis, cartesianPssAnalysis, sqrtTimeAnalysis, radiusOfInvestigation, skinPressureDrop, flowEfficiency, multiRateSemilogAnalysis } from '@/utils/welltest/analysis';
 import { autoFitModel } from '@/utils/welltest/autoFit';
-import { buildGasPvtTable, makePseudoPressure, deliverabilityAnalysis, normalizedPseudoTime, GAS, WELLTEST_Z_METHODS } from '@/utils/welltest/gas';
+import { buildGasPvtTable, makePseudoPressure, deliverabilityAnalysis, normalizedPseudoTime, GAS, WELLTEST_Z_METHODS, rateDependentSkinFit, nonDarcyDFromF } from '@/utils/welltest/gas';
 import { UNIT_SYSTEMS } from '@/utils/welltest/units';
 import { useProfileSystem } from '@/lib/units/useProfileSystem';
 import { buildLabel } from '@/lib/platformBuild';
@@ -540,6 +540,8 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   const [windows, setWindows] = useState(DEFAULT_WINDOWS);
   const [deliverabilityInputs, setDeliverabilityInputs] = useState(DEFAULT_DELIVERABILITY);
   const [notes, setNotes] = useState('');
+  // WTA-U2-003: apparent skins of the well at other rates [{q (Mscf/D), skin, note}] strings
+  const [rateSkinRows, setRateSkinRows] = useState([]);
   // WT8: display-layer unit system; state and engines stay oilfield always
   const [unitSystem, setUnitSystemRaw] = useState('oilfield');
   // Suite unit profile: a NEW (not yet saved or opened) workspace starts
@@ -818,6 +820,10 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     return { rows, rowsTe, series, loglogRta, fmb, linear, isGas };
   }, [reservoirSpec, rtaRows, rtaWindows]);
 
+  // WTA-U2-003: rate-dependent skin. Route 1, the apparent skins of two or
+  // more rates on a line (engine rateDependentSkinFit); route 2, the
+  // pseudo-pressure LIT b as the non-Darcy coefficient F (Ahmed eq. 6-159).
+  // Computed after derivedKpis below (it needs this test's k and s').
   // Headline quantities derived from the working match (falls back to the
   // semilog answer when no match parameters are set).
   const derivedKpis = useMemo(() => {
@@ -860,6 +866,26 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
         : NaN,
     };
   }, [reservoirSpec, matchParams, matchInputs, fitResult, semilogResult, prepared]);
+
+  const rateSkin = useMemo(() => {
+    const r = reservoirSpec.reservoir;
+    if (!r || r.fluid !== 'gas') return null;
+    const pts = rateSkinRows.map((row) => ({ q: num(row.q), skin: num(row.skin) })).filter((x) => x.q > 0 && Number.isFinite(x.skin));
+    const fit = rateDependentSkinFit(pts);
+    const lit = deliverabilityResult?.method === 'pseudo-pressure' && deliverabilityResult.lit?.b > 0 && derivedKpis?.k > 0
+      ? nonDarcyDFromF({ F: deliverabilityResult.lit.b, k: derivedKpis.k, h: r.h, tempR: r.tempR })
+      : NaN;
+    const source = fit.ok ? 'multi-rate' : (Number.isFinite(lit) ? 'lit' : null);
+    const D = source === 'multi-rate' ? fit.D : (source === 'lit' ? lit : NaN);
+    const sApparent = Number.isFinite(derivedKpis?.skin) ? derivedKpis.skin : NaN;
+    const Dq = Number.isFinite(D) ? D * r.q : NaN;
+    return {
+      fit, points: pts, litD: lit, source, D, q: r.q, Dq,
+      // the true skin of THIS test: s' - D q (route 1 also gives its own intercept s)
+      trueSkin: Number.isFinite(sApparent) && Number.isFinite(Dq) ? sApparent - Dq : NaN,
+      apparentSkin: sApparent,
+    };
+  }, [reservoirSpec, rateSkinRows, deliverabilityResult, derivedKpis]);
 
   // kh and CD of the working match itself, for the Match tab
   const matchKpis = useMemo(() => {
@@ -952,7 +978,8 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     completion,
     kvkhInput: reservoirInputs.kvkh,
     isGas: reservoirInputs.fluid === 'gas',
-  }), [derivedKpis, reservoirSpec, completion, reservoirInputs.kvkh, reservoirInputs.fluid]);
+    rateSkin,
+  }), [derivedKpis, reservoirSpec, completion, reservoirInputs.kvkh, reservoirInputs.fluid, rateSkin]);
 
   const inputsTable = useMemo(() => buildInputsTable({
     reservoirInputs, reservoirSpec, completion, inputMeta, unitSystem, pvtIntake,
@@ -1045,9 +1072,9 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   // into every save so other apps read the results by id (lib/wellTestSource)
   const wtaRecord = useMemo(() => buildWtaRecord({
     reservoirSpec, derivedKpis, configSpec, semilogResult, matchMethod, fitResult, model, skinBreakdown, prepared,
-    completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId,
+    completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId, rateSkin,
   }), [reservoirSpec, derivedKpis, configSpec, semilogResult, matchMethod, fitResult, model, skinBreakdown, prepared,
-    completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId]);
+    completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId, rateSkin]);
 
   // ---- Project persistence ----
   const serializeInputs = useCallback(() => ({
@@ -1070,13 +1097,14 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     windows,
     deliverabilityInputs,
     notes,
+    rateSkinRows,
     unitSystem,
     rtaRows,
     rtaWindows,
     rtaImport,
     wta: wtaRecord ? { ...wtaRecord, computed_at: new Date().toISOString() } : null,
     modified: new Date().toISOString(),
-  }), [wtaRecord, currentProjectId, projectName, wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows, rtaImport]);
+  }), [wtaRecord, currentProjectId, projectName, wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, rateSkinRows, unitSystem, rtaRows, rtaWindows, rtaImport]);
 
   const hydrate = useCallback((payload) => {
     setWellName(payload?.wellName || '');
@@ -1101,6 +1129,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     setWindows({ ...DEFAULT_WINDOWS, ...(payload?.windows || {}) });
     setDeliverabilityInputs({ ...DEFAULT_DELIVERABILITY, ...(payload?.deliverabilityInputs || {}) });
     setNotes(payload?.notes || '');
+    setRateSkinRows(Array.isArray(payload?.rateSkinRows) ? payload.rateSkinRows : []);
     // a saved project keeps the system it was saved with
     setUnitSystemRaw(UNIT_SYSTEMS.includes(payload?.unitSystem) ? payload.unitSystem : 'oilfield');
     setRtaRows(Array.isArray(payload?.rtaRows) ? payload.rtaRows : []);
@@ -1264,7 +1293,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows, rtaImport, currentProjectId, hydrated, canWrite]);
+  }, [wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, rateSkinRows, unitSystem, rtaRows, rtaWindows, rtaImport, currentProjectId, hydrated, canWrite]);
 
   const value = {
     // shell plumbing
@@ -1297,6 +1326,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     windows, setWindowField,
     notes, setNotes,
     deliverabilityInputs, setDeliverabilityField, setDeliverabilityRows,
+    rateSkinRows, setRateSkinRows, rateSkin,
     unitSystem, setUnitSystem, profileUnitSystem,
     rtaRows, setRtaRows,
     rtaWindows, setRtaWindowField,
