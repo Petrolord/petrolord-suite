@@ -22,6 +22,7 @@ import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjec
 import { setProvenanceField } from '@/lib/inputProvenance/model';
 import { screenAllMethods, engineInputOf, sampleEorScreeningData } from '@/utils/eorScreeningCalculations';
 import { eorUnits } from '@/utils/eor/units';
+import { buildEorScreenRecord } from '@/lib/eorScreenSource';
 
 export const TABLE = 'saved_eor_screening_projects';
 
@@ -115,6 +116,8 @@ export const EorScreeningProvider = ({ children, sharingStore = null, profileSys
   const engineInput = useMemo(() => engineInputOf(inputs.form), [inputs.form]);
   const results = useMemo(() => screenAllMethods(engineInput), [engineInput]);
   const u = useMemo(() => eorUnits(inputs.unitSystem), [inputs.unitSystem]);
+  // EOR-U2-003: the eor-screen-1 record a reader would build from these inputs (same engine, same fingerprint)
+  const screenRecord = useMemo(() => buildEorScreenRecord({ inputs, projectId: currentProjectId, projectName, now: '' }), [inputs, currentProjectId, projectName]);
 
   // --- input actions ---
   const setUnitSystem = useCallback((system) => edit((prev) => ({ ...prev, unitSystem: system === 'si' ? 'si' : 'oilfield' })), [edit]);
@@ -305,6 +308,7 @@ export const EorScreeningProvider = ({ children, sharingStore = null, profileSys
     inputs,
     engineInput,
     results,
+    screenRecord,
     u,
     organizationName,
     setUnitSystem,
