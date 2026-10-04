@@ -94,3 +94,14 @@ export function lastValue(summary, key, opts) {
 
 /** [[t, y]] pairs of a row set's column, finite only (report figures). */
 export const pairs = (rows, key) => rows.filter((r) => Number.isFinite(r.t) && Number.isFinite(r[key])).map((r) => [r.t, r[key]]);
+
+/**
+ * SIM-U2-004: rows of one aquifer vector (aquifer 1 unless named), display units:
+ * [{ day, t, value }].
+ */
+export function aquiferRows(summary, key, { deckSystem = 'FIELD', system = 'oilfield', id = '1' } = {}) {
+  const days = summary?.days || [];
+  const values = summary?.aquifers?.[id]?.[key] || [];
+  const v = vectorView(key, deckSystem, system);
+  return days.map((day, i) => ({ day, t: dayToMs(summary, day), value: values[i] == null ? null : v.convert(values[i]) }));
+}

@@ -110,6 +110,16 @@ def build_summary(case_path, opm_version, deck_sha256, diagnostics=None, run_met
         if entry:
             wells[well] = entry
 
+    aquifers = {}
+    for aq_id in range(1, config.AQUIFER_MAX_ID + 1):
+        entry = {}
+        for base in config.AQUIFER_VECTORS:
+            values = vec(f"{base}:{aq_id}")
+            if values is not None:
+                entry[base] = values
+        if entry:
+            aquifers[str(aq_id)] = entry
+
     doc = {
         "opm_version": opm_version,
         "deck_sha256": deck_sha256,
@@ -118,6 +128,8 @@ def build_summary(case_path, opm_version, deck_sha256, diagnostics=None, run_met
         "field": field,
         "wells": wells,
     }
+    if aquifers:
+        doc["aquifers"] = aquifers
     doc["steps"] = {
         "report_steps": report_steps,   # None when the summary does not say
         "time_steps": n,                # rows of the summary before thinning

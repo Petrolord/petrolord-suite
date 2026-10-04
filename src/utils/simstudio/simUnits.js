@@ -160,6 +160,11 @@ export const VECTOR_UNITS = Object.freeze({
   FGIT: { kind: 'gasVolume', FIELD: 'Mscf', METRIC: 'm3' },
   // SIM-U2-002: the cumulatives the sim-forecast-1 sender rebuilds a thinned series from
   FWPT: { kind: 'waterVolume', FIELD: 'STB', METRIC: 'm3' },
+  // SIM-U2-004: an analytical aquifer's influx (in the volume units of its
+  // initial volume: reservoir barrels, checked in the worker gate) and pressure
+  AAQT: { kind: 'resVolume', FIELD: 'RB', METRIC: 'm3' },
+  AAQR: { kind: 'resRate', FIELD: 'RB/d', METRIC: 'm3/d' },
+  AAQP: { kind: 'pressure', FIELD: 'psi', METRIC: 'bar' },
   FGPT: { kind: 'gasVolume', FIELD: 'Mscf', METRIC: 'm3' },
   WOPR: { kind: 'oilRate', FIELD: 'STB/d', METRIC: 'm3/d' },
   WWPR: { kind: 'waterRate', FIELD: 'STB/d', METRIC: 'm3/d' },

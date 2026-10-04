@@ -121,3 +121,45 @@ def test_three_phase_models_run_and_change_the_physics(tmp_path):
     a, b = runs["stone1"]["field"], runs["stone2"]["field"]
     n = min(len(a["FOPR"]), len(b["FOPR"]))
     assert _rel_diff(a["FOPR"][:n], b["FOPR"][:n]) > 1e-4
+
+
+# ---- SIM-U2-004: analytical aquifer ----------------------------------------
+# The Dake (1978) Exercise 9.2 wedge aquifer (Ahmed REH Example 10-10) on a
+# 10 x 10 x 1 tank. The comparison with the Material Balance engine's own
+# influx on the run's pressure history is a jest gate on the summaries this
+# image wrote (simAquiferValidation.test.js); here the simulator must accept
+# the keywords, report the influx, and keep the Fetkovich aquifer's own
+# balance in the deck's units.
+
+DAKE_CT = 7e-6
+DAKE_W = 211.9e6 / (7e-6 * 2740)
+
+
+def test_fetkovich_aquifer_runs_and_balances_in_deck_units(tmp_path):
+    doc, work = run_fixture(tmp_path, "BUILT_AQ_FETKOVICH.DATA")
+    diag = prt.parse_prt_file(results.find_prt(work))
+    assert diag["messages"]["errors"] == 0
+    f = doc["field"]
+    aq = doc["aquifers"]["1"]
+    assert set(aq) == {"AAQP", "AAQT", "AAQR"}
+    assert aq["AAQT"][-1] > 1e6 and all(b >= a - 1e-6 for a, b in zip(aq["AAQT"], aq["AAQT"][1:]))
+    p0 = aq["AAQP"][0] + aq["AAQT"][0] / (DAKE_CT * DAKE_W)
+    # p_aquifer = p0 - We / (ct W): V0 and ct were read in the units written
+    for p, we in zip(aq["AAQP"], aq["AAQT"]):
+        assert abs((p0 - we / (DAKE_CT * DAKE_W)) - p) < 0.05, (p, we)
+    assert abs(p0 - 2740) < 30  # the equilibrium pressure at the datum
+    # the rate integrates to the cumulative (each rate holds over its step)
+    total, prev = 0.0, 0.0
+    for d, r in zip(doc["days"], aq["AAQR"]):
+        total += r * (d - prev)
+        prev = d
+    assert abs(total - aq["AAQT"][-1]) <= 1e-3 * aq["AAQT"][-1]
+    # the aquifer holds the tank up: field pressure stays above the bubble point
+    assert min(f["FPR"]) > 1500
+
+
+def test_carter_tracy_aquifer_with_influence_table_runs(tmp_path):
+    doc, work = run_fixture(tmp_path, "BUILT_AQ_CT.DATA")
+    diag = prt.parse_prt_file(results.find_prt(work))
+    assert diag["messages"]["errors"] == 0
+    assert doc["aquifers"]["1"]["AAQT"][-1] > 1e6

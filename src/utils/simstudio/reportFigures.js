@@ -6,7 +6,7 @@
  *
  * Pure: returns Report Kit figure entries.
  */
-import { fieldRows, wellRows, pairs, dayToMs } from './series.js';
+import { fieldRows, wellRows, pairs, dayToMs, aquiferRows } from './series.js';
 
 const dayMs = (summary, day) => dayToMs(summary, day);
 import { simUnits } from './simUnits.js';
@@ -33,11 +33,11 @@ const has = (summary, key) => Array.isArray(summary?.field?.[key]);
 const missing = (keys) => `Not plotted: the summary holds none of ${keys.join(', ')} (the deck's SUMMARY section does not request them).`;
 
 /**
- * @param {{summary: object, opts: {deckSystem: string, system: string}, historyEnd?: ?string, bhp?: ?object}} a
+ * @param {{summary: object, opts: {deckSystem: string, system: string}, historyEnd?: ?string, bhp?: ?object, aquiferDeck?: boolean}} a
  *   `historyEnd` the ISO date the history phase ends (the deck's last DATES entry); `bhp` the
  *   bottomhole pressure match (bhpMatch.js) when it applies
  */
-export function buildSimReportFigures({ summary, opts, historyEnd = null, bhp = null }) {
+export function buildSimReportFigures({ summary, opts, historyEnd = null, bhp = null, aquiferDeck = false }) {
   const u = simUnits(opts.system);
   const F = (key) => (has(summary, key) ? pairs(fieldRows(summary, key, opts), 'value') : []);
   const figures = [];
@@ -170,6 +170,28 @@ export function buildSimReportFigures({ summary, opts, historyEnd = null, bhp = 
       });
     } else {
       figures.push({ id: 'history', title: 'History match: observed against simulated', statement: 'Does not apply: the deck carries no observed rates (no WCONHIST history and no FOPRH, FWPRH or FGPRH vectors). Add a production history on the Builder tab to run one.' });
+    }
+  }
+
+  // SIM-U2-004: the analytical aquifer, when the deck has one
+  if (aquiferDeck) {
+    const aq = summary?.aquifers?.['1'];
+    if (aq && Array.isArray(aq.AAQT)) {
+      const we = pairs(aquiferRows(summary, 'AAQT', opts), 'value');
+      const s = scaleOf(we.map((p) => p[1]));
+      const pa = Array.isArray(aq.AAQP) ? pairs(aquiferRows(summary, 'AAQP', opts), 'value') : [];
+      const fpr = F('FPR');
+      figures.push({
+        id: 'aquifer',
+        title: 'Aquifer influx and pressure',
+        caption: `Cumulative influx of aquifer 1 (AAQT, ${s.words}${u.label('resVolume')}, in the volume units of the aquifer's initial volume) and its pressure (AAQP) against the field average pressure (FPR), ${u.label('pressure')} absolute.`,
+        panels: [
+          { height: 44, spec: { ...AXIS, yTitle: `Influx (${s.words}${u.label('resVolume')})`, yInclude: [0], series: [{ name: 'Cumulative influx (AAQT)', type: 'line', rgb: COLORS.water, pts: scaled(we, s.k) }] } },
+          ...(pa.length ? [{ height: 44, spec: { ...AXIS, yTitle: `Pressure (${u.label('pressure')})`, series: [{ name: 'Aquifer (AAQP)', type: 'line', rgb: COLORS.injWater, pts: pa }, ...(fpr.length ? [{ name: 'Field average (FPR)', type: 'line', rgb: COLORS.pressure, dash: [1.5, 1], pts: fpr }] : [])] } }] : []),
+        ],
+      });
+    } else {
+      figures.push({ id: 'aquifer', title: 'Aquifer influx and pressure', statement: 'Not plotted: the deck has an aquifer, but the run\'s summary holds no aquifer vectors (the worker build that ran it did not keep AAQT and AAQP). Run the case again once the worker is redeployed.' });
     }
   }
 

@@ -28,15 +28,15 @@
       "kind": "differing",
       "vendoredSha": "5623b359759b73af9ae69d477b81c67cf874ddf6",
       "group": "sim-u2 (engines PR feat/sim-u2-deck)",
-      "reason": "Reservoir Simulation Studio U2 deck engines (observed BHP and WBHPH, three-phase oil kr choice, analytical aquifer), vendored from Petrolord/petrolord-engines branch feat/sim-u2-deck head c7c7dc9 (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "reason": "Reservoir Simulation Studio U2 deck engines (observed BHP and WBHPH, three-phase oil kr choice, analytical aquifer), vendored from Petrolord/petrolord-engines branch feat/sim-u2-deck head 4dfbaf7 (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
       "burnDownWhen": "the engines PR of feat/sim-u2-deck is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every sim-u2 row."
     },
     {
       "path": "engines/sim/composeDeck.js",
       "kind": "differing",
-      "vendoredSha": "25d10115513ad2fd8605ef777bd109e234b84592",
+      "vendoredSha": "aafbc202635f2721c32b5f192253b3c471b6c9e5",
       "group": "sim-u2 (engines PR feat/sim-u2-deck)",
-      "reason": "Reservoir Simulation Studio U2 deck engines (observed BHP and WBHPH, three-phase oil kr choice, analytical aquifer), vendored from Petrolord/petrolord-engines branch feat/sim-u2-deck head c7c7dc9 (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "reason": "Reservoir Simulation Studio U2 deck engines (observed BHP and WBHPH, three-phase oil kr choice, analytical aquifer), vendored from Petrolord/petrolord-engines branch feat/sim-u2-deck head 4dfbaf7 (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
       "burnDownWhen": "the engines PR of feat/sim-u2-deck is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every sim-u2 row."
     },
     {
@@ -44,15 +44,39 @@
       "kind": "differing",
       "vendoredSha": "4d38f4418a690014a8a40218742200c2835689eb",
       "group": "sim-u2 (engines PR feat/sim-u2-deck)",
-      "reason": "Reservoir Simulation Studio U2 deck engines (observed BHP and WBHPH, three-phase oil kr choice, analytical aquifer), vendored from Petrolord/petrolord-engines branch feat/sim-u2-deck head c7c7dc9 (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "reason": "Reservoir Simulation Studio U2 deck engines (observed BHP and WBHPH, three-phase oil kr choice, analytical aquifer), vendored from Petrolord/petrolord-engines branch feat/sim-u2-deck head 4dfbaf7 (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "the engines PR of feat/sim-u2-deck is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every sim-u2 row."
+    },
+    {
+      "path": "engines/sim/emitAquifer.js",
+      "kind": "extra",
+      "vendoredSha": "8023537c89dc12690f249ebe48594b7c6fcfa735",
+      "group": "sim-u2 (engines PR feat/sim-u2-deck)",
+      "reason": "Reservoir Simulation Studio U2 deck engines (observed BHP and WBHPH, three-phase oil kr choice, analytical aquifer), vendored from Petrolord/petrolord-engines branch feat/sim-u2-deck head 4dfbaf7 (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "the engines PR of feat/sim-u2-deck is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every sim-u2 row."
+    },
+    {
+      "path": "engines/mbal/mbalEngine.ts",
+      "kind": "differing",
+      "vendoredSha": "07e55d373e02173d3c624fa590e27dc4e597d0d0",
+      "group": "sim-u2 (engines PR feat/sim-u2-deck)",
+      "reason": "Reservoir Simulation Studio U2 deck engines (observed BHP and WBHPH, three-phase oil kr choice, analytical aquifer), vendored from Petrolord/petrolord-engines branch feat/sim-u2-deck head 4dfbaf7 (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
       "burnDownWhen": "the engines PR of feat/sim-u2-deck is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every sim-u2 row."
     },
     {
       "path": "__tests__/sim.u2.test.js",
       "kind": "extra",
-      "vendoredSha": "f1f8d3a4392aa802b480963a9a04d95152c6eef7",
+      "vendoredSha": "75644dc4c7af524c16d2c9d6c76a8bdd8bb70c2b",
       "group": "sim-u2 (engines PR feat/sim-u2-deck)",
-      "reason": "Reservoir Simulation Studio U2 deck engines (observed BHP and WBHPH, three-phase oil kr choice, analytical aquifer), vendored from Petrolord/petrolord-engines branch feat/sim-u2-deck head c7c7dc9 (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "reason": "Reservoir Simulation Studio U2 deck engines (observed BHP and WBHPH, three-phase oil kr choice, analytical aquifer), vendored from Petrolord/petrolord-engines branch feat/sim-u2-deck head 4dfbaf7 (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "the engines PR of feat/sim-u2-deck is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every sim-u2 row."
+    },
+    {
+      "path": "__tests__/mbal.carterTracyPD.test.ts",
+      "kind": "extra",
+      "vendoredSha": "e02b5c49b895e595c76d48d1f4a76855913d71d0",
+      "group": "sim-u2 (engines PR feat/sim-u2-deck)",
+      "reason": "Reservoir Simulation Studio U2 deck engines (observed BHP and WBHPH, three-phase oil kr choice, analytical aquifer), vendored from Petrolord/petrolord-engines branch feat/sim-u2-deck head 4dfbaf7 (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
       "burnDownWhen": "the engines PR of feat/sim-u2-deck is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every sim-u2 row."
     }
   ]

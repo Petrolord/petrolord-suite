@@ -17,7 +17,7 @@ import {
   wellSeriesKeys, hasObservedField, VECTOR_META, summaryStepText,
 } from '@/components/simstudio/resultAdapters';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
-import { fieldRows, wellRows, summaryUnitSystem } from '@/utils/simstudio/series';
+import { fieldRows, wellRows, summaryUnitSystem, aquiferRows } from '@/utils/simstudio/series';
 import { vectorView } from '@/utils/simstudio/simUnits';
 import { summarizeDeck } from '@/utils/simstudio/deckSummary';
 import { buildResultsCsv } from '@/utils/simstudio/resultsCsv';
@@ -200,6 +200,14 @@ const ResultsPanel = () => {
               unit={vectorView(key, opts.deckSystem, system).label}
               rows={fieldRows(summary, key, opts)}
               seriesKeys={hasObservedField(summary, key) ? ['value', 'observed'] : ['value']} />
+          ))}
+          {/* SIM-U2-004: an analytical aquifer's influx and pressure */}
+          {['AAQT', 'AAQP'].filter((k) => Array.isArray(summary.aquifers?.['1']?.[k])).map((key) => (
+            <VectorChart key={key}
+              title={`${key}: ${key === 'AAQT' ? 'Aquifer cumulative influx' : 'Aquifer pressure'}`}
+              unit={vectorView(key, opts.deckSystem, system).label}
+              rows={aquiferRows(summary, key, opts)}
+              seriesKeys={['value']} />
           ))}
           {availableWellVectors(summary).map((base) => (
             <VectorChart key={base}

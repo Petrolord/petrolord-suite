@@ -21,6 +21,7 @@ import { parseSurveyText, buildTrajectoryConnections } from '@/utils/simTrajecto
 import { simRowsFromContract } from '@/utils/fluidstudio/simKeywords';
 import { satFnRows } from '@/utils/scalstudio/simKeywords';
 import { provenanceNotes } from '@/utils/simstudio/builderIntakes';
+import { defaultAquiferForm, aquiferSpec, aquiferNotes } from '@/utils/simstudio/aquiferIntake';
 
 const num = (v, d = 0) => {
   const n = parseFloat(v);
@@ -105,6 +106,8 @@ export const defaultBuilderForm = () => ({
   // periods/dates are filled by the History import; predictionYears
   // appends a TSTEP tail.
   history: { enabled: false, source: 'mbal', caseName: '', startDate: null, endDate: null, periods: null, wellSummary: null, predictionYears: '3', fractions: {} },
+  // SIM-U2-004: an analytical aquifer, typed or from a Material Balance case (mbal-1)
+  aquifer: defaultAquiferForm(),
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -325,6 +328,8 @@ export function specFromForm(form) {
     }
   });
   req(form.schedule.reportDays, 'Report interval', { min: 0.01 });
+  // SIM-U2-004: the aquifer inputs, read strictly (the values are used below)
+  if (form.aquifer?.enabled) aquiferSpec(form.aquifer, { grid: { nx: 1, ny: 1, nz: 1 }, pvtw: { muw: 1 }, datumDepth: 0, endDays: 1, req });
   if (!(form.history?.enabled && form.history?.periods)) req(form.schedule.years, 'Duration', { min: 0.01 });
   if (errors.length) {
     const e = new Error(errors.join('\n'));
@@ -420,6 +425,13 @@ export function specFromForm(form) {
     schedule = { steps: [{ count, dtDays: reportDays }] };
   }
 
+  // the run length in days: history plus prediction, or the duration
+  const endDays = useHistory
+    ? (Date.parse(`${hist.endDate}T00:00:00Z`) - Date.parse(`${startDate}T00:00:00Z`)) / 86400000 + num(hist.predictionYears, 0) * 365.25
+    : count * reportDays;
+  const aquifer = aquiferSpec(form.aquifer, {
+    grid, pvtw, datumDepth: num(form.equil.datumDepth), endDays, req: (v) => Number(v),
+  });
   const spec = {
     title: String(form.title || 'Petrolord model').toUpperCase().slice(0, 60),
     startDate,
@@ -444,7 +456,8 @@ export function specFromForm(form) {
     // SIM-U1: ask the simulator for the field balance sheet and the well
     // totals, so the run's material balance can be read from its PRT
     report: { balance: true },
-    notes: provenanceNotes(form, { pb }),
+    notes: [...provenanceNotes(form, { pb }), ...aquiferNotes(form.aquifer, aquifer)],
+    ...(aquifer && !aquifer.invalid ? { aquifer } : {}),
   };
   return { spec, pb };
 }

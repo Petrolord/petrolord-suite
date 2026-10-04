@@ -15,7 +15,7 @@ export function collectSimReportArgs(a) {
   const model = buildSimReportModel(a);
   const sch = model?.deckSummary?.schedule;
   const historyEnd = sch?.historyControls && sch.lastDate ? sch.lastDate : null;
-  const figures = model ? buildSimReportFigures({ summary: a.summary, opts: model.opts, historyEnd, bhp: model.bhpMatchRaw }) : [];
+  const figures = model ? buildSimReportFigures({ summary: a.summary, opts: model.opts, historyEnd, bhp: model.bhpMatchRaw, aquiferDeck: !!model.deckSummary?.aquifers?.length }) : [];
   // SIM-U2-005: the runs compared on the Results tab (the first is the base)
   if (model && (a.compare || []).length >= 2) {
     model.compare = compareRuns({ entries: a.compare, system: a.system || 'oilfield' });

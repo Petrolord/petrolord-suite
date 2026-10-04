@@ -20,6 +20,7 @@ import HistoryCard from '@/components/simstudio/builder/HistoryCard';
 import TrajectoryEditor from '@/components/simstudio/builder/TrajectoryEditor';
 import Grid3DView from '@/components/simstudio/builder/Grid3DView';
 import { FluidIntake, ScalIntake } from '@/components/simstudio/builder/IntakeCards';
+import AquiferCard from '@/components/simstudio/builder/AquiferCard';
 import { IDENTIFICATION } from '@/utils/simstudio/reportModel';
 import { THREE_PHASE_WORDS } from '@/utils/simstudio/builderIntakes';
 
@@ -279,6 +280,11 @@ const BuilderPanel = () => {
           Deck depths are true vertical depth below the datum (TVDSS, positive down); pressures are absolute. A blank contact
           is placed outside the grid (no water leg, no gas cap) and the report says so.
         </p>
+      </Section>
+
+      {/* SIM-U2-004: an analytical aquifer, typed or from a Material Balance case */}
+      <Section title="Aquifer">
+        <AquiferCard form={form} setForm={setForm} canWrite={canWrite} addNotification={addNotification} />
       </Section>
 
       <Section

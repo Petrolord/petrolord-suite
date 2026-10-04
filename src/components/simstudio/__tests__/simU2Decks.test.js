@@ -13,6 +13,11 @@ import path from 'path';
 import { defaultBuilderForm, buildDeckFromForm, buildPvtFromFluid } from '@/utils/simDeckBuilder';
 import { summarizeDeck } from '@/utils/simstudio/deckSummary';
 import { threePhaseWords } from '@/utils/simstudio/reportModel';
+import { aquiferFromMbal, aquiferEditedKeys, influenceRows, faceBox } from '@/utils/simstudio/aquiferIntake';
+import { aquiferUsed } from '@/lib/mbalCaseSource';
+import { carterTracyPD } from '../../../../packages/engines/engines/mbal/mbalEngine.ts';
+import { DAKE, DAKE_W } from './simU2Kit';
+import { aquiferForm } from './simU2DeckForms';
 import { parseWellRateCsv, historyFromWellRows, pressureToPsia } from '@/utils/simWellHistoryImport';
 import { bhpMatch, rms } from '@/utils/simstudio/bhpMatch';
 import { buildSimReportModel } from '@/utils/simstudio/reportModel';
@@ -250,5 +255,73 @@ describe('SIM-U2-003: the three-phase oil kr model in the deck and the report', 
     expect(threePhaseWords(summarizeDeck(decks['']), threePhaseForm('stone1'), true)).toMatch(/^OPM Flow's default three-phase model/);
     expect(() => buildDeckFromForm(threePhaseForm('stone3'))).not.toThrow();
     expect(buildDeckFromForm(threePhaseForm('stone3')).errors.join(' ')).toMatch(/unknown three-phase model/);
+  });
+});
+
+// ---- SIM-U2-004: analytical aquifer ----------------------------------------
+
+describe('SIM-U2-004: the analytical aquifer in the deck', () => {
+  it('Fetkovich: W, J and ct as AQUFETP, joined on the west edge; the deck says where it came from', () => {
+    const out = buildDeckFromForm(aquiferForm('fetkovich'));
+    expect(out.ok).toBe(true);
+    expect(out.deck).toContain(`AQUFETP\n  1 8050 1* ${String(parseFloat(DAKE_W.toPrecision(12)))} 0.000007 116.5 1 /`);
+    expect(out.deck).toContain("AQUANCON\n  1 1 1 1 10 1 1 'I-' /");
+    expect(out.deck).toContain('-- Aquifer: Fetkovich (AQUFETP), joined to the west edge (I = 1) (AQUANCON I-)');
+    expect(out.deck).toContain('-- Aquifer source: entered in the deck builder');
+    fixture('BUILT_AQ_FETKOVICH.DATA', out.deck);
+  });
+
+  it('Carter-Tracy: k scaled to keep k / mu, the influence table is the MBAL engine pD with reD 5', () => {
+    const out = buildDeckFromForm(aquiferForm('carter_tracy'));
+    expect(out.ok).toBe(true);
+    const kDeck = DAKE.k * (0.32 / DAKE.muw);
+    expect(out.spec.aquifer.carterTracy.k).toBeCloseTo(kDeck, 12);
+    expect(out.deck).toContain(`AQUCT\n  1 8050 1* ${String(parseFloat(kDeck.toPrecision(12)))} 0.25 0.000007 9200 100 140 1 2 /`);
+    const rows = out.spec.aquifer.carterTracy.influence;
+    expect(rows.length).toBe(40);
+    rows.forEach((r) => expect(r.pD).toBeCloseTo(carterTracyPD(r.tD, 5), 6));
+    // the table reaches pseudo steady state (tD_pss = 0.4 reD^2 = 10)
+    expect(rows[rows.length - 1].tD).toBeGreaterThan(15);
+    expect(out.deck).toContain('-- Aquifer Carter-Tracy: k 200 mD written as 116.36364 mD = k x mu PVTW 0.32 / mu aquifer 0.55 cP');
+    fixture('BUILT_AQ_CT.DATA', out.deck);
+  });
+
+  it('negative controls: blank inputs refused by name; the aquifer off composes the deck without it', () => {
+    const f = aquiferForm('carter_tracy');
+    f.aquifer.ct.muw_cp = '';
+    expect(buildDeckFromForm(f).errors.join(' ')).toMatch(/Aquifer water viscosity: enter a value/);
+    const off = aquiferForm('fetkovich');
+    off.aquifer.enabled = false;
+    const d = buildDeckFromForm(off).deck;
+    expect(d).not.toMatch(/^(AQUDIMS|AQUFETP|AQUCT|AQUTAB|AQUANCON|FAQR)/m);
+    expect(faceBox('K+', { nx: 3, ny: 4, nz: 5 })).toEqual({ face: 'K+', i1: 1, i2: 3, j1: 1, j2: 4, k1: 5, k2: 5 });
+    expect(influenceRows({ k_md: 200, phi: 0.25, muw_cp: 0.55, ct_psi: 7e-6, r_R_ft: 9200, reD: null, endDays: 1461 })[39].pD).toBeCloseTo(carterTracyPD(influenceRows({ k_md: 200, phi: 0.25, muw_cp: 0.55, ct_psi: 7e-6, r_R_ft: 9200, reD: null, endDays: 1461 })[39].tD), 6);
+  });
+
+  it('from a Material Balance case (mbal-1): the numbers the run used, fitted first, with their sources', () => {
+    const runConfig = {
+      aquifer_model: 'carter_tracy', formation_compressibility_psi: 4e-6, water_compressibility_psi: 3e-6,
+      aquifer_params: { aquifer_radius_ft: 9200, radius_ratio: 5, aquifer_thickness_ft: 100, aquifer_permeability_md: 200, aquifer_porosity: 0.25, aquifer_water_viscosity_cp: 0.55, theta_degrees: 140, aquifer_total_compressibility_psi: 7e-6 },
+    };
+    const result = { plot_data: { history_match: { matched_parameters: [{ key: 'aquifer_permeability_md', matched_value: 180, initial_value: 200 }] } } };
+    const aq = aquiferUsed({ caseData: { fluid_system: 'oil' }, result, runConfig });
+    expect(aq.values).toMatchObject({ k_md: 180, r_R_ft: 9200, reD: 5, h_ft: 100, phi: 0.25, muw_cp: 0.55, theta_deg: 140, ct_psi: 7e-6 });
+    expect(aq.sources.k_md).toBe('fitted by the pressure history match (start value 200)');
+    const record = { app: 'Material Balance Studio', case: { id: 'rb-1', name: 'Dake 9.2' }, run: { id: 'run-9', ran_at: '2026-10-01' }, pressure: { initial_psia: 2740 }, aquifer: aq, status: 'current' };
+    const got = aquiferFromMbal(record, { at: '2026-10-04T00:00:00Z' });
+    expect(got.ok).toBe(true);
+    expect(got.ct).toMatchObject({ k_md: '180', r_R_ft: '9200', reD: '5', muw_cp: '0.55' });
+    // the form keeps the intake; an edit after taking it is named
+    const form = { ...aquiferForm('carter_tracy').aquifer, ct: { ...got.ct }, intake: got.intake };
+    expect(aquiferEditedKeys(form)).toEqual([]);
+    form.ct.h_ft = '120';
+    expect(aquiferEditedKeys(form)).toEqual(['h_ft']);
+    // a pot aquifer or a closed tank cannot be sent, with the reason
+    expect(aquiferFromMbal({ ...record, aquifer: { model: 'pot', values: {} } }).reason).toMatch(/pot aquifer, which has no time dependence/);
+    expect(aquiferFromMbal({ ...record, aquifer: { model: 'none', values: {} } }).reason).toMatch(/has no aquifer/);
+    // the McCain viscosity the run printed, when none was entered
+    const mc = aquiferUsed({ caseData: {}, result: { warnings: ['Carter-Tracy water viscosity defaulted to 0.312 cp via McCain (1991) at 200 F, salinity 0 ppm.'] }, runConfig: { ...runConfig, aquifer_params: { ...runConfig.aquifer_params, aquifer_water_viscosity_cp: null } } });
+    expect(mc.values.muw_cp).toBe(0.312);
+    expect(mc.sources.muw_cp).toMatch(/McCain/);
   });
 });

@@ -19,6 +19,11 @@ import builtSummary from './fixtures/sim-built-summary.json';
 import builtS4Summary from './fixtures/sim-built-s4-summary.json';
 // SIM-U2-001: the builder's BHP history deck (BUILT_BHP.DATA) run in OPM Flow 2026.04 (isolated worker image)
 import builtBhpSummary from './fixtures/sim-built-bhp-summary.json';
+// SIM-U2-004: the builder's aquifer decks (Dake 9.2 aquifer on a validation tank) run in OPM Flow 2026.04
+import aqFetSummary from './fixtures/sim-built-aq-fetkovich-summary.json';
+import aqCtSummary from './fixtures/sim-built-aq-ct-summary.json';
+import { seedSampleStore } from '@/pages/apps/reservoir-balance/harness/sampleCases';
+import { runEngineOnStore } from '@/pages/apps/reservoir-balance/harness/engineStandIn';
 import builtPrt from './fixtures/sim-built-prt.txt?raw';
 import { loadScalRows, SCAL_TABLE } from './scalProjectsStore';
 import { loadFluidRows, FLUID_TABLE } from './fluidProjectsStore';
@@ -58,7 +63,7 @@ function workerStandIn(run, caseRow) {
       return;
     }
     const spe1 = caseRow.deck_source === 'template' && caseRow.template_slug === 'SPE1CASE1';
-    const summary = spe1 ? spe1Summary : /\nWBHPH\n/.test(deck) ? builtBhpSummary : /WCONHIST/.test(deck) ? builtS4Summary : builtSummary;
+    const summary = spe1 ? spe1Summary : /\nAQUFETP\n/.test(deck) ? aqFetSummary : /\nAQUCT\n/.test(deck) ? aqCtSummary : /\nWBHPH\n/.test(deck) ? builtBhpSummary : /WCONHIST/.test(deck) ? builtS4Summary : builtSummary;
     const json = JSON.stringify(summary);
     db.__storage[`sim/${base}/summary.json`] = new Blob([json], { type: 'application/json' });
     const keys = Object.keys(summary.field);
@@ -103,7 +108,16 @@ const rpc = {
   },
 };
 
+/** SIM-U2-004: `?mbal=1` seeds the Material Balance sample cases, the Dake 9.2 case run through the engine stand-in. */
+function seedMbal() {
+  if (db.rb_run_configs?.length) return;
+  const store = seedSampleStore();
+  Object.assign(db, store);
+  runEngineOnStore(db, { run_config_id: 'cfg-dake' });
+}
+
 export default function SimStudioHarness() {
+  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('mbal') === '1') seedMbal();
   // SIM-U1: the Fluid Systems and SCAL Studio projects of the tab (saved on
   // their harnesses, or seeded by an e2e), read by id for the two intakes
   db[SCAL_TABLE] = loadScalRows();

@@ -18,6 +18,7 @@ import { summaryUnitSystem, lastValue, dayToIso } from './series.js';
 import { krEditedKeys, THREE_PHASE_WORDS } from './builderIntakes.js';
 import { pvtContractTuningText, PVT1_PB_SOURCES } from '@/lib/inputProvenance/pvtContract';
 import { bhpMatch } from './bhpMatch.js';
+import { AQUIFER_MODELS, AQUIFER_FACE_WORDS, aquiferEditedKeys } from './aquiferIntake.js';
 import { krSetText, krCapillaryText } from '@/lib/inputProvenance/krContract';
 
 export const REPORT_TITLE = 'Reservoir Simulation Report';
@@ -126,6 +127,18 @@ function deckRows({ deck, run, summary, units, pvtWords, krWords, diag }) {
   return rows;
 }
 
+/** SIM-U2-004: the aquifer of the deck that ran, in words. */
+function aquiferAssumption(deck, form, applies) {
+  if (!deck?.aquifers?.length) return 'No aquifer is modelled in the main deck: pressure support comes from the wells only.';
+  const aq = applies && form?.aquifer?.enabled ? form.aquifer : null;
+  if (!aq) return `Aquifer keywords present: ${deck.aquifers.join(', ')}; the aquifer is the deck's own.`;
+  const it = aq.intake && aq.intake.model === aq.model ? aq.intake : null;
+  const words = aq.model === 'fetkovich'
+    ? 'Fetkovich: the influx rate is J times the aquifer pressure less the face pressure, the aquifer pressure falling as pi - We / (ct W); pseudo steady state from the start, no transient.'
+    : `Carter-Tracy with the Material Balance engine's influence function (${String(aq.ct.reD ?? '').trim() ? `finite, reD ${aq.ct.reD}` : 'infinite acting'}); the permeability is written as k times the PVTW viscosity over the aquifer viscosity, so the aquifer diffuses as the Material Balance one does.`;
+  return `An analytical aquifer (${deck.aquifers.join(', ')}) joined to the ${AQUIFER_FACE_WORDS[aq.face] || aq.face}${it ? `, taken from Material Balance case "${it.from?.recordName}"` : ', entered in the Model Builder'}. ${words} It starts at the equilibrium pressure at the datum. The keyword mapping is checked on Dake's Exercise 9.2 aquifer: OPM Flow's influx and the Material Balance engine's agree within 1 percent.`;
+}
+
 /** SIM-U2-003: the three-phase oil kr model of the deck that ran, in words. */
 export function threePhaseWords(deck, form, applies) {
   const kw = deck?.threePhase || null;
@@ -222,6 +235,29 @@ function inputRows(form, u) {
     add(`Well ${String(w.name).toUpperCase()} (${w.type.replace('_', ' ')})`, `${where}; ${ctl}`, null,
       w.trajectory?.enabled && w.trajectory.datumSource === 'registry' ? `Entered; datum from the wells registry (${w.trajectory.wellName || 'well'})` : entered);
   });
+  // SIM-U2-004: the analytical aquifer, each value with its source
+  if (form.aquifer?.enabled) {
+    const aq = form.aquifer;
+    const it = aq.intake && aq.intake.model === aq.model ? aq.intake : null;
+    const editedAq = new Set(aquiferEditedKeys(aq));
+    const from = it ? `mbal-1 from Material Balance Studio case "${it.from?.recordName}"` : entered;
+    const src = (key) => (it ? (editedAq.has(key) ? `${from}; edited in the builder after intake` : `${from}: ${it.sources?.[key] || 'as the case holds it'}`) : entered);
+    add('Aquifer model', `${AQUIFER_MODELS[aq.model]}, joined to the ${AQUIFER_FACE_WORDS[aq.face] || aq.face}`, null, it ? from : entered);
+    if (aq.model === 'fetkovich') {
+      add('Aquifer water in place W', shown('resVolume', aq.fet.W_rb), 'resVolume', src('W_rb'));
+      add('Aquifer productivity index J', aq.fet.J_rb_d_psi, null, src('J_rb_d_psi'));
+      add('Aquifer total compressibility', shown('compressibility', aq.fet.ct_psi), 'compressibility', src('ct_psi'));
+    } else {
+      add('Aquifer permeability k', aq.ct.k_md, null, `${src('k_md')}; written to the deck as k x PVTW viscosity / aquifer viscosity (OPM Flow takes mu from PVTW)`);
+      add('Aquifer porosity', aq.ct.phi, null, src('phi'));
+      add('Aquifer thickness h', shown('length', aq.ct.h_ft), 'length', src('h_ft'));
+      add('Encroachment angle', aq.ct.theta_deg, null, src('theta_deg'));
+      add('Reservoir radius at the aquifer r_R', shown('length', aq.ct.r_R_ft), 'length', src('r_R_ft'));
+      add('Aquifer radius ratio reD', String(aq.ct.reD ?? '').trim() === '' ? 'infinite' : aq.ct.reD, null, `${src('reD')}; the influence table AQUTAB is the Material Balance engine pD(tD)`);
+      add('Aquifer water viscosity', aq.ct.muw_cp, 'viscosity', src('muw_cp'));
+      add('Aquifer total compressibility', shown('compressibility', aq.ct.ct_psi), 'compressibility', src('ct_psi'));
+    }
+  }
   add('Wellbore radius', shown('length', '0.25'), 'length', 'Assumed by the builder for every well (not editable)');
   add('Report interval', form.schedule.reportDays, 'days', entered);
   if (form.history?.enabled && form.history.periods) {
@@ -374,7 +410,7 @@ export function buildSimReportModel({ caseRow, run, summary, deckText = null, de
     fa.applies && form.structure?.mode !== 'surface' ? 'The builder grid is a layer-cake box: flat layers, no faults, no corner-point geometry.' : 'The grid geometry is the deck\'s own.',
     `PVT: ${sw.pvt}`,
     `Saturation functions: ${krWords} Two-phase tables; the three-phase oil relative permeability is ${threePhaseWords(deck, form, fa.applies)}; no hysteresis and no end-point scaling unless the deck says so.`,
-    deck?.aquifers?.length ? `Aquifer keywords present: ${deck.aquifers.join(', ')}.` : 'No aquifer is modelled in the main deck: pressure support comes from the wells only.',
+    aquiferAssumption(deck, form, fa.applies),
     'Wells are controlled as the deck declares; no well economic limits or group controls are applied unless the deck holds them.',
     !historyEnd && !bhp.applies ? null : bhp.applies
       ? `History match: rates are honoured by construction (WCONHIST controls the producers on their observed rates); the bottomhole pressure is the test of the match, ${bhp.source === 'WBHPH' ? 'observed as WBHPH' : 'observed in the builder form'}, RMS ${fx(bhp.rms, 1)} ${u.label('pressure')}. No history-match quality threshold is applied: the numbers are printed for the reviewer.`
