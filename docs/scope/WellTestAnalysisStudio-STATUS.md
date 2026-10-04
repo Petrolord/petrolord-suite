@@ -650,3 +650,21 @@ vendored with six `welltest-u1` ledger rows).
 (`createUnitDraft`, same behaviour); `primitives.jsx` imports it, Nodal uses
 the same hook (U1-021 closed), and `tools/unit-draft-guard.mjs` gates the
 pattern across src/. `unitTyping.test.jsx` passes unchanged.
+
+## 2026-10-04: Reservoir round Step 2, Batches A and B (branch `feat/welltest-u2`)
+
+Items, validation and proving tests: `docs/upgrade/WellTestAnalysis-UPGRADE.md`
+("Batch decision" and "Step 2 build log"). Engines PR Petrolord/petrolord-engines
+#311 (not merged; vendored with 12 `welltest-u2` ledger rows).
+
+- **U2-001** gas tests take the Fluid Systems Studio pvt-1 table (Z and mu_g by interpolation, m(p) through the engine's supplied-table path); `reservoirInputs.gasPvtSource`, `pvtIntake.gasTable`; the shared card says "source changed since" and reads the project again.
+- **U2-002** changing wellbore storage (Hegeman, Fair) on every catalog model: composed ids `<model>+hegeman|fair`, Ci/C and alpha in the match and the fit; Ci, C, C_phiD and alpha_D on the Match tab, the Report tab and the PDF.
+- **U2-003** rate-dependent skin D (multi-rate line of apparent skins, or the pseudo-pressure LIT b); `rateSkinRows`; D q in the skin split and `wta-1`.
+- **U2-004** correction to the datum with a user-stated gradient (none by default); `completion.depthRefElev/datumGradient/datumGradientSource`; p* and pwf at the datum; `wta-1` sends the datum pressure when corrected.
+- **U2-005** Material Balance takes the test's p* as a pressure point on the row of the test date (`reservoir-balance/lib/wellTestPressureIntake.js`); `wta-1` gains `pressure.date` and `method_label`.
+- **U2-010** gauge import in a Web Worker with progress and Cancel (`src/workers/gaugeImport.worker.js`).
+- **U2-007** slant pseudo-skin of a deviated interval (Cinco-Ley et al. 1975) from the perforations' MD and TVD.
+- **U2-013** negative skin (to -5) on the boundary and dual-porosity models.
+- **State (jsonb, no migration):** the fields above; old payloads open unchanged.
+- **Numbers that move:** a deviated perforated interval now carries a slant term in the skin split (the reviewed sample: s_d 2.46 to 2.48); everything else only when the user takes the new input.
+- **Open:** faster date parsing; the analysis after a very large import stays on the page (1 to 2.5 s); MBH (after NAPE); Papatzacos paper.

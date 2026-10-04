@@ -307,6 +307,44 @@ merged; vendored byte-identical with `welltest-u2` ledger rows meanwhile).
 - Proving test: `src/components/welltest/__tests__/wellTestU2.test.jsx`, describe U2-001 (4): z, mu at pi equal linear interpolation of the block rows and m(p) at the nodes equals an independent trapezoid of 2p/(mu z) to 1e-10; the earlier correlation value differs (negative control); the PDF names the table and project; old payloads stay on correlations; short table refused; card status As received then Source changed since. Written against code without `takeFluidPvt`, so all four fail on main.
 - Numbers: unchanged for every project without a Fluid intake. A gas project that takes a Fluid table moves to the table's z and viscosity (the Fluid sample at 4,800 psia: mu from the table instead of Lee-Gonzalez-Eakin on the Well Test gravity).
 
+### Step 2: the reviewer lens on the new inputs and outputs
+
+| Check | New input or output | How it is met |
+|---|---|---|
+| RL1 inputs with unit and source | Fluid gas table; datum gradient and reference elevation; apparent skins at other rates; Ci/C and alpha | Inputs table row "Gas PVT table" (span, origin); gradient printed with its stated source; rate-skin points counted in their table; Ci/C and alpha in the model match table |
+| RL2 composites show components | s' = s + D q; s = (h/hp) s_d + s_pp + s_theta + D q | Every term its own row in the skin table |
+| RL3 lumped results split | Apparent gas skin; deviated well skin | D q and s_theta split off, the method named |
+| RL6 every result has its plot | Changing-storage match | Drawn on the log-log and history-match figures (the model overlay) |
+| RL7 basis named | Datum pressure; table pressures | "at the datum ... corrected with g psi/ft" in the report and `wta-1`; table span in psia |
+| RL8 strengths kept | Regression CIs for Ci/C and alpha | From the fit covariance like every parameter |
+| RL9 limits printed | Storage model; slant split; one gradient; table range | Limits rows for storage, well geometry, pressures and the gas PVT table range |
+| RL10 import doors | Gauge door in a worker | Same reader, equality test |
+| RL11 senders and provenance | `wta-1` pressure point to Material Balance; Fluid intake | Read by id, method and date printed, edits marked; "source changed since" |
+| RL12 one model | Changing storage rows, rate skin rows, datum rows | Built once in the context; Report tab and PDF read the same rows |
+
+Units: `pressureGradient` (psi/ft, kPa/m) and `nonDarcySkin` (1/(Mscf/D), 1/(10^3 m3/d)) pinned to known values; the coverage test stays complete.
+
+### Step 2: anything that changes numbers
+
+- Well Test: a project whose perforations carry a longer MD than TVD interval gets a slant pseudo-skin and a different mechanical skin (the reviewed sample at 14.8 degrees: s_theta -0.02, s_d 2.46 to 2.48). k and the total skin never change.
+- Well Test: nothing else moves until the user takes a Fluid table, chooses a changing-storage model, enters rate skins or states a gradient.
+- `wta-1` readers (Material Balance, Waterflood): `average_psia` is at the datum when the test states a gradient (the basis says so); otherwise unchanged.
+- Material Balance: nothing changes until the analyst takes a Well Test pressure point.
+- Other apps: none. The engine catalog change (negative skin) only widens the skin bound of eight models.
+
+### Step 2: validation weaker than asked
+
+- U2-002: the published Hegeman, Hallford and Joseph (1993) type-curve values were not readable from this box (OnePetro). The equations were read in Tobing (2008); the gate is an independent real-time oracle within 1 percent plus exact limits and two negative controls, not a published curve.
+- U2-003: route 2 is gated on Ahmed Example 6-20 step 4 (D from F); route 1 (the multi-rate line) has no published multi-rate example read; it is gated by an engine round trip.
+- U2-007: the correlation agrees with the published Cinco-Ley table within 3 percent for full penetration; for a well both slanted and partly open the additive split is approximate (stated in the report).
+- U2-013: no published worked example of a stimulated well on a boundary or dual-porosity model was read; the gates are exact properties of the solutions.
+- U2-010: the heartbeat measurements are from one box under load (97 to 203 ms with the worker, 5.7 s without).
+
+### Step 2: owner items
+
+- Merge engines PR #311 after review; then re-pin the Suite and remove the 12 `welltest-u2` ledger rows.
+- The Papatzacos comparison with the Cinco-Ley table (centred intervals 0.3 to 1.6 skin units higher) is worth a look when the SPE-13956-PA paper arrives (U2-012).
+
 ## Validation weaker than asked
 
 - DAK is gated against chart readings and the canonical engine only; the Well Test route itself has no published PTA gas example on DAK (the Ahmed examples in the harness use supplied tables).
