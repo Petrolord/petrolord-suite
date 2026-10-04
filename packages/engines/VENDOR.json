@@ -22,5 +22,30 @@
     "manifestPaths": 750,
     "vendoredPaths": 750
   },
-  "knownDeviations": []
+  "knownDeviations": [
+    {
+      "path": "engines/scal/scal.js",
+      "kind": "differing",
+      "vendoredSha": "4fcdf7b5ac3902c27ee15db4caca09a0140cbc93",
+      "group": "scal-u2 (engines PR #303)",
+      "reason": "SCAL Studio U2 engines (Corey fit with stated end points, gas-oil fit, Swirr fit, reservoir fluid gravities), vendored from Petrolord/petrolord-engines PR #303 head 35fc5fc (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #303 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every scal-u2 row."
+    },
+    {
+      "path": "engines/scal/fractionalFlow.js",
+      "kind": "differing",
+      "vendoredSha": "85b53d5bcc9020dc750c01002d386ffe95257d26",
+      "group": "scal-u2 (engines PR #303)",
+      "reason": "SCAL Studio U2 engines (Corey fit with stated end points, gas-oil fit, Swirr fit, reservoir fluid gravities), vendored from Petrolord/petrolord-engines PR #303 head 35fc5fc (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #303 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every scal-u2 row."
+    },
+    {
+      "path": "__tests__/scal.u2fits.test.js",
+      "kind": "extra",
+      "vendoredSha": "7671424c82fb43319770e84d54b3ca3e15e9e5a6",
+      "group": "scal-u2 (engines PR #303)",
+      "reason": "SCAL Studio U2 engines (Corey fit with stated end points, gas-oil fit, Swirr fit, reservoir fluid gravities), vendored from Petrolord/petrolord-engines PR #303 head 35fc5fc (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #303 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every scal-u2 row."
+    }
+  ]
 }
