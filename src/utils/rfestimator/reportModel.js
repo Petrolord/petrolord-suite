@@ -20,7 +20,7 @@ import { CORR_FIELDS, VOL_FIELDS_OIL, VOL_FIELDS_GAS, PLAIN_LABELS, methodLabel 
 import { rfUnits } from './units.js';
 import { IDENTIFICATION_FIELDS } from './model.js';
 import { rfPvtSourceText } from './pvtIntake.js';
-import { inPlaceSourceText } from './inPlaceIntake.js';
+import { inPlaceSourceText, driveSuggestion } from './inPlaceIntake.js';
 import { Z_METHOD_DAK, Z_REFERENCE, zMethodLabel } from './gasZ.js';
 
 export const REPORT_TITLE = 'Recovery Factor Report';
@@ -315,6 +315,11 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
     ['95 percent interval at the source', s.inPlaceIntake.ci95 ? `${th(s.inPlaceIntake.ci95[0])} to ${th(s.inPlaceIntake.ci95[1])} ${s.inPlaceIntake.unit}` : 'Not stated by the source'],
     ['Status at the source', s.inPlaceIntake.status === 'earlier_run' ? 'The case was changed after this run' : 'Current run of the case'],
     ['Taken at', `${String(s.inPlaceIntake.takenAt || '').slice(0, 16).replace('T', ' ')} UTC`],
+    // RF-U2-008: what the drive indices suggest, and whether the drive named follows it
+    ...(() => {
+      const sg = driveSuggestion(s.inPlaceIntake, derived.phase, inputs.driveCode);
+      return sg ? [['Drive suggested by the source', `${sg.text}${sg.code ? (sg.agrees ? ' The drive named in this report is the suggested one.' : ` The drive named in this report is ${r.analog?.label || 'none'}, chosen by the user.`) : ''}`]] : [];
+    })(),
   ] : null;
 
   const who = [text(id.field), text(id.reservoir)].filter(Boolean).join(', ');

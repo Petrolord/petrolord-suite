@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useRfEstimator } from '@/contexts/RfEstimatorContext';
 import { METHODS, CORR_FIELDS, fmtPct } from '@/components/rfestimator/rfFields';
 import { rfPvtSourceText } from '@/utils/rfestimator/pvtIntake';
+import { driveSuggestion } from '@/utils/rfestimator/inPlaceIntake';
 import RfField from './RfField';
 import PvtPanel from './PvtPanel';
 import GasZPanel from './GasZPanel';
@@ -14,8 +15,10 @@ import { Z_METHOD_DAK } from '@/utils/rfestimator/gasZ';
 
 const MethodPanel = () => {
   const {
-    inputs, drives, result, derived, u, pvtIntake, setMethod, setDriveCode, setCorrField,
+    inputs, drives, result, derived, u, pvtIntake, inPlaceIntake, setMethod, setDriveCode, setCorrField, canWrite,
   } = useRfEstimator();
+  // RF-U2-008: the drive the Material Balance indices suggest (never applied silently)
+  const suggestion = driveSuggestion(inPlaceIntake, inputs.phase, inputs.driveCode);
   const corrFields = CORR_FIELDS[inputs.method] || [];
   const flagged = new Set(derived.flags.filter((f) => f.scope === 'input' || f.scope === 'consistency').map((f) => f.key));
   // RF-U2-003: zi and za computed by Dranchuk-Abou-Kassem show the value used, not editable
@@ -46,6 +49,18 @@ const MethodPanel = () => {
           {drives.map((d) => <option key={d.code} value={d.code}>{d.label} ({fmtPct(d.low)} to {fmtPct(d.high)})</option>)}
         </select>
         {result.analog?.notes && <p className="text-xs text-pl-muted">{result.analog.notes}</p>}
+        {suggestion && (
+          <div className="rounded-md border border-pl-border bg-pl-sunken px-2 py-1.5 text-[11px] text-pl-text space-y-1" data-testid="rf-drive-suggestion">
+            <p>{suggestion.text}</p>
+            {suggestion.code && (suggestion.agrees
+              ? <p className="text-pl-muted">The drive named here is the suggested one.</p>
+              : canWrite && (
+                <button type="button" className="underline text-pl-primary-text" onClick={() => setDriveCode(suggestion.code)} data-testid="rf-drive-suggestion-use">
+                  Use {suggestion.label} (a suggestion; the choice is yours)
+                </button>
+              ))}
+          </div>
+        )}
       </div>
 
       <GasZPanel />
