@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit dd0eba4d741e54aae5790de33578c1caf8ae102a
+# commit 4f91416c4927e50a04ec522de750bc8818be9699
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 80b08bf546799e96d5448d67c63c98f2ec1b9703 README.md
@@ -235,6 +235,7 @@ c78a318b502a4be6b60d100e705149221df5eeb0 __tests__/waterflood.vrr.test.js
 0559e5dfc40bd2157bb2586adbc609e8a02769c1 __tests__/waterflood.vrrledger.test.js
 25d1e097ac3c1c3b98637f8d17b3f9418ed9e4df __tests__/waterflood.vrrpatterns.test.js
 10d89874d96679c7af3ae7692d09b9b28f33da3e __tests__/waterflood.vrrpressure.test.js
+24d546013384a3f2c22dbe06840e705eb776defe __tests__/waterflood.vrrvoidage.test.js
 87c4f797a88248863ab708db2e6dd01168bab7e4 __tests__/waterflood.wfu1.test.js
 43a168363f18ff2689d20c30f3e50b1eb2970c6f __tests__/welldata.checkshots.test.js
 f12c533b0ed35d549a8bfca9a0f4396fc1e0281a __tests__/welldata.las3blocks.test.js
@@ -558,7 +559,7 @@ f15e68ab5c9e7ddc433fc60ac75de53ffbf5f171 engines/supplychain/marineLogistics.js
 19ffdce33bcae1e01bf51a2b144c57fb5d626c20 engines/waterflood/layeredSweep.js
 4b436d19582e6cdbf3995aa70944141c9351a230 engines/waterflood/patternForecast.js
 245588959a57d90773d0e444482c8230db2b0b89 engines/waterflood/vrr.js
-653686f69bea92a5a4da4c0dbe8fda3608838895 engines/waterflood/vrrLedger.js
+ed3bcb69230463b481fbee8f3962a5f6b6915901 engines/waterflood/vrrLedger.js
 a183aab2f9fbed5639436e87fabf6d56f0260d98 engines/waterflood/waterflood.js
 72b544ffce00b6d6bdc8a93387633ea900ca7447 engines/wellcorrelation/section.js
 8bf969530edc08e4551b637265c984472384178b engines/welldata/checkshots.js
