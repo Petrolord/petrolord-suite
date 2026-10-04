@@ -141,5 +141,7 @@ export function rateCumEur(results, forecastConfig) {
 
 /** The rate-cumulative EUR against the rate-time EUR, as a signed percent of the latter. */
 export function crossCheckPct(rcEur, rtEur) {
-  return finite(rcEur) && finite(rtEur) && rtEur > 0 ? (100 * (rcEur - rtEur)) / rtEur : null;
+  if (!(finite(rcEur) && finite(rtEur) && rtEur > 0)) return null;
+  // to one decimal, with no negative zero (a printed "-0.0%" reads as a sign)
+  return Math.round((1000 * (rcEur - rtEur)) / rtEur) / 10 || 0;
 }
