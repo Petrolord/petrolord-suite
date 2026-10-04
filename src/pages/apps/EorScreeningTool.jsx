@@ -87,7 +87,7 @@ const ProjectCard = () => {
         {/* EOR-U2-003: what a reader gets from this project by id */}
         <p className="text-[10px] text-pl-muted" data-testid="eor-contract-note">
           {currentProjectId
-            ? `Other apps read this saved project by id (contract ${EOR_SCREEN_CONTRACT}, content ${screenRecord?.fingerprint || EMPTY_VALUE}): every input with its source, and each method's verdict per criterion.`
+            ? `Other apps read this saved project by id (contract ${EOR_SCREEN_CONTRACT}, content ${screenRecord?.fingerprint || EMPTY_VALUE}): every input with its source, each method's verdict per criterion and the CO2 MMP check.`
             : `Save the screening as a project so other apps can read it by id (contract ${EOR_SCREEN_CONTRACT}).`}
         </p>
         {projectRow && sharing.ready && !canWrite && (

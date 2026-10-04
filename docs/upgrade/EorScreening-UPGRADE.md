@@ -237,3 +237,4 @@ paper prints no page numbers in the copy read, so sections and tables are
 cited. Owner item: supply SPE-7477-PA (Yellig and Metcalfe) to add the
 classic temperature-only correlation beside it, validated on its own
 table.
+| EOR-U2-007 | Done | Distance to the limit on every criterion row of the Screening tab and the report (new column): the gap from the limit the verdict was judged on, in the display units (a temperature gap converts without its offset), above or below, minimum or maximum, and as a share of the limit; for a window the nearer end, for a fail the side it fails. Information only, never a score | `src/utils/eor/__tests__/eorDistance.test.js` (band limit for CO2 depth, windows, signs, SI temperature 18 degF = 10 degC, negative controls for blank, not critical and formation, ranking unchanged), goldens, e2e `U2-007` |

@@ -172,3 +172,13 @@ test('U2-001 MMP: composition and pressure give miscible or immiscible; the repo
   await expect(page.getByTestId('eor-report-mmp')).toContainText('Immiscible: the reservoir pressure is below the MMP');
   expect(await page.evaluate(() => document.body.innerText.includes('—'))).toBe(false);
 });
+
+// EOR-U2-007: distance to each limit, as information beside the verdict.
+test('U2-007 distance to the limit: the sample CO2 depth sits 2,400 ft above its 2,800 ft band', async ({ page }) => {
+  test.setTimeout(180000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await page.getByTestId('eor-method-co2').getByRole('button').first().click();
+  await expect(page.getByTestId('eor-distance-co2-depth')).toHaveText('2,400 ft above the minimum 2,800 ft (86 %)');
+  await expect(page.getByTestId('eor-distance-co2-formation')).toHaveText('n/a');
+});

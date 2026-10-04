@@ -61,7 +61,7 @@ describe('RL3 and RL12: the report is the screen, criterion by criterion', () =>
     expect(model.ranking.rows.map((r) => r[1])).toEqual(ranked.map((r) => r.name));
     model.methods.forEach((m, i) => {
       expect(m.rows.map((r) => r[4])).toEqual(ranked[i].verdicts.map((v) => ({ na: 'not screened' }[v.status] || v.status)));
-      for (const r of m.rows) expect(r[6]).toMatch(/Part [12]|n\/a/);
+      for (const r of m.rows) expect(r[7]).toMatch(/Part [12]|n\/a/);
     });
   });
   it('the counts close: pass + marginal + fail = screened criteria', () => {
@@ -84,7 +84,7 @@ describe('the PDF read back', () => {
     expect(t).toMatch(/Ranking of the methods/);
     expect(t).toMatch(/CO2 miscible: qualified/);
     expect(t).toMatch(/Methods are ranked by outcome/);
-    expect(t).toMatch(/> 2,800 ft \(for 32 to 39.9 API\)/);
+    expect(t).toMatch(/> 2,800 ft \(for 32 to 39.9/);
     expect(t).toMatch(/Part 2, Table 3 \(p\. 200\)/);
     expect(t).toMatch(/Limits of this analysis/);
     expect(t).toMatch(/Screening shortlists candidate methods; it does not design/);
@@ -102,7 +102,7 @@ describe('the PDF read back', () => {
     const pdf = readPdf(built.doc);
     const t = flat(pdf.text);
     expect(t).toMatch(/Depth 2,194.56 m/); // 7,200 ft
-    expect(t).toMatch(/> 853.4 m \(for 32 to 39.9 API\)/); // 2,800 ft
+    expect(t).toMatch(/> 853.4 m \(for 32 to 39.9/); // 2,800 ft
     expect(t).toMatch(/Reservoir temperature 87.7778 degC/); // 190 F
     expect(t).toMatch(/1.1 mPa.s/);
     expect(t).toMatch(/Criteria are compared in oilfield units, as published/);

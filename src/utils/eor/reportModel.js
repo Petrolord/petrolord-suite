@@ -17,7 +17,7 @@ import {
   CRITERIA_EDITION, RANKING_BASIS, SRC, CO2_DEPTH_BY_GRAVITY, sampleEorScreeningData, formationLabel, screenAllMethods, engineInputOf,
 } from '../eorScreeningCalculations.js';
 import { eorUnits } from './units.js';
-import { requiredText, actualText, averageText, reasonText, STATUS_WORDS, OUTCOME_WORDS } from './format.js';
+import { requiredText, actualText, averageText, reasonText, distanceText, STATUS_WORDS, OUTCOME_WORDS } from './format.js';
 import { intakeSourceText } from './intakes.js';
 import { eorMmpCheck, MMP_CORRELATION, mmpVerdictWords, MPA_TO_PSI } from './mmp.js';
 
@@ -172,8 +172,8 @@ export function buildEorReportModel(inputs, { projectName = '', organizationName
   const methods = ranked.map((r) => ({
     id: r.id,
     title: `${r.name}: ${OUTCOME_WORDS[r.outcome].toLowerCase()} (${r.group})`,
-    head: ['Criterion', 'Required', 'Project average', 'This reservoir', 'Verdict', 'Reason', 'Source'],
-    rows: r.verdicts.map((v) => [v.criterion, requiredText(v, sys), averageText(v, sys) || EMPTY_VALUE, actualText(v, sys), STATUS_WORDS[v.status], reasonText(v, sys) || EMPTY_VALUE, v.source || EMPTY_VALUE]),
+    head: ['Criterion', 'Required', 'Project average', 'This reservoir', 'Verdict', 'Distance to the limit', 'Reason', 'Source'],
+    rows: r.verdicts.map((v) => [v.criterion, requiredText(v, sys), averageText(v, sys) || EMPTY_VALUE, actualText(v, sys), STATUS_WORDS[v.status], distanceText(v, sys), reasonText(v, sys) || EMPTY_VALUE, v.source || EMPTY_VALUE]),
     note: `Oil composition guide (not screened: the app has no composition input): ${r.composition}.`,
     outcome: r.outcome,
   }));

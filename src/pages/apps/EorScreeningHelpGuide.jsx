@@ -142,6 +142,14 @@ const EorScreeningHelpGuideContent = () => (
         project already chosen. Press Take values to read it. Each sender needs a saved
         project, because this app reads it by id.
       </Para>
+      <SubHeading>Distance to the limit</SubHeading>
+      <Para>
+        Each criterion row also says how far your value sits from the limit it was judged on, in
+        your display units and as a share of the limit (for a window such as polymer viscosity,
+        the nearer end). The paper says its limits are not sharp, so a value just inside or just
+        outside deserves a second look. The distance is information only: it never changes a
+        verdict or the ranking.
+      </Para>
       <SubHeading>CO2 miscibility: MMP against reservoir pressure</SubHeading>
       <Para>
         Taber 1997 judges CO2 miscibility by depth for typical Permian Basin oils and says other

@@ -62,3 +62,41 @@ export function reasonText(v, system = 'oilfield') {
   }
   return '';
 }
+
+/**
+ * EOR-U2-007: how far the value sits from the limit its verdict was judged
+ * on, as information, never a score (Part 1, p. 192: limits are not sharp).
+ * For a window (min and max) the nearer limit. delta is in oilfield units,
+ * positive inside the limit, negative outside; relPct is |delta| over the
+ * limit. null when there is no numeric limit or no value.
+ */
+export function distanceToLimit(v) {
+  if (!v || !v.spec || !finite(v.actual) || v.key === 'formation') return null;
+  const { min, max } = v.spec;
+  const cands = [];
+  if (finite(min)) cands.push({ limit: 'min', limitValue: min, delta: v.actual - min });
+  if (finite(max)) cands.push({ limit: 'max', limitValue: max, delta: max - v.actual });
+  if (!cands.length) return null;
+  // judged on the side it fails, else on the nearer limit
+  const pick = cands.find((c) => c.delta < 0) || cands.reduce((a, b) => (Math.abs(b.delta) < Math.abs(a.delta) ? b : a));
+  return { ...pick, inside: pick.delta >= 0, relPct: pick.limitValue !== 0 ? (100 * Math.abs(pick.delta)) / Math.abs(pick.limitValue) : null };
+}
+
+const num4 = (x) => {
+  const r = parseFloat(Number(x).toPrecision(4));
+  return Math.abs(r) >= 1000 ? r.toLocaleString('en-US', { maximumFractionDigits: 12 }) : String(r);
+};
+const pctText = (p) => (p >= 100 ? String(Math.round(p)) : String(parseFloat(p.toPrecision(2))));
+
+/** "700 ft above the minimum 2,800 ft (25 %)" in the display units; EMPTY_VALUE when there is no distance. */
+export function distanceText(v, system = 'oilfield') {
+  const d = distanceToLimit(v);
+  if (!d) return EMPTY_VALUE;
+  const u = eorUnits(system);
+  // the difference of the shown values, so a temperature converts without its offset
+  const shownDelta = Math.abs(u.show(v.kind, v.actual) - u.show(v.kind, d.limitValue));
+  const lab = u.label(v.kind);
+  const above = v.actual >= d.limitValue;
+  const words = `${num4(shownDelta)}${lab ? ` ${lab}` : ''} ${above ? 'above' : 'below'} the ${d.limit === 'min' ? 'minimum' : 'maximum'} ${quantity(v.kind, d.limitValue, u)}`;
+  return d.relPct == null ? words : `${words} (${pctText(d.relPct)} %)`;
+}
