@@ -126,7 +126,7 @@ const ReportResults = () => {
 
       <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
         <Kpi title="Permeability k" value={fmt.sig3(derivedKpis?.k)} unit="md" accent />
-        <Kpi title="kh" value={fmt.sig3(derivedKpis?.kh)} unit="md·ft" />
+        <Kpi title="kh" value={fmt.sig3(fromOilfield('kh', derivedKpis?.kh, unitSystem))} unit={unitLabel('kh', unitSystem)} />
         <Kpi title="Skin (total)" value={fmt.f2(derivedKpis?.skin)} />
         <Kpi title="Δp across skin" value={fmtU('pressure', derivedKpis?.dpSkin, unitSystem, fmt.f1)} unit={uL('pressure')} />
         <Kpi title="Radius of investigation" value={fmtU('length', derivedKpis?.ri, unitSystem, fmt.int)} unit={uL('length')} />
@@ -258,13 +258,13 @@ const ReportResults = () => {
             <table className="w-full text-xs">
               <tbody>
                 <Row label={`${inPlace.label}, flowing material balance`} value={inPlace.value} unit={inPlace.unit} />
-                <Row label="Productivity index J" value={fmt.sig3(fmbResult.J)} />
+                <Row label="Productivity index J" value={fmt.sig3(fromOilfield(rtaResult.isGas ? 'gasProductivityIndex' : 'productivityIndex', fmbResult.J, unitSystem))} unit={unitLabel(rtaResult.isGas ? 'gasProductivityIndex' : 'productivityIndex', unitSystem)} />
                 <Row label="FMB fit r²" value={fmt.f3(fmbResult.r2)} />
                 {rtaResult.linear && (
                   <Row
                     label="Transient linear xf √k"
-                    value={fmt.sig3(unitSystem === 'si' ? rtaResult.linear.xfSqrtK * 0.3048 : rtaResult.linear.xfSqrtK)}
-                    unit={unitSystem === 'si' ? 'm·√md' : 'ft·√md'}
+                    value={fmt.sig3(fromOilfield('xfSqrtK', rtaResult.linear.xfSqrtK, unitSystem))}
+                    unit={unitLabel('xfSqrtK', unitSystem)}
                   />
                 )}
               </tbody>

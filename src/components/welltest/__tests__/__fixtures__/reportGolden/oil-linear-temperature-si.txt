@@ -16,7 +16,7 @@ Headline results
 
  Permeability k (md)                                                                  70.0
 
- kh (md-ft)                                                                           3,150
+ kh (md-m)                                                                            960
 
  Skin factor (total)                                                                  0.00
 

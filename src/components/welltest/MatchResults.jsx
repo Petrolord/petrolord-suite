@@ -67,7 +67,7 @@ const MatchResults = () => {
         <Kpi title="Permeability k" value={fmt.sig3(matchParams?.k)} unit="md" accent />
         <Kpi title="Skin" value={prepared.skinWithheld ? 'withheld' : fmt.f2(matchParams?.skin)} />
         <Kpi title="Storage C" value={fmtU('storage', matchParams?.C, unitSystem, fmt.sig3)} unit={unitLabel('storage', unitSystem)} />
-        <Kpi title="kh" value={fmt.sig3(matchKpis?.kh)} unit="md·ft" />
+        <Kpi title="kh" value={fmtU('kh', matchKpis?.kh, unitSystem, fmt.sig3)} unit={unitLabel('kh', unitSystem)} />
         <Kpi title="CD" value={fmt.sig3(matchKpis?.cd)} />
       </div>
 

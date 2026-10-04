@@ -175,7 +175,8 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
   const skinValue = prepared?.skinWithheld ? 'withheld' : f2(derivedKpis?.skin);
   table('Headline results', ['Quantity', 'Value'], [
     ['Permeability k (md)', sig3(derivedKpis?.k)],
-    ['kh (md-ft)', sig3(derivedKpis?.kh)],
+    // WTA-U1-001: kh in the display system (md-m under SI, h in metres)
+    [`kh (${uL('kh').replace(' ', '-')})`, sig3(u('kh', derivedKpis?.kh))],
     [isGas ? "Apparent skin s'" : 'Skin factor (total)', skinValue],
     [`Pressure drop across skin (${uL('pressure')})`, f1(u('pressure', derivedKpis?.dpSkin))],
     ['Flow efficiency', percent(derivedKpis?.flowEfficiency)],
@@ -304,13 +305,13 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
         ? ['OOIP N, flowing material balance (MM m3)', sig3((rtaResult.fmb.N * 0.158987294928) / 1e6)]
         : ['OOIP N, flowing material balance (MMSTB)', sig3(rtaResult.fmb.N / 1e6)]);
     }
-    rows.push([`Productivity index J (${uL(rateKind)} per ${rtaResult.isGas ? dpUnit : uL('pressure')})`, sig3(rtaResult.fmb.J)]);
+    // WTA-U1-002: J converts with the unit it is printed with
+    const jKind = rtaResult.isGas ? 'gasProductivityIndex' : 'productivityIndex';
+    rows.push([`Productivity index J (${uL(rateKind)} per ${rtaResult.isGas ? dpUnit : uL('pressure')})`, sig3(u(jKind, rtaResult.fmb.J))]);
     rows.push(['FMB fit r2', f2(rtaResult.fmb.r2)]);
     rows.push(['Production points', String(rtaResult.rows?.length ?? 0)]);
     if (rtaResult.linear) {
-      rows.push(unitSystem === 'si'
-        ? ['Transient linear xf sqrt(k) (m sqrt(md))', sig3(rtaResult.linear.xfSqrtK * 0.3048)]
-        : ['Transient linear xf sqrt(k) (ft sqrt(md))', sig3(rtaResult.linear.xfSqrtK)]);
+      rows.push([`Transient linear xf sqrt(k) (${unitSystem === 'si' ? 'm' : 'ft'} sqrt(md))`, sig3(u('xfSqrtK', rtaResult.linear.xfSqrtK))]);
     }
     table('Rate transient analysis (production data)', ['Quantity', 'Value'], rows);
   }

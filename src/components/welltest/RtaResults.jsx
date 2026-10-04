@@ -72,7 +72,7 @@ const RtaResults = () => {
     <div className="space-y-4 overflow-y-auto">
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <Kpi title={isGas ? 'OGIP G (flowing MB)' : 'OOIP N (flowing MB)'} value={inPlace.value} unit={inPlace.unit} accent={!!fmbResult} />
-        <Kpi title="Productivity index J" value={fmt.sig3(fmbResult?.J)} unit={isGas ? `${unitLabel(rateKind, unitSystem)} per ${unitLabel('pseudoPressure', unitSystem)}` : `${unitLabel(rateKind, unitSystem)}/${unitLabel('pressure', unitSystem)}`} />
+        <Kpi title="Productivity index J" value={fmt.sig3(fromOilfield(isGas ? 'gasProductivityIndex' : 'productivityIndex', fmbResult?.J, unitSystem))} unit={isGas ? `${unitLabel(rateKind, unitSystem)} per ${unitLabel('pseudoPressure', unitSystem)}` : `${unitLabel(rateKind, unitSystem)}/${unitLabel('pressure', unitSystem)}`} />
         <Kpi title="FMB fit r²" value={fmt.f3(fmbResult?.r2)} />
         <Kpi title="Production points" value={fmt.int(rtaResult.rows.length)} />
       </div>
@@ -119,7 +119,7 @@ const RtaResults = () => {
         <p className="text-xs font-semibold text-pl-muted uppercase tracking-wider mb-2">Transient linear flow (Wattenbarger)</p>
         {linear ? (
           <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
-            <Kpi title="xf √k" value={fmt.sig3(unitSystem === 'si' ? linear.xfSqrtK * 0.3048 : linear.xfSqrtK)} unit={unitSystem === 'si' ? 'm·√md' : 'ft·√md'} accent />
+            <Kpi title="xf √k" value={fmt.sig3(fromOilfield('xfSqrtK', linear.xfSqrtK, unitSystem))} unit={unitLabel('xfSqrtK', unitSystem)} accent />
             <Kpi title="√t slope" value={fmt.sig3(uNorm(linear.slope))} unit={`${normUnit}/√day`} />
             <Kpi title="Fit r²" value={fmt.f3(linear.r2)} />
           </div>
