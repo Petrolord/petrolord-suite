@@ -239,6 +239,13 @@ merged; vendored byte-identical with `welltest-u2` ledger rows meanwhile).
 
 ## Step 2 build log
 
+### U2-010 Gauge import in a Web Worker: done
+
+- `src/workers/gaugeImport.worker.js` runs the protocol of `src/utils/welltest/gaugeImportProtocol.js` (read, detect the mapping, convert, with progress every 25,000 rows); the worker keeps the parsed table, so a mapping change re-converts without sending the file again, and the page holds only the headers and the rows. The rows cross back as three transferred Float64Arrays (no structured-clone copy of 388,800 objects). `gaugeImportClient.js` is the page side: the worker where one exists (lazy factory, the only `import.meta` file), the same protocol on the page's thread after a yield otherwise. The Data panel shows a progress line and Cancel (terminates the worker; nothing is loaded).
+- The reading itself is unchanged (`convertGaugeRows` gained an optional progress callback only): the protocol's rows and mapping equal `importGaugeCsv` on the hostile day-first psig file.
+- Proving tests: `src/utils/welltest/__tests__/gaugeImportWorker.test.js` (6): equality with the one-call import, mapping change on the kept table, 388,800 readings with 15 progress messages, no-table error, the client without a Worker, the client with a worker (progress, Cancel terminates and rejects), packed rows round trip. `gaugeImportScale.test.js` (388,800 readings) kept unchanged. Browser: `e2e/well-test-u2.spec.js`: a 50 ms heartbeat on the page's thread while the worker reads 388,800 readings never stalls past 500 ms (observed 97 to 203 ms on this box under load); negative control with `window.Worker` removed: the page stops for 5.7 s; Cancel loads nothing.
+- Not done: faster date parsing (a date-stamped 388,800 file still takes about 10 s to convert, now off the page's thread); the analysis of the loaded rows (prepare, derivative, plots) stays on the page's thread, a 1 to 2.5 s pause after the largest files.
+
 ### U2-005 Well Test pressure to Material Balance as a pressure point: done
 
 - `wta-1` gains `pressure.date` (the end of the test, else its start) and `pressure.method_label` (p* or pi); `average_psia` is at the datum when U2-004 applied a correction, and `basis` says which.

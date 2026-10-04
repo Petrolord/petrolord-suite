@@ -351,6 +351,14 @@ const WTSHelpContent = () => (
       when the analyst takes the point.
     </P>
 
+    <H>Large gauge files</H>
+    <P>
+      A gauge file is read in the background, so the page stays usable while a file of several hundred thousand
+      readings loads; a line under Import CSV shows how far it has got and Cancel stops it with nothing loaded.
+      Changing a column or a unit on the mapping card re-reads the file the same way. The analysis of the loaded
+      readings then runs on the page and can take a second or two for the largest files.
+    </P>
+
     <H>Conventions</H>
     <P>
       Display units follow the selector on the Data tab, in either oilfield (md, ft, cp, psi, STB/D, RB/STB, hours) or

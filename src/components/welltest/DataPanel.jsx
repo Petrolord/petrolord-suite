@@ -4,7 +4,7 @@
 // display layer (see utils/welltest/units.js). The gauge import finds the
 // time and pressure columns from the headers and converts the file's units
 // (utils/welltest/gaugeImport.js).
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ProjectUnitSystemNote from '@/components/units/ProjectUnitSystemNote';
 import { Upload, FlaskConical, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import {
   readGaugeTable, detectGaugeMapping, convertGaugeRows, PRESSURE_UNITS, TIME_UNITS, TEMPERATURE_UNITS, PWF_SOURCE_TEXT, gaugeTime,
 } from '@/utils/welltest/gaugeImport';
 import { SectionLabel, Field, UnitField, UnitInput, fmt, valueWithUnit } from './primitives';
+import { createGaugeImporter } from '@/utils/welltest/gaugeImportClient';
 import { IdentificationFields, CompletionFields, InputSourcesFields } from './ReportInputsFields';
 import PvtIntakeCard from '@/lib/inputProvenance/PvtIntakeCard';
 import { readFluidProjectPvt, handoffFromContract, rangeRequestUrl } from '@/lib/pvtSource';
@@ -175,8 +176,31 @@ const DataPanel = () => {
   const rateKind = isGas ? 'gasRate' : 'oilRate';
   const isBuildupFamily = testConfig.testType === 'buildup' || testConfig.testType === 'falloff';
 
-  const applyImport = (table, mapping, fileName, announce) => {
-    const { rows, skipped, temperatureCount, dateQuestion = null } = convertGaugeRows(table, mapping);
+  // WTA-U2-010: the file is read in a Web Worker (the page stays
+  // responsive); progress and Cancel while it runs
+  const importerRef = useRef(null);
+  if (!importerRef.current) importerRef.current = createGaugeImporter();
+  useEffect(() => () => importerRef.current?.cancel(), []);
+  const [importing, setImporting] = useState(null); // { fileName, stage, done, total }
+  const runImport = async (start, fileName, announce) => {
+    setImporting({ fileName, stage: 'reading', done: 0, total: 1 });
+    try {
+      const m = await start((pr) => setImporting({ fileName, stage: pr.stage, done: pr.done, total: pr.total }));
+      if (!m.table.rowCount) {
+        addNotification('The file has no data rows.', 'error');
+        return;
+      }
+      applyImport(m.table, m.mapping, fileName, announce, m.result);
+    } catch (e) {
+      if (e?.cancelled) addNotification(`Import of ${fileName} cancelled; nothing was loaded.`, 'info');
+      else if (!e?.superseded) addNotification(e?.message || 'Could not read the file', 'error');
+    } finally {
+      setImporting((cur) => (cur && cur.fileName === fileName ? null : cur));
+    }
+  };
+
+  const applyImport = (table, mapping, fileName, announce, converted) => {
+    const { rows, skipped, temperatureCount, dateQuestion = null } = converted;
     if (dateQuestion) {
       addNotification(`The dates in ${fileName} could be day first or month first. Choose the date order below; nothing was loaded yet.`, 'info');
       setImported({ table, mapping, fileName, skipped, count: 0, temperatureCount, dateQuestion });
@@ -214,13 +238,9 @@ const DataPanel = () => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const table = readGaugeTable(String(ev.target.result || ''));
-      if (!table.rows.length) {
-        addNotification('The file has no data rows.', 'error');
-        return;
-      }
-      const mapping = detectGaugeMapping(table, { defaultPressure: defaultPressureUnit(unitSystem), defaultTemperature: defaultTemperatureUnit(unitSystem) });
-      applyImport(table, mapping, file.name, true);
+      const text = String(ev.target.result || '');
+      const defaults = { defaultPressure: defaultPressureUnit(unitSystem), defaultTemperature: defaultTemperatureUnit(unitSystem) };
+      runImport((onProgress) => importerRef.current.read(text, defaults, onProgress), file.name, true);
     };
     reader.onerror = () => addNotification('Could not read the file', 'error');
     reader.readAsText(file);
@@ -308,10 +328,20 @@ const DataPanel = () => {
             A time column and a pressure column, in any order: headers such as Time (hr), Elapsed (min), Date, Pressure (psig) or BHP (kPa) are recognised, and the units can be changed after import. A temperature column (Temperature, Temp, BHT, in degF or degC) is read too when the file has one.
             {gaugeRows.length ? ` Loaded: ${gaugeRows.length} points.` : ' No data loaded yet.'}
           </p>
+          {importing && (
+            <div className="flex items-center justify-between gap-2 rounded-md border border-pl-border px-3 py-2 text-[11px] text-pl-muted" data-testid="wts-import-progress" role="status">
+              <span>
+                Reading {importing.fileName}: {importing.stage === 'converting' && importing.total > 1
+                  ? `${Math.round((100 * importing.done) / importing.total)} percent of ${importing.total.toLocaleString('en-US')} rows`
+                  : 'parsing the file'}
+              </span>
+              <Button size="sm" variant="ghost" className="h-7" onClick={() => importerRef.current?.cancel()} data-testid="wts-import-cancel">Cancel</Button>
+            </div>
+          )}
           {imported && (
             <ImportMapping
               imported={imported}
-              onChange={(mapping) => applyImport(imported.table, mapping, imported.fileName, false)}
+              onChange={(mapping) => runImport((onProgress) => importerRef.current.convert(mapping, onProgress), imported.fileName, false)}
             />
           )}
         </div>
