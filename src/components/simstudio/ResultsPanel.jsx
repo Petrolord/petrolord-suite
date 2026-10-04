@@ -23,6 +23,7 @@ import { summarizeDeck } from '@/utils/simstudio/deckSummary';
 import { buildResultsCsv } from '@/utils/simstudio/resultsCsv';
 import { runStatusLine } from '@/utils/simstudio/runStatus';
 import SimSendPanel from '@/components/simstudio/SimSendPanel';
+import RunComparePanel from '@/components/simstudio/RunComparePanel';
 
 const LINE_COLORS = ['#166534', '#1d4ed8', '#b45309', '#b91c1c', '#7c3aed', '#0e7490', '#be185d', '#4d7c0f'];
 
@@ -180,6 +181,7 @@ const ResultsPanel = () => {
       </Card>
 
       {summary && selectedRun && <SimSendPanel run={selectedRun} />}
+      <RunComparePanel completeRuns={completeRuns} />
 
       {!summary ? (
         <Card>

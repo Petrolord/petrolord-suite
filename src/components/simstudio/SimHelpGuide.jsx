@@ -70,6 +70,13 @@ const helpContent = [
       'The Report tab shows, and Export PDF prints, what a reviewer needs to sign a run: identification (typed on the Builder tab); the run\'s provenance (deck SHA-256, OPM Flow version, worker, queued, started and finished times, exit code); what the deck holds (unit system, grid, active cells, schedule, initialisation and contacts, wells, PVT and saturation tables and where they came from); the Model Builder inputs with their sources when the builder made the deck that ran; headline results; the material balance per component (originally in place, in place at the end, produced, injected and the error) and the convergence statistics, both from the simulator\'s PRT; the limits of the analysis and the flags on the run; and six figures on the calendar axis, each either drawn or replaced by the reason it does not apply. A run made by an older worker build prints "not reported by this build" for the material balance and the convergence. A deck that does not ask for the fluid-in-place report (RPTSOL or RPTSCHED FIP with WELLS) gets the same honest line with its reason; decks from the Model Builder and the bundled templates ask for it.',
   },
   {
+    id: 'compare',
+    icon: LineChart,
+    title: 'Compare runs',
+    content:
+      'When a case has two or more completed runs, Compare runs on the Results tab lists them. Tick the runs to compare: the first one you tick is the base. One vector at a time (oil rate, field pressure, water cut, GOR and others) is overlaid on the calendar axis, the base solid and the others dashed, and the table gives each run\'s cumulative oil, water and gas produced, water injected, the rates and pressure at the end, the end date, whether its material balance closes and which deck it ran, with each difference from the base in units and in percent. A cumulative the summary does not hold is the simulator\'s step rates added up (for oil that equals its own FOPT); a thinned series is never added up. The report of the run shown prints the comparison as a table and a figure.',
+  },
+  {
     id: 'send',
     icon: LineChart,
     title: 'Send a run to Forecast Scenario Hub or Petroleum Economics Studio',

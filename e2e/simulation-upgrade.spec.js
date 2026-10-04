@@ -287,3 +287,36 @@ test('U2-001 BHP history match: observed pressures through the per-well door, WB
   expect(pdf.flat).toMatch(/Figure 7\. Bottomhole pressure match/);
   expect(errors).toEqual([]);
 });
+
+test('U2-005 run compare: two runs of a case overlaid on the calendar, the difference table, in the report', async ({ page }) => {
+  test.setTimeout(400000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await runSpe1(page, 'Compare');
+  // a second run of the same deck
+  await page.getByTestId('queue-run').click();
+  await expect(page.getByText('complete', { exact: true })).toHaveCount(2, { timeout: 30000 });
+  await tab(page, 'Results').click();
+  const picks = page.getByTestId('sim-compare-picks').locator('input[type="checkbox"]');
+  await expect(picks).toHaveCount(2, { timeout: 30000 });
+  await expect(page.getByTestId('sim-compare-why')).toContainText('Pick two or more completed runs');
+  await picks.nth(0).check();
+  await picks.nth(1).check();
+  const table = page.getByTestId('sim-compare-table');
+  await expect(table).toContainText('Cumulative oil produced', { timeout: 30000 });
+  await expect(table).toContainText('the same deck as the base');
+  await page.getByTestId('sim-compare-vector').selectOption('FPR');
+  await page.screenshot({ path: path.join(OUT, 'u2-005-results.png'), fullPage: true });
+  expect(await noPageScroll(page)).toBe(true);
+  await tab(page, 'Report').click();
+  await expect(page.getByTestId('report-compare')).toContainText('Difference');
+  const p = page.waitForEvent('download');
+  await page.getByTestId('report-export').click();
+  const file = path.join(OUT, 'compare-report.pdf');
+  await (await p).saveAs(file);
+  const pdf = readPdfFile(file);
+  expect(pdf.flat).toMatch(/Run comparison/);
+  expect(pdf.flat).toMatch(/Figure \d+\. Run comparison/);
+  expect(errors).toEqual([]);
+});

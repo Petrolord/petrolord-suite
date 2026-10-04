@@ -10,6 +10,7 @@ import { fieldRows, wellRows, pairs, dayToMs } from './series.js';
 
 const dayMs = (summary, day) => dayToMs(summary, day);
 import { simUnits } from './simUnits.js';
+import { compareSeries } from './runCompare.js';
 
 export const COLORS = Object.freeze({
   oil: [22, 101, 52], water: [37, 99, 235], gas: [220, 38, 38], pressure: [124, 58, 237],
@@ -199,4 +200,32 @@ export function buildSimReportFigures({ summary, opts, historyEnd = null, bhp = 
     figures.push({ id: 'bhp-match', title: 'Bottomhole pressure match', statement: `Does not apply: ${bhp?.reason || 'the deck carries no observed bottomhole pressure (no WBHPH).'}` });
   }
   return figures;
+}
+
+/**
+ * SIM-U2-005: the compared runs overlaid on the calendar axis, oil rate and
+ * field pressure (each panel drawn when a run holds the vector).
+ */
+export function buildCompareFigure({ entries, system = 'oilfield' }) {
+  const panels = [];
+  const said = [];
+  for (const [key, title] of [['FOPR', 'Oil rate'], ['FPR', 'Field pressure']]) {
+    const { unit, series } = compareSeries(entries, key, system);
+    if (!series.length) { said.push(`${key} is in none of the runs`); continue; }
+    const s = scaleOf(series.flatMap((x) => x.pts.map((p) => p[1])));
+    panels.push({
+      height: 52,
+      spec: {
+        ...AXIS, yTitle: `${title} (${s.words}${unit})`, ...(key === 'FOPR' ? { yInclude: [0] } : {}),
+        series: series.map((x, i) => ({ name: `${i === 0 ? 'Base ' : ''}${x.name}`, type: 'line', rgb: WELL_RGB[i % WELL_RGB.length], ...(i ? { dash: [1.5, 1] } : {}), pts: scaled(x.pts, s.k) })),
+      },
+    });
+  }
+  if (!panels.length) return { id: 'compare', title: 'Run comparison', statement: `Not plotted: ${said.join('; ')}.` };
+  return {
+    id: 'compare',
+    title: 'Run comparison',
+    caption: `${entries.length} runs of the case on the calendar axis, the base solid and the others dashed: ${panels.map((p) => p.spec.yTitle).join(' and ')}.${said.length ? ` ${said.join('; ')}.` : ''} The difference table is in the run comparison section.`,
+    panels,
+  };
 }
