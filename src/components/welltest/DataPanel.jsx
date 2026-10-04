@@ -230,7 +230,7 @@ const DataPanel = () => {
           <div className="space-y-1">
             <Label className="text-xs text-pl-muted">Unit system</Label>
             <Select value={unitSystem} onValueChange={setUnitSystem}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9" aria-label="Unit system"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="oilfield">Oilfield (psi, ft, STB/D)</SelectItem>
                 <SelectItem value="si">SI / metric (kPa, m, m3/d)</SelectItem>
@@ -241,7 +241,7 @@ const DataPanel = () => {
           <div className="space-y-1">
             <Label className="text-xs text-pl-muted">Test type</Label>
             <Select value={testConfig.testType} onValueChange={(v) => setTestField('testType', v)}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9" aria-label="Test type"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="buildup">Pressure buildup</SelectItem>
                 <SelectItem value="drawdown">Pressure drawdown</SelectItem>
@@ -310,7 +310,7 @@ const DataPanel = () => {
           <div className="space-y-1">
             <Label className="text-xs text-pl-muted">Fluid</Label>
             <Select value={reservoirInputs.fluid || 'oil'} onValueChange={(v) => setReservoirField('fluid', v)}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9" aria-label="Fluid"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="oil">Oil (slightly compressible)</SelectItem>
                 <SelectItem value="gas">Gas (pseudo-pressure)</SelectItem>

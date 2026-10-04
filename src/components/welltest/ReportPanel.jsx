@@ -1,5 +1,5 @@
 // Left rail for the Report tab: interpretation notes, exports and result
-// handoffs (WT5): PDF report, project JSON, p-bar/k/s to Reservoir Balance
+// handoffs (WT5): PDF report, project JSON, p*/k/s to Material Balance Studio
 // and k to the Waterflood Design Studio via the navigate-state contract.
 import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -111,7 +111,7 @@ const ReportPanel = () => {
             disabled={!Number.isFinite(pBar)}
             onClick={sendToReservoirBalance}
           >
-            <Send className="w-4 h-4 mr-2" /> p̄, k, s to Reservoir Balance
+            <Send className="w-4 h-4 mr-2" /> Pressure, k, skin to Material Balance
           </Button>
           <Button
             size="sm" variant="outline" className="w-full"
@@ -122,8 +122,8 @@ const ReportPanel = () => {
           </Button>
         </div>
         <p className="text-[11px] text-pl-muted mt-2" data-testid="wts-send-note">
-          Reservoir Balance receives the average pressure for a new material balance case; Waterflood Design receives the tested permeability for the displacement inputs. Each value travels with its method{currentProjectId ? ' and the saved project, so the receiver can read it again by id.' : '. Save the project first so the receiver can read the results again after a refresh.'}
-          {handoff && ` What is sent: k ${Number(handoff.k_md).toPrecision(3)} md (${handoff.kMethod})${Number.isFinite(pBar) ? `, pressure ${Number(pBar).toFixed(1)} psia (${handoff.pressureMethod})` : ''}.`}
+          Material Balance Studio receives the pressure for a new case; Waterflood Design Studio receives the permeability. Each value travels with its method{currentProjectId ? ' and the saved project, so the receiver can read it again by id.' : '. Save the project first so the receiver can read the results again after a refresh.'}
+          {handoff && ` What is sent: k ${Number(handoff.k_md).toPrecision(3)} md (${handoff.kMethod})${Number.isFinite(pBar) ? `, pressure ${Number(pBar).toFixed(1)} psia (${handoff.contract?.pressure?.p_star_psia != null ? 'extrapolated p*, not corrected to an average pressure' : 'initial pressure as entered'})` : ''}.`}
         </p>
       </section>
     </div>

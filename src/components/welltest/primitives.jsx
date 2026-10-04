@@ -2,7 +2,7 @@
 // Design system (rollout batch 1A): the app sits in the dashboard scope, so
 // every class here is a theme role; cards and inputs use the adapted ui
 // defaults. Chart colors stay tuned for the white Petrolord chart background.
-import React from 'react';
+import React, { useId } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -55,12 +55,17 @@ export const SectionLabel = ({ children }) => (
   <h3 className="text-[10px] font-bold text-pl-accent-text uppercase mb-3 tracking-widest">{children}</h3>
 );
 
-export const Field = ({ label, value, onChange, placeholder, suffix }) => (
-  <div className="space-y-1">
-    <Label className="text-xs text-pl-muted">{label}{suffix ? <span className="text-pl-muted ml-1">({suffix})</span> : null}</Label>
-    <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-9" />
-  </div>
-);
+// WTA-U1-015: the label names its input (htmlFor/id), so a screen reader and
+// getByLabel find every field; before, no Well Test input had a name.
+export const Field = ({ label, value, onChange, placeholder, suffix }) => {
+  const id = useId();
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={id} className="text-xs text-pl-muted">{label}{suffix ? <span className="text-pl-muted ml-1">({suffix})</span> : null}</Label>
+      <Input id={id} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-9" />
+    </div>
+  );
+};
 
 // WT8: unit-aware input. State stays oilfield; the field renders and accepts
 // values in the active display system.
