@@ -16,7 +16,7 @@
 import {
   computeVRRSeries, summarizeVRR,
   buildFieldPeriods, classifyLedgerWells, computeRollingVRR, flagPeriods,
-  attachPressure, findFillUp, buildVoidageLedger, applyPeriodFvf,
+  attachPressure, findFillUp, buildVoidageLedger, applyPeriodFvf, buildWellVoidage,
   validateAllocation, patternHasAllocation, buildPatternPeriods, recommendPatternInjection,
 } from '@/utils/vrrCalculations';
 import { derivePeriodFvf } from './pvtTrack';
@@ -37,7 +37,7 @@ export const TRACK_METHODS = Object.freeze({
   pb: 'Standing (bubble point)',
   rs: 'Standing',
   bo: 'Standing',
-  bg: 'Bg = 0.00504 Z T / p RB/scf (x 1,000 to RB/Mscf), Z by Papay with Sutton pseudo-criticals',
+  bg: 'Bg = 0.00504 Z T / p RB/scf (x 1,000 to RB/Mscf), Z by Dranchuk-Abou-Kassem (1975) with Sutton pseudo-criticals (canonical engines, as Fluid Systems Studio)',
   bw: 'McCain (1990)',
 });
 
@@ -97,6 +97,28 @@ export function resolveSettings(settings) {
   if (min > max) { notes.push(`Target VRR min ${min} is above max ${max}; the two are swapped.`); [min, max] = [max, min]; }
   const windowPeriods = Math.floor(read('rollingWindow', 3, (v) => v >= 1));
   return { targetBand: { min, max }, windowPeriods, notes };
+}
+
+/**
+ * VRR-U2-011: the target band of one pattern. Its own band when both edges
+ * are typed and usable; otherwise the field band, with a note when
+ * something was typed. A reversed band is swapped and said.
+ * @returns {{min: number, max: number, from: 'pattern'|'field', notes: string[]}}
+ */
+export function resolvePatternBand(pattern, fieldBand) {
+  const b = pattern?.band || {};
+  const rawMin = String(b.min ?? '').trim();
+  const rawMax = String(b.max ?? '').trim();
+  const field = { min: fieldBand.min, max: fieldBand.max, from: 'field', notes: [] };
+  if (!rawMin && !rawMax) return field;
+  let min = strictNumber(rawMin);
+  let max = strictNumber(rawMax);
+  if (!(Number.isFinite(min) && min >= 0 && Number.isFinite(max) && max > 0)) {
+    return { ...field, notes: [`Pattern "${pattern?.name ?? ''}": target band "${rawMin}" to "${rawMax}" is not usable; the field band ${fieldBand.min} to ${fieldBand.max} is used.`] };
+  }
+  const notes = [];
+  if (min > max) { notes.push(`Pattern "${pattern?.name ?? ''}": target band min ${min} is above max ${max}; the two are swapped.`); [min, max] = [max, min]; }
+  return { min, max, from: 'pattern', notes };
 }
 
 /** The fluid of the correlation track, every field typed (VRR-U1-016: blanks fell back to 35 API and friends with no word). */
@@ -166,6 +188,11 @@ export function deriveVrr(inputs) {
   const rolling = computeRollingVRR(series, windowPeriods);
   const flags = withheld ? series.map(() => null) : flagPeriods(series, targetBand);
   const ledgerWells = isImported ? classifyLedgerWells(inputs.wellRows || []) : { injectors: [], producers: [] };
+  // VRR-U2-002 and U2-004: voidage by well, free gas floored well by well
+  // (printed beside the field figure; the headline stays at field level)
+  const wellVoidage = isImported && !withheld && (inputs.wellRows || []).length
+    ? buildWellVoidage(inputs.wellRows, inputs.fvf, periodFvfByLabel)
+    : null;
 
   const allocation = inputs.allocation || {};
   const allocationCheck = validateAllocation(allocation);
@@ -176,14 +203,17 @@ export function deriveVrr(inputs) {
     if (!patternHasAllocation(pattern, allocation)) return { pattern, withheld: true, reason: 'No allocation factors route injection to this pattern. Fill the matrix; even splits are never assumed.' };
     const periods = applyPeriodFvf(buildPatternPeriods(inputs.wellRows, pattern, allocation), periodFvfByLabel);
     const pSeries = computeVRRSeries(periods, inputs.fvf);
+    // VRR-U2-011: the pattern's own band, else the field band
+    const band = resolvePatternBand(pattern, targetBand);
     return {
       pattern,
       withheld: false,
+      band,
       series: pSeries,
       rolling: computeRollingVRR(pSeries, windowPeriods),
-      flags: flagPeriods(pSeries, targetBand),
+      flags: flagPeriods(pSeries, { min: band.min, max: band.max }),
       summary: summarizeVRR(pSeries),
-      recommendation: recommendPatternInjection(inputs.wellRows, pattern, allocation, inputs.fvf, { targetVRR: targetBand.min, windowPeriods, periodFvf: periodFvfByLabel }),
+      recommendation: recommendPatternInjection(inputs.wellRows, pattern, allocation, inputs.fvf, { targetVRR: band.min, windowPeriods, periodFvf: periodFvfByLabel }),
     };
   });
   const live = patternAnalyses.filter((a) => !a.withheld && a.summary?.cumulativeVRR != null);
@@ -192,7 +222,7 @@ export function deriveVrr(inputs) {
   return {
     isImported, basePeriods, periodsWithPressure, hasPressure, pvt, effectivePeriods, periodFvfByLabel,
     fvfCheck, fvfNumbers, periodIssues, withheld, series, ledger, summary, fillUp, rolling, flags,
-    targetBand, windowPeriods, settingsNotes, ledgerWells, allocationCheck, patternAnalyses, worstPattern,
+    targetBand, windowPeriods, settingsNotes, ledgerWells, wellVoidage, allocationCheck, patternAnalyses, worstPattern,
     // kept for the panels that read the older names
     trackActive: pvt.active, pvtTrack: pvt.active ? { overrides: pvt.overrides, warnings: pvt.warnings } : null,
   };

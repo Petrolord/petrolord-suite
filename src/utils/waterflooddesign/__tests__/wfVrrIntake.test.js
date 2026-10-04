@@ -34,7 +34,7 @@ const cfg = { bo: 1.3, bw: 1.02, bg: 0.85, rs: 500, time_weighting: 'calendar' }
 describe('the vrr-ledger-1 contract', () => {
   it('carries the months per well as VRR Monitor sums them, with a fingerprint', () => {
     const c = contract();
-    expect(c.schema).toBe('vrr-ledger-1');
+    expect(c.schema).toBe('vrr-1'); // VRR-U2-001: converged with the pressure rows; 'vrr-ledger-1' still reads (vrrContract.test.js)
     expect(c.months).toEqual(['2025-01', '2025-02', '2025-03']);
     expect(c.wells).toEqual({ injectors: ['INJ-1'], producers: ['PROD-1', 'PROD-2'] });
     expect(c.volumes.find((v) => v.month === '2025-01' && v.well === 'PROD-1').oil_stb).toBe(12400);

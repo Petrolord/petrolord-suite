@@ -1,11 +1,11 @@
 {
-  "pages": 8,
-  "sha256": "fff535c3a1db484c1b33be76c9db49cd0a1d127b478e2b855dc6c3f19fea96bc",
+  "pages": 9,
+  "sha256": "2a741ddfa0011dd50d25356fc44c5dc9bcb0f80e68ec28f6e8c5839f09e1aeea",
   "figures": [
     {
       "id": "vrr",
       "number": 1,
-      "page": 6,
+      "page": 7,
       "plotted": true,
       "panels": [
         {
@@ -16,11 +16,11 @@
             "h": 64
           },
           "drawn": {
-            "Instantaneous": 3,
-            "Rolling (3)": 3,
-            "Cumulative": 3
+            "Instantaneous": 24,
+            "Rolling (3)": 24,
+            "Cumulative": 24
           },
-          "total": 9,
+          "total": 72,
           "bands": 0,
           "logo": true
         }
@@ -29,7 +29,7 @@
     {
       "id": "terms",
       "number": 2,
-      "page": 6,
+      "page": 7,
       "plotted": true,
       "panels": [
         {
@@ -40,11 +40,11 @@
             "h": 50
           },
           "drawn": {
-            "Oil": 3,
-            "Water": 3,
-            "Free gas": 3
+            "Oil": 24,
+            "Water": 24,
+            "Free gas": 24
           },
-          "total": 9,
+          "total": 72,
           "bands": 0,
           "logo": true
         },
@@ -56,10 +56,10 @@
             "h": 50
           },
           "drawn": {
-            "Water injected": 3,
-            "Gas injected": 3
+            "Water injected": 24,
+            "Gas injected": 24
           },
-          "total": 6,
+          "total": 48,
           "bands": 0,
           "logo": true
         }
@@ -68,7 +68,7 @@
     {
       "id": "pressure",
       "number": 3,
-      "page": 7,
+      "page": 8,
       "plotted": true,
       "panels": [
         {
@@ -79,11 +79,11 @@
             "h": 64
           },
           "drawn": {
-            "Survey": 2,
-            "Period pressure": 3,
-            "Cumulative VRR": 3
+            "Survey": 9,
+            "Period pressure": 24,
+            "Cumulative VRR": 24
           },
-          "total": 8,
+          "total": 57,
           "bands": 0,
           "logo": true
         }
@@ -92,24 +92,24 @@
     {
       "id": "rates",
       "number": 4,
-      "page": 7,
+      "page": 8,
       "plotted": true,
       "panels": [
         {
           "box": {
             "x": 14,
-            "y": 107.72,
+            "y": 111.08,
             "w": 182,
             "h": 64
           },
           "drawn": {
-            "Oil": 3,
-            "Water produced": 3,
-            "Water injected": 3,
-            "Gas produced": 3,
-            "Gas injected": 3
+            "Oil": 24,
+            "Water produced": 24,
+            "Water injected": 24,
+            "Gas produced": 24,
+            "Gas injected": 24
           },
-          "total": 15,
+          "total": 120,
           "bands": 0,
           "logo": true
         }
@@ -118,31 +118,14 @@
     {
       "id": "fvf",
       "number": 5,
-      "page": 7,
-      "plotted": true,
-      "panels": [
-        {
-          "box": {
-            "x": 14,
-            "y": 192.44,
-            "w": 182,
-            "h": 54
-          },
-          "drawn": {
-            "Bo": 3,
-            "Bw": 3,
-            "Bg": 3
-          },
-          "total": 9,
-          "bands": 0,
-          "logo": true
-        }
-      ]
+      "page": 8,
+      "plotted": false,
+      "panels": []
     },
     {
       "id": "patterns",
       "number": 6,
-      "page": 8,
+      "page": 9,
       "plotted": true,
       "panels": [
         {
@@ -153,11 +136,11 @@
             "h": 64
           },
           "drawn": {
-            "Field": 3,
-            "North": 3,
-            "South": 3
+            "Field": 24,
+            "West": 24,
+            "East": 24
           },
-          "total": 9,
+          "total": 72,
           "bands": 0,
           "logo": true
         }
@@ -166,9 +149,28 @@
     {
       "id": "map",
       "number": 7,
-      "page": 8,
-      "plotted": false,
-      "panels": []
+      "page": 9,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 104.36,
+            "w": 182,
+            "h": 96
+          },
+          "drawn": {
+            "Producer, produced voidage to 1,391,030 RB": 4,
+            "Producer, produced voidage to 2,086,546 RB": 2,
+            "Injector, injected volume to 1,391,030 RB": 2,
+            "Injector, injected volume to 2,086,546 RB": 2,
+            "Pattern centre (cumulative VRR in the table)": 2
+          },
+          "total": 12,
+          "bands": 0,
+          "logo": true
+        }
+      ]
     }
   ]
 }

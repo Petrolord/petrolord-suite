@@ -7,7 +7,17 @@
 // UNIT SEAM: pvtAt returns bg in rb/scf; the VRR core takes Bg in RB/Mscf,
 // so bg is scaled x1000 here. This is the exact unit class the V1 wave
 // fixed as a label bug in the WDS SurveillancePanel — keep it explicit.
+//
+// VRR-U2-018: Z is Dranchuk-Abou-Kassem (1975) with Sutton pseudo-criticals
+// from the canonical engines (engines/fluid/blackOil gasZDetail, gated there
+// on readings of the Standing-Katz chart), the default of Fluid Systems
+// Studio since FLUID-U2-006. The nodal route underneath still computes Z by
+// Papay for its own use; only Bg here takes the engine Z.
 import { buildFluidModel, pvtAt } from '@/utils/nodal/pvt';
+import { gasZDetail } from '../../../packages/engines/engines/fluid/blackOil';
+
+/** Gas FVF in rb/scf: 0.00504 Z T[degR] / p, T + 460 as the nodal route writes it. */
+const bgRbScf = (p, tF, z) => (p > 0 ? (0.00504 * z * (tF + 460)) / p : 0);
 
 const num = (v, d) => {
   const n = parseFloat(v);
@@ -34,11 +44,13 @@ export function derivePeriodFvf(fluid, pressures) {
     const p = parseFloat(pRaw);
     if (!Number.isFinite(p) || p <= 0) return null;
     const r = pvtAt(model, p, tF);
+    const z = gasZDetail(p, tF, model.gasSg, 'dranchuk_abou_kassem').z;
     return {
       Bo: r.bo,             // RB/STB
       Bw: r.bw,             // RB/STB
-      Bg: r.bg * 1000,      // rb/scf -> RB/Mscf (the unit seam)
+      Bg: bgRbScf(p, tF, z) * 1000, // rb/scf -> RB/Mscf (the unit seam), Z by Dranchuk-Abou-Kassem
       Rs: r.rs,             // scf/STB (clamped at the model GOR above Pb)
+      Z: z,
     };
   });
 

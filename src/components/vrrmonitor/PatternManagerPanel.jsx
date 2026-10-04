@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useVrrMonitor } from '@/contexts/VrrMonitorContext';
 
 const PatternManagerPanel = () => {
-  const { inputs, isImported, ledgerWells, addPattern, removePattern, togglePatternProducer } = useVrrMonitor();
+  const { inputs, isImported, ledgerWells, addPattern, removePattern, togglePatternProducer, setPatternBand, targetBand, patternAnalyses, canWrite } = useVrrMonitor();
   const [name, setName] = useState('');
 
   if (!isImported) {
@@ -55,6 +55,15 @@ const PatternManagerPanel = () => {
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
+          {/* VRR-U2-011: the pattern's own target band; blank follows the field band */}
+          <div className="flex items-center gap-1 text-[11px] text-pl-muted" data-testid={`vrr-pattern-band-${p.name}`}>
+            <span>Target band</span>
+            <Input aria-label={`${p.name} target band min`} className="h-6 w-14 text-[11px] px-1" value={p.band?.min ?? ''} placeholder={String(targetBand.min)} onChange={(e) => setPatternBand(p.id, 'min', e.target.value)} disabled={!canWrite} />
+            <span>to</span>
+            <Input aria-label={`${p.name} target band max`} className="h-6 w-14 text-[11px] px-1" value={p.band?.max ?? ''} placeholder={String(targetBand.max)} onChange={(e) => setPatternBand(p.id, 'max', e.target.value)} disabled={!canWrite} />
+            <span>{(patternAnalyses.find((a) => a.pattern.id === p.id)?.band?.from === 'pattern') ? 'its own' : 'field band'}</span>
+          </div>
+          {(patternAnalyses.find((a) => a.pattern.id === p.id)?.band?.notes || []).map((n) => <p key={n} className="text-[11px] text-pl-warning-text">{n}</p>)}
           <div className="flex flex-wrap gap-1.5">
             {ledgerWells.producers.map((well) => {
               const on = p.producers.includes(well);

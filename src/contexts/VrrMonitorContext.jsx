@@ -18,6 +18,7 @@ import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjects';
 import { sampleVRRData } from '@/utils/vrrCalculations';
+import { demoFieldInputs } from '@/utils/vrr/demoField';
 import { deriveVrr } from '@/utils/vrr/workspace';
 import { vrrUnits } from '@/utils/vrr/units';
 import { setProvenanceField } from '@/lib/inputProvenance/model';
@@ -53,6 +54,8 @@ export const IDENTIFICATION_FIELDS = Object.freeze([
   ['analyst', 'Analyst'],
 ]);
 
+const STARTING_FVF_SET = Object.freeze({ Bo: '1.25', Bw: '1.02', Bg: '0.9', Rs: '550' });
+
 export const defaultInputs = (unitSystem = 'oilfield') => ({
   fvf: { Bo: '1.25', Bw: '1.02', Bg: '0.9', Rs: '550' },
   periods: [emptyPeriod()],
@@ -76,6 +79,8 @@ export const defaultInputs = (unitSystem = 'oilfield') => ({
   pressureImportInfo: null,
   datum: { depth: '', reference: '' }, // the depth the surveys are quoted at, stated (no correction applied)
   sampleNote: null,      // set when the inputs came from a built-in sample
+  // VRR-U2-004: the confirmed match table of ledger wells to wells registry wells (src/utils/vrr/wellMap.js)
+  wellMap: null,
 });
 
 /** Restore inputs from a payload, tolerating missing keys from older rows. */
@@ -105,6 +110,7 @@ export const inputsFromPayload = (payload) => {
     pressureImportInfo: raw.pressureImportInfo || null,
     datum: { ...base.datum, ...(raw.datum || {}) },
     sampleNote: raw.sampleNote || null,
+    wellMap: raw.wellMap && typeof raw.wellMap === 'object' ? raw.wellMap : null,
   };
 };
 
@@ -188,6 +194,13 @@ export const VrrMonitorProvider = ({ children, sharingStore = null, profileSyste
     addNotification('Sample loaded: a 6-month waterflood dataset is ready.', 'success');
   }, [edit, addNotification]);
 
+  // VRR-U2-005: the 24-month demo field, a second sample beside the template ledger
+  const loadDemoField = useCallback(() => {
+    const demo = demoFieldInputs();
+    edit((prev) => ({ ...prev, fvf: { ...STARTING_FVF_SET }, pvtMode: 'constant', pvtIntake: null, ...demo }));
+    addNotification('Demo field loaded: 24 months, 10 wells, free gas, gas injection, surveys and two patterns (illustrative).', 'success');
+  }, [edit, addNotification]);
+
   const clearAll = useCallback(() => {
     edit((prev) => ({ ...prev, periods: [emptyPeriod()] }));
     addNotification('Periods cleared', 'info');
@@ -249,6 +262,10 @@ export const VrrMonitorProvider = ({ children, sharingStore = null, profileSyste
     if (!clean) return;
     edit((prev) => ({ ...prev, patterns: [...prev.patterns, { id: `pt_${uuidv4().slice(0, 8)}`, name: clean, producers: [] }] }));
   }, [edit]);
+  // VRR-U2-011: a pattern's own target band ('' for both edges: the field band)
+  const setPatternBand = useCallback((id, key, value) => {
+    edit((prev) => ({ ...prev, patterns: prev.patterns.map((p) => (p.id === id ? { ...p, band: { ...(p.band || {}), [key]: value } } : p)) }));
+  }, [edit]);
   const removePattern = useCallback((id) => {
     edit((prev) => ({ ...prev, patterns: prev.patterns.filter((p) => p.id !== id) }));
   }, [edit]);
@@ -278,6 +295,8 @@ export const VrrMonitorProvider = ({ children, sharingStore = null, profileSyste
   }, [edit]);
 
   // --- Project lifecycle, with record sharing ---
+  // VRR-U2-004: the confirmed match table (ledger well -> registry well with its coordinates)
+  const setWellMap = useCallback((wellMap) => edit((prev) => ({ ...prev, wellMap })), [edit]);
   const serialize = useCallback((name, id = currentProjectId) => projectPayload({ id, name, inputs }), [currentProjectId, inputs]);
 
   const refresh = useCallback(async () => {
@@ -440,6 +459,7 @@ export const VrrMonitorProvider = ({ children, sharingStore = null, profileSyste
     removePeriod,
     setPeriods,
     loadSample,
+    loadDemoField,
     clearAll,
     importWellRows,
     clearImported,
@@ -454,9 +474,11 @@ export const VrrMonitorProvider = ({ children, sharingStore = null, profileSyste
     clearPvt,
     addPattern,
     removePattern,
+    setPatternBand,
     togglePatternProducer,
     setAllocationCell,
     evenSplitInjector,
+    setWellMap,
     // projects and sharing
     projects,
     sharedProjects,

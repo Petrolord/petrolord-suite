@@ -7,4 +7,5 @@ export {
   monthCoordOf, attachPressure, findFillUp, interpolateFvfTrack,
   validateAllocation, allocateInjection, patternHasAllocation, buildPatternPeriods, recommendPatternInjection,
   resolvePeriodFvf, voidageTerms, buildVoidageLedger, applyPeriodFvf,
+  buildWellVoidage,
 } from '../../packages/engines/engines/waterflood/vrrLedger.js';

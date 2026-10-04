@@ -136,6 +136,8 @@ export const LEDGER_COLUMNS = Object.freeze([
   { key: 'gas_mscf', label: 'Gas produced', kind: 'number', stream: 'gas' },
   { key: 'winj_stb', label: 'Water injected', kind: 'number', stream: 'liquid' },
   { key: 'ginj_mscf', label: 'Gas injected', kind: 'number', stream: 'gas' },
+  // VRR-U2-003: the producing time of the row, for rates quoted per producing day
+  { key: 'days_on', label: 'Producing days', kind: 'days' },
 ]);
 const COLUMN_BY_KEY = Object.fromEntries(LEDGER_COLUMNS.map((c) => [c.key, c]));
 export const VOLUME_KEYS = Object.freeze(['oil_stb', 'water_stb', 'gas_mscf', 'winj_stb', 'ginj_mscf']);
@@ -148,6 +150,15 @@ const GAS = /\b(gas|mscf|mcf|mmscf|mmcf|ginj|gi|qg|gp|scf|mscfd|mcfd)\b/;
 const OIL = /\b(oil|bopd|qo|np|crude|condensate)\b/;
 const CUM = /\bcum|cumulative/;
 // a column named for something other than a stream volume (tested on the name, before any bracketed unit)
+// VRR-U2-003: a producing-time column (days or hours on production), by its name
+const DAYS_ON = /^(days? on( production| stream)?|producing days|prod days|days produced|on ?stream days|days|operating days|hours? on( production| stream)?|producing hours|prod hours|hrs on|hours|hrs|on ?stream hours|operating hours)$/;
+const HOURS = /\b(hours?|hrs)\b/;
+export const DAYS_ON_UNITS = Object.freeze([
+  { key: 'days', label: 'days', perDay: 1 },
+  { key: 'hours', label: 'hours', perDay: 24 },
+]);
+/** The unit of a producing-time header: hours when it says so, else days. */
+export const daysOnUnitOf = (header) => (HOURS.test(norm(header)) ? 'hours' : 'days');
 const NOT_A_STREAM = /pressure|\bpsi|\bkpa\b|\bbar\b|\bbhp\b|\bthp\b|\bwhp\b|^days?\b|\bdays on\b|producing days|\bprod days\b|on stream|hours|\bhrs\b|uptime|choke|\bgor\b|\bcut\b|\bbsw\b|ratio|\btemp/;
 
 /**
@@ -168,6 +179,11 @@ export function matchLedgerColumns(columns) {
       const hit = named.find((c) => !used.has(c.index) && (n(c) === name || ` ${n(c)} `.includes(` ${name} `)));
       if (hit) { place(key, hit.index); break; }
     }
+  }
+  // VRR-U2-003: the producing-time column, by its name (never a stream)
+  {
+    const hit = named.find((c) => !used.has(c.index) && DAYS_ON.test(norm(headerBase(c.header))));
+    if (hit) place('days_on', hit.index);
   }
   // a date column the reader typed as dates, when none is named
   if (map.date === undefined) {
@@ -339,6 +355,17 @@ export function parseVrrWellCSV(text, choices = {}) {
   }
   if (mapping.well === undefined) report.warnings.push('No well column recognized; all rows imported as one field-level well "FIELD".');
 
+  // VRR-U2-003: rates per producing day when a producing-time column is placed
+  // (the user may choose calendar-day averages instead)
+  const hasRate = VOLUME_KEYS.some((k) => mapping[k] !== undefined && DOOR_UNITS[COLUMN_BY_KEY[k].stream].find((x) => x.key === units[k])?.basis === 'rate');
+  const daysOnUnit = mapping.days_on === undefined ? null
+    : (DAYS_ON_UNITS.some((x) => x.key === choices.daysOnUnit) ? choices.daysOnUnit : daysOnUnitOf(parsed.columns[mapping.days_on]?.header));
+  const perDay = daysOnUnit ? DAYS_ON_UNITS.find((x) => x.key === daysOnUnit).perDay : 1;
+  const rateBasis = mapping.days_on !== undefined && hasRate && choices.rateBasis !== 'calendar' ? 'producing' : 'calendar';
+  out.rateBasis = rateBasis;
+  out.daysOnUnit = daysOnUnit;
+  const dOnCount = { capped: 0, blank: 0, used: 0 };
+
   // first pass: dates, wells, raw numbers
   const raw = [];
   for (const r of parsed.rows) {
@@ -353,7 +380,12 @@ export function parseVrrWellCSV(text, choices = {}) {
       const x = r.values[mapping[key]];
       v[key] = typeof x === 'number' && Number.isFinite(x) ? x : null;
     }
-    raw.push({ line: r.line, date, well, v });
+    let dOn = null;
+    if (mapping.days_on !== undefined) {
+      const x = r.values[mapping.days_on];
+      dOn = typeof x === 'number' && Number.isFinite(x) && x >= 0 ? x / perDay : null;
+    }
+    raw.push({ line: r.line, date, well, v, dOn });
   }
   for (const u of parsed.report.unreadable) {
     // the date column: read above (a serial number, a YYYY-MM month) or the row is listed as skipped
@@ -371,6 +403,7 @@ export function parseVrrWellCSV(text, choices = {}) {
     const key = `${r.well}\u0001${r.date}`;
     const row = { date: r.date, well: r.well, oil_stb: 0, water_stb: 0, gas_mscf: 0, winj_stb: 0, ginj_mscf: 0 };
     const filled = [];
+    const counted = {};
     for (const k of VOLUME_KEYS) {
       const x = r.v[k];
       if (x == null) continue;
@@ -378,7 +411,16 @@ export function parseVrrWellCSV(text, choices = {}) {
       const { stream } = COLUMN_BY_KEY[k];
       const def = DOOR_UNITS[stream].find((u) => u.key === units[k]);
       let vol = convert(def.family, x, def.unit, STATE_UNIT[stream]);
-      if (def.basis === 'rate') { vol *= days[i]; report.rateRows += 1; }
+      if (def.basis === 'rate') {
+        let d = days[i];
+        if (rateBasis === 'producing') {
+          if (r.dOn == null) { if (!counted.blank) { dOnCount.blank += 1; counted.blank = true; } }
+          else if (r.dOn > days[i] + 1e-9) { d = days[i]; if (!counted.capped) { dOnCount.capped += 1; counted.capped = true; } }
+          else { d = r.dOn; if (!counted.used) { dOnCount.used += 1; counted.used = true; } }
+        }
+        vol *= d;
+        report.rateRows += 1;
+      }
       row[k] = Number(vol.toPrecision(12));
       if (x !== 0) filled.push(k);
     }
@@ -404,6 +446,16 @@ export function parseVrrWellCSV(text, choices = {}) {
   report.lastDate = rows.length ? rows[rows.length - 1].date : null;
   report.readBack = LEDGER_COLUMNS.filter((c) => mapping[c.key] !== undefined).map((c) => {
     const col = parsed.columns[mapping[c.key]];
+    if (c.kind === 'days') {
+      return {
+        key: c.key,
+        label: c.label,
+        column: col.header || col.name,
+        unit: rateBasis === 'producing' ? `${daysOnUnit} on production (rates per producing day)` : `not used (${hasRate ? 'rates read as calendar-day averages' : 'no rate column'})`,
+        from: choices.daysOnUnit ? 'chosen' : 'header',
+        values: raw.filter((x) => x.dOn != null).length,
+      };
+    }
     const def = c.stream ? DOOR_UNITS[c.stream].find((u) => u.key === units[c.key]) : null;
     return {
       key: c.key,
@@ -428,7 +480,17 @@ export function parseVrrWellCSV(text, choices = {}) {
       report.warnings.push(`${report.colMap[k]}: read as ${DOOR_UNITS[COLUMN_BY_KEY[k].stream].find((u) => u.key === units[k]).label} and converted to ${STATE_UNIT[COLUMN_BY_KEY[k].stream]}.`);
     }
   }
-  if (report.rateRows) {
+  if (mapping.days_on !== undefined) {
+    const col = report.colMap.days_on;
+    if (!hasRate) report.warnings.push(`The producing-time column "${col}" was not needed: the stream columns are volumes, so each row's volume is as given.`);
+    else if (rateBasis === 'calendar') report.warnings.push(`The producing-time column "${col}" was not used: rates were read as calendar-day averages (chosen).`);
+    else {
+      report.warnings.push(`Rates were read per producing day: each rate times the producing days of its row (column "${col}", ${daysOnUnit}${daysOnUnit === 'hours' ? ' over 24' : ''}), ${dOnCount.used} row${dOnCount.used === 1 ? '' : 's'}. Volume columns are volumes and keep their numbers. Choose calendar days if the rates are calendar-day averages.`);
+      if (dOnCount.capped) report.warnings.push(`${dOnCount.capped} row${dOnCount.capped === 1 ? '' : 's'} gave more producing days than ${dOnCount.capped === 1 ? 'its' : 'their'} period holds and ${dOnCount.capped === 1 ? 'was' : 'were'} capped at the period.`);
+      if (dOnCount.blank) report.warnings.push(`${dOnCount.blank} row${dOnCount.blank === 1 ? '' : 's'} with a rate had no producing days; the calendar days of ${dOnCount.blank === 1 ? 'its' : 'their'} period were used.`);
+    }
+  }
+  if (report.rateRows && rateBasis === 'calendar') {
     const kinds = [...new Set(Object.values(spacing))];
     report.warnings.push(`Daily rates were turned into each row's volume by the days of its period (${kinds.map((s) => ({ daily: 'one day for daily rows', monthly: 'the calendar days of the month for monthly rows', irregular: 'the days to the well\'s next row', single: 'the calendar days of the month for a well with one row' }[s])).join('; ')}). Rates are read as calendar-day averages.`);
   }
@@ -438,6 +500,53 @@ export function parseVrrWellCSV(text, choices = {}) {
   if (!parsed.decimal.certain) report.warnings.push(questionText({ kind: 'decimalMark', examples: parsed.decimal.examples, assumed: parsed.decimal.mark }));
   if (!rows.length) return { ...out, rows: [], report, refusal: 'No row carries a date, a well and a volume.' };
   return { ...out, ok: true, rows, report };
+}
+
+// ---------------------------------------------------------------------------
+// Workbooks at the doors (VRR-U2-006)
+// ---------------------------------------------------------------------------
+
+/** One sheet of string cells as tab-separated text for the typed reader (a cell with a tab, quote or line break is quoted). */
+export function sheetText(rows) {
+  return (rows || []).map((r) => (r || []).map((c) => {
+    const v = String(c ?? '');
+    return /["\t\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  }).join('\t')).join('\n');
+}
+
+/**
+ * Try the sheets of a workbook in order until one reads; a delimited file
+ * goes straight to the text door. `loaded` is what readTabularFile
+ * (src/lib/tabularFile.js) gave: {kind: 'delimited', text} or
+ * {kind: 'workbook', sheets: [{name, rows}]}.
+ */
+function readFromLoaded(loaded, readText, okOf, what, choices) {
+  if (loaded?.kind !== 'workbook') return readText(loaded?.text || '', choices);
+  const sheets = loaded.sheets || [];
+  let first = null;
+  for (const sh of sheets) {
+    const res = readText(sheetText(sh.rows), choices);
+    if (!first) first = res;
+    if (okOf(res)) return { ...res, sheet: sh.name, sheets: sheets.map((x) => x.name) };
+  }
+  const looked = sheets.map((x) => x.name).join(', ') || 'none';
+  return { ...(first || {}), ok: false, sheets: sheets.map((x) => x.name), refusal: `No sheet of the workbook holds a ${what} (looked at: ${looked}).` };
+}
+
+/** The ledger door for a text file or a workbook (VRR-U2-006). */
+export function readLedgerFile(loaded, choices = {}) {
+  const res = readFromLoaded(loaded, parseVrrWellCSV, (r) => r.ok, 'per-well ledger', choices);
+  if (res.sheet && res.report) {
+    res.report = { ...res.report, sheet: res.sheet, sheetNote: `Sheet "${res.sheet}" of a workbook of ${res.sheets.length} sheet${res.sheets.length === 1 ? '' : 's'}.` };
+  }
+  if (!res.ok && !res.report) return { ok: false, refusal: res.refusal, rows: [], report: { warnings: [], skipped: [], notUsed: [], readBack: [], totalRows: 0 }, questions: [], columns: [], mapping: {}, units: {}, unitFrom: {} };
+  return res;
+}
+
+/** The pressure door for a text file or a workbook (VRR-U2-006). */
+export function readPressureFile(loaded, choices = {}) {
+  const res = readFromLoaded(loaded, parsePressureCSV, (r) => (r.surveys || []).length > 0, 'pressure survey table', choices);
+  return { surveys: [], questions: [], unit: null, unitFrom: null, ...res, report: res.report || { totalRows: 0, imported: 0, skipped: [], warnings: [], colMap: {} } };
 }
 
 // ---------------------------------------------------------------------------

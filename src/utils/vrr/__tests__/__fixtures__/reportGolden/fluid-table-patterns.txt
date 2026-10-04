@@ -31,6 +31,10 @@ Headline results
 
  Produced reservoir voidage             71,153                   RB           Oil 58,638 + water 12,515 + free gas 0
 
+ Free gas floored well by well          0                        RB           0 Mscf of free gas well by well against 0 Mscf at field level;
+                                                                              produced 71,153 RB; cumulative VRR 0.8746 against 0.8746.
+                                                                              Printed for comparison; the figures above net free gas at field level
+
  Injected reservoir volume              62,230                   RB           Water 55,274 + gas 6,956
 
  Net voidage (injected less             -8,923                   RB           Voidage not replaced to date
@@ -48,7 +52,7 @@ All voidage in reservoir barrels at the reservoir pressure of each period. VRR i
 
 
 
-Voidage Replacement Report, Ekene, E-2000                                                                                                Page 1 of 8
+Voidage Replacement Report, Ekene, E-2000                                                                                                 Page 1 of 8
 Inputs and their sources
  Input                                          Value                      Unit                   Source and quality
 
@@ -126,14 +130,14 @@ better than 1 part in 10^12. Free gas is the produced gas above Rs x oil, never 
 
 Voidage Replacement Report, Ekene, E-2000                                                                                                           Page 2 of 8
 Volumes and FVFs by period
- Period     Oil (STB)   Water (bbl)   Gas (Mscf)     Water inj.          Gas inj.           Bo (RB/STB)    Bw            Bg            Rs (scf/STB)   Pressure             FVF set
-                                                     (bbl)               (Mscf)                            (RB/STB)      (RB/Mscf)                    (psia)
+ Period     Oil (STB)   Water (bbl)    Gas (Mscf)    Water inj.           Gas inj.            Bo (RB/STB)    Bw               Bg              Rs (scf/STB)   Pressure             FVF set
+                                                     (bbl)                (Mscf)                             (RB/STB)         (RB/Mscf)                      (psia)
 
- 2025-01      15,000         3,000           8,000            15,000                3,000         1.4688        1.0426        1.1146         755.72              2,593     PVT table
+ 2025-01      15,000         3,000           8,000             15,000                3,000          1.4688         1.0426            1.1146         755.72              2,593     PVT table
 
- 2025-02      13,500         4,000           6,800            18,000                2,000         1.4456        1.0429        1.1801         712.22              2,443     PVT table
+ 2025-02      13,500         4,000           6,800             18,000                2,000          1.4456         1.0429            1.1801         712.22              2,443     PVT table
 
- 2025-03      12,000         5,000           5,700            20,000                1,000         1.4241        1.0432         1.252         671.36              2,300     PVT table
+ 2025-03      12,000         5,000           5,700             20,000                1,000          1.4241         1.0432             1.252         671.36              2,300     PVT table
 
 
 Surface volumes of each period as the ledger holds them, the FVF set applied to the period, the reservoir pressure interpolated at mid-month
@@ -141,58 +145,75 @@ Surface volumes of each period as the ledger holds them, the FVF set applied to 
 
 
 What the import read
- Field                                File column                      Read as                                                         From                       Values
+ Field                                File column                       Read as                                                               From                       Values
 
- Date                                 date                             unambiguous                                                     the file                   12
+ Date                                 date                              unambiguous                                                           the file                   12
 
- Well                                 well                             n/a                                                             n/a                        12
+ Well                                 well                              n/a                                                                   n/a                        12
 
- Oil produced                         oil_stb                          bbl in the row's period (volume)                                the header                 6
+ Oil produced                         oil_stb                           bbl in the row's period (volume)                                      the header                 6
 
- Water produced                       water_stb                        bbl in the row's period (volume)                                the header                 6
+ Water produced                       water_stb                         bbl in the row's period (volume)                                      the header                 6
 
- Gas produced                         gas_mscf                         Mscf in the row's period (volume)                               the header                 6
+ Gas produced                         gas_mscf                          Mscf in the row's period (volume)                                     the header                 6
 
- Water injected                       winj_stb                         bbl in the row's period (volume)                                the header                 3
+ Water injected                       winj_stb                          bbl in the row's period (volume)                                      the header                 3
 
- Gas injected                         ginj_mscf                        Mscf in the row's period (volume)                               the header                 3
+ Gas injected                         ginj_mscf                         Mscf in the row's period (volume)                                     the header                 3
 
 File the sample ledger, 12 rows read, 0 left out.
 
 Patterns
- Level          Producers                    Cum. VRR                  Latest inst. VRR                     Status
+ Level        Producers               Cum. VRR             Latest inst. VRR                     Target band                 Status
 
- Field          all                                     0.8746                                    0.9915    Reference: every producer and injector
+ Field        all                               0.8746                               0.9915     1 to 1.2 (field)            Reference: every producer and injector
 
- North          P-1                                     0.8552                                    0.9482    Analysed
+ North        P-1                               0.8552                               0.9482     1 to 1.2 (field)            Analysed; 3 periods outside its band
 
- South          P-2                                     0.9121                                     1.072    Analysed
+ South        P-2                               0.9121                                1.072     1 to 1.2 (field)            Analysed; 2 periods outside its band
 
+A pattern with its own target band is flagged against it and its advice aims at its lower edge; the others follow the field band.
 
 Allocation factors
- Injector                                               P-1                                 P-2                          Row sum
+ Injector                                                P-1                                  P-2                            Row sum
 
- I-1                                                                                0.6                          0.4                                                              1
+ I-1                                                                                  0.6                           0.4                                                                  1
 
- I-2                                                                                  1                          n/a                                                              1
+ I-2                                                                                   1                            n/a                                                                  1
 
 Fraction of each injector's volume reaching each producer, as entered. A row below 1 leaves the rest out of zone (unallocated).
 
 Water injection advice by pattern
- Pattern                Rolling VRR                            Target                     Scale            Water injection
+ Pattern                Rolling VRR                             Target                      Scale            Water injection
 
- North                  0.8552                                 1                          1.169            10,600 to 12,395 bbl per period
+ North                  0.8552                                  1                           1.169            10,600 to 12,395 bbl per period
 
- South                  0.9121                                 1                          1.096            7,067 to 7,747 bbl per period
+ South                  0.9121                                  1                           1.096            7,067 to 7,747 bbl per period
 
-Scale = target (the band minimum) over the rolling VRR of the last 3 periods, clamped to 0.5 to 2.0; split per injector by allocated share; gas
-injection is reported and left unscaled.
-
-
+Scale = target (the lower edge of the pattern's band) over the rolling VRR of the last 3 periods, clamped to 0.5 to 2.0; split per injector by allocated
+share; gas injection is reported and left unscaled.
 
 
-Voidage Replacement Report, Ekene, E-2000                                                                                                                                Page 3 of 8
-Model, basis and conventions
+
+
+Voidage Replacement Report, Ekene, E-2000                                                                                                                                       Page 3 of 8
+Voidage by well
+ Well        Type           Registry well            X         Y         Produced or injected (RB)                 Free gas, own floor (Mscf)
+
+ I-1         injector       not on the map               n/a       n/a                                 55,274                                         n/a
+
+ I-2         injector       not on the map               n/a       n/a                                  6,956                                         n/a
+
+ P-1         producer       not on the map               n/a       n/a                                 46,914                                           0
+
+ P-2         producer       not on the map               n/a       n/a                                 24,239                                           0
+
+No map: The match table between the ledger wells and the wells registry is not confirmed: confirm it on the Map tab. No well is placed by guess. A
+producer's value is its produced voidage (oil, water and its own free gas), an injector's its injected volume (water and gas), in reservoir volume at
+the FVFs of each month.
+
+
+Model, basis and conventions
  Item                              As used in this report
 
  Instantaneous VRR                 Injected reservoir volume of the period over produced reservoir voidage of the period
@@ -223,7 +244,8 @@ Limits of this analysis
 - FVFs follow the pressure history through the Fluid Systems Studio table, linearly interpolated; outside the table the constant set applies and the
 period is named in the flags.
 - Free gas is produced gas above Rs x oil in each period, summed at field (or pattern) level before the floor at zero: a well producing below its
-solution GOR offsets a well producing free gas. Gas that is flared or used on lease must be in the produced gas column to count.
+solution GOR offsets a well producing free gas. Gas that is flared or used on lease must be in the produced gas column to count. The headline
+keeps the field figure; the per-well figure is printed beside it (each well floored on its own, the larger of the two).
 - Injected water is converted at the Bw of the produced water and injected gas at the Bg of the produced gas, at the period pressure; differences in
 injected fluid composition are not modelled.
 - VRR replaces voidage by volume only. Aquifer influx, out-of-zone injection, thief zones and sweep are not seen: a VRR of 1 with falling pressure
@@ -240,7 +262,7 @@ Flags on the inputs, the import and the periods
 
 
 
-Voidage Replacement Report, Ekene, E-2000                                                                                                    Page 4 of 8
+Voidage Replacement Report, Ekene, E-2000                                                                                                       Page 4 of 8
 pvt-1 block the FVFs were taken from
  Item                          Value
 
@@ -493,14 +515,19 @@ Voidage Replacement Report, Ekene, E-2000                                       
 
 
                     0
-                   2025-01                            2025-02                                       2025-03                             2025-04
+                   2025-01                             2025-02                                      2025-03                                 2025-04
 
                                                        Date (each period plotted at the middle of its month)
 
 Cumulative VRR of each pattern (allocation-weighted injection over the pattern producers' voidage) beside the field, with VRR = 1.
 
 
+Figure 7. Voidage by well on the well locations
+Not plotted: The match table between the ledger wells and the wells registry is not confirmed: confirm it on the Map tab. No well is placed by
+guess.
 
 
-Voidage Replacement Report, Ekene, E-2000                                                                                            Page 8 of 8
+
+
+Voidage Replacement Report, Ekene, E-2000                                                                                                Page 8 of 8
 
