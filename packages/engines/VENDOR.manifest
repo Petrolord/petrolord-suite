@@ -1,9 +1,9 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit f46215e26959dae0d86b503ca560f7c168cbba11
+# commit 50c5154df348c689f77eae8475f17294d8ccb24e
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
-39c4027ca8245cf18dc337a0b5136cd4a0448ad5 README.md
+80b08bf546799e96d5448d67c63c98f2ec1b9703 README.md
 6373485efb6baa9226953a76a3d6ebb740541d1c __tests__/aquifer.test.js
 168f6cedfc18af932ba587f2ff882b7571966986 __tests__/assurance.audit.test.js
 fc5248e0239b0841f542a3cba95ef72db34296d1 __tests__/assurance.compliance.test.js
@@ -33,9 +33,11 @@ a940599b813f74926567124db109bc73ee1fc5a0 __tests__/dataai.cluster.test.js
 1333ff3085471f6b2ef5b1d97b030f3409ed4d29 __tests__/dataai.quality.test.js
 a512a82111f5524a5c9e28f212f9283acfb4ef1c __tests__/dates.test.js
 e88b083bc7efb0f8baf17c3ed7d903a95aba55b8 __tests__/dca.groupRollup.volumes.test.js
+e2b542a60ca7fc0312ce50d2984a79eb30511611 __tests__/dca.modifiedHyperbolic.test.js
 b64b309dd3866780f298496874ccd0532ebacb68 __tests__/dca.montecarlo.quadrature.test.js
 a8b76754129dfd02dea55452060b284a913c3aad __tests__/dca.montecarlo.seed.test.js
 ed4c11d92e24156fa94af33e6958f31de921b96c __tests__/dca.montecarlo.test.js
+e4cd924fe13a6e29c3815a94cf580f26646790d2 __tests__/dca.rateCumulative.test.js
 6533e1ab284d03c8ac9a2d389205520b4c50137a __tests__/dca.test.js
 f91121bc516f0be2dbd817bd9d304c200f4bc305 __tests__/downstream.carbon.golden.test.js
 3b94132f3eeff9634dd5bbe6be6ae1d923f2be3b __tests__/downstream.carbonAbatement.test.js
@@ -290,9 +292,9 @@ aef6b2b6b3a2abfd55c408a4bc8fefc3a1edc0e1 engines/basin/results.js
 d770a90e36ee6131e82263695adf533a53373a2c engines/dataai/forecast.js
 c25630d2fa44b9655823f82c8bbadf112550af0a engines/dataai/ml.js
 503694f67acc3a05df3a981a0cd0aa217b9129e2 engines/dataai/quality.js
-cbe49355ed6e9e543a5653bf51ece5bb62b1069c engines/dca/arps.js
+c34c509a52123fd6953d24973eacf10a62b52e11 engines/dca/arps.js
 5eb6b007835314918b35bdf2c1fe26fbd285e65c engines/dca/groupRollup.js
-09f0762d23095dc3f5573ea7689684102f566804 engines/dca/monteCarlo.js
+e95a7e670c9930469e3c19a0d6b5a836022bb158 engines/dca/monteCarlo.js
 ace50672a885506449dec9af652d690daf6036a8 engines/dca/typeCurve.js
 ba27f234c80c1e3b159fb144661ab4b783a3149a engines/downstream/carbonAbatement.js
 b62fb31652bf5a10699ccafa06a4b3b687909309 engines/downstream/crudeAssay.js
@@ -672,6 +674,7 @@ eb1eafc15b8ec58b20cc1b35d4d241a1c09523ce test-data/dataai/pins/forecast_pins.jso
 11e118a9ab79d7de0a261e10f67b33cd1e1d80ba test-data/dataai/pins/quality_pins.json
 150c0b09188f47f9b58a7e9a8f2647602fd679de test-data/dates/date_fns_pins.json
 65c43161a4ecf65a3a803c7820d88006d62c5412 test-data/dca/dca-literature-fixtures.json
+963fa7b66bafcdbcb2ebc9ce82bd6398654e2a8a test-data/dca/dca-terminal-ratecum-fixtures.json
 c3a7c20436a58019eb392dfb760fe96659b37440 test-data/downstream/goldens/carbonabatement_cases.json
 913b872f2d43d815da3aa376d8b143c674ecf54e test-data/downstream/goldens/crudeassay_cases.json
 b1cf9fce5a7305471ba8270dec51f990cd2fea7b test-data/downstream/goldens/energyefficiency_cases.json
