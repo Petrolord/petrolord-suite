@@ -1,14 +1,15 @@
 Well Test Analysis Report
 Petrolord Well Test Analysis Studio
 
-Project                   Untitled interpretation                            Well                    Sample well 1
-Field                     Obodo                                              Licence                 OML 143
-Zone or sand              D-3 sand                                           Analyst                 A. Analyst
-Test type                 Pressure buildup, drill stem test (DST)            Test dates              2026-09-14 to 2026-09-17
-Perforations, MD          9850 to 9880 ft                                    Perforations, TVD       9601 to 9630 ft
+Project                   Untitled interpretation                            Well                   Sample well 1
+Field                     Obodo                                              Company                n/a
+Licence                   OML 143                                            Zone or sand           D-3 sand
+Analyst                   A. Analyst                                         Test type              Pressure buildup, drill stem test (DST)
+Test dates                2026-09-14 to 2026-09-17                           Perforations, MD       9850 to 9880 ft
+Perforations, TVD         9601 to 9630 ft                                    Software build         Petrolord Suite dev
 Fluid                     Gas, pseudo-pressure m(p)                          Producing time tp 36.0 hr
-Shut-in time              0 hr elapsed (gauge clock 0 hr)                    pwf at shut-in          4530.8 psi at shut-in time 0 hr (entered)
-Display units             Oilfield                                           Generated               2026-10-02 09:00 UTC
+Shut-in time              0 hr elapsed (gauge clock 0 hr)                    pwf at shut-in         4530.8 psi at shut-in time 0 hr (entered)
+Display units             Oilfield                                           Generated              2026-10-02 09:00 UTC
 
 
 Headline results
@@ -32,21 +33,21 @@ Headline results
 
 
 Skin components
- Component                                                           Value                Basis
+ Component                                                           Value               Basis
 
- Apparent skin s'                                                    6.46                 From the interpretation
+ Apparent skin s'                                                    6.46                From the interpretation
 
- Partial-penetration pseudo-skin s_pp                                2.60                 Papatzacos (1987)
+ Partial-penetration pseudo-skin s_pp                                2.60                Papatzacos (1987)
 
- Mechanical and rate-dependent skin                                  2.49                 s_d = (hp/h) (s - s_pp)
+ Mechanical and rate-dependent skin                                  2.49                s_d = (hp/h) (s - s_pp)
 
- Net pay h (ft)                                                      45                   Input
+ Net pay h (ft)                                                      45                  Input
 
- Perforated length hp (ft)                                           29                   True vertical depth
+ Perforated length hp (ft)                                           29                  True vertical depth
 
- Top of pay to top of perforations h1 (ft)                           0                    True vertical depth
+ Top of pay to top of perforations h1 (ft)                           0                   True vertical depth
 
- kv/kh                                                               0.1                  Assumed default 0.1 (no value entered)
+ kv/kh                                                               0.1                 Assumed default 0.1 (no value entered)
 
 Papatzacos (1987): s_pp = (1/hpD - 1) ln(pi/(2 rD)) + (1/hpD) ln[hpD/(2 + hpD) sqrt((A - 1)/(B - 1))], with hpD = hp/h, rD = (rw/h) sqrt(kv/kh), h1D =
 h1/h, A = 1/(h1D + hpD/4), B = 1/(h1D + 3 hpD/4). Mechanical skin: s_d = (hp/h) (s - s_pp). kv/kh not entered: 0.1 is assumed.

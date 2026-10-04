@@ -15,6 +15,7 @@ import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioHelp from '@/components/studio/StudioHelp';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import { WellTestStudioProvider, useWellTestStudio } from '@/contexts/WellTestStudioContext';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import DataPanel from '@/components/welltest/DataPanel';
 import DataResults from '@/components/welltest/DataResults';
 import DiagnosticsPanel from '@/components/welltest/DiagnosticsPanel';
@@ -168,10 +169,15 @@ const WellTestStudioContent = () => {
 // Design system rollout batch 1A (docs/scope/DesignSystem-Rollout.md): the
 // page sits in the dashboard scope, so it opens light and the header toggle
 // switches it to dark per user. Charts keep the white chart standard.
+const useOrganizationName = () => {
+  try { return useAuth()?.organization?.name || ''; } catch { return ''; }
+};
+
 export default function WellTestAnalysisStudio() {
+  const organizationName = useOrganizationName();
   return (
     <div data-testid="wts-theme-scope">
-      <WellTestStudioProvider>
+      <WellTestStudioProvider organizationName={organizationName}>
         <WellTestStudioContent />
       </WellTestStudioProvider>
     </div>

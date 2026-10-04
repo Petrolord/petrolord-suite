@@ -175,9 +175,10 @@ const RegistryProposal = () => {
 // Identification beside the well name: licence, zone, dates and how the
 // test was run (reviewer item 4).
 export const IdentificationFields = () => {
-  const { identification, setIdentificationField } = useWellTestStudio();
+  const { identification, setIdentificationField, organizationName } = useWellTestStudio();
   return (
     <div className="space-y-3" data-testid="wts-identification">
+      <Field label="Company or operator" value={identification.company ?? ''} onChange={(v) => setIdentificationField('company', v)} placeholder={organizationName ? `${organizationName} (your organisation)` : 'Optional'} />
       <div className="grid grid-cols-2 gap-3">
         <Field label="Licence or block" value={identification.licence} onChange={(v) => setIdentificationField('licence', v)} placeholder="Optional" />
         <Field label="Zone or sand" value={identification.zone} onChange={(v) => setIdentificationField('zone', v)} placeholder="Optional" />

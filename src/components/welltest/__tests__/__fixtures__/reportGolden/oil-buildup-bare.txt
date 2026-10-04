@@ -1,14 +1,15 @@
 Well Test Analysis Report
 Petrolord Well Test Analysis Studio
 
-Project                   Untitled interpretation                             Well                    Sample well 1
-Field                     n/a                                                 Licence                 n/a
-Zone or sand              Sample sand                                         Analyst                 n/a
-Test type                 Pressure buildup, production test                   Test dates              n/a
-Perforations, MD          n/a                                                 Perforations, TVD       n/a
+Project                   Untitled interpretation                             Well                   Sample well 1
+Field                     n/a                                                 Company                n/a
+Licence                   n/a                                                 Zone or sand           Sample sand
+Analyst                   n/a                                                 Test type              Pressure buildup, production test
+Test dates                n/a                                                 Perforations, MD       n/a
+Perforations, TVD         n/a                                                 Software build         Petrolord Suite dev
 Fluid                     Oil                                                 Producing time tp 36.0 hr
-Shut-in time              0 hr elapsed (gauge clock 0 hr)                     pwf at shut-in          4530.8 psi at shut-in time 0 hr (entered)
-Display units             Oilfield                                            Generated               2026-10-02 09:00 UTC
+Shut-in time              0 hr elapsed (gauge clock 0 hr)                     pwf at shut-in         4530.8 psi at shut-in time 0 hr (entered)
+Display units             Oilfield                                            Generated              2026-10-02 09:00 UTC
 
 
 Headline results
@@ -32,35 +33,35 @@ Headline results
 
 
 Skin components
- Component                                                            Value                Basis
+ Component                                                            Value               Basis
 
- Total skin s                                                         6.15                 From the interpretation
+ Total skin s                                                         6.15                From the interpretation
 
- Partial-penetration pseudo-skin s_pp                                 n/a                  Not computed
+ Partial-penetration pseudo-skin s_pp                                 n/a                 Not computed
 
- Mechanical (damage) skin s_d                                         n/a                  Not computed
+ Mechanical (damage) skin s_d                                         n/a                 Not computed
 
 Perforated interval not entered. The skin is reported as a total and is not split.
 
 Straight-line analyses
- Analysis                                                                                                     Result
+ Analysis                                                                                                    Result
 
- Horner slope m                                                                                               22.1 psi/cycle
+ Horner slope m                                                                                              22.1 psi/cycle
 
- Semilog k (md)                                                                                               83.0
+ Semilog k (md)                                                                                              83.0
 
- Semilog skin                                                                                                 6.15
+ Semilog skin                                                                                                6.15
 
- Extrapolated p* (psi)                                                                                        4800.1
+ Extrapolated p* (psi)                                                                                       4800.1
 
- Semilog fit r2                                                                                               1.00
+ Semilog fit r2                                                                                              1.00
 
- Semilog fit window (shut-in time dt, hr)                                                                     4.56 to 35.1
-
-
+ Semilog fit window (shut-in time dt, hr)                                                                    4.56 to 35.1
 
 
-Well Test Analysis Report, Well Sample well 1                                                                                           Page 1 of 4
+
+
+Well Test Analysis Report, Well Sample well 1                                                                                            Page 1 of 4
 Cross-check of methods
  Method                                                k (md)                  Skin            Basis
 

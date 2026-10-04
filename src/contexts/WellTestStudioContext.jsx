@@ -16,6 +16,7 @@ import { autoFitModel } from '@/utils/welltest/autoFit';
 import { buildGasPvtTable, makePseudoPressure, deliverabilityAnalysis, normalizedPseudoTime, GAS, WELLTEST_Z_METHODS } from '@/utils/welltest/gas';
 import { UNIT_SYSTEMS } from '@/utils/welltest/units';
 import { useProfileSystem } from '@/lib/units/useProfileSystem';
+import { buildLabel } from '@/lib/platformBuild';
 import { provenanceFromPayload, setProvenanceField } from '@/lib/inputProvenance';
 import {
   DEFAULT_IDENTIFICATION, DEFAULT_COMPLETION, resolveTotalCompressibility,
@@ -431,7 +432,7 @@ export function generateSampleBuildup() {
   return { gaugeRows, tp, truth, pwfShutIn: clean.pwfAtShutIn };
 }
 
-export const WellTestStudioProvider = ({ children }) => {
+export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
   const { notifications, addNotification, removeNotification } = useStudioNotifications();
 
   // Projects
@@ -881,7 +882,8 @@ export const WellTestStudioProvider = ({ children }) => {
 
   const identificationRows = useMemo(() => buildIdentificationRows({
     projectName, wellName, fieldName, analyst, identification, completion, config: configSpec.config, unitSystem,
-  }), [projectName, wellName, fieldName, analyst, identification, completion, configSpec, unitSystem]);
+    organizationName, build: buildLabel(),
+  }), [projectName, wellName, fieldName, analyst, identification, completion, configSpec, unitSystem, organizationName]);
 
   // History match (model against the gauge over the whole record) and the
   // test overview: one calculation, drawn on the tabs and in the PDF.
@@ -1110,6 +1112,7 @@ export const WellTestStudioProvider = ({ children }) => {
   const value = {
     // shell plumbing
     notifications, addNotification, removeNotification,
+    organizationName,
     // projects
     projects, currentProjectId, projectName,
     createProject, openProject, deleteProject, manualSave,

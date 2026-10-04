@@ -125,3 +125,17 @@ describe('WTA-U1-003: gas z-factor on Dranchuk-Abou-Kassem from the engines', ()
     studio.unmount();
   }, 600000);
 });
+
+describe('WTA-U1-004: company and software build in the report header', () => {
+  test('the typed company prints; without one the organisation name does; the build is stamped', async () => {
+    const studio = await sample((c) => c.setIdentificationField('company', 'Ekene Energy Ltd'));
+    let t = flat(readPdf(build(studio.ctx).doc).text);
+    expect(t).toMatch(/Company Ekene Energy Ltd/);
+    expect(t).toMatch(/Software build Petrolord Suite \S+/);
+    await studio.act((c) => c.setIdentificationField('company', ''));
+    const args = { ...collectReportArgs(studio.ctx), organizationName: 'Lordsway Energy' };
+    t = flat(readPdf(buildWellTestPdf(args, { logo, generatedAt: AT }).doc).text);
+    expect(t).toMatch(/Company Lordsway Energy/);
+    studio.unmount();
+  }, 600000);
+});

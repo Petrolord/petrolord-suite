@@ -23,6 +23,7 @@ import { unitLabel, fromOilfield, kindForCatalogUnit } from '@/utils/welltest/un
 import { gaugeTime, PWF_SOURCE_TEXT } from '@/utils/welltest/gaugeImport';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { loadPetrolordLogo } from '@/lib/pdfBrand';
+import { buildLabel } from '@/lib/platformBuild';
 import {
   buildIdentificationRows, skinBreakdownRows, flowSummaryHead, flowSummaryBody, inputsFootnote, orNA,
 } from '@/utils/welltest/reportModel';
@@ -50,13 +51,13 @@ const ci = (pair) => range(pair);
  */
 export const buildReportHeader = ({
   projectName, wellName, fieldName, analyst, identification, completion, config, prepared, isGas,
-  unitSystem = 'oilfield', generatedAt = new Date(),
+  unitSystem = 'oilfield', generatedAt = new Date(), organizationName = '', build = buildLabel(),
 }) => {
   const isBuildup = config?.family === 'buildup';
   const pUnit = unitLabel('pressure', unitSystem);
   const pwf = prepared?.pwfShutIn;
   const cells = buildIdentificationRows({
-    projectName, wellName, fieldName, analyst, identification, completion, config, unitSystem,
+    projectName, wellName, fieldName, analyst, identification, completion, config, unitSystem, organizationName, build,
   });
   cells.push(['Fluid', isGas ? 'Gas, pseudo-pressure m(p)' : 'Oil']);
   if (isBuildup) {
@@ -108,6 +109,8 @@ export const buildCrossCheckRows = ({
 /** What the PDF needs from the studio context, gathered in one place. */
 export const collectReportArgs = (ctx) => ({
   projectName: ctx.projectName,
+  organizationName: ctx.organizationName || '',
+  build: buildLabel(),
   wellName: ctx.wellName,
   fieldName: ctx.fieldName,
   analyst: ctx.analyst,
@@ -148,7 +151,7 @@ export const collectReportArgs = (ctx) => ({
  */
 export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = {}) => {
   const {
-    projectName, wellName, fieldName, analyst, identification, completion, config, reservoir, prepared,
+    projectName, organizationName, build, wellName, fieldName, analyst, identification, completion, config, reservoir, prepared,
     model, matchParams, fitResult, matchMethodKind, derivedKpis,
     semilogResult, sqrtResult, pssResult, multiRateResult, deliverabilityResult,
     rtaResult, regimes, notes, unitSystem = 'oilfield',
@@ -169,6 +172,7 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
   report.header({
     rows: buildReportHeader({
       projectName, wellName, fieldName, analyst, identification, completion, config, prepared, isGas, unitSystem, generatedAt,
+      organizationName, build: build ?? buildLabel(),
     }),
   });
 

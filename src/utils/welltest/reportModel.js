@@ -48,6 +48,7 @@ export const TEST_OPERATIONS = Object.freeze({
 });
 
 export const DEFAULT_IDENTIFICATION = Object.freeze({
+  company: '', // WTA-U1-004: typed; blank prints the organisation name
   licence: '',
   zone: '',
   testDateStart: '',
@@ -468,6 +469,7 @@ export const flowSummaryBody = (fs) => fs.rows.map((r) => [
 /** [label, value] pairs of the well and test identification. */
 export function buildIdentificationRows({
   projectName, wellName, fieldName, analyst, identification, completion, config, unitSystem = 'oilfield',
+  organizationName = '', build = '',
 }) {
   const comp = buildCompletion(completion);
   const L = unitLabel('length', unitSystem);
@@ -476,6 +478,8 @@ export function buildIdentificationRows({
     ['Project', text(projectName) || 'Untitled interpretation'],
     ['Well', orNA(wellName)],
     ['Field', orNA(fieldName)],
+    // WTA-U1-004 (RL4): who the work is for, typed or the organisation's name
+    ['Company', text(identification?.company) || orNA(organizationName)],
     ['Licence', orNA(identification?.licence)],
     ['Zone or sand', orNA(identification?.zone)],
     ['Analyst', orNA(analyst)],
@@ -483,5 +487,7 @@ export function buildIdentificationRows({
     ['Test dates', testDatesText(identification)],
     ['Perforations, MD', withUnit(interval('length', comp.md.top, comp.md.base, unitSystem))],
     ['Perforations, TVD', withUnit(interval('length', comp.tvd.top, comp.tvd.base, unitSystem))],
+    // WTA-U1-004 (RL4): the software that produced the numbers
+    ['Software build', orNA(build)],
   ];
 }
