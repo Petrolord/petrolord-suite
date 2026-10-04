@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 4f91416c4927e50a04ec522de750bc8818be9699
+# commit a303b77d075b41af1621601e1f4d8af762feb682
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 80b08bf546799e96d5448d67c63c98f2ec1b9703 README.md
@@ -237,6 +237,8 @@ c78a318b502a4be6b60d100e705149221df5eeb0 __tests__/waterflood.vrr.test.js
 10d89874d96679c7af3ae7692d09b9b28f33da3e __tests__/waterflood.vrrpressure.test.js
 24d546013384a3f2c22dbe06840e705eb776defe __tests__/waterflood.vrrvoidage.test.js
 87c4f797a88248863ab708db2e6dd01168bab7e4 __tests__/waterflood.wfu1.test.js
+1b61bb056ed990fc96403297211bd9b3ac0859f2 __tests__/waterflood.wfu2.test.js
+0d9f2d08464b9435b0499675c7aa7ecebe313f51 __tests__/waterflood.wfu2fvf.test.js
 43a168363f18ff2689d20c30f3e50b1eb2970c6f __tests__/welldata.checkshots.test.js
 f12c533b0ed35d549a8bfca9a0f4396fc1e0281a __tests__/welldata.las3blocks.test.js
 7398d1b77dee50db33dc6b18eb51bde22e20ab9b __tests__/wellsite.depth.test.js
@@ -557,10 +559,10 @@ fd87b141e8a3fd267cd0b86aafe33e2ac5c8bb76 engines/stratigraphy/wheeler.js
 f15e68ab5c9e7ddc433fc60ac75de53ffbf5f171 engines/supplychain/marineLogistics.js
 3b60842bcd54971065e0f1cbefe50eca620d350b engines/supplychain/tender.js
 19ffdce33bcae1e01bf51a2b144c57fb5d626c20 engines/waterflood/layeredSweep.js
-4b436d19582e6cdbf3995aa70944141c9351a230 engines/waterflood/patternForecast.js
+0dd5a96185caf75266b127d90b32b3d7d3a65a09 engines/waterflood/patternForecast.js
 245588959a57d90773d0e444482c8230db2b0b89 engines/waterflood/vrr.js
 ed3bcb69230463b481fbee8f3962a5f6b6915901 engines/waterflood/vrrLedger.js
-a183aab2f9fbed5639436e87fabf6d56f0260d98 engines/waterflood/waterflood.js
+8f897a0d65555364b82a57b5a81183391d3da219 engines/waterflood/waterflood.js
 72b544ffce00b6d6bdc8a93387633ea900ca7447 engines/wellcorrelation/section.js
 8bf969530edc08e4551b637265c984472384178b engines/welldata/checkshots.js
 1fb0f1186e5a4481e617707f96e3918a1cf20b5d engines/welldata/lasBlocks.js
