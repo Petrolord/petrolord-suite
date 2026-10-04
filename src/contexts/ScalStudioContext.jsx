@@ -22,7 +22,7 @@ import {
 } from '@/utils/scalstudio/model';
 import {
   DEFAULT_CURVES, DEFAULT_CAPILLARY, DEFAULT_HEIGHT, buildReservoirProps, buildJSpec,
-  deriveCurves, deriveSamples, deriveReservoirPc, deriveHeightProfile, inputsFromPayload,
+  deriveCurves, deriveSamples, deriveReservoirPc, deriveHeightProfile, inputsFromPayload, pairGoSwc,
 } from '@/utils/scalstudio/workspace';
 import { buildScalKrContract } from '@/utils/scalstudio/krHandoff';
 import { fwlPatch } from '@/utils/scalstudio/fwlDatum';
@@ -97,8 +97,16 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
 
   const setCurveField = useCallback((k, v) => setCurves((prev) => ({ ...prev, [k]: v })), []);
   // the origin record stays: curveOriginStatus says "edited after the fit" from the values
-  const setOwField = useCallback((k, v) => setCurves((prev) => ({ ...prev, ow: { ...prev.ow, [k]: v } })), []);
-  const setGoField = useCallback((k, v) => setCurves((prev) => ({ ...prev, go: { ...prev.go, [k]: v } })), []);
+  // SIM-U2-014: the gas-oil set follows the oil-water Swc (one connate water)
+  const setOwField = useCallback((k, v) => setCurves((prev) => ({
+    ...prev,
+    ow: { ...prev.ow, [k]: v },
+    ...(k === 'Swc' ? { go: { ...prev.go, Swc: v }, goSwcPairing: null } : {}),
+  })), []);
+  const setGoField = useCallback((k, v) => {
+    if (k === 'Swc') return; // held at the oil-water Swc
+    setCurves((prev) => ({ ...prev, go: { ...prev.go, [k]: v } }));
+  }, []);
   const setCapillaryField = useCallback((k, v) => setCapillary((prev) => ({ ...prev, [k]: v })), []);
   const setManualJField = useCallback((k, v) => setCapillary((prev) => ({ ...prev, manual: { ...prev.manual, [k]: v } })), []);
   const setReservoirField = useCallback((k, v) => setCapillary((prev) => ({ ...prev, reservoir: { ...prev.reservoir, [k]: v } })), []);
@@ -128,6 +136,9 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
       phase: 'oilwater',
       ow: applied,
       owOrigin: fittedOrigin({ sample: s, fit: s.krFit, applied }),
+      // SIM-U2-014: the gas-oil set follows the oil-water Swc
+      go: { ...prev.go, Swc: applied.Swc },
+      goSwcPairing: null,
     }));
     addNotification(`Fitted Corey set from "${s.name}" applied to the Curves tab.`, 'success');
   }, [samplesDerived, addNotification]);
@@ -139,13 +150,18 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
       addNotification('That sample has no successful gas-oil Corey fit to apply.', 'error');
       return;
     }
-    const applied = appliedGoFromFit(s.goFit.params);
-    setCurves((prev) => ({
-      ...prev,
-      phase: 'gasoil',
-      go: applied,
-      goOrigin: fittedOrigin({ sample: s, fit: s.goFit, applied, set: 'gas_oil' }),
-    }));
+    // SIM-U2-014: a fit at the sample's own test Swc is written at the oil-water Swc, and the move is kept
+    const fitted = appliedGoFromFit(s.goFit.params);
+    setCurves((prev) => {
+      const paired = pairGoSwc({ ...prev, go: fitted }, `the gas-oil fit of "${s.name}" was made at its test Swc`);
+      return {
+        ...prev,
+        phase: 'gasoil',
+        go: paired.go,
+        goSwcPairing: paired.goSwcPairing || null,
+        goOrigin: fittedOrigin({ sample: s, fit: s.goFit, applied: paired.go, set: 'gas_oil' }),
+      };
+    });
     addNotification(`Fitted gas-oil Corey set from "${s.name}" applied to the Curves tab.`, 'success');
   }, [samplesDerived, addNotification]);
 
