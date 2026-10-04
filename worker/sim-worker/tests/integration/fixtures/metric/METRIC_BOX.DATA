@@ -1,0 +1,142 @@
+-- SIM-U2-015 gate deck: a three-phase box in METRIC units, hand written for
+-- the worker gate (Petrolord, 2026-10-04). It asks for the fluid-in-place
+-- balance at every report step and the well totals, so the PRT tables of a
+-- METRIC run can be read and checked against the run's own summary vectors.
+-- Not a field model.
+
+RUNSPEC
+
+TITLE
+  METRIC BALANCE BOX
+
+DIMENS
+  5 5 1 /
+
+OIL
+WATER
+GAS
+DISGAS
+
+METRIC
+
+EQLDIMS
+  1 /
+
+TABDIMS
+  1 1 20 20 /
+
+WELLDIMS
+  2 1 1 2 /
+
+START
+  1 'JAN' 2025 /
+
+UNIFOUT
+
+GRID
+
+INIT
+
+DX
+  25*100 /
+DY
+  25*100 /
+DZ
+  25*10 /
+TOPS
+  25*2500 /
+PORO
+  25*0.2 /
+PERMX
+  25*100 /
+PERMY
+  25*100 /
+PERMZ
+  25*10 /
+
+PROPS
+
+SWOF
+  0.2 0    1    0
+  0.5 0.1  0.3  0
+  0.8 0.4  0    0
+  1.0 1.0  0    0 /
+
+SGOF
+  0    0    1    0
+  0.1  0.05 0.5  0
+  0.4  0.4  0.05 0
+  0.7  0.7  0    0
+  0.8  0.8  0    0 /
+
+DENSITY
+  850 1030 0.9 /
+
+PVTW
+  250 1.02 4.5E-5 0.4 0 /
+
+PVDG
+   50 0.025  0.012
+  100 0.012  0.014
+  200 0.006  0.017
+  300 0.0042 0.021 /
+
+PVTO
+  20  50 1.10 1.5 /
+  40 100 1.15 1.2 /
+  60 150 1.20 1.0
+     300 1.18 1.1 /
+/
+
+ROCK
+  250 5E-5 /
+
+SOLUTION
+
+EQUIL
+  2505 220 2600 0 2400 0 1 0 0 /
+
+RSVD
+  2490 60
+  2520 60 /
+
+RPTSOL
+  'FIP=1' /
+
+SUMMARY
+
+FOPR
+FOPT
+FWPT
+FGPT
+FWIT
+FGIT
+FPR
+
+SCHEDULE
+
+RPTSCHED
+  'RESTART=0' 'FIP=1' 'WELLS=1' /
+
+WELSPECS
+  'P1' 'G1' 5 5 2505 'OIL' /
+  'I1' 'G1' 1 1 2505 'WATER' /
+/
+
+COMPDAT
+  'P1' 5 5 1 1 'OPEN' 1* 1* 0.2 /
+  'I1' 1 1 1 1 'OPEN' 1* 1* 0.2 /
+/
+
+WCONPROD
+  'P1' 'OPEN' 'ORAT' 300 4* 100 /
+/
+
+WCONINJE
+  'I1' 'WATER' 'OPEN' 'RATE' 350 1* 400 /
+/
+
+TSTEP
+  12*30 /
+
+END

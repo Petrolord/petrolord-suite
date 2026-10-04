@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit b253bea5609ee8dec0dbcfc9a4bcc030c927f550
+# commit da4f91f7fb8657cfde5d800f09889b1f508bdbc4
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 80b08bf546799e96d5448d67c63c98f2ec1b9703 README.md
@@ -142,6 +142,7 @@ d3b4c56d74031a4ab9d2900ee6a2327dc83c45d3 __tests__/hse.exposure.test.js
 a46150ed760bc35823154ef53bc33dbcd725db96 __tests__/mapping.structurepoints.test.js
 b49f1bf2a40b079b94284e7867cf4567224898ad __tests__/mapping.t1.test.js
 99867728c424fb33ebb4623e8fcbc5affc24a595 __tests__/mapping.u2.test.js
+e02b5c49b895e595c76d48d1f4a76855913d71d0 __tests__/mbal.carterTracyPD.test.ts
 66917aa10462c0197fc48e7c020bb24f62119186 __tests__/mbal.test.ts
 29da21629fec6f7e16f2285ce8d31c629192ea4f __tests__/mbalInjection.test.ts
 2c42cf594e3e98a5df4bbc5e1e4b5cb1c55f6380 __tests__/petrophysics.conditioning.test.js
@@ -209,6 +210,7 @@ bfbf553fdf6db8892a4df9b27b82f23a3526e9b0 __tests__/seismolordSegyFixture.js
 2a86b019108a1ff5cf80f100b4bc62ef3a97b87e __tests__/sim.deckgen.test.js
 07c7b1702ac088f849737b8e32982b0254264f6d __tests__/sim.ekene.test.js
 8744cbc68e9efcf7b98edbef034c245f36a64991 __tests__/sim.s4.test.js
+75644dc4c7af524c16d2c9d6c76a8bdd8bb70c2b __tests__/sim.u2.test.js
 587f776600152336594cae71c220d5dbd016764f __tests__/smoke.test.js
 dbfd55a425be27e98ec7098ceb5ce167b8e3b125 __tests__/stats.fitNotePercentileWords.test.js
 64a7c1f655884e2b4c9ec632520ffd29bc031652 __tests__/stats.test.js
@@ -420,7 +422,7 @@ f6010f0bd39e1c4ba656c2a699c3b4ab8f3839ed engines/hse/qra.js
 f3bfa281ed8307b01dd26edf8b53e5257f1d1334 engines/mapping/surface.js
 e422cef84447559827d7755a133f25e3ceba1772 engines/mapping/wellTie.js
 ef516365f4b51788d50a5d47a220329d3e545696 engines/mbal/lm.ts
-7cd3af8626f4805307a56d63237291cc7237edfa engines/mbal/mbalEngine.ts
+07e55d373e02173d3c624fa590e27dc4e597d0d0 engines/mbal/mbalEngine.ts
 4321540b4db8db1dd76dc2c88551aeef47bd6452 engines/petrophysics/conditioning.js
 1bb63a55f341a5cfaabed4e8a8ef1b8466086f42 engines/petrophysics/crossplot.js
 9b271da64524654de29b7c91d41aac458ca2928d engines/petrophysics/digitizer.js
@@ -538,12 +540,13 @@ a262e4b617960c913d5777fc1b1613e56e10af5f engines/seismolord/volumeJob.js
 f924511b2b7bbd9126412ff6b0553b035a643db8 engines/seismolord/wellPath.js
 0d1e8c5a0370d977250f355b3167734c8da6ec1f engines/seismolord/wellSection.js
 52883680abe22b6d6a2e690560f8b4beca69a882 engines/seismolord/wellTie.js
-f053e99f07d124cc12c46f45d71cbfdd497651c6 engines/sim/composeDeck.js
+aafbc202635f2721c32b5f192253b3c471b6c9e5 engines/sim/composeDeck.js
 18293322bc032451a88d14ff491f3eebc030de5f engines/sim/deckFormat.js
+8023537c89dc12690f249ebe48594b7c6fcfa735 engines/sim/emitAquifer.js
 bb2aa0b995af2345d489d453edd94cd624bc7711 engines/sim/emitGrid.js
 3d5e3ec5bcf6c7cec59b794b53171046502768ca engines/sim/emitPvt.js
-ae2997422d6dd9264b629bbae1d8713a5fc0ad27 engines/sim/emitSatFns.js
-ba97020050ce5a4ba304708ae1bed1e65b13ccda engines/sim/emitSchedule.js
+4d38f4418a690014a8a40218742200c2835689eb engines/sim/emitSatFns.js
+5623b359759b73af9ae69d477b81c67cf874ddf6 engines/sim/emitSchedule.js
 764cfc13c5590c212ccb71a0aea09aa1eefb7a6b engines/sim/referenceSpec.js
 8fdeb24c76947ea7315e3d7f5e8fdad32a41d821 engines/sim/wellPath.js
 5483ba4918bbb7afb0086337e8f5aab1a42a73a5 engines/stratigraphy/ageDepth.js

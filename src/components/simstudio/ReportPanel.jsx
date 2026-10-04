@@ -36,7 +36,7 @@ const Grid = ({ head, rows, testId }) => (
 
 const ReportPanel = () => {
   const {
-    activeCase, runs, summary, summaryRunId, loadResults, deckText, form, system, organizationName, addNotification,
+    activeCase, runs, summary, summaryRunId, loadResults, deckText, form, system, organizationName, addNotification, compareEntries,
   } = useSimStudio();
   const completeRuns = useMemo(() => runs.filter((r) => r.status === 'complete' && r.result_path), [runs]);
   const run = completeRuns.find((r) => r.id === summaryRunId) || null;
@@ -52,8 +52,8 @@ const ReportPanel = () => {
   }, [deckText]);
 
   const args = useMemo(() => (run && summary ? collectSimReportArgs({
-    caseRow: activeCase, run, summary, deckText, deckTextSha: deckSha, form, system, organizationName, build: buildLabel(),
-  }) : null), [activeCase, run, summary, deckText, deckSha, form, system, organizationName]);
+    caseRow: activeCase, run, summary, deckText, deckTextSha: deckSha, form, system, organizationName, build: buildLabel(), compare: compareEntries,
+  }) : null), [activeCase, run, summary, deckText, deckSha, form, system, organizationName, compareEntries]);
   const m = args?.model;
 
   if (!activeCase) {
@@ -118,6 +118,22 @@ const ReportPanel = () => {
           {m.convergence.reported && <KvTable rows={m.convergence.rows} testId="report-convergence" />}
           <p className="text-xs text-pl-muted" data-testid="report-convergence-text">{m.convergence.text}</p>
         </CardContent></Card>
+
+      {(m.bhpMatch.applies || m.deckSummary?.schedule?.historyControls) && (
+        <Card><CardHeader className="pb-1"><CardTitle className="text-sm">Bottomhole pressure match (history phase)</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {m.bhpMatch.applies && <Grid head={m.bhpMatch.head} rows={m.bhpMatch.rows} testId="report-bhp" />}
+            <p className="text-xs text-pl-muted" data-testid="report-bhp-text">{m.bhpMatch.text}</p>
+          </CardContent></Card>
+      )}
+
+      {m.compare?.ok && (
+        <Card><CardHeader className="pb-1"><CardTitle className="text-sm">Run comparison</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            <Grid head={m.compare.head} rows={m.compare.rows} testId="report-compare" />
+            <p className="text-[11px] text-pl-muted">The first run is the base; a difference is the run minus the base. Picked on the Results tab.</p>
+          </CardContent></Card>
+      )}
 
       <Card><CardHeader className="pb-1"><CardTitle className="text-sm">Run provenance</CardTitle></CardHeader>
         <CardContent><KvTable rows={m.provenance} testId="report-provenance" /></CardContent></Card>

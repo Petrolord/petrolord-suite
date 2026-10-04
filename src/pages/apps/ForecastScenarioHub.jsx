@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  GitBranch, Plus, Copy, Trash2, Save, FolderOpen, Download, Info, HelpCircle, TrendingDown, RefreshCw, FileDown, Droplets,
+  GitBranch, Plus, Copy, Trash2, Save, FolderOpen, Download, Info, HelpCircle, TrendingDown, RefreshCw, FileDown, Droplets, Cuboid,
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -23,11 +23,13 @@ import {
 } from '@/utils/chartTheme';
 import { compareCases, sampleScenarioCases, EUR_MAX_YEARS, DAYS_PER_YEAR, caseDailyDecline } from '@/utils/forecastScenarioCalculations';
 import { buildHubCsv, HUB_DEFAULT_START } from '@/utils/forecastScenarioExport';
-import { caseFromDcaContract, caseFromWfContract, caseSourceText, caseValuesFromContract } from '@/utils/forecastScenarioIntake';
+import { caseFromDcaContract, caseFromWfContract, caseFromSimContract, caseSourceText, caseValuesFromContract } from '@/utils/forecastScenarioIntake';
 import { listDcaForecasts, getDcaForecast } from '@/utils/declineCurve/dcaForecastService';
 import { compareWithSource } from '@/utils/declineCurve/dcaForecastContract';
 import { listWfForecasts, getWfForecast } from '@/utils/waterflooddesign/wfForecastService';
 import { compareWfWithSource, WF_FORECAST_SCHEMA, wfEndWords } from '@/utils/waterflooddesign/wfForecastContract';
+import { listSimForecasts, getSimForecast } from '@/utils/simstudio/simForecastService';
+import { compareSimWithSource, SIM_FORECAST_SCHEMA, SIM_PHASES } from '@/utils/simstudio/simForecastContract';
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjects';
 import { supabaseSharingStore } from '@/lib/recordSharing';
@@ -183,6 +185,9 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
   // WF-U2-001: pattern forecasts from Waterflood Design Studio
   const [wfOpen, setWfOpen] = useState(false);
   const [wfList, setWfList] = useState(null);
+  // SIM-U2-002: completed runs from Reservoir Simulation Studio
+  const [simOpen, setSimOpen] = useState(false);
+  const [simList, setSimList] = useState(null);
   const [saveName, setSaveName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [sourceStates, setSourceStates] = useState({});
@@ -244,6 +249,10 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
           out[c.id] = compareWfWithSource(k, await getWfForecast(supabase, { projectId: k.projectId }));
           continue;
         }
+        if (k.schema === SIM_FORECAST_SCHEMA) {
+          out[c.id] = compareSimWithSource(k, await getSimForecast(supabase, { caseId: k.projectId, runId: k.run.id, phase: k.phase }));
+          continue;
+        }
         const now = await getDcaForecast(supabase, { projectId: k.projectId, wellId: k.source?.wellId, stream: k.stream });
         out[c.id] = compareWithSource(k, now);
       } catch (e) {
@@ -276,6 +285,49 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
     toast({ title: 'Case added from Waterflood Design Studio', description: made.case.name });
     return true;
   }, [toast]);
+
+  const takeSimContract = useCallback((contract) => {
+    const made = caseFromSimContract(contract, { id: `sim-${uuidv4().slice(0, 8)}`, build: buildLabel() });
+    if (!made.ok) {
+      toast({ title: 'Not added', description: made.reason, variant: 'destructive' });
+      return false;
+    }
+    setCases((cs) => [...cs, made.case]);
+    toast({ title: 'Case added from Reservoir Simulation Studio', description: made.case.name });
+    return true;
+  }, [toast]);
+
+  // a deep link from Reservoir Simulation Studio: ?simCase=&simRun=&simPhase=
+  useEffect(() => {
+    const caseId = params.get('simCase');
+    const runId = params.get('simRun');
+    if (!caseId || !runId) return;
+    (async () => {
+      try {
+        const got = await getSimForecast(supabase, { caseId, runId, phase: params.get('simPhase') === 'prediction' ? 'prediction' : 'run' }, { build: buildLabel() });
+        if (!got) toast({ title: 'Not added', description: 'The simulation run could not be read.', variant: 'destructive' });
+        else if (!got.ok) toast({ title: 'Not added', description: got.reason, variant: 'destructive' });
+        else takeSimContract(got.contract);
+      } catch (e) {
+        toast({ title: 'Not added', description: e.message, variant: 'destructive' });
+      } finally {
+        const next = new URLSearchParams(params);
+        ['simCase', 'simRun', 'simPhase'].forEach((k) => next.delete(k));
+        setParams(next, { replace: true });
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openSim = async () => {
+    setSimOpen(true);
+    setSimList(null);
+    try {
+      setSimList(await listSimForecasts(supabase, { build: buildLabel() }));
+    } catch (e) {
+      setSimList([]);
+      toast({ title: 'Could not list runs', description: e.message, variant: 'destructive' });
+    }
+  };
 
   // a deep link from Waterflood Design Studio: ?wfProject=
   useEffect(() => {
@@ -489,6 +541,9 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
               </Button>
               <Button size="sm" variant="outline" className="h-8" onClick={openWf} disabled={!canWrite} data-testid="fsh-from-wf">
                 <Droplets size={14} className="mr-1" /> From Waterflood Design Studio
+              </Button>
+              <Button size="sm" variant="outline" className="h-8" onClick={openSim} disabled={!canWrite} data-testid="fsh-from-sim">
+                <Cuboid size={14} className="mr-1" /> From Reservoir Simulation Studio
               </Button>
               <Button size="sm" variant="outline" className="h-8" onClick={() => setLoadOpen(true)}>
                 <FolderOpen size={14} className="mr-1" /> Load
@@ -712,6 +767,30 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setWfOpen(false)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={simOpen} onOpenChange={setSimOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Runs in Reservoir Simulation Studio</DialogTitle></DialogHeader>
+            <p className="text-xs text-pl-muted">A case is the field oil profile of one completed run, day for day, read from the run's own summary. A run with a history phase can be taken whole or as its prediction alone. The case keeps the run, its deck SHA-256 and where it came from.</p>
+            <div className="space-y-2 max-h-80 overflow-y-auto py-2" data-testid="fsh-sim-list">
+              {simList === null ? <p className="text-sm text-pl-muted">Reading your runs...</p>
+                : simList.length === 0 ? <p className="text-sm text-pl-muted italic">No completed runs found in Reservoir Simulation Studio.</p>
+                  : simList.map((f) => (
+                    <div key={`${f.runId}-${f.phase}`} className="flex items-center gap-2 p-2 rounded border border-pl-border bg-pl-sunken text-xs">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-pl-text truncate">{f.caseName}, run {String(f.runId).slice(0, 8)} ({SIM_PHASES[f.phase]})</div>
+                        <div className="text-[10px] text-pl-muted truncate">{f.ok ? `Np ${Math.round(f.contract.forecast.Np).toLocaleString()} STB from ${f.contract.forecast.start} to ${f.contract.forecast.end}` : f.reason}</div>
+                      </div>
+                      <Button size="sm" variant="outline" className="h-7 text-[11px]" disabled={!f.ok} data-testid={`fsh-sim-use-${f.phase}`}
+                        onClick={() => { if (takeSimContract(f.contract)) setSimOpen(false); }}>Use</Button>
+                    </div>
+                  ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSimOpen(false)}>Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

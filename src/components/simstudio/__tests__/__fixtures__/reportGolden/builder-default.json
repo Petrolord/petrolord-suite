@@ -1,11 +1,11 @@
 {
-  "pages": 6,
-  "sha256": "50d3c51f63be8b14eae372e765b83ba93b0bfe13ff14fac050bfea370d996dff",
+  "pages": 7,
+  "sha256": "648b48c2f62392016cba57b6acee8f7ecaa139e2bd4ef9c35c59d68da8c6df69",
   "figures": [
     {
       "id": "rates",
       "number": 1,
-      "page": 5,
+      "page": 6,
       "plotted": true,
       "panels": [
         {
@@ -29,7 +29,7 @@
     {
       "id": "cumulative",
       "number": 2,
-      "page": 5,
+      "page": 6,
       "plotted": true,
       "panels": [
         {
@@ -52,7 +52,7 @@
     {
       "id": "pressure",
       "number": 3,
-      "page": 5,
+      "page": 6,
       "plotted": true,
       "panels": [
         {
@@ -76,7 +76,7 @@
     {
       "id": "cut-gor",
       "number": 4,
-      "page": 6,
+      "page": 7,
       "plotted": true,
       "panels": [
         {
@@ -99,7 +99,7 @@
     {
       "id": "injection",
       "number": 5,
-      "page": 6,
+      "page": 7,
       "plotted": true,
       "panels": [
         {
@@ -121,7 +121,14 @@
     {
       "id": "history",
       "number": 6,
-      "page": 6,
+      "page": 7,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "bhp-match",
+      "number": 7,
+      "page": 7,
       "plotted": false,
       "panels": []
     }

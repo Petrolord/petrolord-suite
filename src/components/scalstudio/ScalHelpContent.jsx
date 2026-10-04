@@ -30,7 +30,11 @@ const ScalHelpContent = () => (
       exponents. Under each set the app says where it came from: entered by you, or fitted to a sample's
       lab table (with the fit's r2), or fitted and then edited, in which case the fit statistics no longer describe
       it. The optional fractional flow preview is curves only; displacement design stays in the Waterflood Design
-      Studio.
+      Studio. The gas-oil set is held at the oil-water Swc: one connate water, as a simulator takes it (SGOF ends at
+      1 - Swc of SWOF). Change Swc on the oil-water set and the gas-oil set follows. A project saved earlier with two
+      Swc opens with the gas-oil set moved to the oil-water Swc, and a gas-oil fit made at a sample&apos;s own test Swc is
+      written at the oil-water Swc; in both cases the other gas-oil parameters are kept and the Curves tab and the
+      report say what moved.
     </P>
 
     <H>2. Lab Data</H>

@@ -202,3 +202,215 @@ test('PL2: the deck door refuses two main decks and embedded Python, and reads a
   await expect(page.getByTestId('deck-read-back')).toContainText('Main deck: spe1-crlf-lowercase.data, FIELD units, 10 x 10 x 3 grid, 2 wells.');
   expect(errors).toEqual([]);
 });
+
+// ---------------------------------------------------------------- Step 2 --
+
+test('U2-002 sim-forecast-1: a completed run opens in Forecast Scenario Hub as a profile case and in EPE as a file, each with its source', async ({ page }) => {
+  test.setTimeout(600000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await runSpe1(page, 'SPE1 send');
+  await tab(page, 'Results').click();
+  await expect(page.getByTestId('sim-send-basis')).toContainText('The deck is FIELD: no conversion; oil from FOPR, every time step; no water rate in the summary', { timeout: 60000 });
+  // the SPE1 deck has no history phase: the prediction choice is off
+  await expect(page.getByTestId('sim-send-phase-prediction')).toBeDisabled();
+  await page.waitForTimeout(1200); // the harness copies the runs to the tab session
+  await page.getByTestId('sim-send-hub').click();
+  await expect(page).toHaveURL(/\/dev\/forecast-scenario-hub/, { timeout: 60000 });
+  await expect(page.getByText('Case comparison')).toBeVisible({ timeout: 240000 });
+  await expect(page.locator('[data-testid$="-profile"]').first()).toBeVisible({ timeout: 60000 });
+  const source = page.locator('[data-testid$="-source"]').first();
+  await expect(source).toContainText('of case "SPE1 send" (Reservoir Simulation Studio), the whole run from 2015-01-01');
+  await expect(page.locator('[data-testid$="-source-state"]').first()).toContainText('Unchanged since it was received', { timeout: 60000 });
+  await page.screenshot({ path: path.join(OUT, 'u2-002-hub.png') });
+  // Petroleum Economics Studio reads the same run by id
+  const ids = await page.evaluate(() => {
+    const s = JSON.parse(window.sessionStorage.getItem('harness.sim_cases_runs.v1') || '{}');
+    const run = (s.sim_runs || []).find((r) => r.status === 'complete');
+    return { caseId: run?.case_id, runId: run?.id };
+  });
+  expect(ids.runId).toBeTruthy();
+  await page.goto(`/dev/epe/cases/c1?simCase=${ids.caseId}&simRun=${ids.runId}&simPhase=run`, { timeout: 240000 });
+  await expect(page.getByTestId('epe-sim-list')).toContainText('SPE1 send', { timeout: 120000 });
+  await page.getByTestId('epe-sim-import').click();
+  await expect(page.getByTestId('epe-sim-provenance')).toContainText('of case "SPE1 send" (Reservoir Simulation Studio)', { timeout: 60000 });
+  await expect(page.getByTestId('epe-sim-provenance')).toContainText('no gas rate in the run');
+  await expect(page.getByTestId('epe-sim-source-state')).toContainText('Unchanged since it was received', { timeout: 60000 });
+  await page.screenshot({ path: path.join(OUT, 'u2-002-epe.png') });
+  expect(errors).toEqual([]);
+});
+
+const BHP_CSV = [
+  'date, well, oil (STB/d), water (STB/d), gas (Mscf/d), bhp (psia)',
+  '2025-01-01, PROD1, 2000, 0, 1600, 3600', '2025-01-01, INJ1, , 2500, , 4700',
+  '2025-02-01, PROD1, 2000, 0, 1600, 3450', '2025-02-01, INJ1, , 2500, , 4750',
+  '2025-03-01, PROD1, 1900, 20, 1520, 3330', '2025-03-01, INJ1, , 2500, ,',
+  '2025-04-01, PROD1, 1800, 40, 1440, 3260', '2025-04-01, INJ1, , 2500, , 4800',
+  '2025-05-01, PROD1, 1800, 60, 1440,', '2025-05-01, INJ1, , 2500, ,',
+  '2025-06-01, PROD1, 1700, 80, 1360, 3180', '2025-06-01, INJ1, , 2500, , 4820',
+].join('\n');
+
+test('U2-001 BHP history match: observed pressures through the per-well door, WBHPH in the deck, the mismatch in the report and the PDF', async ({ page }) => {
+  test.setTimeout(400000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await newCase(page, 'BHP match');
+  await tab(page, 'Builder').click();
+  await page.getByTestId('history-enabled').check();
+  await page.getByTestId('history-source').selectOption('perwell');
+  await page.getByTestId('history-csv').fill(BHP_CSV);
+  await page.getByTestId('history-csv-import').click();
+  await expect(page.getByTestId('history-read-back')).toContainText('written as the observed BHP of the period (WBHPH)');
+  await expect(page.getByTestId('history-well-summary')).toContainText('PROD1');
+  await page.getByTestId('generate-deck').click();
+  await expect(page.getByText(/Model generated \(Pb/)).toBeVisible({ timeout: 20000 });
+  await tab(page, 'Deck').click();
+  await expect(page.getByTestId('deck-editor')).toContainText("'PROD1' 'OPEN' 'ORAT' 2000 0 1600 3* 3600 /");
+  await expect(page.getByTestId('deck-editor')).toContainText('WBHPH');
+  await tab(page, 'Runs').click();
+  await page.getByTestId('queue-run').click();
+  await expect(page.getByText('complete', { exact: true })).toBeVisible({ timeout: 30000 });
+  await tab(page, 'Report').click();
+  await expect(page.getByTestId('report-bhp')).toContainText('All wells', { timeout: 30000 });
+  await expect(page.getByTestId('report-bhp-text')).toContainText(/RMS mismatch [\d,.]+ psia over 9 points in 2 wells/);
+  // the builder form that made the deck knows the observed periods; the run's WBHPH is checked against it
+  await expect(page.getByTestId('report-bhp-text')).toContainText("the run's WBHPH equals it at all 15 time steps (the simulator read the pressures as written)");
+  await page.screenshot({ path: path.join(OUT, 'u2-001-report.png'), fullPage: false });
+  const p = page.waitForEvent('download');
+  await page.getByTestId('report-export').click();
+  const file = path.join(OUT, 'bhp-report.pdf');
+  await (await p).saveAs(file);
+  const pdf = readPdfFile(file);
+  expect(pdf.flat).toMatch(/Bottomhole pressure match \(history phase\)/);
+  expect(pdf.flat).toMatch(/Figure 7\. Bottomhole pressure match/);
+  expect(errors).toEqual([]);
+});
+
+test('U2-005 run compare: two runs of a case overlaid on the calendar, the difference table, in the report', async ({ page }) => {
+  test.setTimeout(400000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await runSpe1(page, 'Compare');
+  // a second run of the same deck
+  await page.getByTestId('queue-run').click();
+  await expect(page.getByText('complete', { exact: true })).toHaveCount(2, { timeout: 30000 });
+  await tab(page, 'Results').click();
+  const picks = page.getByTestId('sim-compare-picks').locator('input[type="checkbox"]');
+  await expect(picks).toHaveCount(2, { timeout: 30000 });
+  await expect(page.getByTestId('sim-compare-why')).toContainText('Pick two or more completed runs');
+  await picks.nth(0).check();
+  await picks.nth(1).check();
+  const table = page.getByTestId('sim-compare-table');
+  await expect(table).toContainText('Cumulative oil produced', { timeout: 30000 });
+  await expect(table).toContainText('the same deck as the base');
+  await page.getByTestId('sim-compare-vector').selectOption('FPR');
+  await page.screenshot({ path: path.join(OUT, 'u2-005-results.png'), fullPage: true });
+  expect(await noPageScroll(page)).toBe(true);
+  await tab(page, 'Report').click();
+  await expect(page.getByTestId('report-compare')).toContainText('Difference');
+  const p = page.waitForEvent('download');
+  await page.getByTestId('report-export').click();
+  const file = path.join(OUT, 'compare-report.pdf');
+  await (await p).saveAs(file);
+  const pdf = readPdfFile(file);
+  expect(pdf.flat).toMatch(/Run comparison/);
+  expect(pdf.flat).toMatch(/Figure \d+\. Run comparison/);
+  expect(errors).toEqual([]);
+});
+
+test('U2-003 three-phase oil kr: Stone II chosen in the builder reaches the deck and the report', async ({ page }) => {
+  test.setTimeout(300000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await newCase(page, 'Stone II');
+  await tab(page, 'Builder').click();
+  await page.getByTestId('sim-three-phase').selectOption('stone2');
+  await page.getByTestId('generate-deck').click();
+  await expect(page.getByText(/Model generated \(Pb/)).toBeVisible({ timeout: 20000 });
+  await tab(page, 'Deck').click();
+  await expect(page.getByTestId('deck-editor')).toContainText('-- Three-phase oil kr: STONE2 (Stone 1973, the second model), chosen in the deck builder');
+  await expect(page.getByTestId('deck-editor')).toContainText('\nSTONE2\n');
+  await tab(page, 'Runs').click();
+  await page.getByTestId('queue-run').click();
+  await expect(page.getByText('complete', { exact: true })).toBeVisible({ timeout: 30000 });
+  await tab(page, 'Report').click();
+  await expect(page.getByTestId('report-deck')).toContainText("STONE2: Stone's second model (Stone 1973, STONE2), as the deck asks");
+  await expect(page.getByTestId('report-inputs')).toContainText('Three-phase oil kr model');
+  expect(errors).toEqual([]);
+});
+
+test('U2-004 aquifer: a Carter-Tracy aquifer taken by id from a Material Balance case, in the deck, the run and the report', async ({ page }) => {
+  test.setTimeout(400000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page, '?mbal=1&mbalAquifer=case-dake-9-2');
+  await newCase(page, 'Aquifer');
+  await tab(page, 'Builder').click();
+  await page.getByTestId('sim-aquifer-enabled').check();
+  await expect(page.getByTestId('sim-aquifer-case')).toHaveValue('case-dake-9-2');
+  await page.getByTestId('sim-aquifer-take').click();
+  await expect(page.getByTestId('sim-aquifer-source')).toContainText('Dake Exercise 9.2 (water drive)');
+  await expect(page.getByTestId('sim-aquifer-model')).toHaveValue('carter_tracy');
+  await expect(page.getByTestId('sim-aquifer-k_md')).toHaveValue('200');
+  await expect(page.getByTestId('sim-aquifer-reD')).toHaveValue('5');
+  await page.getByTestId('generate-deck').click();
+  await expect(page.getByText(/Model generated \(Pb/)).toBeVisible({ timeout: 20000 });
+  await tab(page, 'Deck').click();
+  const deck = page.getByTestId('deck-editor');
+  await expect(deck).toContainText('-- Aquifer source: mbal-1 from Material Balance Studio case "Dake Exercise 9.2 (water drive)"');
+  await expect(deck).toContainText('AQUTAB');
+  await expect(deck).toContainText("AQUANCON\n  1 1 1 1 10 1 3 'I-' /");
+  await tab(page, 'Runs').click();
+  await page.getByTestId('queue-run').click();
+  await expect(page.getByText('complete', { exact: true })).toBeVisible({ timeout: 30000 });
+  await tab(page, 'Results').click();
+  await expect(page.getByText('AAQT: Aquifer cumulative influx')).toBeVisible({ timeout: 30000 });
+  await tab(page, 'Report').click();
+  await expect(page.getByTestId('report-inputs')).toContainText('Aquifer permeability k');
+  await expect(page.getByTestId('report-inputs')).toContainText('mbal-1 from Material Balance Studio case "Dake Exercise 9.2 (water drive)"');
+  const p = page.waitForEvent('download');
+  await page.getByTestId('report-export').click();
+  const file = path.join(OUT, 'aquifer-report.pdf');
+  await (await p).saveAs(file);
+  const pdf = readPdfFile(file);
+  expect(pdf.flat).toMatch(/Aquifer influx and pressure/);
+  expect(pdf.flat).toMatch(/Dake's Exercise 9\.2 aquifer: OPM Flow's influx and the Material Balance engine's agree within 1 percent/);
+  expect(errors).toEqual([]);
+});
+
+test('U2-007 a Waterflood pattern sent as a starting deck: the quarter five-spot element by id, generated and run', async ({ page }) => {
+  test.setTimeout(400000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/dev/studio/waterflood', { timeout: 120000 });
+  await page.getByRole('button', { name: 'Create new project' }).first().click({ timeout: 120000 });
+  await page.getByLabel('Project name').fill('Ekene P-1 flood');
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await expect(page.getByRole('combobox', { name: 'Project' })).toContainText('Ekene P-1 flood', { timeout: 60000 });
+  await page.getByRole('tab', { name: 'Pattern Forecast', exact: true }).first().click();
+  await page.getByTestId('wds-flood-start').fill('2027-01-01');
+  await expect(page.getByTestId('wds-send-sim')).toBeEnabled();
+  await page.waitForTimeout(800); // the harness copies the project to the tab session
+  await page.getByTestId('wds-send-sim').click();
+  await expect(page).toHaveURL(/\/dev\/reservoir-simulation-studio\?wfProject=/, { timeout: 60000 });
+  await expect(tab(page, 'Deck')).toBeVisible({ timeout: 120000 });
+  await newCase(page, 'From the flood');
+  await tab(page, 'Builder').click();
+  await expect(page.getByTestId('sim-wf-project')).not.toHaveValue('');
+  await page.getByTestId('sim-wf-take').click();
+  await expect(page.getByTestId('sim-wf-origin')).toContainText('From Waterflood Design Studio project "Ekene P-1 flood" (wf-forecast-1)');
+  await expect(page.getByTestId('sim-wf-origin')).toContainText('Quarter five-spot element of the pattern');
+  await expect(page.getByTestId('sim-wf-origin')).toContainText('Not in the pattern, kept from the builder');
+  await page.getByTestId('generate-deck').click();
+  await expect(page.getByText(/Model generated \(Pb/)).toBeVisible({ timeout: 20000 });
+  await tab(page, 'Deck').click();
+  await expect(page.getByTestId('deck-editor')).toContainText('-- Starting model: Waterflood Design Studio project "Ekene P-1 flood" (wf-forecast-1)');
+  await tab(page, 'Runs').click();
+  await page.getByTestId('queue-run').click();
+  await expect(page.getByText('complete', { exact: true })).toBeVisible({ timeout: 30000 });
+  expect(errors).toEqual([]);
+});

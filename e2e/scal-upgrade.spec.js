@@ -320,14 +320,20 @@ test('U2-001, U2-002: SWOF and SGOF with Pc, and the gas-oil CSV, downloaded and
   await page.getByRole('option', { name: /METRIC/ }).click();
   const metric = await download(page, 'scal-deck-export', 'scal-metric.inc');
   expect(metric.text).toMatch(/Pc in bar \(METRIC deck units\)/);
-  // two connate waters: refused with the reason
+  // SIM-U2-014: one connate water. The gas-oil Swc follows the oil-water Swc and
+  // cannot be typed apart, so the export is never refused for two connate waters
   await tab(page, 'Curves').click();
   await openRail(page);
   await page.getByRole('tab', { name: 'Gas-oil' }).click();
-  await page.getByTestId('corey-go-Swc').fill('0.25');
+  await expect(page.getByTestId('corey-go-Swc')).toBeDisabled();
+  await expect(page.getByTestId('scal-go-swc-pairing')).toContainText('held at the oil-water Swc');
+  await page.getByRole('tab', { name: 'Oil-water' }).click();
+  await page.getByTestId('corey-ow-Swc').fill('0.25');
+  await page.getByRole('tab', { name: 'Gas-oil' }).click();
+  await expect(page.getByTestId('corey-go-Swc')).toHaveValue('0.25');
   await closeRail(page);
   await tab(page, 'Export').click();
-  await expect(page.getByTestId('scal-deck-refused')).toContainText('one connate water');
+  await expect(page.getByTestId('scal-deck-refused')).toHaveCount(0);
   // the gas-oil CSV
   const go = await download(page, 'scal-csv-go', 'go.csv');
   expect(go.text.split('\n').find((l) => !l.startsWith('#'))).toBe('Sg,krg,krog');

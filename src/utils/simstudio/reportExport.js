@@ -7,14 +7,20 @@
 import { loadPetrolordLogo } from '@/lib/pdfBrand';
 import { createReport } from '@/lib/reportKit';
 import { buildSimReportModel, REPORT_TITLE, APP_NAME } from './reportModel.js';
-import { buildSimReportFigures } from './reportFigures.js';
+import { buildSimReportFigures, buildCompareFigure } from './reportFigures.js';
+import { compareRuns } from './runCompare.js';
 
 /** Everything the report needs (the Report tab calls this too). */
 export function collectSimReportArgs(a) {
   const model = buildSimReportModel(a);
   const sch = model?.deckSummary?.schedule;
   const historyEnd = sch?.historyControls && sch.lastDate ? sch.lastDate : null;
-  const figures = model ? buildSimReportFigures({ summary: a.summary, opts: model.opts, historyEnd }) : [];
+  const figures = model ? buildSimReportFigures({ summary: a.summary, opts: model.opts, historyEnd, bhp: model.bhpMatchRaw, aquiferDeck: !!model.deckSummary?.aquifers?.length }) : [];
+  // SIM-U2-005: the runs compared on the Results tab (the first is the base)
+  if (model && (a.compare || []).length >= 2) {
+    model.compare = compareRuns({ entries: a.compare, system: a.system || 'oilfield' });
+    if (model.compare.ok) figures.push(buildCompareFigure({ entries: a.compare, system: a.system || 'oilfield' }));
+  }
   return { model, figures };
 }
 
@@ -53,12 +59,29 @@ export function buildSimPdf(a, { logo = null, generatedAt = new Date() } = {}) {
     if (model.convergence.chops?.length) section('Time steps cut', model.convergence.chops.map((c) => `- ${c}`).join('\n'), { need: 14 });
   } else section('Convergence', model.convergence.text, { need: 14 });
 
+  // SIM-U2-001: the bottomhole pressure match of the history phase
+  if (model.bhpMatch.applies) {
+    table('Bottomhole pressure match (history phase)', model.bhpMatch.head, model.bhpMatch.rows, {
+      columnStyles: Object.fromEntries([1, 2, 3, 4, 5].map((i) => [i, { halign: 'right' }])), note: model.bhpMatch.text, fontSize: 7,
+    });
+  } else if (model.deckSummary?.schedule?.historyControls) section('Bottomhole pressure match', model.bhpMatch.text, { need: 14 });
+
   table('Run provenance', ['Item', 'Value'], model.provenance, { columnStyles: KV });
   table('What the deck holds', ['Item', 'As read from the main deck'], model.deck, { columnStyles: KV });
   if (model.wells.length) table('Wells in the deck', model.wellsHead, model.wells, { fontSize: 7 });
 
   if (model.inputs) report.inputsTable(model.inputs.rows, { title: 'Model Builder inputs and their sources', note: model.inputs.note });
   else section('Model Builder inputs', `Not shown: ${model.inputsWhy} The deck itself, summarised above, is the record of this run's inputs.`, { need: 14 });
+
+  // SIM-U2-005: the run comparison
+  if (model.compare?.ok) {
+    const n = model.compare.head.length;
+    table('Run comparison', model.compare.head, model.compare.rows, {
+      columnStyles: Object.fromEntries(Array.from({ length: n - 2 }, (_, i) => [i + 2, { halign: 'right' }])),
+      fontSize: 6.5,
+      note: `The first run is the base; a difference is the run minus the base. Each run read in its own deck units, shown in the display units. ${model.compare.notes.join(' ')}`.trim(),
+    });
+  }
 
   report.limits({
     assumptions: model.limits.assumptions,

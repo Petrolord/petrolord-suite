@@ -17,11 +17,13 @@ import {
   wellSeriesKeys, hasObservedField, VECTOR_META, summaryStepText,
 } from '@/components/simstudio/resultAdapters';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
-import { fieldRows, wellRows, summaryUnitSystem } from '@/utils/simstudio/series';
+import { fieldRows, wellRows, summaryUnitSystem, aquiferRows } from '@/utils/simstudio/series';
 import { vectorView } from '@/utils/simstudio/simUnits';
 import { summarizeDeck } from '@/utils/simstudio/deckSummary';
 import { buildResultsCsv } from '@/utils/simstudio/resultsCsv';
 import { runStatusLine } from '@/utils/simstudio/runStatus';
+import SimSendPanel from '@/components/simstudio/SimSendPanel';
+import RunComparePanel from '@/components/simstudio/RunComparePanel';
 
 const LINE_COLORS = ['#166534', '#1d4ed8', '#b45309', '#b91c1c', '#7c3aed', '#0e7490', '#be185d', '#4d7c0f'];
 
@@ -178,6 +180,9 @@ const ResultsPanel = () => {
         )}
       </Card>
 
+      {summary && selectedRun && <SimSendPanel run={selectedRun} />}
+      <RunComparePanel completeRuns={completeRuns} />
+
       {!summary ? (
         <Card>
           <CardContent className="py-12 text-center text-sm text-pl-muted">
@@ -195,6 +200,14 @@ const ResultsPanel = () => {
               unit={vectorView(key, opts.deckSystem, system).label}
               rows={fieldRows(summary, key, opts)}
               seriesKeys={hasObservedField(summary, key) ? ['value', 'observed'] : ['value']} />
+          ))}
+          {/* SIM-U2-004: an analytical aquifer's influx and pressure */}
+          {['AAQT', 'AAQP'].filter((k) => Array.isArray(summary.aquifers?.['1']?.[k])).map((key) => (
+            <VectorChart key={key}
+              title={`${key}: ${key === 'AAQT' ? 'Aquifer cumulative influx' : 'Aquifer pressure'}`}
+              unit={vectorView(key, opts.deckSystem, system).label}
+              rows={aquiferRows(summary, key, opts)}
+              seriesKeys={['value']} />
           ))}
           {availableWellVectors(summary).map((base) => (
             <VectorChart key={base}
