@@ -14,17 +14,17 @@ Display units             Oilfield                                           Gen
 Headline results
  Quantity                                                    Value
 
- Permeability k (md)                                         13.7
+ Permeability k (md)                                         13.6
 
- kh (md-ft)                                                  618
+ kh (md-ft)                                                  612
 
- Apparent skin s'                                            6.25
+ Apparent skin s'                                            6.46
 
- Pressure drop across skin (psi)                             120.0
+ Pressure drop across skin (psi)                             124.1
 
- Flow efficiency                                             56%
+ Flow efficiency                                             54%
 
- Radius of investigation (ft)                                1672.8
+ Radius of investigation (ft)                                1353.1
 
  Analysis points                                             45
 
@@ -34,11 +34,11 @@ Headline results
 Skin components
  Component                                                           Value                Basis
 
- Apparent skin s'                                                    6.25                 From the interpretation
+ Apparent skin s'                                                    6.46                 From the interpretation
 
  Partial-penetration pseudo-skin s_pp                                2.60                 Papatzacos (1987)
 
- Mechanical and rate-dependent skin                                  2.35                 s_d = (hp/h) (s - s_pp)
+ Mechanical and rate-dependent skin                                  2.49                 s_d = (hp/h) (s - s_pp)
 
  Net pay h (ft)                                                      45                   Input
 
@@ -58,11 +58,11 @@ Well Test Analysis Report, Well Sample well 1, Field Obodo                      
 Straight-line analyses
  Analysis                                                                                    Result
 
- Horner slope m                                                                              8.480e+6 psi2/cp/cycle
+ Horner slope m                                                                              8.558e+6 psi2/cp/cycle
 
- Semilog k (md)                                                                              13.7
+ Semilog k (md)                                                                              13.6
 
- Semilog skin                                                                                6.25
+ Semilog skin                                                                                6.46
 
  Extrapolated p* (psi)                                                                       4800.1
 
@@ -74,7 +74,7 @@ Well Test Analysis Report, Well Sample well 1, Field Obodo                      
 Cross-check of methods
  Method                                     k (md)           Skin       Basis
 
- Horner straight line                       13.7             6.25       Semilog slope, r2 1.00, pseudo-pressure
+ Horner straight line                       13.6             6.46       Semilog slope, r2 1.00, pseudo-pressure
 
 Only one method has produced a result so far.
 
@@ -103,14 +103,16 @@ Well Test Analysis Report, Well Sample well 1, Field Obodo                      
 
  Water saturation Sw                           0.3                       fraction        Entered, source not stated
 
- Total compressibility ct                      9.545e-5                  1/psi           Computed: gas compressibility at pi, 1/p - (dz/dp)/z on the
+ Total compressibility ct                      1.375e-4                  1/psi           Computed: gas compressibility at pi, 1/p - (dz/dp)/z on the
                                                                                          z table
 
- Gas viscosity mu at pi                        0.023923                  cp              Correlation: Papay z-factor, Lee-Gonzalez-Eakin viscosity,
-                                                                                         Sutton (1985) pseudo-criticals (computed by the studio)
+ Gas viscosity mu at pi                        0.025144                  cp              Correlation: Dranchuk-Abou-Kassem z-factor,
+                                                                                         Lee-Gonzalez-Eakin viscosity, Sutton (1985)
+                                                                                         pseudo-criticals (computed by the studio)
 
- Gas z-factor at pi                            1.0422                                    Correlation: Papay z-factor, Lee-Gonzalez-Eakin viscosity,
-                                                                                         Sutton (1985) pseudo-criticals (computed by the studio)
+ Gas z-factor at pi                            0.98271                                   Correlation: Dranchuk-Abou-Kassem z-factor,
+                                                                                         Lee-Gonzalez-Eakin viscosity, Sutton (1985)
+                                                                                         pseudo-criticals (computed by the studio)
 
  Gas gravity                                   0.65                      air = 1         Entered, source not stated
 
@@ -242,14 +244,14 @@ Well Test Analysis Report, Well Sample well 1, Field Obodo                      
 
                    4550
 
-                         Slope m = 8.480e+6 psi2/cp/cycle
+                         Slope m = 8.558e+6 psi2/cp/cycle
                          Fit window 4.56 to 35.1 hr shut-in time (4.05 to 17.8 hr equivalent time), the detected radial flow
                    4500
                      10000                                    1000                                      100                    10                      1
 
                                                                                           Horner time ratio (tp + dt)/dt
 
-Shut-in pressure against the Horner time ratio, with the fitted straight line. Slope m = 8.480e+6 psi2/cp/cycle. Fit window 4.56 to 35.1 hr shut-in
+Shut-in pressure against the Horner time ratio, with the fitted straight line. Slope m = 8.558e+6 psi2/cp/cycle. Fit window 4.56 to 35.1 hr shut-in
 time (4.05 to 17.8 hr equivalent time), the detected radial flow (11 points). The shaded band is the fit window. The line is fitted in pseudo-pressure
 and drawn back in pressure.
 

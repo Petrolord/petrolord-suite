@@ -345,9 +345,21 @@ const DataPanel = () => {
             </div>
           )}
           {isGas && (
-            <p className="text-[11px] text-pl-muted">
-              Analyses run in real-gas pseudo-pressure m(p). Gas viscosity and z come from the Lee-Gonzalez-Eakin and Papay correlations at reservoir temperature; leave ct blank to use the computed gas compressibility at pi.
-            </p>
+            <div className="space-y-1">
+              <Label className="text-xs text-pl-muted">Gas z-factor</Label>
+              <Select value={reservoirInputs.gasZMethod || 'papay'} onValueChange={(v) => setReservoirField('gasZMethod', v)}>
+                <SelectTrigger className="h-9" aria-label="Gas z-factor method" data-testid="wts-z-method"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="dranchuk_abou_kassem">Dranchuk-Abou-Kassem (default)</SelectItem>
+                  <SelectItem value="hall_yarborough">Hall-Yarborough</SelectItem>
+                  <SelectItem value="papay">Papay (projects saved before 2026-10-04)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-pl-muted" data-testid="wts-z-note">
+                Analyses run in real-gas pseudo-pressure m(p). z comes from {reservoirInputs.gasZMethod === 'hall_yarborough' ? 'Hall-Yarborough' : reservoirInputs.gasZMethod === 'dranchuk_abou_kassem' ? 'Dranchuk-Abou-Kassem' : 'Papay'} with Sutton pseudo-criticals and the viscosity from Lee-Gonzalez-Eakin, at reservoir temperature; leave ct blank to use the computed gas compressibility at pi.
+                {(reservoirInputs.gasZMethod || 'papay') === 'papay' && ' Papay is kept so a project interpreted with it reproduces its numbers; Dranchuk-Abou-Kassem, the Fluid Systems Studio default, holds the Standing-Katz chart more closely at high pressure.'}
+              </p>
+            </div>
           )}
         </div>
       </section>

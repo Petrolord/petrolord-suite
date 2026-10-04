@@ -13,7 +13,7 @@ import { bourdetDerivative, logDecimate, trimSpikes, detectFlowRegimes } from '@
 import { agarwalEquivalentTime, rateStepsFromHistory, detectFlowPeriods, equivalentProducingTime } from '@/utils/welltest/superposition';
 import { mdhAnalysis, hornerAnalysis, cartesianPssAnalysis, sqrtTimeAnalysis, radiusOfInvestigation, skinPressureDrop, flowEfficiency, multiRateSemilogAnalysis } from '@/utils/welltest/analysis';
 import { autoFitModel } from '@/utils/welltest/autoFit';
-import { buildGasPvtTable, makePseudoPressure, deliverabilityAnalysis, normalizedPseudoTime, GAS } from '@/utils/welltest/gas';
+import { buildGasPvtTable, makePseudoPressure, deliverabilityAnalysis, normalizedPseudoTime, GAS, WELLTEST_Z_METHODS } from '@/utils/welltest/gas';
 import { UNIT_SYSTEMS } from '@/utils/welltest/units';
 import { useProfileSystem } from '@/lib/units/useProfileSystem';
 import { provenanceFromPayload, setProvenanceField } from '@/lib/inputProvenance';
@@ -57,10 +57,15 @@ export const DEFAULT_RESERVOIR = {
   h: '45', phi: '0.18', rw: '0.354', B: '1.25', mu: '0.9', ct: '0.000012',
   q: '450', pi: '4800',
   // WT4 gas mode: analyses run in pseudo-pressure m(p) space built from
-  // these correlation inputs (Papay z, Lee-Gonzalez-Eakin viscosity).
+  // these correlation inputs (z by gasZMethod, Lee-Gonzalez-Eakin viscosity).
   fluid: 'oil', // 'oil' | 'gas'
   gasGravity: '0.65',
   tempF: '180',
+  // WTA-U1-003: z-factor method of the gas PVT table. New work runs on the
+  // canonical Dranchuk-Abou-Kassem engine (the Fluid Systems Studio default);
+  // a project saved before 2026-10-04 carries no method and opens on Papay,
+  // the method it was interpreted with (see hydrate).
+  gasZMethod: 'dranchuk_abou_kassem',
   // Tester round 2 (report inputs). ctMode 'total' keeps ct as the one
   // entered number; 'components' sums cf + So co + Sw cw + Sg cg in the
   // engine. Everything below is blank until entered and prints as n/a.
@@ -141,7 +146,8 @@ export function buildReservoirInputs(r) {
     if (!(tempF > 32 && tempF < 500)) {
       return { reservoir: null, error: 'Reservoir temperature must be given in degF.' };
     }
-    const pvt = makePseudoPressure(buildGasPvtTable({ gasGravity, tempF, pMax: Math.max(out.pi * 1.5, 2000) }));
+    const zMethod = WELLTEST_Z_METHODS[r.gasZMethod] ? r.gasZMethod : 'papay';
+    const pvt = makePseudoPressure(buildGasPvtTable({ gasGravity, tempF, pMax: Math.max(out.pi * 1.5, 2000), zMethod }));
     if (!pvt) return { reservoir: null, error: 'Gas PVT table could not be built.' };
     const muI = pvt.muOf(out.pi);
     // components: a gas saturation with no cg entered takes cg(pi) from the PVT table
@@ -158,6 +164,7 @@ export function buildReservoirInputs(r) {
         B: (GAS.SEMILOG_SLOPE * tempR) / (162.6 * muI),
         tempR,
         gasGravity,
+        zMethod,
         mOfP: pvt.mOfP,
         pOfM: pvt.pOfM,
         // WT8 pseudo-time abscissa: mu(p) ct(p) along the gauge pressures.
@@ -894,7 +901,7 @@ export const WellTestStudioProvider = ({ children }) => {
   const analysisInputsKey = useMemo(() => {
     const r = reservoirSpec.reservoir;
     if (!r) return `invalid:${reservoirSpec.error || ''}`;
-    return [r.fluid, r.h, r.phi, r.rw, r.B, r.mu, r.ct, r.q, r.pi, r.tempR ?? '', r.gasGravity ?? ''].join('|');
+    return [r.fluid, r.h, r.phi, r.rw, r.B, r.mu, r.ct, r.q, r.pi, r.tempR ?? '', r.gasGravity ?? '', r.zMethod ?? ''].join('|');
   }, [reservoirSpec]);
   useEffect(() => {
     if (hasFitResult.current) setFitStale(true);
@@ -962,7 +969,11 @@ export const WellTestStudioProvider = ({ children }) => {
     setInputMeta(provenanceFromPayload(payload));
     setPeriodMeta(payload?.periodMeta && typeof payload.periodMeta === 'object' ? payload.periodMeta : {});
     setPvtIntake(payload?.pvtIntake && Array.isArray(payload.pvtIntake.fields) ? payload.pvtIntake : null);
-    setReservoirInputs({ ...DEFAULT_RESERVOIR, ...(payload?.reservoirInputs || {}) });
+    // WTA-U1-003: a payload with reservoir inputs but no z method was saved
+    // before the method existed, and was interpreted on Papay; it keeps it
+    const savedInputs = payload?.reservoirInputs || {};
+    const zKept = payload?.reservoirInputs && !savedInputs.gasZMethod ? { gasZMethod: 'papay' } : {};
+    setReservoirInputs({ ...DEFAULT_RESERVOIR, ...savedInputs, ...zKept });
     setTestConfig({ ...DEFAULT_TEST_CONFIG, ...(payload?.testConfig || {}) });
     setGaugeRows(Array.isArray(payload?.gaugeRows) ? payload.gaugeRows : []);
     setRateRows(Array.isArray(payload?.rateRows) ? payload.rateRows : []);

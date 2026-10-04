@@ -75,3 +75,53 @@ describe('WTA-U1-002: the RTA productivity index under SI', () => {
     studio.unmount();
   }, 600000);
 });
+
+describe('WTA-U1-003: gas z-factor on Dranchuk-Abou-Kassem from the engines', () => {
+  const gasSample = async () => sample((c) => {
+    c.setReservoirField('fluid', 'gas');
+    c.setReservoirField('ct', '');
+    c.setReservoirField('q', '5000');
+  });
+
+  test('a new gas test runs on the canonical Dranchuk-Abou-Kassem z, and the report names it', async () => {
+    const { buildGasPvtTable, makePseudoPressure } = require('@/utils/welltest/gas');
+    const { gasZFactor } = require('../../../../packages/engines/engines/fluid/blackOil.ts');
+    const studio = await gasSample();
+    const r = studio.ctx.reservoirSpec.reservoir;
+    expect(studio.ctx.reservoirInputs.gasZMethod).toBe('dranchuk_abou_kassem');
+    expect(r.pvtSource.z).toBe('Dranchuk-Abou-Kassem');
+    // the studio's table IS the engine's, at the pressure grid it builds
+    const ref = makePseudoPressure(buildGasPvtTable({ gasGravity: 0.65, tempF: 180, pMax: Math.max(4800 * 1.5, 2000), zMethod: 'dranchuk_abou_kassem' }));
+    expect(r.mu).toBe(ref.muOf(4800));
+    expect(r.pvt.table.find((x) => x.p > 4000).z).toBe(gasZFactor(r.pvt.table.find((x) => x.p > 4000).p, 180, 0.65, 'dranchuk_abou_kassem'));
+    const t = flat(readPdf(build(studio.ctx).doc).text);
+    expect(t).toMatch(/Dranchuk-Abou-Kassem z-factor/);
+    expect(t).not.toMatch(/Papay/);
+    studio.unmount();
+  }, 600000);
+
+  test('a gas project saved before this change opens on Papay with its numbers unchanged, and says so', async () => {
+    const studio = await gasSample();
+    const saved = studio.ctx.serializeInputs();
+    const old = { ...saved, reservoirInputs: { ...saved.reservoirInputs } };
+    delete old.reservoirInputs.gasZMethod; // a payload of the earlier release
+    await studio.act((c) => c.importProjectPayload(old));
+    expect(studio.ctx.reservoirInputs.gasZMethod).toBe('papay');
+    expect(studio.ctx.reservoirSpec.reservoir.pvtSource.z).toBe('Papay');
+    const { buildGasPvtTable, makePseudoPressure } = require('@/utils/welltest/gas');
+    const before = makePseudoPressure(buildGasPvtTable({ gasGravity: 0.65, tempF: 180, pMax: Math.max(4800 * 1.5, 2000) }));
+    expect(studio.ctx.reservoirSpec.reservoir.mu).toBe(before.muOf(4800)); // the earlier release's table, unchanged
+    const t = flat(readPdf(build(studio.ctx).doc).text);
+    expect(t).toMatch(/Papay z-factor/);
+    studio.unmount();
+  }, 600000);
+
+  test('changing the z method withdraws an earlier auto-fit (it changes m(p))', async () => {
+    const studio = await gasSample();
+    await studio.act((c) => c.runAutoFit());
+    expect(studio.ctx.fitStale).toBe(false);
+    await studio.act((c) => c.setReservoirField('gasZMethod', 'hall_yarborough'));
+    expect(studio.ctx.fitStale).toBe(true);
+    studio.unmount();
+  }, 600000);
+});

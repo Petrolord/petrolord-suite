@@ -237,9 +237,12 @@ const WTSHelpContent = () => (
 
     <H>Gas wells, injection tests and multi-rate</H>
     <P>
-      Setting the fluid to gas runs every analysis in real-gas pseudo-pressure m(p), built from the Papay z-factor and
-      Lee-Gonzalez-Eakin viscosity correlations at reservoir temperature (leave ct blank to use the computed gas
-      compressibility at pi). Permeability and skin come from the 1637 qT/kh semilog slope; the reported skin on a gas
+      Setting the fluid to gas runs every analysis in real-gas pseudo-pressure m(p), built from a z-factor and the
+      Lee-Gonzalez-Eakin viscosity correlation at reservoir temperature (leave ct blank to use the computed gas
+      compressibility at pi). The z-factor is Dranchuk-Abou-Kassem with Sutton pseudo-criticals by default, the same
+      engine Fluid Systems Studio uses; Hall-Yarborough can be chosen, and Papay stays for projects saved before
+      2026-10-04 so they reproduce the numbers they were interpreted with. The report names the method. Changing it
+      changes m(p), the gas compressibility and the viscosity, so an earlier auto-fit is withdrawn. Permeability and skin come from the 1637 qT/kh semilog slope; the reported skin on a gas
       well is the apparent skin s' which includes the rate-dependent term. The Specialized tab adds gas deliverability:
       enter flow-after-flow or isochronal points to get the Rawlins-Schellhardt C and n, the Houpeurt LIT coefficients
       a and b, and the AOF by both methods.
