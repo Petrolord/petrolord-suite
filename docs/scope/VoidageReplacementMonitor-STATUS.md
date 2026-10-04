@@ -266,6 +266,6 @@ Batch A all six and two of Batch B, per the programme lead's batch decision
 - Payload additions (schema stays 1): `wellMap`, `patterns[].band`.
 - Deferred: U2-007 CRM (needs a published validation case), U2-008,
   U2-009, U2-010 (datum stated, not corrected), Batch C.
-- Owner/lead items: merge engines PR #307, then re-pin the Suite and delete
-  the two `vrr-u2` ledger rows.
+- Engines PR #307 merged by the lead (engines main e9d98ac); the Suite is
+  re-pinned there with 0 deviations.
 - Sample: `/root/vrr-report-sample.pdf` (9 pages, the demo field with its map).

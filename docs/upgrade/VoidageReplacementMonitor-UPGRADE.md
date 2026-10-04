@@ -242,10 +242,9 @@ Recorded verbatim:
 
 ## Step 2 build (branch `feat/vrr-u2`)
 
-Engines PR #307 (`buildWellVoidage`), not merged by the build agent; the
-Suite vendors it byte-identical with `vrr-u2` ledger rows in
-`packages/engines/VENDOR.json` until the lead merges it. `vrr.js` is
-byte-identical.
+Engines PR #307 (`buildWellVoidage`), reviewed and merged by the programme
+lead (engines main e9d98ac); the Suite is pinned at e9d98ac with 0 recorded
+deviations. `vrr.js` is byte-identical.
 
 | ID | Status | What was built | Proving test |
 |---|---|---|---|
