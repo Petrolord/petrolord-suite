@@ -10,7 +10,9 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { defaultBuilderForm, buildDeckFromForm } from '@/utils/simDeckBuilder';
+import { defaultBuilderForm, buildDeckFromForm, buildPvtFromFluid } from '@/utils/simDeckBuilder';
+import { summarizeDeck } from '@/utils/simstudio/deckSummary';
+import { threePhaseWords } from '@/utils/simstudio/reportModel';
 import { parseWellRateCsv, historyFromWellRows, pressureToPsia } from '@/utils/simWellHistoryImport';
 import { bhpMatch, rms } from '@/utils/simstudio/bhpMatch';
 import { buildSimReportModel } from '@/utils/simstudio/reportModel';
@@ -203,5 +205,50 @@ describe('SIM-U2-001: the mismatch by well and the RMS', () => {
     // a deck with no history: the figure says why
     const plain = collectSimReportArgs({ caseRow: { name: 'x', deck_source: 'generated' }, run, summary: { ...summary, wells: {} }, deckText: buildDeckFromForm(defaultBuilderForm()).deck, system: 'oilfield' });
     expect(plain.figures.find((x) => x.id === 'bhp-match').statement).toMatch(/^Does not apply: The deck carries no observed bottomhole pressure/);
+  });
+});
+
+// ---- SIM-U2-003: three-phase oil relative permeability --------------------
+
+/**
+ * A model where oil, water and gas all flow: the reservoir starts 150 psi
+ * above the bubble point, the producer draws it below (free gas) while a
+ * water leg in the bottom layer and a water injector bring water to it.
+ */
+export function threePhaseForm(model) {
+  const f = defaultBuilderForm();
+  f.title = 'U2 three-phase kr';
+  const { pb } = buildPvtFromFluid(f.fluid);
+  f.equil = { ...f.equil, datumPressure: String(Math.round(pb + 150)), owc: '8070', goc: '' };
+  f.wells = f.wells.map((w) => (w.type === 'producer' ? { ...w, rate: '6000', bhp: '800' } : { ...w, rate: '6000', bhp: '6000' }));
+  f.schedule = { years: '3', reportDays: '30.4375' };
+  f.scal = { ...f.scal, threePhase: model };
+  return f;
+}
+
+describe('SIM-U2-003: the three-phase oil kr model in the deck and the report', () => {
+  it('STONE1 and STONE2 are written after the two-phase tables and stated in the deck; the default writes no keyword', () => {
+    const decks = {};
+    for (const [model, file] of [['', 'BUILT_3PH_DEFAULT.DATA'], ['stone1', 'BUILT_3PH_STONE1.DATA'], ['stone2', 'BUILT_3PH_STONE2.DATA']]) {
+      const out = buildDeckFromForm(threePhaseForm(model));
+      expect(out.ok).toBe(true);
+      decks[model] = out.deck;
+      fixture(file, out.deck);
+    }
+    expect(decks.stone1).toMatch(/\nSTONE1\n\nDENSITY/);
+    expect(decks.stone1).toContain('-- Three-phase oil kr: STONE1 (Stone 1970, the first model), chosen in the deck builder; built from the two-phase sets above (SWOF krow, SGOF krog)');
+    expect(decks.stone2).toMatch(/\nSTONE2\n\nDENSITY/);
+    expect(decks['']).not.toMatch(/STONE/);
+    // negative control: the explicit default writes no keyword, only the comment that says so
+    const explicit = buildDeckFromForm(threePhaseForm('default')).deck;
+    expect(explicit).not.toMatch(/^STONE/m);
+    expect(explicit.replace(/-- Three-phase oil kr: .*\n/, '')).toBe(decks['']);
+    expect(summarizeDeck(decks.stone2).threePhase).toBe('STONE2');
+    expect(summarizeDeck(decks['']).threePhase).toBeNull();
+    // the report words follow the deck that ran, not the form
+    expect(threePhaseWords(summarizeDeck(decks.stone1), threePhaseForm('stone1'), true)).toBe("Stone's first model (Stone 1970, STONE1), as the deck asks (chosen in the Model Builder)");
+    expect(threePhaseWords(summarizeDeck(decks['']), threePhaseForm('stone1'), true)).toMatch(/^OPM Flow's default three-phase model/);
+    expect(() => buildDeckFromForm(threePhaseForm('stone3'))).not.toThrow();
+    expect(buildDeckFromForm(threePhaseForm('stone3')).errors.join(' ')).toMatch(/unknown three-phase model/);
   });
 });

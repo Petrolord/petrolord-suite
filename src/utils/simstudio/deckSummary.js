@@ -173,6 +173,8 @@ export function summarizeDeck(text) {
   const tables = ['PVTO', 'PVDO', 'PVCDO', 'PVDG', 'PVTG', 'PVTW', 'SWOF', 'SGOF', 'SOF3', 'SWFN', 'SGFN', 'SLGOF', 'ROCK', 'DENSITY', 'GRAVITY']
     .filter((k) => has(k));
   const aquifers = ['AQUCT', 'AQUFETP', 'AQUNUM', 'AQUANCON', 'AQUCON'].filter((k) => has(k));
+  // SIM-U2-003: the three-phase oil relative permeability model the deck asks for
+  const threePhase = ['STONE1', 'STONE2', 'STONE1EX', 'STONE'].find((k) => has(k)) || null;
   const gridKeywords = ['DX', 'DY', 'DZ', 'TOPS', 'COORD', 'ZCORN', 'ACTNUM', 'PORO', 'PERMX', 'NTG', 'FAULTS', 'MULTFLT', 'CARFIN'].filter((k) => has(k));
 
   return {
@@ -194,6 +196,7 @@ export function summarizeDeck(text) {
       historyControls,
     },
     tables,
+    threePhase,
     aquifers,
     includes,
     report: { fipAtStart: rptsol, fipEachStep, wellsReport },

@@ -320,3 +320,25 @@ test('U2-005 run compare: two runs of a case overlaid on the calendar, the diffe
   expect(pdf.flat).toMatch(/Figure \d+\. Run comparison/);
   expect(errors).toEqual([]);
 });
+
+test('U2-003 three-phase oil kr: Stone II chosen in the builder reaches the deck and the report', async ({ page }) => {
+  test.setTimeout(300000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await newCase(page, 'Stone II');
+  await tab(page, 'Builder').click();
+  await page.getByTestId('sim-three-phase').selectOption('stone2');
+  await page.getByTestId('generate-deck').click();
+  await expect(page.getByText(/Model generated \(Pb/)).toBeVisible({ timeout: 20000 });
+  await tab(page, 'Deck').click();
+  await expect(page.getByTestId('deck-editor')).toContainText('-- Three-phase oil kr: STONE2 (Stone 1973, the second model), chosen in the deck builder');
+  await expect(page.getByTestId('deck-editor')).toContainText('\nSTONE2\n');
+  await tab(page, 'Runs').click();
+  await page.getByTestId('queue-run').click();
+  await expect(page.getByText('complete', { exact: true })).toBeVisible({ timeout: 30000 });
+  await tab(page, 'Report').click();
+  await expect(page.getByTestId('report-deck')).toContainText("STONE2: Stone's second model (Stone 1973, STONE2), as the deck asks");
+  await expect(page.getByTestId('report-inputs')).toContainText('Three-phase oil kr model');
+  expect(errors).toEqual([]);
+});

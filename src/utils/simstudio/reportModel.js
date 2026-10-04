@@ -15,7 +15,7 @@ import { inputRow } from '@/lib/inputProvenance/wording';
 import { simUnits, displayUnitsLine } from './simUnits.js';
 import { summarizeDeck, deckSystemText } from './deckSummary.js';
 import { summaryUnitSystem, lastValue, dayToIso } from './series.js';
-import { krEditedKeys } from './builderIntakes.js';
+import { krEditedKeys, THREE_PHASE_WORDS } from './builderIntakes.js';
 import { pvtContractTuningText, PVT1_PB_SOURCES } from '@/lib/inputProvenance/pvtContract';
 import { bhpMatch } from './bhpMatch.js';
 import { krSetText, krCapillaryText } from '@/lib/inputProvenance/krContract';
@@ -120,9 +120,20 @@ function deckRows({ deck, run, summary, units, pvtWords, krWords, diag }) {
   rows.push(['Initialisation (EQUIL)', e ? `datum ${fx(u.show('depth', e.datumDepth))} ${u.label('depth')} at ${fx(u.show('pressure', e.datumPressure))} ${u.label('pressure')}; OWC ${fx(u.show('depth', e.owc))} ${u.label('depth')}; GOC ${fx(u.show('depth', e.goc))} ${u.label('depth')}; depths are deck depths, positive down (TVDSS for a builder deck)` : 'not found in the main deck']);
   rows.push(['PVT tables', `${d?.tables?.filter((t) => /^PV|^DENSITY|^GRAVITY|^ROCK/.test(t)).join(', ') || 'not in the main deck'}. ${pvtWords}`]);
   rows.push(['Saturation functions', `${d?.tables?.filter((t) => /^S[WGL]|^SOF/.test(t)).join(', ') || 'not in the main deck'}. ${krWords}`]);
+  rows.push(['Three-phase oil relative permeability', d?.threePhase ? `${d.threePhase}: ${threePhaseWords(d, null, false)}` : threePhaseWords(d, null, false)]);
   rows.push(['Aquifers', d?.aquifers?.length ? d.aquifers.join(', ') : 'none in the main deck']);
   rows.push(['Files included by the deck', d?.includes?.length ? `${d.includes.join(', ')} (not read by this report)` : 'none']);
   return rows;
+}
+
+/** SIM-U2-003: the three-phase oil kr model of the deck that ran, in words. */
+export function threePhaseWords(deck, form, applies) {
+  const kw = deck?.threePhase || null;
+  const chosen = applies ? form?.scal?.threePhase || '' : '';
+  if (kw === 'STONE1') return `${THREE_PHASE_WORDS.stone1.report}, as the deck asks${chosen === 'stone1' ? ' (chosen in the Model Builder)' : ''}`;
+  if (kw === 'STONE2') return `${THREE_PHASE_WORDS.stone2.report}, as the deck asks${chosen === 'stone2' ? ' (chosen in the Model Builder)' : ''}`;
+  if (kw) return `the ${kw} model the deck asks for`;
+  return `${THREE_PHASE_WORDS.default.report}${chosen === 'default' ? ', chosen in the Model Builder' : ', the deck naming no other (no STONE keyword)'}`;
 }
 
 function sourceWords(form, applies, deck) {
@@ -189,6 +200,8 @@ function inputRows(form, u) {
   const kr = (label, key, v) => add(label, v, null, edited.has(key) ? `${krSrc}; edited in the builder after intake` : krSrc);
   ['Swc', 'Sor', 'krwMax', 'kroMax', 'nw', 'no'].forEach((k) => kr(`Oil-water ${k}`, k, form.scal.ow[k]));
   ['Sgc', 'Sorg', 'krgMax', 'krogMax', 'ng', 'nog'].forEach((k) => kr(`Gas-oil ${k}`, k, form.scal.go[k]));
+  add('Three-phase oil kr model', (THREE_PHASE_WORDS[form.scal.threePhase] || THREE_PHASE_WORDS.default).label, null,
+    form.scal.threePhase ? 'Chosen in the Model Builder; written to the deck' : 'Not chosen: the simulator default, no keyword written');
   if (form.scal.pc?.enabled) {
     kr('J: a, b', 'jA', `${form.scal.pc.jA}, ${form.scal.pc.jB}`);
     kr('J: Swirr', 'swirr', String(form.scal.pc.swirr ?? '').trim() === '' ? `${form.scal.ow.Swc} (Swc)` : form.scal.pc.swirr);
@@ -360,7 +373,7 @@ export function buildSimReportModel({ caseRow, run, summary, deckText = null, de
     `Grid resolution: ${cellText}${fa.applies ? ` of ${g(u.show('length', Number(form.grid.dx)), 4)} by ${g(u.show('length', Number(form.grid.dy)), 4)} ${u.label('length')}` : ''}. Results are averages over each cell; gradients finer than a cell (coning, near-well saturation fronts) are not resolved.`,
     fa.applies && form.structure?.mode !== 'surface' ? 'The builder grid is a layer-cake box: flat layers, no faults, no corner-point geometry.' : 'The grid geometry is the deck\'s own.',
     `PVT: ${sw.pvt}`,
-    `Saturation functions: ${krWords} Two-phase tables; the three-phase oil relative permeability is the simulator's default model; no hysteresis and no end-point scaling unless the deck says so.`,
+    `Saturation functions: ${krWords} Two-phase tables; the three-phase oil relative permeability is ${threePhaseWords(deck, form, fa.applies)}; no hysteresis and no end-point scaling unless the deck says so.`,
     deck?.aquifers?.length ? `Aquifer keywords present: ${deck.aquifers.join(', ')}.` : 'No aquifer is modelled in the main deck: pressure support comes from the wells only.',
     'Wells are controlled as the deck declares; no well economic limits or group controls are applied unless the deck holds them.',
     !historyEnd && !bhp.applies ? null : bhp.applies

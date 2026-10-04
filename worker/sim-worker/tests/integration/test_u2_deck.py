@@ -12,7 +12,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from simworker import deck, results, runner  # noqa: E402
+from simworker import deck, prt, results, runner  # noqa: E402
 
 GEN = os.path.join(os.path.dirname(__file__), "fixtures", "generated")
 flow_missing = shutil.which("flow") is None
@@ -85,3 +85,39 @@ def test_rate_only_history_has_no_wbhph(tmp_path):
     # negative control: the S4 history deck carries no pressure, so no WBHPH
     doc, _ = run_fixture(tmp_path, "BUILT_S4.DATA")
     assert all("WBHPH" not in e for e in doc["wells"].values())
+
+
+# ---- SIM-U2-003: three-phase oil relative permeability --------------------
+
+def _rel_diff(a, b):
+    return max(abs(x - y) / max(abs(y), 1e-9) for x, y in zip(a, b))
+
+
+def test_three_phase_models_run_and_change_the_physics(tmp_path):
+    runs = {}
+    for model, name in (("default", "BUILT_3PH_DEFAULT.DATA"),
+                        ("stone1", "BUILT_3PH_STONE1.DATA"),
+                        ("stone2", "BUILT_3PH_STONE2.DATA")):
+        sub = tmp_path / model
+        sub.mkdir()
+        doc, work = run_fixture(sub, name)
+        diag = prt.parse_prt_file(results.find_prt(work))
+        assert diag["messages"]["errors"] == 0, f"{model}: the simulator printed errors"
+        runs[model] = doc
+    base = runs["default"]["field"]
+    # all three phases flow at the producer: free gas (GOR above the
+    # solution GOR) and water (water cut above zero)
+    assert max(base["FGOR"]) > 1.2 * base["FGOR"][0]
+    assert max(base["FWCT"]) > 0.01
+    # the keyword reached the simulator: each Stone model changes the run
+    for model in ("stone1", "stone2"):
+        f = runs[model]["field"]
+        n = min(len(f["FOPR"]), len(base["FOPR"]))
+        d = max(_rel_diff(f["FOPR"][:n], base["FOPR"][:n]),
+                _rel_diff(f["FGOR"][:n], base["FGOR"][:n]))
+        print(model, "largest relative difference from the default", d)
+        assert d > 1e-3, f"{model}: the run is the default run (largest relative difference {d})"
+    # and the two Stone models differ from each other
+    a, b = runs["stone1"]["field"], runs["stone2"]["field"]
+    n = min(len(a["FOPR"]), len(b["FOPR"]))
+    assert _rel_diff(a["FOPR"][:n], b["FOPR"][:n]) > 1e-4

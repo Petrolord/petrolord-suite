@@ -21,6 +21,7 @@ import TrajectoryEditor from '@/components/simstudio/builder/TrajectoryEditor';
 import Grid3DView from '@/components/simstudio/builder/Grid3DView';
 import { FluidIntake, ScalIntake } from '@/components/simstudio/builder/IntakeCards';
 import { IDENTIFICATION } from '@/utils/simstudio/reportModel';
+import { THREE_PHASE_WORDS } from '@/utils/simstudio/builderIntakes';
 
 /** A text field; with `kind` it shows the display unit and stores FIELD. */
 const Field = ({ label, value, onChange, className = '', kind = null, u = null, disabled = false, ro = false, testId }) => {
@@ -242,6 +243,17 @@ const BuilderPanel = () => {
           <Field u={u} ro={!canWrite} label="krog max" value={form.scal.go.krogMax} onChange={(v) => set('scal.go.krogMax', v)} />
           <Field u={u} ro={!canWrite} label="ng" value={form.scal.go.ng} onChange={(v) => set('scal.go.ng', v)} />
           <Field u={u} ro={!canWrite} label="nog" value={form.scal.go.nog} onChange={(v) => set('scal.go.nog', v)} />
+        </div>
+        {/* SIM-U2-003: the three-phase oil kr model, built by the simulator from the two-phase sets above */}
+        <div className="flex flex-wrap items-center gap-2 mt-3 text-xs">
+          <Label htmlFor="sim-three-phase" className="text-[11px] text-pl-muted">Three-phase oil relative permeability</Label>
+          <select id="sim-three-phase" value={form.scal.threePhase || ''} disabled={!canWrite} data-testid="sim-three-phase"
+            onChange={(e) => set('scal.threePhase', e.target.value)}
+            className="h-7 rounded-md border border-pl-border-strong bg-pl-surface px-2 text-xs text-pl-text">
+            <option value="">Simulator default (not chosen)</option>
+            {Object.entries(THREE_PHASE_WORDS).map(([k, w]) => <option key={k} value={k}>{w.label}</option>)}
+          </select>
+          <span className="text-[11px] text-pl-muted">Where oil, water and gas all flow, the simulator builds the oil relative permeability from the oil-water krow and the gas-oil krog above. A choice is written to the deck and printed in the report.</span>
         </div>
         {form.scal.pc.enabled && (
           <div className="grid grid-cols-3 md:grid-cols-7 gap-3 mt-3 pt-3 border-t border-pl-border">

@@ -80,6 +80,9 @@ export const defaultBuilderForm = () => ({
     ow: { Swc: '0.15', Sor: '0.25', krwMax: '0.35', kroMax: '0.9', nw: '2.5', no: '2.2' },
     go: { Sgc: '0.03', Sorg: '0.2', krgMax: '0.85', krogMax: '0.9', ng: '2', nog: '2' },
     pc: { enabled: false, jA: '0.35', jB: '0.6', swirr: '', k_md: '150', phi: '0.2', sigma_dyncm: '30', thetaDeg: '30' },
+    // SIM-U2-003: the three-phase oil kr model ('' not chosen: the simulator's
+    // default, nothing written; 'default', 'stone1', 'stone2' chosen and stated)
+    threePhase: '',
   },
   // SIM-U1 (RL11): where the PVT and the saturation functions come from.
   // 'correlation' / 'typed' are the builder's own fields; 'fluid' / 'scal'
@@ -428,7 +431,7 @@ export function specFromForm(form) {
       rock: { pref: num(form.rock.pref, num(pvtw.pref, 4000)), cr: num(form.rock.cr, 4e-6) },
       density,
     },
-    satfn: { swof, sgof },
+    satfn: { swof, sgof, ...(form.scal?.threePhase ? { threePhase: form.scal.threePhase } : {}) },
     equil: {
       datumDepth: num(form.equil.datumDepth),
       datumPressure: num(form.equil.datumPressure),

@@ -137,6 +137,10 @@ Reservoir Simulation Report, SPE1 benchmark                                     
 
  Saturation functions                             SWOF, SGOF. As written in the deck; the deck states no source.
 
+ Three-phase oil relative permeability            OPM Flow's default three-phase model (the ECLIPSE default: oil relative permeability
+                                                  interpolated between the oil-water and gas-oil curves by the water and gas saturations), the deck
+                                                  naming no other (no STONE keyword)
+
  Aquifers                                         none in the main deck
 
  Files included by the deck                       none
@@ -160,8 +164,9 @@ Limits of this analysis
 - Grid resolution: 300 cells. Results are averages over each cell; gradients finer than a cell (coning, near-well saturation fronts) are not resolved.
 - The grid geometry is the deck's own.
 - PVT: As written in the deck; the deck states no source.
-- Saturation functions: As written in the deck; the deck states no source. Two-phase tables; the three-phase oil relative permeability is the
-simulator's default model; no hysteresis and no end-point scaling unless the deck says so.
+- Saturation functions: As written in the deck; the deck states no source. Two-phase tables; the three-phase oil relative permeability is OPM Flow's
+default three-phase model (the ECLIPSE default: oil relative permeability interpolated between the oil-water and gas-oil curves by the water and
+gas saturations), the deck naming no other (no STONE keyword); no hysteresis and no end-point scaling unless the deck says so.
 - No aquifer is modelled in the main deck: pressure support comes from the wells only.
 - Wells are controlled as the deck declares; no well economic limits or group controls are applied unless the deck holds them.
 - A single deterministic run: no uncertainty range. The material balance and convergence statements are the simulator's own printout as read by
