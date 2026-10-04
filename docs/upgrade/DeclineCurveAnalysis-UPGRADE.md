@@ -420,7 +420,9 @@ Engines first: Petrolord/petrolord-engines **PR #302** (`engines/dca/arps.js`,
 `engines/dca/monteCarlo.js`, two gates and one fixture file), NOT merged.
 The Suite vendors the five files byte-identical with ledger rows in
 `packages/engines/VENDOR.json` (group `dca-u2 (engines PR #302)`). When #302
-merges: re-pin, regenerate the manifest, delete the rows.
+merges: re-pin, regenerate the manifest, delete the rows. **Done
+2026-10-04:** #302 merged (engines main 50c5154); the Suite is pinned at
+50c5154 with 0 recorded deviations and the Data AI labels moved with it.
 
 | Item | State | Proving test |
 |---|---|---|
