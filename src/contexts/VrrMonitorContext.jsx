@@ -364,21 +364,24 @@ export const VrrMonitorProvider = ({ children, sharingStore = null, profileSyste
     return res;
   }, [shared, currentProjectId, serialize, projectName, addNotification]);
 
+  /** Save now. @returns {Promise<boolean>} whether the project was written */
   const manualSave = useCallback(async () => {
     if (!currentProjectId) {
       addNotification('Create or open a project first', 'info');
-      return;
+      return false;
     }
     if (!canWrite) {
       addNotification(shared.sharing.readOnlyReason || 'This project is open read-only.', 'info');
-      return;
+      return false;
     }
     setIsSaving(true);
     try {
-      await writeNow();
+      const res = await writeNow();
+      return !!res.ok;
     } catch (e) {
       console.error(e);
       setSaveError('Save failed');
+      return false;
     } finally {
       setIsSaving(false);
     }
@@ -393,8 +396,10 @@ export const VrrMonitorProvider = ({ children, sharingStore = null, profileSyste
       await refresh();
       await openProject(id);
       addNotification(`Saved a copy as "${name}"`, 'success');
+      return id;
     } catch (e) {
       addNotification(`Could not save a copy: ${e.message}`, 'error');
+      return null;
     }
   }, [shared, projectName, inputs, refresh, openProject, addNotification]);
 
