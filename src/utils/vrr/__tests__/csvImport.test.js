@@ -1,64 +1,10 @@
-// Gates for the VRR per-well CSV importer (V2): alias claim-once, unit
-// auto-scaling, date normalization/inference, honest reporting, and the
-// template -> engine-fixture round trip.
-import { parseVrrWellCSV, detectColumns, detectUnitScale, inferDateOrder, normalizeDate, vrrTemplateCSV } from '../csvImport';
+// Gates for the VRR per-well CSV importer (V2, moved onto the shared typed
+// reader in VRR-U1): units from headers, honest reporting, and the template
+// -> engine-fixture round trip. Column placement, dates, decimals and the
+// hostile file set are in vrrImportDoor.test.js.
+import { parseVrrWellCSV, vrrTemplateCSV } from '../csvImport';
 import { buildFieldPeriods, analyzeLedger } from '@/utils/vrrCalculations';
 import fixture from '../../../../packages/engines/test-data/waterflood/vrr-ledger-fixture.json';
-
-describe('detectColumns', () => {
-  it('claims injection columns before their production twins', () => {
-    const map = detectColumns(['Date', 'Well', 'Water_Inj (bbl)', 'Water (bbl)', 'Gas_Inj (Mscf)', 'Gas (Mscf)', 'Oil (stb)']);
-    expect(map.winj_stb).toBe('Water_Inj (bbl)');
-    expect(map.water_stb).toBe('Water (bbl)');
-    expect(map.ginj_mscf).toBe('Gas_Inj (Mscf)');
-    expect(map.gas_mscf).toBe('Gas (Mscf)');
-    expect(map.oil_stb).toBe('Oil (stb)');
-  });
-
-  it('maps WDS-format headers (inj_bbl alias)', () => {
-    const map = detectColumns(['date', 'well', 'oil_bbl', 'water_bbl', 'gas_mcf', 'inj_bbl']);
-    expect(map.winj_stb).toBe('inj_bbl');
-    expect(map.oil_stb).toBe('oil_bbl');
-    expect(map.water_stb).toBe('water_bbl');
-    expect(map.gas_mscf).toBe('gas_mcf');
-  });
-});
-
-describe('detectUnitScale', () => {
-  it('scales gas headers to Mscf', () => {
-    expect(detectUnitScale('Gas (Mscf)', 'gas_mscf')).toBe(1);
-    expect(detectUnitScale('gas_mcf', 'gas_mscf')).toBe(1);
-    expect(detectUnitScale('Gas (MMscf)', 'gas_mscf')).toBe(1000);
-    expect(detectUnitScale('Gas (Bscf)', 'gas_mscf')).toBe(1e6);
-    expect(detectUnitScale('gas_scf', 'gas_mscf')).toBe(0.001);
-  });
-
-  it('scales liquid headers to bbl', () => {
-    expect(detectUnitScale('Oil (stb)', 'oil_stb')).toBe(1);
-    expect(detectUnitScale('Oil (Mstb)', 'oil_stb')).toBe(1000);
-    expect(detectUnitScale('water_inj_mbbl', 'winj_stb')).toBe(1000);
-    expect(detectUnitScale('Oil (MMstb)', 'oil_stb')).toBe(1e6);
-  });
-});
-
-describe('date handling', () => {
-  it('normalizes ISO, slash and month-only dates', () => {
-    expect(normalizeDate('2025-01-31')).toBe('2025-01-31');
-    expect(normalizeDate('2025-1-5')).toBe('2025-01-05');
-    expect(normalizeDate('2025-01')).toBe('2025-01');
-    expect(normalizeDate('2025/01/31')).toBe('2025-01-31');
-    expect(normalizeDate('31/01/2025', 'DMY')).toBe('2025-01-31');
-    expect(normalizeDate('01/31/2025', 'MDY')).toBe('2025-01-31');
-    expect(normalizeDate('garbage')).toBe(null);
-    expect(normalizeDate('2025-13-01')).toBe(null);
-  });
-
-  it('infers day-first vs month-first from the data', () => {
-    expect(inferDateOrder(['15/01/2025', '16/01/2025']).order).toBe('DMY');
-    expect(inferDateOrder(['01/15/2025', '01/16/2025']).order).toBe('MDY');
-    expect(inferDateOrder(['05/01/2025'])).toEqual({ order: 'DMY', ambiguous: true });
-  });
-});
 
 describe('parseVrrWellCSV', () => {
   it('parses a real-world-shaped file with aliases and units', () => {
@@ -69,9 +15,9 @@ describe('parseVrrWellCSV', () => {
     ].join('\n');
     const { rows, report } = parseVrrWellCSV(csv);
     expect(report.imported).toBe(2);
-    expect(rows[0]).toEqual({ date: '2025-01-01', well: 'P-1', oil_stb: 1000, water_stb: 200, gas_mscf: 1500, winj_stb: 2000, ginj_mscf: 0 });
-    expect(rows[1].winj_stb).toBe(10000);
-    expect(report.warnings.some((w) => /x1000/.test(w))).toBe(true);
+    expect(rows.find((r) => r.well === 'P-1')).toEqual({ date: '2025-01-01', well: 'P-1', oil_stb: 1000, water_stb: 200, gas_mscf: 1500, winj_stb: 2000, ginj_mscf: 0 });
+    expect(rows.find((r) => r.well === 'I-1').winj_stb).toBe(10000);
+    expect(report.warnings.some((w) => /converted to Mscf/.test(w))).toBe(true);
   });
 
   it('accounts for every dropped or adjusted row - nothing silent', () => {
