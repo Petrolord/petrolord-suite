@@ -17,6 +17,7 @@ export const SYSTEM_VOCAB = Object.freeze({
   vrr: { oilfield: 'oilfield', metric: 'si' },
   waterflood: { oilfield: 'oilfield', metric: 'si' },
   sim: { oilfield: 'oilfield', metric: 'si' },
+  rf: { oilfield: 'oilfield', metric: 'si' },
   eor: { oilfield: 'oilfield', metric: 'si' },
 });
 

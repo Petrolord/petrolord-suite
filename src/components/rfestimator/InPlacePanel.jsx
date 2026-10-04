@@ -1,22 +1,27 @@
 // Phase toggle + in-place volume (direct or volumetric) for the
-// Recovery Factor Estimator left rail.
+// Recovery Factor Estimator left rail. RF-U1: every field in the display
+// unit, sample values and intake values labelled, the volume by its parts.
 import React from 'react';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useRfEstimator } from '@/contexts/RfEstimatorContext';
-import { VOL_FIELDS_OIL, VOL_FIELDS_GAS } from '@/components/rfestimator/rfFields';
-
-const Field = ({ label, value, onChange, placeholder }) => (
-  <div className="space-y-1">
-    <Label className="text-xs text-pl-muted">{label}</Label>
-    <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-      className="h-9" />
-  </div>
-);
+import { VOL_FIELDS_OIL, VOL_FIELDS_GAS, fmtRes } from '@/components/rfestimator/rfFields';
+import { rfPvtSourceText } from '@/utils/rfestimator/pvtIntake';
+import { inPlaceSourceText } from '@/utils/rfestimator/inPlaceIntake';
+import RfField from './RfField';
+import InPlaceIntakePanel from './InPlaceIntakePanel';
 
 const InPlacePanel = () => {
-  const { inputs, switchPhase, setInPlaceMode, setOoipDirect, setVolField } = useRfEstimator();
+  const {
+    inputs, derived, u, pvtIntake, inPlaceIntake, switchPhase, setInPlaceMode, setOoipDirect, setVolField,
+  } = useRfEstimator();
   const volFields = inputs.phase === 'gas' ? VOL_FIELDS_GAS : VOL_FIELDS_OIL;
+  const flagged = new Set(derived.flags.filter((f) => f.scope === 'volumetric').map((f) => f.key));
+  const note = (key) => {
+    const pvt = rfPvtSourceText(pvtIntake, 'vol', key, inputs.vol[key]);
+    if (pvt) return pvt.startsWith('Edited') ? 'Edited after the Fluid intake' : 'From Fluid Systems Studio';
+    if (derived.sampleKeys.has(`vol.${key}`)) return 'Sample value';
+    return null;
+  };
+  const directKind = inputs.phase === 'gas' ? 'gasVolume' : 'oilVolume';
 
   return (
     <div className="space-y-4">
@@ -42,22 +47,35 @@ const InPlacePanel = () => {
       </div>
 
       {inputs.inPlaceMode === 'direct' ? (
-        <Field
-          label={inputs.phase === 'gas' ? 'OGIP (scf)' : 'OOIP (STB)'}
-          value={inputs.ooipDirect}
-          onChange={setOoipDirect}
-          placeholder={inputs.phase === 'gas' ? 'scf' : 'STB'}
-        />
+        <>
+          <RfField
+            id="rf-ooip-direct"
+            label={inputs.phase === 'gas' ? 'OGIP' : 'OOIP'}
+            kind={directKind}
+            u={u}
+            value={inputs.ooipDirect}
+            onChange={setOoipDirect}
+            flagged={flagged.has('ooipDirect')}
+            note={inPlaceIntake ? inPlaceSourceText(inPlaceIntake, inputs.ooipDirect) : 'Entered, source not stated (state it on the Report tab)'}
+          />
+          <p className="text-[11px] text-pl-muted">
+            In display: {fmtRes(derived.inPlace, inputs.phase, u.system)}
+          </p>
+        </>
       ) : (
         <div className="grid grid-cols-2 gap-3">
-          {volFields.map(([k, lbl, unit]) => (
-            <Field key={k} label={`${lbl} (${unit})`} value={inputs.vol[k] ?? ''} onChange={(v) => setVolField(k, v)} />
+          {volFields.map(([k, lbl, kind]) => (
+            <RfField key={k} id={`rf-vol-${k}`} label={lbl} kind={kind} u={u} value={inputs.vol[k] ?? ''}
+              onChange={(v) => setVolField(k, v)} flagged={flagged.has(k)} note={note(k)} />
           ))}
         </div>
       )}
       <p className="text-[11px] text-pl-muted leading-relaxed">
-        OOIP = 7758·A·h·φ·(1−Sw)·NTG / Boi. It is the same relation the volumetrics apps use, so numbers carry across cleanly.
+        {inputs.phase === 'gas'
+          ? 'OGIP = 43,560 A h NTG phi (1 - Sw) / Bgi, with Bgi in reservoir ft3 per scf (rm3/sm3 is the same ratio).'
+          : 'OOIP = 7,758 A h NTG phi (1 - Sw) / Boi, with 7,758 bbl per acre-ft. The same relation the volumetrics apps use.'}
       </p>
+      <InPlaceIntakePanel />
     </div>
   );
 };

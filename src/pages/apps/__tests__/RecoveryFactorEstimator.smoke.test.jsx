@@ -39,7 +39,7 @@ describe('RecoveryFactorEstimator page', () => {
 
     // Shell + rails.
     expect(await screen.findByText('Recovery Factor Estimator')).toBeInTheDocument();
-    expect(screen.getByText(/In-place Volume/i)).toBeInTheDocument();
+    expect(screen.getByText('In-place Volume')).toBeInTheDocument();
     expect(screen.getByText('Recovery Factor')).toBeInTheDocument();
 
     // Defaults seed the water-drive oil sample, so the KPI rail shows a
@@ -76,11 +76,11 @@ describe('RecoveryFactorEstimator page', () => {
     await screen.findByText('Recovery Factor Estimator');
 
     fireEvent.click(screen.getByRole('button', { name: /Enter directly/i }));
-    const field = screen.getByPlaceholderText('STB');
+    const field = screen.getByLabelText('OOIP (STB)');
     fireEvent.change(field, { target: { value: '100000000' } });
     // 100 MMSTB in place at the water-drive analog typical RF -> the KPI
     // rail shows OOIP as 100 MMSTB.
-    expect(screen.getByText('100 MMSTB')).toBeInTheDocument();
+    expect(screen.getAllByText('100 MMSTB').length).toBeGreaterThan(0);
   });
 
   it('Sample button reloads the water-drive oil case with a notification', async () => {
@@ -93,7 +93,7 @@ describe('RecoveryFactorEstimator page', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'gas' }));
     fireEvent.click(screen.getByRole('button', { name: /Sample/i }));
-    expect(await screen.findByText(/water-drive oil case is ready/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Sample loaded: a water-drive oil case/i)).toBeInTheDocument();
     expect(screen.getByText(/Oil drive-mechanism reference/i)).toBeInTheDocument();
   });
 });

@@ -1,0 +1,335 @@
+Recovery Factor Report
+Petrolord Recovery Factor Estimator
+
+Project                  Ekene E-2000 RF                                     Company                Ekene Energy
+Field                    Ekene                                               Licence or block       OML 999
+Reservoir or zone        E-2000 sand                                         Wells or area          E-1, E-2, E-3
+Analyst                  A. Engineer                                         Data as of             2026-09-30
+Fluid                    Oil                                                 Analysis type          Recovery factor screening: API (1967):
+                                                                                                    water drive
+Case data                Entered by the user                                 Software build         Petrolord Suite test (fixture)
+Engine                   rf-2 (2026-10, RF-U1)                               Display units          Oilfield
+Generated                2026-10-04 09:00 UTC
+
+
+Headline results
+ Quantity                                Value                     Unit           Basis
+
+ Recovery factor                         43.9                      percent        API (1967): water drive; fraction of OOIP at stock-tank (standard)
+                                                                                  conditions
+
+ Analog range, low edge to high edge     35 to 75                  percent        Water drive (edge/bottom); edges of a screening range, not P90
+                                                                                  and P10
+
+ OOIP                                    39.062                    MMSTB          volumetric, from the inputs below
+
+ Recoverable volume, estimate            17.149                    MMSTB          RF x OOIP; technically recoverable, no economic limit, not a
+                                                                                  PRMS reserves class
+
+ Recoverable volume at the range         13.672 to 29.296          MMSTB          Analog range edges x in-place volume
+ edges
+
+
+OOIP by its parts
+ Step                                                     Value                                         Unit
+
+ Gross rock volume A h                                    54000                                         acre-ft
+
+ Net rock volume A h NTG                                  45900                                         acre-ft
+
+ Pore volume A h NTG phi                                  78.344                                        MMRB
+
+ Hydrocarbon pore volume x (1 - Sw)                       56.4077                                       MMRB
+
+ Divided by Boi                                           1.444                                         RB/STB
+
+ OOIP                                                     39.062                                        MMSTB
+
+OOIP (STB) = 7,758 A h NTG phi (1 - Sw) / Boi, with 7,758 bbl per acre-ft. The steps close on the engine total; the constant 7,758 is 43,560 ft3 per
+acre-ft over 5.6146 ft3 per bbl, rounded (0.005 percent).
+
+
+
+
+Recovery Factor Report, Ekene, E-2000 sand                                                                                               Page 1 of 5
+The method by its parts
+ Factor                                                   Base                         Exponent                          Value
+
+ Constant                                                                                                                0.54898
+
+ [phi (1 - Swi) / Boi]^0.0422                             0.1097                       0.0422                            0.91095
+
+ (k muwi / muoi)^0.0770, k in darcy                       0.14223                      0.077                             0.86056
+
+ Swi^-0.1903                                              0.28                         -0.1903                           1.2741
+
+ (pi / pa)^-0.2159                                        2.8                          -0.2159                           0.80068
+
+ Product: recovery factor                                                                                                0.43903
+
+The product of the factors is the estimate (the parts close on the total). Permeability 150 md enters as 0.15 darcy, as the published equation is
+written.
+
+
+Inputs and their sources
+ Input                                         Value                  Unit              Source and quality
+
+ Fluid                                         Oil                                      Chosen in the app
+
+ Method                                        API (1967): water                        Chosen in the app
+                                               drive
+
+ Primary drive mechanism (sets the analog      Water drive                              Chosen in the app
+ range)                                        (edge/bottom)
+
+ Area A (volumetrics)                          1200                   acres             Offset well. Top structure map, 2026 reprocessing
+
+ Net pay h (volumetrics)                       45                     ft                Measured (lab). Net pay from Petrophysics, E-1 to E-3
+
+ Porosity (volumetrics)                        0.22                   frac              Measured (lab). Core-calibrated log average
+
+ Water saturation Sw (volumetrics)             0.28                   frac              Correlation: Archie
+
+ Net-to-gross NTG (volumetrics)                0.85                   frac              Assumed
+
+ Initial oil FVF Boi (volumetrics)             1.444                  RB/STB            Correlation: Standing, at 4200 psia (pi), from Fluid
+                                                                                        Systems Studio project "Good Oil Well No. 4 PVT"
+                                                                                        (2026-10-02 09:00 UTC)
+
+ Porosity                                      0.22                   frac              Measured (lab)
+
+ Initial water saturation Swi                  0.28                   frac              Correlation: Archie
+
+ Initial oil FVF Boi                           1.444                  RB/STB            Correlation: Standing, at 4200 psia (pi), from Fluid
+                                                                                        Systems Studio project "Good Oil Well No. 4 PVT"
+                                                                                        (2026-10-02 09:00 UTC)
+
+ Permeability k                                150                    md                Measured (lab). Core plug geometric mean
+
+ Water viscosity muwi                          0.3787                 cP                Correlation: McCain, at 4200 psia (pi), from Fluid Systems
+                                                                                        Studio project "Good Oil Well No. 4 PVT" (2026-10-02
+                                                                                        09:00 UTC)
+
+ Initial oil viscosity muoi                    0.3994                 cP                Correlation: Vasquez-Beggs, at 4200 psia (pi), from Fluid
+                                                                                        Systems Studio project "Good Oil Well No. 4 PVT"
+                                                                                        (2026-10-02 09:00 UTC)
+
+ Initial pressure pi                           4200                   psia              Entered, source not stated
+
+ Abandonment pressure pa                       1500                   psia              Entered, source not stated
+
+Every value the estimate read, in the display units. A value taken from another app names it; a sample value is labelled as such; "Entered, source
+not stated" means nobody said where the number came from.
+
+
+
+
+Recovery Factor Report, Ekene, E-2000 sand                                                                                                Page 2 of 5
+Method
+ Item                             As used in this report
+
+ Method                           API (1967): water drive
+
+ What it assumes                  API (Arps et al. 1967) water drive: a multiple regression on case histories of water-drive sandstone reservoirs; k
+                                  in darcies; empirical, with wide scatter about the fit.
+
+ Reference                        Arps, J.J., Brons, F., van Everdingen, A.F., Buchwald, R.W. and Smith, A.E. (1967) A Statistical Study of
+                                  Recovery Efficiency, API Bulletin D14; as restated with k in darcies in Ahmed, Reservoir Engineering Handbook
+
+ Validation in this build         As for the solution-gas correlation: equation checked as restated with k in darcies, worked value held by a test;
+                                  no published worked example; API D14 data ranges not checked.
+
+ Analog range source              Transcribed screening ranges (reservoir engineering texts, e.g. Ahmed, Reservoir Engineering Handbook, drive
+                                  mechanisms); not checked against a published table in this build. Typical is the app's central choice inside each
+                                  range. Low and High are the edges of the range, not P90 and P10.
+
+
+Basis and conventions
+ Item                             As used in this report
+
+ Recovery factor                  Fraction of OOIP at stock-tank (standard) conditions, printed in percent
+
+ In-place volume                  volumetric, from the inputs below
+
+ Recoverable volume               Technically recoverable volume RF x in-place; no economic limit, no development plan and no PRMS
+                                  classification applied
+
+ Pressures                        Absolute, as entered; no datum correction
+
+ Range                            Low and high are the edges of the analog screening range of the drive named, not P90 and P10 of a distribution
+
+ Display units                    Oilfield (area acres, thickness ft, pressure psia, Bo RB/STB, Bgi ft3/scf, volumes STB and scf, permeability md,
+                                  viscosity cP)
+
+
+Limits of this analysis
+- A screening estimate. It does not replace a reservoir simulation, a decline or material balance forecast, or a reserves study.
+- API (Arps et al. 1967) water drive: a multiple regression on case histories of water-drive sandstone reservoirs; k in darcies; empirical, with wide
+scatter about the fit.
+- Recovery depends on the development plan, well count, secondary and tertiary recovery and economics; none of these is modelled.
+- The API correlations are empirical fits with wide scatter. The API D14 data ranges were not available in this build, so an input inside the physical
+domain may still be outside the data the correlation was fitted to.
+
+Domain of each method, as checked by the app
+ Method                               Domain checked by the app
+
+ API solution-gas drive               pa below pb; 0 < phi < 1; 0 < Swi < 1; Bob at least 1; k and muob above zero
+
+ API water drive                      pa below pi; 0 < phi < 1; 0 < Swi < 1; Boi at least 1; k, muwi and muoi above zero
+
+ p/z depletion                        pa below pi; z between 0.2 and 2 (the Standing-Katz chart)
+
+ Water-drive gas                      0 < Swi < 1; Sgr below 1 - Swi; 0 < Ev at most 1
+
+ Volumetrics                          0 < phi < 1; 0 < Sw < 1; 0 < NTG at most 1; Boi at least 1; Bgi between 0 and 0.1 ft3/scf
+
+
+Flags on the inputs and the result
+No input is outside the domain of its method, the estimate is inside the analog range, and nothing was edited after an intake.
+
+
+
+
+Recovery Factor Report, Ekene, E-2000 sand                                                                                                 Page 3 of 5
+pvt-1 block received from Fluid Systems Studio
+ Item                           Value
+
+ PVT contract                   pvt-1
+
+ Source                         Fluid Systems Studio, project "Good Oil Well No. 4 PVT"
+
+ Generated                      2026-10-02 09:00 UTC
+
+ Build                          Petrolord Suite test (fixture)
+
+ Fluid model                    Black-oil correlations
+
+ Liberation basis               Black-oil correlations on a surface separation (flash) basis: Rs and Bo are per stock-tank barrel, and the
+                                correlations do not distinguish differential from flash liberation below the bubble point.
+
+ Bubble point                   solved from the solution GOR
+
+ Standard conditions            14.7 psia, 60 degF
+
+ Lab tuning                     none
+
+ Units of the block             As the engine holds them, whatever the display units: pressure psia, temperature degF, Rs scf/STB, Bo and Bw
+                                RB/STB, Bg RB/scf, viscosities cP, co 1/psi
+
+ Values taken                   pb 2503, bob 1.487, muob 0.3321, boi 1.444, muoi 0.3994, muwi 0.3787
+
+ Taken at                       2026-10-04 09:00 UTC
+
+
+Notes
+Screening case for the E-2000 sand ahead of the reserves review.
+
+
+
+
+Recovery Factor Report, Ekene, E-2000 sand                                                                                             Page 4 of 5
+Plots
+Figure 1. Recoverable volume: analog range edges and the estimate
+
+
+
+                                                                                                                                                                      29.3
+  Recoverable volume (MMSTB)
+
+
+
+
+                               20
+                                                                                                                     17.15
+
+                                                               13.67
+
+
+                               10
+
+
+
+
+                                0
+                                                           Range low edge                                           Estimate                                     Range high edge
+
+
+
+Bars in MMSTB: the in-place volume times the low edge, the estimate and the high edge of the analog range of Water drive (edge/bottom). The
+edges bound a screening range; they are not P90 and P10.
+
+
+Figure 2. Analog recovery ranges of oil drive mechanisms
+
+                                         Low edge             Typical         High edge
+
+
+                               100
+
+
+                                                                                                                                                           80
+  Recovery factor (percent)
+
+
+
+
+                               80                                                                                              75
+
+
+                                                                                                                                                    60
+                               60
+                                                                                                                      50                                                                 50
+                                     Estimate 43.9%
+                                                                                            40                                                40
+                               40                                                                              35                                                                  35
+                                                             30                       30
+
+                                                                                20                                                                                           20
+                               20                     15
+
+                                            5
+                                0
+                                           Solution-gas drive               Gas-cap expansion drive       Water drive (edge/bottom)           Gravity drainage           Combination drive
+                                                                                                                 (this case)
+
+
+Low edge, typical value and high edge of each range, in percent of OOIP; the drive named for this case is Water drive (edge/bottom). The dashed
+line is the estimate of 43.9 percent. Transcribed screening ranges, not validated in this build.
+
+
+Figure 3. The correlation by its factors
+
+
+                                                                                                                                      1.274
+
+
+                                     1
+                                1                      0.911
+                                                                                                 0.8606
+  Factor value
+
+
+
+
+                                                                                                                                                                             0.8007
+
+
+
+                               0.5
+
+
+
+
+                                0
+                                                       Storage                             Mobility (k in D)                          Swi                               Pressure ratio
+
+
+
+Each factor of the water-drive correlation (Arps et al. 1967); the constant 0.54898 times the factors gives 0.439. A factor above 1 raises the
+estimate, below 1 lowers it. Permeability enters in darcies.
+
+
+
+
+Recovery Factor Report, Ekene, E-2000 sand                                                                                                                                                Page 5 of 5
+
