@@ -108,3 +108,37 @@ it('a saved project names itself in its wta-1 block; the reference travels with 
   expect(row.inputs_data.wta.project.id).toBe(row.id);
 }, 600000);
 
+
+it('WTA-U2: the Fluid gas table, the changing-storage model, the rate skins and the datum gradient round-trip', async () => {
+  const { sampleFluidStudioData } = require('@/utils/fluidStudioCalculations');
+  const { runFluidWorkspace } = require('@/utils/fluidstudio/workspace');
+  const handoff = runFluidWorkspace({ ...sampleFluidStudioData(), tableRange: { pMax: 7000, from: 'entered' } }, { projectId: FLUID, projectName: 'Gas sample', generatedAt: new Date('2026-10-04T09:00:00Z'), build: 'test' }).handoff;
+  const studio = mountStudio();
+  await studio.act((c) => c.loadSampleTest());
+  await studio.act((c) => {
+    c.setReservoirField('fluid', 'gas');
+    c.setReservoirField('ct', '');
+    c.setReservoirField('q', '5000');
+    c.takeFluidPvt(handoff);
+    c.setMatchField('modelId', 'homogeneous+hegeman');
+    c.setRateSkinRows([{ q: '2000', skin: '3' }, { q: '8000', skin: '6' }]);
+    c.setCompletionField('gaugeDepthTvd', '9800');
+    c.setCompletionField('depthRefElev', '100');
+    c.setCompletionField('datumDepthTvdss', '9900');
+    c.setCompletionField('datumGradient', '0.08');
+    c.setCompletionField('datumGradientSource', 'gas column');
+  });
+  const payload = { ...studio.ctx.serializeInputs(), id: WT, name: 'U2 gas buildup' };
+  studio.unmount();
+  expect(payload.pvtIntake.gasTable.rows.length).toBeGreaterThan(10);
+  const built = await buildPackage(world(payload), [{ kind: 'saved_project', id: WT, table: 'saved_well_test_projects' }]);
+  expect(validateManifest(built.manifest).ok).toBe(true);
+  const s = sink();
+  await importPackage(await built.writer.toUint8Array(), s);
+  const got = s.store.rows.saved_well_test_projects[0].inputs_data;
+  for (const k of ['reservoirInputs', 'completion', 'matchInputs', 'rateSkinRows']) expect(got[k]).toEqual(payload[k]);
+  expect(got.pvtIntake.gasTable).toEqual(payload.pvtIntake.gasTable);
+  expect(got.pvtIntake.from.recordId).toBeNull();
+  expect(got.wta.pressure.datum_correction).toEqual(payload.wta.pressure.datum_correction);
+  expect(got.wta.skin.rate_dependent).toEqual(payload.wta.skin.rate_dependent);
+}, 600000);

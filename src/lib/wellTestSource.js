@@ -20,11 +20,15 @@
 //   fluid          'oil' | 'gas'
 //   permeability   { value (md), kh (md-ft), method (words), ci95: [lo, hi] | null,
 //                    window: { from_hr, to_hr, basis } | null }
-//   skin           { total, mechanical, partial_penetration, method (words),
-//                    apparent (gas: includes rate-dependent skin), withheld: reason | null }
+//   skin           { total, mechanical, partial_penetration, slant { s_theta, deviation_deg, method } | null (U2-007), method (words),
+//                    apparent (gas: includes rate-dependent skin), withheld: reason | null,
+//                    rate_dependent: { D_per_mscfd, Dq, skin_without_rate_part, method } | null (U2-003) }
 //   pressure       { initial_psia (entered), p_star_psia (Horner extrapolation or null),
 //                    average_psia, average_method (words), basis (words),
-//                    gauge_depth_md_ft, gauge_depth_tvd_ft, datum_tvdss_ft, datum_correction: 'none' }
+//                    gauge_depth_md_ft, gauge_depth_tvd_ft, datum_tvdss_ft,
+//                    datum_correction: 'none' | { gradient_psi_ft, gradient_source, gauge_tvdss_ft, delta_psi } (U2-004),
+//                    p_star_datum_psia, method_label 'p*' | 'pi' (U2-005); average_psia is at the datum
+//                    when a correction was applied, and basis says which }
 //   temperature_degF
 //   status         { match: 'regression' | 'manual' | 'semilog' | 'none', converged: bool | null,
 //                    note: words | null }
@@ -93,25 +97,48 @@ export function buildWtaRecord(ctx, { now = new Date().toISOString(), projectId 
     },
     skin: {
       total: orNull(k.skin),
-      mechanical: sb?.status === 'ok' ? orNull(sb.mechanicalSkin) : null,
+      mechanical: sb?.status === 'ok' || (sb?.status === 'full' && sb.slant) ? orNull(sb.mechanicalSkin) : null,
       partial_penetration: sb?.status === 'ok' ? orNull(sb.spp) : null,
+      // WTA-U2-007: the slant pseudo-skin of a deviated interval, with its angle
+      slant: sb?.slant ? { s_theta: orNull(sb.slant.sTheta), deviation_deg: orNull(sb.slant.thetaDeg), method: sb.slant.method } : null,
       method: fromMatch ? permMethod : lineName,
       apparent: isGas,
       withheld: ctx.prepared?.skinWithheld || null,
+      // WTA-U2-003: the rate-dependent part, when a route gave D
+      rate_dependent: isGas && finite(ctx.rateSkin?.D) ? {
+        D_per_mscfd: ctx.rateSkin.D,
+        Dq: orNull(ctx.rateSkin.Dq),
+        skin_without_rate_part: orNull(ctx.rateSkin.trueSkin),
+        method: ctx.rateSkin.source === 'multi-rate' ? "multi-rate line of apparent skins, s' = s + D q" : 'pseudo-pressure LIT b as the non-Darcy coefficient F, D = F k h / (1422 T)',
+      } : null,
     },
-    pressure: {
-      initial_psia: orNull(r.pi),
-      p_star_psia: pStar,
-      average_psia: pStar ?? orNull(r.pi),
-      average_method: pStar != null
-        ? 'Extrapolated p* of the Horner straight line. It equals the average drainage pressure only for an infinite-acting reservoir; no MBH or Dietz correction is applied.'
-        : 'Initial pressure as entered on the test (no p* from this test).',
-      basis: 'absolute, at the gauge depth (no correction to a datum)',
-      gauge_depth_md_ft: n(comp.gaugeDepthMd),
-      gauge_depth_tvd_ft: n(comp.gaugeDepthTvd),
-      datum_tvdss_ft: n(comp.datumDepthTvdss),
-      datum_correction: 'none',
-    },
+    pressure: (() => {
+      // WTA-U2-004: with a stated gradient the average pressure is sent at the datum
+      const d = ctx.datum?.ok ? ctx.datum : null;
+      const avgGauge = pStar ?? orNull(r.pi);
+      const g = n(comp.datumGradient);
+      return {
+        initial_psia: orNull(r.pi),
+        p_star_psia: pStar,
+        p_star_datum_psia: d && pStar != null ? d.apply(pStar) : null,
+        average_psia: d && avgGauge != null ? d.apply(avgGauge) : avgGauge,
+        average_method: pStar != null
+          ? 'Extrapolated p* of the Horner straight line. It equals the average drainage pressure only for an infinite-acting reservoir; no MBH or Dietz correction is applied.'
+          : 'Initial pressure as entered on the test (no p* from this test).',
+        method_label: pStar != null ? 'p*' : 'pi',
+        // U2-005: the day the pressure belongs to (the end of the test, else its start), ISO date or null
+        date: (() => { const v = text(id.testDateEnd) || text(id.testDateStart); return v && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : null; })(),
+        basis: d
+          ? `absolute, at the datum ${n(comp.datumDepthTvdss)} ft TVDSS (corrected from the gauge with ${g} psi/ft, ${text(comp.datumGradientSource) || 'source not stated'})`
+          : 'absolute, at the gauge depth (no correction to a datum)',
+        gauge_depth_md_ft: n(comp.gaugeDepthMd),
+        gauge_depth_tvd_ft: n(comp.gaugeDepthTvd),
+        datum_tvdss_ft: n(comp.datumDepthTvdss),
+        datum_correction: d
+          ? { gradient_psi_ft: g, gradient_source: text(comp.datumGradientSource), gauge_tvdss_ft: d.gaugeTvdss, delta_psi: d.correction }
+          : 'none',
+      };
+    })(),
     temperature_degF: orNull(tempF),
     status: {
       match: fromMatch ? (mm === 'regression' ? 'regression' : 'manual') : (k.source === 'semilog' ? 'semilog' : 'none'),

@@ -211,6 +211,140 @@ engines-first with a gate). B after NAPE; C needs owner scope.
 | 5 | Papatzacos paper | Owner supplies when convenient; band gate stays |
 | 6 | Nodal SI typing defect (021): fix now as a one-file change, or in the Production round? | Fix now in a small separate PR (S2 live) |
 
+## Batch decision (programme lead, 2026-10-04)
+
+Recorded verbatim.
+
+> Owner-question defaults in force: saved gas projects stay on Papay until the user switches; MBH average pressure after NAPE (p* labelled p* now); datum correction applies no gradient by default (the user states one); changing wellbore storage in Batch A, Hegeman first; Papatzacos waits for the owner's paper; Nodal SI typing is fixed (PR #879).
+> BUILD in this order, one commit per item:
+> - Batch A: U2-001 Fluid's pvt-1 table into gas tests (pseudo-pressure, Z, mu, cg from the Fluid table by id through the shared card, with "source changed since"; the in-app correlation path stays for no-intake projects); U2-002 changing wellbore storage, Hegeman first (engines-first; validate against the Hegeman, Hallford and Joseph 1993 published type-curve values or a worked example you can actually read; negative control); U2-003 rate-dependent skin D from a multi-rate test (s' = s + D q; state the method and its data needs); U2-004 correction to datum with a user-stated gradient (default none, as owner said; the report prints gauge depth, datum, gradient and the correction applied); U2-005 Well Test pressure to Material Balance as a pressure point through wta-1 (in MBAL, a pressure point with its source, method label p* and date; MBAL numbers unchanged unless the user adds it); U2-010 gauge import in a Web Worker (keep the 388,800-reading test; the main thread stays responsive).
+> - Batch B if time remains: U2-007 deviated-well partial penetration (Cinco-Ley, Miller and Ramey 1975 or the source you can read, validated on a published value); U2-013 negative skin on the non-homogeneous models.
+> - DEFERRED (record reasons): U2-006 limited-entry, U2-008 Blasingame type curves, U2-011 MBH (owner: after NAPE), U2-012 Papatzacos (needs the paper), U2-015 (done in #879), Batch C.
+
+Branch `feat/welltest-u2` (worktree `/root/wt-res-wta2`); engines-first on
+`feat/welltest-u2-engines`, Petrolord/petrolord-engines PR #311, merged
+2026-10-04 (cb7b884); the Suite is pinned there with 0 deviations.
+
+### Deferred, with reasons
+
+| ID | Reason |
+|---|---|
+| U2-006 limited entry | A new transient model needs a published check; after NAPE |
+| U2-008 Blasingame type curves | RTA parity, medium size; after NAPE |
+| U2-009 deconvolution | Batch C, research grade |
+| U2-011 MBH or Dietz average pressure | Owner: after NAPE; p* stays labelled p* |
+| U2-012 Papatzacos published check | Needs the owner's copy of SPE-13956-PA |
+| U2-014 interference, WFT, DFIT | Batch C, out of the current scope |
+| U2-015 Nodal SI typing | Done in PR #879 |
+
+## Step 2 build log
+
+### U2-013 Negative skin on the non-homogeneous models: done (engines-first, PR #311)
+
+- Engine `withNegativeSkin` in `modelCatalog.js`: S < 0 on the sealing fault, constant pressure, channel, closed circle, closed rectangle and the three dual-porosity models by the effective-radius mapping (rw' = rw e^-S, zero skin) with every rw-based group rescaled: tD and CD by e^2S (Laplace F(u) = F'(u/a)/a), LD, WD, reD and the rectangle's sides and well position by e^S, lambda by e^-2S. Skin minimum -5 on those models (as on the homogeneous model since WT1). The horizontal well (skin on kh h) and the fractures (choked-fracture skin) keep S >= 0.
+- Validation (engines `welltest.negativeSkin.test.js`, 12): on the infinite radial solution the mapping equals the WT1 homogeneous negative-skin route to 1e-9; for all eight models pwD(S = -3) - pwD(S = 0) = -3 within 0.01 from tD 3e5 to 3e7, through the boundary or the fissure transition (a skin only shifts the late pressure); the fault's infinite-acting part sits on 0.5 (ln tD + 0.80907) + S; negative control: rescaling time but not the distances or lambda misses by more than 0.2. No published worked example of a stimulated well on these models was read; the gates are exact properties of the solutions.
+- Proving test (Suite): `wellTestU2.test.jsx` U2-013: a stimulated well 400 ft from a sealing fault (skin -2): the studio's regression returns skin within 0.15 of -2 and k and L within 10 percent; with the earlier bound (S >= 0) the fit stops at zero or above with more than ten times the residual (negative control). The k and L bias of a few percent is the regression's on this model for either sign (L 372 against 400 for skin +2 on the engine alone), recorded here.
+- `wt6Rectangle` tests (engines and Suite) follow the new bound.
+
+### U2-007 Deviated-well partial penetration (slant pseudo-skin): done (engines-first, PR #311)
+
+- Engine `slantPseudoSkin` in `partialPenetration.js`: the Cinco-Ley, Ramey and Miller (1975, SPE 5589) correlation s_theta = -(theta'/41)^2.06 - (theta'/56)^1.865 log10(hD/100) with theta' = atan(sqrt(kv/kh) tan theta) and hD = (h/rw) sqrt(kh/kv); refused beyond theta' 75 degrees; a warning below hD 40.
+- Validation on published values: the Cinco-Ley table as printed in Economides and Nolte, Reservoir Stimulation, 3rd ed., chapter 1, Table 1-3 (downloaded from petroleumengineers.ru and read): the ten full-penetration rows at hD 100 and 1000, 15 to 75 degrees, within 4 percent (observed worst 3 percent at 75 degrees). Negative control: a natural log in place of log10 misses by more than 10 percent.
+- By-product for the record (the open "partial-penetration textbook check"): Papatzacos against the same table's s_c column. An interval at the top of the pay agrees within 0.25 (hD 100, 10 percent open: 20.82 against 20.81); a centred interval comes out 0.3 to 1.6 higher (hD 100, half open centred: 2.86 against 2.37). Papatzacos stays the method (the owner's paper is still awaited, U2-012); the engines test pins this comparison.
+- Studio: the angle comes from the perforations' MD and TVD lengths (theta = acos(dTVD/dMD)); the skin table adds "Slant pseudo-skin s_theta (x degrees from vertical)", the mechanical skin becomes s_d = (hp/h) (s - s_pp - s_theta) through the engine's `decomposeSkin` (this also corrects the U2-003 commit, which subtracted D q after the hp/h scaling); the note says the split is approximate for a well both slanted and partly open (the table shows -2.88 against the correlation's -2.15 at 60 degrees, half open). `wta-1` carries `skin.slant`. The limits row no longer says a deviated well is treated as vertical.
+- Proving tests: engines `welltest.slantSkin.test.js` (15); Suite `wellTestU2.test.jsx` U2-007 (2): 45 degrees from MD and TVD, the engine's s_theta, the split identity, the PDF rows and formula, wta-1; a vertical interval has no slant term (negative control). `wellTestReportR2` 003 updated: its fixture is 30 ft MD over 29 ft TVD (14.8 degrees, s_theta -0.02, s_d 2.46 to 2.48).
+- Numbers: projects whose perforations carry a longer MD than TVD interval get a slant term and a different mechanical skin; k and the total skin do not change. Goldens regenerated on purpose (the limits sentence; the reviewed fixture's slant row and s_d).
+
+### U2-010 Gauge import in a Web Worker: done
+
+- `src/workers/gaugeImport.worker.js` runs the protocol of `src/utils/welltest/gaugeImportProtocol.js` (read, detect the mapping, convert, with progress every 25,000 rows); the worker keeps the parsed table, so a mapping change re-converts without sending the file again, and the page holds only the headers and the rows. The rows cross back as three transferred Float64Arrays (no structured-clone copy of 388,800 objects). `gaugeImportClient.js` is the page side: the worker where one exists (lazy factory, the only `import.meta` file), the same protocol on the page's thread after a yield otherwise. The Data panel shows a progress line and Cancel (terminates the worker; nothing is loaded).
+- The reading itself is unchanged (`convertGaugeRows` gained an optional progress callback only): the protocol's rows and mapping equal `importGaugeCsv` on the hostile day-first psig file.
+- Proving tests: `src/utils/welltest/__tests__/gaugeImportWorker.test.js` (6): equality with the one-call import, mapping change on the kept table, 388,800 readings with 15 progress messages, no-table error, the client without a Worker, the client with a worker (progress, Cancel terminates and rejects), packed rows round trip. `gaugeImportScale.test.js` (388,800 readings) kept unchanged. Browser: `e2e/well-test-u2.spec.js`: a 50 ms heartbeat on the page's thread while the worker reads 388,800 readings never stalls past 500 ms (observed 97 to 324 ms on this box under load); negative control in the same test, a fresh page with `window.Worker` removed: the page stops for 5.7 to 13 s here and 1.6 to 1.9 s on the CI runner, asserted as over 1 s and three times the worker's gap; Cancel (777,600 readings) loads nothing.
+- Not done: faster date parsing (a date-stamped 388,800 file still takes about 10 s to convert, now off the page's thread); the analysis of the loaded rows (prepare, derivative, plots) stays on the page's thread, a 1 to 2.5 s pause after the largest files.
+
+### U2-005 Well Test pressure to Material Balance as a pressure point: done
+
+- `wta-1` gains `pressure.date` (the end of the test, else its start) and `pressure.method_label` (p* or pi); `average_psia` is at the datum when U2-004 applied a correction, and `basis` says which.
+- Material Balance (`src/pages/apps/reservoir-balance/lib/wellTestPressureIntake.js`, Data tab card "Pressure point from Well Test Analysis Studio" under the VRR card): choose a saved Well Test project (read by id, row level security and record sharing decide), see the row of the test date, the value before and after, the method and basis; take it. The study keeps one handoff per point (`wta_point_<timestep>`), and the report's data note prints each: timestep, date, p*, project, well, basis and the method sentence, and says when the value was edited after the handoff. Nothing changes in the case until the point is taken; the initial row is refused (its pressure is a case input).
+- Refused with the reason: no test date, no row on that date (the analyst adds the row with its volumes), more than one row on the date, a project saved before `wta-1`.
+- Proving test: `src/pages/apps/reservoir-balance/lib/__tests__/wellTestPressureIntake.test.jsx` (4): the record built by the real Well Test provider lands on timestep 10 of the Ahmed case and changes that row only; the provenance survives the study save; an edit afterwards is said (negative control); the MBAL PDF cites it and does not before; a stated gradient sends the datum pressure; refusals.
+- Numbers: none in Material Balance unless the analyst takes a point.
+
+### U2-004 Correction to datum with a stated gradient: done (engines-first, PR #311)
+
+- Owner default kept: no gradient stated, no correction, and the report says so in the same words as before.
+- Inputs (Completion): the depth reference elevation above the vertical datum (puts the gauge TVD on TVDSS), the gradient (psi/ft or kPa/m, new pinned unit kind `pressureGradient`) and its source. Engine `engines/welltest/datum.js`: p_datum = p_gauge + g (z_datum - z_gauge), refused with its reason when the gradient lies outside 0 to 1.2 psi/ft or a depth is missing.
+- The analysis stays at the gauge (k, s, the match and every plot unchanged). The report's "Gauge, datum and pressure basis" table prints the gauge depth in MD, TVD and TVDSS, the datum, the reference elevation, the gradient with its source, the correction applied, and p* and the pressure at shut-in at the datum. The limits row says one static gradient was used.
+- `wta-1`: `pressure.average_psia` is at the datum when a correction was applied (the basis says so), with `p_star_datum_psia` and `datum_correction { gradient_psi_ft, gradient_source, gauge_tvdss_ft, delta_psi }`; `p_star_psia` stays at the gauge.
+- Proving tests: engines `welltest.u2RateSkinDatum.test.js` (2); Suite `wellTestU2.test.jsx` U2-004 (3): default none (report and wta-1 unchanged), 0.35 psi/ft over 200 ft adds 70 psi to p* in the PDF and in wta-1 while k and p* at the gauge do not move, SI prints 7.9172 kPa/m; a missing reference elevation is refused with its reason (negative control).
+- Goldens: one new row "Gradient, gauge to datum: None stated" in all six, on purpose; pdftotext re-spaces the header columns by one character as a result (layout only).
+
+### U2-003 Rate-dependent skin D: done (engines-first, PR #311)
+
+- Method, stated on the Specialized tab, the Report tab and the PDF: s' = s + D q (Ahmed, Reservoir Engineering Handbook 4th ed. 2010, eq. 6-160). Route 1: the apparent skins of two or more flow periods or tests at different rates, each from its own analysis that reached radial flow, on a straight line against rate (engine `rateDependentSkinFit`; two rates exact, three or more least squares with r2). Route 2: the pseudo-pressure LIT b is the non-Darcy coefficient F, D = F k h / (1422 T) (eq. 6-159, engine `nonDarcyDFromF`); a pressure-squared b carries mu z and is not used. Data needs: two or more rates with their own apparent skins, or a stabilized deliverability fit in pseudo-pressure.
+- Studio: rows of (q, s') on the Specialized tab with "Add this test"; saved with the project (`rateSkinRows`). The skin table gains "Rate-dependent skin D q" and "s = s' - D q", and the mechanical skin of the partial-penetration split subtracts D q. `wta-1` carries `skin.rate_dependent` (D, D q, the skin without it, the method). New unit kind `nonDarcySkin` (1/(Mscf/D) to 1/(10^3 m3/d)), pinned.
+- Validation: route 2 on the published Ahmed Example 6-20 step 4 (F 0.14, k 55 md, h 20 ft, T 600 degR give D = 1.805e-4 per Mscf/D; negative control with 1637 in place of 1422 misses). Route 1 by a round trip through the engine: drawdowns at three rates with skin s + D q, each analysed by the engine's MDH line, recover s and D (negative control: the apparent skin read as the true skin misses by D q). The published example's own Step 5 multiplies D by 20,000 for a rate stated as 20 Mscf/day, so it is not used as a gate.
+- Proving tests: engines `welltest.u2RateSkinDatum.test.js` (3 for D); Suite `wellTestU2.test.jsx` U2-003 (2): s and D from two rates, D q 2.50 at 5,000 Mscf/D in the skin table, the PDF, wta-1, D converted under SI; the LIT route equals b k h / (1422 T) with this test's k; a pressure-squared fit gives no D (negative control); one rate gives no line with the data need.
+- Numbers: none change until a rate or a pseudo-pressure deliverability fit is entered; goldens unchanged.
+
+### U2-002 Changing wellbore storage, Hegeman first: done (engines-first, PR #311)
+
+- Engine `engines/welltest/models/changingStorage.js`: Fair's wellbore balance q_sf/q = 1 - C_D (dp_wD/dt_D - dp_phiD/dt_D) in Laplace space, p_w = p_sf (1 + C_D u^2 p_phi) / (1 + C_D u^2 p_sf), with p_sf any catalog model at cd = 0. Hegeman p_phiD = C_phiD erf(t_D/alpha_D) (Laplace C_phiD erfcx(u alpha_D/2)/u); Fair p_phiD = C_phiD (1 - exp(-t_D/alpha_D)). The user states C (final), Ci/C and alpha (hours); C_phiD follows from the early-time limit 1/C_iD = 1/C_D + dp_phiD/dt_D(0).
+- Catalog: composed ids `<model>+hegeman` and `<model>+fair` (`getModel`, `splitModelId`, `composeModelId`), so every reservoir model takes changing storage, the auto-fit fits Ci/C and alpha, and a fit on one storage model is not reported for another. Saved projects keep their plain ids.
+- Studio: Match tab "Wellbore storage" select; the Match tab, the Report tab and the PDF print Ci, C, C_phiD and alpha_D (`changingStorageRows`, one model in the context); the limits row names the model and its check.
+- Validation: the 1993 paper's type-curve values were not readable on this box (OnePetro). The model equations were read in Tobing (2008), Lemigas Scientific Contributions 31(2) 40-48, eqs. 2 to 7, which reproduce Fair and Hegeman. Gates (engines `welltest.changingStorage.test.js`, 9): an independent real-time oracle (Fair's balance solved as a Volterra equation, implicit step by step, sharing only the sandface response) within 1 percent at nine times from t_D 1 to 1e6 for three Hegeman cases (decreasing, the hump, skin 5) and one Fair case (observed worst 0.5 percent); C_phiD = 0 equals constant storage to rounding; the early unit slope sits on Ci and the late response on constant storage; erfcx against tabulated erfc; every catalog model composes; Ci/C = 1 reproduces the constant buildup; auto-fit round trip. Negative controls: the Fair kernel against the error-function oracle misses by more than 5 percent, a sign-flipped C_phiD by more than 50 percent.
+- Proving test (Suite): `wellTestU2.test.jsx` U2-002 (2): the studio's regression on a Hegeman buildup recovers k and Ci/C, the constant-storage fit leaves more than 20 times the residual (negative control), the PDF prints both storages and the reference, the composed id saves and opens.
+- Goldens: one sentence of the limits table changed on purpose in all six (the storage row now says the change can be matched); the .txt diff is that sentence only.
+
+### U2-001 Fluid's pvt-1 table into gas tests: done
+
+- A pvt-1 handoff (router state or `?fluidProject=` by id) now carries its gas columns (pressure, Z, mu_g, ascending) into the project as `pvtIntake.gasTable` with the methods the block names, its span, temperature and range flags (`gasTableFromContract`, `pvtIntakeFromBackbone`). A gas test switches its gas PVT to the table (`reservoirInputs.gasPvtSource = 'fluid-table'`) and takes the block's temperature (`gasTablePatch`); an oil test keeps the table with the project, offered when the test is switched to gas, and its version-1 patch is unchanged. Fluid Systems Studio's RL11 guard now lists the Data panel as the second reader of the saved block (Read it again).
+- The analysis builds m(p), z, mu and cg from the table through the engine's supplied-table path (`buildGasPvtTable({ table })`), so nothing is interpolated or integrated outside the engine; the studio names the source (`pvtSource.kind = 'fluid-table'`).
+- The correlation path stays for projects without an intake and is one choice away; a payload saved before carries no `gasPvtSource` and opens on the correlations with its numbers.
+- A table that stops below pi is refused with a link that asks Fluid Systems Studio for a taller table (`?pvtPMax=`, FLUID-U2-026).
+- The shared PVT card shows the table row (method of Z and of viscosity) and "source changed since"; "Read it again" re-reads the project by id and takes the new block (`takeFluidPvt`).
+- Report: inputs table "Gas PVT table" row with its span and origin, gas footnote, and a limits row "Gas PVT table range" checking the test pressures against the span (and a temperature mismatch).
+- Proving test: `src/components/welltest/__tests__/wellTestU2.test.jsx`, describe U2-001 (4): z, mu at pi equal linear interpolation of the block rows and m(p) at the nodes equals an independent trapezoid of 2p/(mu z) to 1e-10; the earlier correlation value differs (negative control); the PDF names the table and project; old payloads stay on correlations; short table refused; card status As received then Source changed since. Written against code without `takeFluidPvt`, so all four fail on main.
+- Numbers: unchanged for every project without a Fluid intake. A gas project that takes a Fluid table moves to the table's z and viscosity (the Fluid sample at 4,800 psia: mu from the table instead of Lee-Gonzalez-Eakin on the Well Test gravity).
+
+### Step 2: the reviewer lens on the new inputs and outputs
+
+| Check | New input or output | How it is met |
+|---|---|---|
+| RL1 inputs with unit and source | Fluid gas table; datum gradient and reference elevation; apparent skins at other rates; Ci/C and alpha | Inputs table row "Gas PVT table" (span, origin); gradient printed with its stated source; rate-skin points counted in their table; Ci/C and alpha in the model match table |
+| RL2 composites show components | s' = s + D q; s = (h/hp) s_d + s_pp + s_theta + D q | Every term its own row in the skin table |
+| RL3 lumped results split | Apparent gas skin; deviated well skin | D q and s_theta split off, the method named |
+| RL6 every result has its plot | Changing-storage match | Drawn on the log-log and history-match figures (the model overlay) |
+| RL7 basis named | Datum pressure; table pressures | "at the datum ... corrected with g psi/ft" in the report and `wta-1`; table span in psia |
+| RL8 strengths kept | Regression CIs for Ci/C and alpha | From the fit covariance like every parameter |
+| RL9 limits printed | Storage model; slant split; one gradient; table range | Limits rows for storage, well geometry, pressures and the gas PVT table range |
+| RL10 import doors | Gauge door in a worker | Same reader, equality test |
+| RL11 senders and provenance | `wta-1` pressure point to Material Balance; Fluid intake | Read by id, method and date printed, edits marked; "source changed since" |
+| RL12 one model | Changing storage rows, rate skin rows, datum rows | Built once in the context; Report tab and PDF read the same rows |
+
+Units: `pressureGradient` (psi/ft, kPa/m) and `nonDarcySkin` (1/(Mscf/D), 1/(10^3 m3/d)) pinned to known values; the coverage test stays complete.
+
+### Step 2: anything that changes numbers
+
+- Well Test: a project whose perforations carry a longer MD than TVD interval gets a slant pseudo-skin and a different mechanical skin (the reviewed sample at 14.8 degrees: s_theta -0.02, s_d 2.46 to 2.48). k and the total skin never change.
+- Well Test: nothing else moves until the user takes a Fluid table, chooses a changing-storage model, enters rate skins or states a gradient.
+- `wta-1` readers (Material Balance, Waterflood): `average_psia` is at the datum when the test states a gradient (the basis says so); otherwise unchanged.
+- Material Balance: nothing changes until the analyst takes a Well Test pressure point.
+- Other apps: none. The engine catalog change (negative skin) only widens the skin bound of eight models.
+
+### Step 2: validation weaker than asked
+
+- U2-002: the published Hegeman, Hallford and Joseph (1993) type-curve values were not readable from this box (OnePetro). The equations were read in Tobing (2008); the gate is an independent real-time oracle within 1 percent plus exact limits and two negative controls, not a published curve.
+- U2-003: route 2 is gated on Ahmed Example 6-20 step 4 (D from F); route 1 (the multi-rate line) has no published multi-rate example read; it is gated by an engine round trip.
+- U2-007: the correlation agrees with the published Cinco-Ley table within 3 percent for full penetration; for a well both slanted and partly open the additive split is approximate (stated in the report).
+- U2-013: no published worked example of a stimulated well on a boundary or dual-porosity model was read; the gates are exact properties of the solutions.
+- U2-010: the heartbeat measurements are from one box under load (97 to 324 ms with the worker, 5.7 to 13 s without) and the CI runner (1.6 to 1.9 s without).
+
+### Step 2: owner items
+
+- Engines PR #311 merged by the lead (cb7b884); the Suite is re-pinned with 0 deviations.
+- The Papatzacos comparison with the Cinco-Ley table (centred intervals 0.3 to 1.6 skin units higher) is worth a look when the SPE-13956-PA paper arrives (U2-012).
+
 ## Validation weaker than asked
 
 - DAK is gated against chart readings and the canonical engine only; the Well Test route itself has no published PTA gas example on DAK (the Ahmed examples in the harness use supplied tables).

@@ -30,7 +30,6 @@ import ReportPanel from '@/components/welltest/ReportPanel';
 import ReportResults from '@/components/welltest/ReportResults';
 import DiagnosticsRail from '@/components/welltest/DiagnosticsRail';
 import WTSHelpContent from '@/components/welltest/WTSHelpContent';
-import { pvtIntakeFromBackbone } from '@/utils/welltest/reportModel';
 import { readFluidProjectPvt, handoffFromContract, PVT_PROJECT_PARAM } from '@/lib/pvtSource';
 import { supabaseSharingStore } from '@/lib/recordSharing';
 import { RecordSharingBar } from '@/components/recordSharing';
@@ -58,7 +57,7 @@ const WellTestStudioContent = () => {
     projectRow, sharing, viewingShared, canWrite, saveCopy,
     manualSave, isSaving, saveError, lastSaveTime,
     notifications, removeNotification, addNotification,
-    setReservoirField, isFitting, setPvtIntake,
+    isFitting, takeFluidPvt,
   } = useWellTestStudio();
 
   // PVT intake from Fluid Systems Studio. The handoff arrives through
@@ -72,16 +71,10 @@ const WellTestStudioContent = () => {
   const fluidProjectId = searchParams.get(PVT_PROJECT_PARAM);
   useEffect(() => {
     if (intakeDone.current) return undefined;
-    const apply = (fluid, how) => {
-      // the handoff also says how the values were computed; the report's
-      // Source column prints that (reviewer round 2026-10-02)
-      const intake = pvtIntakeFromBackbone(fluid);
-      if (!intake) return false;
-      for (const [key, value] of Object.entries(intake.patch)) setReservoirField(key, value);
-      setPvtIntake(intake.intake);
-      addNotification(`Fluid properties ${how}: ${intake.applied.join(', ')} applied. Review total compressibility manually.`, 'success');
-      return true;
-    };
+    // the handoff also says how the values were computed; the report's
+    // Source column prints that (reviewer round 2026-10-02). The context
+    // takes it (WTA-U2-001: with the gas table when the block has one).
+    const apply = (fluid, how) => !!takeFluidPvt(fluid, how);
     const fluid = location.state?.fluidStudioData;
     if (fluid) {
       intakeDone.current = true;
@@ -96,7 +89,7 @@ const WellTestStudioContent = () => {
       apply(handoffFromContract(res.contract), `read from the saved Fluid Systems Studio project "${res.projectName || fluidProjectId}"`);
     });
     return undefined;
-  }, [location.state, fluidProjectId, setReservoirField, setPvtIntake, addNotification]);
+  }, [location.state, fluidProjectId, takeFluidPvt, addNotification]);
 
   const leftPanel = (
     <div className="space-y-6">

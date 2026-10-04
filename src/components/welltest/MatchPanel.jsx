@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
-import { MODEL_CATALOG } from '@/utils/welltest/models/modelCatalog';
+import { MODEL_CATALOG, WELLBORE_STORAGE_MODELS, splitModelId, composeModelId } from '@/utils/welltest/models/modelCatalog';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { unitLabel, kindForCatalogUnit } from '@/utils/welltest/units';
 import { SectionLabel, UnitInput, fmt } from './primitives';
@@ -36,6 +36,7 @@ const fromSlider = (meta, frac) => {
 
 const MatchPanel = () => {
   const { matchInputs, setMatchField, model, runAutoFit, isFitting, prepared, unitSystem } = useWellTestStudio();
+  const { baseId, wellbore } = splitModelId(matchInputs.modelId);
   // Display unit for a catalog parameter in the active system; state stays
   // oilfield, the slider maps the oilfield value, the text input converts.
   const displayUnit = (meta) => {
@@ -47,14 +48,29 @@ const MatchPanel = () => {
     <div className="space-y-6">
       <section>
         <SectionLabel>Model</SectionLabel>
-        <Select value={matchInputs.modelId} onValueChange={(v) => setMatchField('modelId', v)}>
-          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+        <Select value={baseId} onValueChange={(v) => setMatchField('modelId', composeModelId(v, wellbore))}>
+          <SelectTrigger className="h-9" aria-label="Reservoir model"><SelectValue /></SelectTrigger>
           <SelectContent>
             {MODEL_CATALOG.map((m) => (
               <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {/* WTA-U2-002: the wellbore storage model composes with every reservoir model */}
+        <Label className="text-xs text-pl-muted mt-3 block">Wellbore storage</Label>
+        <Select value={wellbore} onValueChange={(v) => setMatchField('modelId', composeModelId(baseId, v))}>
+          <SelectTrigger className="h-9" aria-label="Wellbore storage model" data-testid="wts-wellbore-model"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="constant">Constant</SelectItem>
+            <SelectItem value="hegeman">Changing, Hegeman (error function)</SelectItem>
+            <SelectItem value="fair">Changing, Fair (exponential)</SelectItem>
+          </SelectContent>
+        </Select>
+        {wellbore !== 'constant' && (
+          <p className="text-[11px] text-pl-muted mt-2" data-testid="wts-wellbore-note">
+            C is the final storage. Ci/C above 1 is decreasing storage (the dp curve climbs from a lower unit slope to a higher one and the derivative rises above it); below 1 the phase redistribution pressure can overshoot (the hump). The change time sets when the storage changes. {WELLBORE_STORAGE_MODELS[wellbore]?.reference}.
+          </p>
+        )}
         {model && (
           <p className="text-[11px] text-pl-muted mt-2">{model.wellbore}. {model.boundary}.</p>
         )}

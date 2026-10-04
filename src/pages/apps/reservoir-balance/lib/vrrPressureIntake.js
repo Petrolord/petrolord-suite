@@ -18,10 +18,9 @@
 // the ones this module applied before, so the numbers are identical. The
 // handoff records the schema, version and fingerprint it read.
 //
-// Well Test Analysis Studio saves its inputs and recomputes its results on
-// load, so a saved test project holds no average pressure to read by id;
-// its average pressure still arrives by the handoff of its report (the
-// initial pressure intake of lib/wellTestIntake.js).
+// Well Test Analysis Studio writes its results (wta-1) with every save since
+// WTA-U1-012; its average pressure is taken as a pressure point by
+// lib/wellTestPressureIntake.js (WTA-U2-005).
 import { vrrContractOfRow, vrrPressureRows, VRR_APP, VRR_TABLE } from '@/utils/vrr/vrrLedgerContract';
 
 export { VRR_APP, VRR_TABLE };
