@@ -161,3 +161,14 @@ def test_failed_run_keeps_exit_code_elapsed_and_cells(monkeypatch, tmp_path):
     assert final["log_path"].endswith("/prt_excerpt.txt")
     # the error text names the problem once, not once per copy
     assert final["error_message"].count("Problem with keyword EQUIL") == 1
+
+
+def test_deck_unit_system_is_read_from_runspec(tmp_path):
+    ref = os.path.join(os.path.dirname(__file__), "integration", "fixtures")
+    assert results.deck_unit_system(os.path.join(ref, "spe1", "SPE1CASE1.DATA")) == "FIELD"
+    deck = tmp_path / "M.DATA"
+    deck.write_text("RUNSPEC\nOIL\nWATER\nMETRIC -- units\nGRID\nFIELD\n")
+    assert results.deck_unit_system(str(deck)) == "METRIC"
+    deck.write_text("RUNSPEC\nOIL\nGRID\nFIELD\n")   # after GRID: not a unit keyword
+    assert results.deck_unit_system(str(deck)) is None
+    assert results.deck_unit_system(str(tmp_path / "missing.DATA")) is None

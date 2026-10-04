@@ -122,6 +122,7 @@ def process_run(run, version):
         case_path = results.find_summary_case(out_dir)
         doc, blob = results.build_summary(case_path, version, deck_sha,
                                           diagnostics=diagnostics,
+                                          unit_system=results.deck_unit_system(os.path.join(scratch, main_rel)),
                                           run_meta={"worker_id": config.WORKER_ID,
                                                     "attempt": run.get("attempt"),
                                                     "elapsed_seconds": base_fields["elapsed_seconds"],

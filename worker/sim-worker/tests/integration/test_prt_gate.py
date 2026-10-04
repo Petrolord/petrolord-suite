@@ -78,3 +78,40 @@ def test_builder_deck_reports_its_own_balance(tmp_path):
     assert abs(mb["phases"]["oil"]["produced"] - fopt) <= 50.0 + 1.0
     fwit = doc["field"]["FWIT"][-1]
     assert abs(mb["phases"]["water"]["injected"] - fwit) <= 50.0 + 1.0
+
+
+TEMPLATES = os.path.join(FIX, "templates")
+
+
+def test_spe1_template_reports_its_balance_and_keeps_the_golden_physics(tmp_path):
+    """The bundled SPE1 template (public/sim-templates, copied here; a jest
+    test holds the copy byte-identical) asks for the FIP report. Reporting
+    only: its rates match the opm-tests reference as the golden deck does."""
+    from resdata.summary import Summary as S
+    work = str(tmp_path)
+    shutil.copy(os.path.join(TEMPLATES, "SPE1CASE1.DATA"), os.path.join(work, "SPE1CASE1.DATA"))
+    outcome = runner.run_flow(work, "SPE1CASE1.DATA", lambda: False)
+    assert outcome["exit_code"] == 0, outcome["stderr_tail"]
+    diag = prt.parse_prt_file(results.find_prt(work))
+    assert diag["material_balance"]["computed"] and diag["material_balance"]["closes"]
+    run = S(results.find_summary_case(os.path.join(work, "out")))
+    ref = S(os.path.join(FIX, "spe1", "REF_SPE1CASE1"))
+    for key in ("FOPR", "WBHP:PROD", "WGPT:PROD"):
+        a = run.numpy_vector(key, report_only=True)
+        b = ref.numpy_vector(key, report_only=True)
+        assert len(a) == len(b)
+        for x, y in zip(a, b):
+            assert abs(x - y) <= 2e-2 + 1e-3 * abs(y), key
+
+
+def test_spe9_template_reports_its_balance(tmp_path):
+    work = str(tmp_path)
+    shutil.copy(os.path.join(TEMPLATES, "SPE9.DATA"), os.path.join(work, "SPE9.DATA"))
+    for inc in ("PERMVALUES.DATA", "TOPSVALUES.DATA"):
+        shutil.copy(os.path.join(FIX, "spe9", inc), os.path.join(work, inc))
+    outcome = runner.run_flow(work, "SPE9.DATA", lambda: False)
+    assert outcome["exit_code"] == 0, outcome["stderr_tail"]
+    diag = prt.parse_prt_file(results.find_prt(work))
+    assert diag["active_cells"] == 9000
+    mb = diag["material_balance"]
+    assert mb["computed"] and mb["closes"], mb
