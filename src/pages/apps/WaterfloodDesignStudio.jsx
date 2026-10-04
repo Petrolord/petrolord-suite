@@ -33,6 +33,14 @@ import DiagnosticsRail from '@/components/waterflooddesign/DiagnosticsRail';
 import WDSHelpContent from '@/components/waterflooddesign/WDSHelpContent';
 import { mapScalKrIntake, scalKrFromContract } from '@/components/waterflooddesign/scalKrIntake';
 import { readScalProjectKr, KR_PROJECT_PARAM } from '@/lib/krSource';
+import { supabaseSharingStore } from '@/lib/recordSharing';
+import { RecordSharingBar } from '@/components/recordSharing';
+import { useProfileSystem } from '@/lib/units/useProfileSystem';
+import { buildLabel } from '@/lib/platformBuild';
+import { WF_PROFILE_FAMILIES } from '@/utils/waterflooddesign/units';
+
+// one sharing store per page load (the signed-in user's session)
+const SHARING_STORE = supabaseSharingStore();
 
 // Design system rollout batch 1D (docs/scope/DesignSystem-Rollout.md): the
 // page sits in the dashboard scope, so every class below is a theme role.
@@ -55,7 +63,8 @@ const WaterfloodDesignContent = () => {
     TABS.some((t) => t.value === requested) ? requested : 'displacement',
   );
   const {
-    projects, currentProjectId, createProject, openProject, deleteProject,
+    projects, sharedProjects, currentProjectId, createProject, openProject, deleteProject,
+    projectRow, sharing, viewingShared, canWrite, saveCopy,
     manualSave, isSaving, saveError, lastSaveTime,
     notifications, addNotification, removeNotification,
     setDisplacementField, setDisplacementInputs,
@@ -110,11 +119,28 @@ const WaterfloodDesignContent = () => {
       <section>
         <StudioProjectManager
           projects={projects}
+          sharedProjects={sharedProjects}
+          canDelete={!viewingShared}
           currentProjectId={currentProjectId}
           onCreate={createProject}
           onOpen={openProject}
           onDelete={deleteProject}
         />
+        {projectRow && (
+          <RecordSharingBar
+            sharing={sharing}
+            label="project"
+            className="mt-2"
+            onSaveCopy={saveCopy}
+            onReload={() => openProject(currentProjectId)}
+            fieldLabels={{ project_name: 'name', inputs_data: 'inputs, intakes, surveillance data and scenarios' }}
+          />
+        )}
+        {projectRow && sharing.ready && !canWrite && (
+          <p className="mt-2 text-xs text-pl-warning-text" data-testid="wds-read-only">
+            {sharing.readOnlyReason || 'This project is open read-only.'} Changes you make here are not saved to it.
+          </p>
+        )}
       </section>
       {activeTab === 'displacement' && <DisplacementPanel />}
       {activeTab === 'layered' && <LayeredPanel />}
@@ -183,10 +209,11 @@ const WaterfloodDesignContent = () => {
   );
 };
 
-export default function WaterfloodDesignStudio() {
+export default function WaterfloodDesignStudio({ sharingStore = SHARING_STORE }) {
+  const profileSystem = useProfileSystem('waterflood', WF_PROFILE_FAMILIES);
   return (
     <div data-testid="wds-theme-scope">
-      <WaterfloodDesignProvider>
+      <WaterfloodDesignProvider sharingStore={sharingStore} profileSystem={profileSystem} build={buildLabel()}>
         <WaterfloodDesignContent />
       </WaterfloodDesignProvider>
     </div>
