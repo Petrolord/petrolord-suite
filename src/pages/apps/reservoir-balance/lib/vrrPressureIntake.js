@@ -12,22 +12,31 @@
 // (study.handoffs.pressure_rows) so the report cites the project and says
 // which taken pressure was edited after.
 //
+// VRR-U2-001: the read goes through the `vrr-1` contract of VRR Monitor
+// (src/utils/vrr/vrrLedgerContract.js, `pressureRows`), the one contract VRR
+// sends for its ledger and its pressure rows; the cleaning and the order are
+// the ones this module applied before, so the numbers are identical. The
+// handoff records the schema, version and fingerprint it read.
+//
 // Well Test Analysis Studio saves its inputs and recomputes its results on
 // load, so a saved test project holds no average pressure to read by id;
 // its average pressure still arrives by the handoff of its report (the
 // initial pressure intake of lib/wellTestIntake.js).
-export const VRR_APP = 'Voidage Replacement Monitor';
-export const VRR_TABLE = 'saved_vrr_projects';
+import { vrrContractOfRow, vrrPressureRows, VRR_APP, VRR_TABLE } from '@/utils/vrr/vrrLedgerContract';
+
+export { VRR_APP, VRR_TABLE };
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
 
-/** The surveys of a saved VRR project, cleaned: { date, p_psia }, by date. */
+/** The `vrr-1` contract of a saved VRR project row, or null. */
+const contractOf = (row) => {
+  const res = row?.inputs_data ? vrrContractOfRow(row) : null;
+  return res?.ok ? res.contract : null;
+};
+
+/** The surveys of a saved VRR project, cleaned: { date, p_psia }, by date (the contract's pressure rows). */
 export function vrrSurveys(row) {
-  const list = row?.inputs_data?.inputs?.pressureSurveys;
-  if (!Array.isArray(list)) return [];
-  return list
-    .map((s) => ({ date: String(s?.date ?? '').trim(), p_psia: Number(s?.p_psia) }))
-    .filter((s) => /^\d{4}-\d{2}(-\d{2})?$/.test(s.date) && finite(s.p_psia) && s.p_psia > 0)
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const c = contractOf(row);
+  return c ? vrrPressureRows(c) : [];
 }
 
 /**
@@ -75,6 +84,8 @@ export function takeSurveys(row, rows, { now = new Date().toISOString() } = {}) 
     text: `Taken from ${VRR_APP} project "${row.project_name}", pressure surveys of its Pressure tab (psia as typed there)`,
     rows: Object.fromEntries(usable.map((m) => [String(m.timestep_index), m.to])),
   };
+  const c = contractOf(row);
+  if (c) handoff.contract = { schema: c.schema, version: c.version, fingerprint: c.fingerprint };
   return { rows: nextRows, handoff, matches: usable, unmatched, ambiguous };
 }
 

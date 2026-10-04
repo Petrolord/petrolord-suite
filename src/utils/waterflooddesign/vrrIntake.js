@@ -18,9 +18,12 @@
 // this source), gas injection (the surveillance engine has no gas injection
 // term; named in the intake notes when the ledger holds any). Pure.
 import { rowDayWeights } from '@/utils/waterfloodCalculations';
-import { VRR_LEDGER_SCHEMA } from '@/utils/vrr/vrrLedgerContract';
+import { VRR_SCHEMA, VRR_SCHEMAS, isVrrContract } from '@/utils/vrr/vrrLedgerContract';
 
-export const VRR_INTAKE_SOURCE = VRR_LEDGER_SCHEMA;
+// VRR-U2-001: the contract is `vrr-1` (one contract for the ledger and the
+// pressure rows); an intake saved under the earlier name `vrr-ledger-1` still reads.
+export const VRR_INTAKE_SOURCE = VRR_SCHEMA;
+export const isVrrIntakeSource = (source) => VRR_SCHEMAS.includes(source);
 
 /**
  * @param {object} contract a vrr-ledger-1 contract
@@ -28,7 +31,8 @@ export const VRR_INTAKE_SOURCE = VRR_LEDGER_SCHEMA;
  * @returns {{ok: true, rows: object[], intake: object}|{ok: false, reason: string}}
  */
 export function surveillanceFromVrrLedger(contract, { at = new Date().toISOString() } = {}) {
-  if (!contract || contract.schema !== VRR_LEDGER_SCHEMA) return { ok: false, reason: 'Not a Voidage Replacement Monitor ledger.' };
+  if (!isVrrContract(contract)) return { ok: false, reason: 'Not a Voidage Replacement Monitor ledger.' };
+  if (contract.hasLedger === false) return { ok: false, reason: contract.ledgerRefusal || 'The Voidage Replacement Monitor project has no per-well ledger.' };
   const months = contract.months || [];
   if (!months.length) return { ok: false, reason: 'The ledger has no month.' };
   const dates = months.map((m) => `${m}-01`);
@@ -69,7 +73,7 @@ export function surveillanceFromVrrLedger(contract, { at = new Date().toISOStrin
 
 /** The read-back lines of an intake from VRR Monitor (the report and the panel print them). */
 export function vrrIntakeLines(rb) {
-  if (!rb || rb.source !== VRR_INTAKE_SOURCE) return [];
+  if (!rb || !isVrrIntakeSource(rb.source)) return [];
   const f = rb.fvfThere || {};
   return [
     `${rb.fileName}, read by id ${String(rb.readAt || '').slice(0, 10)}: ${rb.months.count} months (${rb.months.first} to ${rb.months.last}), injectors ${rb.wells?.injectors?.join(', ') || 'none'}, producers ${rb.wells?.producers?.join(', ') || 'none'}.`,

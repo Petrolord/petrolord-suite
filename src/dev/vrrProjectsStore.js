@@ -1,6 +1,6 @@
 // Dev-only: the saved Voidage Replacement Monitor projects of the /dev
 // harness live in sessionStorage, so a project saved on /dev/studio/vrr can
-// be read by id from /dev/studio/waterflood (the vrr-ledger-1 chain,
+// be read by id from /dev/studio/waterflood (the vrr-1 chain, formerly vrr-ledger-1,
 // WF-U2-004; the dcaProjectsStore pattern). Never imported by production
 // routes.
 const KEY = 'harness.saved_vrr_projects.v1';
