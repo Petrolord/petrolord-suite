@@ -356,3 +356,17 @@ test('U2-008 FVF by period: surveys typed, the PVT table of the intake read at e
   const pdf = await exportPdf(page, 'report-fvf-track.pdf');
   expect(pdf.flat).toContain('Formation volume factors by period (surveillance)');
 });
+
+test('U2-004 the other way: VRR Monitor sends its ledger to Waterflood by id', async ({ page }) => {
+  test.setTimeout(240000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript((rows) => { try { if (!window.sessionStorage.getItem('harness.saved_vrr_projects.v1')) window.sessionStorage.setItem('harness.saved_vrr_projects.v1', rows); } catch { /* blocked */ } }, VRR_ROWS);
+  await page.goto('/dev/studio/vrr', { timeout: 120000 });
+  await page.getByRole('combobox', { name: 'Project', exact: true }).click({ timeout: 120000 });
+  await page.getByRole('option', { name: /Ekene VRR ledger/ }).click();
+  await expect(page.getByTestId('vrr-send-basis')).toContainText('6 months, 1 injectors, 1 producers', { timeout: 60000 });
+  await page.getByTestId('vrr-send-waterflood').click();
+  await expect(page).toHaveURL(/\/dev\/studio\/waterflood\?tab=surveillance&vrrProject=/, { timeout: 60000 });
+  await expect(page.getByTestId('wds-door-readback')).toContainText('Voidage Replacement Monitor project "Ekene VRR ledger", read by id', { timeout: 120000 });
+  await page.screenshot({ path: path.join(OUT, 'u2-004-from-vrr.png') });
+});
