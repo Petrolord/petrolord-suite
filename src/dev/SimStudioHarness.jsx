@@ -17,9 +17,11 @@ import spe1Summary from './fixtures/sim-spe1-summary.json';
 import builtSummary from './fixtures/sim-built-summary.json';
 import builtS4Summary from './fixtures/sim-built-s4-summary.json';
 import builtPrt from './fixtures/sim-built-prt.txt?raw';
+import { loadScalRows, SCAL_TABLE } from './scalProjectsStore';
+import { loadFluidRows, FLUID_TABLE } from './fluidProjectsStore';
 import spe1Prt from './fixtures/sim-spe1-prt.txt?raw';
 
-const db = createStore({ sim_cases: [], sim_runs: [], rb_cases: [], rb_production_data: [], geo_surfaces: [] });
+const db = createStore({ sim_cases: [], sim_runs: [], rb_cases: [], rb_production_data: [], geo_surfaces: [], geo_wells: [] });
 
 const patchRun = (id, fields) => {
   db.sim_runs = db.sim_runs.map((r) => (r.id === id ? { ...r, ...fields } : r));
@@ -94,5 +96,9 @@ const rpc = {
 };
 
 export default function SimStudioHarness() {
+  // SIM-U1: the Fluid Systems and SCAL Studio projects of the tab (saved on
+  // their harnesses, or seeded by an e2e), read by id for the two intakes
+  db[SCAL_TABLE] = loadScalRows();
+  db[FLUID_TABLE] = loadFluidRows();
   return <InMemorySupabase db={db} rpc={rpc}><ReservoirSimulationStudio /></InMemorySupabase>;
 }

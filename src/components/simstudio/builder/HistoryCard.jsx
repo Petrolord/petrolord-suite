@@ -20,6 +20,10 @@ const HistoryCard = ({ form, set, addNotification }) => {
   const [csvText, setCsvText] = useState('');
   const [csvMode, setCsvMode] = useState('rates');
   const [gasUnit, setGasUnit] = useState('mscf');
+  const [dateOrder, setDateOrder] = useState('');
+  const [decimal, setDecimal] = useState('');
+  const [questions, setQuestions] = useState([]);
+  const [readBack, setReadBack] = useState(null);
   const history = form.history || { enabled: false };
   const source = history.source || 'mbal';
   // SIM-U1 (RL3): the allocation fractions are kept with the form (they were
@@ -90,9 +94,15 @@ const HistoryCard = ({ form, set, addNotification }) => {
   };
 
   const importCsv = () => {
-    const parsed = parseWellRateCsv(csvText);
+    const parsed = parseWellRateCsv(csvText, { dateOrder: dateOrder || null, decimal: decimal || null, gasUnit });
+    setQuestions(parsed.questions || []);
+    setReadBack({ lines: parsed.readBack || [], errors: parsed.errors });
+    if (parsed.questions?.length) {
+      addNotification('The file does not settle how to read it: answer the question below the box, then import again.', 'info');
+      return;
+    }
     if (parsed.errors.length) {
-      parsed.errors.slice(0, 3).forEach((e) => addNotification(e, 'error'));
+      addNotification(`${parsed.errors.length} line(s) could not be read; nothing was imported. The first: ${parsed.errors[0]}`, 'error');
       return;
     }
     try {
@@ -185,7 +195,7 @@ const HistoryCard = ({ form, set, addNotification }) => {
                   </select>
                 </div>
                 <div className="space-y-1 w-32">
-                  <Label className="text-[11px] text-pl-muted">Gas unit</Label>
+                  <Label className="text-[11px] text-pl-muted">Gas unit (a column with none)</Label>
                   <select value={gasUnit} onChange={(e) => setGasUnit(e.target.value)}
                     className="w-full h-8 rounded-md border border-pl-border-strong bg-pl-surface px-2 text-xs text-pl-text">
                     <option value="mscf">Mscf</option>
@@ -197,7 +207,41 @@ const HistoryCard = ({ form, set, addNotification }) => {
                   <FileSpreadsheet className="w-3 h-3 mr-1" /> Import per-well rates
                 </Button>
               </div>
+              {questions.map((q, i) => (
+                <div key={i} className="flex flex-wrap items-center gap-2 text-[11px] text-pl-warning-text" data-testid="history-question">
+                  {q.kind === 'dateOrder' ? (
+                    <>
+                      <span>Dates such as {q.examples.join(', ')} could be day first or month first.</span>
+                      <select value={dateOrder} onChange={(e) => setDateOrder(e.target.value)} data-testid="history-date-order"
+                        className="h-7 rounded-md border border-pl-border-strong bg-pl-surface px-2 text-xs text-pl-text">
+                        <option value="">Choose</option>
+                        <option value="dmy">Day first (DD/MM/YYYY)</option>
+                        <option value="mdy">Month first (MM/DD/YYYY)</option>
+                      </select>
+                    </>
+                  ) : (
+                    <>
+                      <span>Numbers such as {q.examples.join(', ')} could use a comma or a dot as the decimal mark.</span>
+                      <select value={decimal} onChange={(e) => setDecimal(e.target.value)} data-testid="history-decimal"
+                        className="h-7 rounded-md border border-pl-border-strong bg-pl-surface px-2 text-xs text-pl-text">
+                        <option value="">Choose</option>
+                        <option value=",">Comma decimals (1.234,5)</option>
+                        <option value=".">Dot decimals (1,234.5)</option>
+                      </select>
+                    </>
+                  )}
+                </div>
+              ))}
+              {readBack && (readBack.lines.length > 0 || readBack.errors.length > 0) && (
+                <div className="rounded-md border border-pl-border bg-pl-sunken px-2 py-1 text-[11px] text-pl-text" data-testid="history-read-back">
+                  {readBack.lines.map((l, i) => <div key={`l${i}`}>{l}</div>)}
+                  {readBack.errors.slice(0, 5).map((l, i) => <div key={`e${i}`} className="text-pl-danger-text">{l}</div>)}
+                  {readBack.errors.length > 5 && <div className="text-pl-danger-text">and {readBack.errors.length - 5} more</div>}
+                </div>
+              )}
               <p className="text-[11px] text-pl-muted">
+                Any separator, comma or dot decimals, ISO, day-first or month-first dates; units in the headers
+                (STB/d, bbl/d, m3/d; Mscf/d, scf/d, MMscf/d, m3/d) are read and converted, a column with no unit takes the gas unit above.
                 One row per well per date; well names must match the model's wells. Producer rows become
                 WCONHIST with that well's own oil/water/gas; injector rows drive WCONINJH from their phase
                 column. A well missing on a date keeps its previous rate.
