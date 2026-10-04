@@ -22,7 +22,7 @@ import {
 import {
   FORMATION_OPTIONS, screenAllMethods, sampleEorScreeningData,
 } from '@/utils/eorScreeningCalculations';
-import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { requiredText, actualText, averageText, reasonText, STATUS_WORDS, OUTCOME_WORDS } from '@/utils/eor/format';
 
 // R4 (Reservoir-ROADMAP.md): honest replacement for the archived EOR
 // Designer shell. Pure client-side screening on the published Taber,
@@ -41,6 +41,7 @@ const FIELDS = [
 const STATUS_META = {
   pass: { icon: CheckCircle2, cls: 'text-pl-success-text', chip: 'bg-pl-success-bg text-pl-success-text border-pl-success/40' },
   fail: { icon: XCircle, cls: 'text-pl-danger-text', chip: 'bg-pl-danger-bg text-pl-danger-text border-pl-danger/40' },
+  marginal: { icon: MinusCircle, cls: 'text-pl-warning-text', chip: 'bg-pl-warning-bg text-pl-warning-text border-pl-warning/40' },
   na: { icon: MinusCircle, cls: 'text-pl-muted', chip: 'bg-pl-sunken text-pl-muted border-pl-border' },
 };
 
@@ -205,10 +206,10 @@ function EorScreeningContent() {
                         : <XCircle size={18} className="text-pl-muted shrink-0" />}
                       <div className="min-w-0 flex-1">
                         <div className="text-sm text-pl-text font-medium truncate">{r.name}</div>
-                        <div className="text-[11px] text-pl-muted">{r.group} · {r.passes}/{r.applicable} screened criteria met</div>
+                        <div className="text-[11px] text-pl-muted">{r.group} · {r.passes}/{r.applicable} screened criteria met{r.marginals ? `, ${r.marginals} marginal` : ''}</div>
                       </div>
                       <Badge variant={r.qualified ? 'success' : 'neutral'}>
-                        {r.qualified ? 'Qualified' : 'Screened out'}
+                        {OUTCOME_WORDS[r.outcome]}
                       </Badge>
                     </button>
                     {open && (
@@ -231,12 +232,13 @@ function EorScreeningContent() {
                                 return (
                                   <tr key={v.criterion} className="border-b border-pl-border text-pl-text">
                                     <td className="py-1.5 pr-3 text-pl-text">{v.criterion}</td>
-                                    <td className="py-1.5 pr-3">{v.required}{v.preferred != null ? ` (typical ${v.preferred})` : ''}</td>
-                                    <td className="py-1.5 pr-3">{v.actual != null ? `${v.actual}${v.unit ? ` ${v.unit}` : ''}` : EMPTY_VALUE}</td>
+                                    <td className="py-1.5 pr-3">{requiredText(v)}{averageText(v) ? ` (project average ${averageText(v)})` : ''}</td>
+                                    <td className="py-1.5 pr-3">{actualText(v)}</td>
                                     <td className="py-1.5">
                                       <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] ${meta.chip}`}>
-                                        <IconEl size={11} /> {v.status === 'na' ? 'not scored' : v.status}
+                                        <IconEl size={11} /> {STATUS_WORDS[v.status]}
                                       </span>
+                                      <div className="text-[10px] text-pl-muted mt-0.5">{reasonText(v)}</div>
                                     </td>
                                   </tr>
                                 );
