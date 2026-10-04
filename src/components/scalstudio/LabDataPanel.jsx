@@ -194,12 +194,13 @@ const LabDataPanel = ({ selectedId, onSelect }) => {
               onChange={(e) => { importCsv(e.target.files?.[0], 'kr'); e.target.value = ''; }}
             />
             <input
-              ref={goFileRef} type="file" accept=".csv,.txt,.tsv,.dat,.prn,.xlsx,.xlsm,.xls,text/csv,text/plain" className="hidden" data-testid="import-go-file"
-              onChange={(e) => { importCsv(e.target.files?.[0], 'go'); e.target.value = ''; }}
-            />
-            <input
               ref={pcFileRef} type="file" accept=".csv,.txt,.tsv,.dat,.prn,.xlsx,.xlsm,.xls,text/csv,text/plain" className="hidden"
               onChange={(e) => { importCsv(e.target.files?.[0], 'pc'); e.target.value = ''; }}
+            />
+            {/* the gas-oil door after the kr and Pc doors, so their order on the page is unchanged */}
+            <input
+              ref={goFileRef} type="file" accept=".csv,.txt,.tsv,.dat,.prn,.xlsx,.xlsm,.xls,text/csv,text/plain" className="hidden" data-testid="import-go-file"
+              onChange={(e) => { importCsv(e.target.files?.[0], 'go'); e.target.value = ''; }}
             />
             <div className="grid grid-cols-2 gap-2">
               <Button size="sm" variant="outline" className="h-8" onClick={() => krFileRef.current?.click()}>

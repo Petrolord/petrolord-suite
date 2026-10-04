@@ -87,7 +87,8 @@ async function fitAndAverage(page) {
   await tab(page, 'Capillary').click();
   await openRail(page);
   await page.getByRole('tab', { name: 'From samples' }).click();
-  for (const cb of await page.locator('input[type=checkbox]').all()) await cb.check();
+  // the sample boxes only: "Fit Swirr" (SCAL-U2-006) stays as the user left it
+  for (const cb of await page.locator('input[type=checkbox]:not([data-testid="scal-swirr-fit"])').all()) await cb.check();
   await closeRail(page);
 }
 
@@ -158,7 +159,8 @@ test('RL: the exported PDF carries what a reviewer signs against, read back', as
   expect(pdf.flat).toMatch(/Corey fits to the lab kr tables/);
   expect(pdf.flat).toMatch(/Limits of this analysis/);
   expect(pdf.flat).toMatch(/kr-1 block handed to other apps/);
-  expect(pdf.flat).toMatch(/Figure 8\. Water saturation against height above the free water level/);
+  // demo core A carries a gas-oil table since SCAL-U2-004: its lab figure comes before the J figures
+  expect(pdf.flat).toMatch(/Figure 9\. Water saturation against height above the free water level/);
   expect(pdf.flat).toMatch(/FWL, 8600 ft TVDSS/);
   expect(pdf.flat).not.toMatch(/—/);
   // the Petrolord mark is embedded in the figures
@@ -253,5 +255,133 @@ test('PL5: projects as earlier releases saved them open and report n/a', async (
   await expect(page.getByTestId('scal-report-headline')).toContainText('8,620.0');
   const pdf = await exportPdf(page, 'scal-report-schema1.pdf');
   expect(pdf.flat).toMatch(/Field n\/a/);
+  expect(errors).toEqual([]);
+});
+
+
+// ---------------------------------------------------------------------------
+// SCAL U2 (Step 2 build, 2026-10-03)
+// ---------------------------------------------------------------------------
+
+const FIXTURES = path.join('e2e', 'fixtures', 'scal');
+
+async function download(page, testId, name) {
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByTestId(testId).click();
+  const d = await downloadPromise;
+  const file = path.join(OUT, name);
+  await d.saveAs(file);
+  return { name: d.suggestedFilename(), text: fs.readFileSync(file, 'utf8') };
+}
+
+test('U2-004, U2-011: the gas-oil door, an xlsx at the kr door, and the gas-oil fit applied', async ({ page }) => {
+  test.setTimeout(240000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await tab(page, 'Lab Data').click();
+  await page.getByRole('button', { name: 'Add sample' }).click();
+  // an Excel workbook: the cover sheet is passed over, the kr sheet read and named
+  await page.locator('input[type="file"]').nth(0).setInputFiles(path.join(FIXTURES, 'kr-workbook.xlsx'));
+  await expect(page.getByTestId('readback-krImport')).toContainText('Sheet "USS kr" of a workbook of 2 sheets. 7 rows read');
+  // the gas-oil door, Sg in percent
+  await page.getByTestId('import-go-file').setInputFiles(path.join(FIXTURES, 'go-table.csv'));
+  await expect(page.getByTestId('readback-goImport')).toContainText('Sg read as a percent (from the header)');
+  const card = page.getByTestId('scal-go-fit');
+  await expect(card).toContainText('ng (fit)');
+  await expect(card).toContainText('the working gas-oil set');
+  await page.getByTestId('scal-apply-go-fit').click();
+  await tab(page, 'Curves').click();
+  await expect(page.getByTestId('scal-go-origin')).toHaveAttribute('data-origin', 'fitted');
+  await expect(page.getByTestId('scal-go-origin')).toContainText('Fitted to the lab table of sample');
+  expect(errors).toEqual([]);
+});
+
+test('U2-001, U2-002: SWOF and SGOF with Pc, and the gas-oil CSV, downloaded and read', async ({ page }) => {
+  test.setTimeout(240000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await tab(page, 'Export').click();
+  const inc = await download(page, 'scal-deck-export', 'scal.inc');
+  expect(inc.name).toMatch(/^scal-swof-sgof-.*\.inc$/);
+  expect(inc.text).toMatch(/^-- Saturation functions exported by Petrolord SCAL Studio \(SWOF and SGOF, FIELD units\)\./);
+  expect(inc.text).toMatch(/^SWOF$/m);
+  expect(inc.text).toMatch(/^SGOF$/m);
+  expect(inc.text).toMatch(/Pcow = Po - Pw/);
+  // the first SWOF row is Swc with kro at its end point and a positive Pc
+  const firstSwof = inc.text.split('\n')[inc.text.split('\n').indexOf('SWOF') + 1].trim().split(/\s+/).map(Number);
+  expect(firstSwof[0]).toBe(0.2);
+  expect(firstSwof[2]).toBe(0.9);
+  expect(firstSwof[3]).toBeGreaterThan(0);
+  expect(/^[\x09\x0a\x20-\x7e]*$/.test(inc.text)).toBe(true);
+  // METRIC: Pc in bar
+  await page.getByTestId('scal-deck-units').click();
+  await page.getByRole('option', { name: /METRIC/ }).click();
+  const metric = await download(page, 'scal-deck-export', 'scal-metric.inc');
+  expect(metric.text).toMatch(/Pc in bar \(METRIC deck units\)/);
+  // two connate waters: refused with the reason
+  await tab(page, 'Curves').click();
+  await openRail(page);
+  await page.getByRole('tab', { name: 'Gas-oil' }).click();
+  await page.getByTestId('corey-go-Swc').fill('0.25');
+  await closeRail(page);
+  await tab(page, 'Export').click();
+  await expect(page.getByTestId('scal-deck-refused')).toContainText('one connate water');
+  // the gas-oil CSV
+  const go = await download(page, 'scal-csv-go', 'go.csv');
+  expect(go.text.split('\n').find((l) => !l.startsWith('#'))).toBe('Sg,krg,krog');
+  expect(go.text).toMatch(/^# Gas-oil set: Corey, parameters entered by the user/m);
+  expect(errors).toEqual([]);
+});
+
+test('U2-006, U2-012: Swirr fitted on the demo pair; the PDF opens with the summary page', async ({ page }) => {
+  test.setTimeout(240000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await fitAndAverage(page);
+  await openRail(page);
+  await page.getByTestId('scal-swirr-fit').check();
+  await expect(page.getByTestId('scal-swirr-fitted')).toContainText(/Fitted Swirr 0\.12\d \(95% CI/);
+  await closeRail(page);
+  await tab(page, 'Report').click();
+  await expect(page.getByTestId('scal-report-summary')).toContainText('Lab data');
+  const pdf = await exportPdf(page, 'scal-report-u2.pdf');
+  const page1 = readPdfFile(pdf.file).text.split('\f')[0].replace(/\s+/g, ' ');
+  expect(page1).toMatch(/Summary Item Value/);
+  expect(page1).toMatch(/Swirr 0\.12\d* \(fitted with a and b\)/);
+  expect(page1).not.toMatch(/Headline results/);
+  expect(pdf.flat).toMatch(/Corey fits to the lab gas-oil tables/);
+  expect(pdf.flat).toMatch(/Fitted with a and b to the pooled lab J of the included samples/);
+  expect(errors).toEqual([]);
+});
+
+test('U2-005: water and oil gravities from a Fluid Systems Studio project saved in the same tab', async ({ page }) => {
+  test.setTimeout(360000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/dev/fluid-systems-studio', { timeout: 120000 });
+  await expect(page.getByText('Oil FVF @ Pb')).toBeVisible({ timeout: 120000 });
+  await page.getByRole('button', { name: 'Create new project' }).click();
+  await page.getByLabel('Project name').fill('Ekene SCAL fluid');
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await expect(page.getByText('Project "Ekene SCAL fluid" created')).toBeVisible({ timeout: 60000 });
+  // let the harness copy the saved project into the tab's session store
+  await page.waitForTimeout(1000);
+  await openApp(page);
+  await tab(page, 'Height & Saturation').click();
+  const pick = page.getByTestId('scal-fluid-project');
+  await expect(pick).toContainText('Ekene SCAL fluid', { timeout: 60000 });
+  await pick.selectOption({ index: 1 });
+  await page.getByTestId('scal-fluid-take').click();
+  await expect(page.getByTestId('pvt-intake-status')).toHaveText('As received', { timeout: 60000 });
+  await expect(page.getByTestId('pvt-intake-source')).toContainText('Ekene SCAL fluid');
+  const gh = Number(await page.getByTestId('height-gammaHc').inputValue());
+  expect(gh).toBeGreaterThan(0.5);
+  expect(gh).toBeLessThan(0.95);
+  await page.getByTestId('height-gammaHc').fill('0.7');
+  await page.getByTestId('height-gammaHc').blur();
+  await expect(page.getByTestId('pvt-intake-status')).toHaveText('Edited after intake');
   expect(errors).toEqual([]);
 });
