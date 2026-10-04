@@ -304,3 +304,89 @@ Branch `feat/sim-u2`. Step 2 results are recorded per item in section 10.
 | SIM-U2-014 | SCAL gas-oil Swc pairing: SCAL Studio holds the gas-oil set at the oil-water Swc (the field follows and is read-only); a project saved with two Swc opens moved, a gas-oil fit at a sample's own Swc is written at the oil-water Swc; the move is kept (`curves.goSwcPairing`) and stated on the Curves tab and in the report; the Simulation warning no longer appears for a paired block (an old saved block still warns) | Done | `scalGoSwcPairing.test.js` (4: open-and-move, the saved block taken by Simulation with no adjustment or warning, negative control the old workspace, the provider's setters); SCAL goldens (schema1-manual: its gas-oil set moved from 0.2 to the oil-water 0.22, deliberate); e2e scal U2-001/U2-002 updated (field read-only, follows, no refusal) | Not needed |
 | SIM-U2-015 | METRIC balance: the worker reads a METRIC run's PRT tables (balance sheet SM3; cumulative table MSCM for oil and water, MMSCM for gas, as OPM Flow 2026.04 prints them) and computes the balance; the report converts every PRT volume from the unit it printed (balance, headline fallbacks, OOIP, pore volume); FWPT and FGPT kept when a deck asks | Done | `test_prt_parse.py` (a METRIC PRT closes per component; negative control MMSCM read as 10^3 sm3 leaves gas open); `simMetricBalance.test.js` (3: oilfield and SI display, sm3 to STB 6.289811 and to Mscf pinned, negative control) | `test_u2_deck.py`: a hand-written METRIC box (tests/integration/fixtures/metric/METRIC_BOX.DATA) runs; the balance is computed and closes; the scaled cumulative table equals the run's FOPT, FWIT, FWPT and FGPT within the printed rounding. 56 passed |
 | SIM-U2-007 | Waterflood deck sender: "Start a model in Reservoir Simulation Studio" in Waterflood Design Studio; the Builder reads the pattern by id (wf-forecast-1 with the saved project) and writes the quarter five-spot element (11 x 11, a quarter of the area, thickness, porosity, thickness-weighted layer permeability), the injector at a quarter of the pattern rate over Bw, a producer liquid rate that balances it, the start date and length, and takes the kr-1 and pvt-1 projects the pattern holds by id; what the pattern does not hold is listed on the card, in the deck notes and the report. Line drives refused for now | Done (five-spot only) | `simWfStart.test.js` (2: element size and rates from the contract, intakes by id, deck notes and fixture; negative controls a line drive, no Fluid project); e2e U2-007 (Waterflood harness to Simulation by id, generated, run) | `test_u2_deck.py`: BUILT_WF.DATA runs, injects the stated 191.75 STB/d, water breaks through, the balance closes |
+
+### 10a Deferred, with reasons
+
+| ID | Item | Why not now |
+|---|---|---|
+| SIM-U2-006 | Group controls and limits (GCONPROD, GCONINJE with voidage targets, WECON) | Batch decision: deferred. Needs a group model in the builder and the vrr-1 and wf-forecast-1 voidage targets mapped to group controls; no NAPE need |
+| SIM-U2-008 | Colleague run queueing | Owner: after NAPE, with the second engineer (a security-definer change to `sim_enqueue_run`) |
+| SIM-U2-009 | VFP tables from Nodal Analysis Studio, THP control | Batch decision: deferred. Nodal has no VFP sender yet |
+| SIM-U2-010 to 013, 016 | Corner-point grids, realisation batches, 3D results, end-point scaling and regions, `_after_fork` noise and the 390 px tab strip | Batch C: deferred by the batch decision (heavy engine work, the quota decision, SCAL rock types) |
+| SIM-U2-003 (part) | Killough hysteresis | kr-1 holds no imbibition sets yet; Stone I and II and the default model are built |
+| SIM-U2-007 (part) | Line drive starting decks | The quarter element of a line drive needs a rectangular element and its own well layout; the five-spot is built, line drives are refused with the reason |
+
+### 10b What changes numbers
+
+- In Simulation: nothing changes for a deck the builder made before this
+  branch. The new keywords are written only when chosen (WBHPH with a bhp
+  column, STONE1 or STONE2, an aquifer); every engine change composes a
+  spec without them byte for byte as before (engines tests).
+- The report gains a figure 7 statement for every run (the bottomhole
+  pressure match, "Does not apply" without observations) and two rows
+  (three-phase model in the deck, and in the builder inputs): goldens
+  updated deliberately.
+- A METRIC run made after the worker redeploy states its material balance
+  (it said "not reported" before) in the display units.
+- SCAL Studio (SIM-U2-014): a project saved with two Swc opens with the
+  gas-oil set moved to the oil-water Swc, so its gas-oil table moves (the Sg
+  axis ends at 1 - the oil-water Swc) and a sample's gas-oil fit that used
+  the working Swc is refitted at the oil-water Swc. Saved kr-1 blocks are
+  unchanged until the project is saved again. SCAL golden `schema1-manual`
+  updated deliberately.
+- Material Balance: `mbal-1` gains an `aquifer` field (additive); the MBAL
+  engine's Carter-Tracy pD is exported unchanged (MBAL suites pass), so no
+  MBAL number moves and `calculate-mbal` needs no redeploy.
+- Forecast Scenario Hub and EPE: no number of an existing case or file
+  moves; the "Cases" line of the hub report names the apps that sent
+  profiles (unchanged text when only Waterflood sent one).
+
+### 10c The worker (owner redeploy)
+
+`simworker/config.py` (WBHPH, FWPT, FGPT; per-aquifer AAQR, AAQT, AAQP),
+`results.py` (the aquifer vectors under `doc["aquifers"]`), `prt.py` (METRIC
+labels). Isolated gate (`simverify-sim2`): **56 passed**. Until the
+redeploy: no WBHPH (the BHP match falls back to the builder form, and says
+the echo was not checked), no aquifer vectors (the figure says why), METRIC
+balances "not verified", FWPT and FGPT absent.
+
+    cd /root/petrolord-suite && git pull --ff-only origin main
+    cd worker/sim-worker && ./deploy.sh
+
+### 10d Where validation is weaker than asked
+
+- BHP match (001): no published history-match case; the gate proves OPM
+  Flow reads the observed pressures as written (WBHPH) and the mismatch
+  arithmetic is held to hand values. The gate found that OPM Flow carries
+  the last observation forward through a period that gives none; WBHPH
+  alone (an uploaded deck) therefore counts those repeats, and the report
+  says so.
+- Three-phase kr (003): the gate shows STONE1 and STONE2 reach the simulator
+  and change the run (1.3 to 1.5 percent in FOPR and FGOR on the gate
+  model) and differ from each other; it does not hold OPM Flow's Stone
+  implementation to a published three-phase table.
+- Aquifer (004): the known case is the Dake 9.2 aquifer (Ahmed Ex. 10-10);
+  the check is OPM Flow against the Material Balance engine on the run's own
+  pressure, on a 50 D validation tank (so the aquifer face sees the field
+  pressure); not a full Dake reservoir in OPM Flow. Fetkovich agrees year by
+  year after the first year (the two march differently in time: a constant
+  0.14 MM bbl offset set in the first coarse month); Carter-Tracy within 1.5
+  percent from the first month.
+- METRIC balance (015): one hand-written METRIC deck; LAB and PVT-M remain
+  unverified and say so.
+- Waterflood start (007): the deck runs and injects the stated rate; it is
+  not compared with the pattern's Buckley-Leverett forecast.
+- Run compare and the sender (005, 002): the step rates integrate to FOPT
+  within 1e-5 on OPM Flow's own output; the hub and EPE chain is proven on
+  the harness, not with two real accounts.
+
+### 10e Gate and test results
+
+- Worker, isolated compose project `simverify-sim2`: 56 passed (U1's 48
+  plus `test_u2_deck.py` and the METRIC PRT tests).
+- Engines PR #310: CI green (not merged by the build agent).
+- jest (in band): simstudio suites (11 files, 101 tests with the Waterflood
+  contract), SCAL, Material Balance, EPE, hub, Waterflood suites (636 tests
+  in the touched areas).
+- e2e: `e2e/simulation-upgrade.spec.js` 16 tests (6 new U2), Waterflood spec
+  19, the two SCAL tests touched, all passing on the harness.

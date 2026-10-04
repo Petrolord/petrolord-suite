@@ -468,3 +468,31 @@ fixed, no S1; the eight S2 fixed.
 - Closed from the bring-up list: failed runs losing exit code and elapsed,
   `active_cells` never written, the duplicated error text. Still open: the
   `_after_fork` log noise; unattended crash restart unproven.
+
+## Step 2 (2026-10-04, `feat/sim-u2`, PR open)
+
+Batch A and B of the Step 2 backlog, as the programme lead chose them
+(docs/upgrade/ReservoirSimulationStudio-UPGRADE.md section 9 and 10).
+
+- **SIM-U2-002 `sim-forecast-1`**: a completed run (whole, or the prediction
+  after the history end) read by case and run id into Forecast Scenario Hub
+  (profile case) and Petroleum Economics Studio (production file), oilfield
+  units, the run id, deck SHA-256 and OPM Flow version; "source changed
+  since" names a newer run. The step rates integrate to the run's FOPT.
+- **SIM-U2-001 BHP history match**: a bhp column at the per-well door
+  (gauge made absolute, SI converted), WCONHIST item 10 / WCONINJH item 5,
+  WBHPH; the report's mismatch table by well with the RMS and a figure.
+- **SIM-U2-005 run compare** on the Results tab and in the report.
+- **SIM-U2-003 three-phase kr**: Stone I, Stone II or the default.
+- **SIM-U2-004 analytical aquifer**: Fetkovich or Carter-Tracy, typed or by
+  id from a Material Balance case (`mbal-1` gains `aquifer`), the MBAL
+  engine's influence function as AQUTAB; validated on the Dake 9.2 aquifer.
+- **SIM-U2-014** (SCAL): the gas-oil set held at the oil-water Swc.
+- **SIM-U2-015 METRIC balance**.
+- **SIM-U2-007**: a starting deck from a Waterflood five-spot by id.
+- Engines PR #310 (not merged; 7 sim-u2 ledger rows). Worker changes:
+  owner redeploy owed (isolated gate 56 passed). The `builder_form`
+  migration is still the owner's (staging first); the Step 1 fallback (a
+  JSON file beside the deck) is unchanged.
+- Deferred: 006, 008 (owner: after NAPE), 009, Batch C, Killough
+  hysteresis, line drive starting decks.
