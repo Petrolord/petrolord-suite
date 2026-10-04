@@ -2,14 +2,14 @@
   "$comment": "Vendoring contract for packages/engines. Checked by tools/check-vendored-engines.mjs; see that file for the model. The check is against the PINNED commit below and its committed manifest, never against engines HEAD: a guard pointed at HEAD goes red the moment canonical moves and then blocks every unrelated Suite PR. Moving the pin is a deliberate, reviewed vendoring pass. The Suite vendors the WHOLE canonical tree, so the expected state of this file is the one it is in: an EMPTY knownDeviations list. Any deviation that is genuinely deliberate goes in that list with a reason, a group and a burnDownWhen, and every differing or extra path is pinned to the blob currently vendored, so a second drift on an already-known path still fails. burnDownWhen states the condition under which the row must be removed, because a bare reason goes stale on its own: in NextGen a row reading \"pull only with the recut in the same deploy window\" became false the moment the recut merged and nothing in the file said so. A ledger entry whose deviation has gone is also a failure, so the list can only shrink.",
   "canonical": {
     "repo": "git@github.com:Petrolord/petrolord-engines.git",
-    "commit": "e9d98aca9206df40a88ea7a4da94d82c38b62c78",
+    "commit": "dc614f1314f57d062eb96aaffcffb6e7bdd1b370",
     "manifest": "VENDOR.manifest"
   },
   "vendoring": {
     "method": "file-by-file reconciliation against a canonical clone, verified by blob hash with this guard, hashed from the files on disk rather than from the git index",
     "$comment": "NOT a whole-tree `git subtree pull`. That silently DELETED 24 Suite-only downstream files on 2026-09-14. Vendor the paths the canonical range actually touched, then run the guard, which is what proves nothing else moved.",
     "lastVendored": "2026-10-04",
-    "lastVendoredRange": "a303b77d075b41af1621601e1f4d8af762feb682..e9d98aca9206df40a88ea7a4da94d82c38b62c78 (engines PR #307, Voidage Replacement Monitor U2: buildWellVoidage, voidage by well with per-well free gas, with its gate; pinned at the merge commit e9d98ac; the files were already vendored byte-identical as recorded deviations)"
+    "lastVendoredRange": "e9d98aca9206df40a88ea7a4da94d82c38b62c78..dc614f1314f57d062eb96aaffcffb6e7bdd1b370 (engines PR #308, Reservoir Simulation Studio U1: opt-in RPTSOL/RPTSCHED FIP and WELLS reporting and deck notes in composeDeck; pinned at the merge commit dc614f1; the files were already vendored byte-identical as recorded deviations)"
   },
   "testing": {
     "$comment": "The Suite needs no equivalent of NextGen's tools/run-vendored-engine-tests.mjs. jest.config.js uses testMatch '**/__tests__/**/*.test.(js|jsx|ts)' with no testPathIgnorePatterns, so all 179 suites under packages/engines/__tests__ already run in `npm test` beside the Suite's own. There is no allow-list of known engine test failures because there are none: the vendored suites are green.",
@@ -22,22 +22,5 @@
     "manifestPaths": 750,
     "vendoredPaths": 750
   },
-  "knownDeviations": [
-    {
-      "path": "engines/sim/composeDeck.js",
-      "kind": "differing",
-      "vendoredSha": "f053e99f07d124cc12c46f45d71cbfdd497651c6",
-      "group": "sim-u1 (engines PR #308)",
-      "reason": "Reservoir Simulation Studio U1 engines (opt-in balance reporting RPTSOL/RPTSCHED FIP and WELLS, deck notes as comment lines), vendored from Petrolord/petrolord-engines PR #308 head cde2312 (blob identical there); the app agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
-      "burnDownWhen": "engines PR #308 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every sim-u1 row."
-    },
-    {
-      "path": "__tests__/sim.deckgen.test.js",
-      "kind": "differing",
-      "vendoredSha": "2a86b019108a1ff5cf80f100b4bc62ef3a97b87e",
-      "group": "sim-u1 (engines PR #308)",
-      "reason": "Reservoir Simulation Studio U1 engines (opt-in balance reporting RPTSOL/RPTSCHED FIP and WELLS, deck notes as comment lines), vendored from Petrolord/petrolord-engines PR #308 head cde2312 (blob identical there); the app agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
-      "burnDownWhen": "engines PR #308 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every sim-u1 row."
-    }
-  ]
+  "knownDeviations": []
 }

@@ -158,10 +158,9 @@ the redeploy keep saying so; run them again for a balance.
 
 ### Engines
 
-Engines PR #308 (`feat/sim-u1-fip-report`, not merged): opt-in
+Engines PR #308 (`feat/sim-u1-fip-report`, merged by the programme lead; the Suite is pinned at engines main dc614f1 with 0 deviations): opt-in
 `spec.report.balance` and `spec.notes` in `composeDeck`; a spec without them
 composes byte for byte as before (the Ekene RC5 checksum gate holds).
-Vendored byte-identical with two ledger rows (group `sim-u1`).
 
 ## 5. What the gap matrix had wrong or thin
 
