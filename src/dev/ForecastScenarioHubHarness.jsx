@@ -8,17 +8,20 @@ import React, { useEffect } from 'react';
 import ForecastScenarioHub from '@/pages/apps/ForecastScenarioHub';
 import InMemorySupabase, { createStore } from './InMemorySupabase';
 import { loadDcaRows, DCA_TABLE } from './dcaProjectsStore';
+import { loadWfRows, WF_TABLE } from './wfProjectsStore';
 
 const HUB_TABLE = 'saved_scenario_hub_projects';
 const KEY = 'harness.saved_scenario_hub_projects.v1';
 const session = () => { try { return window.sessionStorage; } catch { return null; } };
 const loadHubRows = () => { try { return JSON.parse(session()?.getItem(KEY) || '[]') || []; } catch { return []; } };
 
-const db = createStore({ [HUB_TABLE]: loadHubRows(), [DCA_TABLE]: [] });
+const db = createStore({ [HUB_TABLE]: loadHubRows(), [DCA_TABLE]: [], [WF_TABLE]: [] });
 
 export default function ForecastScenarioHubHarness() {
   // the DCA rows as they are now in this tab (read on every mount)
   db[DCA_TABLE] = loadDcaRows();
+  // WF-U2-001: the Waterflood projects saved on /dev/studio/waterflood in this tab
+  db[WF_TABLE] = loadWfRows();
   useEffect(() => {
     let last = '';
     const tick = () => {

@@ -17,6 +17,10 @@ import { setProvenanceField, serializeProvenance, deserializeProvenance } from '
 import { mcSummaryRecord, mcInputsFingerprint } from '@/utils/waterflooddesign/mcSummary';
 import { wfUnits } from '@/utils/waterflooddesign/units';
 import { layeredFrom } from '@/utils/waterflooddesign/workspace';
+import { patternKeyOf } from '@/utils/waterflooddesign/patterns';
+import { applyHallWindows } from '@/utils/waterflooddesign/hallWindows';
+import { applyChanWindows } from '@/utils/waterflooddesign/chanWindows';
+import { surveillanceConfigWithTrack } from '@/utils/waterflooddesign/fvfTrack';
 
 export const WF_PROJECTS_TABLE = 'saved_waterflood_design_projects';
 
@@ -89,6 +93,9 @@ export const DEFAULT_SURVEILLANCE_CONFIG = {
   pressure_basis: 'wellhead',
   // WF-U1-007: the reservoir pressure at which a pvt-1 intake read the FVFs
   pvt_pressure: '',
+  // WF-U2-008: FVF by period from the pvt-1 table at each date's pressure
+  fvf_mode: 'constant', // 'constant' | 'by-period'
+  pressure_surveys: [], // [{date: 'YYYY-MM-DD', p_psia}]
 };
 
 // analyzeWaterflood expects numeric config; the studio keeps strings in form
@@ -120,6 +127,9 @@ export function buildPatternInputs(p) {
     Sgi: num(p.Sgi) || 0, EV: num(p.EV) || 1,
     worLimit: num(p.worLimit) || 25, maxYears: num(p.maxYears) || 30,
     mobilityBasis: p.mobilityBasis === 'endpoint' ? 'endpoint' : 'craig',
+    // WF-U2-002: the flood pattern; a project without one is a five-spot.
+    // Not in DEFAULT_PATTERN, so saved projects keep their Monte Carlo fingerprint.
+    patternType: patternKeyOf(p.patternType),
   };
   if (![pattern.area_acres, pattern.h_ft, pattern.phi, pattern.Bo, pattern.Bw, pattern.iw_bpd].every((v) => v > 0)) return null;
   return pattern;
@@ -195,6 +205,24 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
   const [surveillanceImport, setSurveillanceImport] = useState(null);
   const [mcSummary, setMcSummary] = useState(null);
   const [migratedFrom, setMigratedFrom] = useState(null);
+  // WF-U2-001: the flood start date that puts the forecast on the calendar
+  // for the wf-forecast-1 contract (kept outside patternInputs, so saved
+  // Monte Carlo summaries keep their fingerprint)
+  const [floodStart, setFloodStart] = useState('');
+  // WF-U2-003: Hall windows chosen per injector, with the reason
+  const [hallWindows, setHallWindows] = useState({});
+  const setHallWindow = useCallback((injector, choice) => setHallWindows((prev) => {
+    const next = { ...prev };
+    if (choice) next[injector] = choice; else delete next[injector];
+    return next;
+  }), []);
+  // WF-U2-006: Chan late-time windows chosen per series ('field' or a producer)
+  const [chanWindows, setChanWindows] = useState({});
+  const setChanWindow = useCallback((key, choice) => setChanWindows((prev) => {
+    const next = { ...prev };
+    if (choice) next[key] = choice; else delete next[key];
+    return next;
+  }), []);
 
   // Transient Monte Carlo state: expensive and stochastic, so it is run on
   // demand (never a useMemo) and never persisted.
@@ -219,6 +247,12 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
   }, []);
   const setUnitSystem = useCallback((sys) => setUnitSystemSaved(sys === 'si' ? 'si' : 'oilfield'), []);
   const setUncertaintyIterations = useCallback((v) => setUncertaintyConfig((prev) => ({ ...prev, iterations: v })), []);
+  // WF-U2-005: blank draws a seed at run time (recorded); a number reproduces a run
+  const setUncertaintySeed = useCallback((v) => setUncertaintyConfig((prev) => {
+    const next = { ...prev };
+    if (v == null || String(v).trim() === '') delete next.seed; else next.seed = String(v).trim();
+    return next;
+  }), []);
   const setUncertaintyParam = useCallback((key, patch) => setUncertaintyConfig((prev) => ({
     ...prev,
     params: { ...prev.params, [key]: { ...(prev.params[key] || {}), ...patch } },
@@ -248,16 +282,18 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
   const surveillanceResult = useMemo(() => {
     if (!surveillanceRows.length) return null;
     try {
-      return analyzeWaterflood(surveillanceRows, buildSurveillanceConfig(surveillanceConfig));
+      const { config, track } = surveillanceConfigWithTrack(buildSurveillanceConfig(surveillanceConfig), surveillanceConfig, surveillanceRows, pvtIntake);
+      const r = applyChanWindows(applyHallWindows(analyzeWaterflood(surveillanceRows, config), hallWindows), chanWindows);
+      return track ? { ...r, fvfTrack: track } : r;
     } catch (e) {
       return { error: e.message || 'Surveillance analysis failed' };
     }
-  }, [surveillanceRows, surveillanceConfig]);
+  }, [surveillanceRows, surveillanceConfig, hallWindows, chanWindows, pvtIntake]);
 
   // ---- Uncertainty (Monte Carlo) run: on demand, results transient ----
   const runUncertainty = useCallback(async () => {
     if (isRunningUncertainty) return;
-    const { distributions, iterations, errors } = parseUncertaintyConfig(uncertaintyConfig);
+    const { distributions, iterations, seed, errors } = parseUncertaintyConfig(uncertaintyConfig);
     if (errors.length) {
       addNotification(errors[0], 'error');
       return;
@@ -279,14 +315,15 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
     setUncertaintyProgress(0);
     try {
       const result = await runWaterfloodUncertaintyAsync(
-        { displacementSpec: displacementSpec.spec, pattern, distributions, iterations },
+        { displacementSpec: displacementSpec.spec, pattern, distributions, iterations, seed },
         setUncertaintyProgress,
       );
       const ranAt = new Date().toISOString();
-      setUncertaintyResult({ ...result, ranAt });
+      const seedFrom = seed == null ? 'drawn' : 'entered';
+      setUncertaintyResult({ ...result, ranAt, seedFrom });
       // WF-U1: the summary of the canonical module's run is kept with the
       // project (the realizations are not), stamped with what it was run on
-      setMcSummary(mcSummaryRecord(result, { ranAt, fingerprint: mcInputsFingerprint({ displacementInputs, patternInputs, uncertaintyConfig }) }));
+      setMcSummary(mcSummaryRecord({ ...result, seedFrom }, { ranAt, fingerprint: mcInputsFingerprint({ displacementInputs, patternInputs, uncertaintyConfig }) }));
       hasUncertaintyResult.current = true;
       setUncertaintyStale(false);
       if (result.validCount > 0) {
@@ -326,8 +363,11 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
     unitSystem,
     pvtIntake,
     mcSummary,
+    floodStart,
+    hallWindows,
+    chanWindows,
     modified: new Date().toISOString(),
-  }), [currentProjectId, projectName, displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, surveillanceImport, identification, inputMeta, unitSystem, pvtIntake, mcSummary]);
+  }), [hallWindows, chanWindows, currentProjectId, projectName, displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, surveillanceImport, identification, inputMeta, unitSystem, pvtIntake, mcSummary, floodStart]);
 
   const hydrate = useCallback((raw) => {
     const payload = migrateWaterfloodPayload(raw);
@@ -338,6 +378,9 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
     setPvtIntake(payload?.pvtIntake || null);
     setSurveillanceImport(payload?.surveillance?.import || null);
     setMcSummary(payload?.mcSummary || null);
+    setFloodStart(typeof payload?.floodStart === 'string' ? payload.floodStart : '');
+    setHallWindows(payload?.hallWindows && typeof payload.hallWindows === 'object' ? payload.hallWindows : {});
+    setChanWindows(payload?.chanWindows && typeof payload.chanWindows === 'object' ? payload.chanWindows : {});
     setDisplacementInputs({ ...DEFAULT_DISPLACEMENT, ...(payload?.displacementInputs || {}) });
     setLayers(Array.isArray(payload?.layers) && payload.layers.length ? payload.layers : DEFAULT_LAYERS);
     setLayeredConfig({ ...DEFAULT_LAYERED_CONFIG, ...(payload?.layeredConfig || {}) });
@@ -493,7 +536,7 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, surveillanceImport, identification, inputMeta, unitSystemSaved, pvtIntake, mcSummary, currentProjectId, hydrated, canWrite]);
+  }, [displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, surveillanceImport, identification, inputMeta, unitSystemSaved, pvtIntake, mcSummary, floodStart, hallWindows, chanWindows, currentProjectId, hydrated, canWrite]);
 
   // ---- Scenarios: named snapshots of all input groups ----
   const saveScenario = useCallback((name) => {
@@ -539,6 +582,9 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
     pvtIntake, setPvtIntake, takePvt,
     surveillanceImport, setSurveillanceImport,
     mcSummary, migratedFrom, serializeInputs, setPatternInputs, setSurveillanceConfig,
+    floodStart, setFloodStart,
+    hallWindows, setHallWindow,
+    chanWindows, setChanWindow,
     isSaving, saveError, lastSaveTime,
     // inputs
     displacementInputs, setDisplacementField, setDisplacementInputs,
@@ -552,7 +598,7 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
     surveillanceConfig, setSurveillanceField,
     surveillanceResult,
     // uncertainty
-    uncertaintyConfig, setUncertaintyIterations, setUncertaintyParam,
+    uncertaintyConfig, setUncertaintyIterations, setUncertaintyParam, setUncertaintySeed,
     uncertaintyResult, isRunningUncertainty, uncertaintyProgress, uncertaintyStale,
     runUncertainty,
     // scenarios

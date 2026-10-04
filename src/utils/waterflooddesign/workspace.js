@@ -9,6 +9,9 @@ import { analyzeDisplacement } from '@/utils/fractionalFlowCalculations';
 import { analyzeLayeredSweep } from '@/utils/layeredSweepCalculations';
 import { forecastPattern } from '@/utils/patternForecastCalculations';
 import { analyzeWaterflood } from '@/utils/waterfloodCalculations';
+import { applyHallWindows } from './hallWindows';
+import { applyChanWindows } from './chanWindows';
+import { surveillanceConfigWithTrack } from './fvfTrack';
 
 const num = (v) => {
   const n = typeof v === 'number' ? v : parseFloat(v);
@@ -38,7 +41,11 @@ export function deriveWaterfloodState(payload, { buildDisplacementSpec, buildPat
   const rows = payload.surveillance?.rows || [];
   let surveillanceResult = null;
   if (rows.length) {
-    try { surveillanceResult = analyzeWaterflood(rows, buildSurveillanceConfig(payload.surveillance.config)); } catch (e) { surveillanceResult = { error: e.message }; }
+    try {
+      const { config, track } = surveillanceConfigWithTrack(buildSurveillanceConfig(payload.surveillance.config || {}), payload.surveillance.config || {}, rows, payload.pvtIntake);
+      surveillanceResult = applyChanWindows(applyHallWindows(analyzeWaterflood(rows, config), payload.hallWindows), payload.chanWindows);
+      if (track) surveillanceResult = { ...surveillanceResult, fvfTrack: track };
+    } catch (e) { surveillanceResult = { error: e.message }; }
   }
   return {
     displacementInputs,
@@ -53,6 +60,8 @@ export function deriveWaterfloodState(payload, { buildDisplacementSpec, buildPat
     surveillanceConfig: payload.surveillance?.config || {},
     surveillanceResult,
     surveillanceImport: payload.surveillance?.import || null,
+    hallWindows: payload.hallWindows || {},
+    chanWindows: payload.chanWindows || {},
     uncertaintyConfig: payload.uncertaintyConfig,
     mcSummary: payload.mcSummary || null,
     identification: payload.identification || {},

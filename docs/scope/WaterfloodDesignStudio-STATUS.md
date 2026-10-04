@@ -196,3 +196,27 @@ tab. Surveillance totals and VRR are now calendar volumes: daily files are
 unchanged, weekly and monthly files now add up correctly. One PVT pressure
 serves a project. The NextGen courses are unchanged. Engines #304 merged;
 the Suite is pinned at engines dd0eba4 with no recorded deviations.
+
+## 2026-10-04: Reservoir upgrade round, Step 2 (WF-U2)
+
+Branch `feat/waterflood-u2`; engines PR #306 (not merged, vendored with
+four `waterflood-u2` ledger rows). Detail and proving tests:
+`docs/upgrade/WaterfloodDesignStudio-UPGRADE.md` section 9.
+
+- WF-U2-001: `wf-forecast-1` sender read by id; Forecast Scenario Hub takes
+  it as a profile case, Petroleum Economics Studio as a production file;
+  "source changed since" in both; a flood start date on the Pattern tab.
+- WF-U2-002: direct and staggered line drives (Fassihi, Ahmed eq. 14-67);
+  Ahmed Example 14-11 held through the engine. Nine-spot not built (no
+  readable published correlation).
+- WF-U2-003: Hall windows chosen by date or on the plot, with a reason.
+- WF-U2-004: the surveillance history from a VRR Monitor ledger by id
+  (`vrr-ledger-1`), volumes and VRR exact; VRR-side link waits for #874.
+- WF-U2-005: seeded Monte Carlo through the canonical module.
+- WF-U2-014: SI in the Uncertainty distributions and the layer cells.
+- WF-U2-006: Chan late-time window shown and chosen; Chan table and plots
+  in the report.
+- WF-U2-008: FVF by period in the surveillance voidage from the pvt-1
+  table at each date's pressure.
+- Deferred: 007, 009, 012 and Batch C (010, 011, 013, 015), reasons in the
+  UPGRADE doc.

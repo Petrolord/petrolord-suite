@@ -22,6 +22,9 @@ export function mcSummaryRecord(result, { ranAt, fingerprint }) {
     ranAt,
     fingerprint,
     iterations: result.iterations ?? null,
+    // WF-U2-005: the seed of the canonical module's generator and where it came from
+    seed: Number.isInteger(result.seed) ? result.seed : null,
+    seedFrom: result.seedFrom || null,
     validCount: result.validCount ?? null,
     rejectedCount: result.rejectedCount ?? null,
     btNeverCount: result.btNeverCount ?? 0,
@@ -30,7 +33,7 @@ export function mcSummaryRecord(result, { ranAt, fingerprint }) {
     rf: pick(result.stats?.rf),
     btYears: pick(result.stats?.btYears),
     sensitivity: (result.sensitivity || []).map((s) => ({ label: s.label, rho: s.rho, contribution: s.contribution })),
-    method: 'Monte Carlo through the canonical module (src/lib/monteCarlo.js), each realization rerunning the five-spot forecast',
+    method: 'Monte Carlo through the canonical module (src/lib/monteCarlo.js), each realization rerunning the pattern forecast',
   };
 }
 

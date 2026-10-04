@@ -22,6 +22,7 @@ import AnalysisSettingsPanel from '@/components/vrrmonitor/AnalysisSettingsPanel
 import ImportPanel from '@/components/vrrmonitor/ImportPanel';
 import PeriodGridPanel from '@/components/vrrmonitor/PeriodGridPanel';
 import LedgerSummaryPanel from '@/components/vrrmonitor/LedgerSummaryPanel';
+import VrrSendPanel from '@/components/vrrmonitor/VrrSendPanel';
 import VrrChartsPanel from '@/components/vrrmonitor/VrrChartsPanel';
 import VrrKpiPanel from '@/components/vrrmonitor/VrrKpiPanel';
 import PressurePanel from '@/components/vrrmonitor/PressurePanel';
@@ -125,6 +126,8 @@ const VrrMonitorContent = () => {
             <SectionLabel>Analysis Settings</SectionLabel>
             <AnalysisSettingsPanel />
           </section>
+          {/* WF-U2-004: the ledger to Waterflood Design Studio, read by id */}
+          <VrrSendPanel />
         </>
       )}
     </div>

@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  GitBranch, Plus, Copy, Trash2, Save, FolderOpen, Download, Info, HelpCircle, TrendingDown, RefreshCw, FileDown,
+  GitBranch, Plus, Copy, Trash2, Save, FolderOpen, Download, Info, HelpCircle, TrendingDown, RefreshCw, FileDown, Droplets,
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -23,9 +23,11 @@ import {
 } from '@/utils/chartTheme';
 import { compareCases, sampleScenarioCases, EUR_MAX_YEARS, DAYS_PER_YEAR, caseDailyDecline } from '@/utils/forecastScenarioCalculations';
 import { buildHubCsv, HUB_DEFAULT_START } from '@/utils/forecastScenarioExport';
-import { caseFromDcaContract, caseSourceText, caseValuesFromContract } from '@/utils/forecastScenarioIntake';
+import { caseFromDcaContract, caseFromWfContract, caseSourceText, caseValuesFromContract } from '@/utils/forecastScenarioIntake';
 import { listDcaForecasts, getDcaForecast } from '@/utils/declineCurve/dcaForecastService';
 import { compareWithSource } from '@/utils/declineCurve/dcaForecastContract';
+import { listWfForecasts, getWfForecast } from '@/utils/waterflooddesign/wfForecastService';
+import { compareWfWithSource, WF_FORECAST_SCHEMA, wfEndWords } from '@/utils/waterflooddesign/wfForecastContract';
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjects';
 import { supabaseSharingStore } from '@/lib/recordSharing';
@@ -85,6 +87,19 @@ const CaseCard = ({ c, color, onChange, onDuplicate, onDelete, deletable, rateUn
             <Trash2 size={13} />
           </Button>
         </div>
+        {c.kind === 'profile' ? (
+          // WF-U2-001: a received production profile has no Arps parameters
+          <div className="grid grid-cols-2 gap-2" data-testid={`fsh-${c.id}-profile`}>
+            <p className="col-span-2 text-[10px] text-pl-muted">A production profile received from {c.source?.contract?.app || 'another app'}: the rates are the sender's, cut at the horizon here.</p>
+            <DcaNumberField id={`fsh-${c.id}-years`} label="Horizon" unit="yr" value={c.years}
+              onCommit={(v) => onChange({ years: v ?? 0 })} labelClassName="text-[10px] text-pl-muted" testId={`fsh-${c.id}-years`} disabled={disabled} />
+            <div className="space-y-1">
+              <Label htmlFor={`fsh-${c.id}-start`} className="text-[10px] text-pl-muted">Start date</Label>
+              <Input id={`fsh-${c.id}-start`} type="date" value={c.startDate || ''} onChange={(e) => onChange({ startDate: e.target.value || null })}
+                className="h-8 text-xs" disabled={disabled} data-testid={`fsh-${c.id}-start`} />
+            </div>
+          </div>
+        ) : (
         <div className="grid grid-cols-2 gap-2">
           <DcaNumberField id={`fsh-${c.id}-qi`} label="qi" unit={rateUnit} value={c.qi} toView={toView} toEngine={toEngine}
             onCommit={(v) => onChange({ qi: v ?? 0 })} labelClassName="text-[10px] text-pl-muted" testId={`fsh-${c.id}-qi`} disabled={disabled} />
@@ -133,6 +148,7 @@ const CaseCard = ({ c, color, onChange, onDuplicate, onDelete, deletable, rateUn
             </select>
           </div>
         </div>
+        )}
         {source && (
           <div className="rounded border border-pl-border bg-pl-sunken p-2 text-[10px] text-pl-muted space-y-1" data-testid={`fsh-${c.id}-source`}>
             <p>{source}</p>
@@ -164,6 +180,9 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
   const [loadOpen, setLoadOpen] = useState(false);
   const [dcaOpen, setDcaOpen] = useState(false);
   const [dcaList, setDcaList] = useState(null);
+  // WF-U2-001: pattern forecasts from Waterflood Design Studio
+  const [wfOpen, setWfOpen] = useState(false);
+  const [wfList, setWfList] = useState(null);
   const [saveName, setSaveName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [sourceStates, setSourceStates] = useState({});
@@ -221,6 +240,10 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
       const k = c.source?.contract;
       if (!k) continue;
       try {
+        if (k.schema === WF_FORECAST_SCHEMA) {
+          out[c.id] = compareWfWithSource(k, await getWfForecast(supabase, { projectId: k.projectId }));
+          continue;
+        }
         const now = await getDcaForecast(supabase, { projectId: k.projectId, wellId: k.source?.wellId, stream: k.stream });
         out[c.id] = compareWithSource(k, now);
       } catch (e) {
@@ -242,6 +265,48 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
     toast({ title: 'Case added from Decline Curve Analysis', description: made.case.name });
     return true;
   }, [toast]);
+
+  const takeWfContract = useCallback((contract) => {
+    const made = caseFromWfContract(contract, { id: `wf-${uuidv4().slice(0, 8)}`, build: buildLabel() });
+    if (!made.ok) {
+      toast({ title: 'Not added', description: made.reason, variant: 'destructive' });
+      return false;
+    }
+    setCases((cs) => [...cs, made.case]);
+    toast({ title: 'Case added from Waterflood Design Studio', description: made.case.name });
+    return true;
+  }, [toast]);
+
+  // a deep link from Waterflood Design Studio: ?wfProject=
+  useEffect(() => {
+    const projectId = params.get('wfProject');
+    if (!projectId) return;
+    (async () => {
+      try {
+        const got = await getWfForecast(supabase, { projectId }, { build: buildLabel() });
+        if (!got) toast({ title: 'Not added', description: 'The Waterflood Design Studio project could not be read.', variant: 'destructive' });
+        else if (!got.ok) toast({ title: 'Not added', description: got.reason, variant: 'destructive' });
+        else takeWfContract(got.contract);
+      } catch (e) {
+        toast({ title: 'Not added', description: e.message, variant: 'destructive' });
+      } finally {
+        const next = new URLSearchParams(params);
+        next.delete('wfProject');
+        setParams(next, { replace: true });
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openWf = async () => {
+    setWfOpen(true);
+    setWfList(null);
+    try {
+      setWfList(await listWfForecasts(supabase, { build: buildLabel() }));
+    } catch (e) {
+      setWfList([]);
+      toast({ title: 'Could not list forecasts', description: e.message, variant: 'destructive' });
+    }
+  };
 
   // a deep link from Decline Curve Analysis: ?dcaProject=&dcaWell=&dcaStream=
   useEffect(() => {
@@ -349,7 +414,7 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
     const now = sourceStates[c.id]?.now;
     if (!now) return;
     updateCase(c.id, { ...caseValuesFromContract(now), source: { ...c.source, contract: now, receivedAt: new Date().toISOString(), receivedBuild: buildLabel() } });
-    toast({ title: 'Case refreshed from Decline Curve Analysis', description: c.name });
+    toast({ title: `Case refreshed from ${now.app || 'its source'}`, description: c.name });
   };
   const addCase = () => setCases((cs) => [...cs, {
     id: `c${Date.now()}`, name: `Case ${cs.length + 1}`, qi: 1000, declineAnnualPct: 18, b: 0.5, years: 20, economicLimit: 30,
@@ -421,6 +486,9 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
               </Button>
               <Button size="sm" variant="outline" className="h-8" onClick={openDca} disabled={!canWrite} data-testid="fsh-from-dca">
                 <TrendingDown size={14} className="mr-1" /> From Decline Curve Analysis
+              </Button>
+              <Button size="sm" variant="outline" className="h-8" onClick={openWf} disabled={!canWrite} data-testid="fsh-from-wf">
+                <Droplets size={14} className="mr-1" /> From Waterflood Design Studio
               </Button>
               <Button size="sm" variant="outline" className="h-8" onClick={() => setLoadOpen(true)}>
                 <FolderOpen size={14} className="mr-1" /> Load
@@ -620,6 +688,30 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setLoadOpen(false)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={wfOpen} onOpenChange={setWfOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Pattern forecasts in Waterflood Design Studio</DialogTitle></DialogHeader>
+            <p className="text-xs text-pl-muted">A case is the pattern oil profile from the flood start, day for day, read from the saved project. It ends where the sender's forecast ends (its WOR limit or horizon). The case keeps where it came from.</p>
+            <div className="space-y-2 max-h-80 overflow-y-auto py-2" data-testid="fsh-wf-list">
+              {wfList === null ? <p className="text-sm text-pl-muted">Reading your projects...</p>
+                : wfList.length === 0 ? <p className="text-sm text-pl-muted italic">No Waterflood Design Studio projects found. Set the flood start on the Pattern tab there, and save the project.</p>
+                  : wfList.map((f) => (
+                    <div key={f.projectId} className="flex items-center gap-2 p-2 rounded border border-pl-border bg-pl-sunken text-xs">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-pl-text truncate">{f.projectName}</div>
+                        <div className="text-[10px] text-pl-muted truncate">{f.ok ? `Np ${Math.round(f.contract.forecast.Np).toLocaleString()} STB from ${f.contract.forecast.start} to ${wfEndWords(f.contract.forecast.endReason)}` : f.reason}</div>
+                      </div>
+                      <Button size="sm" variant="outline" className="h-7 text-[11px]" disabled={!f.ok}
+                        onClick={() => { if (takeWfContract(f.contract)) setWfOpen(false); }}>Use</Button>
+                    </div>
+                  ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setWfOpen(false)}>Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

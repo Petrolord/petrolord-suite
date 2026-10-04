@@ -45,7 +45,7 @@ const WDSHelpContent = () => (
       </p>
     </Section>
 
-    <Section icon={TrendingUp} title="Pattern forecast (five-spot)">
+    <Section icon={TrendingUp} title="Pattern forecast">
       <p>
         The forecast composes the Welge displacement solution with the published five-spot areal sweep correlations
         (Craig's breakthrough data via Willhite's regression; Dyes-Caudle-Erickson growth after breakthrough) into a
@@ -61,6 +61,14 @@ const WDSHelpContent = () => (
         into displacement efficiency ED, areal sweep EA and vertical sweep EV, closing on Np over the pattern OOIP.
       </p>
       <p>
+        The flood pattern is chosen at the top of the Pattern tab: five-spot (the default), direct line drive or
+        staggered line drive. The line drives take the areal sweep from Fassihi's regression of the Dyes, Caudle and
+        Erickson charts (Ahmed, Reservoir Engineering Handbook, eq. 14-67): the sweep at breakthrough at a water cut
+        of zero, then at each step the sweep that matches the water cut the pattern is producing. The spacing ratio
+        of those models is not printed in the source, so it is not an input. A nine-spot is not offered because no
+        published correlation for it could be read and checked.
+      </p>
+      <p>
         Export the annual oil profile as CSV and load it in NPV Scenario Builder for fiscal economics; this studio
         deliberately carries no valuation.
       </p>
@@ -70,16 +78,21 @@ const WDSHelpContent = () => (
       <p>
         Pick which inputs are uncertain, give each a distribution (triangular, uniform, normal or lognormal), and run.
         Every iteration samples the enabled parameters, substitutes them into the working case and reruns the full
-        five-spot forecast. Results report the cumulative-oil distribution in the petroleum percentile convention
+        pattern forecast. Results report the cumulative-oil distribution in the petroleum percentile convention
         (P90 is the low case), an exceedance curve, and a Spearman rank-correlation tornado showing which inputs
         drive Np.
+      </p>
+      <p>
+        Every run is seeded. Leave the seed blank and the run draws one and prints it ("Keep this seed" keeps it);
+        type a seed and the same inputs and iterations give the same percentiles every time. The seed and the
+        number of realizations are saved with the summary and printed in the report.
       </p>
       <p>
         Physically invalid samples (for example a sampled Swc and Sor that leave no mobile saturation window) are
         rejected and counted, with none silently clamped; a high rejection rate means the distributions are too wide.
         The realizations are not saved; the summary of the last run (percentiles, counts, rejections) is saved with the
         project with a note of the inputs it was run on, so a reopened project says whether it still describes the
-        working case. The distributions are entered in oilfield units whatever the display units.
+        working case. The distributions are entered in the display units (oilfield or SI) and stored in oilfield units, like every input.
       </p>
     </Section>
 
@@ -97,7 +110,30 @@ const WDSHelpContent = () => (
       <p>
         State whether the pressure column is wellhead or bottomhole: the Hall plot integrates it as given, and the
         report names it. The Hall plot draws the baseline (first third) and recent (last third) windows with their
-        least-squares lines; each slope is listed with its 95 percent interval.
+        least-squares lines; each slope is listed with its 95 percent interval. Under the plot you can choose the
+        windows of each injector yourself, by date or with "Pick on the plot" (click the first and the last point),
+        and give the reason. The chosen windows are refitted with the same line, the ratio and the injectivity alert
+        are decided again, and the report prints them as chosen with your reason. "Back to the thirds" clears them.
+      </p>
+      <p>
+        "FVF by period" reads Bo, Bw, Bg and Rs of the voidage from the PVT table of the Fluid Systems Studio intake at
+        each date's reservoir pressure, instead of one set for the whole history. Type the dated pressure surveys
+        (or take them with a VRR Monitor ledger); the pressure is linear in time between surveys and held at the
+        first and last outside them. A pressure outside the table is refused, never extrapolated, and the single
+        set is used. The pattern forecast keeps one pressure.
+      </p>
+      <p>
+        The Chan plot shades the late-time window its reading comes from (by default the last 40 percent of the
+        points) and prints the slope of WOR' with its 95 percent interval. Under the plot you can choose the window in
+        days since water onset and give the reason; the reading is decided again on that window. The report prints a
+        Chan plot per series with the window, and flags a reading whose interval spans both regimes as not resolved.
+      </p>
+      <p>
+        "From VRR Monitor" takes the history from a saved Voidage Replacement Monitor project by its id: the per-well
+        ledger as monthly volumes, so the totals and the cumulative VRR here are the ones VRR Monitor shows. The
+        ledger carries no injection pressure, so there is no Hall plot from it, and gas injection is not carried. The
+        tab reads the project again whenever it opens and says when the ledger has changed; "Take again" takes the
+        new one.
       </p>
       <p>
         The engine cleans and classifies the data, then reports reservoir-barrel voidage replacement
@@ -148,6 +184,19 @@ const WDSHelpContent = () => (
       </p>
     </Section>
 
+    <Section icon={Share2} title="Sending the forecast on">
+      <p>
+        On the Pattern tab, "Send this forecast" opens the pattern forecast in Forecast Scenario Hub as a case, or in
+        Petroleum Economics Studio as a production file (open a case, then Production, Import from Waterflood Design
+        Studio). Set the flood start date first: it puts the forecast on the calendar.
+      </p>
+      <p>
+        The receiving app reads the saved project by its id (the wf-forecast-1 contract): the oil and water profile at
+        stock-tank conditions, the sweep model and mobility ratio basis, the kr and PVT sources and the build. It keeps
+        that record, prints where the numbers came from, and says when the project here has changed since.
+      </p>
+    </Section>
+
     <Section icon={Gauge} title="The diagnostics rail">
       <p>
         The rail down the right side shows the readout that belongs to the tab you are on: front diagnostics on
@@ -194,8 +243,9 @@ const WDSHelpContent = () => (
     <Section icon={AlertTriangle} title="Assumptions and limits">
       <p>
         Screening-level analytical methods throughout: 1-D displacement with capillary pressure neglected, piston
-        areal growth, non-communicating layers, constant injectivity, no pattern interference, five-spot only, the
-        areal sweep correlation valid for mobility ratios of 0.15 to 10. Validate against
+        areal growth, non-communicating layers, constant injectivity, no pattern interference, five-spot and line drives
+        only, the five-spot correlation valid for mobility ratios of 0.15 to 10 and the line drive regression
+        fitted over about 0.1 to 10. Validate against
         simulation or surveillance before committing capital.
       </p>
     </Section>
