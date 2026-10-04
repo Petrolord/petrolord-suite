@@ -211,6 +211,34 @@ engines-first with a gate). B after NAPE; C needs owner scope.
 | 5 | Papatzacos paper | Owner supplies when convenient; band gate stays |
 | 6 | Nodal SI typing defect (021): fix now as a one-file change, or in the Production round? | Fix now in a small separate PR (S2 live) |
 
+## Batch decision (programme lead, 2026-10-04)
+
+Recorded verbatim.
+
+> Owner-question defaults in force: saved gas projects stay on Papay until the user switches; MBH average pressure after NAPE (p* labelled p* now); datum correction applies no gradient by default (the user states one); changing wellbore storage in Batch A, Hegeman first; Papatzacos waits for the owner's paper; Nodal SI typing is fixed (PR #879).
+> BUILD in this order, one commit per item:
+> - Batch A: U2-001 Fluid's pvt-1 table into gas tests (pseudo-pressure, Z, mu, cg from the Fluid table by id through the shared card, with "source changed since"; the in-app correlation path stays for no-intake projects); U2-002 changing wellbore storage, Hegeman first (engines-first; validate against the Hegeman, Hallford and Joseph 1993 published type-curve values or a worked example you can actually read; negative control); U2-003 rate-dependent skin D from a multi-rate test (s' = s + D q; state the method and its data needs); U2-004 correction to datum with a user-stated gradient (default none, as owner said; the report prints gauge depth, datum, gradient and the correction applied); U2-005 Well Test pressure to Material Balance as a pressure point through wta-1 (in MBAL, a pressure point with its source, method label p* and date; MBAL numbers unchanged unless the user adds it); U2-010 gauge import in a Web Worker (keep the 388,800-reading test; the main thread stays responsive).
+> - Batch B if time remains: U2-007 deviated-well partial penetration (Cinco-Ley, Miller and Ramey 1975 or the source you can read, validated on a published value); U2-013 negative skin on the non-homogeneous models.
+> - DEFERRED (record reasons): U2-006 limited-entry, U2-008 Blasingame type curves, U2-011 MBH (owner: after NAPE), U2-012 Papatzacos (needs the paper), U2-015 (done in #879), Batch C.
+
+Branch `feat/welltest-u2` (worktree `/root/wt-res-wta2`); engines-first on
+`feat/welltest-u2-engines`, Petrolord/petrolord-engines PR #311 (not
+merged; vendored byte-identical with `welltest-u2` ledger rows meanwhile).
+
+### Deferred, with reasons
+
+| ID | Reason |
+|---|---|
+| U2-006 limited entry | A new transient model needs a published check; after NAPE |
+| U2-008 Blasingame type curves | RTA parity, medium size; after NAPE |
+| U2-009 deconvolution | Batch C, research grade |
+| U2-011 MBH or Dietz average pressure | Owner: after NAPE; p* stays labelled p* |
+| U2-012 Papatzacos published check | Needs the owner's copy of SPE-13956-PA |
+| U2-014 interference, WFT, DFIT | Batch C, out of the current scope |
+| U2-015 Nodal SI typing | Done in PR #879 |
+
+## Step 2 build log
+
 ## Validation weaker than asked
 
 - DAK is gated against chart readings and the canonical engine only; the Well Test route itself has no published PTA gas example on DAK (the Ahmed examples in the harness use supplied tables).
