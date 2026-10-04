@@ -22,5 +22,22 @@
     "manifestPaths": 750,
     "vendoredPaths": 750
   },
-  "knownDeviations": []
+  "knownDeviations": [
+    {
+      "path": "engines/sim/composeDeck.js",
+      "kind": "differing",
+      "vendoredSha": "f053e99f07d124cc12c46f45d71cbfdd497651c6",
+      "group": "sim-u1 (engines PR #308)",
+      "reason": "Reservoir Simulation Studio U1 engines (opt-in balance reporting RPTSOL/RPTSCHED FIP and WELLS, deck notes as comment lines), vendored from Petrolord/petrolord-engines PR #308 head cde2312 (blob identical there); the app agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #308 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every sim-u1 row."
+    },
+    {
+      "path": "__tests__/sim.deckgen.test.js",
+      "kind": "differing",
+      "vendoredSha": "2a86b019108a1ff5cf80f100b4bc62ef3a97b87e",
+      "group": "sim-u1 (engines PR #308)",
+      "reason": "Reservoir Simulation Studio U1 engines (opt-in balance reporting RPTSOL/RPTSCHED FIP and WELLS, deck notes as comment lines), vendored from Petrolord/petrolord-engines PR #308 head cde2312 (blob identical there); the app agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #308 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every sim-u1 row."
+    }
+  ]
 }
