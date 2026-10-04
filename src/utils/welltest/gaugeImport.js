@@ -106,7 +106,10 @@ export function readGaugeTable(text) {
     : Papa.parse(src, { skipEmptyLines: true, delimiter }).data;
   const table = (data || []).filter((r) => Array.isArray(r) && r.some((c) => String(c).trim() !== ''));
   if (!table.length) return { headers: null, rows: [], columnCount: 0, decimal: { mark: '.', certain: true } };
-  const columnCount = Math.max(...table.map((r) => r.length));
+  // WTA-U1-018 (PL10): a loop, never Math.max(...rows): a 1-second gauge
+  // over a few days (300,000 readings and more) overflowed the call stack
+  let columnCount = 0;
+  for (const r of table) if (r.length > columnCount) columnCount = r.length;
   const first = table[0];
   const found = findDecimal(table, delimiter);
   const decimal = { mark: found.mark, certain: found.certain, reason: found.reason };
