@@ -153,7 +153,8 @@ describe('RL11 static guard: every PVT intake has a sender', () => {
     // SCAL Studio reads the id too (SCAL-U2-005: its gravities door, which also lists the saved Fluid projects),
     // Waterflood Design Studio (WF-U1: its PVT intake panel, sent to with "Send to Waterflood Design Studio")
     // and the VRR Monitor (VRR-U1: its FVF door, the same shape as SCAL's)
-    expect(idReaders.sort()).toEqual(['src/components/scalstudio/FluidGravitiesIntake.jsx', 'src/components/vrrmonitor/FluidPvtIntake.jsx', 'src/components/waterflooddesign/PvtIntakePanel.jsx', 'src/pages/apps/WellTestAnalysisStudio.jsx']);
+    // and Reservoir Simulation Studio (SIM-U1: the deck builder's PVT intake, sent to with "Send to Reservoir Simulation Studio")
+    expect(idReaders.sort()).toEqual(['src/components/scalstudio/FluidGravitiesIntake.jsx', 'src/components/simstudio/builder/IntakeCards.jsx', 'src/components/vrrmonitor/FluidPvtIntake.jsx', 'src/components/waterflooddesign/PvtIntakePanel.jsx', 'src/pages/apps/WellTestAnalysisStudio.jsx']);
     expect(idWriters).toEqual(['src/components/fluidstudio/FluidStudioResults.jsx']);
     // every reader of the saved block goes through the one reader module
     const blockReaders = files.filter(([f, s]) => /readFluidProjectPvt\(/.test(s) && f !== 'src/lib/pvtSource.js').map(([f]) => f);
