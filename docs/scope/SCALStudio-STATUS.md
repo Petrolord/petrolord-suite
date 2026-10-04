@@ -304,7 +304,7 @@ Inside the thin-real lock; the engine is unchanged (no engines PR).
 
 Branch `feat/scal-u2`; working doc `docs/upgrade/SCALStudio-UPGRADE.md`
 (section "Step 2 build"). Inside the thin-real lock (Corey and Leverett J).
-Engines PR #303 (Petrolord/petrolord-engines, not merged; CI green), vendored
+Engines PR #303 (Petrolord/petrolord-engines) MERGED by the lead; Suite pinned at bfbc44c, 0 deviations (was vendored
 byte-identical with four `scal-u2` deviation ledger rows.
 
 - **Batch A, all five:** SWOF and SGOF keyword export with the Leverett J Pc
