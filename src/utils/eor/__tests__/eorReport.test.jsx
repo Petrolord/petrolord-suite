@@ -101,7 +101,7 @@ describe('the PDF read back', () => {
     const { built } = pdfOf(fieldCase({ system: 'si' }));
     const pdf = readPdf(built.doc);
     const t = flat(pdf.text);
-    expect(t).toMatch(/Depth 2,195 m/); // 7,200 ft
+    expect(t).toMatch(/Depth 2,194.56 m/); // 7,200 ft
     expect(t).toMatch(/> 853.4 m \(for 32 to 39.9 API\)/); // 2,800 ft
     expect(t).toMatch(/Reservoir temperature 87.7778 degC/); // 190 F
     expect(t).toMatch(/1.1 mPa.s/);

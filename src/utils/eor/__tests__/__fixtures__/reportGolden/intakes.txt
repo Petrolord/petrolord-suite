@@ -255,7 +255,7 @@ In-situ combustion: screened out (Thermal)
  Permeability       > 50 md                   n/a         182.4 md         pass       182.4 md meets > 50 md.                     Part 1, Table 3 (p.
                                                                                                                                   191)
 
- Transmissibility   > 20 md-ft/cp             n/a         26,308           pass       26,308 md-ft/cp meets > 20 md-ft/cp.        Part 1, Table 3, note c
+ Transmissibility   > 20 md-ft/cp             n/a         26,310           pass       26,310 md-ft/cp meets > 20 md-ft/cp.        Part 1, Table 3, note c
  kh/mu                                                    md-ft/cp
 
  Depth              < 11,500 ft               3,500 ft    7,200 ft         pass       7,200 ft meets < 11,500 ft.                 Part 1, Table 3 (p.
@@ -356,7 +356,7 @@ EOR Screening Report, Ekene, EOR screening EK                                   
  Permeability       > 200 md                2,540 md      182.4 md         fail       182.4 md is below the minimum 200 md.        Part 1, Table 3 (p.
                                                                                                                                    191)
 
- Transmissibility   > 50 md-ft/cp           n/a           26,308           pass       26,308 md-ft/cp meets > 50 md-ft/cp.         Part 1, Table 3, note d
+ Transmissibility   > 50 md-ft/cp           n/a           26,310           pass       26,310 md-ft/cp meets > 50 md-ft/cp.         Part 1, Table 3, note d
  kh/mu                                                    md-ft/cp
 
  Depth              < 4,500 ft              1,500 ft      7,200 ft         fail       7,200 ft is above the maximum 4,500 ft.      Part 1, Table 3 (p.

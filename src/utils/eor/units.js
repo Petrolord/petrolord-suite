@@ -97,9 +97,8 @@ export function inputStore(kind, text, system) {
 export function showText(kind, stored, system, digits = 4) {
   if (!finite(stored)) return null;
   const v = toDisplay(kind, stored, system);
-  const abs = Math.abs(v);
-  if (abs >= 1000) return Math.round(v).toLocaleString('en-US');
-  return trim(v, digits);
+  const r = parseFloat(Number(v).toPrecision(digits));
+  return Math.abs(r) >= 1000 ? r.toLocaleString('en-US', { maximumFractionDigits: 12 }) : String(r);
 }
 
 /** "Depth (ft)". */

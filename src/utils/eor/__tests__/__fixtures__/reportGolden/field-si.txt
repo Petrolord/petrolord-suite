@@ -62,11 +62,11 @@ EOR Screening Report, Ekene, EOR screening EK                                   
 
  Average permeability                             150                    mD             Entered, source not stated. Core average, EK-3
 
- Depth                                            2,195                  m              Entered, source not stated
+ Depth                                            2,194.56               m              Entered, source not stated
 
  Reservoir temperature                            87.7778                degC           Entered, source not stated
 
- Reservoir pressure (context, not                 21,718                 kPa            Entered, source not stated
+ Reservoir pressure (context, not                 21,718.5               kPa            Entered, source not stated
  screened)
 
  Bubble point pressure (context, not              n/a                    kPa            Not provided

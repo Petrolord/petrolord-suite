@@ -26,7 +26,9 @@ import { useEorScreening } from '@/contexts/EorScreeningContext';
 import EorField from './EorField';
 
 export const MBAL_CASE_PARAM = 'mbalCase';
-const LABELS = Object.fromEntries(INPUT_DEFS.map((d) => [d.key, d.label]));
+// the card prints what was received, in the stored (oilfield) units
+const STORED_UNIT = { permeabilityMd: 'md', reservoirPressurePsia: 'psia', ooipStb: 'STB', saturationPressurePsia: 'psia' };
+const LABELS = Object.fromEntries(INPUT_DEFS.map((d) => [d.key, `${d.label.replace(' (context, not screened)', '')}${STORED_UNIT[d.key] ? ` (${STORED_UNIT[d.key]})` : ''}`]));
 
 const SOURCES = {
   pvt: { title: 'Fluid Systems Studio (pvt-1)', table: 'saved_fluid_studio_projects', name: 'project_name', param: PVT_PROJECT_PARAM, takes: 'Oil gravity, viscosity at reservoir conditions, temperature; bubble point for context' },
@@ -122,7 +124,7 @@ const SourceBlock = ({ kind }) => {
     }
     if (!res.ok) { setMessage(res.errors[0]); return; }
     takeIntake(kind, res);
-    addNotification(`Taken from "${name || 'the project'}": ${res.intake.fields.map((f) => LABELS[f]?.replace(' (context, not screened)', '') || f).join(', ')}.`, 'success');
+    addNotification(`Taken from "${name || 'the project'}": ${res.intake.fields.map((f) => LABELS[f] || f).join(', ')}.`, 'success');
   };
 
   return (
