@@ -403,3 +403,239 @@ NAPE-safe and highest value; B next; C after NAPE.
 | 4 | The hub holds oil only. Add gas cases? | Not before NAPE; gas forecasts go to Petroleum Economics Studio |
 | 5 | Should the sample well be offered in production, or only in the harness? | In production, labelled sample everywhere (as Fluid Systems Studio does) |
 | 6 | Engines #301 (group roll-up) merge | Merge after review; then re-pin and delete the two ledger rows |
+
+## Batch decision (programme lead, 2026-10-03)
+
+Recorded verbatim:
+
+> BUILD in this order, one commit per item:
+> - Batch A, all six: U2-001 modified hyperbolic with a terminal decline Dmin (engines-first; the switch time where the hyperbolic decline falls to Dmin, exponential after; Dmin user-set with no default value, the owner's default; validated against a published worked example you can actually read, else an independent closed form with a negative control; report, figures and sender carry it); U2-002 rate against cumulative fitting (engines-first; a fit in rate-cum space with its own window, statistics and EUR, shown beside the rate-time fit as a cross-check in the report); U2-004 typed effective decline (enter Di as effective annual or nominal, converted through the declineRate unit family with the basis stated; pin known values); U2-008 scenarios in the report; U2-018 the Forecast Scenario Hub's own report on the kit (identification, cases with their sources from `dca-forecast-1`, edited-after-handoff marks, figures of the cases, limits); U2-013 the hub-to-EPE import keeps its source (the contract travels and EPE shows it).
+> - Batch B: U2-011 downtime factor (stated, applied to the forecast and the EUR, printed); U2-005 batch fit across wells if time remains.
+> - DEFERRED (record reasons): U2-003 segmented fitting (L, after NAPE), U2-007 group sender, U2-006 type wells (L), and all of Batch C.
+> Owner-question defaults in force: Dmin user-set, no default; the Group EUR change goes in the release note (write the note in docs/scope/release-notes or the STATUS doc); the hub stays oil-only before NAPE; the sample well stays, labelled as a sample.
+
+## Step 2 build (branch `feat/dca-u2`)
+
+Engines first: Petrolord/petrolord-engines **PR #302** (`engines/dca/arps.js`,
+`engines/dca/monteCarlo.js`, two gates and one fixture file), NOT merged.
+The Suite vendors the five files byte-identical with ledger rows in
+`packages/engines/VENDOR.json` (group `dca-u2 (engines PR #302)`). When #302
+merges: re-pin, regenerate the manifest, delete the rows.
+
+| Item | State | Proving test |
+|---|---|---|
+| U2-001 Modified hyperbolic, terminal decline Dmin | Done | engines `dca.modifiedHyperbolic.test.js` (14); Suite `dcaTerminalDecline.test.js` (9) |
+| U2-002 Rate against cumulative fitting | Done | engines `dca.rateCumulative.test.js` (11); Suite `dcaRateCum.test.js` (7) |
+| U2-004 Typed decline on a stated basis | Done | `declineInput.test.js` (43, SPEE REP #6 all 37 rows), `forecastScenarioDeclineBasis.test.js` (7) |
+| U2-008 Scenarios in the report | Done | `dcaReportScenarios.test.js` (3) |
+| U2-018 Forecast Scenario Hub report on the kit | Done | `forecastScenarioReport.test.js` (7, golden `hub-three-cases`) |
+| U2-013 Hub to EPE import keeps its source | Done | `epeHubIntake.test.js` (5) |
+| U2-011 Downtime factor | Done | `dcaDowntime.test.js` (4) |
+| U2-005 Batch fit across wells | Done | `dcaBatchFit.test.js` (4) |
+| e2e | Done | `e2e/dca-upgrade.spec.js`: two U2 tests (terminal decline and rate-cum through the PDF; the hub report, decline basis and downtime through its PDF) |
+
+### U2-001 Modified hyperbolic (terminal decline Dmin)
+
+The forecast follows the fitted hyperbolic until its nominal decline
+D(t) = Di / (1 + b Di t) falls to Dmin, then declines exponentially at Dmin:
+switch time (Di/Dmin - 1)/(b Di), switch rate qi (Dmin/Di)^(1/b); rate and
+slope continuous. Engines: `modifiedHyperbolicSwitch`,
+`calculateModifiedHyperbolicRate`, `calculateModifiedHyperbolicCumulative`,
+`calculateModifiedEUR`, `timeToRateModified`; `generateForecast` takes
+`params.Dmin` and returns `terminalDecline`; the Monte Carlo carries Dmin
+unchanged with every draw. b > 0 only (an exponential is unchanged). An
+initial decline already at or below Dmin is exponential at Dmin from the
+start, flagged.
+
+- **No default** (owner's default): the field is blank, the report prints
+  "not set", and a b above 1 with no Dmin is flagged with how to set one.
+- Typed in %/yr, effective (tangent: the share of rate the exponential tail
+  loses in a year) or nominal (`declineInput.js`). 8 %/yr effective is
+  8.338 %/yr nominal.
+- Carried by: the forecast (dated switch on Forecast Results), the CSV
+  header, the scenario workbook, the report (inputs row, life row, decline
+  rows, the switch on figure 1, the flags, the Monte Carlo note), the
+  `dca-forecast-1` contract (`decline.terminal`, `atCutoff.pastSwitch`) and
+  Forecast Scenario Hub (case field `terminalDeclinePct` with its basis;
+  a case from DCA reproduces the DCA forecast day for day on either side of
+  the switch, gated).
+- The stale rule: setting or changing Dmin withdraws the forecast; a saved
+  forecast with none keeps its settings key (stays current).
+
+**Validation.** Published worked example: CED P03-004 (Weaver, "Forecasting
+Oil and Gas Using Decline Curves", publicly served, read 2026-10-03),
+pp. 17-19, "Hyperbolic to Exponential Decline": de 48 %/yr effective,
+b 1.15, qi 150 bbl/d, dm 8 %/yr, final 5 bbl/d. Through the engine with the
+document's printed (rounded) monthly inputs: switch at 109.2 months (printed
+109), rate there 761.6 bbl/m (printed 762; the engine's own rate at month
+109 rounds to 762), hyperbolic volume at month 109 within 0.02 percent of
+171,883 bbl, the tail within 0.2 percent of 87,789 bbl, modified EUR within
+0.1 percent of the printed total 259,672 bbl; the same well in daily units
+through `generateForecast` within 0.1 percent. Independent closed forms:
+decline equals Dmin at the switch to 1e-12, slope continuity, cumulative
+against Simpson to 1e-9 either side of the switch, EUR against time to the
+limit, zero-spread Monte Carlo against `calculateModifiedEUR` to 1e-9.
+Negative controls: the plain hyperbolic misses the CED total by more than
+20 percent; mutating the switch time (dropping the -1) fails 6 of 14 engine
+tests. The document switches where the secant-effective form of dm with b
+is reached; the engine (and ARIES-style practice) switches where the
+nominal decline equals the tail's nominal. The two differ by 0.4 percent in
+the switch decline on this example and the totals agree within 0.1 percent;
+the report states the engine's rule.
+
+### U2-002 Rate against cumulative fitting
+
+`fitArpsRateCumulative` (engines): exponential q = qi - Di Np, harmonic
+ln q = ln qi - (Di/qi) Np, hyperbolic q^(1-b) linear in Np on the same 0.05
+b grid; parameters referenced to zero cumulative; R2 and RMSE on rates.
+Suite (`rateCumFit.js`): the cumulative is the trapezoid sum from the first
+row (the "produced to date" of the forecast); the analyst's exclusions apply;
+its own window is a cumulative range (blank ends take the history); the fit
+records what it was made on and is withdrawn when the data, window, model,
+b limits or exclusions change. EUR is read where the fitted line meets the
+economic limit (with Dmin when set), never stored. Shown beside the
+rate-time EUR on screen (`DCARateCumCrossCheck`) and in the report as a
+cross-check table after Regression with the signed difference, and as a
+dotted line with its window shaded on figure 2. The forecast, volumes and
+sender stay on the rate-time fit.
+
+**Validation.** Published: CED P03-004 pp. 21-22, the harmonic
+rate-cumulative table (11 points, monthly): fitted qi within 0.05 percent of
+3,650 bbl/m and di within 0.2 percent of 0.0359 per month (printed to three
+figures), R2 above 0.9999; the rate-time fit of the same table gives the
+same EUR within 0.2 percent. Closed form: exact (Np, q) pairs for b = 0, 0.5,
+1 and 1.3 recovered to 1e-6 and EUR equal to `calculateEUR`. Suite: a daily
+b 1.3 well recovers b within one grid step and EUR within 0.5 percent of the
+closed form; beside the rate-time EUR within 1 percent. Negative controls: a
+cumulative that does not start at first production moves EUR by the volume
+left out; mutating the hyperbolic decline (dropping 1/(1-b)) fails 3 of 11.
+
+### U2-004 Typed decline on a stated basis
+
+`src/utils/declineCurve/declineInput.js`: nominal, effective tangent
+(De = 1 - exp(-D)) and effective secant (Desi = 1 - (1 + b D)^(-1/b), SPEE
+REP #6) per period, the period being the unit ('%/yr', '1/yr', '1/month',
+'1/d'); a nominal converts through the registry's `declineRate` family; an
+effective decline is turned into the nominal of its own period first (it is
+not linear in the period), then through the registry. Used for Dmin in DCA
+and the hub, and for each hub case's initial decline (basis picker under the
+field: nominal, effective secant with the case b, effective tangent; the
+nominal it became is printed under it, in the CSV and in the report). A case
+saved before has no basis and stays nominal. Pins: SPEE REP #6 Table 1, all
+37 rows, forward to the printed precision and inverse where six printed
+figures can carry it; CED P03-004 (48 %/yr effective is 0.0545 per month
+nominal; 8 %/yr is 0.006948; 35 %/yr is 0.4308 per year); 0.0012 per day is
+43.83 %/yr. Negative control: an effective value read as nominal misses by
+more than 25 percent.
+
+### U2-008 Scenarios in the report
+
+The scenarios saved for the reported well and stream print as "Scenarios
+compared" (saved date, model, qi, Di nominal, b, Dmin, limit, produced,
+remaining, EUR) and figure 4 "Scenarios: forecast rate against time" (one
+line a scenario, from the saved snapshots). Scenarios of other wells or
+streams are counted in the note; a scenario saved before produced and EUR
+were kept apart prints n/a for them, never a wrong number. With none, the
+table and figure say so.
+
+### U2-018 Forecast Scenario Hub report
+
+`src/utils/forecastScenarioReport.js` on the kit, the "Report (PDF)" button
+and two identification fields (field, analyst) saved with the set. Header
+(company from the organisation, field from the fields or the sources, set,
+start, cases with their origin, wells behind them, analyst, build, sample
+flag); Results by case (EUR and the horizon cumulative apart, five-year
+cumulative, time to limit, final rate, indicative NPV); Cases (model, qi,
+decline as typed with its basis and the nominal it became, b, Dmin with the
+switch date, horizon, limit, downtime, start); Where each case came from
+(entered here, or the `dca-forecast-1` source with well, project and fit
+date; edited-after-handoff marks; the source state read by id); Inputs with
+the completeness guard; limits and flags; three figures (rates, cumulatives,
+EUR by case) drawn from the hub's own `compareCases`. Sample: 4 pages.
+
+### U2-013 Hub to EPE keeps its source
+
+`src/utils/forecastScenarioContract.js`: contract `fsh-case-1`, read by id
+from the saved set (`getHubCase`), carrying the case parameters with their
+bases, the results, the annual profile, and `upstream` (the
+`dca-forecast-1` contract a received case was made from, with the fields
+edited after that handoff), plus a fingerprint. EPE (`epeHubIntake.js`): the
+import builds the file from the contract; the contract rides as the last
+record (`fsh_case_1`; the cash-flow engine never reads it, gated through
+`computeCashFlow`); the file card prints the case, its set, the DCA source
+behind it and the first production year, and says when the source changed
+("the case parameters", "the volumes", "the Decline Curve Analysis forecast
+behind it"). The rows are the hub's annual profile as before.
+
+### U2-011 Downtime factor
+
+A share of calendar time shut in after the cut-off (blank or 0 is none).
+Each forecast day delivers the fitted rate (capped at the facility limit)
+times the uptime; the economic limit is tested on the fitted rate, so the
+end date does not move; remaining and EUR fall by that share. The fitted
+rates are calendar-day rates, so the history's own downtime is already in
+them: the report says so. Carried by the report (inputs row, the remaining
+row's "how", an assumption), the CSV, the contract (`forecast.downtimePct`),
+the hub (case field, reproduced day for day) and EPE (the calendar-year
+volumes). The Monte Carlo percentiles are of the curve without it, flagged
+when both are on.
+
+### U2-005 Batch fit across wells
+
+`batchFitWells` (`batchFit.js`): one window rule (whole history, or the
+last N months of each well), every well fitted and forecast through
+`fitWell` and `forecastWell` with its own model choice, b limits, exclusions
+and forecast settings; a review grid (`DCABatchFit`, Wells tab) with window,
+model, qi, Di, b, R2, points, EUR and flags (R2 below 0.8, b above 1 with no
+Dmin, few points, limit not reached), each well opening from its row; a
+well that cannot be fitted is reported and left as it was. Gate: each batch
+result equals the single-well path run by hand on the same window.
+
+### Deferred, with reasons
+
+- U2-003 segmented fitting: size L; one segment is stated in the report;
+  after NAPE.
+- U2-007 group forecast sender: needs a group contract and a receiver for
+  sums in both apps; after NAPE.
+- U2-006 type wells (P10/P50/P90 normalised): size L; the type curve stays
+  as it is (one fit); after NAPE.
+- Batch C (U2-010, U2-009, U2-014, U2-015, U2-016, U2-017, U2-012, U2-019):
+  after NAPE as ranked.
+
+### What changes numbers for saved projects
+
+- Nothing changes on its own. Dmin, downtime and a decline basis are new
+  settings with no default; a saved forecast keeps its settings key and
+  stays current; a saved hub case has no basis and stays nominal.
+- The report gains rows (terminal decline, downtime, rate-cumulative and
+  scenario sections, a fourth figure); the two DCA goldens were regenerated
+  deliberately (text diff is the review).
+- The hub to EPE import writes the same rows as before plus the provenance
+  record; the file name is `FSH - <case>.generated` as before.
+
+### Where validation is weaker than asked
+
+- No published worked example of a rate-cumulative fit of a hyperbolic was
+  read (CED's table is harmonic); the hyperbolic branch rests on exact
+  closed-form pairs and a mutation control.
+- CED's switch criterion differs slightly from the engine's (above); the
+  published totals agree within 0.1 percent, not exactly.
+- The downtime factor and batch fit have no published reference: they are
+  arithmetic on the gated single-well path, checked by identity.
+- Nothing was run against live data or a customer file.
+
+### Samples and kit use
+
+- `/root/dca-report-sample.pdf` (7 pages): a synthetic b 1.3 well with
+  Dmin 8 %/yr effective, the rate-cumulative cross-check and three
+  scenarios. `/root/hub-report-sample.pdf` (4 pages): a set of three cases
+  (one entered with a secant-effective decline, one from DCA, the same with
+  10 percent downtime).
+- Both reports title their flags block for what it holds (`flagsTitle`,
+  added to the kit by the SCAL round): "Flags on this analysis" and "Flags
+  on this set". No change to the kit; Well Test goldens byte-identical.
+
+### Release note
+
+Written for the next production upload, `docs/scope/DeclineCurveAnalysis-STATUS.md`
+section "Release note (U1 and U2)".

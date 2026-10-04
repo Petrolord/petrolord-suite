@@ -22,5 +22,46 @@
     "manifestPaths": 750,
     "vendoredPaths": 750
   },
-  "knownDeviations": []
+  "knownDeviations": [
+    {
+      "path": "engines/dca/arps.js",
+      "kind": "differing",
+      "vendoredSha": "c34c509a52123fd6953d24973eacf10a62b52e11",
+      "group": "dca-u2 (engines PR #302)",
+      "reason": "Decline Curve Analysis U2 engines (modified hyperbolic with a terminal decline Dmin; rate against cumulative fitting), vendored from Petrolord/petrolord-engines PR #302 head 07fe59b (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #302 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every dca-u2 row."
+    },
+    {
+      "path": "engines/dca/monteCarlo.js",
+      "kind": "differing",
+      "vendoredSha": "e95a7e670c9930469e3c19a0d6b5a836022bb158",
+      "group": "dca-u2 (engines PR #302)",
+      "reason": "Decline Curve Analysis U2 engines (modified hyperbolic with a terminal decline Dmin; rate against cumulative fitting), vendored from Petrolord/petrolord-engines PR #302 head 07fe59b (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #302 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every dca-u2 row."
+    },
+    {
+      "path": "__tests__/dca.modifiedHyperbolic.test.js",
+      "kind": "extra",
+      "vendoredSha": "e2b542a60ca7fc0312ce50d2984a79eb30511611",
+      "group": "dca-u2 (engines PR #302)",
+      "reason": "Decline Curve Analysis U2 engines (modified hyperbolic with a terminal decline Dmin; rate against cumulative fitting), vendored from Petrolord/petrolord-engines PR #302 head 07fe59b (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #302 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every dca-u2 row."
+    },
+    {
+      "path": "__tests__/dca.rateCumulative.test.js",
+      "kind": "extra",
+      "vendoredSha": "e4cd924fe13a6e29c3815a94cf580f26646790d2",
+      "group": "dca-u2 (engines PR #302)",
+      "reason": "Decline Curve Analysis U2 engines (modified hyperbolic with a terminal decline Dmin; rate against cumulative fitting), vendored from Petrolord/petrolord-engines PR #302 head 07fe59b (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #302 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every dca-u2 row."
+    },
+    {
+      "path": "test-data/dca/dca-terminal-ratecum-fixtures.json",
+      "kind": "extra",
+      "vendoredSha": "963fa7b66bafcdbcb2ebc9ce82bd6398654e2a8a",
+      "group": "dca-u2 (engines PR #302)",
+      "reason": "Decline Curve Analysis U2 engines (modified hyperbolic with a terminal decline Dmin; rate against cumulative fitting), vendored from Petrolord/petrolord-engines PR #302 head 07fe59b (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #302 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every dca-u2 row."
+    }
+  ]
 }

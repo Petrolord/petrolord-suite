@@ -51,3 +51,22 @@ Doc: `docs/upgrade/DeclineCurveAnalysis-UPGRADE.md` (HUB-U1 findings).
   `createSavedProjectsService`.
 - Open: no report (U2-018); the hub to Petroleum Economics Studio import
   keeps no source (U2-013).
+
+## 2026-10-03: Reservoir round app 3, Step 2 with Decline Curve Analysis (branch `feat/dca-u2`)
+
+Doc: `docs/upgrade/DeclineCurveAnalysis-UPGRADE.md`.
+
+- **Report on the kit** (U2-018, closes HUB-U1-009):
+  `src/utils/forecastScenarioReport.js`, "Report (PDF)", field and analyst
+  saved with the set; cases with their sources, edited-after-handoff marks,
+  source state, three figures, limits. Golden `hub-three-cases`.
+- **The import into Petroleum Economics Studio keeps its source** (U2-013,
+  closes HUB-U1-010): contract `fsh-case-1`
+  (`src/utils/forecastScenarioContract.js`), read by id, with the DCA
+  forecast behind a received case; EPE prints it and says when it changed.
+- **Typed decline basis** per case (U2-004): nominal, effective secant
+  (with the case b) or effective tangent; the nominal it became is printed.
+  Saved cases stay nominal.
+- **Terminal decline Dmin** (U2-001) and **downtime** (U2-011) per case; a
+  case from DCA brings both and reproduces the DCA forecast day for day.
+- Still oil only before NAPE (owner default).

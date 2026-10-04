@@ -1,0 +1,191 @@
+Forecast Scenario Hub Report
+Petrolord Forecast Scenario Hub
+
+Company                    Petrolord Sample Co                                Field                         Obodo
+Scenario set               Obodo cases                                        Set start                     2026-01-01
+Cases                      3 (2 from Decline Curve Analysis, 1                Wells behind the              Obodo-7
+                           entered here)                                      cases
+Analyst                    A. Analyst                                         Stream                        Oil at stock-tank conditions
+Software build             test (dca-u2)                                      Sample cases                  No
+Display units              Oilfield (bbl/d, MMbbl)                            Generated                     2026-10-03 12:00 UTC
+
+
+Results by case
+ Case                 EUR (MMbbl)       To horizon (MMbbl)        At 5 yr (MMbbl)           To limit (yr)    Final rate (bbl/d)    Indicative NPV ($MM)
+
+ Infill (entered)     1.615             1.317                     0.842                     36.94            71.3                  45.16
+
+ Obodo-7 (DCA)        0.509             0.472                     0.217                     25.32            23.4                  13.58
+
+ Obodo-7 edited       0.566             0.519                     0.238                     26.46            25.7                  14.94
+
+EUR runs to the economic limit (or the life cap); "To horizon" is the cumulative inside the horizon, which the annual profile and the indicative NPV
+use.
+
+
+Cases
+ Case         Model         qi        Decline (%/yr)                      b     Dmin (%/yr)                 Horizon     Limit     Downtime      Start
+                            (bbl/d)                                                                         (yr)        (bbl/d)   (%)
+
+ Infill       Arps          900.0     30.00 effective, secant (with the   0.6   none                        15.00       20.0      none          2026-01-01
+ (entered)    hyperbolic              case b); 39.77 nominal
+
+ Obodo-7      Arps          182.4     26.24 nominal                       1.2   8.34 nominal;               20.00       15.0      none          2025-06-02
+ (DCA)        hyperbolic                                                        switch 2032-03-26
+
+ Obodo-7      Arps          200.6     26.24 nominal                       1.2   8.34 nominal;               20.00       15.0      none          2025-06-02
+ edited       hyperbolic                                                        switch 2032-03-26
+
+Decline as typed with its basis, and the nominal it became when typed on another basis; a year is 365.25 days. Downtime is the share of calendar
+time shut in: each day delivers the decline rate times the uptime.
+
+
+Where each case came from
+ Case         Source                                                                  Since the              Source now
+                                                                                      handoff
+
+ Infill       Entered in Forecast Scenario Hub                                        n/a                    n/a
+ (entered)
+
+ Obodo-7      From Obodo-7, oil, Hyperbolic fitted 2026-10-03, project "Obodo         As received            Unchanged since it was received.
+ (DCA)        DCA" (Decline Curve Analysis), received 2026-10-03
+
+ Obodo-7      From Obodo-7, oil, Hyperbolic fitted 2026-10-03, project "Obodo         Edited here            The source changed since it was received
+ edited       DCA" (Decline Curve Analysis), received 2026-10-03                      after the              (the fit). Refresh to take the new forecast.
+                                                                                      handoff: qi
+
+A case from Decline Curve Analysis carries the dca-forecast-1 contract it was made from; the hub reads the source again by id and says when it
+changed.
+
+
+
+
+Forecast Scenario Hub Report, Obodo cases                                                                                                         Page 1 of 4
+Inputs
+ Input                                          Value                  Unit               Source and quality
+
+ Cases (parameters in the table "Cases")        3                                         Each case names its source in the table
+
+ Set start (a case without its own start        2026-01-01             date               App default (not changed)
+ takes it)
+
+ Oil price (indicative economics)               70.00                  $/bbl              App default (not changed)
+
+ Operating cost (indicative economics)          18.00                  $/bbl              App default (not changed)
+
+ Discount rate (indicative economics,           10.00                  %/yr               App default (not changed)
+ year-end)
+
+Every value the hub's engine reads besides the case parameters above.
+
+Limits of this analysis
+- Each case is an Arps decline (exponential, harmonic or hyperbolic) from its start, run day by day by the same engine as Decline Curve Analysis.
+A case from Decline Curve Analysis restarts the fitted curve at the data cut-off and reproduces that forecast day for day until it is edited here.
+- A decline is typed in percent per year on the basis printed with it and run as the nominal (instantaneous) decline at the case start; a year is
+365.25 days. A terminal decline Dmin switches a hyperbolic case to an exponential at Dmin where its nominal decline falls to it.
+- EUR is the cumulative to the economic limit, followed past the horizon, and never beyond 50 years; the cumulative to the horizon is a separate
+number and is what the annual profile, the indicative NPV and the hand-off use.
+- The economics are indicative: flat price less flat operating cost, discounted at year end, with no capital, tax or fiscal terms. They rank cases;
+Petroleum Economics Studio values them.
+- The hub holds oil cases only. Rates are calendar-day rates at stock-tank conditions.
+
+Flags on this set
+- Obodo-7 edited: received from Decline Curve Analysis and edited here after the handoff (qi); it no longer reproduces the source forecast.
+- Obodo-7 edited: The source changed since it was received (the fit). Refresh to take the new forecast.
+
+
+
+
+Forecast Scenario Hub Report, Obodo cases                                                                                                    Page 2 of 4
+Plots
+Figure 1. Rate against time, every case (log rate)
+
+                                   Infill (entered)   Obodo-7 (DCA)   Obodo-7 edited
+                          1000
+  Rate (bbl/d)
+
+
+
+
+                          100
+
+
+
+
+                           10
+                            2025                        2030                   2035           2040                     2045          2050
+
+                                                                                       Date
+
+The daily forecast of each case from its start, about one point a month, to its horizon or economic limit (bbl/d).
+
+
+Figure 2. Cumulative production against time, every case
+
+                                   Infill (entered)   Obodo-7 (DCA)   Obodo-7 edited
+                           1.5
+
+
+                          1.25
+  Cumulative (10^6 bbl)
+
+
+
+
+                            1
+
+
+                          0.75
+
+
+                           0.5
+
+
+                          0.25
+
+
+                            0
+                            2025                        2030                   2035           2040                     2045          2050
+
+                                                                                       Date
+
+Cumulative of each case from its start to its horizon (bbl in millions); EUR, which may run past the horizon, is in the table.
+
+
+
+
+Forecast Scenario Hub Report, Obodo cases                                                                                        Page 3 of 4
+Figure 3. EUR by case
+
+
+
+                                 1.615
+
+                1.5
+  EUR (MMbbl)
+
+
+
+
+                 1
+
+
+                                                                                          0.566
+                                                                          0.509
+                0.5
+
+
+
+
+                 0
+                             Infill (entered)                         Obodo-7 (DCA)   Obodo-7 edited
+
+
+
+EUR of each case to its economic limit or the 50-year life (MMbbl).
+
+
+
+
+Forecast Scenario Hub Report, Obodo cases                                                              Page 4 of 4
+
