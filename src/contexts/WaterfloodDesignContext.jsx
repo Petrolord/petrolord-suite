@@ -8,7 +8,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { analyzeDisplacement, validateKrTable } from '@/utils/fractionalFlowCalculations';
-import { analyzeLayeredSweep } from '@/utils/layeredSweepCalculations';
 import { forecastPattern } from '@/utils/patternForecastCalculations';
 import { parseUncertaintyConfig, runWaterfloodUncertaintyAsync } from '@/utils/waterfloodUncertainty';
 import { analyzeWaterflood } from '@/utils/waterfloodCalculations';
@@ -17,6 +16,7 @@ import { WF_PAYLOAD_VERSION, DEFAULT_IDENTIFICATION, migrateWaterfloodPayload } 
 import { setProvenanceField, serializeProvenance, deserializeProvenance } from '@/lib/inputProvenance';
 import { mcSummaryRecord, mcInputsFingerprint } from '@/utils/waterflooddesign/mcSummary';
 import { wfUnits } from '@/utils/waterflooddesign/units';
+import { layeredFrom } from '@/utils/waterflooddesign/workspace';
 
 export const WF_PROJECTS_TABLE = 'saved_waterflood_design_projects';
 
@@ -231,15 +231,10 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
     [displacementSpec],
   );
 
-  const layeredResult = useMemo(() => {
-    const L = layers.map((l) => ({ h: num(l.h), k: num(l.k) })).filter((l) => l.h > 0 && l.k > 0);
-    if (L.length < 2) return null;
-    const M = layeredConfig.mSource === 'displacement' && displacement ? displacement.M : num(layeredConfig.M);
-    // WF-U1 (RL2): A derived from its parts when asked, A = M x Bo / Bw
-    const A = layeredConfig.aSource === 'derived' ? M * num(patternInputs.Bo) / num(patternInputs.Bw) : num(layeredConfig.A);
-    if (!(M > 0) || !(A > 0)) return null;
-    return { ...analyzeLayeredSweep({ layers: L, M, A }), M, A };
-  }, [layers, layeredConfig, displacement, patternInputs.Bo, patternInputs.Bw]);
+  const layeredResult = useMemo(
+    () => layeredFrom(layers, layeredConfig, displacement, patternInputs),
+    [layers, layeredConfig, displacement, patternInputs.Bo, patternInputs.Bw], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const patternResult = useMemo(() => {
     if (!displacementSpec.spec) return null;
