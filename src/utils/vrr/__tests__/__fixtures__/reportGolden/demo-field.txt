@@ -505,72 +505,73 @@ Does not apply: one constant FVF set is used for every period.
 Voidage Replacement Report, Demo field, D-1000                                                                                                   Page 8 of 9
 Figure 6. Cumulative VRR by pattern
 
-                             Field       West         East
-                   1.2
+                                 Field       West         East
+                       1.2
 
-                         VRR = 1
-                    1
+                             VRR = 1
+                        1
   Cumulative VRR
 
 
 
 
-                   0.8
+                       0.8
 
 
-                   0.6
+                       0.6
 
 
-                   0.4
+                       0.4
 
 
-                   0.2
+                       0.2
 
 
-                    0
-                   2024-01                                 2024-07                              2025-01                              2025-07                                  2026-01
+                        0
+                       2024-01                                2024-07                               2025-01                              2025-07                                  2026-01
 
-                                                                          Date (each period plotted at the middle of its month)
+                                                                              Date (each period plotted at the middle of its month)
 
 Cumulative VRR of each pattern (allocation-weighted injection over the pattern producers' voidage) beside the field, with VRR = 1.
 
 
 Figure 7. Voidage by well on the well locations
 
-                             Producer, produced voidage to 1,391,030 RB         Producer, produced voidage to 2,086,546 RB        Injector, injected volume to 1,391,030 RB
-                             Injector, injected volume to 2,086,546 RB      Pattern centre (cumulative VRR in the table)
-                   1e5
+                                 Producer, produced voidage to 1,391,030 RB         Producer, produced voidage to 2,086,546 RB        Injector, injected volume to 1,391,030 RB
+                                 Injector, injected volume to 2,086,546 RB      Pattern centre (cumulative VRR in the table)
+                      4000
 
 
 
 
-                   1e5
-  Y (m)
+                      3000
+  Y, m from 119,000
 
 
 
 
-                   1e5
+                      2000
 
 
 
 
-                   1e5
+                      1000
 
 
 
 
-                   1e5
-                     5e5                             5e5                           5e5                            5e5                          5e5                             5e5
+                        0
+                        -500                              0                            500                            1000                         1500                            2000
 
-                                                                                                 X (m)
+                                                                                              X, m from 502,000
 
 Each well at its surface location from the wells registry (EPSG:26332, m), through the match table confirmed 2026-10-04. Marker size by thirds of
 the largest value: a producer's produced voidage, an injector's injected volume, in RB over the record. Squares: the centre of each pattern's placed
-producers (West 0.735, East 0.857). The scales of the two axes may differ; values by well are in the table "Voidage by well".
+producers (West 0.735, East 0.857). Axes are offsets from the origin in their titles; the scales of the two axes may differ; values and full
+coordinates by well are in the table "Voidage by well".
 
 
 
 
-Voidage Replacement Report, Demo field, D-1000                                                                                                                          Page 9 of 9
+Voidage Replacement Report, Demo field, D-1000                                                                                                                              Page 9 of 9
 

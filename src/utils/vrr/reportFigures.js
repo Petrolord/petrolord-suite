@@ -209,24 +209,31 @@ export function buildVrrReportFigures({ model, inputs, d, system = 'oilfield' })
   const map = model.wellTable?.map;
   if (map?.ok) {
     const classes = sizeClasses(map.points);
+    // plotted as offsets from a round origin, so the ticks read as metres or feet and not as 5e5
+    const origin = (key) => Math.floor(Math.min(...map.points.map((p) => p[key])) / 1000) * 1000;
+    const x0 = origin('x');
+    const y0 = origin('y');
     const max = classes.length ? classes[classes.length - 1].upTo : 0;
     const R = (v) => show(u, v);
     const series = [];
     for (const [type, rgb, word] of [['producer', COLORS.oil, 'Producer, produced voidage'], ['injector', COLORS.injWater, 'Injector, injected volume']]) {
       for (const c of classes) {
-        const pts = map.points.filter((p) => p.type === type && p.value > c.from + (c.index === 0 ? -1 : 0) && p.value <= c.upTo * (1 + 1e-12)).map((p) => [p.x, p.y]);
+        const pts = map.points.filter((p) => p.type === type && p.value > c.from + (c.index === 0 ? -1 : 0) && p.value <= c.upTo * (1 + 1e-12)).map((p) => [p.x - x0, p.y - y0]);
         if (pts.length) series.push({ name: `${word} to ${R(c.upTo)} ${u.label('reservoir')}`, type: 'scatter', rgb, marker: 'circle', markerSize: 0.8 + 2.6 * Math.sqrt(c.upTo / max), pts });
       }
     }
     const centres = map.patterns.filter((q) => q.placed);
-    if (centres.length) series.push({ name: 'Pattern centre (cumulative VRR in the table)', type: 'scatter', rgb: COLORS.ref, marker: 'square', markerSize: 0.9, pts: centres.map((q) => [q.x, q.y]) });
+    if (centres.length) series.push({ name: 'Pattern centre (cumulative VRR in the table)', type: 'scatter', rgb: COLORS.ref, marker: 'square', markerSize: 0.9, pts: centres.map((q) => [q.x - x0, q.y - y0]) });
     figures.push({
       id: 'map',
       title: 'Voidage by well on the well locations',
-      caption: `Each well at its surface location from the wells registry (${map.crs || 'CRS not stated'}, ${map.xyUnit || 'unit not stated'}), through the match table confirmed ${String(map.confirmedAt).slice(0, 10)}. Marker size by thirds of the largest value: a producer's produced voidage, an injector's injected volume, in ${u.label('reservoir')} over the record.${centres.length ? ` Squares: the centre of each pattern's placed producers (${centres.map((q) => `${q.name} ${g(q.cumulativeVRR, 3)}`).join(', ')}).` : ''}${map.unplaced.length ? ` Not on the map: ${map.unplaced.map((x) => x.well).join(', ')} (not matched).` : ''} The scales of the two axes may differ; values by well are in the table "Voidage by well".`,
+      caption: `Each well at its surface location from the wells registry (${map.crs || 'CRS not stated'}, ${map.xyUnit || 'unit not stated'}), through the match table confirmed ${String(map.confirmedAt).slice(0, 10)}. Marker size by thirds of the largest value: a producer's produced voidage, an injector's injected volume, in ${u.label('reservoir')} over the record.${centres.length ? ` Squares: the centre of each pattern's placed producers (${centres.map((q) => `${q.name} ${g(q.cumulativeVRR, 3)}`).join(', ')}).` : ''}${map.unplaced.length ? ` Not on the map: ${map.unplaced.map((x) => x.well).join(', ')} (not matched).` : ''} Axes are offsets from the origin in their titles; the scales of the two axes may differ; values and full coordinates by well are in the table "Voidage by well".`,
       panels: [{
         height: 96,
-        spec: { xTitle: `X (${map.xyUnit || 'registry units'})`, yTitle: `Y (${map.xyUnit || 'registry units'})`, series, notesAt: 'top-left', xInclude: pad(map.points.map((p) => p.x)), yInclude: pad(map.points.map((p) => p.y)) },
+        spec: {
+          xTitle: `X, ${map.xyUnit || 'registry units'} from ${x0.toLocaleString('en-US')}`, yTitle: `Y, ${map.xyUnit || 'registry units'} from ${y0.toLocaleString('en-US')}`,
+          series, notesAt: 'top-left', xInclude: pad(map.points.map((p) => p.x - x0)), yInclude: pad(map.points.map((p) => p.y - y0)),
+        },
       }],
     });
   } else {
