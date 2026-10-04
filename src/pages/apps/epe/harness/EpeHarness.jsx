@@ -25,6 +25,8 @@ import EpeHelpGuide from '../EpeHelpGuide';
 import RUN from './ekeneRun.json';
 import { loadDcaRows } from '@/dev/dcaProjectsStore';
 import { loadWfRows } from '@/dev/wfProjectsStore';
+import { simStoreFromSnapshot } from '@/dev/simProjectsStore';
+import { makeStorage } from '@/dev/InMemorySupabase';
 
 const NOW = '2026-09-26T10:00:00Z';
 const PROD_ROWS = RUN.cashFlowData.slice(0, 12).map((r) => ({ year: r.year, oil_bbl: r.oil_bbl || 0, gas_mscf: r.gas_mscf || 0 }));
@@ -51,6 +53,9 @@ const DB = {
   saved_dca_projects: [],
   // WF-U2-001: the Waterflood Design Studio projects saved on /dev/studio/waterflood in this tab
   saved_waterflood_design_projects: [],
+  // SIM-U2-002: the simulation cases and runs of /dev/reservoir-simulation-studio in this tab
+  sim_cases: [],
+  sim_runs: [],
 };
 
 let seq = 0;
@@ -74,7 +79,7 @@ function query(table) {
   };
   // only the tables of the handoff are filtered; every other table answers
   // as it always did on this harness (its specs rely on that)
-  const FILTERED = ['saved_dca_projects', 'saved_waterflood_design_projects', 'epe_production_volumes'];
+  const FILTERED = ['saved_dca_projects', 'saved_waterflood_design_projects', 'epe_production_volumes', 'sim_cases', 'sim_runs'];
   const current = () => {
     const v = inserted || DB[table];
     if (!Array.isArray(v) || !FILTERED.includes(table)) return v;
@@ -93,6 +98,12 @@ export default function EpeHarness() {
     const saved = { from: supabase.from, invoke: supabase.functions?.invoke, getUser: supabase.auth?.getUser };
     DB.saved_dca_projects = loadDcaRows();
     DB.saved_waterflood_design_projects = loadWfRows();
+    const sim = simStoreFromSnapshot();
+    DB.sim_cases = sim.sim_cases;
+    DB.sim_runs = sim.sim_runs;
+    const savedStorage = Object.getOwnPropertyDescriptor(supabase, 'storage');
+    const storage = makeStorage({ __storage: sim.storage });
+    Object.defineProperty(supabase, 'storage', { configurable: true, get: () => storage });
     supabase.from = (t) => query(t);
     if (supabase.auth) supabase.auth.getUser = async () => ({ data: { user: DEV_AUTH.user }, error: null });
     if (supabase.functions) supabase.functions.invoke = async () => ({ data: null, error: { message: 'edge functions are not available on the harness' } });
@@ -101,6 +112,7 @@ export default function EpeHarness() {
       supabase.from = saved.from;
       if (supabase.functions) supabase.functions.invoke = saved.invoke;
       if (supabase.auth) supabase.auth.getUser = saved.getUser;
+      if (savedStorage) Object.defineProperty(supabase, 'storage', savedStorage); else delete supabase.storage;
     };
   }, []);
   if (!ready) return null;

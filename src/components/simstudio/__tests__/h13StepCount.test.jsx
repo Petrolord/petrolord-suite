@@ -9,6 +9,7 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { summaryStepCount, summaryStepText, SUMMARY_MAX_POINTS } from '../resultAdapters';
 
 const mockCtx = { value: null };
@@ -61,8 +62,9 @@ describe('H13: the step count is the run\'s, not the plotted series\'', () => {
   it('the Results tab prints the real counts', () => {
     const summary = doc(4000, { report_steps: 240, time_steps: 12000, stride: 3, points: 4000 });
     const run = { id: 'r1', status: 'complete', result_path: 'u/c/runs/r1/summary.json', queued_at: '2026-10-01T10:00:00Z', report_steps: 240 };
-    mockCtx.value = { activeCase: { name: 'Case' }, runs: [run], summary, summaryRunId: 'r1', loadResults: jest.fn(), addNotification: jest.fn() };
-    render(<ResultsPanel />);
+    mockCtx.value = { activeCase: { name: 'Case' }, runs: [run], summary, summaryRunId: 'r1', loadResults: jest.fn(), addNotification: jest.fn(), u: { show: (k, v) => v, label: () => 'STB' } };
+    // SIM-U2-002: the Results tab holds the send panel, which links to the receivers
+    render(<MemoryRouter><ResultsPanel /></MemoryRouter>);
     const line = screen.getByTestId('sim-step-count');
     expect(line).toHaveTextContent('240 report steps, 12,000 simulator time steps');
     expect(line).toHaveTextContent('1 time step in 3 is plotted and exported');

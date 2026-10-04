@@ -10,7 +10,7 @@
 // default deck (BUILT.DATA) for anything else. A deck containing the word
 // HARNESS_FAIL fails with a flow-style error so the failure path can be
 // walked. Nothing here runs a simulation.
-import React from 'react';
+import React, { useEffect } from 'react';
 import ReservoirSimulationStudio from '@/pages/apps/ReservoirSimulationStudio';
 import InMemorySupabase, { createStore, newId, DEV_USER } from './InMemorySupabase';
 import spe1Summary from './fixtures/sim-spe1-summary.json';
@@ -20,6 +20,7 @@ import builtPrt from './fixtures/sim-built-prt.txt?raw';
 import { loadScalRows, SCAL_TABLE } from './scalProjectsStore';
 import { loadFluidRows, FLUID_TABLE } from './fluidProjectsStore';
 import spe1Prt from './fixtures/sim-spe1-prt.txt?raw';
+import { watchSimRows } from './simProjectsStore';
 
 const db = createStore({ sim_cases: [], sim_runs: [], rb_cases: [], rb_production_data: [], geo_surfaces: [], geo_wells: [] });
 
@@ -100,5 +101,8 @@ export default function SimStudioHarness() {
   // their harnesses, or seeded by an e2e), read by id for the two intakes
   db[SCAL_TABLE] = loadScalRows();
   db[FLUID_TABLE] = loadFluidRows();
+  // SIM-U2-002: keep the cases, runs and run summaries of the tab in
+  // sessionStorage for the receivers' harnesses (hub, EPE)
+  useEffect(() => watchSimRows(db), []);
   return <InMemorySupabase db={db} rpc={rpc}><ReservoirSimulationStudio /></InMemorySupabase>;
 }

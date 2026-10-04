@@ -202,3 +202,41 @@ test('PL2: the deck door refuses two main decks and embedded Python, and reads a
   await expect(page.getByTestId('deck-read-back')).toContainText('Main deck: spe1-crlf-lowercase.data, FIELD units, 10 x 10 x 3 grid, 2 wells.');
   expect(errors).toEqual([]);
 });
+
+// ---------------------------------------------------------------- Step 2 --
+
+test('U2-002 sim-forecast-1: a completed run opens in Forecast Scenario Hub as a profile case and in EPE as a file, each with its source', async ({ page }) => {
+  test.setTimeout(600000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await runSpe1(page, 'SPE1 send');
+  await tab(page, 'Results').click();
+  await expect(page.getByTestId('sim-send-basis')).toContainText('The deck is FIELD: no conversion; oil from FOPR, every time step; no water rate in the summary', { timeout: 60000 });
+  // the SPE1 deck has no history phase: the prediction choice is off
+  await expect(page.getByTestId('sim-send-phase-prediction')).toBeDisabled();
+  await page.waitForTimeout(1200); // the harness copies the runs to the tab session
+  await page.getByTestId('sim-send-hub').click();
+  await expect(page).toHaveURL(/\/dev\/forecast-scenario-hub/, { timeout: 60000 });
+  await expect(page.getByText('Case comparison')).toBeVisible({ timeout: 240000 });
+  await expect(page.locator('[data-testid$="-profile"]').first()).toBeVisible({ timeout: 60000 });
+  const source = page.locator('[data-testid$="-source"]').first();
+  await expect(source).toContainText('of case "SPE1 send" (Reservoir Simulation Studio), the whole run from 2015-01-01');
+  await expect(page.locator('[data-testid$="-source-state"]').first()).toContainText('Unchanged since it was received', { timeout: 60000 });
+  await page.screenshot({ path: path.join(OUT, 'u2-002-hub.png') });
+  // Petroleum Economics Studio reads the same run by id
+  const ids = await page.evaluate(() => {
+    const s = JSON.parse(window.sessionStorage.getItem('harness.sim_cases_runs.v1') || '{}');
+    const run = (s.sim_runs || []).find((r) => r.status === 'complete');
+    return { caseId: run?.case_id, runId: run?.id };
+  });
+  expect(ids.runId).toBeTruthy();
+  await page.goto(`/dev/epe/cases/c1?simCase=${ids.caseId}&simRun=${ids.runId}&simPhase=run`, { timeout: 240000 });
+  await expect(page.getByTestId('epe-sim-list')).toContainText('SPE1 send', { timeout: 120000 });
+  await page.getByTestId('epe-sim-import').click();
+  await expect(page.getByTestId('epe-sim-provenance')).toContainText('of case "SPE1 send" (Reservoir Simulation Studio)', { timeout: 60000 });
+  await expect(page.getByTestId('epe-sim-provenance')).toContainText('no gas rate in the run');
+  await expect(page.getByTestId('epe-sim-source-state')).toContainText('Unchanged since it was received', { timeout: 60000 });
+  await page.screenshot({ path: path.join(OUT, 'u2-002-epe.png') });
+  expect(errors).toEqual([]);
+});

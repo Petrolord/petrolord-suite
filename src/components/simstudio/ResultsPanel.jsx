@@ -22,6 +22,7 @@ import { vectorView } from '@/utils/simstudio/simUnits';
 import { summarizeDeck } from '@/utils/simstudio/deckSummary';
 import { buildResultsCsv } from '@/utils/simstudio/resultsCsv';
 import { runStatusLine } from '@/utils/simstudio/runStatus';
+import SimSendPanel from '@/components/simstudio/SimSendPanel';
 
 const LINE_COLORS = ['#166534', '#1d4ed8', '#b45309', '#b91c1c', '#7c3aed', '#0e7490', '#be185d', '#4d7c0f'];
 
@@ -177,6 +178,8 @@ const ResultsPanel = () => {
           </CardContent>
         )}
       </Card>
+
+      {summary && selectedRun && <SimSendPanel run={selectedRun} />}
 
       {!summary ? (
         <Card>

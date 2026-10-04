@@ -296,3 +296,4 @@ Branch `feat/sim-u2`. Step 2 results are recorded per item in section 10.
 
 | ID | Item | State | Proving test | Isolated gate |
 |---|---|---|---|---|
+| SIM-U2-002 | `sim-forecast-1` sender to Forecast Scenario Hub (profile case) and Petroleum Economics Studio (production file), read by case and run id | Done | `simForecastContract.test.js` (12): on OPM Flow's own summaries the step rates integrate to the run's FOPT (closure < 1e-5), years sum to Np exactly, prediction plus history equals the run, METRIC pinned (1 sm3 = 6.289811 STB), the hub case reproduces Np, `computeCashFlow` ignores the record; negative controls (no FOPR, thinned without FOPT, Arps without the profile kind, a filter without the key, a deck changed after the run); e2e U2-002 | Not needed (no deck change) |

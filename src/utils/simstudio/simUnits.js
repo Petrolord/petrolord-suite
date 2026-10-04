@@ -158,6 +158,9 @@ export const VECTOR_UNITS = Object.freeze({
   FGIR: { kind: 'gasRate', FIELD: 'Mscf/d', METRIC: 'm3/d' },
   FWIT: { kind: 'waterVolume', FIELD: 'STB', METRIC: 'm3' },
   FGIT: { kind: 'gasVolume', FIELD: 'Mscf', METRIC: 'm3' },
+  // SIM-U2-002: the cumulatives the sim-forecast-1 sender rebuilds a thinned series from
+  FWPT: { kind: 'waterVolume', FIELD: 'STB', METRIC: 'm3' },
+  FGPT: { kind: 'gasVolume', FIELD: 'Mscf', METRIC: 'm3' },
   WOPR: { kind: 'oilRate', FIELD: 'STB/d', METRIC: 'm3/d' },
   WWPR: { kind: 'waterRate', FIELD: 'STB/d', METRIC: 'm3/d' },
   WGPR: { kind: 'gasRate', FIELD: 'Mscf/d', METRIC: 'm3/d' },

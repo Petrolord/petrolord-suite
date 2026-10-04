@@ -70,6 +70,13 @@ const helpContent = [
       'The Report tab shows, and Export PDF prints, what a reviewer needs to sign a run: identification (typed on the Builder tab); the run\'s provenance (deck SHA-256, OPM Flow version, worker, queued, started and finished times, exit code); what the deck holds (unit system, grid, active cells, schedule, initialisation and contacts, wells, PVT and saturation tables and where they came from); the Model Builder inputs with their sources when the builder made the deck that ran; headline results; the material balance per component (originally in place, in place at the end, produced, injected and the error) and the convergence statistics, both from the simulator\'s PRT; the limits of the analysis and the flags on the run; and six figures on the calendar axis, each either drawn or replaced by the reason it does not apply. A run made by an older worker build prints "not reported by this build" for the material balance and the convergence. A deck that does not ask for the fluid-in-place report (RPTSOL or RPTSCHED FIP with WELLS) gets the same honest line with its reason; decks from the Model Builder and the bundled templates ask for it.',
   },
   {
+    id: 'send',
+    icon: LineChart,
+    title: 'Send a run to Forecast Scenario Hub or Petroleum Economics Studio',
+    content:
+      'Under the run picker on the Results tab, Send this run passes one completed run downstream, read by its case and run id (the sim-forecast-1 contract). Forecast Scenario Hub takes the field oil profile as a profile case, day for day; Petroleum Economics Studio takes calendar-year oil, gas and water as a production file. A run whose deck has a history phase can be sent whole or as its prediction alone, from the history end. The volumes are the simulator\'s own: each rate holds over its time step and the steps add up to the run\'s cumulative FOPT. A METRIC deck is converted to STB and Mscf. The receiver keeps the run id, the deck SHA-256 and the OPM Flow version, and says when the case gains a newer completed run.',
+  },
+  {
     id: 'engine',
     icon: Gauge,
     title: 'The engine and validation',
