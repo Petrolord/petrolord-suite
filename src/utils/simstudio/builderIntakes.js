@@ -218,3 +218,15 @@ export function provenanceNotes(form, { pb = null } = {}) {
   if (tp) out.push(`Three-phase oil kr: ${tp.deck}, chosen in the deck builder; built from the two-phase sets above (SWOF krow, SGOF krog)`);
   return out;
 }
+
+// SIM-U2-007
+/** Deck comment lines for a starting model taken from a Waterflood pattern. */
+export function wfOriginNotes(form) {
+  const o = form?.origin;
+  if (!o || o.app !== 'Waterflood Design Studio') return [];
+  return [
+    `Starting model: Waterflood Design Studio project "${o.recordName}" (wf-forecast-1), pattern ${o.pattern || 'unnamed'}, taken ${String(o.at).slice(0, 10)}`,
+    ...(o.notes || []).map((n) => n.slice(0, 150)),
+    ...(o.kept || []).map((k) => `Not in the pattern, kept from the builder: ${k}`.slice(0, 158)),
+  ];
+}

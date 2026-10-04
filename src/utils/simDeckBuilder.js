@@ -20,7 +20,7 @@ import {
 import { parseSurveyText, buildTrajectoryConnections } from '@/utils/simTrajectoryImport';
 import { simRowsFromContract } from '@/utils/fluidstudio/simKeywords';
 import { satFnRows } from '@/utils/scalstudio/simKeywords';
-import { provenanceNotes } from '@/utils/simstudio/builderIntakes';
+import { provenanceNotes, wfOriginNotes } from '@/utils/simstudio/builderIntakes';
 import { defaultAquiferForm, aquiferSpec, aquiferNotes } from '@/utils/simstudio/aquiferIntake';
 
 const num = (v, d = 0) => {
@@ -456,7 +456,7 @@ export function specFromForm(form) {
     // SIM-U1: ask the simulator for the field balance sheet and the well
     // totals, so the run's material balance can be read from its PRT
     report: { balance: true },
-    notes: [...provenanceNotes(form, { pb }), ...aquiferNotes(form.aquifer, aquifer)],
+    notes: [...wfOriginNotes(form), ...provenanceNotes(form, { pb }), ...aquiferNotes(form.aquifer, aquifer)],
     ...(aquifer && !aquifer.invalid ? { aquifer } : {}),
   };
   return { spec, pb };

@@ -381,3 +381,36 @@ test('U2-004 aquifer: a Carter-Tracy aquifer taken by id from a Material Balance
   expect(pdf.flat).toMatch(/Dake's Exercise 9\.2 aquifer: OPM Flow's influx and the Material Balance engine's agree within 1 percent/);
   expect(errors).toEqual([]);
 });
+
+test('U2-007 a Waterflood pattern sent as a starting deck: the quarter five-spot element by id, generated and run', async ({ page }) => {
+  test.setTimeout(400000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/dev/studio/waterflood', { timeout: 120000 });
+  await page.getByRole('button', { name: 'Create new project' }).first().click({ timeout: 120000 });
+  await page.getByLabel('Project name').fill('Ekene P-1 flood');
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await expect(page.getByRole('combobox', { name: 'Project' })).toContainText('Ekene P-1 flood', { timeout: 60000 });
+  await page.getByRole('tab', { name: 'Pattern Forecast', exact: true }).first().click();
+  await page.getByTestId('wds-flood-start').fill('2027-01-01');
+  await expect(page.getByTestId('wds-send-sim')).toBeEnabled();
+  await page.waitForTimeout(800); // the harness copies the project to the tab session
+  await page.getByTestId('wds-send-sim').click();
+  await expect(page).toHaveURL(/\/dev\/reservoir-simulation-studio\?wfProject=/, { timeout: 60000 });
+  await expect(tab(page, 'Deck')).toBeVisible({ timeout: 120000 });
+  await newCase(page, 'From the flood');
+  await tab(page, 'Builder').click();
+  await expect(page.getByTestId('sim-wf-project')).not.toHaveValue('');
+  await page.getByTestId('sim-wf-take').click();
+  await expect(page.getByTestId('sim-wf-origin')).toContainText('From Waterflood Design Studio project "Ekene P-1 flood" (wf-forecast-1)');
+  await expect(page.getByTestId('sim-wf-origin')).toContainText('Quarter five-spot element of the pattern');
+  await expect(page.getByTestId('sim-wf-origin')).toContainText('Not in the pattern, kept from the builder');
+  await page.getByTestId('generate-deck').click();
+  await expect(page.getByText(/Model generated \(Pb/)).toBeVisible({ timeout: 20000 });
+  await tab(page, 'Deck').click();
+  await expect(page.getByTestId('deck-editor')).toContainText('-- Starting model: Waterflood Design Studio project "Ekene P-1 flood" (wf-forecast-1)');
+  await tab(page, 'Runs').click();
+  await page.getByTestId('queue-run').click();
+  await expect(page.getByText('complete', { exact: true })).toBeVisible({ timeout: 30000 });
+  expect(errors).toEqual([]);
+});

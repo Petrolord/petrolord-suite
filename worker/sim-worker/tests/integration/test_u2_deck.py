@@ -193,3 +193,17 @@ def test_metric_balance_is_computed_and_matches_the_summary(tmp_path):
     assert abs(ph["water"]["produced"] - f["FWPT"][-1]) <= 0.05e3 + 1
     # the gas column's scale (MMSCM = 10^6 sm3) against FGPT
     assert abs(ph["gas"]["produced"] - f["FGPT"][-1]) <= 0.05e6 + 1
+
+
+# ---- SIM-U2-007: a starting deck from a Waterflood Design Studio pattern ----
+
+def test_waterflood_starting_deck_runs_and_injects_the_pattern_rate(tmp_path):
+    doc, work = run_fixture(tmp_path, "BUILT_WF.DATA")
+    diag = prt.parse_prt_file(results.find_prt(work))
+    assert diag["messages"]["errors"] == 0
+    f = doc["field"]
+    # a quarter of the pattern's 800 RB/d at Bw 1.043, as written
+    assert abs(f["FWIR"][0] - 191.75455) < 0.5
+    # the water reaches the producer: breakthrough inside the run
+    assert max(f["FWCT"]) > 0.1
+    assert diag["material_balance"]["computed"] and diag["material_balance"]["closes"]

@@ -27,6 +27,7 @@ import { runEngineOnStore } from '@/pages/apps/reservoir-balance/harness/engineS
 import builtPrt from './fixtures/sim-built-prt.txt?raw';
 import { loadScalRows, SCAL_TABLE } from './scalProjectsStore';
 import { loadFluidRows, FLUID_TABLE } from './fluidProjectsStore';
+import { loadWfRows, WF_TABLE } from './wfProjectsStore';
 import spe1Prt from './fixtures/sim-spe1-prt.txt?raw';
 import { watchSimRows } from './simProjectsStore';
 import { sha256Hex } from '@/lib/simService';
@@ -122,6 +123,8 @@ export default function SimStudioHarness() {
   // their harnesses, or seeded by an e2e), read by id for the two intakes
   db[SCAL_TABLE] = loadScalRows();
   db[FLUID_TABLE] = loadFluidRows();
+  // SIM-U2-007: the Waterflood projects saved on /dev/studio/waterflood in this tab
+  db[WF_TABLE] = loadWfRows();
   // SIM-U2-002: keep the cases, runs and run summaries of the tab in
   // sessionStorage for the receivers' harnesses (hub, EPE)
   useEffect(() => watchSimRows(db), []);

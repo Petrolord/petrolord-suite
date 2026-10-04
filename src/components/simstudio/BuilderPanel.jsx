@@ -21,6 +21,7 @@ import TrajectoryEditor from '@/components/simstudio/builder/TrajectoryEditor';
 import Grid3DView from '@/components/simstudio/builder/Grid3DView';
 import { FluidIntake, ScalIntake } from '@/components/simstudio/builder/IntakeCards';
 import AquiferCard from '@/components/simstudio/builder/AquiferCard';
+import WfStartCard from '@/components/simstudio/builder/WfStartCard';
 import { IDENTIFICATION } from '@/utils/simstudio/reportModel';
 import { THREE_PHASE_WORDS } from '@/utils/simstudio/builderIntakes';
 
@@ -158,6 +159,11 @@ const BuilderPanel = () => {
             <Field u={u} ro={!canWrite} key={key} label={label} value={form.identification?.[key] ?? ''} onChange={(v) => set(`identification.${key}`, v)} />
           ))}
         </div>
+      </Section>
+
+      {/* SIM-U2-007: a starting model from a Waterflood Design Studio pattern */}
+      <Section title="Start from a Waterflood pattern">
+        <WfStartCard form={form} setForm={setForm} canWrite={canWrite} addNotification={addNotification} />
       </Section>
 
       <Section title="Model">

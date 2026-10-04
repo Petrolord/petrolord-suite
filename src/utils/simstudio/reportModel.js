@@ -188,6 +188,12 @@ function inputRows(form, u) {
   const shown = (kind, v) => (String(v ?? '').trim() === '' ? '' : g(u.show(kind, Number(v)), 6));
   const entered = 'Entered in the Model Builder';
   const gridSrc = form.structure?.mode === 'surface' ? `Structure surface "${form.structure.surfaceName || 'unnamed'}" (Mapping), sampled at cell centres` : entered;
+  // SIM-U2-007: a starting model taken from a Waterflood Design Studio pattern
+  if (form.origin?.app === 'Waterflood Design Studio') {
+    const o = form.origin;
+    add('Starting model', `Waterflood Design Studio project "${o.recordName}", pattern ${o.pattern || 'unnamed'}: the quarter five-spot element`, null,
+      `wf-forecast-1, taken ${String(o.at).slice(0, 10)}; the grid, wells and schedule below were written from it, then may have been edited here. Not in the pattern, kept from the builder: ${(o.kept || []).join('; ') || 'nothing'}`);
+  }
   add('Grid NX x NY x NZ', `${form.grid.nx} x ${form.grid.ny} x ${form.grid.nz}`, null, entered);
   add('Cell size DX', form.structure?.mode === 'surface' ? shown('length', form.structure.dxFt) : shown('length', form.grid.dx), 'length', gridSrc);
   add('Cell size DY', form.structure?.mode === 'surface' ? shown('length', form.structure.dyFt) : shown('length', form.grid.dy), 'length', gridSrc);
