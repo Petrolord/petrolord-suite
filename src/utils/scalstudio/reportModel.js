@@ -136,7 +136,10 @@ function inputsBlock(s, u) {
     const spec = s.jResolved?.jSpec;
     rows.push({ ...inputRow({ key: 'j.a', label: 'Leverett J: a (J at Sw* = 1)', value: spec ? g(spec.a) : '', unit: '', auto }), engineKeys: ['j.a'] });
     rows.push({ ...inputRow({ key: 'j.b', label: 'Leverett J: b (exponent)', value: spec ? g(spec.b) : '', unit: '', auto }), engineKeys: ['j.b'] });
-    const swAuto = meta2?.swirr?.from === 'override' ? 'Entered as the shared Swirr override' : 'Computed: lowest Sw of the included samples less 0.02';
+    const sf = meta2?.swirr?.fit;
+    const swAuto = meta2?.swirr?.from === 'fitted'
+      ? `Fitted with a and b to the pooled lab J of the included samples (95% CI ${f(sf.ci95?.[0], 3)} to ${f(sf.ci95?.[1], 3)}, ${sf.points} points, r2 ${f(sf.r2Log, 4)} in log space)`
+      : meta2?.swirr?.from === 'override' ? 'Entered as the shared Swirr override' : 'Computed: lowest Sw of the included samples less 0.02';
     rows.push({ ...inputRow({ key: 'j.Swirr', label: 'Leverett J: Swirr (shared by all samples)', value: spec ? g(spec.Swirr) : '', unit: 'fraction', auto: swAuto }), engineKeys: ['j.Swirr'] });
   } else {
     const jStart = untouched(s.capillary?.manual, STARTING_VALUES.jManual);
@@ -296,7 +299,7 @@ function jSection(s) {
   });
   const ci = fit?.ci95?.b;
   return {
-    text: `Geometric mean of the lab J of ${included.length} sample${included.length === 1 ? '' : 's'} on a ${meta.avg?.grid?.length || 0}-point normalised grid, refitted as J = a Sw*^(-b): a ${g(spec.a)}, b ${g(spec.b)}${Array.isArray(ci) && ci.every(Number.isFinite) ? ` (95% CI ${f(ci[0], 3)} to ${f(ci[1], 3)})` : ''}, r2 ${f(fit?.r2Log, 4)} in log space. One Swirr, ${g(spec.Swirr)} (${meta.swirr?.from === 'override' ? 'entered' : 'the lowest Sw of the included samples less 0.02'}), normalises every sample and maps the fit back to true Sw.`,
+    text: `Geometric mean of the lab J of ${included.length} sample${included.length === 1 ? '' : 's'} on a ${meta.avg?.grid?.length || 0}-point normalised grid, refitted as J = a Sw*^(-b): a ${g(spec.a)}, b ${g(spec.b)}${Array.isArray(ci) && ci.every(Number.isFinite) ? ` (95% CI ${f(ci[0], 3)} to ${f(ci[1], 3)})` : ''}, r2 ${f(fit?.r2Log, 4)} in log space. One Swirr, ${g(spec.Swirr)} (${meta.swirr?.from === 'fitted' ? `fitted with a and b to the pooled lab J, 95% CI ${f(meta.swirr.fit.ci95?.[0], 3)} to ${f(meta.swirr.fit.ci95?.[1], 3)}` : meta.swirr?.from === 'override' ? 'entered' : 'the lowest Sw of the included samples less 0.02'}), normalises every sample and maps the fit back to true Sw.`,
     table: { head: ['Sample', 'Used', 'Pc points', 'J points', 'Sw range', 'Note'], rows },
   };
 }
@@ -351,6 +354,12 @@ function limitsBlock(s, u) {
   if (s.jResolved?.meta?.mode === 'samples' && Number.isFinite(swMin)) {
     const inc = samples.filter((x) => (s.capillary?.includedSampleIds || []).includes(x.id)).flatMap((x) => (x.jRows || []).map((r) => r.Sw));
     if (inc.length && swMin < Math.min(...inc)) flags.push(`The Pc and height tables start at Sw ${g(swMin)}, below the lowest lab Sw (${g(Math.min(...inc))}): that part of the curve is extrapolated.`);
+  }
+  const swf = s.jResolved?.meta?.swirr?.fit;
+  if (swf) {
+    if (swf.value <= 1e-9) flags.push('The fitted Swirr sits on its lower bound (0): the data do not settle it.');
+    if (Array.isArray(swf.ci95) && swf.ci95.every(Number.isFinite) && swf.ci95[1] - swf.ci95[0] > 0.1) flags.push(`The fitted Swirr is loosely settled (95% CI ${f(swf.ci95[0], 3)} to ${f(swf.ci95[1], 3)}).`);
+    if (!swf.converged) flags.push('The Swirr fit stopped at the iteration cap.');
   }
   if (spec && Number.isFinite(swMin) && swMin <= spec.Swirr) flags.push(`The Sw window starts at or below Swirr (${g(spec.Swirr)}), where the power-law J has no finite value.`);
   if (!Number.isFinite(n(s.height?.fwl_tvdss))) flags.push('No free water level is entered: heights are above the FWL only, with no depth.');

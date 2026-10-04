@@ -21,6 +21,7 @@ import {
   fitCoreyToKrTable,
   fitCoreyGasOilToKrTable,
   averageJCurves,
+  fitJPowerLaw,
   pcFromJ,
   swVsHeight,
 } from '@/utils/scalCalculations';
@@ -126,9 +127,18 @@ export function buildJSpec(capillary, samples) {
   // samples to Sw* and to map the averaged fit back to true Sw. The engine
   // left alone takes each sample's own Swirr, which put the working curve
   // 16 percent low at Sw 0.5 for samples starting at different Sw.
-  const swirrOverride = num(capillary.SwirrOverride);
   const lowest = included.map((s) => ({ name: s.name, sw: Math.min(...s.jRows.map((r) => r.Sw)) }));
-  if (Number.isFinite(swirrOverride)) {
+  // SCAL-U2-006: the shared Swirr fitted with a and b to the pooled lab J
+  // of the included samples (engine fitJPowerLaw, fitSwirr), then used as
+  // the one Swirr of the averaging, as an override would be
+  let swirrFit = null;
+  if (capillary.SwirrFit) {
+    const fit = fitJPowerLaw(included.flatMap((s) => s.jRows), { fitSwirr: true });
+    if (!fit.ok) return { jSpec: null, meta: null, error: `Swirr could not be fitted: ${fit.errors[0]}` };
+    swirrFit = { value: fit.Swirr, ci95: fit.ci95.Swirr, a: fit.a, b: fit.b, r2Log: fit.r2Log, rmsLog: fit.rmsLog, converged: fit.converged, start: fit.swirrStart, points: included.reduce((n, s) => n + s.jRows.length, 0) };
+  }
+  const swirrOverride = swirrFit ? swirrFit.value : num(capillary.SwirrOverride);
+  if (!swirrFit && Number.isFinite(swirrOverride)) {
     const above = lowest.find((l) => !(swirrOverride < l.sw));
     if (swirrOverride < 0 || above) {
       return {
@@ -145,7 +155,9 @@ export function buildJSpec(capillary, samples) {
     : Math.max(0, Math.min(...lowest.map((l) => l.sw)) - 0.02);
   const avg = averageJCurves(included.map((s) => ({ name: s.name, jRows: s.jRows })), { Swirr: swirr });
   if (!avg.ok) return { jSpec: null, meta: null, error: avg.errors[0] };
-  const swirrMeta = { value: swirr, from: Number.isFinite(swirrOverride) ? 'override' : 'data' };
+  const swirrMeta = swirrFit
+    ? { value: swirr, from: 'fitted', fit: swirrFit }
+    : { value: swirr, from: Number.isFinite(swirrOverride) ? 'override' : 'data' };
   if (!avg.fit) {
     return { jSpec: null, meta: { mode: 'samples', avg, swirr: swirrMeta }, error: 'The averaged J curve could not be fitted; check the sample data.' };
   }

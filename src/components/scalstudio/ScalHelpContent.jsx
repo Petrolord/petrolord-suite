@@ -68,7 +68,9 @@ const ScalHelpContent = () => (
       the saturation normalised above Swirr. In samples mode the studio averages the J tables computed from your lab
       capillary data (geometric mean on a normalised axis) and refits the power law. One Swirr is used for every
       sample, both to normalise them and to map the fit back to Sw: the override when you type one (it must sit below
-      the lowest Sw of every sample), otherwise the lowest Sw of the included samples less 0.02. The reservoir rock
+      the lowest Sw of every sample), otherwise the lowest Sw of the included samples less 0.02. Fit Swirr with a
+      and b fits the three together to the pooled lab J of the included samples and uses that Swirr, with its 95
+      percent interval printed beside it; the lowest Sw less 0.02 is only a guess and sets the start. The reservoir rock
       inputs scale the J curve to capillary pressure through Pc = J sigma cos theta divided by 0.21645 root k over
       phi; the lab points scaled the same way are drawn over the curve.
     </P>

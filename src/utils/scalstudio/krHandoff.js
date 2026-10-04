@@ -104,6 +104,7 @@ export function buildScalKrContract(a) {
         ...(fromSamples ? {
           samples: (samples || []).filter((s) => (a.capillary?.includedSampleIds || []).includes(s.id)).map((s) => s.name),
           swirr_from: jResolved.meta?.swirr?.from || null,
+          ...(jResolved.meta?.swirr?.fit ? { swirr_fit: { ci95: jResolved.meta.swirr.fit.ci95, r2Log: jResolved.meta.swirr.fit.r2Log, points: jResolved.meta.swirr.fit.points, method: 'J = a Sw*^(-b) with Swirr, fitted together to the pooled lab J of the included samples' } } : {}),
           fit: jResolved.meta?.avg?.fit ? { r2Log: jResolved.meta.avg.fit.r2Log, rmsLog: jResolved.meta.avg.fit.rmsLog, ci95: jResolved.meta.avg.fit.ci95 } : null,
         } : {}),
         definition: J_DEFINITION,
