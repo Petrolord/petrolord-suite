@@ -206,3 +206,9 @@ or calculation change.
   sensitivity, gas lift, choke). No other Nodal input converts units.
 - Gate: `src/components/nodalstudio/__tests__/unitTyping.test.jsx`
   (11 tests; 10 failed on the old code, all pass now).
+
+2026-10-04: the local `useUnitDraft` copy in `primitives.jsx` is gone; Nodal
+binds the shared `src/hooks/useUnitDraft.js` (`createUnitDraft`) to its unit
+module. `unitTyping.test.jsx` passes unchanged. `tools/unit-draft-guard.mjs`
+(jest gate `tools/__tests__/unitDraftGuard.test.js`) now holds src/ at zero
+converted inputs without a draft.

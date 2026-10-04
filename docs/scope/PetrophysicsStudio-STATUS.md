@@ -835,3 +835,11 @@ height take the well's depth frame from `src/lib/wellDatum.js`. On a well with
 no reference elevation TVDSS is empty with the reason (exports, the depth
 note) and saturation height is refused (it is measured from the free-water
 level in TVDSS); MD and TVD are unaffected.
+
+## 2026-10-04: depth density bin box keeps a typed decimal (fix/shared-unit-draft)
+
+The Depth bin box re-rendered the stored metres rounded on every key, so
+"2." showed as "2", "0.5" could not be started and "13.7" was stored as
+137. It uses the shared `src/hooks/useUnitDraft.js` now; text that is not
+a positive number yet stores nothing. Gate:
+`__tests__/depthBinTyping.test.jsx` (7 tests, all failed on the old code).
