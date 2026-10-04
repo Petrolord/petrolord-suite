@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, Legend,
+  ComposedChart, Scatter, Line, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -28,9 +28,13 @@ const fmt = (v) => (typeof v === 'number' ? v.toLocaleString(undefined, { maximu
  */
 export const hallPlotPoints = (d) => d.cum_injection.map((x, i) => ({ x, y: d.hall_integral[i] }));
 
-const slopeText = (v) => (v != null && Number.isFinite(v) ? `${v.toFixed(2)} psi·day/bbl` : EMPTY_VALUE);
+export { hallWindowLines, hallSlopeText } from './hallLines';
+import { hallWindowLines, hallSlopeText } from './hallLines';
 
-const HallPlotPanel = ({ data, alerts }) => {
+const HallPlotPanel = ({ data, alerts, u = null, pressureBasis = 'wellhead' }) => {
+  const X = (v) => (u ? u.show('waterVolume', v) : v);
+  const Y = (v) => (u ? u.show('hallIntegral', v) : v);
+  const basisWord = pressureBasis === 'bottomhole' ? 'bottomhole' : 'wellhead';
   const [selectedInjectors, setSelectedInjectors] = useState(data.slice(0, 3).map((d) => d.injector));
 
   const handleInjectorToggle = (injector) => {
@@ -51,7 +55,7 @@ const HallPlotPanel = ({ data, alerts }) => {
     >
       <h2 className="text-2xl font-bold text-pl-text mb-1">Hall Plot Analysis</h2>
       <p className="text-pl-muted text-sm mb-4" data-testid="hall-caption">
-        Hall (1963) plot: the Hall integral (Σ&nbsp;p·Δt, psi·day) on the vertical axis against cumulative water injected (bbl) on the horizontal axis. The slope is p/q. A steepening curve signals declining injectivity (plugging, rising skin); a flattening curve signals improving injectivity (fracturing or channeling). The legend gives the slope over the most recent third of the points.
+        Hall (1963) plot: the Hall integral of the {basisWord} injection pressure (Σ&nbsp;p·Δt) on the vertical axis against cumulative water injected on the horizontal axis. The slope is p/q. A steepening curve signals declining injectivity (plugging, rising skin); a flattening curve signals improving injectivity (fracturing or channeling). The dashed lines are the least-squares fits over the first third (baseline) and the last third (recent) of the points; their slopes, with 95 percent intervals, are listed under the chart.
       </p>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="md:col-span-1">
@@ -74,22 +78,36 @@ const HallPlotPanel = ({ data, alerts }) => {
         </div>
         <div data-canvas="chart" className="md:col-span-3 bg-white rounded-lg p-4">
           <ChartFrame height={360}>
-            <ScatterChart margin={CHART_MARGINS.legend}>
+            <ComposedChart margin={CHART_MARGINS.legend}>
               <CartesianGrid {...GRID_STYLE} />
               <XAxis type="number" dataKey="x" name="Cumulative water injected" height={XAXIS_LABEL_HEIGHT} tick={axisTick} stroke={CHART_COLORS.axisLine}
                 tickFormatter={fmt}
-                label={{ value: 'Cumulative water injected (bbl)', position: 'insideBottom', offset: -6, style: axisLabel }} />
+                label={{ value: `Cumulative water injected (${u ? u.label('waterVolume') : 'bbl'})`, position: 'insideBottom', offset: -6, style: axisLabel }} />
               <YAxis type="number" dataKey="y" name="Hall integral" tick={axisTick} stroke={CHART_COLORS.axisLine}
                 tickFormatter={fmt}
-                label={{ value: 'Hall integral, Σ p·Δt (psi·day)', angle: -90, position: 'insideLeft', style: axisLabel }} />
+                label={{ value: `Hall integral, Σ p·Δt (${u ? u.label('hallIntegral') : 'psi.d'}, ${basisWord})`, angle: -90, position: 'insideLeft', style: axisLabel }} />
               <ZAxis range={[12, 12]} />
               <Tooltip contentStyle={TOOLTIP_STYLE} formatter={fmt} cursor={{ strokeDasharray: '3 3' }} />
               <Legend {...LEGEND_PROPS} />
+              {selected.flatMap((d, index) => hallWindowLines(d).map((w) => (
+                <Line
+                  key={`${d.injector}-${w.key}`}
+                  data={w.points.map((p) => ({ x: X(p.x), y: Y(p.y) }))}
+                  dataKey="y"
+                  name={`${d.injector} ${w.key} fit`}
+                  stroke={COLORS[index % COLORS.length]}
+                  strokeDasharray={w.key === 'baseline' ? '6 4' : '2 3'}
+                  strokeWidth={2}
+                  dot={false}
+                  legendType="none"
+                  isAnimationActive={false}
+                />
+              )))}
               {selected.map((d, index) => (
                 <Scatter
                   key={d.injector}
-                  name={`${d.injector} (recent slope ${slopeText(d.slope_last)})`}
-                  data={hallPlotPoints(d)}
+                  name={`${d.injector} (recent slope ${hallSlopeText(d.slope_last, null, u)})`}
+                  data={hallPlotPoints(d).map((p) => ({ x: X(p.x), y: Y(p.y) }))}
                   fill={COLORS[index % COLORS.length]}
                   line={{ stroke: COLORS[index % COLORS.length], strokeWidth: 2 }}
                   lineType="joint"
@@ -97,8 +115,19 @@ const HallPlotPanel = ({ data, alerts }) => {
                   isAnimationActive={false}
                 />
               ))}
-            </ScatterChart>
+            </ComposedChart>
           </ChartFrame>
+          <table className="w-full text-xs text-slate-700 mt-2" data-testid="hall-windows">
+            <thead><tr className="text-slate-500"><th className="text-left">Injector</th><th className="text-left">Window</th><th className="text-left">Dates</th><th className="text-left">Points</th><th className="text-left">Slope</th><th className="text-left">r2</th></tr></thead>
+            <tbody>
+              {selected.flatMap((d) => hallWindowLines(d).map((w) => (
+                <tr key={`${d.injector}-${w.key}`}>
+                  <td>{d.injector}</td><td>{w.label}</td><td>{w.dateFrom || EMPTY_VALUE} to {w.dateTo || EMPTY_VALUE}</td><td>{w.n}</td>
+                  <td>{hallSlopeText(w.slope, w.ci95, u)}</td><td>{Number.isFinite(w.r2) ? w.r2.toFixed(3) : EMPTY_VALUE}</td>
+                </tr>
+              )))}
+            </tbody>
+          </table>
         </div>
       </div>
     </motion.div>

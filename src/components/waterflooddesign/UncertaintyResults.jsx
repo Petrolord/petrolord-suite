@@ -10,20 +10,21 @@ import {
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, XAXIS_LABEL_HEIGHT, niceTicks } from '@/utils/chartTheme';
 import { useWaterfloodDesign } from '@/contexts/WaterfloodDesignContext';
 import { ChartCard, Kpi, LINE, WarningBanner, fmt } from './primitives';
+import { mcSummaryState } from '@/utils/waterflooddesign/mcSummary';
 
 const axisProps = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize } };
 const tooltipProps = { contentStyle: TOOLTIP_STYLE, labelStyle: { color: CHART_COLORS.tooltipText }, itemStyle: { color: CHART_COLORS.tooltipText } };
 
 const UncertaintyResults = () => {
-  const { uncertaintyResult, uncertaintyStale, isRunningUncertainty } = useWaterfloodDesign();
+  const { uncertaintyResult, uncertaintyStale, isRunningUncertainty, u, mcSummary, displacementInputs, patternInputs, uncertaintyConfig } = useWaterfloodDesign();
 
   // Exceedance curve in the petroleum convention: P90 sits at 90% probability
   // of exceeding. basicStats' cdf is ascending "probability <= x".
   const exceedanceData = useMemo(() => {
     const cdf = uncertaintyResult?.stats?.np?.cdf;
     if (!cdf?.length) return [];
-    return cdf.map((p) => ({ np: Number((p.x / 1000).toFixed(1)), exceed: Number((100 - p.y).toFixed(1)) }));
-  }, [uncertaintyResult]);
+    return cdf.map((p) => ({ np: Number(u.show('oilVolumeK', p.x / 1000).toFixed(1)), exceed: Number((100 - p.y).toFixed(1)) }));
+  }, [uncertaintyResult, u]);
 
   const tornadoData = useMemo(() => (
     (uncertaintyResult?.sensitivity || []).map((s) => ({
@@ -32,6 +33,26 @@ const UncertaintyResults = () => {
       contribution: Number(s.contribution.toFixed(1)),
     }))
   ), [uncertaintyResult]);
+
+  if (!uncertaintyResult && mcSummary && !isRunningUncertainty) {
+    // WF-U1 (RL12): the summary saved with the project, with whether it still describes the working case
+    const state = mcSummaryState(mcSummary, { displacementInputs, patternInputs, uncertaintyConfig });
+    return (
+      <div className="space-y-3" data-testid="wds-mc-saved">
+        <div className={`rounded-lg border px-4 py-3 text-xs ${state === 'current' ? 'border-pl-border bg-pl-surface text-pl-text' : 'border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text'}`}>
+          Saved summary of the run of {String(mcSummary.ranAt || '').slice(0, 16).replace('T', ' ')} UTC ({mcSummary.validCount} valid of {mcSummary.iterations}).
+          {state === 'current' ? ' The working case has not changed since.' : ' The working case changed after this run: press Run to refresh it.'}
+          {' '}The realizations are not kept; press Run to see the curves again.
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Kpi title="Np P90 (low)" value={fmt.f1(u.show('oilVolumeK', mcSummary.np?.p90 / 1000))} unit={u.label('oilVolumeK')} />
+          <Kpi title="Np P50" value={fmt.f1(u.show('oilVolumeK', mcSummary.np?.p50 / 1000))} unit={u.label('oilVolumeK')} accent />
+          <Kpi title="Np P10 (high)" value={fmt.f1(u.show('oilVolumeK', mcSummary.np?.p10 / 1000))} unit={u.label('oilVolumeK')} />
+          <Kpi title="RF P50" value={fmt.pct(mcSummary.rf?.p50)} />
+        </div>
+      </div>
+    );
+  }
 
   if (!uncertaintyResult) {
     return (
@@ -58,10 +79,10 @@ const UncertaintyResults = () => {
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3">
-        <Kpi title="Np P90 (low)" value={fmt.f1(np.p90 / 1000)} unit="Mstb" />
-        <Kpi title="Np P50" value={fmt.f1(np.p50 / 1000)} unit="Mstb" accent />
-        <Kpi title="Np P10 (high)" value={fmt.f1(np.p10 / 1000)} unit="Mstb" />
-        <Kpi title="Np mean" value={fmt.f1(np.mean / 1000)} unit="Mstb" />
+        <Kpi title="Np P90 (low)" value={fmt.f1(u.show('oilVolumeK', np.p90 / 1000))} unit={u.label('oilVolumeK')} />
+        <Kpi title="Np P50" value={fmt.f1(u.show('oilVolumeK', np.p50 / 1000))} unit={u.label('oilVolumeK')} accent />
+        <Kpi title="Np P10 (high)" value={fmt.f1(u.show('oilVolumeK', np.p10 / 1000))} unit={u.label('oilVolumeK')} />
+        <Kpi title="Np mean" value={fmt.f1(u.show('oilVolumeK', np.mean / 1000))} unit={u.label('oilVolumeK')} />
         <Kpi title="RF P50" value={fmt.pct(rf.p50)} />
         <Kpi title="Breakthrough P50" value={fmt.f2(bt.p50)} unit="yr" />
       </div>
@@ -73,12 +94,12 @@ const UncertaintyResults = () => {
           <ChartCard title="Cumulative oil exceedance curve">
             <LineChart data={exceedanceData} margin={{ top: 16, right: 16, bottom: 4, left: 8 }}>
               <CartesianGrid {...GRID_STYLE} />
-              <XAxis height={XAXIS_LABEL_HEIGHT} dataKey="np" {...axisProps} type="number" {...(() => { const v = (exceedanceData || []).map((d) => d.np).filter(Number.isFinite); const t = v.length ? niceTicks(Math.min(...v), Math.max(...v), 5) : { domain: ['auto', 'auto'] }; return { domain: t.domain, ticks: t.ticks }; })()} label={{ value: 'Np (Mstb)', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', offset: 0 }} />
+              <XAxis height={XAXIS_LABEL_HEIGHT} dataKey="np" {...axisProps} type="number" {...(() => { const v = (exceedanceData || []).map((d) => d.np).filter(Number.isFinite); const t = v.length ? niceTicks(Math.min(...v), Math.max(...v), 5) : { domain: ['auto', 'auto'] }; return { domain: t.domain, ticks: t.ticks }; })()} label={{ value: `Np (${u.label('oilVolumeK')})`, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', offset: 0 }} />
               <YAxis {...axisProps} domain={[0, 100]} label={{ value: 'P(exceed) %', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', style: { textAnchor: 'middle' } }} />
-              <Tooltip {...tooltipProps} formatter={(v, name) => [name === 'exceed' ? `${v}%` : v, name === 'exceed' ? 'P(exceed)' : name]} labelFormatter={(v) => `Np ${v} Mstb`} />
-              {Number.isFinite(np.p90) && <ReferenceLine x={Number((np.p90 / 1000).toFixed(1))} stroke={LINE.tangent} strokeDasharray="4 4" label={{ value: 'P90', fill: LINE.tangent, fontSize: 11, position: 'top' }} />}
-              {Number.isFinite(np.p50) && <ReferenceLine x={Number((np.p50 / 1000).toFixed(1))} stroke={LINE.ref} strokeDasharray="4 4" label={{ value: 'P50', fill: LINE.ref, fontSize: 11, position: 'top' }} />}
-              {Number.isFinite(np.p10) && <ReferenceLine x={Number((np.p10 / 1000).toFixed(1))} stroke={LINE.oil} strokeDasharray="4 4" label={{ value: 'P10', fill: LINE.oil, fontSize: 11, position: 'top' }} />}
+              <Tooltip {...tooltipProps} formatter={(v, name) => [name === 'exceed' ? `${v}%` : v, name === 'exceed' ? 'P(exceed)' : name]} labelFormatter={(v) => `Np ${v} ${u.label('oilVolumeK')}`} />
+              {Number.isFinite(np.p90) && <ReferenceLine x={Number(u.show('oilVolumeK', np.p90 / 1000).toFixed(1))} stroke={LINE.tangent} strokeDasharray="4 4" label={{ value: 'P90', fill: LINE.tangent, fontSize: 11, position: 'top' }} />}
+              {Number.isFinite(np.p50) && <ReferenceLine x={Number(u.show('oilVolumeK', np.p50 / 1000).toFixed(1))} stroke={LINE.ref} strokeDasharray="4 4" label={{ value: 'P50', fill: LINE.ref, fontSize: 11, position: 'top' }} />}
+              {Number.isFinite(np.p10) && <ReferenceLine x={Number(u.show('oilVolumeK', np.p10 / 1000).toFixed(1))} stroke={LINE.oil} strokeDasharray="4 4" label={{ value: 'P10', fill: LINE.oil, fontSize: 11, position: 'top' }} />}
               <Line type="monotone" dataKey="exceed" name="P(exceed)" stroke={LINE.water} strokeWidth={2} dot={false} />
             </LineChart>
           </ChartCard>

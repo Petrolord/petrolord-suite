@@ -8,10 +8,17 @@ import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { analyzeDisplacement, validateKrTable } from '@/utils/fractionalFlowCalculations';
-import { analyzeLayeredSweep } from '@/utils/layeredSweepCalculations';
 import { forecastPattern } from '@/utils/patternForecastCalculations';
 import { parseUncertaintyConfig, runWaterfloodUncertaintyAsync } from '@/utils/waterfloodUncertainty';
 import { analyzeWaterflood } from '@/utils/waterfloodCalculations';
+import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjects';
+import { WF_PAYLOAD_VERSION, DEFAULT_IDENTIFICATION, migrateWaterfloodPayload } from '@/utils/waterflooddesign/model';
+import { setProvenanceField, serializeProvenance, deserializeProvenance } from '@/lib/inputProvenance';
+import { mcSummaryRecord, mcInputsFingerprint } from '@/utils/waterflooddesign/mcSummary';
+import { wfUnits } from '@/utils/waterflooddesign/units';
+import { layeredFrom } from '@/utils/waterflooddesign/workspace';
+
+export const WF_PROJECTS_TABLE = 'saved_waterflood_design_projects';
 
 const WaterfloodDesignContext = createContext(null);
 
@@ -21,7 +28,7 @@ export const useWaterfloodDesign = () => {
   return ctx;
 };
 
-const service = createSavedProjectsService('saved_waterflood_design_projects', {
+const service = createSavedProjectsService(WF_PROJECTS_TABLE, {
   signInMessage: 'Sign in to save waterflood projects.',
 });
 
@@ -59,6 +66,9 @@ export const DEFAULT_PATTERN = {
   area_acres: '40', h_ft: '25', phi: '0.22',
   Bo: '1.25', Bw: '1.02', iw_bpd: '800',
   Sgi: '0', EV: '1', worLimit: '25', maxYears: '30',
+  // WF-U1-004: the mobility ratio fed to the areal sweep correlation.
+  // Version 1 projects open as 'endpoint' (src/utils/waterflooddesign/model.js).
+  mobilityBasis: 'craig',
 };
 
 // Uncertainty tab config (persisted with the project; results never are).
@@ -75,6 +85,10 @@ export const DEFAULT_SURVEILLANCE_CONFIG = {
   start_date: '', end_date: '',
   bo: '1.25', bw: '1.02', bg: '0.9', rs: '500',
   smooth_window_days: '5', vrr_window_days: '30', target_vrr: '1.0',
+  // WF-U1: what the pressure column holds (Hall plot basis); stated, not converted
+  pressure_basis: 'wellhead',
+  // WF-U1-007: the reservoir pressure at which a pvt-1 intake read the FVFs
+  pvt_pressure: '',
 };
 
 // analyzeWaterflood expects numeric config; the studio keeps strings in form
@@ -92,6 +106,8 @@ export function buildSurveillanceConfig(c) {
     smooth_window_days: numOr(c.smooth_window_days, 5),
     vrr_window_days: numOr(c.vrr_window_days, 30),
     target_vrr: numOr(c.target_vrr, 1.0),
+    // WF-U1-005: volumes are rate x days and the window is calendar days
+    time_weighting: 'calendar',
   };
 }
 
@@ -103,6 +119,7 @@ export function buildPatternInputs(p) {
     Bo: num(p.Bo), Bw: num(p.Bw), iw_bpd: num(p.iw_bpd),
     Sgi: num(p.Sgi) || 0, EV: num(p.EV) || 1,
     worLimit: num(p.worLimit) || 25, maxYears: num(p.maxYears) || 30,
+    mobilityBasis: p.mobilityBasis === 'endpoint' ? 'endpoint' : 'craig',
   };
   if (![pattern.area_acres, pattern.h_ft, pattern.phi, pattern.Bo, pattern.Bw, pattern.iw_bpd].every((v) => v > 0)) return null;
   return pattern;
@@ -141,10 +158,15 @@ export function buildDisplacementSpec(d) {
   return { spec, error: null };
 }
 
-export const WaterfloodDesignProvider = ({ children }) => {
+export const WaterfloodDesignProvider = ({ children, sharingStore = null, profileSystem = null, build = null }) => {
   const { notifications, addNotification, removeNotification } = useStudioNotifications();
 
-  // Projects
+  // Projects. WF-U1: saved_waterflood_design_projects is under the record
+  // sharing rules (20261002130000): with a store the picker lists my
+  // projects, then those shared with me; a save goes through the store and
+  // only while I may write (owner, or the colleague holding the check-out).
+  const shared = useSharedSavedProjects({ table: WF_PROJECTS_TABLE, service, sharingStore });
+  const canWrite = shared.canWrite;
   const [projects, setProjects] = useState([]);
   const [currentProjectId, setCurrentProjectId] = useState(null);
   const [projectName, setProjectName] = useState('');
@@ -162,6 +184,17 @@ export const WaterfloodDesignProvider = ({ children }) => {
   const [uncertaintyConfig, setUncertaintyConfig] = useState(DEFAULT_UNCERTAINTY);
   const [surveillanceRows, setSurveillanceRows] = useState([]);
   const [surveillanceConfig, setSurveillanceConfig] = useState(DEFAULT_SURVEILLANCE_CONFIG);
+  // WF-U1: the report header, input sources, display units, the pvt-1
+  // intake, the surveillance import record, the last Monte Carlo summary
+  const [identification, setIdentification] = useState(DEFAULT_IDENTIFICATION);
+  const [inputMeta, setInputMeta] = useState({});
+  const [unitSystemSaved, setUnitSystemSaved] = useState(null); // null: follows the Suite unit profile
+  const unitSystem = unitSystemSaved === 'si' || unitSystemSaved === 'oilfield' ? unitSystemSaved : (profileSystem === 'si' ? 'si' : 'oilfield');
+  const u = useMemo(() => wfUnits(unitSystem), [unitSystem]);
+  const [pvtIntake, setPvtIntake] = useState(null);
+  const [surveillanceImport, setSurveillanceImport] = useState(null);
+  const [mcSummary, setMcSummary] = useState(null);
+  const [migratedFrom, setMigratedFrom] = useState(null);
 
   // Transient Monte Carlo state: expensive and stochastic, so it is run on
   // demand (never a useMemo) and never persisted.
@@ -175,6 +208,16 @@ export const WaterfloodDesignProvider = ({ children }) => {
   const setLayeredField = useCallback((k, v) => setLayeredConfig((prev) => ({ ...prev, [k]: v })), []);
   const setPatternField = useCallback((k, v) => setPatternInputs((prev) => ({ ...prev, [k]: v })), []);
   const setSurveillanceField = useCallback((k, v) => setSurveillanceConfig((prev) => ({ ...prev, [k]: v })), []);
+  const setIdentificationField = useCallback((k, v) => setIdentification((prev) => ({ ...prev, [k]: v })), []);
+  const setInputSource = useCallback((key, field, value) => setInputMeta((prev) => setProvenanceField(prev, key, field, value)), []);
+  // WF-U1: a pvt-1 intake lands in three tabs at once and is kept with the project
+  const takePvt = useCallback((patch, intake) => {
+    if (patch?.displacement) setDisplacementInputs((prev) => ({ ...prev, ...patch.displacement }));
+    if (patch?.pattern) setPatternInputs((prev) => ({ ...prev, ...patch.pattern }));
+    if (patch?.surveillance) setSurveillanceConfig((prev) => ({ ...prev, ...patch.surveillance }));
+    setPvtIntake(intake || null);
+  }, []);
+  const setUnitSystem = useCallback((sys) => setUnitSystemSaved(sys === 'si' ? 'si' : 'oilfield'), []);
   const setUncertaintyIterations = useCallback((v) => setUncertaintyConfig((prev) => ({ ...prev, iterations: v })), []);
   const setUncertaintyParam = useCallback((key, patch) => setUncertaintyConfig((prev) => ({
     ...prev,
@@ -188,14 +231,10 @@ export const WaterfloodDesignProvider = ({ children }) => {
     [displacementSpec],
   );
 
-  const layeredResult = useMemo(() => {
-    const L = layers.map((l) => ({ h: num(l.h), k: num(l.k) })).filter((l) => l.h > 0 && l.k > 0);
-    if (L.length < 2) return null;
-    const M = layeredConfig.mSource === 'displacement' && displacement ? displacement.M : num(layeredConfig.M);
-    const A = num(layeredConfig.A);
-    if (!(M > 0) || !(A > 0)) return null;
-    return { ...analyzeLayeredSweep({ layers: L, M, A }), M, A };
-  }, [layers, layeredConfig, displacement]);
+  const layeredResult = useMemo(
+    () => layeredFrom(layers, layeredConfig, displacement, patternInputs),
+    [layers, layeredConfig, displacement, patternInputs.Bo, patternInputs.Bw], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const patternResult = useMemo(() => {
     if (!displacementSpec.spec) return null;
@@ -243,7 +282,11 @@ export const WaterfloodDesignProvider = ({ children }) => {
         { displacementSpec: displacementSpec.spec, pattern, distributions, iterations },
         setUncertaintyProgress,
       );
-      setUncertaintyResult({ ...result, ranAt: new Date().toISOString() });
+      const ranAt = new Date().toISOString();
+      setUncertaintyResult({ ...result, ranAt });
+      // WF-U1: the summary of the canonical module's run is kept with the
+      // project (the realizations are not), stamped with what it was run on
+      setMcSummary(mcSummaryRecord(result, { ranAt, fingerprint: mcInputsFingerprint({ displacementInputs, patternInputs, uncertaintyConfig }) }));
       hasUncertaintyResult.current = true;
       setUncertaintyStale(false);
       if (result.validCount > 0) {
@@ -257,7 +300,7 @@ export const WaterfloodDesignProvider = ({ children }) => {
     } finally {
       setIsRunningUncertainty(false);
     }
-  }, [isRunningUncertainty, uncertaintyConfig, displacementSpec, patternInputs, addNotification]);
+  }, [isRunningUncertainty, uncertaintyConfig, displacementSpec, patternInputs, displacementInputs, addNotification]);
 
   // Any working-case or config edit makes an existing MC result stale (it
   // was computed from the old inputs). The result stays visible with a
@@ -276,11 +319,25 @@ export const WaterfloodDesignProvider = ({ children }) => {
     patternInputs,
     scenarios,
     uncertaintyConfig,
-    surveillance: { rows: surveillanceRows, config: surveillanceConfig },
+    surveillance: { rows: surveillanceRows, config: surveillanceConfig, import: surveillanceImport },
+    payloadVersion: WF_PAYLOAD_VERSION,
+    identification,
+    inputMeta: serializeProvenance(inputMeta),
+    unitSystem,
+    pvtIntake,
+    mcSummary,
     modified: new Date().toISOString(),
-  }), [currentProjectId, projectName, displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig]);
+  }), [currentProjectId, projectName, displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, surveillanceImport, identification, inputMeta, unitSystem, pvtIntake, mcSummary]);
 
-  const hydrate = useCallback((payload) => {
+  const hydrate = useCallback((raw) => {
+    const payload = migrateWaterfloodPayload(raw);
+    setMigratedFrom(payload?.migratedFrom ?? null);
+    setIdentification({ ...DEFAULT_IDENTIFICATION, ...(payload?.identification || {}) });
+    setInputMeta(deserializeProvenance(payload?.inputMeta));
+    setUnitSystemSaved(payload?.unitSystem === 'si' || payload?.unitSystem === 'oilfield' ? payload.unitSystem : null);
+    setPvtIntake(payload?.pvtIntake || null);
+    setSurveillanceImport(payload?.surveillance?.import || null);
+    setMcSummary(payload?.mcSummary || null);
     setDisplacementInputs({ ...DEFAULT_DISPLACEMENT, ...(payload?.displacementInputs || {}) });
     setLayers(Array.isArray(payload?.layers) && payload.layers.length ? payload.layers : DEFAULT_LAYERS);
     setLayeredConfig({ ...DEFAULT_LAYERED_CONFIG, ...(payload?.layeredConfig || {}) });
@@ -299,21 +356,31 @@ export const WaterfloodDesignProvider = ({ children }) => {
     setUncertaintyStale(false);
   }, []);
 
+  // shared.refreshList lists my projects and, with a store, those shared
+  // with me (split below by owner)
+  const refreshProjects = useCallback(async () => {
+    const list = await shared.refreshList();
+    setProjects(list);
+    return list;
+  }, [shared.refreshList]); // eslint-disable-line react-hooks/exhaustive-deps
+  const myId = shared.sharing.userId;
+  const ownProjects = useMemo(() => projects.filter((p) => !sharingStore || !myId || !p.userId || p.userId === myId), [projects, sharingStore, myId]);
+  const sharedProjects = useMemo(() => (sharingStore && myId ? projects.filter((p) => p.userId && p.userId !== myId) : []), [projects, sharingStore, myId]);
+
   useEffect(() => {
     (async () => {
       try {
-        const list = await service.list();
-        setProjects(list);
+        await refreshProjects();
       } catch (e) {
         console.error(e);
         addNotification('Could not load saved projects', 'error');
       }
     })();
-  }, [addNotification]);
+  }, [addNotification]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openProject = useCallback(async (id) => {
     try {
-      const payload = await service.load(id);
+      const payload = await shared.loadForOpen(id);
       if (!payload) {
         addNotification('Project not found', 'error');
         return;
@@ -327,28 +394,24 @@ export const WaterfloodDesignProvider = ({ children }) => {
       console.error(e);
       addNotification('Could not open project', 'error');
     }
-  }, [addNotification, hydrate]);
+  }, [addNotification, hydrate, shared.loadForOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const createProject = useCallback(async (name) => {
     const id = uuidv4();
     try {
-      await service.save(id, {
-        id, name,
-        displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig,
-        surveillance: { rows: surveillanceRows, config: surveillanceConfig },
-        modified: new Date().toISOString(),
-      });
+      await service.save(id, { ...serializeInputs(), id, name });
+      await shared.adoptRow(id);
       setCurrentProjectId(id);
       setProjectName(name);
       setHydrated(true);
       setLastSaveTime(new Date());
-      setProjects(await service.list());
+      await refreshProjects();
       addNotification(`Project "${name}" created`, 'success');
     } catch (e) {
       console.error(e);
       addNotification(e.message || 'Could not create project', 'error');
     }
-  }, [displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, addNotification]);
+  }, [serializeInputs, addNotification, refreshProjects]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const deleteProject = useCallback(async (id) => {
     try {
@@ -357,14 +420,15 @@ export const WaterfloodDesignProvider = ({ children }) => {
         setCurrentProjectId(null);
         setProjectName('');
         setHydrated(false);
+        shared.close();
       }
-      setProjects(await service.list());
+      await refreshProjects();
       addNotification('Project deleted', 'info');
     } catch (e) {
       console.error(e);
       addNotification('Could not delete project', 'error');
     }
-  }, [currentProjectId, addNotification]);
+  }, [currentProjectId, addNotification, refreshProjects]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const manualSave = useCallback(async () => {
     if (!currentProjectId) {
@@ -373,7 +437,12 @@ export const WaterfloodDesignProvider = ({ children }) => {
     }
     setIsSaving(true);
     try {
-      await service.save(currentProjectId, serializeInputs());
+      const res = await shared.write(currentProjectId, serializeInputs());
+      if (!res.ok) {
+        setSaveError(res.readOnly ? 'Read-only' : 'Save failed');
+        addNotification(res.message, res.readOnly ? 'info' : 'error');
+        return;
+      }
       setLastSaveTime(new Date());
       setSaveError(null);
     } catch (e) {
@@ -382,19 +451,40 @@ export const WaterfloodDesignProvider = ({ children }) => {
     } finally {
       setIsSaving(false);
     }
-  }, [currentProjectId, serializeInputs, addNotification]);
+  }, [currentProjectId, serializeInputs, addNotification, shared.write]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Debounced autosave (10 s after the last change), only once a project is open.
+  // "Save a copy": the project on screen as my own new project
+  const saveCopy = useCallback(async () => {
+    const name = shared.copyNameFor(projectName || 'Waterflood project');
+    const id = uuidv4();
+    try {
+      await service.save(id, { ...serializeInputs(), id, name });
+      await refreshProjects();
+      await openProject(id);
+      addNotification(`Saved a copy as "${name}"`, 'success');
+    } catch (e) {
+      addNotification(`Could not save a copy: ${e.message}`, 'error');
+    }
+  }, [projectName, serializeInputs, refreshProjects, openProject, addNotification]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced autosave (10 s after the last change), only once a project is
+  // open and never while it is open read-only.
   const autosaveRef = useRef(serializeInputs);
   autosaveRef.current = serializeInputs;
+  const writeRef = useRef(shared.write);
+  writeRef.current = shared.write;
   useEffect(() => {
-    if (!currentProjectId || !hydrated) return undefined;
+    if (!currentProjectId || !hydrated || !canWrite) return undefined;
     const timer = setTimeout(async () => {
       setIsSaving(true);
       try {
-        await service.save(currentProjectId, autosaveRef.current());
-        setLastSaveTime(new Date());
-        setSaveError(null);
+        const res = await writeRef.current(currentProjectId, autosaveRef.current());
+        if (res.ok) {
+          setLastSaveTime(new Date());
+          setSaveError(null);
+        } else if (!res.readOnly) {
+          setSaveError('Auto-save failed');
+        }
       } catch (e) {
         console.error(e);
         setSaveError('Auto-save failed');
@@ -403,7 +493,7 @@ export const WaterfloodDesignProvider = ({ children }) => {
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, currentProjectId, hydrated]);
+  }, [displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, surveillanceImport, identification, inputMeta, unitSystemSaved, pvtIntake, mcSummary, currentProjectId, hydrated, canWrite]);
 
   // ---- Scenarios: named snapshots of all input groups ----
   const saveScenario = useCallback((name) => {
@@ -438,8 +528,17 @@ export const WaterfloodDesignProvider = ({ children }) => {
     // shell plumbing
     notifications, addNotification, removeNotification,
     // projects
-    projects, currentProjectId, projectName,
-    createProject, openProject, deleteProject, manualSave,
+    projects: ownProjects, sharedProjects, currentProjectId, projectName,
+    createProject, openProject, deleteProject, manualSave, saveCopy,
+    projectRow: shared.projectRow, sharing: shared.sharing, viewingShared: shared.viewingShared, canWrite,
+    build,
+    // WF-U1: report header, sources, units, intakes, MC summary
+    identification, setIdentificationField,
+    inputMeta, setInputSource,
+    unitSystem, setUnitSystem, u, profileSystem, followsProfile: unitSystemSaved == null && !!profileSystem,
+    pvtIntake, setPvtIntake, takePvt,
+    surveillanceImport, setSurveillanceImport,
+    mcSummary, migratedFrom, serializeInputs, setPatternInputs, setSurveillanceConfig,
     isSaving, saveError, lastSaveTime,
     // inputs
     displacementInputs, setDisplacementField, setDisplacementInputs,

@@ -4,6 +4,8 @@ import { Separator } from '@/components/ui/separator';
 import { useWaterfloodDesign } from '@/contexts/WaterfloodDesignContext';
 import ScenarioRail from './ScenarioRail';
 import { SectionLabel, fmt } from './primitives';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { countAlerts } from '@/utils/waterflooddesign/surveillance';
 
 const Row = ({ label, value }) => (
   <div className="flex justify-between text-xs py-1 border-b border-pl-border last:border-0">
@@ -13,7 +15,7 @@ const Row = ({ label, value }) => (
 );
 
 const DiagnosticsRail = ({ activeTab }) => {
-  const { displacement, layeredResult, patternResult, uncertaintyResult, uncertaintyStale, surveillanceResult } = useWaterfloodDesign();
+  const { displacement, layeredResult, patternResult, uncertaintyResult, uncertaintyStale, surveillanceResult, u } = useWaterfloodDesign();
   const bl = displacement?.bl;
   const mc = uncertaintyResult;
 
@@ -37,7 +39,7 @@ const DiagnosticsRail = ({ activeTab }) => {
           <Row label="Dykstra-Parsons V" value={fmt.f3(layeredResult?.V?.V)} />
           <Row label="ln(k) sigma" value={fmt.f3(layeredResult?.V?.sigma)} />
           <Row label="Median k (md)" value={fmt.f1(layeredResult?.V?.k50)} />
-          <Row label="Layers" value={layeredResult?.layers?.length ?? '-'} />
+          <Row label="Layers" value={layeredResult?.layers?.length ?? EMPTY_VALUE} />
           <Row label="M in use" value={fmt.f2(layeredResult?.M)} />
         </section>
       )}
@@ -45,10 +47,12 @@ const DiagnosticsRail = ({ activeTab }) => {
       {activeTab === 'pattern' && (
         <section>
           <SectionLabel>Pattern summary</SectionLabel>
-          <Row label="Mobility ratio M" value={fmt.f2(patternResult?.summary?.M)} />
+          <Row label={`M for the areal sweep (${patternResult?.summary?.mobilityBasis === 'craig' ? 'Craig' : 'endpoint'})`} value={fmt.f2(patternResult?.summary?.M)} />
+          <Row label="Endpoint M" value={fmt.f2(patternResult?.summary?.M_endpoint)} />
           <Row label="EA @ BT" value={fmt.pct(patternResult?.summary?.EAbt)} />
-          <Row label="Wi @ BT (Mbbl)" value={fmt.f1(patternResult?.summary?.WiBT_bbl / 1000)} />
-          <Row label="Flooded OOIP (Mstb)" value={fmt.f1(patternResult?.summary?.ooip_flooded_stb / 1000)} />
+          <Row label={`Wi @ BT (${u.label('resVolumeK')})`} value={fmt.f1(u.show('resVolumeK', patternResult?.summary?.WiBT_bbl / 1000))} />
+          <Row label={`Pattern OOIP (${u.label('oilVolumeK')})`} value={fmt.f1(u.show('oilVolumeK', patternResult?.summary?.pattern_ooip_stb / 1000))} />
+          <Row label={`Swept-layer OOIP, EV applied (${u.label('oilVolumeK')})`} value={fmt.f1(u.show('oilVolumeK', patternResult?.summary?.ooip_flooded_stb / 1000))} />
           <Row label="Elapsed (yr)" value={fmt.f1(patternResult?.summary?.elapsed_days / 365.25)} />
         </section>
       )}
@@ -57,10 +61,10 @@ const DiagnosticsRail = ({ activeTab }) => {
         <section>
           <SectionLabel>Last MC run</SectionLabel>
           <Row label="Status" value={mc ? (uncertaintyStale ? 'Stale' : 'Current') : 'Not run'} />
-          <Row label="Valid realizations" value={mc ? mc.validCount.toLocaleString() : '-'} />
-          <Row label="Rejected" value={mc ? mc.rejectedCount.toLocaleString() : '-'} />
-          <Row label="Np P50 (Mstb)" value={fmt.f1(mc?.stats?.np?.p50 / 1000)} />
-          <Row label="Np spread P10/P90" value={mc?.stats?.np?.p90 > 0 ? fmt.f2(mc.stats.np.p10 / mc.stats.np.p90) : '-'} />
+          <Row label="Valid realizations" value={mc ? mc.validCount.toLocaleString() : EMPTY_VALUE} />
+          <Row label="Rejected" value={mc ? mc.rejectedCount.toLocaleString() : EMPTY_VALUE} />
+          <Row label={`Np P50 (${u.label('oilVolumeK')})`} value={fmt.f1(u.show('oilVolumeK', mc?.stats?.np?.p50 / 1000))} />
+          <Row label="Np spread P10/P90" value={mc?.stats?.np?.p90 > 0 ? fmt.f2(mc.stats.np.p10 / mc.stats.np.p90) : EMPTY_VALUE} />
         </section>
       )}
 
@@ -69,9 +73,9 @@ const DiagnosticsRail = ({ activeTab }) => {
           <SectionLabel>Field summary</SectionLabel>
           <Row label="Cumulative VRR" value={fmt.f2(surveillanceResult?.kpis?.vrr_avg)} />
           <Row label="Rolling VRR" value={fmt.f2(surveillanceResult?.kpis?.vrr_rolling)} />
-          <Row label="Avg water cut" value={surveillanceResult?.kpis ? `${fmt.f1(surveillanceResult.kpis.avg_water_cut_pct)}%` : '-'} />
-          <Row label="Injectors / producers" value={surveillanceResult?.wells ? `${surveillanceResult.wells.injectors?.length ?? 0} / ${surveillanceResult.wells.producers?.length ?? 0}` : '-'} />
-          <Row label="Alerts" value={surveillanceResult ? (surveillanceResult.alerts?.length ?? 0) : '-'} />
+          <Row label="Avg water cut" value={surveillanceResult?.kpis ? `${fmt.f1(surveillanceResult.kpis.avg_water_cut_pct)}%` : EMPTY_VALUE} />
+          <Row label="Injectors / producers" value={surveillanceResult?.wells ? `${surveillanceResult.wells.injectors?.length ?? 0} / ${surveillanceResult.wells.producers?.length ?? 0}` : EMPTY_VALUE} />
+          <Row label="Alerts" value={surveillanceResult ? countAlerts(surveillanceResult.alerts) : EMPTY_VALUE} />
         </section>
       )}
 

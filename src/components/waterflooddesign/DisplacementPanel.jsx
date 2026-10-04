@@ -14,7 +14,7 @@ import { Beaker, RotateCcw, Table2 } from 'lucide-react';
 import { useWaterfloodDesign, DEFAULT_DISPLACEMENT } from '@/contexts/WaterfloodDesignContext';
 import { validateKrTable } from '@/utils/fractionalFlowCalculations';
 import { sampleFractionalFlowData } from '@/utils/fractionalFlowCalculations';
-import { Field, SectionLabel } from './primitives';
+import { Field, UField, SectionLabel } from './primitives';
 
 const COREY_FIELDS = [
   { k: 'Swc', label: 'Swc, connate water' },
@@ -25,16 +25,16 @@ const COREY_FIELDS = [
   { k: 'no', label: 'no, oil exponent' },
 ];
 const FLUID_FIELDS = [
-  { k: 'muW', label: 'μw, water visc. (cp)' },
-  { k: 'muO', label: 'μo, oil visc. (cp)' },
+  { k: 'muW', label: 'μw, water viscosity', kind: 'viscosity' },
+  { k: 'muO', label: 'μo, oil viscosity', kind: 'viscosity' },
 ];
 const GRAVITY_FIELDS = [
-  { k: 'k_md', label: 'k, permeability (md)' },
-  { k: 'A_ft2', label: 'A, flow area (ft²)' },
-  { k: 'qt_rbd', label: 'qt, total rate (rb/d)' },
-  { k: 'dipDeg', label: 'Dip α (deg, updip +)' },
-  { k: 'gammaW', label: 'γw, water SG' },
-  { k: 'gammaO', label: 'γo, oil SG' },
+  { k: 'k_md', label: 'k, permeability', kind: 'permeability' },
+  { k: 'A_ft2', label: 'A, flow area', kind: 'flowArea' },
+  { k: 'qt_rbd', label: 'qt, total rate', kind: 'resRate' },
+  { k: 'dipDeg', label: 'Dip α (updip +)', kind: 'angle' },
+  { k: 'gammaW', label: 'γw, water SG', kind: 'gravity' },
+  { k: 'gammaO', label: 'γo, oil SG', kind: 'gravity' },
 ];
 
 const KrTableDialog = ({ onApply }) => {
@@ -93,7 +93,7 @@ const KrTableDialog = ({ onApply }) => {
 };
 
 const DisplacementPanel = () => {
-  const { displacementInputs: d, setDisplacementField, setDisplacementInputs, addNotification } = useWaterfloodDesign();
+  const { displacementInputs: d, setDisplacementField, setDisplacementInputs, addNotification, u } = useWaterfloodDesign();
 
   const loadSample = () => {
     const s = sampleFractionalFlowData();
@@ -144,9 +144,10 @@ const DisplacementPanel = () => {
         <SectionLabel>Fluids</SectionLabel>
         <div className="grid grid-cols-2 gap-3">
           {FLUID_FIELDS.map((f) => (
-            <Field key={f.k} label={f.label} value={d[f.k]} onChange={(v) => setDisplacementField(f.k, v)} />
+            <UField key={f.k} label={f.label} kind={f.kind} u={u} testId={`wds-${f.k}`} value={d[f.k]} onChange={(v) => setDisplacementField(f.k, v)} />
           ))}
         </div>
+
       </section>
 
       <section>
@@ -157,7 +158,7 @@ const DisplacementPanel = () => {
         {d.gravityOn && (
           <div className="grid grid-cols-2 gap-3">
             {GRAVITY_FIELDS.map((f) => (
-              <Field key={f.k} label={f.label} value={d[f.k]} onChange={(v) => setDisplacementField(f.k, v)} />
+              <UField key={f.k} label={f.label} kind={f.kind} u={u} value={d[f.k]} onChange={(v) => setDisplacementField(f.k, v)} />
             ))}
           </div>
         )}

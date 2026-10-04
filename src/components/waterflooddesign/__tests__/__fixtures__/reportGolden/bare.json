@@ -1,0 +1,198 @@
+{
+  "pages": 8,
+  "sha256": "34d490dd1b2212c93204b9da74b902e356e080dfe50c9ac747d700bfe055963c",
+  "figures": [
+    {
+      "id": "kr",
+      "number": 1,
+      "page": 6,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 29,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "krw": 102,
+            "kro": 102
+          },
+          "total": 204,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "fw",
+      "number": 2,
+      "page": 6,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 111.72,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "fw": 102,
+            "Welge tangent": 2,
+            "Front (Swf, fw)": 1
+          },
+          "total": 105,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "ed",
+      "number": 3,
+      "page": 6,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 194.44,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "ED": 33
+          },
+          "total": 33,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "rates",
+      "number": 4,
+      "page": 7,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 54
+          },
+          "drawn": {
+            "Oil": 103,
+            "Water": 103
+          },
+          "total": 206,
+          "bands": 0,
+          "logo": true
+        },
+        {
+          "box": {
+            "x": 14,
+            "y": 80,
+            "w": 182,
+            "h": 46
+          },
+          "drawn": {
+            "WOR": 103
+          },
+          "total": 103,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "np",
+      "number": 5,
+      "page": 7,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 146.72,
+            "w": 182,
+            "h": 50
+          },
+          "drawn": {
+            "Np": 103
+          },
+          "total": 103,
+          "bands": 0,
+          "logo": true
+        },
+        {
+          "box": {
+            "x": 14,
+            "y": 199.72,
+            "w": 182,
+            "h": 46
+          },
+          "drawn": {
+            "EA": 103
+          },
+          "total": 103,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "dp",
+      "number": 6,
+      "page": 8,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "Coverage": 4
+          },
+          "total": 4,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "history",
+      "number": 7,
+      "page": 8,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "vrr",
+      "number": 8,
+      "page": 8,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "hall",
+      "number": 9,
+      "page": 8,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "mc",
+      "number": 10,
+      "page": 8,
+      "plotted": false,
+      "panels": []
+    }
+  ]
+}

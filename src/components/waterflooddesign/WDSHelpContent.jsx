@@ -2,7 +2,7 @@
 // StudioHelp). Sections carried over from the retired Fractional Flow help
 // guide plus the new tabs, with the method citations.
 import React from 'react';
-import { GitMerge, Layers, TrendingUp, Dices, Activity, Camera, BookOpen, AlertTriangle, Share2, Gauge } from 'lucide-react';
+import { GitMerge, Layers, TrendingUp, Dices, Activity, Camera, BookOpen, AlertTriangle, Share2, Gauge, FileText, Ruler } from 'lucide-react';
 
 const Section = ({ icon: Icon, title, children }) => (
   <section className="bg-pl-surface p-4 rounded-lg border border-pl-border">
@@ -53,6 +53,14 @@ const WDSHelpContent = () => (
         gas fill-up and a WOR economic limit.
       </p>
       <p>
+        The areal sweep correlation is entered with Craig's mobility ratio: krw at the average water saturation
+        behind the front at breakthrough, kro at Swc. That is the definition Craig's five-spot data were correlated
+        on. The endpoint ratio (krw at Sor) is still shown and still drives the displacement and Dykstra-Parsons.
+        Projects saved before October 2026 open on the endpoint basis they were computed with and say so; the switch
+        under "Mobility ratio for the areal sweep" moves them to Craig. The panel under the KPIs splits the recovery
+        into displacement efficiency ED, areal sweep EA and vertical sweep EV, closing on Np over the pattern OOIP.
+      </p>
+      <p>
         Export the annual oil profile as CSV and load it in NPV Scenario Builder for fiscal economics; this studio
         deliberately carries no valuation.
       </p>
@@ -69,14 +77,30 @@ const WDSHelpContent = () => (
       <p>
         Physically invalid samples (for example a sampled Swc and Sor that leave no mobile saturation window) are
         rejected and counted, with none silently clamped; a high rejection rate means the distributions are too wide.
-        Results are not saved with the project and go stale when any input changes.
+        The realizations are not saved; the summary of the last run (percentiles, counts, rejections) is saved with the
+        project with a note of the inputs it was run on, so a reopened project says whether it still describes the
+        working case. The distributions are entered in oilfield units whatever the display units.
       </p>
     </Section>
 
     <Section icon={Activity} title="Surveillance (operating floods)">
       <p>
-        Import a field injection/production history CSV (date, well, oil_bbl, water_bbl, gas_mcf, inj_bbl, optional
-        whp_psi). The engine cleans and classifies the data, then reports reservoir-barrel voidage replacement
+        Import a field injection and production history (CSV, TSV or text). Columns are found by their headers in
+        any order (date, well, daily oil, water and gas rates, water injection rate, optional injection pressure).
+        A unit written in a header, such as "Oil rate (sm3/d)" or "Pressure (kPa)", is used; otherwise the units
+        chosen above the Import button apply. Day-first and month-first dates and decimal commas are read; when the
+        file cannot settle the date order you are asked. Volumes and cumulatives are refused by name, because the
+        engine reads daily rates. After the import a read-back lists each column, its unit, the rows read and every
+        row left out with its reason; the report prints the same. Totals and the cumulative VRR are calendar volumes
+        (rate times the days to the next row), so weekly and monthly files add up correctly.
+      </p>
+      <p>
+        State whether the pressure column is wellhead or bottomhole: the Hall plot integrates it as given, and the
+        report names it. The Hall plot draws the baseline (first third) and recent (last third) windows with their
+        least-squares lines; each slope is listed with its 95 percent interval.
+      </p>
+      <p>
+        The engine cleans and classifies the data, then reports reservoir-barrel voidage replacement
         (daily, rolling and cumulative VRR with free-gas voidage from Bg and Rs), water cut and KPI trends, and
         capability-gated diagnostics: Hall plot injectivity (needs measured injection pressure), Chan water-control
         log-log WOR diagnostics, injector-producer response from time-lagged cross-correlation, and VRR-balanced
@@ -105,6 +129,17 @@ const WDSHelpContent = () => (
         takes no permeability input at all.
       </p>
       <p>
+        <strong>Fluid Systems Studio</strong>: on the Pattern or Surveillance tab choose a saved Fluid project, state
+        the reservoir pressure (blank: the bubble point) and take the oil and water viscosities, Bo, Bw, Bg and Rs
+        read from the project's own PVT table. One pressure serves the project; nothing is extrapolated outside the
+        table. A link with ?fluidProject=&lt;id&gt; preselects the project.
+      </p>
+      <p>
+        Both intake cards (relative permeability and PVT) read the source project again and say "Source changed since"
+        when its content changed, and "Edited after intake" when you typed over a value here. The report prints the
+        source project, its method and the edit.
+      </p>
+      <p>
         Both arrivals raise a notification naming what changed, so an overwrite is never silent.
       </p>
       <p>
@@ -127,9 +162,30 @@ const WDSHelpContent = () => (
       </p>
     </Section>
 
+    <Section icon={FileText} title="The report">
+      <p>
+        The Report tab holds the identification (company, field, licence, reservoir, pattern, wells, analyst) and the
+        source of each typed input, shows the rows the PDF prints, and exports the PDF: headline results, the recovery
+        split, the mobility ratio by its parts, every input with its unit and source, the forecast year by year, the
+        surveillance file as read with its wells, the Hall windows, the model, the basis and conventions, the limits
+        and flags, the kr-1 and pvt-1 blocks, and up to eleven figures. A figure that does not apply says why.
+      </p>
+    </Section>
+
+    <Section icon={Ruler} title="Units">
+      <p>
+        Choose Oilfield or SI under the project picker. A new project follows your Suite unit profile; a saved project
+        keeps its own. Inputs, KPIs, axes and the report follow the choice; the project is stored in oilfield units.
+        Formation volume factors are reservoir barrels per stock-tank barrel (rm3/sm3 in SI); Bg is per Mscf. The
+        annual CSV for NPV Scenario Builder stays in stock-tank barrels.
+      </p>
+    </Section>
+
     <Section icon={Camera} title="Projects and scenarios">
       <p>
-        Projects save automatically ten seconds after a change (and on the header save button). Scenarios snapshot
+        Projects save automatically ten seconds after a change (and on the header save button). A project can be
+        shared with your organisation for viewing or editing; a colleague edits one at a time after checking it
+        out, and a read-only project offers "Save a copy". Scenarios snapshot
         the whole working case; the Scenarios tab recomputes every snapshot through the same engines for side-by-side
         comparison, and any snapshot can be applied back to the working case.
       </p>
@@ -138,7 +194,8 @@ const WDSHelpContent = () => (
     <Section icon={AlertTriangle} title="Assumptions and limits">
       <p>
         Screening-level analytical methods throughout: 1-D displacement with capillary pressure neglected, piston
-        areal growth, non-communicating layers, constant injectivity, no pattern interference. Validate against
+        areal growth, non-communicating layers, constant injectivity, no pattern interference, five-spot only, the
+        areal sweep correlation valid for mobility ratios of 0.15 to 10. Validate against
         simulation or surveillance before committing capital.
       </p>
     </Section>
