@@ -3,7 +3,7 @@
 // or typed. A saved project keeps the method it was saved with.
 import React from 'react';
 import { useRfEstimator } from '@/contexts/RfEstimatorContext';
-import { CORR_FIELDS } from './rfFields';
+import { corrFieldsFor } from './rfFields';
 import { Z_METHOD_DAK, Z_METHOD_TYPED, zMethodLabel } from '@/utils/rfestimator/gasZ';
 import RfField from './RfField';
 
@@ -14,7 +14,7 @@ const GasZPanel = () => {
   if (inputs.phase !== 'gas') return null;
   const dak = inputs.zMethod === Z_METHOD_DAK;
   const gz = derived.gasZ;
-  const hasPi = (CORR_FIELDS[inputs.method] || []).some(([k]) => k === 'pi');
+  const hasPi = corrFieldsFor(inputs).some(([k]) => k === 'pi');
   const sample = (k) => (derived.sampleKeys.has(`corr.${k}`) ? 'Sample value' : null);
   return (
     <div className="space-y-2 rounded-md border border-pl-border p-3" data-testid="rf-gas-z">

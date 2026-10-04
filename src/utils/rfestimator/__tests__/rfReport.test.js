@@ -145,3 +145,18 @@ describe('RF-U2-002: the reviewer case with the uncertainty run on', () => {
     checkGolden(built, { dir: GOLDEN_DIR, name: 'reviewer-mc', update: UPDATE });
   });
 });
+
+describe('RF-U2-010: water-drive gas abandoned at pa, in the report', () => {
+  it('the method by its parts closes on 1, pi, zi, pa, za are inputs, the assumption is the pa form', () => {
+    const p = gasPayload();
+    p.inputs = { ...p.inputs, method: 'gas_water_drive', driveCode: 'gas_water_drive', corr: { ...p.inputs.corr, swi: '0.25', sgr: '0.3', sweep: '0.7', gwdMode: 'abandonment' } };
+    const r = reportOf(p);
+    const d = r.state.derived.result.detail;
+    expect(d.mode).toBe('abandonment');
+    expect(d.trappedSwept + d.unswept + r.state.derived.result.rf).toBeCloseTo(1, 12);
+    expect(r.model.methodSplit.rows.map((x) => x[0])).toContain('Bgi/Bga = (pa/za)/(pi/zi)');
+    expect(r.model.inputs.rows.map((x) => x.key)).toEqual(expect.arrayContaining(['corr.pi', 'corr.zi', 'corr.pa', 'corr.za']));
+    expect(r.model.methodRows.find((x) => x[0] === 'What it assumes')[1]).toMatch(/abandoned at pa/);
+    expect(missingInputRows(r.model.engineInput, r.model.inputs.rows)).toEqual([]);
+  });
+});

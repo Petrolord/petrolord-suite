@@ -5,7 +5,7 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { useRfEstimator } from '@/contexts/RfEstimatorContext';
-import { METHODS, CORR_FIELDS, fmtPct } from '@/components/rfestimator/rfFields';
+import { METHODS, corrFieldsFor, fmtPct } from '@/components/rfestimator/rfFields';
 import { rfPvtSourceText } from '@/utils/rfestimator/pvtIntake';
 import { driveSuggestion } from '@/utils/rfestimator/inPlaceIntake';
 import RfField from './RfField';
@@ -19,7 +19,7 @@ const MethodPanel = () => {
   } = useRfEstimator();
   // RF-U2-008: the drive the Material Balance indices suggest (never applied silently)
   const suggestion = driveSuggestion(inPlaceIntake, inputs.phase, inputs.driveCode);
-  const corrFields = CORR_FIELDS[inputs.method] || [];
+  const corrFields = corrFieldsFor(inputs);
   const flagged = new Set(derived.flags.filter((f) => f.scope === 'input' || f.scope === 'consistency').map((f) => f.key));
   // RF-U2-003: zi and za computed by Dranchuk-Abou-Kassem show the value used, not editable
   const zComputed = (k) => inputs.phase === 'gas' && inputs.zMethod === Z_METHOD_DAK && (k === 'zi' || k === 'za');
@@ -63,6 +63,16 @@ const MethodPanel = () => {
         )}
       </div>
 
+      {inputs.method === 'gas_water_drive' && (
+        <div className="space-y-1">
+          <label htmlFor="rf-gwd-mode" className="text-xs text-pl-muted">The swept volume is abandoned at</label>
+          <select id="rf-gwd-mode" data-testid="rf-gwd-mode" value={inputs.corr.gwdMode === 'abandonment' ? 'abandonment' : 'maintained'} onChange={(e) => setCorrField('gwdMode', e.target.value)}
+            className="w-full h-9 rounded-md border border-pl-border-strong bg-pl-surface px-2 text-xs text-pl-text">
+            <option value="maintained">The initial pressure (pressure fully maintained, Bga = Bgi)</option>
+            <option value="abandonment">An abandonment pressure pa (Bga at pa; partial pressure maintenance)</option>
+          </select>
+        </div>
+      )}
       <GasZPanel />
       {corrFields.length > 0 && (
         <div className="grid grid-cols-2 gap-3 pt-2 border-t border-pl-border">

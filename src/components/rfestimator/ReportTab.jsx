@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useRfEstimator } from '@/contexts/RfEstimatorContext';
 import { IDENTIFICATION_FIELDS } from '@/utils/rfestimator/model';
 import { collectRfReportArgs, exportRfPdf } from '@/utils/rfestimator/reportExport';
-import { CORR_FIELDS, VOL_FIELDS_OIL, VOL_FIELDS_GAS, PLAIN_LABELS } from './rfFields';
+import { corrFieldsFor, VOL_FIELDS_OIL, VOL_FIELDS_GAS, PLAIN_LABELS } from './rfFields';
 
 function useOrganizationName() {
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -51,9 +51,9 @@ const ReportTab = () => {
     if (c.inputs.inPlaceMode === 'direct') { if (!c.inPlaceIntake) out.push(['ooipDirect', c.inputs.phase === 'gas' ? 'OGIP' : 'OOIP']); } else {
       for (const [k] of c.inputs.phase === 'gas' ? VOL_FIELDS_GAS : VOL_FIELDS_OIL) out.push([`vol.${k}`, `${PLAIN_LABELS[k]} (volumetrics)`]);
     }
-    for (const [k] of CORR_FIELDS[c.inputs.method] || []) out.push([`corr.${k}`, PLAIN_LABELS[k]]);
+    for (const [k] of corrFieldsFor(c.inputs)) out.push([`corr.${k}`, PLAIN_LABELS[k]]);
     return out;
-  }, [c.inputs.inPlaceMode, c.inputs.phase, c.inputs.method, c.inPlaceIntake]);
+  }, [c.inputs.inPlaceMode, c.inputs.phase, c.inputs.method, c.inputs.corr?.gwdMode, c.inPlaceIntake]);
 
   const exportPdf = async () => {
     setBusy(true);

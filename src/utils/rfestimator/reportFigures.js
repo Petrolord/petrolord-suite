@@ -115,7 +115,7 @@ export function buildRfReportFigures({ model, state }) {
     const why = model.method === 'analog'
       ? 'Does not apply: the analog method reads the typical value of a range and has no factors.'
       : model.method === 'gas_water_drive'
-        ? 'Does not apply as a plot: the trapped-gas estimate is two factors, printed in the method table.'
+        ? 'Does not apply as a plot: the trapped-gas estimate is a few factors, printed in the method table.'
         : 'Not drawn: the method gave no value.';
     figs.push({ id: 'factors', title: 'The method by its factors', statement: why });
   }

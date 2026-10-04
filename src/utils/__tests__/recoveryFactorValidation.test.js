@@ -135,3 +135,35 @@ test('the analog band source says it is not validated (RF-U1-003)', () => {
   expect(ANALOG_BAND_SOURCE).toMatch(/not checked against a published table/);
   expect(ANALOG_BAND_SOURCE).toMatch(/not P90 and P10/);
 });
+
+// RF-U2-010: water-drive gas with the swept volume abandoned at pa (Bga).
+// The relation RF = 1 - (Bgi/Bga)[Ev Sgr/Sgi + (1 - Ev)] is gated by the
+// shipped engine against three independent truths: the volume bookkeeping of
+// the swept and unswept pore volumes at pa (computed here in reservoir volume
+// with Bg from the canonical fluid engine), the maintained form at pa = pi,
+// and the p/z depletion relation at Ev = 0.
+describe('water-drive gas abandoned at pa (RF-U2-010)', () => {
+  const base = { swi: 0.25, sgr: 0.3, sweep: 0.7, pi: 4000, zi: 0.9, pa: 1500, za: 0.88 };
+  test('equals the volume bookkeeping in scf (Bg from the canonical fluid engine)', () => {
+    const { swi, sgr, sweep, pi, zi, pa, za } = base;
+    const T = 200; const pv = 1e6; // reservoir bbl
+    const bgi = bgRbPerScf(pi, T, zi); const bga = bgRbPerScf(pa, T, za);
+    const G = pv * (1 - swi) / bgi;
+    const left = pv * sweep * sgr / bga + pv * (1 - sweep) * (1 - swi) / bga;
+    expect(gasWaterDriveRF({ ...base, gwdMode: 'abandonment' })).toBeCloseTo((G - left) / G, 12);
+  });
+  test('reduces to the maintained form at pa = pi, and to p/z at Ev = 0', () => {
+    const atPi = gasWaterDriveRF({ ...base, gwdMode: 'abandonment', pa: base.pi, za: base.zi });
+    expect(atPi).toBeCloseTo(gasWaterDriveRF({ swi: base.swi, sgr: base.sgr, sweep: base.sweep }), 14);
+    const noSweep = gasWaterDriveRF({ ...base, gwdMode: 'abandonment', sweep: 0 });
+    expect(noSweep).toBeCloseTo(gasPZDepletionRF(base), 14);
+  });
+  test('abandoning at pa recovers more than at the initial pressure; the default mode is unchanged', () => {
+    expect(gasWaterDriveRF({ ...base, gwdMode: 'abandonment' })).toBeGreaterThan(gasWaterDriveRF(base));
+    expect(gasWaterDriveRF(base)).toBe(base.sweep * (1 - base.sgr / (1 - base.swi)));
+    // negative control: without pa the abandonment mode cannot run, and says so
+    expect(gasWaterDriveRF({ ...base, gwdMode: 'abandonment', pa: '' })).toBeNull();
+    expect(correlationInputFlags('gas_water_drive', { ...base, gwdMode: 'abandonment', pa: '' }).map((f) => f.key)).toContain('pa');
+    expect(correlationInputFlags('gas_water_drive', { ...base, gwdMode: 'abandonment', pa: 5000 }).map((f) => f.text).join(' ')).toMatch(/not below the initial pressure/);
+  });
+});

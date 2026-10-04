@@ -217,17 +217,42 @@ export function gasPZDepletionRF({ pi, zi, pa, za }) {
 }
 
 // 2d. Water-drive gas: trapped-gas / sweep estimate
-// RF = sweep * (1 - Sgr/(1-Swi))
-// Assumes the swept volume is abandoned at the initial pressure (Bg at
-// abandonment = Bgi, pressure fully maintained) and the unswept volume
-// gives nothing; both are stated in the report (RF-U1-009).
-export function gasWaterDriveRF({ swi, sgr, sweep }) {
+// Pressure maintained (the default, as before RF-U2-010):
+//   RF = Ev (1 - Sgr/Sgi),  Sgi = 1 - Swi
+// the swept volume abandoned at the initial pressure (Bga = Bgi) with Sgr
+// trapped, the unswept volume giving nothing.
+// RF-U2-010, swept volume abandoned at pa (partial pressure maintenance;
+// the volumetric balance of Craft and Hawkins for a water-drive gas
+// reservoir): the gas left is the trapped gas of the swept volume plus the
+// whole gas saturation of the unswept volume, both at Bga:
+//   RF = 1 - (Bgi/Bga) [Ev Sgr/Sgi + (1 - Ev)],  Bgi/Bga = (pa/za)/(pi/zi)
+// It reduces to the maintained form at pa = pi (same z) and to the p/z
+// depletion relation at Ev = 0.
+export const GWD_MODES = Object.freeze(['maintained', 'abandonment']);
+
+export function gasWaterDrive({ swi, sgr, sweep, gwdMode, pi, zi, pa, za } = {}) {
   const _swi = num(swi), _sgr = num(sgr), _sweep = num(sweep);
   if ([_swi, _sgr, _sweep].some((x) => !Number.isFinite(x))) return null;
   if (_swi >= 1) return null;
-  const displaceable = 1 - _sgr / (1 - _swi);
-  const rf = _sweep * displaceable;
-  return finiteOrNull(rf);
+  const sgi = 1 - _swi;
+  const displaceable = 1 - _sgr / sgi;
+  if (gwdMode !== 'abandonment') {
+    const rf = _sweep * displaceable;
+    return { rf: finiteOrNull(rf), mode: 'maintained', sgi, displacement: displaceable, sweep: _sweep, bgiOverBga: 1 };
+  }
+  const _pi = num(pi), _zi = num(zi), _pa = num(pa), _za = num(za);
+  if ([_pi, _zi, _pa, _za].some((x) => !Number.isFinite(x)) || _pi <= 0 || _zi <= 0 || _za <= 0) return null;
+  const ratio = (_pa / _za) / (_pi / _zi); // Bgi/Bga
+  const left = _sweep * (_sgr / sgi) + (1 - _sweep); // fraction of the initial gas volume left in the pore space
+  const rf = 1 - ratio * left;
+  return {
+    rf: finiteOrNull(rf), mode: 'abandonment', sgi, displacement: displaceable, sweep: _sweep, bgiOverBga: ratio,
+    trappedSwept: _sweep * (_sgr / sgi) * ratio, unswept: (1 - _sweep) * ratio,
+  };
+}
+
+export function gasWaterDriveRF(inputs) {
+  return gasWaterDrive(inputs || {})?.rf ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -271,6 +296,7 @@ export const METHOD_BASIS = Object.freeze({
   api_water_drive: 'API (Arps et al. 1967) water drive: a multiple regression on case histories of water-drive sandstone reservoirs; k in darcies; empirical, with wide scatter about the fit.',
   gas_pz: 'p/z depletion: exact for a volumetric (closed, no aquifer) gas reservoir at constant temperature, RF = 1 - (pa/za)/(pi/zi).',
   gas_water_drive: 'Water-drive gas: RF = Ev (1 - Sgr/(1 - Swi)); the swept volume is abandoned at the initial pressure with residual gas Sgr trapped, the unswept volume gives nothing.',
+  gas_water_drive_pa: 'Water-drive gas with the swept volume abandoned at pa: RF = 1 - (Bgi/Bga) [Ev Sgr/Sgi + (1 - Ev)], Bgi/Bga = (pa/za)/(pi/zi); the trapped gas of the swept volume and the gas of the unswept volume are both left at the abandonment pressure.',
 });
 
 /** The drive each correlation was derived for (a mismatch is flagged). */
@@ -309,6 +335,10 @@ export function correlationInputFlags(method, c = {}) {
     for (const k of ['zi', 'za']) if (Number.isFinite(v[k]) && (v[k] < 0.2 || v[k] > 2)) out.push({ key: k, text: `${k} ${v[k]} is outside 0.2 to 2, the span of the Standing-Katz chart.` });
   } else if (method === 'gas_water_drive') {
     need(['swi', 'sgr', 'sweep']);
+    if (c.gwdMode === 'abandonment') {
+      need(['pi', 'zi', 'pa', 'za']);
+      if (Number.isFinite(v.pi) && Number.isFinite(v.pa) && v.pa >= v.pi) out.push({ key: 'pa', text: `Abandonment pressure ${v.pa} psia is not below the initial pressure ${v.pi} psia.` });
+    }
     frac('swi', 'Swi'); frac('sgr', 'Sgr');
     if (Number.isFinite(v.sweep) && !(v.sweep > 0 && v.sweep <= 1)) out.push({ key: 'sweep', text: `Sweep efficiency ${v.sweep} is outside 0 to 1.` });
     if (Number.isFinite(v.sgr) && Number.isFinite(v.swi) && v.sgr >= 1 - v.swi) out.push({ key: 'sgr', text: `Sgr ${v.sgr} is not below the initial gas saturation 1 - Swi = ${+(1 - v.swi).toFixed(4)}.` });
@@ -373,7 +403,8 @@ export function estimateRecovery(state) {
       rf = gasPZDepletionRF(correlationInputs);
       break;
     case 'gas_water_drive':
-      rf = gasWaterDriveRF(correlationInputs);
+      detail = gasWaterDrive(correlationInputs);
+      rf = detail?.rf ?? null;
       warnings.push('Trapped-gas recovery is sensitive to residual gas saturation and sweep efficiency; both are uncertain and field-specific.');
       break;
     case 'analog':

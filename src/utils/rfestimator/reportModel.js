@@ -16,7 +16,7 @@ import { describePvtContract } from '@/lib/inputProvenance/pvtContract';
 import {
   METHOD_BASIS, ANALOG_BAND_SOURCE, API_SOLUTION_GAS, RF_ENGINE_VERSION,
 } from '@/utils/recoveryFactorCalculations';
-import { CORR_FIELDS, VOL_FIELDS_OIL, VOL_FIELDS_GAS, PLAIN_LABELS, methodLabel } from '@/components/rfestimator/rfFields';
+import { corrFieldsFor, VOL_FIELDS_OIL, VOL_FIELDS_GAS, PLAIN_LABELS, methodLabel } from '@/components/rfestimator/rfFields';
 import { rfUnits } from './units.js';
 import { IDENTIFICATION_FIELDS } from './model.js';
 import { rfPvtSourceText } from './pvtIntake.js';
@@ -34,7 +34,7 @@ export const VALIDATION_STATE = Object.freeze({
   api_solution_gas: 'Equation checked as restated with k in darcies (Ahmed, Reservoir Engineering Handbook); a worked value on the sample case is held by a test that calls the engine. No published worked example was available to compare with, and the API D14 data ranges were not available, so no range check against the data set is made.',
   api_water_drive: 'As for the solution-gas correlation: equation checked as restated with k in darcies, worked value held by a test; no published worked example; API D14 data ranges not checked.',
   gas_pz: 'Exact relation; checked against 1 - Bgi/Bga from the canonical fluid engine at constant temperature (agreement to 1e-12).',
-  gas_water_drive: 'Definition checked by volume bookkeeping of the swept and unswept volumes; no published worked example compared.',
+  gas_water_drive: 'Definition checked by volume bookkeeping of the swept and unswept volumes; with the swept volume abandoned at pa (RF-U2-010) the relation is held to reduce exactly to the maintained form at pa = pi and to the p/z depletion relation at Ev = 0. No published worked example compared.',
 });
 
 const text = (v) => (v != null && String(v).trim() !== '' ? String(v).trim() : '');
@@ -51,7 +51,7 @@ const pct = (v, d = 1) => (Number.isFinite(v) ? (v * 100).toFixed(d) : EMPTY_VAL
 export function engineInputOf(inputs) {
   const method = inputs?.method || 'analog';
   const corr = {};
-  for (const [k] of CORR_FIELDS[method] || []) corr[k] = inputs?.corr?.[k];
+  for (const [k] of corrFieldsFor(inputs)) corr[k] = inputs?.corr?.[k];
   const out = { method, driveCode: inputs?.driveCode, correlationInputs: corr };
   // RF-U2-003: z by Dranchuk-Abou-Kassem reads gas gravity, temperature and pi
   if (inputs?.phase === 'gas' && inputs?.zMethod === Z_METHOD_DAK) {
@@ -137,8 +137,8 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
       add(`vol.${k}`, `${PLAIN_LABELS[k]} (volumetrics)`, shown(kind, inputs.vol?.[k]), u.label(kind), srcOf('vol', k, inputs.vol?.[k]), [`vol.${k}`]);
     }
   }
-  const corrKeys = (CORR_FIELDS[method] || []).map(([k]) => k);
-  for (const [k, , kind] of CORR_FIELDS[method] || []) {
+  const corrKeys = corrFieldsFor(inputs).map(([k]) => k);
+  for (const [k, , kind] of corrFieldsFor(inputs)) {
     if ((k === 'zi' || k === 'za') && gz?.ok && used.corr?.[k] != null && (k === 'zi' || gz.za)) {
       add(`corr.${k}`, PLAIN_LABELS[k], shown(kind, used.corr[k]), u.label(kind), zSource(k === 'zi' ? 'z at pi' : 'z at pa'), [`correlationInputs.${k}`]);
       continue;
@@ -213,25 +213,34 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
       ],
       note: 'Volumetric depletion at constant temperature: the gas produced is the fall of p/z along a straight line to the abandonment pressure.',
     };
-  } else if (method === 'gas_water_drive' && Number.isFinite(r.rfRaw)) {
-    const c = inputs.corr || {};
-    const disp = 1 - num(c.sgr) / (1 - num(c.swi));
+  } else if (method === 'gas_water_drive' && Number.isFinite(r.rfRaw) && d) {
+    const rows = [
+      ['Initial gas saturation Sgi = 1 - Swi', g(d.sgi, 5), 'fraction'],
+      ['Displacement efficiency 1 - Sgr/Sgi', g(d.displacement, 5), 'fraction'],
+      ['Volumetric sweep Ev', g(d.sweep, 5), 'fraction'],
+    ];
+    if (d.mode === 'abandonment') {
+      rows.push(
+        ['Bgi/Bga = (pa/za)/(pi/zi)', g(d.bgiOverBga, 6), 'fraction'],
+        ['Trapped gas left in the swept volume, Ev (Sgr/Sgi) Bgi/Bga', g(d.trappedSwept, 5), 'fraction of OGIP'],
+        ['Gas left in the unswept volume, (1 - Ev) Bgi/Bga', g(d.unswept, 5), 'fraction of OGIP'],
+        ['Recovery factor 1 - the two', g(r.rfRaw, 5), 'fraction'],
+      );
+    } else rows.push(['Recovery factor Ev x displacement', g(r.rfRaw, 5), 'fraction']);
     methodSplit = {
       head: ['Step', 'Value', 'Unit'],
-      rows: [
-        ['Initial gas saturation 1 - Swi', g(1 - num(c.swi), 5), 'fraction'],
-        ['Displacement efficiency 1 - Sgr/(1 - Swi)', g(disp, 5), 'fraction'],
-        ['Volumetric sweep Ev', g(num(c.sweep), 5), 'fraction'],
-        ['Recovery factor Ev x displacement', g(r.rfRaw, 5), 'fraction'],
-      ],
-      note: 'The swept volume is abandoned at the initial pressure with Sgr trapped; the unswept volume gives nothing.',
+      rows,
+      note: d.mode === 'abandonment'
+        ? 'The swept volume is abandoned at pa with Sgr trapped and the unswept volume keeps its gas at pa; the parts left and the recovery close on 1.'
+        : 'The swept volume is abandoned at the initial pressure with Sgr trapped; the unswept volume gives nothing.',
     };
   }
 
   // ---- method, basis and validation ---------------------------------------
+  const basisText = method === 'gas_water_drive' && inputs.corr?.gwdMode === 'abandonment' ? METHOD_BASIS.gas_water_drive_pa : METHOD_BASIS[method];
   const methodRows = [
     ['Method', methodLabel(method)],
-    ['What it assumes', METHOD_BASIS[method] || EMPTY_VALUE],
+    ['What it assumes', basisText || EMPTY_VALUE],
     ['Reference', method.startsWith('api_') ? API_SOLUTION_GAS.reference
       : method === 'gas_pz' ? 'Gas material balance for a volumetric reservoir (Craft and Hawkins, Applied Petroleum Reservoir Engineering)'
         : method === 'gas_water_drive' ? 'Trapped gas behind an advancing water front (Craft and Hawkins, Applied Petroleum Reservoir Engineering)'
@@ -282,7 +291,7 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
   // ---- limits and flags (RL9) ----------------------------------------------
   const assumptions = [
     'A screening estimate. It does not replace a reservoir simulation, a decline or material balance forecast, or a reserves study.',
-    METHOD_BASIS[method],
+    basisText,
     'Recovery depends on the development plan, well count, secondary and tertiary recovery and economics; none of these is modelled.',
   ];
   if (method.startsWith('api_')) assumptions.push('The API correlations are empirical fits with wide scatter. The API D14 data ranges were not available in this build, so an input inside the physical domain may still be outside the data the correlation was fitted to.');

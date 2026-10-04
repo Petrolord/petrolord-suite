@@ -42,6 +42,18 @@ export const CORR_FIELDS = {
   ],
 };
 
+/**
+ * The method inputs of a case: CORR_FIELDS of its method, plus pi, zi, pa and
+ * za for a water-drive gas case abandoned at pa (RF-U2-010).
+ */
+export function corrFieldsFor(inputs) {
+  const base = CORR_FIELDS[inputs?.method] || [];
+  if (inputs?.method === 'gas_water_drive' && inputs?.corr?.gwdMode === 'abandonment') {
+    return [...base, ['pi', 'Initial pi', 'pressure'], ['zi', 'zi', 'z'], ['pa', 'Abandon pa', 'pressure'], ['za', 'za', 'z']];
+  }
+  return base;
+}
+
 export const VOL_FIELDS_OIL = [
   ['area', 'Area A', 'area'], ['thickness', 'Net pay h', 'length'], ['phi', 'Porosity φ', 'fraction'],
   ['sw', 'Water sat Sw', 'fraction'], ['ntg', 'Net-to-gross', 'fraction'], ['boi', 'Boi', 'fvfOil'],
