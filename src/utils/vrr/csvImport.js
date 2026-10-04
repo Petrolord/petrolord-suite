@@ -503,6 +503,53 @@ export function parseVrrWellCSV(text, choices = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// Workbooks at the doors (VRR-U2-006)
+// ---------------------------------------------------------------------------
+
+/** One sheet of string cells as tab-separated text for the typed reader (a cell with a tab, quote or line break is quoted). */
+export function sheetText(rows) {
+  return (rows || []).map((r) => (r || []).map((c) => {
+    const v = String(c ?? '');
+    return /["\t\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  }).join('\t')).join('\n');
+}
+
+/**
+ * Try the sheets of a workbook in order until one reads; a delimited file
+ * goes straight to the text door. `loaded` is what readTabularFile
+ * (src/lib/tabularFile.js) gave: {kind: 'delimited', text} or
+ * {kind: 'workbook', sheets: [{name, rows}]}.
+ */
+function readFromLoaded(loaded, readText, okOf, what, choices) {
+  if (loaded?.kind !== 'workbook') return readText(loaded?.text || '', choices);
+  const sheets = loaded.sheets || [];
+  let first = null;
+  for (const sh of sheets) {
+    const res = readText(sheetText(sh.rows), choices);
+    if (!first) first = res;
+    if (okOf(res)) return { ...res, sheet: sh.name, sheets: sheets.map((x) => x.name) };
+  }
+  const looked = sheets.map((x) => x.name).join(', ') || 'none';
+  return { ...(first || {}), ok: false, sheets: sheets.map((x) => x.name), refusal: `No sheet of the workbook holds a ${what} (looked at: ${looked}).` };
+}
+
+/** The ledger door for a text file or a workbook (VRR-U2-006). */
+export function readLedgerFile(loaded, choices = {}) {
+  const res = readFromLoaded(loaded, parseVrrWellCSV, (r) => r.ok, 'per-well ledger', choices);
+  if (res.sheet && res.report) {
+    res.report = { ...res.report, sheet: res.sheet, sheetNote: `Sheet "${res.sheet}" of a workbook of ${res.sheets.length} sheet${res.sheets.length === 1 ? '' : 's'}.` };
+  }
+  if (!res.ok && !res.report) return { ok: false, refusal: res.refusal, rows: [], report: { warnings: [], skipped: [], notUsed: [], readBack: [], totalRows: 0 }, questions: [], columns: [], mapping: {}, units: {}, unitFrom: {} };
+  return res;
+}
+
+/** The pressure door for a text file or a workbook (VRR-U2-006). */
+export function readPressureFile(loaded, choices = {}) {
+  const res = readFromLoaded(loaded, parsePressureCSV, (r) => (r.surveys || []).length > 0, 'pressure survey table', choices);
+  return { surveys: [], questions: [], unit: null, unitFrom: null, ...res, report: res.report || { totalRows: 0, imported: 0, skipped: [], warnings: [], colMap: {} } };
+}
+
+// ---------------------------------------------------------------------------
 // Pressure surveys
 // ---------------------------------------------------------------------------
 

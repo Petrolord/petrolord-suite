@@ -11,8 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useVrrMonitor } from '@/contexts/VrrMonitorContext';
 import { THEMED_TONE } from '@/components/studio/studioTheme';
 import {
-  parseVrrWellCSV, vrrTemplateCSV, DOOR_UNITS, LEDGER_COLUMNS, DAYS_ON_UNITS,
+  parseVrrWellCSV, readLedgerFile, vrrTemplateCSV, DOOR_UNITS, LEDGER_COLUMNS, DAYS_ON_UNITS,
 } from '@/utils/vrr/csvImport';
+import { readTabularFile } from '@/lib/tabularFile';
 import { downloadText } from './download';
 
 const SAMPLE_NOTE = 'The built-in sample ledger of the app (3 months, 2 producers, 2 injectors; the engine test fixture, illustrative volumes).';
@@ -36,27 +37,35 @@ export const importInfoOf = (res, extra = {}) => ({
 
 const ImportPanel = () => {
   const { inputs, isImported, ledgerWells, importWellRows, clearImported, addNotification, u, canWrite } = useVrrMonitor();
-  const [file, setFile] = useState(null); // { name, text }
+  const [file, setFile] = useState(null); // { name, loaded } (VRR-U2-006: a text file or a workbook)
   const [choices, setChoices] = useState({});
-  const res = useMemo(() => (file ? parseVrrWellCSV(file.text, { ...choices, system: u.system }) : null), [file, choices, u.system]);
+  const res = useMemo(() => (file ? readLedgerFile(file.loaded, { ...choices, system: u.system }) : null), [file, choices, u.system]);
 
-  const onDrop = (accepted) => {
+  const onDrop = async (accepted) => {
     const f = accepted?.[0];
     if (!f) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => { setChoices({}); setFile({ name: f.name, text: String(ev.target.result) }); };
-    reader.readAsText(f);
+    try {
+      const loaded = await readTabularFile(f);
+      setChoices({});
+      setFile({ name: f.name, loaded });
+    } catch (e) {
+      addNotification(`${f.name}: ${e.message}`, 'error');
+    }
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { 'text/csv': ['.csv'], 'text/plain': ['.txt', '.tsv', '.dat'] },
+    accept: {
+      'text/csv': ['.csv'], 'text/plain': ['.txt', '.tsv', '.dat', '.prn'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/vnd.ms-excel.sheet.macroEnabled.12': ['.xlsm'], 'application/vnd.ms-excel': ['.xls'],
+    },
     maxFiles: 1,
   });
 
   const accept = () => {
     if (!res?.ok) return;
-    importWellRows(res.rows, file.name, importInfoOf(res));
+    importWellRows(res.rows, res.sheet ? `${file.name}, sheet "${res.sheet}"` : file.name, importInfoOf(res));
     setFile(null);
   };
 
@@ -93,7 +102,7 @@ const ImportPanel = () => {
           <input {...getInputProps()} data-testid="vrr-ledger-file" />
           <Upload className="w-6 h-6 mx-auto text-pl-muted mb-2" />
           <p className="text-sm text-pl-text">
-            Drop a CSV or text table here, or click to browse. One row per well per date (daily or monthly).
+            Drop a CSV, text table or Excel workbook here, or click to browse. One row per well per date (daily or monthly).
           </p>
           <p className="text-xs text-pl-muted mt-1">
             Any separator and decimal mark; columns found by name (date, well, oil, water, gas, water injected, gas
@@ -105,7 +114,7 @@ const ImportPanel = () => {
 
         {res && (
           <div className="rounded-md border border-pl-border p-3 space-y-2 text-xs" data-testid="vrr-import-readback">
-            <div className="font-semibold text-pl-text">Read from {file.name}: {r.totalRows} rows, {r.delimiter} separated, decimal {r.decimal?.mark === ',' ? 'comma' : 'point'}</div>
+            <div className="font-semibold text-pl-text">Read from {file.name}{res.sheet ? `, sheet "${res.sheet}"` : ''}: {r.totalRows} rows{res.sheet ? '' : `, ${r.delimiter} separated`}, decimal {r.decimal?.mark === ',' ? 'comma' : 'point'}</div>
             {res.columns.length > 0 && (
               <table className="w-full">
                 <thead><tr className="text-pl-muted text-left"><th>Field</th><th>Column</th><th>Read as</th><th>Values</th></tr></thead>

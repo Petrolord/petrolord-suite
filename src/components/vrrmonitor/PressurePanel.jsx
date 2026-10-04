@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useVrrMonitor } from '@/contexts/VrrMonitorContext';
 import { THEMED_TONE } from '@/components/studio/studioTheme';
-import { parsePressureCSV, PRESSURE_UNITS } from '@/utils/vrr/csvImport';
+import { readPressureFile, PRESSURE_UNITS } from '@/utils/vrr/csvImport';
+import { readTabularFile } from '@/lib/tabularFile';
 import { FLUID_FIELDS } from '@/utils/vrr/workspace';
 import UnitInput from './UnitInput';
 
@@ -25,20 +26,23 @@ const PressurePanel = () => {
   const fileRef = useRef(null);
   const [door, setDoor] = useState(null); // { name, text, unit, dateOrder }
   const modeBtn = (on) => (on ? 'bg-pl-primary/10 border-pl-primary text-pl-primary-text hover:bg-pl-primary/15' : '');
-  const read = door ? parsePressureCSV(door.text, { unit: door.unit, dateOrder: door.dateOrder, system: u.system }) : null;
+  const read = door ? readPressureFile(door.loaded, { unit: door.unit, dateOrder: door.dateOrder, system: u.system }) : null;
 
-  const onFile = (e) => {
+  const onFile = async (e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setDoor({ name: file.name, text: String(ev.target.result) });
-    reader.readAsText(file);
     e.target.value = '';
+    if (!file) return;
+    // VRR-U2-006: a text file or an Excel workbook through the shared reader
+    try {
+      setDoor({ name: file.name, loaded: await readTabularFile(file) });
+    } catch (err) {
+      addNotification(`${file.name}: ${err.message}`, 'error');
+    }
   };
 
   const acceptDoor = () => {
     if (!read?.surveys.length) return;
-    setPressureSurveys(read.surveys, { file: door.name, column: read.report.colMap.p_psia, unit: read.unit, unitFrom: read.unitFrom, rows: read.surveys.length, skipped: read.report.skipped.length });
+    setPressureSurveys(read.surveys, { file: read.sheet ? `${door.name}, sheet "${read.sheet}"` : door.name, column: read.report.colMap.p_psia, unit: read.unit, unitFrom: read.unitFrom, rows: read.surveys.length, skipped: read.report.skipped.length });
     addNotification(`Loaded ${read.surveys.length} pressure surveys from ${door.name}${read.report.skipped.length ? ` (${read.report.skipped.length} rows left out)` : ''}`, 'success');
     setDoor(null);
   };
@@ -55,7 +59,7 @@ const PressurePanel = () => {
             <Button variant="ghost" size="sm" className="h-7 px-2" onClick={addSurvey} title="Add survey" disabled={!canWrite}>
               <Plus className="w-3.5 h-3.5" />
             </Button>
-            <input ref={fileRef} type="file" accept=".csv,.txt,text/csv" className="hidden" onChange={onFile} data-testid="vrr-pressure-file" />
+            <input ref={fileRef} type="file" accept=".csv,.txt,.tsv,.dat,.prn,.xlsx,.xlsm,.xls,text/csv,text/plain" className="hidden" onChange={onFile} data-testid="vrr-pressure-file" />
           </div>
         </div>
         {read && (
