@@ -77,6 +77,7 @@ after = this branch.
 | WF-U1-023 | S4 | PL11 | The layer table cells take SI thickness only as whole numbers while typing ("2." is dropped in SI); the other inputs keep the draft. | Unit walk. | Open (S, U2-014). |
 | WF-U1-024 | S4 | PL6 | The header truncates the title at 1366 wide ("Waterfloo...") with eight tabs. | Browser walk. | Open (cosmetic; the tab bar scrolls). |
 | WF-U1-025 | S3 | RL7 | The annual CSV for NPV Scenario Builder says production_bbl without the barrel basis. | Gap matrix. | Fixed in the copy: stock-tank barrels whatever the display units (the column name is the receiver's format and stays). |
+| WF-U1-027 | S3 | RL11 | The new PVT intake had no sender in Fluid Systems Studio (the RL11 static guard caught the new reader on CI). | CI jest shard 3 on PR #873. | Fixed: "Send to Waterflood Design Studio" in Fluid's Integration Suite (saved projects only, opens the Pattern tab with the project named); the guard lists the reader. |
 | WF-U1-026 | S3 | RL11 | The Well Test permeability intake showed its source in a toast and kept nothing. | Gap matrix; code. | Fixed: the intake record is kept and printed, with "edited after the intake"; method and interval are not in the handoff (the sender's round). |
 
 ## 3. Step 2 analysis

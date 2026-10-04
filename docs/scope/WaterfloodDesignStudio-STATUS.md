@@ -165,7 +165,7 @@ the negative control.
 
 Doc: `docs/upgrade/WaterfloodDesignStudio-UPGRADE.md` (branch
 `feat/waterflood-u1`; engines PR #304, not merged, vendored as recorded
-deviations). 26 findings, 21 fixed, 5 open (S3 and S4, carried to Step 2).
+deviations). 27 findings, 22 fixed, 5 open (S3 and S4, carried to Step 2).
 
 - **Numbers that move.** The five-spot areal sweep correlation is entered
   with Craig's mobility ratio (krw at the average Sw behind the front) for

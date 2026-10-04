@@ -48,6 +48,8 @@ const fmt = (v, d = 0) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Numb
 const ROUTES = {
   lineSizing: ['/dashboard/apps/facilities/facility-network-hydraulics', '/dev/facilities/pipeline'],
   wellTest: ['/dashboard/apps/reservoir/well-test-analysis-studio', '/dev/well-test-analysis-studio'],
+  // WF-U1: Waterflood Design Studio reads the saved block by id on its Pattern tab
+  waterflood: ['/dashboard/apps/reservoir/waterflood-design-studio', '/dev/studio/waterflood'],
 };
 
 // Facilities F1: the hand-off returns, pointing at the Pipeline & Line
@@ -64,10 +66,10 @@ const IntegrationSuite = ({ backbone, projectId, onBeforeSend }) => {
   const ready = backbone
     && ['oil_gravity', 'gas_gravity', 'inlet_temperature'].some((k) => Number.isFinite(backbone[k]));
 
-  const send = async (route) => {
+  const send = async (route, extra = '') => {
     if (onBeforeSend) await onBeforeSend();
     const base = ROUTES[route][inHarness ? 1 : 0];
-    const to = projectId ? `${base}?${PVT_PROJECT_PARAM}=${encodeURIComponent(projectId)}` : base;
+    const to = projectId ? `${base}?${PVT_PROJECT_PARAM}=${encodeURIComponent(projectId)}${extra}` : base;
     navigate(to, { state: { fluidStudioData: backbone } });
   };
 
@@ -77,6 +79,8 @@ const IntegrationSuite = ({ backbone, projectId, onBeforeSend }) => {
   // with the method that produced each one named.
   const wellTestReady = backbone && Number.isFinite(backbone.bo_at_pb) && Number.isFinite(backbone.mu_o_at_pb);
   const sendToWellTest = () => { if (wellTestReady) send('wellTest'); };
+  // Waterflood takes viscosities and FVFs from the saved table at a pressure it states, so it needs the project id
+  const sendToWaterflood = () => { if (projectId) send('waterflood', '&tab=pattern'); };
 
   return (
     <Card className="mt-6" data-testid="fluid-integration">
@@ -99,6 +103,9 @@ const IntegrationSuite = ({ backbone, projectId, onBeforeSend }) => {
           </Button>
           <Button onClick={sendToWellTest} disabled={!wellTestReady} variant="outline" className="flex-1 disabled:opacity-40">
             <Zap className="w-4 h-4 mr-2" /> Send to Well Test Analysis Studio
+          </Button>
+          <Button onClick={sendToWaterflood} disabled={!projectId} variant="outline" className="flex-1 disabled:opacity-40" title={projectId ? undefined : 'Save the fluid as a project first: Waterflood reads it by id'} data-testid="fluid-send-waterflood">
+            <Zap className="w-4 h-4 mr-2" /> Send to Waterflood Design Studio
           </Button>
         </div>
       </CardContent>
