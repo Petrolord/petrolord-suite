@@ -35,6 +35,7 @@ is analysis only; the programme lead chooses the batches.
 | `pvt-1` intake | `vrrPvtIntake.test.js` (11) | Bg RB/scf x 1,000; values at the bubble point; no extrapolation; per-period FVFs from the table; the intake card states |
 | Material Balance contract | `vrrMbalContract.test.js` (6) | Material Balance's own `vrrSurveys` and `takeSurveys` on a VRR payload typed in SI; an old payload; `.pld` and sharing membership |
 | The report | `vrrReport.test.jsx` (30) on `vrrTestKit.js` | Five goldens (`__fixtures__/reportGolden/`), RL1 completeness guard with negative control, RL2 ledger closure, RL4 header, RL6 captions, ink, marks and point counts against the screen series, RL7 SI known values, RL8 edited after intake, RL9 limits and a withheld VRR, RL11 the block, RL12 the CSV |
+| `.pld` | `src/lib/portability/__tests__/vrrPortability.test.js` (1) | A project with a `pvt-1` intake round-trips; the Fluid project id is cleared, never dangling |
 | Sharing | `src/contexts/__tests__/vrrSharing.test.jsx` (5) | Own and shared lists, view only, check-out, newer save refused, Save a copy, before the migration |
 | Browser | `e2e/vrr-upgrade.spec.js` (10) | Three viewports in both themes, the PDF and the CSV downloaded and read back, the hostile files through the door, the `pvt-1` chain from a Fluid project saved in the same tab, SI typing key by key |
 
@@ -49,7 +50,7 @@ reading) or, for PL checks, the state found here.
 | PL2 Hostile files | Pa | P | 001 to 007 | Eight ledger and three pressure files read to their twins or ask. |
 | PL3 Units, datums, frames | F | P | 002, 006, 013, 015 | Oilfield only before; no datum; psig and kPa read as psia. |
 | PL4 No claim without the event | Pa | P | 016, 017, 028 | The track used silent default fluids; a 0 band became 1.0; the help described the old door. |
-| PL5 Real saved state | Pa | P | 012 | Old payloads open (jest); record sharing adopted; `.pld` family present. |
+| PL5 Real saved state | Pa | P | 012, 029 | Old payloads open (jest); record sharing adopted; `.pld` round trip with the intake (jest). |
 | PL6 Real browser | P | P | 022 | Three viewports, both themes, white charts with the mark, no sideways scroll, no page errors. Title truncates beside the unit switch (kept). |
 | PL7 Report a reviewer can sign | F | P | 010 | See RL1 to RL12. |
 | PL8 Practitioner's day | gaps | gaps recorded | Step 2 | Persona walk below. |
@@ -122,8 +123,9 @@ that misleads; S3 workflow gap or misleading text; S4 polish.
 | VRR-U1-026 | S3 | RL11 | The app sends nothing: its VRR series, ledger and pressure reach Material Balance only as the pressure rows Material Balance reads. | Code. | Open: U2-005. |
 | VRR-U1-027 | S3 | PL9 | The Material Balance reader is pinned only by its own module; nothing in VRR guarded the shape it reads. | Code. | Fixed: `vrrMbalContract.test.js` calls Material Balance's reader on VRR payloads. |
 | VRR-U1-028 | S4 | PL4 | The help guide described the old doors (exact-header grid, "units auto-scale", day-first guess). | Read. | Fixed: guide rewritten (projects and sharing, FVF sources, the Fluid table, units, the import door, the Report tab, limits). |
+| VRR-U1-029 | S3 | PL5, RL12 | A project that took a `pvt-1` table could not be exported in `.pld`: the intake names the Fluid project by id, and the package refused the reference it did not carry ("Nothing was written"). Found after merging WF-U1, which fixed the same for Waterflood and SCAL. | `src/lib/portability/__tests__/vrrPortability.test.js`, failing first. | Fixed: `saved_vrr_projects` declares the intake ids as optional references (`INTAKE_SOFT_REFS`); exported alone they are cleared and the card says the source cannot be read again. |
 
-Totals: 28 findings (2 S1, 6 S2, 14 S3, 6 S4). Fixed 23: both S1 (001, 003), all six S2 (002, 004, 006, 008, 009, 010), eleven S3 (005, 007, 011 to 016, 019, 020, 027) and four S4 (017, 018, 021, 028). Kept and stated 4 (024, 025 S3; 022, 023 S4). Open 1 (026 S3, Step 2 U2-001). No S1 or S2 is open.
+Totals: 29 findings (2 S1, 6 S2, 15 S3, 6 S4). Fixed 24: both S1 (001, 003), all six S2 (002, 004, 006, 008, 009, 010), twelve S3 (005, 007, 011 to 016, 019, 020, 027, 029) and four S4 (017, 018, 021, 028). Kept and stated 4 (024, 025 S3; 022, 023 S4). Open 1 (026 S3, Step 2 U2-001). No S1 or S2 is open.
 
 ### Numbers that change
 
