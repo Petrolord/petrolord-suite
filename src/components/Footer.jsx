@@ -44,7 +44,7 @@ const Footer = () => {
                                 <img className="block h-7 w-auto max-w-full" alt="Petrolord Suite" width="1041" height="108" src={WORDMARK} />
                             </Link>
                             <p className="mb-4">Engineering software for the whole energy asset.</p>
-                            <p className="text-sm text-pl-muted max-w-sm">From subsurface to sales on one platform. A Lordsway Energy company.</p>
+                            <p className="text-sm text-pl-muted max-w-sm">From subsurface to sales on one platform. A <a href="https://lordswayenergy.com">Lordsway Energy</a> company.</p>
                         </div>
 
                         <div>
