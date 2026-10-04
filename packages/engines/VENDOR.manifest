@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit dc614f1314f57d062eb96aaffcffb6e7bdd1b370
+# commit da4f91f7fb8657cfde5d800f09889b1f508bdbc4
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 80b08bf546799e96d5448d67c63c98f2ec1b9703 README.md
@@ -142,6 +142,7 @@ d3b4c56d74031a4ab9d2900ee6a2327dc83c45d3 __tests__/hse.exposure.test.js
 a46150ed760bc35823154ef53bc33dbcd725db96 __tests__/mapping.structurepoints.test.js
 b49f1bf2a40b079b94284e7867cf4567224898ad __tests__/mapping.t1.test.js
 99867728c424fb33ebb4623e8fcbc5affc24a595 __tests__/mapping.u2.test.js
+e02b5c49b895e595c76d48d1f4a76855913d71d0 __tests__/mbal.carterTracyPD.test.ts
 66917aa10462c0197fc48e7c020bb24f62119186 __tests__/mbal.test.ts
 29da21629fec6f7e16f2285ce8d31c629192ea4f __tests__/mbalInjection.test.ts
 2c42cf594e3e98a5df4bbc5e1e4b5cb1c55f6380 __tests__/petrophysics.conditioning.test.js
@@ -209,6 +210,7 @@ bfbf553fdf6db8892a4df9b27b82f23a3526e9b0 __tests__/seismolordSegyFixture.js
 2a86b019108a1ff5cf80f100b4bc62ef3a97b87e __tests__/sim.deckgen.test.js
 07c7b1702ac088f849737b8e32982b0254264f6d __tests__/sim.ekene.test.js
 8744cbc68e9efcf7b98edbef034c245f36a64991 __tests__/sim.s4.test.js
+75644dc4c7af524c16d2c9d6c76a8bdd8bb70c2b __tests__/sim.u2.test.js
 587f776600152336594cae71c220d5dbd016764f __tests__/smoke.test.js
 dbfd55a425be27e98ec7098ceb5ce167b8e3b125 __tests__/stats.fitNotePercentileWords.test.js
 64a7c1f655884e2b4c9ec632520ffd29bc031652 __tests__/stats.test.js
@@ -257,7 +259,8 @@ b8fede0736728d07204786dc53b744d724f29de2 __tests__/wellsite.reports.test.js
 2669e6bbbd7eb717060c2d138c2f55fb7ee25b49 __tests__/wellsite.tops.test.js
 2b1081b6cdd59089b91c28653cc88ecf466d9c3d __tests__/welltest.analysis.test.js
 97b3aee776a254cc46c8d0184c79f6fa15720e24 __tests__/welltest.autoFit.test.js
-3aa318fde919f83d20cf0aaf190fb486b5c4c049 __tests__/welltest.derivative.test.js
+509d9b8212200ea02910df4674e74ac452a0b441 __tests__/welltest.derivative.test.js
+b247d464584c13c2dbf6d59e617e5f9795944925 __tests__/welltest.gasZMethod.test.js
 e1027795d48f6f39090800c00228530559fed9e9 __tests__/welltest.goldens.test.js
 eca686c75f479ef7fac94e69cb6fab72ed7ef5f7 __tests__/welltest.homogeneousModel.test.js
 da62854815fff3fbbdcbd55fd292ab83f2d0fcd5 __tests__/welltest.lmFit.test.js
@@ -265,6 +268,7 @@ da62854815fff3fbbdcbd55fd292ab83f2d0fcd5 __tests__/welltest.lmFit.test.js
 c910d26933130ca5361024ec554e664f232ffedd __tests__/welltest.partialPenetration.test.js
 c896ecd65563b9c47800254678ce2bfb1cecb4be __tests__/welltest.reportInputs.test.js
 1eb2ab5767122dacd90370c5c900720753441435 __tests__/welltest.superposition.test.js
+139cf0e010feed914f441b7713f0b12f308abd4a __tests__/welltest.unitsKnownValues.test.js
 ea505fd3053c92d5872880b5392d164bcbf91960 __tests__/welltest.wt3Models.test.js
 8127506003855d782ac6e4a05001feebc6920d0d __tests__/welltest.wt6Rectangle.test.js
 3e09b03aa74efb8fac98150b55a0ce0fbdb9807f __tests__/welltest.wt7Horizontal.test.js
@@ -418,7 +422,7 @@ f6010f0bd39e1c4ba656c2a699c3b4ab8f3839ed engines/hse/qra.js
 f3bfa281ed8307b01dd26edf8b53e5257f1d1334 engines/mapping/surface.js
 e422cef84447559827d7755a133f25e3ceba1772 engines/mapping/wellTie.js
 ef516365f4b51788d50a5d47a220329d3e545696 engines/mbal/lm.ts
-7cd3af8626f4805307a56d63237291cc7237edfa engines/mbal/mbalEngine.ts
+07e55d373e02173d3c624fa590e27dc4e597d0d0 engines/mbal/mbalEngine.ts
 4321540b4db8db1dd76dc2c88551aeef47bd6452 engines/petrophysics/conditioning.js
 1bb63a55f341a5cfaabed4e8a8ef1b8466086f42 engines/petrophysics/crossplot.js
 9b271da64524654de29b7c91d41aac458ca2928d engines/petrophysics/digitizer.js
@@ -536,12 +540,13 @@ a262e4b617960c913d5777fc1b1613e56e10af5f engines/seismolord/volumeJob.js
 f924511b2b7bbd9126412ff6b0553b035a643db8 engines/seismolord/wellPath.js
 0d1e8c5a0370d977250f355b3167734c8da6ec1f engines/seismolord/wellSection.js
 52883680abe22b6d6a2e690560f8b4beca69a882 engines/seismolord/wellTie.js
-f053e99f07d124cc12c46f45d71cbfdd497651c6 engines/sim/composeDeck.js
+aafbc202635f2721c32b5f192253b3c471b6c9e5 engines/sim/composeDeck.js
 18293322bc032451a88d14ff491f3eebc030de5f engines/sim/deckFormat.js
+8023537c89dc12690f249ebe48594b7c6fcfa735 engines/sim/emitAquifer.js
 bb2aa0b995af2345d489d453edd94cd624bc7711 engines/sim/emitGrid.js
 3d5e3ec5bcf6c7cec59b794b53171046502768ca engines/sim/emitPvt.js
-ae2997422d6dd9264b629bbae1d8713a5fc0ad27 engines/sim/emitSatFns.js
-ba97020050ce5a4ba304708ae1bed1e65b13ccda engines/sim/emitSchedule.js
+4d38f4418a690014a8a40218742200c2835689eb engines/sim/emitSatFns.js
+5623b359759b73af9ae69d477b81c67cf874ddf6 engines/sim/emitSchedule.js
 764cfc13c5590c212ccb71a0aea09aa1eefb7a6b engines/sim/referenceSpec.js
 8fdeb24c76947ea7315e3d7f5e8fdad32a41d821 engines/sim/wellPath.js
 5483ba4918bbb7afb0086337e8f5aab1a42a73a5 engines/stratigraphy/ageDepth.js
@@ -587,9 +592,9 @@ c0c00b28c4102b2d6a549c080d02ebc90b177bf6 engines/wellsite/time.js
 2560c225a3068ec34ce86dcef120be61eb75a745 engines/welltest/analysis.js
 701d4072a2dc4822de148d41825bba8c262f5f7f engines/welltest/autoFit.js
 b905674c40d68d87bf34d32a8bdcbfc7636fcb59 engines/welltest/compressibility.js
-b0c8522fc3f09400744cdae37b0dd9558855fe29 engines/welltest/derivative.js
+372a51650943b72c82bfe226b07a7d777b223846 engines/welltest/derivative.js
 a89c9100cecef39b05f485a36b6e26432975e82b engines/welltest/flowSummary.js
-cef28dc91226b6cbb9e8b7a249f7b8dd85b10d72 engines/welltest/gas.js
+7a94a1687046ad7288ac241b0f185d9af1861b53 engines/welltest/gas.js
 62b2e0cf1dabd1979af499734d3c211032b63a0f engines/welltest/lmFit.js
 f2adf90723625d1d318adccb6cfbd31ca45fb862 engines/welltest/models/dualPorosity.js
 07990f09334c25e8d8a725de555c11bbdfd9baa2 engines/welltest/models/fracture.js
@@ -602,7 +607,7 @@ f8c42e9dd370a4f5b77747c39e60a47901aecb84 engines/welltest/models/modelCatalog.js
 ab64f0b8b4f5bc37bbf437bc72f4c8c9779d7051 engines/welltest/partialPenetration.js
 30557794f13777eca3d0e43aa21a23830266f6f7 engines/welltest/rta.js
 4865c684bb3a50f6558579d0d1034867261a7040 engines/welltest/superposition.js
-158a024ccb9282f0f4af7fe896e67ecb36e0f8b4 engines/welltest/units.js
+375b14420d11781573bf65dc8237174ae3aef8b7 engines/welltest/units.js
 9dfa415b1e49ee63e4ab5f1c0b0aeafec4c0fe13 jest.config.cjs
 73693376b4fe6d48ddb76cf1dfeba7002d683037 lib/conventions/percentile.js
 8f605dac6b96b3efa40457b7e80f03e9fcff1112 lib/crs/affineReproject.js

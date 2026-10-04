@@ -37,8 +37,8 @@ import {
 } from '@/utils/dataAi/faciesData';
 
 /** The engine build the studio runs: petrolord-engines at the VENDOR.json pin. */
-export const ENGINE_VERSION = 'petrolord-engines dc614f1 (engines/dataai/cluster.js, PR #253 and PR #254; unchanged since ef4058f)';
-export const ENGINE_COMMIT = 'dc614f1314f57d062eb96aaffcffb6e7bdd1b370';
+export const ENGINE_VERSION = 'petrolord-engines da4f91f (engines/dataai/cluster.js, PR #253 and PR #254; unchanged since ef4058f)';
+export const ENGINE_COMMIT = 'da4f91f7fb8657cfde5d800f09889b1f508bdbc4';
 
 export const DEFAULT_SEED = 42;
 export const KNN_MAX_PAIRS = C.DEFAULTS.KNN_MAX_PAIRS;
