@@ -8,7 +8,7 @@ Analyst                     n/a                                                D
 Fluid                       Gas                                                Analysis type          Recovery factor screening: p/z depletion
                                                                                                       (exact)
 Case data                   Entered by the user                                Software build         Petrolord Suite test (fixture)
-Engine                      rf-2 (2026-10, RF-U1)                              Display units          SI
+Engine                      rf-3 (2026-10, RF-U2)                              Display units          SI
 Generated                   2026-10-04 09:00 UTC
 
 

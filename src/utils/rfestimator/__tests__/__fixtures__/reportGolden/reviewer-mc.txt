@@ -8,7 +8,7 @@ Analyst                 A. Engineer                                            D
 Fluid                   Oil                                                    Analysis type          Recovery factor screening: API (1967):
                                                                                                       water drive
 Case data               Entered by the user                                    Software build         Petrolord Suite test (fixture)
-Engine                  rf-2 (2026-10, RF-U1)                                  Display units          Oilfield
+Engine                  rf-3 (2026-10, RF-U2)                                  Display units          Oilfield
 Generated               2026-10-04 09:00 UTC
 
 

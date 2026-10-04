@@ -70,12 +70,13 @@ export function stateOf(payload) {
     payload: p,
     state: {
       inputs,
-      derived: deriveRf(inputs, { inPlaceIntake: p.inPlaceIntake || null, pvtIntake: p.pvtIntake || null }),
+      derived: deriveRf(inputs, { inPlaceIntake: p.inPlaceIntake || null, pvtIntake: p.pvtIntake || null, krIntake: p.krIntake || null }),
       identification: p.identification || {},
       inputMeta: p.inputMeta || {},
       pvtIntake: p.pvtIntake || null,
       inPlaceIntake: p.inPlaceIntake || null,
       dcaCheck: p.dcaCheck || null,
+      krIntake: p.krIntake || null,
       migration: p.migratedFrom ? { from: p.migratedFrom, note: p.apiBasisNote || null } : null,
     },
   };

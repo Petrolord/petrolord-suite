@@ -12,7 +12,7 @@ describe('the reviewer case (API water drive, PVT from a Fluid project)', () => 
   afterAll(() => pdf.close && pdf.close());
 
   it('RL4: identification, units, build, engine', () => {
-    for (const s of ['Recovery Factor Report', 'Ekene Energy', 'OML 999', 'E-2000 sand', 'E-1, E-2, E-3', 'A. Engineer', '2026-09-30', 'Petrolord Suite test (fixture)', 'rf-2 (2026-10, RF-U1)', 'Entered by the user']) expect(text).toContain(s);
+    for (const s of ['Recovery Factor Report', 'Ekene Energy', 'OML 999', 'E-2000 sand', 'E-1, E-2, E-3', 'A. Engineer', '2026-09-30', 'Petrolord Suite test (fixture)', 'rf-3 (2026-10, RF-U2)', 'Entered by the user']) expect(text).toContain(s);
     expect(text).toMatch(/Analysis type Recovery factor screening: API \(1967\): water drive/);
   });
 

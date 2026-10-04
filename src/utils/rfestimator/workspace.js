@@ -56,7 +56,7 @@ export function inPlaceParts(vol, phase) {
  * @param {object} inputs the stored inputs (strings, oilfield units)
  * @param {{inPlaceIntake?: ?object, pvtIntake?: ?object}} [extra]
  */
-export function deriveRf(typed, { inPlaceIntake = null, pvtIntake = null } = {}) {
+export function deriveRf(typed, { inPlaceIntake = null, pvtIntake = null, krIntake = null } = {}) {
   // RF-U2-003: a gas case on Dranchuk-Abou-Kassem reads zi, za and Bgi from the
   // canonical engines; every engine call below takes the inputs as used
   const gasZ = rfGasZ(typed);
@@ -74,6 +74,8 @@ export function deriveRf(typed, { inPlaceIntake = null, pvtIntake = null } = {})
   }
   const result = estimateRecovery({
     method: inputs?.method, driveCode: inputs?.driveCode, ooip: inPlace, correlationInputs: inputs?.corr,
+    // RF-U2-009: the oil-water Corey set of a SCAL project (kr-1)
+    kr: krIntake?.params || null,
   });
   const volFlags = direct ? [] : volumetricInputFlags(inputs?.vol, phase).map((f) => ({ ...f, scope: 'volumetric' }));
   if (direct && inPlace == null) volFlags.push({ key: 'ooipDirect', scope: 'volumetric', text: `${phase === 'gas' ? 'OGIP' : 'OOIP'} is blank, zero or not a number, so no reserves are computed.` });
@@ -104,6 +106,11 @@ export function deriveRf(typed, { inPlaceIntake = null, pvtIntake = null } = {})
         consistency.push({ key: k, scope: 'intake', text: `The PVT values were read from the Fluid table at ${k} ${at} psia, and ${k} is now ${now} psia. Take the PVT again.` });
       }
     }
+  }
+  // RF-U2-009: the kr-1 set's Swc against the case's water saturation
+  if (inputs?.method === 'displacement_sweep' && krIntake?.params && !direct) {
+    const swc = Number(krIntake.params.Swc); const sw = num(inputs?.vol?.sw);
+    if (Number.isFinite(swc) && Number.isFinite(sw) && Math.abs(swc - sw) > 0.005) consistency.push({ key: 'kr', scope: 'consistency', text: `The kr-1 set starts the flood at Swc ${swc} and the volumetric water saturation is ${sw}: the displacement efficiency is for a flood from Swc.` });
   }
   const flags = [...volFlags, ...(result.flags || []), ...consistency, ...(gasZ?.flags || [])];
   // RF-U2-002: RF x in-place through the canonical Monte Carlo, seeded (null when off)

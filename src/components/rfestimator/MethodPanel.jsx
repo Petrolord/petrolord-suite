@@ -12,6 +12,7 @@ import { LINKED_KEYS } from '@/utils/rfestimator/model';
 import RfField from './RfField';
 import PvtPanel from './PvtPanel';
 import GasZPanel from './GasZPanel';
+import KrPanel from './KrPanel';
 import { Z_METHOD_DAK } from '@/utils/rfestimator/gasZ';
 
 const MethodPanel = () => {
@@ -80,6 +81,7 @@ const MethodPanel = () => {
         </div>
       )}
       <GasZPanel />
+      <KrPanel />
       {hasLinkable && linkable && (
         <label className="flex items-start gap-2 text-[11px] text-pl-text" data-testid="rf-linked">
           <input type="checkbox" className="mt-0.5" checked={!!inputs.linked} onChange={(e) => setLinked(e.target.checked)} data-testid="rf-linked-box" />

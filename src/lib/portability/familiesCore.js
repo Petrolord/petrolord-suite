@@ -89,6 +89,8 @@ export const INTAKE_SOFT_REFS = Object.freeze({
     { path: 'inputs_data.rf.project.id', table: 'saved_rf_projects', optional: true },
     // RF-U2-014: the Decline Curve Analysis projects of the EUR cross-check (dca-forecast-1)
     { path: 'inputs_data.dcaCheck.projectIds[]', table: 'saved_dca_projects', optional: true },
+    // RF-U2-009: the SCAL project of the kr-1 set
+    { path: 'inputs_data.krIntake.recordId', table: 'saved_scal_projects', optional: true },
   ],
   // RF-U2-001: the Recovery Factor project a ReservoirCalc Pro recovery factor was taken from (rf-1)
   saved_quickvol_projects: [

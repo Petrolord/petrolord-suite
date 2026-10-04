@@ -31,7 +31,9 @@
 // flags inputs outside the physical domain of each method and estimates
 // outside the analog band (rfFlags).
 
-export const RF_ENGINE_VERSION = 'rf-2 (2026-10, RF-U1)';
+import { welgeTangent, recoveryProfile } from '../../packages/engines/engines/scal/fractionalFlow.js';
+
+export const RF_ENGINE_VERSION = 'rf-3 (2026-10, RF-U2)';
 
 /** The API (1967) correlations take permeability in darcies; the app types md. */
 export const MD_PER_DARCY = 1000;
@@ -255,6 +257,56 @@ export function gasWaterDriveRF(inputs) {
   return gasWaterDrive(inputs || {})?.rf ?? null;
 }
 
+// 2e. Displacement x sweep (RF-U2-009)
+// RF = ED x Ev. ED is the Buckley-Leverett displacement efficiency of the
+// kr-1 oil-water Corey set of a SCAL Studio project, by the Welge
+// construction of the canonical engine (packages/engines/engines/scal/
+// fractionalFlow.js: welgeTangent, recoveryProfile; Dake ch. 10, Willhite
+// ch. 3), at a stated number of movable-pore-volume injections Qi (pore
+// volumes of water injected) or at the end point; horizontal, capillary
+// pressure neglected, Bo the same at the start and the end (pressure
+// maintained), the flood starting at Swc. Ev (= EA x EI) is a stated input.
+//   before breakthrough  ED = Qi / (1 - Swc)
+//   after                ED = (SwAvg(Qi) - Swc)/(1 - Swc), interpolated in Qi on the engine's profile
+//   ultimate             EDmax = (1 - Swc - Sor)/(1 - Swc)
+export function displacementSweep({ kr, muoi, muwi, sweep, qiPv }) {
+  const p = kr && typeof kr === 'object' ? kr : null;
+  const muO = num(muoi), muW = num(muwi), ev = num(sweep), qi = num(qiPv);
+  if (!p || ['Swc', 'Sor', 'krwMax', 'kroMax', 'nw', 'no'].some((k) => !Number.isFinite(num(p[k])))) return null;
+  if (!(muO > 0) || !(muW > 0) || !Number.isFinite(ev)) return null;
+  const P = { Swc: num(p.Swc), Sor: num(p.Sor), krwMax: num(p.krwMax), kroMax: num(p.kroMax), nw: num(p.nw), no: num(p.no) };
+  if (!(1 - P.Swc - P.Sor > 0)) return null;
+  const bl = welgeTangent(P, muW, muO);
+  const profile = recoveryProfile(P, muW, muO, bl, 200);
+  let ed;
+  let at;
+  if (!Number.isFinite(qi)) { ed = bl.EDmax; at = 'end point'; } else if (bl.QiBt != null && qi <= bl.QiBt) { ed = qi / (1 - P.Swc); at = 'before breakthrough'; } else {
+    const pts = profile.filter((x) => Number.isFinite(x.Qi) && Number.isFinite(x.ED)).sort((a, b) => a.Qi - b.Qi);
+    const last = pts[pts.length - 1];
+    if (!last || qi >= last.Qi) { ed = last ? last.ED : bl.EDmax; at = 'beyond the last profile point'; } else {
+      let i = 1;
+      while (i < pts.length && pts[i].Qi < qi) i += 1;
+      const a = pts[i - 1]; const b = pts[i];
+      ed = a.ED + ((qi - a.Qi) * (b.ED - a.ED)) / (b.Qi - a.Qi);
+      at = 'after breakthrough';
+    }
+  }
+  const rf = ed * ev;
+  return {
+    rf: finiteOrNull(rf), ed, ev, qi: Number.isFinite(qi) ? qi : null, at,
+    edBt: bl.EDbt, edMax: bl.EDmax, qiBt: bl.QiBt, swf: bl.Swf, mobilityRatio: (P.krwMax / muW) / (P.kroMax / muO), kr: P,
+  };
+}
+
+/** ED against pore volumes injected for the displacement x sweep figure: (0, 0) to breakthrough, then the engine's profile. */
+export function displacementProfile({ kr, muoi, muwi }) {
+  const d = displacementSweep({ kr, muoi, muwi, sweep: 1, qiPv: '' });
+  if (!d) return [];
+  const bl = welgeTangent(d.kr, num(muwi), num(muoi));
+  const prof = recoveryProfile(d.kr, num(muwi), num(muoi), bl, 200).filter((x) => Number.isFinite(x.Qi) && Number.isFinite(x.ED));
+  return [[0, 0], ...prof.map((x) => [x.Qi, x.ED])];
+}
+
 // ---------------------------------------------------------------------------
 // 3. Volumetric hydrocarbon-in-place helpers
 // ---------------------------------------------------------------------------
@@ -296,6 +348,7 @@ export const METHOD_BASIS = Object.freeze({
   api_water_drive: 'API (Arps et al. 1967) water drive: a multiple regression on case histories of water-drive sandstone reservoirs; k in darcies; empirical, with wide scatter about the fit.',
   gas_pz: 'p/z depletion: exact for a volumetric (closed, no aquifer) gas reservoir at constant temperature, RF = 1 - (pa/za)/(pi/zi).',
   gas_water_drive: 'Water-drive gas: RF = Ev (1 - Sgr/(1 - Swi)); the swept volume is abandoned at the initial pressure with residual gas Sgr trapped, the unswept volume gives nothing.',
+  displacement_sweep: 'Displacement x sweep: RF = ED x Ev; ED from the kr-1 oil-water set of a SCAL project by the Welge construction of the canonical engine at the stated pore volumes injected (horizontal, no capillary pressure, Bo unchanged, the flood starting at Swc); Ev = EA x EI stated.',
   gas_water_drive_pa: 'Water-drive gas with the swept volume abandoned at pa: RF = 1 - (Bgi/Bga) [Ev Sgr/Sgi + (1 - Ev)], Bgi/Bga = (pa/za)/(pi/zi); the trapped gas of the swept volume and the gas of the unswept volume are both left at the abandonment pressure.',
 });
 
@@ -305,6 +358,7 @@ const METHOD_DRIVES = Object.freeze({
   api_water_drive: ['water_drive'],
   gas_pz: ['gas_volumetric'],
   gas_water_drive: ['gas_water_drive'],
+  displacement_sweep: ['water_drive'],
 });
 
 const inOpen01 = (v) => Number.isFinite(v) && v > 0 && v < 1;
@@ -333,6 +387,10 @@ export function correlationInputFlags(method, c = {}) {
     need(['pi', 'zi', 'pa', 'za']);
     if (Number.isFinite(v.pi) && Number.isFinite(v.pa) && v.pa >= v.pi) out.push({ key: 'pa', text: `Abandonment pressure ${v.pa} psia is not below the initial pressure ${v.pi} psia.` });
     for (const k of ['zi', 'za']) if (Number.isFinite(v[k]) && (v[k] < 0.2 || v[k] > 2)) out.push({ key: k, text: `${k} ${v[k]} is outside 0.2 to 2, the span of the Standing-Katz chart.` });
+  } else if (method === 'displacement_sweep') {
+    need(['muoi', 'muwi', 'sweep']);
+    if (Number.isFinite(v.sweep) && !(v.sweep > 0 && v.sweep <= 1)) out.push({ key: 'sweep', text: `Sweep efficiency ${v.sweep} is outside 0 to 1.` });
+    if (Number.isFinite(v.qiPv) && !(v.qiPv > 0)) out.push({ key: 'qiPv', text: `Pore volumes injected ${v.qiPv} is not above zero.` });
   } else if (method === 'gas_water_drive') {
     need(['swi', 'sgr', 'sweep']);
     if (c.gwdMode === 'abandonment') {
@@ -378,6 +436,7 @@ export function volumetricInputFlags(vol = {}, phase = 'oil') {
 export function estimateRecovery(state) {
   const { method = 'analog', driveCode, ooip, correlationInputs = {} } = state || {};
   const warnings = [];
+  if (method === 'displacement_sweep' && !state?.kr) warnings.push('No kr-1 set is taken: take the oil-water relative permeability of a SCAL Studio project.');
   const ip = num(ooip);
   const analog = getDriveMechanism(driveCode);
   const phase = analog?.phase
@@ -406,6 +465,11 @@ export function estimateRecovery(state) {
       detail = gasWaterDrive(correlationInputs);
       rf = detail?.rf ?? null;
       warnings.push('Trapped-gas recovery is sensitive to residual gas saturation and sweep efficiency; both are uncertain and field-specific.');
+      break;
+    case 'displacement_sweep':
+      detail = displacementSweep({ ...correlationInputs, kr: state?.kr });
+      rf = detail?.rf ?? null;
+      warnings.push('Displacement x sweep: one-dimensional Buckley-Leverett displacement times a stated volumetric sweep; the sweep is the uncertain factor and is not computed here.');
       break;
     case 'analog':
     default:

@@ -7,6 +7,7 @@
  * Pure: returns Report Kit figure entries.
  */
 import { reservesBars, analogRangeRows, exceedanceSeries } from './series.js';
+import { displacementProfile } from '@/utils/recoveryFactorCalculations';
 
 const g = (v, s = 3) => (Number.isFinite(v) ? String(parseFloat(Number(v).toPrecision(s))) : 'n/a');
 const RGB = { low: [100, 116, 139], est: [5, 150, 105], high: [37, 99, 235], ref: [220, 38, 38], typical: [124, 58, 237] };
@@ -93,6 +94,22 @@ export function buildRfReportFigures({ model, state }) {
         series: [{ name: 'Factor', values: d.terms.map((t) => t.value), rgb: RGB.est }],
         valueText: (v) => g(v, 4),
         lines: [{ y: 1, label: '1', rgb: RGB.low, dash: [1, 1] }],
+      } }],
+    });
+  } else if (model.method === 'displacement_sweep' && d && Number.isFinite(d.ed)) {
+    // RF-U2-009: the displacement efficiency against pore volumes injected, the point used marked
+    const pts = displacementProfile({ kr: d.kr, muoi: inputs.corr?.muoi, muwi: inputs.corr?.muwi }).filter(([q]) => q <= Math.max(3, (d.qi || 0) * 1.2));
+    const xUsed = d.qi != null ? d.qi : pts[pts.length - 1][0];
+    figs.push({
+      id: 'factors',
+      title: 'Displacement efficiency against pore volumes injected',
+      caption: `Buckley-Leverett displacement efficiency ED of the kr-1 oil-water set (Welge construction, canonical engine) against pore volumes of water injected; breakthrough at ${g(d.qiBt, 3)} PV with ED ${g(d.edBt, 3)}, the end point ${g(d.edMax, 3)}. The marked point is the ED used, ${g(d.ed, 4)}; times the stated sweep ${g(d.ev, 3)} it gives the recovery factor ${g(d.rf, 4)}.`,
+      panels: [{ height: 62, spec: {
+        xTitle: 'Pore volumes of water injected, Qi', yTitle: 'Displacement efficiency ED', xInclude: [0], yInclude: [0, 1],
+        series: [
+          { name: 'ED (Welge)', type: 'line', rgb: RGB.high, pts, width: 0.5 },
+          { name: 'ED used', type: 'scatter', rgb: RGB.ref, pts: [[xUsed, d.ed]], marker: 'circle' },
+        ],
       } }],
     });
   } else if (model.method === 'gas_pz' && Number.isFinite(r.rfRaw)) {

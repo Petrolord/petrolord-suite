@@ -13,6 +13,7 @@ export const METHODS = {
     { code: 'analog', label: 'Drive-mechanism analog' },
     { code: 'api_solution_gas', label: 'API (1967): solution-gas drive' },
     { code: 'api_water_drive', label: 'API (1967): water drive' },
+    { code: 'displacement_sweep', label: 'Displacement x sweep (kr-1)' },
   ],
   gas: [
     { code: 'analog', label: 'Drive-mechanism analog' },
@@ -33,6 +34,9 @@ export const CORR_FIELDS = {
     ['phi', 'Porosity φ', 'fraction'], ['swi', 'Swi', 'fraction'], ['boi', 'Boi', 'fvfOil'],
     ['k', 'Permeability k', 'permeability'], ['muwi', 'μwi', 'viscosity'], ['muoi', 'μoi', 'viscosity'],
     ['pi', 'Initial pi', 'pressure'], ['pa', 'Abandon pa', 'pressure'],
+  ],
+  displacement_sweep: [
+    ['muoi', 'μoi', 'viscosity'], ['muwi', 'μwi', 'viscosity'], ['sweep', 'Sweep Ev = EA x EI', 'fraction'], ['qiPv', 'Pore volumes injected Qi (blank: end point)', 'dimensionless'],
   ],
   gas_pz: [
     ['pi', 'Initial pi', 'pressure'], ['zi', 'zi', 'z'], ['pa', 'Abandon pa', 'pressure'], ['za', 'za', 'z'],
@@ -71,6 +75,7 @@ export const PLAIN_LABELS = Object.freeze({
   zi: 'Gas deviation factor at pi, zi', za: 'Gas deviation factor at pa, za', sgr: 'Residual gas saturation Sgr',
   sweep: 'Volumetric sweep efficiency Ev', area: 'Area A', thickness: 'Net pay h', sw: 'Water saturation Sw',
   ntg: 'Net-to-gross NTG', bgi: 'Initial gas FVF Bgi',
+  qiPv: 'Pore volumes of water injected Qi (blank: the end point)',
   gasGravity: 'Gas gravity (air = 1)', tempF: 'Reservoir temperature',
 });
 

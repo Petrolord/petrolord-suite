@@ -33,6 +33,7 @@ export const VALIDATION_STATE = Object.freeze({
   analog: 'Not validated: the ranges are transcribed screening ranges and were not checked against a published table in this build.',
   api_solution_gas: 'Equation checked as restated with k in darcies (Ahmed, Reservoir Engineering Handbook); a worked value on the sample case is held by a test that calls the engine. No published worked example was available to compare with, and the API D14 data ranges were not available, so no range check against the data set is made.',
   api_water_drive: 'As for the solution-gas correlation: equation checked as restated with k in darcies, worked value held by a test; no published worked example; API D14 data ranges not checked.',
+  displacement_sweep: 'ED comes from the canonical fractional-flow engine (welgeTangent, recoveryProfile), gated in the engines library against published Buckley-Leverett cases; the test here holds ED at breakthrough and at the end point to their closed forms and the product ED x Ev. The sweep is a stated input, not validated.',
   gas_pz: 'Exact relation; checked against 1 - Bgi/Bga from the canonical fluid engine at constant temperature (agreement to 1e-12).',
   gas_water_drive: 'Definition checked by volume bookkeeping of the swept and unswept volumes; with the swept volume abandoned at pa (RF-U2-010) the relation is held to reduce exactly to the maintained form at pa = pi and to the p/z depletion relation at Ev = 0. No published worked example compared.',
 });
@@ -48,11 +49,13 @@ const th = (v, d = 0) => (Number.isFinite(v) ? Number(v).toLocaleString('en-US',
 const pct = (v, d = 1) => (Number.isFinite(v) ? (v * 100).toFixed(d) : EMPTY_VALUE);
 
 /** The engine input of the case: what the completeness guard holds the inputs rows against. */
-export function engineInputOf(inputs) {
+export function engineInputOf(inputs, krIntake = null) {
   const method = inputs?.method || 'analog';
   const corr = {};
   for (const [k] of corrFieldsFor(inputs)) corr[k] = inputs?.corr?.[k];
   const out = { method, driveCode: inputs?.driveCode, correlationInputs: corr };
+  // RF-U2-009: the Corey set the displacement efficiency reads
+  if (method === 'displacement_sweep') out.kr = { ...(krIntake?.params || { Swc: null, Sor: null, krwMax: null, kroMax: null, nw: null, no: null }) };
   // RF-U2-003: z by Dranchuk-Abou-Kassem reads gas gravity, temperature and pi
   if (inputs?.phase === 'gas' && inputs?.zMethod === Z_METHOD_DAK) {
     out.gasZ = { gasGravity: inputs?.corr?.gasGravity, tempF: inputs?.corr?.tempF };
@@ -149,6 +152,13 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
     }
     add(`corr.${k}`, PLAIN_LABELS[k], shown(kind, inputs.corr?.[k]), u.label(kind), srcOf('corr', k, inputs.corr?.[k]), [`correlationInputs.${k}`]);
   }
+  // RF-U2-009: the kr-1 Corey set
+  if (method === 'displacement_sweep') {
+    const kp = s.krIntake?.params || {};
+    for (const [k, label] of [['Swc', 'Connate water Swc (kr-1)'], ['Sor', 'Residual oil Sor (kr-1)'], ['krwMax', 'krw at Sor (kr-1)'], ['kroMax', 'kro at Swc (kr-1)'], ['nw', 'Corey exponent nw (kr-1)'], ['no', 'Corey exponent no (kr-1)']]) {
+      add(`kr.${k}`, label, Number.isFinite(kp[k]) ? g(kp[k], 6) : '', 'frac', s.krIntake ? s.krIntake.source : 'Not taken', [`kr.${k}`]);
+    }
+  }
   // RF-U2-003: what the z computation read
   if (gas && inputs.zMethod === Z_METHOD_DAK) {
     add('corr.gasGravity', PLAIN_LABELS.gasGravity, shown('dimensionless', inputs.corr?.gasGravity), '', srcOf('corr', 'gasGravity', inputs.corr?.gasGravity), ['gasZ.gasGravity']);
@@ -217,6 +227,21 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
       ],
       note: 'Volumetric depletion at constant temperature: the gas produced is the fall of p/z along a straight line to the abandonment pressure.',
     };
+  } else if (method === 'displacement_sweep' && d && Number.isFinite(d.ed)) {
+    methodSplit = {
+      head: ['Step', 'Value', 'Unit'],
+      rows: [
+        ['End-point mobility ratio M', g(d.mobilityRatio, 5), ''],
+        ['Front saturation Swf (Welge tangent)', g(d.swf, 5), 'fraction'],
+        ['Pore volumes injected at breakthrough', g(d.qiBt, 5), 'PV'],
+        ['Displacement efficiency at breakthrough', g(d.edBt, 5), 'fraction'],
+        ['Displacement efficiency at the end point (1 - Swc - Sor)/(1 - Swc)', g(d.edMax, 5), 'fraction'],
+        [`Displacement efficiency ED used (${d.at}${d.qi != null ? `, Qi ${g(d.qi, 4)} PV` : ''})`, g(d.ed, 5), 'fraction'],
+        ['Volumetric sweep Ev (stated)', g(d.ev, 5), 'fraction'],
+        ['Recovery factor ED x Ev', g(d.rf, 5), 'fraction'],
+      ],
+      note: 'One-dimensional Buckley-Leverett displacement by the Welge construction of the canonical engine (horizontal, capillary pressure neglected, Bo unchanged, the flood from Swc), times the stated sweep. ED x Ev closes on the recovery factor.',
+    };
   } else if (method === 'gas_water_drive' && Number.isFinite(r.rfRaw) && d) {
     const rows = [
       ['Initial gas saturation Sgi = 1 - Swi', g(d.sgi, 5), 'fraction'],
@@ -248,7 +273,8 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
     ['Reference', method.startsWith('api_') ? API_SOLUTION_GAS.reference
       : method === 'gas_pz' ? 'Gas material balance for a volumetric reservoir (Craft and Hawkins, Applied Petroleum Reservoir Engineering)'
         : method === 'gas_water_drive' ? 'Trapped gas behind an advancing water front (Craft and Hawkins, Applied Petroleum Reservoir Engineering)'
-          : ANALOG_BAND_SOURCE],
+          : method === 'displacement_sweep' ? 'Buckley and Leverett (1942) and Welge (1952), as in Dake, Fundamentals of Reservoir Engineering, ch. 10, and Willhite, Waterflooding, ch. 3; canonical engine packages/engines/engines/scal/fractionalFlow.js'
+            : ANALOG_BAND_SOURCE],
     ['Validation in this build', VALIDATION_STATE[method] || EMPTY_VALUE],
     ['Analog range source', ANALOG_BAND_SOURCE],
   ];
@@ -363,7 +389,7 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
     inPlaceSplit,
     methodSplit,
     inputs: { rows: inputRows, note: inputsNote },
-    engineInput: engineInputOf(inputs),
+    engineInput: engineInputOf(inputs, s.krIntake),
     methodRows,
     basis,
     limits: { assumptions, ranges, flags },

@@ -36,12 +36,12 @@ const ReportTab = () => {
   const [busy, setBusy] = useState(false);
   const state = {
     inputs: c.inputs, derived: c.derived, identification: c.identification, inputMeta: c.inputMeta,
-    pvtIntake: c.pvtIntake, inPlaceIntake: c.inPlaceIntake, migration: c.migration, dcaCheck: c.dcaCheck,
+    pvtIntake: c.pvtIntake, inPlaceIntake: c.inPlaceIntake, migration: c.migration, dcaCheck: c.dcaCheck, krIntake: c.krIntake,
   };
   const args = useMemo(
     () => collectRfReportArgs({ state, system: c.unitSystem, projectName: c.projectName, organizationName, build: c.build }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [c.inputs, c.derived, c.identification, c.inputMeta, c.pvtIntake, c.inPlaceIntake, c.migration, c.dcaCheck, c.unitSystem, c.projectName, organizationName, c.build],
+    [c.inputs, c.derived, c.identification, c.inputMeta, c.pvtIntake, c.inPlaceIntake, c.migration, c.dcaCheck, c.krIntake, c.unitSystem, c.projectName, organizationName, c.build],
   );
   const { model, figures } = args;
 
