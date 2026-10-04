@@ -9,7 +9,7 @@ is analysis only; the programme lead chooses the batches.
 
 - Route: `/dashboard/apps/reservoir/voidage-replacement-monitor` (ProtectedAppRoute, slug `voidage-replacement-monitor`).
 - Harness: `/dev/studio/vrr` (in-memory Supabase double). New for this upgrade: the Fluid Systems projects saved on `/dev/fluid-systems-studio` in the same tab are visible to the VRR harness, so the `pvt-1` chain runs by id.
-- Engine: `packages/engines/engines/waterflood/vrr.js` is byte-identical (the course oracle). New math is in `vrrLedger.js` beside it, engines PR #305 (open, not merged), vendored byte-identical with two `vrr-u1` rows in `packages/engines/VENDOR.json`.
+- Engine: `packages/engines/engines/waterflood/vrr.js` is byte-identical (the course oracle). New math is in `vrrLedger.js` beside it, engines PR #305, merged; the Suite is pinned at engines main 4f91416 with no recorded deviation.
 - Earlier cycles: V1 to V4 (2026-08-28), senior test T1 (2026-09-27), design system pilot 5.
 - Live data: not read (no database access from this run). `saved_vrr_projects` is under the record-sharing rules since migration 20261002130000 (applied).
 

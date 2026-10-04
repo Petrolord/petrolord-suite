@@ -220,7 +220,7 @@ findings, the Step 1 table, the Step 2 ranked backlog). In short:
   `reportFigures.js`, `vrrReportExport.js`, the Report tab) and a ledger CSV
   with a provenance header (`ledgerCsv.js`). One derived model for screen,
   report and CSV: `src/utils/vrr/workspace.js` (`deriveVrr`).
-- **Engine** (engines PR #305, open; vendored with two `vrr-u1` ledger rows):
+- **Engine** (engines PR #305, merged; pinned at engines 4f91416):
   `resolvePeriodFvf`, `voidageTerms`, `buildVoidageLedger`, `applyPeriodFvf`
   and a `periodFvf` option of `recommendPatternInjection` in `vrrLedger.js`.
   `vrr.js` is byte-identical.
