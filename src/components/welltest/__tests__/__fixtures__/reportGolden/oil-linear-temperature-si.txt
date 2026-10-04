@@ -1,15 +1,15 @@
 Well Test Analysis Report
 Petrolord Well Test Analysis Studio
 
-Project                  Untitled interpretation                           Well                    Sample well 1
-Field                    Obodo                                             Company                 n/a
-Licence                  OML 143                                           Zone or sand            D-3 sand
-Analyst                  A. Analyst                                        Test type               Pressure buildup, drill stem test (DST)
-Test dates               2026-09-14 to 2026-09-17                          Perforations, MD        3002.3 to 3011.4 m
-Perforations, TVD        2926.4 to 2935.2 m                                Software build          Petrolord Suite dev
+Project                  Untitled interpretation                           Well                     Sample well 1
+Field                    Obodo                                             Company                  n/a
+Licence                  OML 143                                           Zone or sand             D-3 sand
+Analyst                  A. Analyst                                        Test type                Pressure buildup, drill stem test (DST)
+Test dates               2026-09-14 to 2026-09-17                          Perforations, MD         3002.3 to 3011.4 m
+Perforations, TVD        2926.4 to 2935.2 m                                Software build           Petrolord Suite dev
 Fluid                    Oil                                               Producing time tp 36.0 hr
-Shut-in time             0 hr elapsed (gauge clock 0 hr)                   pwf at shut-in          31238.8 kPa at shut-in time 0 hr (entered)
-Display units            SI / metric                                       Generated               2026-10-02 09:00 UTC
+Shut-in time             0 hr elapsed (gauge clock 0 hr)                   pwf at shut-in           31238.8 kPa at shut-in time 0 hr (entered)
+Display units            SI / metric                                       Generated                2026-10-02 09:00 UTC
 
 
 Headline results
@@ -39,6 +39,8 @@ Gauge, datum and pressure basis
 
  Pressure datum                          Not stated
 
+ Gradient, gauge to datum                None stated (no correction is applied unless a gradient is stated)
+
  Correction to the datum                 None applied: every pressure in this report is at the gauge depth
 
  Absolute or gauge                       Absolute: the synthetic sample test.
@@ -46,7 +48,7 @@ Gauge, datum and pressure basis
 
 
 
-Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                          Page 1 of 7
+Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                           Page 1 of 7
 Skin components
  Component                                                           Value               Basis
 

@@ -331,6 +331,16 @@ const WTSHelpContent = () => (
       apps carry it.
     </P>
 
+    <H>Gauge depth and the pressure datum</H>
+    <P>
+      Under Completion, state the gauge depth (MD and TVD), the pressure datum in TVDSS and the elevation of the depth
+      reference (KB or RT) above the datum, which puts the gauge TVD on the datum. With no gradient stated nothing is
+      corrected: every pressure is analysed and reported at the gauge depth, and the report says so. State a gradient
+      and its source (a fluid column from its density, or a static survey) and the studio adds gradient times the
+      depth difference to p* and the pressure at shut-in, prints them at the datum beside the gauge values, and sends
+      the datum pressure to Material Balance. Permeability and skin do not change: the analysis stays at the gauge.
+    </P>
+
     <H>Conventions</H>
     <P>
       Display units follow the selector on the Data tab, in either oilfield (md, ft, cp, psi, STB/D, RB/STB, hours) or

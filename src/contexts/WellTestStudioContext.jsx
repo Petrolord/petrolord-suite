@@ -23,7 +23,7 @@ import { provenanceFromPayload, setProvenanceField } from '@/lib/inputProvenance
 import {
   DEFAULT_IDENTIFICATION, DEFAULT_COMPLETION, resolveTotalCompressibility,
   buildSkinBreakdown, buildInputsTable, buildFlowSummary, buildIdentificationRows,
-  buildPressureBasisRows, buildDataUseRows, buildLimitsRows, pvtIntakeFromBackbone, changingStorageRows,
+  buildPressureBasisRows, buildDataUseRows, buildLimitsRows, pvtIntakeFromBackbone, changingStorageRows, completionDatumCorrection,
 } from '@/utils/welltest/reportModel';
 import { buildHistoryMatch, buildOverviewData, thinRows } from '@/utils/welltest/plotData';
 
@@ -996,11 +996,17 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
 
   // WTA-U1-005 and -006: the pressure basis and the readings left out, once
   // for the Report tab and the PDF
-  const pressureBasisRows = useMemo(() => buildPressureBasisRows({ completion, gaugeImport, unitSystem }), [completion, gaugeImport, unitSystem]);
+  // WTA-U2-004: the correction to datum with the user's gradient (none by default)
+  const datum = useMemo(() => completionDatumCorrection(completion), [completion]);
+  const pressureBasisRows = useMemo(() => buildPressureBasisRows({
+    completion, gaugeImport, unitSystem, datum,
+    pStar: configSpec.config?.family === 'buildup' ? semilogResult?.pStar : NaN,
+    pwfShutIn: prepared.pwfShutIn,
+  }), [completion, gaugeImport, unitSystem, datum, configSpec, semilogResult, prepared]);
   const dataUse = useMemo(() => buildDataUseRows({ prepared, unitSystem }), [prepared, unitSystem]);
   const limitsRows = useMemo(() => buildLimitsRows({
-    reservoir: reservoirSpec.reservoir, config: configSpec.config, model, prepared,
-  }), [reservoirSpec, configSpec, model, prepared]);
+    reservoir: reservoirSpec.reservoir, config: configSpec.config, model, prepared, datum,
+  }), [reservoirSpec, configSpec, model, prepared, datum]);
 
   // History match (model against the gauge over the whole record) and the
   // test overview: one calculation, drawn on the tabs and in the PDF.
@@ -1072,8 +1078,8 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   // into every save so other apps read the results by id (lib/wellTestSource)
   const wtaRecord = useMemo(() => buildWtaRecord({
     reservoirSpec, derivedKpis, configSpec, semilogResult, matchMethod, fitResult, model, skinBreakdown, prepared,
-    completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId, rateSkin,
-  }), [reservoirSpec, derivedKpis, configSpec, semilogResult, matchMethod, fitResult, model, skinBreakdown, prepared,
+    completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId, rateSkin, datum,
+  }), [datum, reservoirSpec, derivedKpis, configSpec, semilogResult, matchMethod, fitResult, model, skinBreakdown, prepared,
     completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId, rateSkin]);
 
   // ---- Project persistence ----
@@ -1340,7 +1346,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     multiRateResult, deliverabilityResult,
     // report model and shared plot series (tester round 2)
     skinBreakdown, inputsTable, flowSummary, identificationRows, historyMatch, overview,
-    pressureBasisRows, dataUse, limitsRows, wtaRecord,
+    pressureBasisRows, dataUse, limitsRows, wtaRecord, datum,
     // auto-fit
     fitResult, isFitting, fitStale, runAutoFit, matchMethod,
     // sample

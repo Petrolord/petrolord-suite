@@ -39,6 +39,8 @@ Gauge, datum and pressure basis
 
  Pressure datum                           Not stated
 
+ Gradient, gauge to datum                 None stated (no correction is applied unless a gradient is stated)
+
  Correction to the datum                  None applied: every pressure in this report is at the gauge depth
 
  Absolute or gauge                        Absolute: the synthetic sample test.

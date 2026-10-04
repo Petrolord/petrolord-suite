@@ -23,6 +23,7 @@ import { totalCompressibility } from './compressibility.js';
 import { summarizeFlowPeriods } from './flowSummary.js';
 import { PRESSURE_UNITS, TIME_UNITS, gaugeTime } from './gaugeImport.js';
 import { suttonPseudoCriticals, GAS_Z_METHODS } from '../../../packages/engines/engines/fluid/blackOil';
+import { datumCorrection } from './datum.js';
 
 const num = (v) => {
   if (v == null || v === '') return NaN;
@@ -69,7 +70,18 @@ export const DEFAULT_COMPLETION = Object.freeze({
   // pressure datum are stated inputs, printed in the report; no correction
   // to the datum is applied and the report says so
   gaugeDepthMd: '', gaugeDepthTvd: '', datumDepthTvdss: '',
+  // WTA-U2-004: what puts the gauge on the datum. The gradient is the
+  // user's (owner default: none stated, no correction) with its source.
+  depthRefElev: '', datumGradient: '', datumGradientSource: '',
 });
+
+/** The correction to datum of a completion through the engine (welltest/datum.js); depths ft, psi/ft. */
+export function completionDatumCorrection(completion) {
+  const c = completion || {};
+  return datumCorrection({
+    gaugeTvd: num(c.gaugeDepthTvd), refElevation: num(c.depthRefElev), datumTvdss: num(c.datumDepthTvdss), gradient: num(c.datumGradient),
+  });
+}
 
 /** "Pressure buildup, drill stem test (DST)" style line for the header. */
 export function testTypeText(config, identification) {
@@ -657,20 +669,36 @@ export function absoluteBasisText(gaugeImport) {
  * correction to that datum was applied, and whether the readings were
  * gauge or absolute. [label, value].
  */
-export function buildPressureBasisRows({ completion, gaugeImport, unitSystem = 'oilfield' }) {
+export function buildPressureBasisRows({ completion, gaugeImport, unitSystem = 'oilfield', datum = null, pStar = NaN, pwfShutIn = NaN }) {
   const c = completion || {};
   const L = unitLabel('length', unitSystem);
+  const P = unitLabel('pressure', unitSystem);
   const len = (v) => (Number.isFinite(num(v)) ? `${shown('length', num(v), unitSystem)} ${L}` : null);
   const md = len(c.gaugeDepthMd);
   const tvd = len(c.gaugeDepthTvd);
-  const gauge = [md ? `${md} MD` : null, tvd ? `${tvd} TVD` : null].filter(Boolean).join(', ');
-  const datum = len(c.datumDepthTvdss);
+  const corr = datum || completionDatumCorrection(c);
+  const gauge = [md ? `${md} MD` : null, tvd ? `${tvd} TVD` : null, corr.ok ? `${shown('length', corr.gaugeTvdss, unitSystem)} ${L} TVDSS` : null].filter(Boolean).join(', ');
+  const datumDepth = len(c.datumDepthTvdss);
+  const elev = len(c.depthRefElev);
+  const grad = num(c.datumGradient);
+  const gradText = Number.isFinite(grad)
+    ? `${plain(fromOilfield('pressureGradient', grad, unitSystem))} ${unitLabel('pressureGradient', unitSystem)}, ${text(c.datumGradientSource) || 'source not stated'}`
+    : 'None stated (no correction is applied unless a gradient is stated)';
+  const sign = (v) => `${v >= 0 ? '+' : ''}${plain(fromOilfield('pressure', v, unitSystem))} ${P}`;
   const rows = [
     ['Gauge depth', gauge || EMPTY_VALUE],
-    ['Pressure datum', datum ? `${datum} TVDSS` : 'Not stated'],
-    ['Correction to the datum', 'None applied: every pressure in this report is at the gauge depth'],
-    ['Absolute or gauge', absoluteBasisText(gaugeImport)],
+    ['Pressure datum', datumDepth ? `${datumDepth} TVDSS` : 'Not stated'],
   ];
+  if (elev) rows.push(['Depth reference elevation above the datum', elev]);
+  rows.push(['Gradient, gauge to datum', gradText]);
+  if (corr.ok) {
+    rows.push(['Correction to the datum', `${sign(corr.correction)} (${plain(fromOilfield('pressureGradient', grad, unitSystem))} ${unitLabel('pressureGradient', unitSystem)} over ${plain(fromOilfield('length', corr.dz, unitSystem))} ${L}), added to the pressures given at the datum below; the analysis itself runs at the gauge depth`]);
+    if (Number.isFinite(pStar)) rows.push([`p* at the datum (${P})`, plain(fromOilfield('pressure', corr.apply(pStar), unitSystem))]);
+    if (Number.isFinite(pwfShutIn)) rows.push([`Pressure at shut-in at the datum (${P})`, plain(fromOilfield('pressure', corr.apply(pwfShutIn), unitSystem))]);
+  } else {
+    rows.push(['Correction to the datum', Number.isFinite(grad) ? `None applied: ${corr.reason.replace(/^./, (x) => x.toLowerCase())}` : 'None applied: every pressure in this report is at the gauge depth']);
+  }
+  rows.push(['Absolute or gauge', absoluteBasisText(gaugeImport)]);
   if (gaugeImport && !gaugeImport.sample && gaugeImport.fileName) {
     const tu = TIME_UNITS[gaugeImport.timeUnit]?.label;
     rows.push(['Gauge file', `${gaugeImport.fileName}: ${gaugeImport.count ?? EMPTY_VALUE} readings read${gaugeImport.skipped ? `, ${gaugeImport.skipped} rows skipped as not numbers` : ''}${tu ? `; time in ${tu}` : ''}${gaugeImport.dateOrder ? `, dates ${gaugeImport.dateOrder === 'dmy' ? 'day first' : 'month first'}` : ''}`]);
@@ -767,6 +795,12 @@ export function gasRangeCheck({ reservoir, pressures = [] }) {
   };
 }
 
+/** The pressures statement of the limits table (WTA-U2-004). */
+export function datumLimitText(datum) {
+  if (datum?.ok) return 'Analysed at the gauge depth. p* and the pressure at shut-in are also given at the datum with the one stated gradient (a static column of one fluid between the depths; no friction or temperature correction). No gravity or friction correction between gauge and sandface.';
+  return 'Analysed and reported at the gauge depth; no correction to a datum and no gravity or friction correction between gauge and sandface.';
+}
+
 /** The wellbore storage statement of the limits table (WTA-U2-002). */
 export function wellboreLimitText(model) {
   if (model?.wellboreModel === 'hegeman' || model?.wellboreModel === 'fair') {
@@ -797,7 +831,7 @@ export function changingStorageRows({ model, params, reservoir, groups, unitSyst
  * [topic, statement] rows. The gas row carries the reduced state of the
  * test against its z method's window.
  */
-export function buildLimitsRows({ reservoir, config, model, prepared }) {
+export function buildLimitsRows({ reservoir, config, model, prepared, datum = null }) {
   const gas = reservoir?.fluid === 'gas';
   const rows = [
     ['Fluid', gas
@@ -808,7 +842,7 @@ export function buildLimitsRows({ reservoir, config, model, prepared }) {
     ['Time basis', config?.family === 'buildup'
       ? 'Buildup on Agarwal equivalent time with the producing time tp, or on superposition of the rate history when one is entered.'
       : 'Drawdown on elapsed time from the start of flow; a rate history with more than one rate is analysed by superposition (Odeh-Jones).'],
-    ['Pressures', 'Analysed and reported at the gauge depth; no correction to a datum and no gravity or friction correction between gauge and sandface.'],
+    ['Pressures', datumLimitText(datum)],
   ];
   const range = gasRangeCheck({ reservoir, pressures: (prepared?.points || []).map((p) => p.p) });
   if (range) rows.push([range.method === 'fluid-table' ? 'Gas PVT table range' : 'Gas z-factor range', range.text]);

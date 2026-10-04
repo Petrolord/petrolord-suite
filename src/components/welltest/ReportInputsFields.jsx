@@ -209,7 +209,7 @@ export const IdentificationFields = () => {
 
 // Perforated interval, top of net pay and kv/kh (reviewer item 3).
 export const CompletionFields = () => {
-  const { completion, setCompletionField, reservoirInputs, setReservoirField, skinBreakdown, unitSystem } = useWellTestStudio();
+  const { completion, setCompletionField, reservoirInputs, setReservoirField, skinBreakdown, unitSystem, datum } = useWellTestStudio();
   const comp = buildCompletion(completion);
   const L = unitLabel('length', unitSystem);
   return (
@@ -229,9 +229,15 @@ export const CompletionFields = () => {
           <UnitField kind="length" system={unitSystem} label="Gauge depth, MD" value={completion.gaugeDepthMd ?? ''} onChange={(v) => setCompletionField('gaugeDepthMd', v)} placeholder="Optional" />
           <UnitField kind="length" system={unitSystem} label="Gauge depth, TVD" value={completion.gaugeDepthTvd ?? ''} onChange={(v) => setCompletionField('gaugeDepthTvd', v)} placeholder="Optional" />
           <UnitField kind="length" system={unitSystem} label="Pressure datum, TVDSS" value={completion.datumDepthTvdss ?? ''} onChange={(v) => setCompletionField('datumDepthTvdss', v)} placeholder="Optional" />
+          {/* WTA-U2-004: the elevation that puts the gauge TVD on the datum, and the gradient the user states */}
+          <UnitField kind="length" system={unitSystem} label="Depth reference elevation above the datum" suffixNote="KB or RT" value={completion.depthRefElev ?? ''} onChange={(v) => setCompletionField('depthRefElev', v)} placeholder="Optional" />
+          <UnitField kind="pressureGradient" system={unitSystem} label="Gradient, gauge to datum" suffixNote="blank = no correction" value={completion.datumGradient ?? ''} onChange={(v) => setCompletionField('datumGradient', v)} />
+          <Field label="Source of the gradient" value={completion.datumGradientSource ?? ''} onChange={(v) => setCompletionField('datumGradientSource', v)} placeholder="e.g. gas column from density, static survey" />
         </div>
-        <p className="text-[11px] text-pl-muted">
-          The gauge depth and the datum are stated in the report. No correction to the datum is applied: every pressure is analysed and reported at the gauge depth.
+        <p className="text-[11px] text-pl-muted" data-testid="wts-datum-readout">
+          {datum?.ok
+            ? `Correction to the datum: ${datum.correction >= 0 ? '+' : ''}${fmt.f1(fromOilfield('pressure', datum.correction, unitSystem))} ${unitLabel('pressure', unitSystem)} (gauge at ${fmt.f1(fromOilfield('length', datum.gaugeTvdss, unitSystem))} ${L} TVDSS). The analysis stays at the gauge depth; p* and the pressure at shut-in are also given at the datum, and the datum pressure is what other apps receive.`
+            : `${datum?.reason || 'No gradient was stated, so no correction is applied.'} The gauge depth and the datum are stated in the report.`}
         </p>
         <p className="text-[11px] text-pl-muted" data-testid="wts-completion-readout">
           {comp.status === 'ok'

@@ -25,7 +25,10 @@
 //                    rate_dependent: { D_per_mscfd, Dq, skin_without_rate_part, method } | null (U2-003) }
 //   pressure       { initial_psia (entered), p_star_psia (Horner extrapolation or null),
 //                    average_psia, average_method (words), basis (words),
-//                    gauge_depth_md_ft, gauge_depth_tvd_ft, datum_tvdss_ft, datum_correction: 'none' }
+//                    gauge_depth_md_ft, gauge_depth_tvd_ft, datum_tvdss_ft,
+//                    datum_correction: 'none' | { gradient_psi_ft, gradient_source, gauge_tvdss_ft, delta_psi } (U2-004),
+//                    p_star_datum_psia, method_label 'p*' | 'pi' (U2-005); average_psia is at the datum
+//                    when a correction was applied, and basis says which }
 //   temperature_degF
 //   status         { match: 'regression' | 'manual' | 'semilog' | 'none', converged: bool | null,
 //                    note: words | null }
@@ -107,19 +110,31 @@ export function buildWtaRecord(ctx, { now = new Date().toISOString(), projectId 
         method: ctx.rateSkin.source === 'multi-rate' ? "multi-rate line of apparent skins, s' = s + D q" : 'pseudo-pressure LIT b as the non-Darcy coefficient F, D = F k h / (1422 T)',
       } : null,
     },
-    pressure: {
-      initial_psia: orNull(r.pi),
-      p_star_psia: pStar,
-      average_psia: pStar ?? orNull(r.pi),
-      average_method: pStar != null
-        ? 'Extrapolated p* of the Horner straight line. It equals the average drainage pressure only for an infinite-acting reservoir; no MBH or Dietz correction is applied.'
-        : 'Initial pressure as entered on the test (no p* from this test).',
-      basis: 'absolute, at the gauge depth (no correction to a datum)',
-      gauge_depth_md_ft: n(comp.gaugeDepthMd),
-      gauge_depth_tvd_ft: n(comp.gaugeDepthTvd),
-      datum_tvdss_ft: n(comp.datumDepthTvdss),
-      datum_correction: 'none',
-    },
+    pressure: (() => {
+      // WTA-U2-004: with a stated gradient the average pressure is sent at the datum
+      const d = ctx.datum?.ok ? ctx.datum : null;
+      const avgGauge = pStar ?? orNull(r.pi);
+      const g = n(comp.datumGradient);
+      return {
+        initial_psia: orNull(r.pi),
+        p_star_psia: pStar,
+        p_star_datum_psia: d && pStar != null ? d.apply(pStar) : null,
+        average_psia: d && avgGauge != null ? d.apply(avgGauge) : avgGauge,
+        average_method: pStar != null
+          ? 'Extrapolated p* of the Horner straight line. It equals the average drainage pressure only for an infinite-acting reservoir; no MBH or Dietz correction is applied.'
+          : 'Initial pressure as entered on the test (no p* from this test).',
+        method_label: pStar != null ? 'p*' : 'pi',
+        basis: d
+          ? `absolute, at the datum ${n(comp.datumDepthTvdss)} ft TVDSS (corrected from the gauge with ${g} psi/ft, ${text(comp.datumGradientSource) || 'source not stated'})`
+          : 'absolute, at the gauge depth (no correction to a datum)',
+        gauge_depth_md_ft: n(comp.gaugeDepthMd),
+        gauge_depth_tvd_ft: n(comp.gaugeDepthTvd),
+        datum_tvdss_ft: n(comp.datumDepthTvdss),
+        datum_correction: d
+          ? { gradient_psi_ft: g, gradient_source: text(comp.datumGradientSource), gauge_tvdss_ft: d.gaugeTvdss, delta_psi: d.correction }
+          : 'none',
+      };
+    })(),
     temperature_degF: orNull(tempF),
     status: {
       match: fromMatch ? (mm === 'regression' ? 'regression' : 'manual') : (k.source === 'semilog' ? 'semilog' : 'none'),

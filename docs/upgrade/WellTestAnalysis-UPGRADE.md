@@ -239,6 +239,15 @@ merged; vendored byte-identical with `welltest-u2` ledger rows meanwhile).
 
 ## Step 2 build log
 
+### U2-004 Correction to datum with a stated gradient: done (engines-first, PR #311)
+
+- Owner default kept: no gradient stated, no correction, and the report says so in the same words as before.
+- Inputs (Completion): the depth reference elevation above the vertical datum (puts the gauge TVD on TVDSS), the gradient (psi/ft or kPa/m, new pinned unit kind `pressureGradient`) and its source. Engine `engines/welltest/datum.js`: p_datum = p_gauge + g (z_datum - z_gauge), refused with its reason when the gradient lies outside 0 to 1.2 psi/ft or a depth is missing.
+- The analysis stays at the gauge (k, s, the match and every plot unchanged). The report's "Gauge, datum and pressure basis" table prints the gauge depth in MD, TVD and TVDSS, the datum, the reference elevation, the gradient with its source, the correction applied, and p* and the pressure at shut-in at the datum. The limits row says one static gradient was used.
+- `wta-1`: `pressure.average_psia` is at the datum when a correction was applied (the basis says so), with `p_star_datum_psia` and `datum_correction { gradient_psi_ft, gradient_source, gauge_tvdss_ft, delta_psi }`; `p_star_psia` stays at the gauge.
+- Proving tests: engines `welltest.u2RateSkinDatum.test.js` (2); Suite `wellTestU2.test.jsx` U2-004 (3): default none (report and wta-1 unchanged), 0.35 psi/ft over 200 ft adds 70 psi to p* in the PDF and in wta-1 while k and p* at the gauge do not move, SI prints 7.9172 kPa/m; a missing reference elevation is refused with its reason (negative control).
+- Goldens: one new row "Gradient, gauge to datum: None stated" in all six, on purpose; pdftotext re-spaces the header columns by one character as a result (layout only).
+
 ### U2-003 Rate-dependent skin D: done (engines-first, PR #311)
 
 - Method, stated on the Specialized tab, the Report tab and the PDF: s' = s + D q (Ahmed, Reservoir Engineering Handbook 4th ed. 2010, eq. 6-160). Route 1: the apparent skins of two or more flow periods or tests at different rates, each from its own analysis that reached radial flow, on a straight line against rate (engine `rateDependentSkinFit`; two rates exact, three or more least squares with r2). Route 2: the pseudo-pressure LIT b is the non-Darcy coefficient F, D = F k h / (1422 T) (eq. 6-159, engine `nonDarcyDFromF`); a pressure-squared b carries mu z and is not used. Data needs: two or more rates with their own apparent skins, or a stabilized deliverability fit in pseudo-pressure.

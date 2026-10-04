@@ -241,3 +241,61 @@ describe("WTA-U2-003: rate-dependent skin, s' = s + D q", () => {
     studio.unmount();
   }, 600000);
 });
+
+describe('WTA-U2-004: correction to datum with a stated gradient', () => {
+  const placeGauge = (c) => {
+    c.setCompletionField('gaugeDepthTvd', '9800');
+    c.setCompletionField('depthRefElev', '100');
+    c.setCompletionField('datumDepthTvdss', '9900');
+  };
+
+  test('no gradient (owner default): nothing corrected, the report says so and prints the gauge and the datum', async () => {
+    const studio = await sample(placeGauge);
+    expect(studio.ctx.datum.ok).toBe(false);
+    const rows = Object.fromEntries(studio.ctx.pressureBasisRows);
+    expect(rows['Gradient, gauge to datum']).toMatch(/None stated/);
+    expect(rows['Correction to the datum']).toMatch(/None applied: every pressure in this report is at the gauge depth/);
+    expect(studio.ctx.wtaRecord.pressure.datum_correction).toBe('none');
+    expect(studio.ctx.wtaRecord.pressure.average_psia).toBe(studio.ctx.semilogResult.pStar);
+    studio.unmount();
+  }, 600000);
+
+  test('0.35 psi/ft over 200 ft adds 70 psi to p* and pwf at the datum; the analysis stays at the gauge; wta-1 sends the datum pressure', async () => {
+    const studio = await sample(placeGauge);
+    const kBefore = studio.ctx.derivedKpis.k;
+    const pStar = studio.ctx.semilogResult.pStar;
+    await studio.act((c) => { c.setCompletionField('datumGradient', '0.35'); c.setCompletionField('datumGradientSource', 'oil column from density'); });
+    const d = studio.ctx.datum;
+    expect(d.ok).toBe(true);
+    expect(d.gaugeTvdss).toBe(9700);
+    expect(d.correction).toBeCloseTo(70, 12);
+    expect(studio.ctx.derivedKpis.k).toBe(kBefore); // the analysis does not move
+    expect(studio.ctx.semilogResult.pStar).toBe(pStar);
+    const t = flat(readPdf(build(studio.ctx).doc).text);
+    expect(t).toMatch(/Gradient, gauge to datum 0\.35 psi\/ft, oil column from density/);
+    expect(t).toMatch(/Correction to the datum \+70 psi/);
+    const m = t.match(/p\* at the datum \(psi\) ([\d,.]+)/);
+    expect(Number(m[1].replace(/,/g, ''))).toBeCloseTo(pStar + 70, 0);
+    const w = studio.ctx.wtaRecord.pressure;
+    expect(w.average_psia).toBeCloseTo(pStar + 70, 9);
+    expect(w.p_star_psia).toBe(pStar);
+    expect(w.datum_correction.delta_psi).toBeCloseTo(70, 12);
+    expect(w.basis).toMatch(/at the datum 9900 ft TVDSS/);
+    // SI: the gradient prints in kPa/m (0.35 psi/ft = 7.9172 kPa/m)
+    await studio.act((c) => c.setUnitSystem('si'));
+    expect(Object.fromEntries(studio.ctx.pressureBasisRows)['Gradient, gauge to datum']).toMatch(/^7\.9172 kPa\/m/);
+    studio.unmount();
+  }, 600000);
+
+  test('a gradient without the reference elevation is refused with its reason (negative control)', async () => {
+    const studio = await sample((c) => {
+      c.setCompletionField('gaugeDepthTvd', '9800');
+      c.setCompletionField('datumDepthTvdss', '9900');
+      c.setCompletionField('datumGradient', '0.35');
+    });
+    expect(studio.ctx.datum.ok).toBe(false);
+    expect(Object.fromEntries(studio.ctx.pressureBasisRows)['Correction to the datum']).toMatch(/None applied: the elevation of the depth reference/);
+    expect(studio.ctx.wtaRecord.pressure.datum_correction).toBe('none');
+    studio.unmount();
+  }, 600000);
+});
