@@ -31,6 +31,7 @@ import PatternManagerPanel from '@/components/vrrmonitor/PatternManagerPanel';
 import AllocationMatrixEditor from '@/components/vrrmonitor/AllocationMatrixEditor';
 import PatternResultsPanel from '@/components/vrrmonitor/PatternResultsPanel';
 import VrrReportTab from '@/components/vrrmonitor/VrrReportTab';
+import WellMapPanel from '@/components/vrrmonitor/WellMapPanel';
 import VrrHelpContent from '@/components/reservoir/VrrHelpGuide';
 import { supabaseSharingStore } from '@/lib/recordSharing';
 import { RecordSharingBar } from '@/components/recordSharing';
@@ -43,6 +44,7 @@ const TABS = [
   { value: 'dashboard', label: 'VRR Dashboard' },
   { value: 'pressure', label: 'Pressure' },
   { value: 'patterns', label: 'Patterns' },
+  { value: 'map', label: 'Map' },
   { value: 'report', label: 'Report' },
 ];
 
@@ -110,6 +112,12 @@ const VrrMonitorContent = () => {
           <SectionLabel>Patterns</SectionLabel>
           <PatternManagerPanel />
         </section>
+      ) : activeTab === 'map' ? (
+        <p className="text-xs text-pl-muted leading-relaxed">
+          The map places each ledger well at the surface location of the wells registry well you match it to, sized by
+          its produced voidage (producers) or injected volume (injectors), with each pattern's cumulative VRR at the centre
+          of its producers. Nothing is placed until the match table is confirmed.
+        </p>
       ) : activeTab === 'report' ? (
         <p className="text-xs text-pl-muted leading-relaxed">
           The report prints the identification, every input with its unit and source, the voidage ledger by period and by
@@ -163,6 +171,7 @@ const VrrMonitorContent = () => {
           <PatternResultsPanel />
         </>
       )}
+      {activeTab === 'map' && <WellMapPanel />}
       {activeTab === 'report' && <VrrReportTab />}
     </div>
   );

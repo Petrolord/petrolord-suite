@@ -1,5 +1,5 @@
 // The surveillance history from a Voidage Replacement Monitor project, read
-// by id (WF-U2-004, the vrr-ledger-1 contract): lists the VRR projects the
+// by id (WF-U2-004, the vrr-1 contract, VRR-U2-001): lists the VRR projects the
 // user may read, takes the ledger of the chosen one, and on every visit reads
 // it again by id to say when it changed. A link from VRR Monitor arrives as
 // ?vrrProject=<id> and opens the list with that project chosen.
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useWaterfloodDesign } from '@/contexts/WaterfloodDesignContext';
 import { listVrrLedgers, getVrrLedger, compareVrrWithSource } from '@/utils/vrr/vrrLedgerContract';
-import { surveillanceFromVrrLedger, VRR_INTAKE_SOURCE } from '@/utils/waterflooddesign/vrrIntake';
+import { surveillanceFromVrrLedger, isVrrIntakeSource } from '@/utils/waterflooddesign/vrrIntake';
 
 export default function VrrIntakePanel() {
   const { setSurveillanceRows, setSurveillanceImport, surveillanceImport, addNotification, canWrite, setSurveillanceField } = useWaterfloodDesign();
@@ -18,7 +18,7 @@ export default function VrrIntakePanel() {
   const [list, setList] = useState(null);
   const [open, setOpen] = useState(false);
   const [state, setState] = useState(null);
-  const from = surveillanceImport?.source === VRR_INTAKE_SOURCE ? surveillanceImport.from : null;
+  const from = isVrrIntakeSource(surveillanceImport?.source) ? surveillanceImport.from : null;
 
   const take = (contract) => {
     const got = surveillanceFromVrrLedger(contract);

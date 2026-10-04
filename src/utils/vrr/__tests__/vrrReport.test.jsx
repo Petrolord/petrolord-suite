@@ -105,6 +105,7 @@ describe('RL6: every figure drawn from the screen series, or its reason', () => 
     expect(listCaptions(pdf).map((c) => c.title)).toEqual([
       'Voidage replacement ratio by period', 'Reservoir voidage by term', 'Reservoir pressure history',
       'Production and injection rates', 'Formation volume factors by period', 'Cumulative VRR by pattern',
+      'Voidage by well on the well locations',
     ]);
     for (const f of built.figures.filter((x) => x.plotted)) expectFigureDrawn(pdf, f, { logo: true });
     const counts = pointCounts(built.figures);
@@ -113,7 +114,8 @@ describe('RL6: every figure drawn from the screen series, or its reason', () => 
     expect(counts.terms[0]).toEqual({ Oil: termRows(d).length, Water: termRows(d).length, 'Free gas': termRows(d).length });
     expectFigureStatement(pdf, built.figures.find((f) => f.id === 'fvf'), 'Does not apply: one constant FVF set is used for every period');
     expectFigureStatement(pdf, built.figures.find((f) => f.id === 'patterns'), 'Not plotted: no pattern is defined.');
-    expect(args.figures.length).toBe(6);
+    expect(args.figures.length).toBe(7);
+    expectFigureStatement(pdf, built.figures.find((f) => f.id === 'map'), 'Not plotted: The match table between the ledger wells and the wells registry is not confirmed');
     pdf.close?.();
   });
   it('undated periods: no calendar, no rates, no pressure, each with its reason', () => {
@@ -127,7 +129,7 @@ describe('RL6: every figure drawn from the screen series, or its reason', () => 
   it('the Fluid table with patterns: the FVF and pattern figures are drawn', () => {
     const { built } = pdfOf(fluidTablePatterns());
     const pdf = readPdf(built.doc, { ink: true });
-    for (const f of built.figures) {
+    for (const f of built.figures.filter((x) => x.id !== 'map')) {
       expect(f.plotted).toBe(true);
       expectFigureDrawn(pdf, f, { logo: true });
     }

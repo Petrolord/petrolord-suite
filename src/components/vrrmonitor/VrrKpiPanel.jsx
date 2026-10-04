@@ -17,7 +17,8 @@ const Kpi = ({ title, value, unit, accent }) => (
 );
 
 const VrrKpiPanel = () => {
-  const { summary, rolling, flags, targetBand, isImported, ledgerWells, worstPattern, u, withheld, ledger } = useVrrMonitor();
+  const { summary, rolling, flags, targetBand, isImported, ledgerWells, worstPattern, u, withheld, ledger, wellVoidage } = useVrrMonitor();
+  const W = wellVoidage?.totals;
   const status = statusAgainstBand(summary?.cumulativeVRR ?? null, targetBand);
   const latestRolling = rolling.length && !withheld ? rolling[rolling.length - 1] : null;
   const flagged = flags.filter((f) => f != null);
@@ -45,6 +46,15 @@ const VrrKpiPanel = () => {
       <Kpi title="Total Injected Voidage" value={fmt(u.show('reservoir', summary?.totalInjectedVoidage))} unit={u.label('reservoir')} />
       {summary && ledger.totals.freeGasRB > 0 && (
         <Kpi title="Free gas in produced voidage" value={fmt(u.show('reservoir', ledger.totals.freeGasRB))} unit={u.label('reservoir')} />
+      )}
+      {summary && W && W.freeGasRBByWell > 0 && (
+        <div data-testid="vrr-freegas-by-well">
+          <Kpi title="Free gas well by well (beside the field figure)" value={fmt(u.show('reservoir', W.freeGasRBByWell))} unit={u.label('reservoir')} />
+          <p className="text-[11px] text-pl-muted mt-1 px-1">
+            Each well floored on its own: cum. VRR {fmt(W.cumulativeVRRByWell, 2)} with it. The figures above net free gas at
+            field level, where a well below its solution GOR offsets one producing free gas.
+          </p>
+        </div>
       )}
       {isImported && (
         <Kpi title="Wells" value={`${ledgerWells.producers.length} prod / ${ledgerWells.injectors.length} inj`} />

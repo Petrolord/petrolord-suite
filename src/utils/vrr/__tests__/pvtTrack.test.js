@@ -7,13 +7,15 @@ import { buildFluidModel, pvtAt } from '@/utils/nodal/pvt';
 const FLUID = { api: '35', gasSg: '0.7', gor: '550', salinityPpm: '35000', tempF: '180' };
 
 describe('derivePeriodFvf', () => {
-  it('matches the nodal pvtAt route exactly, with Bg scaled to RB/Mscf', () => {
+  it('matches the nodal pvtAt route for Bo, Bw and Rs; Bg in RB/Mscf on the engine Z', () => {
     const { overrides } = derivePeriodFvf(FLUID, [2500]);
     const model = buildFluidModel({ api: 35, gasSg: 0.7, gor: 550, salinityPpm: 35000 });
     const r = pvtAt(model, 2500, 180);
     expect(overrides[0].Bo).toBeCloseTo(r.bo, 12);
     expect(overrides[0].Bw).toBeCloseTo(r.bw, 12);
-    expect(overrides[0].Bg).toBeCloseTo(r.bg * 1000, 12);
+    // VRR-U2-018: Bg takes the engine's Dranchuk-Abou-Kassem Z (the nodal route keeps Papay); vrrTrackZ.test.js
+    expect(overrides[0].Bg).toBeCloseTo((0.00504 * overrides[0].Z * 640) / 2500 * 1000, 12);
+    expect(overrides[0].Bg).not.toBeCloseTo(r.bg * 1000, 4);
     expect(overrides[0].Rs).toBeCloseTo(r.rs, 12);
   });
 

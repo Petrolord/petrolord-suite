@@ -16,6 +16,14 @@
 //   PL3  the unit switch converts the KPI (62,865 RB is 9,995 rm3); a survey
 //        typed key by key in kPa.
 //
+// Step 2 (VRR-U2):
+//   U2-003, U2-006  rates per producing day and an Excel workbook read to the twin.
+//   U2-005, U2-004, U2-002  the demo field, the map's match table confirmed,
+//        the bubble map on white with the mark, the per-well free gas tile,
+//        and the PDF with the map figure and the free gas row.
+//   U2-001  the send panel names the vrr-1 contract and both receivers.
+//   U2-011  a pattern band changes that pattern's flags.
+//
 // Evidence goes under test-results/ only.
 
 import { test, expect } from '@playwright/test';
@@ -105,7 +113,7 @@ for (const [w, h] of [[1366, 768], [1440, 900], [390, 844]]) {
         await expect(page.locator('html')).toHaveAttribute('data-pl-active-theme', 'dark');
       }
       await sampleWithSurveys(page);
-      for (const name of ['Data & PVT', 'VRR Dashboard', 'Pressure', 'Patterns', 'Report']) {
+      for (const name of ['Data & PVT', 'VRR Dashboard', 'Pressure', 'Patterns', 'Map', 'Report']) {
         await tab(page, name).click();
         await page.waitForTimeout(200);
         expect(await noPageScroll(page), `${name}: sideways page scroll`).toBe(true);
@@ -261,3 +269,98 @@ test('PL3: the unit switch converts; a survey typed key by key in kPa is stored 
   await expect(page.getByLabel('Survey 1 pressure (psia)')).toHaveValue(/^2999\.999\d*$/);
   expect(errors).toEqual([]);
 });
+
+// ---------------------------------------------------------------------------
+// Step 2 (VRR-U2)
+// ---------------------------------------------------------------------------
+
+test('U2-003, U2-006: rates per producing day and an Excel workbook read to the twin', async ({ page }) => {
+  test.setTimeout(240000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await importLedger(page, 'twin-ledger.csv');
+  const twin = await kpis(page);
+  await importLedger(page, 'h09-rates-per-producing-day.csv', { accept: false });
+  await expect(page.getByTestId('vrr-rate-basis')).toHaveValue('producing');
+  await expect(page.getByTestId('vrr-import-readback')).toContainText('Rates were read per producing day');
+  await page.getByTestId('vrr-import-accept').click();
+  expect(await kpis(page)).toEqual(twin);
+  // the same file with calendar-day rates chosen: different voidage (the control)
+  await page.getByTestId('vrr-ledger-file').setInputFiles([]); // the same file again needs a fresh pick
+  await importLedger(page, 'h09-rates-per-producing-day.csv', { accept: false });
+  await page.getByTestId('vrr-rate-basis').selectOption('calendar');
+  await page.getByTestId('vrr-import-accept').click();
+  expect((await kpis(page)).prod).not.toBe(twin.prod);
+  // the twin as an Excel workbook (a notes sheet first, a title above the header)
+  await page.getByTestId('vrr-ledger-file').setInputFiles(path.join('e2e', 'fixtures', 'vrr', 'twin-ledger.xlsx'));
+  await expect(page.getByTestId('vrr-import-readback')).toContainText('sheet "Allocation"', { timeout: 60000 });
+  await page.getByTestId('vrr-import-accept').click();
+  expect(await kpis(page)).toEqual(twin);
+  await page.screenshot({ path: path.join(OUT, 'u2-006-workbook.png') });
+  expect(errors).toEqual([]);
+});
+
+test('U2-005, U2-004, U2-002: the demo field on the map, confirmed, and in the PDF', async ({ page }) => {
+  test.setTimeout(300000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await page.getByTestId('vrr-demo-field').click();
+  await expect(page.getByText('Monthly field ledger')).toBeVisible({ timeout: 60000 });
+  await expect(page.getByTestId('vrr-freegas-by-well')).toBeVisible();
+  await tab(page, 'Map').click();
+  await expect(page.getByTestId('vrr-map-refusal')).toContainText('not confirmed', { timeout: 60000 });
+  await expect(page.getByTestId('vrr-map-match-DP-1')).toHaveValue('hw-d0');
+  await page.getByTestId('vrr-map-confirm').click();
+  await expect(page.getByTestId('vrr-map-confirmed')).toBeVisible();
+  await expect(page.getByTestId('vrr-map-basis')).toContainText('10 wells placed in EPSG:26332');
+  const frame = page.locator('[data-canvas="chart"]').first();
+  expect(await frame.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)');
+  await expect(frame.locator('img[alt="Petrolord"]')).toBeAttached();
+  expect(await frame.locator('.recharts-scatter-symbol').count()).toBeGreaterThanOrEqual(10);
+  expect(await noPageScroll(page)).toBe(true);
+  await page.screenshot({ path: path.join(OUT, 'u2-004-map.png') });
+  // leaving a well off the map needs a new confirmation; the well is listed, never placed
+  await page.getByTestId('vrr-map-match-GI-1').selectOption('');
+  await expect(page.getByText('The table differs from the confirmed one')).toBeVisible();
+  await page.getByTestId('vrr-map-confirm').click();
+  await expect(page.getByTestId('vrr-map-basis')).toContainText('Not on the map: GI-1');
+  await tab(page, 'Report').click();
+  const { file } = await download(page, 'vrr-report-export', 'vrr-report-demo.pdf');
+  const pdf = readPdfFile(file);
+  expect(pdf.flat).toContain('Voidage by well on the well locations');
+  expect(pdf.flat).toMatch(/Free gas floored well by well/);
+  expect(pdf.flat).toMatch(/GI-1 injector not on the map/);
+  expect(pdf.flat).toContain('24-month demo field');
+  expect(errors).toEqual([]);
+});
+
+test('U2-001: the send panel names the vrr-1 contract and both receivers', async ({ page }) => {
+  test.setTimeout(240000);
+  const rows = fs.readFileSync(path.join('e2e', 'fixtures', 'waterflood', 'vrr-rows.json'), 'utf8');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript((r) => { try { if (!window.sessionStorage.getItem('harness.saved_vrr_projects.v1')) window.sessionStorage.setItem('harness.saved_vrr_projects.v1', r); } catch { /* blocked */ } }, rows);
+  await page.goto('/dev/studio/vrr', { timeout: 120000 });
+  await page.getByRole('combobox', { name: 'Project', exact: true }).click({ timeout: 120000 });
+  await page.getByRole('option', { name: /Ekene VRR ledger/ }).click();
+  await expect(page.getByTestId('vrr-send-contract')).toContainText('Contract vrr-1 (version 1): 6 months, 1 injectors, 1 producers, 0 pressure rows', { timeout: 60000 });
+  await expect(page.getByTestId('vrr-send-mbal')).toContainText('No dated pressure survey');
+  await expect(page.getByTestId('vrr-send-waterflood')).toBeVisible();
+});
+
+test('U2-011: a pattern band changes that pattern alone', async ({ page }) => {
+  test.setTimeout(240000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await page.getByTestId('vrr-demo-field').click();
+  await tab(page, 'Patterns').click();
+  await page.getByLabel('East target band min').fill('0.8');
+  await page.getByLabel('East target band max').fill('0.95');
+  await expect(page.getByTestId('vrr-pattern-band-East')).toContainText('its own');
+  await expect(page.getByTestId('vrr-pattern-band-West')).toContainText('field band');
+  await expect(page.getByText(/against 0\.80 to 0\.95 \(its own band\)/)).toBeVisible();
+  expect(errors).toEqual([]);
+});
+

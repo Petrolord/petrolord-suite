@@ -11,6 +11,8 @@ import { sampleVRRData } from '@/utils/vrrCalculations';
 import { importInfoOf } from '@/components/vrrmonitor/ImportPanel';
 import { SAMPLE_SURVEYS } from '@/components/vrrmonitor/PressurePanel';
 import { collectVrrReportArgs, buildVrrPdf } from '../vrrReportExport';
+import { demoFieldInputs, DEMO_LOCATIONS } from '../demoField';
+import { confirmWellMatches, draftMatches, proposeWellMatches } from '../wellMap';
 
 export const AT = new Date('2026-10-04T12:00:00Z');
 export const BUILD = 'test-build';
@@ -78,12 +80,21 @@ export function fluidTablePatterns() {
   };
 }
 
+export function demoFieldMapped() {
+  const inputs = { ...defaultInputs(), ...demoFieldInputs(), identification: { ...IDENT, field: 'Demo field', reservoir: 'D-1000' } };
+  const reg = DEMO_LOCATIONS.map(([name, x, y], i) => ({ id: `dw-${i}`, name, uwi: null, surface_x: x, surface_y: y, crs: 'EPSG:26332', xy_unit: 'm' }));
+  const wells = [...new Set(inputs.wellRows.map((r) => r.well))];
+  return { ...inputs, wellMap: confirmWellMatches(draftMatches(proposeWellMatches(wells, reg)), reg, { at: '2026-10-04T10:00:00Z' }).wellMap };
+}
+
 export const CASES = Object.freeze({
   'sample-wells': () => sampleWells(),
   'sample-wells-si': () => sampleWells({ system: 'si' }),
   'manual-sample': () => manualSample(),
   'undated-grid': () => undatedGrid(),
   'fluid-table-patterns': () => fluidTablePatterns(),
+  // VRR-U2-005: the demo field with its confirmed map
+  'demo-field': () => demoFieldMapped(),
 });
 
 export function reportOf(inputs, { projectName = 'Ekene waterflood', organizationName = '' } = {}) {

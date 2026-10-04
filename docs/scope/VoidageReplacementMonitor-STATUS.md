@@ -239,3 +239,33 @@ findings, the Step 1 table, the Step 2 ranked backlog). In short:
 - Payload additions (schema stays 1): `unitSystem`, `identification`,
   `inputMeta`, `pvtIntake`, `importInfo`, `pressureImportInfo`, `datum`,
   `sampleNote`. A project saved before opens in oilfield, unchanged.
+
+## 2026-10-04 — Reservoir upgrade round, Step 2 (VRR-U2, branch `feat/vrr-u2`)
+
+Batch A all six and two of Batch B, per the programme lead's batch decision
+(recorded verbatim in `docs/upgrade/VoidageReplacementMonitor-UPGRADE.md`).
+
+- **U2-001 the `vrr-1` contract** (`src/utils/vrr/vrrLedgerContract.js`):
+  one read-by-id contract for the ledger and the pressure rows, converged
+  with Waterflood's `vrr-ledger-1` (same shape, `version` 1, readers accept
+  both names, same fingerprint). Material Balance reads its pressure rows
+  through it (numbers identical, its tests green); the send panel names the
+  contract and both receivers.
+- **U2-002 per-well free gas** beside the field figure (engines PR #307
+  `buildWellVoidage`, not merged by the build agent; vendored byte-identical
+  with `vrr-u2` ledger rows). The headline stays field level.
+- **U2-003 producing days** at the ledger door; **U2-006 Excel workbooks**
+  at the ledger and pressure doors (shared `readTabularFile`).
+- **U2-004 the Map tab**: voidage by well on the wells registry locations
+  through a match table the user confirms; nothing placed by guess; a
+  figure and a table in the report.
+- **U2-005 the demo field** (24 months, 10 wells) beside the template.
+- **U2-018** the pressure track's Z on Dranchuk-Abou-Kassem from the
+  engines (track projects move slightly: demo field 0.78034 to 0.77904).
+- **U2-011** a target band per pattern.
+- Payload additions (schema stays 1): `wellMap`, `patterns[].band`.
+- Deferred: U2-007 CRM (needs a published validation case), U2-008,
+  U2-009, U2-010 (datum stated, not corrected), Batch C.
+- Engines PR #307 merged by the lead (engines main e9d98ac); the Suite is
+  re-pinned there with 0 deviations.
+- Sample: `/root/vrr-report-sample.pdf` (9 pages, the demo field with its map).

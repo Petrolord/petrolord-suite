@@ -52,7 +52,7 @@ const PatternCard = ({ analysis, targetBand, system }) => {
           </span>
           {latestFlag && (
             <span className={`text-xs font-medium ${THEMED_TONE_TEXT[FLAG_TONE[latestFlag]]}`}>
-              latest period {latestFlag === 'in-band' ? 'in band' : latestFlag} against {targetBand.min.toFixed(2)} to {targetBand.max.toFixed(2)}
+              latest period {latestFlag === 'in-band' ? 'in band' : latestFlag} against {targetBand.min.toFixed(2)} to {targetBand.max.toFixed(2)}{targetBand.from === 'pattern' ? ' (its own band)' : ''}
             </span>
           )}
         </CardTitle>
@@ -158,7 +158,7 @@ const PatternResultsPanel = () => {
       </Card>
 
       {patternAnalyses.map((a) => (
-        <PatternCard key={a.pattern.id} analysis={a} targetBand={targetBand} system={u.system} />
+        <PatternCard key={a.pattern.id} analysis={a} targetBand={a.band || targetBand} system={u.system} />
       ))}
     </>
   );
