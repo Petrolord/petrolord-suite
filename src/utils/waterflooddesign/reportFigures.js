@@ -10,6 +10,7 @@
 import { patternLabel } from './patterns.js';
 import { krSeries, fwSeries, recoverySeries, patternSeries, dpSeries, surveillanceRateSeries, vrrSeries } from './series.js';
 import { hallWindowLines } from '@/components/waterflood/hallLines';
+import { engineChanWindow, chanWindowText } from './chanWindows.js';
 
 const PANEL = 62;
 const g = (v, s = 3) => (Number.isFinite(v) ? String(parseFloat(Number(v).toPrecision(s))) : 'n/a');
@@ -181,6 +182,27 @@ export function buildWaterfloodReportFigures({ model, state }) {
   } else {
     figs.push({ id: 'hall', title: 'Hall plot', statement: sr ? `Does not apply: ${sr.capabilities?.hall?.reason || 'no injector carries enough pressure points.'}` : 'Does not apply: no surveillance history was loaded.' });
   }
+
+  // 9b. Chan plots, one per series (WF-U2-006): WOR and WOR' on log-log with
+  // the late-time window shaded and its fitted line
+  const chanList = sr?.chan ? [sr.chan.field, ...(sr.chan.producers || [])].filter(Boolean) : [];
+  chanList.forEach((c, i) => {
+    const w = c.window || engineChanWindow(c.points);
+    const series = [
+      { name: 'WOR', type: 'line', rgb: RGB.water, pts: c.points.filter((p) => p.t > 0 && p.wor > 0).map((p) => [p.t, p.wor]), width: 0.5 },
+      { name: "WOR'", type: 'line', rgb: RGB.tangent, pts: c.points.filter((p) => p.t > 0 && p.worDeriv > 0).map((p) => [p.t, p.worDeriv]), width: 0.5 },
+    ];
+    if (Number.isFinite(w.slope) && Number.isFinite(w.intercept)) {
+      series.push({ name: 'window fit', type: 'line', rgb: RGB.ref, pts: [w.tFrom, w.tTo].map((t) => [t, Math.exp(w.intercept + w.slope * Math.log(t))]), dash: [1.6, 1.0], width: 0.5 });
+    }
+    const bands = Number.isFinite(w.tFrom) && Number.isFinite(w.tTo) && w.tTo > w.tFrom ? [{ x0: w.tFrom, x1: w.tTo, label: w.chosen ? 'chosen' : 'late' }] : [];
+    figs.push({
+      id: `chan-${i}`,
+      title: `Chan plot: ${c.producer}`,
+      caption: `WOR and WOR' against time since water onset, log-log. Window: ${chanWindowText(w)}; slope ${g(w.slope)}${w.ci95 ? ` (95% ${g(w.ci95[0])} to ${g(w.ci95[1])})` : ''}, ${w.n} points. Indicative reading: ${c.classification?.code || 'indeterminate'}.`,
+      panels: [{ height: PANEL, spec: { xTitle: 'Time since water onset (days)', yTitle: "WOR and WOR' (per day)", xLog: true, yLog: true, series, bands } }],
+    });
+  });
 
   // 10. Monte Carlo
   if (s.mcSummary) {

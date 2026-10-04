@@ -319,3 +319,19 @@ test('U2-005 and U2-014: a seeded Monte Carlo in SI, the seed printed', async ({
   await expect(page.getByTestId('wds-mc-seed-used')).toContainText('Seed 20261004 (as entered)', { timeout: 120000 });
   await page.screenshot({ path: path.join(OUT, 'u2-005-mc.png') });
 });
+
+test('U2-006 Chan window chosen in days with a reason; the slope carries its interval', async ({ page }) => {
+  test.setTimeout(240000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await tab(page, 'Surveillance').click();
+  await page.getByRole('button', { name: 'Sample', exact: true }).click();
+  await expect(page.getByTestId('chan-window')).toContainText('the last 40 percent of the points');
+  await expect(page.getByTestId('chan-slope')).toContainText('95%');
+  await page.getByTestId('chan-field-from').fill('40');
+  await page.getByTestId('chan-field-to').fill('90');
+  await page.getByTestId('chan-field-reason').fill('After the pattern balance in February');
+  await page.getByTestId('chan-field-apply').click();
+  await expect(page.getByTestId('chan-window')).toContainText('day 40 to 90, chosen: After the pattern balance in February');
+  await page.screenshot({ path: path.join(OUT, 'u2-006-chan.png') });
+});

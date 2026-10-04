@@ -19,6 +19,7 @@ import { wfUnits } from '@/utils/waterflooddesign/units';
 import { layeredFrom } from '@/utils/waterflooddesign/workspace';
 import { patternKeyOf } from '@/utils/waterflooddesign/patterns';
 import { applyHallWindows } from '@/utils/waterflooddesign/hallWindows';
+import { applyChanWindows } from '@/utils/waterflooddesign/chanWindows';
 
 export const WF_PROJECTS_TABLE = 'saved_waterflood_design_projects';
 
@@ -211,6 +212,13 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
     if (choice) next[injector] = choice; else delete next[injector];
     return next;
   }), []);
+  // WF-U2-006: Chan late-time windows chosen per series ('field' or a producer)
+  const [chanWindows, setChanWindows] = useState({});
+  const setChanWindow = useCallback((key, choice) => setChanWindows((prev) => {
+    const next = { ...prev };
+    if (choice) next[key] = choice; else delete next[key];
+    return next;
+  }), []);
 
   // Transient Monte Carlo state: expensive and stochastic, so it is run on
   // demand (never a useMemo) and never persisted.
@@ -270,11 +278,11 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
   const surveillanceResult = useMemo(() => {
     if (!surveillanceRows.length) return null;
     try {
-      return applyHallWindows(analyzeWaterflood(surveillanceRows, buildSurveillanceConfig(surveillanceConfig)), hallWindows);
+      return applyChanWindows(applyHallWindows(analyzeWaterflood(surveillanceRows, buildSurveillanceConfig(surveillanceConfig)), hallWindows), chanWindows);
     } catch (e) {
       return { error: e.message || 'Surveillance analysis failed' };
     }
-  }, [surveillanceRows, surveillanceConfig, hallWindows]);
+  }, [surveillanceRows, surveillanceConfig, hallWindows, chanWindows]);
 
   // ---- Uncertainty (Monte Carlo) run: on demand, results transient ----
   const runUncertainty = useCallback(async () => {
@@ -351,8 +359,9 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
     mcSummary,
     floodStart,
     hallWindows,
+    chanWindows,
     modified: new Date().toISOString(),
-  }), [hallWindows, currentProjectId, projectName, displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, surveillanceImport, identification, inputMeta, unitSystem, pvtIntake, mcSummary, floodStart]);
+  }), [hallWindows, chanWindows, currentProjectId, projectName, displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, surveillanceImport, identification, inputMeta, unitSystem, pvtIntake, mcSummary, floodStart]);
 
   const hydrate = useCallback((raw) => {
     const payload = migrateWaterfloodPayload(raw);
@@ -365,6 +374,7 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
     setMcSummary(payload?.mcSummary || null);
     setFloodStart(typeof payload?.floodStart === 'string' ? payload.floodStart : '');
     setHallWindows(payload?.hallWindows && typeof payload.hallWindows === 'object' ? payload.hallWindows : {});
+    setChanWindows(payload?.chanWindows && typeof payload.chanWindows === 'object' ? payload.chanWindows : {});
     setDisplacementInputs({ ...DEFAULT_DISPLACEMENT, ...(payload?.displacementInputs || {}) });
     setLayers(Array.isArray(payload?.layers) && payload.layers.length ? payload.layers : DEFAULT_LAYERS);
     setLayeredConfig({ ...DEFAULT_LAYERED_CONFIG, ...(payload?.layeredConfig || {}) });
@@ -520,7 +530,7 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, surveillanceImport, identification, inputMeta, unitSystemSaved, pvtIntake, mcSummary, floodStart, hallWindows, currentProjectId, hydrated, canWrite]);
+  }, [displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, surveillanceImport, identification, inputMeta, unitSystemSaved, pvtIntake, mcSummary, floodStart, hallWindows, chanWindows, currentProjectId, hydrated, canWrite]);
 
   // ---- Scenarios: named snapshots of all input groups ----
   const saveScenario = useCallback((name) => {
@@ -568,6 +578,7 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
     mcSummary, migratedFrom, serializeInputs, setPatternInputs, setSurveillanceConfig,
     floodStart, setFloodStart,
     hallWindows, setHallWindow,
+    chanWindows, setChanWindow,
     isSaving, saveError, lastSaveTime,
     // inputs
     displacementInputs, setDisplacementField, setDisplacementInputs,

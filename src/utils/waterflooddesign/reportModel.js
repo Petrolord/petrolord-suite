@@ -23,6 +23,7 @@ import { readBackLines } from './surveillanceImport.js';
 import { countAlerts } from './surveillance.js';
 import { mcSummaryState } from './mcSummary.js';
 import { hallChoiceText } from './hallWindows.js';
+import { chanWindowText, engineChanWindow } from './chanWindows.js';
 import { patternTitle, patternLabel, isLineDrive, arealSweepCorrelationText, LINE_DRIVE_RANGE } from './patterns.js';
 import { exactBreakthroughDays } from '@/utils/waterfloodUncertainty';
 
@@ -284,6 +285,20 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
     };
   }
 
+  // ---- Chan windows (WF-U2-006) ----------------------------------------------
+  let chan = null;
+  const chanSeries = sr?.chan ? [sr.chan.field, ...(sr.chan.producers || [])].filter(Boolean) : [];
+  if (chanSeries.length) {
+    chan = {
+      head: ['Series', 'Late-time window', 'Points', 'WOR\' slope (log-log)', '95% interval', 'Reading (indicative)'],
+      rows: chanSeries.map((c) => {
+        const w = c.window || engineChanWindow(c.points);
+        return [c.producer, chanWindowText(w), String(w.n ?? EMPTY_VALUE), f(w.slope, 3), w.ci95 ? `${f(w.ci95[0], 3)} to ${f(w.ci95[1], 3)}` : EMPTY_VALUE, (c.classification?.code || 'indeterminate').replace(/^./, (x) => x.toUpperCase())];
+      }),
+      note: 'Chan (1995): the log-log slope of WOR\' over time since water onset, fitted over the points with a rising WOR\' in the window. A slope of 0.4 or more reads as channeling, 0 or less as coning or normal displacement, between as transitional. Indicative only: confirm with completion, geology and pressure data.',
+    };
+  }
+
   // ---- Hall windows ----------------------------------------------------------
   let hall = null;
   if (sr?.hall_plots?.length) {
@@ -352,6 +367,11 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
   const editedRows = inputs.filter((r) => /^Edited in this app after the intake/.test(r.source));
   if (editedRows.length) flags.push(`Edited after the intake: ${editedRows.map((r) => r.label).join(', ')}.`);
   if (mcState === 'stale') flags.push('The Monte Carlo summary was run on earlier inputs and does not describe this case.');
+  // WF-U2-006: a Chan reading whose slope interval spans both regimes is not resolved
+  for (const c of chanSeries) {
+    const w = c.window || engineChanWindow(c.points);
+    if (w.ci95 && w.ci95[0] <= 0 && w.ci95[1] >= 0.4) flags.push(`Chan reading of ${c.producer} not resolved: the 95 percent interval of the slope, ${f(w.ci95[0], 2)} to ${f(w.ci95[1], 2)}, spans both the coning and the channeling regimes.`);
+  }
   if (hall?.withoutPressure?.length) flags.push(`Injectors with too few pressure points for a Hall plot: ${hall.withoutPressure.join(', ')}.`);
   const limits = {
     assumptions: [
@@ -401,6 +421,7 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
     forecastTable,
     surveillance,
     hall,
+    chan,
     layeredTable,
     model,
     basis,

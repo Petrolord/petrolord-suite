@@ -50,6 +50,7 @@ export function buildWaterfloodPdf(a, { logo = null, generatedAt = new Date() } 
     section('Surveillance data', 'No injection and production history was loaded: the VRR, Hall and Chan results do not apply.', { need: 14 });
   }
   if (model.hall) table('Hall plot slope windows', model.hall.head, model.hall.rows, { note: model.hall.note, columnStyles: { 0: { cellWidth: 20 } } });
+  if (model.chan) table('Chan water-control diagnostics: late-time windows', model.chan.head, model.chan.rows, { note: model.chan.note, columnStyles: { 0: { cellWidth: 26 } } });
   if (model.layeredTable) table('Layered sweep: breakthrough stages', model.layeredTable.head, model.layeredTable.rows, { note: model.layeredTable.note });
 
   table('Model', ['Item', 'As used in this report'], model.model, { columnStyles: { 0: { cellWidth: 40 } } });

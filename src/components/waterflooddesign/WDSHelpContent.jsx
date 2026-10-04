@@ -116,6 +116,12 @@ const WDSHelpContent = () => (
         are decided again, and the report prints them as chosen with your reason. "Back to the thirds" clears them.
       </p>
       <p>
+        The Chan plot shades the late-time window its reading comes from (by default the last 40 percent of the
+        points) and prints the slope of WOR' with its 95 percent interval. Under the plot you can choose the window in
+        days since water onset and give the reason; the reading is decided again on that window. The report prints a
+        Chan plot per series with the window, and flags a reading whose interval spans both regimes as not resolved.
+      </p>
+      <p>
         "From VRR Monitor" takes the history from a saved Voidage Replacement Monitor project by its id: the per-well
         ledger as monthly volumes, so the totals and the cumulative VRR here are the ones VRR Monitor shows. The
         ledger carries no injection pressure, so there is no Hall plot from it, and gas injection is not carried. The

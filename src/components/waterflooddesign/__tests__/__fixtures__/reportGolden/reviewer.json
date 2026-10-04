@@ -1,6 +1,6 @@
 {
-  "pages": 11,
-  "sha256": "d2107f11883a4953d16c8e2edfb319a519135cfecd2ad6adb307b3e4f9d94cad",
+  "pages": 12,
+  "sha256": "1562f96a23d15540b19bebf206e15088f27ec68554ed518f5a1f59ffd0695ba3",
   "figures": [
     {
       "id": "kr",
@@ -262,9 +262,81 @@
       ]
     },
     {
-      "id": "mc",
+      "id": "chan-0",
       "number": 11,
       "page": 11,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 188.44,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "WOR": 90,
+            "WOR'": 81,
+            "window fit": 2
+          },
+          "total": 173,
+          "bands": 1,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "chan-1",
+      "number": 12,
+      "page": 12,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "WOR": 90,
+            "WOR'": 64,
+            "window fit": 2
+          },
+          "total": 156,
+          "bands": 1,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "chan-2",
+      "number": 13,
+      "page": 12,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 105.72,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "WOR": 90,
+            "WOR'": 59,
+            "window fit": 2
+          },
+          "total": 151,
+          "bands": 1,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "mc",
+      "number": 14,
+      "page": 12,
       "plotted": false,
       "panels": []
     }

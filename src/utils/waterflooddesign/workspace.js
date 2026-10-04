@@ -10,6 +10,7 @@ import { analyzeLayeredSweep } from '@/utils/layeredSweepCalculations';
 import { forecastPattern } from '@/utils/patternForecastCalculations';
 import { analyzeWaterflood } from '@/utils/waterfloodCalculations';
 import { applyHallWindows } from './hallWindows';
+import { applyChanWindows } from './chanWindows';
 
 const num = (v) => {
   const n = typeof v === 'number' ? v : parseFloat(v);
@@ -39,7 +40,7 @@ export function deriveWaterfloodState(payload, { buildDisplacementSpec, buildPat
   const rows = payload.surveillance?.rows || [];
   let surveillanceResult = null;
   if (rows.length) {
-    try { surveillanceResult = applyHallWindows(analyzeWaterflood(rows, buildSurveillanceConfig(payload.surveillance.config)), payload.hallWindows); } catch (e) { surveillanceResult = { error: e.message }; }
+    try { surveillanceResult = applyChanWindows(applyHallWindows(analyzeWaterflood(rows, buildSurveillanceConfig(payload.surveillance.config)), payload.hallWindows), payload.chanWindows); } catch (e) { surveillanceResult = { error: e.message }; }
   }
   return {
     displacementInputs,
@@ -55,6 +56,7 @@ export function deriveWaterfloodState(payload, { buildDisplacementSpec, buildPat
     surveillanceResult,
     surveillanceImport: payload.surveillance?.import || null,
     hallWindows: payload.hallWindows || {},
+    chanWindows: payload.chanWindows || {},
     uncertaintyConfig: payload.uncertaintyConfig,
     mcSummary: payload.mcSummary || null,
     identification: payload.identification || {},

@@ -65,7 +65,7 @@ Headline results
 
 
 
-Waterflood Design Report, Ekene, Five-spot P-1                                                                                   Page 1 of 11
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                   Page 1 of 12
 Recovery of the pattern, by its parts
  Part                                       Value         Method
 
@@ -108,7 +108,7 @@ at the average water saturation behind the front at breakthrough.
 
 
 
-Waterflood Design Report, Ekene, Five-spot P-1                                                                                     Page 2 of 11
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                     Page 2 of 12
 Inputs and their sources
  Input                                           Value       Unit       Source and quality
 
@@ -190,7 +190,7 @@ Waterflood Design Report, Ekene, Five-spot P-1                                  
 
 
 
-Waterflood Design Report, Ekene, Five-spot P-1                                                                           Page 3 of 11
+Waterflood Design Report, Ekene, Five-spot P-1                                                                           Page 3 of 12
  Input                                           Value                   Unit            Source and quality
 
                                                                                          (Ahmed eq. 14-66)
@@ -265,86 +265,101 @@ Rows into the engine 360, used 360; duplicates removed 0; negative rates zeroed 
 
 
 
-Waterflood Design Report, Ekene, Five-spot P-1                                                                                           Page 4 of 11
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                           Page 4 of 12
 Wells of the history
- Well           Type               First                Last                 Rows   Days        Oil (STB)        Water (bbl)        Injected (bbl)
+ Well            Type               First                Last                Rows      Days       Oil (STB)        Water (bbl)          Injected (bbl)
 
- INJ-1          injector           2024-01-01           2024-03-30           90     90          0                0                  44,663
+ INJ-1           injector           2024-01-01           2024-03-30          90        90         0                0                    44,663
 
- INJ-2          injector           2024-01-01           2024-03-30           90     90          0                0                  31,680
+ INJ-2           injector           2024-01-01           2024-03-30          90        90         0                0                    31,680
 
- PROD-1         producer           2024-01-01           2024-03-30           90     90          22,392           16,250             0
+ PROD-1          producer           2024-01-01           2024-03-30          90        90         22,392           16,250               0
 
- PROD-2         producer           2024-01-01           2024-03-30           90     90          18,594           13,017             0
+ PROD-2          producer           2024-01-01           2024-03-30          90        90         18,594           13,017               0
 
- Total          n/a                n/a                  n/a                  360    n/a         40,986           29,267             76,343
+ Total           n/a                n/a                  n/a                 360       n/a        40,986           29,267               76,343
 
 Volumes are daily rates times the days to the well's next row (the last row: the gap before it). The field totals of the engine are built the same way
 from the field days.
 
 
 Hall plot slope windows
- Injector           Window                        Dates                              Points         Slope (psi.d/bbl)      95% interval         r2
+ Injector            Window                        Dates                               Points         Slope (psi.d/bbl)      95% interval            r2
 
- INJ-1              Baseline (first third)        2024-01-01 to 2024-01-30           30             6.726                  6.542 to 6.91        0.995
+ INJ-1               Baseline (first third)        2024-01-01 to 2024-01-30            30             6.726                  6.542 to 6.91           0.995
 
- INJ-1              Recent (last third)           2024-03-01 to 2024-03-30           30             8.392                  8.306 to 8.478       0.999
+ INJ-1               Recent (last third)           2024-03-01 to 2024-03-30            30             8.392                  8.306 to 8.478          0.999
 
- INJ-1              Recent over baseline          n/a                                n/a            1.248                  n/a                  n/a
+ INJ-1               Recent over baseline          n/a                                 n/a            1.248                  n/a                     n/a
 
- INJ-2              Baseline (first third)        2024-01-01 to 2024-01-30           30             8                      8 to 8               1.000
+ INJ-2               Baseline (first third)        2024-01-01 to 2024-01-30            30             8                      8 to 8                  1.000
 
- INJ-2              Recent (last third)           2024-03-01 to 2024-03-30           30             8                      8 to 8               1.000
+ INJ-2               Recent (last third)           2024-03-01 to 2024-03-30            30             8                      8 to 8                  1.000
 
- INJ-2              Recent over baseline          n/a                                n/a            1.000                  n/a                  n/a
+ INJ-2               Recent over baseline          n/a                                 n/a            1.000                  n/a                     n/a
 
 Hall (1963): the integral of the wellhead injection pressure over time against cumulative water injected; the slope is p/q. A ratio of 1.2 or more flags
 declining injectivity, 0.8 or less improving injectivity (possible fracturing or channelling). Pressure integrated as given: no hydrostatic head, friction
 or reservoir pressure is applied.
 
 
+Chan water-control diagnostics: late-time windows
+ Series                   Late-time window                                    Points   WOR' slope (log-log)       95% interval        Reading (indicative)
+
+ Field (all wells)        the last 40 percent of the points (day 55 to 90)    36       0.194                      -1.597 to 1.986     Transitional
+
+ PROD-1                   the last 40 percent of the points (day 55 to 90)    30       0.829                      -1.480 to 3.137     Channeling
+
+ PROD-2                   the last 40 percent of the points (day 55 to 90)    24       -0.224                     -1.917 to 1.469     Coning
+
+Chan (1995): the log-log slope of WOR' over time since water onset, fitted over the points with a rising WOR' in the window. A slope of 0.4 or more
+reads as channeling, 0 or less as coning or normal displacement, between as transitional. Indicative only: confirm with completion, geology and
+pressure data.
+
+
 Layered sweep: breakthrough stages
- Stage       k broken (md)               DP coverage (%)          DP WOR (RB/RB)              Stiles coverage (%)           Stiles water cut (%)
+ Stage       k broken (md)                DP coverage (%)         DP WOR (RB/RB)                Stiles coverage (%)           Stiles water cut (%)
 
- 1           500.0                       46.6                     0.78                        40.3                          64.8
+ 1           500.0                        46.6                    0.78                          40.3                          64.8
 
- 2           250.0                       64.0                     2.27                        58.4                          83.5
+ 2           250.0                        64.0                    2.27                          58.4                          83.5
 
- 3           120.0                       81.8                     9.12                        78.3                          95.3
+ 3           120.0                        81.8                    9.12                          78.3                          95.3
 
- 4           60.0                        92.1                     24.68                       90.0                          98.0
+ 4           60.0                         92.1                    24.68                         90.0                          98.0
 
- 5           30.0                        100.0                    infinite                    100.0                         100.0
+ 5           30.0                         100.0                   infinite                      100.0                         100.0
 
 Dykstra-Parsons V 0.679, median k 122.0 md; M 0.383; Stiles A 1.5. Non-communicating layers, piston-like displacement in each.
 
-Model
- Item                                 As used in this report
-
- Displacement                         1-D Buckley-Leverett with the Welge tangent; capillary pressure neglected; incompressible fluids; fw with the
-                                      field-unit gravity term when the dip term is on
-
- Relative permeability                Corey, normalised on (Sw - Swc) / (1 - Swc - Sor)
-
- Areal sweep                          Five-spot: EA at breakthrough from Craig's data (Willhite regression), entered with Craig's M; growth after
-                                      breakthrough EA = EAbt + 0.2749 ln(Wi / Wibt) (Dyes, Caudle and Erickson 1954), capped at 1
-
- Pattern forecast                     Piston-like areal growth of the Buckley-Leverett profile; Np = PV x EV x EA x ED x (1 - Swc); rates by
-                                      differencing Np; production balances injection in reservoir barrels
-
- Layered sweep                        Dykstra-Parsons (non-communicating, log-normal V) and Stiles coverage
-
- Surveillance                         Reservoir-barrel voidage (oil x Bo, water x Bw, free gas x Bg), VRR daily, rolling over calendar days and
-                                      cumulative on calendar volumes; Hall (1963); Chan (1995) WOR and WOR' diagnostics (indicative)
-
- Uncertainty                          Monte Carlo through the canonical module (src/lib/monteCarlo.js), each realization rerunning the forecast;
-                                      summary kept, realizations not kept
 
 
 
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                                   Page 5 of 12
+Model
+ Item                             As used in this report
 
-Waterflood Design Report, Ekene, Five-spot P-1                                                                                               Page 5 of 11
-Basis and conventions
+ Displacement                     1-D Buckley-Leverett with the Welge tangent; capillary pressure neglected; incompressible fluids; fw with the
+                                  field-unit gravity term when the dip term is on
+
+ Relative permeability            Corey, normalised on (Sw - Swc) / (1 - Swc - Sor)
+
+ Areal sweep                      Five-spot: EA at breakthrough from Craig's data (Willhite regression), entered with Craig's M; growth after
+                                  breakthrough EA = EAbt + 0.2749 ln(Wi / Wibt) (Dyes, Caudle and Erickson 1954), capped at 1
+
+ Pattern forecast                 Piston-like areal growth of the Buckley-Leverett profile; Np = PV x EV x EA x ED x (1 - Swc); rates by
+                                  differencing Np; production balances injection in reservoir barrels
+
+ Layered sweep                    Dykstra-Parsons (non-communicating, log-normal V) and Stiles coverage
+
+ Surveillance                     Reservoir-barrel voidage (oil x Bo, water x Bw, free gas x Bg), VRR daily, rolling over calendar days and
+                                  cumulative on calendar volumes; Hall (1963); Chan (1995) WOR and WOR' diagnostics (indicative)
+
+ Uncertainty                      Monte Carlo through the canonical module (src/lib/monteCarlo.js), each realization rerunning the forecast;
+                                  summary kept, realizations not kept
+
+
+Basis and conventions
  Item                             As used in this report
 
  Formation volume factors         Bo and Bw in reservoir barrels per stock-tank barrel (RB/STB); Bg in reservoir barrels per Mscf; one value for
@@ -388,67 +403,70 @@ Published ranges of the methods used
  Dykstra-Parsons                                                   V 0 to 1, log-normal layer permeability               V 0.679
 
 
-Flags on the inputs and the methods
-No input is outside a published range and nothing was edited after an intake.
 
 
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                             Page 6 of 12
+Flags on the inputs and the methods
+- Chan reading of Field (all wells) not resolved: the 95 percent interval of the slope, -1.60 to 1.99, spans both the coning and the channeling
+regimes.
+- Chan reading of PROD-1 not resolved: the 95 percent interval of the slope, -1.48 to 3.14, spans both the coning and the channeling regimes.
+- Chan reading of PROD-2 not resolved: the 95 percent interval of the slope, -1.92 to 1.47, spans both the coning and the channeling regimes.
 
 
-Waterflood Design Report, Ekene, Five-spot P-1                                                                                             Page 6 of 11
-kr-1 block received from SCAL Studio
- Item                            Value
+kr-1 block received from SCAL Studio
+ Item                             Value
 
- Contract                        kr-1
+ Contract                         kr-1
 
- Source                          SCAL Studio, project "Ekene E-2000 SCAL"
+ Source                           SCAL Studio, project "Ekene E-2000 SCAL"
 
- Generated                       2026-10-04 09:00 UTC
+ Generated                        2026-10-04 09:00 UTC
 
- Build                           Petrolord Suite test (fixture)
+ Build                            Petrolord Suite test (fixture)
 
- Oil-water set                   Corey fitted to sample "Demo core A (synthetic)" (analog, imbibition, unsteady-state), r2 0.999 (log kr)
+ Oil-water set                    Corey fitted to sample "Demo core A (synthetic)" (analog, imbibition, unsteady-state), r2 0.999 (log kr)
 
- Gas-oil set                     Corey, parameters entered by the user
+ Gas-oil set                      Corey, parameters entered by the user
 
- Capillary pressure              Leverett J averaged from 2 samples (Demo core A (synthetic), Demo core B (synthetic)), refit r2 1.000, scaled
-                                 to k 150 md and porosity 0.22
+ Capillary pressure               Leverett J averaged from 2 samples (Demo core A (synthetic), Demo core B (synthetic)), refit r2 1.000, scaled
+                                  to k 150 md and porosity 0.22
 
- Samples                         Demo core A (synthetic), Demo core B (synthetic)
+ Samples                          Demo core A (synthetic), Demo core B (synthetic)
 
- Units of the block              As the engine holds them, whatever the display units: Pc psi, IFT dyn/cm, permeability md, depth and height ft,
-                                 temperature degF, saturations and kr as fractions
+ Units of the block               As the engine holds them, whatever the display units: Pc psi, IFT dyn/cm, permeability md, depth and height ft,
+                                  temperature degF, saturations and kr as fractions
 
- Scope                           Two-phase Corey curves (oil-water at the given Swc, gas-oil at connate water) and one drainage-type Leverett J
-                                 curve. No hysteresis between drainage and imbibition, no three-phase model, no end-point scaling with depth
-                                 or permeability.
+ Scope                            Two-phase Corey curves (oil-water at the given Swc, gas-oil at connate water) and one drainage-type Leverett J
+                                  curve. No hysteresis between drainage and imbibition, no three-phase model, no end-point scaling with depth
+                                  or permeability.
 
 
 pvt-1 block received from Fluid Systems Studio
- Item                            Value
+ Item                             Value
 
- PVT contract                    pvt-1
+ PVT contract                     pvt-1
 
- Source                          Fluid Systems Studio, project "Good Oil Well No. 4 PVT"
+ Source                           Fluid Systems Studio, project "Good Oil Well No. 4 PVT"
 
- Generated                       2026-10-02 09:00 UTC
+ Generated                        2026-10-02 09:00 UTC
 
- Build                           Petrolord Suite test (fixture)
+ Build                            Petrolord Suite test (fixture)
 
- Fluid model                     Black-oil correlations
+ Fluid model                      Black-oil correlations
 
- Liberation basis                Black-oil correlations on a surface separation (flash) basis: Rs and Bo are per stock-tank barrel, and the
-                                 correlations do not distinguish differential from flash liberation below the bubble point.
+ Liberation basis                 Black-oil correlations on a surface separation (flash) basis: Rs and Bo are per stock-tank barrel, and the
+                                  correlations do not distinguish differential from flash liberation below the bubble point.
 
- Bubble point                    measured (lab)
+ Bubble point                     measured (lab)
 
- Standard conditions             14.7 psia, 60 degF
+ Standard conditions              14.7 psia, 60 degF
 
- Lab tuning                      correlations matched to lab data
+ Lab tuning                       correlations matched to lab data
 
- Units of the block              As the engine holds them, whatever the display units: pressure psia, temperature degF, Rs scf/STB, Bo and Bw
-                                 RB/STB, Bg RB/scf, viscosities cP, co 1/psi
+ Units of the block               As the engine holds them, whatever the display units: pressure psia, temperature degF, Rs scf/STB, Bo and Bw
+                                  RB/STB, Bg RB/scf, viscosities cP, co 1/psi
 
- Read at                         2500 psia (stated)
+ Read at                          2500 psia (stated)
 
 
 Notes
@@ -457,7 +475,7 @@ Screening case for the E-2000 waterflood.
 
 
 
-Waterflood Design Report, Ekene, Five-spot P-1                                                                                         Page 7 of 11
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                           Page 7 of 12
 Plots
 Figure 1. Relative permeability
 
@@ -556,7 +574,7 @@ ED in the swept region (1-D). Breakthrough at 0.543 PV with ED 66.3 %; ED at Sor
 
 
 
-Waterflood Design Report, Ekene, Five-spot P-1                                                                                                                Page 8 of 11
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                                                Page 8 of 12
 Figure 4. Pattern forecast: oil and water rates and the water-oil ratio
 
                                  Oil     Water
@@ -654,7 +672,7 @@ Np in MSTB; EA of the five-spot (fraction). At the end ER = ED x EA x EV = 67.8 
 
 
 
-Waterflood Design Report, Ekene, Five-spot P-1                                                                                       Page 9 of 11
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                       Page 9 of 12
 Figure 6. Dykstra-Parsons vertical coverage against WOR
 
                                                  Coverage
@@ -748,33 +766,33 @@ Reservoir barrels injected over reservoir barrels of voidage produced; rolling o
 
 
 
-Waterflood Design Report, Ekene, Five-spot P-1                                                                                               Page 10 of 11
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                               Page 10 of 12
 Figure 9. Hall plot: INJ-1
 
-                                             INJ-1   baseline fit       recent fit
-                               400
-                                          baseline
-                                                                                                             recent
+                                              INJ-1   baseline fit       recent fit
+                                400
+                                           baseline
+                                                                                                              recent
 
-                               300
+                                300
   Hall integral (10^3 psi.d)
 
 
 
 
-                               200
+                                200
 
 
-                               100
+                                100
 
 
-                                 0
+                                  0
 
 
                                -100
-                                      0                         10000                20000                       30000           40000         50000
+                                       0                         10000                20000                       30000           40000                50000
 
-                                                                                      Cumulative water injected (bbl)
+                                                                                       Cumulative water injected (bbl)
 
 Wellhead pressure. Shaded: the two windows with their least-squares lines. Baseline window (first third): 6.726 psi.d/bbl (95% 6.54 to 6.91), 30
 points; Recent window (last third): 8.392 psi.d/bbl (95% 8.31 to 8.48), 30 points. Ratio 1.25.
@@ -782,42 +800,140 @@ points; Recent window (last third): 8.392 psi.d/bbl (95% 8.31 to 8.48), 30 point
 
 Figure 10. Hall plot: INJ-2
 
-                                             INJ-2   baseline fit       recent fit
-                               300
-                                          baseline
-                                                                                                   recent
-                               250
+                                              INJ-2   baseline fit       recent fit
+                                300
+                                           baseline
+                                                                                                    recent
+                                250
   Hall integral (10^3 psi.d)
 
 
 
 
-                               200
+                                200
 
 
-                               150
+                                150
 
 
-                               100
+                                100
 
 
-                                50
+                                 50
 
 
-                                 0
-                                      0                                 10000                     20000                  30000                 40000
+                                  0
+                                       0                                 10000                     20000                  30000                        40000
 
-                                                                                      Cumulative water injected (bbl)
+                                                                                       Cumulative water injected (bbl)
 
 Wellhead pressure. Shaded: the two windows with their least-squares lines. Baseline window (first third): 8 psi.d/bbl (95% 8 to 8), 30 points;
 Recent window (last third): 8 psi.d/bbl (95% 8 to 8), 30 points. Ratio 1.
 
 
-Figure 11. Monte Carlo: cumulative oil
+Figure 11. Chan plot: Field (all wells)
+
+                                              WOR     WOR'           window fit
+                                 10
+                                                                                                                                          late
+  WOR and WOR' (per day)
+
+
+
+
+                                  1
+
+
+                                 0.1
+
+
+                                0.01
+
+
+                               0.001
+
+
+                               1e-4
+                                       1                                                             10                                                 100
+
+                                                                                        Time since water onset (days)
+
+WOR and WOR' against time since water onset, log-log. Window: the last 40 percent of the points (day 55 to 90); slope 0.194 (95% -1.6 to 1.99),
+36 points. Indicative reading: transitional.
+
+
+
+
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                                   Page 11 of 12
+Figure 12. Chan plot: PROD-1
+
+                                       WOR   WOR'   window fit
+                             10
+                                                                                                                            late
+  WOR and WOR' (per day)
+
+
+
+
+                              1
+
+
+
+                             0.1
+
+
+
+                            0.01
+
+
+
+                           0.001
+                                   1                                          10                                                             100
+
+                                                                 Time since water onset (days)
+
+WOR and WOR' against time since water onset, log-log. Window: the last 40 percent of the points (day 55 to 90); slope 0.829 (95% -1.48 to 3.14),
+30 points. Indicative reading: channeling.
+
+
+Figure 13. Chan plot: PROD-2
+
+                                       WOR   WOR'   window fit
+                             10
+                                                                                                                            late
+
+                              1
+  WOR and WOR' (per day)
+
+
+
+
+                             0.1
+
+
+                            0.01
+
+
+                           0.001
+
+
+                           1e-4
+
+
+                           1e-5
+                                   1                                          10                                                             100
+
+                                                                 Time since water onset (days)
+
+WOR and WOR' against time since water onset, log-log. Window: the last 40 percent of the points (day 55 to 90); slope -0.224 (95% -1.92 to
+1.47), 24 points. Indicative reading: coning.
+
+
+Figure 14. Monte Carlo: cumulative oil
 Does not apply: no uncertainty run.
 
 
 
 
-Waterflood Design Report, Ekene, Five-spot P-1                                                                                           Page 11 of 11
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                     Page 12 of 12
 
