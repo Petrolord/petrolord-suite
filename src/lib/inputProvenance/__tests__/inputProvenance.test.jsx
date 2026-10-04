@@ -224,6 +224,12 @@ describe('PVT provenance contract', () => {
       text: 'Correlation: Vasquez-Beggs (Rs, Bo), Beggs-Robinson (viscosity), at the bubble point, from Fluid Systems Studio',
       inputFields: ['apiGravity', 'gor', 'gasGravity', 'temperature'],
       inputText: 'Input of the Fluid Systems Studio fluid model',
+      // WTA-U1-019: the values applied are recorded for a version-1 handoff
+      // too, so a later edit is reported as an edit
+      values: {
+        B: String(blackOil.bo_at_pb), mu: String(blackOil.mu_o_at_pb), apiGravity: String(blackOil.oil_gravity),
+        gor: String(blackOil.rsb), gasGravity: String(blackOil.gas_gravity), temperature: String(blackOil.inlet_temperature),
+      },
     });
     expect(pvtIntakeFromBackbone(eos).intake.text).toBe('Equation of state (compositional model), at the bubble point, from Fluid Systems Studio');
     expect(pvtIntakeFromBackbone({ bo_at_pb: 1.31 }).intake.text).toBe('PVT model, method not stated by the handoff, at the bubble point, from Fluid Systems Studio');
