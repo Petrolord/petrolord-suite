@@ -191,3 +191,21 @@ Balance can deep-link with `?fluidProject=`, `?wellTestProject=`,
 | 4 | Which MMP correlation for U2-001? | One published correlation with its own validation data in the paper (for example Yellig and Metcalfe 1980 for CO2); the report names it and its range |
 | 5 | First reader of `eor-screen-1`? | Recovery Factor Estimator, after its U1 merges |
 | 6 | Many-reservoir screening (U2-009) before NAPE? | No: after NAPE |
+
+## 8. Batch decision (programme lead, 2026-10-04)
+
+Recorded verbatim.
+
+Owner-question defaults in force: migration staging first (owner); the moved sample counts announced in the release note; Aladasani and Bai built only once the paper is in hand (deferred); MMP from one published correlation with its own validation data; Recovery Factor is the first reader of eor-screen-1 (after RF U1 merges); many-reservoir screening after NAPE.
+BUILD in this order, one commit per item:
+- Batch A: U2-001 MMP check against reservoir pressure for CO2 (and N2/hydrocarbon if the same source covers them): one published correlation whose paper you can actually read with its own data (e.g. Yellig and Metcalfe 1980 for CO2; or Alston, Kokolis and James 1985, or Cronquist 1978, whichever you can read), validated against that paper's tabulated measured MMPs within the paper's stated error, negative control; the screening states miscible or immiscible by MMP vs reservoir pressure, with the correlation, its range and its error in the report; U2-002 "Send to EOR Screening" buttons in Fluid, Well Test and Material Balance (open EOR with the source by id, following the Send-to-Simulation pattern); U2-003 the `eor-screen-1` read-by-id contract (methods, pass/marginal/fail per criterion, inputs with sources, criteria edition, MMP result, fingerprint), documented, with a contract test; no RF reader yet.
+- Batch B if time remains: U2-007 distance to each limit (how far each input sits from each published limit, in the report); U2-006 range of published field projects per method (Taber Part 1 tables as printed, with page); U2-008 composition from pvt-1 where Fluid holds one (feeding the MMP correlation if it needs C5+ MW or volatile/intermediate fractions); U2-005 remaining oil saturation from mbal-1.
+- DEFERRED (record reasons): U2-004 Aladasani and Bai (needs the paper), U2-009 many reservoirs (after NAPE), all of Batch C.
+
+Branch `feat/eor-u2`, worktree `/root/wt-res-eor2`, started 2026-10-04 at
+origin/main 55e22d372. The build log per item follows in section 9.
+
+## 9. Step 2 build log
+
+| ID | State | What was built | Proving test |
+|---|---|---|---|
