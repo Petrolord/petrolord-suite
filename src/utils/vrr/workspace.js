@@ -37,7 +37,7 @@ export const TRACK_METHODS = Object.freeze({
   pb: 'Standing (bubble point)',
   rs: 'Standing',
   bo: 'Standing',
-  bg: 'Bg = 0.00504 Z T / p RB/scf (x 1,000 to RB/Mscf), Z by Papay with Sutton pseudo-criticals',
+  bg: 'Bg = 0.00504 Z T / p RB/scf (x 1,000 to RB/Mscf), Z by Dranchuk-Abou-Kassem (1975) with Sutton pseudo-criticals (canonical engines, as Fluid Systems Studio)',
   bw: 'McCain (1990)',
 });
 

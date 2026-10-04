@@ -160,7 +160,7 @@ const PressurePanel = () => {
           ))}
         </div>
         <p className="text-xs text-pl-muted leading-relaxed">
-          Pressure track derives Bo, Bw, Bg and Rs per period from black-oil correlations (Standing, Papay Z, McCain Bw)
+          Pressure track derives Bo, Bw, Bg and Rs per period from black-oil correlations (Standing, Dranchuk-Abou-Kassem Z, McCain Bw)
           at the interpolated period pressure. Fluid table reads them from the PVT table taken from a Fluid Systems
           Studio project (Data &amp; PVT tab). Periods without a pressure keep the constant FVF set.
         </p>
