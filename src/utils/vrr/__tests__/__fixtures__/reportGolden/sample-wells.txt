@@ -70,7 +70,7 @@ Voidage Replacement Report, Ekene, E-2000                                       
  Pressure datum                                           n/a                          ft                     Not stated: the surveys are used as given, at whatever
                                                                                                               depth they were quoted
 
- Production and injection volumes                         3 periods                    STB, bbl, Mscf         Imported per-well ledger the sample ledger: 12 rows, 4
+ Production and injection volumes                         3 periods                    STB, bbl, Mscf         Imported per-well ledger (the sample ledger): 12 rows, 4
                                                                                                               wells, 2025-01-01 to 2025-03-01. The built-in sample
                                                                                                               ledger of the app (3 months, 2 producers, 2 injectors; the
                                                                                                               engine test fixture, illustrative volumes).

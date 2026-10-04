@@ -148,7 +148,7 @@ button calls. Sections in order:
 8. The `pvt-1` block the FVFs were taken from (when taken); notes.
 9. Figures: VRR by period (instantaneous, rolling, cumulative, 1.0 line, target band); reservoir voidage by term (produced and injected stacks); pressure history (surveys, period pressure, cumulative VRR); production and injection rates; FVFs by period; cumulative VRR by pattern. A figure that does not apply prints its reason.
 
-Sample: `/root/vrr-report-sample.pdf` (Sample wells with the sample surveys, identified, two patterns with an allocation, the FVFs from a Fluid Systems Studio `pvt-1` table; built by the final code through `buildVrrPdf`).
+Sample: `/root/vrr-report-sample.pdf`, 8 pages, 6 figures drawn (the app's Sample wells ledger, identified, two surveys below the bubble point with the datum stated, two patterns with an allocation, the FVFs from the `pvt-1` table of the Fluid test kit's Good Oil Co. Well No. 4 fluid; the `fluid-table-patterns` case of `vrrTestKit.js`, built by the final code through `buildVrrPdf`).
 
 ### The `pvt-1` intake and the Material Balance contract
 

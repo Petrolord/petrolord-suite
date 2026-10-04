@@ -157,5 +157,6 @@ export function vrrPvtSourceText(intake, key, { track = false } = {}) {
   const how = track
     ? `interpolated in the PVT table at each period's reservoir pressure (${intake.table?.length || 0} rows, ${intake.table?.[0]?.p} to ${intake.table?.[intake.table.length - 1]?.p} psia)`
     : `taken from the PVT table at ${intake.pressure_psia} psia (${intake.pressure_from})`;
-  return `${how}${m ? `; method ${m}` : ''}${pvtContractOrigin(intake.contract)}`;
+  // the per-period use covers all four values: their methods are in the block printed with the report
+  return `${how}${m && !track ? `; method ${m}` : ''}${track ? '; the method of each value is in the pvt-1 block' : ''}${pvtContractOrigin(intake.contract)}`;
 }

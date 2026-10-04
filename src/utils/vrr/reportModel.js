@@ -143,7 +143,7 @@ function inputsBlock(inputs, d, u) {
   rows.push({
     key: 'periods', label: 'Production and injection volumes', value: `${d.series.length} periods`, unit: `${u.label('oil')}, ${u.label('water')}, ${u.label('gas')}`,
     source: d.isImported
-      ? `Imported per-well ledger${info?.file ? ` ${info.file}` : ''}: ${info?.rowsRead ?? inputs.wellRows.length} rows, ${info?.wells ?? d.ledgerWells.producers.length + d.ledgerWells.injectors.length} wells, ${info?.firstDate || d.series[0]?.label || ''} to ${info?.lastDate || d.series[d.series.length - 1]?.label || ''}${info?.skipped ? `, ${info.skipped} rows left out (listed in the import read-back)` : ''}${inputs.sampleNote ? `. ${inputs.sampleNote}` : ''}`
+      ? `Imported per-well ledger${info?.file ? ` (${info.file})` : ''}: ${info?.rowsRead ?? inputs.wellRows.length} rows, ${info?.wells ?? d.ledgerWells.producers.length + d.ledgerWells.injectors.length} wells, ${info?.firstDate || d.series[0]?.label || ''} to ${info?.lastDate || d.series[d.series.length - 1]?.label || ''}${info?.skipped ? `, ${info.skipped} rows left out (listed in the import read-back)` : ''}${inputs.sampleNote ? `. ${inputs.sampleNote}` : ''}`
       : info?.kind === 'grid' && info.file ? `Period grid imported from ${info.file}${inputs.sampleNote ? `. ${inputs.sampleNote}` : ''}` : inputs.sampleNote || 'Typed in the period grid (monthly field totals)',
     engineKeys: ['periods'],
   });
@@ -256,7 +256,7 @@ function importBlock(inputs) {
 
 function patternsBlock(inputs, d, u) {
   if (!d.isImported || !(inputs.patterns || []).length) return null;
-  const rollup = [['Field', 'all', g(d.summary?.cumulativeVRR, 4), g(d.summary?.latestInstantaneousVRR, 4), EMPTY_VALUE]];
+  const rollup = [['Field', 'all', g(d.summary?.cumulativeVRR, 4), g(d.summary?.latestInstantaneousVRR, 4), 'Reference: every producer and injector']];
   const advice = [];
   for (const a of d.patternAnalyses) {
     rollup.push([a.pattern.name, a.pattern.producers.join(', ') || EMPTY_VALUE, a.withheld ? EMPTY_VALUE : g(a.summary?.cumulativeVRR, 4), a.withheld ? EMPTY_VALUE : g(a.summary?.latestInstantaneousVRR, 4), a.withheld ? a.reason : 'Analysed']);
@@ -281,7 +281,7 @@ const BASIS = (d, inputs) => [
   ['Rolling VRR', `The same over the last ${d.windowPeriods} periods (a shorter window at the start)`],
   ['Produced voidage', 'Np Bo + Wp Bw + max(0, Gp - Rs Np / 1000) Bg; solution gas is carried in Bo, so only the free gas adds voidage'],
   ['Injected volume', 'Wi Bw + Gi Bg: injected water at the produced-water Bw, injected gas at the produced-gas Bg of the period'],
-  ['FVF basis', `Bo and Rs per stock-tank barrel, Bw per barrel, Bg per Mscf at standard conditions.${inputs.pvtIntake?.contract?.basis?.text ? ` The PVT table taken from Fluid Systems Studio states: ${inputs.pvtIntake.contract.basis.text}.` : ' The basis of typed values (flash or differential liberation) is as the analyst entered them; state it in the source note.'}`],
+  ['FVF basis', `Bo and Rs per stock-tank barrel, Bw per barrel, Bg per Mscf at standard conditions.${inputs.pvtIntake?.contract?.basis?.text ? ` The PVT table taken from Fluid Systems Studio states: ${String(inputs.pvtIntake.contract.basis.text).replace(/\.\s*$/, '')}.` : ' The basis of typed values (flash or differential liberation) is as the analyst entered them; state it in the source note.'}`],
   ['Periods', d.series.every((s) => isMonth(s.label)) ? 'Calendar months; per-well rows are summed by month' : 'The periods as typed in the grid (labels that are not YYYY-MM carry no date and no pressure)'],
   ['Pressure', 'Average reservoir pressure, absolute, surveys interpolated linearly to the middle of each month and held flat outside the surveyed span; dp/dt per month by central difference'],
   ['Target band', 'The operator band of this project, applied to instantaneous VRR; the screening bands 0.9 to 1.1 of the engine are a second reading'],
