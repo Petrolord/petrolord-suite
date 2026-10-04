@@ -111,7 +111,9 @@ describe('ReservoirSimulationStudio page', () => {
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Builder' }));
     // Guided form renders with engine-backed defaults.
     expect(await screen.findByText(/Grid: 300 cells/i)).toBeInTheDocument();
-    expect(screen.getByText(/correlations from Fluid Studio/i)).toBeInTheDocument();
+    // SIM-U1: the PVT source is stated (typed inputs, correlations named) and can be a Fluid project
+    expect(screen.getByText(/black-oil correlations of Fluid Systems Studio \(Standing for Pb, Rs and Bo/i)).toBeInTheDocument();
+    expect(screen.getByTestId('sim-pvt-source')).toHaveValue('correlation');
     // Generate runs correlation PVT + Corey SCAL + composeDeck for real
     // (only the upload is mocked) and reports the solved bubble point.
     fireEvent.click(screen.getByTestId('generate-deck'));

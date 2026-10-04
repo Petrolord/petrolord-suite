@@ -11,7 +11,9 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const DeckPanel = () => {
-  const { activeCase, deckText, deckLoading, busy, uploadDeck, applyTemplate, addNotification } = useSimStudio();
+  const { activeCase, deckText, deckLoading, busy, uploadDeck, applyTemplate, addNotification, ownerOnlyReason } = useSimStudio();
+  const [readBack, setReadBack] = useState(null);
+  const locked = !!ownerOnlyReason;
   const fileRef = useRef(null);
   const [draft, setDraft] = useState('');
   const [dirty, setDirty] = useState(false);
@@ -60,7 +62,7 @@ const DeckPanel = () => {
             <div key={t.slug} className={`rounded-lg border p-3 ${activeCase.template_slug === t.slug ? 'border-pl-primary/60 bg-pl-primary/10' : 'border-pl-border'}`}>
               <div className="text-sm font-semibold text-pl-text">{t.label}</div>
               <p className="text-xs text-pl-muted mt-1">{t.blurb}</p>
-              <Button size="sm" variant="outline" className="mt-2 h-7 text-xs" disabled={busy}
+              <Button size="sm" variant="outline" className="mt-2 h-7 text-xs" disabled={busy || locked}
                 onClick={() => applyTemplate(t)}>
                 {busy ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <FileText className="w-3 h-3 mr-1" />}
                 Use template
@@ -68,7 +70,9 @@ const DeckPanel = () => {
             </div>
           ))}
           <p className="md:col-span-2 text-[11px] text-pl-muted">
-            SPE decks are Open Database License (ODbL) datasets from the OPM project (see Help for attribution).
+            SPE decks are Open Database License (ODbL) datasets from the OPM project (see Help for attribution). The
+            bundled copies ask the simulator for its fluid-in-place balance (RPTSOL and RPTSCHED FIP), so the report can
+            state the material balance; nothing else in them is changed.
           </p>
         </CardContent>
       </Card>
@@ -79,12 +83,16 @@ const DeckPanel = () => {
           <div className="flex gap-2">
             <input ref={fileRef} type="file" multiple accept=".DATA,.data,.inc,.INC,.grdecl,.GRDECL,.txt"
               className="hidden" data-testid="deck-file-input"
-              onChange={(e) => { const f = Array.from(e.target.files || []); if (f.length) uploadDeck(f); e.target.value = ''; }} />
-            <Button size="sm" variant="outline" className="h-7 text-xs" disabled={busy}
+              onChange={async (e) => {
+                const f = Array.from(e.target.files || []);
+                e.target.value = '';
+                if (f.length) setReadBack(await uploadDeck(f));
+              }} />
+            <Button size="sm" variant="outline" className="h-7 text-xs" disabled={busy || locked}
               onClick={() => fileRef.current?.click()}>
               <Upload className="w-3 h-3 mr-1" /> Upload deck files
             </Button>
-            {dirty && (
+            {dirty && !locked && (
               <Button size="sm" className="h-7 text-xs" onClick={saveDeck} disabled={saving}>
                 {saving ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Save className="w-3 h-3 mr-1" />}
                 Save deck
@@ -93,6 +101,13 @@ const DeckPanel = () => {
           </div>
         </CardHeader>
         <CardContent>
+          {locked && <p className="text-[11px] text-pl-warning-text mb-2">{ownerOnlyReason}</p>}
+          {readBack && (
+            <div className={`mb-2 rounded-md border px-3 py-2 text-[11px] ${readBack.ok ? 'border-pl-border bg-pl-sunken text-pl-text' : 'border-pl-danger/40 bg-pl-danger-bg text-pl-danger-text'}`} data-testid="deck-read-back">
+              <div className="font-semibold">{readBack.ok ? 'What the upload read' : 'Not uploaded'}</div>
+              {[...readBack.errors, ...readBack.readBack, ...readBack.warnings].map((l, i) => <div key={i}>{l}</div>)}
+            </div>
+          )}
           {activeCase.deck_path ? (
             deckLoading ? (
               <div className="h-40 flex items-center justify-center text-pl-muted text-sm">
@@ -102,6 +117,7 @@ const DeckPanel = () => {
               <textarea
                 value={draft}
                 onChange={(e) => { setDraft(e.target.value); setDirty(true); }}
+                readOnly={locked}
                 spellCheck={false}
                 className="w-full h-[420px] rounded-md border border-pl-border-strong bg-pl-surface p-3 font-mono text-xs text-pl-text leading-relaxed"
                 data-testid="deck-editor"

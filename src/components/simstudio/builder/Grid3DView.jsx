@@ -56,7 +56,7 @@ const Grid3DView = ({ form }) => {
                 mdUnit: w.trajectory.mdUnit === 'm' ? 'm' : 'ft',
                 wellheadX: parseFloat(w.trajectory.wellheadX),
                 wellheadY: parseFloat(w.trajectory.wellheadY),
-                kbToDatumFt: parseFloat(w.trajectory.kbToDatum) || 0,
+                kbToDatumFt: -(parseFloat(w.trajectory.refElevFt) || 0),
               }, grid);
               scene.wells.push(wellLineFromPath({ name, type: w.type }, t.pathFt));
             } else {

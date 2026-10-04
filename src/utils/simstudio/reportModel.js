@@ -295,7 +295,7 @@ function headlineRows(summary, opts, u, diag) {
  *   system?: string, organizationName?: ?string, build?: ?string}} a
  * @returns {?object} null without a completed run with a summary
  */
-export function buildSimReportModel({ caseRow, run, summary, deckText = null, form = null, system = 'oilfield', organizationName = null, build = null }) {
+export function buildSimReportModel({ caseRow, run, summary, deckText = null, deckTextSha = null, form = null, system = 'oilfield', organizationName = null, build = null }) {
   if (!run || !summary) return null;
   const deck = deckText ? summarizeDeck(deckText) : null;
   const us = summaryUnitSystem(summary, deck?.unitSystem || null);
@@ -322,6 +322,8 @@ export function buildSimReportModel({ caseRow, run, summary, deckText = null, fo
   if (!fa.applies) flags.push(`Builder inputs: not shown. ${fa.reason}`);
   if (deck?.includes?.length) flags.push(`The deck includes ${deck.includes.length} file(s) this report does not read (${deck.includes.join(', ')}); the deck summary covers the main file only.`);
   if (!deckText) flags.push('The deck text could not be read; the deck summary is missing.');
+  const deckChanged = !!(deckText && deckTextSha && run?.deck_sha256 && deckTextSha !== run.deck_sha256);
+  if (deckChanged) flags.push('The case\'s deck has changed since this run (its SHA-256 differs from the one the worker ran): "What the deck holds" describes the current deck, not the one that ran.');
   if (fa.applies && form?.krSource?.mode === 'scal' && krEditedKeys(form).length) flags.push(`The saturation functions were edited after they were taken from SCAL Studio (${krEditedKeys(form).join(', ')}).`);
 
   const cellText = deck?.dims ? `${fx(deck.dims.cells)} cells` : 'the grid of the deck';
@@ -358,6 +360,7 @@ export function buildSimReportModel({ caseRow, run, summary, deckText = null, fo
     opts,
     diag,
     deckSummary: deck,
+    deckChanged,
     formApplies: fa,
   };
 }

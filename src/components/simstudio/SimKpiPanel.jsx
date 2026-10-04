@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useSimStudio } from '@/contexts/SimStudioContext';
 import { fmtElapsed, RUN_STEPS_TITLE } from '@/components/simstudio/resultAdapters';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { runStatusLine } from '@/utils/simstudio/runStatus';
 
 const TONE = {
   complete: 'text-pl-success-text border-pl-success/40 bg-pl-success-bg',
@@ -26,7 +27,7 @@ const Kpi = ({ title, value, hint }) => (
 );
 
 const SimKpiPanel = () => {
-  const { activeCase, runs } = useSimStudio();
+  const { activeCase, runs, summary, summaryRunId } = useSimStudio();
   const latest = runs[0] || null;
   const status = latest?.status || 'none';
 
@@ -39,7 +40,7 @@ const SimKpiPanel = () => {
             : !latest ? 'No runs yet for this case.'
               : status === 'running' ? 'Simulation running on the worker.'
                 : status === 'queued' ? 'Run queued; the worker polls every ~10 s.'
-                  : status === 'complete' ? 'Latest run complete.'
+                  : status === 'complete' ? `Latest run complete: the simulator ended normally.${summaryRunId === latest.id && summary ? ` ${runStatusLine(summary)}` : ' Open Results for its material balance and convergence.'}`
                     : status === 'failed' ? `Latest run failed (${latest.failure_stage || 'see log'}).`
                       : 'Latest run was cancelled.'}
         </div>

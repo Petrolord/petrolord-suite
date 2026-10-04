@@ -2,9 +2,19 @@
 // Studio shell; runs poll every 5 s while one is queued/running (the
 // DataExport pattern — no Realtime precedent in the codebase). Results are
 // fetched on demand from the run's result_path.
+//
+// SIM-U1: the Model Builder form lives here (it used to be component state,
+// lost on a tab switch or a reload) and is saved with the case; the case is
+// under the record-sharing rules (view, or edit while holding the
+// check-out); the display unit system follows the Suite unit profile for a
+// new case and the saved form for an old one.
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import * as sim from '@/lib/simService';
+import { useRecordSharing } from '@/lib/recordSharing/useRecordSharing';
+import { defaultBuilderForm, migrateBuilderForm } from '@/utils/simDeckBuilder';
+import { simUnits } from '@/utils/simstudio/simUnits';
+import { planDeckUpload } from '@/utils/simstudio/deckUpload';
 
 const POLL_MS = 5000;
 
@@ -16,7 +26,12 @@ export const useSimStudio = () => {
   return context;
 };
 
-export const SimStudioProvider = ({ children }) => {
+const AUTOSAVE_MS = 1500;
+
+/**
+ * @param {{children: any, sharingStore?: ?object, profileSystem?: ?('oilfield'|'si'), organizationName?: ?string}} props
+ */
+export const SimStudioProvider = ({ children, sharingStore = null, profileSystem = null, organizationName = null }) => {
   const { notifications, addNotification, removeNotification } = useStudioNotifications();
 
   const [cases, setCases] = useState([]);
@@ -34,6 +49,31 @@ export const SimStudioProvider = ({ children }) => {
     () => cases.find((c) => c.id === activeCaseId) || null,
     [cases, activeCaseId],
   );
+
+  // --- record sharing (sim_cases, migration 20261002130000) ---
+  const patchCase = useCallback((patch) => {
+    setCases((prev) => prev.map((c) => (c.id === activeCaseId ? { ...c, ...patch } : c)));
+  }, [activeCaseId]);
+  const sharing = useRecordSharing({ store: sharingStore, table: 'sim_cases', record: activeCase, onChange: patchCase });
+  const myId = sharing.userId;
+  const isOwner = !activeCase || !myId || !activeCase.user_id || activeCase.user_id === myId;
+  // an own case is writable until the rules say otherwise; a colleague's case
+  // stays read-only until the rules say this user holds its check-out
+  const canWrite = !activeCase || (isOwner ? (!sharing.ready || sharing.canWrite) : (sharing.ready && sharing.canWrite));
+  // the deck files and the run queue sit in the owner's storage folder and
+  // behind the owner-only enqueue function: a colleague never writes them
+  const ownerOnlyReason = isOwner ? null
+    : 'Decks and runs stay with the case owner: the deck files sit in the owner\'s storage folder and the run queue accepts the owner\'s runs only. You can read every run and report of this case.';
+  const readOnlyReason = canWrite ? null
+    : `${sharing.readOnlyReason || 'This case belongs to a colleague and is shared for viewing.'} Nothing you change here is saved to it.`;
+
+  // --- the Model Builder form, saved with the case (SIM-U1-005) ---
+  const [form, setFormState] = useState(defaultBuilderForm);
+  const [formSave, setFormSave] = useState({ state: 'idle', where: null, error: null });
+  const formDirty = useRef(false);
+  const formCaseRef = useRef(null);
+  const system = form.unitSystem === 'si' ? 'si' : 'oilfield';
+  const u = useMemo(() => simUnits(system), [system]);
 
   const initializedRef = useRef(false);
   const refreshCases = useCallback(async () => {
@@ -66,6 +106,57 @@ export const SimStudioProvider = ({ children }) => {
       return [];
     }
   }, [addNotification]);
+
+  // Load the builder form when the active case changes: the saved one, or a
+  // new form in the profile's unit system.
+  useEffect(() => {
+    let alive = true;
+    formDirty.current = false;
+    formCaseRef.current = activeCaseId;
+    setFormSave({ state: 'idle', where: null, error: null });
+    const fresh = () => ({ ...defaultBuilderForm(), unitSystem: profileSystem === 'si' ? 'si' : 'oilfield' });
+    if (!activeCase) { setFormState(fresh()); return undefined; }
+    sim.loadBuilderForm(activeCase).then(({ form: saved, where }) => {
+      if (!alive || formCaseRef.current !== activeCaseId) return;
+      setFormState(saved ? migrateBuilderForm(saved) : fresh());
+      setFormSave({ state: saved ? 'saved' : 'idle', where, error: null });
+    });
+    return () => { alive = false; };
+    // keyed on the case id: a refreshed case row does not reload the form
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCaseId]);
+
+  const saveForm = useCallback(async (next) => {
+    if (!activeCase) return false;
+    if (!canWrite) {
+      setFormSave({ state: 'error', where: null, error: readOnlyReason });
+      return false;
+    }
+    setFormSave((p) => ({ ...p, state: 'saving' }));
+    const update = sharingStore && sharing.available ? (table, id, patch) => sharingStore.update(table, id, patch) : null;
+    const res = await sim.saveBuilderForm(activeCase, next, { update });
+    if (!res.ok) {
+      setFormSave({ state: 'error', where: null, error: res.error });
+      return false;
+    }
+    formDirty.current = false;
+    if (res.row) setCases((prev) => prev.map((c) => (c.id === res.row.id ? { ...c, ...res.row } : c)));
+    setFormSave({ state: 'saved', where: res.where, error: null });
+    return true;
+  }, [activeCase, canWrite, readOnlyReason, sharingStore, sharing.available]);
+
+  /** Change the form (functional update); autosaved after a pause. */
+  const setForm = useCallback((updater) => {
+    setFormState((prev) => (typeof updater === 'function' ? updater(prev) : updater));
+    formDirty.current = true;
+  }, []);
+  const autosaveRef = useRef(null);
+  useEffect(() => {
+    if (!formDirty.current || !activeCase || !canWrite) return undefined;
+    clearTimeout(autosaveRef.current);
+    autosaveRef.current = setTimeout(() => { saveForm(form); }, AUTOSAVE_MS);
+    return () => clearTimeout(autosaveRef.current);
+  }, [form, activeCase, canWrite, saveForm]);
 
   // Load runs + deck text when the active case changes.
   useEffect(() => {
@@ -131,7 +222,15 @@ export const SimStudioProvider = ({ children }) => {
 
   // --- deck actions ---
   const uploadDeck = useCallback(async (files) => {
-    if (!activeCase) return;
+    if (!activeCase) return null;
+    if (ownerOnlyReason) { addNotification(ownerOnlyReason, 'error'); return null; }
+    // SIM-U1-012: read the picked files first and say what they are
+    const read = await Promise.all(files.map(async (f) => ({ name: f.name, size: f.size, text: await f.text() })));
+    const plan = planDeckUpload(read, { currentMain: activeCase.deck_path, existingBytes: 0 });
+    if (!plan.ok) {
+      plan.errors.forEach((e) => addNotification(e, 'error'));
+      return plan;
+    }
     setBusy(true);
     try {
       let mainPath = activeCase.deck_path;
@@ -148,17 +247,20 @@ export const SimStudioProvider = ({ children }) => {
         deck_bytes: (activeCase.deck_bytes || 0) + total,
       });
       setCases((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
-      addNotification(`${files.length} deck file(s) uploaded`, 'success');
+      addNotification(`${files.length} deck file(s) uploaded. ${plan.readBack.join(' ')}`, 'success');
+      plan.warnings.forEach((w) => addNotification(w, 'info'));
     } catch (e) {
       console.error(e);
       addNotification(sim.friendlyError(e), 'error');
     } finally {
       setBusy(false);
     }
-  }, [activeCase, addNotification]);
+    return plan;
+  }, [activeCase, addNotification, ownerOnlyReason]);
 
   const applyTemplate = useCallback(async (template) => {
     if (!activeCase) return;
+    if (ownerOnlyReason) { addNotification(ownerOnlyReason, 'error'); return; }
     setBusy(true);
     try {
       const updated = await sim.installTemplate(activeCase, template);
@@ -170,10 +272,11 @@ export const SimStudioProvider = ({ children }) => {
     } finally {
       setBusy(false);
     }
-  }, [activeCase, addNotification]);
+  }, [activeCase, addNotification, ownerOnlyReason]);
 
   const uploadGeneratedDeck = useCallback(async (deckText, filename = 'MODEL.DATA') => {
     if (!activeCase) return false;
+    if (ownerOnlyReason) { addNotification(ownerOnlyReason, 'error'); return false; }
     setBusy(true);
     try {
       const blob = new Blob([deckText], { type: 'text/plain' });
@@ -185,6 +288,12 @@ export const SimStudioProvider = ({ children }) => {
         deck_bytes: deckText.length,
       });
       setCases((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      // the form records the deck it made, so a report can tell whether the
+      // run's deck (hashed by the worker) is this one
+      const sha = await sim.sha256Hex(deckText);
+      const next = { ...form, lastGenerated: { at: new Date().toISOString(), deckSha256: sha, fileName: filename } };
+      setFormState(next);
+      await saveForm(next);
       addNotification('Deck generated and attached to the case', 'success');
       return true;
     } catch (e) {
@@ -194,11 +303,12 @@ export const SimStudioProvider = ({ children }) => {
     } finally {
       setBusy(false);
     }
-  }, [activeCase, addNotification]);
+  }, [activeCase, addNotification, ownerOnlyReason, form, saveForm]);
 
   // --- run actions ---
   const queueRun = useCallback(async () => {
     if (!activeCase) return;
+    if (ownerOnlyReason) { addNotification(ownerOnlyReason, 'error'); return; }
     try {
       await sim.enqueueRun(activeCase.id);
       addNotification('Run queued. The worker picks it up within about 10 seconds.', 'success');
@@ -208,7 +318,7 @@ export const SimStudioProvider = ({ children }) => {
       // Quota / validation messages from the RPC are user-facing by design.
       addNotification(sim.friendlyError(e), 'error');
     }
-  }, [activeCase, refreshRuns, addNotification]);
+  }, [activeCase, refreshRuns, addNotification, ownerOnlyReason]);
 
   const requestCancel = useCallback(async (runId) => {
     try {
@@ -245,6 +355,8 @@ export const SimStudioProvider = ({ children }) => {
   }, [addNotification]);
 
   const value = {
+    form, setForm, saveForm, formSave, system, u, organizationName,
+    sharing, sharingStore, canWrite, isOwner, ownerOnlyReason, readOnlyReason,
     cases, activeCase, activeCaseId, runs, hasInFlight,
     deckText, deckLoading, busy,
     summary, summaryRunId, prtText, prtRunId,

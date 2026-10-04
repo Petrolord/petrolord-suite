@@ -17,12 +17,15 @@ const HistoryCard = ({ form, set, addNotification }) => {
   const [cases, setCases] = useState(null);
   const [selectedId, setSelectedId] = useState('');
   const [busy, setBusy] = useState(false);
-  const [fracs, setFracs] = useState({});
   const [csvText, setCsvText] = useState('');
   const [csvMode, setCsvMode] = useState('rates');
   const [gasUnit, setGasUnit] = useState('mscf');
   const history = form.history || { enabled: false };
   const source = history.source || 'mbal';
+  // SIM-U1 (RL3): the allocation fractions are kept with the form (they were
+  // component state, lost on a tab switch, and not in the report)
+  const fracs = history.fractions || {};
+  const setFracs = (fn) => set('history.fractions', fn(fracs));
 
   const producers = useMemo(
     () => form.wells.filter((w) => w.type === 'producer').map((w) => String(w.name || '').trim().toUpperCase()),
@@ -64,7 +67,7 @@ const HistoryCard = ({ form, set, addNotification }) => {
       ...extra,
     });
     out.warnings.forEach((w) => addNotification(w, 'info'));
-    addNotification(`History imported: ${out.periods.length} periods, ${out.startDate} → ${out.endDate}`, 'success');
+    addNotification(`History imported: ${out.periods.length} periods, ${out.startDate} to ${out.endDate}`, 'success');
   };
 
   const importHistory = async () => {
@@ -213,7 +216,7 @@ const HistoryCard = ({ form, set, addNotification }) => {
           {history.periods && (
             <div className="text-[11px] text-pl-muted">
               <div className="text-pl-text mb-1">
-                {history.caseName}: {history.periods.length} periods, {history.startDate} → {history.endDate}
+                {history.caseName}: {history.periods.length} periods, {history.startDate} to {history.endDate}
               </div>
               {Array.isArray(history.wellSummary) && history.wellSummary.length > 0 ? (
                 <table className="w-full max-w-md text-left" data-testid="history-well-summary">

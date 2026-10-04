@@ -12,12 +12,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { useSimStudio } from '@/contexts/SimStudioContext';
-import { downloadBlob } from '@/lib/simService';
 import {
-  availableFieldVectors, availableWellVectors, fieldSeries, wellSeries,
+  availableFieldVectors, availableWellVectors,
   wellSeriesKeys, hasObservedField, VECTOR_META, summaryStepText,
 } from '@/components/simstudio/resultAdapters';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { fieldRows, wellRows, summaryUnitSystem } from '@/utils/simstudio/series';
+import { vectorView } from '@/utils/simstudio/simUnits';
+import { summarizeDeck } from '@/utils/simstudio/deckSummary';
+import { buildResultsCsv } from '@/utils/simstudio/resultsCsv';
+import { runStatusLine } from '@/utils/simstudio/runStatus';
 
 const LINE_COLORS = ['#166534', '#1d4ed8', '#b45309', '#b91c1c', '#7c3aed', '#0e7490', '#be185d', '#4d7c0f'];
 
@@ -38,7 +42,7 @@ const twinIndex = (key, keys) => {
 // RSIM-T1-002: a vector that stays at noise level (water cut 1.7e-5 on a
 // dry model) must read as zero, not as a rising trend on an auto axis, so
 // non-negative vectors get a floor under their axis maximum
-const AXIS_FLOOR = { frac: 0.1, 'STB/d': 10, 'Mscf/d': 100, STB: 1000, Mscf: 1000 };
+const AXIS_FLOOR = { fraction: 0.1, frac: 0.1, 'STB/d': 10, 'Mscf/d': 100, STB: 1000, Mscf: 1000, 'sm3/d': 1, '10^3 sm3/d': 1, sm3: 100, '10^3 sm3': 10 };
 const niceCeil = (v) => {
   if (!(v > 0)) return v;
   const step = 10 ** Math.floor(Math.log10(v)) / 2;
@@ -55,16 +59,9 @@ const fmtTick = (v) => {
   if (a > 0 && a < 1) return `${Number(v.toFixed(a < 0.01 ? 4 : 3))}`;
   return `${Number(v.toFixed(2))}`;
 };
-const dayTicks = (rows) => {
-  const last = rows.length ? rows[rows.length - 1].day : 0;
-  if (!(last > 0)) return undefined;
-  const raw = last / 5;
-  const mag = 10 ** Math.floor(Math.log10(raw));
-  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw);
-  const out = [];
-  for (let d = 0; d <= last + 1e-9; d += step) out.push(d);
-  return out;
-};
+// SIM-U1-014 (RL7): the X axis is the calendar (run start plus simulator days)
+const isoDay = (t) => (Number.isFinite(t) ? new Date(t).toISOString().slice(0, 10) : '');
+const monthTick = (t) => (Number.isFinite(t) ? new Date(t).toISOString().slice(0, 7) : '');
 
 const VectorChart = ({ title, unit, rows, seriesKeys }) => (
   <Card>
@@ -73,11 +70,11 @@ const VectorChart = ({ title, unit, rows, seriesKeys }) => (
       <ChartFrame height={220}>
         <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 4, left: 8 }}>
           <CartesianGrid {...GRID_STYLE} />
-          <XAxis dataKey="day" type="number" {...axisProps} domain={[0, 'dataMax']} ticks={dayTicks(rows)}
-            tickFormatter={(v) => v.toFixed(0)}
-            label={{ value: 'days', position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
+          <XAxis dataKey="t" type="number" scale="time" {...axisProps} domain={['dataMin', 'dataMax']} tickCount={5}
+            tickFormatter={monthTick}
+            label={{ value: 'date', position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <YAxis {...axisProps} domain={AXIS_FLOOR[unit] ? [(dataMin) => Math.min(0, dataMin), yMaxFor(unit)] : ['auto', 'auto']} tickFormatter={fmtTick} width={56} />
-          <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(v) => `day ${Number(v).toFixed(0)}`} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(v, p) => `${isoDay(v)} (day ${Number(p?.[0]?.payload?.day ?? 0).toFixed(0)})`} />
           {seriesKeys.length > 1 && <Legend wrapperStyle={{ fontSize: 10 }} />}
           {seriesKeys.map((key, i) => {
             const observed = isObserved(key);
@@ -99,7 +96,10 @@ const VectorChart = ({ title, unit, rows, seriesKeys }) => (
 );
 
 const ResultsPanel = () => {
-  const { activeCase, runs, summary, summaryRunId, loadResults, addNotification } = useSimStudio();
+  const { activeCase, runs, summary, summaryRunId, loadResults, addNotification, system, deckText } = useSimStudio();
+  const deckSystem = useMemo(() => (deckText ? summarizeDeck(deckText).unitSystem : null), [deckText]);
+  const us = summary ? summaryUnitSystem(summary, deckSystem) : null;
+  const opts = { deckSystem: us?.system || 'FIELD', system };
   const completeRuns = useMemo(() => runs.filter((r) => r.status === 'complete' && r.result_path), [runs]);
   const selectedRun = completeRuns.find((r) => r.id === summaryRunId) || null;
 
@@ -110,10 +110,12 @@ const ResultsPanel = () => {
     if (!summaryRunId && newestComplete) loadResults(newestComplete);
   }, [summaryRunId, newestComplete, loadResults]);
 
+  // SIM-U1-009: the CSV is built here from the run's summary in the display
+  // units, with a units row and provenance lines (the worker's CSV had neither)
   const downloadCsv = async () => {
-    if (!selectedRun) return;
+    if (!selectedRun || !summary) return;
     try {
-      const blob = await downloadBlob(selectedRun.result_path.replace(/summary\.json$/, 'summary.csv'));
+      const blob = new Blob([buildResultsCsv({ summary, run: selectedRun, caseRow: activeCase, system, deckSystem })], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -163,11 +165,15 @@ const ResultsPanel = () => {
           </div>
         </CardHeader>
         {summary && (
-          <CardContent className="pt-0 text-[11px] text-pl-muted">
-            {summary.opm_version} · start {summary.start_date?.slice(0, 10)} ·{' '}
-            {/* H13: the run's own counts, never the length of the plotted series */}
-            <span data-testid="sim-step-count">{summaryStepText(summary)}</span>
-            {' '}· deck sha {String(summary.deck_sha256 || '').slice(0, 12)}
+          <CardContent className="pt-0 text-[11px] text-pl-muted space-y-1">
+            <div>
+              OPM Flow {summary.opm_version}, start {summary.start_date?.slice(0, 10)},{' '}
+              {/* H13: the run's own counts, never the length of the plotted series */}
+              <span data-testid="sim-step-count">{summaryStepText(summary)}</span>
+              , deck SHA-256 {String(summary.deck_sha256 || '').slice(0, 12)}
+            </div>
+            <div data-testid="sim-units-basis">Deck units {us.system} ({us.basis}); shown in {system === 'si' ? 'SI' : 'oilfield'} units.</div>
+            <div data-testid="sim-run-status">{runStatusLine(summary)}</div>
           </CardContent>
         )}
       </Card>
@@ -186,15 +192,15 @@ const ResultsPanel = () => {
           {availableFieldVectors(summary).map((key) => (
             <VectorChart key={key}
               title={`${key}: ${VECTOR_META[key]?.label || key}`}
-              unit={VECTOR_META[key]?.unit || ''}
-              rows={fieldSeries(summary, key)}
+              unit={vectorView(key, opts.deckSystem, system).label}
+              rows={fieldRows(summary, key, opts)}
               seriesKeys={hasObservedField(summary, key) ? ['value', 'observed'] : ['value']} />
           ))}
           {availableWellVectors(summary).map((base) => (
             <VectorChart key={base}
               title={`${base}: ${VECTOR_META[base]?.label || base} by well`}
-              unit={VECTOR_META[base]?.unit || ''}
-              rows={wellSeries(summary, base)}
+              unit={vectorView(base, opts.deckSystem, system).label}
+              rows={wellRows(summary, base, opts)}
               seriesKeys={wellSeriesKeys(summary, base)} />
           ))}
         </div>

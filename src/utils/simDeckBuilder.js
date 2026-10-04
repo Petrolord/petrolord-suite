@@ -221,7 +221,8 @@ export function buildSatFns(scalForm) {
   if (scalForm.pc?.enabled) {
     const j = pcFromJ(
       // Power-law J(Sw*) = a * Sw*^-b on the true-Sw axis (Swirr = Swc).
-      { type: 'power', a: num(scalForm.pc.jA, 0.35), b: num(scalForm.pc.jB, 0.6), Swirr: ow.Swc },
+      // a blank Swirr is Swc (the S3 behaviour); a typed one is used as typed (SIM-U1)
+      { type: 'power', a: num(scalForm.pc.jA, 0.35), b: num(scalForm.pc.jB, 0.6), Swirr: String(scalForm.pc.swirr ?? '').trim() === '' ? ow.Swc : num(scalForm.pc.swirr, ow.Swc) },
       {
         k_md: num(scalForm.pc.k_md, 100), phi: num(scalForm.pc.phi, 0.2),
         sigma_dyncm: num(scalForm.pc.sigma_dyncm, 30), thetaDeg: num(scalForm.pc.thetaDeg, 30),
