@@ -30,7 +30,8 @@ import { krIntakeRecord } from '@/lib/inputProvenance/krIntakeCard';
 import { simRowsFromContract } from '@/utils/fluidstudio/simKeywords';
 
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
-const s = (v) => (finite(v) ? String(Number(v.toPrecision(8))) : '');
+// full precision: the form keeps what the block sent, so the deck's rows are the producer's own
+const s = (v) => (finite(v) ? String(v) : '');
 
 /** The fields of the shared PVT intake card in the builder. */
 export const SIM_PVT_FIELDS = Object.freeze([
