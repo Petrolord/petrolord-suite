@@ -55,7 +55,7 @@ export function reasonText(v, system = 'oilfield') {
   if (v.key === 'formation') {
     return v.status === 'pass' ? `${actualText(v)} is a formation the paper names.` : `${actualText(v)} is outside "${v.required}".`;
   }
-  if (v.status === 'pass') return `${a} is within ${requiredText(v, system)}.`;
+  if (v.status === 'pass') return `${a} meets ${requiredText(v, system)}.`;
   if (v.status === 'fail') {
     const edge = v.side === 'below' ? v.spec.min : v.spec.max;
     return `${a} is ${v.side} the ${v.side === 'below' ? 'minimum' : 'maximum'} ${quantity(v.kind, edge, u)}.`;

@@ -1,0 +1,51 @@
+{
+  "pages": 8,
+  "sha256": "fcf62147e4b0d17d1d4ccb7eb01f65dca769109f21820f520ecf16d18764d76a",
+  "figures": [
+    {
+      "id": "ranking",
+      "number": 1,
+      "page": 8,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 29,
+            "w": 182,
+            "h": 72
+          },
+          "drawn": {
+            "Share passing": 8
+          },
+          "total": 8,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "co2-depth",
+      "number": 2,
+      "page": 8,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 121.72,
+            "w": 182,
+            "h": 78
+          },
+          "drawn": {
+            "CO2 miscible minimum depth": 8,
+            "This reservoir": 1
+          },
+          "total": 9,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    }
+  ]
+}

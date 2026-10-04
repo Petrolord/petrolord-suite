@@ -17,7 +17,7 @@ export const SAVED_PROJECT_TABLES = [
   'saved_allocation_projects', 'saved_blend_optimizer_projects', 'saved_breakeven_projects',
   'saved_carbon_projects', 'saved_choke_projects', 'saved_compressor_projects',
   'saved_corrosion_projects', 'saved_crude_assay_projects', 'saved_dca_projects',
-  'saved_decision_tree_projects', 'saved_energy_efficiency_projects', 'saved_esp_projects',
+  'saved_decision_tree_projects', 'saved_energy_efficiency_projects', 'saved_eor_screening_projects', 'saved_esp_projects',
   'saved_fdp_projects', 'saved_flare_projects', 'saved_flowassurance_projects',
   'saved_fluid_studio_projects', 'saved_fuel_pricing_projects', 'saved_gaslift_projects',
   'saved_gasprocessing_projects', 'saved_gaswell_projects', 'saved_heat_exchanger_projects',
@@ -79,6 +79,13 @@ export const INTAKE_SOFT_REFS = Object.freeze({
   ],
   // VRR-U1: the FVF table taken from a Fluid project (the payload nests its inputs one level down)
   saved_vrr_projects: PVT_REFS('inputs_data.inputs'),
+  // EOR-U1: the three intakes, read by id (pvt-1, wta-1, mbal-1)
+  saved_eor_screening_projects: [
+    { path: 'inputs_data.inputs.intakes.pvt.from.recordId', table: 'saved_fluid_studio_projects', optional: true },
+    { path: 'inputs_data.inputs.intakes.pvt.contract.project_id', table: 'saved_fluid_studio_projects', optional: true },
+    { path: 'inputs_data.inputs.intakes.wta.from.recordId', table: 'saved_well_test_projects', optional: true },
+    { path: 'inputs_data.inputs.intakes.mbal.from.recordId', table: 'rb_cases', optional: true },
+  ],
 });
 
 registerFamily('apps', {
@@ -91,7 +98,7 @@ registerFamily('apps', {
     // the payload repeats its own row id (service.save(id, { id, ... })): follow the new id
     softRefs: [{ path: 'inputs_data.id', table: t, optional: true }, ...LINK_REFS, ...(INTAKE_SOFT_REFS[t] || [])],
   }])),
-  // one root kind for all 52 tables; the root names its table
+  // one root kind for all 53 tables; the root names its table
   roots: { saved_project: '*' },
   order: SAVED_PROJECT_TABLES,
 });
