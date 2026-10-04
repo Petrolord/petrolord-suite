@@ -4,6 +4,7 @@
 // proposal rule (same name, same UWI, same letters and digits), plus the
 // demo field's wells when it exists. Never imported by production routes.
 import { DEV_USER } from './InMemorySupabase';
+import { DEMO_LOCATIONS } from '@/utils/vrr/demoField';
 
 const TS = '2026-10-04T00:00:00.000Z';
 const row = (id, name, uwi, x, y) => ({
@@ -17,4 +18,7 @@ export const SAMPLE_REGISTRY = Object.freeze([
   row('hw-i1', 'Injector 1', 'I-1', 500600, 119500),
 ]);
 
-export const harnessRegistry = (extra = []) => [...SAMPLE_REGISTRY, ...extra].map((r) => ({ ...r }));
+// VRR-U2-005: the demo field's wells at their line-drive locations
+export const DEMO_REGISTRY = Object.freeze(DEMO_LOCATIONS.map(([name, x, y], i) => row(`hw-d${i}`, name, null, x, y)));
+
+export const harnessRegistry = (extra = []) => [...SAMPLE_REGISTRY, ...DEMO_REGISTRY, ...extra].map((r) => ({ ...r }));

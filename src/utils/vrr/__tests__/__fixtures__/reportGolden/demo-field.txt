@@ -1,0 +1,574 @@
+Voidage Replacement Report
+Petrolord Voidage Replacement Monitor
+
+Project                  Ekene waterflood                                 Company                  Lordsway Energy
+Field                    Demo field                                       Licence or block         OML 999
+Reservoir or zone        D-1000                                           Pattern area or          Central fault block
+                                                                          segment
+Production data          Monthly production allocation                    Analyst                  A. Analyst
+source
+Periods                  24 (2024-01 to 2025-12)                          Data cut-off             2025-12
+Wells                    6 producers, 4 injectors                         Analysis type            Voidage replacement ratio by period,
+                                                                                                   reservoir barrels (instantaneous, rolling
+                                                                                                   and cumulative)
+Software build           test-build                                       Voidage basis            Reservoir barrels (RB on this report)
+Display units            Oilfield (oil STB, water bbl, gas Mscf,          Generated                2026-10-04 12:00 UTC
+                         reservoir voidage RB, Bo and Bw
+                         RB/STB, Bg RB/Mscf, Rs scf/STB,
+                         pressure psia, temperature degF)
+
+
+Headline results
+ Quantity                               Value                    Unit         Basis
+
+ Cumulative VRR                         0.7793                                Injected over produced reservoir voidage, 2024-01 to 2025-12
+
+ Latest instantaneous VRR               0.9937                                Period 2025-12 alone
+
+ Latest rolling VRR                     1.003                                 The last 3 periods
+
+ Periods outside the target band        13 of 24                              Band 1 to 1.2, instantaneous VRR
+
+ Produced reservoir voidage             7,112,292                RB           Oil 5,077,571 + water 1,581,925 + free gas 452,796
+
+ Free gas floored well by well          474,647                  RB           527,386 Mscf of free gas well by well against 503,106 Mscf at field
+                                                                              level; produced 7,134,143 RB; cumulative VRR 0.7769 against
+                                                                              0.7793. Printed for comparison; the figures above net free gas at
+                                                                              field level
+
+ Injected reservoir volume              5,542,386                RB           Water 4,665,786 + gas 876,600
+
+ Net voidage (injected less             -1,569,906               RB           Voidage not replaced to date
+ produced)
+
+ Fill-up                                Not reached                           First period whose cumulative VRR reaches 1
+
+ Reservoir pressure change over the     -437                     psia         3,047 to 2,610 psia, surveys interpolated to mid-month; falling
+ record
+
+ Weakest pattern (cumulative VRR)       West: 0.735                           Lowest cumulative VRR of the patterns analysed
+
+All voidage in reservoir barrels at the reservoir pressure of each period. VRR is dimensionless.
+
+
+
+
+Voidage Replacement Report, Demo field, D-1000                                                                                           Page 1 of 9
+Inputs and their sources
+ Input                                         Value                  Unit              Source and quality
+
+ Oil formation volume factor Bo                1.25                   RB/STB            Assumed: the starting value of the app (1.25 RB/STB); no
+                                                                                        field data behind it
+
+ Water formation volume factor Bw              1.02                   RB/STB            Assumed: the starting value of the app (1.02 RB/STB); no
+                                                                                        field data behind it
+
+ Gas formation volume factor Bg                0.9                    RB/Mscf           Assumed: the starting value of the app (0.9 RB/Mscf); no
+                                                                                        field data behind it
+
+ Solution gas-oil ratio Rs                     550                    scf/STB           Assumed: the starting value of the app (550 scf/STB); no
+                                                                                        field data behind it
+
+ FVFs per period                               One constant FVF                         Chosen by the analyst
+                                               set for every period
+
+ Average reservoir pressure surveys            9                      psia              Typed on the Pressure tab (absolute pressure)
+
+ Pressure datum                                8200                   ft                TVDSS, the demo field datum (stated, no correction
+                                                                                        applied); stated only, no correction to datum applied
+
+ Production and injection volumes              24 periods             STB, bbl, Mscf    Imported per-well ledger (the demo field): 216 rows, 10
+                                                                                        wells, 2024-01 to 2025-12. The built-in 24-month demo
+                                                                                        field of the app (6 producers, 3 water injectors, 1 gas
+                                                                                        injector, January 2024 to December 2025; illustrative
+                                                                                        volumes built by rule, with free gas, gas injection, quarterly
+                                                                                        surveys and two patterns).
+
+ Target VRR band, lower edge                   1                                        The starting value of the app (an operator choice)
+
+ Target VRR band, upper edge                   1.2                                      The starting value of the app (an operator choice)
+
+ Rolling VRR window                            3                      periods           The starting value of the app (an operator choice)
+
+ Well locations (bubble map)                   10 of 10 wells         m                 Wells registry (Well Data Manager), surface X and Y in
+                                               matched                                  EPSG:26332, through the match table the analyst
+                                                                                        confirmed 2026-10-04; coordinates kept with the project
+                                                                                        as confirmed
+
+ Injector to producer allocation factors       4 injector rows        fraction          Entered by the analyst (judgement: streamlines,
+                                                                                        interference tests or geometry); the app assumes no split
+
+Every value the analysis read, in the display units. The engine and the saved project hold oilfield units; "Assumed" marks a starting value of the
+app that nobody changed.
+
+
+
+
+Voidage Replacement Report, Demo field, D-1000                                                                                             Page 2 of 9
+Voidage ledger by period
+ Period     Oil (RB)     Water (RB)     Free gas (RB)       Produced (RB)     Water inj. (RB)       Gas inj. (RB)       Injected (RB)       Inst. VRR       Cum. VRR
+
+ 2024-01       282,875        16,984                    0           299,859                     0                   0                   0               0              0
+
+ 2024-02       258,091        19,956                    0           278,048                     0                   0                   0               0              0
+
+ 2024-03       269,080        25,640                    0           294,720             69,564                      0           69,564           0.236         0.07972
+
+ 2024-04       253,970        28,955                    0           282,925             88,740                      0           88,740          0.3137           0.137
+
+ 2024-05       255,956        34,169                    0           290,125            113,832                      0          113,832          0.3924          0.1882
+
+ 2024-06       241,581        37,163                    0           278,744            131,580                      0          131,580           0.472          0.2341
+
+ 2024-07       243,474        42,623              2,212             288,308            158,100                      0          158,100          0.5484          0.2791
+
+ 2024-08       237,461        46,833              5,790             290,084            180,234                      0          180,234          0.6213          0.3222
+
+ 2024-09       224,126        49,402              8,893             282,421            195,840              54,000             249,840          0.8846          0.3837
+
+ 2024-10       225,880        55,273            12,418              293,571            202,368              55,800             258,168          0.8794          0.4342
+
+ 2024-11       213,196        57,593            14,982              285,772            195,840              54,000             249,840          0.8743           0.474
+
+ 2024-12       214,864        63,779            18,386              297,028            202,368              55,800             258,168          0.8692          0.5079
+
+ 2025-01       209,560        68,083            21,138              298,781            265,608              55,800             321,408           1.076           0.553
+
+ 2025-02       184,606        65,420            21,445              271,471            239,904              50,400             290,304           1.069          0.5878
+
+ 2025-03       199,340        76,833            26,204              302,376            265,608              55,800             321,408           1.063          0.6209
+
+ 2025-04       188,146        78,682            27,613              294,441            257,040              54,000             311,040           1.056          0.6486
+
+ 2025-05       189,618        85,861            30,729              306,207            265,608              55,800             321,408            1.05          0.6735
+
+ 2025-06       178,970        87,587            31,741              298,299            257,040              54,000             311,040           1.043          0.6945
+
+ 2025-07       180,370        95,266            34,748              310,384            265,608              55,800             321,408           1.036          0.7136
+
+ 2025-08       175,916       100,157            36,581              312,654            265,608              55,800             321,408           1.028          0.7304
+
+ 2025-09       166,039       101,798            37,067              304,904            257,040              54,000             311,040            1.02          0.7448
+
+ 2025-10       167,336       110,396            39,916              317,648            265,608              55,800             321,408           1.012          0.7579
+
+ 2025-11       157,940       112,060            40,092              310,092            257,040              54,000             311,040           1.003          0.7691
+
+ 2025-12       159,175       121,415            42,840              323,430            265,608              55,800             321,408          0.9937          0.7793
+
+ Total       5,077,571      1,581,925          452,796            7,112,292          4,665,786             876,600           5,542,386             n/a          0.7793
+
+Produced = oil + water + free gas; injected = water + gas; every column sums to its total, and the terms agree with the engine's VRR series to
+better than 1 part in 10^12. Free gas is the produced gas above Rs x oil, never below zero, in each period at field level.
+
+
+
+
+Voidage Replacement Report, Demo field, D-1000                                                                                                              Page 3 of 9
+Volumes and FVFs by period
+ Period    Oil (STB)   Water (bbl)   Gas (Mscf)   Water inj. (bbl)   Gas inj. (Mscf)   Bo (RB/STB)   Bw (RB/STB)   Bg (RB/Mscf)   Rs (scf/STB)   Pressure (psia)   FVF set
+
+ 2024-01    226,300        16,651      122,512                  0                 0           1.25          1.02            0.9           550             3,047    constant
+
+ 2024-02    206,473        19,565      111,778                  0                 0           1.25          1.02            0.9           550             2,991    constant
+
+ 2024-03    215,264        25,137      116,537            68,200                  0           1.25          1.02            0.9           550             2,934    constant
+
+ 2024-04    203,176        28,387      109,994            87,000                  0           1.25          1.02            0.9           550             2,877    constant
+
+ 2024-05    204,765        33,499      110,853           111,600                  0           1.25          1.02            0.9           550             2,817    constant
+
+ 2024-06    193,265        36,434      104,629           129,000                  0           1.25          1.02            0.9           550             2,757    constant
+
+ 2024-07    194,779        41,787      109,586           155,000                  0           1.25          1.02            0.9           550             2,698    constant
+
+ 2024-08    189,969        45,915      110,916           176,700                  0           1.25          1.02            0.9           550             2,651    constant
+
+ 2024-09    179,301        48,433      108,497           192,000             60,000           1.25          1.02            0.9           550             2,604    constant
+
+ 2024-10    180,704        54,189      113,185           198,400             62,000           1.25          1.02            0.9           550             2,559    constant
+
+ 2024-11    170,557        56,464      110,453           192,000             60,000           1.25          1.02            0.9           550             2,532    constant
+
+ 2024-12    171,891        62,528      114,969           198,400             62,000           1.25          1.02            0.9           550             2,505    constant
+
+ 2025-01    167,648        66,748      115,693           260,400             62,000           1.25          1.02            0.9           550             2,480    constant
+
+ 2025-02    147,685        64,137      105,055           235,200             56,000           1.25          1.02            0.9           550             2,477    constant
+
+ 2025-03    159,472        75,326      116,825           260,400             62,000           1.25          1.02            0.9           550             2,473    constant
+
+ 2025-04    150,517        77,139      113,465           252,000             60,000           1.25          1.02            0.9           550             2,471    constant
+
+ 2025-05    151,694        84,177      117,575           260,400             62,000           1.25          1.02            0.9           550             2,487    constant
+
+ 2025-06    143,176        85,870      114,015           252,000             60,000           1.25          1.02            0.9           550             2,504    constant
+
+ 2025-07    144,296        93,398      117,972           260,400             62,000           1.25          1.02            0.9           550             2,521    constant
+
+ 2025-08    140,733        98,193      118,049           260,400             62,000           1.25          1.02            0.9           550             2,541    constant
+
+ 2025-09    132,831        99,802      114,243           252,000             60,000           1.25          1.02            0.9           550             2,561    constant
+
+ 2025-10    133,869       108,231      117,979           260,400             62,000           1.25          1.02            0.9           550             2,581    constant
+
+ 2025-11    126,352       109,863      114,040           252,000             60,000           1.25          1.02            0.9           550             2,596    constant
+
+ 2025-12    127,340       119,034      117,637           260,400             62,000           1.25          1.02            0.9           550             2,610    constant
+
+
+Surface volumes of each period as the ledger holds them, the FVF set applied to the period, the reservoir pressure interpolated at mid-month
+(blank without surveys), and where the FVF set came from.
+
+
+Patterns
+ Level        Producers                           Cum. VRR                Latest inst. VRR                Status
+
+ Field        all                                            0.7793                            0.9937     Reference: every producer and injector
+
+ West         DP-1, DP-2, DP-3                                 0.735                           0.9278     Analysed
+
+ East         DP-4, DP-5, DP-6                                 0.857                            1.116     Analysed
+
+
+
+
+Voidage Replacement Report, Demo field, D-1000                                                                                                                 Page 4 of 9
+Allocation factors
+ Injector                 DP-1                 DP-2              DP-3                 DP-4            DP-5              DP-6               Row sum
+
+ WI-1                                   0.4             0.35                 0.25              n/a                n/a               n/a                             1
+
+ WI-2                                   n/a                n/a                n/a              0.4                0.3               0.3                             1
+
+ GI-1                                   0.5                0.5                n/a              n/a                n/a               n/a                             1
+
+ WI-3                                   n/a                0.3                0.2              0.3                0.2               n/a                             1
+
+Fraction of each injector's volume reaching each producer, as entered. A row below 1 leaves the rest out of zone (unallocated).
+
+Water injection advice by pattern
+ Pattern               Rolling VRR                     Target                Scale             Water injection
+
+ West                  0.9366                          1                     1.068             134,933 to 144,060 bbl per period
+
+ East                  1.125                           1                     0.8886            122,667 to 109,001 bbl per period
+
+Scale = target (the band minimum) over the rolling VRR of the last 3 periods, clamped to 0.5 to 2.0; split per injector by allocated share; gas
+injection is reported and left unscaled.
+
+
+Voidage by well
+ Well       Type               Registry well          X (m)          Y (m)            Produced or injected (RB)                Free gas, own floor (Mscf)
+
+ DP-1       producer           DP-1                        502,000       121,500                                  1,768,209                                   201,976
+
+ DP-2       producer           DP-2                        502,800       121,500                                  1,480,028                                   140,262
+
+ DP-3       producer           DP-3                        503,600       121,500                                  1,289,989                                    97,249
+
+ DP-4       producer           DP-4                        502,000       120,300                                  1,036,511                                    61,718
+
+ DP-5       producer           DP-5                        502,800       120,300                                    853,928                                         0
+
+ DP-6       producer           DP-6                        503,600       120,300                                    705,479                                    26,181
+
+ GI-1       injector           GI-1                        502,400       121,900                                    876,600                                       n/a
+
+ WI-1       injector           WI-1                        502,400       122,200                                  2,086,546                                       n/a
+
+ WI-2       injector           WI-2                        503,200       119,600                                  1,834,640                                       n/a
+
+ WI-3       injector           WI-3                        502,800       120,900                                    744,600                                       n/a
+
+Coordinates from the wells registry (EPSG:26332, m), match table confirmed 2026-10-04. A producer's value is its produced voidage (oil, water
+and its own free gas), an injector's its injected volume (water and gas), in reservoir volume at the FVFs of each month. Patterns: West: cumulative
+VRR 0.735 at X 502,800, Y 121,500 (centre of 3 placed producers); East: cumulative VRR 0.857 at X 502,800, Y 120,300 (centre of 3 placed
+producers).
+
+
+
+
+Voidage Replacement Report, Demo field, D-1000                                                                                                              Page 5 of 9
+Model, basis and conventions
+ Item                              As used in this report
+
+ Instantaneous VRR                 Injected reservoir volume of the period over produced reservoir voidage of the period
+
+ Cumulative VRR                    Sum of injected reservoir volume to date over sum of produced reservoir voidage to date
+
+ Rolling VRR                       The same over the last 3 periods (a shorter window at the start)
+
+ Produced voidage                  Np Bo + Wp Bw + max(0, Gp - Rs Np / 1000) Bg; solution gas is carried in Bo, so only the free gas adds
+                                   voidage
+
+ Injected volume                   Wi Bw + Gi Bg: injected water at the produced-water Bw, injected gas at the produced-gas Bg of the period
+
+ FVF basis                         Bo and Rs per stock-tank barrel, Bw per barrel, Bg per Mscf at standard conditions. The basis of typed values
+                                   (flash or differential liberation) is as the analyst entered them; state it in the source note.
+
+ Periods                           Calendar months; per-well rows are summed by month
+
+ Pressure                          Average reservoir pressure, absolute, surveys interpolated linearly to the middle of each month and held flat
+                                   outside the surveyed span; dp/dt per month by central difference
+
+ Target band                       The operator band of this project, applied to instantaneous VRR; the screening bands 0.9 to 1.1 of the engine
+                                   are a second reading
+
+
+Limits of this analysis
+- FVFs are held constant over the record. Below the bubble point Bg and Rs move strongly with pressure, so a constant set misstates the free gas
+term as pressure falls; use the pressure track or a Fluid Systems Studio table where pressure changes.
+- Free gas is produced gas above Rs x oil in each period, summed at field (or pattern) level before the floor at zero: a well producing below its
+solution GOR offsets a well producing free gas. Gas that is flared or used on lease must be in the produced gas column to count. The headline
+keeps the field figure; the per-well figure is printed beside it (each well floored on its own, the larger of the two).
+- Injected water is converted at the Bw of the produced water and injected gas at the Bg of the produced gas, at the period pressure; differences in
+injected fluid composition are not modelled.
+- VRR replaces voidage by volume only. Aquifer influx, out-of-zone injection, thief zones and sweep are not seen: a VRR of 1 with falling pressure
+points to out-of-zone injection or unmeasured voidage, and a VRR of 1 does not mean good conformance.
+- Pattern VRR rests on the allocation factors, which are the analyst's judgement; the app never assumes an even split.
+- Volumes are the allocated volumes of the source; allocation errors in well tests pass straight into the ratio.
+
+Flags on the inputs, the import and the periods
+No flag: every input is typed, inside its range, and every period is covered.
+
+
+
+
+Voidage Replacement Report, Demo field, D-1000                                                                                           Page 6 of 9
+Plots
+Figure 1. Voidage replacement ratio by period
+
+                                                         Instantaneous     Rolling (3)       Cumulative
+  VRR (reservoir volume injected / produced)
+
+
+
+
+                                               1.2
+                                                                                                                                                                    target band
+
+                                                     VRR = 1
+                                                1
+
+
+                                               0.8
+
+
+                                               0.6
+
+
+                                               0.4
+
+
+                                               0.2
+
+
+                                                0
+                                               2024-01                             2024-07                              2025-01                           2025-07          2026-01
+
+                                                                                                  Date (each period plotted at the middle of its month)
+
+Instantaneous VRR (each period alone), rolling VRR over 3 periods and cumulative VRR, with VRR = 1 (voidage replaced) and the target band 1
+to 1.2 shaded. Cumulative VRR at the cut-off 0.7793.
+
+
+Figure 2. Reservoir voidage by term
+
+                                                         Oil       Water     Free gas
+                                               400
+  Produced (10^3 RB)
+
+
+
+
+                                               300
+
+
+                                               200
+
+
+                                               100
+
+
+                                                0
+                                               2024-01                             2024-07                              2025-01                           2025-07          2026-01
+
+                                                                                                  Date (each period plotted at the middle of its month)
+
+
+                                                         Water injected    Gas injected
+                                               400
+  Injected (10^3 RB)
+
+
+
+
+                                               300
+
+
+                                               200
+
+
+                                               100
+
+
+                                                0
+                                               2024-01                             2024-07                              2025-01                           2025-07          2026-01
+
+                                                                                                  Date (each period plotted at the middle of its month)
+
+Top: produced voidage of each period, stacked oil, water and free gas. Bottom: injected volume, stacked water and gas. Both in 10^3 RB at the
+reservoir pressure of the period; the stacks are the Produced and Injected columns of the ledger table.
+
+
+
+
+Voidage Replacement Report, Demo field, D-1000                                                                                                                        Page 7 of 9
+Figure 3. Reservoir pressure history
+
+                                    Survey      Period pressure         Cumulative VRR
+                        3100                                                                                                                   0.8
+
+                        3000
+
+                                                                                                                                               0.6
+                        2900
+
+
+
+
+                                                                                                                                                         Cumulative VRR
+  Pressure (psia)
+
+
+
+
+                        2800
+                                                                                                                                               0.4
+                        2700
+
+                        2600
+                                                                                                                                               0.2
+
+                        2500
+
+                        2400                                                                                                                   0
+                          2024-01                             2024-07                          2025-01                           2025-07   2026-01
+
+                                                                         Date (each period plotted at the middle of its month)
+
+Average reservoir pressure surveys (psia, absolute) and the pressure attached to each period by linear interpolation at mid-month, held flat outside
+the surveyed span, beside cumulative VRR on the right axis. Datum 8200 ft TVDSS, the demo field datum (stated, no correction applied), stated;
+no correction applied.
+
+
+Figure 4. Production and injection rates
+
+                                    Oil      Water produced         Water injected       Gas produced        Gas injected
+                        10000                                                                                                                  4000
+
+
+                        8000
+                                                                                                                                               3000
+  Liquid rate (bbl/d)
+
+
+
+
+                                                                                                                                                         Gas rate (Mscf/d)
+                        6000
+                                                                                                                                               2000
+                        4000
+
+                                                                                                                                               1000
+                        2000
+
+
+                           0                                                                                                                   0
+                          2024-01                             2024-07                          2025-01                           2025-07   2026-01
+
+                                                                         Date (each period plotted at the middle of its month)
+
+Calendar-day rates of each month (the month's volume over its days): oil, water produced and water injected in STB or bbl per day; gas produced
+and injected in Mscf/d on the right axis.
+
+
+Figure 5. Formation volume factors by period
+Does not apply: one constant FVF set is used for every period.
+
+
+
+
+Voidage Replacement Report, Demo field, D-1000                                                                                                   Page 8 of 9
+Figure 6. Cumulative VRR by pattern
+
+                             Field       West         East
+                   1.2
+
+                         VRR = 1
+                    1
+  Cumulative VRR
+
+
+
+
+                   0.8
+
+
+                   0.6
+
+
+                   0.4
+
+
+                   0.2
+
+
+                    0
+                   2024-01                                 2024-07                              2025-01                              2025-07                                  2026-01
+
+                                                                          Date (each period plotted at the middle of its month)
+
+Cumulative VRR of each pattern (allocation-weighted injection over the pattern producers' voidage) beside the field, with VRR = 1.
+
+
+Figure 7. Voidage by well on the well locations
+
+                             Producer, produced voidage to 1,391,030 RB         Producer, produced voidage to 2,086,546 RB        Injector, injected volume to 1,391,030 RB
+                             Injector, injected volume to 2,086,546 RB      Pattern centre (cumulative VRR in the table)
+                   1e5
+
+
+
+
+                   1e5
+  Y (m)
+
+
+
+
+                   1e5
+
+
+
+
+                   1e5
+
+
+
+
+                   1e5
+                     5e5                             5e5                           5e5                            5e5                          5e5                             5e5
+
+                                                                                                 X (m)
+
+Each well at its surface location from the wells registry (EPSG:26332, m), through the match table confirmed 2026-10-04. Marker size by thirds of
+the largest value: a producer's produced voidage, an injector's injected volume, in RB over the record. Squares: the centre of each pattern's placed
+producers (West 0.735, East 0.857). The scales of the two axes may differ; values by well are in the table "Voidage by well".
+
+
+
+
+Voidage Replacement Report, Demo field, D-1000                                                                                                                          Page 9 of 9
+

@@ -1,0 +1,176 @@
+{
+  "pages": 9,
+  "sha256": "769146c2b73b72a273e45e44a2f4825187c9393d29daf419a9fc30194f28214d",
+  "figures": [
+    {
+      "id": "vrr",
+      "number": 1,
+      "page": 7,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 29,
+            "w": 182,
+            "h": 64
+          },
+          "drawn": {
+            "Instantaneous": 24,
+            "Rolling (3)": 24,
+            "Cumulative": 24
+          },
+          "total": 72,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "terms",
+      "number": 2,
+      "page": 7,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 113.72,
+            "w": 182,
+            "h": 50
+          },
+          "drawn": {
+            "Oil": 24,
+            "Water": 24,
+            "Free gas": 24
+          },
+          "total": 72,
+          "bands": 0,
+          "logo": true
+        },
+        {
+          "box": {
+            "x": 14,
+            "y": 166.72,
+            "w": 182,
+            "h": 50
+          },
+          "drawn": {
+            "Water injected": 24,
+            "Gas injected": 24
+          },
+          "total": 48,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "pressure",
+      "number": 3,
+      "page": 8,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 64
+          },
+          "drawn": {
+            "Survey": 9,
+            "Period pressure": 24,
+            "Cumulative VRR": 24
+          },
+          "total": 57,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "rates",
+      "number": 4,
+      "page": 8,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 111.08,
+            "w": 182,
+            "h": 64
+          },
+          "drawn": {
+            "Oil": 24,
+            "Water produced": 24,
+            "Water injected": 24,
+            "Gas produced": 24,
+            "Gas injected": 24
+          },
+          "total": 120,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "fvf",
+      "number": 5,
+      "page": 8,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "patterns",
+      "number": 6,
+      "page": 9,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 64
+          },
+          "drawn": {
+            "Field": 24,
+            "West": 24,
+            "East": 24
+          },
+          "total": 72,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "map",
+      "number": 7,
+      "page": 9,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 104.36,
+            "w": 182,
+            "h": 96
+          },
+          "drawn": {
+            "Producer, produced voidage to 1,391,030 RB": 4,
+            "Producer, produced voidage to 2,086,546 RB": 2,
+            "Injector, injected volume to 1,391,030 RB": 2,
+            "Injector, injected volume to 2,086,546 RB": 2,
+            "Pattern centre (cumulative VRR in the table)": 2
+          },
+          "total": 12,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    }
+  ]
+}

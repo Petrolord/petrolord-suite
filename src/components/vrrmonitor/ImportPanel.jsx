@@ -36,7 +36,7 @@ export const importInfoOf = (res, extra = {}) => ({
 });
 
 const ImportPanel = () => {
-  const { inputs, isImported, ledgerWells, importWellRows, clearImported, addNotification, u, canWrite } = useVrrMonitor();
+  const { inputs, isImported, ledgerWells, importWellRows, clearImported, addNotification, u, canWrite, loadDemoField } = useVrrMonitor();
   const [file, setFile] = useState(null); // { name, loaded } (VRR-U2-006: a text file or a workbook)
   const [choices, setChoices] = useState({});
   const res = useMemo(() => (file ? readLedgerFile(file.loaded, { ...choices, system: u.system }) : null), [file, choices, u.system]);
@@ -84,6 +84,7 @@ const ImportPanel = () => {
         <CardTitle className="text-base">Import per-well data</CardTitle>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={loadTemplateSample} disabled={!canWrite}>Sample wells</Button>
+          <Button variant="outline" size="sm" onClick={loadDemoField} disabled={!canWrite} data-testid="vrr-demo-field" title="24 months, 6 producers, 4 injectors, free gas, gas injection, surveys, two patterns (illustrative)">Demo field (24 months)</Button>
           <Button variant="outline" size="sm" onClick={() => downloadText(vrrTemplateCSV(), 'vrr_well_ledger_template.csv')}><Download className="w-4 h-4 mr-1" /> Template</Button>
           {isImported && (
             <Button variant="outline" size="sm" className="hover:text-pl-danger-text" onClick={() => { clearImported(); setFile(null); }} disabled={!canWrite}>

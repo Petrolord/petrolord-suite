@@ -18,6 +18,7 @@ import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjects';
 import { sampleVRRData } from '@/utils/vrrCalculations';
+import { demoFieldInputs } from '@/utils/vrr/demoField';
 import { deriveVrr } from '@/utils/vrr/workspace';
 import { vrrUnits } from '@/utils/vrr/units';
 import { setProvenanceField } from '@/lib/inputProvenance/model';
@@ -52,6 +53,8 @@ export const IDENTIFICATION_FIELDS = Object.freeze([
   ['dataSource', 'Production data source'],
   ['analyst', 'Analyst'],
 ]);
+
+const STARTING_FVF_SET = Object.freeze({ Bo: '1.25', Bw: '1.02', Bg: '0.9', Rs: '550' });
 
 export const defaultInputs = (unitSystem = 'oilfield') => ({
   fvf: { Bo: '1.25', Bw: '1.02', Bg: '0.9', Rs: '550' },
@@ -189,6 +192,13 @@ export const VrrMonitorProvider = ({ children, sharingStore = null, profileSyste
       sampleNote: 'The built-in 6-month waterflood sample of the app (illustrative volumes).',
     }));
     addNotification('Sample loaded: a 6-month waterflood dataset is ready.', 'success');
+  }, [edit, addNotification]);
+
+  // VRR-U2-005: the 24-month demo field, a second sample beside the template ledger
+  const loadDemoField = useCallback(() => {
+    const demo = demoFieldInputs();
+    edit((prev) => ({ ...prev, fvf: { ...STARTING_FVF_SET }, pvtMode: 'constant', pvtIntake: null, ...demo }));
+    addNotification('Demo field loaded: 24 months, 10 wells, free gas, gas injection, surveys and two patterns (illustrative).', 'success');
   }, [edit, addNotification]);
 
   const clearAll = useCallback(() => {
@@ -445,6 +455,7 @@ export const VrrMonitorProvider = ({ children, sharingStore = null, profileSyste
     removePeriod,
     setPeriods,
     loadSample,
+    loadDemoField,
     clearAll,
     importWellRows,
     clearImported,
