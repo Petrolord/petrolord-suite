@@ -324,3 +324,37 @@ Progress per item, in build order. Each row names the test that proves it.
 | SCAL-U2-005 | Partial: densities done, IFT not available | Engines `scal.u2swirr.test.js` (gravities block, 5): PUBLISHED CHECK against the Good Oil Co. Well No. 4 differential liberation (measured oil density at 11 pressures from the residual oil and the gas still in solution, max error 0.07 percent); NEGATIVE CONTROL leaving the dissolved gas out misses by over 10 percent; re-breaking the engine (no Bo) fails the check; the gravities close on the height gradient to 1e-12. Suite `scalU2Pvt.test.js` (9): the engine call on the block, the matched Good Oil fluid gives the lab bubble point density within 1 percent, interpolation inside the table and refusal outside it, the shared card says "As received", "Edited after intake", and "Source changed since" by content only, the report source and its edit wording, the kr-1 `gravities_from`, the payload round trip. `scalU2PvtPage.test.jsx`: the page reads `?fluidProject=<id>`, takes the gravities and marks an edit | `reservoirFluidGravities` (engines PR #303), `src/utils/scalstudio/pvtGravities.js`, `FluidGravitiesIntake.jsx` on the Height tab with the shared `PvtIntakeCard` (which now takes a per-field method). The pvt-1 block holds no interfacial tension, so the reservoir IFT stays entered and the app says so: owner or Fluid round item (the EOS path computes a Weinaug-Katz IFT that pvt-1 does not carry). The brine density at standard conditions (McCain 1991) is transcribed, not re-read from the source; its S = 0 value is the 62.37 lb/ft3 of fresh water at 60 degF. |
 | SCAL-U2-012 | Done | `scalSummary.test.jsx` (3), failing first: read back from the PDF, page 1 holds the identification and the summary and no headline table, page 2 starts the headline results; each summary line is one the later pages print (oil-water set and its source, lab data counts, J and how Swirr was set, Pc and height at Sw 0.5, FWL, flags); the opening workspace says what is missing | `summaryBlock` in `reportModel.js` (the MBAL U2 pattern), printed first by `buildScalPdf` with a page break, and shown on the Report tab. Report goldens regenerated on purpose (the new first page). |
 | SCAL-U2-009 | Done | `EarthModeling/__tests__/scalU2Source.test.js` (3): the built zone keeps `shmFromScalProject`'s source words, the report lines print "SCAL source: ..." (a schema 1 project says it carries no kr-1 block; a project with the block names the J source, the rock, the project and the time); negative control, a zone without saturation height prints none. `ReservoirCalcPro/__tests__/scalU2Source.test.js` (3): the Sw row of the deterministic inputs table names the SCAL source, an old case says it was not stored, a typed Sw keeps its own source | Earth Modeling: `modelBuild.js` (zone `shm.source`, Sw provenance note) and `modelReportPdf.js`. RCP: the panel stores `sourceText` with the picked project, `applySaturationHeight` carries it as `swSourceText`, `deterministicInputRows` prints it. No number moves in either app. |
+| SCAL-U2-010 | Deferred | n/a | Core k and porosity of a zone from Petrophysics. Petrophysics publishes curves to the wells registry, not a zone summary, so this needs a zone-average sender (well, zone tops, averaging rule for k) built in Petrophysics first: an M build, not the S the backlog assumed. Left for the Petrophysics or a later SCAL pass. |
+| SCAL-U2-007 | Deferred | n/a | J by rock type (several working J curves, readers choose). Time: this was the last build before the pause, and it changes the `kr-1` capillary block that four readers consume. |
+
+### Engines PR #303 (not merged)
+
+`Petrolord/petrolord-engines` branch `feat/scal-u2-engines`, two commits, CI green:
+
+- `fitCoreyToKrTable(rows, { fixedEndpoints })` and `validateKrTable(rows, { requireEndpoints })` (default unchanged), `endpointSource` on the result (U2-003).
+- `fitCoreyGasOilToKrTable` (U2-004).
+- `fitJPowerLaw(rows, { fitSwirr })` (U2-006).
+- `reservoirFluidGravities` (U2-005).
+- Gates: `__tests__/scal.u2fits.test.js` (13), `__tests__/scal.u2swirr.test.js` (9).
+
+The Suite vendors the four paths byte-identical with `scal-u2` ledger rows. When #303 merges, re-pin `canonical.commit`, regenerate the manifest, move the Data AI `ENGINE_COMMIT` labels and delete the four rows.
+
+### What changes numbers in other apps (Step 2)
+
+- Nothing moves on its own. Without the new options every engine call returns what it returned before (the old SCAL, Waterflood and Leverett suites pass unchanged).
+- A SCAL project moves only when its user turns on a new option: stated end points, a gas-oil fit applied, a fitted Swirr, or gravities taken from a Fluid project. The four saturation-height readers then follow that project, as they follow any edit.
+- Earth Modeling and ReservoirCalc Pro: words only (the source of the saturation height). Fluid's PVT card: its status words only.
+
+### Where validation is weaker than asked (Step 2)
+
+- **Corey fits (U2-003, U2-004):** synthetic truth only, made by the engine's own Corey builders, with negative controls. No published lab kr table with a stated Corey fit was found. Poston and Poe still await the owner's PDF.
+- **Swirr fit (U2-006):** synthetic truth (two rocks from one J curve) and a noisy variant. There is no published three-parameter J fit to hold it against.
+- **SWOF and SGOF (U2-001):** no published deck to compare. The checks are the deck builder's own emitter (character for character), the engine's `pcFromJ`, and OPM Flow running the deck in the worker gate. Gas-oil Pc is written as zero. The model has no gas-oil Pc, and the file says so.
+- **Gravities (U2-005):** the oil mass balance is checked against published measured densities (Good Oil Co. Well No. 4, max 0.07 percent). The brine density at standard conditions (McCain 1991) was typed from memory and not re-read. Its S = 0 value matches fresh water at 60 degF. The solution gas gravity is the block's input gas gravity, the usual black-oil approximation. The IFT is not in `pvt-1`.
+- **Fluid card fix:** proven on the card model and the Well Test page test. There was no live two-project walk.
+
+### Owner items (Step 2)
+
+- Review and merge engines PR #303. Then re-pin (see above).
+- IFT from Fluid: `pvt-1` carries no interfacial tension. The EOS path computes a Weinaug-Katz IFT that could be added to the block in the Fluid round.
+- Unchanged: Poston and Poe and the Leverett 1941 scan (PDFs). LET and end-point scaling after NAPE. Hysteresis and three-phase go to the Simulation round. The Simulation intake of SWOF and SGOF by id also goes to the Simulation round.

@@ -299,3 +299,34 @@ Inside the thin-real lock; the engine is unchanged (no engines PR).
 - Sample report: `/root/scal-report-sample.pdf`.
 - Step 2 analysis: 16 items, batches A (inside the lock: SWOF/SGOF, gas-oil
   export and fit, fit without end points, xlsx) B and C (outside the lock).
+
+## 2026-10-04: upgrade programme, Reservoir round app 5, Step 2 (SCAL-U2)
+
+Branch `feat/scal-u2`; working doc `docs/upgrade/SCALStudio-UPGRADE.md`
+(section "Step 2 build"). Inside the thin-real lock (Corey and Leverett J).
+Engines PR #303 (Petrolord/petrolord-engines, not merged; CI green), vendored
+byte-identical with four `scal-u2` deviation ledger rows.
+
+- **Batch A, all five:** SWOF and SGOF keyword export with the Leverett J Pc
+  in Pcow, FIELD or METRIC, written by the Simulation deck builder's own
+  emitters and run through OPM Flow in the worker gate (U2-001); gas-oil kr
+  CSV (U2-002); Corey fit with Swc and Sor stated when the lab table lacks an
+  end point, engines-first, synthetic truth with negative controls (U2-003,
+  closes SCAL-U1-020); gas-oil Corey fit with its own door and the fit record
+  (U2-004); Excel workbooks at the three lab doors (U2-011).
+- **Batch B:** water and oil gravities from a Fluid Systems Studio `pvt-1`
+  block by id with the shared PVT card (U2-005; densities checked against the
+  Good Oil Co. Well No. 4 measured densities, max 0.07 percent; the IFT is not
+  in `pvt-1` and stays entered); Swirr fitted with a and b (U2-006; on the
+  demo pair b moves from 1.15 to 1.467, the value with the true Swirr);
+  one-page summary first in the report (U2-012); Earth Modeling and
+  ReservoirCalc Pro reports print the kr-1 source (U2-009). Deferred: U2-010
+  (core k and porosity from Petrophysics) and U2-007 (J by rock type), and
+  all of Batch C, with reasons in the upgrade doc.
+- **Fixed in its own commit:** Fluid's PVT intake card said "source changed
+  since" on any re-save; it now compares a content fingerprint (the
+  SCAL-U1-023 rule).
+- Report goldens regenerated on purpose twice (demo core A now carries a
+  gas-oil table; the new summary page). The demo pair's numbers are unchanged.
+- Sample report: `/root/scal-report-sample.pdf`.
+
