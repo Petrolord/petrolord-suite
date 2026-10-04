@@ -78,9 +78,14 @@ const WDSHelpContent = () => (
       <p>
         Pick which inputs are uncertain, give each a distribution (triangular, uniform, normal or lognormal), and run.
         Every iteration samples the enabled parameters, substitutes them into the working case and reruns the full
-        five-spot forecast. Results report the cumulative-oil distribution in the petroleum percentile convention
+        pattern forecast. Results report the cumulative-oil distribution in the petroleum percentile convention
         (P90 is the low case), an exceedance curve, and a Spearman rank-correlation tornado showing which inputs
         drive Np.
+      </p>
+      <p>
+        Every run is seeded. Leave the seed blank and the run draws one and prints it ("Keep this seed" keeps it);
+        type a seed and the same inputs and iterations give the same percentiles every time. The seed and the
+        number of realizations are saved with the summary and printed in the report.
       </p>
       <p>
         Physically invalid samples (for example a sampled Swc and Sor that leave no mobile saturation window) are

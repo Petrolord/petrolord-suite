@@ -16,7 +16,7 @@ const axisProps = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.ax
 const tooltipProps = { contentStyle: TOOLTIP_STYLE, labelStyle: { color: CHART_COLORS.tooltipText }, itemStyle: { color: CHART_COLORS.tooltipText } };
 
 const UncertaintyResults = () => {
-  const { uncertaintyResult, uncertaintyStale, isRunningUncertainty, u, mcSummary, displacementInputs, patternInputs, uncertaintyConfig } = useWaterfloodDesign();
+  const { uncertaintyResult, uncertaintyStale, isRunningUncertainty, u, mcSummary, displacementInputs, patternInputs, uncertaintyConfig, setUncertaintySeed } = useWaterfloodDesign();
 
   // Exceedance curve in the petroleum convention: P90 sits at 90% probability
   // of exceeding. basicStats' cdf is ascending "probability <= x".
@@ -40,7 +40,7 @@ const UncertaintyResults = () => {
     return (
       <div className="space-y-3" data-testid="wds-mc-saved">
         <div className={`rounded-lg border px-4 py-3 text-xs ${state === 'current' ? 'border-pl-border bg-pl-surface text-pl-text' : 'border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text'}`}>
-          Saved summary of the run of {String(mcSummary.ranAt || '').slice(0, 16).replace('T', ' ')} UTC ({mcSummary.validCount} valid of {mcSummary.iterations}).
+          Saved summary of the run of {String(mcSummary.ranAt || '').slice(0, 16).replace('T', ' ')} UTC ({mcSummary.validCount} valid of {mcSummary.iterations}{Number.isInteger(mcSummary.seed) ? `, seed ${mcSummary.seed} ${mcSummary.seedFrom === 'entered' ? 'as entered' : 'drawn at run time'}` : ', no seed recorded (run before October 2026)'}).
           {state === 'current' ? ' The working case has not changed since.' : ' The working case changed after this run: press Run to refresh it.'}
           {' '}The realizations are not kept; press Run to see the curves again.
         </div>
@@ -125,6 +125,14 @@ const UncertaintyResults = () => {
           ({rejectedCount.toLocaleString()} rejected{btNeverCount > 0 ? `; ${btNeverCount.toLocaleString()} never reached breakthrough` : ''}).
           Percentiles follow the petroleum convention: P90 is the low case.
         </p>
+        {Number.isInteger(uncertaintyResult.seed) && (
+          <p data-testid="wds-mc-seed-used">
+            Seed {uncertaintyResult.seed} ({uncertaintyResult.seedFrom === 'entered' ? 'as entered' : 'drawn at run time'}): the same seed, inputs and iterations give the same percentiles.
+            {uncertaintyResult.seedFrom !== 'entered' && (
+              <button type="button" className="ml-2 underline text-pl-primary-text" onClick={() => setUncertaintySeed(String(uncertaintyResult.seed))} data-testid="wds-mc-keep-seed">Keep this seed</button>
+            )}
+          </p>
+        )}
         {rejectionEntries.map(([reason, count]) => (
           <p key={reason} className="text-pl-muted">Rejected {count.toLocaleString()}: {reason}.</p>
         ))}

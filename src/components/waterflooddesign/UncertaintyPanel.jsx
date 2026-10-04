@@ -85,7 +85,7 @@ const ParamRow = ({ def, cfg, base, disabled, onToggle, onPatch }) => {
 const UncertaintyPanel = () => {
   const {
     displacementInputs, patternInputs,
-    uncertaintyConfig, setUncertaintyIterations, setUncertaintyParam,
+    uncertaintyConfig, setUncertaintyIterations, setUncertaintyParam, setUncertaintySeed,
     isRunningUncertainty, uncertaintyProgress, runUncertainty,
   } = useWaterfloodDesign();
 
@@ -110,6 +110,8 @@ const UncertaintyPanel = () => {
         <SectionLabel>Monte Carlo run</SectionLabel>
         <div className="grid grid-cols-2 gap-3 items-end">
           <Field label="Iterations (100 to 20,000)" value={uncertaintyConfig.iterations} onChange={setUncertaintyIterations} />
+          {/* WF-U2-005: the seed of the run; blank draws one and records it */}
+          <Field label="Seed (blank: drawn and recorded)" value={uncertaintyConfig.seed ?? ''} onChange={setUncertaintySeed} placeholder="drawn at run time" testId="wds-mc-seed" />
           <Button size="sm" onClick={runUncertainty} disabled={isRunningUncertainty} className="h-9">
             <Play className="w-4 h-4 mr-1" /> {isRunningUncertainty ? 'Running…' : 'Run'}
           </Button>

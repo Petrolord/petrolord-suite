@@ -28,10 +28,10 @@ export const SectionLabel = ({ children }) => (
   <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
-export const Field = ({ label, value, onChange, placeholder }) => (
+export const Field = ({ label, value, onChange, placeholder, testId }) => (
   <div className="space-y-1">
     <Label className="text-xs text-pl-muted">{label}</Label>
-    <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-9" />
+    <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-9" data-testid={testId} />
   </div>
 );
 

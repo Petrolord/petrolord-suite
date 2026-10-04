@@ -208,7 +208,7 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
   const mcState = s.mcSummary ? mcSummaryState(s.mcSummary, { displacementInputs: d, patternInputs: p, uncertaintyConfig: s.uncertaintyConfig }) : null;
   if (s.mcSummary) {
     const m = s.mcSummary;
-    H('Np P90 / P50 / P10 (Monte Carlo)', `${th(u.show('oilVolume', m.np?.p90))} / ${th(u.show('oilVolume', m.np?.p50))} / ${th(u.show('oilVolume', m.np?.p10))}`, unitOf('oilVolume'), `P90 is the low case; ${m.validCount} valid of ${m.iterations}; ${mcState === 'current' ? 'run on the inputs of this report' : 'RUN ON EARLIER INPUTS: not this case'}`);
+    H('Np P90 / P50 / P10 (Monte Carlo)', `${th(u.show('oilVolume', m.np?.p90))} / ${th(u.show('oilVolume', m.np?.p50))} / ${th(u.show('oilVolume', m.np?.p10))}`, unitOf('oilVolume'), `P90 is the low case; ${m.validCount} valid of ${m.iterations}${Number.isInteger(m.seed) ? `; seed ${m.seed} (${m.seedFrom === 'entered' ? 'entered' : 'drawn at run time'})` : ''}; ${mcState === 'current' ? 'run on the inputs of this report' : 'RUN ON EARLIER INPUTS: not this case'}`);
   }
 
   // ---- recovery split (RL3) and mobility ratio parts (RL2) ------------------

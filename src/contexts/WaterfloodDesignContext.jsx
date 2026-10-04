@@ -235,6 +235,12 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
   }, []);
   const setUnitSystem = useCallback((sys) => setUnitSystemSaved(sys === 'si' ? 'si' : 'oilfield'), []);
   const setUncertaintyIterations = useCallback((v) => setUncertaintyConfig((prev) => ({ ...prev, iterations: v })), []);
+  // WF-U2-005: blank draws a seed at run time (recorded); a number reproduces a run
+  const setUncertaintySeed = useCallback((v) => setUncertaintyConfig((prev) => {
+    const next = { ...prev };
+    if (v == null || String(v).trim() === '') delete next.seed; else next.seed = String(v).trim();
+    return next;
+  }), []);
   const setUncertaintyParam = useCallback((key, patch) => setUncertaintyConfig((prev) => ({
     ...prev,
     params: { ...prev.params, [key]: { ...(prev.params[key] || {}), ...patch } },
@@ -273,7 +279,7 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
   // ---- Uncertainty (Monte Carlo) run: on demand, results transient ----
   const runUncertainty = useCallback(async () => {
     if (isRunningUncertainty) return;
-    const { distributions, iterations, errors } = parseUncertaintyConfig(uncertaintyConfig);
+    const { distributions, iterations, seed, errors } = parseUncertaintyConfig(uncertaintyConfig);
     if (errors.length) {
       addNotification(errors[0], 'error');
       return;
@@ -295,14 +301,15 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
     setUncertaintyProgress(0);
     try {
       const result = await runWaterfloodUncertaintyAsync(
-        { displacementSpec: displacementSpec.spec, pattern, distributions, iterations },
+        { displacementSpec: displacementSpec.spec, pattern, distributions, iterations, seed },
         setUncertaintyProgress,
       );
       const ranAt = new Date().toISOString();
-      setUncertaintyResult({ ...result, ranAt });
+      const seedFrom = seed == null ? 'drawn' : 'entered';
+      setUncertaintyResult({ ...result, ranAt, seedFrom });
       // WF-U1: the summary of the canonical module's run is kept with the
       // project (the realizations are not), stamped with what it was run on
-      setMcSummary(mcSummaryRecord(result, { ranAt, fingerprint: mcInputsFingerprint({ displacementInputs, patternInputs, uncertaintyConfig }) }));
+      setMcSummary(mcSummaryRecord({ ...result, seedFrom }, { ranAt, fingerprint: mcInputsFingerprint({ displacementInputs, patternInputs, uncertaintyConfig }) }));
       hasUncertaintyResult.current = true;
       setUncertaintyStale(false);
       if (result.validCount > 0) {
@@ -574,7 +581,7 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
     surveillanceConfig, setSurveillanceField,
     surveillanceResult,
     // uncertainty
-    uncertaintyConfig, setUncertaintyIterations, setUncertaintyParam,
+    uncertaintyConfig, setUncertaintyIterations, setUncertaintyParam, setUncertaintySeed,
     uncertaintyResult, isRunningUncertainty, uncertaintyProgress, uncertaintyStale,
     runUncertainty,
     // scenarios

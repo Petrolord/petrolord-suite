@@ -188,7 +188,7 @@ export function buildWaterfloodReportFigures({ model, state }) {
     figs.push({
       id: 'mc',
       title: 'Monte Carlo: cumulative oil',
-      statement: `Not plotted: the realizations are not kept with the project. Summary of the run of ${String(m.ranAt || '').slice(0, 16).replace('T', ' ')} UTC: Np P90 ${g(u.show('oilVolumeK', (m.np?.p90 ?? NaN) / 1000), 4)}, P50 ${g(u.show('oilVolumeK', (m.np?.p50 ?? NaN) / 1000), 4)}, P10 ${g(u.show('oilVolumeK', (m.np?.p10 ?? NaN) / 1000), 4)} ${u.label('oilVolumeK')} (headline table).`,
+      statement: `Not plotted: the realizations are not kept with the project. Summary of the run of ${String(m.ranAt || '').slice(0, 16).replace('T', ' ')} UTC: Np P90 ${g(u.show('oilVolumeK', (m.np?.p90 ?? NaN) / 1000), 4)}, P50 ${g(u.show('oilVolumeK', (m.np?.p50 ?? NaN) / 1000), 4)}, P10 ${g(u.show('oilVolumeK', (m.np?.p10 ?? NaN) / 1000), 4)} ${u.label('oilVolumeK')}${Number.isInteger(m.seed) ? `, ${m.iterations} realizations, seed ${m.seed}` : ''} (headline table).`,
     });
   } else {
     figs.push({ id: 'mc', title: 'Monte Carlo: cumulative oil', statement: 'Does not apply: no uncertainty run.' });

@@ -17,7 +17,18 @@
 // enforce (e.g. sampled Swc + Sor leaving no mobile saturation window) are
 // rejected and counted, mirroring ReservoirCalc Pro's truncation accounting.
 
-import { createCorrelatedSampler, basicStats, rankCorrelationSensitivity } from '@/lib/monteCarlo';
+import { createCorrelatedSampler, basicStats, rankCorrelationSensitivity, mulberry32 } from '@/lib/monteCarlo';
+
+/** A fresh 32-bit seed for a run that was given none (recorded with the result). */
+export function drawSeed() {
+  try {
+    const a = new Uint32Array(1);
+    globalThis.crypto.getRandomValues(a);
+    return a[0];
+  } catch {
+    return Math.floor(Math.random() * 4294967296);
+  }
+}
 import { forecastPattern } from './patternForecastCalculations';
 
 // Parameters the engine knows how to vary. `coreyOnly` marks rel-perm shape
@@ -129,7 +140,17 @@ export function parseUncertaintyConfig(config) {
     errors.push('Iterations must be between 100 and 20,000.');
   }
 
-  return { distributions, iterations, errors };
+  // WF-U2-005: the seed of the run. Blank: the run draws one and records it;
+  // entered: a whole number from 0 to 4,294,967,295 (the mulberry32 state).
+  let seed = null;
+  const seedText = String(config?.seed ?? '').trim();
+  if (seedText !== '') {
+    const v = Number(seedText);
+    if (!Number.isInteger(v) || v < 0 || v > 4294967295) errors.push('The seed must be a whole number from 0 to 4,294,967,295, or blank to draw one.');
+    else seed = v;
+  }
+
+  return { distributions, iterations, seed, errors };
 }
 
 // Validity gates for one realization; mirrors buildDisplacementSpec and the
@@ -167,7 +188,11 @@ function applySample(displacementSpec, pattern, values) {
  * step(count) advances up to `count` iterations; finalize() builds the
  * result object.
  */
-function createRun({ displacementSpec, pattern, distributions, correlations = [], iterations, rng = Math.random }) {
+function createRun({ displacementSpec, pattern, distributions, correlations = [], iterations, seed = null, rng: rngIn = null }) {
+  // WF-U2-005: every draw from the canonical module's seeded generator; a run
+  // given no seed draws one and reports it, so any P50 can be reproduced
+  const runSeed = Number.isInteger(seed) && seed >= 0 && seed <= 4294967295 ? seed : drawSeed();
+  const rng = rngIn || mulberry32(runSeed);
   if (!displacementSpec || !pattern) {
     throw new Error('Uncertainty run needs a valid working displacement spec and pattern.');
   }
@@ -233,6 +258,7 @@ function createRun({ displacementSpec, pattern, distributions, correlations = []
     }
     if (npArr.length === 0) {
       return {
+        seed: rngIn ? null : runSeed,
         iterations: iters,
         validCount: 0,
         rejectedCount: rejected,
@@ -251,6 +277,7 @@ function createRun({ displacementSpec, pattern, distributions, correlations = []
     }));
 
     return {
+      seed: rngIn ? null : runSeed,
       iterations: iters,
       validCount: npArr.length,
       rejectedCount: rejected,
