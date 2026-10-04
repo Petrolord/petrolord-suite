@@ -167,7 +167,7 @@ export const EorScreeningProvider = ({ children, sharingStore = null, profileSys
     });
   }, [edit]);
   /** EOR-U2-005: put the material balance estimate in the oil saturation, with its method as the source. */
-  const useRemainingOil = useCallback(() => {
+  const applyRemainingOil = useCallback(() => {
     const r = remainingOilEstimate(inputs);
     if (!r.ok) return false;
     edit((prev) => ({
@@ -328,7 +328,7 @@ export const EorScreeningProvider = ({ children, sharingStore = null, profileSys
     screenRecord,
     mmp,
     remainingOil,
-    useRemainingOil,
+    applyRemainingOil,
     u,
     organizationName,
     setUnitSystem,

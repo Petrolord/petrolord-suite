@@ -36,7 +36,7 @@ const SourceLine = ({ k }) => {
 
 const EorInputsPanel = () => {
   const {
-    inputs, setFormField, setContextField, setDepthReference, loadSample, clearInputs, canWrite, remainingOil, useRemainingOil: applyRemainingOil,
+    inputs, setFormField, setContextField, setDepthReference, loadSample, clearInputs, canWrite, remainingOil, applyRemainingOil,
   } = useEorScreening();
   const form = inputs.form || {};
   return (
