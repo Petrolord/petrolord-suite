@@ -20,11 +20,13 @@ import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 import { computeHallPlots } from '@/utils/waterfloodCalculations';
 
-const mockSeen = { scatters: [], x: null, y: null };
+const mockSeen = { scatters: [], lines: [], x: null, y: null };
 jest.mock('recharts', () => {
   const Pass = ({ children }) => <div>{children}</div>;
   return {
     ScatterChart: Pass,
+    ComposedChart: Pass,
+    Line: (props) => { mockSeen.lines.push(props); return null; },
     CartesianGrid: () => null,
     ZAxis: () => null,
     Tooltip: () => null,
@@ -37,7 +39,7 @@ jest.mock('recharts', () => {
 jest.mock('@/components/charts/ChartFrame', () => ({ children }) => <div>{children}</div>);
 jest.mock('framer-motion', () => ({ motion: { div: ({ children }) => <div>{children}</div> } }));
 
-import HallPlotPanel, { hallPlotPoints } from '@/components/waterflood/HallPlotPanel';
+import HallPlotPanel, { hallPlotPoints, hallWindowLines } from '@/components/waterflood/HallPlotPanel';
 
 const day = (i) => new Date(Date.UTC(2025, 0, 1 + i)).toISOString().slice(0, 10);
 function hallCase(pressureOf) {
@@ -88,13 +90,27 @@ describe('H11: the Hall plot follows the Hall (1963) convention', () => {
   it('the chart puts injected water on x and the integral on y, and says so', () => {
     render(<HallPlotPanel data={plugging.hall_plots} alerts={{ injectivity_issue: plugging.injectivity_alerts }} />);
     expect(screen.getByTestId('x-axis')).toHaveTextContent(/Cumulative water injected \(bbl\)/);
-    expect(screen.getByTestId('y-axis')).toHaveTextContent(/Hall integral.*\(psi·day\)/);
+    expect(screen.getByTestId('y-axis')).toHaveTextContent(/Hall integral.*\(psi\.d, wellhead\)/);
     const drawn = mockSeen.scatters[0].data;
     expect(drawn).toEqual(hallPlotPoints(plugging.hall_plots[0]));
     expect(drawnSlope(drawn, 20, 29)).toBeCloseTo(plugging.hall_plots[0].slope_last, 9);
     // the legend quotes the slope with its unit, and the caption names the axes in that order
-    expect(screen.getByTestId('series')).toHaveTextContent('INJ-1 (recent slope 3.00 psi·day/bbl)');
+    expect(screen.getByTestId('series')).toHaveTextContent('INJ-1 (recent slope 3.00 psi.d/bbl)');
     expect(screen.getByTestId('hall-caption')).toHaveTextContent(/on the vertical axis against cumulative water injected/);
     expect(screen.getByTestId('hall-caption')).toHaveTextContent(/Hall \(1963\)/);
+  });
+
+  it('WF-U1-006: both slope windows are drawn as fitted lines with the engine slopes', () => {
+    mockSeen.lines = [];
+    render(<HallPlotPanel data={plugging.hall_plots} alerts={{ injectivity_issue: plugging.injectivity_alerts }} />);
+    const lines = hallWindowLines(plugging.hall_plots[0]);
+    expect(lines.map((l) => l.key)).toEqual(['baseline', 'recent']);
+    const slope = (l) => (l.points[1].y - l.points[0].y) / (l.points[1].x - l.points[0].x);
+    expect(slope(lines[0])).toBeCloseTo(2, 9);
+    expect(slope(lines[1])).toBeCloseTo(3, 9);
+    expect(mockSeen.lines).toHaveLength(2);
+    expect(screen.getByTestId('hall-windows')).toHaveTextContent(/Recent window.*3\.00 psi\.d\/bbl/);
+    // negative control: a result with no windows draws no line
+    expect(hallWindowLines({ ...plugging.hall_plots[0], windows: undefined })).toEqual([]);
   });
 });

@@ -13,6 +13,7 @@ import DevAuth from './DevAuth';
 import { loadScalRows, watchScalRows, persistScalRows, SCAL_TABLE } from './scalProjectsStore';
 import { loadFluidRows, FLUID_TABLE } from './fluidProjectsStore';
 import { savedScalRows } from '@/components/scalstudio/__fixtures__/savedProjects';
+import { savedWaterfloodRows } from '@/components/waterflooddesign/__fixtures__/savedProjects';
 
 const APPS = {
   afe: lazy(() => import('@/pages/apps/AfeCostControlManager')),
@@ -54,7 +55,12 @@ const SEEDS = {
     // SCAL-U2-005: the Fluid Systems projects saved on the Fluid harness in this tab, read by id
     return { [SCAL_TABLE]: rows, [FLUID_TABLE]: loadFluidRows() };
   },
-  waterflood: () => ({ [SCAL_TABLE]: loadScalRows() }),
+  // WF-U1: the SCAL and Fluid projects saved on their harnesses in this tab
+  // (kr-1 and pvt-1 read by id); ?saved=1 adds a project as an earlier release saved it
+  waterflood: () => {
+    const wantFixtures = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('saved') === '1';
+    return { [SCAL_TABLE]: loadScalRows(), [FLUID_TABLE]: loadFluidRows(), saved_waterflood_design_projects: wantFixtures ? savedWaterfloodRows(U) : [] };
+  },
   // AFE: budget 8.5M; EAC max(budget, actual + commitment) unless entered:
   // RIG 5.0M, CSG 2.3M (entered), SVC 1.5M, so 8.8M and a 0.3M overrun;
   // EV 5.0 x 0.6 + 2.0 x 0.9 + 1.5 x 0.3 = 5.25M against 5.2M actual.
@@ -152,6 +158,7 @@ function useScalRows(app) {
   if (app === 'waterflood') {
     if (stores.scal) persistScalRows(stores.scal);
     storeFor('waterflood')[SCAL_TABLE] = loadScalRows();
+    storeFor('waterflood')[FLUID_TABLE] = loadFluidRows();
   }
   // a Fluid project may have been saved on the Fluid harness since SCAL was first opened
   if (app === 'scal') storeFor('scal')[FLUID_TABLE] = loadFluidRows();

@@ -6,17 +6,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ChartPanel } from '@/components/ui/chart-panel';
 import ChartFrame from '@/components/charts/ChartFrame';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 export const fmt = {
   num: (v) => {
     const n = typeof v === 'number' ? v : parseFloat(v);
     return Number.isFinite(n) ? n : NaN;
   },
-  pct: (v) => (v == null || !Number.isFinite(v) ? '-' : `${(v * 100).toFixed(1)}%`),
-  f1: (v) => (v == null || !Number.isFinite(v) ? '-' : Number(v).toFixed(1)),
-  f2: (v) => (v == null || !Number.isFinite(v) ? '-' : Number(v).toFixed(2)),
-  f3: (v) => (v == null || !Number.isFinite(v) ? '-' : Number(v).toFixed(3)),
-  int: (v) => (v == null || !Number.isFinite(v) ? '-' : Math.round(v).toLocaleString()),
+  pct: (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : `${(v * 100).toFixed(1)}%`),
+  f1: (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toFixed(1)),
+  f2: (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toFixed(2)),
+  f3: (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toFixed(3)),
+  int: (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Math.round(v).toLocaleString()),
 };
 
 // Chart line colors tuned for the white Petrolord chart background.
@@ -33,6 +34,35 @@ export const Field = ({ label, value, onChange, placeholder }) => (
     <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-9" />
   </div>
 );
+
+// A unit-aware input (WF-U1, PL3): shows the stored (oilfield) value in the
+// display unit of `u` and stores what is typed back in oilfield units. The
+// label carries the unit. `testId` names the input for tests.
+export const UField = ({ label, kind, u, value, onChange, placeholder, testId }) => {
+  const [draft, setDraft] = React.useState(null);
+  const shown = draft != null ? draft : (u ? u.text(kind, value) : value);
+  const unit = u ? u.label(kind) : '';
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs text-pl-muted">{unit ? `${label} (${unit})` : label}</Label>
+      <Input
+        value={shown ?? ''}
+        inputMode="decimal"
+        data-testid={testId}
+        onChange={(e) => {
+          const text = e.target.value;
+          const stored = u ? u.toState(kind, text) : text;
+          if (stored == null) { setDraft(text); return; }
+          setDraft(u && u.system !== 'oilfield' ? text : null);
+          onChange(stored);
+        }}
+        onBlur={() => setDraft(null)}
+        placeholder={placeholder}
+        className="h-9"
+      />
+    </div>
+  );
+};
 
 export const Kpi = ({ title, value, unit, accent }) => (
   <Card className={accent ? 'ring-1 ring-pl-primary/40' : undefined}>

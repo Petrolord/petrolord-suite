@@ -1,0 +1,818 @@
+Waterflood Design Report
+Petrolord Waterflood Design Studio
+
+Project                  Ekene P-1 waterflood                         Company               Ekene Energy
+Field                    Ekene                                        Licence or block      OML 999
+Reservoir or zone        E-2000 sand                                  Pattern or flood      Five-spot P-1
+                                                                      element
+Injectors                INJ-1, INJ-2                                 Producers             PROD-1, PROD-2
+Analyst                  A. Engineer                                  Surveillance data     2024-01-01 to 2024-03-30
+Analysis type            Buckley-Leverett displacement, five-spot Software build            Petrolord Suite test (fixture)
+                         pattern forecast, layered sweep and flood
+                         surveillance (analytical screening)
+Display units            Oilfield (thickness ft, area acres, rates Generated                2026-10-04 09:00 UTC
+                         RB/d and STB/d, FVF RB/STB, Bg
+                         RB/Mscf, pressure psi, volumes STB and
+                         RB)
+
+
+Headline results
+ Quantity                                        Value                  Unit        Basis
+
+ Endpoint mobility ratio M                       0.383                              (krw at Sor / muW) / (kro at Swc / muO)
+
+ Front saturation Swf                            0.683                  fraction    Welge tangent from (Swc, 0)
+
+ Water cut at the front fw(Swf)                  0.926                  fraction    reservoir
+
+ Average Sw behind the front at breakthrough     0.723                  fraction    Welge
+
+ Pore volumes injected at breakthrough (1-D)     0.543                  PV          1 / fw'(Swf)
+
+ Displacement efficiency at breakthrough ED      66.3                   %           of oil in place in the swept region
+
+ Displacement efficiency at Sor (maximum)        73.2                   %           (1 - Swc - Sor) / (1 - Swc)
+
+ Mobility ratio entered in the areal sweep       0.3026                             Craig: krw at the average Sw behind the front
+ correlation
+
+ Areal sweep at pattern breakthrough EA          87.3                   %           five-spot, Craig data, Willhite regression
+
+ Pattern breakthrough                            2.77                   yr          from the start of injection, as on screen
+
+ Water injected at breakthrough                  809,350                RB          reservoir barrels
+
+ Cumulative oil Np at the end                    652,606                STB         stock tank
+
+ Recovery of the pattern OOIP ER                 67.8                   %           ED x EA x EV
+
+ Final water-oil ratio                           32.1                   STB/STB     surface
+
+ Forecast stopped at                             4.50 yr, WOR limit
+                                                 reached
+
+ Dykstra-Parsons permeability variation V        0.679                              log-normal fit of the layer k
+
+ Cumulative VRR                                  0.884                  RB/RB       injected over produced reservoir voidage, calendar
+                                                                                    volumes
+
+ Rolling VRR, last window                        0.998                  RB/RB       30 calendar days
+
+ Water cut over the history                      41.7                   %           volume-weighted, surface
+
+ Surveillance alerts                             1                                  water cut, VRR band, Hall injectivity
+
+
+
+
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                   Page 1 of 11
+Recovery of the pattern, by its parts
+ Part                                       Value         Method
+
+ Displacement efficiency ED                 67.80 %       Buckley-Leverett with the Welge construction, at the pore volumes injected into the
+                                                          swept region
+
+ Areal sweep EA                             100.00 %      Five-spot: Craig data (Willhite regression) to breakthrough, Dyes, Caudle and
+                                                          Erickson growth after it
+
+ Vertical sweep EV                          100.00 %      Entered multiplier (a Dykstra-Parsons coverage may be used)
+
+ Recovery ER = ED x EA x EV                 67.80 %       of the pattern OOIP, 962,547 STB
+
+Closure: ED x EA x EV = 67.800 % against Np / OOIP = 67.800 %. Pattern OOIP = 7,758 x A x h x phi x (1 - Swc) / Bo.
+
+Mobility ratio, by its components
+ Component                                                             Value
+
+ krw at Sor                                                            0.3104
+
+ kro at Swc                                                            0.9236
+
+ Water viscosity used muW (cP)                                         0.3465
+
+ Oil viscosity muO (cP)                                                0.3949
+
+ Endpoint M                                                            0.383
+
+ Average Sw behind the front at breakthrough                           0.7235
+
+ krw at that saturation                                                0.2453
+
+ Craig M = (krw(Sw avg) / muW) / (kro(Swc) / muO)                      0.3026
+
+ M entered in the areal sweep correlation                              0.3026 (craig)
+
+Endpoint M governs the displacement and the Dykstra-Parsons layered sweep. The five-spot areal sweep correlation was built on Craig's M, taken
+at the average water saturation behind the front at breakthrough.
+
+
+
+
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                     Page 2 of 11
+Inputs and their sources
+ Input                                           Value    Unit       Source and quality
+
+ Connate water saturation Swc                    0.18     fraction   SCAL Studio kr-1: Corey fitted to sample "Demo core A
+                                                                     (synthetic)" (analog, imbibition, unsteady-state), r2 0.999
+                                                                     (log kr), from SCAL Studio project "Ekene E-2000 SCAL"
+                                                                     (2026-10-04 09:00 UTC)
+
+ Residual oil saturation Sor                     0.22     fraction   SCAL Studio kr-1: Corey fitted to sample "Demo core A
+                                                                     (synthetic)" (analog, imbibition, unsteady-state), r2 0.999
+                                                                     (log kr), from SCAL Studio project "Ekene E-2000 SCAL"
+                                                                     (2026-10-04 09:00 UTC)
+
+ krw at Sor (end point)                          0.3104   fraction   SCAL Studio kr-1: Corey fitted to sample "Demo core A
+                                                                     (synthetic)" (analog, imbibition, unsteady-state), r2 0.999
+                                                                     (log kr), from SCAL Studio project "Ekene E-2000 SCAL"
+                                                                     (2026-10-04 09:00 UTC)
+
+ kro at Swc (end point)                          0.9236   fraction   SCAL Studio kr-1: Corey fitted to sample "Demo core A
+                                                                     (synthetic)" (analog, imbibition, unsteady-state), r2 0.999
+                                                                     (log kr), from SCAL Studio project "Ekene E-2000 SCAL"
+                                                                     (2026-10-04 09:00 UTC)
+
+ Corey water exponent nw                         2.38                SCAL Studio kr-1: Corey fitted to sample "Demo core A
+                                                                     (synthetic)" (analog, imbibition, unsteady-state), r2 0.999
+                                                                     (log kr), from SCAL Studio project "Ekene E-2000 SCAL"
+                                                                     (2026-10-04 09:00 UTC)
+
+ Corey oil exponent no                           2.14                SCAL Studio kr-1: Corey fitted to sample "Demo core A
+                                                                     (synthetic)" (analog, imbibition, unsteady-state), r2 0.999
+                                                                     (log kr), from SCAL Studio project "Ekene E-2000 SCAL"
+                                                                     (2026-10-04 09:00 UTC)
+
+ Water viscosity muW                             0.3465   cP         Correlation: McCain, at 2500 psia (stated reservoir
+                                                                     pressure), from Fluid Systems Studio project "Good Oil
+                                                                     Well No. 4 PVT" (2026-10-02 09:00 UTC)
+
+ Oil viscosity muO                               0.3949   cP         Correlation: Beggs-Robinson, multiplied by 1.1606
+                                                                     (laboratory match), correlations matched to lab data, at
+                                                                     2500 psia (stated reservoir pressure), from Fluid Systems
+                                                                     Studio project "Good Oil Well No. 4 PVT" (2026-10-02
+                                                                     09:00 UTC)
+
+ Dip and gravity term                            Off                 Chosen in the app: horizontal displacement, no gravity
+                                                                     term
+
+ Pattern area                                    40       acres      Offset well. Pattern P-1 well spacing
+
+ Net thickness                                   25       ft         Measured (lab). Net pay from the petrophysical
+                                                                     interpretation
+
+ Porosity                                        0.22     frac       Measured (lab). Core porosity, E-2000 average
+
+ Oil FVF Bo (pattern)                            1.454    RB/STB     Correlation: Standing, multiplied by 0.9059 plus 0.1281
+                                                                     RB/STB (laboratory match), correlations matched to lab
+                                                                     data, at 2500 psia (stated reservoir pressure), from Fluid
+                                                                     Systems Studio project "Good Oil Well No. 4 PVT"
+                                                                     (2026-10-02 09:00 UTC)
+
+ Water FVF Bw (pattern)                          1.043    RB/STB     Correlation: McCain, with the Numbere-Brigham-Standing
+                                                                     salinity correction, at 2500 psia (stated reservoir
+                                                                     pressure), from Fluid Systems Studio project "Good Oil
+                                                                     Well No. 4 PVT" (2026-10-02 09:00 UTC)
+
+ Water injection rate (constant, reservoir       800      RB/d       Assumed. Design injection rate
+ barrels)
+
+ Initial free gas saturation Sgi                 0        frac       Starting value of the app, not changed (assumed)
+
+ Vertical sweep EV (multiplier)                  1                   Starting value of the app, not changed (assumed)
+
+ WOR economic limit (surface, STB/STB)           25                  Starting value of the app, not changed (assumed)
+
+ Forecast horizon                                30       yr         Starting value of the app, not changed (assumed)
+
+ Mobility ratio of the areal sweep               Craig               Chosen in the app: Craig: krw at the average water
+ correlation                                                         saturation behind the front at breakthrough
+
+
+
+
+Waterflood Design Report, Ekene, Five-spot P-1                                                                        Page 3 of 11
+ Input                                           Value                   Unit            Source and quality
+
+ Layers (thickness, permeability)                5 layers, total 45 ft                   Entered or imported on the Layered Sweep tab
+
+ Mobility ratio for Dykstra-Parsons              0.383                                   Computed: endpoint M of the Displacement tab
+
+ Stiles capacity ratio A                         1.5                                     Starting value of the app, not changed (assumed)
+
+ Oil FVF Bo (voidage)                            1.454                   RB/STB          Correlation: Standing, multiplied by 0.9059 plus 0.1281
+                                                                                         RB/STB (laboratory match), correlations matched to lab
+                                                                                         data, at 2500 psia (stated reservoir pressure), from Fluid
+                                                                                         Systems Studio project "Good Oil Well No. 4 PVT"
+                                                                                         (2026-10-02 09:00 UTC)
+
+ Water FVF Bw (voidage)                          1.043                   RB/STB          Correlation: McCain, with the Numbere-Brigham-Standing
+                                                                                         salinity correction, at 2500 psia (stated reservoir
+                                                                                         pressure), from Fluid Systems Studio project "Good Oil
+                                                                                         Well No. 4 PVT" (2026-10-02 09:00 UTC)
+
+ Gas FVF Bg (free-gas voidage)                   1.155                   RB/Mscf         Real gas law, Bg = 0.00504 Z T / p, at 2500 psia (stated
+                                                                                         reservoir pressure), from Fluid Systems Studio project
+                                                                                         "Good Oil Well No. 4 PVT" (2026-10-02 09:00 UTC)
+
+ Solution GOR Rs (free-gas voidage)              728.8                   scf/STB         Correlation: Standing, multiplied by 0.7909 plus 122.3
+                                                                                         scf/STB (laboratory match), correlations matched to lab
+                                                                                         data, at 2500 psia (stated reservoir pressure), from Fluid
+                                                                                         Systems Studio project "Good Oil Well No. 4 PVT"
+                                                                                         (2026-10-02 09:00 UTC)
+
+ Injection pressure basis (Hall plot)            Wellhead                                Chosen at the import door; integrated as given, no head or
+                                                                                         friction correction
+
+ Smoothing, VRR window, target VRR               5 d, 30 d, 1.0                          Starting value of the app, not changed (assumed)
+
+ Analysis window                                 Whole file                              Entered
+
+Every value the analysis read, with its unit in the display system and where it came from. "Starting value of the app" marks a default the user never
+changed. Values taken from SCAL Studio (kr-1) or Fluid Systems Studio (pvt-1) name the project and the method; a value typed over after the
+intake says so.
+
+
+Injection plan and forecast, year by year
+ Year    Water injected           Oil produced            Water produced            Np at year end         WOR at year          EA at year end
+         (RB)                     (STB)                   (bbl)                     (STB)                  end                  (%)
+
+ 1                    292,200                  200,963                          0               200,963                  0.00                   31.5
+
+ 2                    292,200                  200,963                          0               401,926                  0.00                   63.0
+
+ 3                    292,200                  170,976                    41,803                572,902                  2.67                   89.4
+
+ 4                    292,200                    59,049                  197,835                631,951                  3.99                   97.4
+
+ 5                    146,100                    20,654                  111,283                652,606                 32.13                 100.0
+
+Constant injection of 800 RB/d from time zero; monthly steps; the last year may be part of a year. Production balances injection in reservoir barrels
+after fill-up (voidage replacement 1.0 by construction). Oil produced sums to 652,606 STB, the Np at the end.
+
+
+Surveillance data: the file as read
+Sample field history (synthetic, built into the app).
+
+
+Data quality
+Rows into the engine 360, used 360; duplicates removed 0; negative rates zeroed 0.
+
+
+
+
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                           Page 4 of 11
+Wells of the history
+ Well           Type               First                Last                 Rows   Days        Oil (STB)        Water (bbl)        Injected (bbl)
+
+ INJ-1          injector           2024-01-01           2024-03-30           90     90          0                0                  44,663
+
+ INJ-2          injector           2024-01-01           2024-03-30           90     90          0                0                  31,680
+
+ PROD-1         producer           2024-01-01           2024-03-30           90     90          22,392           16,250             0
+
+ PROD-2         producer           2024-01-01           2024-03-30           90     90          18,594           13,017             0
+
+ Total          n/a                n/a                  n/a                  360    n/a         40,986           29,267             76,343
+
+Volumes are daily rates times the days to the well's next row (the last row: the gap before it). The field totals of the engine are built the same way
+from the field days.
+
+
+Hall plot slope windows
+ Injector           Window                        Dates                              Points         Slope (psi.d/bbl)      95% interval         r2
+
+ INJ-1              Baseline (first third)        2024-01-01 to 2024-01-30           30             6.726                  6.542 to 6.91        0.995
+
+ INJ-1              Recent (last third)           2024-03-01 to 2024-03-30           30             8.392                  8.306 to 8.478       0.999
+
+ INJ-1              Recent over baseline          n/a                                n/a            1.248                  n/a                  n/a
+
+ INJ-2              Baseline (first third)        2024-01-01 to 2024-01-30           30             8                      8 to 8               1.000
+
+ INJ-2              Recent (last third)           2024-03-01 to 2024-03-30           30             8                      8 to 8               1.000
+
+ INJ-2              Recent over baseline          n/a                                n/a            1.000                  n/a                  n/a
+
+Hall (1963): the integral of the wellhead injection pressure over time against cumulative water injected; the slope is p/q. A ratio of 1.2 or more flags
+declining injectivity, 0.8 or less improving injectivity (possible fracturing or channelling). Pressure integrated as given: no hydrostatic head, friction
+or reservoir pressure is applied.
+
+
+Layered sweep: breakthrough stages
+ Stage       k broken (md)               DP coverage (%)          DP WOR (RB/RB)              Stiles coverage (%)           Stiles water cut (%)
+
+ 1           500.0                       46.6                     0.78                        40.3                          64.8
+
+ 2           250.0                       64.0                     2.27                        58.4                          83.5
+
+ 3           120.0                       81.8                     9.12                        78.3                          95.3
+
+ 4           60.0                        92.1                     24.68                       90.0                          98.0
+
+ 5           30.0                        100.0                    infinite                    100.0                         100.0
+
+Dykstra-Parsons V 0.679, median k 122.0 md; M 0.383; Stiles A 1.5. Non-communicating layers, piston-like displacement in each.
+
+Model
+ Item                                 As used in this report
+
+ Displacement                         1-D Buckley-Leverett with the Welge tangent; capillary pressure neglected; incompressible fluids; fw with the
+                                      field-unit gravity term when the dip term is on
+
+ Relative permeability                Corey, normalised on (Sw - Swc) / (1 - Swc - Sor)
+
+ Areal sweep                          Five-spot: EA at breakthrough from Craig's data (Willhite regression), entered with Craig's M; growth after
+                                      breakthrough EA = EAbt + 0.2749 ln(Wi / Wibt) (Dyes, Caudle and Erickson 1954), capped at 1
+
+ Pattern forecast                     Piston-like areal growth of the Buckley-Leverett profile; Np = PV x EV x EA x ED x (1 - Swc); rates by
+                                      differencing Np; production balances injection in reservoir barrels
+
+ Layered sweep                        Dykstra-Parsons (non-communicating, log-normal V) and Stiles coverage
+
+ Surveillance                         Reservoir-barrel voidage (oil x Bo, water x Bw, free gas x Bg), VRR daily, rolling over calendar days and
+                                      cumulative on calendar volumes; Hall (1963); Chan (1995) WOR and WOR' diagnostics (indicative)
+
+ Uncertainty                          Monte Carlo through the canonical module (src/lib/monteCarlo.js), each realization rerunning the forecast;
+                                      summary kept, realizations not kept
+
+
+
+
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                               Page 5 of 11
+Basis and conventions
+ Item                             As used in this report
+
+ Formation volume factors         Bo and Bw in reservoir barrels per stock-tank barrel (RB/STB); Bg in reservoir barrels per Mscf; one value for
+                                  the whole history at the pressure stated with the intake
+
+ Rates and volumes                Injection rate of the forecast in reservoir barrels per day; produced oil and water in stock-tank barrels;
+                                  surveillance rates are daily rates as imported
+
+ Water-oil ratio and water cut    Surface (STB/STB); the Dykstra-Parsons WOR is at reservoir conditions
+
+ VRR                              Reservoir barrels injected over reservoir barrels of voidage produced
+
+ Time                             Forecast in years of 365.25 days from the start of injection; surveillance on calendar dates
+
+ Pressure (Hall)                  Wellhead injection pressure as imported, absolute or gauge as in the file
+
+ Percentiles                      Petroleum convention: P90 is the low case
+
+ Display units                    Oilfield (thickness ft, area acres, rates RB/d and STB/d, FVF RB/STB, Bg RB/Mscf, pressure psi, volumes STB
+                                  and RB)
+
+
+Limits of this analysis
+- One-dimensional Buckley-Leverett displacement: incompressible, immiscible, no capillary pressure, homogeneous rock in each layer.
+- An idealised, isolated five-spot repeated over the field: no interference between patterns, no edge effects, constant injection.
+- Areal sweep from correlations of scaled physical models of a homogeneous five-spot; other patterns are not covered.
+- Vertical sweep is a constant multiplier; the layered methods assume non-communicating layers.
+- Surveillance: one set of formation volume factors for the whole history; voidage is a ratio of reservoir volumes, not a pressure.
+- The Hall slope integrates the pressure as imported; with wellhead pressure the friction and the hydrostatic head are inside the slope. Chan
+mechanisms are indicative only.
+- A screening tool: the numbers support a decision to study further, not a development plan.
+
+Published ranges of the methods used
+ Method                                                            Published range                                       This case
+
+ Five-spot areal sweep at breakthrough (Craig data, Willhite       M 0.15 to 10                                          M 0.303
+ regression)
+
+ Areal sweep growth (Dyes, Caudle and Erickson)                    Five-spot after breakthrough, EA up to 1              EA 100.0 % at the end
+
+ Dykstra-Parsons                                                   V 0 to 1, log-normal layer permeability               V 0.679
+
+
+Flags on the inputs and the methods
+No input is outside a published range and nothing was edited after an intake.
+
+
+
+
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                             Page 6 of 11
+kr-1 block received from SCAL Studio
+ Item                            Value
+
+ Contract                        kr-1
+
+ Source                          SCAL Studio, project "Ekene E-2000 SCAL"
+
+ Generated                       2026-10-04 09:00 UTC
+
+ Build                           Petrolord Suite test (fixture)
+
+ Oil-water set                   Corey fitted to sample "Demo core A (synthetic)" (analog, imbibition, unsteady-state), r2 0.999 (log kr)
+
+ Gas-oil set                     Corey, parameters entered by the user
+
+ Capillary pressure              Leverett J averaged from 2 samples (Demo core A (synthetic), Demo core B (synthetic)), refit r2 1.000, scaled
+                                 to k 150 md and porosity 0.22
+
+ Samples                         Demo core A (synthetic), Demo core B (synthetic)
+
+ Units of the block              As the engine holds them, whatever the display units: Pc psi, IFT dyn/cm, permeability md, depth and height ft,
+                                 temperature degF, saturations and kr as fractions
+
+ Scope                           Two-phase Corey curves (oil-water at the given Swc, gas-oil at connate water) and one drainage-type Leverett J
+                                 curve. No hysteresis between drainage and imbibition, no three-phase model, no end-point scaling with depth
+                                 or permeability.
+
+
+pvt-1 block received from Fluid Systems Studio
+ Item                            Value
+
+ PVT contract                    pvt-1
+
+ Source                          Fluid Systems Studio, project "Good Oil Well No. 4 PVT"
+
+ Generated                       2026-10-02 09:00 UTC
+
+ Build                           Petrolord Suite test (fixture)
+
+ Fluid model                     Black-oil correlations
+
+ Liberation basis                Black-oil correlations on a surface separation (flash) basis: Rs and Bo are per stock-tank barrel, and the
+                                 correlations do not distinguish differential from flash liberation below the bubble point.
+
+ Bubble point                    measured (lab)
+
+ Standard conditions             14.7 psia, 60 degF
+
+ Lab tuning                      correlations matched to lab data
+
+ Units of the block              As the engine holds them, whatever the display units: pressure psia, temperature degF, Rs scf/STB, Bo and Bw
+                                 RB/STB, Bg RB/scf, viscosities cP, co 1/psi
+
+ Read at                         2500 psia (stated)
+
+
+Notes
+Screening case for the E-2000 waterflood.
+
+
+
+
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                         Page 7 of 11
+Plots
+Figure 1. Relative permeability
+
+                                                        krw          kro
+                                           1
+
+
+                                          0.8
+  Relative permeability kr
+
+
+
+
+                                          0.6
+
+
+                                          0.4
+
+
+                                          0.2
+
+
+                                           0
+                                                0                                  0.2                     0.4                          0.6             0.8          1
+
+                                                                                                            Water saturation Sw (fraction)
+
+Corey: Swc 0.18, Sor 0.22, krw(Sor) 0.31, kro(Swc) 0.924, nw 2.38, no 2.14. Source: SCAL Studio kr-1, Corey fitted to sample "Demo core A
+(synthetic)" (analog, imbibition, unsteady-state), r2 0.999 (log kr), from SCAL Studio project "Ekene E-2000 SCAL" (2026-10-04 09:00 UTC). 102
+points per curve, the series of the screen chart.
+
+
+Figure 2. Fractional flow with the Welge tangent
+
+                                                        fw         Welge tangent         Front (Swf, fw)
+                                           1
+                                                                                                                                              Swf
+
+
+                                          0.8
+  Water cut fw (reservoir)
+
+
+
+
+                                          0.6
+
+
+                                          0.4
+
+
+                                          0.2
+
+
+                                           0
+                                                0                                  0.2                     0.4                          0.6             0.8          1
+
+                                                                                                            Water saturation Sw (fraction)
+
+Tangent from (Swc, 0) touches fw at the front Swf 0.683 (fw 0.926) and reaches fw = 1 at the average saturation behind the front 0.723.
+Breakthrough after 0.543 pore volumes. Horizontal, no gravity term.
+
+
+Figure 3. Displacement efficiency against pore volumes injected
+
+                                                        ED
+                                          0.8
+  Displacement efficiency ED (fraction)
+
+
+
+
+                                                    ED at Sor   breakthrough
+
+
+
+                                          0.6
+
+
+
+                                          0.4
+
+
+
+                                          0.2
+
+
+
+                                           0
+                                                0                                         2                               4                         6                8
+
+                                                                                                             Pore volumes injected (PV)
+
+ED in the swept region (1-D). Breakthrough at 0.543 PV with ED 66.3 %; ED at Sor 73.2 %. Up to 8 PV, as on screen.
+
+
+
+
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                                                Page 8 of 11
+Figure 4. Pattern forecast: oil and water rates and the water-oil ratio
+
+                                 Oil     Water
+                   800
+                                                                                           breakthrough
+
+
+                   600
+  Rate (STB/d)
+
+
+
+
+                   400
+
+
+                   200
+
+
+                    0
+                         0                       1              2                              3                   4                         5
+
+                                                              Time since start of injection (years)
+
+
+                                 WOR
+                   40
+  WOR (STB/STB)
+
+
+
+
+                   30
+                             WOR limit
+
+                   20
+
+                   10
+
+                    0
+                         0                       1              2                              3                   4                         5
+
+                                                              Time since start of injection (years)
+
+Constant injection; five-spot areal sweep entered with M 0.303 (craig). Pattern breakthrough at 2.83 yr. Rates in STB/d at surface; WOR at
+surface, stopped at the limit 25.
+
+
+Figure 5. Cumulative oil and areal sweep against time
+
+                                 Np
+                   800
+
+
+                   600
+  Np (MSTB)
+
+
+
+
+                   400
+
+
+                   200
+
+
+                    0
+                         0                       1              2                              3                   4                         5
+
+                                                              Time since start of injection (years)
+
+
+                                 EA
+                    1
+  Areal sweep EA
+
+
+
+
+                   0.8
+
+                   0.6
+
+                   0.4
+
+                   0.2
+
+                    0
+                         0                       1              2                              3                   4                         5
+
+                                                              Time since start of injection (years)
+
+Np in MSTB; EA of the five-spot (fraction). At the end ER = ED x EA x EV = 67.8 % of the pattern OOIP.
+
+
+
+
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                       Page 9 of 11
+Figure 6. Dykstra-Parsons vertical coverage against WOR
+
+                                                 Coverage
+                                   1
+  Vertical coverage (fraction)
+
+
+
+
+                                  0.8
+
+
+                                  0.6
+
+
+                                  0.4
+
+
+                                  0.2
+
+
+                                   0
+                                        0                                     5                       10                 15             20          25
+
+                                                                                                           WOR (RB/RB)
+
+V 0.679, M 0.383; one point per layer breakthrough; WOR at reservoir conditions.
+
+
+Figure 7. Field injection and production rates
+
+                                                 Water injected         Oil       Water produced
+                                 1200
+
+
+                                 1000
+  Rate (bbl/d, oil STB/d)
+
+
+
+
+                                 800
+
+
+                                 600
+
+
+                                 400
+
+
+                                 200
+
+
+                                   0
+                                  2024-01                                                   2024-02                           2024-03             2024-04
+
+                                                                                                              Date
+
+Daily field rates as imported (unsmoothed), on the calendar; water in bbl/d, oil in STB/d.
+
+
+Figure 8. Voidage replacement ratio
+
+                                                 Rolling          Cumulative
+                                            target
+                                   1
+
+
+                                  0.8
+  VRR (RB/RB)
+
+
+
+
+                                  0.6
+
+
+                                  0.4
+
+
+                                  0.2
+
+
+                                   0
+                                  2024-01                                                   2024-02                           2024-03             2024-04
+
+                                                                                                              Date
+
+Reservoir barrels injected over reservoir barrels of voidage produced; rolling over 30 calendar days and cumulative. Target 1.
+
+
+
+
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                               Page 10 of 11
+Figure 9. Hall plot: INJ-1
+
+                                             INJ-1   baseline fit       recent fit
+                               400
+                                          baseline
+                                                                                                             recent
+
+                               300
+  Hall integral (10^3 psi.d)
+
+
+
+
+                               200
+
+
+                               100
+
+
+                                 0
+
+
+                               -100
+                                      0                         10000                20000                       30000           40000         50000
+
+                                                                                      Cumulative water injected (bbl)
+
+Wellhead pressure. Shaded: the two windows with their least-squares lines. Baseline window (first third): 6.726 psi.d/bbl (95% 6.54 to 6.91), 30
+points; Recent window (last third): 8.392 psi.d/bbl (95% 8.31 to 8.48), 30 points. Ratio 1.25.
+
+
+Figure 10. Hall plot: INJ-2
+
+                                             INJ-2   baseline fit       recent fit
+                               300
+                                          baseline
+                                                                                                   recent
+                               250
+  Hall integral (10^3 psi.d)
+
+
+
+
+                               200
+
+
+                               150
+
+
+                               100
+
+
+                                50
+
+
+                                 0
+                                      0                                 10000                     20000                  30000                 40000
+
+                                                                                      Cumulative water injected (bbl)
+
+Wellhead pressure. Shaded: the two windows with their least-squares lines. Baseline window (first third): 8 psi.d/bbl (95% 8 to 8), 30 points;
+Recent window (last third): 8 psi.d/bbl (95% 8 to 8), 30 points. Ratio 1.
+
+
+Figure 11. Monte Carlo: cumulative oil
+Does not apply: no uncertainty run.
+
+
+
+
+Waterflood Design Report, Ekene, Five-spot P-1                                                                                           Page 11 of 11
+

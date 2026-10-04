@@ -6,31 +6,35 @@ import { Label } from '@/components/ui/label';
 import { Beaker } from 'lucide-react';
 import { useWaterfloodDesign } from '@/contexts/WaterfloodDesignContext';
 import { samplePatternData } from '@/utils/patternForecastCalculations';
-import { Field, SectionLabel, fmt } from './primitives';
+import { UField, SectionLabel, fmt } from './primitives';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MOBILITY_BASES } from '@/utils/waterflooddesign/model';
+import PvtIntakePanel from './PvtIntakePanel';
 
 const GEO_FIELDS = [
-  { k: 'area_acres', label: 'Pattern area (acres)' },
-  { k: 'h_ft', label: 'Net thickness (ft)' },
-  { k: 'phi', label: 'Porosity (frac)' },
+  { k: 'area_acres', label: 'Pattern area', kind: 'area' },
+  { k: 'h_ft', label: 'Net thickness', kind: 'length' },
+  { k: 'phi', label: 'Porosity', kind: 'fraction' },
 ];
 const FLUID_FIELDS = [
-  { k: 'Bo', label: 'Bo (rb/stb)' },
-  { k: 'Bw', label: 'Bw (rb/stb)' },
+  { k: 'Bo', label: 'Bo', kind: 'fvfOil' },
+  { k: 'Bw', label: 'Bw', kind: 'fvfOil' },
 ];
 const OP_FIELDS = [
-  { k: 'iw_bpd', label: 'Injection rate (rb/d)' },
-  { k: 'Sgi', label: 'Initial gas Sgi (frac)' },
-  { k: 'EV', label: 'Vertical sweep EV (0-1)' },
-  { k: 'worLimit', label: 'WOR economic limit' },
-  { k: 'maxYears', label: 'Horizon (years)' },
+  { k: 'iw_bpd', label: 'Injection rate', kind: 'resRate' },
+  { k: 'Sgi', label: 'Initial gas Sgi', kind: 'fraction' },
+  { k: 'EV', label: 'Vertical sweep EV (0-1)', kind: 'dimensionless' },
+  { k: 'worLimit', label: 'WOR economic limit (STB/STB)', kind: 'dimensionless' },
+  { k: 'maxYears', label: 'Horizon', kind: 'years' },
 ];
 
 const PatternPanel = () => {
-  const { patternInputs, setPatternField, layeredResult, addNotification } = useWaterfloodDesign();
+  const { patternInputs, setPatternField, layeredResult, addNotification, u, migratedFrom } = useWaterfloodDesign();
 
   const loadSample = () => {
     const s = samplePatternData().pattern;
     Object.entries(s).forEach(([k, v]) => setPatternField(k, String(v)));
+    setPatternField('mobilityBasis', 'craig');
     addNotification('Sample pattern loaded', 'info');
   };
 
@@ -43,15 +47,15 @@ const PatternPanel = () => {
       <section>
         <SectionLabel>Flood element (five-spot)</SectionLabel>
         <div className="grid grid-cols-2 gap-3">
-          {GEO_FIELDS.map((f) => <Field key={f.k} label={f.label} value={patternInputs[f.k]} onChange={(v) => setPatternField(f.k, v)} />)}
-          {FLUID_FIELDS.map((f) => <Field key={f.k} label={f.label} value={patternInputs[f.k]} onChange={(v) => setPatternField(f.k, v)} />)}
+          {GEO_FIELDS.map((f) => <UField key={f.k} label={f.label} kind={f.kind} u={u} testId={`wds-${f.k}`} value={patternInputs[f.k]} onChange={(v) => setPatternField(f.k, v)} />)}
+          {FLUID_FIELDS.map((f) => <UField key={f.k} label={f.label} kind={f.kind} u={u} testId={`wds-${f.k}`} value={patternInputs[f.k]} onChange={(v) => setPatternField(f.k, v)} />)}
         </div>
       </section>
 
       <section>
         <SectionLabel>Operation</SectionLabel>
         <div className="grid grid-cols-2 gap-3">
-          {OP_FIELDS.map((f) => <Field key={f.k} label={f.label} value={patternInputs[f.k]} onChange={(v) => setPatternField(f.k, v)} />)}
+          {OP_FIELDS.map((f) => <UField key={f.k} label={f.label} kind={f.kind} u={u} testId={`wds-${f.k}`} value={patternInputs[f.k]} onChange={(v) => setPatternField(f.k, v)} />)}
         </div>
         {dpHint != null && (
           <Label className="text-[11px] text-pl-muted leading-snug block mt-2">
@@ -59,6 +63,25 @@ const PatternPanel = () => {
           </Label>
         )}
       </section>
+
+      <section data-testid="wds-mobility-basis">
+        <SectionLabel>Mobility ratio for the areal sweep</SectionLabel>
+        <Tabs value={patternInputs.mobilityBasis === 'endpoint' ? 'endpoint' : 'craig'} onValueChange={(v) => setPatternField('mobilityBasis', v)}>
+          <TabsList className="h-8 p-0.5 w-full">
+            <TabsTrigger value="craig" className="h-7 text-xs flex-1">Craig (at Sw behind front)</TabsTrigger>
+            <TabsTrigger value="endpoint" className="h-7 text-xs flex-1">Endpoint</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <Label className="text-[11px] text-pl-muted leading-snug block mt-2">
+          {MOBILITY_BASES[patternInputs.mobilityBasis === 'endpoint' ? 'endpoint' : 'craig']}. The five-spot correlation was built on
+          Craig's definition.
+          {migratedFrom && patternInputs.mobilityBasis === 'endpoint'
+            ? ' This project was saved before October 2026 and keeps the endpoint basis it was computed with; switch to Craig to use the correlation as published.'
+            : ''}
+        </Label>
+      </section>
+
+      <PvtIntakePanel target="pattern" />
 
       <section>
         <Button variant="outline" size="sm" onClick={loadSample} className="w-full">
