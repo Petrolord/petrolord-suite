@@ -212,7 +212,9 @@ const MbsHelpContent = () => (
       Remaining reserves count only production beyond the last history date. The reconciliation card then compares
       the decline forecast with the material balance: for gas, against the p over z recoverable at your abandonment
       pressure, interpolated through the p over z history of the last run; for oil, the implied ultimate recovery
-      factor is checked against the statistical recovery ranges for the drive mechanism the engine diagnosed. A
+      factor is checked against the recovery ranges of the Recovery Factor Estimator for the drive mechanism the
+      engine diagnosed (one table in the Suite; screening ranges, not validated against a published table; a
+      partial water drive reads the combination-drive range). A
       mismatch does not say which number is wrong; it says the two methods disagree and why is worth chasing.
     </P>
 

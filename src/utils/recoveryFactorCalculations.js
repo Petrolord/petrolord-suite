@@ -110,6 +110,33 @@ export const ANALOG_BAND_SOURCE = 'Transcribed screening ranges (reservoir engin
 export const getDriveMechanism = (code) =>
   DRIVE_MECHANISMS.find((d) => d.code === code) || null;
 
+// RF-U2-006 (closes RF-U1-019): this table is the one source of drive
+// recovery bands in the Suite. Material Balance Studio reads its forecast
+// reconciliation band from here through the engine's oil drive
+// classification. A partial water drive (water drive with depletion) has no
+// row of its own: it is two mechanisms acting together, so it reads the
+// combination-drive range and says so.
+export const MBAL_OIL_DRIVE_TO_RF = Object.freeze({
+  depletion_drive: 'solution_gas',
+  gas_cap_drive: 'gas_cap',
+  strong_water_drive: 'water_drive',
+  combination_drive: 'combination',
+  water_drive_with_depletion: 'combination',
+});
+
+/**
+ * The band of a Material Balance oil drive classification, from this table.
+ * @param {string} mbalDrive the engine classification (e.g. 'strong_water_drive')
+ * @returns {?{lo: number, hi: number, typical: number, rfCode: string, label: string, source: string}}
+ */
+export function bandForMbalDrive(mbalDrive) {
+  const code = MBAL_OIL_DRIVE_TO_RF[mbalDrive];
+  const d = code ? getDriveMechanism(code) : null;
+  if (!d) return null;
+  const label = mbalDrive === 'water_drive_with_depletion' ? `partial water drive, read as ${d.label.toLowerCase()}` : d.label.toLowerCase();
+  return Object.freeze({ lo: d.low, hi: d.high, typical: d.typical, rfCode: d.code, label, source: ANALOG_BAND_SOURCE });
+}
+
 // ---------------------------------------------------------------------------
 // 2a. API (1967) solution-gas-drive correlation (Arps et al. 1967)
 // ---------------------------------------------------------------------------
