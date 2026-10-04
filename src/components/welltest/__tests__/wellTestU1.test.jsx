@@ -272,3 +272,22 @@ describe('WTA-U1-014: the deliverability coefficients carry their units and basi
     studio.unmount();
   }, 600000);
 });
+
+describe('WTA-U1-019 (RL11): a value edited after the Fluid Systems Studio handoff no longer carries the handoff as its source', () => {
+  test('Bo received 1.31, edited to 1.25: the report says edited after the handoff', async () => {
+    const { pvtIntakeFromBackbone } = require('@/utils/welltest/reportModel');
+    const fluid = { source: 'black-oil-correlations', correlations: { pb_rs_bo: 'Standing', viscosity: 'Beggs-Robinson' }, bo_at_pb: 1.31, mu_o_at_pb: 0.82, oil_gravity: 35, gas_gravity: 0.7, rsb: 600, inlet_temperature: 200, pb: 2600 };
+    const intake = pvtIntakeFromBackbone(fluid);
+    const studio = await sample((c) => {
+      for (const [k, v] of Object.entries(intake.patch)) c.setReservoirField(k, v);
+      c.setPvtIntake(intake.intake);
+    });
+    const row = () => studio.ctx.inputsTable.find((r) => r.key === 'B');
+    expect(row().source).toMatch(/Standing/);
+    expect(row().source).not.toMatch(/edited/i);
+    await studio.act((c) => c.setReservoirField('B', '1.25'));
+    expect(row().source).toMatch(/edited|changed/i);
+    expect(row().source).toMatch(/1\.31/);
+    studio.unmount();
+  }, 600000);
+});

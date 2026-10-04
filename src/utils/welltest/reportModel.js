@@ -158,7 +158,18 @@ export const WELLTEST_PVT_FIELDS = Object.freeze([
  */
 export function pvtIntakeFromBackbone(fluid) {
   const out = intakeFromHandoff(fluid, WELLTEST_PVT_FIELDS);
-  return out && { patch: out.patch, applied: out.applied, intake: out.intake };
+  if (!out) return null;
+  // RL11 (gap matrix, confirmed by WTA-U1-019): the shared intake records the
+  // values received only for a pvt-1 handoff, so a value edited after a
+  // version-1 handoff kept the handoff as its source. The values applied are
+  // recorded here for every handoff.
+  const intake = out.intake.values ? out.intake : {
+    ...out.intake,
+    values: Object.fromEntries(WELLTEST_PVT_FIELDS
+      .filter((f) => out.patch[f.storeKey || f.key] != null && out.patch[f.storeKey || f.key] !== '')
+      .map((f) => [f.key, out.patch[f.storeKey || f.key]])),
+  };
+  return { patch: out.patch, applied: out.applied, intake };
 }
 
 // ---- total compressibility --------------------------------------------------
