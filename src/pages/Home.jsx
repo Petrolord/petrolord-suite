@@ -433,7 +433,7 @@ function Home() {
             <Link className="brand" to="/" aria-label="Petrolord Suite home">
               <img className="wordmark" src={WORDMARK} alt="Petrolord Suite" width="1041" height="108" />
             </Link>
-            <p>Engineering software for the whole energy asset, from subsurface to sales. A Lordsway Energy company.</p>
+            <p>Engineering software for the whole energy asset, from subsurface to sales. A <a href="https://lordswayenergy.com">Lordsway Energy</a> company.</p>
           </div>
           <FooterCol title="Platform">
             <Link to="/solutions">Solutions</Link>
