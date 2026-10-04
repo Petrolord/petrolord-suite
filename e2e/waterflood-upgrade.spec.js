@@ -200,3 +200,122 @@ test('PL5 a project saved by an earlier release opens on the endpoint basis and 
   await openRail(page);
   await expect(page.getByTestId('wds-mobility-basis')).toContainText('saved before October 2026');
 });
+
+// ---- Step 2 (WF-U2; docs/upgrade/WaterfloodDesignStudio-UPGRADE.md section 9) ----
+const VRR_ROWS = fs.readFileSync(path.join(FIX, 'vrr-rows.json'), 'utf8');
+async function createProject(page, name) {
+  await openRail(page);
+  await page.getByRole('button', { name: 'Create new project' }).first().click();
+  await page.getByLabel('Project name').fill(name);
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await expect(page.getByRole('combobox', { name: 'Project' })).toContainText(name, { timeout: 60000 });
+  await closeRail(page);
+}
+
+test('U2-001 wf-forecast-1: the pattern forecast opens in Forecast Scenario Hub as a profile case and in EPE as a file, each with its source', async ({ page }) => {
+  test.setTimeout(600000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await createProject(page, 'Ekene P-1 flood');
+  await tab(page, 'Pattern Forecast').click();
+  await openRail(page);
+  await expect(page.getByTestId('wds-send-refusal')).toContainText('Set the flood start date');
+  await page.getByTestId('wds-flood-start').fill('2027-01-01');
+  await expect(page.getByTestId('wds-send-basis')).toContainText("Craig's basis");
+  await page.getByTestId('wds-send-hub').click();
+  await expect(page).toHaveURL(/\/dev\/forecast-scenario-hub/, { timeout: 60000 });
+  await expect(page.getByText('Case comparison')).toBeVisible({ timeout: 240000 });
+  await expect(page.locator('[data-testid$="-profile"]').first()).toBeVisible();
+  const source = page.locator('[data-testid$="-source"]').first();
+  await expect(source).toContainText('five-spot forecast from 2027-01-01, project "Ekene P-1 flood" (Waterflood Design Studio)');
+  await expect(page.locator('[data-testid$="-source-state"]').first()).toContainText('Unchanged since it was received', { timeout: 60000 });
+  await page.screenshot({ path: path.join(OUT, 'u2-001-hub.png') });
+  // Petroleum Economics Studio reads the same saved project by id
+  const id = await page.evaluate(() => JSON.parse(window.sessionStorage.getItem('harness.saved_waterflood_design_projects.v1') || '[]')[0]?.id);
+  expect(id).toBeTruthy();
+  await page.goto(`/dev/epe/cases/c1?wfProject=${id}`, { timeout: 240000 });
+  await expect(page.getByTestId('epe-wf-list')).toContainText('Ekene P-1 flood', { timeout: 120000 });
+  await page.getByTestId('epe-wf-import').click();
+  await expect(page.getByTestId('epe-wf-provenance')).toContainText('five-spot forecast from 2027-01-01', { timeout: 60000 });
+  await expect(page.getByTestId('epe-wf-source-state')).toContainText('Unchanged since it was received', { timeout: 60000 });
+  await page.screenshot({ path: path.join(OUT, 'u2-001-epe.png') });
+});
+
+test('U2-002 a staggered line drive: the pattern reaches the forecast and the report', async ({ page }) => {
+  test.setTimeout(240000);
+  await openApp(page);
+  await tab(page, 'Pattern Forecast').click();
+  await openRail(page);
+  await page.getByTestId('wds-pattern-type-select').selectOption('staggered-line');
+  await expect(page.getByTestId('wds-pattern-type')).toContainText('Ahmed eq. 14-67');
+  await closeRail(page);
+  const pdf = await exportPdf(page, 'report-staggered.pdf');
+  expect(pdf.flat).toMatch(/Flood pattern Staggered line/);
+  expect(pdf.flat).toMatch(/staggered\b.*line drive pattern forecast/);
+  expect(pdf.flat).toContain('Fassihi (1986) regression of the Dyes, Caudle and Erickson (1954) charts');
+});
+
+test('U2-003 Hall windows chosen by date and on the plot, with a reason, printed in the report', async ({ page }) => {
+  test.setTimeout(300000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await tab(page, 'Surveillance').click();
+  await page.getByRole('button', { name: 'Sample', exact: true }).click();
+  await expect(page.getByText('Hall Plot Analysis')).toBeVisible();
+  const ed = page.getByTestId('hall-editor-INJ-1');
+  await expect(page.getByTestId('hall-INJ-1-apply')).toBeDisabled();
+  // the recent window picked on the plot: two points of INJ-1
+  await page.getByTestId('hall-INJ-1-recent-pick').click();
+  const pts = page.locator('.recharts-scatter').first().locator('.recharts-scatter-symbol');
+  await pts.nth(60).click({ force: true });
+  await pts.nth(89).click({ force: true });
+  await expect(page.getByTestId('hall-INJ-1-recent-from')).toHaveValue('2024-03-01');
+  await expect(page.getByTestId('hall-INJ-1-recent-to')).toHaveValue('2024-03-30');
+  await page.getByTestId('hall-INJ-1-baseline-from').fill('2024-01-01');
+  await page.getByTestId('hall-INJ-1-baseline-to').fill('2024-01-31');
+  await page.getByTestId('hall-INJ-1-reason').fill('Before and after the March choke change');
+  await page.getByTestId('hall-INJ-1-apply').click();
+  await expect(page.getByTestId('hall-windows')).toContainText('Baseline window (chosen 2024-01-01 to 2024-01-31)');
+  await expect(ed.getByTestId('hall-choice-INJ-1')).toContainText('Before and after the March choke change');
+  await page.screenshot({ path: path.join(OUT, 'u2-003-hall.png') });
+  const pdf = await exportPdf(page, 'report-hall-windows.pdf');
+  expect(pdf.flat).toContain('Baseline window (chosen 2024-01-01 to 2024-01-31)');
+  expect(pdf.flat).toMatch(/Why these .*Windows chosen \d{4}-\d{2}-\d{2}: Before and after the/);
+  expect(pdf.flat).toContain('Recent window (chosen 2024-03-01 to 2024-03-30)');
+});
+
+test('U2-004 vrr-ledger-1: the history from a VRR Monitor project by id, with "changed since"', async ({ page }) => {
+  test.setTimeout(240000);
+  await page.addInitScript((rows) => { try { window.sessionStorage.setItem('harness.saved_vrr_projects.v1', rows); } catch { /* blocked */ } }, VRR_ROWS);
+  await openApp(page);
+  await tab(page, 'Surveillance').click();
+  await openRail(page);
+  await page.getByTestId('wds-from-vrr').click();
+  await expect(page.getByTestId('wds-vrr-list')).toContainText('Ekene VRR ledger');
+  await page.getByTestId('wds-vrr-list').getByRole('button', { name: 'Use' }).click();
+  await expect(page.getByTestId('wds-door-readback')).toContainText('read by id');
+  await expect(page.getByTestId('wds-door-readback')).toContainText('6 months (2025-01 to 2025-06)');
+  await expect(page.getByTestId('wds-vrr-state')).toContainText('Unchanged since it was taken', { timeout: 60000 });
+  await closeRail(page);
+  await expect(page.getByText('Key Performance Indicators')).toBeVisible();
+  await page.screenshot({ path: path.join(OUT, 'u2-004-vrr.png') });
+});
+
+test('U2-005 and U2-014: a seeded Monte Carlo in SI, the seed printed', async ({ page }) => {
+  test.setTimeout(300000);
+  await openApp(page);
+  await tab(page, 'Pattern Forecast').click();
+  await openRail(page);
+  await page.getByTestId('wds-unit-system').click();
+  await page.getByRole('option', { name: 'SI' }).click();
+  await tab(page, 'Uncertainty').click();
+  await openRail(page);
+  await page.getByRole('switch', { name: /Vary Pattern area/ }).click();
+  await expect(page.getByText('Pattern area (ha)')).toBeVisible();
+  await expect(page.getByTestId('wds-mc-area_acres-mode')).toHaveValue('16.18743');
+  await page.getByTestId('wds-mc-seed').fill('20261004');
+  await page.getByRole('button', { name: 'Run' }).click();
+  await closeRail(page);
+  await expect(page.getByTestId('wds-mc-seed-used')).toContainText('Seed 20261004 (as entered)', { timeout: 120000 });
+  await page.screenshot({ path: path.join(OUT, 'u2-005-mc.png') });
+});
