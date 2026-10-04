@@ -404,6 +404,47 @@ function headlineRows(s, u) {
   return { head: ['Quantity', 'Value', 'Unit', 'Basis'], rows };
 }
 
+/**
+ * The one-page summary at the front of the report (SCAL-U2-012), for the
+ * reader who reads one page: the working sets and where each came from,
+ * the lab data behind them, the J curve and its Swirr, Pc and height at
+ * Sw 0.5, the fluid gravities and their source, where the curves go, and
+ * the flags. Every value is one the later pages print in full.
+ * @param {object} m the model buildScalReportModel builds (without summary)
+ * @param {object} s the studio state
+ */
+export function summaryBlock(m, s) {
+  const rows = [];
+  const p = s.ow?.params;
+  rows.push(['Oil-water set', p ? `Swc ${g(p.Swc)}, Sor ${g(p.Sor)}, krw(Sor) ${g(p.krwMax)}, kro(Swc) ${g(p.kroMax)}, nw ${g(p.nw)}, no ${g(p.no)}. ${s.owStatus?.text || 'Entered by the user'}` : `Not valid: ${s.ow?.error || 'no parameters'}`]);
+  const q = s.go?.params;
+  rows.push(['Gas-oil set (at connate water)', q ? `Swc ${g(q.Swc)}, Sgc ${g(q.Sgc)}, Sorg ${g(q.Sorg)}, krg ${g(q.krgMax)}, krog ${g(q.krogMax)}, ng ${g(q.ng)}, nog ${g(q.nog)}. ${s.goStatus?.text || 'Entered by the user'}` : `Not valid: ${s.go?.error || 'no parameters'}`]);
+  const smp = s.samplesDerived || [];
+  const count = (k) => smp.filter((x) => (x[k]?.length || 0) > 0).length;
+  const analog = smp.filter((x) => pedigreeOf(x).origin === 'analog').length;
+  rows.push(['Lab data', smp.length ? `${smp.length} core sample${smp.length === 1 ? '' : 's'}: ${count('krRows')} with an oil-water kr table, ${count('goRows')} with a gas-oil table, ${count('pcRows')} with a Pc table${analog ? `; ${analog} stated as an analog` : ''}` : 'No core sample: the curves and the J function were entered']);
+  const spec = s.jResolved?.jSpec;
+  const sw = s.jResolved?.meta?.swirr;
+  const swWords = sw ? ({ fitted: 'fitted with a and b', override: 'entered', data: 'lowest lab Sw less 0.02' }[sw.from] || '') : '';
+  rows.push(['Leverett J', spec ? `a ${g(spec.a)}, b ${g(spec.b)}, Swirr ${g(spec.Swirr)}${swWords ? ` (${swWords})` : ''}; ${s.jResolved.meta?.mode === 'samples' ? `averaged from ${s.jResolved.meta.sampleCount} sample${s.jResolved.meta.sampleCount === 1 ? '' : 's'}, refit r2 ${f(s.jResolved.meta.avg?.fit?.r2Log, 4)}` : 'typed power law'}` : (s.jResolved?.error || 'No working J curve')]);
+  const pcRow = m.headline.rows.find(([k]) => k === 'Pc at Sw = 0.5 (reservoir)');
+  const hRow = m.headline.rows.find(([k]) => k === 'Height above FWL at Sw = 0.5');
+  rows.push(['At Sw = 0.5', pcRow ? `Pc ${pcRow[1]} ${pcRow[2]}, height above the FWL ${hRow?.[1] ?? EMPTY_VALUE} ${hRow?.[2] ?? ''}`.trim() : EMPTY_VALUE]);
+  const fwlRow = m.headline.rows.find(([k]) => k === 'Free water level');
+  rows.push(['Free water level', fwlRow && fwlRow[1] !== EMPTY_VALUE ? `${fwlRow[1]} ${fwlRow[2]}` : 'Not entered']);
+  const gw = m.inputs.rows.find((r) => r.key === 'height.gammaW');
+  const gh = m.inputs.rows.find((r) => r.key === 'height.gammaHc');
+  rows.push(['Fluid gravities', `water ${gw?.value || EMPTY_VALUE}, hydrocarbon ${gh?.value || EMPTY_VALUE}; ${s.pvtIntake?.from?.recordName ? `from Fluid Systems Studio project "${s.pvtIntake.from.recordName}"` : (gh?.source || 'source not stated')}`]);
+  rows.push(['Where the curves go', 'The kr-1 block (last table) to Waterflood Design Studio and the saturation-height readers; SWOF and SGOF keywords and CSV tables from the Export tab']);
+  const flags = m.limits.flags.length;
+  rows.push(['Flags', `${flags} flag${flags === 1 ? '' : 's'} on the inputs, the samples and the fits`]);
+  if (flags) rows.push(['First flag', m.limits.flags[0].length > 300 ? `${m.limits.flags[0].slice(0, 297)}...` : m.limits.flags[0]]);
+  return {
+    rows,
+    note: 'This page summarises the pages after it: every value here is printed there in full, with its inputs, sources, method and limits.',
+  };
+}
+
 /** Every 4th row of a table plus the last, for a printed table that a page holds. */
 const thin = (rows, step) => rows.filter((_, i) => i % step === 0 || i === rows.length - 1);
 
@@ -423,7 +464,7 @@ export function buildScalReportModel(s, { projectName = '', organizationName = '
   const hp = s.heightProfile || [];
   const pcTable = thin(hp, 4).map((r) => [f(r.Sw, 4), f(u.show('pc', r.Pc_psi), 4), f(u.show('length', r.h_ft), 2), Number.isFinite(fwl) ? thousands(u.show('length', fwl - r.h_ft), 1) : EMPTY_VALUE]);
   const samples = samplesTables(s, u);
-  return {
+  const model = {
     title: REPORT_TITLE,
     appName: APP_NAME,
     system: u.system,
@@ -463,6 +504,7 @@ export function buildScalReportModel(s, { projectName = '', organizationName = '
     },
     notes: text(s.notes),
   };
+  return { ...model, summary: summaryBlock(model, s) };
 }
 
 /** Rows of the Report tab's source controls, with how many still print as the starting values. */

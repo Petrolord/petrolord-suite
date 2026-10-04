@@ -35,6 +35,12 @@ export function buildScalPdf(a, { logo = null, generatedAt = new Date() } = {}) 
 
   report.header({ identification: model.identification, displayUnits: model.displayUnits, generatedAt });
 
+  // one page for the reader who reads one page (SCAL-U2-012)
+  if (model.summary) {
+    table('Summary', ['Item', 'Value'], model.summary.rows, { columnStyles: { 0: { cellWidth: 46 } }, note: model.summary.note });
+    report.layout.newPage();
+  }
+
   table('Headline results', model.headline.head, model.headline.rows, {
     columnStyles: { 0: { cellWidth: 56 }, 1: { cellWidth: 34 }, 2: { cellWidth: 22 } },
     note: model.headline.note,

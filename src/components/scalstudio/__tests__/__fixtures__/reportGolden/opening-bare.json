@@ -1,11 +1,11 @@
 {
-  "pages": 9,
-  "sha256": "7eea0fb62062d30bcb6ed3b88b7a15d4320bd031b6dfaf3fe7cea264cd98725c",
+  "pages": 10,
+  "sha256": "bf26ecb071e0bfaf4ff886212d0877f07041ace5be75949115a168bc2d4d7b6d",
   "figures": [
     {
       "id": "kr-ow",
       "number": 1,
-      "page": 8,
+      "page": 9,
       "plotted": true,
       "panels": [
         {
@@ -28,21 +28,21 @@
     {
       "id": "kr-lab",
       "number": 2,
-      "page": 8,
+      "page": 9,
       "plotted": false,
       "panels": []
     },
     {
       "id": "kr-normalised",
       "number": 3,
-      "page": 8,
+      "page": 9,
       "plotted": false,
       "panels": []
     },
     {
       "id": "kr-go",
       "number": 4,
-      "page": 8,
+      "page": 9,
       "plotted": true,
       "panels": [
         {
@@ -65,7 +65,7 @@
     {
       "id": "j",
       "number": 5,
-      "page": 9,
+      "page": 10,
       "plotted": true,
       "panels": [
         {
@@ -87,7 +87,7 @@
     {
       "id": "pc",
       "number": 6,
-      "page": 9,
+      "page": 10,
       "plotted": true,
       "panels": [
         {
@@ -109,7 +109,7 @@
     {
       "id": "height",
       "number": 7,
-      "page": 9,
+      "page": 10,
       "plotted": true,
       "panels": [
         {

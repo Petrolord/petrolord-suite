@@ -1,11 +1,11 @@
 {
-  "pages": 11,
-  "sha256": "d2891a2774e6b6d6e6b2d733cb52bbe78d6fe5d09b3afcfecf405aa4a653cd7c",
+  "pages": 12,
+  "sha256": "eaf6c59f9c4a09acf5ef73bb29d57361a1ec0425454dc86675b75bd26fe0cabe",
   "figures": [
     {
       "id": "kr-ow",
       "number": 1,
-      "page": 9,
+      "page": 10,
       "plotted": true,
       "panels": [
         {
@@ -30,7 +30,7 @@
     {
       "id": "kr-lab-demo-0",
       "number": 2,
-      "page": 9,
+      "page": 10,
       "plotted": true,
       "panels": [
         {
@@ -55,7 +55,7 @@
     {
       "id": "kr-lab-demo-1",
       "number": 3,
-      "page": 9,
+      "page": 10,
       "plotted": true,
       "panels": [
         {
@@ -80,7 +80,7 @@
     {
       "id": "kr-normalised",
       "number": 4,
-      "page": 10,
+      "page": 11,
       "plotted": true,
       "panels": [
         {
@@ -105,7 +105,7 @@
     {
       "id": "kr-go",
       "number": 5,
-      "page": 10,
+      "page": 11,
       "plotted": true,
       "panels": [
         {
@@ -128,7 +128,7 @@
     {
       "id": "kr-go-lab-demo-0",
       "number": 6,
-      "page": 10,
+      "page": 11,
       "plotted": true,
       "panels": [
         {
@@ -153,7 +153,7 @@
     {
       "id": "j",
       "number": 7,
-      "page": 11,
+      "page": 12,
       "plotted": true,
       "panels": [
         {
@@ -177,7 +177,7 @@
     {
       "id": "pc",
       "number": 8,
-      "page": 11,
+      "page": 12,
       "plotted": true,
       "panels": [
         {
@@ -201,7 +201,7 @@
     {
       "id": "height",
       "number": 9,
-      "page": 11,
+      "page": 12,
       "plotted": true,
       "panels": [
         {
