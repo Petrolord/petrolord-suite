@@ -22,5 +22,54 @@
     "manifestPaths": 750,
     "vendoredPaths": 750
   },
-  "knownDeviations": []
+  "knownDeviations": [
+    {
+      "path": "engines/welltest/gas.js",
+      "kind": "differing",
+      "vendoredSha": "7a94a1687046ad7288ac241b0f185d9af1861b53",
+      "group": "welltest-u1 (engines PR #309)",
+      "reason": "Well Test Analysis Studio U1 engines (z-factor by method on the canonical Dranchuk-Abou-Kassem engine, unit kinds pinned to known values, regime ordering catch-up), vendored from Petrolord/petrolord-engines PR #309 head 142f79d (blob identical there); the app agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #309 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every welltest-u1 row."
+    },
+    {
+      "path": "engines/welltest/units.js",
+      "kind": "differing",
+      "vendoredSha": "eecb7ad7166d71cfe9bad214d72beab3b3df1618",
+      "group": "welltest-u1 (engines PR #309)",
+      "reason": "Well Test Analysis Studio U1 engines (z-factor by method on the canonical Dranchuk-Abou-Kassem engine, unit kinds pinned to known values, regime ordering catch-up), vendored from Petrolord/petrolord-engines PR #309 head 142f79d (blob identical there); the app agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #309 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every welltest-u1 row."
+    },
+    {
+      "path": "engines/welltest/derivative.js",
+      "kind": "differing",
+      "vendoredSha": "372a51650943b72c82bfe226b07a7d777b223846",
+      "group": "welltest-u1 (engines PR #309)",
+      "reason": "Well Test Analysis Studio U1 engines (z-factor by method on the canonical Dranchuk-Abou-Kassem engine, unit kinds pinned to known values, regime ordering catch-up), vendored from Petrolord/petrolord-engines PR #309 head 142f79d (blob identical there); the app agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #309 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every welltest-u1 row."
+    },
+    {
+      "path": "__tests__/welltest.gasZMethod.test.js",
+      "kind": "extra",
+      "vendoredSha": "b247d464584c13c2dbf6d59e617e5f9795944925",
+      "group": "welltest-u1 (engines PR #309)",
+      "reason": "Well Test Analysis Studio U1 engines (z-factor by method on the canonical Dranchuk-Abou-Kassem engine, unit kinds pinned to known values, regime ordering catch-up), vendored from Petrolord/petrolord-engines PR #309 head 142f79d (blob identical there); the app agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #309 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every welltest-u1 row."
+    },
+    {
+      "path": "__tests__/welltest.unitsKnownValues.test.js",
+      "kind": "extra",
+      "vendoredSha": "139cf0e010feed914f441b7713f0b12f308abd4a",
+      "group": "welltest-u1 (engines PR #309)",
+      "reason": "Well Test Analysis Studio U1 engines (z-factor by method on the canonical Dranchuk-Abou-Kassem engine, unit kinds pinned to known values, regime ordering catch-up), vendored from Petrolord/petrolord-engines PR #309 head 142f79d (blob identical there); the app agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #309 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every welltest-u1 row."
+    },
+    {
+      "path": "__tests__/welltest.derivative.test.js",
+      "kind": "differing",
+      "vendoredSha": "509d9b8212200ea02910df4674e74ac452a0b441",
+      "group": "welltest-u1 (engines PR #309)",
+      "reason": "Well Test Analysis Studio U1 engines (z-factor by method on the canonical Dranchuk-Abou-Kassem engine, unit kinds pinned to known values, regime ordering catch-up), vendored from Petrolord/petrolord-engines PR #309 head 142f79d (blob identical there); the app agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #309 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every welltest-u1 row."
+    }
+  ]
 }
