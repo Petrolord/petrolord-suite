@@ -186,311 +186,343 @@ Each method, criterion by criterion
 
 EOR Screening Report, EOR screening EK                                                                                                     Page 3 of 9
 CO2 miscible: qualified (Gas injection (miscible))
- Criterion        Required                     Project     This        Verdict    Distance to the limit   Reason                                      Source
-                                               average     reservoir
+ Criterion        Required                 Project   Range of          This        Verdict   Distance to the      Reason                              Source
+                                           average   current           reservoir             limit
+                                                     projects
 
- Oil gravity      > 22 degAPI                  36 degAPI   32 degAPI   pass       10 degAPI above the     32 degAPI meets > 22 degAPI.                Part 1, Table 3 (p.
-                                                                                  minimum 22 degAPI                                                   191)
-                                                                                  (45 %)
+ Oil gravity      > 22 degAPI              36        27 to 44 degAPI   32 degAPI   pass      10 degAPI above      32 degAPI meets > 22 degAPI.        Part 1, Table 3
+                                           degAPI    (inside)                                the minimum 22                                           (p. 191)
+                                                                                             degAPI (45 %)
 
- Oil viscosity    < 10 cp                      1.5 cp      2 cp        pass       8 cp below the          2 cp meets < 10 cp.                         Part 1, Table 3 (p.
-                                                                                  maximum 10 cp (80                                                   191)
-                                                                                  %)
+ Oil viscosity    < 10 cp                  1.5 cp    0.3 to 6 cp       2 cp        pass      8 cp below the       2 cp meets < 10 cp.                 Part 1, Table 3
+                                                     (inside)                                maximum 10 cp                                            (p. 191)
+                                                                                             (80 %)
 
- Oil saturation   > 20 % PV                    55 % PV     45 % PV     pass       25 % PV above the       45 % PV meets > 20 % PV.                    Part 1, Table 3 (p.
-                                                                                  minimum 20 % PV                                                     191)
-                                                                                  (125 %)
+ Oil saturation   > 20 % PV                55 % PV   15 to 70 % PV     45 % PV     pass      25 % PV above        45 % PV meets > 20 % PV.            Part 1, Table 3
+                                                     (inside)                                the minimum 20                                           (p. 191)
+                                                                                             % PV (125 %)
 
- Formation        Sandstone or carbonate       n/a         Carbonate   pass       n/a                     Carbonate is a formation the paper          Part 1, Table 3 (p.
-                                                                                                          names.                                      191)
+ Formation        Sandstone or             n/a       n/a               Carbonate   pass      n/a                  Carbonate is a formation the        Part 1, Table 3
+                  carbonate                                                                                       paper names.                        (p. 191)
 
- Net thickness    Wide range (not scored)      n/a         40 ft       not scre   n/a                     Advisory in the paper; not scored.          Part 1, Table 3 (p.
-                                                                       ened                                                                           191)
+ Net thickness    Wide range (not          n/a       n/a               40 ft       not scr   n/a                  Advisory in the paper; not          Part 1, Table 3
+                  scored)                                                          eened                          scored.                             (p. 191)
 
- Permeability     Not critical                 n/a         25 md       not scre   n/a                     Not critical for this method.               Part 1, Table 3 (p.
-                                                                       ened                                                                           191)
+ Permeability     Not critical             n/a       n/a               25 md       not scr   n/a                  Not critical for this method.       Part 1, Table 3
+                                                                                   eened                                                              (p. 191)
 
- Depth            > 2,800 ft (for 32 to 39.9   n/a         5,200 ft    pass       2,400 ft above the      5,200 ft meets > 2,800 ft (for 32 to 39.9   Part 2, Table 3 (p.
-                  API)                                                            minimum 2,800 ft (86    API).                                       200), CO2 depth
-                                                                                  %)                                                                  by oil gravity
+ Depth            > 2,800 ft (for 32 to    n/a       n/a               5,200 ft    pass      2,400 ft above the   5,200 ft meets > 2,800 ft (for 32   Part 2, Table 3
+                  39.9 API)                                                                  minimum 2,800 ft     to 39.9 API).                       (p. 200), CO2
+                                                                                             (86 %)                                                   depth by oil
+                                                                                                                                                      gravity
 
- Temperature      Not critical                 n/a         105 degF    not scre   n/a                     Not critical for this method.               Part 1, Table 3 (p.
-                                                                       ened                                                                           191)
+ Temperature      Not critical             n/a       n/a               105 degF    not scr   n/a                  Not critical for this method.       Part 1, Table 3
+                                                                                   eened                                                              (p. 191)
 
-Oil composition guide (not screened: the app has no composition input): High percent of C5 to C12.
+Oil composition guide (not screened: the app has no composition input): High percent of C5 to C12. Range of current projects: Part 2, Table 3 (p.
+201), Range of Current Projects, the field projects of 1996, for context; never scored.
+
 
 Hydrocarbon miscible: qualified (Gas injection (miscible))
- Criterion        Required                     Project     This        Verdict    Distance to the limit   Reason                                      Source
-                                               average     reservoir
+ Criterion        Required                 Project   Range of          This        Verdict   Distance to the      Reason                              Source
+                                           average   current           reservoir             limit
+                                                     projects
 
- Oil gravity      > 23 degAPI                  41 degAPI   32 degAPI   pass       9 degAPI above the      32 degAPI meets > 23 degAPI.                Part 1, Table 3 (p.
-                                                                                  minimum 23 degAPI                                                   191)
-                                                                                  (39 %)
+ Oil gravity      > 23 degAPI              41        24 to 54 degAPI   32 degAPI   pass      9 degAPI above       32 degAPI meets > 23 degAPI.        Part 1, Table 3
+                                           degAPI    (miscible                               the minimum 23                                           (p. 191)
+                                                     projects)                               degAPI (39 %)
+                                                     (inside)
 
- Oil viscosity    < 3 cp                       0.5 cp      2 cp        pass       1 cp below the          2 cp meets < 3 cp.                          Part 1, Table 3 (p.
-                                                                                  maximum 3 cp (33                                                    191)
-                                                                                  %)
+ Oil viscosity    < 3 cp                   0.5 cp    0.04 to 2.3 cp    2 cp        pass      1 cp below the       2 cp meets < 3 cp.                  Part 1, Table 3
+                                                     (inside)                                maximum 3 cp (33                                         (p. 191)
+                                                                                             %)
 
- Oil saturation   > 30 % PV                    80 % PV     45 % PV     pass       15 % PV above the       45 % PV meets > 30 % PV.                    Part 1, Table 3 (p.
-                                                                                  minimum 30 % PV                                                     191)
-                                                                                  (50 %)
+ Oil saturation   > 30 % PV                80 % PV   30 to 98 % PV     45 % PV     pass      15 % PV above        45 % PV meets > 30 % PV.            Part 1, Table 3
+                                                     (inside)                                the minimum 30                                           (p. 191)
+                                                                                             % PV (50 %)
 
- Formation        Sandstone or carbonate       n/a         Carbonate   pass       n/a                     Carbonate is a formation the paper          Part 1, Table 3 (p.
-                                                                                                          names.                                      191)
+ Formation        Sandstone or             n/a       n/a               Carbonate   pass      n/a                  Carbonate is a formation the        Part 1, Table 3
+                  carbonate                                                                                       paper names.                        (p. 191)
 
- Net thickness    Thin unless dipping          n/a         40 ft       not scre   n/a                     Advisory in the paper; not scored.          Part 1, Table 3 (p.
-                  (advisory, not scored)                               ened                                                                           191)
+ Net thickness    Thin unless dipping      n/a       n/a               40 ft       not scr   n/a                  Advisory in the paper; not          Part 1, Table 3
+                  (advisory, not scored)                                           eened                          scored.                             (p. 191)
 
- Permeability     Not critical                 n/a         25 md       not scre   n/a                     Not critical for this method.               Part 1, Table 3 (p.
-                                                                       ened                                                                           191)
+ Permeability     Not critical             n/a       n/a               25 md       not scr   n/a                  Not critical for this method.       Part 1, Table 3
+                                                                                   eened                                                              (p. 191)
 
- Depth            > 4,000 ft                   n/a         5,200 ft    pass       1,200 ft above the      5,200 ft meets > 4,000 ft.                  Part 1, Table 3 (p.
-                                                                                  minimum 4,000 ft (30                                                191)
-                                                                                  %)
+ Depth            > 4,000 ft               n/a       4,040 to 15,900   5,200 ft    pass      1,200 ft above the   5,200 ft meets > 4,000 ft.          Part 1, Table 3
+                                                     ft (inside)                             minimum 4,000 ft                                         (p. 191)
+                                                                                             (30 %)
 
- Temperature      Not critical                 n/a         105 degF    not scre   n/a                     Not critical for this method.               Part 1, Table 3 (p.
-                                                                       ened                                                                           191)
+ Temperature      Not critical             n/a       n/a               105 degF    not scr   n/a                  Not critical for this method.       Part 1, Table 3
+                                                                                   eened                                                              (p. 191)
 
-Oil composition guide (not screened: the app has no composition input): High percent of C2 to C7.
+Oil composition guide (not screened: the app has no composition input): High percent of C2 to C7. Range of current projects: Part 2, Table 2 (p.
+200), Range of Current Projects, the field projects of 1996, for context; never scored.
 
 
 
 
-EOR Screening Report, EOR screening EK                                                                                                                         Page 4 of 9
+EOR Screening Report, EOR screening EK                                                                                                                     Page 4 of 9
 Immiscible gases: qualified (Gas injection)
- Criterion        Required                  Project     This        Verdict    Distance to the limit   Reason                                    Source
-                                            average     reservoir
+ Criterion        Required                  Project    Range of   This        Verdict   Distance to the      Reason                           Source
+                                            average    current    reservoir             limit
+                                                       projects
 
- Oil gravity      > 12 degAPI               n/a         32 degAPI   pass       20 degAPI above the     32 degAPI meets > 12 degAPI.              Part 1, Table 3 (p.
-                                                                               minimum 12 degAPI                                                 191)
-                                                                               (167 %)
+ Oil gravity      > 12 degAPI               n/a        n/a        32 degAPI   pass      20 degAPI above      32 degAPI meets > 12 degAPI.     Part 1, Table 3
+                                                                                        the minimum 12                                        (p. 191)
+                                                                                        degAPI (167 %)
 
- Oil viscosity    < 600 cp                  n/a         2 cp        pass       598 cp below the        2 cp meets < 600 cp.                      Part 1, Table 3 (p.
-                                                                               maximum 600 cp                                                    191)
-                                                                               (100 %)
+ Oil viscosity    < 600 cp                  n/a        n/a        2 cp        pass      598 cp below the     2 cp meets < 600 cp.             Part 1, Table 3
+                                                                                        maximum 600 cp                                        (p. 191)
+                                                                                        (100 %)
 
- Oil saturation   > 35 % PV                 70 % PV     45 % PV     pass       10 % PV above the       45 % PV meets > 35 % PV.                  Part 1, Table 3 (p.
-                                                                               minimum 35 % PV                                                   191)
-                                                                               (29 %)
+ Oil saturation   > 35 % PV                 70 % PV    n/a        45 % PV     pass      10 % PV above        45 % PV meets > 35 % PV.         Part 1, Table 3
+                                                                                        the minimum 35                                        (p. 191)
+                                                                                        % PV (29 %)
 
- Formation        Not critical              n/a         Carbonate   not scre   n/a                     Not critical for this method.             Part 1, Table 3 (p.
-                                                                    ened                                                                         191)
+ Formation        Not critical              n/a        n/a        Carbonate   not scr   n/a                  Not critical for this method.    Part 1, Table 3
+                                                                              eened                                                           (p. 191)
 
- Net thickness    Not critical if dipping   n/a         40 ft       not scre   n/a                     Advisory in the paper; not scored.        Part 1, Table 3 (p.
-                  and/or good vertical                              ened                                                                         191)
-                  permeability (advisory,
-                  not scored)
+ Net thickness    Not critical if dipping   n/a        n/a        40 ft       not scr   n/a                  Advisory in the paper; not       Part 1, Table 3
+                  and/or good vertical                                        eened                          scored.                          (p. 191)
+                  permeability
+                  (advisory, not scored)
 
- Permeability     Not critical              n/a         25 md       not scre   n/a                     Not critical for this method.             Part 1, Table 3 (p.
-                                                                    ened                                                                         191)
+ Permeability     Not critical              n/a        n/a        25 md       not scr   n/a                  Not critical for this method.    Part 1, Table 3
+                                                                              eened                                                           (p. 191)
 
- Depth            > 1,800 ft                n/a         5,200 ft    pass       3,400 ft above the      5,200 ft meets > 1,800 ft.                Part 1, Table 3 (p.
-                                                                               minimum 1,800 ft                                                  191)
-                                                                               (189 %)
+ Depth            > 1,800 ft                n/a        n/a        5,200 ft    pass      3,400 ft above the   5,200 ft meets > 1,800 ft.       Part 1, Table 3
+                                                                                        minimum 1,800 ft                                      (p. 191)
+                                                                                        (189 %)
 
- Temperature      Not critical              n/a         105 degF    not scre   n/a                     Not critical for this method.             Part 1, Table 3 (p.
-                                                                    ened                                                                         191)
+ Temperature      Not critical              n/a        n/a        105 degF    not scr   n/a                  Not critical for this method.    Part 1, Table 3
+                                                                              eened                                                           (p. 191)
 
-Oil composition guide (not screened: the app has no composition input): Not critical.
+Oil composition guide (not screened: the app has no composition input): Not critical. Part 2 prints no range of current projects for this method.
 
 Micellar/polymer, ASP & alkaline: marginal ((Enhanced) waterflooding)
- Criterion        Required                  Project     This        Verdict    Distance to the limit   Reason                                    Source
-                                            average     reservoir
+ Criterion        Required                  Project    Range of   This        Verdict   Distance to the      Reason                           Source
+                                            average    current    reservoir             limit
+                                                       projects
 
- Oil gravity      > 20 degAPI               35 degAPI   32 degAPI   pass       12 degAPI above the     32 degAPI meets > 20 degAPI.              Part 1, Table 3 (p.
-                                                                               minimum 20 degAPI                                                 191)
-                                                                               (60 %)
+ Oil gravity      > 20 degAPI               35         n/a        32 degAPI   pass      12 degAPI above      32 degAPI meets > 20 degAPI.     Part 1, Table 3
+                                            degAPI                                      the minimum 20                                        (p. 191)
+                                                                                        degAPI (60 %)
 
- Oil viscosity    < 35 cp                   13 cp       2 cp        pass       33 cp below the         2 cp meets < 35 cp.                       Part 1, Table 3 (p.
-                                                                               maximum 35 cp (94                                                 191)
-                                                                               %)
+ Oil viscosity    < 35 cp                   13 cp      n/a        2 cp        pass      33 cp below the      2 cp meets < 35 cp.              Part 1, Table 3
+                                                                                        maximum 35 cp                                         (p. 191)
+                                                                                        (94 %)
 
- Oil saturation   > 35 % PV                 53 % PV     45 % PV     pass       10 % PV above the       45 % PV meets > 35 % PV.                  Part 1, Table 3 (p.
-                                                                               minimum 35 % PV                                                   191)
-                                                                               (29 %)
+ Oil saturation   > 35 % PV                 53 % PV    n/a        45 % PV     pass      10 % PV above        45 % PV meets > 35 % PV.         Part 1, Table 3
+                                                                                        the minimum 35                                        (p. 191)
+                                                                                        % PV (29 %)
 
- Formation        Sandstone preferred       n/a         Carbonate   marginal   n/a                     Sandstones are preferred (Part 2, Table   Part 2, Table 4 (p.
-                                                                                                       4); anhydrite, gypsum and clays,          200)
-                                                                                                       common in carbonates, are undesirable.
+ Formation        Sandstone preferred       n/a        n/a        Carbonate   margin    n/a                  Sandstones are preferred (Part   Part 2, Table 4
+                                                                              al                             2, Table 4); anhydrite, gypsum   (p. 200)
+                                                                                                             and clays, common in
+                                                                                                             carbonates, are undesirable.
 
- Net thickness    Not critical              n/a         40 ft       not scre   n/a                     Not critical for this method.             Part 1, Table 3 (p.
-                                                                    ened                                                                         191)
+ Net thickness    Not critical              n/a        n/a        40 ft       not scr   n/a                  Not critical for this method.    Part 1, Table 3
+                                                                              eened                                                           (p. 191)
 
- Permeability     > 10 md                   450 md      25 md       pass       15 md above the         25 md meets > 10 md.                      Part 1, Table 3 (p.
-                                                                               minimum 10 md (150                                                191)
-                                                                               %)
+ Permeability     > 10 md                   450 md     n/a        25 md       pass      15 md above the      25 md meets > 10 md.             Part 1, Table 3
+                                                                                        minimum 10 md                                         (p. 191)
+                                                                                        (150 %)
 
- Depth            < 9,000 ft                3,250 ft    5,200 ft    pass       3,800 ft below the      5,200 ft meets < 9,000 ft.                Part 2, Table 4 (p.
-                                                                               maximum 9,000 ft                                                  200)
-                                                                               (42 %)
+ Depth            < 9,000 ft                3,250 ft   n/a        5,200 ft    pass      3,800 ft below the   5,200 ft meets < 9,000 ft.       Part 2, Table 4
+                                                                                        maximum 9,000 ft                                      (p. 200)
+                                                                                        (42 %)
 
- Temperature      < 200 degF                80 degF     105 degF    pass       95 degF below the       105 degF meets < 200 degF.                Part 2, Table 4 (p.
-                                                                               maximum 200 degF                                                  200)
-                                                                               (48 %)
+ Temperature      < 200 degF                80 degF    n/a        105 degF    pass      95 degF below the    105 degF meets < 200 degF.       Part 2, Table 4
+                                                                                        maximum 200                                           (p. 200)
+                                                                                        degF (48 %)
 
-Oil composition guide (not screened: the app has no composition input): Light, intermediate; some organic acids for alkaline floods.
+Oil composition guide (not screened: the app has no composition input): Light, intermediate; some organic acids for alkaline floods. Part 2 prints no
+range of current projects for this method.
 
 
 
 
-EOR Screening Report, EOR screening EK                                                                                                                    Page 5 of 9
+EOR Screening Report, EOR screening EK                                                                                                             Page 5 of 9
 In-situ combustion: screened out (Thermal)
- Criterion          Required                Project     This           Verdict    Distance to the limit   Reason                                    Source
-                                            average     reservoir
+ Criterion         Required                Project    Range of           This        Verdict   Distance to the      Reason                           Source
+                                           average    current            reservoir             limit
+                                                      projects
 
- Oil gravity        > 10 degAPI             16 degAPI   32 degAPI      pass       22 degAPI above the     32 degAPI meets > 10 degAPI.              Part 1, Table 3 (p.
-                                                                                  minimum 10 degAPI                                                 191)
-                                                                                  (220 %)
+ Oil gravity       > 10 degAPI             16         10 to 40 degAPI    32 degAPI   pass      22 degAPI above      32 degAPI meets > 10 degAPI.     Part 1, Table 3
+                                           degAPI     (inside)                                 the minimum 10                                        (p. 191)
+                                                                                               degAPI (220 %)
 
- Oil viscosity      < 5,000 cp              1,200 cp    2 cp           pass       4,998 cp below the      2 cp meets < 5,000 cp.                    Part 1, Table 3 (p.
-                                                                                  maximum 5,000 cp                                                  191)
-                                                                                  (100 %)
+ Oil viscosity     < 5,000 cp              1,200 cp   6 to 5,000 cp      2 cp        pass      4,998 cp below       2 cp meets < 5,000 cp.           Part 1, Table 3
+                                                      (outside)                                the maximum                                           (p. 191)
+                                                                                               5,000 cp (100 %)
 
- Oil saturation     > 50 % PV               72 % PV     45 % PV        fail       5 % PV below the        45 % PV is below the minimum 50 %         Part 1, Table 3 (p.
-                                                                                  minimum 50 % PV         PV.                                       191)
-                                                                                  (10 %)
+ Oil saturation    > 50 % PV               72 % PV    62 to 94 % PV      45 % PV     fail      5 % PV below the     45 % PV is below the minimum     Part 1, Table 3
+                                                      (outside)                                minimum 50 % PV      50 % PV.                         (p. 191)
+                                                                                               (10 %)
 
- Formation          High-porosity sand or   n/a         Carbonate      fail       n/a                     Carbonate is outside "High-porosity       Part 1, Table 3 (p.
-                    sandstone                                                                             sand or sandstone".                       191)
+ Formation         High-porosity sand or   n/a        n/a                Carbonate   fail      n/a                  Carbonate is outside             Part 1, Table 3
+                   sandstone                                                                                        "High-porosity sand or           (p. 191)
+                                                                                                                    sandstone".
 
- Net thickness      > 10 ft                 n/a         40 ft          pass       30 ft above the         40 ft meets > 10 ft.                      Part 1, Table 3 (p.
-                                                                                  minimum 10 ft (300                                                191)
-                                                                                  %)
+ Net thickness     > 10 ft                 n/a        n/a                40 ft       pass      30 ft above the      40 ft meets > 10 ft.             Part 1, Table 3
+                                                                                               minimum 10 ft                                         (p. 191)
+                                                                                               (300 %)
 
- Permeability       > 50 md                 n/a         25 md          fail       25 md below the         25 md is below the minimum 50 md.         Part 1, Table 3 (p.
-                                                                                  minimum 50 md (50                                                 191)
-                                                                                  %)
+ Permeability      > 50 md                 n/a        85 to 4,000 md     25 md       fail      25 md below the      25 md is below the minimum 50    Part 1, Table 3
+                                                      (outside)                                minimum 50 md        md.                              (p. 191)
+                                                                                               (50 %)
 
- Transmissibility   > 20 md-ft/cp           n/a         500 md-ft/cp   pass       480 md-ft/cp above      500 md-ft/cp meets > 20 md-ft/cp.         Part 1, Table 3,
- kh/mu                                                                            the minimum 20                                                    note c
-                                                                                  md-ft/cp (2400 %)
+ Transmissibilit   > 20 md-ft/cp           n/a        n/a                500         pass      480 md-ft/cp         500 md-ft/cp meets > 20          Part 1, Table 3,
+ y kh/mu                                                                 md-ft/cp              above the            md-ft/cp.                        note c
+                                                                                               minimum 20
+                                                                                               md-ft/cp (2400 %)
 
- Depth              < 11,500 ft             3,500 ft    5,200 ft       pass       6,300 ft below the      5,200 ft meets < 11,500 ft.               Part 1, Table 3 (p.
-                                                                                  maximum 11,500 ft                                                 191)
-                                                                                  (55 %)
+ Depth             < 11,500 ft             3,500 ft   400 to 11,300 ft   5,200 ft    pass      6,300 ft below the   5,200 ft meets < 11,500 ft.      Part 1, Table 3
+                                                      (inside)                                 maximum 11,500                                        (p. 191)
+                                                                                               ft (55 %)
 
- Temperature        > 100 degF              135 degF    105 degF       pass       5 degF above the        105 degF meets > 100 degF.                Part 1, Table 3 (p.
-                                                                                  minimum 100 degF                                                  191)
-                                                                                  (5 %)
+ Temperature       > 100 degF              135 degF   from 100 degF      105 degF    pass      5 degF above the     105 degF meets > 100 degF.       Part 1, Table 3
+                                                      (printed "100 to                         minimum 100                                           (p. 191)
+                                                      22")                                     degF (5 %)
 
-Oil composition guide (not screened: the app has no composition input): Some asphaltic components.
+Oil composition guide (not screened: the app has no composition input): Some asphaltic components. Range of current projects: Part 2, Table 6 (p.
+203), Range of Current Projects, the field projects of 1996, for context; never scored.
+
 
 Steam flooding: screened out (Thermal)
- Criterion          Required                Project     This           Verdict    Distance to the limit   Reason                                    Source
-                                            average     reservoir
+ Criterion         Required                Project    Range of           This        Verdict   Distance to the      Reason                           Source
+                                           average    current            reservoir             limit
+                                                      projects
 
- Oil gravity        > 8 degAPI              13.5        32 degAPI      pass       24 degAPI above the     32 degAPI meets > 8 degAPI.               Part 1, Table 3 (p.
-                                            degAPI                                minimum 8 degAPI                                                  191)
-                                                                                  (300 %)
+ Oil gravity       > 8 degAPI              13.5       8 to 27 degAPI     32 degAPI   pass      24 degAPI above      32 degAPI meets > 8 degAPI.      Part 1, Table 3
+                                           degAPI     (outside)                                the minimum 8                                         (p. 191)
+                                                                                               degAPI (300 %)
 
- Oil viscosity      < 200,000 cp            4,700 cp    2 cp           pass       200,000 cp below the    2 cp meets < 200,000 cp.                  Part 1, Table 3 (p.
-                                                                                  maximum 200,000 cp                                                191)
-                                                                                  (100 %)
+ Oil viscosity     < 200,000 cp            4,700 cp   10 to 137,000      2 cp        pass      200,000 cp below     2 cp meets < 200,000 cp.         Part 1, Table 3
+                                                      cp (outside)                             the maximum                                           (p. 191)
+                                                                                               200,000 cp (100
+                                                                                               %)
 
- Oil saturation     > 40 % PV               66 % PV     45 % PV        pass       5 % PV above the        45 % PV meets > 40 % PV.                  Part 1, Table 3 (p.
-                                                                                  minimum 40 % PV                                                   191)
-                                                                                  (13 %)
+ Oil saturation    > 40 % PV               66 % PV    35 to 90 % PV      45 % PV     pass      5 % PV above the     45 % PV meets > 40 % PV.         Part 1, Table 3
+                                                      (inside)                                 minimum 40 % PV                                       (p. 191)
+                                                                                               (13 %)
 
- Formation          High-porosity sand or   n/a         Carbonate      fail       n/a                     Carbonate is outside "High-porosity       Part 1, Table 3 (p.
-                    sandstone                                                                             sand or sandstone".                       191)
+ Formation         High-porosity sand or   n/a        n/a                Carbonate   fail      n/a                  Carbonate is outside             Part 1, Table 3
+                   sandstone                                                                                        "High-porosity sand or           (p. 191)
+                                                                                                                    sandstone".
 
- Net thickness      > 20 ft                 n/a         40 ft          pass       20 ft above the         40 ft meets > 20 ft.                      Part 1, Table 3 (p.
-                                                                                  minimum 20 ft (100                                                191)
-                                                                                  %)
+ Net thickness     > 20 ft                 n/a        n/a                40 ft       pass      20 ft above the      40 ft meets > 20 ft.             Part 1, Table 3
+                                                                                               minimum 20 ft                                         (p. 191)
+                                                                                               (100 %)
 
- Permeability       > 200 md                2,540 md    25 md          fail       175 md below the        25 md is below the minimum 200 md.        Part 1, Table 3 (p.
-                                                                                  minimum 200 md (88                                                191)
-                                                                                  %)
+ Permeability      > 200 md                2,540 md   63 to 10,000 md    25 md       fail      175 md below the     25 md is below the minimum 200   Part 1, Table 3
+                                                      (outside)                                minimum 200 md       md.                              (p. 191)
+                                                                                               (88 %)
 
- Transmissibility   > 50 md-ft/cp           n/a         500 md-ft/cp   pass       450 md-ft/cp above      500 md-ft/cp meets > 50 md-ft/cp.         Part 1, Table 3,
- kh/mu                                                                            the minimum 50                                                    note d
-                                                                                  md-ft/cp (900 %)
+ Transmissibilit   > 50 md-ft/cp           n/a        n/a                500         pass      450 md-ft/cp         500 md-ft/cp meets > 50          Part 1, Table 3,
+ y kh/mu                                                                 md-ft/cp              above the            md-ft/cp.                        note d
+                                                                                               minimum 50
+                                                                                               md-ft/cp (900 %)
 
- Depth              < 4,500 ft              1,500 ft    5,200 ft       fail       700 ft above the        5,200 ft is above the maximum 4,500 ft.   Part 1, Table 3 (p.
-                                                                                  maximum 4,500 ft                                                  191)
-                                                                                  (16 %)
+ Depth             < 4,500 ft              1,500 ft   150 to 4,500 ft    5,200 ft    fail      700 ft above the     5,200 ft is above the maximum    Part 1, Table 3
+                                                      (outside)                                maximum 4,500 ft     4,500 ft.                        (p. 191)
+                                                                                               (16 %)
 
- Temperature        Not critical            n/a         105 degF       not scre   n/a                     Not critical for this method.             Part 1, Table 3 (p.
-                                                                       ened                                                                         191)
-
-Oil composition guide (not screened: the app has no composition input): Not critical.
-
-
+ Temperature       Not critical            n/a        60 to 280 degF     105 degF    not scr   n/a                  Not critical for this method.    Part 1, Table 3
+                                                      (inside)                       eened                                                           (p. 191)
 
 
-EOR Screening Report, EOR screening EK                                                                                                                       Page 6 of 9
-Polymer flooding: screened out ((Enhanced) waterflooding)
- Criterion        Required                 Project     This        Verdict    Distance to the limit   Reason                                    Source
-                                           average     reservoir
 
- Oil gravity      > 15 degAPI              n/a         32 degAPI   pass       17 degAPI above the     32 degAPI meets > 15 degAPI.              Part 1, Table 3 (p.
-                                                                              minimum 15 degAPI                                                 191)
-                                                                              (113 %)
 
- Oil viscosity    10 to 150 cp             n/a         2 cp        fail       8 cp below the          2 cp is below the minimum 10 cp.          Part 1, Table 3 (p.
-                                                                              minimum 10 cp (80                                                 191)
-                                                                              %)
+EOR Screening Report, EOR screening EK                                                                                                                    Page 6 of 9
+Oil composition guide (not screened: the app has no composition input): Not critical. Range of current projects: Part 2, Table 7 (p. 203), Range of
+Current Projects, the field projects of 1996, for context; never scored.
 
- Oil saturation   > 50 % PV                80 % PV     45 % PV     fail       5 % PV below the        45 % PV is below the minimum 50 %         Part 1, Table 3 (p.
-                                                                              minimum 50 % PV         PV.                                       191)
-                                                                              (10 %)
 
- Formation        Sandstone preferred      n/a         Carbonate   marginal   n/a                     Sandstones are preferred but polymer      Part 2, Table 5 (p.
-                                                                                                      can be used in carbonates (Part 2,        201)
-                                                                                                      Table 5).
+Polymer flooding: screened out ((Enhanced) waterflooding)
+ Criterion        Required                 Project    Range of            This        Verdict   Distance to the      Reason                             Source
+                                           average    current             reservoir             limit
+                                                      projects
 
- Net thickness    Not critical             n/a         40 ft       not scre   n/a                     Not critical for this method.             Part 1, Table 3 (p.
-                                                                   ened                                                                         191)
+ Oil gravity      > 15 degAPI              n/a        14 to 43 degAPI     32 degAPI   pass      17 degAPI above      32 degAPI meets > 15 degAPI.       Part 1, Table 3
+                                                      (inside)                                  the minimum 15                                          (p. 191)
+                                                                                                degAPI (113 %)
 
- Permeability     > 10 md                  800 md      25 md       pass       15 md above the         25 md meets > 10 md.                      Part 1, Table 3 (p.
-                                                                              minimum 10 md (150                                                191)
-                                                                              %)
+ Oil viscosity    10 to 150 cp             n/a        1 to 80 cp          2 cp        fail      8 cp below the       2 cp is below the minimum 10 cp.   Part 1, Table 3
+                                                      (inside)                                  minimum 10 cp                                           (p. 191)
+                                                                                                (80 %)
 
- Depth            < 9,000 ft               n/a         5,200 ft    pass       3,800 ft below the      5,200 ft meets < 9,000 ft.                Part 1, Table 3 (p.
-                                                                              maximum 9,000 ft                                                  191)
-                                                                              (42 %)
+ Oil saturation   > 50 % PV                80 % PV    50 to 92 % PV       45 % PV     fail      5 % PV below the     45 % PV is below the minimum       Part 1, Table 3
+                                                      (outside)                                 minimum 50 % PV      50 % PV.                           (p. 191)
+                                                                                                (10 %)
 
- Temperature      < 200 degF               140 degF    105 degF    pass       95 degF below the       105 degF meets < 200 degF.                Part 2, Table 5 (p.
-                                                                              maximum 200 degF                                                  201)
-                                                                              (48 %)
+ Formation        Sandstone preferred      n/a        n/a                 Carbonate   margin    n/a                  Sandstones are preferred but       Part 2, Table 5
+                                                                                      al                             polymer can be used in             (p. 201)
+                                                                                                                     carbonates (Part 2, Table 5).
 
-Oil composition guide (not screened: the app has no composition input): Not critical.
+ Net thickness    Not critical             n/a        n/a                 40 ft       not scr   n/a                  Not critical for this method.      Part 1, Table 3
+                                                                                      eened                                                             (p. 191)
+
+ Permeability     > 10 md                  800 md     10 to 15,000 md     25 md       pass      15 md above the      25 md meets > 10 md.               Part 1, Table 3
+                                                      (inside)                                  minimum 10 md                                           (p. 191)
+                                                                                                (150 %)
+
+ Depth            < 9,000 ft               n/a        1,300 to 9,600 ft   5,200 ft    pass      3,800 ft below the   5,200 ft meets < 9,000 ft.         Part 1, Table 3
+                                                      (inside)                                  maximum 9,000 ft                                        (p. 191)
+                                                                                                (42 %)
+
+ Temperature      < 200 degF               140 degF   80 to 185 degF      105 degF    pass      95 degF below the    105 degF meets < 200 degF.         Part 2, Table 5
+                                                      (inside)                                  maximum 200                                             (p. 201)
+                                                                                                degF (48 %)
+
+Oil composition guide (not screened: the app has no composition input): Not critical. Range of current projects: Part 2, Table 5 (p. 202), Range of
+Current Projects, the field projects of 1996, for context; never scored.
+
 
 Nitrogen & flue gas: screened out (Gas injection (miscible))
- Criterion        Required                 Project     This        Verdict    Distance to the limit   Reason                                    Source
-                                           average     reservoir
+ Criterion        Required                 Project    Range of            This        Verdict   Distance to the      Reason                             Source
+                                           average    current             reservoir             limit
+                                                      projects
 
- Oil gravity      > 35 degAPI              48 degAPI   32 degAPI   fail       3 degAPI below the      32 degAPI is below the minimum 35         Part 1, Table 3 (p.
-                                                                              minimum 35 degAPI       degAPI.                                   191)
-                                                                              (8.6 %)
+ Oil gravity      > 35 degAPI              48         38 to 54 degAPI     32 degAPI   fail      3 degAPI below       32 degAPI is below the minimum     Part 1, Table 3
+                                           degAPI     (miscible                                 the minimum 35       35 degAPI.                         (p. 191)
+                                                      projects)                                 degAPI (8.6 %)
+                                                      (outside)
 
- Oil viscosity    < 0.4 cp                 0.2 cp      2 cp        fail       1.6 cp above the        2 cp is above the maximum 0.4 cp.         Part 1, Table 3 (p.
-                                                                              maximum 0.4 cp                                                    191)
-                                                                              (400 %)
+ Oil viscosity    < 0.4 cp                 0.2 cp     0.07 to 0.3 cp      2 cp        fail      1.6 cp above the     2 cp is above the maximum 0.4      Part 1, Table 3
+                                                      (outside)                                 maximum 0.4 cp       cp.                                (p. 191)
+                                                                                                (400 %)
 
- Oil saturation   > 40 % PV                75 % PV     45 % PV     pass       5 % PV above the        45 % PV meets > 40 % PV.                  Part 1, Table 3 (p.
-                                                                              minimum 40 % PV                                                   191)
-                                                                              (13 %)
+ Oil saturation   > 40 % PV                75 % PV    59 to 80 % PV       45 % PV     pass      5 % PV above the     45 % PV meets > 40 % PV.           Part 1, Table 3
+                                                      (outside)                                 minimum 40 % PV                                         (p. 191)
+                                                                                                (13 %)
 
- Formation        Sandstone or carbonate   n/a         Carbonate   pass       n/a                     Carbonate is a formation the paper        Part 1, Table 3 (p.
-                                                                                                      names.                                    191)
+ Formation        Sandstone or             n/a        n/a                 Carbonate   pass      n/a                  Carbonate is a formation the       Part 1, Table 3
+                  carbonate                                                                                          paper names.                       (p. 191)
 
- Net thickness    Thin unless dipping      n/a         40 ft       not scre   n/a                     Advisory in the paper; not scored.        Part 1, Table 3 (p.
-                  (advisory, not scored)                           ened                                                                         191)
+ Net thickness    Thin unless dipping      n/a        n/a                 40 ft       not scr   n/a                  Advisory in the paper; not         Part 1, Table 3
+                  (advisory, not scored)                                              eened                          scored.                            (p. 191)
 
- Permeability     Not critical             n/a         25 md       not scre   n/a                     Not critical for this method.             Part 1, Table 3 (p.
-                                                                   ened                                                                         191)
+ Permeability     Not critical             n/a        n/a                 25 md       not scr   n/a                  Not critical for this method.      Part 1, Table 3
+                                                                                      eened                                                             (p. 191)
 
- Depth            > 6,000 ft               n/a         5,200 ft    fail       800 ft below the        5,200 ft is below the minimum 6,000 ft.   Part 1, Table 3 (p.
-                                                                              minimum 6,000 ft (13                                              191)
-                                                                              %)
+ Depth            > 6,000 ft               n/a        10,000 to           5,200 ft    fail      800 ft below the     5,200 ft is below the minimum      Part 1, Table 3
+                                                      18,500 ft                                 minimum 6,000 ft     6,000 ft.                          (p. 191)
+                                                      (outside)                                 (13 %)
 
- Temperature      Not critical             n/a         105 degF    not scre   n/a                     Not critical for this method.             Part 1, Table 3 (p.
-                                                                   ened                                                                         191)
+ Temperature      Not critical             n/a        n/a                 105 degF    not scr   n/a                  Not critical for this method.      Part 1, Table 3
+                                                                                      eened                                                             (p. 191)
 
-Oil composition guide (not screened: the app has no composition input): High percent of C1 to C7.
+Oil composition guide (not screened: the app has no composition input): High percent of C1 to C7. Range of current projects: Part 2, Table 1 (p.
+200), Range of Current Projects, the field projects of 1996, for context; never scored.
 
-Limits of this analysis
+
+
+
+EOR Screening Report, EOR screening EK                                                                                                                       Page 7 of 9
+Limits of this analysis
 - Screening shortlists candidate methods; it does not design a process or predict recovery (Part 2, Summary). A method that qualifies needs
 laboratory work, simulation and economics before any decision.
 - The criteria come from the oil and reservoir properties of field projects up to 1996 and the displacement mechanisms behind them. Limits are not
@@ -498,12 +530,7 @@ sharp in nature: the paper says a value just past a limit does not make a method
 nothing is interpolated between methods.
 - Verdicts are pass, marginal, fail or not screened. Marginal means the paper itself softens the limit: a preferred formation (Part 2, Tables 4 and 5),
 a carbonate fracture sweep (Part 1, Table 3, note b), or a formation the table does not name for gas injection.
-
-
-
-
-EOR Screening Report, EOR screening EK                                                                                                                   Page 7 of 9
-- The CO2 minimum depth by oil gravity is for typical Permian Basin oils; oils of different composition need a measured minimum miscibility
+- The CO2 minimum depth by oil gravity is for typical Permian Basin oils; oils of different composition need a measured minimum miscibility
 pressure. The CO2 MMP check beside it uses one published correlation (Zhu et al. 2025, from Ordos Basin black oils): it states miscible or
 immiscible against the reservoir pressure and changes no Taber verdict.
 - Each input is one value for the reservoir. Heterogeneity, layering, dip, vertical permeability and fractures are not screened; the geometry notes of

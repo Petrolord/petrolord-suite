@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { CRITERIA_EDITION, RANKING_BASIS } from '@/utils/eorScreeningCalculations';
-import { requiredText, actualText, averageText, reasonText, distanceText, STATUS_WORDS, OUTCOME_WORDS } from '@/utils/eor/format';
+import { requiredText, actualText, averageText, reasonText, distanceText, projectRangeText, STATUS_WORDS, OUTCOME_WORDS } from '@/utils/eor/format';
 import { useEorScreening } from '@/contexts/EorScreeningContext';
 import { mmpSection } from '@/utils/eor/reportModel';
 import { MMP_CORRELATION } from '@/utils/eor/mmp';
@@ -123,6 +123,7 @@ const EorResults = () => {
                           <th className="py-1.5 pr-3">Criterion</th>
                           <th className="py-1.5 pr-3">Required</th>
                           <th className="py-1.5 pr-3">Project average</th>
+                          <th className="py-1.5 pr-3" title="Part 2, Tables 1 to 7: the field projects of 1996, for context; never scored">Range of current projects</th>
                           <th className="py-1.5 pr-3">This reservoir</th>
                           <th className="py-1.5 pr-3">Verdict</th>
                           <th className="py-1.5 pr-3" title="How far the value sits from the limit, for information; never a score">Distance to the limit</th>
@@ -138,6 +139,7 @@ const EorResults = () => {
                               <td className="py-1.5 pr-3">{v.criterion}</td>
                               <td className="py-1.5 pr-3">{requiredText(v, sys)}</td>
                               <td className="py-1.5 pr-3">{averageText(v, sys) || 'n/a'}</td>
+                              <td className="py-1.5 pr-3" data-testid={`eor-range-${r.id}-${v.key}`}>{projectRangeText(r.id, v, sys) || 'n/a'}</td>
                               <td className="py-1.5 pr-3">{actualText(v, sys)}</td>
                               <td className="py-1.5 pr-3">
                                 <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] ${meta.chip}`}>

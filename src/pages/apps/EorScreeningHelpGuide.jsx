@@ -142,6 +142,14 @@ const EorScreeningHelpGuideContent = () => (
         project already chosen. Press Take values to read it. Each sender needs a saved
         project, because this app reads it by id.
       </Para>
+      <SubHeading>Range of current projects</SubHeading>
+      <Para>
+        Beside the project average, each row prints the range of the field projects of 1996 for
+        that method, as Part 2 of the paper prints it in Tables 1 to 7 (pages 200 to 203), and
+        whether your value sits inside it. Part 2 prints no range for the chemical floods or for
+        immiscible gas, and the combustion temperature range is cut short on the page (printed
+        "100 to 22"), so only its lower end is used. The range is context: it is never scored.
+      </Para>
       <SubHeading>Distance to the limit</SubHeading>
       <Para>
         Each criterion row also says how far your value sits from the limit it was judged on, in

@@ -201,6 +201,23 @@ export const EOR_METHODS = [
   },
 ];
 
+/**
+ * EOR-U2-006: the range of the field projects of each method, as printed in
+ * the "Range of Current Projects" column of Part 2, Tables 1 to 7 (pp. 200
+ * to 203), read from the page images. Context only: never scored. Part 2
+ * prints no range for the chemical floods (Table 4) and has no immiscible
+ * gas table. Oilfield units, as printed.
+ */
+const pr = (table, page, criteria) => Object.freeze({ source: `Part 2, Table ${table} (p. ${page}), Range of Current Projects`, criteria: Object.freeze(criteria) });
+export const PROJECT_RANGES = Object.freeze({
+  nitrogen: pr(1, 200, { gravity: { min: 38, max: 54, note: 'miscible projects' }, viscosity: { min: 0.07, max: 0.3 }, oilSat: { min: 59, max: 80 }, depth: { min: 10000, max: 18500 } }),
+  hydrocarbon: pr(2, 200, { gravity: { min: 24, max: 54, note: 'miscible projects' }, viscosity: { min: 0.04, max: 2.3 }, oilSat: { min: 30, max: 98 }, depth: { min: 4040, max: 15900 } }),
+  co2: pr(3, 201, { gravity: { min: 27, max: 44 }, viscosity: { min: 0.3, max: 6 }, oilSat: { min: 15, max: 70 } }),
+  polymer: pr(5, 202, { gravity: { min: 14, max: 43 }, viscosity: { min: 1, max: 80 }, oilSat: { min: 50, max: 92 }, permeability: { min: 10, max: 15000 }, depth: { min: 1300, max: 9600 }, temperature: { min: 80, max: 185 } }),
+  combustion: pr(6, 203, { gravity: { min: 10, max: 40 }, viscosity: { min: 6, max: 5000 }, oilSat: { min: 62, max: 94 }, permeability: { min: 85, max: 4000 }, depth: { min: 400, max: 11300 }, temperature: { min: 100, max: null, note: 'printed "100 to 22"' } }),
+  steam: pr(7, 203, { gravity: { min: 8, max: 27 }, viscosity: { min: 10, max: 137000 }, oilSat: { min: 35, max: 90 }, permeability: { min: 63, max: 10000 }, depth: { min: 150, max: 4500 }, temperature: { min: 60, max: 280 } }),
+});
+
 /** CO2 miscible: the minimum depth for an oil gravity (Part 2, Table 3). null below 22 API (fails miscible). */
 export const CO2_DEPTH_BY_GRAVITY = Object.freeze([
   { minApi: 40, depthFt: 2500, band: 'above 40 API' },

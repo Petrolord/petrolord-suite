@@ -182,3 +182,13 @@ test('U2-007 distance to the limit: the sample CO2 depth sits 2,400 ft above its
   await expect(page.getByTestId('eor-distance-co2-depth')).toHaveText('2,400 ft above the minimum 2,800 ft (86 %)');
   await expect(page.getByTestId('eor-distance-co2-formation')).toHaveText('n/a');
 });
+
+// EOR-U2-006: the range of current projects (Part 2, Tables 1 to 7) beside each limit.
+test('U2-006 range of current projects: polymer depth and the sample inside or outside', async ({ page }) => {
+  test.setTimeout(180000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await page.getByTestId('eor-method-co2').getByRole('button').first().click();
+  await expect(page.getByTestId('eor-range-co2-gravity')).toHaveText('27 to 44 degAPI (inside)');
+  await expect(page.getByTestId('eor-range-co2-depth')).toHaveText('n/a');
+});

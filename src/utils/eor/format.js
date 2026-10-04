@@ -8,7 +8,7 @@
  */
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { eorUnits } from './units.js';
-import { formationLabel } from '../eorScreeningCalculations.js';
+import { formationLabel, PROJECT_RANGES } from '../eorScreeningCalculations.js';
 
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
 
@@ -99,4 +99,23 @@ export function distanceText(v, system = 'oilfield') {
   const above = v.actual >= d.limitValue;
   const words = `${num4(shownDelta)}${lab ? ` ${lab}` : ''} ${above ? 'above' : 'below'} the ${d.limit === 'min' ? 'minimum' : 'maximum'} ${quantity(v.kind, d.limitValue, u)}`;
   return d.relPct == null ? words : `${words} (${pctText(d.relPct)} %)`;
+}
+
+/**
+ * EOR-U2-006: the printed range of current projects for a criterion of a
+ * method, and whether this reservoir sits inside it; null when the paper
+ * prints none. Context only, never scored.
+ */
+export function projectRangeText(methodId, v, system = 'oilfield') {
+  const r = PROJECT_RANGES[methodId]?.criteria?.[v.key];
+  if (!r) return null;
+  const u = eorUnits(system);
+  let text;
+  if (finite(r.min) && finite(r.max)) text = `${u.fmt(v.kind, r.min)} to ${quantity(v.kind, r.max, u)}`;
+  else text = `from ${quantity(v.kind, r.min, u)}`;
+  if (r.note && !finite(r.max)) return `${text} (${r.note})`;
+  if (r.note) text += ` (${r.note})`;
+  if (!finite(v.actual)) return text;
+  const inside = v.actual >= r.min - 1e-9 && (!finite(r.max) || v.actual <= r.max + 1e-9);
+  return `${text} (${inside ? 'inside' : 'outside'})`;
 }

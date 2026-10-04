@@ -34,7 +34,7 @@ export function buildEorPdf({ model }, { logo = null, generatedAt = new Date() }
   report.layout.y += 5;
   for (const m of model.methods) {
     table(m.title, m.head, m.rows, {
-      columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 28 }, 2: { cellWidth: 14 }, 3: { cellWidth: 16 }, 4: { cellWidth: 12 }, 5: { cellWidth: 25 }, 7: { cellWidth: 23 } },
+      columnStyles: { 0: { cellWidth: 18 }, 1: { cellWidth: 25 }, 2: { cellWidth: 13 }, 3: { cellWidth: 20 }, 4: { cellWidth: 15 }, 5: { cellWidth: 11 }, 6: { cellWidth: 22 }, 8: { cellWidth: 21 } },
       note: m.note,
       fontSize: 6.5,
     });

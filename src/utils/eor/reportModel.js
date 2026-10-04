@@ -14,10 +14,10 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { sourceText, NOT_PROVIDED } from '@/lib/inputProvenance/wording';
 import { SERIES_RGB } from '@/lib/reportKit/theme';
 import {
-  CRITERIA_EDITION, RANKING_BASIS, SRC, CO2_DEPTH_BY_GRAVITY, sampleEorScreeningData, formationLabel, screenAllMethods, engineInputOf,
+  CRITERIA_EDITION, RANKING_BASIS, SRC, PROJECT_RANGES, CO2_DEPTH_BY_GRAVITY, sampleEorScreeningData, formationLabel, screenAllMethods, engineInputOf,
 } from '../eorScreeningCalculations.js';
 import { eorUnits } from './units.js';
-import { requiredText, actualText, averageText, reasonText, distanceText, STATUS_WORDS, OUTCOME_WORDS } from './format.js';
+import { requiredText, actualText, averageText, reasonText, distanceText, projectRangeText, STATUS_WORDS, OUTCOME_WORDS } from './format.js';
 import { intakeSourceText } from './intakes.js';
 import { eorMmpCheck, MMP_CORRELATION, mmpVerdictWords, MPA_TO_PSI } from './mmp.js';
 
@@ -172,9 +172,9 @@ export function buildEorReportModel(inputs, { projectName = '', organizationName
   const methods = ranked.map((r) => ({
     id: r.id,
     title: `${r.name}: ${OUTCOME_WORDS[r.outcome].toLowerCase()} (${r.group})`,
-    head: ['Criterion', 'Required', 'Project average', 'This reservoir', 'Verdict', 'Distance to the limit', 'Reason', 'Source'],
-    rows: r.verdicts.map((v) => [v.criterion, requiredText(v, sys), averageText(v, sys) || EMPTY_VALUE, actualText(v, sys), STATUS_WORDS[v.status], distanceText(v, sys), reasonText(v, sys) || EMPTY_VALUE, v.source || EMPTY_VALUE]),
-    note: `Oil composition guide (not screened: the app has no composition input): ${r.composition}.`,
+    head: ['Criterion', 'Required', 'Project average', 'Range of current projects', 'This reservoir', 'Verdict', 'Distance to the limit', 'Reason', 'Source'],
+    rows: r.verdicts.map((v) => [v.criterion, requiredText(v, sys), averageText(v, sys) || EMPTY_VALUE, projectRangeText(r.id, v, sys) || EMPTY_VALUE, actualText(v, sys), STATUS_WORDS[v.status], distanceText(v, sys), reasonText(v, sys) || EMPTY_VALUE, v.source || EMPTY_VALUE]),
+    note: `Oil composition guide (not screened: the app has no composition input): ${r.composition}. ${PROJECT_RANGES[r.id] ? `Range of current projects: ${PROJECT_RANGES[r.id].source}, the field projects of 1996, for context; never scored.` : 'Part 2 prints no range of current projects for this method.'}`,
     outcome: r.outcome,
   }));
 
