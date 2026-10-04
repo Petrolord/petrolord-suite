@@ -9,6 +9,8 @@ import { METHODS, CORR_FIELDS, fmtPct } from '@/components/rfestimator/rfFields'
 import { rfPvtSourceText } from '@/utils/rfestimator/pvtIntake';
 import RfField from './RfField';
 import PvtPanel from './PvtPanel';
+import GasZPanel from './GasZPanel';
+import { Z_METHOD_DAK } from '@/utils/rfestimator/gasZ';
 
 const MethodPanel = () => {
   const {
@@ -16,7 +18,10 @@ const MethodPanel = () => {
   } = useRfEstimator();
   const corrFields = CORR_FIELDS[inputs.method] || [];
   const flagged = new Set(derived.flags.filter((f) => f.scope === 'input' || f.scope === 'consistency').map((f) => f.key));
+  // RF-U2-003: zi and za computed by Dranchuk-Abou-Kassem show the value used, not editable
+  const zComputed = (k) => inputs.phase === 'gas' && inputs.zMethod === Z_METHOD_DAK && (k === 'zi' || k === 'za');
   const note = (key) => {
+    if (zComputed(key)) return 'Dranchuk-Abou-Kassem, computed';
     const pvt = rfPvtSourceText(pvtIntake, 'corr', key, inputs.corr[key]);
     if (pvt) return pvt.startsWith('Edited') ? 'Edited after the Fluid intake' : 'From Fluid Systems Studio';
     if (derived.sampleKeys.has(`corr.${key}`)) return 'Sample value';
@@ -43,11 +48,13 @@ const MethodPanel = () => {
         {result.analog?.notes && <p className="text-xs text-pl-muted">{result.analog.notes}</p>}
       </div>
 
+      <GasZPanel />
       {corrFields.length > 0 && (
         <div className="grid grid-cols-2 gap-3 pt-2 border-t border-pl-border">
           {corrFields.map(([k, lbl, kind]) => (
-            <RfField key={k} id={`rf-corr-${k}`} label={lbl} kind={kind} u={u} value={inputs.corr[k] ?? ''}
-              onChange={(v) => setCorrField(k, v)} flagged={flagged.has(k)} note={note(k)} />
+            <RfField key={`${k}-${zComputed(k)}`} id={`rf-corr-${k}`} label={lbl} kind={kind} u={u}
+              value={zComputed(k) ? String(parseFloat(Number(derived.inputsUsed?.corr?.[k]).toPrecision(5)) || '') : (inputs.corr[k] ?? '')}
+              disabled={zComputed(k)} onChange={(v) => setCorrField(k, v)} flagged={flagged.has(k)} note={note(k)} />
           ))}
         </div>
       )}

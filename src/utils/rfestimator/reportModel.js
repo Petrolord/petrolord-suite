@@ -21,6 +21,7 @@ import { rfUnits } from './units.js';
 import { IDENTIFICATION_FIELDS } from './model.js';
 import { rfPvtSourceText } from './pvtIntake.js';
 import { inPlaceSourceText } from './inPlaceIntake.js';
+import { Z_METHOD_DAK, Z_REFERENCE, zMethodLabel } from './gasZ.js';
 
 export const REPORT_TITLE = 'Recovery Factor Report';
 export const APP_NAME = 'Petrolord Recovery Factor Estimator';
@@ -51,6 +52,11 @@ export function engineInputOf(inputs) {
   const corr = {};
   for (const [k] of CORR_FIELDS[method] || []) corr[k] = inputs?.corr?.[k];
   const out = { method, driveCode: inputs?.driveCode, correlationInputs: corr };
+  // RF-U2-003: z by Dranchuk-Abou-Kassem reads gas gravity, temperature and pi
+  if (inputs?.phase === 'gas' && inputs?.zMethod === Z_METHOD_DAK) {
+    out.gasZ = { gasGravity: inputs?.corr?.gasGravity, tempF: inputs?.corr?.tempF };
+    if (!('pi' in corr)) out.gasZ.pi = inputs?.corr?.pi; // pi printed with the method inputs otherwise
+  }
   if (inputs?.inPlaceMode === 'direct') out.ooip = inputs?.ooipDirect;
   else {
     const fields = inputs?.phase === 'gas' ? VOL_FIELDS_GAS : VOL_FIELDS_OIL;
@@ -106,6 +112,10 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
     return sourceText(meta[metaKey]);
   };
   const shown = (kind, v) => (Number.isFinite(num(v)) ? g(u.show(kind, num(v)), 6) : '');
+  // RF-U2-003: the values the engine read (zi, za and Bgi computed on Dranchuk-Abou-Kassem)
+  const used = derived.inputsUsed || inputs;
+  const gz = derived.gasZ;
+  const zSource = (what) => `Computed (${what}): ${Z_REFERENCE}`;
 
   const inputRows = [];
   const add = (key, label, value, unit, source, engineKeys) => {
@@ -122,11 +132,23 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
       auto || sourceText(meta.ooipDirect), ['ooip']);
   } else {
     for (const [k, , kind] of gas ? VOL_FIELDS_GAS : VOL_FIELDS_OIL) {
+      if (k === 'bgi' && gz?.ok) { add('vol.bgi', `${PLAIN_LABELS.bgi} (volumetrics)`, shown(kind, used.vol.bgi), u.label(kind), zSource('Bgi at pi'), ['vol.bgi']); continue; }
       add(`vol.${k}`, `${PLAIN_LABELS[k]} (volumetrics)`, shown(kind, inputs.vol?.[k]), u.label(kind), srcOf('vol', k, inputs.vol?.[k]), [`vol.${k}`]);
     }
   }
+  const corrKeys = (CORR_FIELDS[method] || []).map(([k]) => k);
   for (const [k, , kind] of CORR_FIELDS[method] || []) {
+    if ((k === 'zi' || k === 'za') && gz?.ok && used.corr?.[k] != null && (k === 'zi' || gz.za)) {
+      add(`corr.${k}`, PLAIN_LABELS[k], shown(kind, used.corr[k]), u.label(kind), zSource(k === 'zi' ? 'z at pi' : 'z at pa'), [`correlationInputs.${k}`]);
+      continue;
+    }
     add(`corr.${k}`, PLAIN_LABELS[k], shown(kind, inputs.corr?.[k]), u.label(kind), srcOf('corr', k, inputs.corr?.[k]), [`correlationInputs.${k}`]);
+  }
+  // RF-U2-003: what the z computation read
+  if (gas && inputs.zMethod === Z_METHOD_DAK) {
+    add('corr.gasGravity', PLAIN_LABELS.gasGravity, shown('dimensionless', inputs.corr?.gasGravity), '', srcOf('corr', 'gasGravity', inputs.corr?.gasGravity), ['gasZ.gasGravity']);
+    add('corr.tempF', PLAIN_LABELS.tempF, shown('temperature', inputs.corr?.tempF), u.label('temperature'), srcOf('corr', 'tempF', inputs.corr?.tempF), ['gasZ.tempF']);
+    if (!corrKeys.includes('pi')) add('corr.pi', PLAIN_LABELS.pi, shown('pressure', inputs.corr?.pi), u.label('pressure'), srcOf('corr', 'pi', inputs.corr?.pi), ['gasZ.pi']);
   }
   const inputsNote = 'Every value the estimate read, in the display units. A value taken from another app names it; a sample value is labelled as such; "Entered, source not stated" means nobody said where the number came from.';
 
@@ -221,6 +243,7 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
     ['In-place volume', ipBasis],
     ['Recoverable volume', 'Technically recoverable volume RF x in-place; no economic limit, no development plan and no PRMS classification applied'],
     ['Pressures', 'Absolute, as entered; no datum correction'],
+    ...(gas ? [['Gas z factor and Bgi', inputs.zMethod === Z_METHOD_DAK ? `${zMethodLabel(Z_METHOD_DAK)}: ${Z_REFERENCE}; Bgi in ft3/scf at pi` : zMethodLabel('typed')]] : []),
     ['Range', 'Low and high are the edges of the analog screening range of the drive named, not P90 and P10 of a distribution'],
     ['Display units', u.line()],
     ['Uncertainty', derived.uncertainty?.ok ? `Seeded Monte Carlo on the Suite's canonical sampler, seed ${derived.uncertainty.seed}, ${derived.uncertainty.accepted} realisations. ${derived.uncertainty.convention}` : 'Not run: the estimate is deterministic'],
@@ -275,6 +298,7 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
   const flags = [...(r.withheld ? [r.withheld] : []), ...derived.flags.map((f) => f.text)];
   if (derived.uncertainty && !derived.uncertainty.ok) flags.push(`Uncertainty not run: ${derived.uncertainty.errors.join(' ')}`);
   if (s.migration?.note) flags.push(s.migration.note);
+  if (s.migration?.zNote && gas && inputs.zMethod === 'typed') flags.push(s.migration.zNote);
 
   // ---- intake blocks (RL11) -------------------------------------------------
   const pvtBlock = s.pvtIntake?.contract ? [

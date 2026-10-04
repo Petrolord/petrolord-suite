@@ -56,7 +56,7 @@ export function reviewerPayload({ system = 'oilfield' } = {}) {
 
 /** A volumetric gas case on p/z depletion. */
 export function gasPayload() {
-  const inputs = { ...sampleInputs(), origin: 'entered', phase: 'gas', method: 'gas_pz', driveCode: 'gas_volumetric' };
+  const inputs = { ...sampleInputs(), origin: 'entered', phase: 'gas', method: 'gas_pz', driveCode: 'gas_volumetric', zMethod: 'typed' };
   inputs.vol = { area: '2500', thickness: '60', phi: '0.18', sw: '0.25', ntg: '0.9', boi: '1.3', bgi: '0.0045' };
   inputs.corr = { ...inputs.corr, pi: '4000', zi: '0.9', pa: '800', za: '0.95' };
   return { payloadVersion: RF_PAYLOAD_VERSION, name: 'Gas p/z', inputs, identification: { field: 'Ekene', reservoir: 'G-1 gas' }, inputMeta: {} };

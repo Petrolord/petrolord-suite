@@ -17,7 +17,7 @@ import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjec
 import { setProvenanceField, serializeProvenance, deserializeProvenance } from '@/lib/inputProvenance';
 import {
   RF_PAYLOAD_VERSION, RF_PROJECTS_TABLE, DEFAULT_DRIVE, DEFAULT_IDENTIFICATION,
-  defaultInputs as modelDefaultInputs, inputsFromPayload as modelInputsFromPayload, migrateRfPayload, sampleInputs,
+  defaultInputs as modelDefaultInputs, inputsFromPayload as modelInputsFromPayload, migrateRfPayload, sampleInputs, zKeptNote,
 } from '@/utils/rfestimator/model';
 import { deriveRf } from '@/utils/rfestimator/workspace';
 import { rfUnits } from '@/utils/rfestimator/units';
@@ -92,6 +92,7 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
   }, [edit]);
 
   const setMethod = useCallback((method) => edit((prev) => ({ ...prev, method })), [edit]);
+  const setZMethod = useCallback((zMethod) => edit((prev) => ({ ...prev, zMethod })), [edit]);
   const setDriveCode = useCallback((driveCode) => edit((prev) => ({ ...prev, driveCode })), [edit]);
   const setInPlaceMode = useCallback((inPlaceMode) => edit((prev) => ({ ...prev, inPlaceMode: inPlaceMode === 'direct' ? 'direct' : 'volumetric' })), [edit]);
   const setOoipDirect = useCallback((value) => edit((prev) => ({ ...prev, ooipDirect: value, origin: 'entered' })), [edit]);
@@ -109,8 +110,11 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
 
   /** A pvt-1 intake: values land in the method and volumetric inputs, the record is kept. */
   const takePvt = useCallback((patch, intake) => {
+    // RF-U2-003: z or Bgi taken from Fluid Systems Studio are used as received (typed method)
+    const takesZ = ['zi', 'za'].some((k) => patch?.corr?.[k] != null) || patch?.vol?.bgi != null;
     edit((prev) => ({
       ...prev,
+      ...(takesZ ? { zMethod: 'typed' } : {}),
       corr: { ...prev.corr, ...(patch?.corr || {}) },
       vol: { ...prev.vol, ...(patch?.vol || {}) },
       origin: prev.origin === 'sample' ? 'sample-edited' : prev.origin,
@@ -159,7 +163,8 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
     setUnitSystemSaved(payload.unitSystem === 'si' || payload.unitSystem === 'oilfield' ? payload.unitSystem : null);
     setPvtIntake(payload.pvtIntake || null);
     setInPlaceIntake(payload.inPlaceIntake || null);
-    setMigration(payload.migratedFrom ? { from: payload.migratedFrom, note: payload.apiBasisNote || null } : null);
+    const zNote = zKeptNote(raw);
+    setMigration(payload.migratedFrom || zNote ? { from: payload.migratedFrom || null, note: payload.apiBasisNote || null, zNote } : null);
     return true;
   }, []);
 
@@ -319,7 +324,7 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
     setOoipDirect,
     setVolField,
     setCorrField,
-    setMcField, setMcEnabled, newMcSeed,
+    setMcField, setMcEnabled, newMcSeed, setZMethod,
     uncertainty: derived.uncertainty,
     loadSample,
     // report, sources, units, intakes

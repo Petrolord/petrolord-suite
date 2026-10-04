@@ -59,6 +59,7 @@ export const PLAIN_LABELS = Object.freeze({
   zi: 'Gas deviation factor at pi, zi', za: 'Gas deviation factor at pa, za', sgr: 'Residual gas saturation Sgr',
   sweep: 'Volumetric sweep efficiency Ev', area: 'Area A', thickness: 'Net pay h', sw: 'Water saturation Sw',
   ntg: 'Net-to-gross NTG', bgi: 'Initial gas FVF Bgi',
+  gasGravity: 'Gas gravity (air = 1)', tempF: 'Reservoir temperature',
 });
 
 export const fmtPct = (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : `${(v * 100).toFixed(1)}%`);
