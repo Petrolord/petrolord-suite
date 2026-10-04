@@ -510,6 +510,8 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
   // transient-linear window bounds (days); persisted with the project
   const [rtaRows, setRtaRows] = useState([]);
   const [rtaWindows, setRtaWindows] = useState({ linMin: '', linMax: '' });
+  // WTA-U1-010: what the production import read, for the read-back and the report
+  const [rtaImport, setRtaImport] = useState(null);
   const setRtaWindowField = useCallback((k, v) => setRtaWindows((prev) => ({ ...prev, [k]: v })), []);
 
   // Transient auto-fit state (regression on demand, never persisted)
@@ -995,8 +997,9 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
     unitSystem,
     rtaRows,
     rtaWindows,
+    rtaImport,
     modified: new Date().toISOString(),
-  }), [currentProjectId, projectName, wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows]);
+  }), [currentProjectId, projectName, wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows, rtaImport]);
 
   const hydrate = useCallback((payload) => {
     setWellName(payload?.wellName || '');
@@ -1025,6 +1028,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
     setUnitSystemRaw(UNIT_SYSTEMS.includes(payload?.unitSystem) ? payload.unitSystem : 'oilfield');
     setRtaRows(Array.isArray(payload?.rtaRows) ? payload.rtaRows : []);
     setRtaWindows({ linMin: '', linMax: '', ...(payload?.rtaWindows || {}) });
+    setRtaImport(payload?.rtaImport && typeof payload.rtaImport === 'object' ? payload.rtaImport : null);
     setFitResult(null);
     hasFitResult.current = false;
     setFitStale(false);
@@ -1145,7 +1149,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows, currentProjectId, hydrated]);
+  }, [wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows, rtaImport, currentProjectId, hydrated]);
 
   const value = {
     // shell plumbing
@@ -1177,6 +1181,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
     unitSystem, setUnitSystem, profileUnitSystem,
     rtaRows, setRtaRows,
     rtaWindows, setRtaWindowField,
+    rtaImport, setRtaImport,
     // derived
     reservoirSpec, configSpec, model,
     prepared, loglog, regimes, flowPeriods, pseudoTime, rtaResult,

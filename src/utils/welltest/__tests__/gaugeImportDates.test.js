@@ -39,4 +39,14 @@ describe('gauge import: day-first date stamps', () => {
     const out = importGaugeCsv('Date Time,P (psia)\n2026-09-01 06:00:00,2880\n2026-09-01 07:30:00,2950\n');
     expect(out.rows.map((r) => r.t)).toEqual([0, 1.5]);
   });
+
+  test('the e2e hostile file: day-first stamps in psig', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const out = importGaugeCsv(fs.readFileSync(path.join(process.cwd(), 'e2e/fixtures/welltest/hostile/gauge-dayfirst-psig.csv'), 'utf8'));
+    expect(out.mapping).toMatchObject({ timeUnit: 'datetime', dateOrder: 'dmy', pressureUnit: 'psig' });
+    expect(out.skipped).toBe(0);
+    expect(out.rows).toHaveLength(60);
+    expect(out.rows[59].t).toBeCloseTo(100 - 0.01, 6); // 22:00:36 on the 12th to 02:00 on the 17th, from the first reading
+  });
 });

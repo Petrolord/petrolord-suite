@@ -132,6 +132,7 @@ export const collectReportArgs = (ctx) => ({
   multiRateResult: ctx.multiRateResult,
   deliverabilityResult: ctx.deliverabilityResult,
   rtaResult: ctx.rtaResult,
+  rtaImport: ctx.rtaImport,
   regimes: ctx.regimes,
   notes: ctx.notes,
   unitSystem: ctx.unitSystem,
@@ -340,7 +341,9 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
     if (rtaResult.linear) {
       rows.push([`Transient linear xf sqrt(k) (${unitSystem === 'si' ? 'm' : 'ft'} sqrt(md))`, sig3(u('xfSqrtK', rtaResult.linear.xfSqrtK))]);
     }
-    table('Rate transient analysis (production data)', ['Quantity', 'Value'], rows);
+    table('Rate transient analysis (production data)', ['Quantity', 'Value'], rows, {
+      note: a.rtaImport?.text ? `Production data: ${a.rtaImport.fileName ? `${a.rtaImport.fileName}, ` : ''}${a.rtaImport.text}` : undefined,
+    });
   }
 
   // WTA-U1-007 (RL9): what the interpretation assumes, and the z range
