@@ -96,13 +96,14 @@ Inputs and their sources
                                                                                         Systems Studio project "Good Oil Well No. 4 PVT"
                                                                                         (2026-10-02 09:00 UTC)
 
- Porosity                                      0.22                   frac              Measured (lab)
+ Porosity                                      0.22                   frac              The volumetric value (one value per case): Porosity,
+                                                                                        source above
 
- Initial water saturation Swi                  0.28                   frac              Correlation: Archie
+ Initial water saturation Swi                  0.28                   frac              The volumetric value (one value per case): Water
+                                                                                        saturation Sw, source above
 
- Initial oil FVF Boi                           1.444                  RB/STB            Correlation: Standing, at 4200 psia (pi), from Fluid
-                                                                                        Systems Studio project "Good Oil Well No. 4 PVT"
-                                                                                        (2026-10-02 09:00 UTC)
+ Initial oil FVF Boi                           1.444                  RB/STB            The volumetric value (one value per case): Initial oil FVF
+                                                                                        Boi, source above
 
  Permeability k                                150                    md                Measured (lab). Core plug geometric mean
 

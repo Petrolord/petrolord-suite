@@ -8,6 +8,7 @@ import { useRfEstimator } from '@/contexts/RfEstimatorContext';
 import { METHODS, corrFieldsFor, fmtPct } from '@/components/rfestimator/rfFields';
 import { rfPvtSourceText } from '@/utils/rfestimator/pvtIntake';
 import { driveSuggestion } from '@/utils/rfestimator/inPlaceIntake';
+import { LINKED_KEYS } from '@/utils/rfestimator/model';
 import RfField from './RfField';
 import PvtPanel from './PvtPanel';
 import GasZPanel from './GasZPanel';
@@ -15,8 +16,12 @@ import { Z_METHOD_DAK } from '@/utils/rfestimator/gasZ';
 
 const MethodPanel = () => {
   const {
-    inputs, drives, result, derived, u, pvtIntake, inPlaceIntake, setMethod, setDriveCode, setCorrField, canWrite,
+    inputs, drives, result, derived, u, pvtIntake, inPlaceIntake, setMethod, setDriveCode, setCorrField, canWrite, setLinked,
   } = useRfEstimator();
+  // RF-U2-012: one porosity, Swi and Boi per case: linked, the method reads the volumetric values
+  const linkable = inputs.inPlaceMode !== 'direct';
+  const linkedKey = (k) => linkable && inputs.linked && LINKED_KEYS[k] != null;
+  const hasLinkable = corrFieldsFor(inputs).some(([k]) => LINKED_KEYS[k] != null);
   // RF-U2-008: the drive the Material Balance indices suggest (never applied silently)
   const suggestion = driveSuggestion(inPlaceIntake, inputs.phase, inputs.driveCode);
   const corrFields = corrFieldsFor(inputs);
@@ -25,6 +30,7 @@ const MethodPanel = () => {
   const zComputed = (k) => inputs.phase === 'gas' && inputs.zMethod === Z_METHOD_DAK && (k === 'zi' || k === 'za');
   const note = (key) => {
     if (zComputed(key)) return 'Dranchuk-Abou-Kassem, computed';
+    if (linkedKey(key)) return 'The volumetric value (one value per case)';
     const pvt = rfPvtSourceText(pvtIntake, 'corr', key, inputs.corr[key]);
     if (pvt) return pvt.startsWith('Edited') ? 'Edited after the Fluid intake' : 'From Fluid Systems Studio';
     if (derived.sampleKeys.has(`corr.${key}`)) return 'Sample value';
@@ -74,12 +80,18 @@ const MethodPanel = () => {
         </div>
       )}
       <GasZPanel />
+      {hasLinkable && linkable && (
+        <label className="flex items-start gap-2 text-[11px] text-pl-text" data-testid="rf-linked">
+          <input type="checkbox" className="mt-0.5" checked={!!inputs.linked} onChange={(e) => setLinked(e.target.checked)} data-testid="rf-linked-box" />
+          <span>One porosity, Swi and Boi per case: the method reads the volumetric values. Untick to state other values for the method (an override, flagged where they differ).</span>
+        </label>
+      )}
       {corrFields.length > 0 && (
         <div className="grid grid-cols-2 gap-3 pt-2 border-t border-pl-border">
           {corrFields.map(([k, lbl, kind]) => (
-            <RfField key={`${k}-${zComputed(k)}`} id={`rf-corr-${k}`} label={lbl} kind={kind} u={u}
-              value={zComputed(k) ? String(parseFloat(Number(derived.inputsUsed?.corr?.[k]).toPrecision(5)) || '') : (inputs.corr[k] ?? '')}
-              disabled={zComputed(k)} onChange={(v) => setCorrField(k, v)} flagged={flagged.has(k)} note={note(k)} />
+            <RfField key={`${k}-${zComputed(k)}-${linkedKey(k)}`} id={`rf-corr-${k}`} label={lbl} kind={kind} u={u}
+              value={zComputed(k) ? String(parseFloat(Number(derived.inputsUsed?.corr?.[k]).toPrecision(5)) || '') : linkedKey(k) ? (inputs.vol[LINKED_KEYS[k]] ?? '') : (inputs.corr[k] ?? '')}
+              disabled={zComputed(k) || linkedKey(k)} onChange={(v) => setCorrField(k, v)} flagged={flagged.has(k)} note={note(k)} />
           ))}
         </div>
       )}

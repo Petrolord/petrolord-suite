@@ -53,6 +53,8 @@ export function sampleInputs() {
     // RF-U2-003: gas gravity and temperature for z by Dranchuk-Abou-Kassem
     corr: { ...asStrings(d.correlationInputs), gasGravity: '0.65', tempF: '180' },
     zMethod: Z_METHOD_DAK,
+    // RF-U2-012: one porosity, Swi and Boi per case (the method reads the volumetric values)
+    linked: true,
     // RF-U2-002: the uncertainty run (off until asked for; the seed is drawn when it is switched on)
     mc: { ...RF_MC_DEFAULTS },
     origin: 'sample',
@@ -76,6 +78,8 @@ export function inputsFromPayload(payload) {
     vol: { ...base.vol, ...(raw.vol || {}) },
     corr: { ...base.corr, ...(raw.corr || {}) },
     mc: { ...RF_MC_DEFAULTS, ...(isRecord(raw.mc) ? raw.mc : {}) },
+    // RF-U2-012: a project saved before keeps two values where they differ (its numbers do not move)
+    linked: typeof raw.linked === 'boolean' ? raw.linked : sharedValuesAgree({ ...base.vol, ...(raw.vol || {}) }, { ...base.corr, ...(raw.corr || {}) }),
     // RF-U2-003: a project saved before the z method existed keeps its typed z
     zMethod: Z_METHODS.includes(raw.zMethod) ? raw.zMethod : Z_METHOD_TYPED,
     // a project saved before RF-U1 cannot say whether it still holds the sample
@@ -117,4 +121,23 @@ export function zKeptNote(payload) {
   const raw = isRecord(payload.inputs) ? payload.inputs : payload;
   // an oil case reads no z: nothing to say
   return raw.phase !== 'gas' || Z_METHODS.includes(raw.zMethod) ? null : Z_KEPT_NOTE;
+}
+
+/** RF-U2-012: the volumetric key each linked method input reads. */
+export const LINKED_KEYS = Object.freeze({ phi: 'phi', swi: 'sw', boi: 'boi' });
+
+/** Do the volumetric and method values of porosity, Swi and Boi agree? */
+export function sharedValuesAgree(vol, corr) {
+  return Object.entries(LINKED_KEYS).every(([c, v]) => {
+    const a = parseFloat(vol?.[v]); const b = parseFloat(corr?.[c]);
+    return (!Number.isFinite(a) && !Number.isFinite(b)) || (Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= 1e-12);
+  });
+}
+
+/** The inputs the method reads with porosity, Swi and Boi taken from the volumetrics (linked, volumetric mode). */
+export function inputsWithLinked(inputs) {
+  if (!inputs?.linked || inputs.inPlaceMode === 'direct') return inputs;
+  const corr = { ...inputs.corr };
+  for (const [c, v] of Object.entries(LINKED_KEYS)) if (inputs.vol?.[v] != null && inputs.vol[v] !== '') corr[c] = inputs.vol[v];
+  return { ...inputs, corr };
 }

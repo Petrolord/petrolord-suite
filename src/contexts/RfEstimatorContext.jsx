@@ -93,6 +93,7 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
   }, [edit]);
 
   const setMethod = useCallback((method) => edit((prev) => ({ ...prev, method })), [edit]);
+  const setLinked = useCallback((on) => edit((prev) => ({ ...prev, linked: !!on })), [edit]);
   const setZMethod = useCallback((zMethod) => edit((prev) => ({ ...prev, zMethod })), [edit]);
   const setDriveCode = useCallback((driveCode) => edit((prev) => ({ ...prev, driveCode })), [edit]);
   const setInPlaceMode = useCallback((inPlaceMode) => edit((prev) => ({ ...prev, inPlaceMode: inPlaceMode === 'direct' ? 'direct' : 'volumetric' })), [edit]);
@@ -328,7 +329,7 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
     setOoipDirect,
     setVolField,
     setCorrField,
-    setMcField, setMcEnabled, newMcSeed, setZMethod,
+    setMcField, setMcEnabled, newMcSeed, setZMethod, setLinked,
     uncertainty: derived.uncertainty,
     loadSample,
     // report, sources, units, intakes

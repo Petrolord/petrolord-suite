@@ -14,7 +14,7 @@
 import {
   estimateRecovery, stoiipVolumetric, ogipVolumetric, volumetricInputFlags, DRIVE_MECHANISMS,
 } from '@/utils/recoveryFactorCalculations';
-import { sampleKeysInUse } from './model';
+import { sampleKeysInUse, inputsWithLinked } from './model';
 import { rfUncertainty } from './uncertainty.js';
 import { rfGasZ, inputsWithGasZ } from './gasZ.js';
 
@@ -60,7 +60,8 @@ export function deriveRf(typed, { inPlaceIntake = null, pvtIntake = null } = {})
   // RF-U2-003: a gas case on Dranchuk-Abou-Kassem reads zi, za and Bgi from the
   // canonical engines; every engine call below takes the inputs as used
   const gasZ = rfGasZ(typed);
-  const inputs = inputsWithGasZ(typed, gasZ);
+  // RF-U2-012: linked, the method reads the volumetric porosity, Swi and Boi
+  const inputs = inputsWithGasZ(inputsWithLinked(typed), gasZ);
   const phase = inputs?.phase === 'gas' ? 'gas' : 'oil';
   const direct = inputs?.inPlaceMode === 'direct';
   const parts = direct ? null : inPlaceParts(inputs?.vol, phase);
@@ -81,7 +82,7 @@ export function deriveRf(typed, { inPlaceIntake = null, pvtIntake = null } = {})
   // fields are separate boxes; a difference is said, never reconciled silently.
   const consistency = [];
   const shared = { api_solution_gas: ['phi', 'swi'], api_water_drive: ['phi', 'swi', 'boi'], gas_water_drive: ['swi'] }[inputs?.method] || [];
-  if (!direct) {
+  if (!direct && !typed?.linked) {
     for (const [v, c, label] of [['phi', 'phi', 'Porosity'], ['sw', 'swi', 'Water saturation'], ['boi', 'boi', 'Boi']]) {
       if (!shared.includes(c)) continue;
       const a = num(inputs.vol?.[v]); const b = num(inputs.corr?.[c]);

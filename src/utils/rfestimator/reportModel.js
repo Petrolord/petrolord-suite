@@ -18,7 +18,7 @@ import {
 } from '@/utils/recoveryFactorCalculations';
 import { corrFieldsFor, VOL_FIELDS_OIL, VOL_FIELDS_GAS, PLAIN_LABELS, methodLabel } from '@/components/rfestimator/rfFields';
 import { rfUnits } from './units.js';
-import { IDENTIFICATION_FIELDS } from './model.js';
+import { IDENTIFICATION_FIELDS, LINKED_KEYS } from './model.js';
 import { rfPvtSourceText } from './pvtIntake.js';
 import { inPlaceSourceText, driveSuggestion } from './inPlaceIntake.js';
 import { Z_METHOD_DAK, Z_REFERENCE, zMethodLabel } from './gasZ.js';
@@ -141,6 +141,10 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
   for (const [k, , kind] of corrFieldsFor(inputs)) {
     if ((k === 'zi' || k === 'za') && gz?.ok && used.corr?.[k] != null && (k === 'zi' || gz.za)) {
       add(`corr.${k}`, PLAIN_LABELS[k], shown(kind, used.corr[k]), u.label(kind), zSource(k === 'zi' ? 'z at pi' : 'z at pa'), [`correlationInputs.${k}`]);
+      continue;
+    }
+    if (inputs.linked && inputs.inPlaceMode !== 'direct' && LINKED_KEYS[k]) {
+      add(`corr.${k}`, PLAIN_LABELS[k], shown(kind, used.corr?.[k]), u.label(kind), `The volumetric value (one value per case): ${PLAIN_LABELS[LINKED_KEYS[k]] || LINKED_KEYS[k]}, source above`, [`correlationInputs.${k}`]);
       continue;
     }
     add(`corr.${k}`, PLAIN_LABELS[k], shown(kind, inputs.corr?.[k]), u.label(kind), srcOf('corr', k, inputs.corr?.[k]), [`correlationInputs.${k}`]);
