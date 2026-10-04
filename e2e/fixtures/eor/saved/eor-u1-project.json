@@ -1,0 +1,54 @@
+{
+ "id": "e0e00001-0000-4000-8000-000000000001",
+ "name": "Ekene EOR screen (EOR-U1 release)",
+ "schema": 1,
+ "inputs": {
+  "form": {
+   "gravityApi": "34",
+   "viscosityCp": "1.1",
+   "oilSatPct": "42",
+   "formation": "sandstone",
+   "netThicknessFt": "60",
+   "permeabilityMd": "150",
+   "depthFt": "7200",
+   "temperatureF": "190"
+  },
+  "context": {
+   "reservoirPressurePsia": "3150",
+   "saturationPressurePsia": "",
+   "ooipStb": ""
+  },
+  "unitSystem": "oilfield",
+  "depthReference": "tvdss",
+  "identification": {
+   "company": "Lordsway Energy",
+   "field": "Ekene",
+   "licence": "OML 999",
+   "reservoir": "E-2000 sand",
+   "wells": "EK-3, EK-7",
+   "dataDate": "2026-09-30",
+   "analyst": "A. Analyst"
+  },
+  "inputMeta": {
+   "gravityApi": {
+    "source": "lab",
+    "note": "PVT report 2024-11, separator oil"
+   },
+   "oilSatPct": {
+    "source": "correlation",
+    "correlation": "Material balance remaining oil"
+   },
+   "permeabilityMd": {
+    "source": "entered",
+    "note": "Core average, EK-3"
+   }
+  },
+  "intakes": {
+   "pvt": null,
+   "wta": null,
+   "mbal": null
+  },
+  "sampleNote": null
+ },
+ "modified": "2026-10-04T12:00:00.000Z"
+}

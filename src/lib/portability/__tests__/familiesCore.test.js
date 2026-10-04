@@ -93,7 +93,7 @@ const ids = (rows) => { const s = new Set(); for (const r of rows) { const { pro
 describe('family registry', () => {
   test('families are registered in insertion order and every table has a spec', () => {
     expect(listFamilies().map((f) => f.name)).toEqual(['geoscience', 'apps', 'production', 'economics', 'simulation', 'wellplanning', 'seismic', 'wellsite', 'material_balance']);
-    expect(SAVED_PROJECT_TABLES).toHaveLength(52);
+    expect(SAVED_PROJECT_TABLES).toHaveLength(53); // EOR-U1 added saved_eor_screening_projects
     expect(SAVED_PROJECT_TABLES).toEqual(expect.arrayContaining(['scm_materials_projects', 'scm_marine_projects']));
     for (const t of SAVED_PROJECT_TABLES) expect(tableSpec(t)).toMatchObject({ family: 'apps', kind: `saved-project:${t}`, stamped: true });
     expect(rootTable('saved_project')).toEqual({ family: 'apps', table: '*' });

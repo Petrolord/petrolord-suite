@@ -309,6 +309,9 @@ Corrections after Step 1 (VRR-U1, 2026-10-04): RL10 was F, not Pa. The importer 
 
 ### 4.10 Recovery Factor Estimator
 
+Corrections after Step 1 (RF-U1, 2026-10-04): code reading missed an S1. The API (1967) correlations are written for k in darcies and the engine used md, so every API estimate was 1.7 to 2 times high (sample water drive 72.0 percent for 42.3). RL8 was F, not Pa: the clamp hid values at both ends (1 and 95 percent). RL1, RL4, RL6 and RL12 F confirmed. Details in `docs/upgrade/RecoveryFactorEstimator-UPGRADE.md`.
+
+
 No export. Saves inputs to `saved_rf_projects`.
 
 | RL | Grade | Evidence |

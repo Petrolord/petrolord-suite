@@ -1,0 +1,283 @@
+Recovery Factor Report
+Petrolord Recovery Factor Estimator
+
+Project                     Gas p/z                                            Company                n/a
+Field                       Ekene                                              Licence or block       n/a
+Reservoir or zone           G-1 gas                                            Wells or area          n/a
+Analyst                     n/a                                                Data as of             n/a
+Fluid                       Gas                                                Analysis type          Recovery factor screening: p/z depletion
+                                                                                                      (exact)
+Case data                   Entered by the user                                Software build         Petrolord Suite test (fixture)
+Engine                      rf-2 (2026-10, RF-U1)                              Display units          SI
+Generated                   2026-10-04 09:00 UTC
+
+
+Headline results
+ Quantity                                 Value                      Unit           Basis
+
+ Recovery factor                          81.1                       percent        p/z depletion (exact); fraction of OGIP at stock-tank (standard)
+                                                                                    conditions
+
+ Analog range, low edge to high edge      70 to 90                   percent        Gas: volumetric depletion; edges of a screening range, not P90
+                                                                                    and P10
+
+ OGIP                                     4.9956                     10^9 sm3       volumetric, from the inputs below
+
+ Recoverable volume, estimate             4.0491                     10^9 sm3       RF x OGIP; technically recoverable, no economic limit, not a
+                                                                                    PRMS reserves class
+
+ Recoverable volume at the range          3.4969 to 4.496            10^9 sm3       Analog range edges x in-place volume
+ edges
+
+
+OGIP by its parts
+ Step                                                       Value                                      Unit
+
+ Gross rock volume A h                                      185.022                                    10^6 m3
+
+ Net rock volume A h NTG                                    166.52                                     10^6 m3
+
+ Pore volume A h NTG phi                                    29.9736                                    10^6 rm3
+
+ Hydrocarbon pore volume x (1 - Sw)                         22.4802                                    10^6 rm3
+
+ Divided by Bgi                                             0.0045                                     rm3/sm3
+
+ OGIP                                                       4.9956                                     10^9 sm3
+
+OGIP (scf) = 43,560 A h NTG phi (1 - Sw) / Bgi, with Bgi in reservoir ft3 per scf. The steps close on the engine total; the constant 7,758 is 43,560
+ft3 per acre-ft over 5.6146 ft3 per bbl, rounded (0.005 percent).
+
+
+The method by its parts
+ Step                                                       Value                                              Unit
+
+ p/z at initial pressure, pi/zi                             30643.4                                            kPa(a)
+
+ p/z at abandonment, pa/za                                  5806.11                                            kPa(a)
+
+ Ratio (pa/za)/(pi/zi)                                      0.189474
+
+ Recovery factor 1 - ratio                                  0.810526                                           fraction
+
+Volumetric depletion at constant temperature: the gas produced is the fall of p/z along a straight line to the abandonment pressure.
+
+
+
+
+Recovery Factor Report, Ekene, G-1 gas                                                                                                      Page 1 of 5
+Inputs and their sources
+ Input                                            Value                  Unit              Source and quality
+
+ Fluid                                            Gas                                      Chosen in the app
+
+ Method                                           p/z depletion                            Chosen in the app
+                                                  (exact)
+
+ Primary drive mechanism (sets the analog         Gas: volumetric                          Chosen in the app
+ range)                                           depletion
+
+ Area A (volumetrics)                             1011.71                ha                Entered, source not stated
+
+ Net pay h (volumetrics)                          18.288                 m                 Entered, source not stated
+
+ Porosity (volumetrics)                           0.18                   frac              Entered, source not stated
+
+ Water saturation Sw (volumetrics)                0.25                   frac              Entered, source not stated
+
+ Net-to-gross NTG (volumetrics)                   0.9                    frac              Entered, source not stated
+
+ Initial gas FVF Bgi (volumetrics)                0.0045                 rm3/sm3           Entered, source not stated
+
+ Initial pressure pi                              27579                  kPa(a)            Entered, source not stated
+
+ Gas deviation factor at pi, zi                   0.9                                      Entered, source not stated
+
+ Abandonment pressure pa                          5515.81                kPa(a)            Entered, source not stated
+
+ Gas deviation factor at pa, za                   0.95                                     Entered, source not stated
+
+Every value the estimate read, in the display units. A value taken from another app names it; a sample value is labelled as such; "Entered, source
+not stated" means nobody said where the number came from.
+
+
+Method
+ Item                                As used in this report
+
+ Method                              p/z depletion (exact)
+
+ What it assumes                     p/z depletion: exact for a volumetric (closed, no aquifer) gas reservoir at constant temperature, RF = 1 -
+                                     (pa/za)/(pi/zi).
+
+ Reference                           Gas material balance for a volumetric reservoir (Craft and Hawkins, Applied Petroleum Reservoir Engineering)
+
+ Validation in this build            Exact relation; checked against 1 - Bgi/Bga from the canonical fluid engine at constant temperature (agreement
+                                     to 1e-12).
+
+ Analog range source                 Transcribed screening ranges (reservoir engineering texts, e.g. Ahmed, Reservoir Engineering Handbook, drive
+                                     mechanisms); not checked against a published table in this build. Typical is the app's central choice inside each
+                                     range. Low and High are the edges of the range, not P90 and P10.
+
+
+Basis and conventions
+ Item                                As used in this report
+
+ Recovery factor                     Fraction of OGIP at stock-tank (standard) conditions, printed in percent
+
+ In-place volume                     volumetric, from the inputs below
+
+ Recoverable volume                  Technically recoverable volume RF x in-place; no economic limit, no development plan and no PRMS
+                                     classification applied
+
+ Pressures                           Absolute, as entered; no datum correction
+
+ Range                               Low and high are the edges of the analog screening range of the drive named, not P90 and P10 of a distribution
+
+ Display units                       SI (area ha, thickness m, pressure kPa absolute, FVF rm3/sm3, volumes sm3, permeability mD, viscosity
+                                     mPa.s)
+
+
+
+
+Recovery Factor Report, Ekene, G-1 gas                                                                                                       Page 2 of 5
+Limits of this analysis
+- A screening estimate. It does not replace a reservoir simulation, a decline or material balance forecast, or a reserves study.
+- p/z depletion: exact for a volumetric (closed, no aquifer) gas reservoir at constant temperature, RF = 1 - (pa/za)/(pi/zi).
+- Recovery depends on the development plan, well count, secondary and tertiary recovery and economics; none of these is modelled.
+
+Domain of each method, as checked by the app
+ Method                                Domain checked by the app
+
+ API solution-gas drive                pa below pb; 0 < phi < 1; 0 < Swi < 1; Bob at least 1; k and muob above zero
+
+ API water drive                       pa below pi; 0 < phi < 1; 0 < Swi < 1; Boi at least 1; k, muwi and muoi above zero
+
+ p/z depletion                         pa below pi; z between 0.2 and 2 (the Standing-Katz chart)
+
+ Water-drive gas                       0 < Swi < 1; Sgr below 1 - Swi; 0 < Ev at most 1
+
+ Volumetrics                           0 < phi < 1; 0 < Sw < 1; 0 < NTG at most 1; Boi at least 1; Bgi between 0 and 0.1 ft3/scf
+
+
+Flags on the inputs and the result
+No input is outside the domain of its method, the estimate is inside the analog range, and nothing was edited after an intake.
+
+
+PVT source
+No Fluid Systems Studio intake: any volume factor, viscosity, pressure or z above was entered in this app.
+
+
+
+
+Recovery Factor Report, Ekene, G-1 gas                                                                                              Page 3 of 5
+Plots
+Figure 1. Recoverable volume: analog range edges and the estimate
+
+
+
+                                                                                                                                      4.496
+  Recoverable volume (10^9 sm3)
+
+
+
+
+                                                                                                    4.049
+                                   4
+                                                             3.497
+
+                                   3
+
+
+
+                                   2
+
+
+
+                                   1
+
+
+
+                                   0
+                                                         Range low edge                            Estimate                    Range high edge
+
+
+
+Bars in 10^9 sm3: the in-place volume times the low edge, the estimate and the high edge of the analog range of Gas: volumetric depletion. The
+edges bound a screening range; they are not P90 and P10.
+
+
+Figure 2. Analog recovery ranges of gas drive mechanisms
+
+                                            Low edge        Typical        High edge
+
+
+                                  100
+                                                                                             90
+
+                                        Estimate 81.1%                      80
+  Recovery factor (percent)
+
+
+
+
+                                  80                                                                                                      75
+                                                           70
+
+                                  60                                                                                     55
+
+
+
+                                  40                                                                          35
+
+
+
+                                  20
+
+
+
+                                   0
+                                                           Gas: volumetric depletion (this case)                   Gas: water drive
+
+
+
+Low edge, typical value and high edge of each range, in percent of OGIP; the drive named for this case is Gas: volumetric depletion. The dashed
+line is the estimate of 81.1 percent. Transcribed screening ranges, not validated in this build.
+
+
+
+
+Recovery Factor Report, Ekene, G-1 gas                                                                                                           Page 4 of 5
+Figure 3. p/z against the fraction of gas produced
+
+                             p/z line   Extrapolation to p/z = 0
+                 40000
+
+
+
+                 30000
+  p/z (kPa(a))
+
+
+
+
+                 20000
+
+
+
+                 10000
+
+
+
+                    0
+                         0                        0.2              0.4                        0.6                 0.8                       1
+
+                                                                   Fraction of OGIP produced, Gp/G
+
+Volumetric depletion: p/z falls on a straight line from 30643 at Gp/G = 0 to 5806.1 kPa(a) at the abandonment pressure, where Gp/G is the
+recovery factor 0.8105. Exact for a closed reservoir at constant temperature.
+
+
+
+
+Recovery Factor Report, Ekene, G-1 gas                                                                                                Page 5 of 5
+

@@ -73,7 +73,9 @@ const COVERAGE = {
   'SCAL Studio': [/PNG/i, /restores the whole\s+project/i, /kr-1 block/i, /drainage\s+or\s+imbibition/i],
   'Reservoir Simulation Studio': [/WCONINJH/, /Interval volume/i],
   'VRR Monitor': [/PVT override/i, /weakest pattern/i],
-  'Recovery Factor Estimator': [/gravity drainage/i, /water-drive gas/i, /Sample button/i],
+  // RF-U1-001: the API correlations read k in darcies; RF-U1-003: the edges are not P90 and P10;
+  // RF-U1-010: the intakes by id
+  'Recovery Factor Estimator': [/gravity drainage/i, /water-drive gas/i, /Sample button/i, /divides by 1,000/, /not P90 and P10/, /mbal-1/, /pvt-1/],
   // The three guides written for apps that previously had none. Each list
   // pins the trap that made the guide necessary in the first place.
   'EOR Screening': [
