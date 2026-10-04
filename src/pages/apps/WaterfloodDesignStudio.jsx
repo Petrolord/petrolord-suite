@@ -84,6 +84,8 @@ const WaterfloodDesignContent = () => {
     wtIntakeDone.current = true;
     if (Number.isFinite(wt.k_md) && wt.k_md > 0) {
       setDisplacementField('k_md', wt.k_md.toPrecision(3));
+      // WF-U1-026 (RL11): the source is kept with the project and printed, no longer a toast only
+      setDisplacementField('kIntake', { from: wt.source || 'Well Test Analysis Studio', at: new Date().toISOString(), value: wt.k_md.toPrecision(3) });
       addNotification(
         `Permeability ${wt.k_md.toPrecision(3)} md received from ${wt.source || 'the Well Test Analysis Studio'} and applied to the displacement inputs.`,
         'success',

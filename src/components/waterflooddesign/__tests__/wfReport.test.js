@@ -118,3 +118,14 @@ describe('the bare case and SI', () => {
     expect(text).toMatch(/sm3/);
   });
 });
+
+describe('WF-U1-026 the Well Test permeability keeps its source', () => {
+  it('prints the sender and marks an edit', () => {
+    const p = barePayload();
+    p.displacementInputs = { ...p.displacementInputs, gravityOn: true, k_md: '212', kIntake: { from: 'Well Test Analysis Studio', at: '2026-10-04T09:00:00Z', value: '212' } };
+    const row = (pl) => reportOf(pl).model.inputs.rows.find((r) => r.key === 'k_md');
+    expect(row(p).source).toMatch(/^Tested permeability from Well Test Analysis Studio \(2026-10-04\)/);
+    p.displacementInputs.k_md = '300';
+    expect(row(p).source).toMatch(/^Edited in this app after the intake \(received 212 md/);
+  });
+});

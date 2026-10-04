@@ -121,8 +121,14 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
     inputs.push(row({ key, label, value: g(n(d[key])), unit: unitOf('viscosity'), auto: pvtSource(cardKey, d[key]) || krSource(key) || (isStated(meta[key]) ? null : startSource('displacement', key, d[key])), meta: meta[key] }));
   }
   if (d.gravityOn) {
+    const ki = d.kIntake;
+    const kAuto = ki && ki.value != null
+      ? (Number(d.k_md) === Number(ki.value)
+        ? `Tested permeability from ${ki.from} (${String(ki.at || '').slice(0, 10)}); method and interval not stated by the handoff`
+        : `Edited in this app after the intake (received ${ki.value} md from ${ki.from})`)
+      : null;
     for (const [key, label, kind] of [['k_md', 'Permeability k (dip term)', 'permeability'], ['A_ft2', 'Flow area A', 'flowArea'], ['qt_rbd', 'Total rate qt', 'resRate'], ['dipDeg', 'Dip (updip positive)', 'angle'], ['gammaW', 'Water specific gravity', 'gravity'], ['gammaO', 'Oil specific gravity', 'gravity']]) {
-      inputs.push(row({ key, label, value: val(kind, d[key]), unit: unitOf(kind), auto: isStated(meta[key]) ? null : startSource('displacement', key, d[key]), meta: meta[key] }));
+      inputs.push(row({ key, label, value: val(kind, d[key]), unit: unitOf(kind), auto: (key === 'k_md' && kAuto) || (isStated(meta[key]) ? null : startSource('displacement', key, d[key])), meta: meta[key] }));
     }
   } else {
     inputs.push({ key: 'gravityOn', label: 'Dip and gravity term', value: 'Off', unit: '', source: 'Chosen in the app: horizontal displacement, no gravity term' });
