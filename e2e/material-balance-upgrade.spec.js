@@ -464,6 +464,9 @@ test.describe('MBAL U2: Step 2 Batch A and B on the harness', () => {
     await run(page);
     await expect(page.getByTestId('mbal-send-rcp')).toBeEnabled();
     await expect(page.getByTestId('mbal-send')).toContainText('contract mbal-1');
+    // EOR-U2-002: Send to EOR Screening names the same case by id
+    await page.getByTestId('mbal-send-eor').click();
+    await expect(page).toHaveURL(/\/eor-screening\?mbalCase=|\/dev\/studio\/eor\?mbalCase=/);
   });
 
   test('the volumetric estimate is taken from a saved ReservoirCalc Pro project, and the source is printed', async ({ page }) => {

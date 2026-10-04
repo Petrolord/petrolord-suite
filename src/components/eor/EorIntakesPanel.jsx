@@ -16,6 +16,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { readFluidProjectPvt, PVT_PROJECT_PARAM } from '@/lib/pvtSource';
 import { readWellTestProject, WTA_PROJECT_PARAM, WTA_TABLE } from '@/lib/wellTestSource';
 import { readMbalCase } from '@/lib/mbalCaseSource';
+import { MBAL_CASE_PARAM } from '@/lib/eorScreeningLinks';
 import { readFluidProjectBlock } from '@/pages/apps/reservoir-balance/lib/pvtIntake';
 import PvtIntakeCard from '@/lib/inputProvenance/PvtIntakeCard';
 import {
@@ -25,7 +26,7 @@ import { INPUT_DEFS } from '@/utils/eor/reportModel';
 import { useEorScreening } from '@/contexts/EorScreeningContext';
 import EorField from './EorField';
 
-export const MBAL_CASE_PARAM = 'mbalCase';
+export { MBAL_CASE_PARAM };
 // the card prints what was received, in the stored (oilfield) units
 const STORED_UNIT = { permeabilityMd: 'md', reservoirPressurePsia: 'psia', ooipStb: 'STB', saturationPressurePsia: 'psia' };
 const LABELS = Object.fromEntries(INPUT_DEFS.map((d) => [d.key, `${d.label.replace(' (context, not screened)', '')}${STORED_UNIT[d.key] ? ` (${STORED_UNIT[d.key]})` : ''}`]));
@@ -143,6 +144,11 @@ const SourceBlock = ({ kind }) => {
           {(list || []).map((p) => <option key={p.id} value={p.id}>{p.name}{p.updatedAt ? ` (saved ${String(p.updatedAt).slice(0, 10)})` : ''}</option>)}
         </select>
       </div>
+      {searchParams.get(s.param) && !intake && (
+        <p className="text-xs text-pl-info-text" data-testid={`eor-intake-named-${kind}`}>
+          Sent here from {s.title.replace(/ \(.*\)$/, '')}: the project named in the address is chosen. Take values reads it by id.
+        </p>
+      )}
       {kind === 'pvt' && (
         <EorField
           id="eor-pvt-pressure" label="Reservoir pressure for the viscosity (blank: the bubble point)" kind="pressure"

@@ -136,3 +136,19 @@ test('PL3 units: SI shows converted values; a limit typed in SI is on the limit'
   await expect(row).toContainText('pass');
   await expect(row).toContainText('1,372 m');
 });
+
+// EOR-U2-002: a sender names its saved record in the address; EOR chooses it
+// and reads it by id when Take values is pressed.
+test('U2-002 sent here: the Well Test project named in the address is chosen and taken by id', async ({ page }) => {
+  test.setTimeout(180000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/dev/studio/eor?wellTestProject=wt0e0000-0000-4000-8000-0000000e0e01&mbalCase=rb0e0000-0000-4000-8000-0000000e0e01', { timeout: 120000 });
+  await expect(page.getByText('Method ranking')).toBeVisible({ timeout: 120000 });
+  await expect(page.getByTestId('eor-intake-named-wta')).toContainText('Sent here from Well Test Analysis Studio');
+  await expect(page.getByTestId('eor-intake-named-mbal')).toBeVisible();
+  await expect(page.getByTestId('eor-intake-named-pvt')).toHaveCount(0);
+  await expect(page.getByTestId('eor-pick-wta')).toHaveValue('wt0e0000-0000-4000-8000-0000000e0e01');
+  await page.getByTestId('eor-take-wta').click();
+  await expect(page.getByTestId('eor-permeabilityMd')).toHaveValue('182.4');
+  await expect(page.getByTestId('eor-intake-named-wta')).toHaveCount(0);
+});

@@ -209,3 +209,4 @@ origin/main 55e22d372. The build log per item follows in section 9.
 
 | ID | State | What was built | Proving test |
 |---|---|---|---|
+| EOR-U2-002 | Done | "Send to EOR Screening" in Fluid Systems Studio (Integration Suite, saved project only), Well Test Analysis Studio (Report tab; saves first, then sends; unsaved workspace disabled) and Material Balance Studio (Run tab, oil cases, current run only). Each opens EOR with the record named by id (`src/lib/eorScreeningLinks.js`, harness-aware); EOR chooses it and says it was sent here; Take values reads it by id. No router state | `src/lib/__tests__/eorScreeningLinks.test.js` (with the no-id negative control), `src/components/welltest/__tests__/reportPanelSendEor.test.jsx` (save first; failed save does not navigate), `fluidUpgradeUi.test.jsx` (unsaved fluid not sent), e2e `U2-002 sent here` and the MBAL sender test |

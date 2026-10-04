@@ -135,6 +135,13 @@ const EorScreeningHelpGuideContent = () => (
         then change is marked edited after intake, and a source saved again with different
         content is marked source changed since.
       </Para>
+      <Para>
+        You can also start from the other app: Send to EOR Screening in Fluid Systems Studio
+        (Integration Suite), Well Test Analysis Studio (Report tab, Send results) and Material
+        Balance Studio (Run tab, after a run of an oil case) opens this app with that saved
+        project already chosen. Press Take values to read it. Each sender needs a saved
+        project, because this app reads it by id.
+      </Para>
       <SubHeading>Blank and zero are different</SubHeading>
       <Para>
         A blank field is left unscored. A zero is a real measured value and is tested like any
