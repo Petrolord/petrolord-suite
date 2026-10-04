@@ -179,6 +179,13 @@ const ascii = (x) => String(x ?? '').replace(/[^\x20-\x7e]/g, '?');
  * functions, each with the source project, the time it was taken, the
  * build and the method words, or the statement that the values were typed.
  */
+/** SIM-U2-003: the three-phase oil relative permeability models the builder offers. */
+export const THREE_PHASE_WORDS = Object.freeze({
+  default: { label: 'Simulator default', deck: "OPM Flow's default model (no STONE keyword)", report: "OPM Flow's default three-phase model (the ECLIPSE default: oil relative permeability interpolated between the oil-water and gas-oil curves by the water and gas saturations)" },
+  stone1: { label: 'Stone I', deck: 'STONE1 (Stone 1970, the first model)', report: "Stone's first model (Stone 1970, STONE1)" },
+  stone2: { label: 'Stone II', deck: 'STONE2 (Stone 1973, the second model)', report: "Stone's second model (Stone 1973, STONE2)" },
+});
+
 export function provenanceNotes(form, { pb = null } = {}) {
   const out = [];
   const pvt = form?.pvtSource;
@@ -206,5 +213,20 @@ export function provenanceNotes(form, { pb = null } = {}) {
   }
   out.push(form?.scal?.pc?.enabled ? 'Pcow: Leverett J power law, Pc in psi at each SWOF row' : 'Pcow: zero (no capillary pressure)');
   out.push('Pcog: zero (no gas-oil capillary pressure model)');
+  // SIM-U2-003: the three-phase oil kr model, when one was chosen
+  const tp = THREE_PHASE_WORDS[form?.scal?.threePhase];
+  if (tp) out.push(`Three-phase oil kr: ${tp.deck}, chosen in the deck builder; built from the two-phase sets above (SWOF krow, SGOF krog)`);
   return out;
+}
+
+// SIM-U2-007
+/** Deck comment lines for a starting model taken from a Waterflood pattern. */
+export function wfOriginNotes(form) {
+  const o = form?.origin;
+  if (!o || o.app !== 'Waterflood Design Studio') return [];
+  return [
+    `Starting model: Waterflood Design Studio project "${o.recordName}" (wf-forecast-1), pattern ${o.pattern || 'unnamed'}, taken ${String(o.at).slice(0, 10)}`,
+    ...(o.notes || []).map((n) => n.slice(0, 150)),
+    ...(o.kept || []).map((k) => `Not in the pattern, kept from the builder: ${k}`.slice(0, 158)),
+  ];
 }

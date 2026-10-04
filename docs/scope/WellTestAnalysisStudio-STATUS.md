@@ -645,3 +645,8 @@ vendored with six `welltest-u1` ledger rows).
 - **`wta-1` sender** (`src/lib/wellTestSource.js`): written into every save (payload key `wta`), read by id by Material Balance and Waterflood (`?wellTestProject=`).
 - **State (jsonb, no migration):** `gaugeImport`, `rtaImport`, `wta`, `completion.gaugeDepthMd/gaugeDepthTvd/datumDepthTvdss`, `identification.company`, `reservoirInputs.gasZMethod`.
 - **Open:** import in a worker (U1-020); Nodal has the same SI typing defect (U1-021).
+
+2026-10-04: `useUnitDraft` moved to the shared `src/hooks/useUnitDraft.js`
+(`createUnitDraft`, same behaviour); `primitives.jsx` imports it, Nodal uses
+the same hook (U1-021 closed), and `tools/unit-draft-guard.mjs` gates the
+pattern across src/. `unitTyping.test.jsx` passes unchanged.

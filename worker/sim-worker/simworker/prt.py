@@ -49,16 +49,22 @@ _PORV = re.compile(r"PORV\s*=\s*(" + _FLOAT + r")\s*(\w+)")
 _IN_PLACE = re.compile(r"^\s*:(CURRENTLY IN PLACE|ORIGINALLY IN PLACE)\s*:(.*)$")
 _PHASE_HDR = re.compile(r"OIL\s+(\w+)\s*-+:-+\s*WAT\s+(\w+)\s*-+:-+\s*GAS\s+(\w+)", re.IGNORECASE)
 
-# Units of the cumulative table, in the balance sheet's units. FIELD only:
-# these are the labels OPM Flow 2026.04 prints, each checked against the
-# summary vectors of the same run (tests/test_prt_parse.py and the
-# integration gate). OPM Flow 2026.04 heads the gas columns "MMSCF" and
-# prints them in units of 10^6 Mscf: SPE1 prints 365.0 for the 365,000,000
-# Mscf its WGIT:INJ holds. A METRIC deck's labels were not checked against a
-# run, so a METRIC balance is not computed (reason "units_not_verified").
+# Units of the cumulative table, in the balance sheet's units: the labels
+# OPM Flow 2026.04 prints, each checked against the summary vectors of the
+# same run (tests/test_prt_parse.py and the integration gates).
+# FIELD: OPM Flow 2026.04 heads the gas columns "MMSCF" and prints them in
+# units of 10^6 Mscf: SPE1 prints 365.0 for the 365,000,000 Mscf its
+# WGIT:INJ holds.
+# METRIC (SIM-U2-015, checked on tests/integration/fixtures/metric/
+# METRIC_BOX.DATA): the balance sheet is in SM3 and the cumulative table in
+# MSCM (10^3 sm3) for oil and water and MMSCM (10^6 sm3) for gas; FOPT,
+# FWIT and FGPT of the run agree. Any other label (LAB, PVT-M) is not
+# guessed: reason "units_not_verified".
 _CUM_SCALE = {
     "MSTB": ("STB", 1e3),
     "MMSCF": ("MSCF", 1e6),
+    "MSCM": ("SM3", 1e3),
+    "MMSCM": ("SM3", 1e6),
 }
 
 # A balance whose error is within this fraction of what was originally in

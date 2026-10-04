@@ -20,7 +20,8 @@ Summary
 
  Oil-water set                         Swc 0.22, Sor 0.24, krw(Sor) 0.3, kro(Swc) 0.85, nw 2.8, no 2.2. Entered by the user
 
- Gas-oil set (at connate water)        Swc 0.2, Sgc 0.05, Sorg 0.15, krg 0.6, krog 0.85, ng 2, nog 2.5. Entered by the user
+ Gas-oil set (at connate water)        Swc 0.22 (moved from 0.2: saved before the gas-oil set followed the oil-water Swc), Sgc 0.05, Sorg 0.15,
+                                       krg 0.6, krog 0.85, ng 2, nog 2.5. Entered by the user
 
  Lab data                              No core sample: the curves and the J function were entered
 
@@ -87,7 +88,9 @@ Special Core Analysis Report                                                    
 
  Oil-water: Oil Corey exponent no              2.2                                     Entered, source not stated
 
- Gas-oil: Connate water saturation Swc         0.2                   fraction          Assumed: the starting value of the app, not field data
+ Gas-oil: Connate water saturation Swc         0.22                  fraction          Held at the oil-water Swc (one connate water); moved
+                                                                                       from 0.2: saved before the gas-oil set followed the
+                                                                                       oil-water Swc
 
  Gas-oil: Critical gas saturation Sgc          0.05                  fraction          Assumed: the starting value of the app, not field data
 
@@ -306,53 +309,53 @@ Special Core Analysis Report                                                Page
 
                                0.0500                     0.00000            0.85000
 
-                               0.0750                     0.00104            0.76421
+                               0.0742                     0.00104            0.76421
 
-                               0.1000                     0.00417            0.68383
+                               0.0983                     0.00417            0.68383
 
-                               0.1250                     0.00937            0.60875
+                               0.1225                     0.00937            0.60875
 
-                               0.1500                     0.01667            0.53885
+                               0.1467                     0.01667            0.53885
 
-                               0.1750                     0.02604            0.47400
+                               0.1708                     0.02604            0.47400
 
-                               0.2000                     0.03750            0.41407
+                               0.1950                     0.03750            0.41407
 
-                               0.2250                     0.05104            0.35893
+                               0.2192                     0.05104            0.35893
 
-                               0.2500                     0.06667            0.30845
+                               0.2433                     0.06667            0.30845
 
-                               0.2750                     0.08438            0.26249
+                               0.2675                     0.08438            0.26249
 
-                               0.3000                     0.10417            0.22091
+                               0.2917                     0.10417            0.22091
 
-                               0.3250                     0.12604            0.18355
+                               0.3158                     0.12604            0.18355
 
-                               0.3500                     0.15000            0.15026
+                               0.3400                     0.15000            0.15026
 
-                               0.3750                     0.17604            0.12089
+                               0.3642                     0.17604            0.12089
 
-                               0.4000                     0.20417            0.09526
+                               0.3883                     0.20417            0.09526
 
-                               0.4250                     0.23438            0.07320
+                               0.4125                     0.23438            0.07320
 
-                               0.4500                     0.26667            0.05453
+                               0.4367                     0.26667            0.05453
 
-                               0.4750                     0.30104            0.03905
+                               0.4608                     0.30104            0.03905
 
-                               0.5000                     0.33750            0.02656
+                               0.4850                     0.33750            0.02656
 
-                               0.5250                     0.37604            0.01684
+                               0.5092                     0.37604            0.01684
 
-                               0.5500                     0.41667            0.00964
+                               0.5333                     0.41667            0.00964
 
-                               0.5750                     0.45937            0.00470
+                               0.5575                     0.45937            0.00470
 
-                               0.6000                     0.50417            0.00170
+                               0.5817                     0.50417            0.00170
 
-                               0.6250                     0.55104            0.00030
+                               0.6058                     0.55104            0.00030
 
-                               0.6500                     0.60000            0.00000
+                               0.6300                     0.60000            0.00000
 
 
 
@@ -495,7 +498,7 @@ Figure 4. Gas-oil relative permeability (working curves, at connate water)
 
                                                                                             Gas saturation Sg
 
-Corey: Swc 0.2, Sgc 0.05, Sorg 0.15, krg 0.6, krog 0.85, ng 2, nog 2.5. Entered by the user.
+Corey: Swc 0.22, Sgc 0.05, Sorg 0.15, krg 0.6, krog 0.85, ng 2, nog 2.5. Entered by the user.
 
 
 

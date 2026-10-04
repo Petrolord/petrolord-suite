@@ -7,7 +7,7 @@
 // from, and say when the source changed since.
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Send, GitBranch, Landmark } from 'lucide-react';
+import { Send, GitBranch, Landmark, Cuboid } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -19,12 +19,14 @@ import { SectionLabel } from './primitives';
 
 export const HUB_ROUTE = '/dashboard/apps/reservoir/forecast-scenario-hub';
 export const EPE_ROUTE = '/dashboard/apps/economics/epe/cases';
+export const SIM_ROUTE = '/dashboard/apps/reservoir/reservoir-simulation-studio';
 
 const WfSendPanel = () => {
   const { pathname } = useLocation();
   const onHarness = pathname.startsWith('/dev/');
   const hubRoute = onHarness ? '/dev/forecast-scenario-hub' : HUB_ROUTE;
   const epeRoute = onHarness ? '/dev/epe/cases/c1' : EPE_ROUTE;
+  const simRoute = onHarness ? '/dev/reservoir-simulation-studio' : SIM_ROUTE;
   const { currentProjectId, projectName, serializeInputs, floodStart, setFloodStart, manualSave, canWrite, u } = useWaterfloodDesign();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
@@ -67,7 +69,11 @@ const WfSendPanel = () => {
           <Button size="sm" variant="outline" className="w-full h-7 text-[11px] gap-1" disabled={busy} onClick={() => go(`${epeRoute}?${query}`)} data-testid="wds-send-epe">
             <Landmark size={12} /> Use in Petroleum Economics Studio
           </Button>
-          <p className="text-[10px] text-pl-muted">The project is saved first. The receiving app reads this forecast by its project, keeps where it came from, and tells you if it changes here later. In Petroleum Economics Studio open a case, then Production, Import from Waterflood Design Studio.</p>
+          {/* SIM-U2-007: a starting deck in Reservoir Simulation Studio (five-spot) */}
+          <Button size="sm" variant="outline" className="w-full h-7 text-[11px] gap-1" disabled={busy} onClick={() => go(`${simRoute}?${query}&tab=builder`)} data-testid="wds-send-sim">
+            <Cuboid size={12} /> Start a model in Reservoir Simulation Studio
+          </Button>
+          <p className="text-[10px] text-pl-muted">The project is saved first. The receiving app reads this forecast by its project, keeps where it came from, and tells you if it changes here later. In Petroleum Economics Studio open a case, then Production, Import from Waterflood Design Studio. In Reservoir Simulation Studio open or create a case: the Builder tab offers the pattern as a starting model (a five-spot is sent as its quarter element).</p>
         </>
       )}
     </section>

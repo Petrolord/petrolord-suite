@@ -44,6 +44,9 @@ export const SimStudioProvider = ({ children, sharingStore = null, profileSystem
   const [prtText, setPrtText] = useState(null);
   const [prtRunId, setPrtRunId] = useState(null);
   const [busy, setBusy] = useState(false);
+  // SIM-U2-005: the runs picked for comparison (the first is the base) and their summaries
+  const [compareIds, setCompareIds] = useState([]);
+  const [compareSummaries, setCompareSummaries] = useState({});
 
   const activeCase = useMemo(
     () => cases.find((c) => c.id === activeCaseId) || null,
@@ -161,6 +164,7 @@ export const SimStudioProvider = ({ children, sharingStore = null, profileSystem
   // Load runs + deck text when the active case changes.
   useEffect(() => {
     setSummary(null); setSummaryRunId(null); setPrtText(null); setPrtRunId(null);
+    setCompareIds([]); setCompareSummaries({});
     setDeckText(null);
     if (!activeCaseId) { setRuns([]); return; }
     refreshRuns(activeCaseId);
@@ -354,7 +358,27 @@ export const SimStudioProvider = ({ children, sharingStore = null, profileSystem
     }
   }, [addNotification]);
 
+  /** Pick or drop a run for the comparison; its summary is read once. */
+  const toggleCompare = useCallback(async (run) => {
+    if (!run?.id) return;
+    const on = compareIds.includes(run.id);
+    setCompareIds((ids) => (on ? ids.filter((x) => x !== run.id) : [...ids, run.id]));
+    if (on || compareSummaries[run.id]) return;
+    try {
+      const doc = await sim.fetchSummary(run);
+      setCompareSummaries((m) => ({ ...m, [run.id]: doc }));
+    } catch (e) {
+      console.error(e);
+      setCompareIds((ids) => ids.filter((x) => x !== run.id));
+      addNotification(sim.friendlyError(e), 'error');
+    }
+  }, [compareIds, compareSummaries, addNotification]);
+  const compareEntries = useMemo(() => compareIds
+    .map((id) => ({ run: runs.find((r) => r.id === id), summary: compareSummaries[id] }))
+    .filter((e) => e.run && e.summary), [compareIds, compareSummaries, runs]);
+
   const value = {
+    compareIds, compareEntries, toggleCompare,
     form, setForm, saveForm, formSave, system, u, organizationName,
     sharing, sharingStore, canWrite, isOwner, ownerOnlyReason, readOnlyReason,
     cases, activeCase, activeCaseId, runs, hasInFlight,

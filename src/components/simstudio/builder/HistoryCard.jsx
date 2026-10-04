@@ -183,7 +183,7 @@ const HistoryCard = ({ form, set, addNotification }) => {
             <div className="space-y-2">
               <textarea value={csvText} onChange={(e) => setCsvText(e.target.value)}
                 rows={6} spellCheck={false} data-testid="history-csv"
-                placeholder={'date, well, oil, water, gas\n2024-01-01, PROD1, 1500, 100, 900\n2024-01-01, INJ1, , 2400,'}
+                placeholder={'date, well, oil, water, gas, bhp (psia)\n2024-01-01, PROD1, 1500, 100, 900, 3450\n2024-01-01, INJ1, , 2400, , 5100'}
                 className="w-full rounded-md border border-pl-border-strong bg-pl-surface p-2 font-mono text-[11px] text-pl-text" />
               <div className="flex flex-wrap items-end gap-3">
                 <div className="space-y-1 w-52">
@@ -244,7 +244,10 @@ const HistoryCard = ({ form, set, addNotification }) => {
                 (STB/d, bbl/d, m3/d; Mscf/d, scf/d, MMscf/d, m3/d) are read and converted, a column with no unit takes the gas unit above.
                 One row per well per date; well names must match the model's wells. Producer rows become
                 WCONHIST with that well's own oil/water/gas; injector rows drive WCONINJH from their phase
-                column. A well missing on a date keeps its previous rate.
+                column. A well missing on a date keeps its previous rate. An optional bhp column (psia, psig, bar,
+                barg, kPa or MPa; gauge made absolute with the standard atmosphere) is the observed bottomhole
+                pressure of the period: the deck carries it as WBHPH, the simulator reports it beside the
+                simulated BHP, and the report prints the mismatch by well with its RMS.
               </p>
             </div>
           )}
@@ -265,7 +268,7 @@ const HistoryCard = ({ form, set, addNotification }) => {
               {Array.isArray(history.wellSummary) && history.wellSummary.length > 0 ? (
                 <table className="w-full max-w-md text-left" data-testid="history-well-summary">
                   <thead className="text-pl-muted">
-                    <tr><th className="pr-3 font-normal">well</th><th className="pr-3 font-normal">periods</th><th className="pr-3 font-normal">avg oil STB/d</th><th className="pr-3 font-normal">avg water STB/d</th><th className="font-normal">avg gas Mscf/d</th></tr>
+                    <tr><th className="pr-3 font-normal">well</th><th className="pr-3 font-normal">periods</th><th className="pr-3 font-normal">avg oil STB/d</th><th className="pr-3 font-normal">avg water STB/d</th><th className="pr-3 font-normal">avg gas Mscf/d</th><th className="font-normal">BHP points</th></tr>
                   </thead>
                   <tbody>
                     {history.wellSummary.map((w) => (
@@ -274,7 +277,8 @@ const HistoryCard = ({ form, set, addNotification }) => {
                         <td className="pr-3">{w.periods}</td>
                         <td className="pr-3">{w.avgOil.toFixed(0)}</td>
                         <td className="pr-3">{w.avgWater.toFixed(0)}</td>
-                        <td>{w.avgGas.toFixed(0)}</td>
+                        <td className="pr-3">{w.avgGas.toFixed(0)}</td>
+                        <td>{w.bhpPoints ?? 0}</td>
                       </tr>
                     ))}
                   </tbody>

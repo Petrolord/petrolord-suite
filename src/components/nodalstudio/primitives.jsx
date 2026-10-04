@@ -1,13 +1,14 @@
 // Small shared primitives for the Nodal Analysis Studio panels.
 // Mirrors the welltest primitives so the studios stay visually identical;
 // chart colors tuned for the white Petrolord chart background.
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { unitLabel, fromOilfield, displayInputString, storeInputString } from '@/utils/nodal/units';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { createUnitDraft } from '@/hooks/useUnitDraft';
 
 export const fmt = {
   num: (v) => {
@@ -44,25 +45,10 @@ export const Field = ({ label, value, onChange, placeholder, suffix, onBlur }) =
   </div>
 );
 
-/**
- * WTA-U1-021: typing in SI. The field showed the stored oilfield value
- * converted back on every key, so "13." became "13" and "13.7" m was stored
- * as 137 m. The text being typed is kept as typed while it is the source of
- * the stored value; the converted value shows again on blur or when the
- * stored value changes from elsewhere (a preset, a project, an intake).
- * Same pattern as the Well Test useUnitDraft (WTA-U1-017).
- * @returns {{value: string, onChange: function(string), onBlur: function}}
- */
-export function useUnitDraft(kind, value, system, onChange) {
-  const [draft, setDraft] = useState(null);
-  const stored = value ?? '';
-  const live = draft != null && storeInputString(kind, draft, system) === String(stored);
-  return {
-    value: live ? draft : displayInputString(kind, stored, system),
-    onChange: (text) => { setDraft(text); onChange(storeInputString(kind, text, system)); },
-    onBlur: () => setDraft(null),
-  };
-}
+// WTA-U1-021: typing in SI keeps the text as typed while it is the source of
+// the stored value. The hook is the shared one in src/hooks/useUnitDraft.js
+// (same as Well Test WTA-U1-017), bound to the Nodal unit module.
+export const useUnitDraft = createUnitDraft({ displayInputString, storeInputString });
 
 // Unit-aware input: state stays oilfield; the field renders and accepts
 // values in the active display system.

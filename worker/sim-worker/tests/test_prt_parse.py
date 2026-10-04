@@ -87,11 +87,37 @@ def test_balance_without_well_totals_says_why():
     assert mb == {"computed": False, "reason": "no_well_totals"}
 
 
-def test_metric_units_are_not_guessed():
+def test_units_not_seen_on_a_run_are_not_guessed():
     text = _read("SPE1_FIP.PRT").replace("MSTB", "KSM3").replace("MMSCF", "MSM3") \
         .replace("OIL  STB", "OIL  SM3").replace("WAT    STB", "WAT    SM3").replace("GAS    MSCF", "GAS    SM3")
     mb = prt.parse_prt(text)["material_balance"]
     assert mb["computed"] is False and mb["reason"] == "units_not_verified"
+
+
+def test_metric_balance_closes_per_component():
+    """SIM-U2-015: a METRIC run (METRIC_BOX.DATA, OPM Flow 2026.04): balance
+    sheet in SM3, cumulative table in MSCM and MMSCM."""
+    d = prt.parse_prt(_read("METRIC_BOX.PRT"))
+    assert d["pore_volume"] == {"value": 500000.0, "unit": "RM3"}
+    mb = d["material_balance"]
+    assert mb["computed"] and mb["closes"] and mb["report_step"] == 12
+    oil, water, gas = mb["phases"]["oil"], mb["phases"]["water"], mb["phases"]["gas"]
+    assert oil["unit"] == "SM3" and oil["originally_in_place"] == 335466 and oil["produced"] == pytest.approx(108000)
+    assert water["injected"] == pytest.approx(126000)
+    assert gas["produced"] == pytest.approx(6.5e6)
+    assert oil["within_rounding"] and water["within_rounding"] and gas["within_rounding"]
+
+
+def test_metric_gas_scale_discriminates():
+    """Negative control: MMSCM read as 10^3 sm3 leaves the gas balance open."""
+    saved = dict(prt._CUM_SCALE)
+    try:
+        prt._CUM_SCALE["MMSCM"] = ("SM3", 1e3)
+        mb = prt.parse_prt(_read("METRIC_BOX.PRT"))["material_balance"]
+        assert not mb["phases"]["gas"]["closes"] and not mb["closes"]
+    finally:
+        prt._CUM_SCALE.clear()
+        prt._CUM_SCALE.update(saved)
 
 
 def test_chopped_time_steps_are_counted_with_their_reason():

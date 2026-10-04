@@ -29,6 +29,7 @@ import { planZoneFilter } from '../services/zoneFilter';
 import { computeWell } from '../engine/pipeline';
 import { depthDensityGrid, envelopeOutline, defaultDepthBinM } from '../viewer/depthDensity';
 import DepthDensityPlot from './DepthDensityPlot';
+import { useDraftInput, parseTypedNumber } from '@/hooks/useUnitDraft';
 
 // PT10b depth density: the curve addresses it can bin, in the layout
 // vocabulary (input:, output:, log:), and which of them bin in log space
@@ -348,6 +349,14 @@ export default function CrossplotPanel({
   const densityRef = hasSurvey || density.ref === 'md' ? density.ref : 'md';
   const depthAxis = useMemo(() => makeDepthAxes([densityRef], { well, unit: depthUnit })[0], [densityRef, well, depthUnit]);
   const densityBinM = density.depthBinM > 0 ? density.depthBinM : defaultDepthBinM(depthUnit);
+  // The depth bin box keeps the typed text while it is the source of the
+  // stored metres, so "2." and "13.7" survive (shared draft hook); text that
+  // is not a positive number yet stores nothing.
+  const depthBinDraft = useDraftInput(densityBinM, (m) => setDens({ depthBinM: m }), {
+    unit: depthUnit,
+    toDisplay: (m) => String(Number(toDisplay(m, depthUnit).toFixed(depthUnit === 'ft' ? 1 : 2))),
+    toStored: (text) => { const v = parseTypedNumber(text); return v !== undefined && v > 0 ? fromDisplay(v, depthUnit) : undefined; },
+  });
   const densityRange = useMemo(() => {
     const t = density.top === '' ? NaN : fromDisplay(Number(density.top), depthUnit);
     const b = density.base === '' ? NaN : fromDisplay(Number(density.base), depthUnit);
@@ -663,8 +672,7 @@ export default function CrossplotPanel({
               onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 2 && v <= 1000) setDens({ xBins: Math.round(v) }); }} />
             <span className="text-pl-muted ml-1">Depth bin</span>
             <input className={`${inputCls} w-14`} data-testid="petro-density-depthbin" title={`Depth bin (${depthUnit})`}
-              value={String(Number(toDisplay(densityBinM, depthUnit).toFixed(depthUnit === 'ft' ? 1 : 2)))}
-              onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && v > 0) setDens({ depthBinM: fromDisplay(v, depthUnit) }); }} />
+              value={depthBinDraft.value} onChange={(e) => depthBinDraft.onChange(e.target.value)} onBlur={depthBinDraft.onBlur} />
             <span className="text-pl-muted">{depthUnit}</span>
             <select className={`${inputCls} ml-1`} data-testid="petro-density-overlay" value={density.overlayId} title="Outline a second well's populated region on the same bins"
               onChange={(e) => setDens({ overlayId: e.target.value })}>

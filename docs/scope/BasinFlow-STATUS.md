@@ -209,3 +209,15 @@ Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-S
 `src/lib/basinHandoff.js` takes the well's TVD and reference elevation from
 `src/lib/wellDatum.js`. Layer thickness needs TVD only, so every well still
 hands off; `registryKbM` is null for a well with no reference elevation.
+
+## 2026-10-04: typed decimals and blank boxes (fix/shared-unit-draft)
+
+Calibration depth and value, the erosion amount (Expert editor and guided
+step), surface temperature and the guided layer thickness lost a typed
+decimal point ("2." showed as "2") and stored NaN when cleared. They now
+go through `components/UnitNumberInput.jsx` on the shared
+`src/hooks/useUnitDraft.js`: typed text is kept, and a box with no number
+stores nothing and says "<field> needs a number. The last value is kept."
+The boxes are text inputs with a decimal keypad now (no spinner). Gate:
+`__tests__/unitTyping.test.jsx` (32 tests; 16 failed on the old code).
+Ages remain number inputs with no unit conversion and are not changed.

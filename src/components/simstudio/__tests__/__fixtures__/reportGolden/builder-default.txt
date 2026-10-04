@@ -53,7 +53,7 @@ printed its balance sheet and well totals.
 
 
 
-Reservoir Simulation Report, Builder model                                                                                                         Page 1 of 6
+Reservoir Simulation Report, Builder model                                                                                                         Page 1 of 7
 Convergence (from the simulator's PRT)
  Quantity                                       Value
 
@@ -108,7 +108,7 @@ Run provenance
 
 
 
-Reservoir Simulation Report, Builder model                                                                                         Page 2 of 6
+Reservoir Simulation Report, Builder model                                                                                         Page 2 of 7
 What the deck holds
  Item                                         As read from the main deck
 
@@ -133,6 +133,10 @@ Reservoir Simulation Report, Builder model                                      
                                               Dranchuk-Abou-Kassem Z) from the typed API, gas gravity, temperature and GOR; PVTW typed.
 
  Saturation functions                         SWOF, SGOF. Corey parameters entered in the Model Builder; no capillary pressure.
+
+ Three-phase oil relative permeability        OPM Flow's default three-phase model (the ECLIPSE default: oil relative permeability
+                                              interpolated between the oil-water and gas-oil curves by the water and gas saturations), the deck
+                                              naming no other (no STONE keyword)
 
  Aquifers                                     none in the main deck
 
@@ -182,14 +186,14 @@ Model Builder inputs and their sources
 
  Water compressibility                       0.0000031                 1/psi        Entered in the Model Builder
 
- Water viscosity                             0.32                      cP           Entered in the Model Builder
-
- PVTW reference pressure                     4000                      psia         Entered in the Model Builder
 
 
-
-Reservoir Simulation Report, Builder model                                                                                          Page 3 of 6
+Reservoir Simulation Report, Builder model                                                                                           Page 3 of 7
  Input                                          Value                     Unit              Source and quality
+
+ Water viscosity                                0.32                      cP                Entered in the Model Builder
+
+ PVTW reference pressure                        4000                      psia              Entered in the Model Builder
 
  Water surface density                          64.5                      lb/ft3            Entered in the Model Builder
 
@@ -218,6 +222,8 @@ Reservoir Simulation Report, Builder model                                      
  Gas-oil ng                                     2                                           Entered in the Model Builder
 
  Gas-oil nog                                    2                                           Entered in the Model Builder
+
+ Three-phase oil kr model                       Simulator default                           Not chosen: the simulator default, no keyword written
 
  Datum depth (TVDSS)                            8050                      ft                Entered in the Model Builder
 
@@ -251,10 +257,17 @@ not resolved.
 - PVT: Entered in the Model Builder: black-oil correlations of Fluid Systems Studio (Standing Pb, Rs and Bo; Beggs-Robinson oil viscosity;
 Dranchuk-Abou-Kassem Z) from the typed API, gas gravity, temperature and GOR; PVTW typed.
 - Saturation functions: Corey parameters entered in the Model Builder; no capillary pressure. Two-phase tables; the three-phase oil relative
-permeability is the simulator's default model; no hysteresis and no end-point scaling unless the deck says so.
+permeability is OPM Flow's default three-phase model (the ECLIPSE default: oil relative permeability interpolated between the oil-water and gas-oil
+curves by the water and gas saturations), the deck naming no other (no STONE keyword); no hysteresis and no end-point scaling unless the deck
+says so.
 - No aquifer is modelled in the main deck: pressure support comes from the wells only.
 - Wells are controlled as the deck declares; no well economic limits or group controls are applied unless the deck holds them.
-- A single deterministic run: no uncertainty range. The material balance and convergence statements are the simulator's own printout as read by
+
+
+
+
+Reservoir Simulation Report, Builder model                                                                                                   Page 4 of 7
+- A single deterministic run: no uncertainty range. The material balance and convergence statements are the simulator's own printout as read by
 the worker.
 
 Flags on this run
@@ -263,7 +276,7 @@ No flag: the balance closes, no step was cut and the inputs are traced.
 
 
 
-Reservoir Simulation Report, Builder model                                                                                                   Page 4 of 6
+Reservoir Simulation Report, Builder model                                                                                            Page 5 of 7
 Plots
 Figure 1. Field production rates
 
@@ -358,7 +371,7 @@ Field average pressure (FPR, hydrocarbon pore volume weighted) and the bottomhol
 
 
 
-Reservoir Simulation Report, Builder model                                                                                                          Page 5 of 6
+Reservoir Simulation Report, Builder model                                                                                                          Page 6 of 7
 Figure 4. Water cut and gas-oil ratio
 
                                   Water cut (FWCT)          GOR (FGOR)
@@ -423,7 +436,11 @@ Does not apply: the deck carries no observed rates (no WCONHIST history and no F
 on the Builder tab to run one.
 
 
+Figure 7. Bottomhole pressure match
+Does not apply: The deck carries no observed bottomhole pressure (no WBHPH): add a bhp column to the per-well history file on the Builder tab.
 
 
-Reservoir Simulation Report, Builder model                                                                                                              Page 6 of 6
+
+
+Reservoir Simulation Report, Builder model                                                                                                              Page 7 of 7
 

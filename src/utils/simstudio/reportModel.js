@@ -12,11 +12,13 @@
  */
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { inputRow } from '@/lib/inputProvenance/wording';
-import { simUnits, displayUnitsLine } from './simUnits.js';
+import { simUnits, displayUnitsLine, prtShow } from './simUnits.js';
 import { summarizeDeck, deckSystemText } from './deckSummary.js';
 import { summaryUnitSystem, lastValue, dayToIso } from './series.js';
-import { krEditedKeys } from './builderIntakes.js';
+import { krEditedKeys, THREE_PHASE_WORDS } from './builderIntakes.js';
 import { pvtContractTuningText, PVT1_PB_SOURCES } from '@/lib/inputProvenance/pvtContract';
+import { bhpMatch } from './bhpMatch.js';
+import { AQUIFER_MODELS, AQUIFER_FACE_WORDS, aquiferEditedKeys } from './aquiferIntake.js';
 import { krSetText, krCapillaryText } from '@/lib/inputProvenance/krContract';
 
 export const REPORT_TITLE = 'Reservoir Simulation Report';
@@ -40,7 +42,7 @@ const MB_REASONS = Object.freeze({
   no_fip_report: 'the deck does not ask for the fluid-in-place report (RPTSOL or RPTSCHED FIP)',
   no_well_totals: 'the deck does not ask for the well reports with the cumulative totals (RPTSCHED WELLS)',
   no_common_report: 'no report step holds both the balance sheet and the well totals',
-  units_not_verified: 'the deck is not in FIELD units, and the PRT table units of other systems have not been checked against a run',
+  units_not_verified: 'the deck is in units whose PRT table labels have not been checked against a run (FIELD and METRIC have been)',
 });
 
 export const SOURCE_WORDS = Object.freeze({
@@ -107,7 +109,7 @@ function deckRows({ deck, run, summary, units, pvtWords, krWords, diag }) {
   const cells = d?.dims ? `${fx(d.dims.nx)} x ${fx(d.dims.ny)} x ${fx(d.dims.nz)} = ${fx(d.dims.cells)} cells` : EMPTY_VALUE;
   const active = diag?.active_cells ?? run?.active_cells;
   rows.push(['Grid', `${cells}${d?.cornerPoint ? ', corner point (COORD/ZCORN)' : ', block-centred (DX/DY/DZ/TOPS)'}; active cells ${finite(active) ? fx(active) : NOT_REPORTED}`]);
-  if (diag?.pore_volume) rows.push(['Pore volume (simulator)', `${fx(u.show('resVolume', diag.pore_volume.value))} ${u.label('resVolume')}`]);
+  if (diag?.pore_volume) rows.push(['Pore volume (simulator)', `${fx(prtShow('resVolume', diag.pore_volume.value, diag.pore_volume.unit, u.system))} ${u.label('resVolume')}`]);
   rows.push(['Start date', d?.start || (summary?.start_date ? String(summary.start_date).slice(0, 10) : EMPTY_VALUE)]);
   const sch = d?.schedule;
   rows.push(['Schedule', sch ? [
@@ -119,9 +121,32 @@ function deckRows({ deck, run, summary, units, pvtWords, krWords, diag }) {
   rows.push(['Initialisation (EQUIL)', e ? `datum ${fx(u.show('depth', e.datumDepth))} ${u.label('depth')} at ${fx(u.show('pressure', e.datumPressure))} ${u.label('pressure')}; OWC ${fx(u.show('depth', e.owc))} ${u.label('depth')}; GOC ${fx(u.show('depth', e.goc))} ${u.label('depth')}; depths are deck depths, positive down (TVDSS for a builder deck)` : 'not found in the main deck']);
   rows.push(['PVT tables', `${d?.tables?.filter((t) => /^PV|^DENSITY|^GRAVITY|^ROCK/.test(t)).join(', ') || 'not in the main deck'}. ${pvtWords}`]);
   rows.push(['Saturation functions', `${d?.tables?.filter((t) => /^S[WGL]|^SOF/.test(t)).join(', ') || 'not in the main deck'}. ${krWords}`]);
+  rows.push(['Three-phase oil relative permeability', d?.threePhase ? `${d.threePhase}: ${threePhaseWords(d, null, false)}` : threePhaseWords(d, null, false)]);
   rows.push(['Aquifers', d?.aquifers?.length ? d.aquifers.join(', ') : 'none in the main deck']);
   rows.push(['Files included by the deck', d?.includes?.length ? `${d.includes.join(', ')} (not read by this report)` : 'none']);
   return rows;
+}
+
+/** SIM-U2-004: the aquifer of the deck that ran, in words. */
+function aquiferAssumption(deck, form, applies) {
+  if (!deck?.aquifers?.length) return 'No aquifer is modelled in the main deck: pressure support comes from the wells only.';
+  const aq = applies && form?.aquifer?.enabled ? form.aquifer : null;
+  if (!aq) return `Aquifer keywords present: ${deck.aquifers.join(', ')}; the aquifer is the deck's own.`;
+  const it = aq.intake && aq.intake.model === aq.model ? aq.intake : null;
+  const words = aq.model === 'fetkovich'
+    ? 'Fetkovich: the influx rate is J times the aquifer pressure less the face pressure, the aquifer pressure falling as pi - We / (ct W); pseudo steady state from the start, no transient.'
+    : `Carter-Tracy with the Material Balance engine's influence function (${String(aq.ct.reD ?? '').trim() ? `finite, reD ${aq.ct.reD}` : 'infinite acting'}); the permeability is written as k times the PVTW viscosity over the aquifer viscosity, so the aquifer diffuses as the Material Balance one does.`;
+  return `An analytical aquifer (${deck.aquifers.join(', ')}) joined to the ${AQUIFER_FACE_WORDS[aq.face] || aq.face}${it ? `, taken from Material Balance case "${it.from?.recordName}"` : ', entered in the Model Builder'}. ${words} It starts at the equilibrium pressure at the datum. The keyword mapping is checked on Dake's Exercise 9.2 aquifer: OPM Flow's influx and the Material Balance engine's agree within 1 percent.`;
+}
+
+/** SIM-U2-003: the three-phase oil kr model of the deck that ran, in words. */
+export function threePhaseWords(deck, form, applies) {
+  const kw = deck?.threePhase || null;
+  const chosen = applies ? form?.scal?.threePhase || '' : '';
+  if (kw === 'STONE1') return `${THREE_PHASE_WORDS.stone1.report}, as the deck asks${chosen === 'stone1' ? ' (chosen in the Model Builder)' : ''}`;
+  if (kw === 'STONE2') return `${THREE_PHASE_WORDS.stone2.report}, as the deck asks${chosen === 'stone2' ? ' (chosen in the Model Builder)' : ''}`;
+  if (kw) return `the ${kw} model the deck asks for`;
+  return `${THREE_PHASE_WORDS.default.report}${chosen === 'default' ? ', chosen in the Model Builder' : ', the deck naming no other (no STONE keyword)'}`;
 }
 
 function sourceWords(form, applies, deck) {
@@ -163,6 +188,12 @@ function inputRows(form, u) {
   const shown = (kind, v) => (String(v ?? '').trim() === '' ? '' : g(u.show(kind, Number(v)), 6));
   const entered = 'Entered in the Model Builder';
   const gridSrc = form.structure?.mode === 'surface' ? `Structure surface "${form.structure.surfaceName || 'unnamed'}" (Mapping), sampled at cell centres` : entered;
+  // SIM-U2-007: a starting model taken from a Waterflood Design Studio pattern
+  if (form.origin?.app === 'Waterflood Design Studio') {
+    const o = form.origin;
+    add('Starting model', `Waterflood Design Studio project "${o.recordName}", pattern ${o.pattern || 'unnamed'}: the quarter five-spot element`, null,
+      `wf-forecast-1, taken ${String(o.at).slice(0, 10)}; the grid, wells and schedule below were written from it, then may have been edited here. Not in the pattern, kept from the builder: ${(o.kept || []).join('; ') || 'nothing'}`);
+  }
   add('Grid NX x NY x NZ', `${form.grid.nx} x ${form.grid.ny} x ${form.grid.nz}`, null, entered);
   add('Cell size DX', form.structure?.mode === 'surface' ? shown('length', form.structure.dxFt) : shown('length', form.grid.dx), 'length', gridSrc);
   add('Cell size DY', form.structure?.mode === 'surface' ? shown('length', form.structure.dyFt) : shown('length', form.grid.dy), 'length', gridSrc);
@@ -188,6 +219,8 @@ function inputRows(form, u) {
   const kr = (label, key, v) => add(label, v, null, edited.has(key) ? `${krSrc}; edited in the builder after intake` : krSrc);
   ['Swc', 'Sor', 'krwMax', 'kroMax', 'nw', 'no'].forEach((k) => kr(`Oil-water ${k}`, k, form.scal.ow[k]));
   ['Sgc', 'Sorg', 'krgMax', 'krogMax', 'ng', 'nog'].forEach((k) => kr(`Gas-oil ${k}`, k, form.scal.go[k]));
+  add('Three-phase oil kr model', (THREE_PHASE_WORDS[form.scal.threePhase] || THREE_PHASE_WORDS.default).label, null,
+    form.scal.threePhase ? 'Chosen in the Model Builder; written to the deck' : 'Not chosen: the simulator default, no keyword written');
   if (form.scal.pc?.enabled) {
     kr('J: a, b', 'jA', `${form.scal.pc.jA}, ${form.scal.pc.jB}`);
     kr('J: Swirr', 'swirr', String(form.scal.pc.swirr ?? '').trim() === '' ? `${form.scal.ow.Swc} (Swc)` : form.scal.pc.swirr);
@@ -208,10 +241,34 @@ function inputRows(form, u) {
     add(`Well ${String(w.name).toUpperCase()} (${w.type.replace('_', ' ')})`, `${where}; ${ctl}`, null,
       w.trajectory?.enabled && w.trajectory.datumSource === 'registry' ? `Entered; datum from the wells registry (${w.trajectory.wellName || 'well'})` : entered);
   });
+  // SIM-U2-004: the analytical aquifer, each value with its source
+  if (form.aquifer?.enabled) {
+    const aq = form.aquifer;
+    const it = aq.intake && aq.intake.model === aq.model ? aq.intake : null;
+    const editedAq = new Set(aquiferEditedKeys(aq));
+    const from = it ? `mbal-1 from Material Balance Studio case "${it.from?.recordName}"` : entered;
+    const src = (key) => (it ? (editedAq.has(key) ? `${from}; edited in the builder after intake` : `${from}: ${it.sources?.[key] || 'as the case holds it'}`) : entered);
+    add('Aquifer model', `${AQUIFER_MODELS[aq.model]}, joined to the ${AQUIFER_FACE_WORDS[aq.face] || aq.face}`, null, it ? from : entered);
+    if (aq.model === 'fetkovich') {
+      add('Aquifer water in place W', shown('resVolume', aq.fet.W_rb), 'resVolume', src('W_rb'));
+      add('Aquifer productivity index J', aq.fet.J_rb_d_psi, null, src('J_rb_d_psi'));
+      add('Aquifer total compressibility', shown('compressibility', aq.fet.ct_psi), 'compressibility', src('ct_psi'));
+    } else {
+      add('Aquifer permeability k', aq.ct.k_md, null, `${src('k_md')}; written to the deck as k x PVTW viscosity / aquifer viscosity (OPM Flow takes mu from PVTW)`);
+      add('Aquifer porosity', aq.ct.phi, null, src('phi'));
+      add('Aquifer thickness h', shown('length', aq.ct.h_ft), 'length', src('h_ft'));
+      add('Encroachment angle', aq.ct.theta_deg, null, src('theta_deg'));
+      add('Reservoir radius at the aquifer r_R', shown('length', aq.ct.r_R_ft), 'length', src('r_R_ft'));
+      add('Aquifer radius ratio reD', String(aq.ct.reD ?? '').trim() === '' ? 'infinite' : aq.ct.reD, null, `${src('reD')}; the influence table AQUTAB is the Material Balance engine pD(tD)`);
+      add('Aquifer water viscosity', aq.ct.muw_cp, 'viscosity', src('muw_cp'));
+      add('Aquifer total compressibility', shown('compressibility', aq.ct.ct_psi), 'compressibility', src('ct_psi'));
+    }
+  }
   add('Wellbore radius', shown('length', '0.25'), 'length', 'Assumed by the builder for every well (not editable)');
   add('Report interval', form.schedule.reportDays, 'days', entered);
   if (form.history?.enabled && form.history.periods) {
-    add('History', `${form.history.caseName}: ${form.history.periods.length} periods, ${form.history.startDate} to ${form.history.endDate}; prediction ${form.history.predictionYears} years`, null,
+    const bhpPoints = form.history.periods.reduce((n, p) => n + [...(p.prod || []), ...(p.inj || [])].filter((r) => Number(r.bhp) > 0).length, 0);
+    add('History', `${form.history.caseName}: ${form.history.periods.length} periods, ${form.history.startDate} to ${form.history.endDate}; prediction ${form.history.predictionYears} years${bhpPoints ? `; ${bhpPoints} observed bottomhole pressures (WBHPH)` : ''}`, null,
       form.history.source === 'perwell' ? 'Per-well rate file, each well its own rates' : `Material Balance case cumulatives, allocated to producers${Object.keys(form.history.fractions || {}).length ? ` (fractions ${Object.entries(form.history.fractions).map(([k, v]) => `${k} ${v}`).join(', ')})` : ' equally'}`);
   } else {
     add('Duration', form.schedule.years, 'years', entered);
@@ -226,7 +283,8 @@ function materialBalance(diag, u) {
   const kind = { oil: 'oilVolume', water: 'waterVolume', gas: 'gasVolume' };
   const rows = Object.entries(mb.phases).map(([phase, p]) => {
     const k = kind[phase];
-    const v = (x) => fx(u.show(k, x));
+    // SIM-U2-015: in the unit the PRT printed (FIELD or METRIC), shown in the display units
+    const v = (x) => fx(prtShow(k, x, p.unit, u.system));
     return [
       `${phase[0].toUpperCase()}${phase.slice(1)} (${u.label(k)})`,
       v(p.originally_in_place), v(p.currently_in_place), v(p.produced), v(p.injected), v(p.error),
@@ -263,28 +321,49 @@ function convergenceRows(diag, summary) {
   return { reported: true, rows, text, chops };
 }
 
+/** The bottomhole pressure match as report rows (SIM-U2-001). */
+function bhpMatchSection(m) {
+  const f = (v) => (finite(v) ? fx(v, 1) : EMPTY_VALUE);
+  if (!m.applies) return { applies: false, text: `Bottomhole pressure match: does not apply. ${m.reason}`, rows: [] };
+  const rows = m.wells.map((w) => [w.well, fx(w.points), `${f(w.obsMin)} to ${f(w.obsMax)}`, f(w.rms), f(w.bias), f(w.maxAbs)]);
+  rows.push(['All wells', fx(m.overall.points), EMPTY_VALUE, f(m.overall.rms), EMPTY_VALUE, EMPTY_VALUE]);
+  const from = m.source === 'WBHPH'
+    ? 'the run\'s WBHPH vector (the deck was not made by the builder form, so the observed periods are not known: the simulator carries the last observation forward through a period that gives none, and such a period repeats it here)'
+    : `the per-well history of the builder form that made the deck that ran, the periods that carried a pressure${m.echo ? (m.echo.differ ? `; the run's WBHPH differs from it at ${m.echo.differ} of ${m.echo.checked} time steps` : `; the run's WBHPH equals it at all ${m.echo.checked} time steps (the simulator read the pressures as written)`) : '; the worker build of this run did not keep WBHPH, so the simulator\'s echo is not checked'}`;
+  return {
+    applies: true,
+    source: m.source,
+    head: ['Well', 'Points', `Observed (${m.unit})`, `RMS (${m.unit})`, `Mean, simulated minus observed (${m.unit})`, `Largest difference (${m.unit})`],
+    rows,
+    rms: m.overall.rms,
+    echo: m.echo,
+    text: `RMS mismatch ${f(m.overall.rms)} ${m.unit} over ${fx(m.overall.points)} points in ${fx(m.overall.wells)} well${m.overall.wells === 1 ? '' : 's'}. Observed bottomhole pressure from ${from}; one point per observation: the observed pressure of a history period against the simulated WBHP averaged over that period's time steps (time weighted); the residual is simulated minus observed. Absolute pressure. The observations are not controls: the producers run on their observed rates.`,
+  };
+}
+
 function headlineRows(summary, opts, u, diag) {
   const rows = [];
   const mbPhases = diag?.material_balance?.computed ? diag.material_balance.phases : null;
   const add = (label, key, kind, digits = 0, fallback = null) => {
     const lv = lastValue(summary, key, opts);
     if (!lv && fallback && finite(fallback.value)) {
-      const v = u.show(kind, fallback.value);
+      const v = prtShow(kind, fallback.value, fallback.unit, u.system);
       rows.push([label, fx(v, digits), u.label(kind), `${key} is not in the summary; the simulator's well totals in the PRT at report step ${diag.material_balance.report_step}`]);
       return { value: v };
     }
     rows.push([label, lv ? fx(lv.value, digits) : EMPTY_VALUE, kind ? u.label(kind) : '', lv ? `${key} at ${dayToIso(summary, lv.day)}` : `${key} is not in the summary (the deck's SUMMARY section does not request it)`]);
     return lv;
   };
-  const np = add('Cumulative oil produced', 'FOPT', 'oilVolume', 0, mbPhases && { value: mbPhases.oil.produced });
-  add('Cumulative water injected', 'FWIT', 'waterVolume', 0, mbPhases && { value: mbPhases.water.injected });
-  add('Cumulative gas injected', 'FGIT', 'gasVolume', 0, mbPhases && { value: mbPhases.gas.injected });
+  const np = add('Cumulative oil produced', 'FOPT', 'oilVolume', 0, mbPhases && { value: mbPhases.oil.produced, unit: mbPhases.oil.unit });
+  add('Cumulative water injected', 'FWIT', 'waterVolume', 0, mbPhases && { value: mbPhases.water.injected, unit: mbPhases.water.unit });
+  add('Cumulative gas injected', 'FGIT', 'gasVolume', 0, mbPhases && { value: mbPhases.gas.injected, unit: mbPhases.gas.unit });
   add('Oil rate at the end', 'FOPR', 'oilRate');
   add('Field pressure at the end', 'FPR', 'pressure');
   add('Water cut at the end', 'FWCT', 'fraction', 3);
   add('GOR at the end', 'FGOR', 'gor', 3);
   const ooip = diag?.material_balance?.phases?.oil?.originally_in_place ?? diag?.balance?.initial?.original?.oil;
-  const ooipShown = finite(ooip) ? u.show('oilVolume', ooip) : null;
+  const ooipUnit = diag?.material_balance?.phases?.oil?.unit ?? diag?.balance?.units?.oil ?? null;
+  const ooipShown = finite(ooip) ? prtShow('oilVolume', ooip, ooipUnit, u.system) : null;
   rows.push(['Oil originally in place', finite(ooipShown) ? fx(ooipShown) : EMPTY_VALUE, u.label('oilVolume'), finite(ooip) ? 'Simulator balance sheet (PRT), stock tank' : diag ? 'Not printed: the deck does not ask for the FIP report' : NOT_REPORTED]);
   const rf = np && finite(ooipShown) && ooipShown > 0 ? np.value / ooipShown : null;
   rows.push(['Recovery factor to the end', finite(rf) ? `${(rf * 100).toFixed(2)}` : EMPTY_VALUE, 'percent', finite(rf) ? 'Cumulative oil produced / oil originally in place' : 'Needs the cumulative oil and the oil originally in place']);
@@ -308,6 +387,10 @@ export function buildSimReportModel({ caseRow, run, summary, deckText = null, de
   const krWords = krWordsOf(form, fa.applies, deck);
 
   const mb = materialBalance(diag, u);
+  const sch = deck?.schedule;
+  const historyEnd = sch?.historyControls && sch.lastDate ? sch.lastDate : null;
+  const bhpRaw = bhpMatch({ summary, opts, historyEnd, form, formApplies: fa.applies });
+  const bhp = bhpMatchSection(bhpRaw);
   const conv = convergenceRows(diag, summary);
   const flags = [];
   if (!diag) flags.push(`Material balance and convergence: ${NOT_REPORTED}. ${NOT_REPORTED_WHY}`);
@@ -317,6 +400,7 @@ export function buildSimReportModel({ caseRow, run, summary, deckText = null, de
     if (diag.chops?.count) flags.push(`${fx(diag.chops.count)} time steps were cut after convergence failures.`);
     if (diag.messages?.errors) flags.push(`The simulator printed ${fx(diag.messages.errors)} error messages; read the log on the Runs tab.`);
   }
+  if (bhp.applies && bhp.echo?.differ) flags.push(`The run's WBHPH differs from the observed bottomhole pressures of the builder form at ${bhp.echo.differ} of ${bhp.echo.checked} time steps: the simulator did not read the pressures as written. Generate the deck again and run it.`);
   if (summary.steps?.stride > 1) flags.push(`The plotted series is thinned to ${fx(summary.steps.points)} of ${fx(summary.steps.time_steps)} time steps; the CSV holds the same thinned series.`);
   if (us.system !== 'FIELD' && us.system !== 'METRIC') flags.push(`The deck is in ${us.system} units, which this app does not convert; values are shown as written.`);
   if (/assumed/.test(us.basis)) flags.push(`The deck unit system is ${us.basis}.`);
@@ -333,11 +417,14 @@ export function buildSimReportModel({ caseRow, run, summary, deckText = null, de
     `Grid resolution: ${cellText}${fa.applies ? ` of ${g(u.show('length', Number(form.grid.dx)), 4)} by ${g(u.show('length', Number(form.grid.dy)), 4)} ${u.label('length')}` : ''}. Results are averages over each cell; gradients finer than a cell (coning, near-well saturation fronts) are not resolved.`,
     fa.applies && form.structure?.mode !== 'surface' ? 'The builder grid is a layer-cake box: flat layers, no faults, no corner-point geometry.' : 'The grid geometry is the deck\'s own.',
     `PVT: ${sw.pvt}`,
-    `Saturation functions: ${krWords} Two-phase tables; the three-phase oil relative permeability is the simulator's default model; no hysteresis and no end-point scaling unless the deck says so.`,
-    deck?.aquifers?.length ? `Aquifer keywords present: ${deck.aquifers.join(', ')}.` : 'No aquifer is modelled in the main deck: pressure support comes from the wells only.',
+    `Saturation functions: ${krWords} Two-phase tables; the three-phase oil relative permeability is ${threePhaseWords(deck, form, fa.applies)}; no hysteresis and no end-point scaling unless the deck says so.`,
+    aquiferAssumption(deck, form, fa.applies),
     'Wells are controlled as the deck declares; no well economic limits or group controls are applied unless the deck holds them.',
+    !historyEnd && !bhp.applies ? null : bhp.applies
+      ? `History match: rates are honoured by construction (WCONHIST controls the producers on their observed rates); the bottomhole pressure is the test of the match, ${bhp.source === 'WBHPH' ? 'observed as WBHPH' : 'observed in the builder form'}, RMS ${fx(bhp.rms, 1)} ${u.label('pressure')}. No history-match quality threshold is applied: the numbers are printed for the reviewer.`
+      : 'No bottomhole pressure was observed in the history: a rate history alone is matched by construction under WCONHIST and proves little.',
     'A single deterministic run: no uncertainty range. The material balance and convergence statements are the simulator\'s own printout as read by the worker.',
-  ];
+  ].filter(Boolean);
 
   return {
     title: REPORT_TITLE,
@@ -355,6 +442,8 @@ export function buildSimReportModel({ caseRow, run, summary, deckText = null, de
     inputsWhy: fa.reason,
     headline: { head: ['Quantity', 'Value', 'Unit', 'Where it comes from'], rows: headlineRows(summary, opts, u, diag) },
     materialBalance: mb,
+    bhpMatch: bhp,
+    bhpMatchRaw: bhpRaw,
     convergence: conv,
     limits: { assumptions, flags, noFlagsText: 'No flag: the balance closes, no step was cut and the inputs are traced.' },
     footerWho: text(caseRow?.name),

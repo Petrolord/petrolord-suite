@@ -21,6 +21,10 @@
 //                    series: [{ timestep_index, date, pressure_psia, cum_oil_stb, cum_gas_scf }] }
 //                  the forecastable pressure: the last measured average pressure and the history a
 //                  forecast starts from
+//   aquifer        { model ('none' | 'pot' | 'fetkovich' | 'carter_tracy'), values: { the aquifer numbers the
+//                    run used: W_rb, J_rb_d_psi, ct_psi, k_md, h_ft, phi, theta_deg, r_R_ft, reD, muw_cp },
+//                    sources: { the same keys: 'entered' | 'fitted' | 'derived ...' | 'correlation ...' } }
+//                  (SIM-U2-004: Reservoir Simulation Studio builds an analytical aquifer from it)
 //   status         'current' (the run is the run of the case's inputs) | 'earlier_run'
 //   read_at        ISO time the record was read
 // Oilfield units throughout (psia, STB, scf), as the rb_* tables hold them.
@@ -41,6 +45,58 @@ function methodWords(result) {
   if (pd.history_match) return 'Pressure history match (Levenberg-Marquardt on the tank model)';
   if (pd.solver_method_used === 'pot_aquifer_plot') return 'Pot aquifer plot, intercept (Pletcher 2002)';
   return 'Havlena-Odeh regression, slope';
+}
+
+const AQ_HM_KEYS = Object.freeze({
+  initial_aquifer_water_in_place_rb: 'aquifer_w_rb', aquifer_pi_rb_d_psi: 'aquifer_j_rb_d_psi',
+  aquifer_permeability_md: 'aquifer_permeability_md', aquifer_radius_ft: 'aquifer_radius_ft',
+});
+
+/**
+ * SIM-U2-004: the aquifer numbers the run used, with where each came from:
+ * the value the pressure history match fitted over the entered one; the
+ * engine's own defaults where nothing was entered (r_R from the reservoir
+ * area or the legacy 2,980 ft, ct = cf + cw, the McCain water viscosity
+ * the run printed). Mirrors the MBAL report's aquifer rows.
+ */
+export function aquiferUsed({ caseData, result, runConfig }) {
+  const model = runConfig?.aquifer_model ?? (caseData?.has_aquifer ? 'pot' : 'none');
+  const p = runConfig?.aquifer_params && typeof runConfig.aquifer_params === 'object' ? runConfig.aquifer_params : {};
+  const hm = result?.plot_data?.history_match ?? null;
+  const values = {};
+  const sources = {};
+  const take = (out, key) => {
+    const m = hm?.matched_parameters?.find((x) => x.key === AQ_HM_KEYS[key]);
+    if (m && finite(m.matched_value)) { values[out] = m.matched_value; sources[out] = `fitted by the pressure history match (start value ${m.initial_value})`; return; }
+    if (finite(Number(p[key])) && p[key] !== null && p[key] !== '') { values[out] = Number(p[key]); sources[out] = 'entered on the case'; }
+  };
+  const cfcw = finite(runConfig?.formation_compressibility_psi) && finite(runConfig?.water_compressibility_psi) ? runConfig.formation_compressibility_psi + runConfig.water_compressibility_psi : null;
+  const ctOf = () => {
+    if (finite(Number(p.aquifer_total_compressibility_psi)) && p.aquifer_total_compressibility_psi !== null) { values.ct_psi = Number(p.aquifer_total_compressibility_psi); sources.ct_psi = 'entered on the case'; } else if (finite(cfcw)) { values.ct_psi = cfcw; sources.ct_psi = 'ct = cf + cw of the case (no aquifer value entered), as the engine takes it'; }
+  };
+  if (model === 'fetkovich') {
+    take('W_rb', 'initial_aquifer_water_in_place_rb');
+    take('J_rb_d_psi', 'aquifer_pi_rb_d_psi');
+    ctOf();
+  } else if (model === 'carter_tracy') {
+    take('k_md', 'aquifer_permeability_md');
+    take('r_R_ft', 'aquifer_radius_ft');
+    if (finite(Number(p.aquifer_thickness_ft))) { values.h_ft = Number(p.aquifer_thickness_ft); sources.h_ft = 'entered on the case'; }
+    if (finite(Number(p.aquifer_porosity))) { values.phi = Number(p.aquifer_porosity); sources.phi = 'entered on the case'; }
+    values.theta_deg = finite(Number(p.theta_degrees)) && p.theta_degrees !== null ? Number(p.theta_degrees) : 360;
+    sources.theta_deg = finite(Number(p.theta_degrees)) && p.theta_degrees !== null ? 'entered on the case' : 'not entered: 360 degrees, a full circle, as the engine takes it';
+    if (finite(Number(p.radius_ratio)) && p.radius_ratio !== null) { values.reD = Number(p.radius_ratio); sources.reD = 'entered on the case'; } else { values.reD = null; sources.reD = 'not entered: infinite acting, as the engine takes it'; }
+    if (values.r_R_ft == null) {
+      const area = Number(p.reservoir_area_acres);
+      if (finite(area) && area > 0) { values.r_R_ft = Math.sqrt((area * 43560) / (Math.PI * (values.theta_deg / 360))); sources.r_R_ft = 'derived by the engine from the reservoir area and the encroachment angle'; } else { values.r_R_ft = 2980; sources.r_R_ft = 'not entered: the engine\'s legacy 2,980 ft (a 640 acre cell)'; }
+    }
+    if (finite(Number(p.aquifer_water_viscosity_cp)) && p.aquifer_water_viscosity_cp !== null) { values.muw_cp = Number(p.aquifer_water_viscosity_cp); sources.muw_cp = 'entered on the case'; } else {
+      const note = (result?.warnings ?? []).find((w) => /water viscosity defaulted to ([\d.]+)/i.test(w));
+      if (note) { values.muw_cp = Number(/defaulted to ([\d.]+)/i.exec(note)[1]); sources.muw_cp = 'McCain (1991) correlation, as the run printed it'; }
+    }
+    ctOf();
+  }
+  return { model, values, sources };
 }
 
 /**
@@ -112,6 +168,7 @@ export function buildMbalRecord({ caseData, result, run = null, runConfig = null
         basis: 'absolute, as entered (no datum correction)',
         series,
       },
+      aquifer: aquiferUsed({ caseData, result, runConfig }),
       status: stale ? 'earlier_run' : 'current',
       read_at: now,
     },

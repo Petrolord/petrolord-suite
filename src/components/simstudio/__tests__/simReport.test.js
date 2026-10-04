@@ -85,13 +85,16 @@ describe('SIM-U1 report: SPE1 template run (material balance and convergence fro
   test('figures: plotted from the screen series, conditional ones say why (RL6, RL12)', () => {
     const caps = listCaptions(pdf).map((c) => c.title);
     expect(caps).toEqual(['Field production rates', 'Field cumulative volumes', 'Reservoir and bottomhole pressure',
-      'Water cut and gas-oil ratio', 'Field injection rates', 'History match: observed against simulated']);
+      'Water cut and gas-oil ratio', 'Field injection rates', 'History match: observed against simulated',
+      // SIM-U2-001: the bottomhole pressure match, stated as not applying for a deck without one
+      'Bottomhole pressure match']);
     const rates = built.figures.find((f) => f.id === 'rates');
     expectFigureDrawn(pdf, rates, { logo: true });
     const screen = pairs(fieldRows(K.spe1Summary(), 'FOPR', { deckSystem: 'FIELD', system: 'oilfield' }), 'value');
     expect(pointCounts(built.figures).rates[0]['Oil (FOPR)']).toBe(screen.length);
     expectFigureStatement(pdf, built.figures.find((f) => f.id === 'cumulative'), /FOPT, FWIT, FGIT/);
     expectFigureStatement(pdf, built.figures.find((f) => f.id === 'history'), /no observed rates/);
+    expectFigureStatement(pdf, built.figures.find((f) => f.id === 'bhp-match'), /no observed bottomhole pressure/);
   });
 
   test('limits of this analysis are printed', () => {
