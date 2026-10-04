@@ -20,7 +20,7 @@
 //   fluid          'oil' | 'gas'
 //   permeability   { value (md), kh (md-ft), method (words), ci95: [lo, hi] | null,
 //                    window: { from_hr, to_hr, basis } | null }
-//   skin           { total, mechanical, partial_penetration, method (words),
+//   skin           { total, mechanical, partial_penetration, slant { s_theta, deviation_deg, method } | null (U2-007), method (words),
 //                    apparent (gas: includes rate-dependent skin), withheld: reason | null,
 //                    rate_dependent: { D_per_mscfd, Dq, skin_without_rate_part, method } | null (U2-003) }
 //   pressure       { initial_psia (entered), p_star_psia (Horner extrapolation or null),
@@ -97,8 +97,10 @@ export function buildWtaRecord(ctx, { now = new Date().toISOString(), projectId 
     },
     skin: {
       total: orNull(k.skin),
-      mechanical: sb?.status === 'ok' ? orNull(sb.mechanicalSkin) : null,
+      mechanical: sb?.status === 'ok' || (sb?.status === 'full' && sb.slant) ? orNull(sb.mechanicalSkin) : null,
       partial_penetration: sb?.status === 'ok' ? orNull(sb.spp) : null,
+      // WTA-U2-007: the slant pseudo-skin of a deviated interval, with its angle
+      slant: sb?.slant ? { s_theta: orNull(sb.slant.sTheta), deviation_deg: orNull(sb.slant.thetaDeg), method: sb.slant.method } : null,
       method: fromMatch ? permMethod : lineName,
       apparent: isGas,
       withheld: ctx.prepared?.skinWithheld || null,

@@ -147,7 +147,7 @@ const ReportResults = () => {
         <Table head={['Component', 'Value', 'Basis']} body={skinBreakdownRows(skinBreakdown, unitSystem)} minWidth={420} />
         {(skinBreakdown.status === 'ok' || skinBreakdown.status === 'full') && (
           <p className="text-[11px] text-pl-muted mt-2">
-            {skinBreakdown.method}: {skinBreakdown.formula}.{skinBreakdown.splitFormula ? ` Mechanical skin: ${skinBreakdown.splitFormula}.` : ''}
+            {skinBreakdown.method}: {skinBreakdown.formula}.{skinBreakdown.slant ? ` Slant: ${skinBreakdown.slant.formula} (${skinBreakdown.slant.reference}).` : ''}{skinBreakdown.splitFormula ? ` Mechanical skin: ${skinBreakdown.splitFormula}.` : ''}
           </p>
         )}
         {skinBreakdown.message && <p className="text-[11px] text-pl-muted mt-1" data-testid="wts-report-skin-note">{skinBreakdown.message}</p>}

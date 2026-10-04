@@ -359,6 +359,15 @@ const WTSHelpContent = () => (
       readings then runs on the page and can take a second or two for the largest files.
     </P>
 
+    <H>Deviated wells</H>
+    <P>
+      When the perforations carry both measured and true vertical depths and the measured interval is the longer, the
+      well is deviated over the pay. The report then splits a slant pseudo-skin off the total skin (Cinco-Ley, Ramey
+      and Miller, 1975), which is negative: a slanted well sees more of the pay than a vertical one. It joins the
+      partial-penetration pseudo-skin, and the mechanical skin is what remains. For a well that is both slanted and
+      partly open the split is approximate, and the report says so.
+    </P>
+
     <H>Conventions</H>
     <P>
       Display units follow the selector on the Data tab, in either oilfield (md, ft, cp, psi, STB/D, RB/STB, hours) or

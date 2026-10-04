@@ -50,34 +50,40 @@ Gauge, datum and pressure basis
 
 Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                            Page 1 of 7
 Skin components
- Component                                                           Value               Basis
+ Component                                                         Value                Basis
 
- Total skin s                                                        0.00                From the interpretation
+ Total skin s                                                      0.00                 From the interpretation
 
- Partial-penetration pseudo-skin s_pp                                2.60                Papatzacos (1987)
+ Partial-penetration pseudo-skin s_pp                              2.60                 Papatzacos (1987)
 
- Mechanical (damage) skin s_d                                        -1.67               s_d = (hp/h) (s - s_pp)
+ Slant pseudo-skin s_theta (14.8 degrees from vertical)            -0.02                Cinco-Ley, Ramey and Miller (1975), from the MD and
+                                                                                        TVD of the perforations
 
- Net pay h (ft)                                                      45                  Input
+ Mechanical (damage) skin s_d                                      -1.66                s_d = (hp/h) (s - s_pp - s_theta)
 
- Perforated length hp (ft)                                           29                  True vertical depth
+ Net pay h (ft)                                                    45                   Input
 
- Top of pay to top of perforations h1 (ft)                           0                   True vertical depth
+ Perforated length hp (ft)                                         29                   True vertical depth
 
- kv/kh                                                               0.1                 Assumed default 0.1 (no value entered)
+ Top of pay to top of perforations h1 (ft)                         0                    True vertical depth
+
+ kv/kh                                                             0.1                  Assumed default 0.1 (no value entered)
 
 Papatzacos (1987): s_pp = (1/hpD - 1) ln(pi/(2 rD)) + (1/hpD) ln[hpD/(2 + hpD) sqrt((A - 1)/(B - 1))], with hpD = hp/h, rD = (rw/h) sqrt(kv/kh), h1D =
-h1/h, A = 1/(h1D + hpD/4), B = 1/(h1D + 3 hpD/4). Mechanical skin: s_d = (hp/h) (s - s_pp). kv/kh not entered: 0.1 is assumed.
+h1/h, A = 1/(h1D + hpD/4), B = 1/(h1D + 3 hpD/4). Slant: s_theta = -(theta'/41)^2.06 - (theta'/56)^1.865 log10(hD/100), theta' = atan(sqrt(kv/kh) tan
+theta), hD = (h/rw) sqrt(kh/kv) (Cinco-Ley, Ramey and Miller (1975), SPE 5589). Mechanical skin: s_d = (hp/h) (s - s_pp - s_theta). For a well both
+slanted and partially open the published Cinco-Ley table holds a larger slant term than the full-penetration correlation used here, so this split is
+approximate. kv/kh not entered: 0.1 is assumed.
 
 
 Model match: Homogeneous reservoir (manual match)
- Parameter                                                                    Value                  95% confidence
+ Parameter                                                                  Value                    95% confidence
 
- Permeability (md)                                                            70.0                   n/a
+ Permeability (md)                                                          70.0                     n/a
 
- Skin factor (dimensionless)                                                  0.00                   n/a
+ Skin factor (dimensionless)                                                0.00                     n/a
 
- Wellbore storage (bbl/psi)                                                   0.0100                 n/a
+ Wellbore storage (bbl/psi)                                                 0.0100                   n/a
 
 Manual match: no regression was run on these values, so no confidence intervals are given.
 
@@ -100,92 +106,93 @@ Straight-line analyses
 
 
 Cross-check of methods
- Method                                                                      k (md)         Skin           Basis
+ Method                                                                    k (md)           Skin           Basis
 
- Model match, Homogeneous reservoir                                          70.0           0.00           Manual match
+ Model match, Homogeneous reservoir                                        70.0             0.00           Manual match
 
- Horner straight line                                                        83.0           6.15           Semilog slope, r2 1.00
+ Horner straight line                                                      83.0             6.15           Semilog slope, r2 1.00
 
 Independent routes to the same permeability and skin. Agreement supports the interpretation; a spread points at the window or the model.
 
-Flow regimes observed
- Regime                                                       From (hr)                 To (hr)                Span (log cycles)
 
- Transition between regimes                                   0.212                     1.57                   0.9
 
- Radial flow                                                  4.05                      17.8                   0.6
+
+Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                                Page 2 of 7
+Flow regimes observed
+ Regime                                                           From (hr)                   To (hr)               Span (log cycles)
+
+ Transition between regimes                                       0.212                       1.57                  0.9
+
+ Radial flow                                                      4.05                        17.8                  0.6
 
 Detected on the Bourdet derivative; times are Agarwal equivalent time, which runs behind shut-in time late in a buildup. The semilog fit window
 above is in shut-in time.
 
 
+Reservoir and fluid inputs
+ Input                                         Value                       Unit               Source and quality
 
+ Net pay h                                     45                          ft                 Entered, source not stated
 
-Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                                 Page 2 of 7
-Reservoir and fluid inputs
- Input                                         Value                   Unit               Source and quality
+ Porosity phi                                  0.18                        fraction           Entered, source not stated
 
- Net pay h                                     45                      ft                 Entered, source not stated
+ Wellbore radius rw                            0.354                       ft                 Entered, source not stated
 
- Porosity phi                                  0.18                    fraction           Entered, source not stated
+ Water saturation Sw                           n/a                         fraction           Not provided
 
- Wellbore radius rw                            0.354                   ft                 Entered, source not stated
+ Total compressibility ct                      1.2e-5                      1/psi              Entered, source not stated (entered as total)
 
- Water saturation Sw                           n/a                     fraction           Not provided
+ Oil viscosity mu_o                            0.9                         cp                 Entered, source not stated
 
- Total compressibility ct                      1.2e-5                  1/psi              Entered, source not stated (entered as total)
+ Oil formation volume factor Bo                1.25                        RB/STB             Entered, source not stated
 
- Oil viscosity mu_o                            0.9                     cp                 Entered, source not stated
+ API gravity                                   n/a                         degAPI             Not provided
 
- Oil formation volume factor Bo                1.25                    RB/STB             Entered, source not stated
+ Solution GOR                                  n/a                         scf/STB            Not provided
 
- API gravity                                   n/a                     degAPI             Not provided
+ Gas gravity                                   n/a                         air = 1            Not provided
 
- Solution GOR                                  n/a                     scf/STB            Not provided
+ Reservoir temperature                         n/a                         degF               Not provided
 
- Gas gravity                                   n/a                     air = 1            Not provided
+ Initial pressure pi                           4800                        psia               Entered, source not stated
 
- Reservoir temperature                         n/a                     degF               Not provided
+ Oil rate q                                    450                         STB/D              Entered (test rate)
 
- Initial pressure pi                           4800                    psia               Entered, source not stated
+ kv/kh                                         0.1                                            Assumed default 0.1 (no value entered)
 
- Oil rate q                                    450                     STB/D              Entered (test rate)
+ Perforated interval, MD                       9850 to 9880                ft                 Entered
 
- kv/kh                                         0.1                                        Assumed default 0.1 (no value entered)
+ Perforated interval, TVD                      9601 to 9630                ft                 Survey of registry well Obodo-7
 
- Perforated interval, MD                       9850 to 9880            ft                 Entered
-
- Perforated interval, TVD                      9601 to 9630            ft                 Survey of registry well Obodo-7
-
- Perforated length hp                          29                      ft                 From the TVD interval
+ Perforated length hp                          29                          ft                 From the TVD interval
 
 The oil analysis uses h, phi, rw, ct, mu_o, Bo, pi and q. Sw, API gravity, GOR, gas gravity and temperature are recorded for the report and do not
 enter the calculation unless ct is built from its components.
 
 
 Flow and shut-in summary
- Period       Type      Start     Duration       Choke (1/64         Rate            Volume          Cumulative          Recovered         Remark
-                        (hr)      (hr)           in)                 (STB/D)         (STB)           (STB)               (bbl)
+ Period       Type      Start     Duration       Choke (1/64             Rate            Volume          Cumulative            Recovered       Remark
+                        (hr)      (hr)           in)                     (STB/D)         (STB)           (STB)                 (bbl)
 
- 1            Flow      0         36             n/a                 450.0           675.0           675.0               n/a               n/a
+ 1            Flow      0         36             n/a                     450.0           675.0           675.0                 n/a             n/a
 
- 2            Shut-in   36        79.433         n/a                 0.0             0               675.0               n/a               n/a
+ 2            Shut-in   36        79.433         n/a                     0.0             0               675.0                 n/a             n/a
 
 Periods from the entered rate history. Volume is the rate held over the period; recovered volume and choke are as entered.
 
 Gauge data used and left out
- Readings                                                    Count           Treatment
+ Readings                                                    Count               Treatment
 
- Readings in the gauge record                                45              As loaded
+ Readings in the gauge record                                45                  As loaded
 
- Spike filter                                                0               None removed (threshold 6 robust standard deviations)
+ Spike filter                                                0                   None removed (threshold 6 robust standard deviations)
 
- Analysis points                                             45              Used
-
-
+ Analysis points                                             45                  Used
 
 
-Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                                Page 3 of 7
+
+
+Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                                    Page 3 of 7
 Method and its limits
  Topic                         Statement
 
@@ -196,8 +203,9 @@ Well Test Analysis Report, Well Sample well 1, Field Obodo                      
                                Hegeman or Fair model on the Match tab.
 
  Well geometry                 Homogeneous reservoir model. A vertical well open over the net pay unless the horizontal model is chosen. Partial
-                               penetration enters as a pseudo-skin only (Papatzacos 1987, vertical wells): there is no limited-entry (spherical flow)
-                               model, and a deviated well is treated as vertical.
+                               penetration enters as a pseudo-skin only (Papatzacos 1987): there is no limited-entry (spherical flow) model. A
+                               deviated interval (MD longer than TVD) enters as the Cinco-Ley et al. (1975) slant pseudo-skin, split off the total
+                               skin; the flow model stays that of a vertical well.
 
  Time basis                    Buildup on Agarwal equivalent time with the producing time tp, or on superposition of the rate history when one is
                                entered.

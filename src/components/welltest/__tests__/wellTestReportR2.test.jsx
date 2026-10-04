@@ -109,12 +109,14 @@ describe('the reviewed sample report', () => {
     expect(t).toMatch(/Skin components/);
     expect(t).toContain(`Total skin s ${sb.totalSkin.toFixed(2)}`);
     expect(t).toContain(`Partial-penetration pseudo-skin s_pp ${sb.spp.toFixed(2)} Papatzacos (1987)`);
-    expect(t).toContain(`Mechanical (damage) skin s_d ${sb.mechanicalSkin.toFixed(2)} s_d = (hp/h) (s - s_pp)`);
+    // WTA-U2-007: this sample's perforations are 30 ft MD over 29 ft TVD (14.8 degrees), so the slant term joins the split
+    expect(t).toContain(`Slant pseudo-skin s_theta (14.8 degrees from vertical) ${sb.slant.sTheta.toFixed(2)}`);
+    expect(t).toContain(`Mechanical (damage) skin s_d ${sb.mechanicalSkin.toFixed(2)} s_d = (hp/h) (s - s_pp - s_theta)`);
     expect(t).toMatch(/Papatzacos \(1987\): s_pp = \(1\/hpD - 1\) ln\(pi\/\(2 rD\)\)/);
     expect(t).toMatch(/Perforated length hp \(ft\) 29 True vertical depth/);
     expect(t).toMatch(/kv\/kh 0\.1 Assumed default 0\.1 \(no value entered\)/);
-    // the three numbers on the page satisfy s = (h/hp) s_d + s_pp
-    expect((45 / 29) * sb.mechanicalSkin + sb.spp).toBeCloseTo(sb.totalSkin, 10);
+    // the numbers on the page satisfy s = (h/hp) s_d + s_pp + s_theta
+    expect((45 / 29) * sb.mechanicalSkin + sb.spp + sb.slant.sTheta).toBeCloseTo(sb.totalSkin, 10);
   });
 
   test('WTA-R2-004: well identification heads the report', () => {

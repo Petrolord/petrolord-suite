@@ -174,8 +174,9 @@ Well Test Analysis Report, Well Sample well 1                                   
                                Hegeman or Fair model on the Match tab.
 
  Well geometry                 Homogeneous reservoir model. A vertical well open over the net pay unless the horizontal model is chosen. Partial
-                               penetration enters as a pseudo-skin only (Papatzacos 1987, vertical wells): there is no limited-entry (spherical flow)
-                               model, and a deviated well is treated as vertical.
+                               penetration enters as a pseudo-skin only (Papatzacos 1987): there is no limited-entry (spherical flow) model. A
+                               deviated interval (MD longer than TVD) enters as the Cinco-Ley et al. (1975) slant pseudo-skin, split off the total
+                               skin; the flow model stays that of a vertical well.
 
  Time basis                    Buildup on Agarwal equivalent time with the producing time tp, or on superposition of the rate history when one is
                                entered.

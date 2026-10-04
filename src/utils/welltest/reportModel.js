@@ -18,7 +18,7 @@ import {
   pvtContractOf, pvtContractOrigin,
 } from '@/lib/inputProvenance';
 import { unitLabel, fromOilfield } from './units.js';
-import { partialPenetrationSkin } from './partialPenetration.js';
+import { partialPenetrationSkin, slantPseudoSkin, decomposeSkin } from './partialPenetration.js';
 import { totalCompressibility } from './compressibility.js';
 import { summarizeFlowPeriods } from './flowSummary.js';
 import { PRESSURE_UNITS, TIME_UNITS, gaugeTime } from './gaugeImport.js';
@@ -326,7 +326,17 @@ export function buildCompletion(completion) {
   const d = hasTvd ? tvd : md;
   if (!(d.base > d.top)) return { status: 'invalid', basis, reason: 'The base of the perforated interval must be deeper than its top.', ...shared };
   const h1Assumed = !Number.isFinite(d.payTop);
-  return { status: 'ok', basis, hp: d.base - d.top, h1: h1Assumed ? 0 : d.top - d.payTop, h1Assumed, ...shared };
+  // WTA-U2-007: with both MD and TVD of the perforations, a longer MD than
+  // TVD interval is a deviated well; its angle from vertical over the interval
+  let deviation = null;
+  if (hasMd && hasTvd) {
+    const dMd = md.base - md.top;
+    const dTvd = tvd.base - tvd.top;
+    if (dMd > 0 && dTvd > 0 && dTvd <= dMd * (1 + 1e-9) && dMd > dTvd * (1 + 1e-6)) {
+      deviation = { thetaDeg: (Math.acos(Math.min(dTvd / dMd, 1)) * 180) / Math.PI, dMd, dTvd };
+    }
+  }
+  return { status: 'ok', basis, hp: d.base - d.top, h1: h1Assumed ? 0 : d.top - d.payTop, h1Assumed, deviation, ...shared };
 }
 
 /**
@@ -369,14 +379,28 @@ export function buildSkinBreakdown({ totalSkin, reservoir, completion, kvkhInput
     h: reservoir.h, hp: comp.hp, h1: comp.h1, rw: reservoir.rw, kvkh,
   });
   if (!out.ok) return { ...base, status: 'refused', code: out.code, message: `${out.reason} The skin is not split.` };
+  // WTA-U2-007: the slant pseudo-skin of a deviated interval (Cinco-Ley et al. 1975, engine)
+  const slantOut = comp.deviation ? slantPseudoSkin({ thetaDeg: comp.deviation.thetaDeg, h: reservoir.h, rw: reservoir.rw, kvkh }) : null;
+  const slant = slantOut?.ok ? {
+    sTheta: slantOut.sTheta, thetaDeg: comp.deviation.thetaDeg, thetaPrime: slantOut.thetaPrime, hD: slantOut.hD,
+    method: slantOut.method, formula: slantOut.formula, reference: slantOut.reference, warnings: slantOut.warnings,
+  } : null;
+  // the mechanical skin left after every pseudo-skin and the rate-dependent
+  // part, through the engine's split s_d = (hp/h) (s - the rest)
+  const rest = out.spp + (slant ? slant.sTheta : 0) + (rate ? rate.Dq : 0);
+  const split = Number.isFinite(totalSkin) ? decomposeSkin({ totalSkin, h: reservoir.h, hp: out.hpD * reservoir.h, spp: rest }) : null;
   const named = {
     ...base, spp: out.spp, hpD: out.hpD, h1D: out.h1D, rD: out.rD,
     method: out.method, formula: out.formula, reference: out.reference,
-    splitFormula: out.split?.formula || null, splitReference: out.split?.reference || null,
-    mechanicalSkin: out.split?.ok ? out.split.mechanicalSkin - (rate ? rate.Dq : 0) : NaN,
-    splitFormula: (out.split?.formula || null) && (rate ? `${out.split.formula} - D q` : out.split.formula),
+    splitReference: out.split?.reference || null,
+    slant,
+    mechanicalSkin: split?.ok ? split.mechanicalSkin : NaN,
+    splitFormula: out.split?.formula ? `s_d = (hp/h) (s - s_pp${slant ? ' - s_theta' : ''}${rate ? ' - D q' : ''})` : null,
   };
   const notes = [];
+  if (comp.deviation && !slant) notes.push(`The interval is deviated ${comp.deviation.thetaDeg.toFixed(1)} degrees from vertical, but no slant pseudo-skin was computed: ${slantOut?.reason || 'it could not be evaluated'}`);
+  if (slant && !out.fullyOpen) notes.push('For a well both slanted and partially open the published Cinco-Ley table holds a larger slant term than the full-penetration correlation used here, so this split is approximate.');
+  if (slant?.warnings?.length) notes.push(...slant.warnings);
   if (comp.basis === 'MD') notes.push('Lengths are measured depths, which is exact for a vertical hole only.');
   if (comp.h1Assumed) notes.push('Top of net pay not entered: the perforations are taken to start at the top of the pay.');
   if (!kvkhGiven) notes.push(`kv/kh not entered: ${DEFAULT_KVKH} is assumed.`);
@@ -399,6 +423,7 @@ export function skinBreakdownRows(sb, system = 'oilfield') {
   }
   if (sb.status === 'ok' || sb.status === 'full') {
     rows.push(['Partial-penetration pseudo-skin s_pp', f2(sb.spp), sb.method]);
+    if (sb.slant) rows.push([`Slant pseudo-skin s_theta (${sb.slant.thetaDeg.toFixed(1)} degrees from vertical)`, f2(sb.slant.sTheta), `${sb.slant.method}, from the MD and TVD of the perforations`]);
     rows.push([sb.mechanicalLabel, f2(sb.mechanicalSkin), sb.splitFormula || EMPTY_VALUE]);
     rows.push([`Net pay h (${L})`, shown('length', sb.h, system), 'Input']);
     rows.push([`Perforated length hp (${L})`, shown('length', sb.hp, system), sb.basis === 'TVD' ? 'True vertical depth' : 'Measured depth']);
@@ -838,7 +863,7 @@ export function buildLimitsRows({ reservoir, config, model, prepared, datum = nu
       ? 'Single-phase real gas in pseudo-pressure m(p); dimensionless time at the initial mu ct unless pseudo-time is chosen. The skin is the apparent skin s\', which includes any rate-dependent skin; separating it needs tests at more than one rate.'
       : 'Single-phase flow of a slightly compressible liquid with constant viscosity, formation volume factor and total compressibility. Gas coming out of solution near the well is not modelled.'],
     ['Wellbore storage', wellboreLimitText(model)],
-    ['Well geometry', `${model?.label ? `${model.label} model. ` : ''}A vertical well open over the net pay unless the horizontal model is chosen. Partial penetration enters as a pseudo-skin only (Papatzacos 1987, vertical wells): there is no limited-entry (spherical flow) model, and a deviated well is treated as vertical.`],
+    ['Well geometry', `${model?.label ? `${model.label} model. ` : ''}A vertical well open over the net pay unless the horizontal model is chosen. Partial penetration enters as a pseudo-skin only (Papatzacos 1987): there is no limited-entry (spherical flow) model. A deviated interval (MD longer than TVD) enters as the Cinco-Ley et al. (1975) slant pseudo-skin, split off the total skin; the flow model stays that of a vertical well.`],
     ['Time basis', config?.family === 'buildup'
       ? 'Buildup on Agarwal equivalent time with the producing time tp, or on superposition of the rate history when one is entered.'
       : 'Drawdown on elapsed time from the start of flow; a rate history with more than one rate is analysed by superposition (Odeh-Jones).'],

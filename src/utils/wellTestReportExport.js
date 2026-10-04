@@ -212,6 +212,7 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
     const lines = [];
     if (skinBreakdown.status === 'ok' || skinBreakdown.status === 'full') {
       lines.push(`${skinBreakdown.method}: ${skinBreakdown.formula}, with hpD = hp/h, rD = (rw/h) sqrt(kv/kh), h1D = h1/h, A = 1/(h1D + hpD/4), B = 1/(h1D + 3 hpD/4).`);
+      if (skinBreakdown.slant) lines.push(`Slant: ${skinBreakdown.slant.formula} (${skinBreakdown.slant.reference}).`);
       if (skinBreakdown.splitFormula) lines.push(`Mechanical skin: ${skinBreakdown.splitFormula}.`);
     }
     if (skinBreakdown.message) lines.push(skinBreakdown.message);

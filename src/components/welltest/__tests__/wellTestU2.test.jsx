@@ -299,3 +299,36 @@ describe('WTA-U2-004: correction to datum with a stated gradient', () => {
     studio.unmount();
   }, 600000);
 });
+
+describe('WTA-U2-007: the slant pseudo-skin of a deviated interval', () => {
+  const { slantPseudoSkin, papatzacosPseudoSkin } = require('@/utils/welltest/partialPenetration');
+  const deviated = (c) => {
+    // 30 ft along hole over 21.213 ft vertical: 45 degrees from vertical
+    c.setCompletion({ ...c.completion, perfTopMd: '9850', perfBaseMd: '9880', perfTopTvd: '9800', perfBaseTvd: '9821.2132', payTopTvd: '9800', payTopMd: '9850' });
+  };
+
+  test('MD and TVD of the perforations give the angle; the engine slant skin joins the split, and the PDF prints it', async () => {
+    const studio = await sample(deviated);
+    const sb = studio.ctx.skinBreakdown;
+    expect(sb.slant.thetaDeg).toBeCloseTo(45, 3);
+    const engine = slantPseudoSkin({ thetaDeg: sb.slant.thetaDeg, h: 45, rw: 0.354, kvkh: 0.1 });
+    expect(sb.slant.sTheta).toBe(engine.sTheta);
+    const pp = papatzacosPseudoSkin({ h: 45, hp: 21.2132, h1: 0, rw: 0.354, kvkh: 0.1 });
+    expect(sb.spp).toBeCloseTo(pp.spp, 9);
+    expect(sb.mechanicalSkin).toBeCloseTo((21.2132 / 45) * (sb.totalSkin - pp.spp - engine.sTheta), 9);
+    const t = flat(readPdf(build(studio.ctx).doc).text);
+    expect(t).toMatch(/Slant pseudo-skin s_theta \(45\.0 degrees from vertical\) -?\d+\.\d\d/);
+    expect(t).toMatch(/Cinco-Ley, Ramey and Miller \(1975\)/);
+    expect(t).toMatch(/s_d = \(hp\/h\) \(s - s_pp - s_theta\)/);
+    expect(studio.ctx.wtaRecord.skin.slant.deviation_deg).toBeCloseTo(45, 3);
+    studio.unmount();
+  }, 600000);
+
+  test('a vertical interval (MD equal to TVD length) has no slant term, and the split is the one before (negative control)', async () => {
+    const studio = await sample((c) => c.setCompletion({ ...c.completion, perfTopMd: '9850', perfBaseMd: '9880', perfTopTvd: '9800', perfBaseTvd: '9830', payTopTvd: '9800' }));
+    const sb = studio.ctx.skinBreakdown;
+    expect(sb.slant).toBeNull();
+    expect(sb.mechanicalSkin).toBeCloseTo((30 / 45) * (sb.totalSkin - sb.spp), 9);
+    studio.unmount();
+  }, 600000);
+});
