@@ -278,3 +278,21 @@ B = 006, 007, 008 (with the owner), 009, 014, 015; C = 010, 011, 012, 013, 016.
 | 4 | Realisation batches need a quota (today 2 in flight, 10 per day). | Keep the quota; batches after NAPE with a per-org quota of 20 runs per day |
 | 5 | A gas-oil set saved at another Swc is written at the oil-water Swc and said. Refuse instead? | Keep (stated everywhere), and fix the pairing in SCAL (SIM-U2-014) |
 | 6 | The 1e-4 relative "closes" threshold for the material balance. | Keep, stated as a Petrolord convention; the error is always printed |
+
+## 9. Batch decision (programme lead, 2026-10-04)
+
+Recorded verbatim.
+
+Owner-question defaults in force: worker redeploy after merge (owner); builder_form migration staging first (owner); colleague run queueing after NAPE with the second engineer; batch quota stays 2 in flight and 10 a day; the gas-oil set is written at the oil-water Swc until SCAL's pairing fix; the 1e-4 balance threshold stays, stated.
+
+BUILD in this order, one commit per item:
+- Batch A: 002 `sim-forecast-1` sender to Forecast Scenario Hub and Petroleum Economics Studio (follow wf-forecast-1 exactly: calendar periods, units, basis, deck SHA-256 and run id, "source changed since", the cash-flow engine gated to ignore the provenance record); 001 BHP history match (WBHPH in the deck from observed bottomhole pressure, with a mismatch table by well and an RMS figure in the report; observed pressures through the existing import door); 005 run compare (two or more runs of a case, overlaid on the calendar axis, a difference table, in the report); 003 three-phase oil relative permeability (Stone I or II and the OPM default) from SCAL's kr-1 two-phase sets, choice stated in the deck and report; 004 analytical aquifer from a Material Balance case through mbal-1 (Carter-Tracy or Fetkovich as OPM supports, the parameters' source printed; validate the keyword mapping on a known case).
+- Batch B if time remains: 014 SCAL gas-oil Swc pairing (fix in SCAL so the gas-oil set is saved at the oil-water Swc, then drop the Simulation warning for paired sets); 015 METRIC balance; 007 Waterflood deck sender (wf-forecast-1 pattern to a builder starting deck).
+- DEFERRED (record reasons): 006 group controls and WECON, 008 colleague run queueing (owner: after NAPE), 009 VFP from Nodal, all of Batch C.
+
+Branch `feat/sim-u2`. Step 2 results are recorded per item in section 10.
+
+## 10. Step 2 build (feat/sim-u2)
+
+| ID | Item | State | Proving test | Isolated gate |
+|---|---|---|---|---|
