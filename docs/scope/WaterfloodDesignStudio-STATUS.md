@@ -160,3 +160,30 @@ it quotes. Axes now follow Hall (1963): cumulative water injected on x, the
 pressure-time integral on y, slope p/q rising with plugging. The engine
 was right and is unchanged; gated on a known case with the old mapping as
 the negative control.
+
+## 2026-10-04: Reservoir upgrade round, Step 1 (WF-U1)
+
+Doc: `docs/upgrade/WaterfloodDesignStudio-UPGRADE.md` (branch
+`feat/waterflood-u1`; engines PR #304, not merged, vendored as recorded
+deviations). 26 findings, 21 fixed, 5 open (S3 and S4, carried to Step 2).
+
+- **Numbers that move.** The five-spot areal sweep correlation is entered
+  with Craig's mobility ratio (krw at the average Sw behind the front) for
+  new projects; saved projects keep the endpoint basis until switched
+  (sample: EA at breakthrough 53.9 to 62.5 percent, breakthrough 1.17 to 1.35
+  years). Surveillance totals and VRR are calendar volumes (daily files
+  unchanged). The recovery KPI is ER = ED x EA x EV of the pattern OOIP.
+- **The report** on the shared kit, with a Report tab showing the same rows:
+  identification, headline, recovery split, mobility ratio by its parts,
+  every input with unit and source, the forecast by year, the surveillance
+  file as read and its wells, Hall windows with intervals, limits, the kr-1
+  and pvt-1 blocks, up to eleven figures.
+- **Intakes**: kr-1 (SCAL) and pvt-1 (Fluid) read by id with the shared
+  cards; the Well Test permeability keeps its source.
+- **Import door** on `src/lib/tabularParse.js` with units at the door and a
+  hostile file set; **units** Oilfield/SI on the registry; **record sharing**
+  with check-out; Monte Carlo summary saved; `.pld` exports projects with an
+  intake (a portability fix that also covers SCAL and Well Test).
+- Tests: `src/components/waterflooddesign/__tests__/wf*.test.*`,
+  `src/utils/waterflooddesign/__tests__/`, `src/lib/portability/__tests__/waterfloodPortability.test.js`,
+  `e2e/waterflood-upgrade.spec.js`, `e2e/waterflood-t1.spec.js` (updated for Craig's M).
