@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  GitBranch, Plus, Copy, Trash2, Save, FolderOpen, Download, Info, HelpCircle, TrendingDown, RefreshCw,
+  GitBranch, Plus, Copy, Trash2, Save, FolderOpen, Download, Info, HelpCircle, TrendingDown, RefreshCw, FileDown,
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -21,7 +21,7 @@ import DcaNumberField from '@/components/declineCurve/DcaNumberField';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS,
 } from '@/utils/chartTheme';
-import { compareCases, sampleScenarioCases, EUR_MAX_YEARS, DAYS_PER_YEAR } from '@/utils/forecastScenarioCalculations';
+import { compareCases, sampleScenarioCases, EUR_MAX_YEARS, DAYS_PER_YEAR, caseDailyDecline } from '@/utils/forecastScenarioCalculations';
 import { buildHubCsv, HUB_DEFAULT_START } from '@/utils/forecastScenarioExport';
 import { caseFromDcaContract, caseSourceText, caseValuesFromContract } from '@/utils/forecastScenarioIntake';
 import { listDcaForecasts, getDcaForecast } from '@/utils/declineCurve/dcaForecastService';
@@ -34,6 +34,16 @@ import { useAppUnits } from '@/lib/units/useAppUnits';
 import { convert } from '@/lib/units/registry';
 import { buildLabel } from '@/lib/platformBuild';
 import { supabase } from '@/lib/customSupabaseClient';
+import { collectHubReportArgs, exportHubPdf } from '@/utils/forecastScenarioReport';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
+
+const useOrganizationName = () => {
+  try {
+    return useAuth()?.organization?.name || '';
+  } catch {
+    return '';
+  }
+};
 
 // R5 (Reservoir-ROADMAP.md): the reservoir-side forecast scenario
 // comparator. Production forecasting lives HERE (multi-case Arps via the
@@ -55,8 +65,11 @@ const CASE_COLORS = ['#059669', '#2563eb', '#d97706', '#db2777', '#7c3aed', '#08
 const HUB_UNIT_SPEC = Object.freeze({ liquidRate: { family: 'liquidRate', allowed: ['bbl/d', 'm3/d'] } });
 const RATE_LABEL = { 'bbl/d': 'bbl/d', 'm3/d': 'sm3/d' };
 
+const DECLINE_BASIS_LABEL = { nominal: 'nominal', 'effective-secant': 'effective, secant', 'effective-tangent': 'effective, tangent' };
+
 const CaseCard = ({ c, color, onChange, onDuplicate, onDelete, deletable, rateUnit, toView, toEngine, sourceState, onRefresh, disabled }) => {
   const source = caseSourceText(c);
+  const diNominal = caseDailyDecline(c) * DAYS_PER_YEAR * 100;
   return (
     <Card data-testid={`fsh-case-${c.id}`}>
       <CardContent className="p-3 space-y-2">
@@ -75,8 +88,20 @@ const CaseCard = ({ c, color, onChange, onDuplicate, onDelete, deletable, rateUn
         <div className="grid grid-cols-2 gap-2">
           <DcaNumberField id={`fsh-${c.id}-qi`} label="qi" unit={rateUnit} value={c.qi} toView={toView} toEngine={toEngine}
             onCommit={(v) => onChange({ qi: v ?? 0 })} labelClassName="text-[10px] text-pl-muted" testId={`fsh-${c.id}-qi`} disabled={disabled} />
-          <DcaNumberField id={`fsh-${c.id}-decline`} label="Decline (nominal)" unit="%/yr" value={c.declineAnnualPct}
-            onCommit={(v) => onChange({ declineAnnualPct: v ?? 0 })} labelClassName="text-[10px] text-pl-muted" testId={`fsh-${c.id}-decline`} disabled={disabled} />
+          <div className="space-y-1">
+            <DcaNumberField id={`fsh-${c.id}-decline`} label={`Decline (${DECLINE_BASIS_LABEL[c.declineBasis || 'nominal']})`} unit="%/yr" value={c.declineAnnualPct}
+              onCommit={(v) => onChange({ declineAnnualPct: v ?? 0 })} labelClassName="text-[10px] text-pl-muted" testId={`fsh-${c.id}-decline`} disabled={disabled} />
+            {/* DCA U2-004: the basis the decline is typed on */}
+            <select aria-label="Decline basis" value={c.declineBasis || 'nominal'} onChange={(e) => onChange({ declineBasis: e.target.value })} disabled={disabled}
+              className="h-6 w-full rounded border border-pl-border bg-pl-surface text-pl-text text-[10px]" data-testid={`fsh-${c.id}-decline-basis`}>
+              <option value="nominal">Nominal</option>
+              <option value="effective-secant">Effective, secant (with this b)</option>
+              <option value="effective-tangent">Effective, tangent</option>
+            </select>
+            {(c.declineBasis || 'nominal') !== 'nominal' && Number.isFinite(diNominal) && (
+              <p className="text-[10px] text-pl-muted" data-testid={`fsh-${c.id}-decline-nominal`}>{diNominal.toFixed(2)} %/yr nominal</p>
+            )}
+          </div>
           <DcaNumberField id={`fsh-${c.id}-b`} label="b factor" value={c.b}
             onCommit={(v) => onChange({ b: v ?? 0 })} labelClassName="text-[10px] text-pl-muted" testId={`fsh-${c.id}-b`} disabled={disabled} />
           <DcaNumberField id={`fsh-${c.id}-years`} label="Horizon" unit="yr" value={c.years}
@@ -87,6 +112,25 @@ const CaseCard = ({ c, color, onChange, onDuplicate, onDelete, deletable, rateUn
             <Label htmlFor={`fsh-${c.id}-start`} className="text-[10px] text-pl-muted">Start date</Label>
             <Input id={`fsh-${c.id}-start`} type="date" value={c.startDate || ''} onChange={(e) => onChange({ startDate: e.target.value || null })}
               className="h-8 text-xs" disabled={disabled} data-testid={`fsh-${c.id}-start`} />
+          </div>
+          {/* DCA U2-011: downtime, the share of calendar time shut in; blank is none */}
+          <DcaNumberField id={`fsh-${c.id}-downtime`} label="Downtime" unit="% of time" value={c.downtimePct > 0 ? c.downtimePct : null}
+            placeholder="None" emptyValue={null}
+            onCommit={(v) => onChange({ downtimePct: v > 0 && v < 100 ? v : null })}
+            labelClassName="text-[10px] text-pl-muted" testId={`fsh-${c.id}-downtime`} disabled={disabled} />
+          {/* DCA U2-001: terminal decline Dmin, no default (blank is none) */}
+          <DcaNumberField id={`fsh-${c.id}-dmin`} label="Terminal decline Dmin" unit="%/yr" value={c.terminalDeclinePct > 0 ? c.terminalDeclinePct : null}
+            placeholder="None" emptyValue={null}
+            onCommit={(v) => onChange({ terminalDeclinePct: v > 0 ? v : null, terminalDeclineBasis: v > 0 ? (c.terminalDeclineBasis || 'effective-tangent') : null })}
+            labelClassName="text-[10px] text-pl-muted" testId={`fsh-${c.id}-dmin`} disabled={disabled} />
+          <div className="space-y-1">
+            <Label htmlFor={`fsh-${c.id}-dmin-basis`} className="text-[10px] text-pl-muted">Dmin basis</Label>
+            <select id={`fsh-${c.id}-dmin-basis`} value={c.terminalDeclineBasis || 'effective-tangent'}
+              onChange={(e) => onChange({ terminalDeclineBasis: e.target.value })} disabled={disabled || !(c.terminalDeclinePct > 0)}
+              className="h-8 w-full rounded border border-pl-border bg-pl-surface text-pl-text text-xs" data-testid={`fsh-${c.id}-dmin-basis`}>
+              <option value="effective-tangent">Effective</option>
+              <option value="nominal">Nominal</option>
+            </select>
           </div>
         </div>
         {source && (
@@ -123,6 +167,10 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
   const [saveName, setSaveName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [sourceStates, setSourceStates] = useState({});
+  // DCA U2-018: who the report names (saved with the set)
+  const [identification, setIdentification] = useState({ field: '', analyst: '' });
+  const [reportBusy, setReportBusy] = useState(false);
+  const organizationName = useOrganizationName();
 
   const shared = useSharedSavedProjects({ table: HUB_TABLE, service, sharingStore });
   const canWrite = shared.canWrite;
@@ -228,7 +276,7 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
     }
   };
 
-  const payload = (name) => ({ name, cases, econ, startDate: setStart, schema: 2 });
+  const payload = (name) => ({ name, cases, econ, startDate: setStart, identification, schema: 2 });
   const saveProject = async () => {
     const name = saveName.trim();
     if (!name) return;
@@ -264,6 +312,7 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
       setCases(data.cases || sample.cases);
       setEcon(data.econ || sample.econ);
       setSetStart(data.startDate || HUB_DEFAULT_START);
+      setIdentification({ field: '', analyst: '', ...(data.identification || {}) });
       setCurrentId(id);
       setLoadOpen(false);
       toast({ title: 'Scenario set loaded' });
@@ -307,6 +356,26 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
   }]);
   const duplicateCase = (c) => setCases((cs) => [...cs, { ...c, id: `c${Date.now()}`, name: `${c.name} (copy)` }]);
   const removeCase = (id) => setCases((cs) => cs.filter((c) => c.id !== id));
+
+  const exportReport = async () => {
+    const model = collectHubReportArgs({
+      cases, econ, setStart, setName: shared.projectRow?.project_name || '', identification, organizationName,
+      metric, sourceStates, build: buildLabel(),
+    });
+    if (!model.ok) {
+      toast({ title: 'No report', description: model.refusal, variant: 'destructive' });
+      return;
+    }
+    setReportBusy(true);
+    try {
+      const name = await exportHubPdf(model);
+      toast({ title: 'Report exported', description: name });
+    } catch (e) {
+      toast({ title: 'The report could not be built', description: e.message, variant: 'destructive' });
+    } finally {
+      setReportBusy(false);
+    }
+  };
 
   const exportAnnualCsv = (s) => {
     const c = cases.find((x) => x.id === s.id);
@@ -356,6 +425,21 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
               <Button size="sm" variant="outline" className="h-8" onClick={() => setLoadOpen(true)}>
                 <FolderOpen size={14} className="mr-1" /> Load
               </Button>
+              <Button size="sm" variant="outline" className="h-8" onClick={exportReport} disabled={reportBusy} data-testid="fsh-report">
+                <FileDown size={14} className="mr-1" /> {reportBusy ? 'Building...' : 'Report (PDF)'}
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2" data-testid="fsh-identification">
+              <div className="space-y-1">
+                <Label htmlFor="fsh-id-field" className="text-[10px] text-pl-muted">Field (report)</Label>
+                <Input id="fsh-id-field" value={identification.field || ''} onChange={(e) => setIdentification((x) => ({ ...x, field: e.target.value }))}
+                  className="h-7 text-xs" placeholder="from the cases' sources" data-testid="fsh-id-field" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="fsh-id-analyst" className="text-[10px] text-pl-muted">Analyst (report)</Label>
+                <Input id="fsh-id-analyst" value={identification.analyst || ''} onChange={(e) => setIdentification((x) => ({ ...x, analyst: e.target.value }))}
+                  className="h-7 text-xs" data-testid="fsh-id-analyst" />
+              </div>
             </div>
             {shared.projectRow && (
               <RecordSharingBar sharing={shared.sharing} label="scenario set" onSaveCopy={saveCopy} onReload={() => loadProject(currentId)}
@@ -379,7 +463,7 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
                   ))}
                 </div>
               </div>
-              <p className="text-[10px] text-pl-muted">Decline is the nominal (instantaneous) decline at the case start, percent per year of 365.25 days. Rates are oil at stock-tank conditions.</p>
+              <p className="text-[10px] text-pl-muted">Decline is typed in percent per year of 365.25 days on the basis chosen under it: nominal (the instantaneous decline at the case start), effective secant (the share of rate the case loses in its first year, with its b) or effective tangent (the exponential form). The engine runs the nominal. Rates are oil at stock-tank conditions.</p>
             </div>
             {cases.map((c, i) => (
               <CaseCard key={c.id} c={c} color={CASE_COLORS[i % CASE_COLORS.length]}

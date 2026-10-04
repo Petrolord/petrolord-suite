@@ -23,10 +23,13 @@ import EpeDcaImport from '@/pages/apps/epe/EpeDcaImport';
     } from '@/components/ui/dialog';
     import { Label } from '@/components/ui/label';
     import { Input } from '@/components/ui/input';
-    // Wave E (audit 4.13): the Forecast Scenario Hub handoff. compareCases is
-    // the SAME shared util the Hub itself renders from (canonical DCA engine
-    // under the hood), so an imported profile matches the Hub bbl for bbl.
-    import { compareCases } from '@/utils/forecastScenarioCalculations';
+    // Wave E (audit 4.13): the Forecast Scenario Hub handoff. The fsh-case-1
+    // contract runs the case through compareCases, the SAME shared util the
+    // Hub renders from, so an imported profile matches the Hub bbl for bbl;
+    // DCA U2-013: the contract rides with the rows (the case's source too).
+    import { buildHubCaseContract } from '@/utils/forecastScenarioContract';
+    import { epeRowsFromHubContract, hubFileName } from '@/pages/apps/epe/epeHubIntake';
+    import { buildLabel } from '@/lib/platformBuild';
     import { piaRefusal } from '@/pages/apps/epe/epePiaCompliance';
     import { AppHeader } from '@/components/ui/app-shell';
     import { epePage, epeCallout, epeBadge, epeNum, epeSelect, epeNativeCheck } from './epeUi';
@@ -172,19 +175,23 @@ import EpeDcaImport from '@/pages/apps/epe/EpeDcaImport';
         }
         setFshBusy(true);
         try {
-          // Same math as the Hub's own display and CSV export.
-          const { summaries } = compareCases([scenario]);
-          const s = summaries[0];
-          if (!s || s.error) throw new Error(s?.error || 'The scenario could not be evaluated.');
-          const rows = s.annual.map((bbl, i) => ({ year: startYear + i, oil_bbl: Math.round(bbl) }));
-          if (rows.length === 0) throw new Error('The scenario produced no annual volumes.');
+          // DCA U2-013: the case is read as the fsh-case-1 contract (the same
+          // math as the Hub's display, from the saved set read by id) and the
+          // contract rides with the rows, so the file keeps its source and the
+          // Decline Curve Analysis forecast behind a received case.
+          const made = buildHubCaseContract({
+            projectId: project.id, projectName: project.project_name, projectSavedAt: project.updated_at,
+            payload: project.inputs_data, caseId: scenario.id ?? null, caseIndex: scenario.id == null ? idx : null, build: buildLabel(),
+          });
+          if (!made.ok) throw new Error(made.reason);
+          const rows = epeRowsFromHubContract(made.contract, startYear, { build: buildLabel() });
 
           const { data: newRow, error: insErr } = await supabase
             .from('epe_production_volumes')
             .insert({
               case_id: caseId,
               user_id: user.id,
-              file_name: `FSH - ${scenario.name || 'scenario'}.generated`,
+              file_name: hubFileName(made.contract),
               data: rows,
             })
             .select('id')
@@ -210,7 +217,7 @@ import EpeDcaImport from '@/pages/apps/epe/EpeDcaImport';
             }
           }
 
-          const totalMMbbl = rows.reduce((t, r) => t + r.oil_bbl, 0) / 1e6;
+          const totalMMbbl = rows.reduce((t, r) => t + (Number(r.oil_bbl) || 0), 0) / 1e6;
           toast({
             title: 'Production profile imported',
             description: `${rows.length} years, ${totalMMbbl.toLocaleString('en-US', { maximumFractionDigits: 2 })} MMbbl from "${scenario.name}".`

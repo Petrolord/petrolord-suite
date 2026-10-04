@@ -138,7 +138,7 @@ test('RL: the report door, read back from the downloaded PDF', async ({ page }) 
   for (const s of ['Decline Curve Analysis Report', 'Company E2E Company', 'Analyst E2E Analyst', 'Well Ekene-1 (sample)', 'Data cut-off 2022-12-01',
     'Inputs', 'Source and quality', 'EUR (produced + remaining)', 'Nominal, per year 43.83 %/yr', 'Limits of this analysis',
     'Figure 1. Rate against time (log rate)', 'Figure 2. Rate against cumulative production', 'Figure 3. Cumulative production against time',
-    'Figure 4. EUR distribution (Monte Carlo)', 'Does not apply: the forecast is deterministic']) {
+    'Figure 4. Scenarios: forecast rate against time', 'Figure 5. EUR distribution (Monte Carlo)', 'Does not apply: the forecast is deterministic']) {
     expect(pdf.flat).toContain(s);
   }
   // EUR closes on its parts, and sits at the closed form 91,667 bbl within half a percent
@@ -223,4 +223,76 @@ test('PL9: the forecast goes to Forecast Scenario Hub as a case with its source,
   await page.getByRole('button', { name: /^Load$/ }).click();
   await page.getByRole('dialog').getByText('From DCA').click();
   await expect(page.locator('[data-testid$="-source"]').first()).toContainText('From Ekene-1 (sample), oil');
+});
+
+// ---- Step 2 (DCA U2): the terminal decline, the rate-cumulative cross-check,
+// scenarios in the report, and Forecast Scenario Hub's own report ----
+const U2 = path.join('e2e', 'fixtures', 'dca', 'u2');
+
+test('U2: a b 1.3 well with a terminal decline and a rate-cumulative cross-check, read back from the PDF', async ({ page }) => {
+  test.setTimeout(600000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openDca(page);
+  await newProject(page, 'U2 terminal');
+  await page.getByRole('button', { name: 'Add well', exact: true }).click();
+  await page.getByPlaceholder('Well Name').fill('HYP-13');
+  await page.getByRole('dialog').getByRole('button', { name: 'Add Well', exact: true }).click();
+  await page.locator('input[type=file]').setInputFiles(path.join(U2, 'hyperbolic-b13.csv'));
+  await expect(page.getByTestId('dca-import-door')).toBeVisible({ timeout: 30000 });
+  await page.getByTestId('dca-import-commit').click();
+  await page.getByTestId('dca-max-b').fill('2');
+  await page.getByRole('button', { name: 'Fit Model' }).click();
+  await expect(page.getByTestId('dca-di-kpi')).toHaveText(/\d/, { timeout: 60000 });
+  // no default terminal decline: the field is blank and says so
+  await expect(page.getByTestId('dca-terminal-dmin')).toHaveValue('');
+  await expect(page.getByTestId('dca-terminal-hint')).toContainText('there is no default');
+  await page.getByTestId('dca-terminal-dmin').fill('10');
+  await expect(page.getByTestId('dca-terminal-hint')).toContainText('10 %/yr effective (tangent, the exponential form), nominal 10.54 %/yr');
+  await page.getByRole('button', { name: 'Generate Forecast' }).click();
+  await expect(page.getByTestId('dca-kpi-remaining')).toHaveText(/\d/, { timeout: 60000 });
+  await page.getByRole('tab', { name: 'Forecast Results' }).click();
+  await expect(page.getByTestId('dca-terminal-switch')).toContainText(/switches to an exponential at Dmin on \d{4}-\d\d-\d\d/);
+  // the rate against cumulative cross-check, beside the rate-time EUR
+  await page.getByTestId('dca-rc-fit').click();
+  await expect(page.getByTestId('dca-rc-result')).toContainText('Hyperbolic');
+  await expect(page.getByTestId('dca-rc-eur')).toContainText(/rate-time EUR [\d,]+ bbl, [+-]\d+\.\d%/);
+  await page.getByRole('tab', { name: 'Report' }).click();
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByTestId('dca-report-export').click();
+  const download = await downloadPromise;
+  const file = path.join(OUT, 'dca-u2-terminal-report.pdf');
+  await download.saveAs(file);
+  const pdf = readPdfFile(file);
+  for (const s of ['Terminal decline Dmin, nominal per year 10.54 %/yr', 'Switch to the terminal decline', 'Rate against cumulative cross-check',
+    'EUR, rate against cumulative', 'Switch to Dmin', 'Scenarios compared None saved for this well and stream.', 'Figure 4. Scenarios: forecast rate against time']) {
+    expect(pdf.flat).toContain(s);
+  }
+});
+
+test('U2: Forecast Scenario Hub report, typed decline basis and downtime, read back from the PDF', async ({ page }) => {
+  test.setTimeout(600000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/dev/forecast-scenario-hub', { timeout: 240000 });
+  await expect(page.getByText('Case comparison')).toBeVisible({ timeout: 240000 });
+  // the Base sample case typed as 36 %/yr secant effective with b 0.5 is 50 %/yr nominal
+  await page.getByTestId('fsh-base-decline').fill('36');
+  await page.getByTestId('fsh-base-b').fill('0.5');
+  await page.getByTestId('fsh-base-decline-basis').selectOption('effective-secant');
+  await expect(page.getByTestId('fsh-base-decline-nominal')).toHaveText('50.00 %/yr nominal');
+  await page.getByTestId('fsh-base-downtime').fill('10');
+  await page.getByTestId('fsh-id-analyst').fill('E2E Analyst');
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByTestId('fsh-report').click();
+  const download = await downloadPromise;
+  const file = path.join(OUT, 'hub-report.pdf');
+  await download.saveAs(file);
+  const pdf = readPdfFile(file);
+  expect(pdf.pages).toBeGreaterThanOrEqual(3);
+  for (const s of ['Forecast Scenario Hub Report', 'Analyst E2E Analyst', 'Results by case', 'Where each case came from', 'Entered in Forecast Scenario Hub',
+    'Figure 1. Rate against time, every case (log rate)', 'Figure 3. EUR by case', 'The set holds the hub\'s sample cases, which are illustrative values.']) {
+    expect(pdf.flat).toContain(s);
+  }
+  // table cells wrap in the PDF: the typed value and the nominal it became
+  expect(pdf.flat).toContain('36.00 effective, secant');
+  expect(pdf.flat).toContain('50.00 nominal');
 });

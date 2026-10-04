@@ -17,6 +17,7 @@
 
 import { generateForecast } from '@/utils/declineCurve/dcaEngine';
 import { DAYS_PER_YEAR as REGISTRY_YEAR } from '@/lib/units/registry';
+import { nominalPerDayFromTyped } from '@/utils/declineCurve/declineInput';
 
 // One year is 365.25 days in Decline Curve Analysis, this hub and Well
 // Spacing (DCA-U1-010): the Suite registry's year. It was 365 here.
@@ -24,6 +25,35 @@ export const DAYS_PER_YEAR = REGISTRY_YEAR;
 
 /** Nominal annual decline (%/yr) to the DCA engine's per-day rate. */
 export const dailyDecline = (declineAnnualPct) => (declineAnnualPct / 100) / DAYS_PER_YEAR;
+
+/** The bases a case's decline can be typed on (DCA U2-004); a case without one is nominal. */
+export const HUB_DECLINE_BASES = Object.freeze(['nominal', 'effective-secant', 'effective-tangent']);
+export const caseDeclineBasis = (caseDef) => (HUB_DECLINE_BASES.includes(caseDef?.declineBasis) ? caseDef.declineBasis : 'nominal');
+
+/**
+ * DCA U2-004: a case's initial decline per day from what was typed, %/yr on
+ * its basis: nominal (the instantaneous decline), effective secant (the share
+ * of rate the case's own hyperbolic loses in its first year, SPEE REP #6) or
+ * effective tangent (the exponential form). NaN when it cannot be read.
+ */
+export function caseDailyDecline(caseDef) {
+  const basis = caseDeclineBasis(caseDef);
+  if (basis === 'nominal') return dailyDecline(caseDef.declineAnnualPct);
+  return nominalPerDayFromTyped({ value: caseDef.declineAnnualPct, unit: '%/yr', basis }, caseDef.b);
+}
+
+/**
+ * DCA U2-001: a case's terminal decline Dmin per day, or null. Typed in %/yr,
+ * effective (tangent, the exponential tail's own basis) unless the case says
+ * nominal. No default: a blank or zero is no terminal decline.
+ */
+export function caseTerminalPerDay(caseDef) {
+  const v = Number(caseDef?.terminalDeclinePct);
+  if (!(v > 0)) return null;
+  const basis = caseDef.terminalDeclineBasis === 'nominal' ? 'nominal' : 'effective-tangent';
+  const d = nominalPerDayFromTyped({ value: v, unit: '%/yr', basis });
+  return Number.isFinite(d) && d > 0 ? d : null;
+}
 
 const modelTypeFor = (b) => {
   if (b === 0) return 'Exponential';
@@ -57,8 +87,12 @@ export function runCase(caseDef, startDateIso = '2026-01-01T00:00:00Z') {
   if (!(qi > 0) || !(declineAnnualPct > 0) || !(years > 0) || b < 0) {
     return { ...caseDef, error: 'qi, decline and horizon must be positive (b >= 0).' };
   }
-  const Di = dailyDecline(declineAnnualPct);
-  const params = { qi, Di, b, modelType: modelTypeFor(b) };
+  if (caseDeclineBasis(caseDef) !== 'nominal' && !(declineAnnualPct < 100)) {
+    return { ...caseDef, error: 'An effective decline is a share of the rate lost in a year: it must be below 100 percent.' };
+  }
+  const Di = caseDailyDecline(caseDef);
+  const Dmin = caseTerminalPerDay(caseDef);
+  const params = Dmin ? { qi, Di, b, Dmin, modelType: modelTypeFor(b) } : { qi, Di, b, modelType: modelTypeFor(b) };
   // HUB-U1: a case may carry its own start (a case received from Decline
   // Curve Analysis starts the day after the data cut-off)
   const start = caseDef.startDate ? `${String(caseDef.startDate).slice(0, 10)}T00:00:00Z` : startDateIso;
@@ -71,13 +105,25 @@ export function runCase(caseDef, startDateIso = '2026-01-01T00:00:00Z') {
     // so the first day of the case is its start date
     new Date(Date.parse(start) - 86400000).toISOString(),
   );
-  const result = run(horizonDays);
+  // DCA U2-011: a downtime factor, the share of calendar time shut in. Each
+  // day delivers the curve rate times the uptime; the economic limit is
+  // tested on the curve (the rate while producing), as in Decline Curve
+  // Analysis. Blank or 0 is none.
+  const downtime = Number(caseDef.downtimePct);
+  const uptime = downtime > 0 && downtime < 100 ? 1 - downtime / 100 : 1;
+  const scaled = (r) => {
+    if (uptime === 1) return r;
+    let cum = 0;
+    const rates = r.rates.map((p) => { const rate = p.rate * uptime; cum += rate; return { ...p, rate, cumulative: cum }; });
+    return { ...r, rates, eur: r.eur * uptime };
+  };
+  const result = scaled(run(horizonDays));
   const limitInHorizon = hasLimit && result.rates.length < horizonDays;
   let eur = result.eur;
   let timeToLimitDays = limitInHorizon ? result.timeToLimit : null;
   if (!limitInHorizon) {
     const maxDays = Math.max(horizonDays, Math.round(EUR_MAX_YEARS * DAYS_PER_YEAR));
-    const long = maxDays > horizonDays ? run(maxDays) : result;
+    const long = maxDays > horizonDays ? scaled(run(maxDays)) : result;
     eur = long.eur;
     if (hasLimit && long.rates.length < maxDays) timeToLimitDays = long.timeToLimit;
   }
@@ -93,6 +139,11 @@ export function runCase(caseDef, startDateIso = '2026-01-01T00:00:00Z') {
     finalRate: last ? last.rate : 0,
     timeToLimitDays,
     timeToLimitYears: timeToLimitDays == null ? null : timeToLimitDays / DAYS_PER_YEAR,
+    // DCA U2-004: the decline the engine ran, whatever basis it was typed on
+    diPerDay: Di,
+    uptime,
+    // DCA U2-001: the switch to the terminal decline, days from the case start
+    ...(result.terminalDecline ? { terminal: { ...result.terminalDecline, dminPerDay: Dmin, switchDate: new Date(Date.parse(start) + (result.terminalDecline.tSwitch - 1) * 86400000).toISOString().slice(0, 10) } } : {}),
   };
 }
 
@@ -157,6 +208,8 @@ export function compareCases(caseDefs, econ, startDateIso) {
       name: c.name,
       startDate: c.startDate,
       model: modelTypeFor(c.b),
+      declineBasis: caseDeclineBasis(c),
+      diNominalPctPerYear: c.diPerDay * DAYS_PER_YEAR * 100,
       eurMMbbl: c.eur / 1e6,
       eurCapped: c.eurCapped,
       cumHorizonMMbbl: c.cumHorizon / 1e6,
@@ -169,6 +222,8 @@ export function compareCases(caseDefs, econ, startDateIso) {
       annual,
       economics,
       monthly: monthlySeries(c.rates),
+      // DCA U2-001: the switch to the terminal decline, when the case has one
+      terminal: c.terminal ? { dminPerDay: c.terminal.dminPerDay, switchDate: c.terminal.switchDate, qSwitch: c.terminal.qSwitch, fromStart: !!c.terminal.fromStart } : null,
     };
   });
   return { cases, summaries };

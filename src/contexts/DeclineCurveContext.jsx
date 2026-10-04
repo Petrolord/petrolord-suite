@@ -16,6 +16,9 @@ export const DCA_PROJECTS_TABLE = 'saved_dca_projects';
 import { fitWell, forecastWell } from '@/utils/declineCurve/dcaAnalysis';
 import { formatNominalAnnual } from '@/utils/declineCurve/declineDisplay';
 import { sampleWell } from '@/utils/declineCurve/sampleWell';
+import { terminalDeclinePerDay } from '@/utils/declineCurve/declineInput';
+import { fitRateCumWell, rateCumOf, rateCumStatus } from '@/utils/declineCurve/rateCumFit';
+import { batchFitWells } from '@/utils/declineCurve/batchFit';
 import {
   analysisOf, migrateDcaPayload, analysisStatus, staleText,
   DCA_PAYLOAD_VERSION, DEFAULT_MC_SEED as MODEL_MC_SEED, DEFAULT_ECON_LIMIT_UNCERTAINTY as MODEL_ECON_UNC,
@@ -471,6 +474,45 @@ export const DeclineCurveProvider = ({ children, sharingStore = null }) => {
     }
   }, [currentWell, currentWellId, selectedStream, addNotification, isFitting, updateStream]);
 
+  // DCA U2-002: the rate against cumulative fit, a cross-check with its own window
+  const rateCum = rateCumOf(streamState[selectedStream]);
+  const rateCumState = rateCumStatus(currentWell, selectedStream);
+  const setRateCumWindow = useCallback((key, value) => {
+    updateStream(currentWellId, selectedStream, (st) => {
+      const rc = rateCumOf(st);
+      return { ...st, rateCum: { ...rc, window: { ...rc.window, [key]: Number.isFinite(value) ? value : null } } };
+    });
+  }, [currentWellId, selectedStream, updateStream]);
+  const runRateCumFit = useCallback(() => {
+    if (!currentWellId) {
+      addNotification('Select a well before fitting.', 'warning');
+      return false;
+    }
+    const res = fitRateCumWell(currentWell, selectedStream);
+    if (!res.ok) {
+      addNotification(res.error, 'error');
+      return false;
+    }
+    updateStream(currentWellId, selectedStream, (st) => ({ ...st, rateCum: { ...rateCumOf(st), results: res.results } }));
+    addNotification(`Rate against cumulative fit: ${res.results.modelType}, R² ${(res.results.R2 * 100).toFixed(1)}%, ${res.results.n} points`, 'success');
+    return true;
+  }, [currentWell, currentWellId, selectedStream, updateStream, addNotification]);
+
+  // DCA U2-005: fit and forecast every well on one window rule, then review
+  const [batchRows, setBatchRows] = useState(null);
+  const runBatchFit = useCallback(({ stream = selectedStream, rule = 'whole', months = 24 } = {}) => {
+    if (!currentProjectId || Object.keys(wells).length === 0) {
+      addNotification('Open a project with wells before a batch fit.', 'warning');
+      return null;
+    }
+    const res = batchFitWells(wells, stream, { rule, months });
+    setWells(res.wells);
+    setBatchRows({ stream, rule, months, rows: res.rows, at: new Date().toISOString() });
+    const ok = res.rows.filter((r) => r.ok).length;
+    addNotification(`Batch fit: ${ok} of ${res.rows.length} wells fitted and forecast (${stream})`, ok === res.rows.length ? 'success' : 'warning');
+    return res.rows;
+  }, [currentProjectId, wells, selectedStream, addNotification]);
+
   const runForecast = useCallback(async () => {
     if (isForecasting || !streamState[selectedStream].fitResults) return;
     const fitState = analysisStatus(currentWell, selectedStream);
@@ -496,7 +538,9 @@ export const DeclineCurveProvider = ({ children, sharingStore = null }) => {
 
       // If probabilistic mode is on AND we have confidence intervals, also run Monte Carlo
       if (config.probabilisticMode && fit.confidenceIntervals && fit.confidenceIntervals.hasIntervals) {
-        const baseParams = { qi: fit.qi, Di: fit.Di, b: fit.b };
+        // DCA U2-001: the terminal decline travels with every draw (not sampled)
+        const Dmin = terminalDeclinePerDay(config);
+        const baseParams = Dmin ? { qi: fit.qi, Di: fit.Di, b: fit.b, Dmin } : { qi: fit.qi, Di: fit.Di, b: fit.b };
         const seed = Number.isFinite(config.mcSeed) ? config.mcSeed : DEFAULT_MC_SEED;
         // startDate anchors the sampled curves to the fit's t0, the same
         // origin the deterministic forecast above uses; the same span as the
@@ -852,6 +896,12 @@ export const DeclineCurveProvider = ({ children, sharingStore = null }) => {
     restorePoint,
     runFit,
     runForecast,
+    rateCum,
+    rateCumState,
+    batchRows,
+    runBatchFit,
+    setRateCumWindow,
+    runRateCumFit,
     
     // Phase 4 Actions
     setTypeCurves,

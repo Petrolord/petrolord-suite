@@ -26,11 +26,15 @@
 // Every number arrives from the analysis already made: nothing is fitted or
 // forecast here. A fit or a forecast that is out of date is refused (RL8).
 import { createReport, EMPTY_VALUE, missingInputRows } from '@/lib/reportKit';
+import { SERIES_CYCLE } from '@/lib/reportKit';
 import { buildDcaSeries } from './dcaSeries';
 import { analysisOf, analysisStatus, staleText, prepareFitData, defaultStream } from './dcaModel';
 import { DCA_OILFIELD_UNITS, DCA_DAYS_PER_YEAR } from './dcaUnits';
 import { nominalAnnualPct, effectiveFirstYearPct } from './declineDisplay';
-import { calculateArpsHyperbolic } from './dcaEngine';
+import { calculateArpsHyperbolic, calculateModifiedHyperbolicRate } from './dcaEngine';
+import { normaliseTerminalDecline, describeTypedDecline } from './declineInput';
+import { rateCumOf, rateCumStatus, rateCumEur, crossCheckPct } from './rateCumFit';
+import { calculateArpsRateAtCumulative } from './dcaEngine';
 import { createEURHistogram } from '../dcaMonteCarlo';
 
 export const REPORT_TITLE = 'Decline Curve Analysis Report';
@@ -90,9 +94,13 @@ export function engineInputsOf(well, stream) {
         probabilisticMode: !!s.forecastConfig.probabilisticMode,
         mcSeed: s.forecastConfig.mcSeed,
         economicLimitUncertainty: s.forecastConfig.economicLimitUncertainty,
+        terminalDecline: normaliseTerminalDecline(s.forecastConfig.terminalDecline),
+        downtimePct: Number(s.forecastConfig.downtimePct) > 0 ? Number(s.forecastConfig.downtimePct) : null,
       },
       history: well?.data || [],
     },
+    // DCA U2-002: the rate against cumulative fit, when one was made
+    ...(rateCumOf(s).results ? { rateCum: { modelType: s.modelType, window: { ...rateCumOf(s).window } } } : {}),
   };
 }
 
@@ -103,7 +111,7 @@ export function engineInputsOf(well, stream) {
  *   build?: string, generatedAt?: Date}} a
  * @returns {{ok: boolean, refusal?: string, ...}}
  */
-export function collectDcaReportArgs({ project = null, well, stream = 'oil', u = DCA_OILFIELD_UNITS, organizationName = '', build = '', generatedAt = new Date() }) {
+export function collectDcaReportArgs({ project = null, well, stream = 'oil', u = DCA_OILFIELD_UNITS, organizationName = '', build = '', generatedAt = new Date(), scenarios = [] }) {
   if (!well) return { ok: false, refusal: 'Select a well first: the report is of one well and one stream.' };
   const a = analysisOf(well);
   const s = a.streams[stream];
@@ -125,6 +133,11 @@ export function collectDcaReportArgs({ project = null, well, stream = 'oil', u =
   const usedDates = prepared.rows.filter((r) => r.status === 'used').map((r) => day(r.date)).sort();
   const cfg = s.forecastConfig;
   const defaults = defaultStream(stream).forecastConfig;
+  // DCA U2-001: the terminal decline of this forecast, when one applies
+  const term = fc.terminalDecline || null;
+  // DCA U2-002: the rate against cumulative cross-check
+  const rc = rateCumOf(s);
+  const rcState = rateCumStatus(well, stream);
   const isMc = !!fc.probabilistic && fc.probabilistic.iterations > 0;
   const declineUnitWord = u.declineUnit;
 
@@ -154,18 +167,28 @@ export function collectDcaReportArgs({ project = null, well, stream = 'oil', u =
   const chosen = (value, def, words = 'Chosen by the analyst') => (value === def ? `App default (${def === 0 ? 'none' : 'not changed'})` : words);
   const inputs = [
     { key: 'data', label: `Production history, ${STREAM_WORD[stream]} rate`, value: `${prepared.summary.withRate} rows`, unit: rateU, source: importSource, engineKeys: ['fit.data', 'fit.stream', 'forecast.history'] },
-    { key: 'model', label: 'Decline model', value: s.modelType === 'Auto' ? `Auto (best of exponential, harmonic, hyperbolic by RMSE): ${fit.modelType}` : fit.modelType, unit: '', source: chosen(s.modelType, 'Auto'), engineKeys: ['fit.modelType', 'forecast.fit.modelType'] },
+    { key: 'model', label: 'Decline model', value: s.modelType === 'Auto' ? `Auto (best of exponential, harmonic, hyperbolic by RMSE): ${fit.modelType}` : fit.modelType, unit: '', source: chosen(s.modelType, 'Auto'), engineKeys: ['fit.modelType', 'forecast.fit.modelType', 'rateCum.modelType'] },
     { key: 'minB', label: 'b lower limit of the hyperbolic search', value: sig4(s.constraints.minB), unit: '', source: chosen(s.constraints.minB, 0), engineKeys: ['fit.constraints.minB'] },
     { key: 'maxB', label: 'b upper limit of the hyperbolic search', value: sig4(s.constraints.maxB), unit: '', source: chosen(s.constraints.maxB, 1), engineKeys: ['fit.constraints.maxB'] },
     { key: 'windowStart', label: 'Fit window start', value: day(a.fitWindow.startDate), unit: 'date', source: a.fitWindow.startDate && dates[0] === day(a.fitWindow.startDate) ? 'First date of the data (set at import)' : 'Chosen by the analyst', engineKeys: ['fit.window.startDate'] },
     { key: 'windowEnd', label: 'Fit window end', value: day(a.fitWindow.endDate), unit: 'date', source: a.fitWindow.endDate && dates[dates.length - 1] === day(a.fitWindow.endDate) ? 'Last date of the data (set at import)' : 'Chosen by the analyst', engineKeys: ['fit.window.endDate'] },
     { key: 'excluded', label: 'Points excluded by the analyst', value: String(s.excluded.length), unit: '', source: s.excluded.length ? 'Chosen by the analyst, each with a reason (data table)' : 'None excluded', engineKeys: ['fit.excluded'] },
+    ...(rc.results ? [{
+      key: 'rcWindow',
+      label: 'Rate against cumulative fit window',
+      value: `${finite(rc.window.cumStart) ? num(vol(rc.window.cumStart)) : 'first row'} to ${finite(rc.window.cumEnd) ? num(vol(rc.window.cumEnd)) : 'last row'}`,
+      unit: volU,
+      source: finite(rc.window.cumStart) || finite(rc.window.cumEnd) ? 'Chosen by the analyst (cumulative from the first row)' : 'App default: the whole history',
+      engineKeys: ['rateCum.window.cumStart', 'rateCum.window.cumEnd'],
+    }] : []),
     { key: 'cutoff', label: 'Data cut-off (forecast starts the next day)', value: day(fc.historyEndDate), unit: 'date', source: 'The last date of the data', engineKeys: [] },
     { key: 'qi', label: 'qi, initial rate at the fit start', value: num(rate(fit.qi), 2), unit: rateU, source: `Fitted, at ${day(fit.t0)}`, engineKeys: ['forecast.fit.qi', 'forecast.fit.t0'] },
     { key: 'Di', label: 'Di, initial decline (nominal)', value: `${sig4(fit.Di)} per day; ${num(nominalAnnualPct(fit.Di), 2)} %/yr`, unit: '', source: 'Fitted. Nominal (instantaneous) decline at the fit start; a year is 365.25 days', engineKeys: ['forecast.fit.Di'] },
     { key: 'b', label: 'b, Arps exponent', value: sig4(fit.b), unit: '', source: fit.modelType === 'Hyperbolic' ? 'Fitted (grid search in steps of 0.05)' : `Fixed by the model (${fit.modelType})`, engineKeys: ['forecast.fit.b'] },
     { key: 'econLimit', label: 'Economic limit rate', value: cfg.stopAtLimit && cfg.economicLimit > 0 ? num(rate(cfg.economicLimit), 2) : 'none', unit: cfg.stopAtLimit && cfg.economicLimit > 0 ? rateU : '', source: `${chosen(cfg.economicLimit, defaults.economicLimit)}. A fixed rate below which the well no longer pays; no cost model behind it`, engineKeys: ['forecast.config.economicLimit', 'forecast.config.stopAtLimit'] },
     { key: 'horizon', label: 'Forecast horizon after the data cut-off', value: `${num(cfg.durationDays / DCA_DAYS_PER_YEAR, 2)} years (${num(cfg.durationDays)} days)`, unit: '', source: chosen(cfg.durationDays, defaults.durationDays), engineKeys: ['forecast.config.durationDays'] },
+    { key: 'terminal', label: 'Terminal decline Dmin (modified hyperbolic)', value: term ? describeTypedDecline(term.entered) : 'not set', unit: '', source: term ? `Chosen by the analyst. The forecast follows the fit until its nominal decline falls to Dmin, then declines exponentially at Dmin${fit.b > 0 ? '' : ' (an exponential fit is not changed by it)'}` : (cfg.terminalDecline ? 'Set by the analyst; it does not apply to an exponential fit (b = 0)' : 'Not set: the app has no default. The forecast is the fitted Arps curve to the end'), engineKeys: ['forecast.config.terminalDecline', 'forecast.config.terminalDecline.value', 'forecast.config.terminalDecline.unit', 'forecast.config.terminalDecline.basis'] },
+    { key: 'downtime', label: 'Downtime after the cut-off', value: fc.downtimePct ? `${num(fc.downtimePct, 1)}% of calendar time (uptime ${num(100 - fc.downtimePct, 1)}%)` : 'none', unit: '', source: fc.downtimePct ? 'Chosen by the analyst. Each forecast day delivers the fitted rate (capped at the facility limit) times the uptime; the economic limit is tested on the fitted rate while producing' : 'App default (none): the forecast is the fitted calendar-day rate', engineKeys: ['forecast.config.downtimePct'] },
     { key: 'facility', label: 'Facility limit (maximum rate)', value: cfg.facilityLimit > 0 ? num(rate(cfg.facilityLimit), 2) : 'none', unit: cfg.facilityLimit > 0 ? rateU : '', source: chosen(cfg.facilityLimit || 0, 0), engineKeys: ['forecast.config.facilityLimit'] },
     { key: 'mc', label: 'Probabilistic forecast (Monte Carlo)', value: cfg.probabilisticMode ? `on, ${fc.probabilistic?.iterations ?? EMPTY_VALUE} runs` : 'off', unit: '', source: cfg.probabilisticMode ? 'Chosen by the analyst' : 'App default (off)', engineKeys: ['forecast.config.probabilisticMode'] },
     { key: 'seed', label: 'Monte Carlo seed', value: cfg.probabilisticMode ? String(fc.probabilistic?.seed ?? cfg.mcSeed ?? EMPTY_VALUE) : 'not used', unit: '', source: cfg.probabilisticMode ? chosen(cfg.mcSeed, defaults.mcSeed) : 'Not used: the forecast is deterministic', engineKeys: ['forecast.config.mcSeed'] },
@@ -198,20 +221,26 @@ export function collectDcaReportArgs({ project = null, well, stream = 'oil', u =
   const t0 = new Date(fit.t0).getTime();
   const histEnd = new Date(fc.historyEndDate).getTime();
   const tEndDays = (histEnd - t0) / DAY;
-  const qAtCutoff = calculateArpsHyperbolic(fit.qi, fit.Di, fit.b, tEndDays);
+  const qAtCutoff = term ? calculateModifiedHyperbolicRate(fit.qi, fit.Di, fit.b, term.dminPerDay, tEndDays) : calculateArpsHyperbolic(fit.qi, fit.Di, fit.b, tEndDays);
   const limitDate = fc.limitReached && finite(fc.timeToLimit) ? new Date(histEnd + fc.timeToLimit * DAY).toISOString().slice(0, 10) : null;
   const endReason = fc.limitBeforeToday ? 'The fitted rate is below the economic limit at the data cut-off: nothing remains to the limit'
     : fc.limitReached ? `The forecast reaches the economic limit on ${limitDate}`
       : 'The economic limit is not reached inside the horizon: remaining reserves stop at the horizon';
   const eurRows = [
     [`Produced to the data cut-off (${day(fc.historyEndDate)})`, num(vol(produced)), volU, 'Trapezoids of the rate history from the first row'],
-    [fc.limitReached ? 'Remaining, data cut-off to the economic limit' : 'Remaining, data cut-off to the horizon', num(vol(remaining)), volU, 'Daily sum of the fitted forecast after the cut-off'],
+    [fc.limitReached ? 'Remaining, data cut-off to the economic limit' : 'Remaining, data cut-off to the horizon', num(vol(remaining)), volU, fc.downtimePct ? `Daily sum of the fitted forecast after the cut-off, times the uptime (${num(100 - fc.downtimePct, 1)}%)` : 'Daily sum of the fitted forecast after the cut-off'],
     ['EUR (produced + remaining)', num(vol(eur)), volU, closes ? 'Closes on the sum above' : 'DOES NOT CLOSE: report it'],
   ];
   const lifeRows = [
     ['Rate of the fit at the cut-off', `${num(rate(qAtCutoff), 2)} ${rateU}`],
     ['Time from the cut-off to the end of the forecast', `${num(fc.timeToLimit / DCA_DAYS_PER_YEAR, 2)} years (${num(fc.timeToLimit)} days)`],
     ['End of the forecast', endReason],
+    ...(term ? [[
+      'Switch to the terminal decline',
+      term.fromStart
+        ? `From the fit start: the fitted decline is already at or below Dmin, so the curve is exponential at Dmin throughout`
+        : `${term.switchDate}, at ${num(rate(term.qSwitch), 2)} ${rateU}, ${num(term.tSwitchDays / DCA_DAYS_PER_YEAR, 2)} years after the fit start${term.beforeCutoff ? ' (before the data cut-off: the whole forecast is on the exponential tail)' : ''}`,
+    ]] : []),
   ];
   const ci = fit.confidenceIntervals || {};
   const regression = [
@@ -231,6 +260,11 @@ export function collectDcaReportArgs({ project = null, well, stream = 'oil', u =
     ['Nominal, per year', num(nominalAnnualPct(fit.Di), 2), '%/yr'],
     ['Nominal, in the display unit', declineUnitWord === '%/yr' ? num(nominalAnnualPct(fit.Di), 2) : sig4(u.declineTo(fit.Di)), declineUnitWord],
     ['Effective, first year', num(effectiveFirstYearPct(fit.Di, fit.b), 2), '%/yr'],
+    ...(term ? [
+      ['Terminal decline Dmin, as entered', describeTypedDecline(term.entered), ''],
+      ['Terminal decline Dmin, nominal per year', num(nominalAnnualPct(term.dminPerDay), 2), '%/yr'],
+      ['Terminal decline Dmin, nominal per day', sig4(term.dminPerDay), '1/d'],
+    ] : []),
   ];
   const mc = isMc ? {
     rows: [
@@ -242,16 +276,95 @@ export function collectDcaReportArgs({ project = null, well, stream = 'oil', u =
     p90View: vol(fc.probabilistic.p90),
     p50View: vol(fc.probabilistic.p50),
     p10View: vol(fc.probabilistic.p10),
-    note: `${fc.probabilistic.iterations} runs, seed ${fc.probabilistic.seed ?? 'not recorded'}, economic limit drawn uniformly within plus or minus ${num((fc.probabilistic.economicLimitUncertainty ?? 0) * 100)}%. qi, Di and b are drawn from normal distributions centred on the fit, sigma half the 95% half width. EUR here is from first production (the fit start) to the same end date as the deterministic forecast; percentiles are exceedance (P90 the low case).`,
+    note: `${fc.probabilistic.iterations} runs, seed ${fc.probabilistic.seed ?? 'not recorded'}, economic limit drawn uniformly within plus or minus ${num((fc.probabilistic.economicLimitUncertainty ?? 0) * 100)}%. qi, Di and b are drawn from normal distributions centred on the fit, sigma half the 95% half width. EUR here is from first production (the fit start) to the same end date as the deterministic forecast; percentiles are exceedance (P90 the low case).${term ? ' Every run follows the modified hyperbolic with the same terminal decline Dmin.' : ''}`,
   } : null;
+
+  // ---- rate against cumulative cross-check (DCA U2-002) ----
+  let rateCum = null;
+  if (rc.results && rcState.state === 'current') {
+    const r = rc.results;
+    const eurRc = rateCumEur(r, cfg);
+    const diff = crossCheckPct(eurRc, eur);
+    const methods = { Exponential: 'Least squares of q against cumulative', Harmonic: 'Least squares of ln q against cumulative', Hyperbolic: 'Least squares of q^(1-b) against cumulative for each b on a 0.05 grid between the limits; the b with the lowest RMSE on rates' };
+    rateCum = {
+      rows: [
+        ['Model', MODEL_NAMES[r.modelType] || r.modelType],
+        ['Method', methods[r.modelType] || EMPTY_VALUE],
+        ['Window (cumulative from the first row)', `${finite(rc.window.cumStart) ? num(vol(rc.window.cumStart)) : 'first row'} to ${finite(rc.window.cumEnd) ? num(vol(rc.window.cumEnd)) : 'last row'} ${volU}`],
+        ['Points used', `${num(r.n)} (left out: ${num(r.summary?.excludedByUser)} by the analyst, ${num(r.summary?.nonPositive)} at or below zero, ${num(r.summary?.outsideWindow)} outside the window)`],
+        ['R2 (on rates)', finite(r.R2) ? r.R2.toFixed(4) : EMPTY_VALUE],
+        ['RMSE (on rates)', `${num(rate(r.RMSE), 2)} ${rateU}`],
+        ['qi at zero cumulative', `${num(rate(r.qi), 2)} ${rateU}`],
+        ['Di at zero cumulative (nominal)', `${sig4(r.Di)} per day; ${num(nominalAnnualPct(r.Di), 2)} %/yr`],
+        ['b', sig4(r.b)],
+        ['EUR, rate against cumulative', eurRc == null ? 'n/a: no economic limit, so the line has no end' : `${num(vol(eurRc))} ${volU}${term ? ' (with the terminal decline)' : ''}`],
+        ['EUR, rate against time (the forecast)', `${num(vol(eur))} ${volU}`],
+        ['Difference', diff == null ? EMPTY_VALUE : `${diff >= 0 ? '+' : ''}${num(diff, 1)}% of the rate-time EUR`],
+      ],
+      eur: eurRc == null ? null : vol(eurRc),
+      diff,
+      note: 'The rate against cumulative fit is a cross-check: the forecast, the volumes and the sender use the rate-time fit. Its qi and Di are referenced to zero cumulative (the first row of the history); its EUR is read where the fitted line meets the economic limit and is the whole volume from the first row. Time does not enter it, so shut-ins and curtailment do not move it; a large difference from the rate-time EUR says the two fits read the decline differently.',
+    };
+  }
+  const rateCumStatement = rc.results && rcState.state !== 'current'
+    ? `Not reported: the rate against cumulative fit is out of date (${rcState.reasons.join(', ')}). Fit it again.`
+    : 'Not run. Fit rate against cumulative in the Analysis panel for a cross-check of the rate-time fit.';
+
+  // ---- scenarios of this well and stream (DCA U2-008) ----
+  const mine = (scenarios || []).filter((sc) => sc && sc.wellId === well.id && (sc.stream || 'oil') === stream);
+  const scenarioRows = mine.map((sc) => {
+    const f = sc.fitResults || {};
+    const sfc = sc.forecastResults || {};
+    const scfg = sc.forecastConfig || sc.config || {};
+    const st = sfc.terminalDecline;
+    return [
+      sc.name || EMPTY_VALUE,
+      day(sc.createdAt),
+      f.modelType || EMPTY_VALUE,
+      finite(f.qi) ? num(rate(f.qi), 1) : EMPTY_VALUE,
+      finite(f.Di) ? num(nominalAnnualPct(f.Di), 2) : EMPTY_VALUE,
+      finite(f.b) ? sig4(f.b) : EMPTY_VALUE,
+      st ? num(nominalAnnualPct(st.dminPerDay), 2) : 'none',
+      scfg.stopAtLimit !== false && scfg.economicLimit > 0 ? num(rate(scfg.economicLimit), 1) : 'none',
+      finite(sfc.produced) ? num(vol(sfc.produced)) : EMPTY_VALUE,
+      finite(sfc.remaining ?? sfc.eur) ? num(vol(sfc.remaining ?? sfc.eur)) : EMPTY_VALUE,
+      finite(sfc.eurTotal) ? num(vol(sfc.eurTotal)) : EMPTY_VALUE,
+    ];
+  });
+  const scenarioSeries = mine.map((sc) => ({
+    name: sc.name || 'Scenario',
+    pts: thinDaily(sc.forecastResults?.rates || []).map((r) => [new Date(r.date).getTime(), rate(r.rate)]).filter((p) => finite(p[0]) && finite(p[1]) && p[1] > 0),
+  })).filter((x) => x.pts.length > 1);
+  const scenarioBlock = {
+    rows: scenarioRows,
+    series: scenarioSeries,
+    preH3: mine.filter((sc) => !finite(sc.forecastResults?.eurTotal)).length,
+    others: (scenarios || []).length - mine.length,
+    note: `Scenarios are snapshots the analyst saved, each with the fit and forecast settings it was run on; they are not refreshed when the data or settings change. Di is nominal per year of 365.25 days at each scenario's fit start; Dmin is nominal. EUR is produced to the cut-off plus remaining.${mine.length && mine.some((sc) => !finite(sc.forecastResults?.eurTotal)) ? ' A scenario saved before produced and EUR were kept apart prints n/a for them.' : ''}${(scenarios || []).length - mine.length > 0 ? ` ${(scenarios || []).length - mine.length} scenario(s) of other wells or streams in this project are not shown.` : ''}`,
+  };
 
   // ---- figures (RL6) ----
   const series = buildDcaSeries({ data: well.data, stream, fit, forecast: fc, fitWindow: a.fitWindow, excluded: s.excluded, forecastConfig: cfg, u });
+  if (rateCum) {
+    // the fitted line in rate-cumulative space, from the first fitted point to EUR (or the last data)
+    const r = rc.results;
+    const c0 = r.cumRange ? r.cumRange[0] : 0;
+    const c1 = rateCumEur(r, cfg) ?? (r.cumRange ? r.cumRange[1] : 0);
+    const n = 60;
+    series.rateCumFit = Array.from({ length: n + 1 }, (_, i) => {
+      const c = c0 + ((c1 - c0) * i) / n;
+      return [vol(c), rate(calculateArpsRateAtCumulative(r.qi, r.Di, r.b, c))];
+    }).filter((p) => finite(p[0]) && finite(p[1]) && p[1] > 0);
+    series.rateCumWindow = r.cumRange ? { x0: vol(r.cumRange[0]), x1: vol(r.cumRange[1]) } : null;
+  }
   const histogram = isMc ? createEURHistogram((fc.probabilistic.distribution || []).map((v) => vol(v)), 15) : [];
 
   // ---- limits (RL9) ----
   const flags = [];
-  if (fit.b > 1) flags.push(`b is ${sig4(fit.b)}, above 1. Arps above 1 describes transient or boundary-free flow; held to the end of a long horizon it overstates EUR, and without an economic limit it has no finite EUR. A terminal (minimum) decline is the usual cure; this app has none (Step 2).`);
+  if (fit.b > 1 && !term) flags.push(`b is ${sig4(fit.b)}, above 1, and no terminal decline is set. Arps above 1 describes transient or boundary-free flow; held to the end of a long horizon it overstates EUR, and without an economic limit it has no finite EUR. A terminal (minimum) decline Dmin is the usual cure: set one in the forecast settings.`);
+  if (fit.b > 1 && term) flags.push(`b is ${sig4(fit.b)}, above 1; the forecast switches to an exponential at the terminal decline (${describeTypedDecline(term.entered)}) on ${term.switchDate}. The hyperbolic part before the switch still carries the b above 1.`);
+  if (term?.fromStart) flags.push('The fitted initial decline is already at or below the terminal decline: the forecast is an exponential at Dmin from the fit start, steeper than the fitted curve.');
+  if (term?.beforeCutoff && !term.fromStart) flags.push(`The switch to the terminal decline (${term.switchDate}) falls before the data cut-off, so the forecast starts on the exponential tail, below the fitted curve at the cut-off.`);
   if (sum.used < 12) flags.push(`Only ${sum.used} points were used in the fit.`);
   const spanDays = usedDates.length > 1 ? (Date.parse(usedDates[usedDates.length - 1]) - Date.parse(usedDates[0])) / DAY : 0;
   if (spanDays > 0 && (fc.timeToLimit || 0) > 5 * spanDays) flags.push(`The forecast runs ${num(fc.timeToLimit / spanDays, 1)} times longer than the fit window it extrapolates (${num(spanDays / DCA_DAYS_PER_YEAR, 1)} years of data).`);
@@ -262,15 +375,17 @@ export function collectDcaReportArgs({ project = null, well, stream = 'oil', u =
   if (fc.limitBeforeToday) flags.push('The fit is below the economic limit at the cut-off, so remaining reserves are zero.');
   if (!fc.limitReached && !fc.limitBeforeToday) flags.push('The economic limit is not reached inside the horizon: remaining reserves and EUR stop at the horizon and are not reserves to the limit.');
   if (well.sample) flags.push('This is the sample well, built from published test data. It is not field data.');
+  if (fc.downtimePct && isMc) flags.push(`The Monte Carlo percentiles are of the fitted curve without the downtime factor (${num(fc.downtimePct, 1)}%); the deterministic remaining volume and EUR above include it.`);
   if (a.carried) flags.push(a.carried);
 
   const assumptions = [
     'Arps decline describes boundary-dominated flow at constant bottom-hole pressure and unchanged operating conditions. A change of choke, artificial lift, completion or offset injection starts a new decline that this fit does not see.',
     'The fit is one segment over the fit window. Earlier behaviour outside the window is shown on the plots and not used.',
-    'b above 1 is not boundary-dominated behaviour; it overstates late rates when held to the end of the forecast.',
+    'b above 1 is not boundary-dominated behaviour; it overstates late rates when held to the end of the forecast. A terminal decline Dmin, when set, switches the forecast to an exponential where the hyperbolic decline falls to Dmin (the modified hyperbolic); Dmin is the analyst\'s choice, usually from analogue wells, and the report prints it.',
     'Forecasting extrapolates the fitted curve beyond the data; the further it runs, the less the data constrain it.',
     'Rates are daily rates at stock-tank conditions from the imported history; produced to date is the trapezoid sum of those rates and can differ from metered cumulative production.',
     'The economic limit is a fixed rate with no cost model; remaining reserves stop there.',
+    'The fitted rates are calendar-day rates of the history, so the history\'s own downtime is already in them. A downtime factor, when set, is the further share of calendar time shut in after the cut-off: it lowers each forecast day\'s volume and leaves the decline and the limit date where the fitted curve puts them.',
     'Intervals are first-order (delta method) estimates from the linearised regression; the b interval is assumed. The probabilistic forecast samples those intervals and is not an independent uncertainty assessment.',
     'Units: state is held in bbl/d, Mscf/d and a per-day decline; this report prints the display units named in its header. A year is 365.25 days.',
   ];
@@ -295,16 +410,27 @@ export function collectDcaReportArgs({ project = null, well, stream = 'oil', u =
     lifeRows,
     regression,
     declineRows,
+    rateCum,
+    rateCumStatement,
+    scenarios: scenarioBlock,
     mc,
     series,
     histogram,
     flags,
     assumptions,
-    headline: { produced: vol(produced), remaining: vol(remaining), eur: vol(eur), qi: rate(fit.qi), diPctYr: nominalAnnualPct(fit.Di), b: fit.b },
+    headline: { produced: vol(produced), remaining: vol(remaining), eur: vol(eur), qi: rate(fit.qi), diPctYr: nominalAnnualPct(fit.Di), b: fit.b, ...(term ? { dminPctYr: nominalAnnualPct(term.dminPerDay) } : {}) },
   };
 }
 
 // ---- the PDF ---------------------------------------------------------------
+
+/** About one point a month of a daily forecast, the last kept. */
+function thinDaily(rates, every = 30) {
+  const out = [];
+  for (let i = 0; i < rates.length; i += every) out.push(rates[i]);
+  if (rates.length && (rates.length - 1) % every !== 0) out.push(rates[rates.length - 1]);
+  return out;
+}
 
 const RGB = Object.freeze({
   used: [37, 99, 235], left: [148, 163, 184], fit: [5, 150, 105], forecast: [217, 119, 6], limit: [220, 38, 38], band: [124, 58, 237], p10: [162, 28, 175], p90: [159, 18, 57],
@@ -327,7 +453,7 @@ export function dcaFigures(m) {
   figs.push({
     id: 'rate-time',
     title: 'Rate against time (log rate)',
-    caption: `${m.wellName}, ${m.stream}. Data used in the fit, data left out, the fitted Arps model over the fit window (shaded) and the forecast from the data cut-off${s.limit != null ? `; the economic limit of ${num(s.limit, 2)} ${rateUnit} dashed` : ''}. The fit is one segment: no segment boundary to mark.${s.stride > 1 ? ` Every ${s.stride}th of the ${num(s.historyRows)} rows is drawn; the fit used them all.` : ''}`,
+    caption: `${m.wellName}, ${m.stream}. Data used in the fit, data left out, the fitted Arps model over the fit window (shaded) and the forecast from the data cut-off${s.limit != null ? `; the economic limit of ${num(s.limit, 2)} ${rateUnit} dashed` : ''}. The fit is one segment: no segment boundary to mark.${s.switchAt ? ` The forecast switches to the terminal decline on ${new Date(s.switchAt.t).toISOString().slice(0, 10)} (marked).` : ''}${s.stride > 1 ? ` Every ${s.stride}th of the ${num(s.historyRows)} rows is drawn; the fit used them all.` : ''}`,
     panels: [{
       height: 82,
       spec: {
@@ -337,8 +463,9 @@ export function dcaFigures(m) {
         lines: [
           ...(s.limit != null ? [{ y: s.limit, label: `Economic limit ${num(s.limit, 2)} ${rateUnit}`, rgb: RGB.limit, dash: [1.5, 1] }] : []),
           ...(s.forecastStart ? [{ x: s.forecastStart, label: 'Data cut-off', dash: [0.8, 0.8] }] : []),
+          ...(s.switchAt ? [{ x: s.switchAt.t, label: 'Switch to Dmin', rgb: RGB.forecast, dash: [0.4, 0.8], row: 1 }] : []),
         ],
-        notes: [`qi ${num(m.headline.qi, 1)} ${rateUnit}, Di ${num(m.headline.diPctYr, 2)} %/yr nominal, b ${sig4(m.headline.b)}`],
+        notes: [`qi ${num(m.headline.qi, 1)} ${rateUnit}, Di ${num(m.headline.diPctYr, 2)} %/yr nominal, b ${sig4(m.headline.b)}${finite(m.headline.dminPctYr) ? `, Dmin ${num(m.headline.dminPctYr, 2)} %/yr nominal` : ''}`],
         notesAt: 'top-right',
       },
     }],
@@ -346,7 +473,7 @@ export function dcaFigures(m) {
   figs.push({
     id: 'rate-cum',
     title: 'Rate against cumulative production',
-    caption: `The rate history against the cumulative produced from the first row (trapezoids), the fitted rate at the data dates, and the forecast to EUR ${num(m.headline.eur)} ${volUnit}.`,
+    caption: `The rate history against the cumulative produced from the first row (trapezoids), the fitted rate at the data dates, and the forecast to EUR ${num(m.headline.eur)} ${volUnit}.${m.rateCum ? ` The rate against cumulative fit (dotted, its window shaded) is the cross-check: EUR ${m.rateCum.eur == null ? 'n/a' : `${num(m.rateCum.eur)} ${volUnit}`}${m.rateCum.diff == null ? '' : `, ${m.rateCum.diff >= 0 ? '+' : ''}${num(m.rateCum.diff, 1)}% of the rate-time EUR`}.` : ''}`,
     panels: [{
       height: 72,
       spec: {
@@ -355,7 +482,9 @@ export function dcaFigures(m) {
           { name: 'Data', type: 'scatter', rgb: RGB.used, pts: s.rateCumHistory, marker: 'circle' },
           { name: 'Fitted model', type: 'line', rgb: RGB.fit, pts: s.rateCumFitted },
           { name: 'Forecast', type: 'line', rgb: RGB.forecast, pts: s.rateCumForecast, dash: [1.5, 1] },
+          ...(s.rateCumFit?.length ? [{ name: 'Rate-cumulative fit', type: 'line', rgb: RGB.band, pts: s.rateCumFit, dash: [0.6, 0.8] }] : []),
         ],
+        ...(s.rateCumWindow ? { bands: [{ x0: s.rateCumWindow.x0, x1: s.rateCumWindow.x1, label: 'Rate-cum window' }] } : {}),
         lines: [
           ...(s.limit != null ? [{ y: s.limit, label: 'Economic limit', rgb: RGB.limit, dash: [1.5, 1] }] : []),
           ...(s.eur != null ? [{ x: s.eur, label: 'EUR', rgb: RGB.limit, dash: [0.8, 0.8] }] : []),
@@ -379,6 +508,22 @@ export function dcaFigures(m) {
       },
     }],
   });
+  if (m.scenarios?.series?.length) {
+    figs.push({
+      id: 'scenarios',
+      title: 'Scenarios: forecast rate against time',
+      caption: `The forecast of each saved scenario of ${m.wellName}, ${m.stream}, from its data cut-off (about one point a month). The table "Scenarios compared" gives their parameters and volumes.`,
+      panels: [{
+        height: 70,
+        spec: {
+          xTitle: 'Date', yTitle: `Rate (${rateUnit})`, xDate: true, yLog: true,
+          series: m.scenarios.series.map((sc, i) => ({ name: sc.name, type: 'line', rgb: SERIES_CYCLE[i % SERIES_CYCLE.length], pts: sc.pts })),
+        },
+      }],
+    });
+  } else {
+    figs.push({ id: 'scenarios', title: 'Scenarios: forecast rate against time', statement: 'Does not apply: no scenario is saved for this well and stream. Save one from the Scenarios panel to compare it here.' });
+  }
   if (m.mc && m.histogram.length) {
     const width = m.histogram.length > 1 ? (m.histogram[1].bin - m.histogram[0].bin) : 1;
     figs.push({
@@ -435,8 +580,16 @@ export function buildDcaPdf(model, { logo = null } = {}) {
     note: 'The fit holds Di as the nominal (instantaneous) decline per day at the fit start. Per year it is that times 365.25. The effective first-year decline is the share of the initial rate lost over the first year, read off the fitted curve.',
   });
   r.table('Regression', ['Item', 'Value'], model.regression);
+  if (model.rateCum) r.table('Rate against cumulative cross-check', ['Item', 'Value'], model.rateCum.rows, { note: model.rateCum.note });
+  else r.section('Rate against cumulative cross-check', model.rateCumStatement);
   if (model.mc) r.table('Monte Carlo EUR', ['Percentile', 'Value', 'Unit'], model.mc.rows, { note: model.mc.note });
   else r.section('Monte Carlo EUR', 'Not run: the forecast is deterministic.');
+
+  if (model.scenarios?.rows?.length) {
+    r.table('Scenarios compared', ['Scenario', 'Saved', 'Model', `qi (${model.units.rate})`, 'Di (%/yr)', 'b', 'Dmin (%/yr)', `Limit (${model.units.rate})`, `Produced (${model.units.volume})`, `Remaining (${model.units.volume})`, `EUR (${model.units.volume})`], model.scenarios.rows, { note: model.scenarios.note });
+  } else {
+    r.section('Scenarios compared', 'None saved for this well and stream.');
+  }
 
   r.table('Data used and left out', ['Count', 'Rows'], model.dataCounts, {
     note: model.importNotes || 'Used plus outside the window plus at or below zero plus excluded plus rows with no rate equals the rows imported.',
@@ -447,7 +600,7 @@ export function buildDcaPdf(model, { logo = null } = {}) {
     note: model.dataRows.length > MAX_DATA_ROWS ? `The first ${MAX_DATA_ROWS} of ${model.dataRows.length} rows; the counts above cover them all.` : undefined,
   });
 
-  r.limits({ assumptions: model.assumptions, flags: model.flags, noFlagsText: 'Nothing in this analysis is flagged.' });
+  r.limits({ assumptions: model.assumptions, flags: model.flags, noFlagsText: 'Nothing in this analysis is flagged.', flagsTitle: 'Flags on this analysis' });
 
   const figs = r.figures(dcaFigures(model));
   const out = r.finish({ footer: `${REPORT_TITLE}, ${model.wellName}, ${model.stream}` });

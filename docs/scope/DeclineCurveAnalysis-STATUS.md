@@ -326,3 +326,38 @@ report, the sender contract, the year-length decision, Step 2 backlog).
 - Removed dead code: keyboard shortcut hook, unused undo manager, LAS/CSV
   writers in the engine shim, the type-curve CSV writer, the invented
   confidence intervals.
+
+## 2026-10-03: Reservoir round app 3, Step 2 (DCA-U2, branch `feat/dca-u2`)
+
+Doc: `docs/upgrade/DeclineCurveAnalysis-UPGRADE.md` (batch decision, items,
+validation). Engines PR #302 (not merged; vendored with `dca-u2` ledger rows).
+
+- **Terminal decline Dmin** (U2-001): modified hyperbolic in the engines,
+  the forecast, the Monte Carlo, the report, the CSV, `dca-forecast-1` and
+  the hub. No default. Validated on CED P03-004 pp. 17-19.
+- **Rate against cumulative** (U2-002): `rateCumFit.js`, its own window,
+  a cross-check beside the rate-time EUR on screen and in the report.
+  Validated on CED P03-004 pp. 21-22.
+- **Typed decline** (U2-004): `declineInput.js`, nominal or effective
+  (tangent, secant) per period; pinned to SPEE REP #6 Table 1.
+- **Scenarios in the report** (U2-008): table and figure 4.
+- **Downtime** (U2-011): applied to the forecast and EUR, printed, sent.
+- **Batch fit** (U2-005): Wells tab, one window rule, review grid.
+- Deferred: U2-003 segmented fitting, U2-007 group sender, U2-006 type wells,
+  Batch C.
+
+## Release note (U1 and U2, for the next production upload)
+
+- Decline Curve Analysis now keeps fits per well, has a report, reads files
+  through a checked door and sends forecasts to Forecast Scenario Hub and
+  Petroleum Economics Studio (U1).
+- **Group EUR now includes the volume already produced.** "Group EUR" on the
+  Wells tab used to add up the remaining volumes only; it now adds produced
+  plus remaining for each member, so it is larger, and the combined rate is
+  the sum of the wells' daily rates (it was about thirty times too high).
+  Remaining is shown beside it.
+- New in U2: a terminal decline (modified hyperbolic, no default), a rate
+  against cumulative cross-check, declines typed as effective or nominal,
+  scenarios in the report, a downtime factor, batch fitting across wells,
+  and Forecast Scenario Hub's own PDF report. A hub case imported into
+  Petroleum Economics Studio now keeps its source.

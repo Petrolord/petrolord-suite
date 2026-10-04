@@ -5,7 +5,8 @@
 // Pure. Values come out in the display units of `u` (dcaUnits.js); time is
 // milliseconds since 1970 (a calendar axis), cumulative volumes start at
 // first production.
-import { calculateArpsHyperbolic } from './dcaEngine';
+import { calculateArpsHyperbolic, calculateModifiedHyperbolicRate } from './dcaEngine';
+import { terminalDeclinePerDay } from './declineInput';
 import { getStreamRate } from './csvParser';
 import { prepareFitData } from './dcaModel';
 import { DCA_OILFIELD_UNITS } from './dcaUnits';
@@ -84,10 +85,14 @@ export function buildDcaSeries({ data, stream, fit = null, forecast = null, fitW
     const hi = { qi: Math.max(off(fit.qi, ci.qi, 1), 0), Di: Math.max(off(fit.Di, ci.Di, -1), 0), b: Math.max(Math.min(off(fit.b, ci.b, 1), 2), 0) };
     const lo = { qi: Math.max(off(fit.qi, ci.qi, -1), 0), Di: Math.max(off(fit.Di, ci.Di, 1), 0), b: Math.max(Math.min(off(fit.b, ci.b, -1), 2), 0) };
     const t0 = ms(fit.t0);
+    // DCA U2-001: with a terminal decline the band follows the modified curve
+    // (Dmin is the analyst's, not sampled), as the Monte Carlo does
+    const Dmin = terminalDeclinePerDay(forecastConfig);
+    const q = (p, tt) => (Dmin ? calculateModifiedHyperbolicRate(p.qi, p.Di, p.b, Dmin, tt) : calculateArpsHyperbolic(p.qi, p.Di, p.b, tt));
     for (const r of fThin) {
       const tt = (ms(r.date) - t0) / DAY;
-      const a = calculateArpsHyperbolic(hi.qi, hi.Di, hi.b, tt);
-      const b = calculateArpsHyperbolic(lo.qi, lo.Di, lo.b, tt);
+      const a = q(hi, tt);
+      const b = q(lo, tt);
       p10.push([ms(r.date), rate(Math.max(a, b))]);
       p90.push([ms(r.date), rate(Math.min(a, b))]);
     }
@@ -139,5 +144,7 @@ export function buildDcaSeries({ data, stream, fit = null, forecast = null, fitW
     // how the history was drawn: every k-th of the rows (1 when all)
     stride,
     historyRows: history.length,
+    // DCA U2-001: where the forecast switches to the terminal decline
+    switchAt: forecast?.terminalDecline ? { t: ms(forecast.terminalDecline.switchDate), q: rate(forecast.terminalDecline.qSwitch) } : null,
   };
 }
