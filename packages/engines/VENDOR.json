@@ -22,5 +22,22 @@
     "manifestPaths": 750,
     "vendoredPaths": 750
   },
-  "knownDeviations": []
+  "knownDeviations": [
+    {
+      "path": "engines/waterflood/vrrLedger.js",
+      "kind": "differing",
+      "vendoredSha": "c696870689bca4ddc75c1519e02bad89384de4a2",
+      "group": "vrr-u2 (engines PR #307)",
+      "reason": "Voidage Replacement Monitor U2 engines (buildWellVoidage: voidage by well with per-well free gas, gated on the V2 fixture with a negative control; vrr.js untouched), vendored from Petrolord/petrolord-engines PR #307 head a01628f (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #307 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every vrr-u2 row."
+    },
+    {
+      "path": "__tests__/waterflood.vrrwells.test.js",
+      "kind": "extra",
+      "vendoredSha": "76628ba421353f931f6075faf8bc1862c48964fe",
+      "group": "vrr-u2 (engines PR #307)",
+      "reason": "Voidage Replacement Monitor U2 engines (buildWellVoidage: voidage by well with per-well free gas, gated on the V2 fixture with a negative control; vrr.js untouched), vendored from Petrolord/petrolord-engines PR #307 head a01628f (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #307 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every vrr-u2 row."
+    }
+  ]
 }
