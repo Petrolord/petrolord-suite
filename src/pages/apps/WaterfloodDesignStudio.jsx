@@ -31,6 +31,7 @@ import SurveillanceResults from '@/components/waterflooddesign/SurveillanceResul
 import ScenarioCompare from '@/components/waterflooddesign/ScenarioCompare';
 import DiagnosticsRail from '@/components/waterflooddesign/DiagnosticsRail';
 import WDSHelpContent from '@/components/waterflooddesign/WDSHelpContent';
+import ReportTab from '@/components/waterflooddesign/ReportTab';
 import { mapScalKrIntake, scalKrFromContract } from '@/components/waterflooddesign/scalKrIntake';
 import { readScalProjectKr, KR_PROJECT_PARAM } from '@/lib/krSource';
 import { supabaseSharingStore } from '@/lib/recordSharing';
@@ -53,6 +54,7 @@ const TABS = [
   { value: 'uncertainty', label: 'Uncertainty' },
   { value: 'surveillance', label: 'Surveillance' },
   { value: 'scenarios', label: 'Scenarios' },
+  { value: 'report', label: 'Report' },
 ];
 
 const WaterfloodDesignContent = () => {
@@ -161,6 +163,12 @@ const WaterfloodDesignContent = () => {
       {activeTab === 'pattern' && <PatternPanel />}
       {activeTab === 'uncertainty' && <UncertaintyPanel />}
       {activeTab === 'surveillance' && <SurveillancePanel />}
+      {activeTab === 'report' && (
+        <p className="text-xs text-pl-muted">
+          Fill the identification and the sources on the right, then export. The report is built from the working case
+          of every tab.
+        </p>
+      )}
       {activeTab === 'scenarios' && (
         <p className="text-xs text-pl-muted">
           Snapshot scenarios from the right rail on any tab; this tab compares them. Inputs stay editable on the
@@ -178,6 +186,7 @@ const WaterfloodDesignContent = () => {
       {activeTab === 'uncertainty' && <UncertaintyResults />}
       {activeTab === 'surveillance' && <SurveillanceResults />}
       {activeTab === 'scenarios' && <ScenarioCompare />}
+      {activeTab === 'report' && <ReportTab />}
     </>
   );
 
