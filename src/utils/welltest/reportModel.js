@@ -234,16 +234,25 @@ export function pvtIntakeFromBackbone(fluid) {
   };
   // WTA-U2-001: a gas test takes the gas columns of the pvt-1 table with the
   // project (the summary the shared intake keeps has no table)
+  // (the receiving studio switches a gas test to the table: takeFluidPvt)
   const gasTable = gasTableFromContract(fluid?.contract || fluid);
-  const patch = { ...out.patch };
-  const applied = [...out.applied];
-  if (gasTable) {
-    intake = { ...intake, gasTable, values: { ...(intake.values || {}), gasTableRows: String(gasTable.n) } };
-    patch.gasPvtSource = 'fluid-table';
-    if (gasTable.temperatureF != null) patch.tempF = String(gasTable.temperatureF);
-    applied.push(`the gas Z and viscosity table (${gasTable.n} rows)`);
-  }
-  return { patch, applied, intake };
+  if (gasTable) intake = { ...intake, gasTable, values: { ...(intake.values || {}), gasTableRows: String(gasTable.n) } };
+  return { patch: out.patch, applied: out.applied, intake };
+}
+
+/**
+ * What a gas test takes besides the version-1 values when the intake holds
+ * a gas table (WTA-U2-001): the table as its gas PVT, and the temperature
+ * the table was built at. An oil test only keeps the table with the
+ * project, to be chosen if the test is switched to gas.
+ */
+export function gasTablePatch(intake, fluid) {
+  const gt = intake?.gasTable;
+  if (!gt || fluid !== 'gas') return null;
+  return {
+    patch: { gasPvtSource: 'fluid-table', ...(gt.temperatureF != null ? { tempF: String(gt.temperatureF) } : {}) },
+    applied: `the gas Z and viscosity table (${gt.n} rows)`,
+  };
 }
 
 // ---- total compressibility --------------------------------------------------

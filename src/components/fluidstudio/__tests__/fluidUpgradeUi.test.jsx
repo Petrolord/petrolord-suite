@@ -158,6 +158,7 @@ describe('RL11 static guard: every PVT intake has a sender', () => {
     expect(idWriters).toEqual(['src/components/fluidstudio/FluidStudioResults.jsx']);
     // every reader of the saved block goes through the one reader module
     const blockReaders = files.filter(([f, s]) => /readFluidProjectPvt\(/.test(s) && f !== 'src/lib/pvtSource.js').map(([f]) => f);
-    expect(blockReaders).toEqual(['src/pages/apps/WellTestAnalysisStudio.jsx']);
+    // WTA-U2-001: Well Test's Data panel reads it again for the shared card's "Read it again"
+    expect(blockReaders).toEqual(['src/components/welltest/DataPanel.jsx', 'src/pages/apps/WellTestAnalysisStudio.jsx']);
   });
 });

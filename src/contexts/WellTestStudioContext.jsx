@@ -23,7 +23,7 @@ import { provenanceFromPayload, setProvenanceField } from '@/lib/inputProvenance
 import {
   DEFAULT_IDENTIFICATION, DEFAULT_COMPLETION, resolveTotalCompressibility,
   buildSkinBreakdown, buildInputsTable, buildFlowSummary, buildIdentificationRows,
-  buildPressureBasisRows, buildDataUseRows, buildLimitsRows, pvtIntakeFromBackbone, changingStorageRows, completionDatumCorrection,
+  buildPressureBasisRows, buildDataUseRows, buildLimitsRows, pvtIntakeFromBackbone, gasTablePatch, changingStorageRows, completionDatumCorrection,
 } from '@/utils/welltest/reportModel';
 import { buildHistoryMatch, buildOverviewData, thinRows } from '@/utils/welltest/plotData';
 
@@ -533,6 +533,8 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   const setInputMetaField = useCallback((key, k, v) => setInputMeta((prev) => setProvenanceField(prev, key, k, v)), []);
   const setPeriodMetaField = useCallback((key, k, v) => setPeriodMeta((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), [k]: v } })), []);
   const [reservoirInputs, setReservoirInputs] = useState(DEFAULT_RESERVOIR);
+  const reservoirInputsRef = useRef(reservoirInputs);
+  reservoirInputsRef.current = reservoirInputs;
   const [testConfig, setTestConfig] = useState(DEFAULT_TEST_CONFIG);
   const [gaugeRows, setGaugeRows] = useState([]); // [{t, p}] numbers
   const [rateRows, setRateRows] = useState([]); // [{t, q}] strings
@@ -1041,9 +1043,10 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   const takeFluidPvt = useCallback((fluid, how = 'received from Fluid Systems Studio') => {
     const intake = pvtIntakeFromBackbone(fluid);
     if (!intake) return null;
-    setReservoirInputs((prev) => ({ ...prev, ...intake.patch }));
+    const gas = gasTablePatch(intake.intake, reservoirInputsRef.current?.fluid);
+    setReservoirInputs((prev) => ({ ...prev, ...intake.patch, ...(gas?.patch || {}) }));
     setPvtIntake(intake.intake);
-    addNotification(`Fluid properties ${how}: ${intake.applied.join(', ')} applied. Review total compressibility manually.`, 'success');
+    addNotification(`Fluid properties ${how}: ${[...intake.applied, ...(gas ? [gas.applied] : [])].join(', ')} applied. Review total compressibility manually.`, 'success');
     return intake;
   }, [addNotification]);
 
