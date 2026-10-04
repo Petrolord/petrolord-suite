@@ -40,7 +40,11 @@ export function zoneFluidLines(z) {
     out.push(`  block ${lab}:${Number.isFinite(b.goc) ? ` GOC ${depthM(b.goc)}` : ''}${Number.isFinite(b.owc) ? ` OWC ${depthM(b.owc)}` : ''}`);
   }
   if (z.trap) out.push(`  leg bounded by the closure and spill: ${describeTraps(z.trap)}`);
-  if (z.shm) out.push(`  Sw from saturation-height (${z.shm.project}), FWL ${depthM(z.shm.fwlM)}, rock from ${z.shm.rock === 'model' ? 'the modelled porosity' : 'the project'}`);
+  if (z.shm) {
+    out.push(`  Sw from saturation-height (${z.shm.project}), FWL ${depthM(z.shm.fwlM)}, rock from ${z.shm.rock === 'model' ? 'the modelled porosity' : 'the project'}`);
+    // SCAL-U2-009: the kr-1 source of the J function (a model built before it was recorded says so)
+    out.push(`  SCAL source: ${z.shm.source || 'not recorded with this build; build the model again to record it'}`);
+  }
   return out;
 }
 
