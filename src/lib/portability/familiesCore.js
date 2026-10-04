@@ -30,7 +30,7 @@ export const SAVED_PROJECT_TABLES = [
   'saved_scenario_hub_projects', 'saved_separator_projects', 'saved_surveillance_projects',
   'saved_tank_projects', 'saved_terminal_projects', 'saved_valve_projects',
   'saved_voi_projects', 'saved_vrr_projects', 'saved_waterflood_design_projects',
-  'saved_waterflood_projects', 'saved_well_test_projects',
+  'saved_waterflood_projects', 'saved_well_spacing_projects', 'saved_well_test_projects',
   // Supply Chain planners: product-prefixed (scm_) tables on the same
   // saved-projects shape (no results_data): SC3 Materials & Spares Planner,
   // SC4 Marine Logistics Planner. Their payloads hold no ids of other rows.
@@ -92,6 +92,15 @@ export const INTAKE_SOFT_REFS = Object.freeze({
     { path: 'inputs_data.inputs.intakes.pvt.contract.project_id', table: 'saved_fluid_studio_projects', optional: true },
     { path: 'inputs_data.inputs.intakes.wta.from.recordId', table: 'saved_well_test_projects', optional: true },
     { path: 'inputs_data.inputs.intakes.mbal.from.recordId', table: 'rb_cases', optional: true },
+  ],
+  // WS-U1: the intakes read by id (pvt-1, wta-1, mbal-1, dca-forecast-1); the
+  // registry wells are kept as a snapshot of names and coordinates, no ids followed
+  saved_well_spacing_projects: [
+    { path: 'inputs_data.inputs.intakes.pvt.from.recordId', table: 'saved_fluid_studio_projects', optional: true },
+    { path: 'inputs_data.inputs.intakes.pvt.contract.project_id', table: 'saved_fluid_studio_projects', optional: true },
+    { path: 'inputs_data.inputs.intakes.wta.from.recordId', table: 'saved_well_test_projects', optional: true },
+    { path: 'inputs_data.inputs.intakes.mbal.from.recordId', table: 'rb_cases', optional: true },
+    { path: 'inputs_data.inputs.intakes.dca.from.recordId', table: 'saved_dca_projects', optional: true },
   ],
 });
 

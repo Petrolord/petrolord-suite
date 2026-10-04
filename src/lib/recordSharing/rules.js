@@ -46,6 +46,8 @@ export const SHARING_TABLES = {
   rrv_valuations: { label: 'valuation', nameColumn: 'name', sharedWhen: 'visibility' },
   // EOR Screening U1 (migration 20261004220000_saved_eor_screening_projects.sql, not applied yet)
   saved_eor_screening_projects: { label: 'project', nameColumn: 'project_name', sharedWhen: 'visibility' },
+  // Well Spacing Optimizer U1 (migration 20261005010000_saved_well_spacing_projects.sql, not applied yet)
+  saved_well_spacing_projects: { label: 'project', nameColumn: 'project_name', sharedWhen: 'visibility' },
 };
 
 /** The columns the sharing model adds (what `sharingOf` keeps). */
