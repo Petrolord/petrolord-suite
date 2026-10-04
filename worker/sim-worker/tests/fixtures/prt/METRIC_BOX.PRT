@@ -1,0 +1,120 @@
+-- Excerpt of the PRT OPM Flow 2026.04 wrote for tests/integration/fixtures/metric/METRIC_BOX.DATA (METRIC, RPTSOL FIP=1, RPTSCHED FIP=1 WELLS=1), 2026-10-04. Lines kept verbatim.
+Flow Version     =  2026.04 (Ubuntu 24.04.4 LTS: 2026.04-1~noble)
+[... lines omitted ...]
+Total number of active cells: 25 / total pore volume: 500000 RM3
+[... lines omitted ...]
+                              **************************************************************************
+  BALANCE  AT         0  DAYS *            METRIC BALANCE BOX                                          *
+  REPORT    0    01 Jan 2025  *                                             Flow  version     2026.04  *
+                              **************************************************************************
+
+
+                                                     ==================================================
+                                                     :                  FIELD TOTALS                  :
+                                                     :        PAV  =           220  BARSA             :
+                                                     :        PORV =        500000  RM3               :
+                                                     : Pressure is weighted by hydrocarbon pore volume:
+                                                     : Pore volumes are taken at reference conditions :
+                           :--------------- OIL  SM3 ------------------:-- WAT    SM3 --:--------------  GAS     SM3 ---------------:
+                           :    LIQUID         VAPOUR        TOTAL     :     TOTAL      :     FREE        DISSOLVED       TOTAL     :
+ :-------------------------:-------------------------------------------:----------------:-------------------------------------------:
+ :CURRENTLY IN PLACE       :    335466           0           335466    :     97760      :       0          20127977      20127977   :
+ :-------------------------:-------------------------------------------:----------------:-------------------------------------------:
+ :ORIGINALLY IN PLACE      :    335466           0           335466    :     97760      :       0          20127977      20127977   :
+ ====================================================================================================================================
+
+
+
+
+[... lines omitted ...]
+                              **************************************************************************
+  WELLS    AT       360  DAYS *            METRIC BALANCE BOX                                          *
+  REPORT   12    27 Dec 2025  *                                             Flow  version     2026.04  *
+                              **************************************************************************
+
+
+======================================================= PRODUCTION REPORT =======================================================
+ :  WELL  : LOCATION  :CTRL:    OIL    :   WATER   :    GAS    :   FLUID   :   WATER   : GAS/OIL  :  WAT/GAS   : BHP OR : THP OR :
+ :  NAME  :  (I,J,K)  :MODE:   RATE    :   RATE    :   RATE    : RES.VOL.  :    CUT    :  RATIO   :   RATIO    :CON.PR. :BLK.PR. :
+ :        :           :    :  SCM/DAY  :  SCM/DAY  :  RCM/DAY  :  SCM/SCM  :  SCM/SCM  : SCM/SCM  :  SCM/SCM   : BARSA  : BARSA  :
+=================================================================================================================================
+:FIELD   :           :    :      300.0:        3.6:    18000.0:      361.1:      0.012:     60.00:      0.0002:        :        :
+:G1      :           :    :      300.0:        3.6:    18000.0:      361.1:      0.012:     60.00:      0.0002:        :        :
+:P1      :  5,  5    :ORAT:      300.0:        3.6:    18000.0:      361.1:      0.012:     60.00:      0.0002:   129.5:     0.0:
+ :--------:-----------:----:-----------:-----------:-----------:-----------:-----------:----------:------------:--------:--------:
+
+============================================= INJECTION REPORT ==============================================
+ :  WELL  : LOCATION  : CTRL : CTRL : CTRL :    OIL    :   WATER   :    GAS    :   FLUID   : BHP OR : THP OR :
+ :  NAME  :  (I,J,K)  : MODE : MODE : MODE :   RATE    :   RATE    :   RATE    : RES.VOL.  :CON.PR. :BLK.PR. :
+ :        :           : OIL  : WAT  : GAS  :  SCM/DAY  :  SCM/DAY  :  SCM/DAY  :  RCM/DAY  : BARSA  : BARSA  :
+=============================================================================================================
+:FIELD   :           :      :      :      :        0.0:      350.0:        0.0:      357.6:        :        :
+:G1      :           :      :      :      :        0.0:      350.0:        0.0:      357.6:        :        :
+:I1      :  1,  1    :      :  WRAT:      :        0.0:      350.0:        0.0:      357.6:   305.0:     0.0:
+ :--------:-----------:------:------:------:-----------:-----------:-----------:-----------:--------:--------:
+
+============================================== CUMULATIVE PRODUCTION/INJECTION TOTALS ==============================================
+ :  WELL  : LOCATION  :  WELL  :CTRL:    OIL    :   WATER   :    GAS    :   Prod    :    OIL    :   WATER   :    GAS    :    INJ    :
+ :  NAME  :  (I,J,K)  :  TYPE  :MODE:   PROD    :   PROD    :   PROD    : RES.VOL.  :    INJ    :    INJ    :    INJ    : RES.VOL.  :
+ :        :           :        :    :   MSCM    :   MSCM    :   MMSCM   :   MRCM    :   MSCM    :   MSCM    :   MMSCM   :   MRCM    :
+====================================================================================================================================
+:FIELD   :           :        :    :      108.0:        0.3:        6.5:      128.9:        0.0:      126.0:        0.0:      128.7:
+:G1      :           :        :    :      108.0:        0.3:        6.5:      128.9:        0.0:      126.0:        0.0:      128.7:
+:P1      :  5,  5    :    PROD:ORAT:      108.0:        0.3:        6.5:      128.9:        0.0:        0.0:        0.0:        0.0:
+:I1      :  1,  1    :     INJ:WRAT:        0.0:        0.0:        0.0:        0.0:        0.0:      126.0:        0.0:      128.7:
+ :--------:-----------:--------:----:-----------:-----------:-----------:-----------:-----------:-----------:-----------:-----------:
+[... lines omitted ...]
+                              **************************************************************************
+  BALANCE  AT       360  DAYS *            METRIC BALANCE BOX                                          *
+  REPORT   12    27 Dec 2025  *                                             Flow  version     2026.04  *
+                              **************************************************************************
+
+
+                                                     ==================================================
+                                                     :                  FIELD TOTALS                  :
+                                                     :        PAV  =           212  BARSA             :
+                                                     :        PORV =        500000  RM3               :
+                                                     : Pressure is weighted by hydrocarbon pore volume:
+                                                     : Pore volumes are taken at reference conditions :
+                           :--------------- OIL  SM3 ------------------:-- WAT    SM3 --:--------------  GAS     SM3 ---------------:
+                           :    LIQUID         VAPOUR        TOTAL     :     TOTAL      :     FREE        DISSOLVED       TOTAL     :
+ :-------------------------:-------------------------------------------:----------------:-------------------------------------------:
+ :CURRENTLY IN PLACE       :    227466           0           227466    :     223473     :       0          13647976      13647976   :
+ :-------------------------:-------------------------------------------:----------------:-------------------------------------------:
+ :ORIGINALLY IN PLACE      :    335466           0           335466    :     97760      :       0          20127977      20127977   :
+ ====================================================================================================================================
+
+
+
+
+[... lines omitted ...]
+
+================    End of simulation     ===============
+
+Number of MPI processes:         1
+Threads per MPI process:         2
+Setup time:                      0.05 s
+  Deck input:                    0.04 s
+Number of timesteps:            15
+Simulation time:                 0.15 s
+  Assembly time:                 0.02 s (Wasted: 0.0 s; 0.0%)
+    Well assembly:               0.00 s (Wasted: 0.0 s; 0.0%)
+  Linear solve time:             0.06 s (Wasted: 0.0 s; 0.0%)
+    Linear setup:                0.06 s (Wasted: 0.0 s; 0.0%)
+  Props/update time:             0.01 s (Wasted: 0.0 s; 0.0%)
+  Pre/post step:                 0.05 s (Wasted: 0.0 s; 0.0%)
+  Output write time:             0.03 s
+Overall Linearizations:         56      (Wasted:     0; 0.0%)
+Overall Newton Iterations:      41      (Wasted:     0; 0.0%)
+Overall Linear Iterations:      36      (Wasted:     0; 0.0%)
+
+
+
+Error summary:
+Warnings          3
+Info              123
+Errors            0
+Bugs              0
+Debug             0
+Problems          0
+

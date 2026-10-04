@@ -163,3 +163,33 @@ def test_carter_tracy_aquifer_with_influence_table_runs(tmp_path):
     diag = prt.parse_prt_file(results.find_prt(work))
     assert diag["messages"]["errors"] == 0
     assert doc["aquifers"]["1"]["AAQT"][-1] > 1e6
+
+
+# ---- SIM-U2-015: the material balance of a METRIC run ----------------------
+
+METRIC_DIR = os.path.join(os.path.dirname(__file__), "fixtures", "metric")
+
+
+def test_metric_balance_is_computed_and_matches_the_summary(tmp_path):
+    work = str(tmp_path)
+    shutil.copy(os.path.join(METRIC_DIR, "METRIC_BOX.DATA"), os.path.join(work, "METRIC_BOX.DATA"))
+    deck.validate_bundle(work, "METRIC_BOX.DATA")
+    outcome = runner.run_flow(work, "METRIC_BOX.DATA", lambda: False)
+    assert outcome["exit_code"] == 0, outcome["stderr_tail"]
+    diag = prt.parse_prt_file(results.find_prt(work))
+    case = results.find_summary_case(os.path.join(work, "out"))
+    doc, _ = results.build_summary(case, "u2-gate", "sha", diagnostics=diag,
+                                   unit_system=results.deck_unit_system(os.path.join(work, "METRIC_BOX.DATA")))
+    assert doc["unit_system"] == "METRIC"
+    mb = diag["material_balance"]
+    assert mb["computed"], mb
+    assert mb["closes"]
+    f = doc["field"]
+    ph = mb["phases"]
+    # the cumulative table, scaled, against the run's own summary vectors
+    # (sm3): within the rounding of the printed table
+    assert abs(ph["oil"]["produced"] - f["FOPT"][-1]) <= 0.05e3 + 1
+    assert abs(ph["water"]["injected"] - f["FWIT"][-1]) <= 0.05e3 + 1
+    assert abs(ph["water"]["produced"] - f["FWPT"][-1]) <= 0.05e3 + 1
+    # the gas column's scale (MMSCM = 10^6 sm3) against FGPT
+    assert abs(ph["gas"]["produced"] - f["FGPT"][-1]) <= 0.05e6 + 1

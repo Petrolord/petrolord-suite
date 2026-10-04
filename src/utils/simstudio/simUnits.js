@@ -203,3 +203,21 @@ export function vectorView(key, deckSystem, system) {
     reason: null,
   };
 }
+
+// ---- the simulator's PRT tables (SIM-U2-015) ---------------------------------
+
+/**
+ * A volume the simulator printed in its PRT, in the display unit of a kind.
+ * The worker records the unit the table carried: STB, MSCF and RB (FIELD),
+ * SM3 and RM3 (METRIC; checked on a METRIC run in the worker gate).
+ * @param {string} kind e.g. 'oilVolume', 'gasVolume', 'resVolume'
+ * @param {number} value
+ * @param {?string} prtUnit as the PRT printed it; FIELD's when not recorded
+ */
+export function prtShow(kind, value, prtUnit, system) {
+  const k = kindOf(kind);
+  if (typeof value !== 'number' || !Number.isFinite(value) || !k.family) return value;
+  const unit = String(prtUnit || '').toUpperCase();
+  const from = { STB: 'STB', MSCF: 'Mscf', RB: 'RB', SM3: 'm3', RM3: 'm3' }[unit] || k.canon;
+  return convert(k.family, value, from, k.unit[sys(system)]);
+}

@@ -12,7 +12,7 @@
  */
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { inputRow } from '@/lib/inputProvenance/wording';
-import { simUnits, displayUnitsLine } from './simUnits.js';
+import { simUnits, displayUnitsLine, prtShow } from './simUnits.js';
 import { summarizeDeck, deckSystemText } from './deckSummary.js';
 import { summaryUnitSystem, lastValue, dayToIso } from './series.js';
 import { krEditedKeys, THREE_PHASE_WORDS } from './builderIntakes.js';
@@ -42,7 +42,7 @@ const MB_REASONS = Object.freeze({
   no_fip_report: 'the deck does not ask for the fluid-in-place report (RPTSOL or RPTSCHED FIP)',
   no_well_totals: 'the deck does not ask for the well reports with the cumulative totals (RPTSCHED WELLS)',
   no_common_report: 'no report step holds both the balance sheet and the well totals',
-  units_not_verified: 'the deck is not in FIELD units, and the PRT table units of other systems have not been checked against a run',
+  units_not_verified: 'the deck is in units whose PRT table labels have not been checked against a run (FIELD and METRIC have been)',
 });
 
 export const SOURCE_WORDS = Object.freeze({
@@ -109,7 +109,7 @@ function deckRows({ deck, run, summary, units, pvtWords, krWords, diag }) {
   const cells = d?.dims ? `${fx(d.dims.nx)} x ${fx(d.dims.ny)} x ${fx(d.dims.nz)} = ${fx(d.dims.cells)} cells` : EMPTY_VALUE;
   const active = diag?.active_cells ?? run?.active_cells;
   rows.push(['Grid', `${cells}${d?.cornerPoint ? ', corner point (COORD/ZCORN)' : ', block-centred (DX/DY/DZ/TOPS)'}; active cells ${finite(active) ? fx(active) : NOT_REPORTED}`]);
-  if (diag?.pore_volume) rows.push(['Pore volume (simulator)', `${fx(u.show('resVolume', diag.pore_volume.value))} ${u.label('resVolume')}`]);
+  if (diag?.pore_volume) rows.push(['Pore volume (simulator)', `${fx(prtShow('resVolume', diag.pore_volume.value, diag.pore_volume.unit, u.system))} ${u.label('resVolume')}`]);
   rows.push(['Start date', d?.start || (summary?.start_date ? String(summary.start_date).slice(0, 10) : EMPTY_VALUE)]);
   const sch = d?.schedule;
   rows.push(['Schedule', sch ? [
@@ -277,7 +277,8 @@ function materialBalance(diag, u) {
   const kind = { oil: 'oilVolume', water: 'waterVolume', gas: 'gasVolume' };
   const rows = Object.entries(mb.phases).map(([phase, p]) => {
     const k = kind[phase];
-    const v = (x) => fx(u.show(k, x));
+    // SIM-U2-015: in the unit the PRT printed (FIELD or METRIC), shown in the display units
+    const v = (x) => fx(prtShow(k, x, p.unit, u.system));
     return [
       `${phase[0].toUpperCase()}${phase.slice(1)} (${u.label(k)})`,
       v(p.originally_in_place), v(p.currently_in_place), v(p.produced), v(p.injected), v(p.error),
@@ -340,22 +341,23 @@ function headlineRows(summary, opts, u, diag) {
   const add = (label, key, kind, digits = 0, fallback = null) => {
     const lv = lastValue(summary, key, opts);
     if (!lv && fallback && finite(fallback.value)) {
-      const v = u.show(kind, fallback.value);
+      const v = prtShow(kind, fallback.value, fallback.unit, u.system);
       rows.push([label, fx(v, digits), u.label(kind), `${key} is not in the summary; the simulator's well totals in the PRT at report step ${diag.material_balance.report_step}`]);
       return { value: v };
     }
     rows.push([label, lv ? fx(lv.value, digits) : EMPTY_VALUE, kind ? u.label(kind) : '', lv ? `${key} at ${dayToIso(summary, lv.day)}` : `${key} is not in the summary (the deck's SUMMARY section does not request it)`]);
     return lv;
   };
-  const np = add('Cumulative oil produced', 'FOPT', 'oilVolume', 0, mbPhases && { value: mbPhases.oil.produced });
-  add('Cumulative water injected', 'FWIT', 'waterVolume', 0, mbPhases && { value: mbPhases.water.injected });
-  add('Cumulative gas injected', 'FGIT', 'gasVolume', 0, mbPhases && { value: mbPhases.gas.injected });
+  const np = add('Cumulative oil produced', 'FOPT', 'oilVolume', 0, mbPhases && { value: mbPhases.oil.produced, unit: mbPhases.oil.unit });
+  add('Cumulative water injected', 'FWIT', 'waterVolume', 0, mbPhases && { value: mbPhases.water.injected, unit: mbPhases.water.unit });
+  add('Cumulative gas injected', 'FGIT', 'gasVolume', 0, mbPhases && { value: mbPhases.gas.injected, unit: mbPhases.gas.unit });
   add('Oil rate at the end', 'FOPR', 'oilRate');
   add('Field pressure at the end', 'FPR', 'pressure');
   add('Water cut at the end', 'FWCT', 'fraction', 3);
   add('GOR at the end', 'FGOR', 'gor', 3);
   const ooip = diag?.material_balance?.phases?.oil?.originally_in_place ?? diag?.balance?.initial?.original?.oil;
-  const ooipShown = finite(ooip) ? u.show('oilVolume', ooip) : null;
+  const ooipUnit = diag?.material_balance?.phases?.oil?.unit ?? diag?.balance?.units?.oil ?? null;
+  const ooipShown = finite(ooip) ? prtShow('oilVolume', ooip, ooipUnit, u.system) : null;
   rows.push(['Oil originally in place', finite(ooipShown) ? fx(ooipShown) : EMPTY_VALUE, u.label('oilVolume'), finite(ooip) ? 'Simulator balance sheet (PRT), stock tank' : diag ? 'Not printed: the deck does not ask for the FIP report' : NOT_REPORTED]);
   const rf = np && finite(ooipShown) && ooipShown > 0 ? np.value / ooipShown : null;
   rows.push(['Recovery factor to the end', finite(rf) ? `${(rf * 100).toFixed(2)}` : EMPTY_VALUE, 'percent', finite(rf) ? 'Cumulative oil produced / oil originally in place' : 'Needs the cumulative oil and the oil originally in place']);
