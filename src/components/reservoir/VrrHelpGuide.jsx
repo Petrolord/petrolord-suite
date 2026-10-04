@@ -2,7 +2,7 @@
 // VRR upgrade re-housed this from a standalone Dialog).
 import React from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { BookOpen, Droplets, Table2, LineChart, Scale, Upload, AlertTriangle, FolderOpen, Gauge, Network, FileText, Ruler, FlaskConical } from 'lucide-react';
+import { BookOpen, Droplets, Table2, LineChart, Scale, Upload, AlertTriangle, FolderOpen, Gauge, Network, FileText, Ruler, FlaskConical, MapPin, Send, Flame, Database } from 'lucide-react';
 
 const helpContent = [
   {
@@ -66,7 +66,7 @@ const helpContent = [
     icon: Network,
     title: 'Patterns tab: allocation factors and per-pattern VRR',
     content:
-      'A field-level VRR of 1 can hide one flooded-out pattern and one starved one. On the Patterns tab (available with an imported per-well ledger), define patterns as sets of producers, then fill the allocation matrix: for each injector, the fraction of its volume reaching each producer. Rows should sum to 1; a shortfall counts as out-of-zone injection and the audit line accounts for every barrel. The fractions are your judgement (from streamline runs, interference tests or geometry); the app never assumes even splits on its own, though an Even split button is there when that is your call. Each pattern then gets its own VRR trend, band flags, and a water-injection recommendation that scales recent allocated injection by target over current rolling VRR, split per injector by allocated share. Recommendations with an implausibly large step are clamped and flagged; treat that as a prompt to re-check allocation and PVT before acting on it. The KPI row above the trend names the weakest pattern in the field, which is the one furthest below your target band, so the pattern that most needs attention is on screen without hunting through the list.',
+      'A field-level VRR of 1 can hide one flooded-out pattern and one starved one. On the Patterns tab (available with an imported per-well ledger), define patterns as sets of producers, then fill the allocation matrix: for each injector, the fraction of its volume reaching each producer. Rows should sum to 1; a shortfall counts as out-of-zone injection and the audit line accounts for every barrel. The fractions are your judgement (from streamline runs, interference tests or geometry); the app never assumes even splits on its own, though an Even split button is there when that is your call. Each pattern then gets its own VRR trend, band flags, and a water-injection recommendation that scales recent allocated injection by target over current rolling VRR, split per injector by allocated share. Recommendations with an implausibly large step are clamped and flagged; treat that as a prompt to re-check allocation and PVT before acting on it. The KPI row above the trend names the weakest pattern in the field, which is the one furthest below your target band, so the pattern that most needs attention is on screen without hunting through the list. Each pattern can have its own target band (blank follows the field band): its flags and its water injection advice then use it.',
   },
   {
     id: 'interpret',
@@ -81,6 +81,41 @@ const helpContent = [
     title: 'Importing real field data (per-well CSV)',
     content:
       'The Data & PVT tab imports real allocation files: one row per well per date (daily or monthly), with columns for date, well, oil, water and gas produced, and water and gas injected, in any order. The import door reads any separator (comma, semicolon, tab) and either decimal mark, skips text above the table, totals rows and comment lines, and shows what it read before anything changes: each field\'s column, its unit and where the unit came from. A header that names injection (Water Inj, gas_injected, BWIPD) is always an injection column. Units come from the header (bbl, Mbbl, sm3, Mscf, MMscf, 10^3 sm3) or are chosen at the door; a column with no unit is read in your display units and said so. A daily rate (BOPD, Mscf/d) is turned into each row\'s volume by the days of its period: one day for daily rows, the calendar month for monthly rows. When nothing in the file settles whether 01/02/2025 is the 1st of February or the 2nd of January, the door asks. Rows left out are listed with the reason. Daily rows aggregate to calendar months. Download the Template for the schema, or click Sample wells to load a worked 3-month, 4-well example. Wells that ever inject classify as injectors, including gas injectors.',
+  },
+  {
+    id: 'u2-import',
+    icon: Upload,
+    title: 'Workbooks and rates per producing day',
+    content:
+      'The ledger door and the pressure door also read Excel workbooks (xlsx, xlsm, xls): the sheets are tried in order until one holds the table, a title line above the header is fine, Excel dates read as dates, and the sheet used is named in the read-back and in the report. When the ledger has a producing-time column (Days On, Producing days, Hours on and similar), a rate such as BOPD is read per producing day: the row volume is the rate times the producing days of the row (hours over 24). Choose "rates are calendar-day averages" at the door if your file quotes calendar-day rates; then the column is not used. A producing time above the days of the period is capped at the period and counted, a blank uses the calendar days and is counted, and with volume columns the column is listed as not needed.',
+  },
+  {
+    id: 'demo',
+    icon: Database,
+    title: 'The demo field (a second sample)',
+    content:
+      'Demo field (24 months) on the import door loads an illustrative field built by a stated rule: 6 producers, 3 water injectors and a gas injector from January 2024 to December 2025, free gas once the producing GOR rises above Rs, one producer below its solution GOR, gas injection from the ninth month, quarterly surveys, two patterns with an allocation, a stated datum and well locations for the map. Sample wells keeps the 3-month template the engine tests pin.',
+  },
+  {
+    id: 'freegas',
+    icon: Flame,
+    title: 'Free gas, field level and well by well',
+    content:
+      'The headline nets free gas at field (or pattern) level: produced gas above Rs times oil for the whole month, never below zero. A well producing below its solution GOR then offsets a well producing free gas. With an imported ledger the app also floors each well on its own, month by month at that month\'s FVF set, and prints that figure beside the field one: on the KPI rail ("Free gas well by well"), in the report headline with its produced voidage and cumulative VRR, and in the Voidage by well table. The per-well figure is never below the field figure; the headline stays at field level.',
+  },
+  {
+    id: 'map',
+    icon: MapPin,
+    title: 'Map tab: voidage by well on the well locations',
+    content:
+      'The Map tab places each ledger well at the surface location of a well in the wells registry (Well Data Manager), sized by its produced voidage (producers) or injected volume (injectors) over the record, with each pattern\'s cumulative VRR at the centre of its producers. Match the wells first: the table proposes a registry well with the same name, the same UWI, or the same letters and digits (check those), and you choose or change each one. Nothing is placed until you click Confirm the match table, and a well you leave unmatched is listed, never placed by guess. The confirmed coordinates are kept with the project; Read the registry again names a well that moved since. Wells in two coordinate systems give no map until they are reprojected. The report draws the same map as a figure and prints the table behind it.',
+  },
+  {
+    id: 'send',
+    icon: Send,
+    title: 'What other apps read from a project (the vrr-1 contract)',
+    content:
+      'A saved project sends one contract, vrr-1, read by its id: the per-well ledger by month and the dated pressure rows (absolute psia, with the datum as stated and not corrected). Waterflood Design Studio takes the ledger as its surveillance history from Send to Waterflood Design Studio (and the surveys for FVF by period); Material Balance Studio takes the pressure rows onto the dated rows of a case from its Data tab. A project with a period grid sends its pressure rows only. Both apps say when the project changes after they took it.',
   },
   {
     id: 'data',
