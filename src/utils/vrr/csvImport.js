@@ -607,4 +607,56 @@ export function vrrTemplateCSV() {
   return [header, ...rows].join('\n');
 }
 
+// ---------------------------------------------------------------------------
+// Kept for the production data spine importer (src/utils/production/csvImport.js),
+// which imports these two from here. The VRR doors no longer use them: they
+// read dates through the shared typed reader, which asks instead of guessing.
+// Unchanged from V2 so the spine's behaviour does not move in this round.
+// ---------------------------------------------------------------------------
+
+/**
+ * Date-order inference for slash/dot dates: scan all values; any first
+ * part > 12 proves day-first, any second part > 12 proves month-first.
+ * Ambiguous files default to day-first with a warning in the report.
+ */
+export function inferDateOrder(values) {
+  let sawDayFirst = false;
+  let sawMonthFirst = false;
+  values.forEach((v) => {
+    const m = /^(\d{1,2})[/.](\d{1,2})[/.](\d{4})$/.exec(String(v ?? '').trim());
+    if (!m) return;
+    if (parseInt(m[1], 10) > 12) sawDayFirst = true;
+    if (parseInt(m[2], 10) > 12) sawMonthFirst = true;
+  });
+  if (sawDayFirst && !sawMonthFirst) return { order: 'DMY', ambiguous: false };
+  if (sawMonthFirst && !sawDayFirst) return { order: 'MDY', ambiguous: false };
+  return { order: 'DMY', ambiguous: true };
+}
+
+/** Normalize one date value to 'YYYY-MM-DD' (or 'YYYY-MM'), or null. */
+export function normalizeDate(value, order = 'DMY') {
+  const s = String(value ?? '').trim();
+  if (!s) return null;
+  let m = /^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?/.exec(s);
+  if (m) {
+    const mm = m[2].padStart(2, '0');
+    if (parseInt(mm, 10) < 1 || parseInt(mm, 10) > 12) return null;
+    return m[3] ? `${m[1]}-${mm}-${m[3].padStart(2, '0')}` : `${m[1]}-${mm}`;
+  }
+  m = /^(\d{4})[/.](\d{1,2})(?:[/.](\d{1,2}))?$/.exec(s);
+  if (m) {
+    const mm = m[2].padStart(2, '0');
+    if (parseInt(mm, 10) < 1 || parseInt(mm, 10) > 12) return null;
+    return m[3] ? `${m[1]}-${mm}-${m[3].padStart(2, '0')}` : `${m[1]}-${mm}`;
+  }
+  m = /^(\d{1,2})[/.](\d{1,2})[/.](\d{4})$/.exec(s);
+  if (m) {
+    const [a, b] = [parseInt(m[1], 10), parseInt(m[2], 10)];
+    const [day, month] = order === 'MDY' ? [b, a] : [a, b];
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    return `${m[3]}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+  return null;
+}
+
 export { COLUMN_BY_KEY as LEDGER_COLUMN_BY_KEY };
