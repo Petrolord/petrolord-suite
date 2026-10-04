@@ -32,7 +32,9 @@ export function dcaProvenanceOf(file) {
 
 /** The key a Forecast Scenario Hub case rides under (DCA U2-013, epeHubIntake.js). */
 export const HUB_PROVENANCE_KEY = 'fsh_case_1';
-const PROVENANCE_KEYS = [DCA_PROVENANCE_KEY, HUB_PROVENANCE_KEY];
+/** The key a Waterflood Design Studio forecast rides under (WF-U2-001, epeWfIntake.js). */
+export const WF_PROVENANCE_KEY = 'wf_forecast_1';
+const PROVENANCE_KEYS = [DCA_PROVENANCE_KEY, HUB_PROVENANCE_KEY, WF_PROVENANCE_KEY];
 
 /** The volume rows of a file, without a provenance record. */
 export function volumeRowsOf(data) {

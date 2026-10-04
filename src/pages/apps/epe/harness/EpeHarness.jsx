@@ -24,6 +24,7 @@ import EpeRunComparison from '../EpeRunComparison';
 import EpeHelpGuide from '../EpeHelpGuide';
 import RUN from './ekeneRun.json';
 import { loadDcaRows } from '@/dev/dcaProjectsStore';
+import { loadWfRows } from '@/dev/wfProjectsStore';
 
 const NOW = '2026-09-26T10:00:00Z';
 const PROD_ROWS = RUN.cashFlowData.slice(0, 12).map((r) => ({ year: r.year, oil_bbl: r.oil_bbl || 0, gas_mscf: r.gas_mscf || 0 }));
@@ -48,6 +49,8 @@ const DB = {
   epe_sensitivity_results: [],
   // DCA-U1-008: the Decline Curve Analysis projects saved on /dev/dca in this tab
   saved_dca_projects: [],
+  // WF-U2-001: the Waterflood Design Studio projects saved on /dev/studio/waterflood in this tab
+  saved_waterflood_design_projects: [],
 };
 
 let seq = 0;
@@ -71,7 +74,7 @@ function query(table) {
   };
   // only the tables of the handoff are filtered; every other table answers
   // as it always did on this harness (its specs rely on that)
-  const FILTERED = ['saved_dca_projects', 'epe_production_volumes'];
+  const FILTERED = ['saved_dca_projects', 'saved_waterflood_design_projects', 'epe_production_volumes'];
   const current = () => {
     const v = inserted || DB[table];
     if (!Array.isArray(v) || !FILTERED.includes(table)) return v;
@@ -89,6 +92,7 @@ export default function EpeHarness() {
   useEffect(() => {
     const saved = { from: supabase.from, invoke: supabase.functions?.invoke, getUser: supabase.auth?.getUser };
     DB.saved_dca_projects = loadDcaRows();
+    DB.saved_waterflood_design_projects = loadWfRows();
     supabase.from = (t) => query(t);
     if (supabase.auth) supabase.auth.getUser = async () => ({ data: { user: DEV_AUTH.user }, error: null });
     if (supabase.functions) supabase.functions.invoke = async () => ({ data: null, error: { message: 'edge functions are not available on the harness' } });

@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Play } from 'lucide-react';
 import { useWaterfloodDesign } from '@/contexts/WaterfloodDesignContext';
 import { UNCERTAINTY_PARAMS } from '@/utils/waterfloodUncertainty';
-import { Field, SectionLabel } from './primitives';
+import { Field, UField, SectionLabel } from './primitives';
 
 const DIST_TYPES = [
   { value: 'triangular', label: 'Triangular' },
@@ -33,13 +33,19 @@ function seedFromBase(base) {
   };
 }
 
-const ParamRow = ({ def, cfg, base, disabled, onToggle, onPatch }) => {
+// WF-U2-014 (closes WF-U1-021): the distribution values in the display units,
+// stored oilfield like every input (every kind here converts by a factor, so a
+// standard deviation converts as a value does)
+export const ParamRow = ({ def, cfg, base, disabled, onToggle, onPatch, u }) => {
   const enabled = !!cfg?.enabled;
   const type = cfg?.type || 'triangular';
+  const F = ({ label, field }) => (
+    <UField label={label} kind={def.kind} u={u} value={cfg[field] ?? ''} onChange={(v) => onPatch(def.key, { [field]: v })} testId={`wds-mc-${def.key}-${field}`} />
+  );
   return (
     <div className={`rounded-md border px-2.5 py-2 ${enabled ? 'border-pl-border bg-pl-sunken' : 'border-pl-border'} ${disabled ? 'opacity-50' : ''}`}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-pl-text">{def.label}</span>
+        <span className="text-xs text-pl-text">{u ? u.head(def.name, def.kind) : def.label}</span>
         <Switch
           checked={enabled}
           disabled={disabled}
@@ -59,21 +65,21 @@ const ParamRow = ({ def, cfg, base, disabled, onToggle, onPatch }) => {
           </Select>
           {type === 'triangular' && (
             <div className="grid grid-cols-3 gap-2">
-              <Field label="Min" value={cfg.min ?? ''} onChange={(v) => onPatch(def.key, { min: v })} />
-              <Field label="Mode" value={cfg.mode ?? ''} onChange={(v) => onPatch(def.key, { mode: v })} />
-              <Field label="Max" value={cfg.max ?? ''} onChange={(v) => onPatch(def.key, { max: v })} />
+              {F({ label: 'Min', field: 'min' })}
+              {F({ label: 'Mode', field: 'mode' })}
+              {F({ label: 'Max', field: 'max' })}
             </div>
           )}
           {type === 'uniform' && (
             <div className="grid grid-cols-2 gap-2">
-              <Field label="Min" value={cfg.min ?? ''} onChange={(v) => onPatch(def.key, { min: v })} />
-              <Field label="Max" value={cfg.max ?? ''} onChange={(v) => onPatch(def.key, { max: v })} />
+              {F({ label: 'Min', field: 'min' })}
+              {F({ label: 'Max', field: 'max' })}
             </div>
           )}
           {(type === 'normal' || type === 'lognormal') && (
             <div className="grid grid-cols-2 gap-2">
-              <Field label="Mean" value={cfg.mean ?? ''} onChange={(v) => onPatch(def.key, { mean: v })} />
-              <Field label="Std dev" value={cfg.stdDev ?? ''} onChange={(v) => onPatch(def.key, { stdDev: v })} />
+              {F({ label: 'Mean', field: 'mean' })}
+              {F({ label: 'Std dev', field: 'stdDev' })}
             </div>
           )}
         </div>
@@ -85,8 +91,8 @@ const ParamRow = ({ def, cfg, base, disabled, onToggle, onPatch }) => {
 const UncertaintyPanel = () => {
   const {
     displacementInputs, patternInputs,
-    uncertaintyConfig, setUncertaintyIterations, setUncertaintyParam,
-    isRunningUncertainty, uncertaintyProgress, runUncertainty,
+    uncertaintyConfig, setUncertaintyIterations, setUncertaintyParam, setUncertaintySeed,
+    isRunningUncertainty, uncertaintyProgress, runUncertainty, u,
   } = useWaterfloodDesign();
 
   const tabularKr = displacementInputs.krSource === 'table';
@@ -110,6 +116,8 @@ const UncertaintyPanel = () => {
         <SectionLabel>Monte Carlo run</SectionLabel>
         <div className="grid grid-cols-2 gap-3 items-end">
           <Field label="Iterations (100 to 20,000)" value={uncertaintyConfig.iterations} onChange={setUncertaintyIterations} />
+          {/* WF-U2-005: the seed of the run; blank draws one and records it */}
+          <Field label="Seed (blank: drawn and recorded)" value={uncertaintyConfig.seed ?? ''} onChange={setUncertaintySeed} placeholder="drawn at run time" testId="wds-mc-seed" />
           <Button size="sm" onClick={runUncertainty} disabled={isRunningUncertainty} className="h-9">
             <Play className="w-4 h-4 mr-1" /> {isRunningUncertainty ? 'Running…' : 'Run'}
           </Button>
@@ -135,6 +143,7 @@ const UncertaintyPanel = () => {
                 disabled={def.coreyOnly && tabularKr}
                 onToggle={onToggle}
                 onPatch={setUncertaintyParam}
+                u={u}
               />
             ))}
           </div>
@@ -148,7 +157,7 @@ const UncertaintyPanel = () => {
 
       <section>
         <Label className="text-[11px] text-pl-muted leading-snug block">
-          Each realization substitutes the sampled values into the working case and reruns the five-spot forecast.
+          Each realization substitutes the sampled values into the working case and reruns the pattern forecast.
           Enabling a parameter seeds a plus/minus 20% triangular spread around its working value; edit freely.
           {enabledCount === 0 ? ' Enable at least one parameter to run.' : ''}
         </Label>

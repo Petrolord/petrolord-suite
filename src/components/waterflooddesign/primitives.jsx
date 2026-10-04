@@ -28,10 +28,10 @@ export const SectionLabel = ({ children }) => (
   <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
-export const Field = ({ label, value, onChange, placeholder }) => (
+export const Field = ({ label, value, onChange, placeholder, testId }) => (
   <div className="space-y-1">
     <Label className="text-xs text-pl-muted">{label}</Label>
-    <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-9" />
+    <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-9" data-testid={testId} />
   </div>
 );
 
@@ -61,6 +61,32 @@ export const UField = ({ label, kind, u, value, onChange, placeholder, testId })
         className="h-9"
       />
     </div>
+  );
+};
+
+// WF-U2-014 (closes WF-U1-023): the unit-aware input without its label, for
+// table cells. In SI the text being typed ("2.", "-") is kept as a draft
+// while the stored oilfield value follows each complete number, as UField.
+export const UInput = ({ kind, u, value, onChange, placeholder, ariaLabel, testId, className = 'h-8 text-xs' }) => {
+  const [draft, setDraft] = React.useState(null);
+  const shown = draft != null ? draft : (u ? u.text(kind, value) : value);
+  return (
+    <Input
+      value={shown ?? ''}
+      inputMode="decimal"
+      aria-label={ariaLabel}
+      data-testid={testId}
+      onChange={(e) => {
+        const text = e.target.value;
+        const stored = u ? u.toState(kind, text) : text;
+        if (stored == null) { setDraft(text); return; }
+        setDraft(u && u.system !== 'oilfield' ? text : null);
+        onChange(stored);
+      }}
+      onBlur={() => setDraft(null)}
+      placeholder={placeholder}
+      className={className}
+    />
   );
 };
 

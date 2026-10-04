@@ -22,6 +22,9 @@ import { annualForecastRows, wellSummaryRows } from './series.js';
 import { readBackLines } from './surveillanceImport.js';
 import { countAlerts } from './surveillance.js';
 import { mcSummaryState } from './mcSummary.js';
+import { hallChoiceText } from './hallWindows.js';
+import { chanWindowText, engineChanWindow } from './chanWindows.js';
+import { patternTitle, patternLabel, isLineDrive, arealSweepCorrelationText, LINE_DRIVE_RANGE } from './patterns.js';
 import { exactBreakthroughDays } from '@/utils/waterfloodUncertainty';
 
 export const REPORT_TITLE = 'Waterflood Design Report';
@@ -68,6 +71,7 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
   const bl = disp?.bl || {};
   const pr = s.patternResult;
   const sum = pr?.summary || null;
+  const LINE = isLineDrive(p.patternType);
   const sr = s.surveillanceResult && !s.surveillanceResult.error ? s.surveillanceResult : null;
   const kr = d.krIntake || null;
 
@@ -81,7 +85,7 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
     identification.push([label, v || EMPTY_VALUE]);
   }
   identification.push(['Surveillance data', dates.length ? `${dates[0]} to ${dates[dates.length - 1]}` : EMPTY_VALUE]);
-  identification.push(['Analysis type', ANALYSIS_TYPE]);
+  identification.push(['Analysis type', LINE ? ANALYSIS_TYPE.replace('five-spot', patternLabel(p.patternType)) : ANALYSIS_TYPE]);
   identification.push(['Software build', text(build) || EMPTY_VALUE]);
 
   // ---- sources ------------------------------------------------------------
@@ -144,6 +148,8 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
   for (const [key, label, kind] of [['iw_bpd', 'Water injection rate (constant, reservoir barrels)', 'resRate'], ['Sgi', 'Initial free gas saturation Sgi', 'fraction'], ['EV', 'Vertical sweep EV (multiplier)', 'dimensionless'], ['worLimit', 'WOR economic limit (surface, STB/STB)', 'dimensionless'], ['maxYears', 'Forecast horizon', 'years']]) {
     inputs.push(row({ key, label, value: val(kind, p[key]), unit: unitOf(kind), auto: isStated(meta[key]) ? null : startSource('pattern', key, p[key]), meta: meta[key] }));
   }
+  // WF-U2-002: the flood pattern and its areal sweep correlation
+  inputs.push({ key: 'patternType', label: 'Flood pattern', value: patternTitle(p.patternType), unit: '', source: p.patternType ? `Chosen in the app: ${arealSweepCorrelationText(p.patternType)}` : `Starting value of the app: ${arealSweepCorrelationText('five-spot')}` });
   inputs.push({ key: 'mobilityBasis', label: 'Mobility ratio of the areal sweep correlation', value: p.mobilityBasis === 'endpoint' ? 'Endpoint' : 'Craig', unit: '', source: `Chosen in the app: ${MOBILITY_BASES[p.mobilityBasis === 'endpoint' ? 'endpoint' : 'craig']}${s.migratedFrom && p.mobilityBasis === 'endpoint' ? ' (kept from a project saved before October 2026)' : ''}` });
   // layered
   const layers = (s.layers || []).filter((l) => n(l.h) > 0 && n(l.k) > 0);
@@ -179,7 +185,7 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
   H('Displacement efficiency at Sor (maximum)', pct(bl.EDmax), '%', '(1 - Swc - Sor) / (1 - Swc)');
   if (sum) {
     H('Mobility ratio entered in the areal sweep correlation', g(sum.M, 4), '', sum.mobilityBasis === 'craig' ? 'Craig: krw at the average Sw behind the front' : 'endpoint');
-    H('Areal sweep at pattern breakthrough EA', pct(sum.EAbt), '%', 'five-spot, Craig data, Willhite regression');
+    H('Areal sweep at pattern breakthrough EA', pct(sum.EAbt), '%', LINE ? `${patternTitle(p.patternType).toLowerCase()}, Fassihi regression at a water cut of 0` : 'five-spot, Craig data, Willhite regression');
     const btDays = pr.breakthrough ? (exactBreakthroughDays(pr.breakthrough, p) ?? pr.breakthrough.t_days) : NaN;
     H('Pattern breakthrough', f(btDays / 365.25, 2), 'yr', 'from the start of injection, as on screen');
     H('Water injected at breakthrough', th(u.show('resVolume', sum.WiBT_bbl)), unitOf('resVolume'), 'reservoir barrels');
@@ -203,7 +209,7 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
   const mcState = s.mcSummary ? mcSummaryState(s.mcSummary, { displacementInputs: d, patternInputs: p, uncertaintyConfig: s.uncertaintyConfig }) : null;
   if (s.mcSummary) {
     const m = s.mcSummary;
-    H('Np P90 / P50 / P10 (Monte Carlo)', `${th(u.show('oilVolume', m.np?.p90))} / ${th(u.show('oilVolume', m.np?.p50))} / ${th(u.show('oilVolume', m.np?.p10))}`, unitOf('oilVolume'), `P90 is the low case; ${m.validCount} valid of ${m.iterations}; ${mcState === 'current' ? 'run on the inputs of this report' : 'RUN ON EARLIER INPUTS: not this case'}`);
+    H('Np P90 / P50 / P10 (Monte Carlo)', `${th(u.show('oilVolume', m.np?.p90))} / ${th(u.show('oilVolume', m.np?.p50))} / ${th(u.show('oilVolume', m.np?.p10))}`, unitOf('oilVolume'), `P90 is the low case; ${m.validCount} valid of ${m.iterations}${Number.isInteger(m.seed) ? `; seed ${m.seed} (${m.seedFrom === 'entered' ? 'entered' : 'drawn at run time'})` : ''}; ${mcState === 'current' ? 'run on the inputs of this report' : 'RUN ON EARLIER INPUTS: not this case'}`);
   }
 
   // ---- recovery split (RL3) and mobility ratio parts (RL2) ------------------
@@ -214,7 +220,7 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
       head: ['Part', 'Value', 'Method'],
       rows: [
         ['Displacement efficiency ED', `${pct(r.ED, 2)} %`, 'Buckley-Leverett with the Welge construction, at the pore volumes injected into the swept region'],
-        ['Areal sweep EA', `${pct(r.EA, 2)} %`, 'Five-spot: Craig data (Willhite regression) to breakthrough, Dyes, Caudle and Erickson growth after it'],
+        ['Areal sweep EA', `${pct(r.EA, 2)} %`, LINE ? `${patternTitle(p.patternType)}: Fassihi regression of the Dyes, Caudle and Erickson charts, at the producing water cut` : 'Five-spot: Craig data (Willhite regression) to breakthrough, Dyes, Caudle and Erickson growth after it'],
         ['Vertical sweep EV', `${pct(r.EV, 2)} %`, 'Entered multiplier (a Dykstra-Parsons coverage may be used)'],
         ['Recovery ER = ED x EA x EV', `${pct(r.product, 2)} %`, `of the pattern OOIP, ${th(u.show('oilVolume', sum.pattern_ooip_stb))} ${unitOf('oilVolume')}`],
       ],
@@ -240,7 +246,9 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
           ['M entered in the areal sweep correlation', `${g(sum.M, 4)} (${sum.mobilityBasis})`],
         ] : []),
       ],
-      note: 'Endpoint M governs the displacement and the Dykstra-Parsons layered sweep. The five-spot areal sweep correlation was built on Craig\'s M, taken at the average water saturation behind the front at breakthrough.',
+      note: LINE
+        ? 'Endpoint M governs the displacement and the Dykstra-Parsons layered sweep. Ahmed\'s areal sweep procedure takes Craig\'s M (eq. 14-61), at the average water saturation behind the front at breakthrough, for the line drive correlations too.'
+        : 'Endpoint M governs the displacement and the Dykstra-Parsons layered sweep. The five-spot areal sweep correlation was built on Craig\'s M, taken at the average water saturation behind the front at breakthrough.',
     };
   }
 
@@ -277,19 +285,49 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
     };
   }
 
+  // ---- Chan windows (WF-U2-006) ----------------------------------------------
+  let chan = null;
+  const chanSeries = sr?.chan ? [sr.chan.field, ...(sr.chan.producers || [])].filter(Boolean) : [];
+  if (chanSeries.length) {
+    chan = {
+      head: ['Series', 'Late-time window', 'Points', 'WOR\' slope (log-log)', '95% interval', 'Reading (indicative)'],
+      rows: chanSeries.map((c) => {
+        const w = c.window || engineChanWindow(c.points);
+        return [c.producer, chanWindowText(w), String(w.n ?? EMPTY_VALUE), f(w.slope, 3), w.ci95 ? `${f(w.ci95[0], 3)} to ${f(w.ci95[1], 3)}` : EMPTY_VALUE, (c.classification?.code || 'indeterminate').replace(/^./, (x) => x.toUpperCase())];
+      }),
+      note: 'Chan (1995): the log-log slope of WOR\' over time since water onset, fitted over the points with a rising WOR\' in the window. A slope of 0.4 or more reads as channeling, 0 or less as coning or normal displacement, between as transitional. Indicative only: confirm with completion, geology and pressure data.',
+    };
+  }
+
+  // ---- FVF by period (WF-U2-008) ------------------------------------------------
+  let fvfTrack = null;
+  if (sr?.fvfTrack?.ok) {
+    const t = sr.fvfTrack;
+    const surveyDates = new Set(t.surveys.map((x) => x.date));
+    const keep = t.rows.filter((r, i) => i === 0 || i === t.rows.length - 1 || surveyDates.has(r.date));
+    fvfTrack = {
+      head: ['Date', u.head('Reservoir pressure', 'pressure'), u.head('Bo', 'fvfOil'), u.head('Bw', 'fvfOil'), u.head('Bg', 'fvfGas'), u.head('Rs', 'gor')],
+      rows: keep.map((r) => [r.date + (r.held ? ' (held)' : ''), g(u.show('pressure', r.p_psia), 5), g(u.show('fvfOil', r.Bo), 4), g(u.show('fvfOil', r.Bw), 4), r.Bg != null ? g(u.show('fvfGas', r.Bg), 4) : EMPTY_VALUE, r.Rs != null ? g(u.show('gor', r.Rs), 4) : EMPTY_VALUE]),
+      note: `The first and last dates of the history and the survey dates. Read by linear interpolation in the pvt-1 table of the intake (never extrapolated); Bg converted from RB/scf to RB/Mscf. ${t.held ? `${t.held} dates outside the surveys hold the nearest survey.` : ''}`.trim(),
+    };
+  }
+
   // ---- Hall windows ----------------------------------------------------------
   let hall = null;
   if (sr?.hall_plots?.length) {
     const basis = sc.pressure_basis === 'bottomhole' ? 'bottomhole' : 'wellhead';
     const rows = [];
     for (const h of sr.hall_plots) {
-      for (const [key, label] of [['baseline', 'Baseline (first third)'], ['recent', 'Recent (last third)']]) {
+      for (const [key, third] of [['baseline', 'Baseline (first third)'], ['recent', 'Recent (last third)']]) {
         const w = h.windows?.[key];
         if (!w) continue;
+        // WF-U2-003: a window chosen by the user is named as chosen
+        const label = w.chosen ? `${key === 'baseline' ? 'Baseline' : 'Recent'} (chosen)` : third;
         const ci = w.ci95 ? `${g(u.show('hallSlope', w.ci95[0]), 4)} to ${g(u.show('hallSlope', w.ci95[1]), 4)}` : EMPTY_VALUE;
         rows.push([h.injector, label, `${h.dates?.[w.lo] || EMPTY_VALUE} to ${h.dates?.[w.hi - 1] || EMPTY_VALUE}`, String(w.n), g(u.show('hallSlope', w.slope), 4), ci, f(w.r2, 3)]);
       }
       rows.push([h.injector, 'Recent over baseline', '', '', f(h.slope_ratio, 3), '', '']);
+      if (h.windowChoice) rows.push([h.injector, 'Why these windows', '', '', hallChoiceText(h), '', '']);
     }
     hall = {
       head: ['Injector', 'Window', 'Dates', 'Points', u.head('Slope', 'hallSlope'), '95% interval', 'r2'],
@@ -309,14 +347,18 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
   const model = [
     ['Displacement', '1-D Buckley-Leverett with the Welge tangent; capillary pressure neglected; incompressible fluids; fw with the field-unit gravity term when the dip term is on'],
     ['Relative permeability', d.krSource === 'table' ? 'Table, linear interpolation' : 'Corey, normalised on (Sw - Swc) / (1 - Swc - Sor)'],
-    ['Areal sweep', `Five-spot: EA at breakthrough from Craig\'s data (Willhite regression), entered with ${p.mobilityBasis === 'endpoint' ? 'the endpoint M' : 'Craig\'s M'}; growth after breakthrough EA = EAbt + 0.2749 ln(Wi / Wibt) (Dyes, Caudle and Erickson 1954), capped at 1`],
+    ['Areal sweep', LINE
+      ? `${patternTitle(p.patternType)}: Fassihi (1986) regression of the Dyes, Caudle and Erickson (1954) charts (Ahmed eq. 14-67), EA = 1 / (1 + A), A = [a1 ln(M + a2) + a3] fw + a4 ln(M + a5) + a6, entered with ${p.mobilityBasis === 'endpoint' ? 'the endpoint M' : 'Craig\'s M'}; EA at breakthrough at fw = 0, after breakthrough solved against the producing reservoir water cut of each step, never falling, capped at 1`
+      : `Five-spot: EA at breakthrough from Craig\'s data (Willhite regression), entered with ${p.mobilityBasis === 'endpoint' ? 'the endpoint M' : 'Craig\'s M'}; growth after breakthrough EA = EAbt + 0.2749 ln(Wi / Wibt) (Dyes, Caudle and Erickson 1954), capped at 1`],
     ['Pattern forecast', 'Piston-like areal growth of the Buckley-Leverett profile; Np = PV x EV x EA x ED x (1 - Swc); rates by differencing Np; production balances injection in reservoir barrels'],
     ['Layered sweep', 'Dykstra-Parsons (non-communicating, log-normal V) and Stiles coverage'],
     ['Surveillance', 'Reservoir-barrel voidage (oil x Bo, water x Bw, free gas x Bg), VRR daily, rolling over calendar days and cumulative on calendar volumes; Hall (1963); Chan (1995) WOR and WOR\' diagnostics (indicative)'],
     ['Uncertainty', 'Monte Carlo through the canonical module (src/lib/monteCarlo.js), each realization rerunning the forecast; summary kept, realizations not kept'],
   ];
   const basis = [
-    ['Formation volume factors', 'Bo and Bw in reservoir barrels per stock-tank barrel (RB/STB); Bg in reservoir barrels per Mscf; one value for the whole history at the pressure stated with the intake'],
+    ['Formation volume factors', sr?.fvfTrack?.ok
+      ? `Bo and Bw in reservoir barrels per stock-tank barrel (RB/STB); Bg in reservoir barrels per Mscf. Surveillance: read from the pvt-1 table at each date's reservoir pressure (${sr.fvfTrack.rows.length} dates, ${g(sr.fvfTrack.pRange[0], 5)} to ${g(sr.fvfTrack.pRange[1], 5)} psia from ${sr.fvfTrack.surveys.length} surveys, linear in time, held outside them). Pattern forecast: one value at the pressure stated with the intake`
+      : 'Bo and Bw in reservoir barrels per stock-tank barrel (RB/STB); Bg in reservoir barrels per Mscf; one value for the whole history at the pressure stated with the intake'],
     ['Rates and volumes', 'Injection rate of the forecast in reservoir barrels per day; produced oil and water in stock-tank barrels; surveillance rates are daily rates as imported'],
     ['Water-oil ratio and water cut', 'Surface (STB/STB); the Dykstra-Parsons WOR is at reservoir conditions'],
     ['VRR', 'Reservoir barrels injected over reservoir barrels of voidage produced'],
@@ -328,7 +370,8 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
 
   // ---- limits (RL9) ----------------------------------------------------------
   const flags = [];
-  if (sum && (sum.M < 0.15 || sum.M > 10)) flags.push(`The mobility ratio entered in the areal sweep correlation, ${g(sum.M, 3)}, is outside its published range of 0.15 to 10.`);
+  if (sum && LINE && (sum.M < 0.1 || sum.M > 10)) flags.push(`The mobility ratio entered in the line drive correlation, ${g(sum.M, 3)}, is outside 0.1 to 10.`);
+  if (sum && !LINE && (sum.M < 0.15 || sum.M > 10)) flags.push(`The mobility ratio entered in the areal sweep correlation, ${g(sum.M, 3)}, is outside its published range of 0.15 to 10.`);
   if (sum && p.mobilityBasis === 'endpoint') flags.push('The areal sweep was entered with the endpoint mobility ratio, not Craig\'s definition the correlation was built on.');
   if (n(p.Sgi) > 0) flags.push(`Initial free gas Sgi ${g(n(p.Sgi))}: fill-up is a delay only; the oil in place is taken on 1 - Swc.`);
   if (n(p.EV) > 0 && n(p.EV) < 1) flags.push(`Vertical sweep EV ${g(n(p.EV))} applied as a constant multiplier.`);
@@ -339,12 +382,23 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
   const editedRows = inputs.filter((r) => /^Edited in this app after the intake/.test(r.source));
   if (editedRows.length) flags.push(`Edited after the intake: ${editedRows.map((r) => r.label).join(', ')}.`);
   if (mcState === 'stale') flags.push('The Monte Carlo summary was run on earlier inputs and does not describe this case.');
+  if (sc.fvf_mode === 'by-period' && sr?.fvfTrack && !sr.fvfTrack.ok) flags.push(`FVF by period was asked for and not applied: ${sr.fvfTrack.problems.join(' ')}`);
+  // WF-U2-006: a Chan reading whose slope interval spans both regimes is not resolved
+  for (const c of chanSeries) {
+    const w = c.window || engineChanWindow(c.points);
+    if (w.ci95 && w.ci95[0] <= 0 && w.ci95[1] >= 0.4) flags.push(`Chan reading of ${c.producer} not resolved: the 95 percent interval of the slope, ${f(w.ci95[0], 2)} to ${f(w.ci95[1], 2)}, spans both the coning and the channeling regimes.`);
+  }
   if (hall?.withoutPressure?.length) flags.push(`Injectors with too few pressure points for a Hall plot: ${hall.withoutPressure.join(', ')}.`);
   const limits = {
     assumptions: [
       'One-dimensional Buckley-Leverett displacement: incompressible, immiscible, no capillary pressure, homogeneous rock in each layer.',
-      'An idealised, isolated five-spot repeated over the field: no interference between patterns, no edge effects, constant injection.',
-      'Areal sweep from correlations of scaled physical models of a homogeneous five-spot; other patterns are not covered.',
+      ...(LINE ? [
+        `An idealised, isolated ${patternTitle(p.patternType).toLowerCase()} element repeated over the field: no interference between patterns, no edge effects, constant injection.`,
+        'Areal sweep from a regression of the Dyes, Caudle and Erickson scaled-model charts of a homogeneous pattern; the spacing ratio of their models is not printed in the source read (Ahmed), so it is not an input. A nine-spot is not covered.',
+      ] : [
+        'An idealised, isolated five-spot repeated over the field: no interference between patterns, no edge effects, constant injection.',
+        'Areal sweep from correlations of scaled physical models of a homogeneous five-spot; other patterns are not covered.',
+      ]),
       'Vertical sweep is a constant multiplier; the layered methods assume non-communicating layers.',
       'Surveillance: one set of formation volume factors for the whole history; voidage is a ratio of reservoir volumes, not a pressure.',
       'The Hall slope integrates the pressure as imported; with wellhead pressure the friction and the hydrostatic head are inside the slope. Chan mechanisms are indicative only.',
@@ -353,8 +407,13 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
     ranges: {
       head: ['Method', 'Published range', 'This case'],
       rows: [
-        ['Five-spot areal sweep at breakthrough (Craig data, Willhite regression)', 'M 0.15 to 10', sum ? `M ${g(sum.M, 3)}` : EMPTY_VALUE],
-        ['Areal sweep growth (Dyes, Caudle and Erickson)', 'Five-spot after breakthrough, EA up to 1', sum ? `EA ${pct(sum.recoverySplit?.EA)} % at the end` : EMPTY_VALUE],
+        ...(LINE ? [
+          [`${patternTitle(p.patternType)} areal sweep (Fassihi regression)`, LINE_DRIVE_RANGE, sum ? `M ${g(sum.M, 3)}` : EMPTY_VALUE],
+          ['Areal sweep after breakthrough', 'Producing water cut 0 to 1, EA up to 1', sum ? `EA ${pct(sum.recoverySplit?.EA)} % at the end` : EMPTY_VALUE],
+        ] : [
+          ['Five-spot areal sweep at breakthrough (Craig data, Willhite regression)', 'M 0.15 to 10', sum ? `M ${g(sum.M, 3)}` : EMPTY_VALUE],
+          ['Areal sweep growth (Dyes, Caudle and Erickson)', 'Five-spot after breakthrough, EA up to 1', sum ? `EA ${pct(sum.recoverySplit?.EA)} % at the end` : EMPTY_VALUE],
+        ]),
         ['Dykstra-Parsons', 'V 0 to 1, log-normal layer permeability', s.layeredResult ? `V ${f(s.layeredResult.V?.V, 3)}` : EMPTY_VALUE],
       ],
     },
@@ -378,6 +437,8 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
     forecastTable,
     surveillance,
     hall,
+    chan,
+    fvfTrack,
     layeredTable,
     model,
     basis,

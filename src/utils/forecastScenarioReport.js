@@ -27,8 +27,7 @@
 // cases are run through compareCases, the hub's own engine.
 import { createReport, EMPTY_VALUE, missingInputRows, SERIES_CYCLE, SERIES_RGB } from '@/lib/reportKit';
 import { compareCases, caseDeclineBasis, caseTerminalPerDay, EUR_MAX_YEARS, DAYS_PER_YEAR } from '@/utils/forecastScenarioCalculations';
-import { editedAfterHandoff } from '@/utils/forecastScenarioIntake';
-import { dcaSourceLine } from '@/utils/declineCurve/dcaForecastContract';
+import { editedAfterHandoff, upstreamSourceLine } from '@/utils/forecastScenarioIntake';
 import { HUB_DEFAULT_START } from '@/utils/forecastScenarioExport';
 import { convert } from '@/lib/units/registry';
 
@@ -55,7 +54,7 @@ export function hubEngineInputsOf({ cases, econ, setStart }) {
 export function caseSourcePhrase(c) {
   const k = c?.source?.contract;
   if (!k) return 'Entered in Forecast Scenario Hub';
-  return `From ${dcaSourceLine(k)}, received ${String(c.source.receivedAt || '').slice(0, 10) || EMPTY_VALUE}`;
+  return `From ${upstreamSourceLine(k)}, received ${String(c.source.receivedAt || '').slice(0, 10) || EMPTY_VALUE}`;
 }
 
 /**
@@ -78,6 +77,8 @@ export function collectHubReportArgs({ cases, econ, setStart = HUB_DEFAULT_START
   const mm = (v) => (metric ? convert('liquidVolume', v, 'MMbbl', '10^6 m3') : v);
 
   const fromDca = cases.filter((c) => c.source?.contract);
+  // WF-U2-001: profile cases received from Waterflood Design Studio
+  const fromWf = cases.filter((c) => c.kind === 'profile' && c.source?.contract);
   const wells = [...new Set(fromDca.map((c) => c.source.contract.source?.wellName).filter(Boolean))];
   const fields = [...new Set(fromDca.map((c) => c.source.contract.source?.field).filter(Boolean))];
   const identificationRows = [
@@ -85,7 +86,9 @@ export function collectHubReportArgs({ cases, econ, setStart = HUB_DEFAULT_START
     ['Field', text(identification.field) || fields.join(', ') || EMPTY_VALUE],
     ['Scenario set', text(setName) || 'Not saved'],
     ['Set start', setStart || HUB_DEFAULT_START],
-    ['Cases', `${cases.length} (${fromDca.length} from Decline Curve Analysis, ${cases.length - fromDca.length} entered here)`],
+    ['Cases', fromWf.length
+      ? `${cases.length} (${fromDca.length - fromWf.length} from Decline Curve Analysis, ${fromWf.length} from Waterflood Design Studio, ${cases.length - fromDca.length} entered here)`
+      : `${cases.length} (${fromDca.length} from Decline Curve Analysis, ${cases.length - fromDca.length} entered here)`],
     ['Wells behind the cases', wells.length ? wells.join(', ') : 'none named (cases entered here)'],
     ['Analyst', text(identification.analyst) || EMPTY_VALUE],
     ['Stream', 'Oil at stock-tank conditions'],
@@ -108,6 +111,17 @@ export function collectHubReportArgs({ cases, econ, setStart = HUB_DEFAULT_START
   // ---- cases (RL1, RL7, RL11) ----
   const caseRows = cases.map((c, i) => {
     const s = summaries[i];
+    if (c.kind === 'profile') {
+      return [
+        c.name || EMPTY_VALUE,
+        s?.error ? `Not run: ${s.error}` : `Profile from ${c.source?.contract?.app || 'another app'}`,
+        EMPTY_VALUE, EMPTY_VALUE, EMPTY_VALUE, 'none',
+        num(Number(c.years), 2),
+        "the sender's end",
+        'none',
+        s?.startDate || (c.startDate ? String(c.startDate).slice(0, 10) : setStart),
+      ];
+    }
     const basis = caseDeclineBasis(c);
     const dmin = caseTerminalPerDay(c);
     const nominalPct = s && !s.error ? s.diNominalPctPerYear : null;
@@ -176,7 +190,7 @@ export function collectHubReportArgs({ cases, econ, setStart = HUB_DEFAULT_START
     if (Number(c.b) > 1 && !caseTerminalPerDay(c)) flags.push(`${c.name}: b is ${sig(Number(c.b))}, above 1, with no terminal decline; its late rates and EUR rest on the economic limit and the ${EUR_MAX_YEARS}-year life.`);
     if (s.eurCapped && !s.error) flags.push(`${c.name}: EUR stopped at the ${EUR_MAX_YEARS}-year maximum life${s.hasLimit ? ' before the economic limit was reached' : ' (no economic limit)'}.`);
     const edited = editedAfterHandoff(c);
-    if (edited.length) flags.push(`${c.name}: received from Decline Curve Analysis and edited here after the handoff (${edited.join(', ')}); it no longer reproduces the source forecast.`);
+    if (edited.length) flags.push(`${c.name}: received from ${c.source?.contract?.app || 'Decline Curve Analysis'} and edited here after the handoff (${edited.join(', ')}); it no longer reproduces the source forecast.`);
     const st = sourceStates?.[c.id];
     if (st && st.state !== 'unchanged') flags.push(`${c.name}: ${st.text}`);
   }
@@ -188,6 +202,7 @@ export function collectHubReportArgs({ cases, econ, setStart = HUB_DEFAULT_START
     'The economics are indicative: flat price less flat operating cost, discounted at year end, with no capital, tax or fiscal terms. They rank cases; Petroleum Economics Studio values them.',
     'The hub holds oil cases only. Rates are calendar-day rates at stock-tank conditions.',
   ];
+  if (fromWf.length) assumptions.push('A case from Waterflood Design Studio is the pattern oil profile of the wf-forecast-1 contract, day for day from the flood start, with no Arps parameters. It is cut at its horizon here and ends where the sender ended it (the WOR limit or the sender\'s horizon); its EUR is the sender\'s Np.');
 
   return {
     ok: true,

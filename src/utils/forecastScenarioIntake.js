@@ -11,11 +11,22 @@
 // changed or when the case was edited after the handoff.
 import { DAYS_PER_YEAR } from '@/utils/forecastScenarioCalculations';
 import { dcaSourceLine, dcaBasisLine } from '@/utils/declineCurve/dcaForecastContract';
+import { wfSourceLine, wfBasisLine, WF_FORECAST_SCHEMA } from '@/utils/waterflooddesign/wfForecastContract';
 
 const r6 = (v) => Number(Number(v).toPrecision(10));
 
 /** The hub case values a contract gives. */
 export function caseValuesFromContract(c) {
+  // WF-U2-001: a Waterflood Design Studio pattern forecast is a profile case
+  if (c?.schema === WF_FORECAST_SCHEMA) {
+    return {
+      kind: 'profile',
+      profile: { steps: c.forecast.steps.map((s) => ({ t_days: s.t_days, qo: s.qo })), unit: c.units.rate },
+      years: r6(Math.ceil(c.forecast.elapsedDays / DAYS_PER_YEAR)),
+      economicLimit: 0,
+      startDate: c.forecast.start,
+    };
+  }
   return {
     qi: r6(c.atCutoff.rate),
     declineAnnualPct: r6(c.atCutoff.diNominalPctPerYear),
@@ -51,6 +62,32 @@ export function caseFromDcaContract(contract, { id = `dca-${Date.now()}`, receiv
   };
 }
 
+/**
+ * WF-U2-001: a hub case from a `wf-forecast-1` contract (the pattern oil
+ * profile, day for day from the flood start), or a refusal.
+ * @returns {{ok: true, case: object}|{ok: false, reason: string}}
+ */
+export function caseFromWfContract(contract, { id = `wf-${Date.now()}`, receivedAt = new Date().toISOString(), build = null } = {}) {
+  if (!contract || contract.schema !== WF_FORECAST_SCHEMA) return { ok: false, reason: 'Not a Waterflood Design Studio forecast.' };
+  if (!(contract.forecast?.Np > 0)) return { ok: false, reason: 'The pattern forecast produces no oil.' };
+  return {
+    ok: true,
+    case: {
+      id,
+      name: `${contract.source?.pattern || contract.projectName || 'Pattern'} (Waterflood)`,
+      ...caseValuesFromContract(contract),
+      source: { contract, receivedAt, receivedBuild: build },
+    },
+  };
+}
+
+/** One line naming where a received case came from, whichever app sent it. */
+export function upstreamSourceLine(k) {
+  return k?.schema === WF_FORECAST_SCHEMA ? wfSourceLine(k) : dcaSourceLine(k);
+}
+
+const PROFILE_KEYS = ['years', 'startDate'];
+
 const KEYS = ['qi', 'declineAnnualPct', 'declineBasis', 'b', 'years', 'economicLimit', 'startDate', 'terminalDeclinePct', 'terminalDeclineBasis', 'downtimePct'];
 const LABELS = { qi: 'qi', declineAnnualPct: 'decline', declineBasis: 'decline basis', b: 'b', years: 'horizon', economicLimit: 'economic limit', startDate: 'start date', terminalDeclinePct: 'terminal decline', terminalDeclineBasis: 'terminal decline basis', downtimePct: 'downtime' };
 const TEXT_KEYS = new Set(['startDate', 'terminalDeclineBasis']);
@@ -60,7 +97,7 @@ const numOrNull = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) |
 export function editedAfterHandoff(c) {
   if (!c?.source?.contract) return [];
   const sent = caseValuesFromContract(c.source.contract);
-  return KEYS.filter((k) => {
+  return (c.source.contract.schema === WF_FORECAST_SCHEMA ? PROFILE_KEYS : KEYS).filter((k) => {
     if (k === 'declineBasis') return (c[k] || 'nominal') !== (sent[k] || 'nominal');
     if (TEXT_KEYS.has(k)) return String(c[k] || '') !== String(sent[k] || '');
     if (k === 'terminalDeclinePct' || k === 'downtimePct') {
@@ -77,5 +114,8 @@ export function caseSourceText(c) {
   if (!c?.source?.contract) return null;
   const k = c.source.contract;
   const edited = editedAfterHandoff(c);
+  if (k.schema === WF_FORECAST_SCHEMA) {
+    return `From ${wfSourceLine(k)}, received ${String(c.source.receivedAt || '').slice(0, 10)}. ${wfBasisLine(k)}.${edited.length ? ` Edited here after the handoff: ${edited.join(', ')}.` : ''}`;
+  }
   return `From ${dcaSourceLine(k)}, received ${String(c.source.receivedAt || '').slice(0, 10)}. ${dcaBasisLine(k)}.${edited.length ? ` Edited here after the handoff: ${edited.join(', ')}.` : ''}`;
 }

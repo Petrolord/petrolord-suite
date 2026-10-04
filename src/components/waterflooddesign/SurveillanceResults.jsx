@@ -15,7 +15,7 @@ import HallPlotPanel from '@/components/waterflood/HallPlotPanel';
 import ChanDiagnosticsPanel from '@/components/waterflood/ChanDiagnosticsPanel';
 
 const SurveillanceResults = () => {
-  const { surveillanceResult: result, surveillanceRows, u, surveillanceConfig } = useWaterfloodDesign();
+  const { surveillanceResult: result, surveillanceRows, u, surveillanceConfig, hallWindows, setHallWindow, chanWindows, setChanWindow, canWrite } = useWaterfloodDesign();
 
   if (!surveillanceRows.length) {
     return (
@@ -63,7 +63,7 @@ const SurveillanceResults = () => {
       )}
 
       {result.capabilities?.hall?.available && result.hall_plots?.length ? (
-        <HallPlotPanel data={result.hall_plots} alerts={result.alerts} u={u} pressureBasis={surveillanceConfig.pressure_basis} />
+        <HallPlotPanel data={result.hall_plots} alerts={result.alerts} u={u} pressureBasis={surveillanceConfig.pressure_basis} choices={hallWindows} onChoose={setHallWindow} canWrite={canWrite !== false} />
       ) : (
         <GatedFeatureNotice
           title="Hall Plot Analysis"
@@ -73,7 +73,7 @@ const SurveillanceResults = () => {
       )}
 
       {result.capabilities?.chan?.available && result.chan ? (
-        <ChanDiagnosticsPanel chan={result.chan} />
+        <ChanDiagnosticsPanel chan={result.chan} choices={chanWindows} onChoose={setChanWindow} canWrite={canWrite !== false} />
       ) : (
         <GatedFeatureNotice
           title="Chan Water-Control Diagnostics"

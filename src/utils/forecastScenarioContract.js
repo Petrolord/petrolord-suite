@@ -20,8 +20,7 @@
 //                               editedAfterHandoff: [field names] }
 //   sentBuild, fingerprint
 import { compareCases, caseDeclineBasis, DAYS_PER_YEAR } from '@/utils/forecastScenarioCalculations';
-import { editedAfterHandoff } from '@/utils/forecastScenarioIntake';
-import { dcaSourceLine } from '@/utils/declineCurve/dcaForecastContract';
+import { editedAfterHandoff, upstreamSourceLine } from '@/utils/forecastScenarioIntake';
 import { fingerprint } from '@/utils/declineCurve/dcaModel';
 import { HUB_DEFAULT_START } from '@/utils/forecastScenarioExport';
 
@@ -63,7 +62,13 @@ export function buildHubCaseContract({ projectId, projectName = null, projectSav
     projectSavedAt,
     caseId: c.id ?? `#${idx}`,
     caseName: c.name || `Case ${idx + 1}`,
-    parameters: {
+    // WF-U2-001: a received profile case has no Arps parameters
+    parameters: c.kind === 'profile' ? {
+      kind: 'profile',
+      years: c.years,
+      startDate: run.startDate,
+      profileFrom: k?.app || null,
+    } : {
       qi: c.qi,
       declineAnnualPct: c.declineAnnualPct,
       declineBasis: caseDeclineBasis(c),
@@ -103,7 +108,7 @@ export async function getHubCase(supabase, { projectId, caseId }, { build = null
 /** "Base (Forecast Scenario Hub set "Obodo cases"), from DCA Obodo-7 ...": one line. */
 export function hubSourceLine(c) {
   if (!c) return 'none';
-  const up = c.upstream?.contract ? `; the case came from ${dcaSourceLine(c.upstream.contract)}${c.upstream.editedAfterHandoff?.length ? `, edited in the hub after that handoff (${c.upstream.editedAfterHandoff.join(', ')})` : ''}` : '; entered in the hub';
+  const up = c.upstream?.contract ? `; the case came from ${upstreamSourceLine(c.upstream.contract)}${c.upstream.editedAfterHandoff?.length ? `, edited in the hub after that handoff (${c.upstream.editedAfterHandoff.join(', ')})` : ''}` : '; entered in the hub';
   return `case "${c.caseName}" of the scenario set "${c.projectName || 'unnamed'}" (Forecast Scenario Hub)${up}`;
 }
 
@@ -118,6 +123,6 @@ export function compareHubWithSource(received, now) {
   const moved = [];
   if (fingerprint(now.contract.parameters) !== fingerprint(received.parameters)) moved.push('the case parameters');
   if (now.contract.results.eur !== received.results.eur || fingerprint(now.contract.results.annual) !== fingerprint(received.results.annual)) moved.push('the volumes');
-  if ((now.contract.upstream?.contract?.fingerprint ?? null) !== (received.upstream?.contract?.fingerprint ?? null)) moved.push('the Decline Curve Analysis forecast behind it');
+  if ((now.contract.upstream?.contract?.fingerprint ?? null) !== (received.upstream?.contract?.fingerprint ?? null)) moved.push(`the ${received.upstream?.contract?.app || now.contract.upstream?.contract?.app || 'source'} forecast behind it`);
   return { state: 'changed', text: `The source changed since it was received${moved.length ? ` (${moved.join(', ')})` : ''}. Import it again to take the new profile.`, now: now.contract };
 }

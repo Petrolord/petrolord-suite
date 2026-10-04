@@ -17,25 +17,39 @@
 // enforce (e.g. sampled Swc + Sor leaving no mobile saturation window) are
 // rejected and counted, mirroring ReservoirCalc Pro's truncation accounting.
 
-import { createCorrelatedSampler, basicStats, rankCorrelationSensitivity } from '@/lib/monteCarlo';
+import { createCorrelatedSampler, basicStats, rankCorrelationSensitivity, mulberry32 } from '@/lib/monteCarlo';
+
+/** A fresh 32-bit seed for a run that was given none (recorded with the result). */
+export function drawSeed() {
+  try {
+    const a = new Uint32Array(1);
+    globalThis.crypto.getRandomValues(a);
+    return a[0];
+  } catch {
+    return Math.floor(Math.random() * 4294967296);
+  }
+}
 import { forecastPattern } from './patternForecastCalculations';
 
 // Parameters the engine knows how to vary. `coreyOnly` marks rel-perm shape
 // parameters that only exist when the displacement uses Corey curves (a
 // pasted kr table has no Swc/Sor/endpoint knobs to perturb).
 export const UNCERTAINTY_PARAMS = [
-  { key: 'Swc', group: 'displacement', label: 'Connate water Swc', coreyOnly: true },
-  { key: 'Sor', group: 'displacement', label: 'Residual oil Sor', coreyOnly: true },
-  { key: 'krwMax', group: 'displacement', label: 'krw endpoint', coreyOnly: true },
-  { key: 'kroMax', group: 'displacement', label: 'kro endpoint', coreyOnly: true },
-  { key: 'muO', group: 'displacement', label: 'Oil viscosity (cp)' },
-  { key: 'muW', group: 'displacement', label: 'Water viscosity (cp)' },
-  { key: 'area_acres', group: 'pattern', label: 'Pattern area (acres)' },
-  { key: 'h_ft', group: 'pattern', label: 'Net thickness (ft)' },
-  { key: 'phi', group: 'pattern', label: 'Porosity (frac)' },
-  { key: 'Bo', group: 'pattern', label: 'Bo (rb/stb)' },
-  { key: 'iw_bpd', group: 'pattern', label: 'Injection rate (rb/d)' },
-  { key: 'EV', group: 'pattern', label: 'Vertical sweep EV' },
+  // WF-U2-014: `name` (no unit) and `kind` (the Waterflood unit kind,
+  // src/utils/waterflooddesign/units.js) let the Uncertainty tab show and take
+  // the distributions in the display units; the config stays oilfield.
+  { key: 'Swc', group: 'displacement', label: 'Connate water Swc', name: 'Connate water Swc', kind: 'fraction', coreyOnly: true },
+  { key: 'Sor', group: 'displacement', label: 'Residual oil Sor', name: 'Residual oil Sor', kind: 'fraction', coreyOnly: true },
+  { key: 'krwMax', group: 'displacement', label: 'krw endpoint', name: 'krw endpoint', kind: 'dimensionless', coreyOnly: true },
+  { key: 'kroMax', group: 'displacement', label: 'kro endpoint', name: 'kro endpoint', kind: 'dimensionless', coreyOnly: true },
+  { key: 'muO', group: 'displacement', label: 'Oil viscosity (cp)', name: 'Oil viscosity', kind: 'viscosity' },
+  { key: 'muW', group: 'displacement', label: 'Water viscosity (cp)', name: 'Water viscosity', kind: 'viscosity' },
+  { key: 'area_acres', group: 'pattern', label: 'Pattern area (acres)', name: 'Pattern area', kind: 'area' },
+  { key: 'h_ft', group: 'pattern', label: 'Net thickness (ft)', name: 'Net thickness', kind: 'length' },
+  { key: 'phi', group: 'pattern', label: 'Porosity (frac)', name: 'Porosity', kind: 'fraction' },
+  { key: 'Bo', group: 'pattern', label: 'Bo (rb/stb)', name: 'Bo', kind: 'fvfOil' },
+  { key: 'iw_bpd', group: 'pattern', label: 'Injection rate (rb/d)', name: 'Injection rate', kind: 'resRate' },
+  { key: 'EV', group: 'pattern', label: 'Vertical sweep EV', name: 'Vertical sweep EV', kind: 'dimensionless' },
 ];
 
 const DISPLACEMENT_KEYS = new Set(['muO', 'muW']);
@@ -129,7 +143,17 @@ export function parseUncertaintyConfig(config) {
     errors.push('Iterations must be between 100 and 20,000.');
   }
 
-  return { distributions, iterations, errors };
+  // WF-U2-005: the seed of the run. Blank: the run draws one and records it;
+  // entered: a whole number from 0 to 4,294,967,295 (the mulberry32 state).
+  let seed = null;
+  const seedText = String(config?.seed ?? '').trim();
+  if (seedText !== '') {
+    const v = Number(seedText);
+    if (!Number.isInteger(v) || v < 0 || v > 4294967295) errors.push('The seed must be a whole number from 0 to 4,294,967,295, or blank to draw one.');
+    else seed = v;
+  }
+
+  return { distributions, iterations, seed, errors };
 }
 
 // Validity gates for one realization; mirrors buildDisplacementSpec and the
@@ -167,7 +191,11 @@ function applySample(displacementSpec, pattern, values) {
  * step(count) advances up to `count` iterations; finalize() builds the
  * result object.
  */
-function createRun({ displacementSpec, pattern, distributions, correlations = [], iterations, rng = Math.random }) {
+function createRun({ displacementSpec, pattern, distributions, correlations = [], iterations, seed = null, rng: rngIn = null }) {
+  // WF-U2-005: every draw from the canonical module's seeded generator; a run
+  // given no seed draws one and reports it, so any P50 can be reproduced
+  const runSeed = Number.isInteger(seed) && seed >= 0 && seed <= 4294967295 ? seed : drawSeed();
+  const rng = rngIn || mulberry32(runSeed);
   if (!displacementSpec || !pattern) {
     throw new Error('Uncertainty run needs a valid working displacement spec and pattern.');
   }
@@ -233,6 +261,7 @@ function createRun({ displacementSpec, pattern, distributions, correlations = []
     }
     if (npArr.length === 0) {
       return {
+        seed: rngIn ? null : runSeed,
         iterations: iters,
         validCount: 0,
         rejectedCount: rejected,
@@ -251,6 +280,7 @@ function createRun({ displacementSpec, pattern, distributions, correlations = []
     }));
 
     return {
+      seed: rngIn ? null : runSeed,
       iterations: iters,
       validCount: npArr.length,
       rejectedCount: rejected,

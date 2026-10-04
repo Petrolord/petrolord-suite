@@ -21,6 +21,7 @@
  */
 import { convert } from '@/lib/units/registry';
 import { pvtContractOf, pvtContractSummary, pvtContractSourceText, PVT_PRODUCER } from '@/lib/inputProvenance/pvtContract';
+import { trackTableOf } from './fvfTrack';
 
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
 
@@ -99,6 +100,8 @@ export function wfPvtIntake(contract, { pressurePsia = null, at: takenAt = new D
       fields: Object.keys(values),
       methods,
       contract: pvtContractSummary(b),
+      // WF-U2-008: the table columns the FVF-by-period track reads
+      trackTable: trackTableOf(table),
     },
   };
 }

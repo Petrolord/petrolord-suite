@@ -36,6 +36,11 @@ export const hubFileName = (c) => `FSH - ${c.caseName || 'scenario'}.generated`;
 export function hubProvenanceText(p) {
   if (!p) return null;
   const q = p.parameters || {};
+  // WF-U2-001: a profile case received from Waterflood Design Studio
+  if (q.kind === 'profile') {
+    return `From ${hubSourceLine(p)}. A production profile (no Arps parameters), horizon ${q.years} yr, case start ${q.startDate}. `
+      + `Forecast year 1 is ${p.firstYear} here; a forecast year is 365.25 days from the case start. Received ${String(p.receivedAt || '').slice(0, 10)}.`;
+  }
   const basis = q.declineBasis && q.declineBasis !== 'nominal' ? `${q.declineAnnualPct} %/yr ${q.declineBasis === 'effective-secant' ? 'effective secant' : 'effective tangent'} (${Number(q.diNominalPctPerYear).toFixed(2)} %/yr nominal)` : `${q.declineAnnualPct} %/yr nominal`;
   return `From ${hubSourceLine(p)}. qi ${q.qi} bbl/d, decline ${basis}, b ${q.b}${q.terminalDeclinePct ? `, terminal decline ${q.terminalDeclinePct} %/yr ${q.terminalDeclineBasis === 'nominal' ? 'nominal' : 'effective'}` : ''}, horizon ${q.years} yr, case start ${q.startDate}. `
     + `Forecast year 1 is ${p.firstYear} here; a forecast year is 365.25 days from the case start. Received ${String(p.receivedAt || '').slice(0, 10)}.`;

@@ -143,6 +143,11 @@ Waterflood Design Report                                                        
 
  Forecast horizon                              30                      yr              Starting value of the app, not changed (assumed)
 
+ Flood pattern                                 Five-spot                               Starting value of the app: five-spot: EA at breakthrough
+                                                                                       from Craig's data (Willhite's regression, Ahmed eq. 14-64),
+                                                                                       growth after breakthrough by Dyes, Caudle and Erickson
+                                                                                       (Ahmed eq. 14-66)
+
  Mobility ratio of the areal sweep             Craig                                   Chosen in the app: Craig: krw at the average water
  correlation                                                                           saturation behind the front at breakthrough
 

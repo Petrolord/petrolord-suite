@@ -30,8 +30,9 @@ export const hallPlotPoints = (d) => d.cum_injection.map((x, i) => ({ x, y: d.ha
 
 export { hallWindowLines, hallSlopeText } from './hallLines';
 import { hallWindowLines, hallSlopeText } from './hallLines';
+import HallWindowEditor from './HallWindowEditor';
 
-const HallPlotPanel = ({ data, alerts, u = null, pressureBasis = 'wellhead' }) => {
+const HallPlotPanel = ({ data, alerts, u = null, pressureBasis = 'wellhead', choices = null, onChoose = null, canWrite = true }) => {
   const X = (v) => (u ? u.show('waterVolume', v) : v);
   const Y = (v) => (u ? u.show('hallIntegral', v) : v);
   const basisWord = pressureBasis === 'bottomhole' ? 'bottomhole' : 'wellhead';
@@ -41,6 +42,20 @@ const HallPlotPanel = ({ data, alerts, u = null, pressureBasis = 'wellhead' }) =
     setSelectedInjectors((prev) =>
       prev.includes(injector) ? prev.filter((i) => i !== injector) : [...prev, injector]
     );
+  };
+
+  // WF-U2-003: picking a window on the plot: the next two points clicked on
+  // this injector's curve are the start and the end of the window
+  const [pick, setPick] = useState(null); // { injector, key, from? }
+  const [picked, setPicked] = useState({}); // injector -> { baseline?, recent? } from the plot
+  const onPoint = (d, index) => {
+    if (!pick || pick.injector !== d.injector) return;
+    const date = String(d.dates?.[index] ?? '').slice(0, 10);
+    if (!date) return;
+    if (!pick.from) { setPick({ ...pick, from: date }); return; }
+    const [from, to] = pick.from <= date ? [pick.from, date] : [date, pick.from];
+    setPicked((prev) => ({ ...prev, [d.injector]: { ...(prev[d.injector] || {}), [pick.key]: { from, to } } }));
+    setPick(null);
   };
 
   const injectivityIssues = alerts?.injectivity_issue || [];
@@ -55,7 +70,7 @@ const HallPlotPanel = ({ data, alerts, u = null, pressureBasis = 'wellhead' }) =
     >
       <h2 className="text-2xl font-bold text-pl-text mb-1">Hall Plot Analysis</h2>
       <p className="text-pl-muted text-sm mb-4" data-testid="hall-caption">
-        Hall (1963) plot: the Hall integral of the {basisWord} injection pressure (Σ&nbsp;p·Δt) on the vertical axis against cumulative water injected on the horizontal axis. The slope is p/q. A steepening curve signals declining injectivity (plugging, rising skin); a flattening curve signals improving injectivity (fracturing or channeling). The dashed lines are the least-squares fits over the first third (baseline) and the last third (recent) of the points; their slopes, with 95 percent intervals, are listed under the chart.
+        Hall (1963) plot: the Hall integral of the {basisWord} injection pressure (Σ&nbsp;p·Δt) on the vertical axis against cumulative water injected on the horizontal axis. The slope is p/q. A steepening curve signals declining injectivity (plugging, rising skin); a flattening curve signals improving injectivity (fracturing or channeling). The dashed lines are the least-squares fits over the first third (baseline) and the last third (recent) of the points, or over the windows you choose under the chart (by date or by clicking two points); their slopes, with 95 percent intervals, are listed under the chart.
       </p>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="md:col-span-1">
@@ -106,6 +121,8 @@ const HallPlotPanel = ({ data, alerts, u = null, pressureBasis = 'wellhead' }) =
               {selected.map((d, index) => (
                 <Scatter
                   key={d.injector}
+                  onClick={onChoose ? (_pt, i) => onPoint(d, i) : undefined}
+                  cursor={pick?.injector === d.injector ? 'crosshair' : undefined}
                   name={`${d.injector} (recent slope ${hallSlopeText(d.slope_last, null, u)})`}
                   data={hallPlotPoints(d).map((p) => ({ x: X(p.x), y: Y(p.y) }))}
                   fill={COLORS[index % COLORS.length]}
@@ -128,6 +145,19 @@ const HallPlotPanel = ({ data, alerts, u = null, pressureBasis = 'wellhead' }) =
               )))}
             </tbody>
           </table>
+          {onChoose && selected.map((d) => (
+            <HallWindowEditor
+              key={d.injector}
+              plot={d}
+              choice={choices?.[d.injector] || null}
+              picked={picked[d.injector] || null}
+              pick={pick?.injector === d.injector ? pick : null}
+              onStartPick={(key) => setPick({ injector: d.injector, key })}
+              onCancelPick={() => setPick(null)}
+              onChoose={(choice) => { onChoose(d.injector, choice); setPicked((prev) => ({ ...prev, [d.injector]: null })); }}
+              disabled={!canWrite}
+            />
+          ))}
         </div>
       </div>
     </motion.div>

@@ -12,8 +12,9 @@ export function hallWindowLines(d) {
   for (const [key, label] of [['baseline', 'Baseline window (first third)'], ['recent', 'Recent window (last third)']]) {
     const w = d.windows?.[key];
     if (!w || !Number.isFinite(w.slope) || !Number.isFinite(w.intercept)) continue;
+    // WF-U2-003: a window the user chose says so
     out.push({
-      key, label, slope: w.slope, ci95: w.ci95, n: w.n, r2: w.r2,
+      key, label: w.chosen ? `${key === 'baseline' ? 'Baseline' : 'Recent'} window (chosen ${w.chosen.from} to ${w.chosen.to})` : label, chosen: !!w.chosen, slope: w.slope, ci95: w.ci95, n: w.n, r2: w.r2,
       dateFrom: d.dates?.[w.lo] ?? null, dateTo: d.dates?.[w.hi - 1] ?? null,
       points: [w.x0, w.x1].map((x) => ({ x, y: w.intercept + w.slope * x })),
     });

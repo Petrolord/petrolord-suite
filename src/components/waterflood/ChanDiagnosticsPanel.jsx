@@ -1,9 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceArea,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { engineChanWindow, chanChoiceProblems, chanKeyOf, chanWindowText } from '@/utils/waterflooddesign/chanWindows';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE,
@@ -22,7 +25,37 @@ const TONE = {
   indeterminate: 'bg-pl-sunken border-pl-border text-pl-text',
 };
 
-const ChanDiagnosticsPanel = ({ chan }) => {
+// WF-U2-006: the late-time window, its slope with the 95 percent interval,
+// and a window chosen by the user in days since water onset, with a reason
+function ChanWindowEditor({ series, choice, onChoose, disabled }) {
+  const key = chanKeyOf(series);
+  const [from, setFrom] = React.useState(choice?.from != null ? String(choice.from) : '');
+  const [to, setTo] = React.useState(choice?.to != null ? String(choice.to) : '');
+  const [reason, setReason] = React.useState(choice?.reason || '');
+  React.useEffect(() => { setFrom(choice?.from != null ? String(choice.from) : ''); setTo(choice?.to != null ? String(choice.to) : ''); setReason(choice?.reason || ''); }, [choice, key]);
+  const draft = { from: from === '' ? NaN : Number(from), to: to === '' ? NaN : Number(to), reason };
+  const problems = chanChoiceProblems(series, draft);
+  return (
+    <div className="mt-3 rounded border border-pl-border p-3 text-xs space-y-2" data-testid={`chan-editor-${key}`}>
+      <p className="font-semibold text-pl-text">Choose the late-time window of {series.producer} (days since water onset)</p>
+      <div className="flex flex-wrap items-end gap-2">
+        <div><Label htmlFor={`chan-${key}-from`} className="text-[10px] text-pl-muted">From day</Label>
+          <Input id={`chan-${key}-from`} className="h-7 text-xs w-24" inputMode="decimal" value={from} onChange={(e) => setFrom(e.target.value)} disabled={disabled} data-testid={`chan-${key}-from`} /></div>
+        <div><Label htmlFor={`chan-${key}-to`} className="text-[10px] text-pl-muted">To day</Label>
+          <Input id={`chan-${key}-to`} className="h-7 text-xs w-24" inputMode="decimal" value={to} onChange={(e) => setTo(e.target.value)} disabled={disabled} data-testid={`chan-${key}-to`} /></div>
+        <div className="flex-1 min-w-[12rem]"><Label htmlFor={`chan-${key}-reason`} className="text-[10px] text-pl-muted">Why this window (printed with it)</Label>
+          <Input id={`chan-${key}-reason`} className="h-7 text-xs" value={reason} onChange={(e) => setReason(e.target.value)} disabled={disabled} data-testid={`chan-${key}-reason`} /></div>
+      </div>
+      {problems.length > 0 && (from || to || reason) && <p className="text-pl-warning-text" data-testid={`chan-${key}-problems`}>{problems.join(' ')}</p>}
+      <div className="flex gap-2">
+        <Button size="sm" className="h-7 text-[11px]" disabled={disabled || problems.length > 0} onClick={() => onChoose(key, { from: draft.from, to: draft.to, reason: reason.trim(), setAt: new Date().toISOString() })} data-testid={`chan-${key}-apply`}>Use this window</Button>
+        {choice && <Button size="sm" variant="outline" className="h-7 text-[11px]" disabled={disabled} onClick={() => onChoose(key, null)} data-testid={`chan-${key}-clear`}>Back to the last 40 percent</Button>}
+      </div>
+    </div>
+  );
+}
+
+const ChanDiagnosticsPanel = ({ chan, choices = null, onChoose = null, canWrite = true }) => {
   const options = useMemo(() => {
     const opts = [];
     if (chan?.field) opts.push(chan.field);
@@ -43,6 +76,8 @@ const ChanDiagnosticsPanel = ({ chan }) => {
 
   if (!selected) return null;
   const cls = selected.classification || { code: 'indeterminate', label: '' };
+  const win = selected.window || engineChanWindow(selected.points);
+  const ci = win.ci95 && win.ci95.every(Number.isFinite) ? ` (95% ${win.ci95[0].toFixed(2)} to ${win.ci95[1].toFixed(2)})` : '';
 
   return (
     <motion.div
@@ -87,6 +122,9 @@ const ChanDiagnosticsPanel = ({ chan }) => {
             />
             <Tooltip contentStyle={TOOLTIP_STYLE} formatter={fmt} labelFormatter={(l) => `t = ${fmt(l)} d`} />
             <Legend {...LEGEND_PROPS} />
+            {Number.isFinite(win.tFrom) && Number.isFinite(win.tTo) && win.tTo > win.tFrom && (
+              <ReferenceArea x1={win.tFrom} x2={win.tTo} fill="#94a3b8" fillOpacity={0.15} ifOverflow="hidden" />
+            )}
             <Line type="monotone" dataKey="wor" name="WOR" stroke="#2563eb" dot={false} strokeWidth={2} connectNulls isAnimationActive={false} />
             <Line type="monotone" dataKey="worDeriv" name="WOR′ (d WOR/dt)" stroke="#d97706" dot={false} strokeWidth={2} connectNulls isAnimationActive={false} />
           </LineChart>
@@ -99,11 +137,13 @@ const ChanDiagnosticsPanel = ({ chan }) => {
         </p>
         <p className="text-sm opacity-80 mt-1">
           Late-time WOR′ log–log slope ={' '}
-          <span className="font-pl-mono tabular-nums">{selected.lateSlope != null ? selected.lateSlope.toFixed(2) : 'n/a'}</span>
+          <span className="font-pl-mono tabular-nums" data-testid="chan-slope">{selected.lateSlope != null ? `${selected.lateSlope.toFixed(2)}${ci}` : 'n/a'}</span>
           {' '}(≥ 0.4 channeling-like, ≤ 0 coning/normal-like). This is an indicative reading of the
           derivative trend. Confirm the mechanism with completion, geology and pressure data.
         </p>
+        <p className="text-sm opacity-80 mt-1" data-testid="chan-window">Window (shaded): {chanWindowText(win)}, {win.n} points with a rising WOR′.</p>
       </div>
+      {onChoose && <ChanWindowEditor series={selected} choice={choices?.[chanKeyOf(selected)] || null} onChoose={onChoose} disabled={!canWrite} />}
     </motion.div>
   );
 };
