@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit e9d98aca9206df40a88ea7a4da94d82c38b62c78
+# commit dc614f1314f57d062eb96aaffcffb6e7bdd1b370
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 80b08bf546799e96d5448d67c63c98f2ec1b9703 README.md
@@ -206,7 +206,7 @@ afed8248d99e1a36f732a2abadf0fe862e281f87 __tests__/seismolord.tracker2.test.js
 9a7c585967122edb38db31edd06f3b02d1656b5c __tests__/seismolord.v4bricks.test.js
 d237aeeab187916aa16410cf54afc9df2a272363 __tests__/seismolord.volumejob.test.js
 bfbf553fdf6db8892a4df9b27b82f23a3526e9b0 __tests__/seismolordSegyFixture.js
-af4704eede39adce98766de98d382ba2a7342386 __tests__/sim.deckgen.test.js
+2a86b019108a1ff5cf80f100b4bc62ef3a97b87e __tests__/sim.deckgen.test.js
 07c7b1702ac088f849737b8e32982b0254264f6d __tests__/sim.ekene.test.js
 8744cbc68e9efcf7b98edbef034c245f36a64991 __tests__/sim.s4.test.js
 587f776600152336594cae71c220d5dbd016764f __tests__/smoke.test.js
@@ -536,7 +536,7 @@ a262e4b617960c913d5777fc1b1613e56e10af5f engines/seismolord/volumeJob.js
 f924511b2b7bbd9126412ff6b0553b035a643db8 engines/seismolord/wellPath.js
 0d1e8c5a0370d977250f355b3167734c8da6ec1f engines/seismolord/wellSection.js
 52883680abe22b6d6a2e690560f8b4beca69a882 engines/seismolord/wellTie.js
-c201ded2d0959e2efb00fa25f6f0bf7f19c1987c engines/sim/composeDeck.js
+f053e99f07d124cc12c46f45d71cbfdd497651c6 engines/sim/composeDeck.js
 18293322bc032451a88d14ff491f3eebc030de5f engines/sim/deckFormat.js
 bb2aa0b995af2345d489d453edd94cd624bc7711 engines/sim/emitGrid.js
 3d5e3ec5bcf6c7cec59b794b53171046502768ca engines/sim/emitPvt.js

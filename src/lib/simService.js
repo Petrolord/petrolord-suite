@@ -97,7 +97,7 @@ export const TEMPLATES = [
     dir: '/sim-templates/spe1',
     files: ['SPE1CASE1.DATA'],
     main: 'SPE1CASE1.DATA',
-    blurb: 'The classic first SPE comparative solution problem: gas injection into a small three-layer reservoir, ~10 years. Runs in seconds.',
+    blurb: 'The classic first SPE comparative solution problem: gas injection into a small three-layer reservoir, 10 years. Runs in seconds.',
   },
   {
     slug: 'SPE9',
@@ -105,7 +105,7 @@ export const TEMPLATES = [
     dir: '/sim-templates/spe9',
     files: ['SPE9.DATA', 'PERMVALUES.DATA', 'TOPSVALUES.DATA'],
     main: 'SPE9.DATA',
-    blurb: 'The ninth SPE comparative solution problem: 25 producers + 1 injector on a heterogeneous grid, ~900 days. Runs in a few minutes.',
+    blurb: 'The ninth SPE comparative solution problem: 25 producers and 1 injector on a heterogeneous grid, 900 days. Runs in about 20 seconds on the worker (16 s measured).',
   },
 ];
 
@@ -189,4 +189,79 @@ export async function listMbalProductionRows(rbCaseId) {
     .order('timestep_index', { ascending: true });
   if (error) throw new Error(`Could not load production data: ${error.message}`);
   return data || [];
+}
+
+// ------------------------------------------------------------ builder form ---
+// SIM-U1-005: the Model Builder form is saved with the case. Column
+// sim_cases.builder_form (migration 20261004180000) when it exists; before
+// that, a JSON file beside the deck in the owner's folder of the sim bucket.
+
+export const builderFormPath = (ownerId, caseId) => `${ownerId}/${caseId}/builder/form.json`;
+
+const missingColumn = (error) => {
+  const msg = String(error?.message || '');
+  return error?.code === '42703' || error?.code === 'PGRST204' || /builder_form/.test(msg);
+};
+
+/**
+ * @returns {Promise<{form: ?object, where: 'column'|'file'|null}>}
+ */
+export async function loadBuilderForm(caseRow) {
+  if (!caseRow) return { form: null, where: null };
+  if (caseRow.builder_form && typeof caseRow.builder_form === 'object') return { form: caseRow.builder_form, where: 'column' };
+  try {
+    const text = await downloadText(builderFormPath(caseRow.user_id, caseRow.id));
+    return { form: JSON.parse(text), where: 'file' };
+  } catch {
+    return { form: null, where: null };
+  }
+}
+
+/**
+ * Save the form with the case: the column, or the file when the column does
+ * not exist yet (owner only). `update` is the sharing store's versioned
+ * update when sharing is on (a colleague's edit goes through the check-out).
+ * @returns {Promise<{ok: boolean, where?: string, row?: object, error?: string}>}
+ */
+export async function saveBuilderForm(caseRow, form, { update = null } = {}) {
+  if (!caseRow) return { ok: false, error: 'No case is open.' };
+  const patch = { builder_form: form };
+  const res = update
+    ? await update('sim_cases', caseRow.id, patch)
+    : await writeStamped(SIM_CASE_KIND, { ...patch, updated_at: new Date().toISOString() },
+      (row) => supabase.from('sim_cases').update(row).eq('id', caseRow.id).select().single());
+  if (!res.error) return { ok: true, where: 'column', row: res.data };
+  if (!missingColumn(res.error)) return { ok: false, error: res.error.message || String(res.error) };
+  // the column is not there yet: the owner's file
+  const uid = await userId();
+  if (uid !== caseRow.user_id) {
+    return { ok: false, error: 'The builder form of a colleague\'s case can be saved once the builder_form column is added (migration 20261004180000, owner-run). Your changes stay on this screen only.' };
+  }
+  const { error } = await supabase.storage.from(BUCKET).upload(builderFormPath(caseRow.user_id, caseRow.id),
+    new Blob([JSON.stringify(form)], { type: 'application/json' }), { upsert: true, contentType: 'application/json' });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, where: 'file' };
+}
+
+/** SHA-256 hex of a deck text, as the worker hashes the file it runs. */
+export async function sha256Hex(text) {
+  try {
+    const subtle = globalThis.crypto?.subtle;
+    if (!subtle || typeof TextEncoder === 'undefined') return null;
+    const digest = await subtle.digest('SHA-256', new TextEncoder().encode(String(text)));
+    return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+  } catch {
+    return null;   // no Web Crypto here: the form then cannot prove which deck it made, and the report says so
+  }
+}
+
+/** The caller's saved SCAL Studio projects, most recent first. */
+export async function listScalProjects() {
+  try {
+    const { data, error } = await supabase.from('saved_scal_projects').select('id, project_name, updated_at').order('updated_at', { ascending: false });
+    if (error) return { data: [], error };
+    return { data: (data ?? []).map((r) => ({ id: r.id, name: r.project_name, updatedAt: r.updated_at })), error: null };
+  } catch (e) {
+    return { data: [], error: { message: e?.message ?? String(e) } };
+  }
 }

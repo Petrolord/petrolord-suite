@@ -18,15 +18,48 @@ import {
   composeDeck, validateSpec, pvtoRecordsFromTable, resamplePc,
 } from '@/utils/simDeckGeneration';
 import { parseSurveyText, buildTrajectoryConnections } from '@/utils/simTrajectoryImport';
+import { simRowsFromContract } from '@/utils/fluidstudio/simKeywords';
+import { satFnRows } from '@/utils/scalstudio/simKeywords';
+import { provenanceNotes } from '@/utils/simstudio/builderIntakes';
 
 const num = (v, d = 0) => {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : d;
 };
 
+/**
+ * SIM-U1-006 (RL1): a blank or unreadable required input is refused with
+ * its name. Before, `num(v, default)` put a hidden default in the deck (a
+ * blank OWC became a contact at 0 ft). Errors are collected so the user
+ * sees every one at once.
+ */
+export function makeReader() {
+  const errors = [];
+  const req = (v, label, { min = null, max = null, integer = false } = {}) => {
+    const t = typeof v === 'number' ? String(v) : String(v ?? '').trim();
+    const n = t === '' ? NaN : Number(t);
+    if (!Number.isFinite(n)) {
+      errors.push(`${label}: ${t === '' ? 'enter a value' : `"${t}" is not a number`}.`);
+      return NaN;
+    }
+    if (integer && !Number.isInteger(n)) errors.push(`${label}: ${t} must be a whole number.`);
+    if (min != null && n < min) errors.push(`${label}: ${t} is below ${min}.`);
+    if (max != null && n > max) errors.push(`${label}: ${t} is above ${max}.`);
+    return n;
+  };
+  /** Optional: blank is null (the caller states what null means). */
+  const opt = (v, label, o) => (String(v ?? '').trim() === '' ? null : req(v, label, o));
+  return { req, opt, errors };
+}
+
 // ---------------------------------------------------------------- defaults --
 
+/** Version of the saved builder form (SIM-U1: saved with the case). */
+export const BUILDER_FORM_VERSION = 2;
+
 export const defaultBuilderForm = () => ({
+  formVersion: BUILDER_FORM_VERSION,
+  unitSystem: 'oilfield',
   title: 'My first simulation model',
   startDate: '2026-01-01',
   grid: {
@@ -46,8 +79,13 @@ export const defaultBuilderForm = () => ({
   scal: {
     ow: { Swc: '0.15', Sor: '0.25', krwMax: '0.35', kroMax: '0.9', nw: '2.5', no: '2.2' },
     go: { Sgc: '0.03', Sorg: '0.2', krgMax: '0.85', krogMax: '0.9', ng: '2', nog: '2' },
-    pc: { enabled: false, jA: '0.35', jB: '0.6', k_md: '150', phi: '0.2', sigma_dyncm: '30', thetaDeg: '30' },
+    pc: { enabled: false, jA: '0.35', jB: '0.6', swirr: '', k_md: '150', phi: '0.2', sigma_dyncm: '30', thetaDeg: '30' },
   },
+  // SIM-U1 (RL11): where the PVT and the saturation functions come from.
+  // 'correlation' / 'typed' are the builder's own fields; 'fluid' / 'scal'
+  // a pvt-1 / kr-1 block read by id from a saved project (builderIntakes.js).
+  pvtSource: { mode: 'correlation', intake: null },
+  krSource: { mode: 'typed', intake: null },
   equil: { datumDepth: '8050', datumPressure: '4200', owc: '8150', goc: '7900' },
   wells: [
     { name: 'PROD1', type: 'producer', i: '9', j: '9', k1: '1', k2: '3', refDepth: '8000', mode: 'ORAT', rate: '4000', bhp: '1200', trajectory: null },
@@ -63,8 +101,41 @@ export const defaultBuilderForm = () => ({
   // rates from a CSV (no allocation, wellSummary drives the preview).
   // periods/dates are filled by the History import; predictionYears
   // appends a TSTEP tail.
-  history: { enabled: false, source: 'mbal', caseName: '', startDate: null, endDate: null, periods: null, wellSummary: null, predictionYears: '3' },
+  history: { enabled: false, source: 'mbal', caseName: '', startDate: null, endDate: null, periods: null, wellSummary: null, predictionYears: '3', fractions: {} },
 });
+
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+function fill(defaults, saved) {
+  if (!isObj(defaults) || !isObj(saved)) return saved === undefined ? defaults : saved;
+  const out = { ...defaults };
+  for (const [k, v] of Object.entries(saved)) out[k] = k in defaults && isObj(defaults[k]) && isObj(v) ? fill(defaults[k], v) : v;
+  return out;
+}
+
+/**
+ * A saved form (any version) as the current version: missing keys take the
+ * defaults, a version 1 trajectory's "KB to datum" shift becomes the depth
+ * reference elevation of the well datum module (deck depth = TVD + shift,
+ * so the elevation above the datum is minus the shift). Nothing else moves.
+ */
+export function migrateBuilderForm(saved) {
+  if (!isObj(saved)) return defaultBuilderForm();
+  const f = fill(defaultBuilderForm(), saved);
+  f.wells = (Array.isArray(saved.wells) ? saved.wells : f.wells).map((w) => {
+    if (!w?.trajectory) return w;
+    const t = { ...w.trajectory };
+    if (t.refElevFt === undefined) {
+      const shift = parseFloat(t.kbToDatum);
+      t.refKind = t.refKind || 'KB';
+      t.refElevFt = Number.isFinite(shift) ? String(-shift) : '';
+      t.datumSource = t.datumSource || 'entered';
+    }
+    delete t.kbToDatum;
+    return { ...w, trajectory: t };
+  });
+  f.formVersion = BUILDER_FORM_VERSION;
+  return f;
+}
 
 // -------------------------------------------------------------------- PVT ---
 
@@ -99,6 +170,19 @@ export function buildPvtFromFluid(fluidForm) {
   });
 
   return { pvtoRecords, pvdg, pb };
+}
+
+/** PVTO/PVDG/PVTW from a pvt-1 block (Fluid Systems Studio's own export rows). */
+export function buildPvtFromBlock(block) {
+  const rows = simRowsFromContract(block);
+  if (!rows.ok) throw new Error(`PVT from Fluid Systems Studio: ${rows.reasons.join(' ')}`);
+  if (!rows.pvtw) throw new Error('PVT from Fluid Systems Studio: the table holds no water columns for PVTW.');
+  return {
+    pvtoRecords: rows.pvtoRecords,
+    pvdg: rows.pvdg,
+    pvtw: { pref: rows.pvtw.pref, bw: rows.pvtw.bw, cw: rows.pvtw.cw, muw: rows.pvtw.muw, viscosibility: rows.pvtw.viscosibility },
+    pb: rows.pb,
+  };
 }
 
 /** Surface densities (lb/ft3) from API gravity, gas SG and a water input. */
@@ -137,7 +221,8 @@ export function buildSatFns(scalForm) {
   if (scalForm.pc?.enabled) {
     const j = pcFromJ(
       // Power-law J(Sw*) = a * Sw*^-b on the true-Sw axis (Swirr = Swc).
-      { type: 'power', a: num(scalForm.pc.jA, 0.35), b: num(scalForm.pc.jB, 0.6), Swirr: ow.Swc },
+      // a blank Swirr is Swc (the S3 behaviour); a typed one is used as typed (SIM-U1)
+      { type: 'power', a: num(scalForm.pc.jA, 0.35), b: num(scalForm.pc.jB, 0.6), Swirr: String(scalForm.pc.swirr ?? '').trim() === '' ? ow.Swc : num(scalForm.pc.swirr, ow.Swc) },
       {
         k_md: num(scalForm.pc.k_md, 100), phi: num(scalForm.pc.phi, 0.2),
         sigma_dyncm: num(scalForm.pc.sigma_dyncm, 30), thetaDeg: num(scalForm.pc.thetaDeg, 30),
@@ -188,8 +273,93 @@ export function gridFromForm(form) {
 }
 
 export function specFromForm(form) {
-  const { pvtoRecords, pvdg, pb } = buildPvtFromFluid(form.fluid);
-  const { swof, sgof } = buildSatFns(form.scal);
+  const { req, opt, errors } = makeReader();
+  // required inputs read strictly first (SIM-U1-006); the engines and the
+  // validators below see no hidden default
+  const g = form.grid;
+  req(g.nx, 'Grid NX', { min: 1, integer: true });
+  req(g.ny, 'Grid NY', { min: 1, integer: true });
+  const nzN = req(g.nz, 'Grid NZ', { min: 1, integer: true });
+  if (form.structure?.mode !== 'surface') {
+    req(g.dx, 'DX', { min: 0 }); req(g.dy, 'DY', { min: 0 }); req(g.topsDepth, 'Top depth');
+  }
+  (g.layers || []).slice(0, Number.isFinite(nzN) ? nzN : 0).forEach((l, i) => {
+    req(l.dz, `Layer ${i + 1} DZ`, { min: 0 });
+    req(l.poro, `Layer ${i + 1} porosity`, { min: 0, max: 1 });
+    req(l.permx, `Layer ${i + 1} kh`, { min: 0 });
+    req(l.permz, `Layer ${i + 1} kv`, { min: 0 });
+  });
+  const fluidBlock = form.pvtSource?.mode === 'fluid' ? form.pvtSource.intake?.contract : null;
+  if (form.pvtSource?.mode === 'fluid' && !fluidBlock) errors.push('PVT: the Fluid Systems Studio block is missing; take the project again or switch to typed correlation inputs.');
+  if (!fluidBlock) {
+    req(form.fluid.api, 'Oil API', { min: 5, max: 70 });
+    req(form.fluid.gasSg, 'Gas gravity', { min: 0.5, max: 2 });
+    req(form.fluid.tempF, 'Reservoir temperature');
+    req(form.fluid.gor, 'Solution GOR', { min: 0 });
+    req(form.fluid.salinityPpm, 'Salinity', { min: 0 });
+    req(form.water.bw, 'Bw', { min: 0.5, max: 2 }); req(form.water.cw, 'cw', { min: 0 }); req(form.water.muw, 'Water viscosity', { min: 0 });
+    req(form.water.pref, 'Reference pressure', { min: 0 });
+  }
+  req(form.water.rhoLbFt3, 'Water density', { min: 0 });
+  req(form.rock.cr, 'Rock compressibility', { min: 0 });
+  ['Swc', 'Sor', 'krwMax', 'kroMax', 'nw', 'no'].forEach((k) => req(form.scal.ow[k], `SCAL ${k}`, { min: 0 }));
+  ['Sgc', 'Sorg', 'krgMax', 'krogMax', 'ng', 'nog'].forEach((k) => req(form.scal.go[k], `SCAL ${k}`, { min: 0 }));
+  if (form.scal.pc?.enabled) ['jA', 'jB', 'k_md', 'phi', 'sigma_dyncm', 'thetaDeg'].forEach((k) => req(form.scal.pc[k], `Capillary ${k}`));
+  req(form.equil.datumDepth, 'Datum depth');
+  req(form.equil.datumPressure, 'Pressure at datum', { min: 0 });
+  const owc = opt(form.equil.owc, 'OWC depth');
+  const goc = opt(form.equil.goc, 'GOC depth');
+  form.wells.forEach((w, i) => {
+    const label = `Well ${String(w.name || i + 1).trim()}`;
+    if (!String(w.name || '').trim()) errors.push(`Well ${i + 1}: enter a name.`);
+    req(w.rate, `${label} rate`, { min: 0 });
+    req(w.bhp, `${label} BHP limit`, { min: 0 });
+    if (!w.trajectory?.enabled) {
+      ['i', 'j', 'k1', 'k2'].forEach((k) => req(w[k], `${label} ${k.toUpperCase()}`, { min: 1, integer: true }));
+    } else {
+      req(w.trajectory.wellheadX, `${label} wellhead X`); req(w.trajectory.wellheadY, `${label} wellhead Y`);
+      req(w.trajectory.refElevFt, `${label} depth reference elevation`);
+    }
+  });
+  req(form.schedule.reportDays, 'Report interval', { min: 0.01 });
+  if (!(form.history?.enabled && form.history?.periods)) req(form.schedule.years, 'Duration', { min: 0.01 });
+  if (errors.length) {
+    const e = new Error(errors.join('\n'));
+    e.list = errors;
+    throw e;
+  }
+
+  let pvtoRecords; let pvdg; let pb; let pvtw; let density;
+  if (fluidBlock) {
+    ({ pvtoRecords, pvdg, pb, pvtw } = buildPvtFromBlock(fluidBlock));
+    const water = { rhoLbFt3: form.water.rhoLbFt3 };
+    density = surfaceDensities({ api: fluidBlock.inputs?.oil_gravity, gasSg: fluidBlock.inputs?.gas_gravity }, water);
+  } else {
+    ({ pvtoRecords, pvdg, pb } = buildPvtFromFluid(form.fluid));
+    pvtw = {
+      pref: num(form.water.pref, 4000), bw: num(form.water.bw, 1.02),
+      cw: num(form.water.cw, 3e-6), muw: num(form.water.muw, 0.32),
+    };
+    density = surfaceDensities(form.fluid, form.water);
+  }
+
+  let swof; let sgof;
+  if (form.krSource?.mode === 'scal') {
+    const sc = form.scal;
+    const ow = Object.fromEntries(Object.entries(sc.ow).map(([k, v]) => [k, Number(v)]));
+    const go = { ...Object.fromEntries(Object.entries(sc.go).map(([k, v]) => [k, Number(v)])), Swc: ow.Swc };
+    const withPc = !!sc.pc?.enabled;
+    const swirr = String(sc.pc?.swirr ?? '').trim() === '' ? ow.Swc : Number(sc.pc.swirr);
+    const rows = satFnRows({
+      ow, go, withPc,
+      jSpec: withPc ? { type: 'power', a: Number(sc.pc.jA), b: Number(sc.pc.jB), Swirr: swirr } : null,
+      reservoir: withPc ? { k_md: Number(sc.pc.k_md), phi: Number(sc.pc.phi), sigma_dyncm: Number(sc.pc.sigma_dyncm), thetaDeg: Number(sc.pc.thetaDeg) } : null,
+    });
+    if (!rows.ok) throw new Error(`Saturation functions: ${rows.errors.join(' ')}`);
+    ({ swof, sgof } = rows);
+  } else {
+    ({ swof, sgof } = buildSatFns(form.scal));
+  }
   const grid = gridFromForm(form);
 
   const wells = form.wells.map((w) => {
@@ -206,15 +376,17 @@ export function specFromForm(form) {
     const traj = w.trajectory;
     if (traj?.enabled) {
       // Recompute connections from the stored survey at generate time so
-      // grid edits can never leave a well on stale cells.
-      const { stations, errors } = parseSurveyText(traj.text);
-      if (errors.length) throw new Error(`Well ${name} survey: ${errors[0]}`);
+      // grid edits can never leave a well on stale cells. The survey's TVD
+      // is below the well's depth reference; the deck depth is TVDSS, so
+      // the shift is minus the reference elevation (well datum module).
+      const { stations, errors: surveyErrors } = parseSurveyText(traj.text);
+      if (surveyErrors.length) throw new Error(`Well ${name} survey: ${surveyErrors[0]}`);
       const t = buildTrajectoryConnections({
         stations,
         mdUnit: traj.mdUnit === 'm' ? 'm' : 'ft',
         wellheadX: num(traj.wellheadX),
         wellheadY: num(traj.wellheadY),
-        kbToDatumFt: num(traj.kbToDatum, 0),
+        kbToDatumFt: -num(traj.refElevFt, 0),
       }, grid);
       return { ...base, connections: t.connections, refDepth: t.refDepthFt };
     }
@@ -252,22 +424,24 @@ export function specFromForm(form) {
     pvt: {
       pvtoRecords,
       pvdg,
-      pvtw: {
-        pref: num(form.water.pref, 4000), bw: num(form.water.bw, 1.02),
-        cw: num(form.water.cw, 3e-6), muw: num(form.water.muw, 0.32),
-      },
-      rock: { pref: num(form.rock.pref, 4000), cr: num(form.rock.cr, 4e-6) },
-      density: surfaceDensities(form.fluid, form.water),
+      pvtw,
+      rock: { pref: num(form.rock.pref, num(pvtw.pref, 4000)), cr: num(form.rock.cr, 4e-6) },
+      density,
     },
     satfn: { swof, sgof },
     equil: {
       datumDepth: num(form.equil.datumDepth),
       datumPressure: num(form.equil.datumPressure),
-      owc: num(form.equil.owc),
-      goc: num(form.equil.goc),
+      // blank contact: the composer puts it outside the grid (stated in the report)
+      ...(owc != null ? { owc } : {}),
+      ...(goc != null ? { goc } : {}),
     },
     wells,
     schedule,
+    // SIM-U1: ask the simulator for the field balance sheet and the well
+    // totals, so the run's material balance can be read from its PRT
+    report: { balance: true },
+    notes: provenanceNotes(form, { pb }),
   };
   return { spec, pb };
 }
@@ -277,9 +451,9 @@ export function buildDeckFromForm(form) {
   let spec;
   let pb;
   try {
-    ({ spec, pb } = specFromForm(form));
+    ({ spec, pb } = specFromForm(migrateBuilderForm(form)));
   } catch (e) {
-    return { ok: false, errors: [e.message] };
+    return { ok: false, errors: e.list || [e.message] };
   }
   const check = validateSpec(spec);
   if (!check.ok) return { ok: false, errors: check.errors, spec };

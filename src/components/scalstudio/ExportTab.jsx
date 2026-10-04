@@ -26,6 +26,8 @@ const slug = (s) => (s || 'scal').replace(/[^a-z0-9-]+/gi, '-').toLowerCase();
 // Where the handoff goes. Inside the /dev harness the receiving app's
 // harness route is used, so the chain can be walked signed out.
 const WATERFLOOD = ['/dashboard/apps/reservoir/waterflood-design-studio', '/dev/studio/waterflood'];
+// SIM-U1-004: Reservoir Simulation Studio's deck builder reads the saved kr-1 block by id
+const SIMULATION = ['/dashboard/apps/reservoir/reservoir-simulation-studio', '/dev/reservoir-simulation-studio'];
 
 const ExportTab = () => {
   const navigate = useNavigate();
@@ -58,6 +60,19 @@ const ExportTab = () => {
     const base = WATERFLOOD[inHarness ? 1 : 0];
     const to = citeId ? `${base}?${KR_PROJECT_PARAM}=${encodeURIComponent(citeId)}` : base;
     navigate(to, { state: { [KR_HANDOFF_STATE_KEY]: payload } });
+  };
+
+  const sendToSimulation = async () => {
+    if (!currentProjectId) {
+      addNotification('Save the SCAL project first: Reservoir Simulation Studio reads it by id.', 'error');
+      return;
+    }
+    const saved = await manualSave();
+    if (!saved) {
+      addNotification('The project could not be saved first, so there is no saved block for Reservoir Simulation Studio to read.', 'error');
+      return;
+    }
+    navigate(`${SIMULATION[inHarness ? 1 : 0]}?${KR_PROJECT_PARAM}=${encodeURIComponent(currentProjectId)}&tab=builder`);
   };
 
   const exportKr = () => {
@@ -158,9 +173,18 @@ const ExportTab = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={sendToWaterflood} data-testid="scal-send-waterflood">
-            <Waves className="w-4 h-4 mr-1.5" /> Send curves to Waterflood
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={sendToWaterflood} data-testid="scal-send-waterflood">
+              <Waves className="w-4 h-4 mr-1.5" /> Send curves to Waterflood
+            </Button>
+            <Button variant="outline" onClick={sendToSimulation} disabled={!currentProjectId} data-testid="scal-send-simulation"
+              title={currentProjectId ? 'Opens the deck builder of Reservoir Simulation Studio with this project named; take the curves there' : 'Save the project first'}>
+              <Waves className="w-4 h-4 mr-1.5" /> Send curves and Pc to Reservoir Simulation Studio
+            </Button>
+          </div>
+          <p className="text-[11px] text-pl-muted mt-2">
+            Reservoir Simulation Studio takes the oil-water and gas-oil sets and the Leverett J with its own Swirr from the saved project, and writes them as the SWOF and SGOF of the export below.
+          </p>
         </CardContent>
       </Card>
 

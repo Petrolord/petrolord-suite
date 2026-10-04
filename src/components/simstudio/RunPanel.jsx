@@ -28,7 +28,7 @@ const StatusBadge = ({ status }) => (
 const RunPanel = () => {
   const {
     activeCase, runs, queueRun, requestCancel, refreshRuns, activeCaseId,
-    loadPrt, prtText, prtRunId,
+    loadPrt, prtText, prtRunId, ownerOnlyReason,
   } = useSimStudio();
 
   if (!activeCase) {
@@ -52,14 +52,15 @@ const RunPanel = () => {
               <RefreshCw className="w-3 h-3 mr-1" /> Refresh
             </Button>
             <Button size="sm" className="h-7 text-xs"
-              disabled={!activeCase.deck_path} onClick={queueRun}
-              title={activeCase.deck_path ? 'Queue this deck on the simulation worker' : 'Upload a deck first'}
+              disabled={!activeCase.deck_path || !!ownerOnlyReason} onClick={queueRun}
+              title={ownerOnlyReason || (activeCase.deck_path ? 'Queue this deck on the simulation worker' : 'Upload a deck first')}
               data-testid="queue-run">
               <Play className="w-3 h-3 mr-1" /> Run simulation
             </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
+          {ownerOnlyReason && <p className="px-4 pb-2 text-[11px] text-pl-warning-text" data-testid="runs-owner-only">{ownerOnlyReason}</p>}
           {runs.length === 0 ? (
             <div className="py-8 text-center text-sm text-pl-muted">
               No runs yet. Queue one; the worker polls about every 10 seconds.
@@ -72,6 +73,8 @@ const RunPanel = () => {
                   <TableHead>Status</TableHead>
                   <TableHead>Elapsed</TableHead>
                   <TableHead title={RUN_STEPS_TITLE}>Steps</TableHead>
+                  <TableHead title="Active grid cells, as the simulator counted them">Cells</TableHead>
+                  <TableHead title="The simulator's exit code (0 = it ended normally)">Exit</TableHead>
                   <TableHead>Failure</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -83,6 +86,8 @@ const RunPanel = () => {
                     <TableCell><StatusBadge status={r.status} /></TableCell>
                     <TableCell className="text-xs font-mono text-pl-text">{fmtElapsed(r.elapsed_seconds)}</TableCell>
                     <TableCell className="text-xs font-mono text-pl-muted">{r.report_steps ?? EMPTY_VALUE}</TableCell>
+                    <TableCell className="text-xs font-mono text-pl-muted">{r.active_cells != null ? Number(r.active_cells).toLocaleString('en-US') : EMPTY_VALUE}</TableCell>
+                    <TableCell className="text-xs font-mono text-pl-muted" data-testid={`run-exit-${r.id}`}>{r.exit_code ?? EMPTY_VALUE}</TableCell>
                     <TableCell className="text-xs text-pl-muted">{r.failure_stage || EMPTY_VALUE}</TableCell>
                     <TableCell className="text-right">
                       {(r.status === 'queued' || r.status === 'running') && !r.cancel_requested && (
@@ -110,6 +115,14 @@ const RunPanel = () => {
         <Card className="border-pl-danger/40">
           <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-danger-text">Latest failure</CardTitle></CardHeader>
           <CardContent>
+            {(() => {
+              const f = runs.find((r) => r.status === 'failed' && r.error_message);
+              return (
+                <p className="text-[11px] text-pl-muted mb-1" data-testid="sim-failure-meta">
+                  Stage {f.failure_stage || EMPTY_VALUE}; exit code {f.exit_code ?? `${EMPTY_VALUE} (not recorded by the worker build that ran it)`}; elapsed {fmtElapsed(f.elapsed_seconds)}.
+                </p>
+              );
+            })()}
             <pre className="whitespace-pre-wrap text-xs text-pl-danger-text font-mono max-h-48 overflow-y-auto">
               {runs.find((r) => r.status === 'failed' && r.error_message)?.error_message}
             </pre>

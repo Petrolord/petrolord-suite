@@ -11,10 +11,8 @@
 // previous observed rate, and a well whose first row is mid-history
 // stays undeclared (shut) until that date.
 
-const isoDate = (v) => {
-  const m = /^(\d{4}-\d{2}-\d{2})/.exec(String(v || '').trim());
-  return m ? m[1] : null;
-};
+import { parseTabular, isNullToken } from '@/lib/tabularParse';
+import { convert } from '@/lib/units/registry';
 
 const addDays = (iso, days) => {
   const [y, mo, d] = iso.split('-').map(Number);
@@ -35,58 +33,83 @@ const COLUMN_ALIASES = {
   gas: ['gas', 'gas_rate', 'grat', 'gas_mscf', 'gas_scf', 'qg'],
 };
 
-/**
- * Per-well rate CSV text -> { rows, columns, errors }. The header line is
- * required and must name a date and a well column plus at least one rate
- * column (aliases above, case-insensitive; comma/semicolon/tab separated;
- * # or -- comments). Blank rate cells parse as null (column absent for
- * that row); non-numeric rate cells are per-line errors.
- */
-export function parseWellRateCsv(text) {
-  const errors = [];
-  const lines = String(text || '').split(/\r?\n/)
-    .map((raw, lineNo) => ({ line: raw.replace(/(#|--).*$/, '').trim(), lineNo: lineNo + 1 }))
-    .filter((l) => l.line);
-  if (!lines.length) return { rows: [], columns: [], errors: ['The CSV is empty.'] };
+// SIM-U1-011 (PL2, RL10): the door reads through the shared tabular reader
+// (src/lib/tabularParse.js): any delimiter, comma decimals, day-first and
+// month-first dates (asked when the file does not settle it, never
+// guessed), a units row or units in the headers, comment lines; then it
+// says what it read. Units at the door: oil and water in STB/d, bbl/d or
+// m3/d; gas in Mscf/d, scf/d, MMscf/d or m3/d (10^3 m3/d); converted to
+// the deck's STB/d and Mscf/d with the Suite registry. A rate column with no
+// unit takes the form's choice (gas unit select). Before, only ISO dates
+// and dot decimals were read, and units in a header were ignored.
 
-  const split = (s) => s.split(/[\t;,]+/).map((c) => c.trim());
-  const header = split(lines[0].line).map((h) => h.toLowerCase().replace(/[^a-z0-9_]/g, ''));
-  const colOf = (key) => header.findIndex((h) => COLUMN_ALIASES[key].includes(h));
-  const idx = {
-    date: colOf('date'), well: colOf('well'), oil: colOf('oil'), water: colOf('water'), gas: colOf('gas'),
-  };
-  if (idx.date < 0 || idx.well < 0) {
-    return { rows: [], columns: [], errors: ['The header line must name a date column and a well column (e.g. "date, well, oil, water, gas").'] };
+const LIQUID_UNITS = { 'stb/d': 'STB/d', 'bbl/d': 'bbl/d', 'stb/day': 'STB/d', 'bbl/day': 'bbl/d', bopd: 'STB/d', bwpd: 'STB/d', 'm3/d': 'm3/d', 'sm3/d': 'm3/d', 'm3/day': 'm3/d', 'sm3/day': 'm3/d' };
+const GAS_UNITS = { 'mscf/d': 'Mscf/d', mscfd: 'Mscf/d', 'mscf/day': 'Mscf/d', 'scf/d': 'scf/d', scfd: 'scf/d', 'scf/day': 'scf/d', 'mmscf/d': 'MMscf/d', mmscfd: 'MMscf/d', 'm3/d': 'm3/d', 'sm3/d': 'm3/d', '10^3 m3/d': '10^3 m3/d', 'e3m3/d': '10^3 m3/d', 'km3/d': '10^3 m3/d' };
+const unitKey = (u) => String(u || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+/**
+ * Per-well rate file text -> { rows, columns, errors, questions, readBack }.
+ * The header must name a date column and a well column plus at least one
+ * rate column (aliases above, case-insensitive). Blank rate cells are null
+ * (column absent for that row); unreadable cells are per-line errors.
+ * @param {string} text
+ * @param {{dateOrder?: ?('dmy'|'mdy'), decimal?: ?('.'|','), gasUnit?: 'mscf'|'scf'}} [opts]
+ */
+export function parseWellRateCsv(text, { dateOrder = null, decimal = null, gasUnit = 'mscf' } = {}) {
+  const src = String(text || '').split(/\r?\n/).filter((l) => !/^\s*--/.test(l)).join('\n');
+  if (!src.trim()) return { rows: [], columns: [], errors: ['The CSV is empty.'], questions: [], readBack: [] };
+  const t = parseTabular(src, { ...(dateOrder ? { dateOrder } : {}), ...(decimal ? { decimal } : {}) });
+  const norm = (h) => String(h || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+  const colOf = (key) => t.columns.findIndex((c) => COLUMN_ALIASES[key].includes(norm(c.name)));
+  const idx = { date: colOf('date'), well: colOf('well'), oil: colOf('oil'), water: colOf('water'), gas: colOf('gas') };
+  if (!t.header || idx.date < 0 || idx.well < 0) {
+    return { rows: [], columns: [], errors: ['The header line must name a date column and a well column (e.g. "date, well, oil, water, gas").'], questions: [], readBack: [] };
   }
   if (idx.oil < 0 && idx.water < 0 && idx.gas < 0) {
-    return { rows: [], columns: [], errors: ['The header line needs at least one rate column: oil, water or gas.'] };
+    return { rows: [], columns: [], errors: ['The header line needs at least one rate column: oil, water or gas.'], questions: [], readBack: [] };
   }
+  const questions = t.questions.filter((q) => q.kind === 'decimalMark' || q.column === idx.date);
+  if (questions.length && t.needsAnswer) return { rows: [], columns: [], errors: [], questions, readBack: [] };
 
+  const errors = [];
+  const readBack = [`Read ${t.rows.length} rows, ${t.delimiterName} separated, decimal mark "${t.decimal.mark}".`];
+  const conv = {};
+  for (const key of ['oil', 'water', 'gas']) {
+    if (idx[key] < 0) continue;
+    const unit = t.columns[idx[key]].unit;
+    const table = key === 'gas' ? GAS_UNITS : LIQUID_UNITS;
+    let from = unit ? table[unitKey(unit)] : null;
+    if (unit && !from) { errors.push(`The ${key} column is headed "${unit}", a unit this door does not read (${key === 'gas' ? 'Mscf/d, scf/d, MMscf/d or m3/d' : 'STB/d, bbl/d or m3/d'}).`); continue; }
+    if (!from) from = key === 'gas' ? (gasUnit === 'scf' ? 'scf/d' : 'Mscf/d') : 'STB/d';
+    const family = key === 'gas' ? 'gasRate' : 'liquidRate';
+    const to = key === 'gas' ? 'Mscf/d' : 'STB/d';
+    conv[key] = (v) => (from === to ? v : convert(family, v, from, to));
+    readBack.push(`${key}: column "${t.columns[idx[key]].header}" read as ${from}${unit ? ' (from the header)' : ' (no unit in the file: the form\'s choice)'}${from !== to ? `, converted to ${to}` : ''}.`);
+  }
   const rows = [];
-  lines.slice(1).forEach(({ line, lineNo }) => {
-    const cells = split(line);
-    const date = isoDate(cells[idx.date]);
-    const well = String(cells[idx.well] || '').trim().toUpperCase();
+  for (const r of t.rows) {
+    const d = r.values[idx.date];
+    const date = d && d.iso ? d.iso.slice(0, 10) : null;
+    const well = String(r.values[idx.well] ?? '').trim().toUpperCase();
     if (!date || !well) {
-      errors.push(`Line ${lineNo}: needs an ISO date (YYYY-MM-DD) and a well name.`);
-      return;
+      errors.push(`Line ${r.line}: needs a date and a well name (read "${r.cells[idx.date] ?? ''}", "${r.cells[idx.well] ?? ''}").`);
+      continue;
     }
     const num = (key) => {
-      if (idx[key] < 0) return null;
-      const cell = cells[idx[key]];
-      if (cell == null || cell === '') return null;
-      const n = Number(cell);
-      if (!Number.isFinite(n)) {
-        errors.push(`Line ${lineNo}: ${key} value '${cell}' is not a number.`);
+      if (idx[key] < 0 || !conv[key]) return null;
+      const v = r.values[idx[key]];
+      if (typeof v !== 'number' || !Number.isFinite(v)) {
+        const raw = String(r.cells[idx[key]] ?? '').trim();
+        if (raw !== '' && !isNullToken(raw)) errors.push(`Line ${r.line}: ${key} value '${raw}' is not a number.`);
         return null;
       }
-      return n;
+      return conv[key](v);
     };
     rows.push({ date, well, oil: num('oil'), water: num('water'), gas: num('gas') });
-  });
-
+  }
+  if (t.report.skipped.length) readBack.push(`Skipped ${t.report.skipped.length} line(s): ${t.report.skipped.slice(0, 3).map((x) => `line ${x.line} (${x.reason})`).join(', ')}.`);
   const columns = ['date', 'well', ...['oil', 'water', 'gas'].filter((k) => idx[k] >= 0)];
-  return { rows, columns, errors };
+  return { rows, columns, errors, questions: [], readBack };
 }
 
 /**

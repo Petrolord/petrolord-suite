@@ -1,0 +1,285 @@
+Reservoir Simulation Report
+Petrolord Reservoir Simulation Studio
+
+Case                       SPE1 benchmark                                       Company                 Ekene Energy
+Field                      n/a                                                  Licence or block        n/a
+Reservoir or zone          n/a                                                  Analyst                 n/a
+Model period               2015-01-01 to 2024-12-29                             Analysis type           Black-oil reservoir simulation, OPM Flow
+                                                                                                        (finite-volume, fully implicit)
+Run                        run-0001 (complete)                                  Display units           Oilfield (oil and water STB and STB/d, gas
+                                                                                                        Mscf and Mscf/d, GOR Mscf/STB,
+                                                                                                        pressure psia, depth ft)
+Generated                  2026-10-04 12:00 UTC
+
+
+Headline results
+ Quantity                               Value                Unit           Where it comes from
+
+ Cumulative oil produced                        45,898,400   STB            FOPT is not in the summary; the simulator's well totals in the PRT at
+                                                                            report step 120
+
+ Cumulative water injected                              0    STB            FWIT is not in the summary; the simulator's well totals in the PRT at
+                                                                            report step 120
+
+ Cumulative gas injected                    365,000,000      Mscf           FGIT is not in the summary; the simulator's well totals in the PRT at
+                                                                            report step 120
+
+ Oil rate at the end                                5,558    STB/d          FOPR at 2024-12-29
+
+ Field pressure at the end                             n/a   psia           FPR is not in the summary (the deck's SUMMARY section does not
+                                                                            request it)
+
+ Water cut at the end                                  n/a   fraction       FWCT is not in the summary (the deck's SUMMARY section does not
+                                                                            request it)
+
+ GOR at the end                                    21.473    Mscf/STB       FGOR at 2024-12-29
+
+ Oil originally in place                    284,630,659      STB            Simulator balance sheet (PRT), stock tank
+
+ Recovery factor to the end                         16.13    percent        Cumulative oil produced / oil originally in place
+
+End of the run. Numbers from the simulator's summary vectors, shown in the display units; the deck's numbers were read as FIELD (stated by the
+deck (recorded by the worker)).
+
+
+Material balance (from the simulator's PRT)
+ Component        Originally in place      In place at the end       Produced         Injected          Error       Error / original      Within rounding
+
+ Oil (STB)                   284,630,659              238,732,120        45,898,400                0       139                  4.9e-7    no
+
+ Water (STB)                  62,819,996               62,819,996                 0                0            0               0.0e+0    yes
+
+ Gas (Mscf)                  361,480,937              371,485,785       355,000,000       365,000,000    -4,848                 -1.3e-5   yes
+
+The balance closes at report step 120 (29 Dec 2024): every component's error is within the rounding of the printed tables or within 0.01 percent of
+what was in place. Error = (originally in place - in place at the end) - (produced - injected), per component at surface conditions, as the simulator
+printed its balance sheet and well totals.
+
+
+
+
+Reservoir Simulation Report, SPE1 benchmark                                                                                                       Page 1 of 5
+Convergence (from the simulator's PRT)
+ Quantity                                       Value
+
+ Simulator time steps                           123
+
+ Report steps                                   120
+
+ Newton iterations                              313 (wasted 0)
+
+ Linear iterations                              442 (wasted 0)
+
+ Linearizations                                 436 (wasted 0)
+
+ Time steps chopped (convergence failures)      0
+
+ Messages: errors, warnings, problems           0, 3, 0
+
+ Simulation time (simulator clock)              6.55 s
+
+No time step was cut: every step converged on its first try, 2.54 Newton iterations per step on average.
+
+Run provenance
+ Item                                           Value
+
+ Deck file                                      SPE1CASE1.DATA
+
+ Deck source                                    Bundled SPE benchmark template (SPE1CASE1)
+
+ Deck SHA-256 (as run, hashed by the            c39efef3fab81cfd2d54d2b877010f926165c388704e08ed144a9d64351e3308
+ worker)
+
+ Simulator                                      OPM Flow 2026.04 (open source, GPLv3; image pinned by digest, version asserted at build)
+
+ Worker                                         vps-sim-worker-1
+
+ Attempt                                        1
+
+ Queued                                         2026-10-04 09:00:00 UTC
+
+ Started (claimed by the worker)                2026-10-04 09:00:02 UTC
+
+ Finished                                       2026-10-04 09:00:09 UTC
+
+ Elapsed                                        7.9 s
+
+ Exit code                                      0
+
+ Report steps, simulator time steps             120, 123
+
+ Report built by                                Petrolord Suite test (fixture)
+
+
+
+
+Reservoir Simulation Report, SPE1 benchmark                                                                                        Page 2 of 5
+What the deck holds
+ Item                                             As read from the main deck
+
+ Deck unit system                                 FIELD; the numbers of this report are shown in oilfield units (deck numbers read as FIELD:
+                                                  stated by the deck (recorded by the worker))
+
+ Phases                                           OIL, WATER, GAS, DISGAS
+
+ Grid                                             10 x 10 x 3 = 300 cells, block-centred (DX/DY/DZ/TOPS); active cells 300
+
+ Pore volume (simulator)                          534,322,820 RB
+
+ Start date                                       2015-01-01
+
+ Schedule                                         120 TSTEP steps, 3,650.0 days; declared controls only (no history phase)
+
+ Initialisation (EQUIL)                           datum 8,400 ft at 4,800 psia; OWC 8,450 ft; GOC 8,300 ft; depths are deck depths, positive
+                                                  down (TVDSS for a builder deck)
+
+ PVT tables                                       PVTO, PVDG, PVTW, ROCK, DENSITY. As written in the deck; the deck states no source.
+
+ Saturation functions                             SWOF, SGOF. As written in the deck; the deck states no source.
+
+ Aquifers                                         none in the main deck
+
+ Files included by the deck                       none
+
+
+Wells in the deck
+ Well             Role in the deck                    Preferred phase                    Head I, J             Reference depth (ft)
+
+ PROD             producer                            OIL                                10, 10                8,400
+
+ INJ              injector                            GAS                                1, 1                  8,335
+
+
+
+Model Builder inputs
+Not shown: No builder form is saved with this case. The deck itself, summarised above, is the record of this run's inputs.
+
+
+Limits of this analysis
+- Black-oil model as the deck defines it (OIL, WATER, GAS, DISGAS): no compositional or thermal effects.
+- Grid resolution: 300 cells. Results are averages over each cell; gradients finer than a cell (coning, near-well saturation fronts) are not resolved.
+- The grid geometry is the deck's own.
+- PVT: As written in the deck; the deck states no source.
+- Saturation functions: As written in the deck; the deck states no source. Two-phase tables; the three-phase oil relative permeability is the
+simulator's default model; no hysteresis and no end-point scaling unless the deck says so.
+- No aquifer is modelled in the main deck: pressure support comes from the wells only.
+- Wells are controlled as the deck declares; no well economic limits or group controls are applied unless the deck holds them.
+- A single deterministic run: no uncertainty range. The material balance and convergence statements are the simulator's own printout as read by
+the worker.
+
+Flags on this run
+- Builder inputs: not shown. No builder form is saved with this case.
+
+
+
+
+Reservoir Simulation Report, SPE1 benchmark                                                                                                  Page 3 of 5
+Plots
+Figure 1. Field production rates
+
+                                  Oil (FOPR)
+                        20000
+
+
+
+                        15000
+  Liquid rate (STB/d)
+
+
+
+
+                        10000
+
+
+
+                        5000
+
+
+
+                           0
+                           2014                 2016      2018                  2020                    2022           2024                  2026
+
+                                                                 Date (run start plus simulator days)
+
+Field oil and water rates (left, STB/d) and gas rate (right, Mscf/d) as the simulator wrote them at each time step. FWPR is not in the summary.
+FGPR is not in the summary.
+
+
+Figure 2. Field cumulative volumes
+Not plotted: the summary holds none of FOPT, FWIT, FGIT (the deck's SUMMARY section does not request them).
+
+
+Figure 3. Reservoir and bottomhole pressure
+
+                                  BHP INJ      BHP PROD
+                        10000
+
+
+                        8000
+  Pressure (psia)
+
+
+
+
+                        6000
+
+
+                        4000
+
+
+                        2000
+
+
+                           0
+                           2014                 2016      2018                  2020                    2022           2024                  2026
+
+                                                                 Date (run start plus simulator days)
+
+FPR is not in the summary. The bottomhole pressure of 2 wells (WBHP), psia absolute.
+
+
+
+
+Reservoir Simulation Report, SPE1 benchmark                                                                                             Page 4 of 5
+Figure 4. Water cut and gas-oil ratio
+
+                          GOR (FGOR)
+                   25
+
+
+                   20
+  GOR (Mscf/STB)
+
+
+
+
+                   15
+
+
+                   10
+
+
+                   5
+
+
+                   0
+                   2014                2016       2018                    2020                    2022       2024                2026
+
+                                                           Date (run start plus simulator days)
+
+FWCT is not in the summary and producing GOR (Mscf/STB).
+
+
+Figure 5. Field injection rates
+Not plotted: the summary holds none of FWIR, FGIR (the deck's SUMMARY section does not request them).
+
+
+Figure 6. History match: observed against simulated
+Does not apply: the deck carries no observed rates (no WCONHIST history and no FOPRH, FWPRH or FGPRH vectors). Add a production history
+on the Builder tab to run one.
+
+
+
+
+Reservoir Simulation Report, SPE1 benchmark                                                                                 Page 5 of 5
+

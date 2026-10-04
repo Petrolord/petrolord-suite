@@ -39,7 +39,34 @@ def _report_step_count(summary):
         return None
 
 
-def build_summary(case_path, opm_version, deck_sha256):
+_UNIT_KEYWORD = re.compile(r"^(FIELD|METRIC|LAB|PVT-M)\s*(--.*)?$")
+
+
+def deck_unit_system(deck_path):
+    """The unit keyword of the deck's RUNSPEC (FIELD, METRIC, LAB, PVT-M), or
+    None when the deck states none (Eclipse then reads METRIC). The SPA labels
+    the summary vectors with it; before, every run was labelled FIELD."""
+    try:
+        with open(deck_path, "r", errors="replace") as f:
+            for line in f:
+                text = line.strip()
+                if text.upper().startswith("GRID"):
+                    break
+                m = _UNIT_KEYWORD.match(text)
+                if m:
+                    return m.group(1)
+    except OSError:
+        return None
+    return None
+
+
+def find_prt(workdir):
+    """The PRT flow wrote, or None."""
+    prts = sorted(glob.glob(os.path.join(workdir, "out", "*.PRT")))
+    return prts[0] if prts else None
+
+
+def build_summary(case_path, opm_version, deck_sha256, diagnostics=None, run_meta=None, unit_system=None):
     try:
         summary = Summary(case_path)
     except Exception as e:
@@ -97,6 +124,14 @@ def build_summary(case_path, opm_version, deck_sha256):
         "stride": stride,               # 1 = not thinned
         "points": len(doc["days"]),     # rows in this document and its CSV
     }
+    # SIM-U1: what the PRT says about the run (material balance, convergence,
+    # active cells); the SPA's report prints it, or says it was not reported.
+    if diagnostics is not None:
+        doc["diagnostics"] = diagnostics
+    if run_meta is not None:
+        doc["run"] = run_meta
+    # the deck's unit system; "unstated" when RUNSPEC names none (METRIC applies)
+    doc["unit_system"] = unit_system or "unstated"
     blob = json.dumps(doc).encode("utf-8")
     if len(blob) > config.SUMMARY_MAX_BYTES:
         raise SimFailure("output_too_large",

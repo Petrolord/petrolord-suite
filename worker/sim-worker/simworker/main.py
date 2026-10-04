@@ -12,7 +12,7 @@ import subprocess
 import threading
 import time
 
-from . import config, deck, results, runner, supa
+from . import config, deck, prt, results, runner, supa
 from .errors import SimFailure, truncate
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"),
@@ -60,6 +60,10 @@ def process_run(run, version):
     hb = Heartbeat(run_id)
     hb.start()
     result_prefix = f"{user_id}/{case_id}/runs/{run_id}"
+    # SIM-U1: what the run said about itself travels with a failure too
+    # (exit code, elapsed time, log, active cells); before, only the
+    # cancelled path kept them and a failed run lost its exit code.
+    base_fields = {}
     try:
         os.makedirs(scratch, exist_ok=True)
         supa.update_run(run_id, {"opm_version": version})
@@ -82,11 +86,14 @@ def process_run(run, version):
         if excerpt:
             supa.storage_upload(f"{result_prefix}/prt_excerpt.txt", excerpt, "text/plain")
 
+        diagnostics = prt.parse_prt_file(results.find_prt(scratch))
         base_fields = {
             "exit_code": outcome["exit_code"],
             "elapsed_seconds": round(outcome["elapsed"], 1),
             "log_path": f"{result_prefix}/prt_excerpt.txt" if excerpt else None,
         }
+        if diagnostics.get("active_cells") is not None:
+            base_fields["active_cells"] = diagnostics["active_cells"]
 
         if outcome["cancelled"]:
             supa.update_run(run_id, {**base_fields, "status": "cancelled",
@@ -113,7 +120,13 @@ def process_run(run, version):
 
         # --- results ---
         case_path = results.find_summary_case(out_dir)
-        doc, blob = results.build_summary(case_path, version, deck_sha)
+        doc, blob = results.build_summary(case_path, version, deck_sha,
+                                          diagnostics=diagnostics,
+                                          unit_system=results.deck_unit_system(os.path.join(scratch, main_rel)),
+                                          run_meta={"worker_id": config.WORKER_ID,
+                                                    "attempt": run.get("attempt"),
+                                                    "elapsed_seconds": base_fields["elapsed_seconds"],
+                                                    "exit_code": outcome["exit_code"]})
         try:
             supa.storage_upload(f"{result_prefix}/summary.json", blob, "application/json")
             supa.storage_upload(f"{result_prefix}/summary.csv",
@@ -138,19 +151,20 @@ def process_run(run, version):
 
     except SimFailure as f:
         log.warning("run %s failed at %s: %s", run_id, f.stage, f.message)
-        _finalize_failed(run_id, f.stage, f.message)
+        _finalize_failed(run_id, f.stage, f.message, base_fields)
     except Exception as e:  # unexpected — still land honestly
         log.exception("run %s crashed", run_id)
         _finalize_failed(run_id, "sim_failed",
-                         truncate(f"Unexpected worker error: {e}"))
+                         truncate(f"Unexpected worker error: {e}"), base_fields)
     finally:
         hb.stop()
         shutil.rmtree(scratch, ignore_errors=True)
 
 
-def _finalize_failed(run_id, stage, message):
+def _finalize_failed(run_id, stage, message, extra=None):
     try:
         supa.update_run(run_id, {
+            **(extra or {}),
             "status": "failed",
             "failure_stage": stage,
             "error_message": message,
@@ -190,7 +204,11 @@ def _main_deck_rel(case, files):
 
 def _sim_error_text(scratch, outcome):
     excerpt = results.prt_excerpt(scratch).decode("utf-8", errors="replace")
-    error_lines = [l for l in excerpt.splitlines() if "error" in l.lower()][:40]
+    error_lines = []
+    for line in excerpt.splitlines():
+        if "error" in line.lower() and line not in error_lines:
+            error_lines.append(line)
+    error_lines = error_lines[:40]
     body = "\n".join(error_lines) if error_lines else outcome["stderr_tail"]
     return truncate("The simulator reported an error:\n" + (body or "(no error text)"))
 

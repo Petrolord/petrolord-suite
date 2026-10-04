@@ -13,3 +13,5 @@ REF_SPE1CASE1.SMSPEC / REF_SPE1CASE1.UNSMRY
   License: Open Database License (ODbL) 1.0
   These are the OPM project's flow reference results used as the
   regression baseline for the worker's SPE1 golden gate.
+
+Petrolord change (2026-10-04): the fluid-in-place report keywords (RPTSOL FIP=1, and FIP=1 in RPTSCHED; for SPE9 also WELLS=1) were added so a run prints its balance sheet for the studio report. Reporting only; no data or physics changed.

@@ -17,12 +17,25 @@ import RunPanel from '@/components/simstudio/RunPanel';
 import ResultsPanel from '@/components/simstudio/ResultsPanel';
 import SimKpiPanel from '@/components/simstudio/SimKpiPanel';
 import SimHelpGuide from '@/components/simstudio/SimHelpGuide';
+import ReportPanel from '@/components/simstudio/ReportPanel';
+import { supabaseSharingStore } from '@/lib/recordSharing';
+import { RecordSharingBar } from '@/components/recordSharing';
+import { useProfileSystem } from '@/lib/units/useProfileSystem';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { SIM_PROFILE_FAMILIES } from '@/utils/simstudio/simUnits';
+
+// One store per page; record sharing of sim_cases (SIM-U1, PL5).
+const SHARING_STORE = supabaseSharingStore();
+const useOrganizationName = () => {
+  try { return useAuth()?.organization?.name || ''; } catch { return ''; }
+};
 
 const TABS = [
   { value: 'deck', label: 'Deck' },
   { value: 'builder', label: 'Builder' },
   { value: 'runs', label: 'Runs' },
   { value: 'results', label: 'Results' },
+  { value: 'report', label: 'Report' },
 ];
 
 const SectionLabel = ({ children }) => (
@@ -36,28 +49,38 @@ const SimStudioContent = () => {
     TABS.some((t) => t.value === requested) ? requested : 'deck',
   );
   const {
-    cases, activeCaseId, createCase, openCase, deleteCase,
-    notifications, removeNotification,
+    cases, activeCase, activeCaseId, createCase, openCase, deleteCase,
+    notifications, removeNotification, sharing, ownerOnlyReason, readOnlyReason,
   } = useSimStudio();
+  const myId = sharing?.userId;
 
   const leftPanel = (
     <div className="space-y-6">
       <section>
-        <SectionLabel>Case</SectionLabel>
+        <SectionLabel>Cases</SectionLabel>
         <StudioProjectManager
           label="Case"
-          projects={cases.map((c) => ({ id: c.id, name: c.name }))}
+          projects={cases.map((c) => ({ id: c.id, name: myId && c.user_id && c.user_id !== myId ? `${c.name} (shared with me)` : c.name }))}
           currentProjectId={activeCaseId}
           onCreate={createCase}
           onOpen={openCase}
           onDelete={deleteCase}
         />
+        {activeCase && (
+          <RecordSharingBar sharing={sharing} label="case" className="mt-2" />
+        )}
+        {ownerOnlyReason && (
+          <p className="text-[11px] text-pl-warning-text mt-2" data-testid="sim-owner-only">{ownerOnlyReason}</p>
+        )}
+        {readOnlyReason && (
+          <p className="text-[11px] text-pl-muted mt-1" data-testid="sim-read-only">{readOnlyReason}</p>
+        )}
       </section>
       <section>
         <p className="text-[11px] text-pl-muted leading-relaxed">
-          A case is one Eclipse-format deck plus its run history. The simulation
-          itself runs on the platform&apos;s OPM Flow worker; this app never fakes a
-          result.
+          A case is one Eclipse-format deck, the Model Builder form that made it (saved with the case) and its run
+          history. The simulation runs on the platform&apos;s OPM Flow worker; results, the material balance and the
+          convergence come from the simulator&apos;s own output.
         </p>
       </section>
     </div>
@@ -78,6 +101,7 @@ const SimStudioContent = () => {
       {activeTab === 'builder' && <BuilderPanel />}
       {activeTab === 'runs' && <RunPanel />}
       {activeTab === 'results' && <ResultsPanel />}
+      {activeTab === 'report' && <ReportPanel />}
     </div>
   );
 
@@ -122,10 +146,12 @@ const SimStudioContent = () => {
 // page sits in the dashboard scope, so it opens light and the header toggle
 // switches it to dark per user. Charts keep the white chart standard; the
 // 3D preview is a dark canvas.
-export default function ReservoirSimulationStudio() {
+export default function ReservoirSimulationStudio({ sharingStore = SHARING_STORE }) {
+  const profileSystem = useProfileSystem('sim', SIM_PROFILE_FAMILIES);
+  const organizationName = useOrganizationName();
   return (
     <div data-testid="sim-theme-scope">
-      <SimStudioProvider>
+      <SimStudioProvider sharingStore={sharingStore} profileSystem={profileSystem} organizationName={organizationName}>
         <SimStudioContent />
       </SimStudioProvider>
     </div>
