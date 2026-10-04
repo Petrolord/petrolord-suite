@@ -79,3 +79,39 @@ The estimator opts in to the Petrolord design system. No engine change.
   are mono, the analog warning uses the warning role, the selected drive row
   a light primary tint. The reserves chart keeps the white chart standard.
 - Test: `src/pages/apps/__tests__/RecoveryFactorEstimator.theme.test.jsx`.
+
+## 2026-10-04: Reservoir upgrade round, app 10, Step 1 (branch `feat/rf-u1`)
+
+Working doc: `docs/upgrade/RecoveryFactorEstimator-UPGRADE.md` (21 findings,
+19 fixed, 2 open S3 carried into Step 2; Step 2 analysis and ranked backlog).
+
+- **S1 fixed (numbers change):** the API (Arps et al. 1967) correlations take
+  permeability in darcies; the engine used the typed md value, so API
+  estimates were 1.97 (solution gas) and 1.70 (water drive) times too high.
+  Sample water drive 72.0 to 42.3 percent. k is still typed in md and is
+  divided by 1,000 in the engine. A project saved before this says so when it
+  opens. Release note: every saved API estimate falls by those factors.
+- No silent clamp: a value outside 0 to 100 percent is withheld with its
+  reason; above or below the analog range is flagged. Inputs are checked
+  against the domain of each method; a correlation used under another drive
+  is flagged.
+- The analog ranges are labelled as transcribed and not validated; Low and
+  High are range edges, not P90 and P10.
+- The report on the shared kit (Report tab, PDF): identification, headline
+  with its basis, OOIP and the correlation by their parts, inputs with units
+  and sources, method and validation state, basis, limits and flags, intake
+  records, three figures. Read back in jest (3 goldens) and in the e2e.
+- Intakes by id: OOIP/OGIP from a Material Balance case (mbal-1,
+  `?mbalCase=`) or a ReservoirCalc Pro saved project; PVT from a Fluid
+  Systems Studio project (pvt-1, `?fluidProject=`), with "edited after
+  intake" and "source changed since".
+- Suite unit profile (oilfield and SI, values stored oilfield, typed decimals
+  kept through the shared draft hook); record sharing with check-out; the
+  sample labelled as the sample; payload version 2 travels in `.pld` with its
+  intake ids declared.
+- No migration. Engine stays Suite-side (`src/utils/recoveryFactorCalculations.js`);
+  no engines PR.
+- Tests: `src/utils/__tests__/recoveryFactorValidation.test.js` (gates calling
+  the engine, negative control 9 of 15 failing on the pre-fix engine),
+  `src/utils/rfestimator/__tests__/*`, `src/contexts/__tests__/rfSharing.test.jsx`,
+  e2e `e2e/recovery-factor-upgrade.spec.js`; T1 e2e re-pinned to 42.3 percent.

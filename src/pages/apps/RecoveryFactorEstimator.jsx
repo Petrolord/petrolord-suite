@@ -1,9 +1,9 @@
-// Recovery Factor Estimator on the shared Studio shell (kit upgrade,
-// docs/scope/RecoveryFactorEstimator-STATUS.md): StudioLayout +
-// saved_rf_projects persistence with debounced autosave. The engine
-// (recoveryFactorCalculations.js) is untouched; the pre-Studio inputs,
-// chart and reference table live on as rfestimator panels.
-import React from 'react';
+// Recovery Factor Estimator on the shared Studio shell
+// (docs/scope/RecoveryFactorEstimator-STATUS.md): StudioLayout +
+// saved_rf_projects persistence with debounced autosave. RF-U1 (Reservoir
+// round, app 10): two tabs (Estimate, Report), record sharing, display
+// units from the Suite unit profile, the report on the shared kit.
+import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Percent, Beaker } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,22 @@ import MethodPanel from '@/components/rfestimator/MethodPanel';
 import RfKpiPanel from '@/components/rfestimator/RfKpiPanel';
 import ReservesChartPanel from '@/components/rfestimator/ReservesChartPanel';
 import DriveReferencePanel from '@/components/rfestimator/DriveReferencePanel';
+import ReportTab from '@/components/rfestimator/ReportTab';
 import RecoveryFactorHelpContent from '@/components/reservoir/RecoveryFactorHelpGuide';
+import { supabaseSharingStore } from '@/lib/recordSharing';
+import { RecordSharingBar } from '@/components/recordSharing';
+import { useProfileSystem } from '@/lib/units/useProfileSystem';
+import { buildLabel } from '@/lib/platformBuild';
+import { RF_PROFILE_FAMILIES } from '@/utils/rfestimator/units';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+// one sharing store per page load (the signed-in user's session)
+const SHARING_STORE = supabaseSharingStore();
+
+const TABS = [
+  { value: 'estimate', label: 'Estimate' },
+  { value: 'report', label: 'Report' },
+];
 
 const SectionLabel = ({ children }) => (
   <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
@@ -26,21 +41,53 @@ const SectionLabel = ({ children }) => (
 
 const RfEstimatorContent = () => {
   const {
-    projects, currentProjectId, createProject, openProject, deleteProject,
+    projects, sharedProjects, currentProjectId, createProject, openProject, deleteProject,
+    projectRow, sharing, viewingShared, canWrite, saveCopy,
+    unitSystem, setUnitSystem, followsProfile,
     manualSave, isSaving, saveError, lastSaveTime,
     notifications, removeNotification, loadSample,
   } = useRfEstimator();
+  const [activeTab, setActiveTab] = useState('estimate');
 
   const leftPanel = (
     <div className="space-y-6">
       <section>
         <StudioProjectManager
           projects={projects}
+          sharedProjects={sharedProjects}
+          canDelete={!viewingShared}
           currentProjectId={currentProjectId}
           onCreate={createProject}
           onOpen={openProject}
           onDelete={deleteProject}
         />
+        {projectRow && (
+          <RecordSharingBar
+            sharing={sharing}
+            label="project"
+            className="mt-2"
+            onSaveCopy={saveCopy}
+            onReload={() => openProject(currentProjectId)}
+            fieldLabels={{ project_name: 'name', inputs_data: 'inputs, sources, identification and intakes' }}
+          />
+        )}
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <span className="text-xs text-pl-muted">Display units{followsProfile ? ' (your Suite unit profile)' : ''}</span>
+          <Select value={unitSystem} onValueChange={setUnitSystem}>
+            <SelectTrigger className="h-8 w-[112px] text-xs" aria-label="Display units" data-testid="rf-unit-system">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="oilfield">Oilfield</SelectItem>
+              <SelectItem value="si">SI</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {projectRow && sharing.ready && !canWrite && (
+          <p className="mt-2 text-xs text-pl-warning-text" data-testid="rf-read-only">
+            {sharing.readOnlyReason || 'This project is open read-only.'} Changes you make here are not saved to it.
+          </p>
+        )}
       </section>
       <section>
         <SectionLabel>In-place Volume</SectionLabel>
@@ -62,7 +109,7 @@ const RfEstimatorContent = () => {
     </div>
   );
 
-  const main = (
+  const main = activeTab === 'report' ? <ReportTab /> : (
     <div className="h-full overflow-y-auto space-y-4">
       <ReservesChartPanel />
       <DriveReferencePanel />
@@ -82,6 +129,9 @@ const RfEstimatorContent = () => {
             backTitle="Back to Reservoir Management"
             icon={Percent}
             title="Recovery Factor Estimator"
+            tabs={TABS}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
           />
         }
         headerActions={
@@ -113,10 +163,11 @@ const RfEstimatorContent = () => {
 // Design system rollout batch 2A (docs/scope/DesignSystem-Rollout.md): the
 // page sits in the dashboard scope, so it opens light and the header toggle
 // switches it to dark per user. Charts keep the white chart standard.
-export default function RecoveryFactorEstimator() {
+export default function RecoveryFactorEstimator({ sharingStore = SHARING_STORE }) {
+  const profileSystem = useProfileSystem('rf', RF_PROFILE_FAMILIES);
   return (
     <div data-testid="rf-theme-scope">
-      <RfEstimatorProvider>
+      <RfEstimatorProvider sharingStore={sharingStore} profileSystem={profileSystem} build={buildLabel()}>
         <RfEstimatorContent />
       </RfEstimatorProvider>
     </div>
