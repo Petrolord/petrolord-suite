@@ -22,5 +22,22 @@
     "manifestPaths": 750,
     "vendoredPaths": 750
   },
-  "knownDeviations": []
+  "knownDeviations": [
+    {
+      "path": "engines/waterflood/vrrLedger.js",
+      "kind": "differing",
+      "vendoredSha": "ed3bcb69230463b481fbee8f3962a5f6b6915901",
+      "group": "vrr-u1 (engines PR #305)",
+      "reason": "Voidage Replacement Monitor U1 engines (voidage ledger by term, per-period FVFs in patterns and the injection advice), vendored from Petrolord/petrolord-engines PR #305 head 6bcb6a6 (blob identical there); the app agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #305 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every vrr-u1 row."
+    },
+    {
+      "path": "__tests__/waterflood.vrrvoidage.test.js",
+      "kind": "extra",
+      "vendoredSha": "24d546013384a3f2c22dbe06840e705eb776defe",
+      "group": "vrr-u1 (engines PR #305)",
+      "reason": "Voidage Replacement Monitor U1 engines (voidage ledger by term, per-period FVFs in patterns and the injection advice), vendored from Petrolord/petrolord-engines PR #305 head 6bcb6a6 (blob identical there); the app agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #305 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every vrr-u1 row."
+    }
+  ]
 }
