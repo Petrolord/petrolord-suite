@@ -212,7 +212,7 @@ const ReportResults = () => {
 
       <Card title="Reservoir and fluid inputs" testId="wts-report-inputs">
         <Table head={['Input', 'Value', 'Unit', 'Source and quality']} body={inputsTable.map((r) => [r.label, r.value, r.unit, r.source])} />
-        <p className="text-[11px] text-pl-muted mt-2">{inputsFootnote(isGas)}</p>
+        <p className="text-[11px] text-pl-muted mt-2">{inputsFootnote(isGas, reservoirSpec.reservoir?.pvtSource)}</p>
       </Card>
 
       <Card title="Flow and shut-in summary" testId="wts-report-flow">

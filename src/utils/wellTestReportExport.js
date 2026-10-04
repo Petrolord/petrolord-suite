@@ -281,7 +281,7 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
 
   // Reviewer round, items 1 and 2: every input with its unit and its source
   if (inputsTable.length) {
-    report.inputsTable(inputsTable, { title: 'Reservoir and fluid inputs', note: inputsFootnote(isGas) });
+    report.inputsTable(inputsTable, { title: 'Reservoir and fluid inputs', note: inputsFootnote(isGas, reservoir?.pvtSource) });
   }
 
   // Item 5: one row per flow or shut-in period

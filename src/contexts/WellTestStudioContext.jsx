@@ -23,7 +23,7 @@ import { provenanceFromPayload, setProvenanceField } from '@/lib/inputProvenance
 import {
   DEFAULT_IDENTIFICATION, DEFAULT_COMPLETION, resolveTotalCompressibility,
   buildSkinBreakdown, buildInputsTable, buildFlowSummary, buildIdentificationRows,
-  buildPressureBasisRows, buildDataUseRows, buildLimitsRows,
+  buildPressureBasisRows, buildDataUseRows, buildLimitsRows, pvtIntakeFromBackbone,
 } from '@/utils/welltest/reportModel';
 import { buildHistoryMatch, buildOverviewData, thinRows } from '@/utils/welltest/plotData';
 
@@ -71,6 +71,11 @@ export const DEFAULT_RESERVOIR = {
   // a project saved before 2026-10-04 carries no method and opens on Papay,
   // the method it was interpreted with (see hydrate).
   gasZMethod: 'dranchuk_abou_kassem',
+  // WTA-U2-001: where a gas test's z and viscosity come from. 'correlation'
+  // (gasZMethod with Lee-Gonzalez-Eakin, the path of every project without
+  // a Fluid intake) or 'fluid-table' (the Z and mu_g columns of the pvt-1
+  // table a Fluid Systems Studio project sent, kept in pvtIntake.gasTable).
+  gasPvtSource: 'correlation',
   // Tester round 2 (report inputs). ctMode 'total' keeps ct as the one
   // entered number; 'components' sums cf + So co + Sw cw + Sg cg in the
   // engine. Everything below is blank until entered and prints as n/a.
@@ -124,7 +129,7 @@ export const DEFAULT_WINDOWS = {
  * gas expression in m(p) space. mOfP/pOfM convert gauge pressures in and
  * answers back out.
  */
-export function buildReservoirInputs(r) {
+export function buildReservoirInputs(r, { gasTable = null } = {}) {
   const fluid = r.fluid === 'gas' ? 'gas' : 'oil';
   const out = {
     h: num(r.h), phi: num(r.phi), rw: num(r.rw), B: num(r.B),
@@ -152,8 +157,36 @@ export function buildReservoirInputs(r) {
       return { reservoir: null, error: 'Reservoir temperature must be given in degF.' };
     }
     const zMethod = WELLTEST_Z_METHODS[r.gasZMethod] ? r.gasZMethod : 'papay';
-    const pvt = makePseudoPressure(buildGasPvtTable({ gasGravity, tempF, pMax: Math.max(out.pi * 1.5, 2000), zMethod }));
+    // WTA-U2-001: the Fluid Systems Studio table, when chosen and held
+    const fromTable = r.gasPvtSource === 'fluid-table';
+    if (fromTable && !(gasTable?.rows?.length >= 3)) {
+      return { reservoir: null, error: 'The gas PVT is set to the Fluid Systems Studio table, but this project holds none. Take a Fluid Systems Studio project, or switch the gas PVT to correlations.' };
+    }
+    if (fromTable && out.pi > gasTable.pMax * (1 + 1e-9)) {
+      return { reservoir: null, error: `The Fluid Systems Studio table stops at ${gasTable.pMax} psia, below the initial pressure ${out.pi} psia. Ask Fluid Systems Studio for a table up to the initial pressure, or switch the gas PVT to correlations.`, tableTooShort: { pMax: gasTable.pMax, need: out.pi } };
+    }
+    const tableRows = fromTable
+      ? buildGasPvtTable({ table: gasTable.rows.map((x) => ({ p: x.p, z: x.z, mu: x.mu })) })
+      : buildGasPvtTable({ gasGravity, tempF, pMax: Math.max(out.pi * 1.5, 2000), zMethod });
+    const pvt = makePseudoPressure(tableRows);
     if (!pvt) return { reservoir: null, error: 'Gas PVT table could not be built.' };
+    if (fromTable) {
+      // the engine names a supplied table; the studio adds where it came from
+      pvt.source = {
+        ...pvt.source,
+        kind: 'fluid-table',
+        z: `Fluid Systems Studio table (${gasTable.zMethod})`,
+        viscosity: `Fluid Systems Studio table (${gasTable.muMethod})`,
+        zMethod: gasTable.zMethod,
+        muMethod: gasTable.muMethod,
+        origin: gasTable.origin,
+        rows: gasTable.n,
+        pMin: gasTable.pMin,
+        pMax: gasTable.pMax,
+        temperatureF: gasTable.temperatureF,
+        rangeFlags: gasTable.rangeFlags || [],
+      };
+    }
     const muI = pvt.muOf(out.pi);
     // components: a gas saturation with no cg entered takes cg(pi) from the PVT table
     const ctInfoGas = componentMode ? resolveTotalCompressibility(r, { cgFallback: pvt.cgOf(out.pi) }) : null;
@@ -169,7 +202,7 @@ export function buildReservoirInputs(r) {
         B: (GAS.SEMILOG_SLOPE * tempR) / (162.6 * muI),
         tempR,
         gasGravity,
-        zMethod,
+        zMethod: fromTable ? null : zMethod,
         mOfP: pvt.mOfP,
         pOfM: pvt.pOfM,
         // WT8 pseudo-time abscissa: mu(p) ct(p) along the gauge pressures.
@@ -549,7 +582,8 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   const setDeliverabilityRows = useCallback((rows) => setDeliverabilityInputs((prev) => ({ ...prev, rows })), []);
 
   // ---- Derived analysis (never persisted) ----
-  const reservoirSpec = useMemo(() => buildReservoirInputs(reservoirInputs), [reservoirInputs]);
+  const gasTable = pvtIntake?.gasTable || null;
+  const reservoirSpec = useMemo(() => buildReservoirInputs(reservoirInputs, { gasTable }), [reservoirInputs, gasTable]);
   const configSpec = useMemo(() => buildTestConfig(testConfig), [testConfig]);
   const model = useMemo(() => getModel(matchInputs.modelId) || getModel('homogeneous'), [matchInputs.modelId]);
 
@@ -951,11 +985,26 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   const analysisInputsKey = useMemo(() => {
     const r = reservoirSpec.reservoir;
     if (!r) return `invalid:${reservoirSpec.error || ''}`;
-    return [r.fluid, r.h, r.phi, r.rw, r.B, r.mu, r.ct, r.q, r.pi, r.tempR ?? '', r.gasGravity ?? '', r.zMethod ?? ''].join('|');
+    const table = r.pvtSource?.kind === 'fluid-table' ? `table:${r.pvtSource.rows}:${r.pvtSource.pMin}:${r.pvtSource.pMax}:${r.pvtSource.origin}` : '';
+    return [r.fluid, r.h, r.phi, r.rw, r.B, r.mu, r.ct, r.q, r.pi, r.tempR ?? '', r.gasGravity ?? '', r.zMethod ?? '', table].join('|');
   }, [reservoirSpec]);
   useEffect(() => {
     if (hasFitResult.current) setFitStale(true);
   }, [gaugeRows, analysisInputsKey, testConfig]);
+
+  // ---- PVT from Fluid Systems Studio (router state or read by id) ----
+  // WTA-U2-001: one door for the first intake and for "Read it again" on
+  // the shared card. The handoff's values go into the inputs, the record
+  // (with the gas table when the block carries one) is kept with the
+  // project. Returns the intake, or null when the handoff held nothing.
+  const takeFluidPvt = useCallback((fluid, how = 'received from Fluid Systems Studio') => {
+    const intake = pvtIntakeFromBackbone(fluid);
+    if (!intake) return null;
+    setReservoirInputs((prev) => ({ ...prev, ...intake.patch }));
+    setPvtIntake(intake.intake);
+    addNotification(`Fluid properties ${how}: ${intake.applied.join(', ')} applied. Review total compressibility manually.`, 'success');
+    return intake;
+  }, [addNotification]);
 
   // ---- Sample test ----
   const loadSampleTest = useCallback(() => {
@@ -1229,7 +1278,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     completion, setCompletionField, setCompletion,
     inputMeta, setInputMetaField,
     periodMeta, setPeriodMetaField,
-    pvtIntake, setPvtIntake,
+    pvtIntake, setPvtIntake, takeFluidPvt,
     gaugeImport, setGaugeImport,
     serializeInputs, importProjectPayload,
     reservoirInputs, setReservoirField,

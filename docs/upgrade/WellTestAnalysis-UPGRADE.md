@@ -239,6 +239,17 @@ merged; vendored byte-identical with `welltest-u2` ledger rows meanwhile).
 
 ## Step 2 build log
 
+### U2-001 Fluid's pvt-1 table into gas tests: done
+
+- A pvt-1 handoff (router state or `?fluidProject=` by id) now carries its gas columns (pressure, Z, mu_g, ascending) into the project as `pvtIntake.gasTable` with the methods the block names, its span, temperature and range flags (`gasTableFromContract`, `pvtIntakeFromBackbone`). The project switches its gas PVT to the table (`reservoirInputs.gasPvtSource = 'fluid-table'`) and takes the block's temperature.
+- The analysis builds m(p), z, mu and cg from the table through the engine's supplied-table path (`buildGasPvtTable({ table })`), so nothing is interpolated or integrated outside the engine; the studio names the source (`pvtSource.kind = 'fluid-table'`).
+- The correlation path stays for projects without an intake and is one choice away; a payload saved before carries no `gasPvtSource` and opens on the correlations with its numbers.
+- A table that stops below pi is refused with a link that asks Fluid Systems Studio for a taller table (`?pvtPMax=`, FLUID-U2-026).
+- The shared PVT card shows the table row (method of Z and of viscosity) and "source changed since"; "Read it again" re-reads the project by id and takes the new block (`takeFluidPvt`).
+- Report: inputs table "Gas PVT table" row with its span and origin, gas footnote, and a limits row "Gas PVT table range" checking the test pressures against the span (and a temperature mismatch).
+- Proving test: `src/components/welltest/__tests__/wellTestU2.test.jsx`, describe U2-001 (4): z, mu at pi equal linear interpolation of the block rows and m(p) at the nodes equals an independent trapezoid of 2p/(mu z) to 1e-10; the earlier correlation value differs (negative control); the PDF names the table and project; old payloads stay on correlations; short table refused; card status As received then Source changed since. Written against code without `takeFluidPvt`, so all four fail on main.
+- Numbers: unchanged for every project without a Fluid intake. A gas project that takes a Fluid table moves to the table's z and viscosity (the Fluid sample at 4,800 psia: mu from the table instead of Lee-Gonzalez-Eakin on the Well Test gravity).
+
 ## Validation weaker than asked
 
 - DAK is gated against chart readings and the canonical engine only; the Well Test route itself has no published PTA gas example on DAK (the Ahmed examples in the harness use supplied tables).

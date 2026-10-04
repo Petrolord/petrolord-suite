@@ -15,6 +15,7 @@
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import {
   INPUT_SOURCES, sourceText, assumedDefaultText, pvtIntake as intakeFromHandoff, intakeSourceText, editedAfterHandoffText,
+  pvtContractOf, pvtContractOrigin,
 } from '@/lib/inputProvenance';
 import { unitLabel, fromOilfield } from './units.js';
 import { partialPenetrationSkin } from './partialPenetration.js';
@@ -130,6 +131,8 @@ export const SOURCED_INPUTS = Object.freeze([
 /** Engine PVT source (gas.js) as a sentence, or null when the engine gave none. */
 export function gasPvtSourceText(source) {
   if (!source) return null;
+  // WTA-U2-001: the pvt-1 table of a Fluid Systems Studio project
+  if (source.kind === 'fluid-table') return `Fluid Systems Studio table: z by ${source.zMethod}, viscosity by ${source.muMethod}${source.origin || ''}`;
   if (source.kind === 'table') return 'Supplied PVT table';
   const parts = [`${source.z} z-factor`, `${source.viscosity} viscosity`];
   if (source.pseudoCriticals) parts.push(`${source.pseudoCriticals} pseudo-criticals`);
@@ -147,6 +150,54 @@ export const WELLTEST_PVT_FIELDS = Object.freeze([
   { property: 'inlet_temperature', key: 'temperature', storeKey: 'reservoirTempF', label: 'temperature' },
 ]);
 
+// ---- the gas PVT table of a Fluid Systems Studio project (WTA-U2-001) --------
+
+/**
+ * The gas rows of a pvt-1 block: pressure, Z and gas viscosity, in the
+ * units the block states (psia, cP), ascending in pressure, with the
+ * method of each column as the block names it. The table of a black-oil
+ * project carries Z and mu_g at every pressure (the separator gas); an
+ * equation-of-state table carries them where it has a gas phase.
+ * @returns {?{rows: Array<{p: number, z: number, mu: number}>, n: number, pMin: number, pMax: number,
+ *   zMethod: string, muMethod: string, origin: string, temperatureF: ?number, gasGravity: ?number, rangeFlags: string[]}}
+ *   null when the block has fewer than three usable gas rows or states other units
+ */
+export function gasTableFromContract(carrier) {
+  const b = pvtContractOf(carrier);
+  if (!b || !Array.isArray(b.table)) return null;
+  const u = b.units || {};
+  if (u.pressure !== 'psia' || (u.mu_g && !/^c[Pp]$/.test(u.mu_g))) return null;
+  const rows = b.table
+    .map((r) => ({ p: Number(r?.pressure), z: Number(r?.Z), mu: Number(r?.mu_g) }))
+    .filter((r) => Number.isFinite(r.p) && r.p > 0 && r.z > 0 && r.mu > 0)
+    .sort((a, c) => a.p - c.p)
+    .filter((r, i, arr) => i === 0 || r.p > arr[i - 1].p);
+  if (rows.length < 3) return null;
+  const finiteOr = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : null);
+  return {
+    rows,
+    n: rows.length,
+    pMin: rows[0].p,
+    pMax: rows[rows.length - 1].p,
+    zMethod: b.methods?.z?.method || 'method not stated by the block',
+    muMethod: b.methods?.mu_g?.method || 'method not stated by the block',
+    origin: pvtContractOrigin(b),
+    temperatureF: finiteOr(b.inputs?.temperature),
+    gasGravity: finiteOr(b.inputs?.gas_gravity),
+    rangeFlags: (b.range_flags || []).filter((f) => (f.properties || []).some((x) => /Gas deviation|Gas viscosity/.test(x))).map((f) => f.text).filter(Boolean),
+  };
+}
+
+/** The shared card's rows in this studio: the oil values, and the gas table when the intake holds one (method from the block). */
+export function wellTestPvtCardFields(intake) {
+  const gt = intake?.gasTable;
+  if (!gt) return WELLTEST_PVT_FIELDS;
+  return [
+    ...WELLTEST_PVT_FIELDS,
+    { property: 'z', key: 'gasTableRows', label: `Gas Z and viscosity table (rows, ${plain(gt.pMin)} to ${plain(gt.pMax)} psia)`, method: `Z: ${gt.zMethod}; viscosity: ${gt.muMethod}` },
+  ];
+}
+
 /**
  * A Fluid Systems Studio handoff (the fluid backbone) as a patch of the
  * reservoir inputs and the words for the Source column. Bo and viscosity
@@ -163,13 +214,24 @@ export function pvtIntakeFromBackbone(fluid) {
   // values received only for a pvt-1 handoff, so a value edited after a
   // version-1 handoff kept the handoff as its source. The values applied are
   // recorded here for every handoff.
-  const intake = out.intake.values ? out.intake : {
+  let intake = out.intake.values ? out.intake : {
     ...out.intake,
     values: Object.fromEntries(WELLTEST_PVT_FIELDS
       .filter((f) => out.patch[f.storeKey || f.key] != null && out.patch[f.storeKey || f.key] !== '')
       .map((f) => [f.key, out.patch[f.storeKey || f.key]])),
   };
-  return { patch: out.patch, applied: out.applied, intake };
+  // WTA-U2-001: a gas test takes the gas columns of the pvt-1 table with the
+  // project (the summary the shared intake keeps has no table)
+  const gasTable = gasTableFromContract(fluid?.contract || fluid);
+  const patch = { ...out.patch };
+  const applied = [...out.applied];
+  if (gasTable) {
+    intake = { ...intake, gasTable, values: { ...(intake.values || {}), gasTableRows: String(gasTable.n) } };
+    patch.gasPvtSource = 'fluid-table';
+    if (gasTable.temperatureF != null) patch.tempF = String(gasTable.temperatureF);
+    applied.push(`the gas Z and viscosity table (${gasTable.n} rows)`);
+  }
+  return { patch, applied, intake };
 }
 
 // ---- total compressibility --------------------------------------------------
@@ -345,9 +407,17 @@ export function buildInputsTable({
 
   if (isGas) {
     const pvtAuto = gasPvtSourceText(res?.pvtSource);
+    const fromTable = res?.pvtSource?.kind === 'fluid-table';
     add('mu', 'Gas viscosity mu at pi', 'viscosity', res?.mu, sourceText(meta('mu'), pvtAuto || 'Not computed'));
     rows.push({ key: 'z', label: 'Gas z-factor at pi', value: plain(res?.pvt?.zOf ? res.pvt.zOf(res.pi) : NaN), unit: '', source: sourceText(null, pvtAuto || 'Not computed') });
-    add('gasGravity', 'Gas gravity', 'gasGravity', r.gasGravity, entered('gasGravity'));
+    if (fromTable) {
+      const gt = res.pvtSource;
+      rows.push({
+        key: 'gasTable', label: 'Gas PVT table', value: `${gt.rows} rows, ${shown('pressureAbs', gt.pMin, unitSystem)} to ${shown('pressureAbs', gt.pMax, unitSystem)}`, unit: uL('pressureAbs'),
+        source: `pvt-1 block${gt.origin || ''}${gt.changedSince ? '; the source project was saved again since and now differs' : ''}`,
+      });
+    }
+    add('gasGravity', 'Gas gravity', 'gasGravity', r.gasGravity, fromTable ? `${entered('gasGravity')}; not used by the table (recorded)` : entered('gasGravity'));
     add('temperature', 'Reservoir temperature', 'temperature', r.tempF, entered('temperature'));
   } else {
     // a value changed here after the handoff says so (RL11): the source the
@@ -388,7 +458,10 @@ export function buildInputsTable({
 }
 
 /** One sentence under the inputs table saying which inputs the analysis used. */
-export function inputsFootnote(isGas) {
+export function inputsFootnote(isGas, pvtSource = null) {
+  if (isGas && pvtSource?.kind === 'fluid-table') {
+    return 'The gas analysis uses h, phi, rw, ct, temperature, pi and q, with z and viscosity interpolated in the Fluid Systems Studio table. Sw and gas gravity are recorded for the report.';
+  }
   return isGas
     ? 'The gas analysis uses h, phi, rw, ct, gas gravity and temperature (viscosity and z from the correlation), pi and q. Sw is recorded for the report.'
     : 'The oil analysis uses h, phi, rw, ct, mu_o, Bo, pi and q. Sw, API gravity, GOR, gas gravity and temperature are recorded for the report and do not enter the calculation unless ct is built from its components.';
@@ -617,6 +690,22 @@ const r2 = (v) => (Number.isFinite(v) ? String(parseFloat(v.toPrecision(3))) : E
  */
 export function gasRangeCheck({ reservoir, pressures = [] }) {
   if (reservoir?.fluid !== 'gas') return null;
+  // WTA-U2-001: a Fluid table holds its own span; the test is checked against it
+  if (reservoir.pvtSource?.kind === 'fluid-table') {
+    const src = reservoir.pvtSource;
+    const ps = [reservoir.pi, ...pressures].filter((p) => Number.isFinite(p) && p > 0);
+    const lo = Math.min(...ps);
+    const hi = Math.max(...ps);
+    const inside = lo >= src.pMin && hi <= src.pMax;
+    const flags = src.rangeFlags?.length ? ` The block flags: ${src.rangeFlags.join(' ')}` : '';
+    const temp = Number.isFinite(src.temperatureF) && Number.isFinite(reservoir.tempR) && Math.abs(src.temperatureF - (reservoir.tempR - 460)) > 0.5
+      ? ` The table was built at ${plain(src.temperatureF)} degF and the test temperature is ${plain(reservoir.tempR - 460)} degF.`
+      : '';
+    return {
+      method: 'fluid-table', label: 'Fluid Systems Studio table', inside,
+      text: `z and viscosity from the Fluid Systems Studio table (${src.zMethod}; ${src.muMethod}), ${plain(src.pMin)} to ${plain(src.pMax)} psia. The test spans ${plain(lo)} to ${plain(hi)} psia, ${inside ? 'inside the table' : 'OUTSIDE the table: m(p) is extrapolated on the end segment'}.${temp}${flags}`,
+    };
+  }
   const method = reservoir.zMethod || 'papay';
   const { ppc, tpc } = suttonPseudoCriticals(reservoir.gasGravity);
   const tempF = reservoir.tempR - 460;
@@ -658,7 +747,7 @@ export function buildLimitsRows({ reservoir, config, model, prepared }) {
     ['Pressures', 'Analysed and reported at the gauge depth; no correction to a datum and no gravity or friction correction between gauge and sandface.'],
   ];
   const range = gasRangeCheck({ reservoir, pressures: (prepared?.points || []).map((p) => p.p) });
-  if (range) rows.push(['Gas z-factor range', range.text]);
+  if (range) rows.push([range.method === 'fluid-table' ? 'Gas PVT table range' : 'Gas z-factor range', range.text]);
   return rows;
 }
 

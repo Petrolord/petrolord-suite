@@ -20,8 +20,8 @@ import {
 import { SectionLabel, Field, UnitField, UnitInput, fmt, valueWithUnit } from './primitives';
 import { IdentificationFields, CompletionFields, InputSourcesFields } from './ReportInputsFields';
 import PvtIntakeCard from '@/lib/inputProvenance/PvtIntakeCard';
-import { readFluidProjectPvt } from '@/lib/pvtSource';
-import { WELLTEST_PVT_FIELDS } from '@/utils/welltest/reportModel';
+import { readFluidProjectPvt, handoffFromContract, rangeRequestUrl } from '@/lib/pvtSource';
+import { wellTestPvtCardFields } from '@/utils/welltest/reportModel';
 
 const defaultPressureUnit = (unitSystem) => (unitSystem === 'si' ? 'kpaa' : 'psia');
 const defaultTemperatureUnit = (unitSystem) => (unitSystem === 'si' ? 'degC' : 'degF');
@@ -139,6 +139,8 @@ const ImportMapping = ({ imported, onChange }) => {
   );
 };
 
+const isGasFluid = (r) => r?.fluid === 'gas';
+
 const DataPanel = () => {
   const {
     wellName, setWellName,
@@ -151,8 +153,20 @@ const DataPanel = () => {
     rateRows, setRateRows,
     addNotification, loadSampleTest,
     unitSystem, setUnitSystem, profileUnitSystem, reservoirSpec,
-    pvtIntake, setGaugeImport,
+    pvtIntake, setGaugeImport, takeFluidPvt,
   } = useWellTestStudio();
+  // WTA-U2-001: the gas table of the intake, its use, and the card's re-read
+  const gasTable = pvtIntake?.gasTable || null;
+  const tableInUse = isGasFluid(reservoirInputs) && reservoirInputs.gasPvtSource === 'fluid-table' && !!gasTable;
+  const cardCurrent = { ...reservoirInputs, gasTableRows: tableInUse ? String(gasTable.n) : undefined };
+  const rereadFluid = () => {
+    const id = pvtIntake?.from?.recordId;
+    if (!id) return;
+    readFluidProjectPvt(id).then((res) => {
+      if (!res.ok) { addNotification(`Fluid Systems Studio project not read again. ${res.reason}`, 'error'); return; }
+      takeFluidPvt(handoffFromContract(res.contract), `read again from the saved Fluid Systems Studio project "${res.projectName || id}"`);
+    });
+  };
   const fileRef = useRef(null);
   // the file just imported, held so its column/unit mapping can be changed
   const [imported, setImported] = useState(null);
@@ -307,7 +321,7 @@ const DataPanel = () => {
         <SectionLabel>Reservoir and fluid</SectionLabel>
         <div className="space-y-3">
           {/* FLUID-U2-005: the shared card of the PVT taken from Fluid Systems Studio (display only; the report is unchanged) */}
-          {pvtIntake && <PvtIntakeCard intake={pvtIntake} current={reservoirInputs} fields={WELLTEST_PVT_FIELDS} readLatest={readFluidProjectPvt} />}
+          {pvtIntake && <PvtIntakeCard intake={pvtIntake} current={cardCurrent} fields={wellTestPvtCardFields(pvtIntake)} readLatest={readFluidProjectPvt} onReread={pvtIntake.from?.recordId ? rereadFluid : null} />}
           <div className="space-y-1">
             <Label className="text-xs text-pl-muted">Fluid</Label>
             <Select value={reservoirInputs.fluid || 'oil'} onValueChange={(v) => setReservoirField('fluid', v)}>
@@ -380,6 +394,30 @@ const DataPanel = () => {
             </div>
           )}
           {isGas && (
+            <div className="space-y-1" data-testid="wts-gas-pvt">
+              <Label className="text-xs text-pl-muted">Gas PVT (z and viscosity)</Label>
+              <Select value={reservoirInputs.gasPvtSource === 'fluid-table' ? 'fluid-table' : 'correlation'} onValueChange={(v) => setReservoirField('gasPvtSource', v)}>
+                <SelectTrigger className="h-9" aria-label="Gas PVT source" data-testid="wts-gas-pvt-source"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="correlation">Correlations (z method below)</SelectItem>
+                  <SelectItem value="fluid-table" disabled={!gasTable}>Fluid Systems Studio table{gasTable ? '' : ' (take a Fluid project first)'}</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-pl-muted" data-testid="wts-gas-pvt-note">
+                {tableInUse
+                  ? `m(p), z, viscosity and cg come from the ${gasTable.n} rows of the Fluid Systems Studio table, ${gasTable.pMin} to ${gasTable.pMax} psia (z: ${gasTable.zMethod}; viscosity: ${gasTable.muMethod}). Gas gravity is recorded for the report and not used.`
+                  : gasTable
+                    ? 'The Fluid Systems Studio table is held with the project but not used: the correlations below apply.'
+                    : 'No Fluid Systems Studio table is held: the correlations below apply. Send the fluid from Fluid Systems Studio to use its table.'}
+              </p>
+              {reservoirSpec.tableTooShort && pvtIntake?.from?.recordId && (
+                <a className="text-[11px] underline text-pl-accent" data-testid="wts-gas-pvt-range" href={rangeRequestUrl('/dashboard/apps/reservoir/fluid-systems-studio', pvtIntake.from.recordId, Math.ceil(reservoirSpec.tableTooShort.need * 1.1), 'Well Test Analysis Studio')}>
+                  Open the Fluid project to extend its table to {Math.ceil(reservoirSpec.tableTooShort.need * 1.1)} psia
+                </a>
+              )}
+            </div>
+          )}
+          {isGas && !tableInUse && (
             <div className="space-y-1">
               <Label className="text-xs text-pl-muted">Gas z-factor</Label>
               <Select value={reservoirInputs.gasZMethod || 'papay'} onValueChange={(v) => setReservoirField('gasZMethod', v)}>

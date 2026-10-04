@@ -296,6 +296,18 @@ const WTSHelpContent = () => (
       its k and skin next to the single-rate answers.
     </P>
 
+    <H>Gas PVT from Fluid Systems Studio</H>
+    <P>
+      When a Fluid Systems Studio project is sent here (or opened with its project id), its PVT table comes with it.
+      For a gas test, choose Fluid Systems Studio table under Gas PVT: m(p), z, viscosity and the gas compressibility
+      are then interpolated in the table rows, with the methods Fluid Systems Studio names, and the gas gravity is kept
+      for the record only. Projects without a Fluid intake keep the correlations. The card at the top of the
+      Reservoir and fluid section says where the table came from and when, and warns when the source project was saved
+      again with different content since; Read it again takes the new table. If the table stops below the initial
+      pressure the analysis refuses it and offers a link that asks Fluid Systems Studio for a taller table. The report
+      prints the table, its span and its source, and checks the test pressures against the span.
+    </P>
+
     <H>Conventions</H>
     <P>
       Display units follow the selector on the Data tab, in either oilfield (md, ft, cp, psi, STB/D, RB/STB, hours) or
