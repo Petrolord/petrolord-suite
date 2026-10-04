@@ -84,7 +84,9 @@ const COVERAGE = {
     /inclusive/i,
   ],
   'Forecast Scenario Hub': [
-    /Decline is the nominal rate/i,
+    /Say which decline you typed/i,
+    /Effective, secant is the share of rate/i,
+    /Terminal decline Dmin/i,
     /Clearing a box writes zero/i,
     // FSH-T1-001: EUR runs to the economic limit under a maximum life
     /50 year maximum life/i,

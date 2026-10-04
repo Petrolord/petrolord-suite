@@ -138,7 +138,7 @@ test('RL: the report door, read back from the downloaded PDF', async ({ page }) 
   for (const s of ['Decline Curve Analysis Report', 'Company E2E Company', 'Analyst E2E Analyst', 'Well Ekene-1 (sample)', 'Data cut-off 2022-12-01',
     'Inputs', 'Source and quality', 'EUR (produced + remaining)', 'Nominal, per year 43.83 %/yr', 'Limits of this analysis',
     'Figure 1. Rate against time (log rate)', 'Figure 2. Rate against cumulative production', 'Figure 3. Cumulative production against time',
-    'Figure 4. EUR distribution (Monte Carlo)', 'Does not apply: the forecast is deterministic']) {
+    'Figure 4. Scenarios: forecast rate against time', 'Figure 5. EUR distribution (Monte Carlo)', 'Does not apply: the forecast is deterministic']) {
     expect(pdf.flat).toContain(s);
   }
   // EUR closes on its parts, and sits at the closed form 91,667 bbl within half a percent
