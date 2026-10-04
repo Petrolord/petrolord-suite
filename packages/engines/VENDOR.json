@@ -32,6 +32,22 @@
       "burnDownWhen": "engines PR #311 is merged and the Suite pin moves to a canonical commit that contains it"
     },
     {
+      "path": "__tests__/welltest.negativeSkin.test.js",
+      "kind": "extra",
+      "vendoredSha": "99cf1e95356da65a1b9e6112e149bf9bfed4997e",
+      "group": "welltest-u2",
+      "reason": "Well Test Analysis Studio U2 (changing storage, rate-dependent skin, datum correction, deviated partial penetration, negative skin): engines-first on Petrolord/petrolord-engines PR #311, vendored byte-identical from branch feat/welltest-u2-engines while the PR awaits review",
+      "burnDownWhen": "engines PR #311 is merged and the Suite pin moves to a canonical commit that contains it"
+    },
+    {
+      "path": "__tests__/welltest.slantSkin.test.js",
+      "kind": "extra",
+      "vendoredSha": "352c26c0f9f84744915f7e73f4d240fd6be77936",
+      "group": "welltest-u2",
+      "reason": "Well Test Analysis Studio U2 (changing storage, rate-dependent skin, datum correction, deviated partial penetration, negative skin): engines-first on Petrolord/petrolord-engines PR #311, vendored byte-identical from branch feat/welltest-u2-engines while the PR awaits review",
+      "burnDownWhen": "engines PR #311 is merged and the Suite pin moves to a canonical commit that contains it"
+    },
+    {
       "path": "__tests__/welltest.u2RateSkinDatum.test.js",
       "kind": "extra",
       "vendoredSha": "272ddd7c06292b261f325fbe90a07321834b578e",
@@ -43,6 +59,14 @@
       "path": "__tests__/welltest.unitsKnownValues.test.js",
       "kind": "differing",
       "vendoredSha": "54f9704d98139dcf2ee21d8e1f285f11146c2e6d",
+      "group": "welltest-u2",
+      "reason": "Well Test Analysis Studio U2 (changing storage, rate-dependent skin, datum correction, deviated partial penetration, negative skin): engines-first on Petrolord/petrolord-engines PR #311, vendored byte-identical from branch feat/welltest-u2-engines while the PR awaits review",
+      "burnDownWhen": "engines PR #311 is merged and the Suite pin moves to a canonical commit that contains it"
+    },
+    {
+      "path": "__tests__/welltest.wt6Rectangle.test.js",
+      "kind": "differing",
+      "vendoredSha": "c3bde4c7881bbabd0498e06e1db974e4c2ccfebd",
       "group": "welltest-u2",
       "reason": "Well Test Analysis Studio U2 (changing storage, rate-dependent skin, datum correction, deviated partial penetration, negative skin): engines-first on Petrolord/petrolord-engines PR #311, vendored byte-identical from branch feat/welltest-u2-engines while the PR awaits review",
       "burnDownWhen": "engines PR #311 is merged and the Suite pin moves to a canonical commit that contains it"
@@ -74,7 +98,15 @@
     {
       "path": "engines/welltest/models/modelCatalog.js",
       "kind": "differing",
-      "vendoredSha": "9ccd69b1ca3c1049d38496fdd1df4500c48e1455",
+      "vendoredSha": "4e6cf33e07741e9c403147d2e7ccfbc542d685ff",
+      "group": "welltest-u2",
+      "reason": "Well Test Analysis Studio U2 (changing storage, rate-dependent skin, datum correction, deviated partial penetration, negative skin): engines-first on Petrolord/petrolord-engines PR #311, vendored byte-identical from branch feat/welltest-u2-engines while the PR awaits review",
+      "burnDownWhen": "engines PR #311 is merged and the Suite pin moves to a canonical commit that contains it"
+    },
+    {
+      "path": "engines/welltest/partialPenetration.js",
+      "kind": "differing",
+      "vendoredSha": "815501f4fef2ec4f7e458e413a269a2e36631beb",
       "group": "welltest-u2",
       "reason": "Well Test Analysis Studio U2 (changing storage, rate-dependent skin, datum correction, deviated partial penetration, negative skin): engines-first on Petrolord/petrolord-engines PR #311, vendored byte-identical from branch feat/welltest-u2-engines while the PR awaits review",
       "burnDownWhen": "engines PR #311 is merged and the Suite pin moves to a canonical commit that contains it"
