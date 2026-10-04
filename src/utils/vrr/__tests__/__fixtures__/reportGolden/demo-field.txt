@@ -166,55 +166,55 @@ better than 1 part in 10^12. Free gas is the produced gas above Rs x oil, never 
 
 Voidage Replacement Report, Demo field, D-1000                                                                                                              Page 3 of 9
 Volumes and FVFs by period
- Period    Oil (STB)   Water (bbl)   Gas (Mscf)   Water inj. (bbl)   Gas inj. (Mscf)   Bo (RB/STB)   Bw (RB/STB)   Bg (RB/Mscf)   Rs (scf/STB)   Pressure (psia)   FVF set
+ Period    Oil (STB)   Water (bbl)   Gas (Mscf)   Water inj. (bbl)   Gas inj. (Mscf)   Bo (RB/STB)   Bw (RB/STB)      Bg (RB/Mscf)   Rs (scf/STB)   Pressure (psia)   FVF set
 
- 2024-01    226,300        16,651      122,512                  0                 0           1.25          1.02            0.9           550             3,047    constant
+ 2024-01    226,300        16,651      122,512                  0                 0           1.25             1.02            0.9           550             3,047    constant
 
- 2024-02    206,473        19,565      111,778                  0                 0           1.25          1.02            0.9           550             2,991    constant
+ 2024-02    206,473        19,565      111,778                  0                 0           1.25             1.02            0.9           550             2,991    constant
 
- 2024-03    215,264        25,137      116,537            68,200                  0           1.25          1.02            0.9           550             2,934    constant
+ 2024-03    215,264        25,137      116,537            68,200                  0           1.25             1.02            0.9           550             2,934    constant
 
- 2024-04    203,176        28,387      109,994            87,000                  0           1.25          1.02            0.9           550             2,877    constant
+ 2024-04    203,176        28,387      109,994            87,000                  0           1.25             1.02            0.9           550             2,877    constant
 
- 2024-05    204,765        33,499      110,853           111,600                  0           1.25          1.02            0.9           550             2,817    constant
+ 2024-05    204,765        33,499      110,853           111,600                  0           1.25             1.02            0.9           550             2,817    constant
 
- 2024-06    193,265        36,434      104,629           129,000                  0           1.25          1.02            0.9           550             2,757    constant
+ 2024-06    193,265        36,434      104,629           129,000                  0           1.25             1.02            0.9           550             2,757    constant
 
- 2024-07    194,779        41,787      109,586           155,000                  0           1.25          1.02            0.9           550             2,698    constant
+ 2024-07    194,779        41,787      109,586           155,000                  0           1.25             1.02            0.9           550             2,698    constant
 
- 2024-08    189,969        45,915      110,916           176,700                  0           1.25          1.02            0.9           550             2,651    constant
+ 2024-08    189,969        45,915      110,916           176,700                  0           1.25             1.02            0.9           550             2,651    constant
 
- 2024-09    179,301        48,433      108,497           192,000             60,000           1.25          1.02            0.9           550             2,604    constant
+ 2024-09    179,301        48,433      108,497           192,000             60,000           1.25             1.02            0.9           550             2,604    constant
 
- 2024-10    180,704        54,189      113,185           198,400             62,000           1.25          1.02            0.9           550             2,559    constant
+ 2024-10    180,704        54,189      113,185           198,400             62,000           1.25             1.02            0.9           550             2,559    constant
 
- 2024-11    170,557        56,464      110,453           192,000             60,000           1.25          1.02            0.9           550             2,532    constant
+ 2024-11    170,557        56,464      110,453           192,000             60,000           1.25             1.02            0.9           550             2,532    constant
 
- 2024-12    171,891        62,528      114,969           198,400             62,000           1.25          1.02            0.9           550             2,505    constant
+ 2024-12    171,891        62,528      114,969           198,400             62,000           1.25             1.02            0.9           550             2,505    constant
 
- 2025-01    167,648        66,748      115,693           260,400             62,000           1.25          1.02            0.9           550             2,480    constant
+ 2025-01    167,648        66,748      115,693           260,400             62,000           1.25             1.02            0.9           550             2,480    constant
 
- 2025-02    147,685        64,137      105,055           235,200             56,000           1.25          1.02            0.9           550             2,477    constant
+ 2025-02    147,685        64,137      105,055           235,200             56,000           1.25             1.02            0.9           550             2,477    constant
 
- 2025-03    159,472        75,326      116,825           260,400             62,000           1.25          1.02            0.9           550             2,473    constant
+ 2025-03    159,472        75,326      116,825           260,400             62,000           1.25             1.02            0.9           550             2,473    constant
 
- 2025-04    150,517        77,139      113,465           252,000             60,000           1.25          1.02            0.9           550             2,471    constant
+ 2025-04    150,517        77,139      113,465           252,000             60,000           1.25             1.02            0.9           550             2,471    constant
 
- 2025-05    151,694        84,177      117,575           260,400             62,000           1.25          1.02            0.9           550             2,487    constant
+ 2025-05    151,694        84,177      117,575           260,400             62,000           1.25             1.02            0.9           550             2,487    constant
 
- 2025-06    143,176        85,870      114,015           252,000             60,000           1.25          1.02            0.9           550             2,504    constant
+ 2025-06    143,176        85,870      114,015           252,000             60,000           1.25             1.02            0.9           550             2,504    constant
 
- 2025-07    144,296        93,398      117,972           260,400             62,000           1.25          1.02            0.9           550             2,521    constant
+ 2025-07    144,296        93,398      117,972           260,400             62,000           1.25             1.02            0.9           550             2,521    constant
 
- 2025-08    140,733        98,193      118,049           260,400             62,000           1.25          1.02            0.9           550             2,541    constant
+ 2025-08    140,733        98,193      118,049           260,400             62,000           1.25             1.02            0.9           550             2,541    constant
 
- 2025-09    132,831        99,802      114,243           252,000             60,000           1.25          1.02            0.9           550             2,561    constant
+ 2025-09    132,831        99,802      114,243           252,000             60,000           1.25             1.02            0.9           550             2,561    constant
 
- 2025-10    133,869       108,231      117,979           260,400             62,000           1.25          1.02            0.9           550             2,581    constant
+ 2025-10    133,869       108,231      117,979           260,400             62,000           1.25             1.02            0.9           550             2,581    constant
 
- 2025-11    126,352       109,863      114,040           252,000             60,000           1.25          1.02            0.9           550             2,596    constant
+ 2025-11    126,352       109,863      114,040           252,000             60,000           1.25             1.02            0.9           550             2,596    constant
 
- 2025-12    127,340       119,034      117,637           260,400             62,000           1.25          1.02            0.9           550             2,610    constant
+ 2025-12    127,340       119,034      117,637           260,400             62,000           1.25             1.02            0.9           550             2,610    constant
 
 
 Surface volumes of each period as the ledger holds them, the FVF set applied to the period, the reservoir pressure interpolated at mid-month
@@ -222,18 +222,20 @@ Surface volumes of each period as the ledger holds them, the FVF set applied to 
 
 
 Patterns
- Level        Producers                           Cum. VRR                Latest inst. VRR                Status
+ Level      Producers                     Cum. VRR             Latest inst. VRR             Target band               Status
 
- Field        all                                            0.7793                            0.9937     Reference: every producer and injector
+ Field      all                                   0.7793                         0.9937     1 to 1.2 (field)          Reference: every producer and injector
 
- West         DP-1, DP-2, DP-3                                 0.735                           0.9278     Analysed
+ West       DP-1, DP-2, DP-3                        0.735                        0.9278     1 to 1.2 (field)          Analysed; 21 periods outside its band
 
- East         DP-4, DP-5, DP-6                                 0.857                            1.116     Analysed
+ East       DP-4, DP-5, DP-6                        0.857                          1.116    1 to 1.2 (field)          Analysed; 12 periods outside its band
+
+A pattern with its own target band is flagged against it and its advice aims at its lower edge; the others follow the field band.
 
 
 
 
-Voidage Replacement Report, Demo field, D-1000                                                                                                                 Page 4 of 9
+Voidage Replacement Report, Demo field, D-1000                                                                                                                    Page 4 of 9
 Allocation factors
  Injector                 DP-1                 DP-2              DP-3                 DP-4            DP-5              DP-6               Row sum
 
@@ -254,8 +256,8 @@ Water injection advice by pattern
 
  East                  1.125                           1                     0.8886            122,667 to 109,001 bbl per period
 
-Scale = target (the band minimum) over the rolling VRR of the last 3 periods, clamped to 0.5 to 2.0; split per injector by allocated share; gas
-injection is reported and left unscaled.
+Scale = target (the lower edge of the pattern's band) over the rolling VRR of the last 3 periods, clamped to 0.5 to 2.0; split per injector by allocated
+share; gas injection is reported and left unscaled.
 
 
 Voidage by well

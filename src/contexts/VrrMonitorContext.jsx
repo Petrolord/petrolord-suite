@@ -262,6 +262,10 @@ export const VrrMonitorProvider = ({ children, sharingStore = null, profileSyste
     if (!clean) return;
     edit((prev) => ({ ...prev, patterns: [...prev.patterns, { id: `pt_${uuidv4().slice(0, 8)}`, name: clean, producers: [] }] }));
   }, [edit]);
+  // VRR-U2-011: a pattern's own target band ('' for both edges: the field band)
+  const setPatternBand = useCallback((id, key, value) => {
+    edit((prev) => ({ ...prev, patterns: prev.patterns.map((p) => (p.id === id ? { ...p, band: { ...(p.band || {}), [key]: value } } : p)) }));
+  }, [edit]);
   const removePattern = useCallback((id) => {
     edit((prev) => ({ ...prev, patterns: prev.patterns.filter((p) => p.id !== id) }));
   }, [edit]);
@@ -470,6 +474,7 @@ export const VrrMonitorProvider = ({ children, sharingStore = null, profileSyste
     clearPvt,
     addPattern,
     removePattern,
+    setPatternBand,
     togglePatternProducer,
     setAllocationCell,
     evenSplitInjector,

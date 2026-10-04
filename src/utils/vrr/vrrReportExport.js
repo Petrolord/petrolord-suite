@@ -62,7 +62,7 @@ export function buildVrrPdf(a, { logo = null, generatedAt = new Date() } = {}) {
   }
 
   if (model.patterns) {
-    table('Patterns', model.patterns.rollup.head, model.patterns.rollup.rows, { columnStyles: RIGHT(2, 2) });
+    table('Patterns', model.patterns.rollup.head, model.patterns.rollup.rows, { columnStyles: RIGHT(2, 2), note: model.patterns.rollup.note });
     table('Allocation factors', model.patterns.matrix.head, model.patterns.matrix.rows, { note: model.patterns.matrix.note, columnStyles: RIGHT(model.patterns.matrix.head.length - 1) });
     if (model.patterns.advice) table('Water injection advice by pattern', model.patterns.advice.head, model.patterns.advice.rows, { note: model.patterns.advice.note });
   }

@@ -99,6 +99,28 @@ export function resolveSettings(settings) {
   return { targetBand: { min, max }, windowPeriods, notes };
 }
 
+/**
+ * VRR-U2-011: the target band of one pattern. Its own band when both edges
+ * are typed and usable; otherwise the field band, with a note when
+ * something was typed. A reversed band is swapped and said.
+ * @returns {{min: number, max: number, from: 'pattern'|'field', notes: string[]}}
+ */
+export function resolvePatternBand(pattern, fieldBand) {
+  const b = pattern?.band || {};
+  const rawMin = String(b.min ?? '').trim();
+  const rawMax = String(b.max ?? '').trim();
+  const field = { min: fieldBand.min, max: fieldBand.max, from: 'field', notes: [] };
+  if (!rawMin && !rawMax) return field;
+  let min = strictNumber(rawMin);
+  let max = strictNumber(rawMax);
+  if (!(Number.isFinite(min) && min >= 0 && Number.isFinite(max) && max > 0)) {
+    return { ...field, notes: [`Pattern "${pattern?.name ?? ''}": target band "${rawMin}" to "${rawMax}" is not usable; the field band ${fieldBand.min} to ${fieldBand.max} is used.`] };
+  }
+  const notes = [];
+  if (min > max) { notes.push(`Pattern "${pattern?.name ?? ''}": target band min ${min} is above max ${max}; the two are swapped.`); [min, max] = [max, min]; }
+  return { min, max, from: 'pattern', notes };
+}
+
 /** The fluid of the correlation track, every field typed (VRR-U1-016: blanks fell back to 35 API and friends with no word). */
 export function checkFluid(fluid) {
   const missing = FLUID_FIELDS.filter((f) => !Number.isFinite(strictNumber(fluid?.[f.key]))).map((f) => f.label);
@@ -181,14 +203,17 @@ export function deriveVrr(inputs) {
     if (!patternHasAllocation(pattern, allocation)) return { pattern, withheld: true, reason: 'No allocation factors route injection to this pattern. Fill the matrix; even splits are never assumed.' };
     const periods = applyPeriodFvf(buildPatternPeriods(inputs.wellRows, pattern, allocation), periodFvfByLabel);
     const pSeries = computeVRRSeries(periods, inputs.fvf);
+    // VRR-U2-011: the pattern's own band, else the field band
+    const band = resolvePatternBand(pattern, targetBand);
     return {
       pattern,
       withheld: false,
+      band,
       series: pSeries,
       rolling: computeRollingVRR(pSeries, windowPeriods),
-      flags: flagPeriods(pSeries, targetBand),
+      flags: flagPeriods(pSeries, { min: band.min, max: band.max }),
       summary: summarizeVRR(pSeries),
-      recommendation: recommendPatternInjection(inputs.wellRows, pattern, allocation, inputs.fvf, { targetVRR: targetBand.min, windowPeriods, periodFvf: periodFvfByLabel }),
+      recommendation: recommendPatternInjection(inputs.wellRows, pattern, allocation, inputs.fvf, { targetVRR: band.min, windowPeriods, periodFvf: periodFvfByLabel }),
     };
   });
   const live = patternAnalyses.filter((a) => !a.withheld && a.summary?.cumulativeVRR != null);

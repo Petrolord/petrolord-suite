@@ -303,10 +303,12 @@ function wellTable(inputs, d, u) {
 
 function patternsBlock(inputs, d, u) {
   if (!d.isImported || !(inputs.patterns || []).length) return null;
-  const rollup = [['Field', 'all', g(d.summary?.cumulativeVRR, 4), g(d.summary?.latestInstantaneousVRR, 4), 'Reference: every producer and injector']];
+  const rollup = [['Field', 'all', g(d.summary?.cumulativeVRR, 4), g(d.summary?.latestInstantaneousVRR, 4), `${g(d.targetBand.min)} to ${g(d.targetBand.max)} (field)`, 'Reference: every producer and injector']];
   const advice = [];
   for (const a of d.patternAnalyses) {
-    rollup.push([a.pattern.name, a.pattern.producers.join(', ') || EMPTY_VALUE, a.withheld ? EMPTY_VALUE : g(a.summary?.cumulativeVRR, 4), a.withheld ? EMPTY_VALUE : g(a.summary?.latestInstantaneousVRR, 4), a.withheld ? a.reason : 'Analysed']);
+    const band = a.band ? `${g(a.band.min)} to ${g(a.band.max)} (${a.band.from})` : EMPTY_VALUE;
+    const out = a.flags ? a.flags.filter((f) => f && f !== 'in-band').length : null;
+    rollup.push([a.pattern.name, a.pattern.producers.join(', ') || EMPTY_VALUE, a.withheld ? EMPTY_VALUE : g(a.summary?.cumulativeVRR, 4), a.withheld ? EMPTY_VALUE : g(a.summary?.latestInstantaneousVRR, 4), band, a.withheld ? a.reason : `Analysed; ${out} period${out === 1 ? '' : 's'} outside its band`]);
     const r = a.recommendation;
     if (r && !r.withheld) {
       advice.push([a.pattern.name, g(r.currentVRR, 4), g(r.targetVRR, 4), `${g(r.scale, 4)}${r.clamped ? ' (clamped)' : ''}`, `${show(u, 'water', r.currentWi)} to ${show(u, 'water', r.recommendedWi)} ${u.label('water')} per period`]);
@@ -316,9 +318,9 @@ function patternsBlock(inputs, d, u) {
   const producers = d.ledgerWells.producers;
   const matrix = injectors.map((inj) => [inj, ...producers.map((p) => text(inputs.allocation?.[inj]?.[p]) || EMPTY_VALUE), g(d.allocationCheck.rowSums[inj] || 0, 4)]);
   return {
-    rollup: { head: ['Level', 'Producers', 'Cum. VRR', 'Latest inst. VRR', 'Status'], rows: rollup },
+    rollup: { head: ['Level', 'Producers', 'Cum. VRR', 'Latest inst. VRR', 'Target band', 'Status'], rows: rollup, note: 'A pattern with its own target band is flagged against it and its advice aims at its lower edge; the others follow the field band.' },
     matrix: { head: ['Injector', ...producers, 'Row sum'], rows: matrix, note: `Fraction of each injector's volume reaching each producer, as entered. A row below 1 leaves the rest out of zone (unallocated).${d.allocationCheck.warnings.length ? ` ${d.allocationCheck.warnings.join(' ')}` : ''}` },
-    advice: advice.length ? { head: ['Pattern', 'Rolling VRR', 'Target', 'Scale', 'Water injection'], rows: advice, note: `Scale = target (the band minimum) over the rolling VRR of the last ${d.windowPeriods} periods, clamped to 0.5 to 2.0; split per injector by allocated share; gas injection is reported and left unscaled.` } : null,
+    advice: advice.length ? { head: ['Pattern', 'Rolling VRR', 'Target', 'Scale', 'Water injection'], rows: advice, note: `Scale = target (the lower edge of the pattern's band) over the rolling VRR of the last ${d.windowPeriods} periods, clamped to 0.5 to 2.0; split per injector by allocated share; gas injection is reported and left unscaled.` } : null,
   };
 }
 
@@ -356,6 +358,7 @@ function limitsBlock(inputs, d) {
   for (const w of inputs.importInfo?.warnings || []) flags.push(`Import: ${w}`);
   if (d.isImported) for (const w of d.allocationCheck.warnings) flags.push(`Allocation: ${w}`);
   for (const a of d.patternAnalyses) if (a.withheld) flags.push(`Pattern "${a.pattern.name}" withheld: ${a.reason}`);
+  for (const a of d.patternAnalyses) for (const n of a.band?.notes || []) flags.push(n);
   if (inputs.datum && !text(inputs.datum.depth) && d.hasPressure) flags.push('The pressure datum is not stated.');
   return { assumptions, flags, noFlagsText: 'No flag: every input is typed, inside its range, and every period is covered.' };
 }
