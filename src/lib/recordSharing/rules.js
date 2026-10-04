@@ -44,6 +44,8 @@ export const SHARING_TABLES = {
   // Risked Reserves Valuation U1 (migration 20261002151500_rrv_valuations.sql):
   // one saved valuation per prospect and user
   rrv_valuations: { label: 'valuation', nameColumn: 'name', sharedWhen: 'visibility' },
+  // EOR Screening U1 (migration 20261004220000_saved_eor_screening_projects.sql, not applied yet)
+  saved_eor_screening_projects: { label: 'project', nameColumn: 'project_name', sharedWhen: 'visibility' },
 };
 
 /** The columns the sharing model adds (what `sharingOf` keeps). */

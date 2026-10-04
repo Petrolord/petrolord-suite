@@ -15,6 +15,7 @@ import { loadFluidRows, FLUID_TABLE } from './fluidProjectsStore';
 import { loadWfRows, watchWfRows, WF_TABLE } from './wfProjectsStore';
 import { loadVrrRows, watchVrrRows, VRR_TABLE } from './vrrProjectsStore';
 import { harnessRegistry } from './vrrHarnessWells';
+import { eorHarnessTables } from './eorHarnessRows';
 import { savedScalRows } from '@/components/scalstudio/__fixtures__/savedProjects';
 import { savedWaterfloodRows } from '@/components/waterflooddesign/__fixtures__/savedProjects';
 
@@ -70,6 +71,8 @@ const SEEDS = {
   // WF-U2-004: VRR projects saved earlier in this tab come back (Waterflood reads them by id)
   // VRR-U2-004: wells registry rows for the bubble map's match table
   vrr: () => ({ [VRR_TABLE]: loadVrrRows(), geo_wells: harnessRegistry() }),
+  // EOR-U1: a Fluid project saved in this tab (pvt-1), a Well Test project (wta-1) and a Material Balance case (mbal-1), read by id
+  eor: () => ({ [FLUID_TABLE]: loadFluidRows(), ...eorHarnessTables(U) }),
   // AFE: budget 8.5M; EAC max(budget, actual + commitment) unless entered:
   // RIG 5.0M, CSG 2.3M (entered), SVC 1.5M, so 8.8M and a 0.3M overrun;
   // EV 5.0 x 0.6 + 2.0 x 0.9 + 1.5 x 0.3 = 5.25M against 5.2M actual.
@@ -175,6 +178,8 @@ function useScalRows(app) {
   if (app === 'scal') storeFor('scal')[FLUID_TABLE] = loadFluidRows();
   // VRR-U1: the Fluid projects of the tab, read by id for the pvt-1 intake
   if (app === 'vrr') storeFor('vrr')[FLUID_TABLE] = loadFluidRows();
+  // EOR-U1: the same for the EOR Screening pvt-1 intake
+  if (app === 'eor') storeFor('eor')[FLUID_TABLE] = loadFluidRows();
   useEffect(() => (app === 'scal' ? watchScalRows(storeFor('scal')) : undefined), [app]);
   // WF-U2-001: keep the Waterflood projects of the tab in sessionStorage for the receivers' harnesses
   useEffect(() => (app === 'waterflood' ? watchWfRows(storeFor('waterflood')) : undefined), [app]);

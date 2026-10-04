@@ -45,8 +45,10 @@ const EorScreeningHelpGuideContent = () => (
       </Para>
       <Para>
         The criteria come from Taber, Martin and Seright, "EOR Screening Criteria Revisited",
-        SPE Reservoir Engineering, August 1997. The limits in this app are that paper's tables
-        entered verbatim. Nothing has been modernized or tuned.
+        Parts 1 and 2, SPE Reservoir Engineering, August 1997: the summary in Table 3 of Part 1,
+        and the detail tables of Part 2 where they sharpen it (the CO2 minimum depth for each oil
+        gravity, and the "sandstones preferred" wording of the chemical floods). Every verdict
+        names the table it came from. Nothing has been modernized or tuned.
       </Para>
       <Callout tone="warn" title="This is a shortlisting tool">
         Screening tells you which methods survive the published limits. It does not design a
@@ -59,35 +61,49 @@ const EorScreeningHelpGuideContent = () => (
     <GuideSection id="quickstart">
       <SectionHeading icon={Zap}>Quick start</SectionHeading>
       <Step n={1} title="The app opens on a worked example">
-        You start on a West Texas style CO2 candidate: 32 degrees API, 2 cp, 45 percent oil
-        saturation, 40 ft net, 25 md, 5200 ft, 105 degrees F, carbonate. Three methods qualify
-        on that reservoir. The button under the input card reloads it after you have made edits.
+        You start on an illustrative West Texas style CO2 candidate: 32 degrees API, 2 cp, 45
+        percent oil saturation, 40 ft net, 25 md, 5200 ft, 105 degrees F, carbonate. It is not a
+        real field, and the input card and the report say so until you replace the values.
+        Three methods qualify and one is marginal. Load sample brings it back; Clear inputs
+        empties every field.
       </Step>
       <Step n={2} title="Enter your reservoir">
         Type over the eight fields. Every one is optional. A field you leave blank is left out
         of the score and nothing is assumed for it, which is important and is covered in detail below.
       </Step>
       <Step n={3} title="Read the ranking bar chart">
-        Methods are sorted with qualified ones first, then by score. Green bars qualify on
-        every criterion that could be scored. Grey bars failed at least one.
+        Methods are sorted qualified first, then marginal, then screened out, and within each by
+        the share of screened criteria that pass. Green bars qualify on every criterion that
+        could be screened, amber bars are marginal, grey bars failed at least one.
       </Step>
       <Step n={4} title="Open a method to see why">
         Each row expands into the full verdict table: every criterion, the published
-        requirement, your reservoir's value, and a pass, fail or not scored verdict. This
-        table is the actual output of the tool. The bar chart is only a summary of it.
+        requirement, the paper's project average, your reservoir's value, the verdict with its
+        reason, and the table it came from. This table is the actual output of the tool. The bar
+        chart is only a summary of it.
       </Step>
-      <Callout tone="info" title="Nothing is saved">
-        This app has no projects and no save. Closing or reloading the page clears your
-        inputs, and there is no export. Screen a reservoir, read the verdict tables, and
-        record the outcome wherever your study lives.
+      <Step n={5} title="Save it, share it, report it">
+        Create a project from the project bar to save the screening; it autosaves every ten
+        seconds. Share it with your organisation to view, or to edit one person at a time with
+        the check-out bar. The Report tab takes the identification (company, field, licence,
+        reservoir, wells, analyst) and exports a PDF with every input and its source, the
+        criteria edition, each method criterion by criterion, the limits and two figures.
+      </Step>
+      <Callout tone="info" title="Saving waits for its database table">
+        Until the EOR Screening table is switched on for your organisation the project bar says
+        so, and the screening stays on the page while it is open. Export the report to keep a copy.
       </Callout>
     </GuideSection>
 
     <GuideSection id="inputs">
       <SectionHeading icon={Sliders}>The eight inputs</SectionHeading>
       <Para>
-        All units are US oilfield and there is no metric toggle. Enter values in the units
-        shown on the labels.
+        Choose Oilfield or SI in the header. A new project opens in the system your unit profile
+        leans to. In SI, depth and thickness are in m, viscosity in mPa.s, temperature in degC
+        and pressure in kPa. The criteria are published in oilfield units, so every value is
+        converted to oilfield before it is compared; a limit typed in SI (1,371.6 m is 4,500 ft)
+        is read as on the limit. Below each input, Source says where the value came from; click
+        it to state a source (lab, correlation, offset well) and a note. The report prints it.
       </Para>
       <Table
         headers={['Field', 'Unit', 'Sample value', 'What it drives']}
@@ -99,9 +115,26 @@ const EorScreeningHelpGuideContent = () => (
           ['Average permeability', 'md', '25', 'Chemical and thermal methods. Not critical for any gas method.'],
           ['Depth', 'ft', '5200', 'Every method. Gas methods need a minimum depth, chemical and thermal a maximum.'],
           ['Reservoir temperature', 'degrees F', '105', 'Chemical methods (an upper limit) and in-situ combustion (a lower limit).'],
-          ['Formation', 'selection', 'Carbonate', 'Sandstone, Carbonate, or Other and unconsolidated. See the warning below.'],
+          ['Formation', 'selection', 'Carbonate', 'Sandstone, Unconsolidated sand, Carbonate, Other lithology, or Not given.'],
         ]}
       />
+      <Para>
+        Three more values are printed in the report for context and are not screened: reservoir
+        pressure, bubble point pressure and original oil in place. Taber 1997 screens none of
+        them. State the depth reference too (TVDSS, TVD below the rotary table, or below ground
+        level); it is printed and no correction is applied.
+      </Para>
+      <SubHeading>Values from other apps</SubHeading>
+      <Para>
+        The From other apps card reads a saved project by id. Fluid Systems Studio gives the oil
+        gravity, the reservoir temperature and the oil viscosity at reservoir conditions, read
+        from the project's own PVT table at the reservoir pressure you state (at the bubble
+        point when you leave it blank; never extrapolated). Well Test Analysis Studio gives the
+        permeability with its method and window. Material Balance Studio gives the OOIP and the
+        last average pressure. Each card says where the values came from and when; a value you
+        then change is marked edited after intake, and a source saved again with different
+        content is marked source changed since.
+      </Para>
       <SubHeading>Blank and zero are different</SubHeading>
       <Para>
         A blank field is left unscored. A zero is a real measured value and is tested like any
@@ -109,12 +142,10 @@ const EorScreeningHelpGuideContent = () => (
         <Code>0</Code> into it makes polymer flooding fail, because polymer's window starts at
         10 cp and zero falls below it.
       </Para>
-      <Callout tone="warn" title="Formation cannot be blanked">
-        The other seven fields can be cleared. The formation selector cannot be returned to
-        empty once a value is set, so formation is always scored. That matters because
-        choosing Carbonate screens out both chemical methods and both thermal methods on
-        formation alone. If your formation is genuinely uncertain, read the verdict tables
-        and give them more weight than the qualification badges.
+      <Callout tone="warn" title="Formation is a strong criterion">
+        Choosing Carbonate screens out both thermal methods on formation alone and makes both
+        chemical methods marginal. If your formation is genuinely uncertain, choose Not given
+        and read the verdict tables.
       </Callout>
     </GuideSection>
 
@@ -132,10 +163,20 @@ const EorScreeningHelpGuideContent = () => (
         rows={[
           ['Nitrogen and flue gas', 'above 35 API', 'below 0.4 cp', 'above 40 percent', 'above 6000 ft', 'Sandstone or carbonate', '5'],
           ['Hydrocarbon miscible', 'above 23 API', 'below 3 cp', 'above 30 percent', 'above 4000 ft', 'Sandstone or carbonate', '5'],
-          ['CO2 miscible', 'above 22 API', 'below 10 cp', 'above 20 percent', 'above 2500 ft', 'Sandstone or carbonate', '5'],
+          ['CO2 miscible', 'above 22 API', 'below 10 cp', 'above 20 percent', '2500 to 4000 ft by gravity (below)', 'Sandstone or carbonate', '5'],
           ['Immiscible gas', 'above 12 API', 'below 600 cp', 'above 35 percent', 'above 1800 ft', 'Not critical', '4'],
         ]}
       />
+      <SubHeading>CO2 miscible: minimum depth by oil gravity</SubHeading>
+      <Table
+        headers={['Oil gravity', 'Depth must be greater than']}
+        rows={[['above 40 API', '2500 ft'], ['32 to 39.9 API', '2800 ft'], ['28 to 31.9 API', '3300 ft'], ['22 to 27.9 API', '4000 ft'], ['below 22 API', 'fails miscible; screen for immiscible gas']]}
+      />
+      <Para>
+        Part 2, Table 3. The Part 1 summary prints only "above 2500 ft" and points to this
+        table; heavier oils need more pressure to become miscible, so a 25 API oil at 3000 ft
+        is screened out. The paper notes these depths are for typical Permian Basin oils.
+      </Para>
       <Para>
         For all four gas methods, permeability and temperature are not critical, and net
         thickness is never scored. What the thickness row says varies by method, because the
@@ -165,8 +206,13 @@ const EorScreeningHelpGuideContent = () => (
         ]}
       />
       <Para>
-        Both chemical methods require sandstone and fail on carbonate. Both score all seven of
-        their criteria, so they are the hardest methods to qualify.
+        Both chemical methods prefer sandstone. The paper says preferred (Part 2, Table 4) and,
+        for polymer, that it can be used in carbonates (Part 2, Table 5), so a carbonate is
+        marginal for both. A carbonate polymer flood between 3 and 10 md is also marginal: the
+        paper allows it where the intent is to sweep only the fracture system (Part 1, Table 3,
+        note b). Part 1 prints the depth and temperature limits as "&gt; 9,000" and "&gt; 200"
+        with downward arrows; Part 2 gives "below about 9,000 ft" and "below 200 F", which the
+        app uses.
       </Para>
       <Callout tone="info" title="Polymer viscosity is a window with a floor and a ceiling">
         Polymer flooding requires viscosity between 10 and 150 cp. Oil below 10 cp fails, and
@@ -183,19 +229,24 @@ const EorScreeningHelpGuideContent = () => (
         ]}
       />
       <Para>
-        Both thermal methods require a high porosity sand and fail on carbonate. In-situ
-        combustion is the only method in the app where all eight criteria are scored, which
-        makes its percentage directly comparable to nothing else on the chart.
+        Both thermal methods require a high porosity sand and fail on carbonate. They also carry
+        a transmissibility limit, k h divided by viscosity: above 20 md-ft/cp for combustion and
+        above 50 md-ft/cp for steam (Part 1, Table 3, notes c and d). It is computed when the
+        permeability, net thickness and viscosity are all given. In-situ combustion scores nine
+        criteria, more than any other method, so its percentage is not directly comparable to
+        the rest of the chart.
       </Para>
     </GuideSection>
 
     <GuideSection id="scoring">
       <SectionHeading icon={Gauge}>How scoring works</SectionHeading>
       <Para>
-        Each criterion returns one of three verdicts. <strong>Pass</strong> means your value is
+        Each criterion returns one of four verdicts. <strong>Pass</strong> means your value is
         inside the published limit. <strong>Fail</strong> means it is outside.
-        <strong> Not scored</strong> means either you left the field blank, or the paper gives
-        no limit for that property and method.
+        <strong> Marginal</strong> means the paper itself softens the limit (a preferred
+        formation, the carbonate fracture note, a formation the table does not name for gas
+        injection). <strong> Not screened</strong> (unscored) means either you left the field
+        blank, or the paper gives no limit for that property and method.
       </Para>
       <SubHeading>The two rules that decide everything</SubHeading>
       <Para>
@@ -205,8 +256,9 @@ const EorScreeningHelpGuideContent = () => (
       </Para>
       <Para>
         <strong>Qualification requires a clean sheet.</strong> A method qualifies when at least
-        one criterion was scored and every scored criterion passed. One failure anywhere
-        removes the badge, however good the rest look.
+        one criterion was scored and every scored criterion passed. A method with no fail and
+        at least one marginal verdict is Marginal. One failure anywhere screens it out, however
+        good the rest look. A marginal verdict does not count as a pass in the percentage.
       </Para>
       <Callout tone="danger" title="Unscored criteria inflate the score">
         Because unscored criteria leave the denominator, a reservoir with most fields blank can
@@ -263,8 +315,11 @@ const EorScreeningHelpGuideContent = () => (
     <GuideSection id="references">
       <SectionHeading icon={BookMarked}>Source and scope</SectionHeading>
       <Para>
-        Taber, J. J., Martin, F. D., and Seright, R. S., "EOR Screening Criteria Revisited",
-        SPE Reservoir Engineering, August 1997 (SPE 35385 and SPE 39234), Tables 1 to 3.
+        Taber, J. J., Martin, F. D., and Seright, R. S., "EOR Screening Criteria Revisited, Part 1:
+        Introduction to Screening Criteria and Enhanced Recovery Field Projects", SPE Reservoir
+        Engineering 12 (3), August 1997, 189 to 198 (SPE-35385-PA), Table 3 and its notes; and
+        "Part 2: Applications and Impact of Oil Prices", same issue, 199 to 205 (SPE-39234-PA),
+        Tables 3, 4 and 5. Surface mining, in the Part 1 table, is not screened here.
       </Para>
       <Para>
         The paper is a survey of projects operating in the mid 1990s. Its limits reflect the
