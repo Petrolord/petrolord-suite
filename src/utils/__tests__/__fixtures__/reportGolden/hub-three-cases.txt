@@ -89,7 +89,7 @@ number and is what the annual profile, the indicative NPV and the hand-off use.
 Petroleum Economics Studio values them.
 - The hub holds oil cases only. Rates are calendar-day rates at stock-tank conditions.
 
-Inputs outside a published range
+Flags on this set
 - Obodo-7 edited: received from Decline Curve Analysis and edited here after the handoff (qi); it no longer reproduces the source forecast.
 - Obodo-7 edited: The source changed since it was received (the fit). Refresh to take the new forecast.
 

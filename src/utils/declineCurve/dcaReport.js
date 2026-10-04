@@ -600,7 +600,7 @@ export function buildDcaPdf(model, { logo = null } = {}) {
     note: model.dataRows.length > MAX_DATA_ROWS ? `The first ${MAX_DATA_ROWS} of ${model.dataRows.length} rows; the counts above cover them all.` : undefined,
   });
 
-  r.limits({ assumptions: model.assumptions, flags: model.flags, noFlagsText: 'Nothing in this analysis is flagged.' });
+  r.limits({ assumptions: model.assumptions, flags: model.flags, noFlagsText: 'Nothing in this analysis is flagged.', flagsTitle: 'Flags on this analysis' });
 
   const figs = r.figures(dcaFigures(model));
   const out = r.finish({ footer: `${REPORT_TITLE}, ${model.wellName}, ${model.stream}` });

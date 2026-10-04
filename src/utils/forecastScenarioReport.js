@@ -251,7 +251,7 @@ export function buildHubPdf(model, { logo = null } = {}) {
     note: 'A case from Decline Curve Analysis carries the dca-forecast-1 contract it was made from; the hub reads the source again by id and says when it changed.',
   });
   r.inputsTable(model.inputs, { title: 'Inputs', note: 'Every value the hub\'s engine reads besides the case parameters above.' });
-  r.limits({ assumptions: model.assumptions, flags: model.flags, noFlagsText: 'Nothing in this set is flagged.' });
+  r.limits({ assumptions: model.assumptions, flags: model.flags, noFlagsText: 'Nothing in this set is flagged.', flagsTitle: 'Flags on this set' });
   const figs = r.figures(hubFigures(model));
   const out = r.finish({ footer: `${HUB_REPORT_TITLE}, ${model.setName}` });
   return { ...out, figuresBuilt: figs, model };

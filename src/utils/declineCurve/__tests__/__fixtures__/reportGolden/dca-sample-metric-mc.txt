@@ -274,7 +274,7 @@ puts them.
 those intervals and is not an independent uncertainty assessment.
 - Units: state is held in bbl/d, Mscf/d and a per-day decline; this report prints the display units named in its header. A year is 365.25 days.
 
-Inputs outside a published range
+Flags on this analysis
 - This is the sample well, built from published test data. It is not field data.
 
 
