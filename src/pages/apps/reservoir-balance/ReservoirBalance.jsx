@@ -53,6 +53,7 @@ import NewCaseDialog, { fluidSystemDisplay } from '@/components/reservoirbalance
 import MbsHelpContent from '@/components/reservoirbalance/MbsHelpContent';
 import VolumetricSource from '@/components/reservoirbalance/VolumetricSource';
 import VrrPressurePicker from '@/components/reservoirbalance/VrrPressurePicker';
+import WellTestPressurePicker from '@/components/reservoirbalance/WellTestPressurePicker';
 import { mapWellTestIntake } from './lib/wellTestIntake';
 import { supabase } from '@/lib/customSupabaseClient';
 import { readWellTestProject, wellTestDataFromContract, WTA_PROJECT_PARAM } from '@/lib/wellTestSource';
@@ -515,7 +516,7 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
       <div className={activeTab === 'data' ? undefined : 'hidden'}>
         <DataHub caseId={caseId} caseData={caseData} onDataSaved={refreshCase} />
       </div>
-      {activeTab === 'data' && <div className="mt-4"><VrrPressurePicker /></div>}
+      {activeTab === 'data' && <div className="mt-4 space-y-4"><VrrPressurePicker /><WellTestPressurePicker /></div>}
       {activeTab === 'pvt' && (
         <PvtRock caseId={caseId} caseData={caseData} onConfigChange={refreshRunInputs} />
       )}

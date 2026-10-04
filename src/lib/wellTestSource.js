@@ -124,6 +124,8 @@ export function buildWtaRecord(ctx, { now = new Date().toISOString(), projectId 
           ? 'Extrapolated p* of the Horner straight line. It equals the average drainage pressure only for an infinite-acting reservoir; no MBH or Dietz correction is applied.'
           : 'Initial pressure as entered on the test (no p* from this test).',
         method_label: pStar != null ? 'p*' : 'pi',
+        // U2-005: the day the pressure belongs to (the end of the test, else its start), ISO date or null
+        date: (() => { const v = text(id.testDateEnd) || text(id.testDateStart); return v && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : null; })(),
         basis: d
           ? `absolute, at the datum ${n(comp.datumDepthTvdss)} ft TVDSS (corrected from the gauge with ${g} psi/ft, ${text(comp.datumGradientSource) || 'source not stated'})`
           : 'absolute, at the gauge depth (no correction to a datum)',

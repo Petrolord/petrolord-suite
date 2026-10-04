@@ -341,6 +341,16 @@ const WTSHelpContent = () => (
       the datum pressure to Material Balance. Permeability and skin do not change: the analysis stays at the gauge.
     </P>
 
+    <H>The pressure in Material Balance</H>
+    <P>
+      Every save writes the results of the interpretation into the project. On its Data tab Material Balance Studio
+      can take this test&apos;s average pressure as a pressure point: p* of the Horner line (or the initial pressure the
+      test states), at the datum when a gradient was stated and at the gauge otherwise, on the row of its table dated
+      on the day of the test. Type the test dates here, so the point lands on the right row. Material Balance prints
+      the project, the method and the date, and says if the value was edited there afterwards. Its numbers change only
+      when the analyst takes the point.
+    </P>
+
     <H>Conventions</H>
     <P>
       Display units follow the selector on the Data tab, in either oilfield (md, ft, cp, psi, STB/D, RB/STB, hours) or

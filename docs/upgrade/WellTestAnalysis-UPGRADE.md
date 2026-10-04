@@ -239,6 +239,14 @@ merged; vendored byte-identical with `welltest-u2` ledger rows meanwhile).
 
 ## Step 2 build log
 
+### U2-005 Well Test pressure to Material Balance as a pressure point: done
+
+- `wta-1` gains `pressure.date` (the end of the test, else its start) and `pressure.method_label` (p* or pi); `average_psia` is at the datum when U2-004 applied a correction, and `basis` says which.
+- Material Balance (`src/pages/apps/reservoir-balance/lib/wellTestPressureIntake.js`, Data tab card "Pressure point from Well Test Analysis Studio" under the VRR card): choose a saved Well Test project (read by id, row level security and record sharing decide), see the row of the test date, the value before and after, the method and basis; take it. The study keeps one handoff per point (`wta_point_<timestep>`), and the report's data note prints each: timestep, date, p*, project, well, basis and the method sentence, and says when the value was edited after the handoff. Nothing changes in the case until the point is taken; the initial row is refused (its pressure is a case input).
+- Refused with the reason: no test date, no row on that date (the analyst adds the row with its volumes), more than one row on the date, a project saved before `wta-1`.
+- Proving test: `src/pages/apps/reservoir-balance/lib/__tests__/wellTestPressureIntake.test.jsx` (4): the record built by the real Well Test provider lands on timestep 10 of the Ahmed case and changes that row only; the provenance survives the study save; an edit afterwards is said (negative control); the MBAL PDF cites it and does not before; a stated gradient sends the datum pressure; refusals.
+- Numbers: none in Material Balance unless the analyst takes a point.
+
 ### U2-004 Correction to datum with a stated gradient: done (engines-first, PR #311)
 
 - Owner default kept: no gradient stated, no correction, and the report says so in the same words as before.
