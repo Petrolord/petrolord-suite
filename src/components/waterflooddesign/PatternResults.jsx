@@ -30,19 +30,19 @@ export function annualProfileFromSeries(series) {
 }
 
 const PatternResults = () => {
-  const { patternResult, patternInputs, projectName, addNotification } = useWaterfloodDesign();
+  const { patternResult, patternInputs, projectName, addNotification, u } = useWaterfloodDesign();
 
   const chartData = useMemo(() => {
     if (!patternResult) return [];
     return patternResult.series.map((p) => ({
       years: Number((p.t_days / 365.25).toFixed(2)),
-      qo: Number(p.qo_stbd.toFixed(1)),
-      qw: Number(p.qw_stbd.toFixed(1)),
+      qo: Number(u.show('oilRate', p.qo_stbd).toFixed(1)),
+      qw: Number(u.show('oilRate', p.qw_stbd).toFixed(1)),
       WOR: Number.isFinite(p.WOR) ? Number(p.WOR.toFixed(2)) : null,
-      Np: Number((p.Np_stb / 1000).toFixed(1)),
+      Np: Number(u.show('oilVolumeK', p.Np_stb / 1000).toFixed(1)),
       EA: Number((p.EA * 100).toFixed(1)),
     }));
-  }, [patternResult]);
+  }, [patternResult, u]);
 
   if (!patternResult || !patternResult.series.length) {
     return (
@@ -78,25 +78,40 @@ const PatternResults = () => {
       <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3">
         <Kpi title="EA @ breakthrough" value={fmt.pct(summary.EAbt)} accent />
         <Kpi title="Breakthrough" value={fmt.f2(btYears)} unit="yr" />
-        <Kpi title="Np (end)" value={fmt.int(summary.Np_stb)} unit="stb" />
-        <Kpi title="RF of flooded OOIP" value={fmt.pct(summary.recoveryFactorOfFloodedOOIP)} />
-        <Kpi title="Final WOR" value={Number.isFinite(summary.finalWOR) ? fmt.f1(summary.finalWOR) : '∞'} />
+        <Kpi title="Np (end)" value={fmt.int(u.show('oilVolume', summary.Np_stb))} unit={u.label('oilVolume')} />
+        <Kpi title="Recovery of pattern OOIP" value={fmt.pct(summary.recoverySplit?.ER)} />
+        <Kpi title="Final WOR (STB/STB)" value={Number.isFinite(summary.finalWOR) ? fmt.f1(summary.finalWOR) : 'no oil rate'} />
         <Kpi title="Stopped" value={summary.stopped === 'wor-limit' ? 'WOR limit' : summary.stopped === 'displacement-exhausted' ? 'ED max' : 'Horizon'} />
       </div>
 
       <WarningBanner warnings={patternResult.warnings} />
+
+      <div className="rounded-lg border border-pl-border bg-pl-surface px-4 py-3 text-xs text-pl-text space-y-1" data-testid="wds-recovery-split">
+        <p className="font-semibold">Recovery split at the end of the forecast</p>
+        <p>
+          ER = ED x EA x EV = {fmt.pct(summary.recoverySplit?.ED)} x {fmt.pct(summary.recoverySplit?.EA)} x {fmt.pct(summary.recoverySplit?.EV)} = {fmt.pct(summary.recoverySplit?.product)} of the pattern OOIP
+          ({fmt.int(u.show('oilVolume', summary.pattern_ooip_stb))} {u.label('oilVolume')}). ED displacement efficiency inside the swept region,
+          EA areal sweep, EV vertical sweep (entered).
+        </p>
+        <p className="text-pl-muted">
+          Areal sweep entered with M = {fmt.f2(summary.M)} ({summary.mobilityBasis === 'craig'
+            ? `Craig: krw ${fmt.f3(summary.krwAtSwAvgBt)} at the average Sw behind the front ${fmt.f3(summary.SwAvgBt)}`
+            : 'endpoint: krw at Sor'}); the endpoint ratio is {fmt.f2(summary.M_endpoint)}.
+          Voidage replacement is 1.0 by construction after fill-up: production balances injection in reservoir barrels.
+        </p>
+      </div>
 
       <div className="grid xl:grid-cols-2 gap-4">
         <ChartCard title="Production rates">
           <LineChart data={chartData} margin={{ top: 16, right: 16, bottom: 4, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
             <XAxis height={XAXIS_LABEL_HEIGHT} dataKey="years" {...axisProps} type="number" domain={yrAxis.domain} ticks={yrAxis.ticks} label={{ value: 'Years', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', offset: 0 }} />
-            <YAxis {...axisProps} domain={[0, 'auto']} label={{ value: 'stb/d', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', style: { textAnchor: 'middle' } }} />
+            <YAxis {...axisProps} domain={[0, 'auto']} label={{ value: u.label('oilRate'), angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', style: { textAnchor: 'middle' } }} />
             <Tooltip {...tooltipProps} />
             <Legend {...legendProps} />
             {btYears != null && <ReferenceLine x={Number(btYears.toFixed(2))} stroke={LINE.ref} strokeDasharray="4 4" label={{ value: 'BT', fill: LINE.ref, fontSize: 11, position: 'top' }} />}
-            <Line type="monotone" dataKey="qo" name="Oil (stb/d)" stroke={LINE.oil} strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey="qw" name="Water (stb/d)" stroke={LINE.water} strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="qo" name={`Oil (${u.label('oilRate')})`} stroke={LINE.oil} strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="qw" name={`Water (${u.label('oilRate')})`} stroke={LINE.water} strokeWidth={2} dot={false} />
           </LineChart>
         </ChartCard>
 
@@ -104,7 +119,7 @@ const PatternResults = () => {
           <LineChart data={chartData} margin={{ top: 16, right: 16, bottom: 4, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
             <XAxis height={XAXIS_LABEL_HEIGHT} dataKey="years" {...axisProps} type="number" domain={yrAxis.domain} ticks={yrAxis.ticks} label={{ value: 'Years', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', offset: 0 }} />
-            <YAxis {...axisProps} domain={[0, 'auto']} label={{ value: 'WOR', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', style: { textAnchor: 'middle' } }} />
+            <YAxis {...axisProps} domain={[0, 'auto']} label={{ value: 'WOR (STB/STB)', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', style: { textAnchor: 'middle' } }} />
             <Tooltip {...tooltipProps} />
             <Line type="monotone" dataKey="WOR" name="WOR" stroke={LINE.fw} strokeWidth={2} dot={false} connectNulls />
           </LineChart>
@@ -114,9 +129,9 @@ const PatternResults = () => {
           <LineChart data={chartData} margin={{ top: 16, right: 16, bottom: 4, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
             <XAxis height={XAXIS_LABEL_HEIGHT} dataKey="years" {...axisProps} type="number" domain={yrAxis.domain} ticks={yrAxis.ticks} label={{ value: 'Years', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', offset: 0 }} />
-            <YAxis {...axisProps} domain={[0, 'auto']} label={{ value: 'Np (Mstb)', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', style: { textAnchor: 'middle' } }} />
+            <YAxis {...axisProps} domain={[0, 'auto']} label={{ value: `Np (${u.label('oilVolumeK')})`, angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', style: { textAnchor: 'middle' } }} />
             <Tooltip {...tooltipProps} />
-            <Line type="monotone" dataKey="Np" name="Np (Mstb)" stroke={LINE.oil} strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="Np" name={`Np (${u.label('oilVolumeK')})`} stroke={LINE.oil} strokeWidth={2} dot={false} />
           </LineChart>
         </ChartCard>
 
@@ -134,7 +149,7 @@ const PatternResults = () => {
       <div className="flex items-center justify-between rounded-lg border border-pl-border bg-pl-surface px-4 py-3">
         <p className="text-xs text-pl-muted pr-4">
           For fiscal terms, taxes and portfolio views, export the annual oil profile and load it in NPV Scenario Builder
-          (Economics owns valuation). Format: year, production_bbl.
+          (Economics owns valuation). Format: year, production_bbl, in stock-tank barrels whatever the display units, as NPV Scenario Builder reads it.
         </p>
         <Button variant="outline" size="sm" onClick={exportAnnualCsv} className="shrink-0">
           <Download size={14} className="mr-1" /> Annual CSV

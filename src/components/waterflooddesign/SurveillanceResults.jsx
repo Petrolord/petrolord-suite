@@ -15,7 +15,7 @@ import HallPlotPanel from '@/components/waterflood/HallPlotPanel';
 import ChanDiagnosticsPanel from '@/components/waterflood/ChanDiagnosticsPanel';
 
 const SurveillanceResults = () => {
-  const { surveillanceResult: result, surveillanceRows } = useWaterfloodDesign();
+  const { surveillanceResult: result, surveillanceRows, u, surveillanceConfig } = useWaterfloodDesign();
 
   if (!surveillanceRows.length) {
     return (
@@ -38,8 +38,8 @@ const SurveillanceResults = () => {
   return (
     <div className="space-y-4 overflow-y-auto">
       <DataQualityPanel data={result.data_quality} />
-      <KPIPanel kpis={result.kpis} />
-      <ChartsPanel dailySeries={result.daily_series} vrrSeries={result.vrr_series} />
+      <KPIPanel kpis={result.kpis} u={u} />
+      <ChartsPanel dailySeries={result.daily_series} vrrSeries={result.vrr_series} u={u} />
       <InsightsPanel alerts={result.alerts} />
 
       {result.capabilities?.pattern_lags?.available && result.pattern_lags?.length ? (
@@ -63,7 +63,7 @@ const SurveillanceResults = () => {
       )}
 
       {result.capabilities?.hall?.available && result.hall_plots?.length ? (
-        <HallPlotPanel data={result.hall_plots} alerts={result.alerts} />
+        <HallPlotPanel data={result.hall_plots} alerts={result.alerts} u={u} pressureBasis={surveillanceConfig.pressure_basis} />
       ) : (
         <GatedFeatureNotice
           title="Hall Plot Analysis"

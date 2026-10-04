@@ -3,7 +3,14 @@ import { motion } from 'framer-motion';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { Droplets, TrendingUp, BarChart3, Target, Gauge, Activity } from 'lucide-react';
 
-const KPIPanel = ({ kpis, lastUpdated }) => {
+// WF-U1 (PL3): totals in the display units when the studio hands `u`
+// (src/utils/waterflooddesign/units.js); oilfield millions otherwise.
+const bigVolume = (u, kind, v) => {
+  if (!u || u.system === 'oilfield') return { value: v / 1e6, unit: kind === 'oilVolume' ? 'MMSTB' : 'MMbbl' };
+  return { value: u.show(kind, v) / 1e3, unit: `10^3 ${u.label(kind)}` };
+};
+
+const KPIPanel = ({ kpis, lastUpdated, u = null }) => {
   const formatNumber = (num, decimals = 1) => {
     if (typeof num !== 'number' || isNaN(num)) return EMPTY_VALUE;
     return num.toLocaleString(undefined, {
@@ -14,7 +21,7 @@ const KPIPanel = ({ kpis, lastUpdated }) => {
 
   const kpiItems = [
     {
-      title: 'Avg Water Cut',
+      title: 'Water cut (volume-weighted)',
       value: `${formatNumber(kpis.avg_water_cut_pct)}%`,
       icon: Droplets
     },
@@ -24,23 +31,23 @@ const KPIPanel = ({ kpis, lastUpdated }) => {
       icon: TrendingUp
     },
     {
-      title: 'Rolling VRR (end)',
+      title: 'Rolling VRR (last window)',
       value: kpis.vrr_rolling ? formatNumber(kpis.vrr_rolling, 2) : EMPTY_VALUE,
       icon: Activity
     },
     {
-      title: 'Total Injection',
-      value: `${formatNumber(kpis.total_injected_bbl / 1e6, 2)} MMbbl`,
+      title: 'Water injected',
+      ...(() => { const b = bigVolume(u, 'waterVolume', kpis.total_injected_bbl); return { value: `${formatNumber(b.value, 3)} ${b.unit}` }; })(),
       icon: Target
     },
     {
-      title: 'Total Oil',
-      value: `${formatNumber(kpis.total_oil_bbl / 1e6, 2)} MMSTB`,
+      title: 'Oil produced',
+      ...(() => { const b = bigVolume(u, 'oilVolume', kpis.total_oil_bbl); return { value: `${formatNumber(b.value, 3)} ${b.unit}` }; })(),
       icon: BarChart3
     },
     {
-      title: 'Total Water',
-      value: `${formatNumber(kpis.total_water_bbl / 1e6, 2)} MMbbl`,
+      title: 'Water produced',
+      ...(() => { const b = bigVolume(u, 'waterVolume', kpis.total_water_bbl); return { value: `${formatNumber(b.value, 3)} ${b.unit}` }; })(),
       icon: Gauge
     }
   ];

@@ -15,22 +15,32 @@ const axisTick = { fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.a
 const axisLabel = { fontSize: CHART_TYPOGRAPHY.labelFontSize, fill: CHART_COLORS.axisLabel };
 // Dark-on-white series colors (the old dark-bg strokes are illegible on white).
 const C = { inj: '#2563eb', oil: '#059669', water: '#7c3aed', wc: '#d97706', daily: '#94a3b8', rolling: '#2563eb', cum: '#059669', ref: '#dc2626' };
-const mmdd = (d) => (typeof d === 'string' && d.length >= 10 ? d.slice(5) : d);
+// WF-U1 (RL7): a calendar axis (time in ms on a numeric axis) labelled with
+// year and month; the old axis printed MM-DD with no year.
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export const calendarTick = (ms) => {
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()} ${d.getUTCFullYear()}`;
+};
+const msOf = (date) => Date.parse(`${date}T00:00:00Z`);
 const fmt = (v) => (typeof v === 'number' ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : v);
 
-const ChartsPanel = ({ dailySeries, vrrSeries }) => {
+const ChartsPanel = ({ dailySeries, vrrSeries, u = null }) => {
+  const rate = (kind, v) => (u && Number.isFinite(v) ? u.show(kind, v) : v);
+  const rateUnit = u ? `${u.label('oilRate')}, ${u.label('waterRate')}` : 'STB/d, bbl/d';
   const [showSmoothed, setShowSmoothed] = useState(true);
 
   const timeData = useMemo(() => (dailySeries?.date || []).map((date, i) => ({
-    date,
-    inj: (showSmoothed ? dailySeries.inj_bpd_s : dailySeries.inj_bpd)[i],
-    oil: (showSmoothed ? dailySeries.oil_bpd_s : dailySeries.oil_bpd)[i],
-    water: (showSmoothed ? dailySeries.water_bpd_s : dailySeries.water_bpd)[i],
+    t: msOf(date),
+    inj: rate('waterRate', (showSmoothed ? dailySeries.inj_bpd_s : dailySeries.inj_bpd)[i]),
+    oil: rate('oilRate', (showSmoothed ? dailySeries.oil_bpd_s : dailySeries.oil_bpd)[i]),
+    water: rate('waterRate', (showSmoothed ? dailySeries.water_bpd_s : dailySeries.water_bpd)[i]),
     wc: (showSmoothed ? dailySeries.wc_pct_s : dailySeries.wc_pct)[i],
-  })), [dailySeries, showSmoothed]);
+  })), [dailySeries, showSmoothed, u]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const vrrData = useMemo(() => (vrrSeries?.date || []).map((date, i) => ({
-    date,
+    t: msOf(date),
     daily: vrrSeries.vrr_daily[i],
     rolling: vrrSeries.vrr_rolling[i],
     cum: vrrSeries.vrr_cum ? vrrSeries.vrr_cum[i] : undefined,
@@ -57,16 +67,16 @@ const ChartsPanel = ({ dailySeries, vrrSeries }) => {
           <ChartFrame height={320}>
             <ComposedChart data={timeData} margin={CHART_MARGINS.legend}>
               <CartesianGrid {...GRID_STYLE} />
-              <XAxis dataKey="date" tick={axisTick} tickFormatter={mmdd} minTickGap={36} stroke={CHART_COLORS.axisLine} />
+              <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tick={axisTick} tickFormatter={calendarTick} minTickGap={48} stroke={CHART_COLORS.axisLine} />
               <YAxis yAxisId="left" tick={axisTick} stroke={CHART_COLORS.axisLine}
-                label={{ value: 'Rate (bpd)', angle: -90, position: 'insideLeft', style: axisLabel }} />
+                label={{ value: `Rate (${rateUnit})`, angle: -90, position: 'insideLeft', style: axisLabel }} />
               <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={axisTick} stroke={CHART_COLORS.axisLine}
                 label={{ value: 'Water Cut (%)', angle: 90, position: 'insideRight', style: axisLabel }} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={fmt} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={fmt} labelFormatter={calendarTick} />
               <Legend {...LEGEND_PROPS} />
-              <Line yAxisId="left" type="monotone" dataKey="inj" name="Injection (bpd)" stroke={C.inj} dot={false} strokeWidth={2} isAnimationActive={false} />
-              <Line yAxisId="left" type="monotone" dataKey="oil" name="Oil (bpd)" stroke={C.oil} dot={false} strokeWidth={2} isAnimationActive={false} />
-              <Line yAxisId="left" type="monotone" dataKey="water" name="Water (bpd)" stroke={C.water} dot={false} strokeWidth={2} isAnimationActive={false} />
+              <Line yAxisId="left" type="monotone" dataKey="inj" name={`Water injected (${u ? u.label('waterRate') : 'bbl/d'})`} stroke={C.inj} dot={false} strokeWidth={2} isAnimationActive={false} />
+              <Line yAxisId="left" type="monotone" dataKey="oil" name={`Oil (${u ? u.label('oilRate') : 'STB/d'})`} stroke={C.oil} dot={false} strokeWidth={2} isAnimationActive={false} />
+              <Line yAxisId="left" type="monotone" dataKey="water" name={`Water produced (${u ? u.label('waterRate') : 'bbl/d'})`} stroke={C.water} dot={false} strokeWidth={2} isAnimationActive={false} />
               <Line yAxisId="right" type="monotone" dataKey="wc" name="Water Cut (%)" stroke={C.wc} dot={false} strokeWidth={2} strokeDasharray="5 3" isAnimationActive={false} />
             </ComposedChart>
           </ChartFrame>
@@ -77,10 +87,10 @@ const ChartsPanel = ({ dailySeries, vrrSeries }) => {
           <ChartFrame height={320}>
             <LineChart data={vrrData} margin={CHART_MARGINS.legend}>
               <CartesianGrid {...GRID_STYLE} />
-              <XAxis dataKey="date" tick={axisTick} tickFormatter={mmdd} minTickGap={36} stroke={CHART_COLORS.axisLine} />
+              <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tick={axisTick} tickFormatter={calendarTick} minTickGap={48} stroke={CHART_COLORS.axisLine} />
               <YAxis tick={axisTick} stroke={CHART_COLORS.axisLine}
                 label={{ value: 'VRR (reservoir bbl)', angle: -90, position: 'insideLeft', style: axisLabel }} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={fmt} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={fmt} labelFormatter={calendarTick} />
               <Legend {...LEGEND_PROPS} />
               <ReferenceLine y={1} stroke={C.ref} strokeDasharray="5 3"
                 label={{ value: 'Balance', fill: C.ref, fontSize: 10, position: 'insideTopRight' }} />
