@@ -347,7 +347,8 @@ export function incrementalRows(rows) {
   });
 }
 
-export const evaluateSpacingCases = async (formData) => {
+/** The sweep, synchronously (closed form, milliseconds): the page recomputes on every edit. */
+export const runSpacingCases = (formData) => {
   const p = {
     reservoirArea: parseFloat(formData.reservoirArea),
     avgNetPay: parseFloat(formData.avgNetPayThickness),
@@ -415,23 +416,37 @@ export const evaluateSpacingCases = async (formData) => {
   };
 };
 
-export const generateCSV = (results) => {
+/** The sweep as a promise, for the callers of earlier builds. */
+export const evaluateSpacingCases = async (formData) => runSpacingCases(formData);
+
+/**
+ * The case table as CSV, in the display units of the project (WS-U1, PL3):
+ * `u` is the units helper of wellspacing/units.js; without one, oilfield.
+ * Money is US$ million in both systems.
+ */
+export const generateCSV = (results, u = null) => {
+  const sys = u?.system === 'si' ? 'si' : 'oilfield';
+  const conv = (kind, v) => (u ? u.show(kind, v) : v);
+  const lab = (kind, oil) => (u ? u.label(kind) : oil);
   const header = [
-    'Well Spacing (acres/well)', 'Number of Wells', 'Areal Coverage (%)',
-    'EUR per Well (Mbbl)', 'Produced per Well (Mbbl)', 'Total Field Recovery (%)',
-    'Total Capex ($MM)', 'NPV ($MM; mid-year discounting)', 'Cost per Barrel ($/bbl)', 'Economic Life (years)',
+    `Well Spacing (${lab('spacing', 'acres/well')})`, 'Number of Wells', `Distance Between Wells (${lab('length', 'ft')})`, 'Areal Coverage (%)',
+    `EUR per Well (${lab('eur', 'Mbbl')})`, `Produced per Well (${lab('eur', 'Mbbl')})`, 'Total Field Recovery (%)',
+    'Total Capex ($MM)', 'NPV ($MM; mid-year discounting)', 'Cost per Barrel ($/bbl)', 'Economic Life (years)', `Initial Rate (${lab('rate', 'STB/d')})`,
   ];
+  const fx = (v, d) => (Number.isFinite(v) ? Number(v).toFixed(d) : '');
   const rows = results.spacingResults.map((r) => [
-    r.spacing,
+    sys === 'si' ? fx(conv('spacing', r.spacing), 4) : r.spacing,
     r.numberOfWells,
+    fx(conv('length', r.drainage?.distanceFt), 1),
     (r.arealCoverage * 100).toFixed(1),
-    r.eurPerWell.toFixed(1),
-    r.producedPerWell.toFixed(1),
+    fx(conv('eur', r.eurPerWell), 1),
+    fx(conv('eur', r.producedPerWell), 1),
     r.totalFieldRecovery.toFixed(1),
     r.totalCapex.toFixed(1),
     r.npv.toFixed(1),
     Number.isFinite(r.costPerBarrel) ? r.costPerBarrel.toFixed(2) : '',
     r.economicLife.toFixed(1),
+    fx(conv('rate', r.initialRateBpd), 1),
   ]);
   return [header, ...rows].map((row) => row.join(',')).join('\n');
 };
@@ -446,7 +461,9 @@ export const generateJSON = (formData, results) => ({
     reading: NO_OPTIMUM_NOTE,
     bo: { value: results.boUsed, unit: 'rb/stb', source: results.boSource },
     npv: { unit: '$MM', ...results.npvConvention },
+    units: 'Oilfield: acres, ft, psia, degF, scf/STB, STB/d, Mbbl (EUR and produced per well), RB/STB, cp, 1/psi, md; money in US$ ($MM for capex and NPV)',
+    declineBasis: 'typicalWellDeclineRate is an effective annual decline in percent; the engine converts it to nominal Dn = -ln(1 - De)',
     recoveryModel: 'stated recovery factor over the area covered by whole wells; no interference physics',
-    version: 'WellSpacingOptimizer v2.1',
+    version: 'WellSpacingOptimizer v3 (WS-U1)',
   },
 });
