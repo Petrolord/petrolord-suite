@@ -10,6 +10,7 @@ import { useVrrMonitor } from '@/contexts/VrrMonitorContext';
 import { THEMED_TONE } from '@/components/studio/studioTheme';
 import { parsePressureCSV, PRESSURE_UNITS } from '@/utils/vrr/csvImport';
 import { FLUID_FIELDS } from '@/utils/vrr/workspace';
+import UnitInput from './UnitInput';
 
 const FLUID_KIND = { api: 'api', gasSg: 'gasSg', gor: 'rs', salinityPpm: 'salinity', tempF: 'temperature' };
 /** Two surveys over the sample ledger (2025-01 to 2025-03), for the demo and the report sample. */
@@ -108,13 +109,10 @@ const PressurePanel = () => {
               className="h-8 flex-1 min-w-0 font-pl-mono tabular-nums"
               aria-label={`Survey ${i + 1} date`}
             />
-            <Input
-              value={u.text('pressure', s.p_psia)}
-              onChange={(e) => {
-                const v = u.toState('pressure', e.target.value);
-                if (v !== null) updateSurvey(i, 'p_psia', v);
-              }}
-              inputMode="decimal"
+            <UnitInput
+              kind="pressure"
+              value={s.p_psia}
+              onChange={(v) => updateSurvey(i, 'p_psia', v)}
               placeholder={u.label('pressure')}
               className="h-8 w-24 text-right font-pl-mono tabular-nums"
               aria-label={`Survey ${i + 1} pressure (${u.label('pressure')})`}
@@ -127,10 +125,10 @@ const PressurePanel = () => {
         <div className="grid grid-cols-2 gap-2 pt-1">
           <div className="space-y-1">
             <Label htmlFor="vrr-datum-depth" className="text-xs text-pl-muted">Datum depth ({u.label('depth')})</Label>
-            <Input
-              id="vrr-datum-depth" className="h-8 font-pl-mono" inputMode="decimal"
-              value={u.text('depth', inputs.datum?.depth ?? '')}
-              onChange={(e) => { const v = u.toState('depth', e.target.value); if (v !== null) setDatumField('depth', v); }}
+            <UnitInput
+              id="vrr-datum-depth" className="h-8 font-pl-mono" kind="depth"
+              value={inputs.datum?.depth ?? ''}
+              onChange={(v) => setDatumField('depth', v)}
             />
           </div>
           <div className="space-y-1">
@@ -174,11 +172,11 @@ const PressurePanel = () => {
             return (
               <div key={key} className="space-y-1">
                 <Label htmlFor={`vrr-fluid-${key}`} className="text-xs text-pl-muted">{label} ({u.label(kind)})</Label>
-                <Input
-                  value={u.text(kind, inputs.fluid[key])}
+                <UnitInput
+                  kind={kind}
+                  value={inputs.fluid[key]}
                   id={`vrr-fluid-${key}`}
-                  inputMode="decimal"
-                  onChange={(e) => { const v = u.toState(kind, e.target.value); if (v !== null) setFluidField(key, v); }}
+                  onChange={(v) => setFluidField(key, v)}
                   className="h-8 font-pl-mono tabular-nums"
                 />
               </div>

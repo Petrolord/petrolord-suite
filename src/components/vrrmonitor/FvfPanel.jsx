@@ -3,7 +3,7 @@
 // non-numeric value withholds the VRR with the reason (VRR-U1-008); the set
 // can be filled from a Fluid Systems Studio project (FluidPvtIntake).
 import React from 'react';
-import { Input } from '@/components/ui/input';
+import UnitInput from './UnitInput';
 import { Label } from '@/components/ui/label';
 import { useVrrMonitor } from '@/contexts/VrrMonitorContext';
 import { InputSourceControl } from '@/lib/inputProvenance/InputSourceControl';
@@ -25,15 +25,12 @@ const FvfPanel = () => {
       {FIELDS.map(({ key, label, kind, what }) => (
         <div key={key} className="space-y-1">
           <Label htmlFor={`vrr-fvf-${key}`} className="text-xs text-pl-muted">{label} ({u.label(kind)}) <span className="opacity-70">{what}</span></Label>
-          <Input
+          <UnitInput
             id={`vrr-fvf-${key}`}
             data-testid={`vrr-fvf-${key}`}
-            inputMode="decimal"
-            value={u.text(kind, inputs.fvf[key])}
-            onChange={(e) => {
-              const v = u.toState(kind, e.target.value);
-              if (v !== null) setFvfField(key, v);
-            }}
+            kind={kind}
+            value={inputs.fvf[key]}
+            onChange={(v) => setFvfField(key, v)}
             className="h-9 font-pl-mono tabular-nums"
           />
         </div>

@@ -15,6 +15,7 @@ import { buildGridCsv } from '@/utils/vrr/ledgerCsv';
 import { statusAgainstBand } from './vrrBand';
 import { THEMED_TONE, THEMED_TONE_TEXT } from '@/components/studio/studioTheme';
 import { downloadText } from './download';
+import UnitInput from './UnitInput';
 
 export const COLS = [
   { key: 'label', label: 'Period', kind: null },
@@ -104,18 +105,26 @@ const PeriodGridPanel = () => {
                 <TableRow key={i}>
                   {cols.map((c) => (
                     <TableCell key={c.key} className="p-1">
+                      {c.kind ? (
+                        <UnitInput
+                          kind={c.kind}
+                          value={inputs.periods[i]?.[c.key] ?? ''}
+                          onChange={(v) => updatePeriodCell(i, c.key, v)}
+                          placeholder={PVT_COLS.some((pc) => pc.key === c.key) ? 'constant' : '0'}
+                          className="h-8 font-pl-mono tabular-nums w-24 text-right"
+                          aria-label={`${c.label} ${row.label || `P${i + 1}`}`}
+                          aria-invalid={periodIssues.some((x) => x.row === i && x.key === c.key) || undefined}
+                        />
+                      ) : (
                       <Input
-                        value={c.kind ? u.text(c.kind, inputs.periods[i]?.[c.key] ?? '') : (inputs.periods[i]?.[c.key] ?? '')}
-                        onChange={(e) => {
-                          const v = c.kind ? u.toState(c.kind, e.target.value) : e.target.value;
-                          if (v !== null) updatePeriodCell(i, c.key, v);
-                        }}
-                        inputMode={c.kind ? 'decimal' : undefined}
+                        value={inputs.periods[i]?.[c.key] ?? ''}
+                        onChange={(e) => updatePeriodCell(i, c.key, e.target.value)}
                         placeholder={c.key === 'label' ? 'YYYY-MM' : PVT_COLS.some((pc) => pc.key === c.key) ? 'constant' : '0'}
                         className={`h-8 font-pl-mono tabular-nums ${c.key === 'label' ? 'w-24' : 'w-24 text-right'}`}
                         aria-label={`${c.label} ${row.label || `P${i + 1}`}`}
                         aria-invalid={periodIssues.some((x) => x.row === i && x.key === c.key) || undefined}
                       />
+                      )}
                     </TableCell>
                   ))}
                   <TableCell className={`text-right font-pl-mono tabular-nums font-semibold ${THEMED_TONE_TEXT[band.tone] || THEMED_TONE_TEXT.neutral}`} title={band.label}>
