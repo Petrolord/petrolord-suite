@@ -38,6 +38,7 @@ import { RecordSharingBar } from '@/components/recordSharing';
 import { useProfileSystem } from '@/lib/units/useProfileSystem';
 import { buildLabel } from '@/lib/platformBuild';
 import { WF_PROFILE_FAMILIES } from '@/utils/waterflooddesign/units';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // one sharing store per page load (the signed-in user's session)
 const SHARING_STORE = supabaseSharingStore();
@@ -65,6 +66,7 @@ const WaterfloodDesignContent = () => {
   const {
     projects, sharedProjects, currentProjectId, createProject, openProject, deleteProject,
     projectRow, sharing, viewingShared, canWrite, saveCopy,
+    unitSystem, setUnitSystem, followsProfile,
     manualSave, isSaving, saveError, lastSaveTime,
     notifications, addNotification, removeNotification,
     setDisplacementField, setDisplacementInputs,
@@ -136,6 +138,18 @@ const WaterfloodDesignContent = () => {
             fieldLabels={{ project_name: 'name', inputs_data: 'inputs, intakes, surveillance data and scenarios' }}
           />
         )}
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <span className="text-xs text-pl-muted">Display units{followsProfile ? ' (your Suite unit profile)' : ''}</span>
+          <Select value={unitSystem} onValueChange={setUnitSystem}>
+            <SelectTrigger className="h-8 w-[112px] text-xs" aria-label="Display units" data-testid="wds-unit-system">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="oilfield">Oilfield</SelectItem>
+              <SelectItem value="si">SI</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         {projectRow && sharing.ready && !canWrite && (
           <p className="mt-2 text-xs text-pl-warning-text" data-testid="wds-read-only">
             {sharing.readOnlyReason || 'This project is open read-only.'} Changes you make here are not saved to it.
