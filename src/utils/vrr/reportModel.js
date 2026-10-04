@@ -136,7 +136,7 @@ function inputsBlock(inputs, d, u) {
   rows.push({
     key: 'datum', label: 'Pressure datum', value: text(datum.depth) ? g(u.show('depth', Number(datum.depth)), 6) : EMPTY_VALUE, unit: u.label('depth'),
     source: text(datum.depth) ? `${text(datum.reference) || 'reference not stated'}; stated only, no correction to datum applied` : 'Not stated: the surveys are used as given, at whatever depth they were quoted',
-    engineKeys: ['datum'],
+    engineKeys: ['datum.depth', 'datum.reference'],
   });
   // production and injection
   const info = inputs.importInfo;
@@ -175,12 +175,13 @@ export function engineInputOf(inputs, d) {
     periods: d.basePeriods,
     pvtMode: d.pvt.mode,
     pressureSurveys: inputs.pressureSurveys,
-    datum: inputs.datum,
+    datum: { depth: inputs.datum?.depth ?? '', reference: inputs.datum?.reference ?? '' },
     settings: { targetBandMin: d.targetBand.min, targetBandMax: d.targetBand.max, rollingWindow: d.windowPeriods },
   };
   if (d.pvt.mode === 'track') out.fluid = { ...inputs.fluid };
   if (inputs.pvtIntake) out.pvtTable = inputs.pvtIntake.table;
-  if (d.isImported && (inputs.patterns || []).length) { out.allocation = inputs.allocation; out.patterns = inputs.patterns; }
+  // the matrix is one input (a table): its entries as one leaf
+  if (d.isImported && (inputs.patterns || []).length) { out.allocation = Object.entries(inputs.allocation || {}); out.patterns = inputs.patterns; }
   return out;
 }
 

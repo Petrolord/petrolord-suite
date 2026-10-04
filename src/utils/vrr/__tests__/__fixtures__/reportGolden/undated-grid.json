@@ -1,0 +1,97 @@
+{
+  "pages": 5,
+  "sha256": "ab315795d0cb3664de607fd66e2f586a2112bdfdd1b3d3b01a6d76d92df191cf",
+  "figures": [
+    {
+      "id": "vrr",
+      "number": 1,
+      "page": 4,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 29,
+            "w": 182,
+            "h": 64
+          },
+          "drawn": {
+            "Instantaneous": 2,
+            "Rolling (3)": 2,
+            "Cumulative": 2
+          },
+          "total": 6,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "terms",
+      "number": 2,
+      "page": 4,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 113.72,
+            "w": 182,
+            "h": 50
+          },
+          "drawn": {
+            "Oil": 2,
+            "Water": 2,
+            "Free gas": 2
+          },
+          "total": 6,
+          "bands": 0,
+          "logo": true
+        },
+        {
+          "box": {
+            "x": 14,
+            "y": 166.72,
+            "w": 182,
+            "h": 50
+          },
+          "drawn": {
+            "Water injected": 2,
+            "Gas injected": 2
+          },
+          "total": 4,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "pressure",
+      "number": 3,
+      "page": 4,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "rates",
+      "number": 4,
+      "page": 4,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "fvf",
+      "number": 5,
+      "page": 4,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "patterns",
+      "number": 6,
+      "page": 5,
+      "plotted": false,
+      "panels": []
+    }
+  ]
+}

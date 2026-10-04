@@ -1,0 +1,357 @@
+Voidage Replacement Report
+Petrolord Voidage Replacement Monitor
+
+Project                  Ekene waterflood                                 Company                  Lordsway Energy
+Field                    Ekene                                            Licence or block         OML 999
+Reservoir or zone        E-2000                                           Pattern area or          Central fault block
+                                                                          segment
+Production data          Monthly production allocation                    Analyst                  A. Analyst
+source
+Periods                  3 (2025-01 to 2025-03)                           Data cut-off             2025-03
+Wells                    2 producers, 2 injectors                         Analysis type            Voidage replacement ratio by period,
+                                                                                                   reservoir barrels (instantaneous, rolling
+                                                                                                   and cumulative)
+Software build           test-build                                       Voidage basis            Reservoir barrels (rm3 on this report)
+Display units            SI (oil sm3, water sm3, gas 10^3 sm3,            Generated                2026-10-04 12:00 UTC
+                         reservoir voidage rm3, Bo and Bw
+                         rm3/sm3, Bg rm3/sm3, Rs sm3/sm3,
+                         pressure kPa, temperature degC)
+
+
+Headline results
+ Quantity                               Value                    Unit         Basis
+
+ Cumulative VRR                         0.9458                                Injected over produced reservoir voidage, 2025-01 to 2025-03
+
+ Latest instantaneous VRR               1.06                                  Period 2025-03 alone
+
+ Latest rolling VRR                     0.9458                                The last 3 periods
+
+ Periods outside the target band        2 of 3                                Band 1 to 1.2, instantaneous VRR
+
+ Produced reservoir voidage             9,995                    rm3          Oil 8,049 + water 1,946 + free gas 0
+
+ Injected reservoir volume              9,453                    rm3          Water 8,595 + gas 859
+
+ Net voidage (injected less             -541                     rm3          Voidage not replaced to date
+ produced)
+
+ Fill-up                                Not reached                           First period whose cumulative VRR reaches 1
+
+ Reservoir pressure change over the     -673                     kPa          20,668 to 19,995 kPa, surveys interpolated to mid-month; falling
+ record
+
+All voidage in reservoir barrels at the reservoir pressure of each period. VRR is dimensionless.
+
+
+
+
+Voidage Replacement Report, Ekene, E-2000                                                                                               Page 1 of 5
+Inputs and their sources
+ Input                                                   Value                       Unit                      Source and quality
+
+ Oil formation volume factor Bo                          1.25                        rm3/sm3                   Assumed: the starting value of the app (1.25 rm3/sm3),
+                                                                                                               not field data
+
+ Water formation volume factor Bw                        1.02                        rm3/sm3                   Assumed: the starting value of the app (1.02 rm3/sm3),
+                                                                                                               not field data
+
+ Gas formation volume factor Bg                          0.0050531                   rm3/sm3                   Assumed: the starting value of the app (0.9 rm3/sm3), not
+                                                                                                               field data
+
+ Solution gas-oil ratio Rs                               97.959                      sm3/sm3                   Assumed: the starting value of the app (550 sm3/sm3),
+                                                                                                               not field data
+
+ FVFs per period                                         One constant FVF                                      Chosen by the analyst
+                                                         set for every period
+
+ Average reservoir pressure surveys                      2                           kPa                       Typed on the Pressure tab (absolute pressure)
+
+ Pressure datum                                          n/a                         m                         Not stated: the surveys are used as given, at whatever
+                                                                                                               depth they were quoted
+
+ Production and injection volumes                        3 periods                   sm3, sm3,                 Imported per-well ledger the sample ledger: 12 rows, 4
+                                                                                     10^3 sm3                  wells, 2025-01-01 to 2025-03-01. The built-in sample
+                                                                                                               ledger of the app (3 months, 2 producers, 2 injectors; the
+                                                                                                               engine test fixture, not field data).
+
+ Target VRR band, lower edge                             1                                                     The starting value of the app (an operator choice)
+
+ Target VRR band, upper edge                             1.2                                                   The starting value of the app (an operator choice)
+
+ Rolling VRR window                                      3                           periods                   The starting value of the app (an operator choice)
+
+Every value the analysis read, in the display units. The engine and the saved project hold oilfield units; "Assumed" marks a starting value of the
+app that nobody changed.
+
+
+Voidage ledger by period
+ Period     Oil (rm3)      Water (rm3)         Free gas (rm3)       Produced (rm3)          Water inj. (rm3)       Gas inj. (rm3)    Injected (rm3)       Inst. VRR    Cum. VRR
+
+ 2025-01           2,981               487                      0               3,468                   2,433                  429             2,862         0.8253         0.8253
+
+ 2025-02           2,683               649                      0               3,332                   2,919                  286             3,205         0.9621         0.8923
+
+ 2025-03           2,385               811                      0               3,196                   3,243                  143             3,386            1.06        0.9458
+
+ Total             8,049              1,946                     0               9,995                   8,595                  859             9,453             n/a        0.9458
+
+Produced = oil + water + free gas; injected = water + gas; every column sums to its total, and the terms agree with the engine's VRR series to
+better than 1 part in 10^12. Free gas is the produced gas above Rs x oil, never below zero, in each period at field level.
+
+
+Volumes and FVFs by period
+ Period    Oil          Water         Gas (10^3        Water inj.       Gas inj. (10^3         Bo               Bw            Bg            Rs              Pressure       FVF set
+           (sm3)        (sm3)         sm3)             (sm3)            sm3)                   (rm3/sm3)        (rm3/sm3)     (rm3/sm3)     (sm3/sm3)       (kPa)
+
+ 2025-01     2,385              477           226.53            2,385               84.95             1.25             1.02     0.0050531        97.959           20,668   constant
+
+ 2025-02     2,146              636           192.55            2,862               56.63             1.25             1.02     0.0050531        97.959           20,323   constant
+
+ 2025-03     1,908              795           161.41            3,180               28.32             1.25             1.02     0.0050531        97.959           19,995   constant
+
+
+Surface volumes of each period as the ledger holds them, the FVF set applied to the period, the reservoir pressure interpolated at mid-month
+(blank without surveys), and where the FVF set came from.
+
+
+
+
+Voidage Replacement Report, Ekene, E-2000                                                                                                                              Page 2 of 5
+What the import read
+ Field                          File column              Read as                                                   From                Values
+
+ Date                           date                     unambiguous                                               the file            12
+
+ Well                           well                     n/a                                                       n/a                 12
+
+ Oil produced                   oil_stb                  bbl in the row's period (volume)                          the header          6
+
+ Water produced                 water_stb                bbl in the row's period (volume)                          the header          6
+
+ Gas produced                   gas_mscf                 Mscf in the row's period (volume)                         the header          6
+
+ Water injected                 winj_stb                 bbl in the row's period (volume)                          the header          3
+
+ Gas injected                   ginj_mscf                Mscf in the row's period (volume)                         the header          3
+
+File the sample ledger, 12 rows read, 0 left out.
+
+Model, basis and conventions
+ Item                              As used in this report
+
+ Instantaneous VRR                 Injected reservoir volume of the period over produced reservoir voidage of the period
+
+ Cumulative VRR                    Sum of injected reservoir volume to date over sum of produced reservoir voidage to date
+
+ Rolling VRR                       The same over the last 3 periods (a shorter window at the start)
+
+ Produced voidage                  Np Bo + Wp Bw + max(0, Gp - Rs Np / 1000) Bg; solution gas is carried in Bo, so only the free gas adds
+                                   voidage
+
+ Injected volume                   Wi Bw + Gi Bg: injected water at the produced-water Bw, injected gas at the produced-gas Bg of the period
+
+ FVF basis                         Bo and Rs per stock-tank barrel, Bw per barrel, Bg per Mscf at standard conditions. The basis of typed values
+                                   (flash or differential liberation) is as the analyst entered them; state it in the source note.
+
+ Periods                           Calendar months; per-well rows are summed by month
+
+ Pressure                          Average reservoir pressure, absolute, surveys interpolated linearly to the middle of each month and held flat
+                                   outside the surveyed span; dp/dt per month by central difference
+
+ Target band                       The operator band of this project, applied to instantaneous VRR; the screening bands 0.9 to 1.1 of the engine
+                                   are a second reading
+
+
+Limits of this analysis
+- FVFs are held constant over the record. Below the bubble point Bg and Rs move strongly with pressure, so a constant set misstates the free gas
+term as pressure falls; use the pressure track or a Fluid Systems Studio table where pressure changes.
+- Free gas is produced gas above Rs x oil in each period, summed at field (or pattern) level before the floor at zero: a well producing below its
+solution GOR offsets a well producing free gas. Gas that is flared or used on lease must be in the produced gas column to count.
+- Injected water is converted at the Bw of the produced water and injected gas at the Bg of the produced gas, at the period pressure; differences in
+injected fluid composition are not modelled.
+- VRR replaces voidage by volume only. Aquifer influx, out-of-zone injection, thief zones and sweep are not seen: a VRR of 1 with falling pressure
+points to out-of-zone injection or unmeasured voidage, and a VRR of 1 does not mean good conformance.
+- Volumes are the allocated volumes of the source; allocation errors in well tests pass straight into the ratio.
+
+Flags on the inputs, the import and the periods
+- The pressure datum is not stated.
+
+
+
+
+Voidage Replacement Report, Ekene, E-2000                                                                                                   Page 3 of 5
+Plots
+Figure 1. Voidage replacement ratio by period
+
+                                                          Instantaneous     Rolling (3)    Cumulative
+  VRR (reservoir volume injected / produced)
+
+
+
+
+                                                1.2
+                                                                                                                                                        target band
+
+                                                      VRR = 1
+                                                 1
+
+
+                                                0.8
+
+
+                                                0.6
+
+
+                                                0.4
+
+
+                                                0.2
+
+
+                                                 0
+                                                2025-01                                        2025-02                                       2025-03           2025-04
+
+                                                                                                Date (each period plotted at the middle of its month)
+
+Instantaneous VRR (each period alone), rolling VRR over 3 periods and cumulative VRR, with VRR = 1 (voidage replaced) and the target band 1
+to 1.2 shaded. Cumulative VRR at the cut-off 0.9458.
+
+
+Figure 2. Reservoir voidage by term
+
+                                                          Oil       Water     Free gas
+                                               4000
+  Produced (rm3)
+
+
+
+
+                                               3000
+
+
+                                               2000
+
+
+                                               1000
+
+
+                                                 0
+                                                2025-01                                        2025-02                                       2025-03           2025-04
+
+                                                                                                Date (each period plotted at the middle of its month)
+
+
+                                                          Water injected    Gas injected
+                                               4000
+
+
+                                               3000
+  Injected (rm3)
+
+
+
+
+                                               2000
+
+
+                                               1000
+
+
+                                                 0
+                                                2025-01                                        2025-02                                       2025-03           2025-04
+
+                                                                                                Date (each period plotted at the middle of its month)
+
+Top: produced voidage of each period, stacked oil, water and free gas. Bottom: injected volume, stacked water and gas. Both in rm3 at the
+reservoir pressure of the period; the stacks are the Produced and Injected columns of the ledger table.
+
+
+
+
+Voidage Replacement Report, Ekene, E-2000                                                                                                                 Page 4 of 5
+Figure 3. Reservoir pressure history
+
+                                     Survey      Period pressure      Cumulative VRR
+                        20800                                                                                                        0.95
+
+
+                        20600                                                                                                        0.925
+
+
+
+
+                                                                                                                                                 Cumulative VRR
+  Pressure (kPa)
+
+
+
+
+                        20400                                                                                                        0.9
+
+
+                        20200                                                                                                        0.875
+
+
+                        20000                                                                                                        0.85
+
+
+                        19800                                                                                                        0.825
+                           2025-01                                       2025-02                                   2025-03       2025-04
+
+                                                                        Date (each period plotted at the middle of its month)
+
+Average reservoir pressure surveys (kPa, absolute) and the pressure attached to each period by linear interpolation at mid-month, held flat outside
+the surveyed span, beside cumulative VRR on the right axis. Datum not stated.
+
+
+Figure 4. Production and injection rates
+
+                                     Oil      Water produced       Water injected      Gas produced         Gas injected
+                          120                                                                                                        8
+
+
+                          100
+
+
+
+
+                                                                                                                                                 Gas rate (10^3 sm3/d)
+                                                                                                                                     6
+  Liquid rate (sm3/d)
+
+
+
+
+                           80
+
+
+                           60                                                                                                        4
+
+
+                           40
+                                                                                                                                     2
+                           20
+
+
+                           0                                                                                                         0
+                          2025-01                                        2025-02                                   2025-03       2025-04
+
+                                                                        Date (each period plotted at the middle of its month)
+
+Calendar-day rates of each month (the month's volume over its days): oil, water produced and water injected in sm3 per day; gas produced and
+injected in 10^3 sm3/d on the right axis.
+
+
+Figure 5. Formation volume factors by period
+Does not apply: one constant FVF set is used for every period.
+
+
+Figure 6. Cumulative VRR by pattern
+Not plotted: no pattern is defined.
+
+
+
+
+Voidage Replacement Report, Ekene, E-2000                                                                                                Page 5 of 5
+

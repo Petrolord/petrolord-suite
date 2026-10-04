@@ -1,0 +1,167 @@
+{
+  "pages": 8,
+  "sha256": "f13839961b6290f6928e618731de22b0c9f84ba94ce1fcdfc5e47581db1051d7",
+  "figures": [
+    {
+      "id": "vrr",
+      "number": 1,
+      "page": 6,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 29,
+            "w": 182,
+            "h": 64
+          },
+          "drawn": {
+            "Instantaneous": 3,
+            "Rolling (3)": 3,
+            "Cumulative": 3
+          },
+          "total": 9,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "terms",
+      "number": 2,
+      "page": 6,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 113.72,
+            "w": 182,
+            "h": 50
+          },
+          "drawn": {
+            "Oil": 3,
+            "Water": 3,
+            "Free gas": 3
+          },
+          "total": 9,
+          "bands": 0,
+          "logo": true
+        },
+        {
+          "box": {
+            "x": 14,
+            "y": 166.72,
+            "w": 182,
+            "h": 50
+          },
+          "drawn": {
+            "Water injected": 3,
+            "Gas injected": 3
+          },
+          "total": 6,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "pressure",
+      "number": 3,
+      "page": 7,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 64
+          },
+          "drawn": {
+            "Survey": 2,
+            "Period pressure": 3,
+            "Cumulative VRR": 3
+          },
+          "total": 8,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "rates",
+      "number": 4,
+      "page": 7,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 107.72,
+            "w": 182,
+            "h": 64
+          },
+          "drawn": {
+            "Oil": 3,
+            "Water produced": 3,
+            "Water injected": 3,
+            "Gas produced": 3,
+            "Gas injected": 3
+          },
+          "total": 15,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "fvf",
+      "number": 5,
+      "page": 7,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 192.44,
+            "w": 182,
+            "h": 54
+          },
+          "drawn": {
+            "Bo": 3,
+            "Bw": 3,
+            "Bg": 3
+          },
+          "total": 9,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "patterns",
+      "number": 6,
+      "page": 8,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 64
+          },
+          "drawn": {
+            "Field": 3,
+            "North": 3,
+            "South": 3
+          },
+          "total": 9,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    }
+  ]
+}
