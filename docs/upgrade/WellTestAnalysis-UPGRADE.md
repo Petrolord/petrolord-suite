@@ -239,6 +239,13 @@ merged; vendored byte-identical with `welltest-u2` ledger rows meanwhile).
 
 ## Step 2 build log
 
+### U2-013 Negative skin on the non-homogeneous models: done (engines-first, PR #311)
+
+- Engine `withNegativeSkin` in `modelCatalog.js`: S < 0 on the sealing fault, constant pressure, channel, closed circle, closed rectangle and the three dual-porosity models by the effective-radius mapping (rw' = rw e^-S, zero skin) with every rw-based group rescaled: tD and CD by e^2S (Laplace F(u) = F'(u/a)/a), LD, WD, reD and the rectangle's sides and well position by e^S, lambda by e^-2S. Skin minimum -5 on those models (as on the homogeneous model since WT1). The horizontal well (skin on kh h) and the fractures (choked-fracture skin) keep S >= 0.
+- Validation (engines `welltest.negativeSkin.test.js`, 12): on the infinite radial solution the mapping equals the WT1 homogeneous negative-skin route to 1e-9; for all eight models pwD(S = -3) - pwD(S = 0) = -3 within 0.01 from tD 3e5 to 3e7, through the boundary or the fissure transition (a skin only shifts the late pressure); the fault's infinite-acting part sits on 0.5 (ln tD + 0.80907) + S; negative control: rescaling time but not the distances or lambda misses by more than 0.2. No published worked example of a stimulated well on these models was read; the gates are exact properties of the solutions.
+- Proving test (Suite): `wellTestU2.test.jsx` U2-013: a stimulated well 400 ft from a sealing fault (skin -2): the studio's regression returns skin within 0.15 of -2 and k and L within 10 percent; with the earlier bound (S >= 0) the fit stops at zero or above with more than ten times the residual (negative control). The k and L bias of a few percent is the regression's on this model for either sign (L 372 against 400 for skin +2 on the engine alone), recorded here.
+- `wt6Rectangle` tests (engines and Suite) follow the new bound.
+
 ### U2-007 Deviated-well partial penetration (slant pseudo-skin): done (engines-first, PR #311)
 
 - Engine `slantPseudoSkin` in `partialPenetration.js`: the Cinco-Ley, Ramey and Miller (1975, SPE 5589) correlation s_theta = -(theta'/41)^2.06 - (theta'/56)^1.865 log10(hD/100) with theta' = atan(sqrt(kv/kh) tan theta) and hD = (h/rw) sqrt(kh/kv); refused beyond theta' 75 degrees; a warning below hD 40.

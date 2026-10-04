@@ -332,3 +332,34 @@ describe('WTA-U2-007: the slant pseudo-skin of a deviated interval', () => {
     studio.unmount();
   }, 600000);
 });
+
+describe('WTA-U2-013: negative skin on the non-homogeneous models', () => {
+  const { getModel, evaluateBuildup } = require('@/utils/welltest/models/modelCatalog');
+  test('a stimulated well near a sealing fault: the regression recovers skin -2 (it stopped at 0 before)', async () => {
+    const reservoir = { h: 45, phi: 0.18, rw: 0.354, B: 1.25, mu: 0.9, ct: 0.000012, q: 450, pi: 4800 };
+    const truth = { k: 85, skin: -2, C: 0.015, L: 400 };
+    const model = getModel('homogeneous-sealing-fault');
+    expect(model.parameters.find((p) => p.key === 'skin').min).toBe(-5);
+    const dts = Array.from({ length: 60 }, (_, i) => Math.pow(10, -2 + (4.3 * i) / 59));
+    const pts = evaluateBuildup({ model, params: truth, reservoir, tp: 36, dts });
+    const studio = await sample((c) => {
+      c.setGaugeRows(pts.map((p) => ({ t: p.dt, p: p.pws })));
+      c.setTestField('pwfShutIn', pts.pwfAtShutIn.toFixed(3));
+    });
+    await studio.act((c) => { c.setMatchField('modelId', 'homogeneous-sealing-fault'); c.setMatchField('skin', '0'); c.setMatchField('L', '300'); });
+    await studio.act((c) => c.runAutoFit());
+    const fit = studio.ctx.fitResult;
+    expect(Math.abs(fit.params.skin - -2)).toBeLessThan(0.15);
+    // k and L within 10 percent: the regression on the smoothed derivative carries the same bias for
+    // a positive skin of 2 (L 372 against 400 on the engine alone), so it is not the sign of the skin
+    expect(Math.abs(fit.params.k / 85 - 1)).toBeLessThan(0.1);
+    expect(Math.abs(fit.params.L / 400 - 1)).toBeLessThan(0.1);
+    // negative control: the bound of the earlier release (skin >= 0) cannot reach it
+    const clamped = { ...model, parameters: model.parameters.map((p) => (p.key === 'skin' ? { ...p, min: 0 } : p)) };
+    const { autoFitModel } = require('@/utils/welltest/autoFit');
+    const old = autoFitModel({ model: clamped, testType: 'buildup', data: pts.map((p) => ({ dt: p.dt, dp: p.dp })), reservoir, tp: 36, initialParams: { k: 85, skin: 0, C: 0.01, L: 300 } });
+    expect(old.params.skin).toBeGreaterThanOrEqual(0);
+    expect(old.ssr).toBeGreaterThan(fit.ssr * 10);
+    studio.unmount();
+  }, 900000);
+});

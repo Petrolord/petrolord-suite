@@ -368,6 +368,16 @@ const WTSHelpContent = () => (
       partly open the split is approximate, and the report says so.
     </P>
 
+    <H>Stimulated wells on every radial model</H>
+    <P>
+      Skin can go down to -5 on the boundary models (fault, constant pressure, channel, closed circle, closed
+      rectangle) and the dual-porosity models, as it always could on the plain homogeneous model. A negative skin is
+      handled as a larger effective wellbore radius, with the boundary distances and the interporosity coefficient
+      seen from that radius, so the boundaries and the fissure transition stay where they are in real time. The
+      horizontal well and the fracture models keep skin at zero or above; a fractured well shows its stimulation
+      through the fracture itself.
+    </P>
+
     <H>Conventions</H>
     <P>
       Display units follow the selector on the Data tab, in either oilfield (md, ft, cp, psi, STB/D, RB/STB, hours) or
