@@ -154,10 +154,10 @@ export function buildWfForecastContract({ projectId, projectName = null, project
     },
     model: {
       displacement: 'Buckley-Leverett with the Welge tangent (1-D displacement inside the swept region)',
-      pattern: p.pattern || 'five-spot',
-      patternLabel: patternLabel(p.pattern),
+      pattern: p.patternType,
+      patternLabel: patternLabel(p.patternType),
       arealSweep: {
-        correlation: arealSweepCorrelationText(p.pattern),
+        correlation: arealSweepCorrelationText(p.patternType),
         mobilityBasis: s.mobilityBasis,
         mobilityBasisText: MOBILITY_BASES[s.mobilityBasis] || s.mobilityBasis,
         M: s.M, M_endpoint: s.M_endpoint, M_craig: s.M_craig, EAbt: s.EAbt,

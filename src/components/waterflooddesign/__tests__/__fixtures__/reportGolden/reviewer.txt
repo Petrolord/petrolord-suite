@@ -110,88 +110,93 @@ at the average water saturation behind the front at breakthrough.
 
 Waterflood Design Report, Ekene, Five-spot P-1                                                                                     Page 2 of 11
 Inputs and their sources
- Input                                           Value    Unit       Source and quality
+ Input                                           Value       Unit       Source and quality
 
- Connate water saturation Swc                    0.18     fraction   SCAL Studio kr-1: Corey fitted to sample "Demo core A
-                                                                     (synthetic)" (analog, imbibition, unsteady-state), r2 0.999
-                                                                     (log kr), from SCAL Studio project "Ekene E-2000 SCAL"
-                                                                     (2026-10-04 09:00 UTC)
+ Connate water saturation Swc                    0.18        fraction   SCAL Studio kr-1: Corey fitted to sample "Demo core A
+                                                                        (synthetic)" (analog, imbibition, unsteady-state), r2 0.999
+                                                                        (log kr), from SCAL Studio project "Ekene E-2000 SCAL"
+                                                                        (2026-10-04 09:00 UTC)
 
- Residual oil saturation Sor                     0.22     fraction   SCAL Studio kr-1: Corey fitted to sample "Demo core A
-                                                                     (synthetic)" (analog, imbibition, unsteady-state), r2 0.999
-                                                                     (log kr), from SCAL Studio project "Ekene E-2000 SCAL"
-                                                                     (2026-10-04 09:00 UTC)
+ Residual oil saturation Sor                     0.22        fraction   SCAL Studio kr-1: Corey fitted to sample "Demo core A
+                                                                        (synthetic)" (analog, imbibition, unsteady-state), r2 0.999
+                                                                        (log kr), from SCAL Studio project "Ekene E-2000 SCAL"
+                                                                        (2026-10-04 09:00 UTC)
 
- krw at Sor (end point)                          0.3104   fraction   SCAL Studio kr-1: Corey fitted to sample "Demo core A
-                                                                     (synthetic)" (analog, imbibition, unsteady-state), r2 0.999
-                                                                     (log kr), from SCAL Studio project "Ekene E-2000 SCAL"
-                                                                     (2026-10-04 09:00 UTC)
+ krw at Sor (end point)                          0.3104      fraction   SCAL Studio kr-1: Corey fitted to sample "Demo core A
+                                                                        (synthetic)" (analog, imbibition, unsteady-state), r2 0.999
+                                                                        (log kr), from SCAL Studio project "Ekene E-2000 SCAL"
+                                                                        (2026-10-04 09:00 UTC)
 
- kro at Swc (end point)                          0.9236   fraction   SCAL Studio kr-1: Corey fitted to sample "Demo core A
-                                                                     (synthetic)" (analog, imbibition, unsteady-state), r2 0.999
-                                                                     (log kr), from SCAL Studio project "Ekene E-2000 SCAL"
-                                                                     (2026-10-04 09:00 UTC)
+ kro at Swc (end point)                          0.9236      fraction   SCAL Studio kr-1: Corey fitted to sample "Demo core A
+                                                                        (synthetic)" (analog, imbibition, unsteady-state), r2 0.999
+                                                                        (log kr), from SCAL Studio project "Ekene E-2000 SCAL"
+                                                                        (2026-10-04 09:00 UTC)
 
- Corey water exponent nw                         2.38                SCAL Studio kr-1: Corey fitted to sample "Demo core A
-                                                                     (synthetic)" (analog, imbibition, unsteady-state), r2 0.999
-                                                                     (log kr), from SCAL Studio project "Ekene E-2000 SCAL"
-                                                                     (2026-10-04 09:00 UTC)
+ Corey water exponent nw                         2.38                   SCAL Studio kr-1: Corey fitted to sample "Demo core A
+                                                                        (synthetic)" (analog, imbibition, unsteady-state), r2 0.999
+                                                                        (log kr), from SCAL Studio project "Ekene E-2000 SCAL"
+                                                                        (2026-10-04 09:00 UTC)
 
- Corey oil exponent no                           2.14                SCAL Studio kr-1: Corey fitted to sample "Demo core A
-                                                                     (synthetic)" (analog, imbibition, unsteady-state), r2 0.999
-                                                                     (log kr), from SCAL Studio project "Ekene E-2000 SCAL"
-                                                                     (2026-10-04 09:00 UTC)
+ Corey oil exponent no                           2.14                   SCAL Studio kr-1: Corey fitted to sample "Demo core A
+                                                                        (synthetic)" (analog, imbibition, unsteady-state), r2 0.999
+                                                                        (log kr), from SCAL Studio project "Ekene E-2000 SCAL"
+                                                                        (2026-10-04 09:00 UTC)
 
- Water viscosity muW                             0.3465   cP         Correlation: McCain, at 2500 psia (stated reservoir
-                                                                     pressure), from Fluid Systems Studio project "Good Oil
-                                                                     Well No. 4 PVT" (2026-10-02 09:00 UTC)
+ Water viscosity muW                             0.3465      cP         Correlation: McCain, at 2500 psia (stated reservoir
+                                                                        pressure), from Fluid Systems Studio project "Good Oil
+                                                                        Well No. 4 PVT" (2026-10-02 09:00 UTC)
 
- Oil viscosity muO                               0.3949   cP         Correlation: Beggs-Robinson, multiplied by 1.1606
-                                                                     (laboratory match), correlations matched to lab data, at
-                                                                     2500 psia (stated reservoir pressure), from Fluid Systems
-                                                                     Studio project "Good Oil Well No. 4 PVT" (2026-10-02
-                                                                     09:00 UTC)
+ Oil viscosity muO                               0.3949      cP         Correlation: Beggs-Robinson, multiplied by 1.1606
+                                                                        (laboratory match), correlations matched to lab data, at
+                                                                        2500 psia (stated reservoir pressure), from Fluid Systems
+                                                                        Studio project "Good Oil Well No. 4 PVT" (2026-10-02
+                                                                        09:00 UTC)
 
- Dip and gravity term                            Off                 Chosen in the app: horizontal displacement, no gravity
-                                                                     term
+ Dip and gravity term                            Off                    Chosen in the app: horizontal displacement, no gravity
+                                                                        term
 
- Pattern area                                    40       acres      Offset well. Pattern P-1 well spacing
+ Pattern area                                    40          acres      Offset well. Pattern P-1 well spacing
 
- Net thickness                                   25       ft         Measured (lab). Net pay from the petrophysical
-                                                                     interpretation
+ Net thickness                                   25          ft         Measured (lab). Net pay from the petrophysical
+                                                                        interpretation
 
- Porosity                                        0.22     frac       Measured (lab). Core porosity, E-2000 average
+ Porosity                                        0.22        frac       Measured (lab). Core porosity, E-2000 average
 
- Oil FVF Bo (pattern)                            1.454    RB/STB     Correlation: Standing, multiplied by 0.9059 plus 0.1281
-                                                                     RB/STB (laboratory match), correlations matched to lab
-                                                                     data, at 2500 psia (stated reservoir pressure), from Fluid
-                                                                     Systems Studio project "Good Oil Well No. 4 PVT"
-                                                                     (2026-10-02 09:00 UTC)
+ Oil FVF Bo (pattern)                            1.454       RB/STB     Correlation: Standing, multiplied by 0.9059 plus 0.1281
+                                                                        RB/STB (laboratory match), correlations matched to lab
+                                                                        data, at 2500 psia (stated reservoir pressure), from Fluid
+                                                                        Systems Studio project "Good Oil Well No. 4 PVT"
+                                                                        (2026-10-02 09:00 UTC)
 
- Water FVF Bw (pattern)                          1.043    RB/STB     Correlation: McCain, with the Numbere-Brigham-Standing
-                                                                     salinity correction, at 2500 psia (stated reservoir
-                                                                     pressure), from Fluid Systems Studio project "Good Oil
-                                                                     Well No. 4 PVT" (2026-10-02 09:00 UTC)
+ Water FVF Bw (pattern)                          1.043       RB/STB     Correlation: McCain, with the Numbere-Brigham-Standing
+                                                                        salinity correction, at 2500 psia (stated reservoir
+                                                                        pressure), from Fluid Systems Studio project "Good Oil
+                                                                        Well No. 4 PVT" (2026-10-02 09:00 UTC)
 
- Water injection rate (constant, reservoir       800      RB/d       Assumed. Design injection rate
+ Water injection rate (constant, reservoir       800         RB/d       Assumed. Design injection rate
  barrels)
 
- Initial free gas saturation Sgi                 0        frac       Starting value of the app, not changed (assumed)
+ Initial free gas saturation Sgi                 0           frac       Starting value of the app, not changed (assumed)
 
- Vertical sweep EV (multiplier)                  1                   Starting value of the app, not changed (assumed)
+ Vertical sweep EV (multiplier)                  1                      Starting value of the app, not changed (assumed)
 
- WOR economic limit (surface, STB/STB)           25                  Starting value of the app, not changed (assumed)
+ WOR economic limit (surface, STB/STB)           25                     Starting value of the app, not changed (assumed)
 
- Forecast horizon                                30       yr         Starting value of the app, not changed (assumed)
+ Forecast horizon                                30          yr         Starting value of the app, not changed (assumed)
 
- Mobility ratio of the areal sweep               Craig               Chosen in the app: Craig: krw at the average water
- correlation                                                         saturation behind the front at breakthrough
+ Flood pattern                                   Five-spot              Starting value of the app: five-spot: EA at breakthrough
+                                                                        from Craig's data (Willhite's regression, Ahmed eq. 14-64),
+                                                                        growth after breakthrough by Dyes, Caudle and Erickson
 
 
 
-
-Waterflood Design Report, Ekene, Five-spot P-1                                                                        Page 3 of 11
+Waterflood Design Report, Ekene, Five-spot P-1                                                                           Page 3 of 11
  Input                                           Value                   Unit            Source and quality
+
+                                                                                         (Ahmed eq. 14-66)
+
+ Mobility ratio of the areal sweep               Craig                                   Chosen in the app: Craig: krw at the average water
+ correlation                                                                             saturation behind the front at breakthrough
 
  Layers (thickness, permeability)                5 layers, total 45 ft                   Entered or imported on the Layered Sweep tab
 

@@ -17,6 +17,7 @@ import { setProvenanceField, serializeProvenance, deserializeProvenance } from '
 import { mcSummaryRecord, mcInputsFingerprint } from '@/utils/waterflooddesign/mcSummary';
 import { wfUnits } from '@/utils/waterflooddesign/units';
 import { layeredFrom } from '@/utils/waterflooddesign/workspace';
+import { patternKeyOf } from '@/utils/waterflooddesign/patterns';
 
 export const WF_PROJECTS_TABLE = 'saved_waterflood_design_projects';
 
@@ -120,6 +121,9 @@ export function buildPatternInputs(p) {
     Sgi: num(p.Sgi) || 0, EV: num(p.EV) || 1,
     worLimit: num(p.worLimit) || 25, maxYears: num(p.maxYears) || 30,
     mobilityBasis: p.mobilityBasis === 'endpoint' ? 'endpoint' : 'craig',
+    // WF-U2-002: the flood pattern; a project without one is a five-spot.
+    // Not in DEFAULT_PATTERN, so saved projects keep their Monte Carlo fingerprint.
+    patternType: patternKeyOf(p.patternType),
   };
   if (![pattern.area_acres, pattern.h_ft, pattern.phi, pattern.Bo, pattern.Bw, pattern.iw_bpd].every((v) => v > 0)) return null;
   return pattern;

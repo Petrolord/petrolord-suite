@@ -148,7 +148,7 @@ const UncertaintyPanel = () => {
 
       <section>
         <Label className="text-[11px] text-pl-muted leading-snug block">
-          Each realization substitutes the sampled values into the working case and reruns the five-spot forecast.
+          Each realization substitutes the sampled values into the working case and reruns the pattern forecast.
           Enabling a parameter seeds a plus/minus 20% triangular spread around its working value; edit freely.
           {enabledCount === 0 ? ' Enable at least one parameter to run.' : ''}
         </Label>

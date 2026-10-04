@@ -30,7 +30,7 @@ export function mcSummaryRecord(result, { ranAt, fingerprint }) {
     rf: pick(result.stats?.rf),
     btYears: pick(result.stats?.btYears),
     sensitivity: (result.sensitivity || []).map((s) => ({ label: s.label, rho: s.rho, contribution: s.contribution })),
-    method: 'Monte Carlo through the canonical module (src/lib/monteCarlo.js), each realization rerunning the five-spot forecast',
+    method: 'Monte Carlo through the canonical module (src/lib/monteCarlo.js), each realization rerunning the pattern forecast',
   };
 }
 

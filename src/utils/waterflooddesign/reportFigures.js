@@ -7,6 +7,7 @@
  * Pure: returns Report Kit figure entries ({ id, title, caption, panels }
  * or { id, title, statement }).
  */
+import { patternLabel } from './patterns.js';
 import { krSeries, fwSeries, recoverySeries, patternSeries, dpSeries, surveillanceRateSeries, vrrSeries } from './series.js';
 import { hallWindowLines } from '@/components/waterflood/hallLines';
 
@@ -88,7 +89,7 @@ export function buildWaterfloodReportFigures({ model, state }) {
     figs.push({
       id: 'rates',
       title: 'Pattern forecast: oil and water rates and the water-oil ratio',
-      caption: `Constant injection; five-spot areal sweep entered with M ${g(pr.summary?.M)} (${pr.summary?.mobilityBasis}). Pattern breakthrough at ${g(bt)} yr. Rates in ${u.label('oilRate')} at surface; WOR at surface, stopped at the limit ${g(+s.patternInputs?.worLimit)}.`,
+      caption: `Constant injection; ${patternLabel(s.patternInputs?.patternType)} areal sweep entered with M ${g(pr.summary?.M)} (${pr.summary?.mobilityBasis}). Pattern breakthrough at ${g(bt)} yr. Rates in ${u.label('oilRate')} at surface; WOR at surface, stopped at the limit ${g(+s.patternInputs?.worLimit)}.`,
       panels: [
         { height: 54, spec: {
           xTitle: 'Time since start of injection (years)', yTitle: `Rate (${u.label('oilRate')})`, xInclude: [0], yInclude: [0],
@@ -105,7 +106,7 @@ export function buildWaterfloodReportFigures({ model, state }) {
     figs.push({
       id: 'np',
       title: 'Cumulative oil and areal sweep against time',
-      caption: `Np in ${u.label('oilVolumeK')}; EA of the five-spot (fraction). At the end ER = ED x EA x EV = ${g((pr.summary?.recoverySplit?.ER ?? NaN) * 100)} % of the pattern OOIP.`,
+      caption: `Np in ${u.label('oilVolumeK')}; EA of the ${patternLabel(s.patternInputs?.patternType)} (fraction). At the end ER = ED x EA x EV = ${g((pr.summary?.recoverySplit?.ER ?? NaN) * 100)} % of the pattern OOIP.`,
       panels: [
         { height: 50, spec: { xTitle: 'Time since start of injection (years)', yTitle: `Np (${u.label('oilVolumeK')})`, xInclude: [0], yInclude: [0], series: [{ name: 'Np', type: 'line', rgb: RGB.oil, pts: ps.np, width: 0.55 }] } },
         { height: 46, spec: { xTitle: 'Time since start of injection (years)', yTitle: 'Areal sweep EA', xInclude: [0], yInclude: [0, 1], series: [{ name: 'EA', type: 'line', rgb: RGB.alt, pts: ps.ea, width: 0.55 }] } },

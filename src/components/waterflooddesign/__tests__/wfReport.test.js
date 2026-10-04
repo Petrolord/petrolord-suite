@@ -1,7 +1,7 @@
 // Waterflood U1: the report on the kit, read back (RL1 to RL12).
 import { readPdf, flat, listCaptions, pointCounts, expectFigureDrawn, expectFigureStatement, checkGolden } from '@/lib/reportKit/testKit';
 import { missingInputRows } from '@/lib/reportKit/completeness';
-import { reviewerPayload, barePayload, reportOf, pdfOf, GOLDEN_DIR, UPDATE } from './wfTestKit';
+import { reviewerPayload, barePayload, reportOf, pdfOf, GOLDEN_DIR, UPDATE, BUILDERS } from './wfTestKit';
 import { krSeries, recoverySeries, patternSeries } from '@/utils/waterflooddesign/series';
 
 describe('the reviewer case', () => {
@@ -31,7 +31,9 @@ describe('the reviewer case', () => {
   it('RL1 completeness: every engine input of the displacement and the pattern has a row', () => {
     const keys = r.model.inputs.rows.map((x) => x.key);
     const engine = { ...r.state.displacementSpec.spec.krSpec, muW: 1, muO: 1, ...r.state.patternResult && {} };
-    const pattern = { area_acres: 1, h_ft: 1, phi: 1, Bo: 1, Bw: 1, iw_bpd: 1, Sgi: 1, EV: 1, worLimit: 1, maxYears: 1, mobilityBasis: 1 };
+    // WF-U2-002: the keys the builder hands the engine, so a new input (patternType) needs its row
+    const pattern = BUILDERS.buildPatternInputs(r.state.patternInputs);
+    expect(Object.keys(pattern)).toContain('patternType');
     const rows = keys.map((k) => ({ key: k }));
     expect(missingInputRows({ ...engine, ...pattern }, rows, { ignore: ['type'] })).toEqual([]);
     // negative control: drop a row and the guard names it

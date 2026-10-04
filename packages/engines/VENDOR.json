@@ -22,5 +22,22 @@
     "manifestPaths": 750,
     "vendoredPaths": 750
   },
-  "knownDeviations": []
+  "knownDeviations": [
+    {
+      "path": "engines/waterflood/patternForecast.js",
+      "kind": "differing",
+      "vendoredSha": "0dd5a96185caf75266b127d90b32b3d7d3a65a09",
+      "group": "waterflood-u2 (engines PR #306)",
+      "reason": "Waterflood Design Studio U2 engines (line drive areal sweep by Fassihi, Example 14-11 gate), vendored from Petrolord/petrolord-engines PR #306 head 99794a6 (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #306 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every waterflood-u2 row."
+    },
+    {
+      "path": "__tests__/waterflood.wfu2.test.js",
+      "kind": "extra",
+      "vendoredSha": "1b61bb056ed990fc96403297211bd9b3ac0859f2",
+      "group": "waterflood-u2 (engines PR #306)",
+      "reason": "Waterflood Design Studio U2 engines (line drive areal sweep by Fassihi, Example 14-11 gate), vendored from Petrolord/petrolord-engines PR #306 head 99794a6 (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "engines PR #306 is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every waterflood-u2 row."
+    }
+  ]
 }

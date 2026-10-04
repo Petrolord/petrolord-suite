@@ -45,7 +45,7 @@ const WDSHelpContent = () => (
       </p>
     </Section>
 
-    <Section icon={TrendingUp} title="Pattern forecast (five-spot)">
+    <Section icon={TrendingUp} title="Pattern forecast">
       <p>
         The forecast composes the Welge displacement solution with the published five-spot areal sweep correlations
         (Craig's breakthrough data via Willhite's regression; Dyes-Caudle-Erickson growth after breakthrough) into a
@@ -59,6 +59,14 @@ const WDSHelpContent = () => (
         Projects saved before October 2026 open on the endpoint basis they were computed with and say so; the switch
         under "Mobility ratio for the areal sweep" moves them to Craig. The panel under the KPIs splits the recovery
         into displacement efficiency ED, areal sweep EA and vertical sweep EV, closing on Np over the pattern OOIP.
+      </p>
+      <p>
+        The flood pattern is chosen at the top of the Pattern tab: five-spot (the default), direct line drive or
+        staggered line drive. The line drives take the areal sweep from Fassihi's regression of the Dyes, Caudle and
+        Erickson charts (Ahmed, Reservoir Engineering Handbook, eq. 14-67): the sweep at breakthrough at a water cut
+        of zero, then at each step the sweep that matches the water cut the pattern is producing. The spacing ratio
+        of those models is not printed in the source, so it is not an input. A nine-spot is not offered because no
+        published correlation for it could be read and checked.
       </p>
       <p>
         Export the annual oil profile as CSV and load it in NPV Scenario Builder for fiscal economics; this studio
@@ -207,8 +215,9 @@ const WDSHelpContent = () => (
     <Section icon={AlertTriangle} title="Assumptions and limits">
       <p>
         Screening-level analytical methods throughout: 1-D displacement with capillary pressure neglected, piston
-        areal growth, non-communicating layers, constant injectivity, no pattern interference, five-spot only, the
-        areal sweep correlation valid for mobility ratios of 0.15 to 10. Validate against
+        areal growth, non-communicating layers, constant injectivity, no pattern interference, five-spot and line drives
+        only, the five-spot correlation valid for mobility ratios of 0.15 to 10 and the line drive regression
+        fitted over about 0.1 to 10. Validate against
         simulation or surveillance before committing capital.
       </p>
     </Section>

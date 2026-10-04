@@ -59,7 +59,7 @@ const UncertaintyResults = () => {
       <div className="rounded-lg border border-pl-border bg-pl-surface px-4 py-3 text-sm text-pl-muted">
         {isRunningUncertainty
           ? 'Monte Carlo run in progress. Results will appear here.'
-          : 'Enable one or more uncertain parameters in the left panel and press Run. Each realization reruns the five-spot forecast with sampled inputs; results show the Np distribution and which inputs drive it.'}
+          : 'Enable one or more uncertain parameters in the left panel and press Run. Each realization reruns the pattern forecast with sampled inputs; results show the Np distribution and which inputs drive it.'}
       </div>
     );
   }

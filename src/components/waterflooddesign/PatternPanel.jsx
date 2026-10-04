@@ -9,6 +9,7 @@ import { samplePatternData } from '@/utils/patternForecastCalculations';
 import { UField, SectionLabel, fmt } from './primitives';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MOBILITY_BASES } from '@/utils/waterflooddesign/model';
+import { PATTERN_KEYS, PATTERN_TITLES, patternKeyOf, patternLabel, isLineDrive } from '@/utils/waterflooddesign/patterns';
 import PvtIntakePanel from './PvtIntakePanel';
 import WfSendPanel from './WfSendPanel';
 
@@ -45,8 +46,22 @@ const PatternPanel = () => {
 
   return (
     <div className="space-y-6">
+      <section data-testid="wds-pattern-type">
+        <SectionLabel>Flood pattern</SectionLabel>
+        <select aria-label="Flood pattern" value={patternKeyOf(patternInputs.patternType)} onChange={(e) => setPatternField('patternType', e.target.value)}
+          className="h-8 w-full rounded border border-pl-border bg-pl-surface text-pl-text text-xs px-2" data-testid="wds-pattern-type-select">
+          {PATTERN_KEYS.map((k) => <option key={k} value={k}>{PATTERN_TITLES[k]}</option>)}
+        </select>
+        <Label className="text-[11px] text-pl-muted leading-snug block mt-2">
+          {isLineDrive(patternInputs.patternType)
+            ? "Areal sweep from Fassihi's regression of the Dyes, Caudle and Erickson charts (Ahmed eq. 14-67), at the producing water cut of each step. The pattern geometry is that of those charts; the spacing ratio is not an input."
+            : "Areal sweep from Craig's five-spot data (Willhite's regression) and the Dyes, Caudle and Erickson growth after breakthrough."}
+          {' '}A nine-spot is not offered: no published correlation for it could be read and checked.
+        </Label>
+      </section>
+
       <section>
-        <SectionLabel>Flood element (five-spot)</SectionLabel>
+        <SectionLabel>Flood element ({patternLabel(patternInputs.patternType)})</SectionLabel>
         <div className="grid grid-cols-2 gap-3">
           {GEO_FIELDS.map((f) => <UField key={f.k} label={f.label} kind={f.kind} u={u} testId={`wds-${f.k}`} value={patternInputs[f.k]} onChange={(v) => setPatternField(f.k, v)} />)}
           {FLUID_FIELDS.map((f) => <UField key={f.k} label={f.label} kind={f.kind} u={u} testId={`wds-${f.k}`} value={patternInputs[f.k]} onChange={(v) => setPatternField(f.k, v)} />)}
@@ -74,8 +89,8 @@ const PatternPanel = () => {
           </TabsList>
         </Tabs>
         <Label className="text-[11px] text-pl-muted leading-snug block mt-2">
-          {MOBILITY_BASES[patternInputs.mobilityBasis === 'endpoint' ? 'endpoint' : 'craig']}. The five-spot correlation was built on
-          Craig's definition.
+          {MOBILITY_BASES[patternInputs.mobilityBasis === 'endpoint' ? 'endpoint' : 'craig']}. The areal sweep correlations are used with
+          Craig's definition (Ahmed eq. 14-61).
           {migratedFrom && patternInputs.mobilityBasis === 'endpoint'
             ? ' This project was saved before October 2026 and keeps the endpoint basis it was computed with; switch to Craig to use the correlation as published.'
             : ''}
@@ -95,7 +110,7 @@ const PatternPanel = () => {
       <section>
         <Label className="text-[11px] text-pl-muted leading-snug block">
           The displacement (rel-perm, fluids, dip, polymer) comes from the Displacement tab. Areal sweep uses the published
-          five-spot correlations; the forecast is a screening-level analytical composite. It is not a simulation.
+          correlations of the chosen pattern; the forecast is a screening-level analytical composite. It is not a simulation.
         </Label>
       </section>
     </div>
