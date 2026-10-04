@@ -1,6 +1,7 @@
 import { ContactVolumetricsEngine, condensateFrom } from './ContactVolumetricsEngine';
 import { checkAreaDepthRows, areaDepthHypsometry } from './areaDepth';
 import { solutionGasFrom, applySaturationHeight } from './hydrocarbons';
+import { rcpRfResultLines } from '@/lib/rfEstimateSource';
 import { provenanceLines } from './emProvenance';
 
 export class VolumeCalculationEngine {
@@ -141,6 +142,8 @@ export class VolumeCalculationEngine {
         };
         // U2-004: the Earth Modeling model's provenance and flags travel with the result
         if (inputs.emProspect) out.warnings = [...(out.warnings || []), ...provenanceLines(inputs).filter((l) => !/^Unchanged since/.test(l))];
+        // RF-U2-001: a recovery factor taken from the Recovery Factor Estimator says where it came from
+        if (inputs.rfIntake) out.warnings = [...(out.warnings || []), ...rcpRfResultLines(inputs)];
         if (Number.isFinite(sg.inPlace)) out.totalGasInPlace = (res.giip || 0) + sg.inPlace;
         if (fluidType === 'oil_gas' && Number.isFinite(cond.inPlace)) out.totalOilInPlace = (res.stooip || 0) + cond.inPlace;
         return out;

@@ -239,3 +239,4 @@ Recorded verbatim.
 
 | ID | State | Proving test |
 |---|---|---|
+| RF-U2-001 | Done. `src/lib/rfEstimateSource.js` (contract `rf-1`, every field listed in its header); every save writes the record of the estimate on screen (payload key `rf`); "Send to ReservoirCalc Pro" saves, then opens ReservoirCalc Pro with `?rfProject=<id>`; ReservoirCalc Pro (`components/RfIntakeNote.jsx`) prints the RF with method, basis, range and source and keeps its own recovery factor until "Use this recovery factor"; then the oil or gas field takes the percent and the project keeps `rfIntake`; on a later open the estimate is read again by id: "edited here after the intake" and "the source changed after the intake" are said; the result warnings carry the source line; the `.pld` reference declared both ways | `src/lib/__tests__/rfEstimateSource.test.jsx` (10; negative controls: unreadable id takes nothing, an untouched RCP keeps 25 percent) |

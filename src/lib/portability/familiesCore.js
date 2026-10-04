@@ -85,6 +85,12 @@ export const INTAKE_SOFT_REFS = Object.freeze({
     ...PVT_REFS('inputs_data'),
     { path: 'inputs_data.inPlaceIntake.recordId', table: 'rb_cases', optional: true },
     { path: 'inputs_data.inPlaceIntake.runId', table: 'rb_runs', optional: true },
+    // RF-U2-001: the rf-1 block names its own project
+    { path: 'inputs_data.rf.project.id', table: 'saved_rf_projects', optional: true },
+  ],
+  // RF-U2-001: the Recovery Factor project a ReservoirCalc Pro recovery factor was taken from (rf-1)
+  saved_quickvol_projects: [
+    { path: 'inputs_data.inputs.rfIntake.project_id', table: 'saved_rf_projects', optional: true },
   ],
   // EOR-U1: the three intakes, read by id (pvt-1, wta-1, mbal-1)
   saved_eor_screening_projects: [

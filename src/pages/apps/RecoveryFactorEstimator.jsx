@@ -19,6 +19,7 @@ import RfKpiPanel from '@/components/rfestimator/RfKpiPanel';
 import ReservesChartPanel from '@/components/rfestimator/ReservesChartPanel';
 import DriveReferencePanel from '@/components/rfestimator/DriveReferencePanel';
 import ReportTab from '@/components/rfestimator/ReportTab';
+import SendToRcpPanel from '@/components/rfestimator/SendToRcpPanel';
 import RecoveryFactorHelpContent from '@/components/reservoir/RecoveryFactorHelpGuide';
 import { supabaseSharingStore } from '@/lib/recordSharing';
 import { RecordSharingBar } from '@/components/recordSharing';
@@ -105,6 +106,10 @@ const RfEstimatorContent = () => {
       <section>
         <SectionLabel>Recovery Summary</SectionLabel>
         <RfKpiPanel />
+      </section>
+      <section>
+        <SectionLabel>Send</SectionLabel>
+        <SendToRcpPanel />
       </section>
     </div>
   );

@@ -21,6 +21,7 @@ import {
 } from '@/utils/rfestimator/model';
 import { deriveRf } from '@/utils/rfestimator/workspace';
 import { rfUnits } from '@/utils/rfestimator/units';
+import { rfRecordOf } from '@/utils/rfestimator/rfRecord';
 
 const TABLE = RF_PROJECTS_TABLE;
 
@@ -125,7 +126,7 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
   }, [addNotification]);
 
   // --- Project lifecycle ---
-  const serialize = useCallback((name) => ({
+  const serialize = useCallback((name, idOverride = null) => ({
     id: currentProjectId,
     name,
     schema: 1,
@@ -136,8 +137,10 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
     unitSystem,
     pvtIntake,
     inPlaceIntake,
+    // RF-U2-001: the rf-1 record of the estimate on screen, read by id by ReservoirCalc Pro
+    rf: rfRecordOf({ inputs, derived, identification, inPlaceIntake }, { projectId: idOverride || currentProjectId, projectName: name }),
     modified: new Date().toISOString(),
-  }), [currentProjectId, inputs, identification, inputMeta, unitSystem, pvtIntake, inPlaceIntake]);
+  }), [currentProjectId, inputs, identification, inputMeta, unitSystem, pvtIntake, inPlaceIntake, derived]);
 
   const hydrate = useCallback((raw) => {
     const payload = migrateRfPayload(raw);
@@ -176,7 +179,7 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
   const createProject = useCallback(async (name) => {
     const id = uuidv4();
     try {
-      await service.save(id, { ...serialize(name), id, name });
+      await service.save(id, { ...serialize(name, id), id, name });
       await shared.adoptRow(id);
       setCurrentProjectId(id);
       setProjectName(name);
@@ -256,7 +259,7 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
     const name = shared.copyNameFor(projectName || 'Recovery Factor project');
     const id = uuidv4();
     try {
-      await service.save(id, { ...serialize(name), id, name });
+      await service.save(id, { ...serialize(name, id), id, name });
       await refreshProjects();
       await openProject(id);
       addNotification(`Saved a copy as "${name}"`, 'success');
