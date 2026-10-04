@@ -118,6 +118,7 @@ describe('RL6 every result has its plot', () => {
       'Lab relative permeability with the Corey fit: Demo core B (synthetic)',
       'End-point normalised curves across samples',
       'Gas-oil relative permeability (working curves, at connate water)',
+      'Lab gas-oil relative permeability with the Corey fit: Demo core A (synthetic)',
       'Leverett J function',
       'Reservoir capillary pressure against water saturation',
       'Water saturation against height above the free water level',
@@ -129,6 +130,8 @@ describe('RL6 every result has its plot', () => {
     expect(counts.height[0]['Sw against height']).toBe(rep.state.heightProfile.length);
     expect(counts['kr-lab-demo-0'][0]['krw lab']).toBe(rep.state.samples[0].krRows.length);
     expect(counts['kr-ow'][0]['krw lab, Demo core A (synthetic)']).toBe(rep.state.samples[0].krRows.length);
+    // SCAL-U2-004: the gas-oil lab table of core A with its fit
+    expect(counts['kr-go-lab-demo-0'][0]['krg lab']).toBe(rep.state.samples[0].goRows.length);
     expect(flat(pdf.text)).toMatch(/FWL, 8600 ft TVDSS/);
     pdf.close?.();
   });

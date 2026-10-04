@@ -121,10 +121,11 @@ function inputsBlock(s, u) {
   }
   if (!owAuto) for (const r of rows) r.source = groupSource(meta.ow, null, owStart);
   const goStart = untouched(s.curves?.go, STARTING_VALUES.go);
+  const goAuto = s.goStatus?.kind === 'fitted' || s.goStatus?.kind === 'edited-after-fit' ? s.goStatus.text : null;
   const GO = [['Swc', 'Connate water saturation Swc'], ['Sgc', 'Critical gas saturation Sgc'], ['Sorg', 'Residual oil to gas Sorg'], ['krgMax', 'krg end point'], ['krogMax', 'krog at Swc (end point)'], ['ng', 'Gas Corey exponent ng'], ['nog', 'Oil Corey exponent nog']];
   for (const [k, label] of GO) {
-    const r = inputRow({ key: `go.${k}`, label: `Gas-oil: ${label}`, value: s.go?.params ? g(s.go.params[k]) : text(s.curves?.go?.[k]), unit: unitOf(k), meta: meta.go });
-    r.source = groupSource(meta.go, null, goStart);
+    const r = inputRow({ key: `go.${k}`, label: `Gas-oil: ${label}`, value: s.go?.params ? g(s.go.params[k]) : text(s.curves?.go?.[k]), unit: unitOf(k), meta: meta.go, auto: goAuto });
+    if (!goAuto) r.source = groupSource(meta.go, null, goStart);
     rows.push({ ...r, engineKeys: [`go.${k}`] });
   }
   const jMode = s.capillary?.jMode;
@@ -239,17 +240,40 @@ function samplesTables(s, u) {
       fit.converged ? `Converged in ${fit.iterations} iterations` : `Stopped at the iteration cap (${fit.iterations}); approximate`,
     ];
   });
+  // SCAL-U2-004: the gas-oil fits, one row per sample with a gas-oil table
+  const goFits = samples.filter((x) => (x.goRows?.length || 0) > 0).map((x) => {
+    const fit = x.goFit;
+    if (!fit) return [x.name, `${x.goRows.length}`, EMPTY_VALUE, EMPTY_VALUE, EMPTY_VALUE, EMPTY_VALUE, EMPTY_VALUE, EMPTY_VALUE, x.goFitError || 'No fit'];
+    const ci = (pair) => (Array.isArray(pair) && pair.every(Number.isFinite) ? `${f(pair[0], 2)} to ${f(pair[1], 2)}` : EMPTY_VALUE);
+    return [
+      x.name,
+      `${fit.pointsUsed} of ${x.goRows.length * 2}`,
+      `${f(fit.params.Swc, 3)} (${fit.swcFrom}) / ${f(fit.params.Sgc, 3)} / ${f(fit.params.Sorg, 3)}`,
+      `${f(fit.params.krgMax, 4)} / ${f(fit.params.krogMax, 4)}`,
+      `${f(fit.params.ng, 2)} (${ci(fit.ci95?.ng)})`,
+      `${f(fit.params.nog, 2)} (${ci(fit.ci95?.nog)})`,
+      f(fit.rmsLog, 4),
+      f(fit.r2Log, 4),
+      fit.converged ? `Converged in ${fit.iterations} iterations` : `Stopped at the iteration cap (${fit.iterations}); approximate`,
+    ];
+  });
   // RL5: what was imported and what was left out, per sample and table
   const imp = (rec, n) => (rec ? `${rec.file || 'file'}: ${rec.read} read, ${rec.skippedCount ?? (rec.skipped || []).length} left out${rec.units?.pc ? `; Pc in ${rec.units.pc} (${rec.units.pcHow})` : ''}; Sw as ${rec.units?.saturation || 'fraction'}` : (n ? `${n} rows, entered or saved before the import record` : EMPTY_VALUE));
-  const imports = samples.map((x) => [x.name, imp(x.krImport, x.krRows?.length || 0), imp(x.pcImport, x.pcRows?.length || 0)]);
+  const anyGo = samples.some((x) => (x.goRows?.length || 0) > 0 || x.goImport);
+  const imports = samples.map((x) => [x.name, imp(x.krImport, x.krRows?.length || 0), imp(x.pcImport, x.pcRows?.length || 0), ...(anyGo ? [imp(x.goImport, x.goRows?.length || 0).replace('; Sw as', '; Sg as')] : [])]);
   return {
-    imports: { head: ['Sample', 'kr table', 'Pc table'], rows: imports, note: 'Rows left out at the door are listed on the Lab Data tab with the reason for each.' },
+    imports: { head: ['Sample', 'kr table', 'Pc table', ...(anyGo ? ['Gas-oil kr table'] : [])], rows: imports, note: 'Rows left out at the door are listed on the Lab Data tab with the reason for each.' },
     props: { head: ['Sample', 'Depth', 'k (md)', 'Porosity', `Lab IFT (${u.label('ift')})`, 'Angle (deg)', `sigma cos theta (${u.label('ift')})`, 'Lab fluids', 'kr points', 'Pc points'], rows: props },
     pedigree: { head: ['Sample', 'Lab or analog', 'kr test', 'Pc test', 'Wettability', 'Core condition', 'Test temperature', 'Laboratory, report'], rows: pedigree },
     fits: fits.length ? {
       head: ['Sample', 'kr points used', 'Swc / Sor', 'krw(Sor) / kro(Swc)', 'nw (95% CI)', 'no (95% CI)', 'RMS log10 kr', 'r2 log10 kr', 'Regression'],
       rows: fits,
       note: 'Levenberg-Marquardt on log10 kr of both curves at once. Swc and Sor are the first and last Sw of the lab table and the end point kr its end rows; only the exponents are fitted. Points with kr at or below 1e-4 are left out (log of a definitional zero). Points used counts both curves.',
+    } : null,
+    goFits: goFits.length ? {
+      head: ['Sample', 'kr points used', 'Swc (from) / Sgc / Sorg', 'krg end / krog(Swc)', 'ng (95% CI)', 'nog (95% CI)', 'RMS log10 kr', 'r2 log10 kr', 'Regression'],
+      rows: goFits,
+      note: 'The gas-oil table at connate water, fitted with the oil-water fit on the gas axis (Sg for Sw, Sgc for Swc, Swc + Sorg for Sor). Swc is the one stated for the sample, else the working gas-oil Swc; Sgc and Sorg are the first Sg and 1 - Swc - the last Sg of the table, and the end point kr its end rows.',
     } : null,
   };
 }
@@ -309,6 +333,14 @@ function limitsBlock(s, u) {
       if (!fit.converged) flags.push(`Sample "${x.name}": the Corey fit stopped at the iteration cap.`);
     }
   }
+  for (const x of samples) {
+    const fit = x.goFit;
+    if (!fit) continue;
+    for (const k of ['ng', 'nog']) if (fit.params[k] <= 0.5 + 1e-6 || fit.params[k] >= 8 - 1e-6) flags.push(`Sample "${x.name}": the fitted gas-oil ${k} sits on its bound (${f(fit.params[k], 2)}); the data do not settle it.`);
+    if (fit.r2Log < 0.95) flags.push(`Sample "${x.name}": the gas-oil Corey fit explains little of the data (r2 ${f(fit.r2Log, 3)} in log space).`);
+    if (!fit.converged) flags.push(`Sample "${x.name}": the gas-oil Corey fit stopped at the iteration cap.`);
+  }
+  if (s.goStatus?.kind === 'edited-after-fit') flags.push(`The working gas-oil set was edited after it was fitted (${s.goStatus.edited.join(', ')}); the fit statistics do not describe it.`);
   if (s.owStatus?.kind === 'edited-after-fit') flags.push(`The working oil-water set was edited after it was fitted (${s.owStatus.edited.join(', ')}); the fit statistics do not describe it.`);
   const fitJ = s.jResolved?.meta?.avg?.fit;
   if (fitJ && fitJ.r2Log < 0.98) flags.push(`The averaged J refit is poor (r2 ${f(fitJ.r2Log, 3)}): the samples may not share one rock type, or the shared Swirr needs setting.`);
@@ -339,7 +371,7 @@ function headlineRows(s, u) {
     }
   }
   const q = s.go?.params;
-  if (q) rows.push(['Gas-oil: Sgc / Sorg / ng / nog', `${g(q.Sgc)} / ${g(q.Sorg)} / ${g(q.ng)} / ${g(q.nog)}`, '', 'Entered by the user']);
+  if (q) rows.push(['Gas-oil: Sgc / Sorg / ng / nog', `${g(q.Sgc)} / ${g(q.Sorg)} / ${g(q.ng)} / ${g(q.nog)}`, '', s.goStatus?.text || 'Entered by the user']);
   const spec = s.jResolved?.jSpec;
   if (spec) rows.push(['Leverett J: a / b / Swirr', `${g(spec.a)} / ${g(spec.b)} / ${g(spec.Swirr)}`, '', s.jResolved.meta?.mode === 'samples' ? `Averaged from ${s.jResolved.meta.sampleCount} samples` : 'Typed power law']);
   const comp = scalingComponents(s, u);
@@ -389,7 +421,7 @@ export function buildScalReportModel(s, { projectName = '', organizationName = '
       ['Oil-water curves', `Corey. ${OW_NORMALISATION}`],
       ['Source of the oil-water set', s.owStatus?.text || 'Entered by the user'],
       ['Gas-oil curves', `Corey. ${GO_NORMALISATION}`],
-      ['Source of the gas-oil set', 'Entered by the user (gas-oil sets are not fitted in this app)'],
+      ['Source of the gas-oil set', s.goStatus?.text || 'Entered by the user'],
       ['Leverett J', J_DEFINITION],
       ['Capillary pressure at reservoir conditions', 'Pc = J sigma cos(theta) / (0.21645 sqrt(k / phi)) with the reservoir k, porosity, IFT and contact angle'],
       ['Saturation height', HEIGHT_DEFINITION],
@@ -419,7 +451,7 @@ export function startingValueGroups(s) {
   const meta = s.inputMeta || {};
   const out = [];
   if (untouched(s.curves?.ow, STARTING_VALUES.ow) && !isStated(meta.ow) && s.owStatus?.kind !== 'fitted') out.push('ow');
-  if (untouched(s.curves?.go, STARTING_VALUES.go) && !isStated(meta.go)) out.push('go');
+  if (untouched(s.curves?.go, STARTING_VALUES.go) && !isStated(meta.go) && s.goStatus?.kind !== 'fitted') out.push('go');
   if (s.capillary?.jMode !== 'samples' && untouched(s.capillary?.manual, STARTING_VALUES.jManual) && !isStated(meta.jManual)) out.push('jManual');
   for (const [k, mk] of [['k_md', 'k_md'], ['phi', 'phi'], ['sigma_dyncm', 'sigma'], ['thetaDeg', 'theta']]) {
     if (String(s.capillary?.reservoir?.[k]) === STARTING_VALUES.reservoir[k] && !isStated(meta[mk])) out.push(mk);

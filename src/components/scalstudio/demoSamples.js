@@ -3,7 +3,7 @@
 // labeled synthetic). Two rocks share one true J curve (so the Capillary
 // tab demonstrates the Leverett collapse) and carry Corey kr tables with
 // small deterministic noise (so fitting has something honest to do).
-import { buildCoreyOilWater, LEVERETT_C } from '@/utils/scalCalculations';
+import { buildCoreyOilWater, buildCoreyGasOil, LEVERETT_C } from '@/utils/scalCalculations';
 
 const J_TRUE = { a: 0.28, b: 1.45, Swirr: 0.12 };
 const jAt = (Sw) => J_TRUE.a * Math.pow((Sw - J_TRUE.Swirr) / (1 - J_TRUE.Swirr), -J_TRUE.b);
@@ -24,6 +24,21 @@ const krRowsFor = (corey, n, jitterPhase) => {
       Sw: Number(r.Sw.toFixed(3)),
       krw: i === 0 ? 0 : Number((r.krw * jw).toFixed(5)),
       kro: i === n ? 0 : Number((r.kro * jo).toFixed(5)),
+    };
+  });
+};
+
+// SCAL-U2-004: a gas-oil table at connate water for core A, with the same
+// small deterministic noise.
+const goRowsFor = (corey, n, jitterPhase) => {
+  const { rows } = buildCoreyGasOil(corey, { n });
+  return rows.map((r, i) => {
+    const jg = 1 + 0.05 * Math.sin(2.7 * i + jitterPhase);
+    const jo = 1 + 0.05 * Math.sin(1.9 * i + jitterPhase + 0.8);
+    return {
+      Sg: Number(r.Sg.toFixed(3)),
+      krg: i === 0 ? 0 : Number((r.krg * jg).toFixed(5)),
+      krog: i === n ? 0 : Number((r.krog * jo).toFixed(5)),
     };
   });
 };
@@ -52,6 +67,8 @@ export function buildDemoSamples() {
       fluids: 'Air and brine', pcMethod: 'porous-plate',
       krRows: krRowsFor({ Swc: 0.18, Sor: 0.22, krwMax: 0.32, kroMax: 0.88, nw: 2.4, no: 2.1 }, 12, 0.4),
       pcRows: pcRowsFor(rockA, swPoints),
+      goRows: goRowsFor({ Swc: 0.18, Sgc: 0.04, Sorg: 0.12, krgMax: 0.7, krogMax: 0.8, ng: 1.8, nog: 2.6 }, 10, 0.9),
+      goSwc: '0.18',
     },
     {
       name: 'Demo core B (synthetic)',
@@ -66,4 +83,5 @@ export function buildDemoSamples() {
 }
 
 export const KR_CSV_TEMPLATE = 'Sw,krw,kro\n0.20,0.000,0.900\n0.35,0.015,0.520\n0.50,0.070,0.240\n0.65,0.180,0.070\n0.75,0.320,0.000\n';
+export const GO_CSV_TEMPLATE = 'Sg,krg,krog\n0.05,0.000,0.850\n0.20,0.060,0.420\n0.35,0.190,0.160\n0.50,0.380,0.035\n0.65,0.600,0.000\n';
 export const PC_CSV_TEMPLATE = 'Sw,Pc_psi\n0.20,18.5\n0.30,9.6\n0.45,4.8\n0.65,2.2\n0.90,0.9\n';

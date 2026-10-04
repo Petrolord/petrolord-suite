@@ -18,7 +18,7 @@ import { useStudioNotifications } from '@/components/studio/useStudioNotificatio
 import { setProvenanceField, serializeProvenance } from '@/lib/inputProvenance/model';
 import { KR_CONTRACT_PAYLOAD_KEY } from '@/lib/inputProvenance/krContract';
 import {
-  EMPTY_IDENTIFICATION, fittedOrigin, LAB_SYSTEM_FLUIDS,
+  EMPTY_IDENTIFICATION, fittedOrigin, LAB_SYSTEM_FLUIDS, appliedOwFromFit, appliedGoFromFit,
 } from '@/utils/scalstudio/model';
 import {
   DEFAULT_CURVES, DEFAULT_CAPILLARY, DEFAULT_HEIGHT, buildReservoirProps, buildJSpec,
@@ -108,8 +108,9 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
   const setSourceField = useCallback((key, field, value) => setInputMeta((prev) => setProvenanceField(prev, key, field, value)), []);
 
   // ---- Derived (the pure pipeline of utils/scalstudio/workspace) ----
-  const { ow, go, owStatus, owCurves, goCurves, fwPreview } = useMemo(() => deriveCurves(curves), [curves]);
-  const samplesDerived = useMemo(() => deriveSamples(samples), [samples]);
+  const { ow, go, owStatus, goStatus, owCurves, goCurves, fwPreview } = useMemo(() => deriveCurves(curves), [curves]);
+  const goSwc = curves.go?.Swc;
+  const samplesDerived = useMemo(() => deriveSamples(samples, { goSwc }), [samples, goSwc]);
 
   // Apply a sample's fitted Corey parameters to the Curves tab working set
   // (values become strings, the studio form convention), and keep the record
@@ -120,15 +121,7 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
       addNotification('That sample has no successful Corey fit to apply.', 'error');
       return;
     }
-    const p = s.krFit.params;
-    const applied = {
-      Swc: p.Swc.toFixed(3),
-      Sor: p.Sor.toFixed(3),
-      krwMax: p.krwMax.toPrecision(4),
-      kroMax: p.kroMax.toPrecision(4),
-      nw: p.nw.toFixed(2),
-      no: p.no.toFixed(2),
-    };
+    const applied = appliedOwFromFit(s.krFit.params);
     setCurves((prev) => ({
       ...prev,
       phase: 'oilwater',
@@ -136,6 +129,23 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
       owOrigin: fittedOrigin({ sample: s, fit: s.krFit, applied }),
     }));
     addNotification(`Fitted Corey set from "${s.name}" applied to the Curves tab.`, 'success');
+  }, [samplesDerived, addNotification]);
+
+  // SCAL-U2-004: the same for a sample's gas-oil fit
+  const applyGoFitToCurves = useCallback((sampleId) => {
+    const s = samplesDerived.find((x) => x.id === sampleId);
+    if (!s?.goFit?.params) {
+      addNotification('That sample has no successful gas-oil Corey fit to apply.', 'error');
+      return;
+    }
+    const applied = appliedGoFromFit(s.goFit.params);
+    setCurves((prev) => ({
+      ...prev,
+      phase: 'gasoil',
+      go: applied,
+      goOrigin: fittedOrigin({ sample: s, fit: s.goFit, applied, set: 'gas_oil' }),
+    }));
+    addNotification(`Fitted gas-oil Corey set from "${s.name}" applied to the Curves tab.`, 'success');
   }, [samplesDerived, addNotification]);
 
   // ---- Derived: working J spec, reservoir Pc, saturation-height ----
@@ -204,7 +214,7 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
     // inputs
     curves, setCurveField, setOwField, setGoField,
     samples, setSamples, addSample, updateSample, removeSample,
-    applyKrFitToCurves,
+    applyKrFitToCurves, applyGoFitToCurves,
     capillary, setCapillaryField, setManualJField, setReservoirField,
     height, setHeightField, setFwlEntry,
     notes, setNotes,
@@ -212,7 +222,7 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
     inputMeta, setSourceField,
     unitSystem, setUnitSystem, u, profileSystem, followsProfile: unitSystemSaved == null && !!profileSystem,
     // derived
-    ow, go, owStatus, owCurves, goCurves, fwPreview,
+    ow, go, owStatus, goStatus, owCurves, goCurves, fwPreview,
     samplesDerived, jResolved, reservoir, reservoirPc, heightProfile,
     contract, contractFor, build, serialize, serializeForExport, hydrateFromFile,
   };

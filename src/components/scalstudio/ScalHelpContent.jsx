@@ -27,7 +27,7 @@ const ScalHelpContent = () => (
     <H>1. Curves</H>
     <P>
       Corey parameter sets for oil-water and gas-oil systems: end point saturations, end point kr values and the two
-      exponents. Under the oil-water set the app says where it came from: entered by you, or fitted to a sample's
+      exponents. Under each set the app says where it came from: entered by you, or fitted to a sample's
       lab table (with the fit's r2), or fitted and then edited, in which case the fit statistics no longer describe
       it. The optional fractional flow preview is curves only; displacement design stays in the Waterflood Design
       Studio.
@@ -48,6 +48,13 @@ const ScalHelpContent = () => (
       and Sor come from the first and last rows of the table, so the table needs both end points. Apply a fit to
       the Curves tab with one click; the record of the fit travels with the set. The normalised overlay compares
       curve shapes across samples. The synthetic demo pair is marked as an analog wherever it is printed.
+    </P>
+    <P>
+      A sample can also carry a gas-oil table at connate water (Sg, krg, krog), read by its own door. It is fitted
+      the same way, at the Swc of the test: the one you state for the sample, or else the working gas-oil Swc. Sgc
+      is the first Sg of the table and Sorg is 1 minus Swc minus its last Sg. Use gas-oil fit on the Curves tab
+      applies it, and the gas-oil set then says which sample it was fitted to, on screen, in the report and in the
+      kr-1 block.
     </P>
 
     <H>3. Capillary</H>

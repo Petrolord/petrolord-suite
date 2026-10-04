@@ -19,11 +19,12 @@ import {
   buildCoreyGasOil,
   computeJTable,
   fitCoreyToKrTable,
+  fitCoreyGasOilToKrTable,
   averageJCurves,
   pcFromJ,
   swVsHeight,
 } from '@/utils/scalCalculations';
-import { curveOriginStatus, OW_KEYS, identificationOf } from './model.js';
+import { curveOriginStatus, OW_KEYS, GO_KEYS, identificationOf } from './model.js';
 import { deserializeProvenance } from '@/lib/inputProvenance/model';
 import { SCAL_UNIT_SYSTEMS } from './units.js';
 
@@ -167,9 +168,10 @@ export function deriveCurves(curves) {
   const ow = buildOwParams(curves.ow);
   const go = buildGoParams(curves.go);
   const owStatus = curveOriginStatus(curves.ow, curves.owOrigin, OW_KEYS);
+  const goStatus = curveOriginStatus(curves.go, curves.goOrigin, GO_KEYS);
   const owCurves = ow.params ? buildCoreyOilWater(ow.params, { n: 101 }) : null;
   const goCurves = go.params ? buildCoreyGasOil(go.params, { n: 101 }) : null;
-  return { ow, go, owStatus, owCurves, goCurves, fwPreview: deriveFwPreview(curves, ow) };
+  return { ow, go, owStatus, goStatus, owCurves, goCurves, fwPreview: deriveFwPreview(curves, ow) };
 }
 
 export function deriveFwPreview(curves, ow) {
@@ -188,8 +190,21 @@ export function deriveFwPreview(curves, ow) {
   return { rows, muW, muO };
 }
 
-/** Per-sample J tables and Corey fits. */
-export function deriveSamples(samples) {
+/**
+ * The gas-oil fit of one sample (SCAL-U2-004), at the Swc of its test: the
+ * sample's own when stated, else the working gas-oil set's.
+ */
+export function deriveGoFit(s, workingGoSwc) {
+  if ((s.goRows?.length ?? 0) < 3) return { goFit: null, goFitError: null };
+  const own = num(s.goSwc);
+  const Swc = Number.isFinite(own) ? own : num(workingGoSwc);
+  const swcFrom = Number.isFinite(own) ? 'stated for the sample' : 'the working gas-oil set';
+  const res = fitCoreyGasOilToKrTable(s.goRows, { Swc });
+  return res.ok ? { goFit: { ...res, swcFrom }, goFitError: null } : { goFit: null, goFitError: res.errors[0] };
+}
+
+/** Per-sample J tables and Corey fits (oil-water, and gas-oil at the given working Swc). */
+export function deriveSamples(samples, { goSwc = null } = {}) {
   return (samples || []).map((s) => {
     const props = {
       k_md: num(s.k_md), phi: num(s.phi),
@@ -203,6 +218,7 @@ export function deriveSamples(samples) {
       jError: jTable && !jTable.ok ? jTable.errors[0] : null,
       krFit: krFit?.ok ? krFit : null,
       krFitError: krFit && !krFit.ok ? krFit.errors[0] : null,
+      ...deriveGoFit(s, goSwc),
     };
   });
 }
@@ -233,7 +249,7 @@ export function deriveHeightProfile(jResolved, reservoir, height) {
 /** Every derived object of the studio from its saved inputs, in one call. */
 export function deriveScalState(inputs) {
   const curves = deriveCurves(inputs.curves);
-  const samplesDerived = deriveSamples(inputs.samples);
+  const samplesDerived = deriveSamples(inputs.samples, { goSwc: inputs.curves?.go?.Swc });
   const jResolved = buildJSpec(inputs.capillary, samplesDerived);
   const reservoir = buildReservoirProps(inputs.capillary.reservoir);
   return {

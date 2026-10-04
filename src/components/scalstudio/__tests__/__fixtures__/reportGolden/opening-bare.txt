@@ -148,7 +148,7 @@ Model
  Gas-oil curves                            Corey. Sgn = (Sg - Sgc) / (1 - Swc - Sorg - Sgc), held in 0 to 1; krg = krg(end) Sgn^ng; krog = krog(Swc)
                                            (1 - Sgn)^nog; at connate water
 
- Source of the gas-oil set                 Entered by the user (gas-oil sets are not fitted in this app)
+ Source of the gas-oil set                 Entered by the user
 
  Leverett J                                J = 0.21645 Pc / (sigma cos theta) sqrt(k / phi), Pc in psi, sigma in dyn/cm, k in md; J = a Sw*^(-b), Sw*
                                            = (Sw - Swirr) / (1 - Swirr)

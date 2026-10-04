@@ -56,6 +56,7 @@ export function buildScalPdf(a, { logo = null, generatedAt = new Date() } = {}) 
     table('Sample pedigree', model.samples.pedigree.head, model.samples.pedigree.rows, { note: 'What the laboratory measured and how, as entered. Not stated prints as such.' });
     table('Lab tables imported', model.samples.imports.head, model.samples.imports.rows, { note: model.samples.imports.note });
     if (model.samples.fits) table('Corey fits to the lab kr tables', model.samples.fits.head, model.samples.fits.rows, { note: model.samples.fits.note });
+    if (model.samples.goFits) table('Corey fits to the lab gas-oil tables', model.samples.goFits.head, model.samples.goFits.rows, { note: model.samples.goFits.note });
   } else {
     section('Core samples', 'No core sample is loaded: the working curves and the J function were entered, not fitted to lab data.', { need: 16 });
   }

@@ -62,6 +62,7 @@ export function sampleBlock(s) {
     thetaDeg: n(s.thetaDeg),
     kr_points: s.krRows?.length || 0,
     pc_points: s.pcRows?.length || 0,
+    go_points: s.goRows?.length || 0,
   };
 }
 

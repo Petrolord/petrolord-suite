@@ -1,6 +1,6 @@
 {
   "pages": 11,
-  "sha256": "f60199a64298c5ebac93f43c479622b1980346e1365a8be0480a9a3bfd01fde7",
+  "sha256": "aae404aa2dbc68b397d223f8e7dbd7910430819ef717c02a2b708553c2780236",
   "figures": [
     {
       "id": "kr-ow",
@@ -126,7 +126,7 @@
       ]
     },
     {
-      "id": "j",
+      "id": "kr-go-lab-demo-0",
       "number": 6,
       "page": 10,
       "plotted": true,
@@ -135,6 +135,31 @@
           "box": {
             "x": 14,
             "y": 185.08,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "krg lab": 11,
+            "krog lab": 11,
+            "krg Corey fit": 81,
+            "krog Corey fit": 81
+          },
+          "total": 184,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "j",
+      "number": 7,
+      "page": 11,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
             "w": 182,
             "h": 62
           },
@@ -151,14 +176,14 @@
     },
     {
       "id": "pc",
-      "number": 7,
+      "number": 8,
       "page": 11,
       "plotted": true,
       "panels": [
         {
           "box": {
             "x": 14,
-            "y": 23,
+            "y": 105.72,
             "w": 182,
             "h": 62
           },
@@ -175,14 +200,14 @@
     },
     {
       "id": "height",
-      "number": 8,
+      "number": 9,
       "page": 11,
       "plotted": true,
       "panels": [
         {
           "box": {
             "x": 14,
-            "y": 105.72,
+            "y": 188.44,
             "w": 182,
             "h": 70
           },

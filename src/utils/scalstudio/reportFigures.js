@@ -9,7 +9,7 @@
  * or { id, title, statement }).
  */
 import {
-  workingKrSeries, labFitSeries, normalisedSeries, jSeries, pcSeries, heightSeries, SERIES_COLORS,
+  workingKrSeries, labFitSeries, goLabFitSeries, normalisedSeries, jSeries, pcSeries, heightSeries, SERIES_COLORS,
 } from './series.js';
 import { scalUnits } from './units.js';
 
@@ -92,18 +92,48 @@ export function buildScalReportFigures({ model, state, system = 'oilfield' }) {
     figures.push({ id: 'kr-normalised', title: 'End-point normalised curves across samples', statement: `Does not apply: ${norm.length === 1 ? 'one sample' : 'no sample'} carries a usable kr table; a comparison needs two.` });
   }
 
-  // 4. gas-oil
+  // 4. gas-oil, with the lab points of the sample it was fitted to (SCAL-U2-004)
   const go = workingKrSeries({ goCurves: s.goCurves, phase: 'gasoil' });
   if (go.lines[0].points.length >= 2) {
     const q = s.go.params;
+    const series = go.lines.map((l) => ({ name: l.name, type: 'line', rgb: l.color.rgb, pts: pts(l.points), width: 0.55 }));
+    const gOrigin = s.goStatus?.origin;
+    const gFitted = gOrigin ? (s.samplesDerived || []).find((x) => x.id === gOrigin.sampleId) : null;
+    if (gFitted && (gFitted.goRows?.length || 0) > 0) {
+      const lab = goLabFitSeries(gFitted);
+      series.push({ name: `krg lab, ${gFitted.name}`, type: 'scatter', rgb: SERIES_COLORS.gas.rgb, pts: pts(lab.labG), marker: 'circle' });
+      series.push({ name: `krog lab, ${gFitted.name}`, type: 'scatter', rgb: SERIES_COLORS.oil.rgb, pts: pts(lab.labO), marker: 'square' });
+    }
     figures.push({
       id: 'kr-go',
       title: 'Gas-oil relative permeability (working curves, at connate water)',
-      caption: `Corey: Swc ${g(q.Swc)}, Sgc ${g(q.Sgc)}, Sorg ${g(q.Sorg)}, krg ${g(q.krgMax)}, krog ${g(q.krogMax)}, ng ${g(q.ng)}, nog ${g(q.nog)}. Entered by the user.`,
-      panels: [{ height: PANEL, spec: { xTitle: go.xTitle, yTitle: 'Relative permeability kr', xInclude: [0, 1], yInclude: [0, 1], series: go.lines.map((l) => ({ name: l.name, type: 'line', rgb: l.color.rgb, pts: pts(l.points), width: 0.55 })) } }],
+      caption: `Corey: Swc ${g(q.Swc)}, Sgc ${g(q.Sgc)}, Sorg ${g(q.Sorg)}, krg ${g(q.krgMax)}, krog ${g(q.krogMax)}, ng ${g(q.ng)}, nog ${g(q.nog)}. ${s.goStatus?.kind && s.goStatus.kind !== 'entered' ? `Source: ${s.goStatus.text}.` : 'Entered by the user.'}${gFitted ? ` Points: the gas-oil lab table of "${gFitted.name}".` : ''}`,
+      panels: [{ height: PANEL, spec: { xTitle: go.xTitle, yTitle: 'Relative permeability kr', xInclude: [0, 1], yInclude: [0, 1], series } }],
     });
   } else {
     figures.push({ id: 'kr-go', title: 'Gas-oil relative permeability (working curves, at connate water)', statement: `Not plotted: the gas-oil Corey set is not valid (${s.go?.error || 'no parameters'}).` });
+  }
+
+  // 4b. each sample's gas-oil lab table with its Corey fit; listed only when a sample has one
+  for (const x of (s.samplesDerived || []).filter((y) => (y.goRows?.length || 0) > 0)) {
+    const lab = goLabFitSeries(x);
+    const series = [
+      { name: 'krg lab', type: 'scatter', rgb: SERIES_COLORS.gas.rgb, pts: pts(lab.labG), marker: 'circle' },
+      { name: 'krog lab', type: 'scatter', rgb: SERIES_COLORS.oil.rgb, pts: pts(lab.labO), marker: 'square' },
+    ];
+    if (lab.fitG.length) {
+      series.push({ name: 'krg Corey fit', type: 'line', rgb: SERIES_COLORS.gas.rgb, pts: pts(lab.fitG), dash: [1.6, 1.0], width: 0.45 });
+      series.push({ name: 'krog Corey fit', type: 'line', rgb: SERIES_COLORS.oil.rgb, pts: pts(lab.fitO), dash: [1.6, 1.0], width: 0.45 });
+    }
+    const fit = x.goFit;
+    figures.push({
+      id: `kr-go-lab-${x.id}`,
+      title: `Lab gas-oil relative permeability with the Corey fit: ${x.name}`,
+      caption: fit
+        ? `${x.goRows.length} lab rows at Swc ${g(fit.params.Swc)} (${fit.swcFrom}). Fitted ng ${g(fit.params.ng)}, nog ${g(fit.params.nog)}, r2 ${g(fit.r2Log, 4)} in log space. Dashed: the fit.`
+        : `${x.goRows.length} lab rows. No fit: ${x.goFitError || 'the table cannot be fitted'}.`,
+      panels: [{ height: PANEL, spec: { xTitle: 'Gas saturation Sg', yTitle: 'Relative permeability kr', xInclude: [0, 1], yInclude: [0, 1], series } }],
+    });
   }
 
   // 5. J function

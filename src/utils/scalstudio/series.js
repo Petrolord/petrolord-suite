@@ -7,7 +7,7 @@
  * Pure.
  */
 import {
-  buildCoreyOilWater, normalizeKrTable, makeJFunction, pcFromJ, heightFromPc, LEVERETT_C,
+  buildCoreyOilWater, buildCoreyGasOil, normalizeKrTable, makeJFunction, pcFromJ, heightFromPc, LEVERETT_C,
 } from '@/utils/scalCalculations';
 import { coreyKr } from '@/utils/fractionalFlowCalculations';
 import { scalUnits } from './units.js';
@@ -59,6 +59,18 @@ export function labFitSeries(sample) {
     labO: lab.map((r) => ({ x: r.Sw, y: r.kro })),
     fitW: fit.map((r) => ({ x: r.Sw, y: r.krw })),
     fitO: fit.map((r) => ({ x: r.Sw, y: r.kro })),
+  };
+}
+
+/** A sample's gas-oil lab points and its gas-oil Corey fit (SCAL-U2-004). */
+export function goLabFitSeries(sample) {
+  const lab = sample?.goRows || [];
+  const fit = sample?.goFit?.params ? buildCoreyGasOil(sample.goFit.params, { n: 80 }).rows : [];
+  return {
+    labG: lab.map((r) => ({ x: r.Sg, y: r.krg })),
+    labO: lab.map((r) => ({ x: r.Sg, y: r.krog })),
+    fitG: fit.map((r) => ({ x: r.Sg, y: r.krg })),
+    fitO: fit.map((r) => ({ x: r.Sg, y: r.krog })),
   };
 }
 
