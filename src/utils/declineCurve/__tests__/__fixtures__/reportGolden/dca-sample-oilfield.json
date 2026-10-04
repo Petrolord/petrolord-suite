@@ -1,11 +1,11 @@
 {
-  "pages": 6,
-  "sha256": "d7b5ffdd798f63f609fe78a15d28b4d6efcfe6049e30c236ddc5b0b13b4525ee",
+  "pages": 7,
+  "sha256": "09f8723df2f0b8b7b9b55180323ded09cf7e6d2d2e8bb50017c808d302ddd904",
   "figures": [
     {
       "id": "rate-time",
       "number": 1,
-      "page": 5,
+      "page": 6,
       "plotted": true,
       "panels": [
         {
@@ -29,7 +29,7 @@
     {
       "id": "rate-cum",
       "number": 2,
-      "page": 5,
+      "page": 6,
       "plotted": true,
       "panels": [
         {
@@ -53,7 +53,7 @@
     {
       "id": "cum-time",
       "number": 3,
-      "page": 6,
+      "page": 7,
       "plotted": true,
       "panels": [
         {
@@ -74,9 +74,16 @@
       ]
     },
     {
-      "id": "eur-distribution",
+      "id": "scenarios",
       "number": 4,
-      "page": 6,
+      "page": 7,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "eur-distribution",
+      "number": 5,
+      "page": 7,
       "plotted": false,
       "panels": []
     }

@@ -68,7 +68,7 @@ const ForecastScenarioHubHelpGuideContent = () => (
       </Step>
       <Step n={2} title="Set the five parameters per case">
         Initial rate, decline, b factor, horizon and economic limit. Read the decline
-        convention section below before typing a decline, because it is nominal.
+        convention section below before typing a decline, and pick its basis under the field.
       </Step>
       <Step n={3} title="Set the three economics inputs">
         Price, opex and discount rate sit in their own card and apply to every case at once.
@@ -85,21 +85,26 @@ const ForecastScenarioHubHelpGuideContent = () => (
         headers={['Field', 'Unit', 'Meaning', 'Default on a new case']}
         rows={[
           ['qi', 'bbl/d or sm3/d (the unit profile)', 'Initial rate at the start of the case.', '1000'],
-          ['Decline', 'percent per year, nominal', 'The nominal annual decline. See the warning below.', '18'],
+          ['Decline', 'percent per year, on the basis chosen under it (nominal, effective secant, effective tangent)', 'The initial decline. See the warning below.', '18, nominal'],
           ['b factor', 'dimensionless', '0 gives exponential, 1 gives harmonic, anything else is hyperbolic.', '0.5'],
           ['Horizon', 'years', 'How long the forecast runs if the economic limit is never reached.', '20'],
           ['Econ limit', 'bbl/d or sm3/d', 'Rate at which the forecast stops. Zero disables the cutoff.', '30'],
           ['Start date', 'date', 'The first day of the case. Blank takes the set start (the date box above the cases).', 'blank'],
+          ['Downtime', 'percent of calendar time', 'The share of time the well is shut in. Each day delivers the decline rate times the uptime; the economic limit is tested on the decline rate. A case from Decline Curve Analysis brings the downtime set there. Blank is none.', 'blank'],
+          ['Terminal decline Dmin', 'percent per year, effective or nominal (the Dmin basis box)', 'The modified hyperbolic: the case follows its hyperbolic until the nominal decline falls to Dmin, then declines exponentially at Dmin. Effective is the share of rate lost in a year on that exponential tail. Blank is none. A case from Decline Curve Analysis brings the Dmin set there, as nominal.', 'blank (no default)'],
         ]}
       />
-      <Callout tone="danger" title="Decline is the nominal rate">
-        The engine converts your entry to a daily nominal decline by dividing by 365.25 (the
-        Suite's year, also used by Decline Curve Analysis and Well Spacing). It does
-        not convert between nominal and effective. Entering 18 for an exponential case
-        produces a first year drop of about 16.5 percent, because that is what a nominal 18
-        percent works out to. If you are copying a secant effective decline off a decline
-        analysis report, convert it first or your forecast will decline too slowly and your
-        EUR will be too high.
+      <Callout tone="danger" title="Say which decline you typed">
+        A decline is typed in percent per year and the box under it says on which basis.
+        Nominal is the instantaneous decline at the case start; the engine divides it by
+        365.25 (the Suite's year, also used by Decline Curve Analysis and Well Spacing).
+        Effective, secant is the share of rate the case loses in its first year with its own
+        b, the way most reserves reports quote a hyperbolic decline (SPEE REP 6); effective,
+        tangent is the exponential form. The app converts an effective entry to the nominal
+        and prints the nominal under the field and in the CSV. Entering 18 as nominal for an
+        exponential case produces a first year drop of about 16.5 percent; entering 18 as
+        effective produces a drop of 18 percent. Copying a secant effective decline into a
+        nominal box makes the forecast decline too slowly and the EUR too high.
       </Callout>
       <SubHeading>Adding, duplicating and deleting</SubHeading>
       <Para>
@@ -257,7 +262,8 @@ const ForecastScenarioHubHelpGuideContent = () => (
         Only a negative b is rejected. Values above 1 give a decline that flattens without ever
         terminating, and the EUR grows quickly with b. If you are booking anything from a case
         with b above 1, make sure the economic limit is doing real work, because the 50 year
-        maximum life will otherwise be what sets your EUR.
+        maximum life will otherwise be what sets your EUR. A terminal decline Dmin is the usual
+        cure: the curve switches to an exponential when its decline falls to Dmin.
       </Para>
       <SubHeading>A case from Decline Curve Analysis</SubHeading>
       <Para>

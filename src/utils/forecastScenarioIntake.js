@@ -19,10 +19,16 @@ export function caseValuesFromContract(c) {
   return {
     qi: r6(c.atCutoff.rate),
     declineAnnualPct: r6(c.atCutoff.diNominalPctPerYear),
+    declineBasis: 'nominal',
     b: r6(c.decline.b),
     years: r6(c.forecast.horizonDays / DAYS_PER_YEAR),
     economicLimit: c.forecast.economicLimit ? r6(c.forecast.economicLimit) : 0,
     startDate: c.forecast.start,
+    // DCA U2-001: the terminal decline travels as its exact nominal %/yr
+    terminalDeclinePct: c.decline.terminal ? r6(c.decline.terminal.dminNominalPctPerYear) : null,
+    terminalDeclineBasis: c.decline.terminal ? 'nominal' : null,
+    // DCA U2-011: the downtime factor of the sender's forecast
+    downtimePct: c.forecast.downtimePct || null,
   };
 }
 
@@ -45,14 +51,25 @@ export function caseFromDcaContract(contract, { id = `dca-${Date.now()}`, receiv
   };
 }
 
-const KEYS = ['qi', 'declineAnnualPct', 'b', 'years', 'economicLimit', 'startDate'];
-const LABELS = { qi: 'qi', declineAnnualPct: 'decline', b: 'b', years: 'horizon', economicLimit: 'economic limit', startDate: 'start date' };
+const KEYS = ['qi', 'declineAnnualPct', 'declineBasis', 'b', 'years', 'economicLimit', 'startDate', 'terminalDeclinePct', 'terminalDeclineBasis', 'downtimePct'];
+const LABELS = { qi: 'qi', declineAnnualPct: 'decline', declineBasis: 'decline basis', b: 'b', years: 'horizon', economicLimit: 'economic limit', startDate: 'start date', terminalDeclinePct: 'terminal decline', terminalDeclineBasis: 'terminal decline basis', downtimePct: 'downtime' };
+const TEXT_KEYS = new Set(['startDate', 'terminalDeclineBasis']);
+const numOrNull = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) || Number(v) === 0 ? null : Number(v));
 
 /** The fields of a case changed by hand after the handoff. */
 export function editedAfterHandoff(c) {
   if (!c?.source?.contract) return [];
   const sent = caseValuesFromContract(c.source.contract);
-  return KEYS.filter((k) => (k === 'startDate' ? String(c[k] || '') !== String(sent[k] || '') : Math.abs(Number(c[k]) - Number(sent[k])) > 1e-9 * Math.max(1, Math.abs(Number(sent[k]))))).map((k) => LABELS[k]);
+  return KEYS.filter((k) => {
+    if (k === 'declineBasis') return (c[k] || 'nominal') !== (sent[k] || 'nominal');
+    if (TEXT_KEYS.has(k)) return String(c[k] || '') !== String(sent[k] || '');
+    if (k === 'terminalDeclinePct' || k === 'downtimePct') {
+      const a = numOrNull(c[k]); const b = numOrNull(sent[k]);
+      if (a == null || b == null) return a !== b;
+      return Math.abs(a - b) > 1e-9 * Math.max(1, Math.abs(b));
+    }
+    return Math.abs(Number(c[k]) - Number(sent[k])) > 1e-9 * Math.max(1, Math.abs(Number(sent[k])));
+  }).map((k) => LABELS[k]);
 }
 
 /** One sentence: where the case came from and on which basis. */

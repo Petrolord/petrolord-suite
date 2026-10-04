@@ -1,6 +1,6 @@
 {
   "pages": 7,
-  "sha256": "b15f582e2023f090e120b6b2c2090bfd849afd9a97ab78925d4ca50c7bf62cbd",
+  "sha256": "0b060a36a074fec0ee62ece687b193c7bb2318742cfa673e4741e9559dc23296",
   "figures": [
     {
       "id": "rate-time",
@@ -76,15 +76,22 @@
       ]
     },
     {
-      "id": "eur-distribution",
+      "id": "scenarios",
       "number": 4,
+      "page": 7,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "eur-distribution",
+      "number": 5,
       "page": 7,
       "plotted": true,
       "panels": [
         {
           "box": {
             "x": 14,
-            "y": 106.36,
+            "y": 120.22,
             "w": 182,
             "h": 62
           },
