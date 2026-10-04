@@ -184,11 +184,30 @@ test('U2-007 distance to the limit: the sample CO2 depth sits 2,400 ft above its
 });
 
 // EOR-U2-006: the range of current projects (Part 2, Tables 1 to 7) beside each limit.
-test('U2-006 range of current projects: polymer depth and the sample inside or outside', async ({ page }) => {
+test('U2-006 range of current projects: the sample CO2 gravity inside, no printed depth range', async ({ page }) => {
   test.setTimeout(180000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await openApp(page);
   await page.getByTestId('eor-method-co2').getByRole('button').first().click();
   await expect(page.getByTestId('eor-range-co2-gravity')).toHaveText('27 to 44 degAPI (inside)');
   await expect(page.getByTestId('eor-range-co2-depth')).toHaveText('n/a');
+});
+
+// EOR-U2-008: C1 + N2 taken from a compositional Fluid project with the pvt-1 intake; C2 to C10 not assumed.
+test('U2-008 composition: C1 + N2 from the feed of a compositional Fluid project, C2 to C10 left to the user', async ({ page }) => {
+  test.setTimeout(180000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const rows = JSON.parse(FLUID_ROWS);
+  rows[0].inputs_data.inputs = { fluidModel: 'eos', streamA: { composition: { zPct: { N2: 0.5, CO2: 2, H2S: 0, C1: 39.5, C2: 7, C3: 6, iC4: 0, nC4: 5, iC5: 0, nC5: 0, nC6: 6, 'C7+': 34 } } } };
+  await page.addInitScript((f) => { try { window.sessionStorage.setItem('harness.saved_fluid_studio_projects.v1', f); } catch { /* blocked */ } }, JSON.stringify(rows));
+  await page.goto('/dev/studio/eor', { timeout: 120000 });
+  await expect(page.getByText('Method ranking')).toBeVisible({ timeout: 120000 });
+  await page.getByTestId('eor-pick-pvt').selectOption({ index: 1 });
+  await page.getByTestId('eor-pvt-pressure').fill('3400');
+  await page.getByTestId('eor-take-pvt').click();
+  await expect(page.getByTestId('eor-composition-note')).toContainText('C1 + N2 40 mol % taken');
+  await expect(page.getByTestId('eor-composition-note')).toContainText('C2 to C6 with CO2, is 26 mol %: C2 to C10 is at least that');
+  await expect(page.getByTestId('eor-volatilesMolPct')).toHaveValue('40');
+  await expect(page.getByTestId('eor-intermediatesMolPct')).toHaveValue('');
+  await expect(page.getByTestId('eor-mmp')).toHaveAttribute('data-status', 'not made');
 });

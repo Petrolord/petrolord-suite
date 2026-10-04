@@ -170,6 +170,13 @@ const EorScreeningHelpGuideContent = () => (
         0.48 MPa on average and 2.05 MPa at worst, so a difference smaller than that is flagged
         as needing a measured MMP.
       </Para>
+      <Para>
+        When the Fluid Systems Studio project you take is a compositional (equation of state)
+        model, the app also takes C1 + N2 from its feed. It does not take C2 to C10: the feed
+        lumps C7 and heavier into C7+, so C7 to C10 cannot be separated. The card prints the
+        known part (C2 to C6 with CO2) as a lower bound; enter C2 to C10 from the laboratory
+        composition.
+      </Para>
       <Callout tone="warn" title="Know where the correlation comes from">
         The paper fitted black oils of the Ordos Basin (43 to 92 degC) with pure CO2. Inputs
         outside its data are computed and flagged as extrapolated. It does not cover nitrogen,

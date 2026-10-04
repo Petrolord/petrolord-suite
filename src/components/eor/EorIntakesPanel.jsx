@@ -21,6 +21,7 @@ import { readFluidProjectBlock } from '@/pages/apps/reservoir-balance/lib/pvtInt
 import PvtIntakeCard from '@/lib/inputProvenance/PvtIntakeCard';
 import {
   eorPvtIntake, eorWtaIntake, eorMbalIntake, eorPvtCardFields, intakeCardModel, wtaFingerprint, mbalFingerprint,
+  eorCompositionIntake, withComposition,
 } from '@/utils/eor/intakes';
 import { INPUT_DEFS } from '@/utils/eor/reportModel';
 import { useEorScreening } from '@/contexts/EorScreeningContext';
@@ -36,6 +37,17 @@ const SOURCES = {
   wta: { title: 'Well Test Analysis Studio (wta-1)', table: WTA_TABLE, name: 'project_name', param: WTA_PROJECT_PARAM, takes: 'Permeability; average pressure for context' },
   mbal: { title: 'Material Balance Studio (mbal-1)', table: 'rb_cases', name: 'name', param: MBAL_CASE_PARAM, takes: 'OOIP and the last average pressure, for context' },
 };
+
+/** EOR-U2-008: the saved Fluid inputs (the feed composition of a compositional project), by id. */
+async function readFluidInputs(id) {
+  try {
+    const { data, error } = await supabase.from('saved_fluid_studio_projects').select('*').eq('id', id).maybeSingle();
+    if (error || !data) return null;
+    return data.inputs_data?.inputs || null;
+  } catch {
+    return null;
+  }
+}
 
 async function listProjects(table, nameCol) {
   try {
@@ -109,6 +121,9 @@ const SourceBlock = ({ kind }) => {
         name = read.projectName;
         const p = pressure === '' ? null : Number(pressure);
         res = eorPvtIntake(read.block, { pressurePsia: Number.isFinite(p) ? p : null });
+        const fluidInputs = res.ok ? await readFluidInputs(pick) : null;
+        const comp = fluidInputs ? eorCompositionIntake(fluidInputs, { recordId: pick, recordName: name }) : null;
+        res = withComposition(res, comp);
       } else if (kind === 'wta') {
         const read = await readWellTestProject(supabase, pick);
         if (!read.ok) { setMessage(read.reason); return; }
@@ -163,6 +178,13 @@ const SourceBlock = ({ kind }) => {
         {intake && <Button size="sm" variant="ghost" className="h-8" disabled={!canWrite} onClick={() => clearIntake(kind)}>Forget the source</Button>}
       </div>
       {message && <p className="text-xs text-pl-danger-text" data-testid={`eor-intake-message-${kind}`}>{message}</p>}
+      {intake && kind === 'pvt' && (
+        <p className="text-[10px] text-pl-muted" data-testid="eor-composition-note">
+          {intake.values?.volatilesMolPct != null
+            ? `Oil composition for the MMP: C1 + N2 ${intake.values.volatilesMolPct} mol % taken. ${intake.composition?.not_taken || ''}`
+            : 'Oil composition for the MMP: none taken (the project is not a compositional model, or holds no feed).'}
+        </p>
+      )}
       {intake && kind === 'pvt' && (
         <PvtIntakeCard intake={intake} current={inputs.form} fields={eorPvtCardFields(intake)} readLatest={readFluidProjectPvt} title="PVT taken from Fluid Systems Studio" />
       )}
