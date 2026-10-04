@@ -1,23 +1,28 @@
-// Recovery Factor Estimator state + persistence on the shared
-// Studio-shell convention (kit upgrade, docs/scope/
-// RecoveryFactorEstimator-STATUS.md). Follows the VrrMonitorContext /
-// useFluidStudioProjects lifecycle recipe: createSavedProjectsService +
-// hydrated guard + 10 s debounced autosave. The engine
-// (recoveryFactorCalculations.js) is untouched; results are a pure
-// function of inputs and are recomputed on load.
+// Recovery Factor Estimator state + persistence on the shared Studio-shell
+// convention (docs/scope/RecoveryFactorEstimator-STATUS.md):
+// createSavedProjectsService + hydrated guard + 10 s debounced autosave.
+// Results are a pure function of inputs (src/utils/rfestimator/workspace.js
+// deriveRf) and are recomputed on load, never stored.
 //
-// Persistence: saved_rf_projects (owner-scoped RLS). Payload
-// { id, name, schema: 1, inputs, modified } — inputs only.
+// RF-U1: payload version 2 (src/utils/rfestimator/model.js) with the report
+// identification, input sources, the display unit system, the pvt-1 intake
+// and the in-place intake; record sharing (saved_rf_projects is under the
+// sharing rules of 20261002130000): own projects, then those shared with me,
+// view only or edit with the check-out.
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
+import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjects';
+import { setProvenanceField, serializeProvenance, deserializeProvenance } from '@/lib/inputProvenance';
 import {
-  DRIVE_MECHANISMS, estimateRecovery, stoiipVolumetric, ogipVolumetric, sampleRecoveryData,
-} from '@/utils/recoveryFactorCalculations';
-import { DEFAULT_DRIVE } from '@/components/rfestimator/rfFields';
+  RF_PAYLOAD_VERSION, RF_PROJECTS_TABLE, DEFAULT_DRIVE, DEFAULT_IDENTIFICATION,
+  defaultInputs as modelDefaultInputs, inputsFromPayload as modelInputsFromPayload, migrateRfPayload, sampleInputs,
+} from '@/utils/rfestimator/model';
+import { deriveRf } from '@/utils/rfestimator/workspace';
+import { rfUnits } from '@/utils/rfestimator/units';
 
-const TABLE = 'saved_rf_projects';
+const TABLE = RF_PROJECTS_TABLE;
 
 export const service = createSavedProjectsService(TABLE, {
   signInMessage: 'Sign in to save Recovery Factor projects.',
@@ -35,36 +40,8 @@ export const friendlyError = (error) => {
   return msg || 'Unexpected error.';
 };
 
-const asStrings = (o) => Object.fromEntries(Object.entries(o || {}).map(([k, v]) => [k, String(v)]));
-
-export const defaultInputs = () => {
-  const d = sampleRecoveryData();
-  return {
-    phase: 'oil',            // 'oil' | 'gas'
-    method: 'analog',        // METHODS[phase] code
-    driveCode: DEFAULT_DRIVE.oil,
-    inPlaceMode: 'volumetric', // 'volumetric' | 'direct'
-    ooipDirect: '',
-    vol: asStrings(d.volumetric),
-    corr: asStrings(d.correlationInputs),
-  };
-};
-
-/** Restore inputs from a payload, tolerating missing keys from older rows. */
-export const inputsFromPayload = (payload) => {
-  if (!payload || typeof payload !== 'object') return null;
-  const raw = payload.inputs && typeof payload.inputs === 'object' ? payload.inputs : payload;
-  const base = defaultInputs();
-  return {
-    ...base,
-    ...raw,
-    phase: raw.phase === 'gas' ? 'gas' : 'oil',
-    inPlaceMode: raw.inPlaceMode === 'direct' ? 'direct' : 'volumetric',
-    ooipDirect: typeof raw.ooipDirect === 'string' ? raw.ooipDirect : '',
-    vol: { ...base.vol, ...(raw.vol || {}) },
-    corr: { ...base.corr, ...(raw.corr || {}) },
-  };
-};
+export const defaultInputs = modelDefaultInputs;
+export const inputsFromPayload = modelInputsFromPayload;
 
 const RfEstimatorContext = createContext();
 
@@ -74,8 +51,11 @@ export const useRfEstimator = () => {
   return context;
 };
 
-export const RfEstimatorProvider = ({ children }) => {
+export const RfEstimatorProvider = ({ children, sharingStore = null, profileSystem = null, build = null }) => {
   const { notifications, addNotification, removeNotification } = useStudioNotifications();
+
+  const shared = useSharedSavedProjects({ table: TABLE, service, sharingStore });
+  const canWrite = shared.canWrite;
 
   const [inputs, setInputs] = useState(defaultInputs);
   const [projects, setProjects] = useState([]);
@@ -85,128 +65,148 @@ export const RfEstimatorProvider = ({ children }) => {
   const [saveError, setSaveError] = useState(null);
   const [lastSaveTime, setLastSaveTime] = useState(null);
   const [hydrated, setHydrated] = useState(false);
+  const [identification, setIdentification] = useState(DEFAULT_IDENTIFICATION);
+  const [inputMeta, setInputMeta] = useState({});
+  const [unitSystemSaved, setUnitSystemSaved] = useState(null); // null: follows the Suite unit profile
+  const unitSystem = unitSystemSaved === 'si' || unitSystemSaved === 'oilfield' ? unitSystemSaved : (profileSystem === 'si' ? 'si' : 'oilfield');
+  const u = useMemo(() => rfUnits(unitSystem), [unitSystem]);
+  const [pvtIntake, setPvtIntake] = useState(null);
+  const [inPlaceIntake, setInPlaceIntake] = useState(null);
+  const [migration, setMigration] = useState(null);
 
   // --- Derived analysis (pure functions of inputs) ---
-  const drives = useMemo(
-    () => DRIVE_MECHANISMS.filter((d) => d.phase === inputs.phase),
-    [inputs.phase],
-  );
+  const derived = useMemo(() => deriveRf(inputs, { inPlaceIntake, pvtIntake }), [inputs, inPlaceIntake, pvtIntake]);
+  const { drives, inPlace, result } = derived;
 
-  // Resolve in-place volume (STB or scf).
-  const inPlace = useMemo(() => {
-    if (inputs.inPlaceMode === 'direct') {
-      const n = parseFloat(inputs.ooipDirect);
-      return Number.isFinite(n) ? n : null;
-    }
-    return inputs.phase === 'gas' ? ogipVolumetric(inputs.vol) : stoiipVolumetric(inputs.vol);
-  }, [inputs.inPlaceMode, inputs.ooipDirect, inputs.phase, inputs.vol]);
-
-  const result = useMemo(
-    () => estimateRecovery({
-      method: inputs.method, driveCode: inputs.driveCode, ooip: inPlace, correlationInputs: inputs.corr,
-    }),
-    [inputs.method, inputs.driveCode, inPlace, inputs.corr],
-  );
+  // Any edit of a value moves the case off the sample (the untouched sample
+  // values still print as sample values, model.sampleKeysInUse).
+  const edit = useCallback((fn) => setInputs((prev) => fn(prev)), []);
 
   // --- Input actions ---
   const switchPhase = useCallback((phase) => {
     const p = phase === 'gas' ? 'gas' : 'oil';
-    setInputs((prev) => ({ ...prev, phase: p, method: 'analog', driveCode: DEFAULT_DRIVE[p] }));
-  }, []);
+    edit((prev) => ({ ...prev, phase: p, method: 'analog', driveCode: DEFAULT_DRIVE[p] }));
+    setInPlaceIntake((prev) => (prev && ((prev.unit === 'scf') !== (p === 'gas')) ? null : prev));
+  }, [edit]);
 
-  const setMethod = useCallback((method) => {
-    setInputs((prev) => ({ ...prev, method }));
-  }, []);
+  const setMethod = useCallback((method) => edit((prev) => ({ ...prev, method })), [edit]);
+  const setDriveCode = useCallback((driveCode) => edit((prev) => ({ ...prev, driveCode })), [edit]);
+  const setInPlaceMode = useCallback((inPlaceMode) => edit((prev) => ({ ...prev, inPlaceMode: inPlaceMode === 'direct' ? 'direct' : 'volumetric' })), [edit]);
+  const setOoipDirect = useCallback((value) => edit((prev) => ({ ...prev, ooipDirect: value, origin: 'entered' })), [edit]);
+  const setVolField = useCallback((key, value) => edit((prev) => ({ ...prev, vol: { ...prev.vol, [key]: value }, origin: prev.origin === 'sample' ? 'sample-edited' : prev.origin })), [edit]);
+  const setCorrField = useCallback((key, value) => edit((prev) => ({ ...prev, corr: { ...prev.corr, [key]: value }, origin: prev.origin === 'sample' ? 'sample-edited' : prev.origin })), [edit]);
+  const setIdentificationField = useCallback((k, v) => setIdentification((prev) => ({ ...prev, [k]: v })), []);
+  const setInputSource = useCallback((key, field, value) => setInputMeta((prev) => setProvenanceField(prev, key, field, value)), []);
+  const setUnitSystem = useCallback((sys) => setUnitSystemSaved(sys === 'si' ? 'si' : 'oilfield'), []);
 
-  const setDriveCode = useCallback((driveCode) => {
-    setInputs((prev) => ({ ...prev, driveCode }));
-  }, []);
+  /** A pvt-1 intake: values land in the method and volumetric inputs, the record is kept. */
+  const takePvt = useCallback((patch, intake) => {
+    edit((prev) => ({
+      ...prev,
+      corr: { ...prev.corr, ...(patch?.corr || {}) },
+      vol: { ...prev.vol, ...(patch?.vol || {}) },
+      origin: prev.origin === 'sample' ? 'sample-edited' : prev.origin,
+    }));
+    setPvtIntake(intake || null);
+  }, [edit]);
 
-  const setInPlaceMode = useCallback((inPlaceMode) => {
-    setInputs((prev) => ({ ...prev, inPlaceMode: inPlaceMode === 'direct' ? 'direct' : 'volumetric' }));
-  }, []);
-
-  const setOoipDirect = useCallback((value) => {
-    setInputs((prev) => ({ ...prev, ooipDirect: value }));
-  }, []);
-
-  const setVolField = useCallback((key, value) => {
-    setInputs((prev) => ({ ...prev, vol: { ...prev.vol, [key]: value } }));
-  }, []);
-
-  const setCorrField = useCallback((key, value) => {
-    setInputs((prev) => ({ ...prev, corr: { ...prev.corr, [key]: value } }));
-  }, []);
+  /** An in-place intake (mbal-1 or a ReservoirCalc Pro project): held as a direct entry with its record. */
+  const takeInPlace = useCallback((value, intake) => {
+    edit((prev) => ({ ...prev, inPlaceMode: 'direct', ooipDirect: String(value), origin: prev.origin === 'sample' ? 'sample-edited' : prev.origin }));
+    setInPlaceIntake(intake || null);
+  }, [edit]);
+  const clearInPlaceIntake = useCallback(() => setInPlaceIntake(null), []);
 
   const loadSample = useCallback(() => {
-    const d = sampleRecoveryData();
-    setInputs((prev) => ({
-      ...prev,
-      phase: 'oil',
-      method: 'analog',
-      driveCode: 'water_drive',
-      inPlaceMode: 'volumetric',
-      vol: asStrings(d.volumetric),
-      corr: asStrings(d.correlationInputs),
-    }));
-    addNotification('Sample loaded: a water-drive oil case is ready.', 'success');
+    setInputs(sampleInputs());
+    setPvtIntake(null);
+    setInPlaceIntake(null);
+    addNotification('Sample loaded: a water-drive oil case. Its values are labelled as sample values until you replace them.', 'success');
   }, [addNotification]);
 
-  // --- Project lifecycle (useFluidStudioProjects recipe) ---
+  // --- Project lifecycle ---
   const serialize = useCallback((name) => ({
     id: currentProjectId,
     name,
     schema: 1,
+    payloadVersion: RF_PAYLOAD_VERSION,
     inputs,
+    identification,
+    inputMeta: serializeProvenance(inputMeta),
+    unitSystem,
+    pvtIntake,
+    inPlaceIntake,
     modified: new Date().toISOString(),
-  }), [currentProjectId, inputs]);
+  }), [currentProjectId, inputs, identification, inputMeta, unitSystem, pvtIntake, inPlaceIntake]);
+
+  const hydrate = useCallback((raw) => {
+    const payload = migrateRfPayload(raw);
+    const restored = modelInputsFromPayload(payload);
+    if (!restored) return false;
+    setInputs(restored);
+    setIdentification({ ...DEFAULT_IDENTIFICATION, ...(payload.identification || {}) });
+    setInputMeta(deserializeProvenance(payload.inputMeta));
+    setUnitSystemSaved(payload.unitSystem === 'si' || payload.unitSystem === 'oilfield' ? payload.unitSystem : null);
+    setPvtIntake(payload.pvtIntake || null);
+    setInPlaceIntake(payload.inPlaceIntake || null);
+    setMigration(payload.migratedFrom ? { from: payload.migratedFrom, note: payload.apiBasisNote || null } : null);
+    return true;
+  }, []);
+
+  const refreshProjects = useCallback(async () => {
+    const list = await shared.refreshList();
+    setProjects(list);
+    return list;
+  }, [shared.refreshList]); // eslint-disable-line react-hooks/exhaustive-deps
+  const myId = shared.sharing.userId;
+  const ownProjects = useMemo(() => projects.filter((p) => !sharingStore || !myId || !p.userId || p.userId === myId), [projects, sharingStore, myId]);
+  const sharedProjects = useMemo(() => (sharingStore && myId ? projects.filter((p) => p.userId && p.userId !== myId) : []), [projects, sharingStore, myId]);
 
   useEffect(() => {
     (async () => {
       try {
-        setProjects(await service.list());
+        await refreshProjects();
       } catch (e) {
         console.error(e);
         addNotification(friendlyError(e), 'error');
       }
     })();
-  }, [addNotification]);
+  }, [addNotification]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const createProject = useCallback(async (name) => {
     const id = uuidv4();
     try {
-      await service.save(id, { id, name, schema: 1, inputs, modified: new Date().toISOString() });
+      await service.save(id, { ...serialize(name), id, name });
+      await shared.adoptRow(id);
       setCurrentProjectId(id);
       setProjectName(name);
       setHydrated(true);
       setLastSaveTime(new Date());
       setSaveError(null);
-      setProjects(await service.list());
+      await refreshProjects();
       addNotification(`Project "${name}" created`, 'success');
     } catch (e) {
       console.error(e);
       addNotification(friendlyError(e), 'error');
     }
-  }, [inputs, addNotification]);
+  }, [serialize, addNotification, refreshProjects]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openProject = useCallback(async (id) => {
     try {
-      const payload = await service.load(id);
-      const restored = inputsFromPayload(payload);
-      if (!restored) {
+      const payload = await shared.loadForOpen(id);
+      if (!payload || !hydrate(payload)) {
         addNotification('Project not found', 'error');
         return;
       }
       setCurrentProjectId(id);
       setProjectName(payload.name || projects.find((p) => p.id === id)?.name || 'Untitled project');
-      setInputs(restored);
       setHydrated(true);
       setSaveError(null);
     } catch (e) {
       console.error(e);
       addNotification(friendlyError(e), 'error');
     }
-  }, [projects, addNotification]);
+  }, [projects, addNotification, hydrate, shared.loadForOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const deleteProject = useCallback(async (id) => {
     try {
@@ -216,14 +216,15 @@ export const RfEstimatorProvider = ({ children }) => {
         setProjectName('');
         setHydrated(false);
         setLastSaveTime(null);
+        shared.close();
       }
-      setProjects(await service.list());
+      await refreshProjects();
       addNotification('Project deleted', 'info');
     } catch (e) {
       console.error(e);
       addNotification(friendlyError(e), 'error');
     }
-  }, [currentProjectId, addNotification]);
+  }, [currentProjectId, addNotification, refreshProjects]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const manualSave = useCallback(async () => {
     if (!currentProjectId) {
@@ -232,7 +233,12 @@ export const RfEstimatorProvider = ({ children }) => {
     }
     setIsSaving(true);
     try {
-      await service.save(currentProjectId, serialize(projectName));
+      const res = await shared.write(currentProjectId, serialize(projectName));
+      if (!res.ok) {
+        setSaveError(res.readOnly ? 'Read-only' : 'Save failed');
+        addNotification(res.message, res.readOnly ? 'info' : 'error');
+        return;
+      }
       setLastSaveTime(new Date());
       setSaveError(null);
     } catch (e) {
@@ -241,19 +247,39 @@ export const RfEstimatorProvider = ({ children }) => {
     } finally {
       setIsSaving(false);
     }
-  }, [currentProjectId, projectName, serialize, addNotification]);
+  }, [currentProjectId, projectName, serialize, addNotification, shared.write]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Debounced autosave (10 s), only once a project is open and hydrated.
+  // "Save a copy": the project on screen as my own new project
+  const saveCopy = useCallback(async () => {
+    const name = shared.copyNameFor(projectName || 'Recovery Factor project');
+    const id = uuidv4();
+    try {
+      await service.save(id, { ...serialize(name), id, name });
+      await refreshProjects();
+      await openProject(id);
+      addNotification(`Saved a copy as "${name}"`, 'success');
+    } catch (e) {
+      addNotification(`Could not save a copy: ${e.message}`, 'error');
+    }
+  }, [projectName, serialize, refreshProjects, openProject, addNotification]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced autosave (10 s), only once a project is open and hydrated, never read-only.
   const autosaveRef = useRef(null);
   autosaveRef.current = () => serialize(projectName);
+  const writeRef = useRef(shared.write);
+  writeRef.current = shared.write;
   useEffect(() => {
-    if (!currentProjectId || !hydrated) return undefined;
+    if (!currentProjectId || !hydrated || !canWrite) return undefined;
     const timer = setTimeout(async () => {
       setIsSaving(true);
       try {
-        await service.save(currentProjectId, autosaveRef.current());
-        setLastSaveTime(new Date());
-        setSaveError(null);
+        const res = await writeRef.current(currentProjectId, autosaveRef.current());
+        if (res.ok) {
+          setLastSaveTime(new Date());
+          setSaveError(null);
+        } else if (!res.readOnly) {
+          setSaveError('Auto-save failed');
+        }
       } catch (e) {
         console.error(e);
         setSaveError('Auto-save failed');
@@ -262,11 +288,12 @@ export const RfEstimatorProvider = ({ children }) => {
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [inputs, currentProjectId, hydrated]);
+  }, [inputs, identification, inputMeta, unitSystemSaved, pvtIntake, inPlaceIntake, currentProjectId, hydrated, canWrite]);
 
   const value = {
     // inputs + derived
     inputs,
+    derived,
     drives,
     inPlace,
     result,
@@ -279,14 +306,29 @@ export const RfEstimatorProvider = ({ children }) => {
     setVolField,
     setCorrField,
     loadSample,
+    // report, sources, units, intakes
+    identification, setIdentificationField,
+    inputMeta, setInputSource,
+    unitSystem, setUnitSystem, u, profileSystem, followsProfile: unitSystemSaved == null && !!profileSystem,
+    pvtIntake, takePvt,
+    inPlaceIntake, takeInPlace, clearInPlaceIntake,
+    migration,
+    build,
+    serialize,
     // projects
-    projects,
+    projects: ownProjects,
+    sharedProjects,
     currentProjectId,
     projectName,
     createProject,
     openProject,
     deleteProject,
     manualSave,
+    saveCopy,
+    projectRow: shared.projectRow,
+    sharing: shared.sharing,
+    viewingShared: shared.viewingShared,
+    canWrite,
     isSaving,
     saveError,
     lastSaveTime,

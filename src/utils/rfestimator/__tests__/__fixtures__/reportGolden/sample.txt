@@ -1,0 +1,232 @@
+Recovery Factor Report
+Petrolord Recovery Factor Estimator
+
+Project                  Sample                                              Company               n/a
+Field                    n/a                                                 Licence or block      n/a
+Reservoir or zone        n/a                                                 Wells or area         n/a
+Analyst                  n/a                                                 Data as of            n/a
+Fluid                    Oil                                                 Analysis type         Recovery factor screening:
+                                                                                                   Drive-mechanism analog
+Case data                Sample data shipped with the app                    Software build        Petrolord Suite test (fixture)
+Engine                   rf-2 (2026-10, RF-U1)                               Display units         Oilfield
+Generated                2026-10-04 09:00 UTC
+
+
+Headline results
+ Quantity                                Value                     Unit           Basis
+
+ Recovery factor                         50.0                      percent        Drive-mechanism analog; fraction of OOIP at stock-tank
+                                                                                  (standard) conditions
+
+ Analog range, low edge to high edge     35 to 75                  percent        Water drive (edge/bottom); edges of a screening range, not P90
+                                                                                  and P10
+
+ OOIP                                    43.388                    MMSTB          volumetric, from the inputs below
+
+ Recoverable volume, estimate            21.694                    MMSTB          RF x OOIP; technically recoverable, no economic limit, not a
+                                                                                  PRMS reserves class
+
+ Recoverable volume at the range         15.186 to 32.541          MMSTB          Analog range edges x in-place volume
+ edges
+
+
+OOIP by its parts
+ Step                                                     Value                                          Unit
+
+ Gross rock volume A h                                    54000                                          acre-ft
+
+ Net rock volume A h NTG                                  45900                                          acre-ft
+
+ Pore volume A h NTG phi                                  78.344                                         MMRB
+
+ Hydrocarbon pore volume x (1 - Sw)                       56.4077                                        MMRB
+
+ Divided by Boi                                           1.3                                            RB/STB
+
+ OOIP                                                     43.388                                         MMSTB
+
+OOIP (STB) = 7,758 A h NTG phi (1 - Sw) / Boi, with 7,758 bbl per acre-ft. The steps close on the engine total; the constant 7,758 is 43,560 ft3 per
+acre-ft over 5.6146 ft3 per bbl, rounded (0.005 percent).
+
+
+
+
+Recovery Factor Report, Sample                                                                                                          Page 1 of 4
+Inputs and their sources
+ Input                                            Value                  Unit             Source and quality
+
+ Fluid                                            Oil                                     Chosen in the app
+
+ Method                                           Drive-mechanism                         Chosen in the app
+                                                  analog
+
+ Primary drive mechanism (sets the analog         Water drive                             Chosen in the app
+ range)                                           (edge/bottom)
+
+ Area A (volumetrics)                             1200                   acres            Sample value of the app, not a measurement (assumed)
+
+ Net pay h (volumetrics)                          45                     ft               Sample value of the app, not a measurement (assumed)
+
+ Porosity (volumetrics)                           0.22                   frac             Sample value of the app, not a measurement (assumed)
+
+ Water saturation Sw (volumetrics)                0.28                   frac             Sample value of the app, not a measurement (assumed)
+
+ Net-to-gross NTG (volumetrics)                   0.85                   frac             Sample value of the app, not a measurement (assumed)
+
+ Initial oil FVF Boi (volumetrics)                1.3                    RB/STB           Sample value of the app, not a measurement (assumed)
+
+Every value the estimate read, in the display units. A value taken from another app names it; a sample value is labelled as such; "Entered, source
+not stated" means nobody said where the number came from.
+
+
+Method
+ Item                                As used in this report
+
+ Method                              Drive-mechanism analog
+
+ What it assumes                     Drive-mechanism analog band: a screening range for the primary drive named; the estimate is the typical value
+                                     of the band.
+
+ Reference                           Transcribed screening ranges (reservoir engineering texts, e.g. Ahmed, Reservoir Engineering Handbook, drive
+                                     mechanisms); not checked against a published table in this build. Typical is the app's central choice inside each
+                                     range. Low and High are the edges of the range, not P90 and P10.
+
+ Validation in this build            Not validated: the ranges are transcribed screening ranges and were not checked against a published table in
+                                     this build.
+
+ Analog range source                 Transcribed screening ranges (reservoir engineering texts, e.g. Ahmed, Reservoir Engineering Handbook, drive
+                                     mechanisms); not checked against a published table in this build. Typical is the app's central choice inside each
+                                     range. Low and High are the edges of the range, not P90 and P10.
+
+
+Basis and conventions
+ Item                                As used in this report
+
+ Recovery factor                     Fraction of OOIP at stock-tank (standard) conditions, printed in percent
+
+ In-place volume                     volumetric, from the inputs below
+
+ Recoverable volume                  Technically recoverable volume RF x in-place; no economic limit, no development plan and no PRMS
+                                     classification applied
+
+ Pressures                           Absolute, as entered; no datum correction
+
+ Range                               Low and high are the edges of the analog screening range of the drive named, not P90 and P10 of a distribution
+
+ Display units                       Oilfield (area acres, thickness ft, pressure psia, Bo RB/STB, Bgi ft3/scf, volumes STB and scf, permeability md,
+                                     viscosity cP)
+
+
+Limits of this analysis
+- A screening estimate. It does not replace a reservoir simulation, a decline or material balance forecast, or a reserves study.
+- Drive-mechanism analog band: a screening range for the primary drive named; the estimate is the typical value of the band.
+- Recovery depends on the development plan, well count, secondary and tertiary recovery and economics; none of these is modelled.
+
+
+
+
+Recovery Factor Report, Sample                                                                                                             Page 2 of 4
+Domain of each method, as checked by the app
+ Method                               Domain checked by the app
+
+ API solution-gas drive               pa below pb; 0 < phi < 1; 0 < Swi < 1; Bob at least 1; k and muob above zero
+
+ API water drive                      pa below pi; 0 < phi < 1; 0 < Swi < 1; Boi at least 1; k, muwi and muoi above zero
+
+ p/z depletion                        pa below pi; z between 0.2 and 2 (the Standing-Katz chart)
+
+ Water-drive gas                      0 < Swi < 1; Sgr below 1 - Swi; 0 < Ev at most 1
+
+ Volumetrics                          0 < phi < 1; 0 < Sw < 1; 0 < NTG at most 1; Boi at least 1; Bgi between 0 and 0.1 ft3/scf
+
+
+Flags on the inputs and the result
+No input is outside the domain of its method, the estimate is inside the analog range, and nothing was edited after an intake.
+
+
+PVT source
+No Fluid Systems Studio intake: any volume factor, viscosity, pressure or z above was entered in this app.
+
+
+
+
+Recovery Factor Report, Sample                                                                                                    Page 3 of 4
+Plots
+Figure 1. Recoverable volume: analog range edges and the estimate
+
+
+
+                                                                                                                                                       32.54
+  Recoverable volume (MMSTB)
+
+
+
+
+                               30
+
+
+                                                                                                              21.69
+                               20
+                                                             15.19
+
+
+                               10
+
+
+
+
+                                0
+                                                         Range low edge                                      Estimate                              Range high edge
+
+
+
+Bars in MMSTB: the in-place volume times the low edge, the estimate and the high edge of the analog range of Water drive (edge/bottom). The
+edges bound a screening range; they are not P90 and P10.
+
+
+Figure 2. Analog recovery ranges of oil drive mechanisms
+
+                                         Low edge           Typical         High edge
+
+
+                               100
+
+
+                                                                                                                                             80
+  Recovery factor (percent)
+
+
+
+
+                               80                                                                                       75
+
+
+                                                                                                                                      60
+                               60
+                                     Estimate 50%                                                              50                                                         50
+
+                                                                                          40                                    40
+                               40                                                                       35                                                           35
+                                                           30                       30
+
+                                                                              20                                                                            20
+                               20                   15
+
+                                            5
+                                0
+                                           Solution-gas drive             Gas-cap expansion drive   Water drive (edge/bottom)   Gravity drainage           Combination drive
+                                                                                                           (this case)
+
+
+Low edge, typical value and high edge of each range, in percent of OOIP; the drive named for this case is Water drive (edge/bottom). The dashed
+line is the estimate of 50 percent. Transcribed screening ranges, not validated in this build.
+
+
+Figure 3. The method by its factors
+Does not apply: the analog method reads the typical value of a range and has no factors.
+
+
+
+
+Recovery Factor Report, Sample                                                                                                                                             Page 4 of 4
+

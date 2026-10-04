@@ -5,6 +5,7 @@ import { Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRfEstimator } from '@/contexts/RfEstimatorContext';
 import { fmtPct } from '@/components/rfestimator/rfFields';
+import { ANALOG_BAND_SOURCE } from '@/utils/recoveryFactorCalculations';
 
 const DriveReferencePanel = () => {
   const { inputs, drives } = useRfEstimator();
@@ -19,9 +20,9 @@ const DriveReferencePanel = () => {
           <thead>
             <tr className="text-pl-muted border-b border-pl-border">
               <th className="text-left py-1.5 font-medium">Mechanism</th>
-              <th className="text-right font-medium">Low</th>
+              <th className="text-right font-medium">Low edge</th>
               <th className="text-right font-medium">Typical</th>
-              <th className="text-right font-medium">High</th>
+              <th className="text-right font-medium">High edge</th>
             </tr>
           </thead>
           <tbody>
@@ -37,7 +38,7 @@ const DriveReferencePanel = () => {
         </table>
         <p className="text-xs text-pl-muted mt-3 flex items-start gap-1.5">
           <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-          Indicative screening ranges from industry literature. Confirm against reservoir-specific data and simulation.
+          <span data-testid="rf-analog-source">{ANALOG_BAND_SOURCE} Confirm against reservoir-specific data, analogue fields and simulation.</span>
         </p>
       </CardContent>
     </Card>

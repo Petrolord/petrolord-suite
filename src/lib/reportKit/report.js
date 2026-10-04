@@ -201,13 +201,14 @@ export function createReport({ title, appName = '', reportName, logo = null, str
    *   columnStyles?: object}, flags?: string[], noFlagsText?: string, title?: string}} a
    */
   // flagsTitle: added in the SCAL round (its flags are pedigree and fit warnings, not only ranges); default unchanged
-  const limits = ({ assumptions = [], ranges = null, flags = [], noFlagsText = 'No input is outside a published range.', title: blockTitle = 'Limits of this analysis', flagsTitle = 'Inputs outside a published range' } = {}) => {
+  // rangesTitle: added in the Recovery Factor round (its table holds the domain each method needs, not published data ranges); default unchanged
+  const limits = ({ assumptions = [], ranges = null, flags = [], noFlagsText = 'No input is outside a published range.', title: blockTitle = 'Limits of this analysis', flagsTitle = 'Inputs outside a published range', rangesTitle = 'Published ranges of the methods used' } = {}) => {
     heading(blockTitle, 22);
     layout.y += 5;
     for (const line of assumptions) paragraph(`- ${line}`, { gap: 1.5 });
     layout.y += 3;
     if (ranges?.body?.length) {
-      table('Published ranges of the methods used', ranges.head, ranges.body, { columnStyles: ranges.columnStyles, note: ranges.note });
+      table(rangesTitle, ranges.head, ranges.body, { columnStyles: ranges.columnStyles, note: ranges.note });
     }
     heading(flagsTitle, 14);
     layout.y += 5;

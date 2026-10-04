@@ -59,7 +59,7 @@ describe('Recovery Factor Estimator theme, inputs and overlays', () => {
     expectNoLegacyChrome();
 
     fireEvent.click(screen.getByRole('button', { name: /Enter directly/i }));
-    fireEvent.change(screen.getByPlaceholderText('scf'), { target: { value: '5e10' } });
+    fireEvent.change(screen.getByLabelText('OGIP (scf)'), { target: { value: '5e10' } });
     expectNoLegacyChrome();
   });
 

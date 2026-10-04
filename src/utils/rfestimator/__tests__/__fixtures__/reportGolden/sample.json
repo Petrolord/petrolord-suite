@@ -1,0 +1,59 @@
+{
+  "pages": 4,
+  "sha256": "81b54a421861417963508df1e83641be807804c56a9cda1b213c9bb065f50189",
+  "figures": [
+    {
+      "id": "reserves",
+      "number": 1,
+      "page": 4,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 29,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "Recoverable volume": 3
+          },
+          "total": 3,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "analog",
+      "number": 2,
+      "page": 4,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 111.72,
+            "w": 182,
+            "h": 70
+          },
+          "drawn": {
+            "Low edge": 5,
+            "Typical": 5,
+            "High edge": 5
+          },
+          "total": 15,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "factors",
+      "number": 3,
+      "page": 4,
+      "plotted": false,
+      "panels": []
+    }
+  ]
+}

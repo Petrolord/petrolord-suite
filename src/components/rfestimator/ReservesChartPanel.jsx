@@ -1,6 +1,7 @@
 // Recoverable-reserves range chart (Recovery Factor Estimator main
-// area). Chart markup moved verbatim from the pre-Studio page: white
-// ChartFrame (suite standard) with the low/estimate/high bars.
+// area): white ChartFrame (suite standard) with the bars at the analog range
+// edges and the estimate. RF-U1: bars named for what they are (range edges,
+// never P90 and P10), values and axis in the display unit.
 import React, { useMemo } from 'react';
 import {
   BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, LabelList,
@@ -11,28 +12,22 @@ import {
   CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, niceTicks,
 } from '@/utils/chartTheme';
 import { useRfEstimator } from '@/contexts/RfEstimatorContext';
-import { fmtRes } from '@/components/rfestimator/rfFields';
+import { reservesBars } from '@/utils/rfestimator/series';
 
-const BAR = { low: '#94a3b8', est: '#059669', high: '#2563eb' };
+const BAR = { low: '#64748b', est: '#059669', high: '#2563eb' };
 
 const ReservesChartPanel = () => {
-  const { inputs, result } = useRfEstimator();
+  const { inputs, result, u } = useRfEstimator();
   const { phase } = inputs;
-
-  const chartData = useMemo(() => {
-    const rows = [];
-    if (Number.isFinite(result.reservesLow)) rows.push({ name: 'Low', value: result.reservesLow, fill: BAR.low });
-    if (Number.isFinite(result.reserves)) rows.push({ name: 'Estimate', value: result.reserves, fill: BAR.est });
-    if (Number.isFinite(result.reservesHigh)) rows.push({ name: 'High', value: result.reservesHigh, fill: BAR.high });
-    return rows;
-  }, [result]);
+  const bars = useMemo(() => reservesBars(result, phase, u.system), [result, phase, u.system]);
+  const chartData = useMemo(() => bars.rows.map((r) => ({ name: r.name, value: r.value, fill: BAR[r.key] })), [bars]);
   // Senior test T1: ticks fell at 0, 9, 17, 26, 34. Round steps in the
-  // display unit (MMSTB or Bscf), mapped back to the stored units.
-  const scale = phase === 'gas' ? 1e9 : 1e6;
+  // display multiple (MMSTB, Bscf, 10^6 sm3 or 10^9 sm3).
   const yAxis = useMemo(() => {
-    const t = niceTicks(0, Math.max(1e-9, ...chartData.map((d) => d.value / scale)), 5);
-    return { domain: t.domain.map((v) => v * scale), ticks: t.ticks?.map((v) => v * scale) };
-  }, [chartData, scale]);
+    const t = niceTicks(0, Math.max(1e-9, ...chartData.map((d) => d.value)), 5);
+    return { domain: t.domain, ticks: t.ticks };
+  }, [chartData]);
+  const unit = bars.unit;
 
   return (
     <Card>
@@ -45,13 +40,13 @@ const ReservesChartPanel = () => {
               <XAxis dataKey="name" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
               <YAxis stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                 domain={yAxis.domain} ticks={yAxis.ticks}
-                tickFormatter={(v) => `${+(v / scale).toFixed(2)}`}
-                label={{ value: phase === 'gas' ? 'Bscf' : 'MMSTB', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+                tickFormatter={(v) => `${+v.toFixed(2)}`}
+                label={{ value: unit, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
               <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: CHART_COLORS.tooltipText }}
-                formatter={(v) => [fmtRes(v, phase), 'Reserves']} />
+                formatter={(v) => [`${v.toLocaleString('en-US', { maximumFractionDigits: 2 })} ${unit}`, 'Reserves']} />
               <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={false}>
                 {chartData.map((d, i) => <Cell key={i} fill={d.fill} />)}
-                <LabelList dataKey="value" position="top" formatter={(v) => fmtRes(v, phase)}
+                <LabelList dataKey="value" position="top" formatter={(v) => `${v.toLocaleString('en-US', { maximumFractionDigits: 2 })} ${unit}`}
                   style={{ fill: CHART_COLORS.axisText, fontSize: 11 }} />
               </Bar>
             </BarChart>
@@ -62,7 +57,7 @@ const ReservesChartPanel = () => {
           </div>
         )}
         <p className="text-xs text-pl-muted px-6 pb-4">
-          Y-axis in {phase === 'gas' ? 'Bscf' : 'MMSTB'}. Low/High use the analog band for the selected drive mechanism; Estimate uses the selected method.
+          Y axis in {unit}. The outer bars are the edges of the analog range of the drive mechanism named (not P90 and P10); the estimate uses the selected method. {bars.note}
         </p>
       </CardContent>
     </Card>
