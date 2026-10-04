@@ -49,7 +49,7 @@ describe('eor-screen-1', () => {
   it('carries every input in oilfield units with its source; intakes name their project and method', () => {
     const r = buildEorScreenRecord({ inputs: intakeCase(), projectId: 'eor-2', now: NOW });
     expect(r.units).toBe('oilfield');
-    expect(Object.keys(r.inputs)).toEqual(['gravityApi', 'viscosityCp', 'oilSatPct', 'formation', 'netThicknessFt', 'permeabilityMd', 'depthFt', 'temperatureF', 'reservoirPressurePsia', 'saturationPressurePsia', 'ooipStb']);
+    expect(Object.keys(r.inputs)).toEqual(['gravityApi', 'viscosityCp', 'oilSatPct', 'formation', 'netThicknessFt', 'permeabilityMd', 'depthFt', 'temperatureF', 'reservoirPressurePsia', 'saturationPressurePsia', 'ooipStb', 'volatilesMolPct', 'intermediatesMolPct']);
     expect(r.inputs.permeabilityMd).toMatchObject({ value: 182.4, unit: 'md', screened: true });
     expect(r.inputs.permeabilityMd.source).toMatch(/Horner straight line/);
     expect(r.inputs.ooipStb).toMatchObject({ unit: 'STB', screened: false });
@@ -107,5 +107,22 @@ describe('eor-screen-1', () => {
     expect((await readEorScreenProject(fakeSupabase([row]), '')).reason).toMatch(/No EOR Screening project/);
     expect((await readEorScreenProject(fakeSupabase([], { code: 'PGRST205', message: "Could not find the table 'public.saved_eor_screening_projects'" }), 'eor-9')).reason).toMatch(/not switched on yet/);
     expect((await readEorScreenProject(fakeSupabase([{ ...row, inputs_data: {} }]), 'eor-9')).reason).toMatch(/no screening inputs/);
+  });
+});
+
+describe('eor-screen-1 carries the MMP check (EOR-U2-001)', () => {
+  it('the record holds the same check the screen shows, and the fingerprint follows it', () => {
+    // eslint-disable-next-line global-require
+    const { eorMmpCheck } = require('@/utils/eor/mmp');
+    const inputs = fieldCase();
+    const r = buildEorScreenRecord({ inputs, now: NOW });
+    expect(r.mmp).toEqual(eorMmpCheck(inputs));
+    expect(r.mmp).toMatchObject({ gas: 'CO2', correlation: 'zhu-2025', status: 'made', verdict: 'miscible', within_error: true });
+    const lower = fieldCase();
+    lower.context.reservoirPressurePsia = '2500';
+    const r2 = buildEorScreenRecord({ inputs: lower, now: NOW });
+    expect(r2.mmp.verdict).toBe('immiscible');
+    expect(r2.fingerprint).not.toBe(r.fingerprint);
+    expect(validateEorScreenRecord(r2).ok).toBe(true);
   });
 });

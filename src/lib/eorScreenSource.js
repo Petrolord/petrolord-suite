@@ -30,8 +30,13 @@
 //                  status ('pass' | 'marginal' | 'fail' | 'na'), required: { min, max } | words,
 //                  actual, side ('below' | 'above' | null), source (table and page), reason }] }
 //   ranking_basis  words
-//   mmp            the miscibility check of the gas methods (EOR-U2-001), or null when it cannot
-//                  be made; see src/utils/eor/mmp.js for its fields
+//   mmp            the CO2 miscibility check (EOR-U2-001, src/utils/eor/mmp.js): { gas: 'CO2',
+//                  correlation ('zhu-2025'), correlation_short, inputs: { temperature_degF,
+//                  volatiles_mol_pct, intermediates_mol_pct, reservoir_pressure_psia }, status ('made' |
+//                  'mmp only' | 'not made'), mmp_psia, mmp_mpa, temperature_degC, verdict ('miscible' |
+//                  'immiscible' | null), margin_psi (pressure minus MMP), within_error (the margin is
+//                  inside the correlation's largest deviation, 2.05 MPa), outside (inputs outside the
+//                  paper's data), reason (words) }. It never changes a Taber verdict.
 //   fingerprint    FNV-1a over what the screening says (inputs, verdicts, MMP), never over who
 //                  read it or when: a reader compares it to say "source changed since"
 //   read_at        ISO time the record was built
@@ -40,6 +45,7 @@
 import { fingerprint } from '@/utils/declineCurve/dcaModel';
 import { CRITERIA_EDITION, RANKING_BASIS, screenAllMethods, engineInputOf } from '@/utils/eorScreeningCalculations';
 import { INPUT_DEFS, inputSource, depthReferenceText, IDENTIFICATION } from '@/utils/eor/reportModel';
+import { eorMmpCheck } from '@/utils/eor/mmp';
 
 export const EOR_SCREEN_CONTRACT = 'eor-screen-1';
 export const EOR_SCREEN_APP = 'EOR Screening';
@@ -72,7 +78,7 @@ export function eorScreenFingerprint(c) {
  *   inputs: the EorScreeningContext inputs (oilfield strings, as saved)
  *   mmpOf: (inputs) => the MMP check (EOR-U2-001), or null
  */
-export function buildEorScreenRecord({ inputs, projectId = null, projectName = null, savedAt = null, now = new Date().toISOString(), mmpOf = null }) {
+export function buildEorScreenRecord({ inputs, projectId = null, projectName = null, savedAt = null, now = new Date().toISOString(), mmpOf = eorMmpCheck }) {
   if (!inputs || typeof inputs !== 'object' || !inputs.form) return null;
   const ranked = screenAllMethods(engineInputOf(inputs.form));
   const id = inputs.identification || {};
@@ -155,7 +161,7 @@ export function validateEorScreenRecord(r) {
  * @param {{mmpOf?: ?function, now?: string}} [o]
  * @returns {Promise<{ok: boolean, record: ?object, projectName: ?string, updatedAt: ?string, reason: ?string}>}
  */
-export async function readEorScreenProject(supabase, projectId, { mmpOf = null, now } = {}) {
+export async function readEorScreenProject(supabase, projectId, { mmpOf = eorMmpCheck, now } = {}) {
   const none = (reason, extra = {}) => ({ ok: false, record: null, projectName: null, updatedAt: null, reason, ...extra });
   if (!projectId) return none('No EOR Screening project was named.');
   let data;

@@ -1,11 +1,11 @@
 {
-  "pages": 8,
-  "sha256": "3deb31f3a72d84452d07b7d63e221eae81fe1859ea42dd00ae8ae2bfcf6afa53",
+  "pages": 9,
+  "sha256": "6a1ba307530c92e86ddb3b138995dbece4c3cc4e61a1267a2d97ed19a5b8ac87",
   "figures": [
     {
       "id": "ranking",
       "number": 1,
-      "page": 8,
+      "page": 9,
       "plotted": true,
       "panels": [
         {
@@ -27,7 +27,7 @@
     {
       "id": "co2-depth",
       "number": 2,
-      "page": 8,
+      "page": 9,
       "plotted": true,
       "panels": [
         {

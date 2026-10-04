@@ -44,37 +44,43 @@ not count. "Not screened" counts criteria the paper sets for the method that cou
 
 
 
-EOR Screening Report, Unnamed, EOR screening EK                                                                                       Page 1 of 8
+EOR Screening Report, Unnamed, EOR screening EK                                                                                       Page 1 of 9
 Inputs and their sources
- Input                                          Value                  Unit             Source and quality
+ Input                                         Value                  Unit              Source and quality
 
- Oil gravity                                    n/a                    degAPI           Not provided
+ Oil gravity                                   n/a                    degAPI            Not provided
 
- Oil viscosity at reservoir conditions          n/a                    cp               Not provided
+ Oil viscosity at reservoir conditions         n/a                    cp                Not provided
 
- Oil saturation at the start of the EOR         n/a                    % PV             Not provided
+ Oil saturation at the start of the EOR        n/a                    % PV              Not provided
  project
 
- Formation type                                 n/a                                     Not provided
+ Formation type                                n/a                                      Not provided
 
- Net thickness                                  n/a                    ft               Not provided
+ Net thickness                                 n/a                    ft                Not provided
 
- Average permeability                           n/a                    md               Not provided
+ Average permeability                          n/a                    md                Not provided
 
- Depth                                          n/a                    ft               Not provided
+ Depth                                         n/a                    ft                Not provided
 
- Reservoir temperature                          n/a                    degF             Not provided
+ Reservoir temperature                         n/a                    degF              Not provided
 
- Reservoir pressure (context, not               n/a                    psia             Not provided
+ Reservoir pressure (context, not              n/a                    psia              Not provided
  screened)
 
- Bubble point pressure (context, not            n/a                    psia             Not provided
+ Bubble point pressure (context, not           n/a                    psia              Not provided
  screened)
 
- Original oil in place (context, not            n/a                    MMSTB            Not provided
+ Original oil in place (context, not           n/a                    MMSTB             Not provided
  screened)
 
- Depth reference                                Not stated                              Not stated: the criteria are true vertical depths; state the
+ Oil composition C1 + N2, for the MMP          n/a                    mol %             Not provided
+ (context, not screened)
+
+ Oil composition C2 to C10 with CO2, for       n/a                    mol %             Not provided
+ the MMP (context, not screened)
+
+ Depth reference                               Not stated                               Not stated: the criteria are true vertical depths; state the
                                                                                         reference
 
 Every value the screening read, with its source. Values taken from another app name the project and the method; an edit after the intake says so.
@@ -100,28 +106,80 @@ Criteria used: edition
                      method).
 
 
-CO2 miscible: minimum depth by oil gravity
- Oil gravity                              CO2 miscible: depth must be greater than
 
- above 40 API                             2,500 ft
 
- 32 to 39.9 API                           2,800 ft
+EOR Screening Report, Unnamed, EOR screening EK                                                                                             Page 2 of 9
+CO2 miscible: minimum depth by oil gravity
+ Oil gravity                               CO2 miscible: depth must be greater than
 
- 28 to 31.9 API                           3,300 ft
+ above 40 API                              2,500 ft
 
- 22 to 27.9 API                           4,000 ft
+ 32 to 39.9 API                            2,800 ft
 
- below 22 API                             Fails miscible; screen for immiscible gas
+ 28 to 31.9 API                            3,300 ft
+
+ 22 to 27.9 API                            4,000 ft
+
+ below 22 API                              Fails miscible; screen for immiscible gas
 
 Part 2, Table 3 (p. 200), CO2 depth by oil gravity. The paper states these are for typical Permian Basin oils, with a safety margin of about 500 ft
 above the fracture depth for the miscibility pressure.
 
 
+CO2 miscibility: MMP against reservoir pressure
+ Item                                Value
+
+ Gas                                 CO2 (pure); the correlation does not cover nitrogen, hydrocarbon gas or impure CO2
+
+ Correlation                         Zhu et al. (2025): Table 4, Model 9 (final model, Section 3.2.2); data in Table 2; error in Section 3.2.3 and
+                                     Table 5
+
+ Equation                            MMP (MPa) = 6.2671 ln(T) + 5.3393 (C1+N2)/(C2-C10) - 10.4077, T in degC; C1+N2 and C2-C10 mole
+                                     fractions of the reservoir oil, CO2 in the oil lumped with C2-C10
+
+ Reservoir temperature               n/a
+
+ Oil composition C1 + N2             n/a
+
+ Oil composition C2 to C10 with      n/a
+ CO2
+
+ Minimum miscibility pressure        n/a
+
+ Reservoir pressure                  n/a
+
+ Pressure minus MMP                  n/a
+
+ Verdict                             Not made
+
+ Why                                 No MMP: needs reservoir temperature and the oil composition (C1 + N2 and C2 to C10, mol %). The
+                                     correlation reads the C1 + N2 and C2 to C10 fractions of the reservoir oil (CO2 in the oil counted with C2 to
+                                     C10).
+
+ Data of the correlation             T 43 to 91.73 degC; C1 + N2 15.12 to 29.64 mol %; C2 to C10 38.8 to 54.92 mol %; MMP 14.27 to 21.6
+                                     MPa (the paper states no formal range)
+
+ Error of the correlation            MAE 0.48 MPa, MAPE 2.53 %, RMSE 0.75 MPa on its 12 points; largest deviation +2.05 MPa (11.07 %,
+                                     block H138); 91.7 % of points within 10 %; leave-one-out MAE 0.72 MPa (Section 3.2.3, Tables 4 and 5).
+
+ Scope                               Black oils of the Yanchang Formation, Ordos Basin (12 blocks, 12 slim-tube MMPs, 10 measured by the
+                                     authors and 2 from earlier studies); pure CO2 (above 99.5 %), no injected-gas impurities; CO2 only.
+
+ Reference                           Zhu, Q., Wang, W., Liang, Q., Liu, J., Xu, P., Yang, H. and Wang, H.: "Prediction of the Minimum Miscibility
+                                     Pressure of the CO2-Crude Oil System in the Ordos Basin", ACS Omega 10 (47), 2025, 57267-57276,
+                                     doi:10.1021/acsomega.5c07432
+
+The check is printed beside the Taber verdicts and changes none of them: CO2 miscible keeps the Part 2, Table 3 depth-by-gravity criterion. A
+verdict within the error of the correlation, or on inputs outside its data, needs a measured slim-tube MMP.
 
 
-EOR Screening Report, Unnamed, EOR screening EK                                                                                             Page 2 of 8
-Each method, criterion by criterion
-CO2 miscible: not screened (Gas injection (miscible))
+Each method, criterion by criterion
+
+
+
+
+EOR Screening Report, Unnamed, EOR screening EK                                                                                            Page 3 of 9
+CO2 miscible: not screened (Gas injection (miscible))
  Criterion        Required                 Project     This reservoir   Verdict    Reason                               Source
                                            average
 
@@ -184,7 +242,7 @@ Oil composition guide (not screened: the app has no composition input): High per
 
 
 
-EOR Screening Report, Unnamed, EOR screening EK                                                                                    Page 3 of 8
+EOR Screening Report, Unnamed, EOR screening EK                                                                                    Page 4 of 9
 Immiscible gases: not screened (Gas injection)
  Criterion          Required                  Project     This reservoir   Verdict    Reason                                                Source
                                               average
@@ -253,7 +311,7 @@ Oil composition guide (not screened: the app has no composition input): Some asp
 
 
 
-EOR Screening Report, Unnamed, EOR screening EK                                                                                                        Page 4 of 8
+EOR Screening Report, Unnamed, EOR screening EK                                                                                                        Page 5 of 9
 Micellar/polymer, ASP & alkaline: not screened ((Enhanced) waterflooding)
  Criterion         Required                 Project     This reservoir   Verdict    Reason                                     Source
                                             average
@@ -317,7 +375,7 @@ Oil composition guide (not screened: the app has no composition input): High per
 
 
 
-EOR Screening Report, Unnamed, EOR screening EK                                                                                           Page 5 of 8
+EOR Screening Report, Unnamed, EOR screening EK                                                                                           Page 6 of 9
 Polymer flooding: not screened ((Enhanced) waterflooding)
  Criterion          Required                Project       This reservoir   Verdict    Reason                                                Source
                                             average
@@ -390,18 +448,20 @@ nothing is interpolated between methods.
 - Verdicts are pass, marginal, fail or not screened. Marginal means the paper itself softens the limit: a preferred formation (Part 2, Tables 4 and 5),
 a carbonate fracture sweep (Part 1, Table 3, note b), or a formation the table does not name for gas injection.
 - The CO2 minimum depth by oil gravity is for typical Permian Basin oils; oils of different composition need a measured minimum miscibility
-pressure. Reservoir pressure and temperature are not screened against a miscibility pressure here.
+pressure. The CO2 MMP check beside it uses one published correlation (Zhu et al. 2025, from Ordos Basin black oils): it states miscible or
+immiscible against the reservoir pressure and changes no Taber verdict.
 - Each input is one value for the reservoir. Heterogeneity, layering, dip, vertical permeability and fractures are not screened; the geometry notes of
 the gas methods ("thin unless dipping") are printed and not scored.
 - Viscosity is the oil viscosity at reservoir conditions. Transmissibility k h / mu (notes c and d) is computed from the permeability, net thickness and
 that viscosity.
-- Criteria are compared in oilfield units, as published; values typed or shown in SI are converted first.
 
 
 
 
-EOR Screening Report, Unnamed, EOR screening EK                                                                                                        Page 6 of 8
-Flags on the inputs
+EOR Screening Report, Unnamed, EOR screening EK                                                                                                        Page 7 of 9
+- Criteria are compared in oilfield units, as published; values typed or shown in SI are converted first.
+
+Flags on the inputs
 - Not given, so the criteria on them are not screened for any method: Oil gravity, Oil viscosity at reservoir conditions, Oil saturation at the start of
 the EOR project, Formation type, Net thickness, Average permeability, Depth, Reservoir temperature.
 - The depth reference is not stated.
@@ -409,7 +469,7 @@ the EOR project, Formation type, Net thickness, Average permeability, Depth, Res
 
 
 
-EOR Screening Report, Unnamed, EOR screening EK                                                                                                Page 7 of 8
+EOR Screening Report, Unnamed, EOR screening EK                                                                                                Page 8 of 9
 Plots
 Figure 1. Share of screened criteria that pass, by method
 Does not apply: no input is given, so no criterion was screened.
@@ -421,5 +481,5 @@ Does not apply: the oil gravity or the depth is not given.
 
 
 
-EOR Screening Report, Unnamed, EOR screening EK                          Page 8 of 8
+EOR Screening Report, Unnamed, EOR screening EK                          Page 9 of 9
 

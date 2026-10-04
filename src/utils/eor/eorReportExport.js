@@ -28,6 +28,7 @@ export function buildEorPdf({ model }, { logo = null, generatedAt = new Date() }
   report.inputsTable(model.inputs.rows, { title: 'Inputs and their sources', note: model.inputs.note });
   table('Criteria used: edition', model.edition.head, model.edition.rows, { columnStyles: { 0: { cellWidth: 24 } } });
   table('CO2 miscible: minimum depth by oil gravity', model.co2DepthTable.head, model.co2DepthTable.rows, { note: model.co2DepthTable.note });
+  table('CO2 miscibility: MMP against reservoir pressure', model.mmp.head, model.mmp.rows, { columnStyles: { 0: { cellWidth: 44 } }, note: model.mmp.note });
 
   report.heading('Each method, criterion by criterion', 30);
   report.layout.y += 5;

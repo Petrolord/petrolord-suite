@@ -142,6 +142,24 @@ const EorScreeningHelpGuideContent = () => (
         project already chosen. Press Take values to read it. Each sender needs a saved
         project, because this app reads it by id.
       </Para>
+      <SubHeading>CO2 miscibility: MMP against reservoir pressure</SubHeading>
+      <Para>
+        Taber 1997 judges CO2 miscibility by depth for typical Permian Basin oils and says other
+        oils need a measured minimum miscibility pressure. The app adds that check beside the
+        verdicts, from one published correlation whose own slim-tube data it is tested against:
+        Zhu et al. (2025), ACS Omega 10 (47), 57267-57276. It reads the reservoir temperature and
+        two fractions of the reservoir oil, C1 + N2 and C2 to C10 (count CO2 dissolved in the oil
+        with C2 to C10), in mol %. With the reservoir pressure stated it says miscible (pressure
+        above the MMP) or immiscible, and by how much. On its 12 points the correlation is within
+        0.48 MPa on average and 2.05 MPa at worst, so a difference smaller than that is flagged
+        as needing a measured MMP.
+      </Para>
+      <Callout tone="warn" title="Know where the correlation comes from">
+        The paper fitted black oils of the Ordos Basin (43 to 92 degC) with pure CO2. Inputs
+        outside its data are computed and flagged as extrapolated. It does not cover nitrogen,
+        hydrocarbon gas or impure CO2. The check changes no Taber verdict: CO2 miscible still
+        uses the depth by oil gravity table.
+      </Callout>
       <SubHeading>Blank and zero are different</SubHeading>
       <Para>
         A blank field is left unscored. A zero is a real measured value and is tested like any

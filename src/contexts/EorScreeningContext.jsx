@@ -23,6 +23,7 @@ import { setProvenanceField } from '@/lib/inputProvenance/model';
 import { screenAllMethods, engineInputOf, sampleEorScreeningData } from '@/utils/eorScreeningCalculations';
 import { eorUnits } from '@/utils/eor/units';
 import { buildEorScreenRecord } from '@/lib/eorScreenSource';
+import { eorMmpCheck } from '@/utils/eor/mmp';
 
 export const TABLE = 'saved_eor_screening_projects';
 
@@ -42,7 +43,7 @@ export const friendlyError = (error) => (isMissingTable(error) ? NOT_SWITCHED_ON
 /** The screening inputs, in oilfield units, as strings (blank: not given). */
 export const FORM_KEYS = Object.freeze(['gravityApi', 'viscosityCp', 'oilSatPct', 'formation', 'netThicknessFt', 'permeabilityMd', 'depthFt', 'temperatureF']);
 /** Context values: printed, never screened by Taber 1997. */
-export const CONTEXT_KEYS = Object.freeze(['reservoirPressurePsia', 'saturationPressurePsia', 'ooipStb']);
+export const CONTEXT_KEYS = Object.freeze(['reservoirPressurePsia', 'saturationPressurePsia', 'ooipStb', 'volatilesMolPct', 'intermediatesMolPct']);
 
 export const SAMPLE_NOTE = 'Sample inputs: an illustrative West-Texas-style carbonate CO2 candidate built into the app. It is not a real field; replace every value before you rely on the screening.';
 
@@ -116,6 +117,8 @@ export const EorScreeningProvider = ({ children, sharingStore = null, profileSys
   const engineInput = useMemo(() => engineInputOf(inputs.form), [inputs.form]);
   const results = useMemo(() => screenAllMethods(engineInput), [engineInput]);
   const u = useMemo(() => eorUnits(inputs.unitSystem), [inputs.unitSystem]);
+  // EOR-U2-001: the CO2 MMP check against the reservoir pressure (beside the Taber verdicts, never changing them)
+  const mmp = useMemo(() => eorMmpCheck(inputs), [inputs]);
   // EOR-U2-003: the eor-screen-1 record a reader would build from these inputs (same engine, same fingerprint)
   const screenRecord = useMemo(() => buildEorScreenRecord({ inputs, projectId: currentProjectId, projectName, now: '' }), [inputs, currentProjectId, projectName]);
 
@@ -309,6 +312,7 @@ export const EorScreeningProvider = ({ children, sharingStore = null, profileSys
     engineInput,
     results,
     screenRecord,
+    mmp,
     u,
     organizationName,
     setUnitSystem,

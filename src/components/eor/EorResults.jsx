@@ -15,6 +15,8 @@ import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/uti
 import { CRITERIA_EDITION, RANKING_BASIS } from '@/utils/eorScreeningCalculations';
 import { requiredText, actualText, averageText, reasonText, STATUS_WORDS, OUTCOME_WORDS } from '@/utils/eor/format';
 import { useEorScreening } from '@/contexts/EorScreeningContext';
+import { mmpSection } from '@/utils/eor/reportModel';
+import { MMP_CORRELATION } from '@/utils/eor/mmp';
 
 const STATUS_META = {
   pass: { icon: CheckCircle2, chip: 'bg-pl-success-bg text-pl-success-text border-pl-success/40' },
@@ -26,7 +28,9 @@ const OUTCOME_FILL = { qualified: '#059669', marginal: '#d97706', 'screened out'
 const OUTCOME_BADGE = { qualified: 'success', marginal: 'warning', 'screened out': 'neutral', 'not screened': 'neutral' };
 
 const EorResults = () => {
-  const { results, u } = useEorScreening();
+  const { results, u, mmp } = useEorScreening();
+  const mmpModel = mmp ? mmpSection(mmp, u) : null;
+  const mmpRows = mmpModel ? mmpModel.rows.filter(([k]) => ['Minimum miscibility pressure', 'Reservoir pressure', 'Pressure minus MMP', 'Verdict'].includes(k)) : [];
   const [expanded, setExpanded] = useState(null);
   const qualified = results.filter((r) => r.outcome === 'qualified');
   const marginal = results.filter((r) => r.outcome === 'marginal');
@@ -62,6 +66,35 @@ const EorResults = () => {
           <p className="text-[11px] text-pl-muted mt-2">{RANKING_BASIS} Green qualified, amber marginal, grey screened out.</p>
         </CardContent>
       </Card>
+
+      {mmp && (
+        <Card data-testid="eor-mmp" data-status={mmp.status} data-verdict={mmp.verdict || ''}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-pl-text text-base">CO2 miscibility: MMP against reservoir pressure</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs space-y-2">
+            {mmp.status === 'not made'
+              ? <p className="text-pl-muted" data-testid="eor-mmp-reason">{mmp.reason}</p>
+              : (
+                <>
+                  <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {mmpRows.map(([k, v]) => (
+                      <div key={k} className="rounded-md border border-pl-border bg-pl-sunken px-2 py-1.5">
+                        <dt className="text-[10px] text-pl-muted">{k}</dt>
+                        <dd className={`text-pl-text ${k === 'Verdict' ? 'font-semibold' : ''}`} data-testid={`eor-mmp-${k.split(' ')[0].toLowerCase()}`}>{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <p className={mmp.within_error || mmp.outside?.length ? 'text-pl-warning-text' : 'text-pl-muted'} data-testid="eor-mmp-reason">{mmpModel.why}</p>
+                </>
+              )}
+            <p className="text-[10px] text-pl-muted">
+              {MMP_CORRELATION.short}, {MMP_CORRELATION.where}. {MMP_CORRELATION.scope} Error: {MMP_CORRELATION.errorText} Printed beside the
+              Taber verdicts; it changes none of them. The full rows are on the Report tab.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="space-y-2">
         {results.map((r) => {

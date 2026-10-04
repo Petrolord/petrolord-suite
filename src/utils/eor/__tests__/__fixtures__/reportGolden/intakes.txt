@@ -45,7 +45,7 @@ not count. "Not screened" counts criteria the paper sets for the method that cou
 
 
 
-EOR Screening Report, Ekene, EOR screening EK                                                                                         Page 1 of 8
+EOR Screening Report, Ekene, EOR screening EK                                                                                         Page 1 of 9
 Inputs and their sources
  Input                                         Value                  Unit              Source and quality
 
@@ -88,6 +88,12 @@ EOR Screening Report, Ekene, EOR screening EK                                   
  screened)                                                                              Balance Studio, case "Ekene E-2000", run of 2026-10-02
                                                                                         15:00 UTC
 
+ Oil composition C1 + N2, for the MMP          20.19                  mol %             Entered, source not stated
+ (context, not screened)
+
+ Oil composition C2 to C10 with CO2, for       39.94                  mol %             Entered, source not stated
+ the MMP (context, not screened)
+
  Depth reference                               TVDSS (true                              Stated by the user
                                                vertical depth below
                                                mean sea level)
@@ -117,90 +123,141 @@ Criteria used: edition
 
 
 
-EOR Screening Report, Ekene, EOR screening EK                                                                                             Page 2 of 8
+EOR Screening Report, Ekene, EOR screening EK                                                                                             Page 2 of 9
 CO2 miscible: minimum depth by oil gravity
- Oil gravity                                CO2 miscible: depth must be greater than
+ Oil gravity                             CO2 miscible: depth must be greater than
 
- above 40 API                               2,500 ft
+ above 40 API                            2,500 ft
 
- 32 to 39.9 API                             2,800 ft
+ 32 to 39.9 API                          2,800 ft
 
- 28 to 31.9 API                             3,300 ft
+ 28 to 31.9 API                          3,300 ft
 
- 22 to 27.9 API                             4,000 ft
+ 22 to 27.9 API                          4,000 ft
 
- below 22 API                               Fails miscible; screen for immiscible gas
+ below 22 API                            Fails miscible; screen for immiscible gas
 
 Part 2, Table 3 (p. 200), CO2 depth by oil gravity. The paper states these are for typical Permian Basin oils, with a safety margin of about 500 ft
 above the fracture depth for the miscibility pressure.
 
 
+CO2 miscibility: MMP against reservoir pressure
+ Item                                Value
+
+ Gas                                 CO2 (pure); the correlation does not cover nitrogen, hydrocarbon gas or impure CO2
+
+ Correlation                         Zhu et al. (2025): Table 4, Model 9 (final model, Section 3.2.2); data in Table 2; error in Section 3.2.3 and
+                                     Table 5
+
+ Equation                            MMP (MPa) = 6.2671 ln(T) + 5.3393 (C1+N2)/(C2-C10) - 10.4077, T in degC; C1+N2 and C2-C10 mole
+                                     fractions of the reservoir oil, CO2 in the oil lumped with C2-C10
+
+ Reservoir temperature               220 degF
+
+ Oil composition C1 + N2             20.19 mol %
+
+ Oil composition C2 to C10 with      39.94 mol %
+ CO2
+
+ Minimum miscibility pressure        3,107 psia
+
+ Reservoir pressure                  3,420 psia
+
+ Pressure minus MMP                  +312.6 psia
+
+ Verdict                             Miscible: the reservoir pressure is above the MMP (extrapolated)
+
+ Why                                 Miscible: the reservoir pressure is above the MMP by 312.6 psia. Extrapolated: temperature 104 degC is
+                                     outside 43 to 91.73 degC (the data of the paper).
+
+ Data of the correlation             T 43 to 91.73 degC; C1 + N2 15.12 to 29.64 mol %; C2 to C10 38.8 to 54.92 mol %; MMP 14.27 to 21.6
+                                     MPa (the paper states no formal range)
+
+ Error of the correlation            MAE 0.48 MPa, MAPE 2.53 %, RMSE 0.75 MPa on its 12 points; largest deviation +2.05 MPa (11.07 %,
+                                     block H138); 91.7 % of points within 10 %; leave-one-out MAE 0.72 MPa (Section 3.2.3, Tables 4 and 5).
+
+ Scope                               Black oils of the Yanchang Formation, Ordos Basin (12 blocks, 12 slim-tube MMPs, 10 measured by the
+                                     authors and 2 from earlier studies); pure CO2 (above 99.5 %), no injected-gas impurities; CO2 only.
+
+ Reference                           Zhu, Q., Wang, W., Liang, Q., Liu, J., Xu, P., Yang, H. and Wang, H.: "Prediction of the Minimum Miscibility
+                                     Pressure of the CO2-Crude Oil System in the Ordos Basin", ACS Omega 10 (47), 2025, 57267-57276,
+                                     doi:10.1021/acsomega.5c07432
+
+The check is printed beside the Taber verdicts and changes none of them: CO2 miscible keeps the Part 2, Table 3 depth-by-gravity criterion. A
+verdict within the error of the correlation, or on inputs outside its data, needs a measured slim-tube MMP.
+
+
 Each method, criterion by criterion
-CO2 miscible: qualified (Gas injection (miscible))
- Criterion         Required                 Project      This reservoir   Verdict       Reason                                          Source
-                                            average
 
- Oil gravity       > 22 degAPI              36 degAPI    40.7 degAPI      pass          40.7 degAPI meets > 22 degAPI.                  Part 1, Table 3 (p.
-                                                                                                                                        191)
 
- Oil viscosity     < 10 cp                  1.5 cp       0.416 cp         pass          0.416 cp meets < 10 cp.                         Part 1, Table 3 (p.
-                                                                                                                                        191)
 
- Oil saturation    > 20 % PV                55 % PV      42 % PV          pass          42 % PV meets > 20 % PV.                        Part 1, Table 3 (p.
-                                                                                                                                        191)
 
- Formation         Sandstone or             n/a          Sandstone        pass          Sandstone is a formation the paper names.       Part 1, Table 3 (p.
-                   carbonate                                                                                                            191)
+EOR Screening Report, Ekene, EOR screening EK                                                                                              Page 3 of 9
+CO2 miscible: qualified (Gas injection (miscible))
+ Criterion        Required                 Project     This reservoir   Verdict    Reason                                          Source
+                                           average
 
- Net thickness     Wide range (not          n/a          60 ft            not           Advisory in the paper; not scored.              Part 1, Table 3 (p.
-                   scored)                                                screened                                                      191)
+ Oil gravity      > 22 degAPI              36 degAPI   40.7 degAPI      pass       40.7 degAPI meets > 22 degAPI.                  Part 1, Table 3 (p.
+                                                                                                                                   191)
 
- Permeability      Not critical             n/a          182.4 md         not           Not critical for this method.                   Part 1, Table 3 (p.
-                                                                          screened                                                      191)
+ Oil viscosity    < 10 cp                  1.5 cp      0.416 cp         pass       0.416 cp meets < 10 cp.                         Part 1, Table 3 (p.
+                                                                                                                                   191)
 
- Depth             > 2,500 ft (for above    n/a          7,200 ft         pass          7,200 ft meets > 2,500 ft (for above 40 API).   Part 2, Table 3 (p.
-                   40 API)                                                                                                              200), CO2 depth by oil
-                                                                                                                                        gravity
+ Oil saturation   > 20 % PV                55 % PV     42 % PV          pass       42 % PV meets > 20 % PV.                        Part 1, Table 3 (p.
+                                                                                                                                   191)
 
- Temperature       Not critical             n/a          220 degF         not           Not critical for this method.                   Part 1, Table 3 (p.
-                                                                          screened                                                      191)
+ Formation        Sandstone or             n/a         Sandstone        pass       Sandstone is a formation the paper names.       Part 1, Table 3 (p.
+                  carbonate                                                                                                        191)
+
+ Net thickness    Wide range (not          n/a         60 ft            not        Advisory in the paper; not scored.              Part 1, Table 3 (p.
+                  scored)                                               screened                                                   191)
+
+ Permeability     Not critical             n/a         182.4 md         not        Not critical for this method.                   Part 1, Table 3 (p.
+                                                                        screened                                                   191)
+
+ Depth            > 2,500 ft (for above    n/a         7,200 ft         pass       7,200 ft meets > 2,500 ft (for above 40 API).   Part 2, Table 3 (p.
+                  40 API)                                                                                                          200), CO2 depth by oil
+                                                                                                                                   gravity
+
+ Temperature      Not critical             n/a         220 degF         not        Not critical for this method.                   Part 1, Table 3 (p.
+                                                                        screened                                                   191)
 
 Oil composition guide (not screened: the app has no composition input): High percent of C5 to C12.
 
 Hydrocarbon miscible: qualified (Gas injection (miscible))
- Criterion         Required                 Project      This reservoir   Verdict       Reason                                          Source
-                                            average
+ Criterion        Required                 Project     This reservoir   Verdict    Reason                                          Source
+                                           average
 
- Oil gravity       > 23 degAPI              41 degAPI    40.7 degAPI      pass          40.7 degAPI meets > 23 degAPI.                  Part 1, Table 3 (p.
-                                                                                                                                        191)
+ Oil gravity      > 23 degAPI              41 degAPI   40.7 degAPI      pass       40.7 degAPI meets > 23 degAPI.                  Part 1, Table 3 (p.
+                                                                                                                                   191)
 
- Oil viscosity     < 3 cp                   0.5 cp       0.416 cp         pass          0.416 cp meets < 3 cp.                          Part 1, Table 3 (p.
-                                                                                                                                        191)
+ Oil viscosity    < 3 cp                   0.5 cp      0.416 cp         pass       0.416 cp meets < 3 cp.                          Part 1, Table 3 (p.
+                                                                                                                                   191)
 
- Oil saturation    > 30 % PV                80 % PV      42 % PV          pass          42 % PV meets > 30 % PV.                        Part 1, Table 3 (p.
-                                                                                                                                        191)
+ Oil saturation   > 30 % PV                80 % PV     42 % PV          pass       42 % PV meets > 30 % PV.                        Part 1, Table 3 (p.
+                                                                                                                                   191)
 
- Formation         Sandstone or             n/a          Sandstone        pass          Sandstone is a formation the paper names.       Part 1, Table 3 (p.
-                   carbonate                                                                                                            191)
+ Formation        Sandstone or             n/a         Sandstone        pass       Sandstone is a formation the paper names.       Part 1, Table 3 (p.
+                  carbonate                                                                                                        191)
 
- Net thickness     Thin unless dipping      n/a          60 ft            not           Advisory in the paper; not scored.              Part 1, Table 3 (p.
-                   (advisory, not scored)                                 screened                                                      191)
+ Net thickness    Thin unless dipping      n/a         60 ft            not        Advisory in the paper; not scored.              Part 1, Table 3 (p.
+                  (advisory, not scored)                                screened                                                   191)
 
- Permeability      Not critical             n/a          182.4 md         not           Not critical for this method.                   Part 1, Table 3 (p.
-                                                                          screened                                                      191)
+ Permeability     Not critical             n/a         182.4 md         not        Not critical for this method.                   Part 1, Table 3 (p.
+                                                                        screened                                                   191)
 
- Depth             > 4,000 ft               n/a          7,200 ft         pass          7,200 ft meets > 4,000 ft.                      Part 1, Table 3 (p.
-                                                                                                                                        191)
+ Depth            > 4,000 ft               n/a         7,200 ft         pass       7,200 ft meets > 4,000 ft.                      Part 1, Table 3 (p.
+                                                                                                                                   191)
 
- Temperature       Not critical             n/a          220 degF         not           Not critical for this method.                   Part 1, Table 3 (p.
-                                                                          screened                                                      191)
+ Temperature      Not critical             n/a         220 degF         not        Not critical for this method.                   Part 1, Table 3 (p.
+                                                                        screened                                                   191)
 
 Oil composition guide (not screened: the app has no composition input): High percent of C2 to C7.
 
 
 
 
-EOR Screening Report, Ekene, EOR screening EK                                                                                                      Page 3 of 8
+EOR Screening Report, Ekene, EOR screening EK                                                                                                 Page 4 of 9
 Immiscible gases: qualified (Gas injection)
  Criterion          Required                  Project     This reservoir   Verdict    Reason                                      Source
                                               average
@@ -269,7 +326,7 @@ Oil composition guide (not screened: the app has no composition input): Some asp
 
 
 
-EOR Screening Report, Ekene, EOR screening EK                                                                                                Page 4 of 8
+EOR Screening Report, Ekene, EOR screening EK                                                                                                Page 5 of 9
 Micellar/polymer, ASP & alkaline: screened out ((Enhanced) waterflooding)
  Criterion         Required                 Project     This reservoir   Verdict    Reason                                      Source
                                             average
@@ -333,7 +390,7 @@ Oil composition guide (not screened: the app has no composition input): High per
 
 
 
-EOR Screening Report, Ekene, EOR screening EK                                                                                              Page 5 of 8
+EOR Screening Report, Ekene, EOR screening EK                                                                                              Page 6 of 9
 Steam flooding: screened out (Thermal)
  Criterion          Required                Project       This reservoir   Verdict    Reason                                       Source
                                             average
@@ -406,24 +463,26 @@ nothing is interpolated between methods.
 - Verdicts are pass, marginal, fail or not screened. Marginal means the paper itself softens the limit: a preferred formation (Part 2, Tables 4 and 5),
 a carbonate fracture sweep (Part 1, Table 3, note b), or a formation the table does not name for gas injection.
 - The CO2 minimum depth by oil gravity is for typical Permian Basin oils; oils of different composition need a measured minimum miscibility
-pressure. Reservoir pressure and temperature are not screened against a miscibility pressure here.
+pressure. The CO2 MMP check beside it uses one published correlation (Zhu et al. 2025, from Ordos Basin black oils): it states miscible or
+immiscible against the reservoir pressure and changes no Taber verdict.
 - Each input is one value for the reservoir. Heterogeneity, layering, dip, vertical permeability and fractures are not screened; the geometry notes of
 the gas methods ("thin unless dipping") are printed and not scored.
 - Viscosity is the oil viscosity at reservoir conditions. Transmissibility k h / mu (notes c and d) is computed from the permeability, net thickness and
 that viscosity.
-- Criteria are compared in oilfield units, as published; values typed or shown in SI are converted first.
 
 
 
 
-EOR Screening Report, Ekene, EOR screening EK                                                                                                 Page 6 of 8
-Flags on the inputs
-Every screening input is given and none is flagged.
+EOR Screening Report, Ekene, EOR screening EK                                                                                                 Page 7 of 9
+- Criteria are compared in oilfield units, as published; values typed or shown in SI are converted first.
+
+Flags on the inputs
+- CO2 MMP extrapolated beyond the data of the correlation: temperature 104 degC is outside 43 to 91.73 degC.
 
 
 
 
-EOR Screening Report, Ekene, EOR screening EK         Page 7 of 8
+EOR Screening Report, Ekene, EOR screening EK                                                                  Page 8 of 9
 Plots
 Figure 1. Share of screened criteria that pass, by method
 
@@ -500,5 +559,5 @@ is not miscible. The point is this reservoir. Depth increases downward.
 
 
 
-EOR Screening Report, Ekene, EOR screening EK                                                                                                             Page 8 of 8
+EOR Screening Report, Ekene, EOR screening EK                                                                                                             Page 9 of 9
 

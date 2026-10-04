@@ -152,3 +152,23 @@ test('U2-002 sent here: the Well Test project named in the address is chosen and
   await expect(page.getByTestId('eor-permeabilityMd')).toHaveValue('182.4');
   await expect(page.getByTestId('eor-intake-named-wta')).toHaveCount(0);
 });
+
+// EOR-U2-001: the CO2 MMP check against reservoir pressure, beside the Taber verdicts.
+test('U2-001 MMP: composition and pressure give miscible or immiscible; the report prints the rows', async ({ page }) => {
+  test.setTimeout(180000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await expect(page.getByTestId('eor-mmp')).toHaveAttribute('data-status', 'not made');
+  await page.getByTestId('eor-temperatureF').fill('190');
+  await page.getByTestId('eor-volatilesMolPct').fill('20.19');
+  await page.getByTestId('eor-intermediatesMolPct').fill('39.94');
+  await page.getByTestId('eor-reservoirPressurePsia').fill('3500');
+  await expect(page.getByTestId('eor-mmp')).toHaveAttribute('data-verdict', 'miscible');
+  await expect(page.getByTestId('eor-mmp-minimum')).toHaveText('2,949 psia');
+  await page.getByTestId('eor-reservoirPressurePsia').fill('2500');
+  await expect(page.getByTestId('eor-mmp')).toHaveAttribute('data-verdict', 'immiscible');
+  await page.getByTestId('eor-tab-report').click();
+  await expect(page.getByTestId('eor-report-mmp')).toContainText('Zhu et al. (2025)');
+  await expect(page.getByTestId('eor-report-mmp')).toContainText('Immiscible: the reservoir pressure is below the MMP');
+  expect(await page.evaluate(() => document.body.innerText.includes('—'))).toBe(false);
+});

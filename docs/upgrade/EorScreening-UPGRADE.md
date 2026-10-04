@@ -211,3 +211,29 @@ origin/main 55e22d372. The build log per item follows in section 9.
 |---|---|---|---|
 | EOR-U2-002 | Done | "Send to EOR Screening" in Fluid Systems Studio (Integration Suite, saved project only), Well Test Analysis Studio (Report tab; saves first, then sends; unsaved workspace disabled) and Material Balance Studio (Run tab, oil cases, current run only). Each opens EOR with the record named by id (`src/lib/eorScreeningLinks.js`, harness-aware); EOR chooses it and says it was sent here; Take values reads it by id. No router state | `src/lib/__tests__/eorScreeningLinks.test.js` (with the no-id negative control), `src/components/welltest/__tests__/reportPanelSendEor.test.jsx` (save first; failed save does not navigate), `fluidUpgradeUi.test.jsx` (unsaved fluid not sent), e2e `U2-002 sent here` and the MBAL sender test |
 | EOR-U2-003 | Done | The `eor-screen-1` read-by-id contract, `src/lib/eorScreenSource.js` (every field documented in its header): project and identification, criteria edition, oilfield units, depth reference, every input with its unit, whether it is screened, and its source words; each method ranked with outcome, counts and pass/marginal/fail/na per criterion with the required range, the value, the side, the table and the reason; the MMP check (U2-001); an FNV-1a content fingerprint (not over who read it or when). Built on read from the saved inputs by the same engine as the screen and the report; `?eorProject=<id>` names the project; a missing table reads "not switched on yet". The project card says what a reader gets. No reader yet: Recovery Factor reads it in its own Step 2 | `src/lib/__tests__/eorScreenSource.test.js` (8 tests: verdicts equal the engine and the report ranking; sources; SI stays oilfield; sample flag; fingerprint stable over time and changed by an input; negative controls: tampered outcome and miscounted record fail validation; reader by id with not found, unnamed, table missing, no inputs) |
+| EOR-U2-001 | Done (source differs from the examples, see 9a) | CO2 MMP check against reservoir pressure, `src/utils/eor/mmp.js`: Zhu et al. (2025) Model 9, MMP from temperature and the C1+N2 and C2-C10 (with CO2) fractions of the oil; two new context inputs (mol %); miscible or immiscible with the margin, "within the error of the correlation" when the margin is under its largest deviation (2.05 MPa), inputs outside the paper's data flagged as extrapolated; a card on the Screening tab, a report table (equation, inputs, MMP, pressure, margin, verdict, data range, error, scope, reference), a limits line and flags; in `eor-screen-1`. Changes no Taber verdict. MMP in psia or kPa through the unit registry | `src/utils/eor/__tests__/eorMmp.test.js` (11 tests): the engine on all 12 rows of the paper's Table 2 reproduces MAE 0.4825 MPa, MAPE 2.53 %, RMSE 0.7494, H138 +2.05 MPa (11.07 %), 11 of 12 within 10 %; negative controls (coefficient +2 %, degF fed as degC, CO2 left out of the lump, Yellig and Metcalfe on the same oils lands at 26.1 % against the paper's 25.35 %); pinned 17.94 MPa = 2,602 psia = 17,940 kPa; printed range equals Table 2; report rows in oilfield and SI; e2e `U2-001 MMP` |
+
+### 9a. The MMP source (U2-001)
+
+Yellig and Metcalfe (1980, SPE-7477-PA), Cronquist (1978, DOE symposium)
+and Alston, Kokolis and James (1985, SPE-11959-PA) could not be read:
+OnePetro returns 403, and the OSTI records of the 1978 symposium and of
+Alston have no full text. The batch decision asks for a correlation whose
+paper can be read with its own data, so the app uses the one such paper
+found: Zhu, Wang, Liang, Liu, Xu, Yang and Wang, "Prediction of the
+Minimum Miscibility Pressure of the CO2-Crude Oil System in the Ordos
+Basin", ACS Omega 10 (47), 2025, 57267-57276 (open access; full text at
+PMC12676357, copy in `/root/eor-refs/zhu2025.xml`). Its Table 2 prints 12
+slim-tube MMPs (10 measured by the authors, 2 from earlier studies; which
+two is not marked), and its stated error is reproduced exactly by the
+engine.
+
+Weaker than a classic correlation in three ways, all printed in the
+report: the data are 12 Ordos Basin black oils (43 to 92 degC); it covers
+pure CO2 only (no N2, hydrocarbon gas or impure CO2, so U2-001 is CO2
+only); and it needs the oil composition, which the app did not hold (two
+context inputs added; U2-008 fills them from a compositional pvt-1). The
+paper prints no page numbers in the copy read, so sections and tables are
+cited. Owner item: supply SPE-7477-PA (Yellig and Metcalfe) to add the
+classic temperature-only correlation beside it, validated on its own
+table.

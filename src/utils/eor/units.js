@@ -40,6 +40,7 @@ export const EOR_KINDS = Object.freeze({
   ooip: { family: 'liquidVolume', canon: 'STB', unit: { oilfield: 'MMSTB', si: '10^6 m3' }, label: { oilfield: 'MMSTB', si: '10^6 sm3' } },
   // k h / mu: md ft / cp in oilfield, mD m / mPa.s in SI (the depth factor only)
   transmissibility: { family: 'depth', canon: 'ft', unit: { oilfield: 'ft', si: 'm' }, label: { oilfield: 'md-ft/cp', si: 'mD.m/mPa.s' } },
+  molpct: same('mol %'),
   ratio: same(''),
 });
 
