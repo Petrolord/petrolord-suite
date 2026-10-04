@@ -31,6 +31,11 @@ Headline results
 
  Produced reservoir voidage             9,995                    rm3          Oil 8,049 + water 1,946 + free gas 0
 
+ Free gas floored well by well          79                       rm3          15.57 10^3 sm3 of free gas well by well against 0.00 10^3 sm3 at
+                                                                              field level; produced 10,073 rm3; cumulative VRR 0.9384 against
+                                                                              0.9458. Printed for comparison; the figures above net free gas at
+                                                                              field level
+
  Injected reservoir volume              9,453                    rm3          Water 8,595 + gas 859
 
  Net voidage (injected less             -541                     rm3          Voidage not replaced to date
@@ -119,21 +124,21 @@ Surface volumes of each period as the ledger holds them, the FVF set applied to 
 
 Voidage Replacement Report, Ekene, E-2000                                                                                                                              Page 2 of 5
 What the import read
- Field                          File column              Read as                                                   From                Values
+ Field                          File column              Read as                                                   From               Values
 
- Date                           date                     unambiguous                                               the file            12
+ Date                           date                     unambiguous                                               the file           12
 
- Well                           well                     n/a                                                       n/a                 12
+ Well                           well                     n/a                                                       n/a                12
 
- Oil produced                   oil_stb                  bbl in the row's period (volume)                          the header          6
+ Oil produced                   oil_stb                  bbl in the row's period (volume)                          the header         6
 
- Water produced                 water_stb                bbl in the row's period (volume)                          the header          6
+ Water produced                 water_stb                bbl in the row's period (volume)                          the header         6
 
- Gas produced                   gas_mscf                 Mscf in the row's period (volume)                         the header          6
+ Gas produced                   gas_mscf                 Mscf in the row's period (volume)                         the header         6
 
- Water injected                 winj_stb                 bbl in the row's period (volume)                          the header          3
+ Water injected                 winj_stb                 bbl in the row's period (volume)                          the header         3
 
- Gas injected                   ginj_mscf                Mscf in the row's period (volume)                         the header          3
+ Gas injected                   ginj_mscf                Mscf in the row's period (volume)                         the header         3
 
 File the sample ledger, 12 rows read, 0 left out.
 
@@ -167,7 +172,8 @@ Limits of this analysis
 - FVFs are held constant over the record. Below the bubble point Bg and Rs move strongly with pressure, so a constant set misstates the free gas
 term as pressure falls; use the pressure track or a Fluid Systems Studio table where pressure changes.
 - Free gas is produced gas above Rs x oil in each period, summed at field (or pattern) level before the floor at zero: a well producing below its
-solution GOR offsets a well producing free gas. Gas that is flared or used on lease must be in the produced gas column to count.
+solution GOR offsets a well producing free gas. Gas that is flared or used on lease must be in the produced gas column to count. The headline
+keeps the field figure; the per-well figure is printed beside it (each well floored on its own, the larger of the two).
 - Injected water is converted at the Bw of the produced water and injected gas at the Bg of the produced gas, at the period pressure; differences in
 injected fluid composition are not modelled.
 - VRR replaces voidage by volume only. Aquifer influx, out-of-zone injection, thief zones and sweep are not seen: a VRR of 1 with falling pressure
@@ -180,7 +186,7 @@ Flags on the inputs, the import and the periods
 
 
 
-Voidage Replacement Report, Ekene, E-2000                                                                                                   Page 3 of 5
+Voidage Replacement Report, Ekene, E-2000                                                                                                  Page 3 of 5
 Plots
 Figure 1. Voidage replacement ratio by period
 

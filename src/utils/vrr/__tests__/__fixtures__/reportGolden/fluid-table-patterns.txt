@@ -31,6 +31,10 @@ Headline results
 
  Produced reservoir voidage             71,153                   RB           Oil 58,638 + water 12,515 + free gas 0
 
+ Free gas floored well by well          0                        RB           0 Mscf of free gas well by well against 0 Mscf at field level;
+                                                                              produced 71,153 RB; cumulative VRR 0.8746 against 0.8746.
+                                                                              Printed for comparison; the figures above net free gas at field level
+
  Injected reservoir volume              62,230                   RB           Water 55,274 + gas 6,956
 
  Net voidage (injected less             -8,923                   RB           Voidage not replaced to date
@@ -48,7 +52,7 @@ All voidage in reservoir barrels at the reservoir pressure of each period. VRR i
 
 
 
-Voidage Replacement Report, Ekene, E-2000                                                                                                Page 1 of 8
+Voidage Replacement Report, Ekene, E-2000                                                                                                 Page 1 of 8
 Inputs and their sources
  Input                                          Value                      Unit                   Source and quality
 
@@ -223,7 +227,8 @@ Limits of this analysis
 - FVFs follow the pressure history through the Fluid Systems Studio table, linearly interpolated; outside the table the constant set applies and the
 period is named in the flags.
 - Free gas is produced gas above Rs x oil in each period, summed at field (or pattern) level before the floor at zero: a well producing below its
-solution GOR offsets a well producing free gas. Gas that is flared or used on lease must be in the produced gas column to count.
+solution GOR offsets a well producing free gas. Gas that is flared or used on lease must be in the produced gas column to count. The headline
+keeps the field figure; the per-well figure is printed beside it (each well floored on its own, the larger of the two).
 - Injected water is converted at the Bw of the produced water and injected gas at the Bg of the produced gas, at the period pressure; differences in
 injected fluid composition are not modelled.
 - VRR replaces voidage by volume only. Aquifer influx, out-of-zone injection, thief zones and sweep are not seen: a VRR of 1 with falling pressure

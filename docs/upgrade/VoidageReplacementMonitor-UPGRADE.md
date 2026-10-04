@@ -229,3 +229,24 @@ Recommended: Batch A (six items, about two days), then B as NAPE allows; C defer
 | 4 | Bubble map coordinates | Wells registry by name with an explicit match table; unmatched wells listed, never placed by guess |
 | 5 | CRM build (L, new engine math) | Batch B, engines-first, validated on a published synthetic case before it is shown |
 | 6 | A second, richer sample | Add it beside the template; the template stays the engine fixture the T1 test pins |
+
+## Batch decision (programme lead, 2026-10-04)
+
+Recorded verbatim:
+
+> Owner-question defaults in force: free gas stays field level with the per-well figure printed beside it; the pressure datum stays stated, not corrected; bubble-map coordinates come from the wells registry through an explicit match table the user confirms; CRM only after validation on a published case (deferred here); a richer second sample beside the template (U2-005).
+> BUILD in this order, one commit per item:
+> - Batch A: U2-001 the `vrr-1` sender as one documented read-by-id contract for the ledger and the pressure rows, consumed by Material Balance (replace its current direct read with the contract, keeping its numbers identical and its existing test green) and aligned with Waterflood's `vrr-ledger-1` (one contract, not two: if they differ, converge on one with a version field and keep both readers working); U2-002 per-well free gas printed beside the field figure; U2-003 a producing-days column at the import door (volumes over producing days, stated); U2-006 xlsx at the import door through the existing shared xlsx reader; U2-004 bubble map (VRR or voidage by well on the map, coordinates from geo_wells through a confirmed match table, white chartTheme + ChartLogo, in the report as a figure); U2-005 a 24-month demo field as a second sample.
+> - From Batch B: U2-018 the pressure track's Z on Dranchuk-Abou-Kassem from the engines (Fluid's default since Fluid U2), engines-first if needed, before and after stated on the sample; U2-011 per-pattern band.
+> - DEFERRED (record reasons): U2-007 CRM allocation (L; needs a published validation case first), U2-008 pattern templates, U2-009 worker parse, U2-010 datum correction (owner default: stated, not corrected), and all of Batch C.
+
+## Step 2 build (branch `feat/vrr-u2`)
+
+Engines PR #307 (`buildWellVoidage`), not merged by the build agent; the
+Suite vendors it byte-identical with `vrr-u2` ledger rows in
+`packages/engines/VENDOR.json` until the lead merges it. `vrr.js` is
+byte-identical.
+
+| ID | Status | What was built | Proving test |
+|---|---|---|---|
+| U2-002 | Done | Engines-first (`buildWellVoidage`, PR #307): each well's free gas floored on its own, month by month, at the FVF set of the month (the pressure track or the Fluid table included). The headline stays at field level (owner default); the per-well figure is printed beside it: a KPI tile with its cumulative VRR, a headline row of the report ("Free gas floored well by well") with both free gas volumes, the produced voidage and both VRRs, and a sentence in the limits. On the sample ledger: 550 Mscf (495 RB) well by well against 0 at field level; cumulative VRR 0.9384 beside 0.9458. | Engine `waterflood.vrrwells.test.js` (8): hand oracle on the V2 fixture (1,700 against 550 Mscf), one producer identical to `vrr.js`, oil, water and injection summing to the field ledger; negative control (the field floor) fails 3 of 8. App `vrrFreeGasByWell.test.js` (5): the derived model equals the engine; under the track the field figure closes on the ledger month by month (negative control: the constant set misses by more than 100 RB); none for a grid or a withheld VRR; the report row read back from the PDF. |

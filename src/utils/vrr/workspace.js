@@ -16,7 +16,7 @@
 import {
   computeVRRSeries, summarizeVRR,
   buildFieldPeriods, classifyLedgerWells, computeRollingVRR, flagPeriods,
-  attachPressure, findFillUp, buildVoidageLedger, applyPeriodFvf,
+  attachPressure, findFillUp, buildVoidageLedger, applyPeriodFvf, buildWellVoidage,
   validateAllocation, patternHasAllocation, buildPatternPeriods, recommendPatternInjection,
 } from '@/utils/vrrCalculations';
 import { derivePeriodFvf } from './pvtTrack';
@@ -166,6 +166,11 @@ export function deriveVrr(inputs) {
   const rolling = computeRollingVRR(series, windowPeriods);
   const flags = withheld ? series.map(() => null) : flagPeriods(series, targetBand);
   const ledgerWells = isImported ? classifyLedgerWells(inputs.wellRows || []) : { injectors: [], producers: [] };
+  // VRR-U2-002 and U2-004: voidage by well, free gas floored well by well
+  // (printed beside the field figure; the headline stays at field level)
+  const wellVoidage = isImported && !withheld && (inputs.wellRows || []).length
+    ? buildWellVoidage(inputs.wellRows, inputs.fvf, periodFvfByLabel)
+    : null;
 
   const allocation = inputs.allocation || {};
   const allocationCheck = validateAllocation(allocation);
@@ -192,7 +197,7 @@ export function deriveVrr(inputs) {
   return {
     isImported, basePeriods, periodsWithPressure, hasPressure, pvt, effectivePeriods, periodFvfByLabel,
     fvfCheck, fvfNumbers, periodIssues, withheld, series, ledger, summary, fillUp, rolling, flags,
-    targetBand, windowPeriods, settingsNotes, ledgerWells, allocationCheck, patternAnalyses, worstPattern,
+    targetBand, windowPeriods, settingsNotes, ledgerWells, wellVoidage, allocationCheck, patternAnalyses, worstPattern,
     // kept for the panels that read the older names
     trackActive: pvt.active, pvtTrack: pvt.active ? { overrides: pvt.overrides, warnings: pvt.warnings } : null,
   };
