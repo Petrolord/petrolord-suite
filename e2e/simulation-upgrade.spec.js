@@ -1,0 +1,204 @@
+// Reservoir Simulation Studio upgrade, Step 1 (SIM-U1), on the /dev harness:
+// in-memory Supabase and a stand-in for the OPM Flow worker that completes
+// runs with summaries the worker really built (OPM Flow 2026.04, with the PRT
+// diagnostics). Checks: three viewports in both themes with the report tab;
+// the exported PDF read back; the builder form kept across tabs and cases;
+// the Fluid and SCAL intakes by id into the deck; the hostile deck door.
+// Writes only under test-results/.
+import { test, expect } from '@playwright/test';
+import fs from 'fs';
+import path from 'path';
+import { execFileSync } from 'child_process';
+
+const OUT = 'test-results/simulation-upgrade';
+fs.mkdirSync(OUT, { recursive: true });
+const HOSTILE = path.join('e2e', 'fixtures', 'simulation', 'hostile');
+const WF = path.join('e2e', 'fixtures', 'waterflood');
+const SCAL_ROWS = fs.readFileSync(path.join(WF, 'scal-rows.json'), 'utf8');
+const FLUID_ROWS = fs.readFileSync(path.join(WF, 'fluid-rows.json'), 'utf8');
+const SCAL_ID = JSON.parse(SCAL_ROWS)[0].id;
+const FLUID_ID = JSON.parse(FLUID_ROWS)[0].id;
+
+const isNarrow = (page) => (page.viewportSize()?.width ?? 1280) < 768;
+async function openRail(page) {
+  if (isNarrow(page)) await page.getByRole('button', { name: 'Show left panel' }).click();
+}
+async function closeRail(page) {
+  if (isNarrow(page)) await page.getByRole('button', { name: 'Close panel' }).first().click();
+}
+const noPageScroll = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
+const tab = (page, name) => page.getByRole('tab', { name, exact: true }).first();
+function watchErrors(page) {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  return errors;
+}
+
+async function openApp(page, query = '') {
+  await page.goto(`/dev/reservoir-simulation-studio${query}`, { timeout: 120000 });
+  await expect(tab(page, 'Deck')).toBeVisible({ timeout: 120000 });
+}
+async function newCase(page, name) {
+  await openRail(page);
+  await page.getByTitle(/Create new/i).first().click({ timeout: 60000 });
+  await page.getByRole('dialog').getByRole('textbox').first().fill(name);
+  await page.getByRole('dialog').getByRole('button', { name: /^Create case$/ }).click();
+  await expect(page.getByText(`Case "${name}" created`)).toBeVisible();
+  await closeRail(page);
+}
+async function runSpe1(page, name = 'SPE1 check') {
+  await newCase(page, name);
+  await tab(page, 'Deck').click();
+  await page.getByRole('button', { name: 'Use template' }).first().click();
+  await expect(page.getByTestId('deck-editor')).toContainText('SPE1', { timeout: 20000 });
+  await tab(page, 'Runs').click();
+  await page.getByTestId('queue-run').click();
+  await expect(page.getByText('complete', { exact: true })).toBeVisible({ timeout: 30000 });
+}
+function readPdfFile(file) {
+  const text = execFileSync('pdftotext', ['-layout', file, '-'], { encoding: 'utf8' });
+  const info = execFileSync('pdfinfo', [file], { encoding: 'utf8' });
+  return { text, flat: text.replace(/\s+/g, ' '), pages: Number(/Pages:\s+(\d+)/.exec(info)[1]) };
+}
+
+for (const [w, h] of [[1366, 768], [1440, 900], [390, 844]]) {
+  for (const scheme of ['light', 'dark']) {
+    test(`PL6 ${w}x${h} ${scheme}: runs, results on white, the report tab`, async ({ page }) => {
+      test.setTimeout(240000);
+      const errors = watchErrors(page);
+      await page.setViewportSize({ width: w, height: h });
+      await page.emulateMedia({ colorScheme: scheme });
+      await openApp(page);
+      if (scheme === 'dark') {
+        await page.getByTestId('theme-toggle').click();
+        await expect(page.locator('html')).toHaveAttribute('data-pl-active-theme', 'dark');
+      }
+      await runSpe1(page);
+      for (const name of ['Deck', 'Builder', 'Runs', 'Results', 'Report']) {
+        await tab(page, name).click();
+        await page.waitForTimeout(300);
+        expect(await noPageScroll(page), `${name}: sideways page scroll`).toBe(true);
+        const frames = page.locator('[data-canvas="chart"]');
+        for (let i = 0; i < await frames.count(); i += 1) {
+          const f = frames.nth(i);
+          expect(await f.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)');
+        }
+        expect(await page.locator('body').innerText()).not.toMatch(/—/);
+        await page.screenshot({ path: path.join(OUT, `pl6-${w}-${scheme}-${name}.png`) });
+      }
+      await expect(page.getByTestId('report-mb-text')).toContainText('The balance closes at report step 120');
+      await expect(page.getByTestId('report-convergence')).toContainText('313 (wasted 0)');
+      await expect(page.getByTestId('report-provenance')).toContainText('vps-sim-worker-1');
+      await tab(page, 'Results').click();
+      await expect(page.getByTestId('sim-run-status')).toContainText('Material balance closes');
+      expect(errors).toEqual([]);
+    });
+  }
+}
+
+test('RL: the exported PDF carries the balance, convergence, provenance and figures', async ({ page }) => {
+  test.setTimeout(240000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await runSpe1(page, 'SPE1 report');
+  await tab(page, 'Report').click();
+  const p = page.waitForEvent('download');
+  await page.getByTestId('report-export').click();
+  const d = await p;
+  const file = path.join(OUT, 'spe1-report.pdf');
+  await d.saveAs(file);
+  expect(d.suggestedFilename()).toBe('Simulation_Report_SPE1_report.pdf');
+  const pdf = readPdfFile(file);
+  expect(pdf.pages).toBeGreaterThanOrEqual(5);
+  expect(pdf.flat).toMatch(/Reservoir Simulation Report/);
+  expect(pdf.flat).toMatch(/Case SPE1 report/);
+  expect(pdf.flat).toMatch(/The balance closes at report step 120/);
+  expect(pdf.flat).toMatch(/Newton iterations 313 \(wasted 0\)/);
+  expect(pdf.flat).toMatch(/OPM Flow 2026\.04/);
+  expect(pdf.flat).toMatch(/Figure 1\. Field production rates/);
+  expect(pdf.flat).toMatch(/Figure 6\. History match: observed against simulated Does not apply/);
+  // the CSV: units row and provenance lines
+  const c = page.waitForEvent('download');
+  await page.getByTestId('report-csv').click();
+  const csvFile = path.join(OUT, 'spe1-results.csv');
+  await (await c).saveAs(csvFile);
+  const csv = fs.readFileSync(csvFile, 'utf8').split('\n');
+  expect(csv[0]).toMatch(/^# Reservoir Simulation Studio results: case "SPE1 report"/);
+  const header = csv.findIndex((l) => l.startsWith('date,days,'));
+  expect(csv[header + 1]).toMatch(/^,days,STB\/d,Mscf\/STB/);
+  expect(errors).toEqual([]);
+});
+
+test('PL5: the builder form is kept across tabs and cases (saved with the case)', async ({ page }) => {
+  test.setTimeout(240000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await newCase(page, 'Form A');
+  await tab(page, 'Builder').click();
+  const title = page.locator('[data-testid="sim-builder"] input').nth(5);   // after the five identification fields
+  await title.fill('KEEP ME');
+  await expect(page.getByTestId('sim-form-save')).toHaveAttribute('data-state', 'saved', { timeout: 10000 });
+  await tab(page, 'Runs').click();
+  await tab(page, 'Builder').click();
+  await expect(page.locator('[data-testid="sim-builder"] input').nth(5)).toHaveValue('KEEP ME');
+  await newCase(page, 'Form B');
+  await tab(page, 'Builder').click();
+  await expect(page.locator('[data-testid="sim-builder"] input').nth(5)).toHaveValue('My first simulation model');
+  // back to the first case: its saved form
+  await openRail(page);
+  await page.getByRole('combobox').first().click();
+  await page.getByRole('option', { name: 'Form A' }).click();
+  await closeRail(page);
+  await expect(page.locator('[data-testid="sim-builder"] input').nth(5)).toHaveValue('KEEP ME', { timeout: 10000 });
+  expect(errors).toEqual([]);
+});
+
+test('RL11: PVT from Fluid Systems Studio and curves from SCAL Studio, by id, into the deck', async ({ page }) => {
+  test.setTimeout(240000);
+  const errors = watchErrors(page);
+  await page.addInitScript(({ scal, fluid }) => {
+    try {
+      window.sessionStorage.setItem('harness.saved_scal_projects.v1', scal);
+      window.sessionStorage.setItem('harness.saved_fluid_studio_projects.v1', fluid);
+    } catch { /* storage blocked */ }
+  }, { scal: SCAL_ROWS, fluid: FLUID_ROWS });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page, `?fluidProject=${FLUID_ID}&scalProject=${SCAL_ID}`);
+  await newCase(page, 'Intakes');
+  await tab(page, 'Builder').click();
+  await expect(page.getByTestId('sim-fluid-project')).toHaveValue(FLUID_ID);
+  await page.getByTestId('sim-fluid-take').click();
+  await expect(page.getByTestId('pvt-intake-card').first()).toContainText('Good Oil Well No. 4 PVT');
+  await expect(page.getByTestId('sim-pvt-source')).toHaveValue('fluid');
+  await expect(page.getByTestId('sim-scal-project')).toHaveValue(SCAL_ID);
+  await page.getByTestId('sim-scal-take').click();
+  await expect(page.getByTestId('kr-intake-card')).toBeVisible();
+  await expect(page.getByTestId('sim-kr-source')).toHaveValue('scal');
+  await page.getByTestId('generate-deck').click();
+  await expect(page.getByText(/Model generated \(Pb/)).toBeVisible({ timeout: 20000 });
+  await tab(page, 'Deck').click();
+  const deck = page.getByTestId('deck-editor');
+  await expect(deck).toContainText('-- PVT (PVTO, PVDG, PVTW, DENSITY oil and gas): pvt-1 from Fluid Systems Studio project "Good Oil Well No. 4 PVT"');
+  await expect(deck).toContainText('-- SWOF, SGOF: kr-1 from SCAL Studio project');
+  await expect(deck).toContainText("RPTSCHED\n  'RESTART=0' 'FIP=1' 'WELLS=1' /");
+  expect(errors).toEqual([]);
+});
+
+test('PL2: the deck door refuses two main decks and embedded Python, and reads a CRLF deck back', async ({ page }) => {
+  test.setTimeout(240000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await newCase(page, 'Hostile');
+  await tab(page, 'Deck').click();
+  const input = page.getByTestId('deck-file-input');
+  await input.setInputFiles([path.join(HOSTILE, 'A.DATA'), path.join(HOSTILE, 'B.DATA')]);
+  await expect(page.getByTestId('deck-read-back')).toContainText('2 main deck files were picked (A.DATA, B.DATA)');
+  await input.setInputFiles(path.join(HOSTILE, 'pyaction.DATA'));
+  await expect(page.getByTestId('deck-read-back')).toContainText('PYACTION (embedded Python)');
+  await input.setInputFiles(path.join(HOSTILE, 'spe1-crlf-lowercase.data'));
+  await expect(page.getByTestId('deck-read-back')).toContainText('Main deck: spe1-crlf-lowercase.data, FIELD units, 10 x 10 x 3 grid, 2 wells.');
+  expect(errors).toEqual([]);
+});

@@ -150,6 +150,11 @@ export function ScalIntake({ form, setForm, canWrite, addNotification }) {
           title="Saturation functions taken from SCAL Studio"
         />
       )}
+      {mode === 'scal' && form.krSource.intake?.goSwcAdjusted && (
+        <p className="text-[11px] text-pl-warning-text" data-testid="sim-go-swc-adjusted">
+          The gas-oil set was saved at Swc {form.krSource.intake.goSwcAdjusted.from}; the deck writes it at the oil-water Swc {form.krSource.intake.goSwcAdjusted.to} (the simulator takes one connate water), so its curves move. Make the two equal in SCAL Studio to keep them.
+        </p>
+      )}
       <p className="text-[11px] text-pl-muted">
         {mode === 'scal'
           ? 'SWOF and SGOF are written as SCAL Studio exports them: the Corey sets below (editable; an edit is marked on the card and in the report) and Pcow from the Leverett J with its own Swirr. Pcog is zero.'

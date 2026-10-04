@@ -127,11 +127,17 @@ export function takeKrIntoForm(form, block, { at = new Date().toISOString() } = 
   const errors = [];
   if (!ow) errors.push('The block holds no oil-water set; the deck needs SWOF.');
   if (!go) errors.push('The block holds no gas-oil set; the deck needs SGOF. Fit or enter one on the Curves tab of SCAL Studio and save.');
-  if (ow && go && finite(go.Swc) && Math.abs(go.Swc - ow.Swc) > 1e-9) {
-    errors.push(`The gas-oil set is at Swc ${go.Swc} and the oil-water set at Swc ${ow.Swc}. The simulator takes one connate water; make them equal in SCAL Studio.`);
-  }
   if (errors.length) return { ok: false, errors, warnings: [] };
   const warnings = [];
+  // The simulator takes one connate water: SGOF ends at 1 - Swc of SWOF. A
+  // gas-oil set saved at another Swc is written at the oil-water Swc, which
+  // moves its normalised saturation; said here, on the card's record, in the
+  // deck notes and in the report.
+  let goSwcAdjusted = null;
+  if (finite(go.Swc) && Math.abs(go.Swc - ow.Swc) > 1e-9) {
+    goSwcAdjusted = { from: go.Swc, to: ow.Swc };
+    warnings.push(`The gas-oil set was saved at Swc ${go.Swc} and the oil-water set at Swc ${ow.Swc}. The deck takes one connate water, so the gas-oil set is written at Swc ${ow.Swc}; its curves move. To keep them, make the two equal in SCAL Studio and take the project again.`);
+  }
   const j = b.capillary?.j;
   const r = b.capillary?.reservoir;
   const pcOk = !!(j && r && finite(j.a) && finite(j.b) && finite(j.Swirr) && finite(r.k_md) && finite(r.phi) && finite(r.sigma_dyncm) && finite(r.thetaDeg));
@@ -147,7 +153,7 @@ export function takeKrIntoForm(form, block, { at = new Date().toISOString() } = 
   };
   const values = { ...next.scal.ow, ...next.scal.go, ...(pcOk ? next.scal.pc : {}) };
   delete values.enabled;
-  next.krSource = { mode: 'scal', intake: krIntakeRecord({ contract: b, set: 'oil_water', values, at }) };
+  next.krSource = { mode: 'scal', intake: { ...krIntakeRecord({ contract: b, set: 'oil_water', values, at }), goSwcAdjusted } };
   return { ok: true, errors: [], warnings, form: next };
 }
 
@@ -193,6 +199,8 @@ export function provenanceNotes(form, { pb = null } = {}) {
     describeKrContract(kr.intake.contract).forEach(([k, v]) => out.push(ascii(`kr-1 ${k}: ${v}`)));
     const edited = krEditedKeys(form);
     if (edited.length) out.push(`Edited in the deck builder after intake: ${edited.join(', ')}`);
+    const adj = kr.intake.goSwcAdjusted;
+    if (adj) out.push(`Gas-oil set saved at Swc ${adj.from}, written at the oil-water Swc ${adj.to} (one connate water in the deck)`);
   } else {
     out.push('SWOF, SGOF: Corey parameters entered in the deck builder');
   }

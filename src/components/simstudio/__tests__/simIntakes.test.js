@@ -110,10 +110,16 @@ describe('SIM-U1-004 kr and Pc from a SCAL Studio block', () => {
     expect(buildDeckFromForm(f).deck).toMatch(/-- Edited in the deck builder after intake: nw/);
   });
 
-  test('two connate waters are refused with the reason (the SCAL demo as saved)', () => {
+  test('two connate waters: the gas-oil set is written at the oil-water Swc, and every page says so (the SCAL demo as saved)', () => {
     const res = takeKrIntoForm(defaultBuilderForm(), rawScal());
-    expect(res.ok).toBe(false);
-    expect(res.errors[0]).toMatch(/gas-oil set is at Swc 0\.2 and the oil-water set at Swc 0\.18/);
+    expect(res.ok).toBe(true);
+    expect(res.warnings[0]).toMatch(/gas-oil set was saved at Swc 0\.2 and the oil-water set at Swc 0\.18/);
+    expect(res.form.krSource.intake.goSwcAdjusted).toEqual({ from: 0.2, to: 0.18 });
+    const out = buildDeckFromForm(res.form);
+    expect(out.ok).toBe(true);
+    expect(out.deck).toMatch(/-- Gas-oil set saved at Swc 0\.2, written at the oil-water Swc 0\.18/);
+    // the deck's SGOF closes at 1 - 0.18
+    expect(out.deck).toMatch(/\n {2}0\.82 0\.6 0 0/);
   });
 
   test('a block with no gas-oil set is refused: the deck needs SGOF', () => {

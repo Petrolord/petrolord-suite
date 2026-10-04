@@ -148,7 +148,8 @@ function krWordsOf(form, applies, deck) {
     const c = form.krSource.intake.contract;
     const f = form.krSource.intake.from || {};
     const edited = krEditedKeys(form);
-    return `From SCAL Studio project "${f.recordName || f.recordId}" (kr-1, saved ${utc(f.generatedAt)}, taken ${utc(f.at)}): oil-water ${krSetText(c, 'oil_water') || 'not stated'}; gas-oil ${krSetText(c, 'gas_oil') || 'not stated'}${form.scal?.pc?.enabled && c.capillary ? `; Pcow from ${krCapillaryText(c)}` : '; no capillary pressure'}.${edited.length ? ` Edited in the builder after intake: ${edited.join(', ')}.` : ''}`;
+    const adj = form.krSource.intake.goSwcAdjusted;
+    return `From SCAL Studio project "${f.recordName || f.recordId}" (kr-1, saved ${utc(f.generatedAt)}, taken ${utc(f.at)}): oil-water ${krSetText(c, 'oil_water') || 'not stated'}; gas-oil ${krSetText(c, 'gas_oil') || 'not stated'}${adj ? ` (saved at Swc ${adj.from}, written at the oil-water Swc ${adj.to}: one connate water in the deck)` : ''}${form.scal?.pc?.enabled && c.capillary ? `; Pcow from ${krCapillaryText(c)}` : '; no capillary pressure'}.${edited.length ? ` Edited in the builder after intake: ${edited.join(', ')}.` : ''}`;
   }
   if (applies) return `Corey parameters entered in the Model Builder${form?.scal?.pc?.enabled ? '; Pcow from a typed Leverett J (Swirr taken as Swc)' : '; no capillary pressure'}.`;
   const note = (deck?.headerNotes || []).filter((l) => /^SWOF|^kr-1/.test(l)).join(' ');
