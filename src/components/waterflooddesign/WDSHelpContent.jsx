@@ -111,6 +111,13 @@ const WDSHelpContent = () => (
         are decided again, and the report prints them as chosen with your reason. "Back to the thirds" clears them.
       </p>
       <p>
+        "From VRR Monitor" takes the history from a saved Voidage Replacement Monitor project by its id: the per-well
+        ledger as monthly volumes, so the totals and the cumulative VRR here are the ones VRR Monitor shows. The
+        ledger carries no injection pressure, so there is no Hall plot from it, and gas injection is not carried. The
+        tab reads the project again whenever it opens and says when the ledger has changed; "Take again" takes the
+        new one.
+      </p>
+      <p>
         The engine cleans and classifies the data, then reports reservoir-barrel voidage replacement
         (daily, rolling and cumulative VRR with free-gas voidage from Bg and Rs), water cut and KPI trends, and
         capability-gated diagnostics: Hall plot injectivity (needs measured injection pressure), Chan water-control

@@ -21,6 +21,7 @@
  *
  * Pure.
  */
+import { vrrIntakeLines, VRR_INTAKE_SOURCE } from './vrrIntake';
 import { parseTabular, questionText } from '@/lib/tabularParse';
 import { convert } from '@/lib/units/registry';
 
@@ -151,6 +152,8 @@ export function readSurveillanceTable(text, opts = {}) {
 /** The read-back as lines for the panel and the report. */
 export function readBackLines(rb) {
   if (!rb) return [];
+  // WF-U2-004: a history taken from a VRR Monitor ledger by id
+  if (rb.source === VRR_INTAKE_SOURCE) return vrrIntakeLines(rb);
   const lines = [
     `${rb.fileName || 'File'}: ${rb.rowsRead} of ${rb.rowsInFile} rows read; ${rb.leftCount} left out.`,
     `Delimiter ${rb.delimiter}; decimal mark "${rb.decimal.mark}" (${rb.decimal.reason}); dates ${rb.dateOrder?.order ? (rb.dateOrder.order === 'dmy' ? 'day first' : 'month first') : 'year first or with month names'}${rb.dateOrder?.from === 'user' ? ', as chosen' : ''}.`,

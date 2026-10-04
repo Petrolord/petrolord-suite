@@ -13,6 +13,7 @@ import DevAuth from './DevAuth';
 import { loadScalRows, watchScalRows, persistScalRows, SCAL_TABLE } from './scalProjectsStore';
 import { loadFluidRows, FLUID_TABLE } from './fluidProjectsStore';
 import { loadWfRows, watchWfRows, WF_TABLE } from './wfProjectsStore';
+import { loadVrrRows, watchVrrRows, VRR_TABLE } from './vrrProjectsStore';
 import { savedScalRows } from '@/components/scalstudio/__fixtures__/savedProjects';
 import { savedWaterfloodRows } from '@/components/waterflooddesign/__fixtures__/savedProjects';
 
@@ -63,8 +64,10 @@ const SEEDS = {
     // WF-U2-001: projects saved here earlier in this tab come back (the hub and EPE read them by id)
     const rows = loadWfRows();
     if (wantFixtures) for (const r of savedWaterfloodRows(U)) if (!rows.some((x) => x.id === r.id)) rows.push(r);
-    return { [SCAL_TABLE]: loadScalRows(), [FLUID_TABLE]: loadFluidRows(), [WF_TABLE]: rows };
+    return { [SCAL_TABLE]: loadScalRows(), [FLUID_TABLE]: loadFluidRows(), [WF_TABLE]: rows, [VRR_TABLE]: loadVrrRows() };
   },
+  // WF-U2-004: VRR projects saved earlier in this tab come back (Waterflood reads them by id)
+  vrr: () => ({ [VRR_TABLE]: loadVrrRows() }),
   // AFE: budget 8.5M; EAC max(budget, actual + commitment) unless entered:
   // RIG 5.0M, CSG 2.3M (entered), SVC 1.5M, so 8.8M and a 0.3M overrun;
   // EV 5.0 x 0.6 + 2.0 x 0.9 + 1.5 x 0.3 = 5.25M against 5.2M actual.
@@ -163,12 +166,15 @@ function useScalRows(app) {
     if (stores.scal) persistScalRows(stores.scal);
     storeFor('waterflood')[SCAL_TABLE] = loadScalRows();
     storeFor('waterflood')[FLUID_TABLE] = loadFluidRows();
+    // WF-U2-004: the VRR Monitor projects saved on /dev/studio/vrr in this tab
+    if (stores.vrr) { const rows = stores.vrr[VRR_TABLE] || []; storeFor('waterflood')[VRR_TABLE] = rows; } else storeFor('waterflood')[VRR_TABLE] = loadVrrRows();
   }
   // a Fluid project may have been saved on the Fluid harness since SCAL was first opened
   if (app === 'scal') storeFor('scal')[FLUID_TABLE] = loadFluidRows();
   useEffect(() => (app === 'scal' ? watchScalRows(storeFor('scal')) : undefined), [app]);
   // WF-U2-001: keep the Waterflood projects of the tab in sessionStorage for the receivers' harnesses
   useEffect(() => (app === 'waterflood' ? watchWfRows(storeFor('waterflood')) : undefined), [app]);
+  useEffect(() => (app === 'vrr' ? watchVrrRows(storeFor('vrr')) : undefined), [app]);
 }
 
 export default function StudiosHarness() {

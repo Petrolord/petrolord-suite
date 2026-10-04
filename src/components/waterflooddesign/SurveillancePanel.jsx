@@ -12,6 +12,7 @@ import { readSurveillanceTable, readBackLines, DOOR_PRESSURE_UNITS } from '@/uti
 import { Field, UField, SectionLabel } from './primitives';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PvtIntakePanel from './PvtIntakePanel';
+import VrrIntakePanel from './VrrIntakePanel';
 
 const FLUID_FIELDS = [
   { k: 'bo', label: 'Bo', kind: 'fvfOil' },
@@ -109,6 +110,7 @@ const SurveillancePanel = () => {
               <Download className="w-4 h-4 mr-1" /> Template
             </Button>
           </div>
+          <VrrIntakePanel />
           {surveillanceRows.length > 0 && (
             <div className="flex items-center justify-between text-xs text-pl-muted pt-1">
               <span>{surveillanceRows.length.toLocaleString()} rows loaded</span>
