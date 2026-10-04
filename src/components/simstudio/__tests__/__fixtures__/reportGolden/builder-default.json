@@ -1,6 +1,6 @@
 {
   "pages": 6,
-  "sha256": "50d3c51f63be8b14eae372e765b83ba93b0bfe13ff14fac050bfea370d996dff",
+  "sha256": "1e64b47bf4c3c9111fc6e80afa38c7adaa7737f9233339c5d370b5f5f5848d65",
   "figures": [
     {
       "id": "rates",
@@ -121,6 +121,13 @@
     {
       "id": "history",
       "number": 6,
+      "page": 6,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "bhp-match",
+      "number": 7,
       "page": 6,
       "plotted": false,
       "panels": []

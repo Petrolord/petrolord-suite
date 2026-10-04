@@ -240,3 +240,50 @@ test('U2-002 sim-forecast-1: a completed run opens in Forecast Scenario Hub as a
   await page.screenshot({ path: path.join(OUT, 'u2-002-epe.png') });
   expect(errors).toEqual([]);
 });
+
+const BHP_CSV = [
+  'date, well, oil (STB/d), water (STB/d), gas (Mscf/d), bhp (psia)',
+  '2025-01-01, PROD1, 2000, 0, 1600, 3600', '2025-01-01, INJ1, , 2500, , 4700',
+  '2025-02-01, PROD1, 2000, 0, 1600, 3450', '2025-02-01, INJ1, , 2500, , 4750',
+  '2025-03-01, PROD1, 1900, 20, 1520, 3330', '2025-03-01, INJ1, , 2500, ,',
+  '2025-04-01, PROD1, 1800, 40, 1440, 3260', '2025-04-01, INJ1, , 2500, , 4800',
+  '2025-05-01, PROD1, 1800, 60, 1440,', '2025-05-01, INJ1, , 2500, ,',
+  '2025-06-01, PROD1, 1700, 80, 1360, 3180', '2025-06-01, INJ1, , 2500, , 4820',
+].join('\n');
+
+test('U2-001 BHP history match: observed pressures through the per-well door, WBHPH in the deck, the mismatch in the report and the PDF', async ({ page }) => {
+  test.setTimeout(400000);
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await newCase(page, 'BHP match');
+  await tab(page, 'Builder').click();
+  await page.getByTestId('history-enabled').check();
+  await page.getByTestId('history-source').selectOption('perwell');
+  await page.getByTestId('history-csv').fill(BHP_CSV);
+  await page.getByTestId('history-csv-import').click();
+  await expect(page.getByTestId('history-read-back')).toContainText('written as the observed BHP of the period (WBHPH)');
+  await expect(page.getByTestId('history-well-summary')).toContainText('PROD1');
+  await page.getByTestId('generate-deck').click();
+  await expect(page.getByText(/Model generated \(Pb/)).toBeVisible({ timeout: 20000 });
+  await tab(page, 'Deck').click();
+  await expect(page.getByTestId('deck-editor')).toContainText("'PROD1' 'OPEN' 'ORAT' 2000 0 1600 3* 3600 /");
+  await expect(page.getByTestId('deck-editor')).toContainText('WBHPH');
+  await tab(page, 'Runs').click();
+  await page.getByTestId('queue-run').click();
+  await expect(page.getByText('complete', { exact: true })).toBeVisible({ timeout: 30000 });
+  await tab(page, 'Report').click();
+  await expect(page.getByTestId('report-bhp')).toContainText('All wells', { timeout: 30000 });
+  await expect(page.getByTestId('report-bhp-text')).toContainText(/RMS mismatch [\d,.]+ psia over 9 points in 2 wells/);
+  // the builder form that made the deck knows the observed periods; the run's WBHPH is checked against it
+  await expect(page.getByTestId('report-bhp-text')).toContainText("the run's WBHPH equals it at all 15 time steps (the simulator read the pressures as written)");
+  await page.screenshot({ path: path.join(OUT, 'u2-001-report.png'), fullPage: false });
+  const p = page.waitForEvent('download');
+  await page.getByTestId('report-export').click();
+  const file = path.join(OUT, 'bhp-report.pdf');
+  await (await p).saveAs(file);
+  const pdf = readPdfFile(file);
+  expect(pdf.flat).toMatch(/Bottomhole pressure match \(history phase\)/);
+  expect(pdf.flat).toMatch(/Figure 7\. Bottomhole pressure match/);
+  expect(errors).toEqual([]);
+});

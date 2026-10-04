@@ -73,7 +73,11 @@ export function wellRows(summary, base, { deckSystem = 'FIELD', system = 'oilfie
     const row = { day, t: dayToMs(summary, day) };
     for (const [name, entry] of Object.entries(wells)) {
       if (Array.isArray(entry[base])) row[name] = entry[base][i] == null ? null : v.convert(entry[base][i]);
-      if (Array.isArray(entry[`${base}H`])) row[`${name} obs`] = entry[`${base}H`][i] == null ? null : v.convert(entry[`${base}H`][i]);
+      if (Array.isArray(entry[`${base}H`])) {
+        const o = entry[`${base}H`][i];
+        // SIM-U2-001: the simulator reports WBHPH as zero where a period carried no observation
+        row[`${name} obs`] = o == null || (base === 'WBHP' && !(o > 0)) ? null : v.convert(o);
+      }
     }
     return row;
   });

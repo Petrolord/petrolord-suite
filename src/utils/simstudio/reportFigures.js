@@ -6,7 +6,9 @@
  *
  * Pure: returns Report Kit figure entries.
  */
-import { fieldRows, wellRows, pairs } from './series.js';
+import { fieldRows, wellRows, pairs, dayToMs } from './series.js';
+
+const dayMs = (summary, day) => dayToMs(summary, day);
 import { simUnits } from './simUnits.js';
 
 export const COLORS = Object.freeze({
@@ -30,10 +32,11 @@ const has = (summary, key) => Array.isArray(summary?.field?.[key]);
 const missing = (keys) => `Not plotted: the summary holds none of ${keys.join(', ')} (the deck's SUMMARY section does not request them).`;
 
 /**
- * @param {{summary: object, opts: {deckSystem: string, system: string}, historyEnd?: ?string}} a
- *   `historyEnd` the ISO date the history phase ends (the deck's last DATES entry)
+ * @param {{summary: object, opts: {deckSystem: string, system: string}, historyEnd?: ?string, bhp?: ?object}} a
+ *   `historyEnd` the ISO date the history phase ends (the deck's last DATES entry); `bhp` the
+ *   bottomhole pressure match (bhpMatch.js) when it applies
  */
-export function buildSimReportFigures({ summary, opts, historyEnd = null }) {
+export function buildSimReportFigures({ summary, opts, historyEnd = null, bhp = null }) {
   const u = simUnits(opts.system);
   const F = (key) => (has(summary, key) ? pairs(fieldRows(summary, key, opts), 'value') : []);
   const figures = [];
@@ -161,12 +164,39 @@ export function buildSimReportFigures({ summary, opts, historyEnd = null }) {
       figures.push({
         id: 'history',
         title: 'History match: observed against simulated',
-        caption: `Observed rates the deck carries (WCONHIST, the ${pairsOf.map(([k]) => `${k}H`).join(', ')} vectors) against the simulated field rates; ${historyEnd ? `the history phase (to ${historyEnd}) is shaded and the observed lines end with it.` : 'the deck states no history end date, so the observed lines run to the end.'} In the history phase the producers run on their observed rates, so a gap shows where a well could not deliver its observed rate; after the history end the run is a prediction. No pressure observations are matched (WBHPH is not used).`,
+        caption: `Observed rates the deck carries (WCONHIST, the ${pairsOf.map(([k]) => `${k}H`).join(', ')} vectors) against the simulated field rates; ${historyEnd ? `the history phase (to ${historyEnd}) is shaded and the observed lines end with it.` : 'the deck states no history end date, so the observed lines run to the end.'} In the history phase the producers run on their observed rates, so a gap shows where a well could not deliver its observed rate; after the history end the run is a prediction. ${bhp?.applies ? 'The bottomhole pressure match is the next figure.' : 'The deck carries no observed bottomhole pressure (WBHPH), so no pressure is matched.'}`,
         panels,
       });
     } else {
       figures.push({ id: 'history', title: 'History match: observed against simulated', statement: 'Does not apply: the deck carries no observed rates (no WCONHIST history and no FOPRH, FWPRH or FGPRH vectors). Add a production history on the Builder tab to run one.' });
     }
+  }
+
+  // 7. SIM-U2-001: bottomhole pressure, observed against simulated, by well
+  if (bhp?.applies) {
+    const histEnd = historyEnd ? Date.parse(`${historyEnd}T00:00:00Z`) : null;
+    const bhpRows = wellRows(summary, 'WBHP', opts);
+    const t0 = bhpRows[0]?.t;
+    const shown = bhp.wells.slice(0, 4);
+    const panels = shown.map((w, i) => ({
+      height: 44,
+      spec: {
+        ...AXIS, yTitle: `${w.well} BHP (${bhp.unit})`,
+        ...(histEnd != null && t0 != null ? { bands: [{ x0: t0, x1: histEnd, label: 'history phase', rgb: [148, 163, 184] }] } : {}),
+        series: [
+          { name: `Simulated (WBHP:${w.well})`, type: 'line', rgb: WELL_RGB[i % WELL_RGB.length], pts: pairs(bhpRows, w.well) },
+          { name: 'Observed', type: 'scatter', rgb: COLORS.gas, markerSize: 0.7, pts: w.pairs.map((p) => [dayMs(summary, p.day), p.obs]).filter(([t]) => Number.isFinite(t)) },
+        ],
+      },
+    }));
+    figures.push({
+      id: 'bhp-match',
+      title: 'Bottomhole pressure match',
+      caption: `Simulated bottomhole pressure (WBHP, line) against the observed pressure of each history period (points, ${bhp.source === 'WBHPH' ? 'the WBHPH the simulator reported' : 'from the builder form that made the deck'}), ${bhp.unit} absolute, for ${bhp.wells.length > 4 ? 'the first 4 of ' : ''}${bhp.wells.length} well${bhp.wells.length === 1 ? '' : 's'}; RMS ${Number(bhp.overall.rms).toFixed(1)} ${bhp.unit} over ${bhp.overall.points} points (the table above).${historyEnd ? ` The history phase (to ${historyEnd}) is shaded.` : ''}`,
+      panels,
+    });
+  } else {
+    figures.push({ id: 'bhp-match', title: 'Bottomhole pressure match', statement: `Does not apply: ${bhp?.reason || 'the deck carries no observed bottomhole pressure (no WBHPH).'}` });
   }
   return figures;
 }

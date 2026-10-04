@@ -31,6 +31,8 @@ const COLUMN_ALIASES = {
   oil: ['oil', 'oil_rate', 'orat', 'oil_stb', 'oil_stbd', 'qo'],
   water: ['water', 'water_rate', 'wrat', 'water_stb', 'water_stbd', 'qw'],
   gas: ['gas', 'gas_rate', 'grat', 'gas_mscf', 'gas_scf', 'qg'],
+  // SIM-U2-001: the observed bottomhole pressure of the period (WBHPH)
+  bhp: ['bhp', 'wbhp', 'bhp_psia', 'pwf', 'flowing_bhp', 'observed_bhp', 'bhp_obs'],
 };
 
 // SIM-U1-011 (PL2, RL10): the door reads through the shared tabular reader
@@ -47,6 +49,27 @@ const LIQUID_UNITS = { 'stb/d': 'STB/d', 'bbl/d': 'bbl/d', 'stb/day': 'STB/d', '
 const GAS_UNITS = { 'mscf/d': 'Mscf/d', mscfd: 'Mscf/d', 'mscf/day': 'Mscf/d', 'scf/d': 'scf/d', scfd: 'scf/d', 'scf/day': 'scf/d', 'mmscf/d': 'MMscf/d', mmscfd: 'MMscf/d', 'm3/d': 'm3/d', 'sm3/d': 'm3/d', '10^3 m3/d': '10^3 m3/d', 'e3m3/d': '10^3 m3/d', 'km3/d': '10^3 m3/d' };
 const unitKey = (u) => String(u || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
+// SIM-U2-001: observed bottomhole pressure. The deck takes psia. Gauge
+// readings are made absolute here, at the door that knows they are gauge:
+// psig + 14.696 psi, barg + 1.01325 bar (standard atmosphere); then the
+// Suite registry converts bar, kPa and MPa to psi. A pressure column with no
+// unit is read as psia.
+export const ATM_PSI = 14.696;
+export const ATM_BAR = 1.01325;
+const PRESSURE_UNITS = {
+  psia: { unit: 'psi', gauge: 0 }, psi: { unit: 'psi', gauge: 0 }, psig: { unit: 'psi', gauge: ATM_PSI },
+  bara: { unit: 'bar', gauge: 0 }, bar: { unit: 'bar', gauge: 0 }, barsa: { unit: 'bar', gauge: 0 }, barg: { unit: 'bar', gauge: ATM_BAR },
+  kpa: { unit: 'kPa', gauge: 0 }, kpaa: { unit: 'kPa', gauge: 0 }, kpag: { unit: 'kPa', gauge: ATM_BAR * 100 },
+  mpa: { unit: 'MPa', gauge: 0 }, mpaa: { unit: 'MPa', gauge: 0 }, mpag: { unit: 'MPa', gauge: ATM_BAR / 10 },
+};
+/** A pressure reading in a door unit, as psia. */
+export function pressureToPsia(v, unitText = 'psia') {
+  const u = PRESSURE_UNITS[unitKey(unitText).replace(/[()]/g, '')];
+  if (!u) return null;
+  const abs = v + u.gauge;
+  return u.unit === 'psi' ? abs : convert('pressure', abs, u.unit, 'psi');
+}
+
 /**
  * Per-well rate file text -> { rows, columns, errors, questions, readBack }.
  * The header must name a date column and a well column plus at least one
@@ -61,7 +84,7 @@ export function parseWellRateCsv(text, { dateOrder = null, decimal = null, gasUn
   const t = parseTabular(src, { ...(dateOrder ? { dateOrder } : {}), ...(decimal ? { decimal } : {}) });
   const norm = (h) => String(h || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
   const colOf = (key) => t.columns.findIndex((c) => COLUMN_ALIASES[key].includes(norm(c.name)));
-  const idx = { date: colOf('date'), well: colOf('well'), oil: colOf('oil'), water: colOf('water'), gas: colOf('gas') };
+  const idx = { date: colOf('date'), well: colOf('well'), oil: colOf('oil'), water: colOf('water'), gas: colOf('gas'), bhp: colOf('bhp') };
   if (!t.header || idx.date < 0 || idx.well < 0) {
     return { rows: [], columns: [], errors: ['The header line must name a date column and a well column (e.g. "date, well, oil, water, gas").'], questions: [], readBack: [] };
   }
@@ -86,6 +109,15 @@ export function parseWellRateCsv(text, { dateOrder = null, decimal = null, gasUn
     conv[key] = (v) => (from === to ? v : convert(family, v, from, to));
     readBack.push(`${key}: column "${t.columns[idx[key]].header}" read as ${from}${unit ? ' (from the header)' : ' (no unit in the file: the form\'s choice)'}${from !== to ? `, converted to ${to}` : ''}.`);
   }
+  if (idx.bhp >= 0) {
+    const unit = t.columns[idx.bhp].unit || 'psia';
+    if (pressureToPsia(1, unit) == null) errors.push(`The bhp column is headed "${unit}", a unit this door does not read (psia, psig, bar, barg, kPa or MPa).`);
+    else {
+      conv.bhp = (v) => pressureToPsia(v, unit);
+      const g = PRESSURE_UNITS[unitKey(unit).replace(/[()]/g, '')].gauge;
+      readBack.push(`bhp: column "${t.columns[idx.bhp].header}" read as ${unit}${t.columns[idx.bhp].unit ? ' (from the header)' : ' (no unit in the file: psia)'}${g ? `, gauge made absolute with ${g} ${unit.toLowerCase().startsWith('psi') ? 'psi' : unit.replace(/g$/i, '')} of standard atmosphere` : ''}${unit.toLowerCase().startsWith('psi') ? '' : ', converted to psia'}; written as the observed BHP of the period (WBHPH), an observation the simulator reports and does not control on.`);
+    }
+  }
   const rows = [];
   for (const r of t.rows) {
     const d = r.values[idx.date];
@@ -105,10 +137,20 @@ export function parseWellRateCsv(text, { dateOrder = null, decimal = null, gasUn
       }
       return conv[key](v);
     };
-    rows.push({ date, well, oil: num('oil'), water: num('water'), gas: num('gas') });
+    const row = { date, well, oil: num('oil'), water: num('water'), gas: num('gas') };
+    if (idx.bhp >= 0) {
+      const p = num('bhp');
+      if (p != null && !(p > 0)) errors.push(`Line ${r.line}: bhp ${p} psia is not a positive absolute pressure.`);
+      else if (p != null) {
+        // a pressure is an observation of a period: the period's rates must be there too
+        if (row.oil == null && row.water == null && row.gas == null) errors.push(`Line ${r.line}: a bottomhole pressure with no rate. The row of a period carries its rates; a blank rate row would shut the well in that period.`);
+        else row.bhp = p;
+      }
+    }
+    rows.push(row);
   }
   if (t.report.skipped.length) readBack.push(`Skipped ${t.report.skipped.length} line(s): ${t.report.skipped.slice(0, 3).map((x) => `line ${x.line} (${x.reason})`).join(', ')}.`);
-  const columns = ['date', 'well', ...['oil', 'water', 'gas'].filter((k) => idx[k] >= 0)];
+  const columns = ['date', 'well', ...['oil', 'water', 'gas', 'bhp'].filter((k) => idx[k] >= 0)];
   return { rows, columns, errors, questions: [], readBack };
 }
 
@@ -166,7 +208,8 @@ export function historyFromWellRows(rows, modelWells, { mode = 'rates', gasUnit 
     return round3(r);
   };
 
-  const stats = new Map(wells.map((w) => [w.name, { n: 0, oil: 0, water: 0, gas: 0 }]));
+  const stats = new Map(wells.map((w) => [w.name, { n: 0, oil: 0, water: 0, gas: 0, bhp: 0 }]));
+  const bhpOf = (r) => (Number.isFinite(r.bhp) && r.bhp > 0 ? Math.round(r.bhp * 100) / 100 : null);
   const everSeen = new Set();
   let carried = 0;
   const periods = dates.map((date, i) => {
@@ -189,12 +232,19 @@ export function historyFromWellRows(rows, modelWells, { mode = 'rates', gasUnit 
           grat: rate(r.gas, days, gasScale),
         };
         s.oil += entry.orat; s.water += entry.wrat; s.gas += entry.grat;
+        // SIM-U2-001: the observed BHP of the period rides with its rates (WCONHIST item 10)
+        const p = bhpOf(r);
+        if (p != null) { entry.bhp = p; s.bhp += 1; }
         prod.push(entry);
       } else {
         const phase = type === 'gas_injector' ? 'GAS' : 'WATER';
         const v = phase === 'GAS' ? rate(r.gas, days, gasScale) : rate(r.water, days);
         s.oil += 0; s.water += phase === 'WATER' ? v : 0; s.gas += phase === 'GAS' ? v : 0;
-        if (v > 0) inj.push({ name: r.well, phase, rate: v });
+        const p = bhpOf(r);
+        if (v > 0) {
+          inj.push({ name: r.well, phase, rate: v, ...(p != null ? { bhp: p } : {}) });
+          if (p != null) s.bhp += 1;
+        }
       }
     });
     everSeen.forEach((w) => { if (!present.has(w)) carried += 1; });
@@ -224,6 +274,7 @@ export function historyFromWellRows(rows, modelWells, { mode = 'rates', gasUnit 
         avgOil: round3(s.oil / s.n),
         avgWater: round3(s.water / s.n),
         avgGas: round3(s.gas / s.n),
+        bhpPoints: s.bhp,
       };
     });
 

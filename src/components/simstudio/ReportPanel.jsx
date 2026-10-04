@@ -119,6 +119,14 @@ const ReportPanel = () => {
           <p className="text-xs text-pl-muted" data-testid="report-convergence-text">{m.convergence.text}</p>
         </CardContent></Card>
 
+      {(m.bhpMatch.applies || m.deckSummary?.schedule?.historyControls) && (
+        <Card><CardHeader className="pb-1"><CardTitle className="text-sm">Bottomhole pressure match (history phase)</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {m.bhpMatch.applies && <Grid head={m.bhpMatch.head} rows={m.bhpMatch.rows} testId="report-bhp" />}
+            <p className="text-xs text-pl-muted" data-testid="report-bhp-text">{m.bhpMatch.text}</p>
+          </CardContent></Card>
+      )}
+
       <Card><CardHeader className="pb-1"><CardTitle className="text-sm">Run provenance</CardTitle></CardHeader>
         <CardContent><KvTable rows={m.provenance} testId="report-provenance" /></CardContent></Card>
 

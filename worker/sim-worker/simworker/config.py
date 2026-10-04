@@ -53,5 +53,7 @@ SCRATCH_DIR = os.environ.get("SCRATCH_DIR", "/scratch")
 FIELD_VECTORS = ["FOPR", "FOPT", "FWPR", "FWCT", "FGPR", "FGOR", "FPR",
                  "FWIR", "FGIR", "FWIT", "FGIT",
                  "FOPRH", "FWPRH", "FGPRH", "FWCTH", "FGORH"]
+# SIM-U2-001: WBHPH, the observed bottomhole pressure a history deck carries
+# (WCONHIST item 10), for the pressure match.
 WELL_VECTORS = ["WOPR", "WWPR", "WGPR", "WBHP", "WWCT", "WWIR", "WGIR",
-                "WOPRH", "WWPRH", "WGPRH"]
+                "WOPRH", "WWPRH", "WGPRH", "WBHPH"]

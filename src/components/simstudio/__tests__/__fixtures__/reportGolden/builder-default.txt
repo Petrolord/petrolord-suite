@@ -423,6 +423,10 @@ Does not apply: the deck carries no observed rates (no WCONHIST history and no F
 on the Builder tab to run one.
 
 
+Figure 7. Bottomhole pressure match
+Does not apply: The deck carries no observed bottomhole pressure (no WBHPH): add a bhp column to the per-well history file on the Builder tab.
+
+
 
 
 Reservoir Simulation Report, Builder model                                                                                                              Page 6 of 6

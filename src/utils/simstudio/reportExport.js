@@ -14,7 +14,7 @@ export function collectSimReportArgs(a) {
   const model = buildSimReportModel(a);
   const sch = model?.deckSummary?.schedule;
   const historyEnd = sch?.historyControls && sch.lastDate ? sch.lastDate : null;
-  const figures = model ? buildSimReportFigures({ summary: a.summary, opts: model.opts, historyEnd }) : [];
+  const figures = model ? buildSimReportFigures({ summary: a.summary, opts: model.opts, historyEnd, bhp: model.bhpMatchRaw }) : [];
   return { model, figures };
 }
 
@@ -52,6 +52,13 @@ export function buildSimPdf(a, { logo = null, generatedAt = new Date() } = {}) {
     table('Convergence (from the simulator\'s PRT)', ['Quantity', 'Value'], model.convergence.rows, { columnStyles: KV, note: model.convergence.text });
     if (model.convergence.chops?.length) section('Time steps cut', model.convergence.chops.map((c) => `- ${c}`).join('\n'), { need: 14 });
   } else section('Convergence', model.convergence.text, { need: 14 });
+
+  // SIM-U2-001: the bottomhole pressure match of the history phase
+  if (model.bhpMatch.applies) {
+    table('Bottomhole pressure match (history phase)', model.bhpMatch.head, model.bhpMatch.rows, {
+      columnStyles: Object.fromEntries([1, 2, 3, 4, 5].map((i) => [i, { halign: 'right' }])), note: model.bhpMatch.text, fontSize: 7,
+    });
+  } else if (model.deckSummary?.schedule?.historyControls) section('Bottomhole pressure match', model.bhpMatch.text, { need: 14 });
 
   table('Run provenance', ['Item', 'Value'], model.provenance, { columnStyles: KV });
   table('What the deck holds', ['Item', 'As read from the main deck'], model.deck, { columnStyles: KV });

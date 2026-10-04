@@ -22,5 +22,30 @@
     "manifestPaths": 750,
     "vendoredPaths": 750
   },
-  "knownDeviations": []
+  "knownDeviations": [
+    {
+      "path": "engines/sim/emitSchedule.js",
+      "kind": "differing",
+      "vendoredSha": "5623b359759b73af9ae69d477b81c67cf874ddf6",
+      "group": "sim-u2 (engines PR feat/sim-u2-deck)",
+      "reason": "Reservoir Simulation Studio U2 deck engines (observed BHP and WBHPH, three-phase oil kr choice, analytical aquifer), vendored from Petrolord/petrolord-engines branch feat/sim-u2-deck head 4351c2f (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "the engines PR of feat/sim-u2-deck is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every sim-u2 row."
+    },
+    {
+      "path": "engines/sim/composeDeck.js",
+      "kind": "differing",
+      "vendoredSha": "842e99cedc2aa639a7269075cbf905c42425d4d8",
+      "group": "sim-u2 (engines PR feat/sim-u2-deck)",
+      "reason": "Reservoir Simulation Studio U2 deck engines (observed BHP and WBHPH, three-phase oil kr choice, analytical aquifer), vendored from Petrolord/petrolord-engines branch feat/sim-u2-deck head 4351c2f (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "the engines PR of feat/sim-u2-deck is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every sim-u2 row."
+    },
+    {
+      "path": "__tests__/sim.u2.test.js",
+      "kind": "extra",
+      "vendoredSha": "9978607806786ad3a989e5ddb245482aed604828",
+      "group": "sim-u2 (engines PR feat/sim-u2-deck)",
+      "reason": "Reservoir Simulation Studio U2 deck engines (observed BHP and WBHPH, three-phase oil kr choice, analytical aquifer), vendored from Petrolord/petrolord-engines branch feat/sim-u2-deck head 4351c2f (blob identical there); the build agent does not merge engines PRs, so the pin cannot move to a canonical main commit yet.",
+      "burnDownWhen": "the engines PR of feat/sim-u2-deck is merged: re-pin canonical.commit to its merge commit, regenerate VENDOR.manifest, move the Data AI ENGINE_COMMIT labels with it, and delete every sim-u2 row."
+    }
+  ]
 }

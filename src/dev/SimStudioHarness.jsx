@@ -7,7 +7,8 @@
 // 2026-10-04 by SIM-U1 so each carries the PRT diagnostics, prt-1, and the
 // deck unit system): SPE1CASE1 for the SPE1 template, the Model Builder's
 // history deck (worker fixture BUILT_S4.DATA) for a deck with WCONHIST, the
-// default deck (BUILT.DATA) for anything else. A deck containing the word
+// default deck (BUILT.DATA) for anything else; SIM-U2: the BHP history deck
+// (BUILT_BHP.DATA) for a deck that asks for WBHPH. A deck containing the word
 // HARNESS_FAIL fails with a flow-style error so the failure path can be
 // walked. Nothing here runs a simulation.
 import React, { useEffect } from 'react';
@@ -16,11 +17,14 @@ import InMemorySupabase, { createStore, newId, DEV_USER } from './InMemorySupaba
 import spe1Summary from './fixtures/sim-spe1-summary.json';
 import builtSummary from './fixtures/sim-built-summary.json';
 import builtS4Summary from './fixtures/sim-built-s4-summary.json';
+// SIM-U2-001: the builder's BHP history deck (BUILT_BHP.DATA) run in OPM Flow 2026.04 (isolated worker image)
+import builtBhpSummary from './fixtures/sim-built-bhp-summary.json';
 import builtPrt from './fixtures/sim-built-prt.txt?raw';
 import { loadScalRows, SCAL_TABLE } from './scalProjectsStore';
 import { loadFluidRows, FLUID_TABLE } from './fluidProjectsStore';
 import spe1Prt from './fixtures/sim-spe1-prt.txt?raw';
 import { watchSimRows } from './simProjectsStore';
+import { sha256Hex } from '@/lib/simService';
 
 const db = createStore({ sim_cases: [], sim_runs: [], rb_cases: [], rb_production_data: [], geo_surfaces: [], geo_wells: [] });
 
@@ -54,7 +58,7 @@ function workerStandIn(run, caseRow) {
       return;
     }
     const spe1 = caseRow.deck_source === 'template' && caseRow.template_slug === 'SPE1CASE1';
-    const summary = spe1 ? spe1Summary : /WCONHIST/.test(deck) ? builtS4Summary : builtSummary;
+    const summary = spe1 ? spe1Summary : /\nWBHPH\n/.test(deck) ? builtBhpSummary : /WCONHIST/.test(deck) ? builtS4Summary : builtSummary;
     const json = JSON.stringify(summary);
     db.__storage[`sim/${base}/summary.json`] = new Blob([json], { type: 'application/json' });
     const keys = Object.keys(summary.field);
@@ -63,7 +67,10 @@ function workerStandIn(run, caseRow) {
     db.__storage[`sim/${base}/prt_excerpt.txt`] = new Blob([spe1 ? spe1Prt : builtPrt]);
     patchRun(run.id, {
       status: 'complete', finished_at: new Date().toISOString(), exit_code: 0,
-      opm_version: summary.opm_version, deck_sha256: summary.deck_sha256, elapsed_seconds: summary.run?.elapsed_seconds ?? 3.4,
+      // SIM-U2-001: the SHA-256 of the deck that ran, as the worker hashes it (the
+      // summary fixture's own is of the fixture deck; a builder deck made on
+      // the harness then traces to its form as it would on the worker)
+      opm_version: summary.opm_version, deck_sha256: await sha256Hex(deck), elapsed_seconds: summary.run?.elapsed_seconds ?? 3.4,
       active_cells: summary.diagnostics?.active_cells ?? null, worker_id: 'vps-sim-worker-1', // H13: as the worker stores it, the run's steps and never a thinned series length
       report_steps: summary.steps?.report_steps ?? summary.steps?.time_steps ?? summary.days.length,
       result_path: `${base}/summary.json`, log_path: `${base}/prt_excerpt.txt`, result_bytes: json.length,

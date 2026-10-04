@@ -17,6 +17,7 @@ import { summarizeDeck, deckSystemText } from './deckSummary.js';
 import { summaryUnitSystem, lastValue, dayToIso } from './series.js';
 import { krEditedKeys } from './builderIntakes.js';
 import { pvtContractTuningText, PVT1_PB_SOURCES } from '@/lib/inputProvenance/pvtContract';
+import { bhpMatch } from './bhpMatch.js';
 import { krSetText, krCapillaryText } from '@/lib/inputProvenance/krContract';
 
 export const REPORT_TITLE = 'Reservoir Simulation Report';
@@ -211,7 +212,8 @@ function inputRows(form, u) {
   add('Wellbore radius', shown('length', '0.25'), 'length', 'Assumed by the builder for every well (not editable)');
   add('Report interval', form.schedule.reportDays, 'days', entered);
   if (form.history?.enabled && form.history.periods) {
-    add('History', `${form.history.caseName}: ${form.history.periods.length} periods, ${form.history.startDate} to ${form.history.endDate}; prediction ${form.history.predictionYears} years`, null,
+    const bhpPoints = form.history.periods.reduce((n, p) => n + [...(p.prod || []), ...(p.inj || [])].filter((r) => Number(r.bhp) > 0).length, 0);
+    add('History', `${form.history.caseName}: ${form.history.periods.length} periods, ${form.history.startDate} to ${form.history.endDate}; prediction ${form.history.predictionYears} years${bhpPoints ? `; ${bhpPoints} observed bottomhole pressures (WBHPH)` : ''}`, null,
       form.history.source === 'perwell' ? 'Per-well rate file, each well its own rates' : `Material Balance case cumulatives, allocated to producers${Object.keys(form.history.fractions || {}).length ? ` (fractions ${Object.entries(form.history.fractions).map(([k, v]) => `${k} ${v}`).join(', ')})` : ' equally'}`);
   } else {
     add('Duration', form.schedule.years, 'years', entered);
@@ -263,6 +265,26 @@ function convergenceRows(diag, summary) {
   return { reported: true, rows, text, chops };
 }
 
+/** The bottomhole pressure match as report rows (SIM-U2-001). */
+function bhpMatchSection(m) {
+  const f = (v) => (finite(v) ? fx(v, 1) : EMPTY_VALUE);
+  if (!m.applies) return { applies: false, text: `Bottomhole pressure match: does not apply. ${m.reason}`, rows: [] };
+  const rows = m.wells.map((w) => [w.well, fx(w.points), `${f(w.obsMin)} to ${f(w.obsMax)}`, f(w.rms), f(w.bias), f(w.maxAbs)]);
+  rows.push(['All wells', fx(m.overall.points), EMPTY_VALUE, f(m.overall.rms), EMPTY_VALUE, EMPTY_VALUE]);
+  const from = m.source === 'WBHPH'
+    ? 'the run\'s WBHPH vector (the deck was not made by the builder form, so the observed periods are not known: the simulator carries the last observation forward through a period that gives none, and such a period repeats it here)'
+    : `the per-well history of the builder form that made the deck that ran, the periods that carried a pressure${m.echo ? (m.echo.differ ? `; the run's WBHPH differs from it at ${m.echo.differ} of ${m.echo.checked} time steps` : `; the run's WBHPH equals it at all ${m.echo.checked} time steps (the simulator read the pressures as written)`) : '; the worker build of this run did not keep WBHPH, so the simulator\'s echo is not checked'}`;
+  return {
+    applies: true,
+    source: m.source,
+    head: ['Well', 'Points', `Observed (${m.unit})`, `RMS (${m.unit})`, `Mean, simulated minus observed (${m.unit})`, `Largest difference (${m.unit})`],
+    rows,
+    rms: m.overall.rms,
+    echo: m.echo,
+    text: `RMS mismatch ${f(m.overall.rms)} ${m.unit} over ${fx(m.overall.points)} points in ${fx(m.overall.wells)} well${m.overall.wells === 1 ? '' : 's'}. Observed bottomhole pressure from ${from}; one point per observation: the observed pressure of a history period against the simulated WBHP averaged over that period's time steps (time weighted); the residual is simulated minus observed. Absolute pressure. The observations are not controls: the producers run on their observed rates.`,
+  };
+}
+
 function headlineRows(summary, opts, u, diag) {
   const rows = [];
   const mbPhases = diag?.material_balance?.computed ? diag.material_balance.phases : null;
@@ -308,6 +330,10 @@ export function buildSimReportModel({ caseRow, run, summary, deckText = null, de
   const krWords = krWordsOf(form, fa.applies, deck);
 
   const mb = materialBalance(diag, u);
+  const sch = deck?.schedule;
+  const historyEnd = sch?.historyControls && sch.lastDate ? sch.lastDate : null;
+  const bhpRaw = bhpMatch({ summary, opts, historyEnd, form, formApplies: fa.applies });
+  const bhp = bhpMatchSection(bhpRaw);
   const conv = convergenceRows(diag, summary);
   const flags = [];
   if (!diag) flags.push(`Material balance and convergence: ${NOT_REPORTED}. ${NOT_REPORTED_WHY}`);
@@ -317,6 +343,7 @@ export function buildSimReportModel({ caseRow, run, summary, deckText = null, de
     if (diag.chops?.count) flags.push(`${fx(diag.chops.count)} time steps were cut after convergence failures.`);
     if (diag.messages?.errors) flags.push(`The simulator printed ${fx(diag.messages.errors)} error messages; read the log on the Runs tab.`);
   }
+  if (bhp.applies && bhp.echo?.differ) flags.push(`The run's WBHPH differs from the observed bottomhole pressures of the builder form at ${bhp.echo.differ} of ${bhp.echo.checked} time steps: the simulator did not read the pressures as written. Generate the deck again and run it.`);
   if (summary.steps?.stride > 1) flags.push(`The plotted series is thinned to ${fx(summary.steps.points)} of ${fx(summary.steps.time_steps)} time steps; the CSV holds the same thinned series.`);
   if (us.system !== 'FIELD' && us.system !== 'METRIC') flags.push(`The deck is in ${us.system} units, which this app does not convert; values are shown as written.`);
   if (/assumed/.test(us.basis)) flags.push(`The deck unit system is ${us.basis}.`);
@@ -336,8 +363,11 @@ export function buildSimReportModel({ caseRow, run, summary, deckText = null, de
     `Saturation functions: ${krWords} Two-phase tables; the three-phase oil relative permeability is the simulator's default model; no hysteresis and no end-point scaling unless the deck says so.`,
     deck?.aquifers?.length ? `Aquifer keywords present: ${deck.aquifers.join(', ')}.` : 'No aquifer is modelled in the main deck: pressure support comes from the wells only.',
     'Wells are controlled as the deck declares; no well economic limits or group controls are applied unless the deck holds them.',
+    !historyEnd && !bhp.applies ? null : bhp.applies
+      ? `History match: rates are honoured by construction (WCONHIST controls the producers on their observed rates); the bottomhole pressure is the test of the match, ${bhp.source === 'WBHPH' ? 'observed as WBHPH' : 'observed in the builder form'}, RMS ${fx(bhp.rms, 1)} ${u.label('pressure')}. No history-match quality threshold is applied: the numbers are printed for the reviewer.`
+      : 'No bottomhole pressure was observed in the history: a rate history alone is matched by construction under WCONHIST and proves little.',
     'A single deterministic run: no uncertainty range. The material balance and convergence statements are the simulator\'s own printout as read by the worker.',
-  ];
+  ].filter(Boolean);
 
   return {
     title: REPORT_TITLE,
@@ -355,6 +385,8 @@ export function buildSimReportModel({ caseRow, run, summary, deckText = null, de
     inputsWhy: fa.reason,
     headline: { head: ['Quantity', 'Value', 'Unit', 'Where it comes from'], rows: headlineRows(summary, opts, u, diag) },
     materialBalance: mb,
+    bhpMatch: bhp,
+    bhpMatchRaw: bhpRaw,
     convergence: conv,
     limits: { assumptions, flags, noFlagsText: 'No flag: the balance closes, no step was cut and the inputs are traced.' },
     footerWho: text(caseRow?.name),
