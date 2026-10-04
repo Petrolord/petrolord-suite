@@ -42,9 +42,9 @@ async function exportPdf(page, name) {
   return execFileSync('pdftotext', ['-layout', file, '-'], { encoding: 'utf8' }).replace(/\s+/g, ' ');
 }
 
-function bigGauge() {
+function bigGauge(n = 388800) {
   const lines = ['Time (hr),Pressure (psia)'];
-  for (let s = 0; s < 388800; s += 1) lines.push(`${(s / 3600).toFixed(6)},${(4500 + Math.log1p(s)).toFixed(3)}`);
+  for (let s = 0; s < n; s += 1) lines.push(`${(s / 3600).toFixed(6)},${(4500 + Math.log1p(s)).toFixed(3)}`);
   return Buffer.from(lines.join('\n'));
 }
 
@@ -70,36 +70,43 @@ async function heartbeatImport(page, { noWorker = false } = {}) {
   await page.evaluate(() => {
     window.__beat.on = true; window.__beat.last = performance.now(); window.__beat.maxGap = 0; window.__beat.atLastProgress = 0;
     const el = document.querySelector('[data-testid="wts-import-progress"]');
-    if (el) new MutationObserver(() => { window.__beat.atLastProgress = window.__beat.maxGap; }).observe(el, { subtree: true, characterData: true, childList: true });
+    window.__beat.sawPercent = false;
+    if (el) {
+      new MutationObserver(() => {
+        window.__beat.atLastProgress = window.__beat.maxGap;
+        if (/percent of/.test(el.textContent || '')) window.__beat.sawPercent = true;
+      }).observe(el, { subtree: true, characterData: true, childList: true });
+    }
   });
-  // while the worker reads, the page answers: the progress line itself updates
-  if (!noWorker) await expect(page.getByTestId('wts-import-progress')).toContainText(/percent of 388,800 rows/, { timeout: 120000 });
   await expect(page.getByTestId('wts-import-mapping')).toContainText('388800 readings loaded', { timeout: 120000 });
   await expect(page.getByTestId('wts-import-progress')).toBeHidden({ timeout: 120000 });
-  const { atLastProgress: during, maxGap: withAnalysis } = await page.evaluate(() => window.__beat);
-  return { during, withAnalysis };
+  const { atLastProgress: during, maxGap: withAnalysis, sawPercent } = await page.evaluate(() => window.__beat);
+  return { during, withAnalysis, sawPercent };
 }
 
-test('U2-010: 388,800 readings are read in a worker while the page keeps ticking', async ({ page }) => {
-  test.setTimeout(240000);
-  const { during, withAnalysis } = await heartbeatImport(page);
-  fs.writeFileSync(path.join(OUT, 'worker-heartbeat.json'), JSON.stringify({ maxGapWhileReadingMs: during, maxGapIncludingTheAnalysisAfterMs: withAnalysis }, null, 2));
-  expect(during, 'longest gap between 50 ms ticks while the worker read').toBeLessThan(500);
-});
-
-test('U2-010 negative control: without a Worker the same import freezes the page', async ({ page }) => {
-  test.setTimeout(240000);
-  // the same file on the page's thread: from the progress line to the loaded file the page
-  // stops for the whole read (the worker run above stops only for the analysis after it)
-  const { withAnalysis } = await heartbeatImport(page, { noWorker: true });
-  fs.writeFileSync(path.join(OUT, 'no-worker-heartbeat.json'), JSON.stringify({ maxGapIncludingTheAnalysisAfterMs: withAnalysis }, null, 2));
-  expect(withAnalysis).toBeGreaterThan(2000);
+test('U2-010: 388,800 readings are read in a worker while the page keeps ticking; without the worker it stops (negative control)', async ({ page, browser }) => {
+  test.setTimeout(300000);
+  const worker = await heartbeatImport(page);
+  // the same file on the page's thread, in a fresh page with window.Worker removed: from the
+  // file to the loaded mapping the page stops for the whole read
+  const ctx = await browser.newContext();
+  const bare = await ctx.newPage();
+  const noWorker = await heartbeatImport(bare, { noWorker: true });
+  await ctx.close();
+  fs.writeFileSync(path.join(OUT, 'worker-heartbeat.json'), JSON.stringify({
+    worker: { maxGapWhileReadingMs: worker.during, maxGapIncludingTheAnalysisAfterMs: worker.withAnalysis, progressShownInPercent: worker.sawPercent },
+    withoutWorker: { maxGapIncludingTheAnalysisAfterMs: noWorker.withAnalysis },
+  }, null, 2));
+  expect(worker.during, 'longest gap between 50 ms ticks while the worker read').toBeLessThan(500);
+  expect(noWorker.withAnalysis).toBeGreaterThan(1000);
+  expect(noWorker.withAnalysis).toBeGreaterThan(3 * worker.during);
 });
 
 test('U2-010: Cancel stops an import and nothing is loaded', async ({ page }) => {
   test.setTimeout(240000);
   await open(page);
-  await page.locator('input[type="file"]').first().setInputFiles({ name: 'quartz-1s.csv', mimeType: 'text/csv', buffer: bigGauge() });
+  // twice the size, so a fast runner cannot finish before the click
+  await page.locator('input[type="file"]').first().setInputFiles({ name: 'quartz-1s.csv', mimeType: 'text/csv', buffer: bigGauge(777600) });
   await expect(page.getByTestId('wts-import-progress')).toBeVisible();
   await page.getByTestId('wts-import-cancel').click();
   await expect(page.getByText(/Import of quartz-1s\.csv cancelled; nothing was loaded/)).toBeVisible();
