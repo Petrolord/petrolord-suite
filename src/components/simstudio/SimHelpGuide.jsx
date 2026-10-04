@@ -18,35 +18,35 @@ const helpContent = [
     icon: FolderOpen,
     title: 'Cases',
     content:
-      'A case is one deck plus its run history. Create a case in the left rail, then give it a deck on the Deck tab. Cases save to your account; organization members can view them read-only.',
+      'A case is one deck, the Model Builder form that made it and its run history. Create a case in the left rail, then give it a deck on the Deck tab. The builder form is saved with the case as you edit, so a reload or a tab switch keeps it. Share a case with your organisation from the bar under the case picker, for viewing or for editing: a colleague reads every run and report, and while holding the check-out of a case shared for editing can change its builder form. Decks and runs stay with the case owner: the deck files sit in the owner\'s storage folder and the run queue accepts the owner\'s runs only, and the studio says so on a colleague\'s screen.',
   },
   {
     id: 'deck',
     icon: FileText,
     title: 'Step 1: The deck',
     content:
-      'Upload an Eclipse-format .DATA file (plus any INCLUDE files), or install a bundled SPE template. You can edit the deck text in place; the worker validates everything again before running. Limits on this platform: 25 MB bundle, 40 files, 200,000 grid cells, 5,000 report steps. PYACTION/PYINPUT are not allowed (they embed executable code), and INCLUDE paths must stay inside the bundle.',
+      'Upload an Eclipse-format .DATA file (plus any INCLUDE files), or install a bundled SPE template. The upload reads the files before sending them and says what it read: the main deck, its unit system, grid and wells, and any include file the deck names that you did not pick. It refuses two .DATA files in one pick, a binary file, PYACTION or PYINPUT (they embed executable code) and PATHS. You can edit the deck text in place; the worker validates everything again before running. Limits on this platform: 25 MB bundle, 40 files, 200,000 grid cells, 5,000 report steps. The bundled SPE templates ask the simulator for its fluid-in-place balance (RPTSOL and RPTSCHED FIP), so their reports state the material balance; nothing else in them is changed.',
   },
   {
     id: 'builder',
     icon: FileText,
     title: 'No deck? Use the Model Builder',
     content:
-      'The Builder tab generates a complete deck from engineering inputs: a layer-cake grid, black-oil PVT from the same correlations Fluid Studio uses (Standing, Beggs-Robinson; the bubble point is solved from your GOR), Corey relative permeability curves as in SCAL Studio with optional Leverett-J capillary pressure, equilibration contacts, vertical wells and a monthly schedule. Generate attaches the deck to the case; you can inspect and hand-edit it on the Deck tab before running.',
+      'The Builder tab generates a complete deck from engineering inputs: a layer-cake grid, black-oil PVT, Corey relative permeability with optional Leverett-J capillary pressure, equilibration contacts, wells and a schedule. PVT comes either from typed inputs (the correlations of Fluid Systems Studio: Standing for Pb, Rs and Bo, Beggs-Robinson viscosity, Dranchuk-Abou-Kassem Z; the bubble point is solved from your GOR) or from a saved Fluid Systems Studio project: pick it and press Take the PVT table, and PVTO, PVDG and PVTW are that project\'s table as Fluid Systems Studio exports it. The curves come either from typed Corey numbers or from a saved SCAL Studio project (Take the curves): its oil-water and gas-oil sets and its Leverett J with its own Swirr. The intake cards say where the values came from, when the source project changed since, and which values you edited after taking them. The deck opens with comment lines that state all of this. A blank required input is refused by name; a blank contact is placed outside the grid and the report says so. Fields show your display units (Oilfield or SI) and the deck is written in FIELD units. Generate attaches the deck to the case and records its SHA-256, so the report can tell whether a run used the deck the builder made.',
   },
   {
     id: 'builder-s4',
     icon: FileText,
     title: 'Structure, deviated wells and history',
     content:
-      'Three imports turn the Builder model into a field model. Structure: sample a depth surface from Mapping & Surface Studio onto the grid as per-cell tops (layers stack conformably below it; the preview shows the relief). Deviated wells: tick Deviated on a well and paste its MD/INC/AZI survey; the completion cells are computed along the minimum-curvature path each time you generate. History: run the observed production first (WCONHIST for producers, WCONINJH for injectors) before the prediction phase takes over on declared controls. On the Results tab, observed rates overlay the simulated curves as dashed lines so you can judge the history match honestly.',
+      'Three imports turn the Builder model into a field model. Structure: sample a depth surface from Mapping & Surface Studio onto the grid as per-cell tops (layers stack conformably below it; the preview shows the relief). Deviated wells: tick Deviated on a well and paste its MD/INC/AZI survey; the completion cells are computed along the minimum-curvature path each time you generate. The survey TVD is below the well\'s depth reference (KB, RT, DF, GL or MSL): type its elevation above the datum, or pick the well from the wells registry to take the datum it carries there. Deck depths are TVDSS. History: run the observed production first (WCONHIST for producers, WCONINJH for injectors) before the prediction phase takes over on declared controls. On the Results tab, observed rates overlay the simulated curves as dashed lines so you can judge the history match honestly.',
   },
   {
     id: 'history-import',
     icon: FileText,
     title: 'Per-well history import',
     content:
-      'The History card takes its observed rates from one of two sources, chosen in its source selector. A Material Balance case gives you field production split across your producers. A per-well CSV gives you the real thing: one row per well per period, with its own producer and injector rates. Two reading modes are offered because field data arrives both ways. Daily rate treats each value as a rate that already holds for the period. Interval volume treats it as a total produced over the period and divides by the period length. Gas columns can be read as Mscf or scf. Where a well reports no value for a period, the previous keyword stays in force, and the importer warns you where that happens so a gap in the data is never silently read as a real shut-in.',
+      'The History card takes its observed rates from one of two sources, chosen in its source selector. A Material Balance case gives you field production split across your producers by the fractions you type (kept with the case and printed in the report). A per-well file gives you the real thing: one row per well per period, with its own producer and injector rates. The file can use any separator, comma or dot decimals and ISO, day-first or month-first dates; when the file does not settle a date order or a decimal mark the card asks, and never guesses. Units in the headers (STB/d, bbl/d, m3/d; Mscf/d, scf/d, MMscf/d, m3/d) are read and converted; the card then lists what it read. Two reading modes are offered because field data arrives both ways. Daily rate treats each value as a rate that already holds for the period. Interval volume treats it as a total produced over the period and divides by the period length. Gas columns can be read as Mscf or scf. Where a well reports no value for a period, the previous keyword stays in force, and the importer warns you where that happens so a gap in the data is never silently read as a real shut-in.',
   },
   {
     id: 'run',
@@ -60,7 +60,14 @@ const helpContent = [
     icon: LineChart,
     title: 'Step 3: Results',
     content:
-      'Completed runs expose their summary vectors: field rates, cumulatives, GOR, water cut and pressure where the deck requests them (the SUMMARY section of the deck decides what the simulator writes), plus per-well rates and BHP. Charts follow the suite standard, and the plotted table downloads as CSV. The line under the run picker gives the run\'s report steps and simulator time steps. A run with more than 5,000 time steps is thinned for the charts and the CSV, and the line then says how many time steps one plotted point stands for.',
+      'Completed runs expose their summary vectors: field rates, cumulatives, GOR, water cut and pressure where the deck requests them (the SUMMARY section of the deck decides what the simulator writes), plus per-well rates and BHP, on a calendar axis in your display units. A METRIC deck is read as METRIC. The CSV holds the same series with a units row and provenance lines. The line under the run picker gives the run\'s report steps and simulator time steps and the run\'s status: whether the material balance closes and whether any time step was cut, both read from the simulator\'s own PRT file. A run with more than 5,000 time steps is thinned for the charts and the CSV, and the line then says how many time steps one plotted point stands for.',
+  },
+  {
+    id: 'report',
+    icon: FileText,
+    title: 'Step 4: The report',
+    content:
+      'The Report tab shows, and Export PDF prints, what a reviewer needs to sign a run: identification (typed on the Builder tab); the run\'s provenance (deck SHA-256, OPM Flow version, worker, queued, started and finished times, exit code); what the deck holds (unit system, grid, active cells, schedule, initialisation and contacts, wells, PVT and saturation tables and where they came from); the Model Builder inputs with their sources when the builder made the deck that ran; headline results; the material balance per component (originally in place, in place at the end, produced, injected and the error) and the convergence statistics, both from the simulator\'s PRT; the limits of the analysis and the flags on the run; and six figures on the calendar axis, each either drawn or replaced by the reason it does not apply. A run made by an older worker build prints "not reported by this build" for the material balance and the convergence. A deck that does not ask for the fluid-in-place report (RPTSOL or RPTSCHED FIP with WELLS) gets the same honest line with its reason; decks from the Model Builder and the bundled templates ask for it.',
   },
   {
     id: 'engine',
@@ -81,7 +88,7 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'Scope and honesty',
     content:
-      'This is screening-scale simulation: the worker is sized for models up to roughly 200,000 cells. Restart files and compositional runs are not included yet. The 3D view is a preview of the built grid and no results viewer, so simulated properties are not painted onto the cells. What you see is exactly what the simulator computed; failed runs stay failed, with the reason.',
+      'This is screening-scale simulation: the worker is sized for models up to roughly 200,000 cells. Restart files and compositional runs are not included yet. The Model Builder writes block-centred layer-cake grids (no faults, no corner points), two-phase Corey tables with the simulator\'s default three-phase oil model, no hysteresis, no aquifer and no pressure observations in the history match (WBHPH); an uploaded deck may use any of these and the simulator runs them. The 3D view is a preview of the built grid and no results viewer, so simulated properties are not painted onto the cells. What you see is exactly what the simulator computed; failed runs stay failed, with the reason.',
   },
 ];
 

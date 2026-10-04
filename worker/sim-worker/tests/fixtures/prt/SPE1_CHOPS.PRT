@@ -1,0 +1,163 @@
+-- Excerpt of the PRT OPM Flow 2026.04 wrote for SPE1CASE1 with TUNING NEWTMX 2 and --enable-tuning=true, which chops 30 time steps. Lines kept verbatim.
+Flow Version     =  2026.04 (Ubuntu 24.04.4 LTS: 2026.04-1~noble)
+[... lines omitted ...]
+Total number of active cells: 300 / total pore volume: 534322820 RB
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 0.1 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 0.3375 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 1.0470915931380347 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 0.8585287720585895 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 1.7697654735296917 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 1.55 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 1.085 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 1.5 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 1.05 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 0.735 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 2.218 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 3.1 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 3 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 3.1 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 3 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 3.1 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 3 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 3.1 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 2.8 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 3 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 3.1 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 3.1 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 3.1 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 3 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 1.125 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 3 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 3.1 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 3 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 1.125 days
+[... lines omitted ...]
+Problem: Solver convergence failure - Iteration limit reached
+Timestep chopped to 3.1 days
+[... lines omitted ...]
+                              **************************************************************************
+  WELLS    AT      3650  DAYS *                 SPE1 - CASE 1                                          *
+  REPORT  120    29 Dec 2024  *                                             Flow  version     2026.04  *
+                              **************************************************************************
+
+
+======================================================= PRODUCTION REPORT =======================================================
+ :  WELL  : LOCATION  :CTRL:    OIL    :   WATER   :    GAS    :   FLUID   :   WATER   : GAS/OIL  :  WAT/GAS   : BHP OR : THP OR :
+ :  NAME  :  (I,J,K)  :MODE:   RATE    :   RATE    :   RATE    : RES.VOL.  :    CUT    :  RATIO   :   RATIO    :CON.PR. :BLK.PR. :
+ :        :           :    :  STB/DAY  :  STB/DAY  : MSCF/DAY  :  RB/DAY   :           : MSCF/STB :  STB/MSCF  :  PSIA  :  PSIA  :
+=================================================================================================================================
+:FIELD   :           :    :     5557.6:        0.0:   119324.3:   107519.4:      0.000:     21.47:      0.0000:        :        :
+:G1      :           :    :     5557.6:        0.0:   119324.3:   107519.4:      0.000:     21.47:      0.0000:        :        :
+:PROD    : 10, 10    :ORAT:     5557.6:       -0.0:   119324.3:   107519.4:     -0.000:     21.47:      0.0000:  1000.0:     0.0:
+ :--------:-----------:----:-----------:-----------:-----------:-----------:-----------:----------:------------:--------:--------:
+
+============================================= INJECTION REPORT ==============================================
+ :  WELL  : LOCATION  : CTRL : CTRL : CTRL :    OIL    :   WATER   :    GAS    :   FLUID   : BHP OR : THP OR :
+ :  NAME  :  (I,J,K)  : MODE : MODE : MODE :   RATE    :   RATE    :   RATE    : RES.VOL.  :CON.PR. :BLK.PR. :
+ :        :           : OIL  : WAT  : GAS  :  STB/DAY  :  STB/DAY  : MSCF/DAY  :  RB/DAY   :  PSIA  :  PSIA  :
+=============================================================================================================
+:FIELD   :           :      :      :      :        0.0:        0.0:   100000.0:    87161.4:        :        :
+:G1      :           :      :      :      :        0.0:        0.0:   100000.0:    87161.4:        :        :
+:INJ     :  1,  1    :      :      :  GRAT:        0.0:        0.0:   100000.0:    87161.4:  4284.4:     0.0:
+ :--------:-----------:------:------:------:-----------:-----------:-----------:-----------:--------:--------:
+
+============================================== CUMULATIVE PRODUCTION/INJECTION TOTALS ==============================================
+ :  WELL  : LOCATION  :  WELL  :CTRL:    OIL    :   WATER   :    GAS    :   Prod    :    OIL    :   WATER   :    GAS    :    INJ    :
+ :  NAME  :  (I,J,K)  :  TYPE  :MODE:   PROD    :   PROD    :   PROD    : RES.VOL.  :    INJ    :    INJ    :    INJ    : RES.VOL.  :
+ :        :           :        :    :   MSTB    :   MSTB    :   MMSCF   :    MRB    :   MSTB    :   MSTB    :   MMSCF   :    MRB    :
+====================================================================================================================================
+:FIELD   :           :        :    :    45873.0:        0.0:      355.0:   292359.8:        0.0:        0.0:      365.0:   253192.4:
+:G1      :           :        :    :    45873.0:        0.0:      355.0:   292359.8:        0.0:        0.0:      365.0:   253192.4:
+:PROD    : 10, 10    :    PROD:ORAT:    45873.0:        0.0:      355.0:   292359.8:        0.0:        0.0:        0.0:        0.0:
+:INJ     :  1,  1    :     INJ:GRAT:        0.0:        0.0:        0.0:        0.0:        0.0:        0.0:      365.0:   253192.4:
+ :--------:-----------:--------:----:-----------:-----------:-----------:-----------:-----------:-----------:-----------:-----------:
+
+Restart file written for report step 120/120, date = 29-Dec-2024 00:00:00
+[... lines omitted ...]
+================    End of simulation     ===============
+
+Number of MPI processes:         1
+Threads per MPI process:         2
+Setup time:                      0.11 s
+  Deck input:                    0.09 s
+Number of timesteps:           250
+Simulation time:                 7.62 s
+  Assembly time:                 1.11 s (Wasted: 0.2 s; 14.5%)
+    Well assembly:               0.30 s (Wasted: 0.0 s; 3.2%)
+  Linear solve time:             2.15 s (Wasted: 0.2 s; 8.5%)
+    Linear setup:                1.39 s (Wasted: 0.1 s; 6.8%)
+  Props/update time:             1.60 s (Wasted: 0.3 s; 21.0%)
+  Pre/post step:                 1.21 s (Wasted: 0.0 s; 3.6%)
+  Output write time:             1.49 s
+Overall Linearizations:        730      (Wasted:    90; 12.3%)
+Overall Newton Iterations:     510      (Wasted:    90; 17.6%)
+Overall Linear Iterations:     601      (Wasted:   104; 17.3%)
+
+
+
+Error summary:
+Warnings          2
+Info              810
+Errors            0
+Bugs              0
+Debug             0
+Problems          30
+

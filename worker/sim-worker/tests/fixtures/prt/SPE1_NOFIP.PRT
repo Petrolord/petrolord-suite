@@ -1,0 +1,73 @@
+-- Excerpt of the PRT OPM Flow 2026.04 wrote for the unmodified SPE1CASE1 (no fluid-in-place report). Lines kept verbatim.
+Flow Version     =  2026.04 (Ubuntu 24.04.4 LTS: 2026.04-1~noble)
+[... lines omitted ...]
+Total number of active cells: 300 / total pore volume: 534322820 RB
+[... lines omitted ...]
+                              **************************************************************************
+  WELLS    AT      3650  DAYS *                 SPE1 - CASE 1                                          *
+  REPORT  120    29 Dec 2024  *                                             Flow  version     2026.04  *
+                              **************************************************************************
+
+
+======================================================= PRODUCTION REPORT =======================================================
+ :  WELL  : LOCATION  :CTRL:    OIL    :   WATER   :    GAS    :   FLUID   :   WATER   : GAS/OIL  :  WAT/GAS   : BHP OR : THP OR :
+ :  NAME  :  (I,J,K)  :MODE:   RATE    :   RATE    :   RATE    : RES.VOL.  :    CUT    :  RATIO   :   RATIO    :CON.PR. :BLK.PR. :
+ :        :           :    :  STB/DAY  :  STB/DAY  : MSCF/DAY  :  RB/DAY   :           : MSCF/STB :  STB/MSCF  :  PSIA  :  PSIA  :
+=================================================================================================================================
+:FIELD   :           :    :     5558.1:        0.0:   119351.0:   107533.2:      0.000:     21.47:      0.0000:        :        :
+:G1      :           :    :     5558.1:        0.0:   119351.0:   107533.2:      0.000:     21.47:      0.0000:        :        :
+:PROD    : 10, 10    :ORAT:     5558.1:       -0.0:   119351.0:   107533.2:     -0.000:     21.47:      0.0000:  1000.0:     0.0:
+ :--------:-----------:----:-----------:-----------:-----------:-----------:-----------:----------:------------:--------:--------:
+
+============================================= INJECTION REPORT ==============================================
+ :  WELL  : LOCATION  : CTRL : CTRL : CTRL :    OIL    :   WATER   :    GAS    :   FLUID   : BHP OR : THP OR :
+ :  NAME  :  (I,J,K)  : MODE : MODE : MODE :   RATE    :   RATE    :   RATE    : RES.VOL.  :CON.PR. :BLK.PR. :
+ :        :           : OIL  : WAT  : GAS  :  STB/DAY  :  STB/DAY  : MSCF/DAY  :  RB/DAY   :  PSIA  :  PSIA  :
+=============================================================================================================
+:FIELD   :           :      :      :      :        0.0:        0.0:   100000.0:    87153.0:        :        :
+:G1      :           :      :      :      :        0.0:        0.0:   100000.0:    87153.0:        :        :
+:INJ     :  1,  1    :      :      :  GRAT:        0.0:        0.0:   100000.0:    87153.0:  4285.2:     0.0:
+ :--------:-----------:------:------:------:-----------:-----------:-----------:-----------:--------:--------:
+
+============================================== CUMULATIVE PRODUCTION/INJECTION TOTALS ==============================================
+ :  WELL  : LOCATION  :  WELL  :CTRL:    OIL    :   WATER   :    GAS    :   Prod    :    OIL    :   WATER   :    GAS    :    INJ    :
+ :  NAME  :  (I,J,K)  :  TYPE  :MODE:   PROD    :   PROD    :   PROD    : RES.VOL.  :    INJ    :    INJ    :    INJ    : RES.VOL.  :
+ :        :           :        :    :   MSTB    :   MSTB    :   MMSCF   :    MRB    :   MSTB    :   MSTB    :   MMSCF   :    MRB    :
+====================================================================================================================================
+:FIELD   :           :        :    :    45898.4:        0.0:      355.0:   292389.8:        0.0:        0.0:      365.0:   253403.7:
+:G1      :           :        :    :    45898.4:        0.0:      355.0:   292389.8:        0.0:        0.0:      365.0:   253403.7:
+:PROD    : 10, 10    :    PROD:ORAT:    45898.4:        0.0:      355.0:   292389.8:        0.0:        0.0:        0.0:        0.0:
+:INJ     :  1,  1    :     INJ:GRAT:        0.0:        0.0:        0.0:        0.0:        0.0:        0.0:      365.0:   253403.7:
+ :--------:-----------:--------:----:-----------:-----------:-----------:-----------:-----------:-----------:-----------:-----------:
+
+Restart file written for report step 120/120, date = 29-Dec-2024 00:00:00
+[... lines omitted ...]
+================    End of simulation     ===============
+
+Number of MPI processes:         1
+Threads per MPI process:         2
+Setup time:                      0.41 s
+  Deck input:                    0.29 s
+Number of timesteps:           123
+Simulation time:                 5.92 s
+  Assembly time:                 1.18 s (Wasted: 0.0 s; 0.0%)
+    Well assembly:               0.07 s (Wasted: 0.0 s; 0.0%)
+  Linear solve time:             1.37 s (Wasted: 0.0 s; 0.0%)
+    Linear setup:                1.08 s (Wasted: 0.0 s; 0.0%)
+  Props/update time:             1.18 s (Wasted: 0.0 s; 0.0%)
+  Pre/post step:                 0.87 s (Wasted: 0.0 s; 0.0%)
+  Output write time:             1.30 s
+Overall Linearizations:        436      (Wasted:     0; 0.0%)
+Overall Newton Iterations:     313      (Wasted:     0; 0.0%)
+Overall Linear Iterations:     442      (Wasted:     0; 0.0%)
+
+
+
+Error summary:
+Warnings          1
+Info              587
+Errors            0
+Bugs              0
+Debug             0
+Problems          0
+

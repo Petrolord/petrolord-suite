@@ -1,78 +1,85 @@
+ContinueOnConvergenceError="0"
+NewtonMaxError="1e+100"
+TpsaNewtonMaxError="1e+100"
+Error summary:
+Errors            0
+
+---- tail ----
+=================================================================================================================================
+:FIELD   :           :    :     4000.0:        0.1:     3197.3:     5771.0:      0.000:      0.80:      0.0000:        :        :
+:G1      :           :    :     4000.0:        0.1:     3197.3:     5771.0:      0.000:      0.80:      0.0000:        :        :
+:PROD1   :  9,  9    :ORAT:     4000.0:        0.1:     3197.3:     5771.0:      0.000:      0.80:      0.0000:  3037.3:     0.0:
+ :--------:-----------:----:-----------:-----------:-----------:-----------:-----------:----------:------------:--------:--------:
+
+============================================= INJECTION REPORT ==============================================
+ :  WELL  : LOCATION  : CTRL : CTRL : CTRL :    OIL    :   WATER   :    GAS    :   FLUID   : BHP OR : THP OR :
+ :  NAME  :  (I,J,K)  : MODE : MODE : MODE :   RATE    :   RATE    :   RATE    : RES.VOL.  :CON.PR. :BLK.PR. :
+ :        :           : OIL  : WAT  : GAS  :  STB/DAY  :  STB/DAY  : MSCF/DAY  :  RB/DAY   :  PSIA  :  PSIA  :
+=============================================================================================================
+:FIELD   :           :      :      :      :        0.0:     5000.0:        0.0:     5109.8:        :        :
+:G1      :           :      :      :      :        0.0:     5000.0:        0.0:     5109.8:        :        :
+:INJ1    :  2,  2    :      :  WRAT:      :        0.0:     5000.0:        0.0:     5109.8:  3940.0:     0.0:
+ :--------:-----------:------:------:------:-----------:-----------:-----------:-----------:--------:--------:
+
+============================================== CUMULATIVE PRODUCTION/INJECTION TOTALS ==============================================
+ :  WELL  : LOCATION  :  WELL  :CTRL:    OIL    :   WATER   :    GAS    :   Prod    :    OIL    :   WATER   :    GAS    :    INJ    :
+ :  NAME  :  (I,J,K)  :  TYPE  :MODE:   PROD    :   PROD    :   PROD    : RES.VOL.  :    INJ    :    INJ    :    INJ    : RES.VOL.  :
+ :        :           :        :    :   MSTB    :   MSTB    :   MMSCF   :    MRB    :   MSTB    :   MSTB    :   MMSCF   :    MRB    :
+====================================================================================================================================
+:FIELD   :           :        :    :     7305.1:        0.1:        5.8:    10478.6:        0.0:     9131.4:        0.0:     9320.1:
+:G1      :           :        :    :     7305.1:        0.1:        5.8:    10478.6:        0.0:     9131.4:        0.0:     9320.1:
+:PROD1   :  9,  9    :    PROD:ORAT:     7305.1:        0.1:        5.8:    10478.6:        0.0:        0.0:        0.0:        0.0:
+:INJ1    :  2,  2    :     INJ:WRAT:        0.0:        0.0:        0.0:        0.0:        0.0:     9131.4:        0.0:     9320.1:
+ :--------:-----------:--------:----:-----------:-----------:-----------:-----------:-----------:-----------:-----------:-----------:
+
+                              **************************************************************************
+  BALANCE  AT   1826.28  DAYS *     MY FIRST SIMULATION MODEL                                          *
+  REPORT   60    01 Jan 2031  *                                             Flow  version     2026.04  *
+                              **************************************************************************
 
 
-Report step 52/60 at day 1582.78/1826.28, date = 02-May-2030
-
-Starting time step 0, stepsize 30.438 days, at day 1582.78/1613.21, date = 02-May-2030
- Newton its= 2, linearizations= 3 (0.0sec), linear its=  2 (0.0sec)
-
-
-Report step 53/60 at day 1613.21/1826.28, date = 02-Jun-2030
-
-Starting time step 0, stepsize 30.438 days, at day 1613.21/1643.65, date = 02-Jun-2030
- Newton its= 2, linearizations= 3 (0.0sec), linear its=  1 (0.0sec)
-
-
-Report step 54/60 at day 1643.65/1826.28, date = 02-Jul-2030
-
-Starting time step 0, stepsize 30.438 days, at day 1643.65/1674.09, date = 02-Jul-2030
- Newton its= 2, linearizations= 3 (0.0sec), linear its=  1 (0.0sec)
+                                                     ==================================================
+                                                     :                  FIELD TOTALS                  :
+                                                     :        PAV  =          3365  PSIA              :
+                                                     :        PORV =      87717996  RB                :
+                                                     : Pressure is weighted by hydrocarbon pore volume:
+                                                     : Pore volumes are taken at reference conditions :
+                           :--------------- OIL  STB ------------------:-- WAT    STB --:--------------  GAS    MSCF ---------------:
+                           :    LIQUID         VAPOUR        TOTAL     :     TOTAL      :     FREE        DISSOLVED       TOTAL     :
+ :-------------------------:-------------------------------------------:----------------:-------------------------------------------:
+ :CURRENTLY IN PLACE       :   45010931          0          45010931   :    22049295    :      296         36008532      36008828   :
+ :-------------------------:-------------------------------------------:----------------:-------------------------------------------:
+ :ORIGINALLY IN PLACE      :   52316043          0          52316043   :    12917977    :       0          41852834      41852834   :
+ ====================================================================================================================================
 
 
-Report step 55/60 at day 1674.09/1826.28, date = 02-Aug-2030
-
-Starting time step 0, stepsize 30.438 days, at day 1674.09/1704.53, date = 02-Aug-2030
- Newton its= 3, linearizations= 4 (0.0sec), linear its=  2 (0.0sec)
-
-
-Report step 56/60 at day 1704.53/1826.28, date = 01-Sep-2030
-
-Starting time step 0, stepsize 30.438 days, at day 1704.53/1734.97, date = 01-Sep-2030
- Newton its= 2, linearizations= 3 (0.0sec), linear its=  2 (0.0sec)
-
-
-Report step 57/60 at day 1734.97/1826.28, date = 01-Oct-2030
-
-Starting time step 0, stepsize 30.438 days, at day 1734.97/1765.4, date = 01-Oct-2030
- Newton its= 2, linearizations= 3 (0.0sec), linear its=  1 (0.0sec)
-
-
-Report step 58/60 at day 1765.4/1826.28, date = 01-Nov-2030
-
-Starting time step 0, stepsize 30.438 days, at day 1765.4/1795.84, date = 01-Nov-2030
- Newton its= 3, linearizations= 4 (0.0sec), linear its=  2 (0.0sec)
-
-
-Report step 59/60 at day 1795.84/1826.28, date = 01-Dec-2030
-
-Starting time step 0, stepsize 30.438 days, at day 1795.84/1826.28, date = 01-Dec-2030
- Newton its= 3, linearizations= 4 (0.0sec), linear its=  2 (0.0sec)
 
 
 
 ================    End of simulation     ===============
 
 Number of MPI processes:         1
-Threads per MPI process:         1
-Setup time:                      0.06 s
-  Deck input:                    0.05 s
+Threads per MPI process:         2
+Setup time:                      0.17 s
+  Deck input:                    0.09 s
 Number of timesteps:            63
-Simulation time:                 0.34 s
-  Assembly time:                 0.08 s (Wasted: 0.0 s; 0.0%)
+Simulation time:                 0.98 s
+  Assembly time:                 0.13 s (Wasted: 0.0 s; 0.0%)
     Well assembly:               0.02 s (Wasted: 0.0 s; 0.0%)
-  Linear solve time:             0.14 s (Wasted: 0.0 s; 0.0%)
-    Linear setup:                0.12 s (Wasted: 0.0 s; 0.0%)
-  Props/update time:             0.04 s (Wasted: 0.0 s; 0.0%)
-  Pre/post step:                 0.05 s (Wasted: 0.0 s; 0.0%)
-  Output write time:             0.01 s
-Overall Linearizations:        195      (Wasted:     0; 0.0%)
-Overall Newton Iterations:     132      (Wasted:     0; 0.0%)
-Overall Linear Iterations:     122      (Wasted:     0; 0.0%)
+  Linear solve time:             0.41 s (Wasted: 0.0 s; 0.0%)
+    Linear setup:                0.32 s (Wasted: 0.0 s; 0.0%)
+  Props/update time:             0.22 s (Wasted: 0.0 s; 0.0%)
+  Pre/post step:                 0.19 s (Wasted: 0.0 s; 0.0%)
+  Output write time:             0.02 s
+Overall Linearizations:        192      (Wasted:     0; 0.0%)
+Overall Newton Iterations:     129      (Wasted:     0; 0.0%)
+Overall Linear Iterations:     125      (Wasted:     0; 0.0%)
 
 
 
 Error summary:
-Warnings          0
-Info              277
+Warnings          3
+Info              278
 Errors            0
 Bugs              0
 Debug             0

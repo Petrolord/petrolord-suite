@@ -1,0 +1,7 @@
+Daily allocation export (operator X)
+date;well;oil;water;gas
+;;STB/d;STB/d;scf/d
+15/01/2025;PROD1;1.500,5;100,0;900.000
+15/01/2025;INJ1;;2.400,0;
+15/02/2025;PROD1;1.450,0;120,5;880.000
+15/02/2025;INJ1;;2.450,0;

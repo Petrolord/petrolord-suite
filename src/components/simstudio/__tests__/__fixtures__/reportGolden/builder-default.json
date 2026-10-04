@@ -1,0 +1,129 @@
+{
+  "pages": 6,
+  "sha256": "50d3c51f63be8b14eae372e765b83ba93b0bfe13ff14fac050bfea370d996dff",
+  "figures": [
+    {
+      "id": "rates",
+      "number": 1,
+      "page": 5,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 29,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "Oil (FOPR)": 63,
+            "Water (FWPR)": 63,
+            "Gas (FGPR)": 63
+          },
+          "total": 189,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "cumulative",
+      "number": 2,
+      "page": 5,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 108.36,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "Oil produced (FOPT)": 63,
+            "Water injected (FWIT)": 63
+          },
+          "total": 126,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "pressure",
+      "number": 3,
+      "page": 5,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 187.72,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "Field average (FPR)": 63,
+            "BHP INJ1": 63,
+            "BHP PROD1": 63
+          },
+          "total": 189,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "cut-gor",
+      "number": 4,
+      "page": 6,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "Water cut (FWCT)": 63,
+            "GOR (FGOR)": 63
+          },
+          "total": 126,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "injection",
+      "number": 5,
+      "page": 6,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 102.36,
+            "w": 182,
+            "h": 62
+          },
+          "drawn": {
+            "Water (FWIR)": 63
+          },
+          "total": 63,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "history",
+      "number": 6,
+      "page": 6,
+      "plotted": false,
+      "panels": []
+    }
+  ]
+}

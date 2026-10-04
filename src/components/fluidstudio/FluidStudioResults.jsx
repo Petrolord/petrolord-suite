@@ -50,6 +50,8 @@ const ROUTES = {
   wellTest: ['/dashboard/apps/reservoir/well-test-analysis-studio', '/dev/well-test-analysis-studio'],
   // WF-U1: Waterflood Design Studio reads the saved block by id on its Pattern tab
   waterflood: ['/dashboard/apps/reservoir/waterflood-design-studio', '/dev/studio/waterflood'],
+  // SIM-U1-003: the deck builder reads the saved block by id (PVTO, PVDG and PVTW from its table)
+  simulation: ['/dashboard/apps/reservoir/reservoir-simulation-studio', '/dev/reservoir-simulation-studio'],
 };
 
 // Facilities F1: the hand-off returns, pointing at the Pipeline & Line
@@ -81,6 +83,7 @@ const IntegrationSuite = ({ backbone, projectId, onBeforeSend }) => {
   const sendToWellTest = () => { if (wellTestReady) send('wellTest'); };
   // Waterflood takes viscosities and FVFs from the saved table at a pressure it states, so it needs the project id
   const sendToWaterflood = () => { if (projectId) send('waterflood', '&tab=pattern'); };
+  const sendToSimulation = () => { if (projectId) send('simulation', '&tab=builder'); };
 
   return (
     <Card className="mt-6" data-testid="fluid-integration">
@@ -106,6 +109,9 @@ const IntegrationSuite = ({ backbone, projectId, onBeforeSend }) => {
           </Button>
           <Button onClick={sendToWaterflood} disabled={!projectId} variant="outline" className="flex-1 disabled:opacity-40" title={projectId ? undefined : 'Save the fluid as a project first: Waterflood reads it by id'} data-testid="fluid-send-waterflood">
             <Zap className="w-4 h-4 mr-2" /> Send to Waterflood Design Studio
+          </Button>
+          <Button onClick={sendToSimulation} disabled={!projectId} variant="outline" className="flex-1 disabled:opacity-40" title={projectId ? undefined : 'Save the fluid as a project first: Reservoir Simulation Studio reads it by id'} data-testid="fluid-send-simulation">
+            <Zap className="w-4 h-4 mr-2" /> Send to Reservoir Simulation Studio
           </Button>
         </div>
       </CardContent>

@@ -116,6 +116,39 @@ something real. Regenerate the reference fixtures from the matching opm-tests
 revision. Never silently widen the tolerance, and note any widening in the
 STATUS doc.
 
+## What the worker reads from the PRT (SIM-U1, 2026-10-04)
+
+`simworker/prt.py` reads the simulator's PRT file after every run and the
+summary document carries it as `diagnostics` (`schema: prt-1`):
+
+- active cells and pore volume (also written to `sim_runs.active_cells`);
+- the end-of-run statistics: time steps, Newton and linear iterations and
+  linearizations with their wasted counts, the error summary (warnings,
+  errors, problems);
+- every "Timestep chopped" with the problem before it (first 20 listed);
+- the material balance per component, when the deck asks for the
+  fluid-in-place report (RPTSOL / RPTSCHED `FIP`) and the well reports
+  (RPTSCHED `WELLS`): (originally in place - in place) - (produced -
+  injected) at the last report step holding both tables, with the rounding
+  of the printed tables. FIELD decks only: OPM Flow 2026.04 prints gas
+  cumulatives under an MMSCF head in units of 10^6 Mscf, which
+  `tests/integration/test_prt_gate.py` holds against WGPT/WGIT of the same
+  run; a METRIC balance is not computed until its labels are checked.
+
+Two things this needs from the run itself:
+
+- **Terminal output stays on** (`--enable-terminal-output=true`, stdout to
+  `flow.stdout` in the scratch dir). With it off, OPM Flow 2026.04 leaves the
+  chopped steps and the end-of-run statistics out of the PRT.
+- The summary also carries `unit_system` (the deck's RUNSPEC unit keyword,
+  `unstated` when there is none) and `run` (worker id, attempt, elapsed,
+  exit code). A failed run keeps its exit code, elapsed time, log and active
+  cells on the row.
+
+Until this build is deployed, runs are made by the earlier worker and the
+Studio's report prints "not reported by this build" for the material
+balance and the convergence.
+
 ## Failure taxonomy
 
 `sim_runs.failure_stage`: `validate_failed` (deny-list/caps, actionable

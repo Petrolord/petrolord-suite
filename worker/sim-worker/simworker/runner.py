@@ -33,7 +33,12 @@ def run_flow(workdir, deck_name, should_cancel):
         "flow", deck_name,
         "--output-dir=out",
         f"--threads-per-process={config.FLOW_THREADS}",
-        "--enable-terminal-output=false",
+        # SIM-U1: terminal output stays on. With it off OPM Flow 2026.04
+        # leaves out of the PRT the two things the report needs from it:
+        # every "Timestep chopped" line and the end-of-run statistics
+        # (time steps, Newton and linear iterations, the error summary).
+        # stdout goes to a file in the scratch dir (tens of KB per run).
+        "--enable-terminal-output=true",
     ]
     env = {
         "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
@@ -41,10 +46,11 @@ def run_flow(workdir, deck_name, should_cancel):
         "HOME": workdir,
     }
     stderr_path = os.path.join(workdir, "flow.stderr")
+    stdout_path = os.path.join(workdir, "flow.stdout")
     started = time.monotonic()
-    with open(stderr_path, "wb") as stderr_f:
+    with open(stderr_path, "wb") as stderr_f, open(stdout_path, "wb") as stdout_f:
         proc = subprocess.Popen(cmd, cwd=workdir, env=env,
-                                stdout=subprocess.DEVNULL, stderr=stderr_f,
+                                stdout=stdout_f, stderr=stderr_f,
                                 preexec_fn=_preexec)
         timed_out = cancelled = False
         while True:
