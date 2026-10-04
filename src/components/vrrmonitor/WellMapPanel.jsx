@@ -71,7 +71,15 @@ export default function WellMapPanel() {
     if (dropped.length) setError(`Left off the map (the registry well is gone or has no location): ${dropped.join(', ')}.`);
   };
   const points = (type) => map.points.filter((p) => p.type === type).map((p) => ({ ...p, valueShown: Math.round(u.show('reservoir', p.value)) }));
-  const centres = map.patterns.filter((q) => q.placed).map((q) => ({ ...q, well: `${q.name} (VRR ${fmt(q.cumulativeVRR, 2)})`, valueShown: 0 }));
+  const centres = map.patterns.filter((q) => q.placed).map((q) => ({ ...q, well: `${q.name} ${fmt(q.cumulativeVRR, 2)}`, valueShown: 0 }));
+  // a margin round the wells so no bubble is cut by the frame
+  const padded = (key) => {
+    const v = map.points.map((p) => p[key]);
+    if (!v.length) return ['auto', 'auto'];
+    const lo = Math.min(...v); const hi = Math.max(...v);
+    const m = Math.max((hi - lo) * 0.15, 50);
+    return [Math.floor(lo - m), Math.ceil(hi + m)];
+  };
 
   return (
     <>
@@ -132,8 +140,8 @@ export default function WellMapPanel() {
             <ChartFrame height={420} exportFilename="vrr-bubble-map">
               <ScatterChart margin={{ top: 12, right: 24, bottom: 8, left: 8 }}>
                 <CartesianGrid {...GRID_STYLE} />
-                <XAxis type="number" dataKey="x" name="X" unit={map.xyUnit ? ` ${map.xyUnit}` : ''} domain={['auto', 'auto']} {...axisProps} />
-                <YAxis type="number" dataKey="y" name="Y" unit={map.xyUnit ? ` ${map.xyUnit}` : ''} domain={['auto', 'auto']} width={90} {...axisProps} />
+                <XAxis type="number" dataKey="x" name="X" unit={map.xyUnit ? ` ${map.xyUnit}` : ''} domain={padded('x')} allowDataOverflow={false} {...axisProps} />
+                <YAxis type="number" dataKey="y" name="Y" unit={map.xyUnit ? ` ${map.xyUnit}` : ''} domain={padded('y')} width={90} {...axisProps} />
                 <ZAxis type="number" dataKey="valueShown" range={[60, 1600]} name={u.label('reservoir')} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: CHART_COLORS.tooltipText }} itemStyle={{ color: CHART_COLORS.tooltipText }} cursor={{ strokeDasharray: '3 3' }} />
                 <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
@@ -144,8 +152,8 @@ export default function WellMapPanel() {
                   <LabelList dataKey="well" position="top" style={{ fontSize: 10, fill: CHART_COLORS.axisText }} />
                 </Scatter>
                 {centres.length > 0 && (
-                  <Scatter name="Pattern centre (cumulative VRR)" data={centres} fill={COLOR.pattern} shape="square" isAnimationActive={false}>
-                    <LabelList dataKey="well" position="bottom" style={{ fontSize: 10, fill: COLOR.pattern }} />
+                  <Scatter name="Pattern centre and its cumulative VRR" data={centres} fill={COLOR.pattern} shape="square" isAnimationActive={false}>
+                    <LabelList dataKey="well" position="right" offset={14} style={{ fontSize: 10, fontWeight: 600, fill: COLOR.pattern }} />
                   </Scatter>
                 )}
               </ScatterChart>
