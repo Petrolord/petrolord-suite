@@ -82,6 +82,14 @@ const ScalHelpContent = () => (
       the depth reference of a well from the wells registry, which the Suite's datum module turns into TVDSS (or
       refuses, with the reason, when the well has no reference elevation). The FWL is marked on the chart.
     </P>
+    <P>
+      The water and oil gravities can come from a saved Fluid Systems Studio project: choose it (or open SCAL Studio
+      with the project in the address), state the reservoir pressure or leave it at the bubble point, and take them.
+      The oil density is the stock-tank oil and its dissolved gas over Bo, and the brine density the standard density
+      for the salinity over Bw, read from the project's PVT table at that pressure and never extrapolated past it. A
+      card beside them keeps the source: it says when the Fluid project now holds a different fluid, and when you
+      typed over a value. The interfacial tension is not part of the Fluid project's PVT block, so it stays as entered.
+    </P>
 
     <H>5. Report</H>
     <P>

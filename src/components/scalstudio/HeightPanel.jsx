@@ -11,6 +11,7 @@ import { datumLine } from '@/lib/wellDatum';
 import { useScalStudio } from '@/contexts/ScalStudioContext';
 import { SectionLabel } from '@/components/waterflooddesign/primitives';
 import ScalField from './ScalField';
+import FluidGravitiesIntake from './FluidGravitiesIntake';
 
 const FIELDS = [
   { k: 'gammaW', label: 'γw, water specific gravity', kind: 'gravity' },
@@ -80,6 +81,7 @@ const HeightPanel = () => {
           datum of the field (MSL unless the well says otherwise), positive down.
         </p>
       </section>
+      <FluidGravitiesIntake />
       {(!jResolved.jSpec || !reservoir.props) && (
         <p className="text-xs text-pl-warning-text">
           The profile needs a working J-function and reservoir rock from the Capillary tab first.

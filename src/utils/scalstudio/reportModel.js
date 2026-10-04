@@ -21,6 +21,8 @@ import {
 import { OW_NORMALISATION, GO_NORMALISATION, J_DEFINITION, HEIGHT_DEFINITION } from './krHandoff.js';
 import { crossoverSw, heightAtSwFt } from './series.js';
 import { resolveFwl } from './fwlDatum.js';
+import { scalPvtSourceText } from './pvtGravities.js';
+import { editedAfterHandoffText } from '@/lib/inputProvenance/pvtContract';
 
 export const REPORT_TITLE = 'Special Core Analysis Report';
 export const APP_NAME = 'Petrolord SCAL Studio';
@@ -167,6 +169,12 @@ function inputsBlock(s, u) {
   for (const [k, label, mk] of [['gammaW', 'Water specific gravity', 'gammaW'], ['gammaHc', 'Hydrocarbon specific gravity', 'gammaHc']]) {
     const r = inputRow({ key: `height.${k}`, label, value: text(h[k]), unit: 'water = 1', meta: meta[mk] });
     if (r.source !== 'Not provided') r.source = groupSource(meta[mk], null, String(h[k]) === STARTING_VALUES.height[k]);
+    // SCAL-U2-005: taken from a Fluid Systems Studio project; an edit after the intake is said
+    const fromPvt = scalPvtSourceText(s.pvtIntake, k);
+    if (fromPvt) {
+      const received = s.pvtIntake.values[k];
+      r.source = Number(h[k]) === Number(received) ? fromPvt : editedAfterHandoffText(fromPvt, received);
+    }
     rows.push({ ...r, engineKeys: [`height.${k}`] });
   }
   const fwl = n(h.fwl_tvdss);

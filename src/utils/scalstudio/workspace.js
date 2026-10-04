@@ -303,6 +303,8 @@ export function inputsFromPayload(payload) {
     },
     height: { ...DEFAULT_HEIGHT, ...(payload?.height || {}) },
     notes: typeof payload?.notes === 'string' ? payload.notes : '',
+    // SCAL-U2-005: the gravities taken from a Fluid Systems Studio project, with their record
+    pvtIntake: payload?.pvtIntake && typeof payload.pvtIntake === 'object' ? payload.pvtIntake : null,
     identification: identificationOf(payload),
     inputMeta: deserializeProvenance(payload?.inputMeta),
     // a saved project keeps its own system; one saved before the upgrade is oilfield

@@ -62,6 +62,7 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
   const [capillary, setCapillary] = useState(DEFAULT_CAPILLARY);
   const [height, setHeight] = useState(DEFAULT_HEIGHT);
   const [notes, setNotes] = useState('');
+  const [pvtIntake, setPvtIntake] = useState(null); // SCAL-U2-005
   const [identification, setIdentification] = useState(EMPTY_IDENTIFICATION);
   const [inputMeta, setInputMeta] = useState({});
   const [unitSystemSaved, setUnitSystemSaved] = useState(null); // null: a new workspace follows the profile
@@ -157,9 +158,15 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
   // ---- The kr-1 block (SCAL-U1, RL11): one builder for save, handoff and report ----
   const projectRef = useRef({ id: null, name: '' });
   const contractFor = useCallback((id, name, generatedAt = new Date()) => buildScalKrContract({
-    curves, ow, go, capillary, jResolved, reservoir, height, heightProfile, samples, identification,
+    curves, ow, go, capillary, jResolved, reservoir, height, heightProfile, samples, identification, pvtIntake,
     projectId: id, projectName: name, build, generatedAt,
-  }), [curves, ow, go, capillary, jResolved, reservoir, height, heightProfile, samples, identification, build]);
+  }), [curves, ow, go, capillary, jResolved, reservoir, height, heightProfile, samples, identification, pvtIntake, build]);
+
+  // SCAL-U2-005: take the gravities of a Fluid Systems Studio project (its pvt-1 block)
+  const takeFluidGravities = useCallback((patch, intake) => {
+    setHeight((prev) => ({ ...prev, ...patch }));
+    setPvtIntake(intake);
+  }, []);
 
   // ---- Project persistence (inputs, the model around them, the kr-1 block) ----
   const serialize = useCallback((id, name) => ({
@@ -174,9 +181,10 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
     capillary,
     height,
     notes,
+    ...(pvtIntake ? { pvtIntake } : {}),
     [KR_CONTRACT_PAYLOAD_KEY]: contractFor(id, name),
     modified: new Date().toISOString(),
-  }), [unitSystem, identification, inputMeta, curves, samples, capillary, height, notes, contractFor]);
+  }), [unitSystem, identification, inputMeta, curves, samples, capillary, height, notes, pvtIntake, contractFor]);
 
   const hydrate = useCallback((payload) => {
     const i = inputsFromPayload(payload);
@@ -185,12 +193,13 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
     setCapillary(i.capillary);
     setHeight(i.height);
     setNotes(i.notes);
+    setPvtIntake(i.pvtIntake);
     setIdentification(i.identification);
     setInputMeta(i.inputMeta);
     setUnitSystemSaved(i.unitSystem);
   }, []);
 
-  const changeKey = useMemo(() => [curves, samples, capillary, height, notes, identification, inputMeta, unitSystem], [curves, samples, capillary, height, notes, identification, inputMeta, unitSystem]);
+  const changeKey = useMemo(() => [curves, samples, capillary, height, notes, identification, inputMeta, unitSystem, pvtIntake], [curves, samples, capillary, height, notes, identification, inputMeta, unitSystem, pvtIntake]);
   const proj = useScalProjects({ serialize, hydrate, changeKey, addNotification, sharingStore });
   projectRef.current = { id: proj.currentProjectId, name: proj.projectName };
   const contract = useMemo(
@@ -216,7 +225,7 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
     samples, setSamples, addSample, updateSample, removeSample,
     applyKrFitToCurves, applyGoFitToCurves,
     capillary, setCapillaryField, setManualJField, setReservoirField,
-    height, setHeightField, setFwlEntry,
+    height, setHeightField, setFwlEntry, pvtIntake, takeFluidGravities,
     notes, setNotes,
     identification, setIdentificationField,
     inputMeta, setSourceField,
