@@ -22,6 +22,7 @@ import {
 import { deriveRf } from '@/utils/rfestimator/workspace';
 import { rfUnits } from '@/utils/rfestimator/units';
 import { rfRecordOf } from '@/utils/rfestimator/rfRecord';
+import { drawSeed } from '@/utils/rfestimator/uncertainty';
 
 const TABLE = RF_PROJECTS_TABLE;
 
@@ -96,6 +97,12 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
   const setOoipDirect = useCallback((value) => edit((prev) => ({ ...prev, ooipDirect: value, origin: 'entered' })), [edit]);
   const setVolField = useCallback((key, value) => edit((prev) => ({ ...prev, vol: { ...prev.vol, [key]: value }, origin: prev.origin === 'sample' ? 'sample-edited' : prev.origin })), [edit]);
   const setCorrField = useCallback((key, value) => edit((prev) => ({ ...prev, corr: { ...prev.corr, [key]: value }, origin: prev.origin === 'sample' ? 'sample-edited' : prev.origin })), [edit]);
+  // RF-U2-002: the uncertainty run. Switching it on draws a seed when none is held, so the run is reproducible.
+  const setMcField = useCallback((key, value) => edit((prev) => ({ ...prev, mc: { ...prev.mc, [key]: value } })), [edit]);
+  const setMcEnabled = useCallback((on) => edit((prev) => ({
+    ...prev, mc: { ...prev.mc, enabled: !!on, seed: on && !String(prev.mc?.seed ?? '').trim() ? String(drawSeed()) : prev.mc?.seed },
+  })), [edit]);
+  const newMcSeed = useCallback(() => edit((prev) => ({ ...prev, mc: { ...prev.mc, seed: String(drawSeed()) } })), [edit]);
   const setIdentificationField = useCallback((k, v) => setIdentification((prev) => ({ ...prev, [k]: v })), []);
   const setInputSource = useCallback((key, field, value) => setInputMeta((prev) => setProvenanceField(prev, key, field, value)), []);
   const setUnitSystem = useCallback((sys) => setUnitSystemSaved(sys === 'si' ? 'si' : 'oilfield'), []);
@@ -312,6 +319,8 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
     setOoipDirect,
     setVolField,
     setCorrField,
+    setMcField, setMcEnabled, newMcSeed,
+    uncertainty: derived.uncertainty,
     loadSample,
     // report, sources, units, intakes
     identification, setIdentificationField,

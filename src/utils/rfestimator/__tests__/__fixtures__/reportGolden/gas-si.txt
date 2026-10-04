@@ -136,6 +136,8 @@ Basis and conventions
  Display units                       SI (area ha, thickness m, pressure kPa absolute, FVF rm3/sm3, volumes sm3, permeability mD, viscosity
                                      mPa.s)
 
+ Uncertainty                         Not run: the estimate is deterministic
+
 
 
 

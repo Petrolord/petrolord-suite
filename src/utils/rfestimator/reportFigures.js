@@ -6,7 +6,7 @@
  *
  * Pure: returns Report Kit figure entries.
  */
-import { reservesBars, analogRangeRows } from './series.js';
+import { reservesBars, analogRangeRows, exceedanceSeries } from './series.js';
 
 const g = (v, s = 3) => (Number.isFinite(v) ? String(parseFloat(Number(v).toPrecision(s))) : 'n/a');
 const RGB = { low: [100, 116, 139], est: [5, 150, 105], high: [37, 99, 235], ref: [220, 38, 38], typical: [124, 58, 237] };
@@ -38,6 +38,23 @@ export function buildRfReportFigures({ model, state }) {
     });
   } else {
     figs.push({ id: 'reserves', title: 'Recoverable volume: analog range edges and the estimate', statement: 'Not drawn: there is no in-place volume, so no recoverable volume can be computed.' });
+  }
+
+  // 1b. RF-U2-002: the exceedance curve of the recoverable volume (only when the run is on)
+  if (derived.uncertainty?.ok) {
+    const ex = exceedanceSeries(derived.uncertainty, derived.phase, u.system);
+    figs.push({
+      id: 'exceedance',
+      title: 'Recoverable volume: probability of exceedance',
+      caption: `The seeded Monte Carlo of RF x ${derived.phase === 'gas' ? 'OGIP' : 'OOIP'} (seed ${derived.uncertainty.seed}, ${derived.uncertainty.accepted} realisations): the probability that the recoverable volume meets or exceeds each value. P90 (the low case) ${g(ex.marks[0].x, 4)}, P50 ${g(ex.marks[1].x, 4)}, P10 (the high case) ${g(ex.marks[2].x, 4)} ${ex.unit}.`,
+      panels: [{ height: 62, spec: {
+        xTitle: `Recoverable volume (${ex.unit})`, yTitle: 'Probability of exceedance (percent)', yInclude: [0, 100],
+        series: [
+          { name: 'Exceedance', type: 'line', rgb: RGB.high, pts: ex.pts.map((p) => [p.x, p.y]), width: 0.5 },
+          { name: 'P90, P50, P10', type: 'scatter', rgb: RGB.ref, pts: ex.marks.map((m) => [m.x, m.y]), marker: 'circle' },
+        ],
+      } }],
+    });
   }
 
   // 2. the analog ranges of the phase, with the estimate as a line

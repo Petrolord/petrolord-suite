@@ -28,3 +28,19 @@ export function analogRangeRows(drives, result) {
     selected: d.code === result?.analog?.code,
   }));
 }
+
+/**
+ * RF-U2-002: the exceedance curve of the recoverable volume of an uncertainty
+ * run, in the display multiple, and its P90, P50 and P10 points (P90 the low
+ * case). Probability of exceedance in percent = 100 - the cumulative percent.
+ */
+export function exceedanceSeries(uncertainty, phase, system = 'oilfield') {
+  const st = uncertainty?.ok ? uncertainty.stats?.recoverable : null;
+  const kind = phase === 'gas' ? 'gasVolumeB' : 'oilVolumeMM';
+  const scale = phase === 'gas' ? 1e9 : 1e6;
+  const show = (v) => toDisplay(kind, v / scale, system);
+  if (!st?.cdf?.length) return { pts: [], marks: [], unit: unitLabel(kind, system) };
+  const pts = st.cdf.map((c) => ({ x: show(c.x), y: 100 - c.y }));
+  const marks = [['P90', st.p90, 90], ['P50', st.p50, 50], ['P10', st.p10, 10]].map(([label, v, y]) => ({ label, x: show(v), y }));
+  return { pts, marks, unit: unitLabel(kind, system) };
+}

@@ -223,7 +223,37 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
     ['Pressures', 'Absolute, as entered; no datum correction'],
     ['Range', 'Low and high are the edges of the analog screening range of the drive named, not P90 and P10 of a distribution'],
     ['Display units', u.line()],
+    ['Uncertainty', derived.uncertainty?.ok ? `Seeded Monte Carlo on the Suite's canonical sampler, seed ${derived.uncertainty.seed}, ${derived.uncertainty.accepted} realisations. ${derived.uncertainty.convention}` : 'Not run: the estimate is deterministic'],
   ];
+
+  // ---- uncertainty (RF-U2-002) ---------------------------------------------
+  let uncertainty = null;
+  const unc = derived.uncertainty;
+  if (unc?.ok) {
+    const st = unc.stats;
+    const vol = (v) => big(v);
+    uncertainty = {
+      head: ['Quantity', 'P90 (low)', 'P50', 'P10 (high)', 'Mean', 'Unit'],
+      rows: [
+        ['Recovery factor', pct(st.rf.p90), pct(st.rf.p50), pct(st.rf.p10), pct(st.rf.mean), 'percent'],
+        [ip, vol(st.inPlace.p90), vol(st.inPlace.p50), vol(st.inPlace.p10), vol(st.inPlace.mean), u.label(bigKind)],
+        ['Recoverable volume', vol(st.recoverable.p90), vol(st.recoverable.p50), vol(st.recoverable.p10), vol(st.recoverable.mean), u.label(bigKind)],
+      ],
+      runRows: [
+        ['Recovery factor distribution', unc.words.rf],
+        [`${ip} distribution`, unc.words.ip],
+        ['Dependence', 'RF and the in-place volume drawn independently'],
+        ['Sampler', 'The Suite\'s canonical Monte Carlo module (src/lib/monteCarlo.js), mulberry32 generator'],
+        ['Seed', String(unc.seed)],
+        ['Realisations', `${unc.accepted} used of ${unc.iterations}${unc.rejected ? `; ${unc.rejected} rejected (RF outside 0 to 1 or a volume not above zero)` : ''}`],
+        ['Convention', unc.convention],
+      ],
+      note: `Recoverable volume is RF x ${ip} in each realisation; its percentiles are not the products of the RF and ${ip} percentiles. Technically recoverable, no economic limit, not a PRMS class.`,
+      notes: unc.notes,
+    };
+  } else if (unc && !unc.ok) {
+    uncertainty = { failed: unc.errors };
+  }
 
   // ---- limits and flags (RL9) ----------------------------------------------
   const assumptions = [
@@ -243,6 +273,7 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
     ],
   };
   const flags = [...(r.withheld ? [r.withheld] : []), ...derived.flags.map((f) => f.text)];
+  if (derived.uncertainty && !derived.uncertainty.ok) flags.push(`Uncertainty not run: ${derived.uncertainty.errors.join(' ')}`);
   if (s.migration?.note) flags.push(s.migration.note);
 
   // ---- intake blocks (RL11) -------------------------------------------------
@@ -279,6 +310,7 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
     limits: { assumptions, ranges, flags },
     pvtBlock,
     inPlaceBlock,
+    uncertainty,
     notes: text(id.notes),
     footerWho: who || text(projectName),
     caseState,

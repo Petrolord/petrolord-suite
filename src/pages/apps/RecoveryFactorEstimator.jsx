@@ -20,6 +20,7 @@ import ReservesChartPanel from '@/components/rfestimator/ReservesChartPanel';
 import DriveReferencePanel from '@/components/rfestimator/DriveReferencePanel';
 import ReportTab from '@/components/rfestimator/ReportTab';
 import SendToRcpPanel from '@/components/rfestimator/SendToRcpPanel';
+import UncertaintyPanel from '@/components/rfestimator/UncertaintyPanel';
 import RecoveryFactorHelpContent from '@/components/reservoir/RecoveryFactorHelpGuide';
 import { supabaseSharingStore } from '@/lib/recordSharing';
 import { RecordSharingBar } from '@/components/recordSharing';
@@ -117,6 +118,7 @@ const RfEstimatorContent = () => {
   const main = activeTab === 'report' ? <ReportTab /> : (
     <div className="h-full overflow-y-auto space-y-4">
       <ReservesChartPanel />
+      <UncertaintyPanel />
       <DriveReferencePanel />
     </div>
   );

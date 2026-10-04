@@ -34,6 +34,10 @@ export function buildRfPdf(a, { logo = null, generatedAt = new Date() } = {}) {
     columnStyles: { 0: { cellWidth: 50 }, 1: { cellWidth: 30 }, 2: { cellWidth: 18 } },
     note: model.headline.note || undefined,
   });
+  if (model.uncertainty?.rows) {
+    table('Uncertainty: recovery factor x in-place volume', model.uncertainty.head, model.uncertainty.rows, { columnStyles: { 0: { cellWidth: 40 } }, note: model.uncertainty.note });
+    table('The uncertainty run', ['Item', 'As run'], model.uncertainty.runRows, { columnStyles: { 0: { cellWidth: 45 } } });
+  }
   if (model.inPlaceSplit) table(`${model.phase === 'gas' ? 'OGIP' : 'OOIP'} by its parts`, model.inPlaceSplit.head, model.inPlaceSplit.rows, { columnStyles: { 0: { cellWidth: 70 } }, note: model.inPlaceSplit.note });
   else section('In-place volume by its parts', 'Not split: the in-place volume was entered directly or taken from another app (its source is in the inputs table).', { need: 14 });
   if (model.methodSplit) table('The method by its parts', model.methodSplit.head, model.methodSplit.rows, { columnStyles: { 0: { cellWidth: 70 } }, note: model.methodSplit.note, emptyValue: '' });

@@ -15,6 +15,7 @@ import {
   estimateRecovery, stoiipVolumetric, ogipVolumetric, volumetricInputFlags, DRIVE_MECHANISMS,
 } from '@/utils/recoveryFactorCalculations';
 import { sampleKeysInUse } from './model';
+import { rfUncertainty } from './uncertainty.js';
 
 const num = (v) => {
   const n = typeof v === 'number' ? v : parseFloat(v);
@@ -99,7 +100,10 @@ export function deriveRf(inputs, { inPlaceIntake = null, pvtIntake = null } = {}
     }
   }
   const flags = [...volFlags, ...(result.flags || []), ...consistency];
+  // RF-U2-002: RF x in-place through the canonical Monte Carlo, seeded (null when off)
+  const uncertainty = rfUncertainty(inputs?.mc, { result, inPlace, inPlaceIntake, phase });
   return {
+    uncertainty,
     phase,
     direct,
     parts,

@@ -113,6 +113,16 @@ const ReportTab = () => {
           {model.headline.note && <p className="text-xs text-pl-muted">{model.headline.note}</p>}
         </CardContent>
       </Card>
+      {model.uncertainty?.rows && (
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Uncertainty: recovery factor x in-place volume</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            <ModelTable head={model.uncertainty.head} rows={model.uncertainty.rows} testId="rf-report-uncertainty" />
+            <ModelTable head={['Item', 'As run']} rows={model.uncertainty.runRows} testId="rf-report-uncertainty-run" />
+            <p className="text-xs text-pl-muted">{model.uncertainty.note}</p>
+          </CardContent>
+        </Card>
+      )}
       {model.inPlaceSplit && (
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">{c.inputs.phase === 'gas' ? 'OGIP' : 'OOIP'} by its parts</CardTitle></CardHeader>

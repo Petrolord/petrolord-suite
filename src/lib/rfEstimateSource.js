@@ -70,7 +70,8 @@ export function buildRfRecord(s, {
   const ipSource = derived.direct
     ? (intake ? `${intake.quantity} taken from ${intake.app}${intake.recordName ? ` ("${intake.recordName}")` : ''}${intake.method ? `, ${intake.method}` : ''}` : `${ip} entered directly`)
     : `${ip} volumetric, from area, thickness, net-to-gross, porosity, saturation and ${gas ? 'Bgi' : 'Boi'}`;
-  const dist = s.uncertainty && s.uncertainty.ok ? s.uncertainty : null;
+  const u0 = s.uncertainty ?? derived.uncertainty;
+  const dist = u0 && u0.ok ? u0 : null;
   const pick = (st) => (st ? { p90: orNull(st.p90), p50: orNull(st.p50), p10: orNull(st.p10), mean: orNull(st.mean) } : null);
   return {
     contract: RF_CONTRACT,

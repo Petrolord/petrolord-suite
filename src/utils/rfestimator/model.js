@@ -15,6 +15,7 @@
  * darcies as published): `apiBasisNote` says so on the page and in the report.
  */
 import { sampleRecoveryData } from '@/utils/recoveryFactorCalculations';
+import { RF_MC_DEFAULTS } from './uncertainty.js';
 
 export const RF_PAYLOAD_VERSION = 2;
 export const RF_PROJECTS_TABLE = 'saved_rf_projects';
@@ -49,6 +50,8 @@ export function sampleInputs() {
     ooipDirect: '',
     vol: asStrings(d.volumetric),
     corr: asStrings(d.correlationInputs),
+    // RF-U2-002: the uncertainty run (off until asked for; the seed is drawn when it is switched on)
+    mc: { ...RF_MC_DEFAULTS },
     origin: 'sample',
   };
 }
@@ -69,6 +72,7 @@ export function inputsFromPayload(payload) {
     ooipDirect: typeof raw.ooipDirect === 'string' ? raw.ooipDirect : '',
     vol: { ...base.vol, ...(raw.vol || {}) },
     corr: { ...base.corr, ...(raw.corr || {}) },
+    mc: { ...RF_MC_DEFAULTS, ...(isRecord(raw.mc) ? raw.mc : {}) },
     // a project saved before RF-U1 cannot say whether it still holds the sample
     origin: ['sample', 'sample-edited'].includes(raw.origin) ? raw.origin : 'entered',
   };
