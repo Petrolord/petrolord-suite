@@ -100,6 +100,15 @@ const ScalHelpContent = () => (
       id and print its source.
     </P>
     <P>
+      Simulator keywords writes the working sets as SWOF and SGOF tables for an Eclipse or OPM Flow deck, in FIELD
+      units (Pc in psi) or METRIC units (Pc in bar). SWOF runs from Swc to Sw = 1, with the capillary pressure of
+      the working J curve in its fourth column when that switch is on; SGOF runs from Sg = 0 to 1 minus Swc, so the
+      two tables close, which needs the same Swc in both sets. Gas-oil capillary pressure is written as zero. The
+      file opens with comment lines saying where the curves came from, the units and the conventions. The export
+      is refused, with the reason, when the two Swc differ or when Swc sits at or below the Swirr of the J curve
+      (the power law has no finite Pc there). Simulation Studio reading the file by id comes with its own round.
+    </P>
+    <P>
       The CSV files (oil-water kr, gas-oil kr at connate water, reservoir Pc, saturation-height) open with lines starting with # that say where they came
       from and in which units. The project JSON is the saved payload itself; importing it restores the whole
       project on screen. Every chart has a PNG download button.
