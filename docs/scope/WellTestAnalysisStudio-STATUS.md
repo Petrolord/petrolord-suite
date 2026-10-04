@@ -629,3 +629,19 @@ and the PVT intake from `lib/inputProvenance`; `ReportInputsFields.jsx`
 renders the shared `InputSourceControl`; the context reads `inputMeta`
 through `provenanceFromPayload`; `reportTestKit.jsx` re-exports the PDF
 readers from the kit and keeps `mountStudio`.
+
+## 2026-10-04: Reservoir round Step 1 and Step 2 analysis (branch `feat/welltest-u1`)
+
+Findings, tests and the ranked Step 2 backlog: `docs/upgrade/WellTestAnalysis-UPGRADE.md`
+(WTA-U1-001 to -022). Engines PR Petrolord/petrolord-engines #309 (not merged;
+vendored with six `welltest-u1` ledger rows).
+
+- **S1 fixed (WTA-U1-017):** a decimal typed under SI was multiplied by ten in every converted field (13.7 m stored as 137 m), live since WT8.
+- **Units:** every kind pinned to one known value; kh prints md-m and the RTA productivity index converts under SI; `src/utils/welltest/units.js`, `derivative.js` and `gas.js` are now shims of the engines.
+- **Gas z:** Dranchuk-Abou-Kassem from `engines/fluid/blackOil.ts` for new work (`reservoirInputs.gasZMethod`); saved projects without a method keep Papay.
+- **Report:** company, software build, gauge depth and datum with no correction applied, absolute or gauge basis, every gauge reading used or left out, the method and its limits with the gas z range, deliverability coefficient units, rate history against q and tp. The reviewed sample is 6 pages.
+- **Doors:** gauge date stamps through the shared date reader (asks when undecided); the RTA production door (`productionImport.js`) by header with units; 388,800-reading gauge files load.
+- **Sharing:** view and check-out editing, Save a copy.
+- **`wta-1` sender** (`src/lib/wellTestSource.js`): written into every save (payload key `wta`), read by id by Material Balance and Waterflood (`?wellTestProject=`).
+- **State (jsonb, no migration):** `gaugeImport`, `rtaImport`, `wta`, `completion.gaugeDepthMd/gaugeDepthTvd/datumDepthTvdss`, `identification.company`, `reservoirInputs.gasZMethod`.
+- **Open:** import in a worker (U1-020); Nodal has the same SI typing defect (U1-021).

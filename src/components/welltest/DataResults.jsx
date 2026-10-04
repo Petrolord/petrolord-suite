@@ -8,9 +8,8 @@ import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { unitLabel, fromOilfield } from '@/utils/welltest/units';
 import { gaugeTime } from '@/utils/welltest/gaugeImport';
 import { Input } from '@/components/ui/input';
-import { displayInputString, storeInputString } from '@/utils/welltest/units';
 import { flowSummaryHead } from '@/utils/welltest/reportModel';
-import { ChartCard, Kpi, LINE, WarningBanner, fmt, fmtU } from './primitives';
+import { ChartCard, Kpi, LINE, WarningBanner, UnitInput, fmt, fmtU } from './primitives';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const axisProps = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize } };
@@ -60,7 +59,7 @@ const DataResults = () => {
 
   return (
     <div className="space-y-4 overflow-y-auto">
-      <WarningBanner warnings={[...errors, ...prepared.warnings]} />
+      <WarningBanner warnings={[...errors, ...prepared.warnings, ...(flowSummary.mismatch || [])]} />
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <Kpi title="Gauge points" value={fmt.int(gaugeRows.length)} />
@@ -145,17 +144,17 @@ const DataResults = () => {
                       <td className="py-1 pr-2">{r.start}</td>
                       <td className="py-1 pr-2">{r.duration}</td>
                       <td className="py-1 pr-2">
-                        <Input className="h-7 w-20" aria-label={`Choke, period ${r.index}`} placeholder="n/a"
-                          value={displayInputString('choke', m.choke ?? '', unitSystem)}
-                          onChange={(e) => setPeriodMetaField(r.key, 'choke', storeInputString('choke', e.target.value, unitSystem))} />
+                        <UnitInput className="h-7 w-20" aria-label={`Choke, period ${r.index}`} placeholder="n/a"
+                          kind="choke" system={unitSystem} value={m.choke ?? ''}
+                          onChange={(v) => setPeriodMetaField(r.key, 'choke', v)} />
                       </td>
                       <td className="py-1 pr-2">{r.rate}</td>
                       <td className="py-1 pr-2">{r.volume}</td>
                       <td className="py-1 pr-2">{r.cumulative}</td>
                       <td className="py-1 pr-2">
-                        <Input className="h-7 w-24" aria-label={`Recovered volume, period ${r.index}`} placeholder="n/a"
-                          value={displayInputString('liquidVolume', m.recovered ?? '', unitSystem)}
-                          onChange={(e) => setPeriodMetaField(r.key, 'recovered', storeInputString('liquidVolume', e.target.value, unitSystem))} />
+                        <UnitInput className="h-7 w-24" aria-label={`Recovered volume, period ${r.index}`} placeholder="n/a"
+                          kind="liquidVolume" system={unitSystem} value={m.recovered ?? ''}
+                          onChange={(v) => setPeriodMetaField(r.key, 'recovered', v)} />
                       </td>
                       <td className="py-1">
                         <Input className="h-7 min-w-[8rem]" aria-label={`Remark, period ${r.index}`} placeholder="Optional"

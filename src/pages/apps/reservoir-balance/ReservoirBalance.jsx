@@ -54,6 +54,8 @@ import MbsHelpContent from '@/components/reservoirbalance/MbsHelpContent';
 import VolumetricSource from '@/components/reservoirbalance/VolumetricSource';
 import VrrPressurePicker from '@/components/reservoirbalance/VrrPressurePicker';
 import { mapWellTestIntake } from './lib/wellTestIntake';
+import { supabase } from '@/lib/customSupabaseClient';
+import { readWellTestProject, wellTestDataFromContract, WTA_PROJECT_PARAM } from '@/lib/wellTestSource';
 import { staleRunMessage } from './lib/runStaleness';
 import {
   validationTierOf, fmt, r2Text, INJECTION_NOTE, INJECTION_LEGACY_NOTE, engineCoverageOf,
@@ -412,15 +414,30 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
   // in lib/wellTestIntake.js).
   const location = useLocation();
   const wtIntakeDone = useRef(false);
+  // WTA-U1-012: with ?wellTestProject=<id> and no router state (a refresh,
+  // a copied link) the wta-1 record is read again from the saved project.
+  const wellTestProjectId = searchParams.get(WTA_PROJECT_PARAM);
   useEffect(() => {
-    const mapped = mapWellTestIntake(location.state?.wellTestData);
-    if (!mapped || wtIntakeDone.current) return;
+    if (wtIntakeDone.current) return;
+    const take = (wt) => {
+      const mapped = mapWellTestIntake(wt);
+      if (!mapped) return false;
+      wtIntakeDone.current = true;
+      setNewCasePrefill(mapped.prefill);
+      setNewCaseHandoffs(mapped.handoffs ?? null);
+      setNewCaseOpen(true);
+      toast({ title: 'Well test results received', description: mapped.note });
+      return true;
+    };
+    if (location.state?.wellTestData) { take(location.state.wellTestData); return; }
+    if (!wellTestProjectId) return;
     wtIntakeDone.current = true;
-    setNewCasePrefill(mapped.prefill);
-    setNewCaseHandoffs(mapped.handoffs ?? null);
-    setNewCaseOpen(true);
-    toast({ title: 'Well test results received', description: mapped.note });
-  }, [location.state, toast]);
+    readWellTestProject(supabase, wellTestProjectId).then((res) => {
+      if (!res.ok) { toast({ title: 'Well test results not applied', description: res.reason, variant: 'destructive' }); return; }
+      wtIntakeDone.current = false;
+      take(wellTestDataFromContract(res.contract));
+    });
+  }, [location.state, wellTestProjectId, toast]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openCreate = () => {
     setNewCasePrefill(null);

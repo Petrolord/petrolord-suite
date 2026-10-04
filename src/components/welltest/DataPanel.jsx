@@ -13,11 +13,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
-import { unitLabel, displayInputString, storeInputString } from '@/utils/welltest/units';
+import { unitLabel } from '@/utils/welltest/units';
 import {
   readGaugeTable, detectGaugeMapping, convertGaugeRows, PRESSURE_UNITS, TIME_UNITS, TEMPERATURE_UNITS, PWF_SOURCE_TEXT, gaugeTime,
 } from '@/utils/welltest/gaugeImport';
-import { SectionLabel, Field, UnitField, fmt, valueWithUnit } from './primitives';
+import { SectionLabel, Field, UnitField, UnitInput, fmt, valueWithUnit } from './primitives';
 import { IdentificationFields, CompletionFields, InputSourcesFields } from './ReportInputsFields';
 import PvtIntakeCard from '@/lib/inputProvenance/PvtIntakeCard';
 import { readFluidProjectPvt } from '@/lib/pvtSource';
@@ -88,6 +88,24 @@ const ImportMapping = ({ imported, onChange }) => {
             </SelectContent>
           </Select>
         </div>
+        {mapping.timeUnit === 'datetime' && (
+          <div className="space-y-1 col-span-2" data-testid="wts-import-date-order">
+            <Label className="text-xs text-pl-muted">Date order</Label>
+            <Select value={mapping.dateOrder || 'ask'} onValueChange={(v) => set('dateOrder', v === 'ask' ? null : v)}>
+              <SelectTrigger className="h-8" aria-label="Date order"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ask">Not settled by the file: choose</SelectItem>
+                <SelectItem value="dmy">Day first (13/09/2026)</SelectItem>
+                <SelectItem value="mdy">Month first (09/13/2026)</SelectItem>
+              </SelectContent>
+            </Select>
+            {imported.dateQuestion && (
+              <p className="text-[11px] text-pl-warning-text">
+                No date in the file has a day above 12 ({(imported.dateQuestion.examples || []).join(', ')}), so the order cannot be read from it. Nothing was loaded: choose the order.
+              </p>
+            )}
+          </div>
+        )}
         <div className="space-y-1">
           <Label className="text-xs text-pl-muted">Temperature column</Label>
           <Select value={String(mapping.temperatureCol ?? -1)} onValueChange={(v) => set('temperatureCol', Number(v))}>
@@ -133,7 +151,7 @@ const DataPanel = () => {
     rateRows, setRateRows,
     addNotification, loadSampleTest,
     unitSystem, setUnitSystem, profileUnitSystem, reservoirSpec,
-    pvtIntake,
+    pvtIntake, setGaugeImport,
   } = useWellTestStudio();
   const fileRef = useRef(null);
   // the file just imported, held so its column/unit mapping can be changed
@@ -144,7 +162,12 @@ const DataPanel = () => {
   const isBuildupFamily = testConfig.testType === 'buildup' || testConfig.testType === 'falloff';
 
   const applyImport = (table, mapping, fileName, announce) => {
-    const { rows, skipped, temperatureCount } = convertGaugeRows(table, mapping);
+    const { rows, skipped, temperatureCount, dateQuestion = null } = convertGaugeRows(table, mapping);
+    if (dateQuestion) {
+      addNotification(`The dates in ${fileName} could be day first or month first. Choose the date order below; nothing was loaded yet.`, 'info');
+      setImported({ table, mapping, fileName, skipped, count: 0, temperatureCount, dateQuestion });
+      return;
+    }
     if (rows.length < 5) {
       addNotification(`Could not read at least 5 (time, pressure) readings with the ${columnName(table, mapping.timeCol)} and ${columnName(table, mapping.pressureCol)} columns. Pick the time and pressure columns below.`, 'error');
       setImported({ table, mapping, fileName, skipped, count: rows.length, temperatureCount });
@@ -152,6 +175,17 @@ const DataPanel = () => {
     }
     setGaugeRows(rows);
     setImported({ table, mapping, fileName, skipped, count: rows.length, temperatureCount });
+    // WTA-U1-005: kept with the project so the report can state the basis
+    setGaugeImport({
+      fileName,
+      pressureUnit: mapping.pressureUnit,
+      timeUnit: mapping.timeUnit,
+      dateOrder: mapping.timeUnit === 'datetime' ? (mapping.dateOrder || null) : null,
+      temperatureUnit: mapping.temperatureCol >= 0 ? mapping.temperatureUnit : null,
+      count: rows.length,
+      skipped,
+      at: new Date().toISOString(),
+    });
     if (announce) {
       const pu = PRESSURE_UNITS[mapping.pressureUnit]?.label;
       const tu = TIME_UNITS[mapping.timeUnit]?.label;
@@ -178,8 +212,9 @@ const DataPanel = () => {
     reader.readAsText(file);
   };
 
+  // v arrives oilfield: the rate input converts (UnitInput)
   const setRate = (i, key, v) => setRateRows(rateRows.map((r, idx) => (idx === i
-    ? { ...r, [key]: key === 'q' ? storeInputString(rateKind, v, unitSystem) : v }
+    ? { ...r, [key]: v }
     : r)));
 
   return (
@@ -196,7 +231,7 @@ const DataPanel = () => {
           <div className="space-y-1">
             <Label className="text-xs text-pl-muted">Unit system</Label>
             <Select value={unitSystem} onValueChange={setUnitSystem}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9" aria-label="Unit system"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="oilfield">Oilfield (psi, ft, STB/D)</SelectItem>
                 <SelectItem value="si">SI / metric (kPa, m, m3/d)</SelectItem>
@@ -207,7 +242,7 @@ const DataPanel = () => {
           <div className="space-y-1">
             <Label className="text-xs text-pl-muted">Test type</Label>
             <Select value={testConfig.testType} onValueChange={(v) => setTestField('testType', v)}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9" aria-label="Test type"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="buildup">Pressure buildup</SelectItem>
                 <SelectItem value="drawdown">Pressure drawdown</SelectItem>
@@ -276,7 +311,7 @@ const DataPanel = () => {
           <div className="space-y-1">
             <Label className="text-xs text-pl-muted">Fluid</Label>
             <Select value={reservoirInputs.fluid || 'oil'} onValueChange={(v) => setReservoirField('fluid', v)}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9" aria-label="Fluid"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="oil">Oil (slightly compressible)</SelectItem>
                 <SelectItem value="gas">Gas (pseudo-pressure)</SelectItem>
@@ -345,9 +380,21 @@ const DataPanel = () => {
             </div>
           )}
           {isGas && (
-            <p className="text-[11px] text-pl-muted">
-              Analyses run in real-gas pseudo-pressure m(p). Gas viscosity and z come from the Lee-Gonzalez-Eakin and Papay correlations at reservoir temperature; leave ct blank to use the computed gas compressibility at pi.
-            </p>
+            <div className="space-y-1">
+              <Label className="text-xs text-pl-muted">Gas z-factor</Label>
+              <Select value={reservoirInputs.gasZMethod || 'papay'} onValueChange={(v) => setReservoirField('gasZMethod', v)}>
+                <SelectTrigger className="h-9" aria-label="Gas z-factor method" data-testid="wts-z-method"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="dranchuk_abou_kassem">Dranchuk-Abou-Kassem (default)</SelectItem>
+                  <SelectItem value="hall_yarborough">Hall-Yarborough</SelectItem>
+                  <SelectItem value="papay">Papay (projects saved before 2026-10-04)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-pl-muted" data-testid="wts-z-note">
+                Analyses run in real-gas pseudo-pressure m(p). z comes from {reservoirInputs.gasZMethod === 'hall_yarborough' ? 'Hall-Yarborough' : reservoirInputs.gasZMethod === 'dranchuk_abou_kassem' ? 'Dranchuk-Abou-Kassem' : 'Papay'} with Sutton pseudo-criticals and the viscosity from Lee-Gonzalez-Eakin, at reservoir temperature; leave ct blank to use the computed gas compressibility at pi.
+                {(reservoirInputs.gasZMethod || 'papay') === 'papay' && ' Papay is kept so a project interpreted with it reproduces its numbers; Dranchuk-Abou-Kassem, the Fluid Systems Studio default, holds the Standing-Katz chart more closely at high pressure.'}
+              </p>
+            </div>
           )}
         </div>
       </section>
@@ -364,8 +411,8 @@ const DataPanel = () => {
           )}
           {rateRows.map((r, i) => (
             <div key={i} className="flex items-center gap-2">
-              <Input value={r.t} onChange={(e) => setRate(i, 't', e.target.value)} placeholder="Start hr" className="h-8" />
-              <Input value={displayInputString(rateKind, r.q, unitSystem)} onChange={(e) => setRate(i, 'q', e.target.value)} placeholder={unitLabel(rateKind, unitSystem)} className="h-8" />
+              <Input value={r.t} onChange={(e) => setRate(i, 't', e.target.value)} placeholder="Start hr" className="h-8" aria-label={`Start time, step ${i + 1} (hr)`} />
+              <UnitInput kind={rateKind} system={unitSystem} value={r.q} onChange={(v) => setRate(i, 'q', v)} placeholder={unitLabel(rateKind, unitSystem)} className="h-8" aria-label={`Rate, step ${i + 1}`} />
               <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-pl-muted" onClick={() => setRateRows(rateRows.filter((_, idx) => idx !== i))}>
                 <Trash2 className="w-4 h-4" />
               </Button>

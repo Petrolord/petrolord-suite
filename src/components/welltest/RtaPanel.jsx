@@ -1,59 +1,56 @@
 // Left rail for the RTA tab (WT9): production history import and the
 // transient-linear window. RTA runs on daily production data (t in days,
 // rate and flowing pressure), unlike the shut-in transient tabs.
-import React, { useRef } from 'react';
-import Papa from 'papaparse';
+import React, { useRef, useState } from 'react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
-import { unitLabel, toOilfield } from '@/utils/welltest/units';
+import { unitLabel } from '@/utils/welltest/units';
+import { importProductionCsv } from '@/utils/welltest/productionImport';
 import { SectionLabel, Field } from './primitives';
 
-// Three numeric columns: time (days), rate, flowing pressure. Rates and
-// pressures convert from the active display system to oilfield state.
+// WTA-U1-010: the door reads through productionImport.js (headers in any
+// order, units at the door, decimal commas, dates, a read-back). Kept under
+// its old name for callers; rows come back oilfield.
 export function parseProductionCsv(text, { unitSystem = 'oilfield', rateKind = 'oilRate' } = {}) {
-  const { data } = Papa.parse(text.trim(), { skipEmptyLines: true });
-  const rows = [];
-  for (const raw of data) {
-    if (!Array.isArray(raw) || raw.length < 3) continue;
-    const t = parseFloat(raw[0]);
-    const q = parseFloat(raw[1]);
-    const pwf = parseFloat(raw[2]);
-    if (Number.isFinite(t) && Number.isFinite(q) && Number.isFinite(pwf) && t > 0) {
-      rows.push({
-        t,
-        q: toOilfield(rateKind, q, unitSystem),
-        pwf: toOilfield('pressure', pwf, unitSystem),
-      });
-    }
-  }
-  return rows;
+  return importProductionCsv(text, { unitSystem, fluid: rateKind === 'gasRate' ? 'gas' : 'oil' }).rows;
 }
 
 const RtaPanel = () => {
   const {
     reservoirInputs, rtaRows, setRtaRows,
     rtaWindows, setRtaWindowField,
-    addNotification, unitSystem,
+    addNotification, unitSystem, rtaImport, setRtaImport,
   } = useWellTestStudio();
   const fileRef = useRef(null);
   const isGas = reservoirInputs.fluid === 'gas';
   const rateKind = isGas ? 'gasRate' : 'oilRate';
+
+  const [pending, setPending] = useState(null); // a file waiting for its date order
+  const take = (text, fileName, mapping = null) => {
+    const out = importProductionCsv(text, { unitSystem, fluid: isGas ? 'gas' : 'oil', mapping });
+    if (out.dateQuestion) {
+      setPending({ text, fileName });
+      addNotification(`The dates in ${fileName} could be day first or month first. Choose the order below; nothing was loaded yet.`, 'info');
+      return;
+    }
+    setPending(null);
+    if (out.error || out.rows.length < 3) {
+      addNotification(out.error || `Could not read at least 3 (time, rate, pwf) rows from ${fileName}. ${out.read?.text || ''}`, 'error');
+      return;
+    }
+    setRtaRows(out.rows);
+    setRtaImport({ fileName, text: out.read.text, at: new Date().toISOString() });
+    addNotification(`Loaded ${out.rows.length} production points from ${fileName}.`, 'success');
+  };
 
   const onFile = (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      const rows = parseProductionCsv(String(ev.target.result || ''), { unitSystem, rateKind });
-      if (rows.length < 3) {
-        addNotification(`Could not read at least 3 (time, rate, pwf) rows. Expected three numeric columns: days, ${unitLabel(rateKind, unitSystem)}, ${unitLabel('pressureAbs', unitSystem)}.`, 'error');
-        return;
-      }
-      setRtaRows(rows);
-      addNotification(`Loaded ${rows.length} production points from ${file.name}.`, 'success');
-    };
+    reader.onload = (ev) => take(String(ev.target.result || ''), file.name);
     reader.onerror = () => addNotification('Could not read the file', 'error');
     reader.readAsText(file);
   };
@@ -75,9 +72,24 @@ const RtaPanel = () => {
             )}
           </div>
           <p className="text-[11px] text-pl-muted">
-            Three numeric columns: time in days, rate in {unitLabel(rateKind, unitSystem)}, flowing pressure in {unitLabel('pressureAbs', unitSystem)}.
+            Time (days or dates), rate and flowing pressure, found by their headers in any order with the unit each header names; a file with no headers is read as time in days, rate in {unitLabel(rateKind, unitSystem)}, flowing pressure in {unitLabel('pressureAbs', unitSystem)}.
             {rtaRows.length ? ` Loaded: ${rtaRows.length} points.` : ' No production data loaded yet.'}
           </p>
+          {pending && (
+            <div className="space-y-1" data-testid="wts-rta-date-order">
+              <p className="text-[11px] text-pl-warning-text">No date in {pending.fileName} has a day above 12, so the order cannot be read from it.</p>
+              <Select onValueChange={(v) => take(pending.text, pending.fileName, { dateOrder: v })}>
+                <SelectTrigger className="h-8" aria-label="Date order"><SelectValue placeholder="Choose the date order" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="dmy">Day first (13/09/2026)</SelectItem>
+                  <SelectItem value="mdy">Month first (09/13/2026)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {rtaRows.length > 0 && rtaImport?.text && (
+            <p className="text-[11px] text-pl-muted" data-testid="wts-rta-readback">{rtaImport.fileName}: {rtaImport.text}</p>
+          )}
           <p className="text-[11px] text-pl-muted">
             Fluid, initial pressure and rock and fluid properties come from the Data tab. {isGas
               ? 'Gas analyses run on pseudo-pressure with material-balance pseudo-time (dynamic material balance).'

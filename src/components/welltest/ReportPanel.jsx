@@ -1,5 +1,5 @@
 // Left rail for the Report tab: interpretation notes, exports and result
-// handoffs (WT5): PDF report, project JSON, p-bar/k/s to Reservoir Balance
+// handoffs (WT5): PDF report, project JSON, p*/k/s to Material Balance Studio
 // and k to the Waterflood Design Studio via the navigate-state contract.
 import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,12 +10,13 @@ import { exportProjectAsJSON, importProjectFromJSON } from '@/utils/savedProject
 import { exportWellTestPdf, collectReportArgs } from '@/utils/wellTestReportExport';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { SectionLabel } from './primitives';
+import { wellTestDataFromContract, WTA_PROJECT_PARAM } from '@/lib/wellTestSource';
 
 const ReportPanel = () => {
   const ctx = useWellTestStudio();
   const {
     notes, setNotes, projectName, wellName, addNotification,
-    reservoirSpec, prepared, derivedKpis, semilogResult,
+    prepared, currentProjectId, wtaRecord,
     serializeInputs, importProjectPayload,
   } = ctx;
   const navigate = useNavigate();
@@ -55,44 +56,22 @@ const ReportPanel = () => {
     }
   };
 
-  // p-bar for material balance: extrapolated p* when the test gives one,
-  // otherwise the entered initial pressure.
-  const pBar = Number.isFinite(semilogResult?.pStar)
-    ? semilogResult.pStar
-    : reservoirSpec.reservoir?.pi;
-  const kBest = derivedKpis?.k;
-  const skinBest = derivedKpis?.skin;
+  // WTA-U1-012: the sends carry the wta-1 record of the interpretation (k
+  // with its method, interval and regression status; skin split; p* with
+  // what it is and is not; the datum) in router state, and name the saved
+  // project in the URL so the receiver reads the same record by id after a
+  // refresh. An unsaved workspace sends router state only, and says so.
+  const handoff = wellTestDataFromContract(wtaRecord);
+  const pBar = handoff?.pAvg_psia;
+  const kBest = handoff?.k_md;
+  const byId = currentProjectId ? `?${WTA_PROJECT_PARAM}=${encodeURIComponent(currentProjectId)}` : '';
 
   const sendToReservoirBalance = () => {
-    navigate('/dashboard/apps/reservoir/reservoir-balance', {
-      state: {
-        wellTestData: {
-          source: projectName || wellName || 'Well Test Analysis Studio',
-          wellName,
-          pAvg_psia: pBar,
-          // how the pressure was obtained and when it was sent, so the
-          // receiving report can cite it (reviewer lens RL11)
-          pressureMethod: Number.isFinite(semilogResult?.pStar) ? 'extrapolated p* of the semilog straight line' : 'initial pressure as entered on the test',
-          sentAt: new Date().toISOString(),
-          k_md: kBest,
-          skin: skinBest,
-          fluid: reservoirSpec.reservoir?.fluid || 'oil',
-          tempF: reservoirSpec.reservoir?.fluid === 'gas' ? reservoirSpec.reservoir.tempR - 460 : undefined,
-        },
-      },
-    });
+    navigate(`/dashboard/apps/reservoir/reservoir-balance${byId}`, { state: { wellTestData: { ...handoff, sentAt: new Date().toISOString() } } });
   };
 
   const sendToWaterflood = () => {
-    navigate('/dashboard/apps/reservoir/waterflood-design-studio', {
-      state: {
-        wellTestData: {
-          source: projectName || wellName || 'Well Test Analysis Studio',
-          wellName,
-          k_md: kBest,
-        },
-      },
-    });
+    navigate(`/dashboard/apps/reservoir/waterflood-design-studio${byId}`, { state: { wellTestData: { ...handoff, sentAt: new Date().toISOString() } } });
   };
 
   return (
@@ -132,7 +111,7 @@ const ReportPanel = () => {
             disabled={!Number.isFinite(pBar)}
             onClick={sendToReservoirBalance}
           >
-            <Send className="w-4 h-4 mr-2" /> p̄, k, s to Reservoir Balance
+            <Send className="w-4 h-4 mr-2" /> Pressure, k, skin to Material Balance
           </Button>
           <Button
             size="sm" variant="outline" className="w-full"
@@ -142,8 +121,9 @@ const ReportPanel = () => {
             <Send className="w-4 h-4 mr-2" /> k to Waterflood Design Studio
           </Button>
         </div>
-        <p className="text-[11px] text-pl-muted mt-2">
-          Reservoir Balance receives the average pressure for a new material balance case; Waterflood Design receives the tested permeability for the displacement inputs.
+        <p className="text-[11px] text-pl-muted mt-2" data-testid="wts-send-note">
+          Material Balance Studio receives the pressure for a new case; Waterflood Design Studio receives the permeability. Each value travels with its method{currentProjectId ? ' and the saved project, so the receiver can read it again by id.' : '. Save the project first so the receiver can read the results again after a refresh.'}
+          {handoff && ` What is sent: k ${Number(handoff.k_md).toPrecision(3)} md (${handoff.kMethod})${Number.isFinite(pBar) ? `, pressure ${Number(pBar).toFixed(1)} psia (${handoff.contract?.pressure?.p_star_psia != null ? 'extrapolated p*, not corrected to an average pressure' : 'initial pressure as entered'})` : ''}.`}
         </p>
       </section>
     </div>

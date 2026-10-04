@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { OILFIELD } from '@/utils/welltest/models/modelCatalog';
-import { unitLabel } from '@/utils/welltest/units';
+import { unitLabel, fromOilfield } from '@/utils/welltest/units';
 import { buildLoglogData } from '@/utils/welltest/plotData';
 import { ChartCard, Kpi, WarningBanner, fmt } from './primitives';
 import LogLogChart from './LogLogChart';
@@ -57,7 +57,7 @@ const DiagnosticsResults = () => {
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <Kpi title="Diagnostic points" value={fmt.int(loglog.length)} />
         <Kpi title="Regimes detected" value={fmt.int(regimes.length)} />
-        <Kpi title="Radial plateau kh" value={fmt.sig3(plateauKh)} unit="md·ft" accent={plateauKh != null} />
+        <Kpi title="Radial plateau kh" value={fmt.sig3(plateauKh == null ? null : fromOilfield('kh', plateauKh, unitSystem))} unit={unitLabel('kh', unitSystem)} accent={plateauKh != null} />
         <Kpi title="Plateau k" value={reservoirSpec.reservoir && plateauKh != null ? fmt.sig3(plateauKh / reservoirSpec.reservoir.h) : EMPTY_VALUE} unit="md" />
       </div>
 

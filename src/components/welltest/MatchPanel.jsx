@@ -10,8 +10,8 @@ import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { MODEL_CATALOG } from '@/utils/welltest/models/modelCatalog';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
-import { unitLabel, kindForCatalogUnit, displayInputString, storeInputString } from '@/utils/welltest/units';
-import { SectionLabel, fmt } from './primitives';
+import { unitLabel, kindForCatalogUnit } from '@/utils/welltest/units';
+import { SectionLabel, UnitInput, fmt } from './primitives';
 
 // Slider position <-> value mapping honoring the catalog's log-scale flag.
 const toSlider = (meta, value) => {
@@ -67,10 +67,12 @@ const MatchPanel = () => {
             <div key={meta.key} className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <Label className="text-xs text-pl-muted">{meta.label} ({displayUnit(meta)})</Label>
-                <Input
-                  value={displayInputString(kindForCatalogUnit(meta.unit), matchInputs[meta.key] ?? '', unitSystem)}
-                  onChange={(e) => setMatchField(meta.key, storeInputString(kindForCatalogUnit(meta.unit), e.target.value, unitSystem))}
+                <UnitInput
+                  kind={kindForCatalogUnit(meta.unit)} system={unitSystem}
+                  value={matchInputs[meta.key] ?? ''}
+                  onChange={(v) => setMatchField(meta.key, v)}
                   className="h-7 w-24 text-right"
+                  aria-label={`${meta.label} (${displayUnit(meta)})`}
                 />
               </div>
               <Slider
