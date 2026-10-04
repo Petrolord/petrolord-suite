@@ -67,7 +67,7 @@ test('sample buildup walks all five tabs with live results', async ({ page }) =>
   await page.getByRole('tab', { name: 'Report' }).click();
   await expect(page.getByText(/Straight-line analyses/i)).toBeVisible();
   await expect(page.getByRole('button', { name: /Export PDF report/i })).toBeEnabled();
-  await expect(page.getByRole('button', { name: /Reservoir Balance/i })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /to Material Balance/i })).toBeEnabled();
   await expect(page.getByRole('button', { name: /Waterflood Design Studio/i })).toBeEnabled();
 });
 

@@ -92,7 +92,23 @@ const WTSHelpContent = () => (
       in degF or degC). It is plotted on the test overview with the pressure and the rate. The flow and shut-in
       summary on the Data tab lists one row per period of the rate history with its start, duration, rate and the
       volume produced; add the choke and the recovered volume for each period there. With no rate history the periods
-      are taken from the test setup and the table says so.
+      are taken from the test setup and the table says so. The analysis uses the test rate q and the producing time
+      tp from the test setup; when the rate history says otherwise, the Data tab warns and the report states which
+      one the analysis used.
+    </P>
+    <P>
+      Under Completion also state where the gauge sat (gauge depth in MD and TVD) and the depth of the pressure datum
+      the field reports at (TVDSS). They print in the report. No correction to the datum is applied: every pressure
+      is analysed and reported at the gauge depth, and the report says so. The gauge import finds its columns from
+      the headers, reads a decimal comma, and reads date and time stamps day first or month first from the file
+      itself; when no date in the file has a day above 12 it loads nothing and asks you to choose the order. Gauge
+      readings in psig, kPa(g) or bar(g) become absolute by adding one standard atmosphere, and the report says which
+      unit the file was read in.
+    </P>
+    <P>
+      In SI the fields take the value as you type it (13.7 m stays 13.7 m) and store its oilfield twin; the converted
+      value shows again when you leave the field. The company or operator prints on the report; left blank, the
+      report prints your organisation's name.
     </P>
 
     <H>2. Diagnostics</H>
@@ -200,6 +216,13 @@ const WTSHelpContent = () => (
       transient linear card regresses the early data against the square root of time for xf sqrt(k) (Wattenbarger),
       and you can override the window it regresses over when the automatic pick lands on the wrong stretch of data.
     </P>
+    <P>
+      The production import finds the time, rate and flowing pressure columns from their headers in any order and
+      takes each unit from its header (STB/D, m3/d, Mscf/D, MMscf/D, 10^3 m3/d; psia, psig, kPa, bar, MPa; days,
+      hours or dates). A date column counts days from the first date as day 1. A file with no headers is read as
+      time in days, rate and flowing pressure in the display units, and the read-back under the button says what
+      was assumed. A gas rate on an oil test, or the reverse, is refused.
+    </P>
 
     <H>6. Report</H>
     <P>
@@ -220,6 +243,16 @@ const WTSHelpContent = () => (
       regimes with their time windows; and the flow and shut-in summary. Anything not provided prints as n/a.
     </P>
     <P>
+      Three tables say what a reviewer needs before trusting a number. Gauge, datum and pressure basis gives the gauge
+      depth, the datum, that no correction to the datum was applied, and how the readings became absolute. Gauge data
+      used and left out accounts for every reading once: those before the shut-in (the preceding flow period), the
+      reading at the shut-in instant, the spikes the filter removed with their times and pressures, the readings
+      thinned on the log time axis, and the analysis points. Method and its limits states what the interpretation
+      assumes (single-phase flow, constant wellbore storage, a vertical well with partial penetration as a pseudo-skin
+      only, no limited-entry model, pressures at gauge depth) and, for gas, whether the test sits inside the range its
+      z-factor method was checked over. The header also names the company and the software build.
+    </P>
+    <P>
       The PDF also carries the plots, drawn from the same series as the tabs: the test overview (pressure and rate,
       and temperature when it was imported), the log-log plot with the model match and the flow-regime windows
       shaded, the Horner or MDH plot with its straight line, fit window and slope, the history match, and the rate
@@ -229,17 +262,28 @@ const WTSHelpContent = () => (
     </P>
     <P>
       Results also travel to other studios directly. Sending to Material Balance Studio opens a new case with the
-      average pressure carried in as the initial pressure, along with the reservoir temperature, the fluid system
-      and a case name taken from the well. Permeability and skin travel in the notification text for reference and
-      are not written into the case, because material balance has no field for them. Sending to Waterflood Design
-      Studio writes the tested permeability into the displacement inputs, where it feeds the dip and gravity term.
+      pressure carried in as the initial pressure, along with the reservoir temperature, the fluid system and a case
+      name taken from the well. The pressure is the extrapolated p* of the Horner line when the test gives one: it
+      equals the average drainage pressure only for an infinite-acting reservoir, and no MBH or Dietz correction is
+      applied, which the receiving case records. Permeability and skin travel for reference, with the method that
+      produced them. Sending to Waterflood Design Studio writes the tested permeability into the displacement inputs
+      and records its method. Every save writes these results into the project, and the send names the saved
+      project, so the receiving studio reads them again by id after a refresh. Save the project before sending.
+    </P>
+    <P>
+      Projects can be shared with colleagues in your organisation from the bar under the project picker. A colleague
+      opens a shared project to view it; to edit one shared for editing, take the check-out first, and a save made
+      elsewhere since you opened it is refused with the reason. Save a copy makes the project on screen your own.
     </P>
 
     <H>Gas wells, injection tests and multi-rate</H>
     <P>
-      Setting the fluid to gas runs every analysis in real-gas pseudo-pressure m(p), built from the Papay z-factor and
-      Lee-Gonzalez-Eakin viscosity correlations at reservoir temperature (leave ct blank to use the computed gas
-      compressibility at pi). Permeability and skin come from the 1637 qT/kh semilog slope; the reported skin on a gas
+      Setting the fluid to gas runs every analysis in real-gas pseudo-pressure m(p), built from a z-factor and the
+      Lee-Gonzalez-Eakin viscosity correlation at reservoir temperature (leave ct blank to use the computed gas
+      compressibility at pi). The z-factor is Dranchuk-Abou-Kassem with Sutton pseudo-criticals by default, the same
+      engine Fluid Systems Studio uses; Hall-Yarborough can be chosen, and Papay stays for projects saved before
+      2026-10-04 so they reproduce the numbers they were interpreted with. The report names the method. Changing it
+      changes m(p), the gas compressibility and the viscosity, so an earlier auto-fit is withdrawn. Permeability and skin come from the 1637 qT/kh semilog slope; the reported skin on a gas
       well is the apparent skin s' which includes the rate-dependent term. The Specialized tab adds gas deliverability:
       enter flow-after-flow or isochronal points to get the Rawlins-Schellhardt C and n, the Houpeurt LIT coefficients
       a and b, and the AOF by both methods.

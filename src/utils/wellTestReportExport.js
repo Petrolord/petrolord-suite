@@ -23,8 +23,9 @@ import { unitLabel, fromOilfield, kindForCatalogUnit } from '@/utils/welltest/un
 import { gaugeTime, PWF_SOURCE_TEXT } from '@/utils/welltest/gaugeImport';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { loadPetrolordLogo } from '@/lib/pdfBrand';
+import { buildLabel } from '@/lib/platformBuild';
 import {
-  buildIdentificationRows, skinBreakdownRows, flowSummaryHead, flowSummaryBody, inputsFootnote, orNA,
+  buildIdentificationRows, skinBreakdownRows, flowSummaryHead, flowSummaryBody, inputsFootnote, orNA, deliverabilityUnits,
 } from '@/utils/welltest/reportModel';
 import { buildReportFigures } from '@/utils/welltest/reportFigures';
 import {
@@ -50,13 +51,13 @@ const ci = (pair) => range(pair);
  */
 export const buildReportHeader = ({
   projectName, wellName, fieldName, analyst, identification, completion, config, prepared, isGas,
-  unitSystem = 'oilfield', generatedAt = new Date(),
+  unitSystem = 'oilfield', generatedAt = new Date(), organizationName = '', build = buildLabel(),
 }) => {
   const isBuildup = config?.family === 'buildup';
   const pUnit = unitLabel('pressure', unitSystem);
   const pwf = prepared?.pwfShutIn;
   const cells = buildIdentificationRows({
-    projectName, wellName, fieldName, analyst, identification, completion, config, unitSystem,
+    projectName, wellName, fieldName, analyst, identification, completion, config, unitSystem, organizationName, build,
   });
   cells.push(['Fluid', isGas ? 'Gas, pseudo-pressure m(p)' : 'Oil']);
   if (isBuildup) {
@@ -108,6 +109,8 @@ export const buildCrossCheckRows = ({
 /** What the PDF needs from the studio context, gathered in one place. */
 export const collectReportArgs = (ctx) => ({
   projectName: ctx.projectName,
+  organizationName: ctx.organizationName || '',
+  build: buildLabel(),
   wellName: ctx.wellName,
   fieldName: ctx.fieldName,
   analyst: ctx.analyst,
@@ -129,6 +132,7 @@ export const collectReportArgs = (ctx) => ({
   multiRateResult: ctx.multiRateResult,
   deliverabilityResult: ctx.deliverabilityResult,
   rtaResult: ctx.rtaResult,
+  rtaImport: ctx.rtaImport,
   regimes: ctx.regimes,
   notes: ctx.notes,
   unitSystem: ctx.unitSystem,
@@ -136,6 +140,9 @@ export const collectReportArgs = (ctx) => ({
   inputsTable: ctx.inputsTable,
   skinBreakdown: ctx.skinBreakdown,
   flowSummary: ctx.flowSummary,
+  pressureBasisRows: ctx.pressureBasisRows,
+  limitsRows: ctx.limitsRows,
+  dataUse: ctx.dataUse,
   figures: buildReportFigures(ctx),
 });
 
@@ -148,11 +155,12 @@ export const collectReportArgs = (ctx) => ({
  */
 export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = {}) => {
   const {
-    projectName, wellName, fieldName, analyst, identification, completion, config, reservoir, prepared,
+    projectName, organizationName, build, wellName, fieldName, analyst, identification, completion, config, reservoir, prepared,
     model, matchParams, fitResult, matchMethodKind, derivedKpis,
     semilogResult, sqrtResult, pssResult, multiRateResult, deliverabilityResult,
     rtaResult, regimes, notes, unitSystem = 'oilfield',
     inputsTable = [], skinBreakdown = null, flowSummary = null, figures = [],
+    pressureBasisRows = [], dataUse = null, limitsRows = [],
   } = a;
   const report = createReport({ title: TITLE, appName: 'Petrolord Well Test Analysis Studio', logo });
   const { table, section } = report;
@@ -169,13 +177,15 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
   report.header({
     rows: buildReportHeader({
       projectName, wellName, fieldName, analyst, identification, completion, config, prepared, isGas, unitSystem, generatedAt,
+      organizationName, build: build ?? buildLabel(),
     }),
   });
 
   const skinValue = prepared?.skinWithheld ? 'withheld' : f2(derivedKpis?.skin);
   table('Headline results', ['Quantity', 'Value'], [
     ['Permeability k (md)', sig3(derivedKpis?.k)],
-    ['kh (md-ft)', sig3(derivedKpis?.kh)],
+    // WTA-U1-001: kh in the display system (md-m under SI, h in metres)
+    [`kh (${uL('kh').replace(' ', '-')})`, sig3(u('kh', derivedKpis?.kh))],
     [isGas ? "Apparent skin s'" : 'Skin factor (total)', skinValue],
     [`Pressure drop across skin (${uL('pressure')})`, f1(u('pressure', derivedKpis?.dpSkin))],
     ['Flow efficiency', percent(derivedKpis?.flowEfficiency)],
@@ -183,6 +193,13 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
     ['Analysis points', String(prepared?.points?.length ?? 0)],
     ['Headline values from', derivedKpis?.source === 'match' ? 'The working model match' : derivedKpis?.source === 'semilog' ? 'The semilog straight line (no model matched yet)' : EMPTY_VALUE],
   ]);
+
+  // WTA-U1-005 (RL7): where the pressures were measured and on what basis
+  if (pressureBasisRows.length) {
+    table('Gauge, datum and pressure basis', ['Item', 'Statement'], pressureBasisRows, {
+      columnStyles: { 0: { cellWidth: 48 } },
+    });
+  }
 
   // Skin split for a partially penetrating well (reviewer round, item 3)
   if (skinBreakdown) {
@@ -278,19 +295,33 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
     }
   }
 
+  // WTA-U1-006 (RL5): every gauge reading, used or left out, with the reason
+  if (dataUse?.rows?.length) {
+    table('Gauge data used and left out', ['Readings', 'Count', 'Treatment'], dataUse.rows, {
+      columnStyles: { 0: { cellWidth: 70 }, 1: { cellWidth: 18 } },
+    });
+    if (dataUse.spikes.length) {
+      table(`Spikes removed (${isBuildup ? 'shut-in time dt' : 'elapsed time'}, hr; ${uL('pressure')})`, dataUse.spikeHead.map(pdfText), dataUse.spikes, {
+        note: dataUse.spikeNote || undefined,
+      });
+    }
+  }
+
   if (deliverabilityResult) {
     const rows = [];
+    // WTA-U1-014: the coefficients carry their units and basis
+    const dU = deliverabilityUnits(deliverabilityResult.method, deliverabilityResult.backPressure?.n);
     if (deliverabilityResult.backPressure) {
       rows.push([`AOF, back-pressure (${uL('gasRate')})`, sig3(u('gasRate', deliverabilityResult.backPressure.aof))]);
       rows.push(['Exponent n', f2(deliverabilityResult.backPressure.n)]);
-      rows.push(['Coefficient C', sci(deliverabilityResult.backPressure.C)]);
+      rows.push([`Coefficient C (${dU.C})`, sci(deliverabilityResult.backPressure.C)]);
     }
     if (deliverabilityResult.lit) {
       rows.push([`AOF, LIT / Houpeurt (${uL('gasRate')})`, sig3(u('gasRate', deliverabilityResult.lit.aof))]);
-      rows.push(['Laminar coefficient a', sci(deliverabilityResult.lit.a)]);
-      rows.push(['Turbulent coefficient b', sci(deliverabilityResult.lit.b)]);
+      rows.push([`Laminar coefficient a (${dU.a})`, sci(deliverabilityResult.lit.a)]);
+      rows.push([`Turbulent coefficient b (${dU.b})`, sci(deliverabilityResult.lit.b)]);
     }
-    table(`Gas deliverability (${deliverabilityResult.method})`, ['Quantity', 'Value'], rows);
+    table(`Gas deliverability (${deliverabilityResult.method})`, ['Quantity', 'Value'], rows, { note: dU.basis });
   }
 
   if (rtaResult?.fmb) {
@@ -304,15 +335,22 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
         ? ['OOIP N, flowing material balance (MM m3)', sig3((rtaResult.fmb.N * 0.158987294928) / 1e6)]
         : ['OOIP N, flowing material balance (MMSTB)', sig3(rtaResult.fmb.N / 1e6)]);
     }
-    rows.push([`Productivity index J (${uL(rateKind)} per ${rtaResult.isGas ? dpUnit : uL('pressure')})`, sig3(rtaResult.fmb.J)]);
+    // WTA-U1-002: J converts with the unit it is printed with
+    const jKind = rtaResult.isGas ? 'gasProductivityIndex' : 'productivityIndex';
+    rows.push([`Productivity index J (${uL(rateKind)} per ${rtaResult.isGas ? dpUnit : uL('pressure')})`, sig3(u(jKind, rtaResult.fmb.J))]);
     rows.push(['FMB fit r2', f2(rtaResult.fmb.r2)]);
     rows.push(['Production points', String(rtaResult.rows?.length ?? 0)]);
     if (rtaResult.linear) {
-      rows.push(unitSystem === 'si'
-        ? ['Transient linear xf sqrt(k) (m sqrt(md))', sig3(rtaResult.linear.xfSqrtK * 0.3048)]
-        : ['Transient linear xf sqrt(k) (ft sqrt(md))', sig3(rtaResult.linear.xfSqrtK)]);
+      rows.push([`Transient linear xf sqrt(k) (${unitSystem === 'si' ? 'm' : 'ft'} sqrt(md))`, sig3(u('xfSqrtK', rtaResult.linear.xfSqrtK))]);
     }
-    table('Rate transient analysis (production data)', ['Quantity', 'Value'], rows);
+    table('Rate transient analysis (production data)', ['Quantity', 'Value'], rows, {
+      note: a.rtaImport?.text ? `Production data: ${a.rtaImport.fileName ? `${a.rtaImport.fileName}, ` : ''}${a.rtaImport.text}` : undefined,
+    });
+  }
+
+  // WTA-U1-007 (RL9): what the interpretation assumes, and the z range
+  if (limitsRows.length) {
+    table('Method and its limits', ['Topic', 'Statement'], limitsRows, { columnStyles: { 0: { cellWidth: 36 } } });
   }
 
   if (notes) {

@@ -207,7 +207,7 @@ describe('the reviewed sample report', () => {
 
   test('page count, and each plot is really on its page: ink in the plot box and the Petrolord mark embedded', () => {
     expect(pdf.pages).toBe(built.pages);
-    expect(pdf.pages).toBe(5);
+    expect(pdf.pages).toBe(6); // WTA-U1: the basis, data-use and limits tables add a page
     const plotted = built.figures.filter((f) => f.plotted);
     expect(plotted).toHaveLength(4);
     for (const f of plotted) {

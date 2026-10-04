@@ -8,18 +8,22 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
+import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjects';
 import { getModel, evaluateModelTest, evaluateBuildup, toDimensionlessGroups } from '@/utils/welltest/models/modelCatalog';
 import { bourdetDerivative, logDecimate, trimSpikes, detectFlowRegimes } from '@/utils/welltest/derivative';
 import { agarwalEquivalentTime, rateStepsFromHistory, detectFlowPeriods, equivalentProducingTime } from '@/utils/welltest/superposition';
 import { mdhAnalysis, hornerAnalysis, cartesianPssAnalysis, sqrtTimeAnalysis, radiusOfInvestigation, skinPressureDrop, flowEfficiency, multiRateSemilogAnalysis } from '@/utils/welltest/analysis';
 import { autoFitModel } from '@/utils/welltest/autoFit';
-import { buildGasPvtTable, makePseudoPressure, deliverabilityAnalysis, normalizedPseudoTime, GAS } from '@/utils/welltest/gas';
+import { buildGasPvtTable, makePseudoPressure, deliverabilityAnalysis, normalizedPseudoTime, GAS, WELLTEST_Z_METHODS } from '@/utils/welltest/gas';
 import { UNIT_SYSTEMS } from '@/utils/welltest/units';
 import { useProfileSystem } from '@/lib/units/useProfileSystem';
+import { buildLabel } from '@/lib/platformBuild';
+import { buildWtaRecord } from '@/lib/wellTestSource';
 import { provenanceFromPayload, setProvenanceField } from '@/lib/inputProvenance';
 import {
   DEFAULT_IDENTIFICATION, DEFAULT_COMPLETION, resolveTotalCompressibility,
   buildSkinBreakdown, buildInputsTable, buildFlowSummary, buildIdentificationRows,
+  buildPressureBasisRows, buildDataUseRows, buildLimitsRows,
 } from '@/utils/welltest/reportModel';
 import { buildHistoryMatch, buildOverviewData, thinRows } from '@/utils/welltest/plotData';
 
@@ -42,7 +46,8 @@ export const useWellTestStudio = () => {
   return ctx;
 };
 
-const service = createSavedProjectsService('saved_well_test_projects', {
+export const WT_PROJECTS_TABLE = 'saved_well_test_projects';
+const service = createSavedProjectsService(WT_PROJECTS_TABLE, {
   signInMessage: 'Sign in to save well test projects.',
 });
 
@@ -57,10 +62,15 @@ export const DEFAULT_RESERVOIR = {
   h: '45', phi: '0.18', rw: '0.354', B: '1.25', mu: '0.9', ct: '0.000012',
   q: '450', pi: '4800',
   // WT4 gas mode: analyses run in pseudo-pressure m(p) space built from
-  // these correlation inputs (Papay z, Lee-Gonzalez-Eakin viscosity).
+  // these correlation inputs (z by gasZMethod, Lee-Gonzalez-Eakin viscosity).
   fluid: 'oil', // 'oil' | 'gas'
   gasGravity: '0.65',
   tempF: '180',
+  // WTA-U1-003: z-factor method of the gas PVT table. New work runs on the
+  // canonical Dranchuk-Abou-Kassem engine (the Fluid Systems Studio default);
+  // a project saved before 2026-10-04 carries no method and opens on Papay,
+  // the method it was interpreted with (see hydrate).
+  gasZMethod: 'dranchuk_abou_kassem',
   // Tester round 2 (report inputs). ctMode 'total' keeps ct as the one
   // entered number; 'components' sums cf + So co + Sw cw + Sg cg in the
   // engine. Everything below is blank until entered and prints as n/a.
@@ -141,7 +151,8 @@ export function buildReservoirInputs(r) {
     if (!(tempF > 32 && tempF < 500)) {
       return { reservoir: null, error: 'Reservoir temperature must be given in degF.' };
     }
-    const pvt = makePseudoPressure(buildGasPvtTable({ gasGravity, tempF, pMax: Math.max(out.pi * 1.5, 2000) }));
+    const zMethod = WELLTEST_Z_METHODS[r.gasZMethod] ? r.gasZMethod : 'papay';
+    const pvt = makePseudoPressure(buildGasPvtTable({ gasGravity, tempF, pMax: Math.max(out.pi * 1.5, 2000), zMethod }));
     if (!pvt) return { reservoir: null, error: 'Gas PVT table could not be built.' };
     const muI = pvt.muOf(out.pi);
     // components: a gas saturation with no cg entered takes cg(pi) from the PVT table
@@ -158,6 +169,7 @@ export function buildReservoirInputs(r) {
         B: (GAS.SEMILOG_SLOPE * tempR) / (162.6 * muI),
         tempR,
         gasGravity,
+        zMethod,
         mOfP: pvt.mOfP,
         pOfM: pvt.pOfM,
         // WT8 pseudo-time abscissa: mu(p) ct(p) along the gauge pressures.
@@ -238,7 +250,7 @@ export function buildTestConfig(t) {
 export function prepareTestData({ gaugeRows, reservoir, config }) {
   const empty = (warnings = []) => ({
     points: [], pwfShutIn: NaN, pwfSource: null, testStartTime: config?.testStartTime || 0, preTestPoints: 0, preTest: [], info: [],
-    skinWithheld: null, removedSpikes: 0, warnings,
+    skinWithheld: null, removedSpikes: 0, warnings, exclusions: null,
     paI: NaN, paShutIn: NaN, fromAnalysis: (v) => v, dpToGauge: (v) => v,
   });
   // Gauge clock -> elapsed test time: dt = t - testStartTime (tester round
@@ -267,10 +279,12 @@ export function prepareTestData({ gaugeRows, reservoir, config }) {
 
   let series = rows;
   let removedSpikes = 0;
+  let spikeList = [];
   if (config.spikeTrimOn) {
     const { kept, removed } = trimSpikes(rows, { threshold: config.spikeThreshold, yKey: 'p' });
     series = kept;
     removedSpikes = removed.length;
+    spikeList = removed.map((r) => ({ t: r.t, p: r.p }));
   }
 
   const decimated = logDecimate(series, { pointsPerDecade: config.pointsPerDecade, xKey: 't' });
@@ -340,8 +354,28 @@ export function prepareTestData({ gaugeRows, reservoir, config }) {
   if (removedSpikes > 0) warnings.push(`${removedSpikes} outlier point${removedSpikes > 1 ? 's' : ''} removed by the spike filter.`);
 
   const dpToGauge = (dp) => fromM(base + s * dp);
+  // WTA-U1-006 (RL5): every gauge reading is accounted for once, used or
+  // left out with its reason; the report lists them
+  const exclusions = {
+    total: (gaugeRows || []).length,
+    unreadable: (gaugeRows || []).length - all.length,
+    before: {
+      count: before.length,
+      from: before.length ? before[0].t + t0 : NaN,
+      to: before.length ? before[before.length - 1].t + t0 : NaN,
+    },
+    atShutIn: all.filter((r) => Math.abs(r.t) <= SHUT_IN_T_EPS_HR).length,
+    spikes: spikeList,
+    spikeThreshold: config.spikeTrimOn ? config.spikeThreshold : null,
+    thinned: series.length - decimated.length,
+    pointsPerDecade: config.pointsPerDecade,
+    notAboveBase: decimated.length - points.length,
+    family: config.family,
+    mirror: config.mirror,
+  };
   return {
     points,
+    exclusions,
     pwfShutIn,
     pwfSource,
     testStartTime: t0,
@@ -424,8 +458,16 @@ export function generateSampleBuildup() {
   return { gaugeRows, tp, truth, pwfShutIn: clean.pwfAtShutIn };
 }
 
-export const WellTestStudioProvider = ({ children }) => {
+export const WellTestStudioProvider = ({ children, organizationName = '', sharingStore = null }) => {
   const { notifications, addNotification, removeNotification } = useStudioNotifications();
+
+  // WTA-U1-011: saved_well_test_projects is under the record sharing rules
+  // (migration 20261002130000, applied). With a store the picker lists my
+  // projects, then those colleagues shared; a save goes through the store
+  // and only while I may write (the owner, or the colleague holding the
+  // check-out). Without a store every save is the plain owner save.
+  const shared = useSharedSavedProjects({ table: WT_PROJECTS_TABLE, service, sharingStore });
+  const canWrite = shared.canWrite;
 
   // Projects
   const [projects, setProjects] = useState([]);
@@ -449,6 +491,10 @@ export const WellTestStudioProvider = ({ children }) => {
   const [inputMeta, setInputMeta] = useState({}); // { [inputKey]: { source, correlation, note } }
   const [periodMeta, setPeriodMeta] = useState({}); // { [period start]: { choke, recovered, remark } }
   const [pvtIntake, setPvtIntake] = useState(null); // { fields: [...], text } from a Fluid Systems Studio handoff
+  // WTA-U1-005: what the gauge import read (file, units, rows), so the report
+  // can say whether pressures were gauge and how they became absolute.
+  // null = not recorded (data typed in, or a project saved before 2026-10-04)
+  const [gaugeImport, setGaugeImport] = useState(null);
   const setIdentificationField = useCallback((k, v) => setIdentification((prev) => ({ ...prev, [k]: v })), []);
   const setCompletionField = useCallback((k, v) => setCompletion((prev) => ({ ...prev, [k]: v })), []);
   const setInputMetaField = useCallback((key, k, v) => setInputMeta((prev) => setProvenanceField(prev, key, k, v)), []);
@@ -475,6 +521,8 @@ export const WellTestStudioProvider = ({ children }) => {
   // transient-linear window bounds (days); persisted with the project
   const [rtaRows, setRtaRows] = useState([]);
   const [rtaWindows, setRtaWindows] = useState({ linMin: '', linMax: '' });
+  // WTA-U1-010: what the production import read, for the read-back and the report
+  const [rtaImport, setRtaImport] = useState(null);
   const setRtaWindowField = useCallback((k, v) => setRtaWindows((prev) => ({ ...prev, [k]: v })), []);
 
   // Transient auto-fit state (regression on demand, never persisted)
@@ -874,7 +922,16 @@ export const WellTestStudioProvider = ({ children }) => {
 
   const identificationRows = useMemo(() => buildIdentificationRows({
     projectName, wellName, fieldName, analyst, identification, completion, config: configSpec.config, unitSystem,
-  }), [projectName, wellName, fieldName, analyst, identification, completion, configSpec, unitSystem]);
+    organizationName, build: buildLabel(),
+  }), [projectName, wellName, fieldName, analyst, identification, completion, configSpec, unitSystem, organizationName]);
+
+  // WTA-U1-005 and -006: the pressure basis and the readings left out, once
+  // for the Report tab and the PDF
+  const pressureBasisRows = useMemo(() => buildPressureBasisRows({ completion, gaugeImport, unitSystem }), [completion, gaugeImport, unitSystem]);
+  const dataUse = useMemo(() => buildDataUseRows({ prepared, unitSystem }), [prepared, unitSystem]);
+  const limitsRows = useMemo(() => buildLimitsRows({
+    reservoir: reservoirSpec.reservoir, config: configSpec.config, model, prepared,
+  }), [reservoirSpec, configSpec, model, prepared]);
 
   // History match (model against the gauge over the whole record) and the
   // test overview: one calculation, drawn on the tabs and in the PDF.
@@ -894,7 +951,7 @@ export const WellTestStudioProvider = ({ children }) => {
   const analysisInputsKey = useMemo(() => {
     const r = reservoirSpec.reservoir;
     if (!r) return `invalid:${reservoirSpec.error || ''}`;
-    return [r.fluid, r.h, r.phi, r.rw, r.B, r.mu, r.ct, r.q, r.pi, r.tempR ?? '', r.gasGravity ?? ''].join('|');
+    return [r.fluid, r.h, r.phi, r.rw, r.B, r.mu, r.ct, r.q, r.pi, r.tempR ?? '', r.gasGravity ?? '', r.zMethod ?? ''].join('|');
   }, [reservoirSpec]);
   useEffect(() => {
     if (hasFitResult.current) setFitStale(true);
@@ -923,8 +980,17 @@ export const WellTestStudioProvider = ({ children }) => {
     setInputMeta({});
     setPeriodMeta({});
     setPvtIntake(null);
+    setGaugeImport({ sample: true, pressureUnit: 'psia', timeUnit: 'hr', count: sample.gaugeRows.length, skipped: 0 });
     addNotification('Sample buildup loaded (synthetic homogeneous test, tp = 36 hr).', 'success');
   }, [addNotification]);
+
+  // WTA-U1-012: the wta-1 record of the interpretation on screen, written
+  // into every save so other apps read the results by id (lib/wellTestSource)
+  const wtaRecord = useMemo(() => buildWtaRecord({
+    reservoirSpec, derivedKpis, configSpec, semilogResult, matchMethod, fitResult, model, skinBreakdown, prepared,
+    completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId,
+  }), [reservoirSpec, derivedKpis, configSpec, semilogResult, matchMethod, fitResult, model, skinBreakdown, prepared,
+    completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId]);
 
   // ---- Project persistence ----
   const serializeInputs = useCallback(() => ({
@@ -938,6 +1004,7 @@ export const WellTestStudioProvider = ({ children }) => {
     inputMeta,
     periodMeta,
     pvtIntake,
+    gaugeImport,
     reservoirInputs,
     testConfig,
     gaugeRows,
@@ -949,8 +1016,10 @@ export const WellTestStudioProvider = ({ children }) => {
     unitSystem,
     rtaRows,
     rtaWindows,
+    rtaImport,
+    wta: wtaRecord ? { ...wtaRecord, computed_at: new Date().toISOString() } : null,
     modified: new Date().toISOString(),
-  }), [currentProjectId, projectName, wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows]);
+  }), [wtaRecord, currentProjectId, projectName, wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows, rtaImport]);
 
   const hydrate = useCallback((payload) => {
     setWellName(payload?.wellName || '');
@@ -962,7 +1031,12 @@ export const WellTestStudioProvider = ({ children }) => {
     setInputMeta(provenanceFromPayload(payload));
     setPeriodMeta(payload?.periodMeta && typeof payload.periodMeta === 'object' ? payload.periodMeta : {});
     setPvtIntake(payload?.pvtIntake && Array.isArray(payload.pvtIntake.fields) ? payload.pvtIntake : null);
-    setReservoirInputs({ ...DEFAULT_RESERVOIR, ...(payload?.reservoirInputs || {}) });
+    setGaugeImport(payload?.gaugeImport && typeof payload.gaugeImport === 'object' ? payload.gaugeImport : null);
+    // WTA-U1-003: a payload with reservoir inputs but no z method was saved
+    // before the method existed, and was interpreted on Papay; it keeps it
+    const savedInputs = payload?.reservoirInputs || {};
+    const zKept = payload?.reservoirInputs && !savedInputs.gasZMethod ? { gasZMethod: 'papay' } : {};
+    setReservoirInputs({ ...DEFAULT_RESERVOIR, ...savedInputs, ...zKept });
     setTestConfig({ ...DEFAULT_TEST_CONFIG, ...(payload?.testConfig || {}) });
     setGaugeRows(Array.isArray(payload?.gaugeRows) ? payload.gaugeRows : []);
     setRateRows(Array.isArray(payload?.rateRows) ? payload.rateRows : []);
@@ -974,21 +1048,28 @@ export const WellTestStudioProvider = ({ children }) => {
     setUnitSystemRaw(UNIT_SYSTEMS.includes(payload?.unitSystem) ? payload.unitSystem : 'oilfield');
     setRtaRows(Array.isArray(payload?.rtaRows) ? payload.rtaRows : []);
     setRtaWindows({ linMin: '', linMax: '', ...(payload?.rtaWindows || {}) });
+    setRtaImport(payload?.rtaImport && typeof payload.rtaImport === 'object' ? payload.rtaImport : null);
     setFitResult(null);
     hasFitResult.current = false;
     setFitStale(false);
   }, []);
 
+  const refreshProjects = useCallback(async () => {
+    const list = await shared.refreshList();
+    setProjects(list);
+    return list;
+  }, [shared.refreshList]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     (async () => {
       try {
-        setProjects(await service.list());
+        await refreshProjects();
       } catch (e) {
         console.error(e);
         addNotification('Could not load saved projects', 'error');
       }
     })();
-  }, [addNotification]);
+  }, [addNotification]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!profileUnitSystem || hydrated || currentProjectId || unitPickedRef.current) return;
@@ -997,7 +1078,7 @@ export const WellTestStudioProvider = ({ children }) => {
 
   const openProject = useCallback(async (id) => {
     try {
-      const payload = await service.load(id);
+      const payload = await shared.loadForOpen(id);
       if (!payload) {
         addNotification('Project not found', 'error');
         return;
@@ -1011,7 +1092,7 @@ export const WellTestStudioProvider = ({ children }) => {
       console.error(e);
       addNotification('Could not open project', 'error');
     }
-  }, [addNotification, hydrate]);
+  }, [addNotification, hydrate, shared.loadForOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // An exported project JSON read back into the workspace (not saved until
   // the user saves it or it lands in an open project's autosave).
@@ -1029,17 +1110,18 @@ export const WellTestStudioProvider = ({ children }) => {
     const id = uuidv4();
     try {
       await service.save(id, { ...serializeInputs(), id, name });
+      await shared.adoptRow(id);
       setCurrentProjectId(id);
       setProjectName(name);
       setHydrated(true);
       setLastSaveTime(new Date());
-      setProjects(await service.list());
+      await refreshProjects();
       addNotification(`Project "${name}" created`, 'success');
     } catch (e) {
       console.error(e);
       addNotification(e.message || 'Could not create project', 'error');
     }
-  }, [serializeInputs, addNotification]);
+  }, [serializeInputs, addNotification, refreshProjects]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const deleteProject = useCallback(async (id) => {
     try {
@@ -1048,44 +1130,75 @@ export const WellTestStudioProvider = ({ children }) => {
         setCurrentProjectId(null);
         setProjectName('');
         setHydrated(false);
+        shared.close();
       }
-      setProjects(await service.list());
+      await refreshProjects();
       addNotification('Project deleted', 'info');
     } catch (e) {
       console.error(e);
       addNotification('Could not delete project', 'error');
     }
-  }, [currentProjectId, addNotification]);
+  }, [currentProjectId, addNotification, refreshProjects]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const manualSave = useCallback(async () => {
     if (!currentProjectId) {
       addNotification('Create or open a project first', 'info');
-      return;
+      return false;
     }
     setIsSaving(true);
     try {
-      await service.save(currentProjectId, serializeInputs());
+      const res = await shared.write(currentProjectId, serializeInputs());
+      if (!res.ok) {
+        setSaveError(res.readOnly ? 'Read-only' : 'Save failed');
+        addNotification(res.message, res.readOnly ? 'info' : 'error');
+        return false;
+      }
       setLastSaveTime(new Date());
       setSaveError(null);
+      return true;
     } catch (e) {
       console.error(e);
       setSaveError('Save failed');
+      return false;
     } finally {
       setIsSaving(false);
     }
-  }, [currentProjectId, serializeInputs, addNotification]);
+  }, [currentProjectId, serializeInputs, addNotification, shared.write]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Debounced autosave (10 s after the last change), only once a project is open.
+  // "Save a copy": the project on screen as my own new project
+  const saveCopy = useCallback(async () => {
+    const name = shared.copyNameFor(projectName || 'Well test project');
+    const id = uuidv4();
+    try {
+      await service.save(id, { ...serializeInputs(), id, name });
+      await refreshProjects();
+      await openProject(id);
+      addNotification(`Saved a copy as "${name}"`, 'success');
+      return id;
+    } catch (e) {
+      addNotification(`Could not save a copy: ${e.message}`, 'error');
+      return null;
+    }
+  }, [projectName, serializeInputs, refreshProjects, openProject, addNotification]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced autosave (10 s after the last change), only once a project is
+  // open and never while it is open read-only.
   const autosaveRef = useRef(serializeInputs);
   autosaveRef.current = serializeInputs;
+  const writeRef = useRef(shared.write);
+  writeRef.current = shared.write;
   useEffect(() => {
-    if (!currentProjectId || !hydrated) return undefined;
+    if (!currentProjectId || !hydrated || !canWrite) return undefined;
     const timer = setTimeout(async () => {
       setIsSaving(true);
       try {
-        await service.save(currentProjectId, autosaveRef.current());
-        setLastSaveTime(new Date());
-        setSaveError(null);
+        const res = await writeRef.current(currentProjectId, autosaveRef.current());
+        if (res.ok) {
+          setLastSaveTime(new Date());
+          setSaveError(null);
+        } else if (!res.readOnly) {
+          setSaveError('Auto-save failed');
+        }
       } catch (e) {
         console.error(e);
         setSaveError('Auto-save failed');
@@ -1094,14 +1207,19 @@ export const WellTestStudioProvider = ({ children }) => {
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows, currentProjectId, hydrated]);
+  }, [wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows, rtaImport, currentProjectId, hydrated, canWrite]);
 
   const value = {
     // shell plumbing
     notifications, addNotification, removeNotification,
+    organizationName,
     // projects
-    projects, currentProjectId, projectName,
-    createProject, openProject, deleteProject, manualSave,
+    // my own projects (with a store), then those shared with me
+    projects: shared.projects.length || !projects.length ? shared.projects : projects,
+    currentProjectId, projectName,
+    createProject, openProject, deleteProject, manualSave, saveCopy,
+    sharedProjects: shared.sharedProjects,
+    projectRow: shared.projectRow, sharing: shared.sharing, viewingShared: shared.viewingShared, canWrite,
     isSaving, saveError, lastSaveTime,
     // inputs
     wellName, setWellName,
@@ -1112,6 +1230,7 @@ export const WellTestStudioProvider = ({ children }) => {
     inputMeta, setInputMetaField,
     periodMeta, setPeriodMetaField,
     pvtIntake, setPvtIntake,
+    gaugeImport, setGaugeImport,
     serializeInputs, importProjectPayload,
     reservoirInputs, setReservoirField,
     testConfig, setTestField,
@@ -1124,6 +1243,7 @@ export const WellTestStudioProvider = ({ children }) => {
     unitSystem, setUnitSystem, profileUnitSystem,
     rtaRows, setRtaRows,
     rtaWindows, setRtaWindowField,
+    rtaImport, setRtaImport,
     // derived
     reservoirSpec, configSpec, model,
     prepared, loglog, regimes, flowPeriods, pseudoTime, rtaResult,
@@ -1133,6 +1253,7 @@ export const WellTestStudioProvider = ({ children }) => {
     multiRateResult, deliverabilityResult,
     // report model and shared plot series (tester round 2)
     skinBreakdown, inputsTable, flowSummary, identificationRows, historyMatch, overview,
+    pressureBasisRows, dataUse, limitsRows, wtaRecord,
     // auto-fit
     fitResult, isFitting, fitStale, runAutoFit, matchMethod,
     // sample

@@ -26,7 +26,7 @@ export function mapWellTestIntake(wt) {
   if (!Object.keys(prefill).length) return null;
 
   const extras = [
-    Number.isFinite(wt.k_md) ? `k = ${Number(wt.k_md).toPrecision(3)} md` : null,
+    Number.isFinite(wt.k_md) ? `k = ${Number(wt.k_md).toPrecision(3)} md${wt.kMethod ? ` from ${wt.kMethod}` : ''}` : null,
     Number.isFinite(wt.skin) ? `skin = ${Number(wt.skin).toFixed(1)}` : null,
   ].filter(Boolean).join(', ');
   const note =

@@ -193,8 +193,8 @@ test('PL7: the exported PDF carries the reviewer content and the plots, read bac
   await expect(page.getByTestId('wts-report-crosscheck')).toContainText(/Model match, Homogeneous reservoir/);
   const kOnScreen = (await page.getByTestId('wts-report-crosscheck').locator('tbody tr').first().locator('td').nth(1).innerText()).trim();
   expect(t).toContain(`Model match, Homogeneous reservoir ${kOnScreen}`);
-  // five pages, the Petrolord mark embedded on the plot pages, Latin-1 only
-  expect(pdf.pages).toBe(5);
+  // six pages since WTA-U1 (basis, data use and limits tables), the Petrolord mark embedded on the plot pages, Latin-1 only
+  expect(pdf.pages).toBe(6);
   expect(pdf.images.length).toBeGreaterThanOrEqual(1);
   // eslint-disable-next-line no-control-regex
   expect(pdf.text).not.toMatch(/[^\x00-\xff]/);

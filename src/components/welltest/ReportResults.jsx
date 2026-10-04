@@ -54,7 +54,7 @@ const ReportResults = () => {
     matchParams, semilogResult, sqrtResult, pssResult, derivedKpis, sqrtMeaningful,
     multiRateResult, deliverabilityResult, fitResult, matchMethod, regimes, notes, model,
     unitSystem, rtaResult,
-    identificationRows, inputsTable, skinBreakdown, flowSummary,
+    identificationRows, inputsTable, skinBreakdown, flowSummary, pressureBasisRows, dataUse, limitsRows,
   } = ctx;
   const uL = (kind) => unitLabel(kind, unitSystem);
 
@@ -126,7 +126,7 @@ const ReportResults = () => {
 
       <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
         <Kpi title="Permeability k" value={fmt.sig3(derivedKpis?.k)} unit="md" accent />
-        <Kpi title="kh" value={fmt.sig3(derivedKpis?.kh)} unit="md·ft" />
+        <Kpi title="kh" value={fmt.sig3(fromOilfield('kh', derivedKpis?.kh, unitSystem))} unit={unitLabel('kh', unitSystem)} />
         <Kpi title="Skin (total)" value={fmt.f2(derivedKpis?.skin)} />
         <Kpi title="Δp across skin" value={fmtU('pressure', derivedKpis?.dpSkin, unitSystem, fmt.f1)} unit={uL('pressure')} />
         <Kpi title="Radius of investigation" value={fmtU('length', derivedKpis?.ri, unitSystem, fmt.int)} unit={uL('length')} />
@@ -138,6 +138,10 @@ const ReportResults = () => {
             ? 'Headline values from the semilog straight line: the model match has not been adjusted or fitted yet.'
             : 'No interpretation yet: fit a model or set a semilog window.'}
       </p>
+
+      <Card title="Gauge, datum and pressure basis" testId="wts-report-basis">
+        <Table head={['Item', 'Statement']} body={pressureBasisRows} minWidth={420} />
+      </Card>
 
       <Card title="Skin components" testId="wts-report-skin">
         <Table head={['Component', 'Value', 'Basis']} body={skinBreakdownRows(skinBreakdown, unitSystem)} minWidth={420} />
@@ -216,6 +220,23 @@ const ReportResults = () => {
         <p className="text-[11px] text-pl-muted mt-2">{flowSummary.note} Choke and recovered volume are entered on the Data tab.</p>
       </Card>
 
+      <Card title="Method and its limits" testId="wts-report-limits">
+        <Table head={['Topic', 'Statement']} body={limitsRows} minWidth={420} />
+      </Card>
+
+      {dataUse.rows.length > 0 && (
+        <Card title="Gauge data used and left out" testId="wts-report-datause">
+          <Table head={['Readings', 'Count', 'Treatment']} body={dataUse.rows} minWidth={460} />
+          {dataUse.spikes.length > 0 && (
+            <div className="mt-3">
+              <p className="text-[11px] text-pl-muted mb-1">Spikes removed</p>
+              <Table head={dataUse.spikeHead} body={dataUse.spikes} minWidth={260} />
+              {dataUse.spikeNote && <p className="text-[11px] text-pl-muted mt-1">{dataUse.spikeNote}</p>}
+            </div>
+          )}
+        </Card>
+      )}
+
       {deliverabilityResult && (
         <div className="rounded-lg border border-pl-border bg-pl-surface p-4">
           <p className="text-xs font-semibold text-pl-muted uppercase tracking-wider mb-1">
@@ -258,13 +279,13 @@ const ReportResults = () => {
             <table className="w-full text-xs">
               <tbody>
                 <Row label={`${inPlace.label}, flowing material balance`} value={inPlace.value} unit={inPlace.unit} />
-                <Row label="Productivity index J" value={fmt.sig3(fmbResult.J)} />
+                <Row label="Productivity index J" value={fmt.sig3(fromOilfield(rtaResult.isGas ? 'gasProductivityIndex' : 'productivityIndex', fmbResult.J, unitSystem))} unit={unitLabel(rtaResult.isGas ? 'gasProductivityIndex' : 'productivityIndex', unitSystem)} />
                 <Row label="FMB fit r²" value={fmt.f3(fmbResult.r2)} />
                 {rtaResult.linear && (
                   <Row
                     label="Transient linear xf √k"
-                    value={fmt.sig3(unitSystem === 'si' ? rtaResult.linear.xfSqrtK * 0.3048 : rtaResult.linear.xfSqrtK)}
-                    unit={unitSystem === 'si' ? 'm·√md' : 'ft·√md'}
+                    value={fmt.sig3(fromOilfield('xfSqrtK', rtaResult.linear.xfSqrtK, unitSystem))}
+                    unit={unitLabel('xfSqrtK', unitSystem)}
                   />
                 )}
               </tbody>

@@ -20,6 +20,8 @@ import { unitLabel, fromOilfield } from './units.js';
 import { partialPenetrationSkin } from './partialPenetration.js';
 import { totalCompressibility } from './compressibility.js';
 import { summarizeFlowPeriods } from './flowSummary.js';
+import { PRESSURE_UNITS, TIME_UNITS, gaugeTime } from './gaugeImport.js';
+import { suttonPseudoCriticals, GAS_Z_METHODS } from '../../../packages/engines/engines/fluid/blackOil';
 
 const num = (v) => {
   if (v == null || v === '') return NaN;
@@ -48,6 +50,7 @@ export const TEST_OPERATIONS = Object.freeze({
 });
 
 export const DEFAULT_IDENTIFICATION = Object.freeze({
+  company: '', // WTA-U1-004: typed; blank prints the organisation name
   licence: '',
   zone: '',
   testDateStart: '',
@@ -61,6 +64,10 @@ export const DEFAULT_COMPLETION = Object.freeze({
   perfTopMd: '', perfBaseMd: '', payTopMd: '',
   perfTopTvd: '', perfBaseTvd: '', payTopTvd: '',
   tvdSource: '',
+  // WTA-U1-005 (owner default, plan question 6): the gauge depth and the
+  // pressure datum are stated inputs, printed in the report; no correction
+  // to the datum is applied and the report says so
+  gaugeDepthMd: '', gaugeDepthTvd: '', datumDepthTvdss: '',
 });
 
 /** "Pressure buildup, drill stem test (DST)" style line for the header. */
@@ -151,7 +158,18 @@ export const WELLTEST_PVT_FIELDS = Object.freeze([
  */
 export function pvtIntakeFromBackbone(fluid) {
   const out = intakeFromHandoff(fluid, WELLTEST_PVT_FIELDS);
-  return out && { patch: out.patch, applied: out.applied, intake: out.intake };
+  if (!out) return null;
+  // RL11 (gap matrix, confirmed by WTA-U1-019): the shared intake records the
+  // values received only for a pvt-1 handoff, so a value edited after a
+  // version-1 handoff kept the handoff as its source. The values applied are
+  // recorded here for every handoff.
+  const intake = out.intake.values ? out.intake : {
+    ...out.intake,
+    values: Object.fromEntries(WELLTEST_PVT_FIELDS
+      .filter((f) => out.patch[f.storeKey || f.key] != null && out.patch[f.storeKey || f.key] !== '')
+      .map((f) => [f.key, out.patch[f.storeKey || f.key]])),
+  };
+  return { patch: out.patch, applied: out.applied, intake };
 }
 
 // ---- total compressibility --------------------------------------------------
@@ -436,13 +454,30 @@ export function buildFlowSummary({ rateRows = [], config, reservoir, prepared, p
       raw: p,
     };
   });
+  // WTA-U1-008: the analysis reads the test rate q (and tp); an entered rate
+  // history that says otherwise is stated, never silently reconciled
+  const mismatch = [];
+  if (!derived && reservoir?.q > 0) {
+    const sorted = [...history].sort((a, b) => a.t - b.t);
+    const shutIn = isBuildup ? sorted.find((r) => r.q === 0 && r.t > 0) : null;
+    const flowing = sorted.filter((r) => r.q !== 0 && (!shutIn || r.t < shutIn.t));
+    const qHist = flowing.length ? Math.abs(flowing[flowing.length - 1].q) : NaN;
+    const show = (v) => `${plain(fromOilfield(rateKind, v, unitSystem))} ${unitLabel(rateKind, unitSystem)}`;
+    if (Number.isFinite(qHist) && Math.abs(qHist - reservoir.q) > 0.005 * reservoir.q) {
+      mismatch.push(`The test rate q (${show(reservoir.q)}) differs from the last rate of the rate history (${show(qHist)}); the analysis uses q.`);
+    }
+    if (isBuildup && shutIn && Number.isFinite(config?.tp) && Math.abs(shutIn.t - config.tp) > 0.005 * Math.max(config.tp, 1e-9)) {
+      mismatch.push(`The producing time tp (${plain(config.tp)} hr) differs from the shut-in time of the rate history (${plain(shutIn.t)} hr); the analysis uses tp.`);
+    }
+  }
   return {
     rows,
     derived,
+    mismatch,
     empty: rows.length === 0,
-    note: derived
+    note: (derived
       ? `No rate history was entered: the periods are taken from the test setup (${isBuildup ? 'rate q for the producing time tp, then the shut-in' : 'rate q over the gauge record'}).`
-      : 'Periods from the entered rate history.',
+      : 'Periods from the entered rate history.') + (mismatch.length ? ` ${mismatch.join(' ')}` : ''),
     rateKind,
     volKind,
     totalVolume: summary.totalVolume,
@@ -468,6 +503,7 @@ export const flowSummaryBody = (fs) => fs.rows.map((r) => [
 /** [label, value] pairs of the well and test identification. */
 export function buildIdentificationRows({
   projectName, wellName, fieldName, analyst, identification, completion, config, unitSystem = 'oilfield',
+  organizationName = '', build = '',
 }) {
   const comp = buildCompletion(completion);
   const L = unitLabel('length', unitSystem);
@@ -476,6 +512,8 @@ export function buildIdentificationRows({
     ['Project', text(projectName) || 'Untitled interpretation'],
     ['Well', orNA(wellName)],
     ['Field', orNA(fieldName)],
+    // WTA-U1-004 (RL4): who the work is for, typed or the organisation's name
+    ['Company', text(identification?.company) || orNA(organizationName)],
     ['Licence', orNA(identification?.licence)],
     ['Zone or sand', orNA(identification?.zone)],
     ['Analyst', orNA(analyst)],
@@ -483,5 +521,161 @@ export function buildIdentificationRows({
     ['Test dates', testDatesText(identification)],
     ['Perforations, MD', withUnit(interval('length', comp.md.top, comp.md.base, unitSystem))],
     ['Perforations, TVD', withUnit(interval('length', comp.tvd.top, comp.tvd.base, unitSystem))],
+    // WTA-U1-004 (RL4): the software that produced the numbers
+    ['Software build', orNA(build)],
   ];
+}
+
+// ---- gauge, datum and pressure basis (WTA-U1-005, RL7) ----------------------
+
+/** How the gauge pressures became absolute, in words, from what the import recorded. */
+export function absoluteBasisText(gaugeImport) {
+  if (!gaugeImport) return 'Not recorded with this project (data entered or saved before 2026-10-04). The analysis treats every pressure as absolute.';
+  if (gaugeImport.sample) return 'Absolute: the synthetic sample test.';
+  const u = PRESSURE_UNITS[gaugeImport.pressureUnit];
+  if (!u) return 'Not recorded with this project. The analysis treats every pressure as absolute.';
+  if (!u.gauge) return `Absolute: the file was read in ${u.label}.`;
+  const atm = gaugeImport.pressureUnit === 'psig' ? '14.696 psi' : gaugeImport.pressureUnit === 'kpag' ? '101.325 kPa' : gaugeImport.pressureUnit === 'barg' ? '1.01325 bar' : '0.101325 MPa';
+  return `Converted: the file was read in ${gaugeImport.pressureUnit === 'psig' ? 'psig' : u.label}; one standard atmosphere (${atm}) was added to each reading. A local barometric pressure was not applied.`;
+}
+
+/**
+ * The rows a reviewer reads before trusting any pressure in the report:
+ * where the gauge sat, which datum the field reports pressures at, that no
+ * correction to that datum was applied, and whether the readings were
+ * gauge or absolute. [label, value].
+ */
+export function buildPressureBasisRows({ completion, gaugeImport, unitSystem = 'oilfield' }) {
+  const c = completion || {};
+  const L = unitLabel('length', unitSystem);
+  const len = (v) => (Number.isFinite(num(v)) ? `${shown('length', num(v), unitSystem)} ${L}` : null);
+  const md = len(c.gaugeDepthMd);
+  const tvd = len(c.gaugeDepthTvd);
+  const gauge = [md ? `${md} MD` : null, tvd ? `${tvd} TVD` : null].filter(Boolean).join(', ');
+  const datum = len(c.datumDepthTvdss);
+  const rows = [
+    ['Gauge depth', gauge || EMPTY_VALUE],
+    ['Pressure datum', datum ? `${datum} TVDSS` : 'Not stated'],
+    ['Correction to the datum', 'None applied: every pressure in this report is at the gauge depth'],
+    ['Absolute or gauge', absoluteBasisText(gaugeImport)],
+  ];
+  if (gaugeImport && !gaugeImport.sample && gaugeImport.fileName) {
+    const tu = TIME_UNITS[gaugeImport.timeUnit]?.label;
+    rows.push(['Gauge file', `${gaugeImport.fileName}: ${gaugeImport.count ?? EMPTY_VALUE} readings read${gaugeImport.skipped ? `, ${gaugeImport.skipped} rows skipped as not numbers` : ''}${tu ? `; time in ${tu}` : ''}${gaugeImport.dateOrder ? `, dates ${gaugeImport.dateOrder === 'dmy' ? 'day first' : 'month first'}` : ''}`]);
+  }
+  return rows;
+}
+
+// ---- gauge readings used and left out (WTA-U1-006, RL5) ---------------------
+
+const SPIKE_LIST_MAX = 20;
+
+/**
+ * Every gauge reading, used or left out of the analysis series, with the
+ * reason. Built from prepareTestData's `exclusions`; the counts close on
+ * the readings in the record.
+ * @returns {{rows: Array<[string, string, string]>, spikes: Array<[string, string]>, spikeNote: ?string}}
+ */
+export function buildDataUseRows({ prepared, unitSystem = 'oilfield' }) {
+  const ex = prepared?.exclusions;
+  if (!ex) return { rows: [], spikes: [], spikeNote: null };
+  const buildup = ex.family === 'buildup';
+  const P = unitLabel('pressure', unitSystem);
+  const rows = [['Readings in the gauge record', String(ex.total), 'As loaded']];
+  if (ex.unreadable) rows.push(['Without a time or a pressure', String(ex.unreadable), 'Left out: not readable as numbers']);
+  if (ex.before.count) {
+    const what = buildup ? (ex.mirror ? 'Before the shut-in of the injector' : 'Before the shut-in') : 'Before the start of flow';
+    rows.push([`${what} (gauge clock ${gaugeTime(ex.before.from)} to ${gaugeTime(ex.before.to)} hr)`, String(ex.before.count), 'Left out: the preceding flow period (drawn on the history match)']);
+  }
+  if (ex.atShutIn) rows.push([buildup ? 'At the shut-in instant (dt = 0)' : 'At the start of flow (t = 0)', String(ex.atShutIn), buildup ? 'Used as the pressure at shut-in only; dt = 0 has no place on a log axis' : 'Left out: t = 0 has no place on a log axis']);
+  if (ex.spikeThreshold != null) {
+    rows.push(['Spike filter', String(ex.spikes.length), ex.spikes.length
+      ? `Left out: more than ${plain(ex.spikeThreshold)} robust standard deviations from the five-point median`
+      : `None removed (threshold ${plain(ex.spikeThreshold)} robust standard deviations)`]);
+  } else {
+    rows.push(['Spike filter', EMPTY_VALUE, 'Off: no reading was tested']);
+  }
+  if (ex.thinned) rows.push(['Thinned on the log time axis', String(ex.thinned), `Left out: ${ex.pointsPerDecade} points per log cycle are kept`]);
+  if (ex.notAboveBase) {
+    rows.push([buildup ? 'No pressure change from the shut-in' : (ex.mirror ? 'Below the initial pressure' : 'Above the initial pressure'), String(ex.notAboveBase),
+      buildup ? 'Left out: the change from the pressure at shut-in is zero or negative' : 'Left out: on the wrong side of the initial pressure']);
+  }
+  rows.push(['Analysis points', String(prepared.points.length), 'Used']);
+  const spikes = ex.spikes.slice(0, SPIKE_LIST_MAX).map((r) => [plain(r.t), plain(fromOilfield('pressure', r.p, unitSystem))]);
+  const spikeNote = ex.spikes.length > SPIKE_LIST_MAX ? `The first ${SPIKE_LIST_MAX} of ${ex.spikes.length} are listed.` : null;
+  return { rows, spikes, spikeNote, spikeHead: [buildup ? 'Shut-in time dt (hr)' : 'Elapsed time (hr)', `Pressure (${P})`] };
+}
+
+// ---- the method and its limits (WTA-U1-007, RL9) -----------------------------
+
+const r2 = (v) => (Number.isFinite(v) ? String(parseFloat(v.toPrecision(3))) : EMPTY_VALUE);
+
+/**
+ * The gas z-factor at this test against the window its method was checked
+ * over (the Standing-Katz chart readings of engines/fluid). Sutton
+ * pseudo-criticals from the engine, never restated.
+ */
+export function gasRangeCheck({ reservoir, pressures = [] }) {
+  if (reservoir?.fluid !== 'gas') return null;
+  const method = reservoir.zMethod || 'papay';
+  const { ppc, tpc } = suttonPseudoCriticals(reservoir.gasGravity);
+  const tempF = reservoir.tempR - 460;
+  const tpr = (tempF + 459.67) / tpc;
+  const ps = [reservoir.pi, ...pressures].filter((p) => Number.isFinite(p) && p > 0);
+  const pprMin = Math.min(...ps) / ppc;
+  const pprMax = Math.max(...ps) / ppc;
+  const w = GAS_Z_METHODS[method];
+  if (!w) {
+    return { method, label: 'Papay', tpr, pprMin, pprMax, inside: null,
+      text: `Papay z-factor: Tpr ${r2(tpr)} and ppr ${r2(pprMin)} to ${r2(pprMax)} at this test. No checked range is held for Papay in the Suite; it is kept for projects interpreted with it.` };
+  }
+  const inside = tpr >= w.chartTpr[0] && tpr <= w.chartTpr[1] && pprMin >= w.chartPpr[0] && pprMax <= w.chartPpr[1];
+  const win = `Tpr ${w.chartTpr[0]} to ${w.chartTpr[1]}, ppr ${w.chartPpr[0]} to ${w.chartPpr[1]}`;
+  return {
+    method, label: w.label, tpr, pprMin, pprMax, inside,
+    text: `${w.label} z-factor: Tpr ${r2(tpr)} and ppr ${r2(pprMin)} to ${r2(pprMax)} at this test, ${inside
+      ? `inside the window it was checked over against the Standing-Katz chart (${win}; largest departure ${(w.chartError * 100).toFixed(2)} percent)`
+      : `OUTSIDE the window it was checked over against the Standing-Katz chart (${win}). ${w.nearCritical}`}.`,
+  };
+}
+
+/**
+ * What the interpretation assumes, and where its methods stop, as
+ * [topic, statement] rows. The gas row carries the reduced state of the
+ * test against its z method's window.
+ */
+export function buildLimitsRows({ reservoir, config, model, prepared }) {
+  const gas = reservoir?.fluid === 'gas';
+  const rows = [
+    ['Fluid', gas
+      ? 'Single-phase real gas in pseudo-pressure m(p); dimensionless time at the initial mu ct unless pseudo-time is chosen. The skin is the apparent skin s\', which includes any rate-dependent skin; separating it needs tests at more than one rate.'
+      : 'Single-phase flow of a slightly compressible liquid with constant viscosity, formation volume factor and total compressibility. Gas coming out of solution near the well is not modelled.'],
+    ['Wellbore storage', 'Constant wellbore storage. Changing storage (phase redistribution, a closing valve) has no model in the catalog; its hump on the derivative is not matched.'],
+    ['Well geometry', `${model?.label ? `${model.label} model. ` : ''}A vertical well open over the net pay unless the horizontal model is chosen. Partial penetration enters as a pseudo-skin only (Papatzacos 1987, vertical wells): there is no limited-entry (spherical flow) model, and a deviated well is treated as vertical.`],
+    ['Time basis', config?.family === 'buildup'
+      ? 'Buildup on Agarwal equivalent time with the producing time tp, or on superposition of the rate history when one is entered.'
+      : 'Drawdown on elapsed time from the start of flow; a rate history with more than one rate is analysed by superposition (Odeh-Jones).'],
+    ['Pressures', 'Analysed and reported at the gauge depth; no correction to a datum and no gravity or friction correction between gauge and sandface.'],
+  ];
+  const range = gasRangeCheck({ reservoir, pressures: (prepared?.points || []).map((p) => p.p) });
+  if (range) rows.push(['Gas z-factor range', range.text]);
+  return rows;
+}
+
+// ---- deliverability coefficient units (WTA-U1-014, RL7) ----------------------
+
+/**
+ * Units of the deliverability coefficients. C carries the exponent n, so it
+ * stays on the oilfield basis it was fitted on in both systems, and says so.
+ */
+export function deliverabilityUnits(method, n) {
+  const pp = method === 'pseudo-pressure';
+  const dp = pp ? 'psi2/cp' : 'psia2';
+  const nn = Number.isFinite(n) ? String(parseFloat(n.toFixed(2))) : 'n';
+  return {
+    C: `Mscf/D per (${dp})^${nn}`,
+    a: `${dp} per Mscf/D`,
+    b: `${dp} per (Mscf/D)2`,
+    basis: `Coefficients on the oilfield basis they were fitted on (q in Mscf/D, ${pp ? 'pseudo-pressure in psi2/cp' : 'pressures in psia, squared'}), in either display system.`,
+  };
 }

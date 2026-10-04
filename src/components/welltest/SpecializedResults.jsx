@@ -7,6 +7,7 @@ import { CHART_COLORS, CHART_TYPOGRAPHY, PINNED_TOOLTIP_PROPS, LEGEND_PROPS, XAX
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { buildSemilogData, buildSqrtData } from '@/utils/welltest/plotData';
 import { unitLabel, fromOilfield } from '@/utils/welltest/units';
+import { deliverabilityUnits } from '@/utils/welltest/reportModel';
 import { ChartCard, Kpi, LINE, WarningBanner, fmt, fmtU, logTicks, logTickFormatter } from './primitives';
 
 const axisProps = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize } };
@@ -25,6 +26,7 @@ const SpecializedResults = () => {
   const dpKind = isGas ? 'pseudoPressure' : 'pressure';
   const slopeKind = isGas ? 'pseudoSlope' : 'semilogSlope';
   const dpUnit = unitLabel(dpKind, unitSystem);
+  const dU = deliverabilityUnits(deliverabilityResult?.method, deliverabilityResult?.backPressure?.n);
 
   // Both straight-line plots come from the shared builders; the PDF report
   // draws the same arrays.
@@ -118,15 +120,16 @@ const SpecializedResults = () => {
               <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
                 <Kpi title="AOF (back-pressure)" value={fmtU('gasRate', deliverabilityResult.backPressure?.aof, unitSystem, fmt.sig3)} unit={unitLabel('gasRate', unitSystem)} accent />
                 <Kpi title="Exponent n" value={fmt.f2(deliverabilityResult.backPressure?.n)} />
-                <Kpi title="Coefficient C" value={fmt.sci(deliverabilityResult.backPressure?.C)} />
+                <Kpi title="Coefficient C" value={fmt.sci(deliverabilityResult.backPressure?.C)} unit={dU.C} />
                 <Kpi title="Fit r²" value={fmt.f3(deliverabilityResult.backPressure?.r2)} />
               </div>
               <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
                 <Kpi title="AOF (LIT)" value={fmtU('gasRate', deliverabilityResult.lit?.aof, unitSystem, fmt.sig3)} unit={unitLabel('gasRate', unitSystem)} accent />
-                <Kpi title="Laminar a" value={fmt.sci(deliverabilityResult.lit?.a)} />
-                <Kpi title="Turbulent b" value={fmt.sci(deliverabilityResult.lit?.b)} />
+                <Kpi title="Laminar a" value={fmt.sci(deliverabilityResult.lit?.a)} unit={dU.a} />
+                <Kpi title="Turbulent b" value={fmt.sci(deliverabilityResult.lit?.b)} unit={dU.b} />
                 <Kpi title="Fit r²" value={fmt.f3(deliverabilityResult.lit?.r2)} />
               </div>
+              <p className="text-[11px] text-pl-muted" data-testid="wts-deliverability-basis">{dU.basis}</p>
               {deliverabilityResult.backPressure?.nOutOfRange && (
                 <WarningBanner warnings={['Deliverability exponent n is outside the physical 0.5 to 1 band; review the test points.']} />
               )}

@@ -2,7 +2,7 @@
 // Design system (rollout batch 1A): the app sits in the dashboard scope, so
 // every class here is a theme role; cards and inputs use the adapted ui
 // defaults. Chart colors stay tuned for the white Petrolord chart background.
-import React from 'react';
+import React, { useId, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -55,24 +55,59 @@ export const SectionLabel = ({ children }) => (
   <h3 className="text-[10px] font-bold text-pl-accent-text uppercase mb-3 tracking-widest">{children}</h3>
 );
 
-export const Field = ({ label, value, onChange, placeholder, suffix }) => (
-  <div className="space-y-1">
-    <Label className="text-xs text-pl-muted">{label}{suffix ? <span className="text-pl-muted ml-1">({suffix})</span> : null}</Label>
-    <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-9" />
-  </div>
-);
+// WTA-U1-015: the label names its input (htmlFor/id), so a screen reader and
+// getByLabel find every field; before, no Well Test input had a name.
+export const Field = ({ label, value, onChange, placeholder, suffix, onBlur }) => {
+  const id = useId();
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={id} className="text-xs text-pl-muted">{label}{suffix ? <span className="text-pl-muted ml-1">({suffix})</span> : null}</Label>
+      <Input id={id} value={value} onChange={(e) => onChange(e.target.value)} onBlur={onBlur} placeholder={placeholder} className="h-9" />
+    </div>
+  );
+};
+
+/**
+ * WTA-U1-017 (S1): typing in SI. The field showed the stored oilfield value
+ * converted back on every key, so "13." became "13" and "13.7" m was stored
+ * as 137 m (449.5 ft): every decimal typed under SI was multiplied by ten.
+ * The text being typed is now kept as typed while it is the source of the
+ * stored value; the converted value shows again on blur or when the stored
+ * value changes from elsewhere (a sample, a project, an intake).
+ * @returns {{value: string, onChange: function(string), onBlur: function}}
+ */
+export function useUnitDraft(kind, value, system, onChange) {
+  const [draft, setDraft] = useState(null);
+  const stored = value ?? '';
+  const live = draft != null && storeInputString(kind, draft, system) === String(stored);
+  return {
+    value: live ? draft : displayInputString(kind, stored, system),
+    onChange: (text) => { setDraft(text); onChange(storeInputString(kind, text, system)); },
+    onBlur: () => setDraft(null),
+  };
+}
+
+/** A bare input in the display system over an oilfield value (tables, rows, sliders). */
+export const UnitInput = ({ kind, system = 'oilfield', value, onChange, ...rest }) => {
+  const d = useUnitDraft(kind, value, system, onChange);
+  return <Input {...rest} value={d.value} onChange={(e) => d.onChange(e.target.value)} onBlur={d.onBlur} />;
+};
 
 // WT8: unit-aware input. State stays oilfield; the field renders and accepts
 // values in the active display system.
-export const UnitField = ({ kind, system = 'oilfield', label, value, onChange, placeholder, suffixNote }) => (
-  <Field
-    label={label}
-    suffix={`${unitLabel(kind, system)}${suffixNote ? `, ${suffixNote}` : ''}`}
-    value={displayInputString(kind, value, system)}
-    onChange={(v) => onChange(storeInputString(kind, v, system))}
-    placeholder={placeholder}
-  />
-);
+export const UnitField = ({ kind, system = 'oilfield', label, value, onChange, placeholder, suffixNote }) => {
+  const d = useUnitDraft(kind, value, system, onChange);
+  return (
+    <Field
+      label={label}
+      suffix={`${unitLabel(kind, system)}${suffixNote ? `, ${suffixNote}` : ''}`}
+      value={d.value}
+      onChange={d.onChange}
+      onBlur={d.onBlur}
+      placeholder={placeholder}
+    />
+  );
+};
 
 // WT8: format an oilfield value in the active display system.
 export const fmtU = (kind, v, system, digits = fmt.f2) =>

@@ -1,104 +1,117 @@
 Well Test Analysis Report
 Petrolord Well Test Analysis Studio
 
-Project                   Untitled interpretation                           Well                       Sample well 1
-Field                     Obodo                                             Licence                    OML 143
-Zone or sand              D-3 sand                                          Analyst                    A. Analyst
-Test type                 Pressure buildup, drill stem test (DST)           Test dates                 2026-09-14 to 2026-09-17
-Perforations, MD          9850 to 9880 ft                                   Perforations, TVD          9601 to 9630 ft
-Fluid                     Oil                                               Producing time tp 36.0 hr
-Shut-in time              0 hr elapsed (gauge clock 0 hr)                   pwf at shut-in             4530.8 psi at shut-in time 0 hr (entered)
-Display units             Oilfield                                          Generated                  2026-10-02 09:00 UTC
+Project                   Untitled interpretation                          Well                    Sample well 1
+Field                     Obodo                                            Company                 n/a
+Licence                   OML 143                                          Zone or sand            D-3 sand
+Analyst                   A. Analyst                                       Test type               Pressure buildup, drill stem test (DST)
+Test dates                2026-09-14 to 2026-09-17                         Perforations, MD        9850 to 9880 ft
+Perforations, TVD         9601 to 9630 ft                                  Software build          Petrolord Suite dev
+Fluid                     Oil                                              Producing time tp 36.0 hr
+Shut-in time              0 hr elapsed (gauge clock 0 hr)                  pwf at shut-in          4530.8 psi at shut-in time 0 hr (entered)
+Display units             Oilfield                                         Generated               2026-10-02 09:00 UTC
 
 
 Headline results
- Quantity                                                                           Value
+ Quantity                                                                         Value
 
- Permeability k (md)                                                                84.5
+ Permeability k (md)                                                              84.5
 
- kh (md-ft)                                                                         3,800
+ kh (md-ft)                                                                       3,800
 
- Skin factor (total)                                                                6.42
+ Skin factor (total)                                                              6.42
 
- Pressure drop across skin (psi)                                                    120.7
+ Pressure drop across skin (psi)                                                  120.7
 
- Flow efficiency                                                                    55%
+ Flow efficiency                                                                  55%
 
- Radius of investigation (ft)                                                       1908.7
+ Radius of investigation (ft)                                                     1908.7
 
- Analysis points                                                                    45
+ Analysis points                                                                  45
 
- Headline values from                                                               The working model match
+ Headline values from                                                             The working model match
 
 
-Skin components
- Component                                                         Value                    Basis
+Gauge, datum and pressure basis
+ Item                                    Statement
 
- Total skin s                                                      6.42                     From the interpretation
+ Gauge depth                             n/a
 
- Partial-penetration pseudo-skin s_pp                              2.60                     Papatzacos (1987)
+ Pressure datum                          Not stated
 
- Mechanical (damage) skin s_d                                      2.46                     s_d = (hp/h) (s - s_pp)
+ Correction to the datum                 None applied: every pressure in this report is at the gauge depth
 
- Net pay h (ft)                                                    45                       Input
+ Absolute or gauge                       Absolute: the synthetic sample test.
 
- Perforated length hp (ft)                                         29                       True vertical depth
 
- Top of pay to top of perforations h1 (ft)                         0                        True vertical depth
 
- kv/kh                                                             0.1                      Assumed default 0.1 (no value entered)
+
+Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                           Page 1 of 6
+Skin components
+ Component                                                             Value                Basis
+
+ Total skin s                                                          6.42                 From the interpretation
+
+ Partial-penetration pseudo-skin s_pp                                  2.60                 Papatzacos (1987)
+
+ Mechanical (damage) skin s_d                                          2.46                 s_d = (hp/h) (s - s_pp)
+
+ Net pay h (ft)                                                        45                   Input
+
+ Perforated length hp (ft)                                             29                   True vertical depth
+
+ Top of pay to top of perforations h1 (ft)                             0                    True vertical depth
+
+ kv/kh                                                                 0.1                  Assumed default 0.1 (no value entered)
 
 Papatzacos (1987): s_pp = (1/hpD - 1) ln(pi/(2 rD)) + (1/hpD) ln[hpD/(2 + hpD) sqrt((A - 1)/(B - 1))], with hpD = hp/h, rD = (rw/h) sqrt(kv/kh), h1D =
 h1/h, A = 1/(h1D + hpD/4), B = 1/(h1D + 3 hpD/4). Mechanical skin: s_d = (hp/h) (s - s_pp). kv/kh not entered: 0.1 is assumed.
 
 
 Model match: Homogeneous reservoir (regression converged)
- Parameter                                                                   Value                      95% confidence
+ Parameter                                                                        Value                 95% confidence
 
- Permeability (md)                                                           84.5                       84.1 to 84.9
+ Permeability (md)                                                                84.5                  84.1 to 84.9
 
- Skin factor (dimensionless)                                                 6.42                       6.35 to 6.49
+ Skin factor (dimensionless)                                                      6.42                  6.35 to 6.49
 
- Wellbore storage (bbl/psi)                                                  0.0150                     0.0149 to 0.0150
+ Wellbore storage (bbl/psi)                                                       0.0150                0.0149 to 0.0150
 
 Levenberg-Marquardt regression on pressure and Bourdet derivative in log space: 9 iterations, residual sum of squares 1.092e-2. The intervals are
 95% confidence from the fit covariance.
 
 
+Straight-line analyses
+ Analysis                                                                                                         Result
 
+ Horner slope m                                                                                                   22.1 psi/cycle
 
-Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                                 Page 1 of 5
-Straight-line analyses
- Analysis                                                                                                Result
+ Semilog k (md)                                                                                                   83.0
 
- Horner slope m                                                                                          22.1 psi/cycle
+ Semilog skin                                                                                                     6.15
 
- Semilog k (md)                                                                                          83.0
+ Extrapolated p* (psi)                                                                                            4800.1
 
- Semilog skin                                                                                            6.15
+ Semilog fit r2                                                                                                   1.00
 
- Extrapolated p* (psi)                                                                                   4800.1
-
- Semilog fit r2                                                                                          1.00
-
- Semilog fit window (shut-in time dt, hr)                                                                4.56 to 35.1
+ Semilog fit window (shut-in time dt, hr)                                                                         4.56 to 35.1
 
 
 Cross-check of methods
- Method                                                  k (md)         Skin   Basis
+ Method                                                  k (md)            Skin     Basis
 
- Model match, Homogeneous reservoir                      84.5           6.42   Regression on pressure and derivative, converged
+ Model match, Homogeneous reservoir                      84.5              6.42     Regression on pressure and derivative, converged
 
- Horner straight line                                    83.0           6.15   Semilog slope, r2 1.00
+ Horner straight line                                    83.0              6.15     Semilog slope, r2 1.00
 
 Independent routes to the same permeability and skin. Agreement supports the interpretation; a spread points at the window or the model.
 
 Flow regimes observed
- Regime                                                         From (hr)              To (hr)           Span (log cycles)
+ Regime                                                         From (hr)                   To (hr)               Span (log cycles)
 
- Transition between regimes                                     0.212                  1.57              0.9
+ Transition between regimes                                     0.212                       1.57                  0.9
 
- Radial flow                                                    4.05                   17.8              0.6
+ Radial flow                                                    4.05                        17.8                  0.6
 
 Detected on the Bourdet derivative; times are Agarwal equivalent time, which runs behind shut-in time late in a buildup. The semilog fit window
 above is in shut-in time.
@@ -106,58 +119,91 @@ above is in shut-in time.
 
 
 
-Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                             Page 2 of 5
+Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                                 Page 2 of 6
 Reservoir and fluid inputs
- Input                                         Value                 Unit              Source and quality
+ Input                                         Value                   Unit               Source and quality
 
- Net pay h                                     45                    ft                Offset well
+ Net pay h                                     45                      ft                 Offset well
 
- Porosity phi                                  0.18                  fraction          Assumed
+ Porosity phi                                  0.18                    fraction           Assumed
 
- Wellbore radius rw                            0.354                 ft                Entered, source not stated
+ Wellbore radius rw                            0.354                   ft                 Entered, source not stated
 
- Water saturation Sw                           0.22                  fraction          Entered, source not stated
+ Water saturation Sw                           0.22                    fraction           Entered, source not stated
 
- Total compressibility ct                      1.2e-5                1/psi             Entered, source not stated (entered as total)
+ Total compressibility ct                      1.2e-5                  1/psi              Entered, source not stated (entered as total)
 
- Oil viscosity mu_o                            0.9                   cp                Measured (lab). Bottomhole sample 2, OBM
-                                                                                       contamination 4 percent
+ Oil viscosity mu_o                            0.9                     cp                 Measured (lab). Bottomhole sample 2, OBM
+                                                                                          contamination 4 percent
 
- Oil formation volume factor Bo                1.25                  RB/STB            Correlation: Standing
+ Oil formation volume factor Bo                1.25                    RB/STB             Correlation: Standing
 
- API gravity                                   34                    degAPI            Entered, source not stated
+ API gravity                                   34                      degAPI             Entered, source not stated
 
- Solution GOR                                  650                   scf/STB           Entered, source not stated
+ Solution GOR                                  650                     scf/STB            Entered, source not stated
 
- Gas gravity                                   0.72                  air = 1           Entered, source not stated
+ Gas gravity                                   0.72                    air = 1            Entered, source not stated
 
- Reservoir temperature                         212                   degF              Entered, source not stated
+ Reservoir temperature                         212                     degF               Entered, source not stated
 
- Initial pressure pi                           4800                  psia              Entered, source not stated
+ Initial pressure pi                           4800                    psia               Entered, source not stated
 
- Oil rate q                                    450                   STB/D             Entered (test rate)
+ Oil rate q                                    450                     STB/D              Entered (test rate)
 
- kv/kh                                         0.1                                     Assumed default 0.1 (no value entered)
+ kv/kh                                         0.1                                        Assumed default 0.1 (no value entered)
 
- Perforated interval, MD                       9850 to 9880          ft                Entered
+ Perforated interval, MD                       9850 to 9880            ft                 Entered
 
- Perforated interval, TVD                      9601 to 9630          ft                Survey of registry well Obodo-7
+ Perforated interval, TVD                      9601 to 9630            ft                 Survey of registry well Obodo-7
 
- Perforated length hp                          29                    ft                From the TVD interval
+ Perforated length hp                          29                      ft                 From the TVD interval
 
 The oil analysis uses h, phi, rw, ct, mu_o, Bo, pi and q. Sw, API gravity, GOR, gas gravity and temperature are recorded for the report and do not
 enter the calculation unless ct is built from its components.
 
 
 Flow and shut-in summary
- Period       Type      Start     Duration       Choke (1/64      Rate           Volume              Cumulative       Recovered          Remark
-                        (hr)      (hr)           in)              (STB/D)        (STB)               (STB)            (bbl)
+ Period       Type      Start     Duration       Choke (1/64         Rate            Volume             Cumulative       Recovered         Remark
+                        (hr)      (hr)           in)                 (STB/D)         (STB)              (STB)            (bbl)
 
- 1            Flow      0         36             32               450.0          675.0               675.0            660                n/a
+ 1            Flow      0         36             32                  450.0           675.0              675.0            660               n/a
 
- 2            Shut-in   36        79.433         n/a              0.0            0                   675.0            n/a                n/a
+ 2            Shut-in   36        79.433         n/a                 0.0             0                  675.0            n/a               n/a
 
 Periods from the entered rate history. Volume is the rate held over the period; recovered volume and choke are as entered.
+
+Gauge data used and left out
+ Readings                                                    Count           Treatment
+
+ Readings in the gauge record                                45              As loaded
+
+ Spike filter                                                0               None removed (threshold 6 robust standard deviations)
+
+ Analysis points                                             45              Used
+
+
+
+
+Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                                Page 3 of 6
+Method and its limits
+ Topic                         Statement
+
+ Fluid                         Single-phase flow of a slightly compressible liquid with constant viscosity, formation volume factor and total
+                               compressibility. Gas coming out of solution near the well is not modelled.
+
+ Wellbore storage              Constant wellbore storage. Changing storage (phase redistribution, a closing valve) has no model in the catalog; its
+                               hump on the derivative is not matched.
+
+ Well geometry                 Homogeneous reservoir model. A vertical well open over the net pay unless the horizontal model is chosen. Partial
+                               penetration enters as a pseudo-skin only (Papatzacos 1987, vertical wells): there is no limited-entry (spherical flow)
+                               model, and a deviated well is treated as vertical.
+
+ Time basis                    Buildup on Agarwal equivalent time with the producing time tp, or on superposition of the rate history when one is
+                               entered.
+
+ Pressures                     Analysed and reported at the gauge depth; no correction to a datum and no gravity or friction correction between
+                               gauge and sandface.
+
 
 Interpretation notes
 Radial flow from 8 hr. Wellbore storage ends before 0.5 hr; the skin is positive and mostly mechanical.
@@ -165,7 +211,7 @@ Radial flow from 8 hr. Wellbore storage ends before 0.5 hr; the skin is positive
 
 
 
-Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                              Page 3 of 5
+Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                                Page 4 of 6
 Plots
 Figure 1. Test overview
 
@@ -235,7 +281,7 @@ bands mark the detected flow regimes: transition between regimes 0.212 to 1.57 h
 
 
 
-Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                                             Page 4 of 5
+Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                                             Page 5 of 6
 Figure 3. Horner semilog plot
 
                               pws         Straight line
@@ -323,5 +369,5 @@ Rate transient analysis was not run: no production data is loaded on the RTA tab
 
 
 
-Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                                       Page 5 of 5
+Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                                       Page 6 of 6
 

@@ -16,7 +16,7 @@ import {
   testTypeText, testDatesText, plain, periodKey, DEFAULT_KVKH, DEFAULT_COMPLETION, DEFAULT_IDENTIFICATION,
 } from '@/utils/welltest/reportModel';
 import { papatzacosPseudoSkin } from '@/utils/welltest/partialPenetration';
-import { GAS_PVT_CORRELATIONS } from '@/utils/welltest/gas';
+import { gasPvtCorrelations } from '@/utils/welltest/gas';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const byKey = (rows) => Object.fromEntries(rows.map((r) => [r.key, r]));
@@ -136,12 +136,12 @@ describe('WTA-R2-002 source and quality of each input', () => {
     const spec = buildReservoirInputs(inputs);
     expect(spec.error).toBeNull();
     // the reservoir carries the engine's source object itself
-    expect(spec.reservoir.pvtSource).toBe(GAS_PVT_CORRELATIONS);
+    expect(spec.reservoir.pvtSource).toEqual(gasPvtCorrelations('dranchuk_abou_kassem')); // WTA-U1-003: new work on DAK
     const rows = byKey(buildInputsTable({ reservoirInputs: inputs, reservoirSpec: spec, completion: DEFAULT_COMPLETION }));
     const expected = gasPvtSourceText(spec.reservoir.pvtSource);
     expect(rows.mu.source).toBe(expected);
     expect(rows.z.source).toBe(expected);
-    for (const name of [GAS_PVT_CORRELATIONS.z, GAS_PVT_CORRELATIONS.viscosity, GAS_PVT_CORRELATIONS.pseudoCriticals]) {
+    for (const name of [spec.reservoir.pvtSource.z, spec.reservoir.pvtSource.viscosity, spec.reservoir.pvtSource.pseudoCriticals]) {
       expect(rows.mu.source).toContain(name);
     }
     expect(rows.mu.label).toBe('Gas viscosity mu at pi');
