@@ -37,7 +37,8 @@ const ScalHelpContent = () => (
     <P>
       Core samples with their rock properties, their pedigree (lab or analog, the kr and Pc test methods, drainage
       or imbibition, wettability, core condition, test temperature, laboratory and report number) and their lab
-      tables. The kr and Pc doors read CSV, tab, semicolon or space separated files, with comma decimals, a header
+      tables. The kr, gas-oil and Pc doors read CSV, tab, semicolon or space separated files and Excel workbooks
+      (the first sheet that holds the table is read, and its name is kept), with comma decimals, a header
       in any order or none, and units in the header such as Pc (kPa) or Sw (%). When the file names no unit, the
       unit you choose above the buttons is used. After each import the app shows what it read: which column became
       what, in which unit, how many rows were read and every row left out with the reason. The same record goes

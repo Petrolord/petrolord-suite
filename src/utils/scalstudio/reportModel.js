@@ -260,7 +260,7 @@ function samplesTables(s, u) {
     ];
   });
   // RL5: what was imported and what was left out, per sample and table
-  const imp = (rec, n) => (rec ? `${rec.file || 'file'}: ${rec.read} read, ${rec.skippedCount ?? (rec.skipped || []).length} left out${rec.units?.pc ? `; Pc in ${rec.units.pc} (${rec.units.pcHow})` : ''}; Sw as ${rec.units?.saturation || 'fraction'}` : (n ? `${n} rows, entered or saved before the import record` : EMPTY_VALUE));
+  const imp = (rec, n) => (rec ? `${rec.file || 'file'}${rec.sheet ? ` (sheet "${rec.sheet}")` : ''}: ${rec.read} read, ${rec.skippedCount ?? (rec.skipped || []).length} left out${rec.units?.pc ? `; Pc in ${rec.units.pc} (${rec.units.pcHow})` : ''}; Sw as ${rec.units?.saturation || 'fraction'}` : (n ? `${n} rows, entered or saved before the import record` : EMPTY_VALUE));
   const anyGo = samples.some((x) => (x.goRows?.length || 0) > 0 || x.goImport);
   const imports = samples.map((x) => [x.name, imp(x.krImport, x.krRows?.length || 0), imp(x.pcImport, x.pcRows?.length || 0), ...(anyGo ? [imp(x.goImport, x.goRows?.length || 0).replace('; Sw as', '; Sg as')] : [])]);
   return {

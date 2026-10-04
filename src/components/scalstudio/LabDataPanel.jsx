@@ -8,7 +8,8 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useScalStudio, LAB_SYSTEM_PRESETS } from '@/contexts/ScalStudioContext';
-import { readKrTable, readGoKrTable, readPcTable, importRecord, PC_FILE_UNITS, SATURATION_FILE_UNITS } from '@/utils/scalstudio/labImport';
+import { readLabFile, importRecord, PC_FILE_UNITS, SATURATION_FILE_UNITS } from '@/utils/scalstudio/labImport';
+import { readTabularFile } from '@/lib/tabularFile';
 import { SectionLabel } from '@/components/waterflooddesign/primitives';
 import ScalField from './ScalField';
 import { PEDIGREE_OPTIONS, LAB_SYSTEM_FLUIDS } from '@/utils/scalstudio/model';
@@ -65,15 +66,20 @@ const LabDataPanel = ({ selectedId, onSelect }) => {
   const [satUnit, setSatUnit] = useState('auto');
   const importCsv = async (file, kind) => {
     if (!file || !selected) return;
-    const text = await file.text();
-    const res = kind === 'kr' ? readKrTable(text, { saturation: satUnit })
-      : kind === 'go' ? readGoKrTable(text, { saturation: satUnit })
-        : readPcTable(text, { pc: pcUnit, saturation: satUnit });
+    // SCAL-U2-011: text files and Excel workbooks through the shared reader
+    let loaded;
+    try {
+      loaded = await readTabularFile(file);
+    } catch (e) {
+      addNotification(`${file.name}: ${e.message}`, 'error');
+      return;
+    }
+    const res = readLabFile(loaded, kind, kind === 'pc' ? { pc: pcUnit, saturation: satUnit } : { saturation: satUnit });
     if (!res.ok) {
       addNotification(`${file.name}: ${res.error} ${res.summary || ''}`.trim(), 'error');
       return;
     }
-    const record = importRecord(res, file.name);
+    const record = { ...importRecord(res, file.name), ...(res.sheet ? { sheet: res.sheet } : {}) };
     updateSample(selected.id, kind === 'kr' ? { krRows: res.rows, krImport: record }
       : kind === 'go' ? { goRows: res.rows, goImport: record } : { pcRows: res.rows, pcImport: record });
     addNotification(`${file.name}: ${res.summary}`, res.skipped.length ? 'info' : 'success');
@@ -184,15 +190,15 @@ const LabDataPanel = ({ selectedId, onSelect }) => {
           <section className="space-y-2">
             <SectionLabel>Lab tables</SectionLabel>
             <input
-              ref={krFileRef} type="file" accept=".csv,.txt,.tsv,.dat,.prn,text/csv,text/plain" className="hidden"
+              ref={krFileRef} type="file" accept=".csv,.txt,.tsv,.dat,.prn,.xlsx,.xlsm,.xls,text/csv,text/plain" className="hidden"
               onChange={(e) => { importCsv(e.target.files?.[0], 'kr'); e.target.value = ''; }}
             />
             <input
-              ref={goFileRef} type="file" accept=".csv,.txt,.tsv,.dat,.prn,text/csv,text/plain" className="hidden" data-testid="import-go-file"
+              ref={goFileRef} type="file" accept=".csv,.txt,.tsv,.dat,.prn,.xlsx,.xlsm,.xls,text/csv,text/plain" className="hidden" data-testid="import-go-file"
               onChange={(e) => { importCsv(e.target.files?.[0], 'go'); e.target.value = ''; }}
             />
             <input
-              ref={pcFileRef} type="file" accept=".csv,.txt,.tsv,.dat,.prn,text/csv,text/plain" className="hidden"
+              ref={pcFileRef} type="file" accept=".csv,.txt,.tsv,.dat,.prn,.xlsx,.xlsm,.xls,text/csv,text/plain" className="hidden"
               onChange={(e) => { importCsv(e.target.files?.[0], 'pc'); e.target.value = ''; }}
             />
             <div className="grid grid-cols-2 gap-2">
@@ -247,7 +253,8 @@ const LabDataPanel = ({ selectedId, onSelect }) => {
               </div>
             </div>
             <p className="text-[11px] text-pl-muted">
-              CSV, tab, semicolon or space separated text; columns found by name in any order (Sw, krw, kro; Sw, Pc;
+              CSV, tab, semicolon or space separated text, or an Excel workbook (the first sheet that holds the
+              table is read and named); columns found by name in any order (Sw, krw, kro; Sw, Pc;
               Sg, krg, krog for the gas-oil table at connate water),
               or by position when there is no header; comma decimals read. A unit in the header, such as Pc (kPa) or
               Sw (%), wins over the choice above.

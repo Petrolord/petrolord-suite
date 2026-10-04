@@ -222,3 +222,48 @@ export const importRecord = (res, fileName, at = new Date().toISOString()) => ({
   units: res.units,
   summary: res.summary,
 });
+
+// ---------------------------------------------------------------------------
+// Workbooks at the doors (SCAL-U2-011)
+// ---------------------------------------------------------------------------
+
+const DOOR_READERS = { kr: readKrTable, go: readGoKrTable, pc: readPcTable };
+const DOOR_WORDS = { kr: 'kr table', go: 'gas-oil kr table', pc: 'capillary pressure table' };
+
+/** One sheet of string cells as tab-separated text for the typed reader (a cell with a tab, quote or line break is quoted). */
+export function sheetToText(rows) {
+  return (rows || []).map((r) => (r || []).map((c) => {
+    const v = String(c ?? '');
+    return /["\t\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  }).join('\t')).join('\n');
+}
+
+/**
+ * Read a lab table from what readTabularFile (src/lib/tabularFile.js) gave:
+ * a delimited text, or a workbook whose sheets are tried in order until one
+ * holds the door's table. The read-back names the sheet.
+ * @param {{kind: 'delimited'|'workbook', text?: string, sheets?: Array<{name: string, rows: string[][]}>}} loaded
+ * @param {'kr'|'go'|'pc'} door
+ * @param {object} [chosen] the door's choices (units, decimal mark)
+ */
+export function readLabFile(loaded, door, chosen = {}) {
+  const read = DOOR_READERS[door];
+  if (!read) throw new Error(`Unknown lab door "${door}"`);
+  if (loaded?.kind !== 'workbook') return read(loaded?.text || '', chosen);
+  const sheets = loaded.sheets || [];
+  let first = null;
+  for (const sh of sheets) {
+    const res = read(sheetToText(sh.rows), chosen);
+    if (!first) first = res;
+    if (res.ok) {
+      return {
+        ...res,
+        sheet: sh.name,
+        summary: `Sheet "${sh.name}" of a workbook of ${sheets.length} sheet${sheets.length === 1 ? '' : 's'}. ${res.summary}`,
+      };
+    }
+  }
+  const looked = sheets.map((s) => s.name).join(', ') || 'none';
+  const error = `No sheet of the workbook holds a ${DOOR_WORDS[door]} (looked at: ${looked}).`;
+  return { ...(first || { rows: [], read: 0, skipped: [], columns: null, units: null, questions: [] }), ok: false, error, summary: error };
+}
