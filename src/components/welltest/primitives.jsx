@@ -2,13 +2,14 @@
 // Design system (rollout batch 1A): the app sits in the dashboard scope, so
 // every class here is a theme role; cards and inputs use the adapted ui
 // defaults. Chart colors stay tuned for the white Petrolord chart background.
-import React, { useId, useState } from 'react';
+import React, { useId } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { unitLabel, fromOilfield, displayInputString, storeInputString } from '@/utils/welltest/units';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { createUnitDraft } from '@/hooks/useUnitDraft';
 
 export const fmt = {
   num: (v) => {
@@ -76,16 +77,7 @@ export const Field = ({ label, value, onChange, placeholder, suffix, onBlur }) =
  * value changes from elsewhere (a sample, a project, an intake).
  * @returns {{value: string, onChange: function(string), onBlur: function}}
  */
-export function useUnitDraft(kind, value, system, onChange) {
-  const [draft, setDraft] = useState(null);
-  const stored = value ?? '';
-  const live = draft != null && storeInputString(kind, draft, system) === String(stored);
-  return {
-    value: live ? draft : displayInputString(kind, stored, system),
-    onChange: (text) => { setDraft(text); onChange(storeInputString(kind, text, system)); },
-    onBlur: () => setDraft(null),
-  };
-}
+export const useUnitDraft = createUnitDraft({ displayInputString, storeInputString });
 
 /** A bare input in the display system over an oilfield value (tables, rows, sliders). */
 export const UnitInput = ({ kind, system = 'oilfield', value, onChange, ...rest }) => {

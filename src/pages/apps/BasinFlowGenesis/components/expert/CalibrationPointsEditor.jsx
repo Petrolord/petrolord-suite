@@ -7,7 +7,8 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Trash2 } from 'lucide-react';
-import { depthToDisplay, depthFromDisplay, tempToDisplay, tempFromDisplay, tidy, tempSymbol } from '../../services/units';
+import { depthToDisplay, depthFromDisplay, tempToDisplay, tempFromDisplay, tempSymbol } from '../../services/units';
+import UnitNumberInput from '../UnitNumberInput';
 
 function PointTable({ kind, label, unit, points, onChange, defaults, depthUnit, toDisp, fromDisp, bht = false }) {
   const set = (i, patch) => onChange(points.map((p, k) => (k === i ? { ...p, ...patch } : p)));
@@ -37,8 +38,8 @@ function PointTable({ kind, label, unit, points, onChange, defaults, depthUnit, 
           <tbody>
             {points.map((p, i) => (
               <tr key={p.id ?? i} className="border-t border-pl-border">
-                <td className="py-0.5 pr-1"><Input type="number" step="any" data-testid={`bf-cal-${kind}-depth-${i}`} value={tidy(depthToDisplay(p.depth, depthUnit))} onChange={(e) => set(i, { depth: depthFromDisplay(parseFloat(e.target.value), depthUnit) })} className="h-7 text-xs" /></td>
-                <td className="py-0.5 pr-1"><Input type="number" step="any" data-testid={`bf-cal-${kind}-value-${i}`} value={tidy(toDisp(p.value), 3)} onChange={(e) => set(i, { value: fromDisp(parseFloat(e.target.value)) })} className="h-7 text-xs" /></td>
+                <td className="py-0.5 pr-1"><UnitNumberInput data-testid={`bf-cal-${kind}-depth-${i}`} name="Depth" unit={depthUnit} value={p.depth} toDisplay={(m) => depthToDisplay(m, depthUnit)} fromDisplay={(v) => depthFromDisplay(v, depthUnit)} onCommit={(depth) => set(i, { depth })} className="h-7 text-xs" /></td>
+                <td className="py-0.5 pr-1"><UnitNumberInput data-testid={`bf-cal-${kind}-value-${i}`} name={unit} unit={unit} value={p.value} toDisplay={toDisp} fromDisplay={fromDisp} digits={3} onCommit={(value) => set(i, { value })} className="h-7 text-xs" /></td>
                 {bht && <td className="py-0.5 pr-1"><Input type="number" step="any" data-testid={`bf-cal-${kind}-shutin-${i}`} value={p.shutInH ?? ''} placeholder="h" onChange={(e) => { const v = parseFloat(e.target.value); set(i, { shutInH: Number.isFinite(v) && v > 0 ? v : undefined }); }} className="h-7 text-xs w-16" /></td>}
                 {bht && <td className="py-0.5 pr-1">
                   <select data-testid={`bf-cal-${kind}-kind-${i}`} value={p.kind === 'DST' ? 'DST' : 'BHT'} onChange={(e) => set(i, { kind: e.target.value === 'DST' ? 'DST' : undefined })}

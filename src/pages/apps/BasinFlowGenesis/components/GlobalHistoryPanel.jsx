@@ -7,14 +7,14 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { History, Thermometer, TrendingUp } from 'lucide-react';
 import { useBasinFlow } from '../contexts/BasinFlowContext';
 import HeatFlowHistoryEditor from './history/HeatFlowHistoryEditor';
 import ErosionEventsEditor from './history/ErosionEventsEditor';
-import { tempToDisplay, tempFromDisplay, tidy, tempSymbol } from '../services/units';
+import { tempToDisplay, tempFromDisplay, tempSymbol } from '../services/units';
+import UnitNumberInput from './UnitNumberInput';
 
 const GlobalHistoryPanel = () => {
     const { state, dispatch, stats, units } = useBasinFlow();
@@ -55,12 +55,14 @@ const GlobalHistoryPanel = () => {
                                 <h3 className="text-xs font-semibold text-pl-text">Surface temperature</h3>
                                 <div className="bg-pl-surface p-3 rounded border border-pl-border">
                                     <Label className="text-xs text-pl-muted">Present day and through time ({tempSymbol(units.temp)})</Label>
-                                    <Input
-                                        type="number"
-                                        step="any"
+                                    <UnitNumberInput
                                         data-testid="bf-surface-temp"
-                                        value={tidy(tempToDisplay(settings?.surfaceTemp ?? 20, units.temp))}
-                                        onChange={(e) => dispatch({ type: 'UPDATE_SETTINGS', payload: { surfaceTemp: tempFromDisplay(parseFloat(e.target.value), units.temp) } })}
+                                        name="Surface temperature"
+                                        unit={units.temp}
+                                        value={settings?.surfaceTemp ?? 20}
+                                        toDisplay={(c) => tempToDisplay(c, units.temp)}
+                                        fromDisplay={(v) => tempFromDisplay(v, units.temp)}
+                                        onCommit={(surfaceTemp) => dispatch({ type: 'UPDATE_SETTINGS', payload: { surfaceTemp } })}
                                         className="mt-1 h-8"
                                     />
                                     <p className="text-[11px] text-pl-muted mt-1">The upper boundary of the heat solution, held constant through the burial history.</p>

@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Trash2 } from 'lucide-react';
 import { erosionProblems } from '../../services/history';
-import { depthToDisplay, depthFromDisplay, tidy } from '../../services/units';
+import { depthToDisplay, depthFromDisplay } from '../../services/units';
+import UnitNumberInput from '../UnitNumberInput';
 
 export default function ErosionEventsEditor({ events, maxAge, onChange, depthUnit = 'm' }) {
   const list = Array.isArray(events) ? events : [];
@@ -38,7 +39,7 @@ export default function ErosionEventsEditor({ events, maxAge, onChange, depthUni
                   <Input type="number" step="any" data-testid={`bf-erosion-age-${i}`} value={e.age} onChange={(ev) => setEvent(i, { age: parseFloat(ev.target.value) })} className="h-7 text-xs" />
                 </td>
                 <td className="py-1 pr-2">
-                  <Input type="number" step="any" data-testid={`bf-erosion-amount-${i}`} value={tidy(depthToDisplay(e.amount, depthUnit))} onChange={(ev) => setEvent(i, { amount: depthFromDisplay(parseFloat(ev.target.value), depthUnit) })} className="h-7 text-xs" />
+                  <UnitNumberInput data-testid={`bf-erosion-amount-${i}`} name="Removed section" unit={depthUnit} value={e.amount} toDisplay={(m) => depthToDisplay(m, depthUnit)} fromDisplay={(v) => depthFromDisplay(v, depthUnit)} onCommit={(amount) => setEvent(i, { amount })} className="h-7 text-xs" />
                 </td>
                 <td className="py-1 text-right">
                   <Button variant="ghost" size="icon" className="h-6 w-6 text-pl-muted hover:text-pl-danger-text" data-testid={`bf-erosion-remove-${i}`} onClick={() => remove(i)}>
