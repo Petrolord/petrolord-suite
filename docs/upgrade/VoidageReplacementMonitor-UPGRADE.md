@@ -278,3 +278,42 @@ the ledger's monthly injection is a Material Balance follow-up).
 | U2-005 | Done | A second sample beside the template (owner default; the template stays the engine fixture the T1 test pins): "Demo field (24 months)" on the import door (`src/utils/vrr/demoField.js`): 6 producers, 3 water injectors and 1 gas injector, January 2024 to December 2025, volumes built by a stated rule (no random numbers), free gas once the producing GOR rises above Rs, one producer below its solution GOR (so the per-well free gas differs from the field figure), water injection ramping and gas injection from month 9, nine quarterly surveys falling below the bubble point and recovering, two patterns with an allocation, a stated datum, and line-drive locations for the map (seeded in the `/dev/studio/vrr` registry). Cumulative VRR 0.7793 at the cut-off (instantaneous in the band in the second year); the report draws all seven figures with the map. New golden case `demo-field`. | `vrrDemoField.test.js` (6): shape; the volumes reproduce the rule; free gas, gas injection, per-well above field; the numbers through the engine (closure, 0.7793); the template still the T1 oracle; the report draws every figure with the mark. Golden `demo-field`. |
 | U2-018 | Done | The pressure track's Bg now takes Z by Dranchuk-Abou-Kassem (1975) with Sutton pseudo-criticals from the canonical engines (`engines/fluid/blackOil` `gasZDetail`, already vendored and gated on Standing-Katz readings; Fluid Systems Studio's default since FLUID-U2-006), so no engines change was needed. Bo, Bw and Rs are unchanged (the nodal route). Named in the screen, the help, the inputs table and the limits. **Numbers that move (track mode only):** on the demo field with the pressure track, Bg at 3,047 psia 0.9405 to 0.9231 RB/Mscf (-1.9 percent), free gas 558,998 to 550,674 RB, produced voidage 7,417,448 to 7,409,125 RB, injected 5,788,104 to 5,771,994 RB (gas injection uses the same Bg), cumulative VRR 0.78034 to 0.77904. Constant and Fluid-table modes are unchanged. | `vrrTrackZ.test.js` (5): Bg equals 0.00504 Z T / p with the engine's Z at five pressures; negative control (the Papay route differs by more than 1 percent at 3,500 psia); Bo, Bw, Rs unchanged; the method named; after value pinned on the demo field. `pvtTrack.test.js` updated (Bg on the engine Z). |
 | U2-011 | Done | A target band per pattern (Patterns tab, two fields under each pattern; blank follows the field band). A pattern with its own band is flagged against it and its water injection advice aims at its own lower edge, through the engine's `flagPeriods` and `recommendPatternInjection`; a mistyped band falls back to the field band and says so, a reversed band is swapped and said. The report's Patterns table gains a "Target band" column with "(pattern)" or "(field)" and the count of periods outside it; the notes go to the flags. No engines change. | `vrrPatternBand.test.js` (4): flags and advice equal the engine with the pattern band; negative control (the field band flags the same pattern differently and scales the advice differently); blank, mistyped, reversed; the report read back from the PDF. |
+
+Also: the in-app help guide gained entries for workbooks and producing days,
+the demo field, free gas well by well, the Map tab, the `vrr-1` contract and
+pattern bands; `e2e/vrr-upgrade.spec.js` gained four Step 2 tests (14 in all,
+green locally on the private server) and the Map tab joined the PL6 walk at
+three viewports in both themes.
+
+### Deferred, with reasons
+
+| ID | Reason |
+|---|---|
+| U2-007 CRM allocation | L, new engine math; the batch decision requires validation on a published case (Yousef 2006, Sayarpour 2008 synthetic fields) before anything is shown, and no such case was run in this build |
+| U2-008 Pattern templates | Deferred by the batch decision; the map's confirmed coordinates are now the base it would need |
+| U2-009 Worker parse | Deferred by the batch decision (the 54,800-row file reads in 2 to 4 s; not a correctness issue) |
+| U2-010 Datum correction | Owner default: the datum stays stated, not corrected (the `vrr-1` contract carries `corrected: false`) |
+| Batch C (U2-012 to U2-016) | Deferred by the batch decision |
+| Material Balance injection rows from the ledger | Not in the batch: the `vrr-1` contract carries the monthly injection volumes, but Material Balance reads cumulative injection from its case table; a reader is a Material Balance follow-up |
+
+### Numbers that change (Step 2)
+
+- Pressure-track projects only: Bg on Dranchuk-Abou-Kassem Z (U2-018). On the demo field with the track, cumulative VRR 0.78034 to 0.77904; Bg at 3,047 psia 0.9405 to 0.9231 RB/Mscf. Constant-set and Fluid-table projects do not move.
+- A file with a producing-days column and rate columns: rates are now read per producing day (U2-003); the same file read before U2-003 took the rates as calendar-day averages. The door says which, and the user can choose the old reading.
+- Patterns with a typed band (U2-011): their flags and advice target. Patterns without one are unchanged.
+- No change: the field headline (free gas stays field level; the per-well figure is printed beside it), the T1 template (62,865 RB, 59,460 RB, 0.9458), Material Balance's pressure rows (identical through the contract), Waterflood's intake (same shape, same fingerprint), `vrr.js` (byte-identical).
+
+### Where validation is weaker than asked
+
+- Per-well free gas (U2-002) is gated on a hand oracle and invariants against `vrr.js`; no published per-well VRR example was found to run.
+- The map (U2-004) checks values against the engine and placement against the registry rows; coordinates are taken as the registry holds them (no CRS transform here: wells in two CRSs refuse the map). `.pld` carries the confirmed coordinates but not the registry ids' targets: after an import into another account the registry check says the well is no longer readable.
+- Dranchuk-Abou-Kassem (U2-018) is the engines function gated there on Standing-Katz chart readings; the VRR gate checks only that the track uses it.
+- The demo field (U2-005) is illustrative, built by rule; its numbers are pinned against the engine, not against a field.
+- The `vrr-1` contract (U2-001) is checked on synthetic payloads and Material Balance's own suite; live saved projects were not read (no database access from this run).
+
+### The sample
+
+`/root/vrr-report-sample.pdf`, 9 pages, 6 of 7 figures drawn (the FVF figure
+states why it does not apply: one constant set): the demo field, identified,
+with its confirmed map (the `demo-field` case of `vrrTestKit.js`, built by the
+final code through `buildVrrPdf`).
