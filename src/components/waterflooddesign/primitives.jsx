@@ -35,6 +35,35 @@ export const Field = ({ label, value, onChange, placeholder }) => (
   </div>
 );
 
+// A unit-aware input (WF-U1, PL3): shows the stored (oilfield) value in the
+// display unit of `u` and stores what is typed back in oilfield units. The
+// label carries the unit. `testId` names the input for tests.
+export const UField = ({ label, kind, u, value, onChange, placeholder, testId }) => {
+  const [draft, setDraft] = React.useState(null);
+  const shown = draft != null ? draft : (u ? u.text(kind, value) : value);
+  const unit = u ? u.label(kind) : '';
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs text-pl-muted">{unit ? `${label} (${unit})` : label}</Label>
+      <Input
+        value={shown ?? ''}
+        inputMode="decimal"
+        data-testid={testId}
+        onChange={(e) => {
+          const text = e.target.value;
+          const stored = u ? u.toState(kind, text) : text;
+          if (stored == null) { setDraft(text); return; }
+          setDraft(u && u.system !== 'oilfield' ? text : null);
+          onChange(stored);
+        }}
+        onBlur={() => setDraft(null)}
+        placeholder={placeholder}
+        className="h-9"
+      />
+    </div>
+  );
+};
+
 export const Kpi = ({ title, value, unit, accent }) => (
   <Card className={accent ? 'ring-1 ring-pl-primary/40' : undefined}>
     <CardContent className="p-3">

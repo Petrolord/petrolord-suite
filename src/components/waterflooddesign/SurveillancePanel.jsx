@@ -8,27 +8,29 @@ import { Label } from '@/components/ui/label';
 import { Beaker, Upload, Trash2, Download } from 'lucide-react';
 import { useWaterfloodDesign } from '@/contexts/WaterfloodDesignContext';
 import { parseWaterfloodCSVDetailed, sampleWaterfloodRows, sampleWaterfloodCSV } from '@/utils/waterfloodCalculations';
-import { Field, SectionLabel } from './primitives';
+import { Field, UField, SectionLabel } from './primitives';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import PvtIntakePanel from './PvtIntakePanel';
 
 const FLUID_FIELDS = [
-  { k: 'bo', label: 'Bo (rb/stb)' },
-  { k: 'bw', label: 'Bw (rb/stb)' },
-  // RB/Mscf, not rb/scf: the VRR core (engines/waterflood/vrr.js) takes
+  { k: 'bo', label: 'Bo', kind: 'fvfOil' },
+  { k: 'bw', label: 'Bw', kind: 'fvfOil' },
+  // RB/Mscf in storage: the VRR core (engines/waterflood/vrr.js) takes
   // Gp in Mscf and Bg in RB/Mscf.
-  { k: 'bg', label: 'Bg (rb/Mscf)' },
-  { k: 'rs', label: 'Rs (scf/stb)' },
+  { k: 'bg', label: 'Bg', kind: 'fvfGas' },
+  { k: 'rs', label: 'Rs', kind: 'gor' },
 ];
 const WINDOW_FIELDS = [
-  { k: 'smooth_window_days', label: 'Smoothing (days)' },
-  { k: 'vrr_window_days', label: 'VRR window (days)' },
-  { k: 'target_vrr', label: 'Target VRR' },
+  { k: 'smooth_window_days', label: 'Smoothing', kind: 'days' },
+  { k: 'vrr_window_days', label: 'VRR window (calendar days)', kind: 'days' },
+  { k: 'target_vrr', label: 'Target VRR', kind: 'dimensionless' },
 ];
 
 const SurveillancePanel = () => {
   const {
     surveillanceRows, setSurveillanceRows,
     surveillanceConfig, setSurveillanceField,
-    addNotification,
+    addNotification, u,
   } = useWaterfloodDesign();
   const fileRef = useRef(null);
 
@@ -111,17 +113,35 @@ const SurveillancePanel = () => {
       <section>
         <SectionLabel>Fluid properties</SectionLabel>
         <div className="grid grid-cols-2 gap-3">
-          {FLUID_FIELDS.map((f) => <Field key={f.k} label={f.label} value={surveillanceConfig[f.k]} onChange={(v) => setSurveillanceField(f.k, v)} />)}
+          {FLUID_FIELDS.map((f) => <UField key={f.k} label={f.label} kind={f.kind} u={u} testId={`wds-s-${f.k}`} value={surveillanceConfig[f.k]} onChange={(v) => setSurveillanceField(f.k, v)} />)}
         </div>
         <Label className="text-[11px] text-pl-muted leading-snug block mt-2">
-          Bg and Rs feed free-gas voidage in the reservoir-barrel VRR. Set Bg to 0 for liquid-only voidage.
+          Voidage is in reservoir barrels: oil x Bo, water x Bw, free gas (produced gas less Rs x oil) x Bg, against
+          injected water x Bw. Bo and Bw are reservoir barrels per stock-tank barrel at the reservoir pressure of the
+          period; one value serves the whole history. Bg and Rs feed the free-gas term; set Bg to 0 for liquid-only voidage.
+        </Label>
+      </section>
+
+      <PvtIntakePanel target="surveillance" />
+
+      <section data-testid="wds-pressure-basis">
+        <SectionLabel>Injection pressure basis</SectionLabel>
+        <Tabs value={surveillanceConfig.pressure_basis === 'bottomhole' ? 'bottomhole' : 'wellhead'} onValueChange={(v) => setSurveillanceField('pressure_basis', v)}>
+          <TabsList className="h-8 p-0.5 w-full">
+            <TabsTrigger value="wellhead" className="h-7 text-xs flex-1">Wellhead (WHP)</TabsTrigger>
+            <TabsTrigger value="bottomhole" className="h-7 text-xs flex-1">Bottomhole (BHP)</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <Label className="text-[11px] text-pl-muted leading-snug block mt-2">
+          What the pressure column of the file holds. The Hall plot integrates it as given: no hydrostatic head,
+          friction or reservoir pressure is added or subtracted, and the report says which it was.
         </Label>
       </section>
 
       <section>
         <SectionLabel>Diagnostics</SectionLabel>
         <div className="grid grid-cols-2 gap-3">
-          {WINDOW_FIELDS.map((f) => <Field key={f.k} label={f.label} value={surveillanceConfig[f.k]} onChange={(v) => setSurveillanceField(f.k, v)} />)}
+          {WINDOW_FIELDS.map((f) => <UField key={f.k} label={f.label} kind={f.kind} u={u} value={surveillanceConfig[f.k]} onChange={(v) => setSurveillanceField(f.k, v)} />)}
         </div>
       </section>
     </div>

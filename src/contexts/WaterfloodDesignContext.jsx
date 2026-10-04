@@ -16,6 +16,7 @@ import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjec
 import { WF_PAYLOAD_VERSION, DEFAULT_IDENTIFICATION, migrateWaterfloodPayload } from '@/utils/waterflooddesign/model';
 import { setProvenanceField, serializeProvenance, deserializeProvenance } from '@/lib/inputProvenance';
 import { mcSummaryRecord, mcInputsFingerprint } from '@/utils/waterflooddesign/mcSummary';
+import { wfUnits } from '@/utils/waterflooddesign/units';
 
 export const WF_PROJECTS_TABLE = 'saved_waterflood_design_projects';
 
@@ -189,6 +190,7 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
   const [inputMeta, setInputMeta] = useState({});
   const [unitSystemSaved, setUnitSystemSaved] = useState(null); // null: follows the Suite unit profile
   const unitSystem = unitSystemSaved === 'si' || unitSystemSaved === 'oilfield' ? unitSystemSaved : (profileSystem === 'si' ? 'si' : 'oilfield');
+  const u = useMemo(() => wfUnits(unitSystem), [unitSystem]);
   const [pvtIntake, setPvtIntake] = useState(null);
   const [surveillanceImport, setSurveillanceImport] = useState(null);
   const [mcSummary, setMcSummary] = useState(null);
@@ -208,6 +210,13 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
   const setSurveillanceField = useCallback((k, v) => setSurveillanceConfig((prev) => ({ ...prev, [k]: v })), []);
   const setIdentificationField = useCallback((k, v) => setIdentification((prev) => ({ ...prev, [k]: v })), []);
   const setInputSource = useCallback((key, field, value) => setInputMeta((prev) => setProvenanceField(prev, key, field, value)), []);
+  // WF-U1: a pvt-1 intake lands in three tabs at once and is kept with the project
+  const takePvt = useCallback((patch, intake) => {
+    if (patch?.displacement) setDisplacementInputs((prev) => ({ ...prev, ...patch.displacement }));
+    if (patch?.pattern) setPatternInputs((prev) => ({ ...prev, ...patch.pattern }));
+    if (patch?.surveillance) setSurveillanceConfig((prev) => ({ ...prev, ...patch.surveillance }));
+    setPvtIntake(intake || null);
+  }, []);
   const setUnitSystem = useCallback((sys) => setUnitSystemSaved(sys === 'si' ? 'si' : 'oilfield'), []);
   const setUncertaintyIterations = useCallback((v) => setUncertaintyConfig((prev) => ({ ...prev, iterations: v })), []);
   const setUncertaintyParam = useCallback((key, patch) => setUncertaintyConfig((prev) => ({
@@ -226,10 +235,11 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
     const L = layers.map((l) => ({ h: num(l.h), k: num(l.k) })).filter((l) => l.h > 0 && l.k > 0);
     if (L.length < 2) return null;
     const M = layeredConfig.mSource === 'displacement' && displacement ? displacement.M : num(layeredConfig.M);
-    const A = num(layeredConfig.A);
+    // WF-U1 (RL2): A derived from its parts when asked, A = M x Bo / Bw
+    const A = layeredConfig.aSource === 'derived' ? M * num(patternInputs.Bo) / num(patternInputs.Bw) : num(layeredConfig.A);
     if (!(M > 0) || !(A > 0)) return null;
     return { ...analyzeLayeredSweep({ layers: L, M, A }), M, A };
-  }, [layers, layeredConfig, displacement]);
+  }, [layers, layeredConfig, displacement, patternInputs.Bo, patternInputs.Bw]);
 
   const patternResult = useMemo(() => {
     if (!displacementSpec.spec) return null;
@@ -530,8 +540,8 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
     // WF-U1: report header, sources, units, intakes, MC summary
     identification, setIdentificationField,
     inputMeta, setInputSource,
-    unitSystem, setUnitSystem, profileSystem, followsProfile: unitSystemSaved == null && !!profileSystem,
-    pvtIntake, setPvtIntake,
+    unitSystem, setUnitSystem, u, profileSystem, followsProfile: unitSystemSaved == null && !!profileSystem,
+    pvtIntake, setPvtIntake, takePvt,
     surveillanceImport, setSurveillanceImport,
     mcSummary, migratedFrom, serializeInputs, setPatternInputs, setSurveillanceConfig,
     isSaving, saveError, lastSaveTime,
