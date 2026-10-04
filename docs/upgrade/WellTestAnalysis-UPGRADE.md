@@ -222,8 +222,8 @@ Recorded verbatim.
 > - DEFERRED (record reasons): U2-006 limited-entry, U2-008 Blasingame type curves, U2-011 MBH (owner: after NAPE), U2-012 Papatzacos (needs the paper), U2-015 (done in #879), Batch C.
 
 Branch `feat/welltest-u2` (worktree `/root/wt-res-wta2`); engines-first on
-`feat/welltest-u2-engines`, Petrolord/petrolord-engines PR #311 (not
-merged; vendored byte-identical with `welltest-u2` ledger rows meanwhile).
+`feat/welltest-u2-engines`, Petrolord/petrolord-engines PR #311, merged
+2026-10-04 (cb7b884); the Suite is pinned there with 0 deviations.
 
 ### Deferred, with reasons
 
@@ -342,7 +342,7 @@ Units: `pressureGradient` (psi/ft, kPa/m) and `nonDarcySkin` (1/(Mscf/D), 1/(10^
 
 ### Step 2: owner items
 
-- Merge engines PR #311 after review; then re-pin the Suite and remove the 12 `welltest-u2` ledger rows.
+- Engines PR #311 merged by the lead (cb7b884); the Suite is re-pinned with 0 deviations.
 - The Papatzacos comparison with the Cinco-Ley table (centred intervals 0.3 to 1.6 skin units higher) is worth a look when the SPE-13956-PA paper arrives (U2-012).
 
 ## Validation weaker than asked
