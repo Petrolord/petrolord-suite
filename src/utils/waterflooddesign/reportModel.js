@@ -22,6 +22,7 @@ import { annualForecastRows, wellSummaryRows } from './series.js';
 import { readBackLines } from './surveillanceImport.js';
 import { countAlerts } from './surveillance.js';
 import { mcSummaryState } from './mcSummary.js';
+import { hallChoiceText } from './hallWindows.js';
 import { patternTitle, patternLabel, isLineDrive, arealSweepCorrelationText, LINE_DRIVE_RANGE } from './patterns.js';
 import { exactBreakthroughDays } from '@/utils/waterfloodUncertainty';
 
@@ -289,13 +290,16 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
     const basis = sc.pressure_basis === 'bottomhole' ? 'bottomhole' : 'wellhead';
     const rows = [];
     for (const h of sr.hall_plots) {
-      for (const [key, label] of [['baseline', 'Baseline (first third)'], ['recent', 'Recent (last third)']]) {
+      for (const [key, third] of [['baseline', 'Baseline (first third)'], ['recent', 'Recent (last third)']]) {
         const w = h.windows?.[key];
         if (!w) continue;
+        // WF-U2-003: a window chosen by the user is named as chosen
+        const label = w.chosen ? `${key === 'baseline' ? 'Baseline' : 'Recent'} (chosen)` : third;
         const ci = w.ci95 ? `${g(u.show('hallSlope', w.ci95[0]), 4)} to ${g(u.show('hallSlope', w.ci95[1]), 4)}` : EMPTY_VALUE;
         rows.push([h.injector, label, `${h.dates?.[w.lo] || EMPTY_VALUE} to ${h.dates?.[w.hi - 1] || EMPTY_VALUE}`, String(w.n), g(u.show('hallSlope', w.slope), 4), ci, f(w.r2, 3)]);
       }
       rows.push([h.injector, 'Recent over baseline', '', '', f(h.slope_ratio, 3), '', '']);
+      if (h.windowChoice) rows.push([h.injector, 'Why these windows', '', '', hallChoiceText(h), '', '']);
     }
     hall = {
       head: ['Injector', 'Window', 'Dates', 'Points', u.head('Slope', 'hallSlope'), '95% interval', 'r2'],

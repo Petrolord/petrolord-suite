@@ -105,7 +105,10 @@ const WDSHelpContent = () => (
       <p>
         State whether the pressure column is wellhead or bottomhole: the Hall plot integrates it as given, and the
         report names it. The Hall plot draws the baseline (first third) and recent (last third) windows with their
-        least-squares lines; each slope is listed with its 95 percent interval.
+        least-squares lines; each slope is listed with its 95 percent interval. Under the plot you can choose the
+        windows of each injector yourself, by date or with "Pick on the plot" (click the first and the last point),
+        and give the reason. The chosen windows are refitted with the same line, the ratio and the injectivity alert
+        are decided again, and the report prints them as chosen with your reason. "Back to the thirds" clears them.
       </p>
       <p>
         The engine cleans and classifies the data, then reports reservoir-barrel voidage replacement
