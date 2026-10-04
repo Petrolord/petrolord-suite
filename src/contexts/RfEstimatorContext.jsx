@@ -229,7 +229,7 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
   const manualSave = useCallback(async () => {
     if (!currentProjectId) {
       addNotification('Create or open a project first', 'info');
-      return;
+      return false;
     }
     setIsSaving(true);
     try {
@@ -237,13 +237,15 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
       if (!res.ok) {
         setSaveError(res.readOnly ? 'Read-only' : 'Save failed');
         addNotification(res.message, res.readOnly ? 'info' : 'error');
-        return;
+        return false;
       }
       setLastSaveTime(new Date());
       setSaveError(null);
+      return true;
     } catch (e) {
       console.error(e);
       setSaveError('Save failed');
+      return false;
     } finally {
       setIsSaving(false);
     }
@@ -258,8 +260,10 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
       await refreshProjects();
       await openProject(id);
       addNotification(`Saved a copy as "${name}"`, 'success');
+      return id;
     } catch (e) {
       addNotification(`Could not save a copy: ${e.message}`, 'error');
+      return null;
     }
   }, [projectName, serialize, refreshProjects, openProject, addNotification]); // eslint-disable-line react-hooks/exhaustive-deps
 

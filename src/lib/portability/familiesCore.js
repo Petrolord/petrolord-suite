@@ -79,6 +79,13 @@ export const INTAKE_SOFT_REFS = Object.freeze({
   ],
   // VRR-U1: the FVF table taken from a Fluid project (the payload nests its inputs one level down)
   saved_vrr_projects: PVT_REFS('inputs_data.inputs'),
+  // RF-U1-010: the Fluid project of the pvt-1 intake, and the Material Balance
+  // case and run (mbal-1) or ReservoirCalc Pro project the in-place volume came from
+  saved_rf_projects: [
+    ...PVT_REFS('inputs_data'),
+    { path: 'inputs_data.inPlaceIntake.recordId', table: 'rb_cases', optional: true },
+    { path: 'inputs_data.inPlaceIntake.runId', table: 'rb_runs', optional: true },
+  ],
 });
 
 registerFamily('apps', {
