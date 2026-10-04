@@ -48,6 +48,31 @@ const LINK_REFS = [
   { path: 'inputs_data.inputs.dca.wellId', table: 'po_wells', optional: true },
 ];
 
+// Ids of other saved projects that a payload names as the source of an
+// intake (Reservoir round): kept when the source travels in the package,
+// cleared when it does not (the intake card then says the source cannot be
+// read again). WF-U1: a Waterflood project with a SCAL (kr-1) or Fluid
+// (pvt-1) intake could not be exported at all before these were declared.
+const KR_REFS = (base) => [
+  { path: `${base}.krIntake.from.recordId`, table: 'saved_scal_projects', optional: true },
+  { path: `${base}.krIntake.contract.project_id`, table: 'saved_scal_projects', optional: true },
+];
+const PVT_REFS = (base) => [
+  { path: `${base}.pvtIntake.from.recordId`, table: 'saved_fluid_studio_projects', optional: true },
+  { path: `${base}.pvtIntake.contract.project_id`, table: 'saved_fluid_studio_projects', optional: true },
+];
+export const INTAKE_SOFT_REFS = Object.freeze({
+  saved_waterflood_design_projects: [
+    ...KR_REFS('inputs_data.displacementInputs'),
+    // scenario snapshots keep the intake of their working case: any id under them is optional
+    { path: 'inputs_data.scenarios.*', table: 'saved_scal_projects', optional: true },
+    ...PVT_REFS('inputs_data'),
+  ],
+  // the same pvt-1 intake record in the other consumers (SCAL-U2-005, Well Test)
+  saved_scal_projects: PVT_REFS('inputs_data'),
+  saved_well_test_projects: PVT_REFS('inputs_data'),
+});
+
 registerFamily('apps', {
   tables: Object.fromEntries(SAVED_PROJECT_TABLES.map((t) => [t, {
     pk: 'id',
@@ -56,7 +81,7 @@ registerFamily('apps', {
     scope: ['user_id'],
     nameColumn: 'project_name',
     // the payload repeats its own row id (service.save(id, { id, ... })): follow the new id
-    softRefs: [{ path: 'inputs_data.id', table: t, optional: true }, ...LINK_REFS],
+    softRefs: [{ path: 'inputs_data.id', table: t, optional: true }, ...LINK_REFS, ...(INTAKE_SOFT_REFS[t] || [])],
   }])),
   // one root kind for all 52 tables; the root names its table
   roots: { saved_project: '*' },
