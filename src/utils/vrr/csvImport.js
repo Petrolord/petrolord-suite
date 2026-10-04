@@ -535,11 +535,15 @@ const GRID_NAMES = Object.freeze({
 
 /**
  * Read the period grid's own CSV (label, Np, Wp, Gp, Wi, Gi), any separator
- * and decimal mark, columns in any order. Values are stored as the grid
- * holds them (strings, oilfield units). VRR-U1-005: the old reader split on
- * commas and matched exact headers only.
+ * and decimal mark, columns in any order. A unit in the header ("Np (sm3)")
+ * is converted; a column with none is read in the display system and said
+ * so. Values are stored as the grid holds them: strings, oilfield units.
+ * VRR-U1-005: the old reader split on commas and matched exact headers only.
+ * @param {string} text
+ * @param {{decimal?: '.'|',', system?: 'oilfield'|'si'}} [choices]
  */
 export function parsePeriodGridCSV(text, choices = {}) {
+  const system = choices.system === 'si' ? 'si' : 'oilfield';
   const parsed = parseTabular(text, { decimal: choices.decimal, header: true });
   const map = {};
   const used = new Set();
@@ -550,7 +554,19 @@ export function parsePeriodGridCSV(text, choices = {}) {
     }
   }
   if (map.label === undefined && !['Np', 'Wp', 'Gp', 'Wi', 'Gi'].some((k) => map[k] !== undefined)) {
-    return { periods: [], refusal: 'Expected the columns label, Np, Wp, Gp, Wi and Gi (the Export button writes them).', skipped: [] };
+    return { periods: [], refusal: 'Expected the columns label, Np, Wp, Gp, Wi and Gi (the Export button writes them).', skipped: [], units: {}, warnings: [] };
+  }
+  const units = {};
+  const warnings = [];
+  for (const k of ['Np', 'Wp', 'Gp', 'Wi', 'Gi']) {
+    if (map[k] === undefined) continue;
+    const stream = k === 'Gp' || k === 'Gi' ? 'gas' : 'liquid';
+    const col = parsed.columns[map[k]];
+    const fromHeader = unitFromHeader(stream, col.unit, col.unit);
+    const def = DOOR_UNITS[stream].find((d) => d.key === (fromHeader || ASSUMED_UNIT[system][stream]));
+    if (def.basis === 'rate') return { periods: [], refusal: `${col.header}: the grid holds the volume of each period, not a daily rate.`, skipped: [], units: {}, warnings: [] };
+    units[k] = { key: def.key, from: fromHeader ? 'header' : 'assumed', factor: convert(def.family, 1, def.unit, STATE_UNIT[stream]) };
+    if (!fromHeader) warnings.push(`${col.header}: no unit in the header; read as ${def.label}.`);
   }
   const periods = parsed.rows.map((r) => {
     const p = { label: '', Np: '', Wp: '', Gp: '', Wi: '', Gi: '' };
@@ -558,11 +574,11 @@ export function parsePeriodGridCSV(text, choices = {}) {
     for (const k of ['Np', 'Wp', 'Gp', 'Wi', 'Gi']) {
       if (map[k] === undefined) continue;
       const v = r.values[map[k]];
-      p[k] = typeof v === 'number' && Number.isFinite(v) ? String(v) : '';
+      p[k] = typeof v === 'number' && Number.isFinite(v) ? String(Number((v * units[k].factor).toPrecision(12))) : '';
     }
     return p;
   });
-  return { periods, refusal: periods.length ? null : 'The file holds no rows.', skipped: parsed.report.skipped };
+  return { periods, refusal: periods.length ? null : 'The file holds no rows.', skipped: parsed.report.skipped, units, warnings };
 }
 
 // ---------------------------------------------------------------------------

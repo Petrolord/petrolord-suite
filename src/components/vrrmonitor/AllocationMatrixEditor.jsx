@@ -10,12 +10,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useVrrMonitor } from '@/contexts/VrrMonitorContext';
 import { allocateInjection } from '@/utils/vrrCalculations';
 import { THEMED_TONE, THEMED_TONE_TEXT } from '@/components/studio/studioTheme';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const fmt = (v, d = 0) =>
-  v == null || !Number.isFinite(v) ? '-' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
+  v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
 
 const AllocationMatrixEditor = () => {
-  const { inputs, ledgerWells, allocationCheck, setAllocationCell, evenSplitInjector } = useVrrMonitor();
+  const { inputs, ledgerWells, allocationCheck, setAllocationCell, evenSplitInjector, u, canWrite } = useVrrMonitor();
   const { injectors, producers } = ledgerWells;
 
   if (!injectors.length || !producers.length) {
@@ -61,16 +62,18 @@ const AllocationMatrixEditor = () => {
                         className={`h-8 w-20 text-right font-pl-mono tabular-nums ${over ? 'border-pl-danger' : ''}`}
                         aria-label={`Allocation ${inj} to ${prod}`}
                         aria-invalid={over || undefined}
+                        disabled={!canWrite}
                       />
                     </TableCell>
                   ))}
                   <TableCell className={`text-right font-pl-mono tabular-nums ${THEMED_TONE_TEXT[over ? 'danger' : partial ? 'warn' : sum > 0 ? 'good' : 'neutral']}`}>
-                    {sum > 0 ? sum.toFixed(3) : '-'}
+                    {sum > 0 ? sum.toFixed(3) : EMPTY_VALUE}
                   </TableCell>
                   <TableCell className="p-1 text-right">
                     <Button
                       variant="ghost" size="sm" className="h-7 text-xs"
                       onClick={() => evenSplitInjector(inj, producers)}
+                      disabled={!canWrite}
                       title={`Split ${inj} evenly across all producers. This is your choice; the engine assumes no split.`}
                     >
                       Even split
@@ -90,9 +93,9 @@ const AllocationMatrixEditor = () => {
         ))}
 
         <p className="text-xs text-pl-muted">
-          Conservation audit: {fmt(Object.values(audit.perProducer).reduce((s, v) => s + v.winj_stb, 0))} bbl water
-          + {fmt(Object.values(audit.perProducer).reduce((s, v) => s + v.ginj_mscf, 0))} Mscf gas allocated;
-          {' '}{fmt(audit.unallocated.winj_stb)} bbl + {fmt(audit.unallocated.ginj_mscf)} Mscf unallocated (out-of-zone).
+          Conservation audit: {fmt(u.show('water', Object.values(audit.perProducer).reduce((s, v) => s + v.winj_stb, 0)))} {u.label('water')} water
+          + {fmt(u.show('gas', Object.values(audit.perProducer).reduce((s, v) => s + v.ginj_mscf, 0)))} {u.label('gas')} gas allocated;
+          {' '}{fmt(u.show('water', audit.unallocated.winj_stb))} {u.label('water')} + {fmt(u.show('gas', audit.unallocated.ginj_mscf))} {u.label('gas')} unallocated (out-of-zone).
         </p>
       </CardContent>
     </Card>

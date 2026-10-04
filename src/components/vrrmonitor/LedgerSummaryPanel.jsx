@@ -6,27 +6,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useVrrMonitor } from '@/contexts/VrrMonitorContext';
 import { THEMED_TONE } from '@/components/studio/studioTheme';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const fmt = (v, d = 0) =>
-  v == null || !Number.isFinite(v) ? '-' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
-
-const FLAG_STYLE = {
-  under: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
-  'in-band': 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
-  over: 'text-sky-400 bg-sky-500/10 border-sky-500/30',
-};
+  v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
 
 const FLAG_LABEL = { under: 'Under', 'in-band': 'In band', over: 'Over' };
 
 // Design system: the same flags on the status roles.
 const FLAG_TONE = { under: 'warn', 'in-band': 'good', over: 'info' };
 
-const HEADS = ['Month', 'Oil (STB)', 'Water (STB)', 'Gas (Mscf)', 'Water Inj (bbl)', 'Gas Inj (Mscf)', 'Inst. VRR', 'Rolling', 'Cum. VRR', 'vs Target'];
 
 const NUM = 'text-right font-pl-mono tabular-nums';
 
 const LedgerSummaryPanel = () => {
-  const { series, rolling, flags, targetBand } = useVrrMonitor();
+  const { series, rolling, flags, targetBand, u, withheld, ledger } = useVrrMonitor();
+  const HEADS = ['Month', u.head('Oil', 'oil'), u.head('Water', 'water'), u.head('Gas', 'gas'), u.head('Water Inj', 'water'), u.head('Gas Inj', 'gas'), u.head('Produced', 'reservoir'), u.head('Injected', 'reservoir'), 'Inst. VRR', 'Rolling', 'Cum. VRR', 'vs Target'];
+  const gd = u.system === 'si' ? 2 : 0;
 
   return (
     <Card>
@@ -51,28 +47,31 @@ const LedgerSummaryPanel = () => {
             {series.map((row, i) => (
               <TableRow key={row.label}>
                 <TableCell className="font-pl-mono tabular-nums whitespace-nowrap">{row.label}</TableCell>
-                <TableCell className={NUM}>{fmt(row.Np)}</TableCell>
-                <TableCell className={NUM}>{fmt(row.Wp)}</TableCell>
-                <TableCell className={NUM}>{fmt(row.Gp)}</TableCell>
-                <TableCell className={NUM}>{fmt(row.Wi)}</TableCell>
-                <TableCell className={NUM}>{fmt(row.Gi)}</TableCell>
-                <TableCell className="text-right font-pl-mono tabular-nums font-semibold">{fmt(row.instantaneousVRR, 2)}</TableCell>
-                <TableCell className={NUM}>{fmt(rolling[i], 2)}</TableCell>
-                <TableCell className={NUM}>{fmt(row.cumulativeVRR, 2)}</TableCell>
+                <TableCell className={NUM}>{fmt(u.show('oil', row.Np))}</TableCell>
+                <TableCell className={NUM}>{fmt(u.show('water', row.Wp))}</TableCell>
+                <TableCell className={NUM}>{fmt(u.show('gas', row.Gp), gd)}</TableCell>
+                <TableCell className={NUM}>{fmt(u.show('water', row.Wi))}</TableCell>
+                <TableCell className={NUM}>{fmt(u.show('gas', row.Gi), gd)}</TableCell>
+                <TableCell className={NUM}>{fmt(u.show('reservoir', ledger.rows[i]?.producedRB))}</TableCell>
+                <TableCell className={NUM}>{fmt(u.show('reservoir', ledger.rows[i]?.injectedRB))}</TableCell>
+                <TableCell className="text-right font-pl-mono tabular-nums font-semibold">{withheld ? EMPTY_VALUE : fmt(row.instantaneousVRR, 2)}</TableCell>
+                <TableCell className={NUM}>{withheld ? EMPTY_VALUE : fmt(rolling[i], 2)}</TableCell>
+                <TableCell className={NUM}>{withheld ? EMPTY_VALUE : fmt(row.cumulativeVRR, 2)}</TableCell>
                 <TableCell className="text-right">
                   {flags[i] ? (
                     <span className={`inline-block text-[11px] font-medium px-2 py-0.5 rounded border ${THEMED_TONE[FLAG_TONE[flags[i]]]}`}>
                       {FLAG_LABEL[flags[i]]}
                     </span>
-                  ) : <span className="text-pl-muted">-</span>}
+                  ) : <span className="text-pl-muted">{EMPTY_VALUE}</span>}
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
         <p className="text-xs text-pl-muted mt-3">
-          Aggregated by calendar month from the imported per-well rows. Adjust the target band and
-          rolling window in the left rail; edit source data in your CSV and re-import.
+          Aggregated by calendar month from the imported per-well rows; produced and injected in reservoir volume at
+          each month's FVFs. The full ledger by term, with the FVFs and a provenance header, is on the Report tab (Ledger
+          CSV). Adjust the target band and rolling window in the left rail; edit source data in your file and re-import.
         </p>
       </CardContent>
     </Card>

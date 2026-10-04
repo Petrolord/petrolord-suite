@@ -2,7 +2,10 @@
 // program, docs/scope/VoidageReplacementMonitor-STATUS.md). V1: Studio kit
 // + saved_vrr_projects. V2: per-well CSV ledger + rolling VRR/target
 // bands. V3: pressure surveys + pressure-dependent PVT + the
-// VRR-vs-pressure maintenance-proof tab.
+// VRR-vs-pressure maintenance-proof tab. V4: patterns and allocation.
+// VRR-U1 (docs/upgrade/VoidageReplacementMonitor-UPGRADE.md): the report on
+// the shared kit, the pvt-1 intake, units, import doors on the shared
+// reader, record sharing.
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useSearchParams } from 'react-router-dom';
@@ -12,6 +15,7 @@ import StudioHeader from '@/components/studio/StudioHeader';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioHelp from '@/components/studio/StudioHelp';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { VrrMonitorProvider, useVrrMonitor } from '@/contexts/VrrMonitorContext';
 import FvfPanel from '@/components/vrrmonitor/FvfPanel';
 import AnalysisSettingsPanel from '@/components/vrrmonitor/AnalysisSettingsPanel';
@@ -25,14 +29,24 @@ import PressureChartPanel from '@/components/vrrmonitor/PressureChartPanel';
 import PatternManagerPanel from '@/components/vrrmonitor/PatternManagerPanel';
 import AllocationMatrixEditor from '@/components/vrrmonitor/AllocationMatrixEditor';
 import PatternResultsPanel from '@/components/vrrmonitor/PatternResultsPanel';
+import VrrReportTab from '@/components/vrrmonitor/VrrReportTab';
 import VrrHelpContent from '@/components/reservoir/VrrHelpGuide';
+import { supabaseSharingStore } from '@/lib/recordSharing';
+import { RecordSharingBar } from '@/components/recordSharing';
+import { useProfileSystem } from '@/lib/units/useProfileSystem';
+import { VRR_PROFILE_FAMILIES } from '@/utils/vrr/units';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 const TABS = [
   { value: 'data', label: 'Data & PVT' },
   { value: 'dashboard', label: 'VRR Dashboard' },
   { value: 'pressure', label: 'Pressure' },
   { value: 'patterns', label: 'Patterns' },
+  { value: 'report', label: 'Report' },
 ];
+
+// One store per page; record sharing of saved_vrr_projects (VRR-U1-012, PL5).
+const SHARING_STORE = supabaseSharingStore();
 
 // Design system pilot 5 (docs/scope/DesignSystem.md): the page sits in the
 // dashboard scope, so every class here is a theme role.
@@ -50,9 +64,10 @@ const VrrMonitorContent = () => {
     TABS.some((t) => t.value === requested) ? requested : 'data',
   );
   const {
-    projects, currentProjectId, createProject, openProject, deleteProject,
+    projects, sharedProjects, viewingShared, projectRow, sharing, saveCopy, canWrite,
+    currentProjectId, createProject, openProject, deleteProject,
     manualSave, isSaving, saveError, lastSaveTime,
-    notifications, removeNotification, isImported,
+    notifications, removeNotification, isImported, inputs, setUnitSystem,
   } = useVrrMonitor();
 
   const leftPanel = (
@@ -60,11 +75,29 @@ const VrrMonitorContent = () => {
       <section>
         <StudioProjectManager
           projects={projects}
+          sharedProjects={sharedProjects}
+          canDelete={!viewingShared}
           currentProjectId={currentProjectId}
           onCreate={createProject}
           onOpen={openProject}
           onDelete={deleteProject}
+          confirmDeleteMessage="Delete this VRR project? Material Balance Studio reads its pressure surveys by id and will no longer find it."
         />
+        {projectRow && (
+          <RecordSharingBar
+            sharing={sharing}
+            label="project"
+            className="mt-2"
+            onSaveCopy={saveCopy}
+            onReload={() => openProject(currentProjectId)}
+            fieldLabels={{ project_name: 'name', inputs_data: 'ledger, surveys, FVFs, patterns and report fields' }}
+          />
+        )}
+        {projectRow && sharing.ready && !canWrite && (
+          <p className="mt-2 text-xs text-pl-warning-text" data-testid="vrr-read-only">
+            {sharing.readOnlyReason || 'This project is open read-only.'} Changes you make here are not saved to it.
+          </p>
+        )}
       </section>
       {activeTab === 'pressure' ? (
         <section>
@@ -76,6 +109,12 @@ const VrrMonitorContent = () => {
           <SectionLabel>Patterns</SectionLabel>
           <PatternManagerPanel />
         </section>
+      ) : activeTab === 'report' ? (
+        <p className="text-xs text-pl-muted leading-relaxed">
+          The report prints the identification, every input with its unit and source, the voidage ledger by period and by
+          term, the FVFs of every period, the patterns, the limits of the analysis and the figures. Fill the
+          identification and the sources in the main area.
+        </p>
       ) : (
         <>
           <section>
@@ -121,6 +160,7 @@ const VrrMonitorContent = () => {
           <PatternResultsPanel />
         </>
       )}
+      {activeTab === 'report' && <VrrReportTab />}
     </div>
   );
 
@@ -145,6 +185,15 @@ const VrrMonitorContent = () => {
         }
         headerActions={
           <>
+            <Select value={inputs.unitSystem} onValueChange={setUnitSystem}>
+              <SelectTrigger className="h-8 w-[104px] text-xs" aria-label="Display units" data-testid="vrr-unit-system" title="Display units of this project (the saved values stay in oilfield units)">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="oilfield">Oilfield</SelectItem>
+                <SelectItem value="si">SI</SelectItem>
+              </SelectContent>
+            </Select>
             <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />
             <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
@@ -166,10 +215,16 @@ const VrrMonitorContent = () => {
   );
 };
 
-export default function VoidageReplacementMonitor() {
+const useOrganizationName = () => {
+  try { return useAuth()?.organization?.name || ''; } catch { return ''; }
+};
+
+export default function VoidageReplacementMonitor({ sharingStore = SHARING_STORE }) {
+  const profileSystem = useProfileSystem('vrr', VRR_PROFILE_FAMILIES);
+  const organizationName = useOrganizationName();
   return (
     <div data-testid="vrr-theme-scope">
-      <VrrMonitorProvider>
+      <VrrMonitorProvider sharingStore={sharingStore} profileSystem={profileSystem} organizationName={organizationName}>
         <VrrMonitorContent />
       </VrrMonitorProvider>
     </div>
