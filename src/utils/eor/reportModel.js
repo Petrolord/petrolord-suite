@@ -64,6 +64,8 @@ export const INPUT_DEFS = Object.freeze([
   // EOR-U2-001: the oil composition the CO2 MMP correlation reads
   { key: 'volatilesMolPct', label: 'Oil composition C1 + N2, for the MMP (context, not screened)', kind: 'molpct', group: 'context' },
   { key: 'intermediatesMolPct', label: 'Oil composition C2 to C10 with CO2, for the MMP (context, not screened)', kind: 'molpct', group: 'context' },
+  // EOR-U2-005: for the material balance remaining oil estimate
+  { key: 'swiPct', label: 'Initial water saturation, for the remaining oil estimate (context, not screened)', kind: 'saturation', group: 'context' },
 ]);
 
 const SAMPLE = sampleEorScreeningData();

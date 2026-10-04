@@ -94,6 +94,9 @@ EOR Screening Report, Ekene, EOR screening EK                                   
  Oil composition C2 to C10 with CO2, for       39.94                  mol %             Entered, source not stated
  the MMP (context, not screened)
 
+ Initial water saturation, for the remaining   n/a                    % PV              Not provided
+ oil estimate (context, not screened)
+
  Depth reference                               TVDSS (true                              Stated by the user
                                                vertical depth below
                                                mean sea level)

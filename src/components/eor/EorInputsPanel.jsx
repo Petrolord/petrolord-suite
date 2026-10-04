@@ -36,7 +36,7 @@ const SourceLine = ({ k }) => {
 
 const EorInputsPanel = () => {
   const {
-    inputs, setFormField, setContextField, setDepthReference, loadSample, clearInputs, canWrite,
+    inputs, setFormField, setContextField, setDepthReference, loadSample, clearInputs, canWrite, remainingOil, useRemainingOil: applyRemainingOil,
   } = useEorScreening();
   const form = inputs.form || {};
   return (
@@ -56,6 +56,16 @@ const EorInputsPanel = () => {
           <div key={d.key} className="space-y-0.5">
             <EorField id={`eor-${d.key}`} label={d.label} kind={d.kind} value={form[d.key]} disabled={!canWrite} onChange={(v) => setFormField(d.key, v)} />
             <SourceLine k={d.key} />
+            {d.key === 'oilSatPct' && (
+              <div className="rounded-md border border-pl-border bg-pl-sunken px-2 py-1.5 text-[10px] text-pl-muted space-y-1" data-testid="eor-remaining-oil" data-ok={remainingOil?.ok ? 'yes' : 'no'}>
+                {remainingOil?.ok ? (
+                  <>
+                    <p>Material balance estimate: <span className="text-pl-text font-semibold" data-testid="eor-remaining-oil-value">{parseFloat(remainingOil.soPct.toPrecision(4))} % PV</span>. {remainingOil.method}.</p>
+                    <Button size="sm" variant="outline" className="h-7 text-[11px]" disabled={!canWrite} onClick={applyRemainingOil} data-testid="eor-remaining-oil-use">Use as the oil saturation</Button>
+                  </>
+                ) : <p>Remaining oil from Material Balance: {remainingOil?.reason}</p>}
+              </div>
+            )}
           </div>
         ))}
         <div className="space-y-1">

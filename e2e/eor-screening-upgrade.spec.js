@@ -211,3 +211,23 @@ test('U2-008 composition: C1 + N2 from the feed of a compositional Fluid project
   await expect(page.getByTestId('eor-intermediatesMolPct')).toHaveValue('');
   await expect(page.getByTestId('eor-mmp')).toHaveAttribute('data-status', 'not made');
 });
+
+// EOR-U2-005: remaining oil saturation from the mbal-1 and pvt-1 intakes with a stated Swi.
+test('U2-005 remaining oil: estimate from Material Balance and Fluid, used as the oil saturation with its method', async ({ page }) => {
+  test.setTimeout(180000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await expect(page.getByTestId('eor-remaining-oil')).toHaveAttribute('data-ok', 'no');
+  await page.getByTestId('eor-pick-pvt').selectOption({ index: 1 });
+  await page.getByTestId('eor-take-pvt').click();
+  await page.getByTestId('eor-pick-mbal').selectOption({ index: 1 });
+  await page.getByTestId('eor-take-mbal').click();
+  await page.getByTestId('eor-swiPct').fill('20');
+  const box = page.getByTestId('eor-remaining-oil');
+  await expect(box).toBeVisible();
+  await expect(box).toHaveAttribute('data-ok', 'yes');
+  await expect(page.getByTestId('eor-remaining-oil-value')).toHaveText('79.76 % PV');
+  await page.getByTestId('eor-remaining-oil-use').click();
+  await expect(page.getByTestId('eor-oilSatPct')).toHaveValue('79.76');
+  await expect(page.getByTestId('eor-source-oilSatPct')).toContainText('Material balance remaining oil');
+});

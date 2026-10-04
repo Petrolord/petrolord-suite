@@ -80,6 +80,9 @@ EOR Screening Report, Unnamed, EOR screening EK                                 
  Oil composition C2 to C10 with CO2, for       n/a                    mol %             Not provided
  the MMP (context, not screened)
 
+ Initial water saturation, for the remaining   n/a                    % PV              Not provided
+ oil estimate (context, not screened)
+
  Depth reference                               Not stated                               Not stated: the criteria are true vertical depths; state the
                                                                                         reference
 

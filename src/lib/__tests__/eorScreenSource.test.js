@@ -49,7 +49,7 @@ describe('eor-screen-1', () => {
   it('carries every input in oilfield units with its source; intakes name their project and method', () => {
     const r = buildEorScreenRecord({ inputs: intakeCase(), projectId: 'eor-2', now: NOW });
     expect(r.units).toBe('oilfield');
-    expect(Object.keys(r.inputs)).toEqual(['gravityApi', 'viscosityCp', 'oilSatPct', 'formation', 'netThicknessFt', 'permeabilityMd', 'depthFt', 'temperatureF', 'reservoirPressurePsia', 'saturationPressurePsia', 'ooipStb', 'volatilesMolPct', 'intermediatesMolPct']);
+    expect(Object.keys(r.inputs)).toEqual(['gravityApi', 'viscosityCp', 'oilSatPct', 'formation', 'netThicknessFt', 'permeabilityMd', 'depthFt', 'temperatureF', 'reservoirPressurePsia', 'saturationPressurePsia', 'ooipStb', 'volatilesMolPct', 'intermediatesMolPct', 'swiPct']);
     expect(r.inputs.permeabilityMd).toMatchObject({ value: 182.4, unit: 'md', screened: true });
     expect(r.inputs.permeabilityMd.source).toMatch(/Horner straight line/);
     expect(r.inputs.ooipStb).toMatchObject({ unit: 'STB', screened: false });

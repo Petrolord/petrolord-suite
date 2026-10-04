@@ -183,6 +183,16 @@ const EorScreeningHelpGuideContent = () => (
         hydrocarbon gas or impure CO2. The check changes no Taber verdict: CO2 miscible still
         uses the depth by oil gravity table.
       </Callout>
+      <SubHeading>Remaining oil from Material Balance</SubHeading>
+      <Para>
+        Under the oil saturation field the app estimates the oil saturation now, once you have
+        taken a Material Balance case and a Fluid Systems Studio project and stated the initial
+        water saturation: So = (1 - Np/N) (Bo/Boi) (1 - Swi), with N and Np from the case, Bo and
+        Boi from the Fluid project's table at the last and initial pressures, and your Swi. Use
+        as the oil saturation copies it into the field with the method as its source. It is a
+        reservoir average for a volumetric reservoir: a case with an aquifer or injection gets no
+        estimate, and swept zones hold less oil than the average.
+      </Para>
       <SubHeading>Blank and zero are different</SubHeading>
       <Para>
         A blank field is left unscored. A zero is a real measured value and is tested like any

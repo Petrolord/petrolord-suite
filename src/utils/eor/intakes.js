@@ -96,6 +96,8 @@ export function eorPvtIntake(contract, { pressurePsia = null, at: takenAt = new 
       fields: Object.keys(values),
       methods,
       contract: pvtContractSummary(b),
+      // EOR-U2-005: the Bo column of the project's table, for the remaining oil estimate
+      bo_table: (b.table || []).filter((r) => finite(r.pressure) && finite(r.Bo)).map((r) => ({ pressure: r.pressure, Bo: r.Bo })),
     },
   };
 }
@@ -170,6 +172,21 @@ export function eorMbalIntake(record, { at: takenAt = new Date().toISOString() }
       fields: Object.keys(values),
       methods,
       fingerprint: mbalFingerprint(record),
+      // EOR-U2-005: what the remaining oil estimate needs from the run
+      balance: (() => {
+        const series = Array.isArray(record.pressure?.series) ? record.pressure.series : [];
+        const last = series.length ? series[series.length - 1] : null;
+        return {
+          np_stb: finite(last?.cum_oil_stb) ? last.cum_oil_stb : null,
+          p_initial_psia: record.pressure?.initial_psia ?? null,
+          p_last_psia: record.pressure?.last_psia ?? null,
+          mechanism: record.drive?.mechanism ?? null,
+          aquifer_model: record.drive?.aquifer_model ?? null,
+          wdi: record.drive?.indices?.wdi ?? null,
+          winj_di: record.drive?.indices?.winj_di ?? null,
+          ginj_di: record.drive?.indices?.ginj_di ?? null,
+        };
+      })(),
     },
   };
 }
