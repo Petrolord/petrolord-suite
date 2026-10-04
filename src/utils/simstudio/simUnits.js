@@ -158,6 +158,14 @@ export const VECTOR_UNITS = Object.freeze({
   FGIR: { kind: 'gasRate', FIELD: 'Mscf/d', METRIC: 'm3/d' },
   FWIT: { kind: 'waterVolume', FIELD: 'STB', METRIC: 'm3' },
   FGIT: { kind: 'gasVolume', FIELD: 'Mscf', METRIC: 'm3' },
+  // SIM-U2-002: the cumulatives the sim-forecast-1 sender rebuilds a thinned series from
+  FWPT: { kind: 'waterVolume', FIELD: 'STB', METRIC: 'm3' },
+  // SIM-U2-004: an analytical aquifer's influx (in the volume units of its
+  // initial volume: reservoir barrels, checked in the worker gate) and pressure
+  AAQT: { kind: 'resVolume', FIELD: 'RB', METRIC: 'm3' },
+  AAQR: { kind: 'resRate', FIELD: 'RB/d', METRIC: 'm3/d' },
+  AAQP: { kind: 'pressure', FIELD: 'psi', METRIC: 'bar' },
+  FGPT: { kind: 'gasVolume', FIELD: 'Mscf', METRIC: 'm3' },
   WOPR: { kind: 'oilRate', FIELD: 'STB/d', METRIC: 'm3/d' },
   WWPR: { kind: 'waterRate', FIELD: 'STB/d', METRIC: 'm3/d' },
   WGPR: { kind: 'gasRate', FIELD: 'Mscf/d', METRIC: 'm3/d' },
@@ -194,4 +202,22 @@ export function vectorView(key, deckSystem, system) {
     convert: (v) => (typeof v === 'number' && Number.isFinite(v) ? convert(k.family, v, from, to) : v),
     reason: null,
   };
+}
+
+// ---- the simulator's PRT tables (SIM-U2-015) ---------------------------------
+
+/**
+ * A volume the simulator printed in its PRT, in the display unit of a kind.
+ * The worker records the unit the table carried: STB, MSCF and RB (FIELD),
+ * SM3 and RM3 (METRIC; checked on a METRIC run in the worker gate).
+ * @param {string} kind e.g. 'oilVolume', 'gasVolume', 'resVolume'
+ * @param {number} value
+ * @param {?string} prtUnit as the PRT printed it; FIELD's when not recorded
+ */
+export function prtShow(kind, value, prtUnit, system) {
+  const k = kindOf(kind);
+  if (typeof value !== 'number' || !Number.isFinite(value) || !k.family) return value;
+  const unit = String(prtUnit || '').toUpperCase();
+  const from = { STB: 'STB', MSCF: 'Mscf', RB: 'RB', SM3: 'm3', RM3: 'm3' }[unit] || k.canon;
+  return convert(k.family, value, from, k.unit[sys(system)]);
 }

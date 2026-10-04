@@ -52,6 +52,15 @@ SCRATCH_DIR = os.environ.get("SCRATCH_DIR", "/scratch")
 # absent keys, so uploaded S3-era decks are unaffected.
 FIELD_VECTORS = ["FOPR", "FOPT", "FWPR", "FWCT", "FGPR", "FGOR", "FPR",
                  "FWIR", "FGIR", "FWIT", "FGIT",
-                 "FOPRH", "FWPRH", "FGPRH", "FWCTH", "FGORH"]
+                 "FOPRH", "FWPRH", "FGPRH", "FWCTH", "FGORH",
+                 # SIM-U2-015: produced water and gas totals, when the deck asks
+                 "FWPT", "FGPT"]
+# SIM-U2-004: per analytical aquifer (ids 1 to AQUIFER_MAX_ID), its pressure,
+# cumulative influx and influx rate, kept under doc["aquifers"][id] (OPM Flow
+# 2026.04 does not handle the field totals FAQR and FAQT)
+AQUIFER_VECTORS = ["AAQP", "AAQT", "AAQR"]
+AQUIFER_MAX_ID = 4
+# SIM-U2-001: WBHPH, the observed bottomhole pressure a history deck carries
+# (WCONHIST item 10), for the pressure match.
 WELL_VECTORS = ["WOPR", "WWPR", "WGPR", "WBHP", "WWCT", "WWIR", "WGIR",
-                "WOPRH", "WWPRH", "WGPRH"]
+                "WOPRH", "WWPRH", "WGPRH", "WBHPH"]

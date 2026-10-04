@@ -8,6 +8,9 @@ import { getHubCase, compareHubWithSource } from '@/utils/forecastScenarioContra
 import { wfProvenanceOf, wfProvenanceText } from '@/pages/apps/epe/epeWfIntake';
 import { getWfForecast } from '@/utils/waterflooddesign/wfForecastService';
 import { compareWfWithSource } from '@/utils/waterflooddesign/wfForecastContract';
+import { simProvenanceOf, simProvenanceText } from '@/pages/apps/epe/epeSimIntake';
+import { getSimForecast } from '@/utils/simstudio/simForecastService';
+import { compareSimWithSource } from '@/utils/simstudio/simForecastContract';
 import { motion } from 'framer-motion';
 import {
   FileSpreadsheet, Loader2, Trash2, Play, CheckCircle2, AlertCircle, ChevronDown, ChevronUp
@@ -127,6 +130,17 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
       .catch((e) => { if (alive) setWfState({ state: 'unreadable', text: `The source could not be read: ${e.message}` }); });
     return () => { alive = false; };
   }, [wf?.fingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
+  // SIM-U2-002: a file received from Reservoir Simulation Studio
+  const simP = status === 'PROCESSED' ? simProvenanceOf(file) : null;
+  const [simState, setSimState] = useState(null);
+  useEffect(() => {
+    if (!simP) return undefined;
+    let alive = true;
+    getSimForecast(supabase, { caseId: simP.projectId, runId: simP.run?.id, phase: simP.phase })
+      .then((now) => { if (alive) setSimState(compareSimWithSource(simP, now)); })
+      .catch((e) => { if (alive) setSimState({ state: 'unreadable', text: `The source could not be read: ${e.message}` }); });
+    return () => { alive = false; };
+  }, [simP?.fingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
   const previewCols = previewRows.length > 0 ? Object.keys(previewRows[0]).slice(0, 6) : [];
 
   return (
@@ -217,6 +231,17 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
           {wfState && (
             <p className={wfState.state === 'unchanged' ? '' : 'text-pl-warning-text'} data-testid="epe-wf-source-state">
               {wfState.text}{wfState.state === 'changed' ? ' Import it again from Waterflood Design Studio to take the new forecast.' : ''}
+            </p>
+          )}
+        </div>
+      )}
+
+      {simP && (
+        <div className="mt-2 rounded border border-pl-border bg-pl-sunken p-2 text-[11px] text-pl-muted space-y-1" data-testid="epe-sim-provenance">
+          <p>{simProvenanceText(simP)}</p>
+          {simState && (
+            <p className={simState.state === 'unchanged' ? '' : 'text-pl-warning-text'} data-testid="epe-sim-source-state">
+              {simState.text}{simState.state === 'changed' ? ' Import it again from Reservoir Simulation Studio to take the new run.' : ''}
             </p>
           )}
         </div>

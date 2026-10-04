@@ -52,11 +52,18 @@ const CurvesPanel = () => {
           <ScalField
             key={k}
             testId={`corey-${isOw ? 'ow' : 'go'}-${k}`}
-            label={label}
+            label={!isOw && k === 'Swc' ? 'Swc, connate water (the oil-water Swc)' : label}
             value={isOw ? curves.ow[k] : curves.go[k]}
+            disabled={!isOw && k === 'Swc'}
             onChange={(v) => (isOw ? setOwField(k, v) : setGoField(k, v))}
           />
         ))}
+        {!isOw && (
+          <p className="text-[11px] text-pl-muted" data-testid="scal-go-swc-pairing">
+            The gas-oil set is held at the oil-water Swc: one connate water, as a simulator takes it (SGOF ends at 1 - Swc of SWOF).
+            {curves.goSwcPairing ? ` Moved from Swc ${curves.goSwcPairing.from} to ${curves.goSwcPairing.to}: ${curves.goSwcPairing.why}; the other gas-oil parameters are kept.` : ''}
+          </p>
+        )}
         {(isOw ? ow.error : go.error) && (
           <p className="text-xs text-pl-danger-text">{isOw ? ow.error : go.error}</p>
         )}

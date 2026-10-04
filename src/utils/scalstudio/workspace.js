@@ -284,15 +284,36 @@ export function deriveScalState(inputs) {
   };
 }
 
+/**
+ * SIM-U2-014: one connate water. The gas-oil set is held at the oil-water
+ * Swc (a simulator takes one: SGOF ends at 1 - Swc of SWOF). A set that
+ * arrives at another Swc (a project saved before, or a sample's gas-oil fit
+ * at its own test Swc) is moved to the oil-water Swc and the move is kept
+ * in `curves.goSwcPairing` ({ from, to, why }), which the Curves tab and the
+ * report state. The other gas-oil parameters are kept as they are.
+ */
+export function pairGoSwc(curves, why = 'saved before the gas-oil set followed the oil-water Swc') {
+  const owSwc = curves?.ow?.Swc;
+  const goSwc = curves?.go?.Swc;
+  if (owSwc == null || String(owSwc).trim() === '') return curves;
+  if (String(goSwc) === String(owSwc) || (Number.isFinite(num(goSwc)) && Math.abs(num(goSwc) - num(owSwc)) <= 1e-12)) return curves;
+  const from = Number.isFinite(num(goSwc)) ? num(goSwc) : null;
+  return {
+    ...curves,
+    go: { ...curves.go, Swc: owSwc },
+    ...(from != null ? { goSwcPairing: { from, to: num(owSwc), why } } : {}),
+  };
+}
+
 /** Saved inputs from a payload of any schema, with the defaults filled in (the provider's hydrate, pure). */
 export function inputsFromPayload(payload) {
   return {
-    curves: {
+    curves: pairGoSwc({
       ...DEFAULT_CURVES,
       ...(payload?.curves || {}),
       ow: { ...DEFAULT_CURVES.ow, ...(payload?.curves?.ow || {}) },
       go: { ...DEFAULT_CURVES.go, ...(payload?.curves?.go || {}) },
-    },
+    }),
     samples: Array.isArray(payload?.samples) ? payload.samples : [],
     capillary: {
       ...DEFAULT_CAPILLARY,

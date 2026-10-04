@@ -12,13 +12,19 @@
 import { DAYS_PER_YEAR } from '@/utils/forecastScenarioCalculations';
 import { dcaSourceLine, dcaBasisLine } from '@/utils/declineCurve/dcaForecastContract';
 import { wfSourceLine, wfBasisLine, WF_FORECAST_SCHEMA } from '@/utils/waterflooddesign/wfForecastContract';
+import { simSourceLine, simBasisLine, SIM_FORECAST_SCHEMA } from '@/utils/simstudio/simForecastContract';
+
+/** The schemas the hub takes as a profile case (no Arps parameters). */
+export const PROFILE_SCHEMAS = Object.freeze([WF_FORECAST_SCHEMA, SIM_FORECAST_SCHEMA]);
+const isProfileSchema = (k) => PROFILE_SCHEMAS.includes(k?.schema);
 
 const r6 = (v) => Number(Number(v).toPrecision(10));
 
 /** The hub case values a contract gives. */
 export function caseValuesFromContract(c) {
-  // WF-U2-001: a Waterflood Design Studio pattern forecast is a profile case
-  if (c?.schema === WF_FORECAST_SCHEMA) {
+  // WF-U2-001: a Waterflood Design Studio pattern forecast is a profile case;
+  // SIM-U2-002: so is a Reservoir Simulation Studio run (sim-forecast-1)
+  if (isProfileSchema(c)) {
     return {
       kind: 'profile',
       profile: { steps: c.forecast.steps.map((s) => ({ t_days: s.t_days, qo: s.qo })), unit: c.units.rate },
@@ -81,9 +87,31 @@ export function caseFromWfContract(contract, { id = `wf-${Date.now()}`, received
   };
 }
 
+/**
+ * SIM-U2-002: a hub case from a `sim-forecast-1` contract (the run's field
+ * oil profile, day for day from its start or from the history end), or a
+ * refusal.
+ * @returns {{ok: true, case: object}|{ok: false, reason: string}}
+ */
+export function caseFromSimContract(contract, { id = `sim-${Date.now()}`, receivedAt = new Date().toISOString(), build = null } = {}) {
+  if (!contract || contract.schema !== SIM_FORECAST_SCHEMA) return { ok: false, reason: 'Not a Reservoir Simulation Studio forecast.' };
+  if (!(contract.forecast?.Np > 0)) return { ok: false, reason: 'The run produces no oil in the phase sent.' };
+  return {
+    ok: true,
+    case: {
+      id,
+      name: `${contract.projectName || 'Simulation'} (Simulation${contract.phase === 'prediction' ? ', prediction' : ''})`,
+      ...caseValuesFromContract(contract),
+      source: { contract, receivedAt, receivedBuild: build },
+    },
+  };
+}
+
 /** One line naming where a received case came from, whichever app sent it. */
 export function upstreamSourceLine(k) {
-  return k?.schema === WF_FORECAST_SCHEMA ? wfSourceLine(k) : dcaSourceLine(k);
+  if (k?.schema === WF_FORECAST_SCHEMA) return wfSourceLine(k);
+  if (k?.schema === SIM_FORECAST_SCHEMA) return simSourceLine(k);
+  return dcaSourceLine(k);
 }
 
 const PROFILE_KEYS = ['years', 'startDate'];
@@ -97,7 +125,7 @@ const numOrNull = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) |
 export function editedAfterHandoff(c) {
   if (!c?.source?.contract) return [];
   const sent = caseValuesFromContract(c.source.contract);
-  return (c.source.contract.schema === WF_FORECAST_SCHEMA ? PROFILE_KEYS : KEYS).filter((k) => {
+  return (isProfileSchema(c.source.contract) ? PROFILE_KEYS : KEYS).filter((k) => {
     if (k === 'declineBasis') return (c[k] || 'nominal') !== (sent[k] || 'nominal');
     if (TEXT_KEYS.has(k)) return String(c[k] || '') !== String(sent[k] || '');
     if (k === 'terminalDeclinePct' || k === 'downtimePct') {
@@ -114,6 +142,9 @@ export function caseSourceText(c) {
   if (!c?.source?.contract) return null;
   const k = c.source.contract;
   const edited = editedAfterHandoff(c);
+  if (k.schema === SIM_FORECAST_SCHEMA) {
+    return `From ${simSourceLine(k)}, received ${String(c.source.receivedAt || '').slice(0, 10)}. ${simBasisLine(k)}.${edited.length ? ` Edited here after the handoff: ${edited.join(', ')}.` : ''}`;
+  }
   if (k.schema === WF_FORECAST_SCHEMA) {
     return `From ${wfSourceLine(k)}, received ${String(c.source.receivedAt || '').slice(0, 10)}. ${wfBasisLine(k)}.${edited.length ? ` Edited here after the handoff: ${edited.join(', ')}.` : ''}`;
   }

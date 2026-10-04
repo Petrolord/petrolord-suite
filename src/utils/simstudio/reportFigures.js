@@ -6,8 +6,11 @@
  *
  * Pure: returns Report Kit figure entries.
  */
-import { fieldRows, wellRows, pairs } from './series.js';
+import { fieldRows, wellRows, pairs, dayToMs, aquiferRows } from './series.js';
+
+const dayMs = (summary, day) => dayToMs(summary, day);
 import { simUnits } from './simUnits.js';
+import { compareSeries } from './runCompare.js';
 
 export const COLORS = Object.freeze({
   oil: [22, 101, 52], water: [37, 99, 235], gas: [220, 38, 38], pressure: [124, 58, 237],
@@ -30,10 +33,11 @@ const has = (summary, key) => Array.isArray(summary?.field?.[key]);
 const missing = (keys) => `Not plotted: the summary holds none of ${keys.join(', ')} (the deck's SUMMARY section does not request them).`;
 
 /**
- * @param {{summary: object, opts: {deckSystem: string, system: string}, historyEnd?: ?string}} a
- *   `historyEnd` the ISO date the history phase ends (the deck's last DATES entry)
+ * @param {{summary: object, opts: {deckSystem: string, system: string}, historyEnd?: ?string, bhp?: ?object, aquiferDeck?: boolean}} a
+ *   `historyEnd` the ISO date the history phase ends (the deck's last DATES entry); `bhp` the
+ *   bottomhole pressure match (bhpMatch.js) when it applies
  */
-export function buildSimReportFigures({ summary, opts, historyEnd = null }) {
+export function buildSimReportFigures({ summary, opts, historyEnd = null, bhp = null, aquiferDeck = false }) {
   const u = simUnits(opts.system);
   const F = (key) => (has(summary, key) ? pairs(fieldRows(summary, key, opts), 'value') : []);
   const figures = [];
@@ -161,12 +165,89 @@ export function buildSimReportFigures({ summary, opts, historyEnd = null }) {
       figures.push({
         id: 'history',
         title: 'History match: observed against simulated',
-        caption: `Observed rates the deck carries (WCONHIST, the ${pairsOf.map(([k]) => `${k}H`).join(', ')} vectors) against the simulated field rates; ${historyEnd ? `the history phase (to ${historyEnd}) is shaded and the observed lines end with it.` : 'the deck states no history end date, so the observed lines run to the end.'} In the history phase the producers run on their observed rates, so a gap shows where a well could not deliver its observed rate; after the history end the run is a prediction. No pressure observations are matched (WBHPH is not used).`,
+        caption: `Observed rates the deck carries (WCONHIST, the ${pairsOf.map(([k]) => `${k}H`).join(', ')} vectors) against the simulated field rates; ${historyEnd ? `the history phase (to ${historyEnd}) is shaded and the observed lines end with it.` : 'the deck states no history end date, so the observed lines run to the end.'} In the history phase the producers run on their observed rates, so a gap shows where a well could not deliver its observed rate; after the history end the run is a prediction. ${bhp?.applies ? 'The bottomhole pressure match is the next figure.' : 'The deck carries no observed bottomhole pressure (WBHPH), so no pressure is matched.'}`,
         panels,
       });
     } else {
       figures.push({ id: 'history', title: 'History match: observed against simulated', statement: 'Does not apply: the deck carries no observed rates (no WCONHIST history and no FOPRH, FWPRH or FGPRH vectors). Add a production history on the Builder tab to run one.' });
     }
   }
+
+  // SIM-U2-004: the analytical aquifer, when the deck has one
+  if (aquiferDeck) {
+    const aq = summary?.aquifers?.['1'];
+    if (aq && Array.isArray(aq.AAQT)) {
+      const we = pairs(aquiferRows(summary, 'AAQT', opts), 'value');
+      const s = scaleOf(we.map((p) => p[1]));
+      const pa = Array.isArray(aq.AAQP) ? pairs(aquiferRows(summary, 'AAQP', opts), 'value') : [];
+      const fpr = F('FPR');
+      figures.push({
+        id: 'aquifer',
+        title: 'Aquifer influx and pressure',
+        caption: `Cumulative influx of aquifer 1 (AAQT, ${s.words}${u.label('resVolume')}, in the volume units of the aquifer's initial volume) and its pressure (AAQP) against the field average pressure (FPR), ${u.label('pressure')} absolute.`,
+        panels: [
+          { height: 44, spec: { ...AXIS, yTitle: `Influx (${s.words}${u.label('resVolume')})`, yInclude: [0], series: [{ name: 'Cumulative influx (AAQT)', type: 'line', rgb: COLORS.water, pts: scaled(we, s.k) }] } },
+          ...(pa.length ? [{ height: 44, spec: { ...AXIS, yTitle: `Pressure (${u.label('pressure')})`, series: [{ name: 'Aquifer (AAQP)', type: 'line', rgb: COLORS.injWater, pts: pa }, ...(fpr.length ? [{ name: 'Field average (FPR)', type: 'line', rgb: COLORS.pressure, dash: [1.5, 1], pts: fpr }] : [])] } }] : []),
+        ],
+      });
+    } else {
+      figures.push({ id: 'aquifer', title: 'Aquifer influx and pressure', statement: 'Not plotted: the deck has an aquifer, but the run\'s summary holds no aquifer vectors (the worker build that ran it did not keep AAQT and AAQP). Run the case again once the worker is redeployed.' });
+    }
+  }
+
+  // 7. SIM-U2-001: bottomhole pressure, observed against simulated, by well
+  if (bhp?.applies) {
+    const histEnd = historyEnd ? Date.parse(`${historyEnd}T00:00:00Z`) : null;
+    const bhpRows = wellRows(summary, 'WBHP', opts);
+    const t0 = bhpRows[0]?.t;
+    const shown = bhp.wells.slice(0, 4);
+    const panels = shown.map((w, i) => ({
+      height: 44,
+      spec: {
+        ...AXIS, yTitle: `${w.well} BHP (${bhp.unit})`,
+        ...(histEnd != null && t0 != null ? { bands: [{ x0: t0, x1: histEnd, label: 'history phase', rgb: [148, 163, 184] }] } : {}),
+        series: [
+          { name: `Simulated (WBHP:${w.well})`, type: 'line', rgb: WELL_RGB[i % WELL_RGB.length], pts: pairs(bhpRows, w.well) },
+          { name: 'Observed', type: 'scatter', rgb: COLORS.gas, markerSize: 0.7, pts: w.pairs.map((p) => [dayMs(summary, p.day), p.obs]).filter(([t]) => Number.isFinite(t)) },
+        ],
+      },
+    }));
+    figures.push({
+      id: 'bhp-match',
+      title: 'Bottomhole pressure match',
+      caption: `Simulated bottomhole pressure (WBHP, line) against the observed pressure of each history period (points, ${bhp.source === 'WBHPH' ? 'the WBHPH the simulator reported' : 'from the builder form that made the deck'}), ${bhp.unit} absolute, for ${bhp.wells.length > 4 ? 'the first 4 of ' : ''}${bhp.wells.length} well${bhp.wells.length === 1 ? '' : 's'}; RMS ${Number(bhp.overall.rms).toFixed(1)} ${bhp.unit} over ${bhp.overall.points} points (the table above).${historyEnd ? ` The history phase (to ${historyEnd}) is shaded.` : ''}`,
+      panels,
+    });
+  } else {
+    figures.push({ id: 'bhp-match', title: 'Bottomhole pressure match', statement: `Does not apply: ${bhp?.reason || 'the deck carries no observed bottomhole pressure (no WBHPH).'}` });
+  }
   return figures;
+}
+
+/**
+ * SIM-U2-005: the compared runs overlaid on the calendar axis, oil rate and
+ * field pressure (each panel drawn when a run holds the vector).
+ */
+export function buildCompareFigure({ entries, system = 'oilfield' }) {
+  const panels = [];
+  const said = [];
+  for (const [key, title] of [['FOPR', 'Oil rate'], ['FPR', 'Field pressure']]) {
+    const { unit, series } = compareSeries(entries, key, system);
+    if (!series.length) { said.push(`${key} is in none of the runs`); continue; }
+    const s = scaleOf(series.flatMap((x) => x.pts.map((p) => p[1])));
+    panels.push({
+      height: 52,
+      spec: {
+        ...AXIS, yTitle: `${title} (${s.words}${unit})`, ...(key === 'FOPR' ? { yInclude: [0] } : {}),
+        series: series.map((x, i) => ({ name: `${i === 0 ? 'Base ' : ''}${x.name}`, type: 'line', rgb: WELL_RGB[i % WELL_RGB.length], ...(i ? { dash: [1.5, 1] } : {}), pts: scaled(x.pts, s.k) })),
+      },
+    });
+  }
+  if (!panels.length) return { id: 'compare', title: 'Run comparison', statement: `Not plotted: ${said.join('; ')}.` };
+  return {
+    id: 'compare',
+    title: 'Run comparison',
+    caption: `${entries.length} runs of the case on the calendar axis, the base solid and the others dashed: ${panels.map((p) => p.spec.yTitle).join(' and ')}.${said.length ? ` ${said.join('; ')}.` : ''} The difference table is in the run comparison section.`,
+    panels,
+  };
 }

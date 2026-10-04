@@ -20,7 +20,8 @@ import {
 import { parseSurveyText, buildTrajectoryConnections } from '@/utils/simTrajectoryImport';
 import { simRowsFromContract } from '@/utils/fluidstudio/simKeywords';
 import { satFnRows } from '@/utils/scalstudio/simKeywords';
-import { provenanceNotes } from '@/utils/simstudio/builderIntakes';
+import { provenanceNotes, wfOriginNotes } from '@/utils/simstudio/builderIntakes';
+import { defaultAquiferForm, aquiferSpec, aquiferNotes } from '@/utils/simstudio/aquiferIntake';
 
 const num = (v, d = 0) => {
   const n = parseFloat(v);
@@ -80,6 +81,9 @@ export const defaultBuilderForm = () => ({
     ow: { Swc: '0.15', Sor: '0.25', krwMax: '0.35', kroMax: '0.9', nw: '2.5', no: '2.2' },
     go: { Sgc: '0.03', Sorg: '0.2', krgMax: '0.85', krogMax: '0.9', ng: '2', nog: '2' },
     pc: { enabled: false, jA: '0.35', jB: '0.6', swirr: '', k_md: '150', phi: '0.2', sigma_dyncm: '30', thetaDeg: '30' },
+    // SIM-U2-003: the three-phase oil kr model ('' not chosen: the simulator's
+    // default, nothing written; 'default', 'stone1', 'stone2' chosen and stated)
+    threePhase: '',
   },
   // SIM-U1 (RL11): where the PVT and the saturation functions come from.
   // 'correlation' / 'typed' are the builder's own fields; 'fluid' / 'scal'
@@ -102,6 +106,8 @@ export const defaultBuilderForm = () => ({
   // periods/dates are filled by the History import; predictionYears
   // appends a TSTEP tail.
   history: { enabled: false, source: 'mbal', caseName: '', startDate: null, endDate: null, periods: null, wellSummary: null, predictionYears: '3', fractions: {} },
+  // SIM-U2-004: an analytical aquifer, typed or from a Material Balance case (mbal-1)
+  aquifer: defaultAquiferForm(),
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -322,6 +328,8 @@ export function specFromForm(form) {
     }
   });
   req(form.schedule.reportDays, 'Report interval', { min: 0.01 });
+  // SIM-U2-004: the aquifer inputs, read strictly (the values are used below)
+  if (form.aquifer?.enabled) aquiferSpec(form.aquifer, { grid: { nx: 1, ny: 1, nz: 1 }, pvtw: { muw: 1 }, datumDepth: 0, endDays: 1, req });
   if (!(form.history?.enabled && form.history?.periods)) req(form.schedule.years, 'Duration', { min: 0.01 });
   if (errors.length) {
     const e = new Error(errors.join('\n'));
@@ -417,6 +425,13 @@ export function specFromForm(form) {
     schedule = { steps: [{ count, dtDays: reportDays }] };
   }
 
+  // the run length in days: history plus prediction, or the duration
+  const endDays = useHistory
+    ? (Date.parse(`${hist.endDate}T00:00:00Z`) - Date.parse(`${startDate}T00:00:00Z`)) / 86400000 + num(hist.predictionYears, 0) * 365.25
+    : count * reportDays;
+  const aquifer = aquiferSpec(form.aquifer, {
+    grid, pvtw, datumDepth: num(form.equil.datumDepth), endDays, req: (v) => Number(v),
+  });
   const spec = {
     title: String(form.title || 'Petrolord model').toUpperCase().slice(0, 60),
     startDate,
@@ -428,7 +443,7 @@ export function specFromForm(form) {
       rock: { pref: num(form.rock.pref, num(pvtw.pref, 4000)), cr: num(form.rock.cr, 4e-6) },
       density,
     },
-    satfn: { swof, sgof },
+    satfn: { swof, sgof, ...(form.scal?.threePhase ? { threePhase: form.scal.threePhase } : {}) },
     equil: {
       datumDepth: num(form.equil.datumDepth),
       datumPressure: num(form.equil.datumPressure),
@@ -441,7 +456,8 @@ export function specFromForm(form) {
     // SIM-U1: ask the simulator for the field balance sheet and the well
     // totals, so the run's material balance can be read from its PRT
     report: { balance: true },
-    notes: provenanceNotes(form, { pb }),
+    notes: [...wfOriginNotes(form), ...provenanceNotes(form, { pb }), ...aquiferNotes(form.aquifer, aquifer)],
+    ...(aquifer && !aquifer.invalid ? { aquifer } : {}),
   };
   return { spec, pb };
 }

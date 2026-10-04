@@ -122,12 +122,15 @@ function inputsBlock(s, u) {
     rows.push({ ...inputRow({ key: `ow.${k}`, label: `Oil-water: ${label}`, value: s.ow?.params ? g(s.ow.params[k]) : text(s.curves?.ow?.[k]), unit: unitOf(k), meta: meta.ow, auto: owAuto }), engineKeys: [`ow.${k}`] });
   }
   if (!owAuto) for (const r of rows) r.source = groupSource(meta.ow, null, owStart);
-  const goStart = untouched(s.curves?.go, STARTING_VALUES.go);
+  // SIM-U2-014: the gas-oil Swc follows the oil-water Swc, so it does not decide whether the set was touched
+  const goStart = untouched({ ...(s.curves?.go || {}), Swc: STARTING_VALUES.go?.Swc }, STARTING_VALUES.go);
   const goAuto = s.goStatus?.kind === 'fitted' || s.goStatus?.kind === 'edited-after-fit' ? s.goStatus.text : null;
   const GO = [['Swc', 'Connate water saturation Swc'], ['Sgc', 'Critical gas saturation Sgc'], ['Sorg', 'Residual oil to gas Sorg'], ['krgMax', 'krg end point'], ['krogMax', 'krog at Swc (end point)'], ['ng', 'Gas Corey exponent ng'], ['nog', 'Oil Corey exponent nog']];
   for (const [k, label] of GO) {
     const r = inputRow({ key: `go.${k}`, label: `Gas-oil: ${label}`, value: s.go?.params ? g(s.go.params[k]) : text(s.curves?.go?.[k]), unit: unitOf(k), meta: meta.go, auto: goAuto });
     if (!goAuto) r.source = groupSource(meta.go, null, goStart);
+    // SIM-U2-014: the gas-oil Swc is the oil-water Swc
+    if (k === 'Swc' && s.curves?.goSwcPairing) r.source = `Held at the oil-water Swc (one connate water); moved from ${s.curves.goSwcPairing.from}: ${s.curves.goSwcPairing.why}`;
     rows.push({ ...r, engineKeys: [`go.${k}`] });
   }
   const jMode = s.capillary?.jMode;
@@ -418,7 +421,7 @@ export function summaryBlock(m, s) {
   const p = s.ow?.params;
   rows.push(['Oil-water set', p ? `Swc ${g(p.Swc)}, Sor ${g(p.Sor)}, krw(Sor) ${g(p.krwMax)}, kro(Swc) ${g(p.kroMax)}, nw ${g(p.nw)}, no ${g(p.no)}. ${s.owStatus?.text || 'Entered by the user'}` : `Not valid: ${s.ow?.error || 'no parameters'}`]);
   const q = s.go?.params;
-  rows.push(['Gas-oil set (at connate water)', q ? `Swc ${g(q.Swc)}, Sgc ${g(q.Sgc)}, Sorg ${g(q.Sorg)}, krg ${g(q.krgMax)}, krog ${g(q.krogMax)}, ng ${g(q.ng)}, nog ${g(q.nog)}. ${s.goStatus?.text || 'Entered by the user'}` : `Not valid: ${s.go?.error || 'no parameters'}`]);
+  rows.push(['Gas-oil set (at connate water)', q ? `Swc ${g(q.Swc)}${s.curves?.goSwcPairing ? ` (moved from ${s.curves.goSwcPairing.from}: ${s.curves.goSwcPairing.why})` : ''}, Sgc ${g(q.Sgc)}, Sorg ${g(q.Sorg)}, krg ${g(q.krgMax)}, krog ${g(q.krogMax)}, ng ${g(q.ng)}, nog ${g(q.nog)}. ${s.goStatus?.text || 'Entered by the user'}` : `Not valid: ${s.go?.error || 'no parameters'}`]);
   const smp = s.samplesDerived || [];
   const count = (k) => smp.filter((x) => (x[k]?.length || 0) > 0).length;
   const analog = smp.filter((x) => pedigreeOf(x).origin === 'analog').length;
