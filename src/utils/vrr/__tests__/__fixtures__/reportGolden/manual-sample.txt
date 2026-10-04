@@ -306,6 +306,10 @@ Figure 6. Cumulative VRR by pattern
 Does not apply: patterns need an imported per-well ledger.
 
 
+Figure 7. Voidage by well on the well locations
+Does not apply: the map needs an imported per-well ledger.
+
+
 
 
 Voidage Replacement Report, Ekene waterflood                                                                                           Page 5 of 5

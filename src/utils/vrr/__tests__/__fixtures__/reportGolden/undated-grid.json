@@ -1,6 +1,6 @@
 {
   "pages": 5,
-  "sha256": "65c1525365d38216e0038e59915a6d17e40e1e669424a730adec7797b91cf32b",
+  "sha256": "7d7331f9d7d141711e14ec14bfa70ecda20d4a1a8d9fee08d4f75463cc1d055b",
   "figures": [
     {
       "id": "vrr",
@@ -89,6 +89,13 @@
     {
       "id": "patterns",
       "number": 6,
+      "page": 5,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "map",
+      "number": 7,
       "page": 5,
       "plotted": false,
       "panels": []

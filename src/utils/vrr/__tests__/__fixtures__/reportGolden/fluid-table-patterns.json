@@ -1,6 +1,6 @@
 {
   "pages": 8,
-  "sha256": "8f832fe03908c0e405a7579963e84ea0d99213e140782de4ca7ebda75b3c3843",
+  "sha256": "567299e8b5bead50020c2f14bb2c24d27bc6c881bf29dade6a82dd3351404a31",
   "figures": [
     {
       "id": "vrr",
@@ -162,6 +162,13 @@
           "logo": true
         }
       ]
+    },
+    {
+      "id": "map",
+      "number": 7,
+      "page": 8,
+      "plotted": false,
+      "panels": []
     }
   ]
 }

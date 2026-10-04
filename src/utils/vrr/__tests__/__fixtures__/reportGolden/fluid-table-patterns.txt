@@ -196,7 +196,23 @@ injection is reported and left unscaled.
 
 
 Voidage Replacement Report, Ekene, E-2000                                                                                                                                Page 3 of 8
-Model, basis and conventions
+Voidage by well
+ Well        Type           Registry well            X         Y         Produced or injected (RB)                 Free gas, own floor (Mscf)
+
+ I-1         injector       not on the map               n/a       n/a                                 55,274                                         n/a
+
+ I-2         injector       not on the map               n/a       n/a                                  6,956                                         n/a
+
+ P-1         producer       not on the map               n/a       n/a                                 46,914                                           0
+
+ P-2         producer       not on the map               n/a       n/a                                 24,239                                           0
+
+No map: The match table between the ledger wells and the wells registry is not confirmed: confirm it on the Map tab. No well is placed by guess. A
+producer's value is its produced voidage (oil, water and its own free gas), an injector's its injected volume (water and gas), in reservoir volume at
+the FVFs of each month.
+
+
+Model, basis and conventions
  Item                              As used in this report
 
  Instantaneous VRR                 Injected reservoir volume of the period over produced reservoir voidage of the period
@@ -245,7 +261,7 @@ Flags on the inputs, the import and the periods
 
 
 
-Voidage Replacement Report, Ekene, E-2000                                                                                                    Page 4 of 8
+Voidage Replacement Report, Ekene, E-2000                                                                                                       Page 4 of 8
 pvt-1 block the FVFs were taken from
  Item                          Value
 
@@ -498,14 +514,19 @@ Voidage Replacement Report, Ekene, E-2000                                       
 
 
                     0
-                   2025-01                            2025-02                                       2025-03                             2025-04
+                   2025-01                             2025-02                                      2025-03                                 2025-04
 
                                                        Date (each period plotted at the middle of its month)
 
 Cumulative VRR of each pattern (allocation-weighted injection over the pattern producers' voidage) beside the field, with VRR = 1.
 
 
+Figure 7. Voidage by well on the well locations
+Not plotted: The match table between the ledger wells and the wells registry is not confirmed: confirm it on the Map tab. No well is placed by
+guess.
 
 
-Voidage Replacement Report, Ekene, E-2000                                                                                            Page 8 of 8
+
+
+Voidage Replacement Report, Ekene, E-2000                                                                                                Page 8 of 8
 

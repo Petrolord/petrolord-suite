@@ -14,6 +14,7 @@ import { loadScalRows, watchScalRows, persistScalRows, SCAL_TABLE } from './scal
 import { loadFluidRows, FLUID_TABLE } from './fluidProjectsStore';
 import { loadWfRows, watchWfRows, WF_TABLE } from './wfProjectsStore';
 import { loadVrrRows, watchVrrRows, VRR_TABLE } from './vrrProjectsStore';
+import { harnessRegistry } from './vrrHarnessWells';
 import { savedScalRows } from '@/components/scalstudio/__fixtures__/savedProjects';
 import { savedWaterfloodRows } from '@/components/waterflooddesign/__fixtures__/savedProjects';
 
@@ -67,7 +68,8 @@ const SEEDS = {
     return { [SCAL_TABLE]: loadScalRows(), [FLUID_TABLE]: loadFluidRows(), [WF_TABLE]: rows, [VRR_TABLE]: loadVrrRows() };
   },
   // WF-U2-004: VRR projects saved earlier in this tab come back (Waterflood reads them by id)
-  vrr: () => ({ [VRR_TABLE]: loadVrrRows() }),
+  // VRR-U2-004: wells registry rows for the bubble map's match table
+  vrr: () => ({ [VRR_TABLE]: loadVrrRows(), geo_wells: harnessRegistry() }),
   // AFE: budget 8.5M; EAC max(budget, actual + commitment) unless entered:
   // RIG 5.0M, CSG 2.3M (entered), SVC 1.5M, so 8.8M and a 0.3M overrun;
   // EV 5.0 x 0.6 + 2.0 x 0.9 + 1.5 x 0.3 = 5.25M against 5.2M actual.

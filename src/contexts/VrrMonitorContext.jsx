@@ -76,6 +76,8 @@ export const defaultInputs = (unitSystem = 'oilfield') => ({
   pressureImportInfo: null,
   datum: { depth: '', reference: '' }, // the depth the surveys are quoted at, stated (no correction applied)
   sampleNote: null,      // set when the inputs came from a built-in sample
+  // VRR-U2-004: the confirmed match table of ledger wells to wells registry wells (src/utils/vrr/wellMap.js)
+  wellMap: null,
 });
 
 /** Restore inputs from a payload, tolerating missing keys from older rows. */
@@ -105,6 +107,7 @@ export const inputsFromPayload = (payload) => {
     pressureImportInfo: raw.pressureImportInfo || null,
     datum: { ...base.datum, ...(raw.datum || {}) },
     sampleNote: raw.sampleNote || null,
+    wellMap: raw.wellMap && typeof raw.wellMap === 'object' ? raw.wellMap : null,
   };
 };
 
@@ -278,6 +281,8 @@ export const VrrMonitorProvider = ({ children, sharingStore = null, profileSyste
   }, [edit]);
 
   // --- Project lifecycle, with record sharing ---
+  // VRR-U2-004: the confirmed match table (ledger well -> registry well with its coordinates)
+  const setWellMap = useCallback((wellMap) => edit((prev) => ({ ...prev, wellMap })), [edit]);
   const serialize = useCallback((name, id = currentProjectId) => projectPayload({ id, name, inputs }), [currentProjectId, inputs]);
 
   const refresh = useCallback(async () => {
@@ -457,6 +462,7 @@ export const VrrMonitorProvider = ({ children, sharingStore = null, profileSyste
     togglePatternProducer,
     setAllocationCell,
     evenSplitInjector,
+    setWellMap,
     // projects and sharing
     projects,
     sharedProjects,

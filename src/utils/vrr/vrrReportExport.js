@@ -67,6 +67,10 @@ export function buildVrrPdf(a, { logo = null, generatedAt = new Date() } = {}) {
     if (model.patterns.advice) table('Water injection advice by pattern', model.patterns.advice.head, model.patterns.advice.rows, { note: model.patterns.advice.note });
   }
 
+  if (model.wellTable) {
+    table('Voidage by well', model.wellTable.head, model.wellTable.rows, { note: model.wellTable.note, columnStyles: RIGHT(4, 3), fontSize: 6.5 });
+  }
+
   table('Model, basis and conventions', ['Item', 'As used in this report'], model.basis, { columnStyles: { 0: { cellWidth: 40 } } });
 
   report.limits({

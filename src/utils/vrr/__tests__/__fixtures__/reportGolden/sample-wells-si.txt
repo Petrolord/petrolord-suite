@@ -51,7 +51,7 @@ All voidage in reservoir barrels at the reservoir pressure of each period. VRR i
 
 
 
-Voidage Replacement Report, Ekene, E-2000                                                                                               Page 1 of 5
+Voidage Replacement Report, Ekene, E-2000                                                                                               Page 1 of 6
 Inputs and their sources
  Input                                                   Value                       Unit                      Source and quality
 
@@ -122,25 +122,41 @@ Surface volumes of each period as the ledger holds them, the FVF set applied to 
 
 
 
-Voidage Replacement Report, Ekene, E-2000                                                                                                                              Page 2 of 5
+Voidage Replacement Report, Ekene, E-2000                                                                                                                              Page 2 of 6
 What the import read
- Field                          File column              Read as                                                   From               Values
+ Field                          File column                   Read as                                                  From                     Values
 
- Date                           date                     unambiguous                                               the file           12
+ Date                           date                          unambiguous                                              the file                 12
 
- Well                           well                     n/a                                                       n/a                12
+ Well                           well                          n/a                                                      n/a                      12
 
- Oil produced                   oil_stb                  bbl in the row's period (volume)                          the header         6
+ Oil produced                   oil_stb                       bbl in the row's period (volume)                         the header               6
 
- Water produced                 water_stb                bbl in the row's period (volume)                          the header         6
+ Water produced                 water_stb                     bbl in the row's period (volume)                         the header               6
 
- Gas produced                   gas_mscf                 Mscf in the row's period (volume)                         the header         6
+ Gas produced                   gas_mscf                      Mscf in the row's period (volume)                        the header               6
 
- Water injected                 winj_stb                 bbl in the row's period (volume)                          the header         3
+ Water injected                 winj_stb                      bbl in the row's period (volume)                         the header               3
 
- Gas injected                   ginj_mscf                Mscf in the row's period (volume)                         the header         3
+ Gas injected                   ginj_mscf                     Mscf in the row's period (volume)                        the header               3
 
 File the sample ledger, 12 rows read, 0 left out.
+
+Voidage by well
+ Well       Type           Registry well            X          Y          Produced or injected (rm3)           Free gas, own floor (10^3 sm3)
+
+ I-1        injector       not on the map               n/a         n/a                                8,595                                               n/a
+
+ I-2        injector       not on the map               n/a         n/a                                 859                                                n/a
+
+ P-1        producer       not on the map               n/a         n/a                                6,661                                             15.57
+
+ P-2        producer       not on the map               n/a         n/a                                3,413                                              0.00
+
+No map: The match table between the ledger wells and the wells registry is not confirmed: confirm it on the Map tab. No well is placed by guess. A
+producer's value is its produced voidage (oil, water and its own free gas), an injector's its injected volume (water and gas), in reservoir volume at
+the FVFs of each month.
+
 
 Model, basis and conventions
  Item                              As used in this report
@@ -180,13 +196,17 @@ injected fluid composition are not modelled.
 points to out-of-zone injection or unmeasured voidage, and a VRR of 1 does not mean good conformance.
 - Volumes are the allocated volumes of the source; allocation errors in well tests pass straight into the ratio.
 
-Flags on the inputs, the import and the periods
+
+
+
+Voidage Replacement Report, Ekene, E-2000                                                                                                            Page 3 of 6
+Flags on the inputs, the import and the periods
 - The pressure datum is not stated.
 
 
 
 
-Voidage Replacement Report, Ekene, E-2000                                                                                                  Page 3 of 5
+Voidage Replacement Report, Ekene, E-2000         Page 4 of 6
 Plots
 Figure 1. Voidage replacement ratio by period
 
@@ -275,35 +295,35 @@ reservoir pressure of the period; the stacks are the Produced and Injected colum
 
 
 
-Voidage Replacement Report, Ekene, E-2000                                                                                                                 Page 4 of 5
+Voidage Replacement Report, Ekene, E-2000                                                                                                                 Page 5 of 6
 Figure 3. Reservoir pressure history
 
                                      Survey      Period pressure      Cumulative VRR
-                        20800                                                                                                        0.95
+                        20800                                                                                                          0.95
 
 
-                        20600                                                                                                        0.925
+                        20600                                                                                                          0.925
 
 
 
 
-                                                                                                                                                 Cumulative VRR
+                                                                                                                                                   Cumulative VRR
   Pressure (kPa)
 
 
 
 
-                        20400                                                                                                        0.9
+                        20400                                                                                                          0.9
 
 
-                        20200                                                                                                        0.875
+                        20200                                                                                                          0.875
 
 
-                        20000                                                                                                        0.85
+                        20000                                                                                                          0.85
 
 
-                        19800                                                                                                        0.825
-                           2025-01                                       2025-02                                   2025-03       2025-04
+                        19800                                                                                                         0.825
+                           2025-01                                       2025-02                                   2025-03        2025-04
 
                                                                         Date (each period plotted at the middle of its month)
 
@@ -314,7 +334,7 @@ the surveyed span, beside cumulative VRR on the right axis. Datum not stated.
 Figure 4. Production and injection rates
 
                                      Oil      Water produced       Water injected      Gas produced         Gas injected
-                          120                                                                                                        8
+                          120                                                                                                          8
 
 
                           100
@@ -322,8 +342,8 @@ Figure 4. Production and injection rates
 
 
 
-                                                                                                                                                 Gas rate (10^3 sm3/d)
-                                                                                                                                     6
+                                                                                                                                                   Gas rate (10^3 sm3/d)
+                                                                                                                                       6
   Liquid rate (sm3/d)
 
 
@@ -332,16 +352,16 @@ Figure 4. Production and injection rates
                            80
 
 
-                           60                                                                                                        4
+                           60                                                                                                          4
 
 
                            40
-                                                                                                                                     2
+                                                                                                                                       2
                            20
 
 
-                           0                                                                                                         0
-                          2025-01                                        2025-02                                   2025-03       2025-04
+                           0                                                                                                          0
+                          2025-01                                        2025-02                                   2025-03        2025-04
 
                                                                         Date (each period plotted at the middle of its month)
 
@@ -357,7 +377,12 @@ Figure 6. Cumulative VRR by pattern
 Not plotted: no pattern is defined.
 
 
+Figure 7. Voidage by well on the well locations
+Not plotted: The match table between the ledger wells and the wells registry is not confirmed: confirm it on the Map tab. No well is placed by
+guess.
 
 
-Voidage Replacement Report, Ekene, E-2000                                                                                                Page 5 of 5
+
+
+Voidage Replacement Report, Ekene, E-2000                                                                                                  Page 6 of 6
 

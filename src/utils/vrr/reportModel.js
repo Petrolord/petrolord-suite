@@ -17,6 +17,7 @@ import { vrrUnits } from './units.js';
 import { vrrPvtSourceText } from './pvtIntake.js';
 import { FVF_KEYS, FLUID_FIELDS, TRACK_METHODS, DEFAULT_SETTINGS } from './workspace.js';
 import { ATM_PSI, PRESSURE_UNITS } from './csvImport.js';
+import { buildBubbleMap } from './wellMap.js';
 
 export const REPORT_TITLE = 'Voidage Replacement Report';
 export const APP_NAME = 'Petrolord Voidage Replacement Monitor';
@@ -155,6 +156,17 @@ function inputsBlock(inputs, d, u) {
   rows.push(setRow('settings.targetBandMin', 'Target VRR band, lower edge', '', g(d.targetBand.min, 4)));
   rows.push(setRow('settings.targetBandMax', 'Target VRR band, upper edge', '', g(d.targetBand.max, 4)));
   rows.push(setRow('settings.rollingWindow', 'Rolling VRR window', 'periods', String(d.windowPeriods)));
+  // VRR-U2-004: the well locations of the bubble map, from the wells registry through the confirmed match table
+  if (d.isImported && inputs.wellMap?.confirmedAt) {
+    const m = inputs.wellMap.matches || {};
+    const placed = Object.values(m).filter(Boolean);
+    const first = placed[0];
+    rows.push({
+      key: 'wellMap', label: 'Well locations (bubble map)', value: `${placed.length} of ${Object.keys(m).length} wells matched`, unit: first?.xyUnit || '',
+      source: `Wells registry (Well Data Manager), surface X and Y${first?.crs ? ` in ${first.crs}` : ''}, through the match table the analyst confirmed ${String(inputs.wellMap.confirmedAt).slice(0, 10)}; coordinates kept with the project as confirmed`,
+      engineKeys: ['wellMap'],
+    });
+  }
   if (d.isImported && (inputs.patterns || []).length) {
     rows.push({
       key: 'allocation', label: 'Injector to producer allocation factors', value: `${Object.keys(inputs.allocation || {}).length} injector rows`, unit: 'fraction',
@@ -182,6 +194,7 @@ export function engineInputOf(inputs, d) {
   if (inputs.pvtIntake) out.pvtTable = inputs.pvtIntake.table;
   // the matrix is one input (a table): its entries as one leaf
   if (d.isImported && (inputs.patterns || []).length) { out.allocation = Object.entries(inputs.allocation || {}); out.patterns = inputs.patterns; }
+  if (d.isImported && inputs.wellMap?.confirmedAt) out.wellMap = Object.entries(inputs.wellMap.matches || {});
   return out;
 }
 
@@ -255,6 +268,36 @@ function importBlock(inputs) {
     head: ['Field', 'File column', 'Read as', 'From', 'Values'],
     rows: info.readBack.map((r) => [r.label, r.column, r.unit, r.from === 'header' ? 'the header' : r.from === 'chosen' ? 'chosen at the door' : r.from === 'assumed' ? 'assumed (no unit in the header)' : r.from === 'file' ? 'the file' : r.from === 'user' ? 'chosen at the door' : r.from, String(r.values)]),
     note: `${info.file ? `File ${info.file}, ` : ''}${info.rowsRead ?? ''} rows read, ${info.skipped ?? 0} left out${info.notUsed?.length ? `; columns not used: ${info.notUsed.map((n) => `${n.column} (${n.reason})`).join(', ')}` : ''}${info.rateNote ? `. ${info.rateNote}` : ''}.`,
+  };
+}
+
+/** Voidage by well and its place on the map (VRR-U2-002, U2-004). */
+function wellTable(inputs, d, u) {
+  if (!d.wellVoidage) return null;
+  const map = buildBubbleMap(d, inputs.wellMap);
+  const byWell = new Map(map.points.map((p) => [p.well, p]));
+  const confirmed = Boolean(inputs.wellMap?.confirmedAt);
+  const xyU = map.xyUnit || '';
+  const rows = d.wellVoidage.wells.filter((w) => w.type !== 'unknown').map((w) => {
+    const p = byWell.get(w.well);
+    const value = w.type === 'injector' ? w.injectedRB : w.producedRB;
+    return [
+      w.well, w.type,
+      p ? p.registryName : (confirmed && !map.ok && inputs.wellMap?.matches?.[w.well] ? 'matched, map not drawn' : 'not on the map'),
+      p ? fx(p.x, 0) : EMPTY_VALUE, p ? fx(p.y, 0) : EMPTY_VALUE,
+      show(u, 'reservoir', value),
+      w.type === 'producer' ? show(u, 'gas', w.freeGasMscf, u.system === 'si' ? 2 : 0) : EMPTY_VALUE,
+    ];
+  });
+  const pat = map.patterns.map((q) => `${q.name}: cumulative VRR ${g(q.cumulativeVRR, 4)}${q.placed ? ` at X ${fx(q.x, 0)}, Y ${fx(q.y, 0)} (centre of ${q.producers} placed producer${q.producers === 1 ? '' : 's'})` : ` (not placed: ${q.reason})`}`);
+  const where = map.ok
+    ? `Coordinates from the wells registry (${map.crs || 'CRS not stated'}, ${xyU || 'unit not stated'}), match table confirmed ${String(map.confirmedAt).slice(0, 10)}.`
+    : `No map: ${map.refusal}`;
+  return {
+    head: ['Well', 'Type', 'Registry well', `X${xyU ? ` (${xyU})` : ''}`, `Y${xyU ? ` (${xyU})` : ''}`, `Produced or injected (${u.label('reservoir')})`, `Free gas, own floor (${u.label('gas')})`],
+    rows,
+    map,
+    note: `${where} A producer's value is its produced voidage (oil, water and its own free gas), an injector's its injected volume (water and gas), in reservoir volume at the FVFs of each month.${pat.length ? ` Patterns: ${pat.join('; ')}.` : ''}`,
   };
 }
 
@@ -338,6 +381,7 @@ export function buildVrrReportModel(inputs, d, o = {}) {
     periods: periodTable(d, u),
     imported: importBlock(inputs),
     patterns: patternsBlock(inputs, d, u),
+    wellTable: wellTable(inputs, d, u),
     basis: BASIS(d, inputs),
     limits: limitsBlock(inputs, d),
     pvtBlock: inputs.pvtIntake?.contract ? describePvtContract(inputs.pvtIntake.contract) : null,

@@ -11,6 +11,7 @@ import {
   trendRows, termRows, pressureRows, rateRows, fvfRows, datedPeriods, monthSpan, midMonthMs,
 } from './series.js';
 import { vrrUnits } from './units.js';
+import { sizeClasses } from './wellMap.js';
 
 export const COLORS = Object.freeze({
   inst: [37, 99, 235], cum: [5, 150, 105], roll: [217, 119, 6], ref: [220, 38, 38], band: [16, 185, 129],
@@ -204,5 +205,40 @@ export function buildVrrReportFigures({ model, inputs, d, system = 'oilfield' })
       statement: !d.isImported ? 'Does not apply: patterns need an imported per-well ledger.' : !(inputs.patterns || []).length ? 'Not plotted: no pattern is defined.' : `Not plotted: every pattern is withheld (${d.patternAnalyses[0]?.reason || 'no analysis'}).`,
     });
   }
+  // 7. VRR-U2-004: voidage by well on the well locations (the bubble map)
+  const map = model.wellTable?.map;
+  if (map?.ok) {
+    const classes = sizeClasses(map.points);
+    const max = classes.length ? classes[classes.length - 1].upTo : 0;
+    const R = (v) => show(u, v);
+    const series = [];
+    for (const [type, rgb, word] of [['producer', COLORS.oil, 'Producer, produced voidage'], ['injector', COLORS.injWater, 'Injector, injected volume']]) {
+      for (const c of classes) {
+        const pts = map.points.filter((p) => p.type === type && p.value > c.from + (c.index === 0 ? -1 : 0) && p.value <= c.upTo * (1 + 1e-12)).map((p) => [p.x, p.y]);
+        if (pts.length) series.push({ name: `${word} to ${R(c.upTo)} ${u.label('reservoir')}`, type: 'scatter', rgb, marker: 'circle', markerSize: 0.8 + 2.6 * Math.sqrt(c.upTo / max), pts });
+      }
+    }
+    const centres = map.patterns.filter((q) => q.placed);
+    if (centres.length) series.push({ name: 'Pattern centre (cumulative VRR in the table)', type: 'scatter', rgb: COLORS.ref, marker: 'square', markerSize: 0.9, pts: centres.map((q) => [q.x, q.y]) });
+    figures.push({
+      id: 'map',
+      title: 'Voidage by well on the well locations',
+      caption: `Each well at its surface location from the wells registry (${map.crs || 'CRS not stated'}, ${map.xyUnit || 'unit not stated'}), through the match table confirmed ${String(map.confirmedAt).slice(0, 10)}. Marker size by thirds of the largest value: a producer's produced voidage, an injector's injected volume, in ${u.label('reservoir')} over the record.${centres.length ? ` Squares: the centre of each pattern's placed producers (${centres.map((q) => `${q.name} ${g(q.cumulativeVRR, 3)}`).join(', ')}).` : ''}${map.unplaced.length ? ` Not on the map: ${map.unplaced.map((x) => x.well).join(', ')} (not matched).` : ''} The scales of the two axes may differ; values by well are in the table "Voidage by well".`,
+      panels: [{
+        height: 96,
+        spec: { xTitle: `X (${map.xyUnit || 'registry units'})`, yTitle: `Y (${map.xyUnit || 'registry units'})`, series, notesAt: 'top-left', xInclude: pad(map.points.map((p) => p.x)), yInclude: pad(map.points.map((p) => p.y)) },
+      }],
+    });
+  } else {
+    figures.push({ id: 'map', title: 'Voidage by well on the well locations', statement: !d.isImported ? 'Does not apply: the map needs an imported per-well ledger.' : `Not plotted: ${map?.refusal || d.withheld || 'no voidage by well'}` });
+  }
   return figures;
 }
+
+// a margin round the wells so no bubble sits on the frame
+const pad = (vals) => {
+  const lo = Math.min(...vals); const hi = Math.max(...vals);
+  const m = Math.max((hi - lo) * 0.12, Math.abs(hi) * 1e-4, 1);
+  return [lo - m, hi + m];
+};
+const show = (u, v) => (Number.isFinite(v) ? Math.round(u.show('reservoir', v)).toLocaleString('en-US') : 'n/a');
