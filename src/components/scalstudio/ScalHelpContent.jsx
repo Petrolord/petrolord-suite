@@ -45,7 +45,11 @@ const ScalHelpContent = () => (
     </P>
     <P>
       Each sample with a kr table gets a Corey fit of the two exponents with 95 percent confidence intervals; Swc
-      and Sor come from the first and last rows of the table, so the table needs both end points. Apply a fit to
+      and Sor come from the first and last rows of the table. When the table stops short of an end point, as
+      unsteady-state data often do at residual oil, state Swc and Sor for the fit on the sample: every row must
+      lie between them, and the kr end point the table does not reach becomes a fitted value with its own
+      confidence interval. The card, the report and the kr-1 block say which end points were entered and which
+      were fitted. Apply a fit to
       the Curves tab with one click; the record of the fit travels with the set. The normalised overlay compares
       curve shapes across samples. The synthetic demo pair is marked as an analog wherever it is printed.
     </P>

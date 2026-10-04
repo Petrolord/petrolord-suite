@@ -21,6 +21,7 @@ import { buildCoreyOilWater, buildCoreyGasOil, normalizeKrTable } from '@/utils/
 import { Kpi, LINE, SCENARIO_COLORS } from '@/components/waterflooddesign/primitives';
 import { sfmt as fmt } from '@/utils/scalstudio/format';
 import { SERIES_COLORS } from '@/utils/scalstudio/series';
+import { fitEndpointsText } from '@/utils/scalstudio/model';
 
 const axisProps = {
   stroke: CHART_COLORS.axisLine,
@@ -80,6 +81,7 @@ const LabDataResults = ({ selectedId }) => {
             <Kpi title="RMS (log10 kr)" value={fmt.f3(fit.rmsLog)} />
             <Kpi title="r² (log space)" value={fmt.f3(fit.r2Log)} accent={fit.r2Log > 0.98} />
           </div>
+          <p className="text-[11px] text-pl-muted" data-testid="scal-fit-endpoints">End points: {fitEndpointsText(fit)}.</p>
           <div className="flex items-center gap-3">
             <Button size="sm" onClick={() => applyKrFitToCurves(selected.id)}>
               <ArrowRightCircle className="w-4 h-4 mr-1.5" /> Use fit on the Curves tab
@@ -150,7 +152,7 @@ const LabDataResults = ({ selectedId }) => {
                   <Kpi title="Sgc / Sorg" value={`${fmt.f3(selected.goFit.params.Sgc)} / ${fmt.f3(selected.goFit.params.Sorg)}`} unit={`at Swc ${fmt.f3(selected.goFit.params.Swc)}`} />
                   <Kpi title="r² (log space)" value={fmt.f3(selected.goFit.r2Log)} accent={selected.goFit.r2Log > 0.98} />
                 </div>
-                <p className="text-[11px] text-pl-muted">Swc of the test: {selected.goFit.swcFrom}. Sgc and Sorg are the first Sg and 1 - Swc - the last Sg of the table.</p>
+                <p className="text-[11px] text-pl-muted">End points: {fitEndpointsText(selected.goFit, 'gas_oil')}.</p>
                 <Button size="sm" onClick={() => applyGoFitToCurves(selected.id)} data-testid="scal-apply-go-fit">
                   <ArrowRightCircle className="w-4 h-4 mr-1.5" /> Use gas-oil fit on the Curves tab
                 </Button>

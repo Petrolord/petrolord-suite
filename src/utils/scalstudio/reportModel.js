@@ -228,11 +228,13 @@ function samplesTables(s, u) {
     const fit = x.krFit;
     if (!fit) return [x.name, `${x.krRows.length}`, EMPTY_VALUE, EMPTY_VALUE, EMPTY_VALUE, EMPTY_VALUE, EMPTY_VALUE, EMPTY_VALUE, x.krFitError || 'No fit'];
     const ci = (pair) => (Array.isArray(pair) && pair.every(Number.isFinite) ? `${f(pair[0], 2)} to ${f(pair[1], 2)}` : EMPTY_VALUE);
+    const es = fit.endpointSource || {};
+    const tag = (k) => (es[k] && es[k] !== 'table' ? ` (${es[k]})` : '');
     return [
       x.name,
       `${fit.pointsUsed} of ${x.krRows.length * 2}`,
-      `${f(fit.params.Swc, 3)} / ${f(fit.params.Sor, 3)}`,
-      `${f(fit.params.krwMax, 4)} / ${f(fit.params.kroMax, 4)}`,
+      `${f(fit.params.Swc, 3)} / ${f(fit.params.Sor, 3)}${es.Swc === 'entered' ? ' (entered)' : ''}`,
+      `${f(fit.params.krwMax, 4)}${tag('krwMax')} / ${f(fit.params.kroMax, 4)}${tag('kroMax')}`,
       `${f(fit.params.nw, 2)} (${ci(fit.ci95?.nw)})`,
       `${f(fit.params.no, 2)} (${ci(fit.ci95?.no)})`,
       f(fit.rmsLog, 4),
@@ -248,8 +250,8 @@ function samplesTables(s, u) {
     return [
       x.name,
       `${fit.pointsUsed} of ${x.goRows.length * 2}`,
-      `${f(fit.params.Swc, 3)} (${fit.swcFrom}) / ${f(fit.params.Sgc, 3)} / ${f(fit.params.Sorg, 3)}`,
-      `${f(fit.params.krgMax, 4)} / ${f(fit.params.krogMax, 4)}`,
+      `${f(fit.params.Swc, 3)} (${fit.swcFrom}) / ${f(fit.params.Sgc, 3)} / ${f(fit.params.Sorg, 3)}${fit.endpointSource?.Sgc === 'entered' ? ' (entered)' : ''}`,
+      `${f(fit.params.krgMax, 4)}${fit.endpointSource?.krgMax === 'fitted' ? ' (fitted)' : ''} / ${f(fit.params.krogMax, 4)}${fit.endpointSource?.krogMax === 'fitted' ? ' (fitted)' : ''}`,
       `${f(fit.params.ng, 2)} (${ci(fit.ci95?.ng)})`,
       `${f(fit.params.nog, 2)} (${ci(fit.ci95?.nog)})`,
       f(fit.rmsLog, 4),
@@ -268,7 +270,7 @@ function samplesTables(s, u) {
     fits: fits.length ? {
       head: ['Sample', 'kr points used', 'Swc / Sor', 'krw(Sor) / kro(Swc)', 'nw (95% CI)', 'no (95% CI)', 'RMS log10 kr', 'r2 log10 kr', 'Regression'],
       rows: fits,
-      note: 'Levenberg-Marquardt on log10 kr of both curves at once. Swc and Sor are the first and last Sw of the lab table and the end point kr its end rows; only the exponents are fitted. Points with kr at or below 1e-4 are left out (log of a definitional zero). Points used counts both curves.',
+      note: `Levenberg-Marquardt on log10 kr of both curves at once. Swc and Sor are the first and last Sw of the lab table and the end point kr its end rows; only the exponents are fitted${fits.some((r) => / \((entered|fitted)\)/.test(`${r[2]} ${r[3]}`)) ? ', except where marked: "entered" end points were stated for the sample because its table stops short of one, and a "fitted" end point kr is a parameter of the fit' : ''}. Points with kr at or below 1e-4 are left out (log of a definitional zero). Points used counts both curves.`,
     } : null,
     goFits: goFits.length ? {
       head: ['Sample', 'kr points used', 'Swc (from) / Sgc / Sorg', 'krg end / krog(Swc)', 'ng (95% CI)', 'nog (95% CI)', 'RMS log10 kr', 'r2 log10 kr', 'Regression'],

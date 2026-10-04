@@ -215,6 +215,17 @@ const LabDataPanel = ({ selectedId, onSelect }) => {
                 <Download className="w-3 h-3 mr-1" /> Gas-oil template
               </Button>
             </div>
+            <div className="grid grid-cols-2 gap-2" data-testid="fit-endpoints">
+              <ScalField label="Swc for the kr fit" kind="fraction" testId="sample-fitSwc" value={selected.fitSwc ?? ''} placeholder="From the table" onChange={(v) => updateSample(selected.id, { fitSwc: v })} />
+              <ScalField label="Sor for the kr fit" kind="fraction" testId="sample-fitSor" value={selected.fitSor ?? ''} placeholder="From the table" onChange={(v) => updateSample(selected.id, { fitSor: v })} />
+              <ScalField label="Sgc for the gas-oil fit" kind="fraction" testId="sample-goSgc" value={selected.goSgc ?? ''} placeholder="From the table" onChange={(v) => updateSample(selected.id, { goSgc: v })} />
+              <ScalField label="Sorg for the gas-oil fit" kind="fraction" testId="sample-goSorg" value={selected.goSorg ?? ''} placeholder="From the table" onChange={(v) => updateSample(selected.id, { goSorg: v })} />
+            </div>
+            <p className="text-[11px] text-pl-muted">
+              A lab table that stops short of an end point (unsteady-state data seldom reach residual oil) is fitted
+              with the two end point saturations stated here; the kr end point the table does not reach is then a
+              fitted value. Leave both blank to take them from the table.
+            </p>
             <ScalField
               label="Swc of the gas-oil test" kind="fraction" testId="sample-goSwc" value={selected.goSwc ?? ''}
               placeholder="Blank: the working gas-oil Swc" onChange={(v) => updateSample(selected.id, { goSwc: v })}

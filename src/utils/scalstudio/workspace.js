@@ -199,7 +199,11 @@ export function deriveGoFit(s, workingGoSwc) {
   const own = num(s.goSwc);
   const Swc = Number.isFinite(own) ? own : num(workingGoSwc);
   const swcFrom = Number.isFinite(own) ? 'stated for the sample' : 'the working gas-oil set';
-  const res = fitCoreyGasOilToKrTable(s.goRows, { Swc });
+  // SCAL-U2-003: Sgc and Sorg stated for the sample (both, or neither)
+  const sgc = num(s.goSgc);
+  const sorg = num(s.goSorg);
+  const fixedEndpoints = Number.isFinite(sgc) && Number.isFinite(sorg) ? { Sgc: sgc, Sorg: sorg } : null;
+  const res = fitCoreyGasOilToKrTable(s.goRows, { Swc, fixedEndpoints });
   return res.ok ? { goFit: { ...res, swcFrom }, goFitError: null } : { goFit: null, goFitError: res.errors[0] };
 }
 
@@ -211,7 +215,12 @@ export function deriveSamples(samples, { goSwc = null } = {}) {
       sigma_dyncm: num(s.sigma_dyncm), thetaDeg: num(s.thetaDeg),
     };
     const jTable = (s.pcRows?.length ?? 0) >= 3 ? computeJTable(s.pcRows, props) : null;
-    const krFit = (s.krRows?.length ?? 0) >= 3 ? fitCoreyToKrTable(s.krRows) : null;
+    // SCAL-U2-003: Swc and Sor stated for the sample (both, or neither) let a
+    // table that stops short of an end point be fitted
+    const fSwc = num(s.fitSwc);
+    const fSor = num(s.fitSor);
+    const fixedEndpoints = Number.isFinite(fSwc) && Number.isFinite(fSor) ? { Swc: fSwc, Sor: fSor } : null;
+    const krFit = (s.krRows?.length ?? 0) >= 3 ? fitCoreyToKrTable(s.krRows, fixedEndpoints ? { fixedEndpoints } : {}) : null;
     return {
       ...s,
       jRows: jTable?.ok ? jTable.rows.map((r) => ({ Sw: r.Sw, J: r.J })) : [],
