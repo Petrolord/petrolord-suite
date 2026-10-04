@@ -195,6 +195,10 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
   const [surveillanceImport, setSurveillanceImport] = useState(null);
   const [mcSummary, setMcSummary] = useState(null);
   const [migratedFrom, setMigratedFrom] = useState(null);
+  // WF-U2-001: the flood start date that puts the forecast on the calendar
+  // for the wf-forecast-1 contract (kept outside patternInputs, so saved
+  // Monte Carlo summaries keep their fingerprint)
+  const [floodStart, setFloodStart] = useState('');
 
   // Transient Monte Carlo state: expensive and stochastic, so it is run on
   // demand (never a useMemo) and never persisted.
@@ -326,8 +330,9 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
     unitSystem,
     pvtIntake,
     mcSummary,
+    floodStart,
     modified: new Date().toISOString(),
-  }), [currentProjectId, projectName, displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, surveillanceImport, identification, inputMeta, unitSystem, pvtIntake, mcSummary]);
+  }), [currentProjectId, projectName, displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, surveillanceImport, identification, inputMeta, unitSystem, pvtIntake, mcSummary, floodStart]);
 
   const hydrate = useCallback((raw) => {
     const payload = migrateWaterfloodPayload(raw);
@@ -338,6 +343,7 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
     setPvtIntake(payload?.pvtIntake || null);
     setSurveillanceImport(payload?.surveillance?.import || null);
     setMcSummary(payload?.mcSummary || null);
+    setFloodStart(typeof payload?.floodStart === 'string' ? payload.floodStart : '');
     setDisplacementInputs({ ...DEFAULT_DISPLACEMENT, ...(payload?.displacementInputs || {}) });
     setLayers(Array.isArray(payload?.layers) && payload.layers.length ? payload.layers : DEFAULT_LAYERS);
     setLayeredConfig({ ...DEFAULT_LAYERED_CONFIG, ...(payload?.layeredConfig || {}) });
@@ -493,7 +499,7 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, surveillanceImport, identification, inputMeta, unitSystemSaved, pvtIntake, mcSummary, currentProjectId, hydrated, canWrite]);
+  }, [displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, surveillanceImport, identification, inputMeta, unitSystemSaved, pvtIntake, mcSummary, floodStart, currentProjectId, hydrated, canWrite]);
 
   // ---- Scenarios: named snapshots of all input groups ----
   const saveScenario = useCallback((name) => {
@@ -539,6 +545,7 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
     pvtIntake, setPvtIntake, takePvt,
     surveillanceImport, setSurveillanceImport,
     mcSummary, migratedFrom, serializeInputs, setPatternInputs, setSurveillanceConfig,
+    floodStart, setFloodStart,
     isSaving, saveError, lastSaveTime,
     // inputs
     displacementInputs, setDisplacementField, setDisplacementInputs,

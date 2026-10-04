@@ -10,6 +10,7 @@ import { UField, SectionLabel, fmt } from './primitives';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MOBILITY_BASES } from '@/utils/waterflooddesign/model';
 import PvtIntakePanel from './PvtIntakePanel';
+import WfSendPanel from './WfSendPanel';
 
 const GEO_FIELDS = [
   { k: 'area_acres', label: 'Pattern area', kind: 'area' },
@@ -82,6 +83,8 @@ const PatternPanel = () => {
       </section>
 
       <PvtIntakePanel target="pattern" />
+
+      <WfSendPanel />
 
       <section>
         <Button variant="outline" size="sm" onClick={loadSample} className="w-full">

@@ -5,6 +5,9 @@ import { getDcaForecast } from '@/utils/declineCurve/dcaForecastService';
 import { compareWithSource } from '@/utils/declineCurve/dcaForecastContract';
 import { hubProvenanceOf, hubProvenanceText } from '@/pages/apps/epe/epeHubIntake';
 import { getHubCase, compareHubWithSource } from '@/utils/forecastScenarioContract';
+import { wfProvenanceOf, wfProvenanceText } from '@/pages/apps/epe/epeWfIntake';
+import { getWfForecast } from '@/utils/waterflooddesign/wfForecastService';
+import { compareWfWithSource } from '@/utils/waterflooddesign/wfForecastContract';
 import { motion } from 'framer-motion';
 import {
   FileSpreadsheet, Loader2, Trash2, Play, CheckCircle2, AlertCircle, ChevronDown, ChevronUp
@@ -113,6 +116,17 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
       .catch((e) => { if (alive) setSourceState({ state: 'unreadable', text: `The source could not be read: ${e.message}` }); });
     return () => { alive = false; };
   }, [dca?.fingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
+  // WF-U2-001: a file received from Waterflood Design Studio
+  const wf = status === 'PROCESSED' ? wfProvenanceOf(file) : null;
+  const [wfState, setWfState] = useState(null);
+  useEffect(() => {
+    if (!wf) return undefined;
+    let alive = true;
+    getWfForecast(supabase, { projectId: wf.projectId })
+      .then((now) => { if (alive) setWfState(compareWfWithSource(wf, now)); })
+      .catch((e) => { if (alive) setWfState({ state: 'unreadable', text: `The source could not be read: ${e.message}` }); });
+    return () => { alive = false; };
+  }, [wf?.fingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
   const previewCols = previewRows.length > 0 ? Object.keys(previewRows[0]).slice(0, 6) : [];
 
   return (
@@ -193,6 +207,17 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
           <p>{hubProvenanceText(hub)}</p>
           {hubState && (
             <p className={hubState.state === 'unchanged' ? '' : 'text-pl-warning-text'} data-testid="epe-hub-source-state">{hubState.text}</p>
+          )}
+        </div>
+      )}
+
+      {wf && (
+        <div className="mt-2 rounded border border-pl-border bg-pl-sunken p-2 text-[11px] text-pl-muted space-y-1" data-testid="epe-wf-provenance">
+          <p>{wfProvenanceText(wf)}</p>
+          {wfState && (
+            <p className={wfState.state === 'unchanged' ? '' : 'text-pl-warning-text'} data-testid="epe-wf-source-state">
+              {wfState.text}{wfState.state === 'changed' ? ' Import it again from Waterflood Design Studio to take the new forecast.' : ''}
+            </p>
           )}
         </div>
       )}

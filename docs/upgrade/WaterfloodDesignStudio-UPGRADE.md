@@ -13,7 +13,8 @@ Read first: `docs/scope/AppUpgrade-Reservoir-PLAN.md`,
 `docs/scope/WaterfloodDesignStudio-STATUS.md`.
 
 - Harness: `/dev/studio/waterflood` (in-memory Supabase double).
-- Status: Step 1 done 2026-10-04; Step 2 analysed, not built.
+- Status: Step 1 done 2026-10-04; Step 2 Batch A building on `feat/waterflood-u2`
+  (worktree `/root/wt-res-wf2`), see section 9.
 
 ## 1. Step 1 checks
 
@@ -254,3 +255,21 @@ summary page (not built; small).
 - Competitor parity: OFM and Sahara from public pages and search abstracts;
   tNavigator from general knowledge.
 
+
+## 9. Step 2 build
+
+### Batch decision (programme lead, 2026-10-04)
+
+Recorded verbatim:
+
+> BUILD in this order, one commit per item:
+> - Batch A, all six: U2-001 typed forecast sender (a `wf-forecast-1` contract read by id: the pattern forecast with units and basis, the displacement and sweep model used, the kr-1 and pvt-1 sources behind it, the build and a fingerprint) with receivers in Forecast Scenario Hub and Petroleum Economics Studio, following the dca-forecast-1 pattern ("source changed since", edited marks, the cash-flow engine gated to ignore the provenance record); U2-002 line drive and nine-spot patterns (engines-first; areal sweep correlations from a published source you can actually read, with their mobility-ratio basis stated; validated against a published worked value; negative control); U2-003 user-chosen Hall windows (pick on the plot or by date, a reason saved, the report shows them); U2-004 link to VRR Monitor (send the surveillance or pattern injection and production to VRR by id, or read VRR's ledger, whichever direction the code supports cleanly; document the contract); U2-005 seeded Monte Carlo through the canonical module, the seed and realisation count saved and printed; U2-014 SI units in the Uncertainty tab and the layer cells (pin known values).
+> - Batch B if time remains: U2-006 Chan windows; U2-008 FVF by period from pvt-1 at each period's pressure.
+> - DEFERRED (record reasons): U2-007, U2-009, U2-012, and all of Batch C (deck to Simulation goes to the Simulation round; bubble map; bottomhole correction; multi-pattern field).
+> Owner-question defaults in force: Craig M for new projects (announced), NextGen courses unchanged, one PVT pressure per project until U2-008.
+
+### Items
+
+| ID | State | What was built | Proving test |
+|---|---|---|---|
+| WF-U2-001 | Done | `wf-forecast-1` (`src/utils/waterflooddesign/wfForecastContract.js`, read by id through `wfForecastService.js`): the pattern forecast step by step and by calendar year (oil and water STB, injection RB), its basis (flood start, step, FVF and the pressure it was read at), the displacement and areal sweep model with M and its basis, the kr-1 and pvt-1 sources with values edited after the intake, the build and a fingerprint. A flood start date (Pattern tab, "Send this forecast") places it on the calendar; without it the send is refused with the reason. Forecast Scenario Hub takes it as a new case kind, a profile (day-for-day integral of the step rates, EUR = the sender's Np, horizon and start editable and marked when edited), with "source changed since" and Refresh, in the hub report and in its `fsh-case-1` sender to EPE. Petroleum Economics Studio: "Import from Waterflood Design Studio" writes calendar-year `oil_bbl` and `water_bbl` with the contract last under `wf_forecast_1`; the file card prints the source and re-reads it by id. | `wfForecastContract.test.js` (11): years sum to Np and Wp to 1e-12; a hand split across a year end; fingerprint; edited kr marks; read by id; hub day for day (EUR = Np, the cumulative at a step end = the engine Np there); hub report rows; hub to EPE carries the waterflood source; EPE rows and `computeCashFlow` identical with and without the record. Negative controls: the old volume filter counts the record as a row; the case without its profile kind is refused as Arps. |

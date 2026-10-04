@@ -83,6 +83,7 @@ export const EUR_MAX_YEARS = 50;
  * limit); timeToLimit is then null.
  */
 export function runCase(caseDef, startDateIso = '2026-01-01T00:00:00Z') {
+  if (caseDef?.kind === 'profile') return runProfileCase(caseDef, startDateIso);
   const { qi, declineAnnualPct, b, years, economicLimit } = caseDef;
   if (!(qi > 0) || !(declineAnnualPct > 0) || !(years > 0) || b < 0) {
     return { ...caseDef, error: 'qi, decline and horizon must be positive (b >= 0).' };
@@ -147,6 +148,70 @@ export function runCase(caseDef, startDateIso = '2026-01-01T00:00:00Z') {
   };
 }
 
+/**
+ * WF-U2-001: daily volumes of a step profile whose rate is constant inside
+ * each step (t_{i-1}, t_i] (days from the case start): day d is the exact
+ * integral of the rate over [d - 1, d], so the days sum to the profile.
+ */
+export function dailyFromSteps(steps) {
+  const pts = (steps || []).filter((s) => Number.isFinite(s.t_days) && Number.isFinite(s.qo));
+  if (!pts.length) return [];
+  const end = pts[pts.length - 1].t_days;
+  const n = Math.ceil(end - 1e-9);
+  const out = new Array(n).fill(0);
+  let prev = 0;
+  for (const s of pts) {
+    let a = prev;
+    while (a < s.t_days - 1e-9) {
+      const d = Math.floor(a + 1e-9);
+      const segEnd = Math.min(s.t_days, d + 1);
+      if (d < n) out[d] += s.qo * (segEnd - a);
+      a = segEnd;
+    }
+    prev = s.t_days;
+  }
+  return out;
+}
+
+/**
+ * WF-U2-001: a case that is a received production profile (a Waterflood
+ * Design Studio pattern forecast, `wf-forecast-1`), not an Arps decline. The
+ * hub cuts it at the horizon; the EUR is the profile to the sender's own end
+ * (its WOR limit or horizon) and is never extended. No economic limit is
+ * applied here: the sender's end is the limit.
+ */
+function runProfileCase(caseDef, startDateIso) {
+  const daily = dailyFromSteps(caseDef.profile?.steps);
+  const years = Number(caseDef.years);
+  if (!daily.length || !(years > 0)) return { ...caseDef, error: 'The received profile is empty or the horizon is not positive.' };
+  const start = caseDef.startDate ? `${String(caseDef.startDate).slice(0, 10)}T00:00:00Z` : startDateIso;
+  const t0 = Date.parse(start);
+  const horizonDays = Math.round(years * DAYS_PER_YEAR);
+  const n = Math.min(horizonDays, daily.length);
+  let cum = 0;
+  const rates = [];
+  for (let i = 0; i < n; i += 1) {
+    cum += daily[i];
+    rates.push({ date: new Date(t0 + i * 86400000).toISOString(), rate: daily[i], cumulative: cum });
+  }
+  const eur = daily.reduce((s, v) => s + v, 0);
+  const last = rates[rates.length - 1];
+  return {
+    ...caseDef,
+    startDate: start.slice(0, 10),
+    rates,
+    cumHorizon: cum,
+    eur,
+    eurCapped: false,
+    limitInHorizon: daily.length <= horizonDays,
+    finalRate: last ? last.rate : 0,
+    timeToLimitDays: daily.length,
+    timeToLimitYears: daily.length / DAYS_PER_YEAR,
+    diPerDay: NaN,
+    uptime: 1,
+  };
+}
+
 /** Sum a daily forecast into annual volumes (bbl/yr), year 1 first. */
 export function annualProfile(rates, years) {
   const out = new Array(years).fill(0);
@@ -207,7 +272,8 @@ export function compareCases(caseDefs, econ, startDateIso) {
       id: c.id,
       name: c.name,
       startDate: c.startDate,
-      model: modelTypeFor(c.b),
+      model: c.kind === 'profile' ? 'Profile' : modelTypeFor(c.b),
+      ...(c.kind === 'profile' ? { kind: 'profile' } : {}),
       declineBasis: caseDeclineBasis(c),
       diNominalPctPerYear: c.diPerDay * DAYS_PER_YEAR * 100,
       eurMMbbl: c.eur / 1e6,

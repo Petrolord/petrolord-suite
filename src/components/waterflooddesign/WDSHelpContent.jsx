@@ -148,6 +148,19 @@ const WDSHelpContent = () => (
       </p>
     </Section>
 
+    <Section icon={Share2} title="Sending the forecast on">
+      <p>
+        On the Pattern tab, "Send this forecast" opens the pattern forecast in Forecast Scenario Hub as a case, or in
+        Petroleum Economics Studio as a production file (open a case, then Production, Import from Waterflood Design
+        Studio). Set the flood start date first: it puts the forecast on the calendar.
+      </p>
+      <p>
+        The receiving app reads the saved project by its id (the wf-forecast-1 contract): the oil and water profile at
+        stock-tank conditions, the sweep model and mobility ratio basis, the kr and PVT sources and the build. It keeps
+        that record, prints where the numbers came from, and says when the project here has changed since.
+      </p>
+    </Section>
+
     <Section icon={Gauge} title="The diagnostics rail">
       <p>
         The rail down the right side shows the readout that belongs to the tab you are on: front diagnostics on
