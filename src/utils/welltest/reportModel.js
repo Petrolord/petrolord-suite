@@ -650,3 +650,21 @@ export function buildLimitsRows({ reservoir, config, model, prepared }) {
   if (range) rows.push(['Gas z-factor range', range.text]);
   return rows;
 }
+
+// ---- deliverability coefficient units (WTA-U1-014, RL7) ----------------------
+
+/**
+ * Units of the deliverability coefficients. C carries the exponent n, so it
+ * stays on the oilfield basis it was fitted on in both systems, and says so.
+ */
+export function deliverabilityUnits(method, n) {
+  const pp = method === 'pseudo-pressure';
+  const dp = pp ? 'psi2/cp' : 'psia2';
+  const nn = Number.isFinite(n) ? String(parseFloat(n.toFixed(2))) : 'n';
+  return {
+    C: `Mscf/D per (${dp})^${nn}`,
+    a: `${dp} per Mscf/D`,
+    b: `${dp} per (Mscf/D)2`,
+    basis: `Coefficients on the oilfield basis they were fitted on (q in Mscf/D, ${pp ? 'pseudo-pressure in psi2/cp' : 'pressures in psia, squared'}), in either display system.`,
+  };
+}

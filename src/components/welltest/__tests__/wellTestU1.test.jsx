@@ -253,3 +253,22 @@ describe('WTA-U1-008: a rate history that disagrees with the test rate or tp is 
     studio.unmount();
   }, 600000);
 });
+
+describe('WTA-U1-014: the deliverability coefficients carry their units and basis', () => {
+  test('C, a and b print with their units and the oilfield basis they were fitted on, in SI too', async () => {
+    const studio = await sample((c) => {
+      c.setReservoirField('fluid', 'gas');
+      c.setReservoirField('ct', '');
+      c.setReservoirField('q', '5000');
+      c.setDeliverabilityRows([{ q: '2000', pwf: '4500' }, { q: '4000', pwf: '4150' }, { q: '6000', pwf: '3750' }, { q: '8000', pwf: '3300' }]);
+      c.setUnitSystem('si');
+    });
+    expect(studio.ctx.deliverabilityResult).not.toBeNull();
+    const t = flat(readPdf(build(studio.ctx).doc).text);
+    expect(t).toMatch(/Coefficient C \(Mscf\/D per \(psia2\)\^0\.\d+\)/);
+    expect(t).toMatch(/Laminar coefficient a \(psia2 per Mscf\/D\)/);
+    expect(t).toMatch(/Turbulent coefficient b \(psia2 per \(Mscf\/D\)2\)/);
+    expect(t).toMatch(/Coefficients on the oilfield basis they were fitted on/);
+    studio.unmount();
+  }, 600000);
+});

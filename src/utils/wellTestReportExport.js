@@ -25,7 +25,7 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { loadPetrolordLogo } from '@/lib/pdfBrand';
 import { buildLabel } from '@/lib/platformBuild';
 import {
-  buildIdentificationRows, skinBreakdownRows, flowSummaryHead, flowSummaryBody, inputsFootnote, orNA,
+  buildIdentificationRows, skinBreakdownRows, flowSummaryHead, flowSummaryBody, inputsFootnote, orNA, deliverabilityUnits,
 } from '@/utils/welltest/reportModel';
 import { buildReportFigures } from '@/utils/welltest/reportFigures';
 import {
@@ -309,17 +309,19 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
 
   if (deliverabilityResult) {
     const rows = [];
+    // WTA-U1-014: the coefficients carry their units and basis
+    const dU = deliverabilityUnits(deliverabilityResult.method, deliverabilityResult.backPressure?.n);
     if (deliverabilityResult.backPressure) {
       rows.push([`AOF, back-pressure (${uL('gasRate')})`, sig3(u('gasRate', deliverabilityResult.backPressure.aof))]);
       rows.push(['Exponent n', f2(deliverabilityResult.backPressure.n)]);
-      rows.push(['Coefficient C', sci(deliverabilityResult.backPressure.C)]);
+      rows.push([`Coefficient C (${dU.C})`, sci(deliverabilityResult.backPressure.C)]);
     }
     if (deliverabilityResult.lit) {
       rows.push([`AOF, LIT / Houpeurt (${uL('gasRate')})`, sig3(u('gasRate', deliverabilityResult.lit.aof))]);
-      rows.push(['Laminar coefficient a', sci(deliverabilityResult.lit.a)]);
-      rows.push(['Turbulent coefficient b', sci(deliverabilityResult.lit.b)]);
+      rows.push([`Laminar coefficient a (${dU.a})`, sci(deliverabilityResult.lit.a)]);
+      rows.push([`Turbulent coefficient b (${dU.b})`, sci(deliverabilityResult.lit.b)]);
     }
-    table(`Gas deliverability (${deliverabilityResult.method})`, ['Quantity', 'Value'], rows);
+    table(`Gas deliverability (${deliverabilityResult.method})`, ['Quantity', 'Value'], rows, { note: dU.basis });
   }
 
   if (rtaResult?.fmb) {
