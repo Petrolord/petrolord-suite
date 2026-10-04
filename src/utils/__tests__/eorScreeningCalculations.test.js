@@ -10,9 +10,11 @@ const LIGHT_DEEP = {
   netThicknessFt: 30, permeabilityMd: 100, depthFt: 8000, temperatureF: 180,
 };
 
-// A shallow, heavy, viscous steam candidate.
+// A shallow, heavy, viscous steam candidate. EOR-U1-004: at 5,000 cp its
+// kh/mu was 24 md-ft/cp, under the 50 of Part 1, Table 3, note d, which the
+// engine did not apply; 2,000 cp gives 60.
 const HEAVY_SHALLOW = {
-  gravityApi: 12, viscosityCp: 5000, oilSatPct: 60, formation: 'sandstone',
+  gravityApi: 12, viscosityCp: 2000, oilSatPct: 60, formation: 'sandstone',
   netThicknessFt: 80, permeabilityMd: 1500, depthFt: 1200, temperatureF: 90,
 };
 
@@ -56,10 +58,17 @@ describe('screenMethod', () => {
     ).toBe('fail');
   });
 
-  it('fails carbonate for the sandstone-preferred chemical methods', () => {
+  // EOR-U1-003: "Sandstone preferred" (Part 1, Table 3; Part 2, Tables 4 and 5:
+  // polymer "can be used in carbonates") is a preference, so a carbonate is
+  // marginal for the chemical floods. Before the fix it failed outright.
+  it('marks carbonate marginal for the sandstone-preferred chemical methods', () => {
     const carb = { ...LIGHT_DEEP, formation: 'carbonate', viscosityCp: 20, gravityApi: 25, depthFt: 5000 };
     const chem = screenMethod(byId('chemical'), carb);
-    expect(chem.verdicts.find((v) => v.criterion === 'Formation').status).toBe('fail');
+    const f = chem.verdicts.find((v) => v.criterion === 'Formation');
+    expect(f.status).toBe('marginal');
+    expect(f.reason).toMatch(/preferred/);
+    expect(chem.outcome).toBe('marginal');
+    expect(chem.qualified).toBe(false);
   });
 
   it('treats missing inputs as not-applicable, never as pass or fail', () => {
@@ -75,6 +84,11 @@ describe('screenMethod', () => {
     const th = r.verdicts.find((v) => v.criterion === 'Net thickness');
     expect(th.status).toBe('na');
     expect(th.required).toMatch(/advisory/i);
+  });
+
+  it('note d: the 5,000 cp version of the steam candidate fails on transmissibility', () => {
+    const r = screenMethod(byId('steam'), { ...HEAVY_SHALLOW, viscosityCp: 5000 });
+    expect(r.verdicts.find((v) => v.key === 'transmissibility').status).toBe('fail');
   });
 
   it('scores as passes over applicable criteria', () => {
@@ -99,7 +113,7 @@ describe('screenAllMethods', () => {
     const results = screenAllMethods(sampleEorScreeningData());
     const co2 = results.find((r) => r.id === 'co2');
     expect(co2.qualified).toBe(true);
-    // Sample is too shallow/heavy for nitrogen and too cool/shallow-oil for steam thickness? Steam depth passes (1200<4500 is false: 5200>4500)
+    // the sample is too heavy, viscous and shallow for nitrogen; too deep and too tight for steam, on carbonate
     expect(results.find((r) => r.id === 'nitrogen').qualified).toBe(false);
     expect(results.find((r) => r.id === 'steam').qualified).toBe(false);
   });

@@ -1,0 +1,425 @@
+EOR Screening Report
+Petrolord EOR Screening
+
+Project                  EOR screening EK                                  Company                Lordsway Energy
+Field                    Unnamed                                           Licence or block       n/a
+Reservoir or zone        n/a                                               Well or wells          n/a
+Data as of               n/a                                               Analyst                n/a
+Analysis type            Technical screening of enhanced oil               Criteria               Taber, Martin and Seright (1997), Parts 1
+                         recovery methods against published                                       and 2 (SPE Reservoir Engineering,
+                         criteria (candidate shortlisting)                                        August 1997)
+Depth reference          Not stated                                        Software build         test-build
+Inputs                   Entered or taken from other apps (sources Display units                  Oilfield (gravity degAPI, viscosity cp,
+                         below)                                                                   saturation % PV, depth and thickness ft,
+                                                                                                  permeability md, temperature degF,
+                                                                                                  pressure psia, transmissibility md-ft/cp).
+                                                                                                  Criteria are compared in oilfield units, as
+                                                                                                  published.
+Generated                2026-10-04 12:00 UTC
+
+
+Ranking of the methods
+ Rank     Method                               Outcome              Pass       Marginal        Fail       Not screened       Share passing
+
+ 1        CO2 miscible                         Not screened                0               0          0                  5                   n/a
+
+ 2        Hydrocarbon miscible                 Not screened                0               0          0                  5                   n/a
+
+ 3        Immiscible gases                     Not screened                0               0          0                  4                   n/a
+
+ 4        In-situ combustion                   Not screened                0               0          0                  9                   n/a
+
+ 5        Micellar/polymer, ASP & alkaline     Not screened                0               0          0                  7                   n/a
+
+ 6        Nitrogen & flue gas                  Not screened                0               0          0                  5                   n/a
+
+ 7        Polymer flooding                     Not screened                0               0          0                  7                   n/a
+
+ 8        Steam flooding                       Not screened                0               0          0                  8                   n/a
+
+Methods are ranked by outcome (qualified, then marginal, then screened out), then by the share of screened criteria that pass, then by name.
+Marginal verdicts do not count as passes. Criteria the paper marks not critical, advisory geometry notes and blank inputs are not screened and do
+not count. "Not screened" counts criteria the paper sets for the method that could not be screened for want of an input.
+
+
+
+
+EOR Screening Report, Unnamed, EOR screening EK                                                                                       Page 1 of 8
+Inputs and their sources
+ Input                                          Value                  Unit             Source and quality
+
+ Oil gravity                                    n/a                    degAPI           Not provided
+
+ Oil viscosity at reservoir conditions          n/a                    cp               Not provided
+
+ Oil saturation at the start of the EOR         n/a                    % PV             Not provided
+ project
+
+ Formation type                                 n/a                                     Not provided
+
+ Net thickness                                  n/a                    ft               Not provided
+
+ Average permeability                           n/a                    md               Not provided
+
+ Depth                                          n/a                    ft               Not provided
+
+ Reservoir temperature                          n/a                    degF             Not provided
+
+ Reservoir pressure (context, not               n/a                    psia             Not provided
+ screened)
+
+ Bubble point pressure (context, not            n/a                    psia             Not provided
+ screened)
+
+ Original oil in place (context, not            n/a                    MMSTB            Not provided
+ screened)
+
+ Depth reference                                Not stated                              Not stated: the criteria are true vertical depths; state the
+                                                                                        reference
+
+Every value the screening read, with its source. Values taken from another app name the project and the method; an edit after the intake says so.
+Context rows are printed for the reviewer and are not screened by these criteria.
+
+
+Criteria used: edition
+ Reference           Edition and where the criteria are printed
+
+ Part 1              Taber, J.J., Martin, F.D. and Seright, R.S.: "EOR Screening Criteria Revisited, Part 1: Introduction to Screening Criteria and
+                     Enhanced Recovery Field Projects", SPE Reservoir Engineering 12 (3), August 1997, 189-198 (SPE-35385-PA). Summary
+                     of screening criteria: Part 1, Table 3 (p. 191); notes b, c and d under it.
+
+ Part 2              Taber, J.J., Martin, F.D. and Seright, R.S.: "EOR Screening Criteria Revisited, Part 2: Applications and Impact of Oil Prices",
+                     SPE Reservoir Engineering 12 (3), August 1997, 199-205 (SPE-39234-PA). Part 2, Table 3 (p. 200), CO2 depth by oil
+                     gravity; Part 2, Table 4 (p. 200); Part 2, Table 5 (p. 201).
+
+ Read as             Part 1, Table 3 prints "> 9,000" ft and "> 200" F for the chemical floods with downward arrows; Part 2, Tables 4 and 5 give "<
+                     about 9,000 ft" and "< 200 F", which the screening uses. 40.0 API, which falls between the printed CO2 bands "> 40" and
+                     "32 to 39.9", takes the 2,500 ft band.
+
+ Not encoded         Surface mining (a mining method, outside an in-situ screen). Composition (no composition input; the guide is printed per
+                     method).
+
+
+CO2 miscible: minimum depth by oil gravity
+ Oil gravity                              CO2 miscible: depth must be greater than
+
+ above 40 API                             2,500 ft
+
+ 32 to 39.9 API                           2,800 ft
+
+ 28 to 31.9 API                           3,300 ft
+
+ 22 to 27.9 API                           4,000 ft
+
+ below 22 API                             Fails miscible; screen for immiscible gas
+
+Part 2, Table 3 (p. 200), CO2 depth by oil gravity. The paper states these are for typical Permian Basin oils, with a safety margin of about 500 ft
+above the fracture depth for the miscibility pressure.
+
+
+
+
+EOR Screening Report, Unnamed, EOR screening EK                                                                                             Page 2 of 8
+Each method, criterion by criterion
+CO2 miscible: not screened (Gas injection (miscible))
+ Criterion        Required                 Project     This reservoir   Verdict    Reason                               Source
+                                           average
+
+ Oil gravity      > 22 degAPI              36 degAPI   n/a              not        Not screened: no value given.        Part 1, Table 3 (p.
+                                                                        screened                                        191)
+
+ Oil viscosity    < 10 cp                  1.5 cp      n/a              not        Not screened: no value given.        Part 1, Table 3 (p.
+                                                                        screened                                        191)
+
+ Oil saturation   > 20 % PV                55 % PV     n/a              not        Not screened: no value given.        Part 1, Table 3 (p.
+                                                                        screened                                        191)
+
+ Formation        Sandstone or             n/a         n/a              not        Not screened: no formation given.    Part 1, Table 3 (p.
+                  carbonate                                             screened                                        191)
+
+ Net thickness    Wide range (not          n/a         n/a              not        Advisory in the paper; not scored.   Part 1, Table 3 (p.
+                  scored)                                               screened                                        191)
+
+ Permeability     Not critical             n/a         n/a              not        Not critical for this method.        Part 1, Table 3 (p.
+                                                                        screened                                        191)
+
+ Depth            > 2,500 ft               n/a         n/a              not        Not screened: no value given.        Part 1, Table 3 (p.
+                                                                        screened                                        191)
+
+ Temperature      Not critical             n/a         n/a              not        Not critical for this method.        Part 1, Table 3 (p.
+                                                                        screened                                        191)
+
+Oil composition guide (not screened: the app has no composition input): High percent of C5 to C12.
+
+Hydrocarbon miscible: not screened (Gas injection (miscible))
+ Criterion        Required                 Project     This reservoir   Verdict    Reason                               Source
+                                           average
+
+ Oil gravity      > 23 degAPI              41 degAPI   n/a              not        Not screened: no value given.        Part 1, Table 3 (p.
+                                                                        screened                                        191)
+
+ Oil viscosity    < 3 cp                   0.5 cp      n/a              not        Not screened: no value given.        Part 1, Table 3 (p.
+                                                                        screened                                        191)
+
+ Oil saturation   > 30 % PV                80 % PV     n/a              not        Not screened: no value given.        Part 1, Table 3 (p.
+                                                                        screened                                        191)
+
+ Formation        Sandstone or             n/a         n/a              not        Not screened: no formation given.    Part 1, Table 3 (p.
+                  carbonate                                             screened                                        191)
+
+ Net thickness    Thin unless dipping      n/a         n/a              not        Advisory in the paper; not scored.   Part 1, Table 3 (p.
+                  (advisory, not scored)                                screened                                        191)
+
+ Permeability     Not critical             n/a         n/a              not        Not critical for this method.        Part 1, Table 3 (p.
+                                                                        screened                                        191)
+
+ Depth            > 4,000 ft               n/a         n/a              not        Not screened: no value given.        Part 1, Table 3 (p.
+                                                                        screened                                        191)
+
+ Temperature      Not critical             n/a         n/a              not        Not critical for this method.        Part 1, Table 3 (p.
+                                                                        screened                                        191)
+
+Oil composition guide (not screened: the app has no composition input): High percent of C2 to C7.
+
+
+
+
+EOR Screening Report, Unnamed, EOR screening EK                                                                                    Page 3 of 8
+Immiscible gases: not screened (Gas injection)
+ Criterion          Required                  Project     This reservoir   Verdict    Reason                                                Source
+                                              average
+
+ Oil gravity        > 12 degAPI               n/a         n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Oil viscosity      < 600 cp                  n/a         n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Oil saturation     > 35 % PV                 70 % PV     n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Formation          Not critical              n/a         n/a              not        Not critical for this method.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Net thickness      Not critical if dipping   n/a         n/a              not        Advisory in the paper; not scored.                    Part 1, Table 3 (p.
+                    and/or good vertical                                   screened                                                         191)
+                    permeability (advisory,
+                    not scored)
+
+ Permeability       Not critical              n/a         n/a              not        Not critical for this method.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Depth              > 1,800 ft                n/a         n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Temperature        Not critical              n/a         n/a              not        Not critical for this method.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+Oil composition guide (not screened: the app has no composition input): Not critical.
+
+In-situ combustion: not screened (Thermal)
+ Criterion          Required                  Project     This reservoir   Verdict    Reason                                                Source
+                                              average
+
+ Oil gravity        > 10 degAPI               16 degAPI   n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Oil viscosity      < 5,000 cp                1,200 cp    n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Oil saturation     > 50 % PV                 72 % PV     n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Formation          High-porosity sand or     n/a         n/a              not        Not screened: no formation given.                     Part 1, Table 3 (p.
+                    sandstone                                              screened                                                         191)
+
+ Net thickness      > 10 ft                   n/a         n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Permeability       > 50 md                   n/a         n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Transmissibility   > 20 md-ft/cp             n/a         n/a              not        Not screened: needs permeability, net thickness and   Part 1, Table 3, note c
+ kh/mu                                                                     screened   viscosity.
+
+ Depth              < 11,500 ft               3,500 ft    n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Temperature        > 100 degF                135 degF    n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+Oil composition guide (not screened: the app has no composition input): Some asphaltic components.
+
+
+
+
+EOR Screening Report, Unnamed, EOR screening EK                                                                                                        Page 4 of 8
+Micellar/polymer, ASP & alkaline: not screened ((Enhanced) waterflooding)
+ Criterion         Required                 Project     This reservoir   Verdict    Reason                                     Source
+                                            average
+
+ Oil gravity       > 20 degAPI              35 degAPI   n/a              not        Not screened: no value given.              Part 1, Table 3 (p.
+                                                                         screened                                              191)
+
+ Oil viscosity     < 35 cp                  13 cp       n/a              not        Not screened: no value given.              Part 1, Table 3 (p.
+                                                                         screened                                              191)
+
+ Oil saturation    > 35 % PV                53 % PV     n/a              not        Not screened: no value given.              Part 1, Table 3 (p.
+                                                                         screened                                              191)
+
+ Formation         Sandstone preferred      n/a         n/a              not        Not screened: no formation given.          Part 2, Table 4 (p.
+                                                                         screened                                              200)
+
+ Net thickness     Not critical             n/a         n/a              not        Not critical for this method.              Part 1, Table 3 (p.
+                                                                         screened                                              191)
+
+ Permeability      > 10 md                  450 md      n/a              not        Not screened: no value given.              Part 1, Table 3 (p.
+                                                                         screened                                              191)
+
+ Depth             < 9,000 ft               3,250 ft    n/a              not        Not screened: no value given.              Part 2, Table 4 (p.
+                                                                         screened                                              200)
+
+ Temperature       < 200 degF               80 degF     n/a              not        Not screened: no value given.              Part 2, Table 4 (p.
+                                                                         screened                                              200)
+
+Oil composition guide (not screened: the app has no composition input): Light, intermediate; some organic acids for alkaline floods.
+
+Nitrogen & flue gas: not screened (Gas injection (miscible))
+ Criterion         Required                 Project     This reservoir   Verdict    Reason                                     Source
+                                            average
+
+ Oil gravity       > 35 degAPI              48 degAPI   n/a              not        Not screened: no value given.              Part 1, Table 3 (p.
+                                                                         screened                                              191)
+
+ Oil viscosity     < 0.4 cp                 0.2 cp      n/a              not        Not screened: no value given.              Part 1, Table 3 (p.
+                                                                         screened                                              191)
+
+ Oil saturation    > 40 % PV                75 % PV     n/a              not        Not screened: no value given.              Part 1, Table 3 (p.
+                                                                         screened                                              191)
+
+ Formation         Sandstone or             n/a         n/a              not        Not screened: no formation given.          Part 1, Table 3 (p.
+                   carbonate                                             screened                                              191)
+
+ Net thickness     Thin unless dipping      n/a         n/a              not        Advisory in the paper; not scored.         Part 1, Table 3 (p.
+                   (advisory, not scored)                                screened                                              191)
+
+ Permeability      Not critical             n/a         n/a              not        Not critical for this method.              Part 1, Table 3 (p.
+                                                                         screened                                              191)
+
+ Depth             > 6,000 ft               n/a         n/a              not        Not screened: no value given.              Part 1, Table 3 (p.
+                                                                         screened                                              191)
+
+ Temperature       Not critical             n/a         n/a              not        Not critical for this method.              Part 1, Table 3 (p.
+                                                                         screened                                              191)
+
+Oil composition guide (not screened: the app has no composition input): High percent of C1 to C7.
+
+
+
+
+EOR Screening Report, Unnamed, EOR screening EK                                                                                           Page 5 of 8
+Polymer flooding: not screened ((Enhanced) waterflooding)
+ Criterion          Required                Project       This reservoir   Verdict    Reason                                                Source
+                                            average
+
+ Oil gravity        > 15 degAPI             n/a           n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Oil viscosity      10 to 150 cp            n/a           n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Oil saturation     > 50 % PV               80 % PV       n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Formation          Sandstone preferred     n/a           n/a              not        Not screened: no formation given.                     Part 2, Table 5 (p.
+                                                                           screened                                                         201)
+
+ Net thickness      Not critical            n/a           n/a              not        Not critical for this method.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Permeability       > 10 md                 800 md        n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Depth              < 9,000 ft              n/a           n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Temperature        < 200 degF              140 degF      n/a              not        Not screened: no value given.                         Part 2, Table 5 (p.
+                                                                           screened                                                         201)
+
+Oil composition guide (not screened: the app has no composition input): Not critical.
+
+Steam flooding: not screened (Thermal)
+ Criterion          Required                Project       This reservoir   Verdict    Reason                                                Source
+                                            average
+
+ Oil gravity        > 8 degAPI              13.5 degAPI   n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Oil viscosity      < 200,000 cp            4,700 cp      n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Oil saturation     > 40 % PV               66 % PV       n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Formation          High-porosity sand or   n/a           n/a              not        Not screened: no formation given.                     Part 1, Table 3 (p.
+                    sandstone                                              screened                                                         191)
+
+ Net thickness      > 20 ft                 n/a           n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Permeability       > 200 md                2,540 md      n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Transmissibility   > 50 md-ft/cp           n/a           n/a              not        Not screened: needs permeability, net thickness and   Part 1, Table 3, note d
+ kh/mu                                                                     screened   viscosity.
+
+ Depth              < 4,500 ft              1,500 ft      n/a              not        Not screened: no value given.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+ Temperature        Not critical            n/a           n/a              not        Not critical for this method.                         Part 1, Table 3 (p.
+                                                                           screened                                                         191)
+
+Oil composition guide (not screened: the app has no composition input): Not critical.
+
+Limits of this analysis
+- Screening shortlists candidate methods; it does not design a process or predict recovery (Part 2, Summary). A method that qualifies needs
+laboratory work, simulation and economics before any decision.
+- The criteria come from the oil and reservoir properties of field projects up to 1996 and the displacement mechanisms behind them. Limits are not
+sharp in nature: the paper says a value just past a limit does not make a method impossible (Part 1, p. 192). Here a value on a limit passes;
+nothing is interpolated between methods.
+- Verdicts are pass, marginal, fail or not screened. Marginal means the paper itself softens the limit: a preferred formation (Part 2, Tables 4 and 5),
+a carbonate fracture sweep (Part 1, Table 3, note b), or a formation the table does not name for gas injection.
+- The CO2 minimum depth by oil gravity is for typical Permian Basin oils; oils of different composition need a measured minimum miscibility
+pressure. Reservoir pressure and temperature are not screened against a miscibility pressure here.
+- Each input is one value for the reservoir. Heterogeneity, layering, dip, vertical permeability and fractures are not screened; the geometry notes of
+the gas methods ("thin unless dipping") are printed and not scored.
+- Viscosity is the oil viscosity at reservoir conditions. Transmissibility k h / mu (notes c and d) is computed from the permeability, net thickness and
+that viscosity.
+- Criteria are compared in oilfield units, as published; values typed or shown in SI are converted first.
+
+
+
+
+EOR Screening Report, Unnamed, EOR screening EK                                                                                                        Page 6 of 8
+Flags on the inputs
+- Not given, so the criteria on them are not screened for any method: Oil gravity, Oil viscosity at reservoir conditions, Oil saturation at the start of
+the EOR project, Formation type, Net thickness, Average permeability, Depth, Reservoir temperature.
+- The depth reference is not stated.
+
+
+
+
+EOR Screening Report, Unnamed, EOR screening EK                                                                                                Page 7 of 8
+Plots
+Figure 1. Share of screened criteria that pass, by method
+Does not apply: no input is given, so no criterion was screened.
+
+
+Figure 2. Oil gravity and depth against the CO2 miscible minimum depth
+Does not apply: the oil gravity or the depth is not given.
+
+
+
+
+EOR Screening Report, Unnamed, EOR screening EK                          Page 8 of 8
+

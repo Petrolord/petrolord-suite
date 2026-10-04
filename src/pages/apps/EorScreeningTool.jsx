@@ -1,102 +1,128 @@
-import React, { useState, useMemo } from 'react';
+// EOR Screening (R4, Reservoir-ROADMAP.md; EOR-U1 of the Reservoir upgrade
+// round, docs/upgrade/EorScreening-UPGRADE.md). Technical screening on the
+// published criteria of Taber, Martin and Seright (1997), Parts 1 and 2:
+// shortlisting, not design.
+//
+// EOR-U1: saved projects with record sharing (saved_eor_screening_projects),
+// the Suite unit profile (oilfield / SI, criteria compared in oilfield), a
+// source beside every input, intakes by id from Fluid Systems Studio
+// (pvt-1), Well Test Analysis Studio (wta-1) and Material Balance Studio
+// (mbal-1), and a report on the shared kit.
+import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import {
-  FlaskConical, ArrowLeft, Beaker, Info, CheckCircle2, XCircle, MinusCircle, HelpCircle,
-} from 'lucide-react';
-import {
-  BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, LabelList,
-} from 'recharts';
+import { FlaskConical, ArrowLeft, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import ChartFrame from '@/components/charts/ChartFrame';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import {
-  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
-} from '@/utils/chartTheme';
-import {
-  FORMATION_OPTIONS, screenAllMethods, sampleEorScreeningData,
-} from '@/utils/eorScreeningCalculations';
-import { EMPTY_VALUE } from '@/lib/emptyValue';
+import StudioAutoSave from '@/components/studio/StudioAutoSave';
+import StudioProjectManager from '@/components/studio/StudioProjectManager';
+import { Card, CardContent } from '@/components/ui/card';
+import { RecordSharingBar } from '@/components/recordSharing';
+import { supabaseSharingStore } from '@/lib/recordSharing';
+import { useProfileSystem } from '@/lib/units/useProfileSystem';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { EorScreeningProvider, useEorScreening } from '@/contexts/EorScreeningContext';
+import { EOR_PROFILE_FAMILIES } from '@/utils/eor/units';
+import EorInputsPanel from '@/components/eor/EorInputsPanel';
+import EorIntakesPanel from '@/components/eor/EorIntakesPanel';
+import EorResults from '@/components/eor/EorResults';
+import EorReportTab from '@/components/eor/EorReportTab';
 
-// R4 (Reservoir-ROADMAP.md): honest replacement for the archived EOR
-// Designer shell. Pure client-side screening on the published Taber,
-// Martin & Seright (1997) criteria — shortlisting, not design.
-
-const FIELDS = [
-  { key: 'gravityApi', label: 'Oil gravity', unit: '°API' },
-  { key: 'viscosityCp', label: 'Oil viscosity', unit: 'cp' },
-  { key: 'oilSatPct', label: 'Oil saturation', unit: '% PV' },
-  { key: 'netThicknessFt', label: 'Net thickness', unit: 'ft' },
-  { key: 'permeabilityMd', label: 'Average permeability', unit: 'md' },
-  { key: 'depthFt', label: 'Depth', unit: 'ft' },
-  { key: 'temperatureF', label: 'Reservoir temperature', unit: '°F' },
+const TABS = [
+  { value: 'screening', label: 'Screening' },
+  { value: 'report', label: 'Report' },
 ];
 
-const STATUS_META = {
-  pass: { icon: CheckCircle2, cls: 'text-pl-success-text', chip: 'bg-pl-success-bg text-pl-success-text border-pl-success/40' },
-  fail: { icon: XCircle, cls: 'text-pl-danger-text', chip: 'bg-pl-danger-bg text-pl-danger-text border-pl-danger/40' },
-  na: { icon: MinusCircle, cls: 'text-pl-muted', chip: 'bg-pl-sunken text-pl-muted border-pl-border' },
+// One store per page; record sharing of saved_eor_screening_projects (PL5).
+const SHARING_STORE = supabaseSharingStore();
+
+const Notifications = () => {
+  const { notifications, removeNotification } = useEorScreening();
+  if (!notifications?.length) return null;
+  return (
+    <div className="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm" data-testid="eor-notifications">
+      {notifications.map((n) => (
+        <button
+          key={n.id} type="button" onClick={() => removeNotification(n.id)}
+          className={`block w-full text-left rounded-md border px-3 py-2 text-xs shadow ${n.type === 'error' ? 'border-pl-danger/40 bg-pl-danger-bg text-pl-danger-text' : 'border-pl-border bg-pl-surface text-pl-text'}`}
+        >
+          {n.message}
+        </button>
+      ))}
+    </div>
+  );
 };
 
-const num = (v) => {
-  const n = parseFloat(v);
-  return Number.isFinite(n) ? n : null;
+const ProjectCard = () => {
+  const {
+    projects, sharedProjects, viewingShared, projectRow, sharing, saveCopy, canWrite,
+    currentProjectId, createProject, openProject, deleteProject, savingAvailable, savingReason,
+  } = useEorScreening();
+  return (
+    <Card className="h-fit">
+      <CardContent className="pt-4 space-y-2">
+        <StudioProjectManager
+          projects={projects}
+          sharedProjects={sharedProjects}
+          canDelete={!viewingShared}
+          currentProjectId={currentProjectId}
+          onCreate={createProject}
+          onOpen={openProject}
+          onDelete={deleteProject}
+          confirmDeleteMessage="Delete this EOR Screening project?"
+        />
+        {!savingAvailable && <p className="text-xs text-pl-warning-text" data-testid="eor-saving-off">{savingReason}</p>}
+        {projectRow && (
+          <RecordSharingBar
+            sharing={sharing}
+            label="project"
+            onSaveCopy={saveCopy}
+            onReload={() => openProject(currentProjectId)}
+            fieldLabels={{ project_name: 'name', inputs_data: 'inputs, sources, intakes and report fields' }}
+          />
+        )}
+        {projectRow && sharing.ready && !canWrite && (
+          <p className="text-xs text-pl-warning-text" data-testid="eor-read-only">
+            {sharing.readOnlyReason || 'This project is open read-only.'} Changes you make here are not saved to it.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
 };
 
 function EorScreeningContent() {
-  const sample = useMemo(() => sampleEorScreeningData(), []);
-  const [form, setForm] = useState(() =>
-    Object.fromEntries(Object.entries(sample).map(([k, v]) => [k, String(v)])));
-  const [expanded, setExpanded] = useState(null);
-
-  const input = useMemo(() => ({
-    gravityApi: num(form.gravityApi),
-    viscosityCp: num(form.viscosityCp),
-    oilSatPct: num(form.oilSatPct),
-    formation: form.formation || null,
-    netThicknessFt: num(form.netThicknessFt),
-    permeabilityMd: num(form.permeabilityMd),
-    depthFt: num(form.depthFt),
-    temperatureF: num(form.temperatureF),
-  }), [form]);
-
-  const results = useMemo(() => screenAllMethods(input), [input]);
-  const qualified = results.filter((r) => r.qualified);
-
-  const chartData = results.map((r) => ({
-    name: r.name,
-    score: Math.round(r.score * 100),
-    qualified: r.qualified,
-  }));
-
-  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
-
+  const { inputs, setUnitSystem, isSaving, saveError, lastSaveTime, manualSave } = useEorScreening();
+  const [tab, setTab] = useState('screening');
   return (
     <>
       <Helmet>
         <title>EOR Screening - Petrolord Suite</title>
-        <meta name="description" content="Screen a reservoir against the published Taber-Martin-Seright EOR criteria." />
+        <meta name="description" content="Screen a reservoir against the published Taber, Martin and Seright (1997) EOR criteria." />
       </Helmet>
       <div className="p-4 md:p-8 h-full flex flex-col">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-6">
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-4">
+        <div className="mb-6">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4">
             <Link to="/dashboard/reservoir">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="w-4 h-4 mr-2" /> Back to Reservoir Management
-              </Button>
+              <Button variant="outline" size="sm"><ArrowLeft className="w-4 h-4 mr-2" /> Back to Reservoir Management</Button>
             </Link>
             <Link to="/dashboard/apps/reservoir/eor-screening/help">
-              <Button variant="outline" size="sm">
-                <HelpCircle className="w-4 h-4 mr-2" /> Help guide
-              </Button>
+              <Button variant="outline" size="sm"><HelpCircle className="w-4 h-4 mr-2" /> Help guide</Button>
             </Link>
-            <ThemeToggle className="ml-auto" />
+            <div className="ml-auto flex items-center gap-2">
+              <Select value={inputs.unitSystem} onValueChange={setUnitSystem}>
+                <SelectTrigger className="h-8 w-[104px] text-xs" aria-label="Display units" data-testid="eor-unit-system" title="Display units of this project (the saved values and the criteria stay in oilfield units)">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="oilfield">Oilfield</SelectItem>
+                  <SelectItem value="si">SI</SelectItem>
+                </SelectContent>
+              </Select>
+              <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />
+              <ThemeToggle />
+            </div>
           </div>
           <div className="flex items-center space-x-4">
             <div className="bg-pl-primary p-3 rounded-xl shrink-0">
@@ -109,166 +135,54 @@ function EorScreeningContent() {
               </p>
             </div>
           </div>
-        </motion.div>
-
-        <div className="flex flex-col xl:flex-row gap-6 flex-grow min-h-0">
-          {/* Inputs */}
-          <Card className="xl:w-80 shrink-0 h-fit">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-pl-text text-base flex items-center gap-2">
-                <Beaker className="w-4 h-4 text-pl-primary-text" /> Reservoir &amp; fluid
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {FIELDS.map((f) => (
-                <div key={f.key} className="space-y-1">
-                  <Label className="text-xs text-pl-muted">{f.label} ({f.unit})</Label>
-                  <Input
-                    type="number" step="any" value={form[f.key] ?? ''} onChange={set(f.key)}
-                    className="h-8 text-sm"
-                  />
-                </div>
-              ))}
-              <div className="space-y-1">
-                <Label className="text-xs text-pl-muted">Formation</Label>
-                <Select value={form.formation} onValueChange={(v) => setForm((f) => ({ ...f, formation: v }))}>
-                  <SelectTrigger className="h-8 text-sm">
-                    <SelectValue placeholder="Select formation" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FORMATION_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                variant="outline" size="sm"
-                className="w-full"
-                title="A West-Texas-style carbonate CO2 candidate"
-                onClick={() => setForm(Object.fromEntries(Object.entries(sample).map(([k, v]) => [k, String(v)])))}
+          <div className="mt-4 flex gap-1 border-b border-pl-border" role="tablist">
+            {TABS.map((t) => (
+              <button
+                key={t.value} type="button" role="tab" aria-selected={tab === t.value} data-testid={`eor-tab-${t.value}`}
+                onClick={() => setTab(t.value)}
+                className={`px-3 py-1.5 text-sm -mb-px border-b-2 ${tab === t.value ? 'border-pl-primary text-pl-text font-medium' : 'border-transparent text-pl-muted'}`}
               >
-                {/* Senior test T1: the longer label wrapped over the button's edge at 1366. */}
-                Load a sample CO2 candidate
-              </Button>
-              <p className="text-[11px] text-pl-muted flex gap-1.5">
-                <Info size={13} className="shrink-0 mt-0.5" />
-                Screening shortlists candidate methods; it does not design or predict recovery.
-                Blank inputs leave criteria unscored with no assumed value.
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Results */}
-          <div className="flex-1 min-w-0 space-y-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-pl-text text-base">
-                  Method ranking
-                  <span className="ml-2 text-xs font-normal text-pl-muted">
-                    {qualified.length} of {results.length} methods qualify on every screened criterion
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="bg-white rounded-lg p-3" data-canvas="chart">
-                  <ChartFrame height={280}>
-                    <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 40, left: 8, bottom: 4 }}>
-                      <CartesianGrid {...GRID_STYLE} horizontal={false} />
-                      <XAxis type="number" domain={[0, 100]} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} stroke={CHART_COLORS.axisLine} unit="%" />
-                      <YAxis type="category" dataKey="name" width={190} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} stroke={CHART_COLORS.axisLine} />
-                      <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${v}% of screened criteria met`, 'Score']} />
-                      <Bar dataKey="score" isAnimationActive={false} radius={[0, 3, 3, 0]}>
-                        {chartData.map((d) => (
-                          <Cell key={d.name} fill={d.qualified ? '#059669' : '#94a3b8'} />
-                        ))}
-                        <LabelList dataKey="score" position="right" formatter={(v) => `${v}%`} style={{ fill: CHART_COLORS.axisText, fontSize: 11 }} />
-                      </Bar>
-                    </BarChart>
-                  </ChartFrame>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="space-y-2">
-              {results.map((r) => {
-                const open = expanded === r.id;
-                return (
-                  <Card key={r.id} className={r.qualified ? 'border-pl-success/40' : undefined}>
-                    <button
-                      type="button"
-                      className="w-full text-left px-4 py-3 flex items-center gap-3"
-                      onClick={() => setExpanded(open ? null : r.id)}
-                    >
-                      {r.qualified
-                        ? <CheckCircle2 size={18} className="text-pl-success-text shrink-0" />
-                        : <XCircle size={18} className="text-pl-muted shrink-0" />}
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm text-pl-text font-medium truncate">{r.name}</div>
-                        <div className="text-[11px] text-pl-muted">{r.group} · {r.passes}/{r.applicable} screened criteria met</div>
-                      </div>
-                      <Badge variant={r.qualified ? 'success' : 'neutral'}>
-                        {r.qualified ? 'Qualified' : 'Screened out'}
-                      </Badge>
-                    </button>
-                    {open && (
-                      <CardContent className="pt-0 pb-4">
-                        <div className="text-[11px] text-pl-muted mb-2">Oil composition guide: {r.composition}</div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-xs">
-                            <thead>
-                              <tr className="text-left text-pl-muted border-b border-pl-border">
-                                <th className="py-1.5 pr-3">Criterion</th>
-                                <th className="py-1.5 pr-3">Required (Taber et al. 1997)</th>
-                                <th className="py-1.5 pr-3">This reservoir</th>
-                                <th className="py-1.5">Verdict</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {r.verdicts.map((v) => {
-                                const meta = STATUS_META[v.status];
-                                const IconEl = meta.icon;
-                                return (
-                                  <tr key={v.criterion} className="border-b border-pl-border text-pl-text">
-                                    <td className="py-1.5 pr-3 text-pl-text">{v.criterion}</td>
-                                    <td className="py-1.5 pr-3">{v.required}{v.preferred != null ? ` (typical ${v.preferred})` : ''}</td>
-                                    <td className="py-1.5 pr-3">{v.actual != null ? `${v.actual}${v.unit ? ` ${v.unit}` : ''}` : EMPTY_VALUE}</td>
-                                    <td className="py-1.5">
-                                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] ${meta.chip}`}>
-                                        <IconEl size={11} /> {v.status === 'na' ? 'not scored' : v.status}
-                                      </span>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </CardContent>
-                    )}
-                  </Card>
-                );
-              })}
-            </div>
-
-            <p className="text-[11px] text-pl-muted">
-              Criteria per Taber, Martin &amp; Seright, "EOR Screening Criteria Revisited", SPE Reservoir
-              Engineering (1997). "Typical" values are the paper's current-project averages and are shown
-              for context only; qualification uses the hard limits.
-            </p>
+                {t.label}
+              </button>
+            ))}
           </div>
         </div>
+
+        {tab === 'screening' ? (
+          <div className="flex flex-col xl:flex-row gap-6 flex-grow min-h-0">
+            <div className="xl:w-80 shrink-0 space-y-4">
+              <ProjectCard />
+              <EorInputsPanel />
+              <EorIntakesPanel />
+            </div>
+            <EorResults />
+          </div>
+        ) : (
+          <div className="flex flex-col xl:flex-row gap-6">
+            <div className="xl:w-80 shrink-0"><ProjectCard /></div>
+            <div className="flex-1 min-w-0"><EorReportTab /></div>
+          </div>
+        )}
       </div>
+      <Notifications />
     </>
   );
 }
 
+const useOrganizationName = () => {
+  try { return useAuth()?.organization?.name || ''; } catch { return ''; }
+};
+
 // Design system rollout batch 3E: the page opens light and follows the
 // user's theme choice from the header toggle.
-export default function EorScreeningTool() {
+export default function EorScreeningTool({ sharingStore = SHARING_STORE }) {
+  const profileSystem = useProfileSystem('eor', EOR_PROFILE_FAMILIES);
+  const organizationName = useOrganizationName();
   return (
     <div className="min-h-full" data-testid="eor-theme-scope">
-      <EorScreeningContent />
+      <EorScreeningProvider sharingStore={sharingStore} profileSystem={profileSystem} organizationName={organizationName}>
+        <EorScreeningContent />
+      </EorScreeningProvider>
     </div>
   );
 }
