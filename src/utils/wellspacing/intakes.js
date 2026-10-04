@@ -117,7 +117,7 @@ export function wsWtaIntake(block, { recordId = null, recordName = null, updated
   const pAvg = block.pressure?.average_psia;
   if (finite(pAvg)) {
     values.reservoirPressure = g5(pAvg);
-    methods.reservoirPressure = `${block.pressure.average_method || 'Average pressure'} ${block.pressure.basis || ''}, ${origin}`.replace(/\s+,/g, ',');
+    methods.reservoirPressure = `${block.pressure.average_method || 'Average pressure.'}${block.pressure.basis ? ` Basis: ${block.pressure.basis}` : ''}, ${origin}`;
   }
   return {
     ok: true,
