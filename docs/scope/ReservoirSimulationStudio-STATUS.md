@@ -434,3 +434,37 @@ report steps into `sim_runs.report_steps`; the screen prints the real
 counts. **Owner action:** redeploy the simulation worker
 (`worker/sim-worker/deploy.sh`) for the worker half to take effect. Until
 then the screen describes an older summary for what it holds.
+
+## 2026-10-04: Reservoir upgrade round, Step 1 and the Step 2 analysis (branch `feat/sim-u1`)
+
+Doc: `docs/upgrade/ReservoirSimulationStudio-UPGRADE.md`. 30 findings, 26
+fixed, no S1; the eight S2 fixed.
+
+- **The report** on the kit (Report tab and Export PDF): identification,
+  run provenance, what the deck holds, builder inputs with sources (when the
+  saved form made the deck that ran, by SHA-256), headline results, the
+  material balance per component and the convergence statistics from the
+  simulator's PRT, limits and flags, six figures on the calendar axis.
+- **Worker change, owner redeploy owed**: `simworker/prt.py` reads the PRT
+  (balance sheets, well totals, chopped steps, end-of-run statistics); terminal
+  output stays on (without it OPM Flow 2026.04 leaves the statistics out of
+  the PRT); failed runs keep exit code, elapsed, log and active cells;
+  `active_cells` written; the deck unit system recorded. Isolated gate 48
+  passed. Until the redeploy the report prints "not reported by this build".
+- **Intakes**: pvt-1 from Fluid Systems Studio and kr-1 (with Pc) from SCAL
+  Studio, read by id, written as the producers' own export rows, provenance
+  as deck comment lines, "source changed since".
+- **Saved state and sharing**: the builder form is saved with the case
+  (migration `20261004180000_sim_cases_builder_form.sql` NOT APPLIED; a JSON
+  file beside the deck until then, owner only); record sharing adopted;
+  decks and runs stay with the owner (owner-only queue) and the UI says so.
+- **Units, datum, doors**: unit profile at the builder fields, results, CSV
+  and report; METRIC decks read as METRIC; deviated wells take their depth
+  reference from the well datum module; the deck and history doors on the
+  hostile file set.
+- **Templates**: SPE1 and SPE9 ask for the FIP report (reporting only).
+- Engines PR #308 (opt-in balance reporting and deck notes), not merged,
+  vendored with two ledger rows.
+- Closed from the bring-up list: failed runs losing exit code and elapsed,
+  `active_cells` never written, the duplicated error text. Still open: the
+  `_after_fork` log noise; unattended crash restart unproven.
