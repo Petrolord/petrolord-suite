@@ -187,3 +187,12 @@ deviations). 27 findings, 22 fixed, 5 open (S3 and S4, carried to Step 2).
 - Tests: `src/components/waterflooddesign/__tests__/wf*.test.*`,
   `src/utils/waterflooddesign/__tests__/`, `src/lib/portability/__tests__/waterfloodPortability.test.js`,
   `e2e/waterflood-upgrade.spec.js`, `e2e/waterflood-t1.spec.js` (updated for Craig's M).
+
+**Release note (owner defaults, 2026-10-04).** New Waterflood Design projects
+enter the five-spot areal sweep correlation with Craig's mobility ratio (krw
+at the average water saturation behind the front), as the correlation was
+built; saved projects keep their earlier basis until switched on the Pattern
+tab. Surveillance totals and VRR are now calendar volumes: daily files are
+unchanged, weekly and monthly files now add up correctly. One PVT pressure
+serves a project. The NextGen courses are unchanged. Engines #304 merged;
+the Suite is pinned at engines dd0eba4 with no recorded deviations.
