@@ -1,10 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { Droplets, TrendingUp, BarChart3, Target, Gauge, Activity } from 'lucide-react';
 
 const KPIPanel = ({ kpis, lastUpdated }) => {
   const formatNumber = (num, decimals = 1) => {
-    if (typeof num !== 'number' || isNaN(num)) return 'N/A';
+    if (typeof num !== 'number' || isNaN(num)) return EMPTY_VALUE;
     return num.toLocaleString(undefined, {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
@@ -18,13 +19,13 @@ const KPIPanel = ({ kpis, lastUpdated }) => {
       icon: Droplets
     },
     {
-      title: 'Avg VRR',
+      title: 'Cumulative VRR',
       value: formatNumber(kpis.vrr_avg, 2),
       icon: TrendingUp
     },
     {
       title: 'Rolling VRR (end)',
-      value: kpis.vrr_rolling ? formatNumber(kpis.vrr_rolling, 2) : 'N/A',
+      value: kpis.vrr_rolling ? formatNumber(kpis.vrr_rolling, 2) : EMPTY_VALUE,
       icon: Activity
     },
     {
@@ -63,7 +64,7 @@ const KPIPanel = ({ kpis, lastUpdated }) => {
         )}
       </div>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 2xl:grid-cols-6 gap-4">
         {kpiItems.map((kpi, index) => (
           <motion.div
             key={kpi.title}
@@ -74,7 +75,7 @@ const KPIPanel = ({ kpis, lastUpdated }) => {
           >
             <kpi.icon className="w-5 h-5 text-pl-muted mb-3" aria-hidden="true" />
             <h3 className="text-lg font-semibold font-pl-mono tabular-nums text-pl-text mb-1">{kpi.value}</h3>
-            <p className="text-pl-muted text-sm truncate">{kpi.title}</p>
+            <p className="text-pl-muted text-sm leading-snug">{kpi.title}</p>
           </motion.div>
         ))}
       </div>

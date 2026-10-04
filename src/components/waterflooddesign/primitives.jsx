@@ -6,17 +6,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ChartPanel } from '@/components/ui/chart-panel';
 import ChartFrame from '@/components/charts/ChartFrame';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 export const fmt = {
   num: (v) => {
     const n = typeof v === 'number' ? v : parseFloat(v);
     return Number.isFinite(n) ? n : NaN;
   },
-  pct: (v) => (v == null || !Number.isFinite(v) ? '-' : `${(v * 100).toFixed(1)}%`),
-  f1: (v) => (v == null || !Number.isFinite(v) ? '-' : Number(v).toFixed(1)),
-  f2: (v) => (v == null || !Number.isFinite(v) ? '-' : Number(v).toFixed(2)),
-  f3: (v) => (v == null || !Number.isFinite(v) ? '-' : Number(v).toFixed(3)),
-  int: (v) => (v == null || !Number.isFinite(v) ? '-' : Math.round(v).toLocaleString()),
+  pct: (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : `${(v * 100).toFixed(1)}%`),
+  f1: (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toFixed(1)),
+  f2: (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toFixed(2)),
+  f3: (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toFixed(3)),
+  int: (v) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Math.round(v).toLocaleString()),
 };
 
 // Chart line colors tuned for the white Petrolord chart background.
