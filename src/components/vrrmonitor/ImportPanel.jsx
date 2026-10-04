@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useVrrMonitor } from '@/contexts/VrrMonitorContext';
 import { THEMED_TONE } from '@/components/studio/studioTheme';
 import {
-  parseVrrWellCSV, vrrTemplateCSV, DOOR_UNITS, LEDGER_COLUMNS,
+  parseVrrWellCSV, vrrTemplateCSV, DOOR_UNITS, LEDGER_COLUMNS, DAYS_ON_UNITS,
 } from '@/utils/vrr/csvImport';
 import { downloadText } from './download';
 
@@ -29,6 +29,8 @@ export const importInfoOf = (res, extra = {}) => ({
   notUsed: res.report.notUsed,
   warnings: res.report.warnings,
   units: res.units,
+  rateBasis: res.rateBasis || null,
+  daysOnUnit: res.daysOnUnit || null,
   ...extra,
 });
 
@@ -95,8 +97,9 @@ const ImportPanel = () => {
           </p>
           <p className="text-xs text-pl-muted mt-1">
             Any separator and decimal mark; columns found by name (date, well, oil, water, gas, water injected, gas
-            injected); units read from the header (bbl, Mbbl, sm3, Mscf, MMscf, 10^3 sm3, or a daily rate such as BOPD),
-            or chosen below.
+            injected, and producing days or hours); units read from the header (bbl, Mbbl, sm3, Mscf, MMscf, 10^3 sm3,
+            or a daily rate such as BOPD), or chosen below. With a producing-days column, rates are read per producing
+            day unless you choose calendar-day averages.
           </p>
         </div>
 
@@ -120,7 +123,17 @@ const ImportPanel = () => {
                           </select>
                         </td>
                         <td>
-                          {c.stream && idx !== undefined ? (
+                          {c.kind === 'days' && idx !== undefined ? (
+                            <span className="inline-flex flex-wrap gap-1">
+                              <select aria-label="Producing time unit" data-testid="vrr-days-on-unit" className="bg-pl-surface border border-pl-border rounded px-1" value={res.daysOnUnit || 'days'} onChange={(e) => setChoices((ch) => ({ ...ch, daysOnUnit: e.target.value }))}>
+                                {DAYS_ON_UNITS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+                              </select>
+                              <select aria-label="Rate basis" data-testid="vrr-rate-basis" className="bg-pl-surface border border-pl-border rounded px-1" value={choices.rateBasis === 'calendar' ? 'calendar' : 'producing'} onChange={(e) => setChoices((ch) => ({ ...ch, rateBasis: e.target.value }))}>
+                                <option value="producing">rates per producing day</option>
+                                <option value="calendar">rates are calendar-day averages</option>
+                              </select>
+                            </span>
+                          ) : c.stream && idx !== undefined ? (
                             <select aria-label={`${c.label} unit`} data-testid={`vrr-unit-${c.key}`} className="bg-pl-surface border border-pl-border rounded px-1 max-w-[16rem]" value={res.units[c.key]} onChange={(e) => setUnit(c.key, e.target.value)}>
                               {DOOR_UNITS[c.stream].map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
                             </select>
