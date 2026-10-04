@@ -21,6 +21,7 @@ import DriveReferencePanel from '@/components/rfestimator/DriveReferencePanel';
 import ReportTab from '@/components/rfestimator/ReportTab';
 import SendToRcpPanel from '@/components/rfestimator/SendToRcpPanel';
 import UncertaintyPanel from '@/components/rfestimator/UncertaintyPanel';
+import DcaCheckPanel from '@/components/rfestimator/DcaCheckPanel';
 import RecoveryFactorHelpContent from '@/components/reservoir/RecoveryFactorHelpGuide';
 import { supabaseSharingStore } from '@/lib/recordSharing';
 import { RecordSharingBar } from '@/components/recordSharing';
@@ -107,6 +108,10 @@ const RfEstimatorContent = () => {
       <section>
         <SectionLabel>Recovery Summary</SectionLabel>
         <RfKpiPanel />
+      </section>
+      <section>
+        <SectionLabel>Cross-check</SectionLabel>
+        <DcaCheckPanel />
       </section>
       <section>
         <SectionLabel>Send</SectionLabel>

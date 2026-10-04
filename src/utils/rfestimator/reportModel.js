@@ -22,6 +22,7 @@ import { IDENTIFICATION_FIELDS } from './model.js';
 import { rfPvtSourceText } from './pvtIntake.js';
 import { inPlaceSourceText, driveSuggestion } from './inPlaceIntake.js';
 import { Z_METHOD_DAK, Z_REFERENCE, zMethodLabel } from './gasZ.js';
+import { dcaImpliedRf } from './dcaCrossCheck.js';
 
 export const REPORT_TITLE = 'Recovery Factor Report';
 export const APP_NAME = 'Petrolord Recovery Factor Estimator';
@@ -322,6 +323,22 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
     })(),
   ] : null;
 
+  // ---- RF-U2-014: decline EUR over in-place, a cross-check ------------------
+  let dcaCheck = null;
+  const imp = dcaImpliedRf(s.dcaCheck, { inPlace: derived.inPlace, phase: derived.phase, rf: r.rf });
+  if (imp) {
+    dcaCheck = {
+      head: ['Well', 'Decline Curve Analysis project', 'Data cut-off', 'EUR', 'Unit', 'Forecast ends at'],
+      rows: [
+        ...s.dcaCheck.items.map((i) => [i.wellName || EMPTY_VALUE, i.projectName || EMPTY_VALUE, i.cutoff || EMPTY_VALUE, big(i.eur), u.label(bigKind),
+          i.endReason === 'economic-limit' ? 'economic limit' : i.endReason === 'horizon' ? 'horizon' : (i.endReason || EMPTY_VALUE)]),
+        ['Sum of the wells taken', '', '', big(imp.eur), u.label(bigKind), ''],
+        [`EUR over ${ip}`, '', '', imp.impliedRf == null ? EMPTY_VALUE : pct(imp.impliedRf), 'percent', ''],
+      ],
+      note: `${imp.text} ${imp.vsEstimate || ''} Read by id as dca-forecast-1; oil volumes in bbl at stock-tank conditions are STB, gas volumes in Mscf are times 1,000 for scf.`.trim(),
+    };
+  }
+
   const who = [text(id.field), text(id.reservoir)].filter(Boolean).join(', ');
   return {
     u,
@@ -340,6 +357,7 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
     pvtBlock,
     inPlaceBlock,
     uncertainty,
+    dcaCheck,
     notes: text(id.notes),
     footerWho: who || text(projectName),
     caseState,

@@ -74,6 +74,7 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
   const u = useMemo(() => rfUnits(unitSystem), [unitSystem]);
   const [pvtIntake, setPvtIntake] = useState(null);
   const [inPlaceIntake, setInPlaceIntake] = useState(null);
+  const [dcaCheck, setDcaCheck] = useState(null); // RF-U2-014: decline forecasts taken as a cross-check
   const [migration, setMigration] = useState(null);
 
   // --- Derived analysis (pure functions of inputs) ---
@@ -133,6 +134,7 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
     setInputs(sampleInputs());
     setPvtIntake(null);
     setInPlaceIntake(null);
+    setDcaCheck(null);
     addNotification('Sample loaded: a water-drive oil case. Its values are labelled as sample values until you replace them.', 'success');
   }, [addNotification]);
 
@@ -148,10 +150,11 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
     unitSystem,
     pvtIntake,
     inPlaceIntake,
+    dcaCheck,
     // RF-U2-001: the rf-1 record of the estimate on screen, read by id by ReservoirCalc Pro
     rf: rfRecordOf({ inputs, derived, identification, inPlaceIntake }, { projectId: idOverride || currentProjectId, projectName: name }),
     modified: new Date().toISOString(),
-  }), [currentProjectId, inputs, identification, inputMeta, unitSystem, pvtIntake, inPlaceIntake, derived]);
+  }), [currentProjectId, inputs, identification, inputMeta, unitSystem, pvtIntake, inPlaceIntake, dcaCheck, derived]);
 
   const hydrate = useCallback((raw) => {
     const payload = migrateRfPayload(raw);
@@ -163,6 +166,7 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
     setUnitSystemSaved(payload.unitSystem === 'si' || payload.unitSystem === 'oilfield' ? payload.unitSystem : null);
     setPvtIntake(payload.pvtIntake || null);
     setInPlaceIntake(payload.inPlaceIntake || null);
+    setDcaCheck(payload.dcaCheck || null);
     const zNote = zKeptNote(raw);
     setMigration(payload.migratedFrom || zNote ? { from: payload.migratedFrom || null, note: payload.apiBasisNote || null, zNote } : null);
     return true;
@@ -307,7 +311,7 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [inputs, identification, inputMeta, unitSystemSaved, pvtIntake, inPlaceIntake, currentProjectId, hydrated, canWrite]);
+  }, [inputs, identification, inputMeta, unitSystemSaved, pvtIntake, inPlaceIntake, dcaCheck, currentProjectId, hydrated, canWrite]);
 
   const value = {
     // inputs + derived
@@ -333,6 +337,7 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
     unitSystem, setUnitSystem, u, profileSystem, followsProfile: unitSystemSaved == null && !!profileSystem,
     pvtIntake, takePvt,
     inPlaceIntake, takeInPlace, clearInPlaceIntake,
+    dcaCheck, setDcaCheck,
     migration,
     build,
     serialize,

@@ -75,6 +75,7 @@ export function stateOf(payload) {
       inputMeta: p.inputMeta || {},
       pvtIntake: p.pvtIntake || null,
       inPlaceIntake: p.inPlaceIntake || null,
+      dcaCheck: p.dcaCheck || null,
       migration: p.migratedFrom ? { from: p.migratedFrom, note: p.apiBasisNote || null } : null,
     },
   };
