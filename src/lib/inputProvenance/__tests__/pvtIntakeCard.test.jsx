@@ -12,7 +12,8 @@ import { goodOilBlackOil, matched, run } from '@/components/fluidstudio/__tests_
 const ws = run(matched(goodOilBlackOil()), { projectName: 'Good Oil Well No. 4 PVT' });
 const taken = pvtIntake(ws.handoff, WELLTEST_PVT_FIELDS);
 const asReceived = { ...taken.patch };
-const later = (contract, minutes) => ({ ok: true, contract: { ...contract, generated_at: new Date(Date.parse(contract.generated_at) + minutes * 60000).toISOString() } });
+// a re-save that changed what the block says (a re-save alone is no change: pvtIntakeCardFingerprint.test.jsx)
+const later = (contract, minutes) => ({ ok: true, contract: { ...contract, at_saturation: { ...contract.at_saturation, Bo: contract.at_saturation.Bo + 0.05 }, generated_at: new Date(Date.parse(contract.generated_at) + minutes * 60000).toISOString() } });
 
 describe('the card model', () => {
   it('names the source, the time, the model, the bubble point and the tuning, and each value with its method', () => {
@@ -35,10 +36,10 @@ describe('the card model', () => {
     expect(m.rows.find((r) => r.key === 'B').edited).toBe(true);
     expect(m.edited).toEqual(['Bo']);
   });
-  it('source changed since: the project was saved again after the intake; the values stay as received', () => {
+  it('source changed since: the project was saved again with other content after the intake; the values stay as received', () => {
     const m = pvtIntakeCardModel({ intake: taken.intake, current: asReceived, fields: WELLTEST_PVT_FIELDS, latest: later(ws.contract, 90) });
     expect(m.status).toBe('Source changed since');
-    expect(m.changedSince.text).toMatch(/saved again on 2026-10-02 10:30 UTC, after this intake \(2026-10-02 09:00 UTC\)/);
+    expect(m.changedSince.text).toMatch(/saved again on 2026-10-02 10:30 UTC and now differs: Bo at saturation .*the ones received \(2026-10-02 09:00 UTC\)/);
     expect(m.rows[0].received).toBe(asReceived.B);
     // negative control: the same block read again is no change
     expect(pvtIntakeCardModel({ intake: taken.intake, current: asReceived, fields: WELLTEST_PVT_FIELDS, latest: { ok: true, contract: ws.contract } }).changedSince).toBeNull();
@@ -60,6 +61,6 @@ describe('the card on the page', () => {
     expect(screen.getByTestId('pvt-intake-source').textContent).toMatch(/Good Oil Well No\. 4 PVT/);
     await waitFor(() => expect(screen.getByTestId('pvt-intake-status').textContent).toBe('Source changed since'), { timeout: 15000 });
     expect(readLatest).toHaveBeenCalledWith('fluid-project-1');
-    expect(screen.getByTestId('pvt-intake-changed').textContent).toMatch(/after this intake/);
+    expect(screen.getByTestId('pvt-intake-changed').textContent).toMatch(/now differs: Bo at saturation/);
   });
 });

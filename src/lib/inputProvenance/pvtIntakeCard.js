@@ -16,6 +16,57 @@ import { PVT1_PROPERTIES, PVT1_PB_SOURCES, pvtContractTuningText } from './pvtCo
 // the pvt-1 method row of each version-1 property a consumer takes
 const METHOD_OF = Object.freeze({ pb: 'pb', bo_at_pb: 'bo', mu_o_at_pb: 'mu_o' });
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
+const isRecord = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/**
+ * What a pvt-1 block says, without when it was said (SCAL U2 batch
+ * decision 2026-10-03, the SCAL-U1-023 fix carried here): the model, the
+ * bubble point source, the tuning state, the method of each property, the
+ * values at saturation and the inputs of the fluid model. Leaves out the
+ * save time, the build, the table, the identification and the range
+ * request, so a re-save of the same fluid has the same fingerprint. Works
+ * on the full block and on the summary a consumer stores.
+ */
+export function pvtContentFingerprint(block) {
+  if (!isRecord(block)) return null;
+  const numbers = (o) => Object.fromEntries(Object.entries(isRecord(o) ? o : {})
+    .filter(([, v]) => v == null || typeof v === 'number' || typeof v === 'string')
+    .sort(([a], [b]) => a.localeCompare(b)));
+  return {
+    model: block.model ?? null,
+    pb_source: block.pb_source ?? null,
+    tuning: block.tuning ? { status: block.tuning.status ?? null, kind: block.tuning.kind ?? null } : null,
+    methods: Object.fromEntries(Object.entries(isRecord(block.methods) ? block.methods : {})
+      .map(([k, m]) => [k, m?.method ?? null]).sort(([a], [b]) => a.localeCompare(b))),
+    at_saturation: numbers(block.at_saturation),
+    inputs: numbers(block.inputs),
+  };
+}
+
+const sameValue = (a, b) => {
+  if (finite(a) && finite(b)) return Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
+  return (a ?? null) === (b ?? null);
+};
+
+/** Words for each way the latest block differs from the one the consumer took, or [] when it says the same. */
+function fingerprintDifferences(taken, latest) {
+  const a = pvtContentFingerprint(taken);
+  const b = pvtContentFingerprint(latest);
+  if (!a || !b) return [];
+  const out = [];
+  if (!sameValue(a.model, b.model)) out.push(`the fluid model (now ${b.model}, was ${a.model})`);
+  if (!sameValue(a.pb_source, b.pb_source)) out.push(`the source of the bubble point (now ${PVT1_PB_SOURCES[b.pb_source] || b.pb_source}, was ${PVT1_PB_SOURCES[a.pb_source] || a.pb_source})`);
+  if (JSON.stringify(a.tuning) !== JSON.stringify(b.tuning)) out.push(`the tuning (now ${b.tuning?.status || 'none'}, was ${a.tuning?.status || 'none'})`);
+  for (const k of new Set([...Object.keys(a.methods), ...Object.keys(b.methods)])) {
+    if (!sameValue(a.methods[k], b.methods[k])) out.push(`the method of ${PVT1_PROPERTIES[k]?.label || k} (now ${b.methods[k] ?? 'none'}, was ${a.methods[k] ?? 'none'})`);
+  }
+  for (const [group, words] of [['at_saturation', 'at saturation'], ['inputs', 'input']]) {
+    for (const k of new Set([...Object.keys(a[group]), ...Object.keys(b[group])])) {
+      if (!sameValue(a[group][k], b[group][k])) out.push(`${k} ${words === 'input' ? `${b[group][k]} (input; was ${a[group][k]})` : `at saturation ${b[group][k]} (was ${a[group][k]})`}`);
+    }
+  }
+  return out;
+}
 const when = (iso) => (iso && !Number.isNaN(Date.parse(iso)) ? `${new Date(iso).toISOString().slice(0, 16).replace('T', ' ')} UTC` : null);
 
 /**
@@ -43,9 +94,17 @@ export function pvtIntakeCardModel({ intake, current = {}, fields = [], latest =
     return { key: f.key, label: f.label, received: received == null ? null : String(received), current: now == null ? null : String(now), edited, method };
   });
   const flags = (c?.range_flags || []).map((x) => x.text).filter(Boolean);
+  // "Source changed since" is about content: every save re-stamps the block
+  // (autosave too), so a later time alone is not a change. Compared: what
+  // the block says (pvtContentFingerprint), the stored summary against the
+  // block read again by id.
   let changedSince = null;
-  if (latest?.ok && latest.contract?.generated_at && from.at && Date.parse(latest.contract.generated_at) > Date.parse(from.at) + 1000) {
-    changedSince = { at: latest.contract.generated_at, text: `The source project was saved again on ${when(latest.contract.generated_at)}, after this intake (${when(from.at)}). The values here are the ones received; read the project again to take the new ones.` };
+  if (latest?.ok && latest.contract && c) {
+    const diffs = fingerprintDifferences(c, latest.contract);
+    if (diffs.length) {
+      const at = latest.contract.generated_at;
+      changedSince = { at, text: `The source project was saved again${when(at) ? ` on ${when(at)}` : ''} and now differs: ${diffs.join('; ')}. The values here are the ones received (${when(from.at)}); read the project again to take the new ones.` };
+    }
   }
   const edited = rows.filter((r) => r.edited).map((r) => r.label);
   let status = 'As received';
