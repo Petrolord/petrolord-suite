@@ -222,3 +222,20 @@ shared with Material Balance.
 | 4 | Uncertainty: build RF x in-place on the canonical Monte Carlo now (Batch A)? | Yes, seeded, exceedance convention, printed in the report |
 | 5 | A sender into ReservoirCalc Pro's recovery factor fields? | Yes (RF-U2-001); ReservoirCalc Pro keeps the value as received and says when it is edited |
 | 6 | PRMS categories with economics in this app? | No for NAPE: the app states "technically recoverable"; PRMS mapping stays in Batch C |
+
+## Batch decision (programme lead, 2026-10-04)
+
+Recorded verbatim.
+
+> Owner-question defaults in force: the darcy fix ships with a release note and project notes (the lead confirmed the darcy basis of Arps et al. 1967 as restated by Ahmed, and the exponents 0.1611/0.0979/0.3722/0.1741 and 0.0422/0.0770/-0.1903/-0.2159); analog ranges stay labelled "not validated" until a sourced table; RF's range table becomes the one Material Balance uses; Monte Carlo in Batch A; the RCP sender in Batch A; PRMS categories after NAPE.
+>
+> BUILD in this order, one commit per item:
+> - Batch A: RF-U2-001 an `rf-1` read-by-id contract and a sender into ReservoirCalc Pro (RCP takes RF with its method, basis and source, "source changed since"; RCP numbers unchanged unless the user takes it); RF-U2-002 RF x in-place uncertainty through the canonical Monte Carlo, seeded, seed and realisation count saved and printed, the Suite's exceedance convention stated (P90 low); RF-U2-003 gas z from the canonical Dranchuk-Abou-Kassem (before and after on the gas sample; saved projects keep their method with a note, as Well Test did); RF-U2-006 one band table shared with Material Balance (closes RF-U1-019; MBAL's displayed bands may move: state exactly what moves).
+> - Then: an eor-screen-1 reader (show the EOR screening result beside the RF estimate as context only) IF EOR U2 has merged it on main by the time you get there; otherwise record it for later.
+> - Batch B if time remains, in this order: RF-U2-008 drive suggested from Material Balance drive indices (suggestion only, the user picks); RF-U2-014 DCA EUR over OOIP as a cross-check (dca-forecast-1 by id; units checked); RF-U2-010 water-drive gas with Bga; RF-U2-012 one porosity, Swi and Boi per case; RF-U2-004 Guthrie-Greenberger 1955 only if you can read the source and validate a worked value; RF-U2-009 displacement x sweep from kr-1 (Welge displacement efficiency from the kr-1 set through the canonical waterflood engine; sweep a stated input).
+> - DEFERRED (record reasons): RF-U2-005 sourced analog table (unless you find and can read a citable public table: then build it, labelled by source), RF-U2-007, RF-U2-013 (owner: after NAPE), RF-U2-015, RF-U2-016.
+
+## Step 2 build (branch `feat/rf-u2`)
+
+| ID | State | Proving test |
+|---|---|---|
