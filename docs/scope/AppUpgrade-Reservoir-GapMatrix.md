@@ -304,6 +304,9 @@ three chart PNGs. No PDF, no ledger export.
 | RL11 | F | No intake and no sender. FVFs are not read from Fluid Systems Studio; the track runs the same correlations on locally typed fluid inputs. |
 | RL12 | Pa | Imported mode has no data export. |
 
+
+Corrections after Step 1 (VRR-U1, 2026-10-04): RL10 was F, not Pa. The importer called the best of the module held two S1: "Water Inj (bbl)" (a space) was dropped with no word, and a daily-rate column on monthly rows was summed as the month's volume. Comma decimals were worse than truncated ("1.234,5" read as 1.234), metric volumes and kPa pressures were read as oilfield, and day-first dates were guessed. Code reading also missed two S2 in the analysis: a blank FVF read as zero, and patterns ignoring the pressure track. Details in `docs/upgrade/VoidageReplacementMonitor-UPGRADE.md`.
+
 ### 4.10 Recovery Factor Estimator
 
 No export. Saves inputs to `saved_rf_projects`.

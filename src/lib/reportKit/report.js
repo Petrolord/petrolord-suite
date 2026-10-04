@@ -151,7 +151,8 @@ export function createReport({ title, appName = '', reportName, logo = null, str
    * `emptyValue` says otherwise (null leaves blanks blank). A table with no
    * rows is not printed; the return value says whether it was.
    */
-  const table = (tableTitle, head, body, { columnStyles, note, emptyValue = EMPTY_VALUE } = {}) => {
+  // fontSize: added in the VRR round (a ledger of ten numeric columns on a portrait page); default unchanged
+  const table = (tableTitle, head, body, { columnStyles, note, emptyValue = EMPTY_VALUE, fontSize = 8 } = {}) => {
     if (!body || !body.length) return false;
     const cell = (v) => text(emptyValue != null && isBlank(v) ? emptyValue : v);
     // keep a table with its heading and note on one page when it can fit on one
@@ -162,7 +163,7 @@ export function createReport({ title, appName = '', reportName, logo = null, str
       head: [head.map(text)],
       body: body.map((row) => row.map(cell)),
       theme: 'grid',
-      styles: { fontSize: 8, overflow: 'linebreak' },
+      styles: { fontSize, overflow: 'linebreak' },
       headStyles: { fillColor: NAVY },
       columnStyles,
       margin: { left: LEFT, right: LEFT },

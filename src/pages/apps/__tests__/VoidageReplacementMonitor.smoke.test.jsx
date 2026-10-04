@@ -119,7 +119,7 @@ describe('VoidageReplacementMonitor page', () => {
 
     // Pressure-track mode reveals fluid inputs and flags the chart title.
     fireEvent.click(screen.getByRole('button', { name: /Pressure track/i }));
-    expect(screen.getByText(/Oil API/i)).toBeInTheDocument();
+    expect(screen.getByText(/Oil gravity/i)).toBeInTheDocument();
     expect(await screen.findByText(/pressure-dependent FVFs active/i)).toBeInTheDocument();
   });
 

@@ -15,7 +15,7 @@ import { useVrrMonitor } from '@/contexts/VrrMonitorContext';
 const LINE = { inst: '#2563eb', cum: '#059669', pressure: '#7c3aed', ref: '#dc2626', fill: '#0891b2' };
 
 const PressureChartPanel = () => {
-  const { series, hasPressure, fillUp, trackActive } = useVrrMonitor();
+  const { series, hasPressure, fillUp, trackActive, pvt, u, withheld } = useVrrMonitor();
 
   const chartData = useMemo(
     () =>
@@ -23,12 +23,12 @@ const PressureChartPanel = () => {
         .filter((r) => r.producedVoidage > 0 || r.pressure != null)
         .map((r) => ({
           label: r.label || `P${r.index + 1}`,
-          instantaneous: r.instantaneousVRR != null ? Number(r.instantaneousVRR.toFixed(3)) : null,
-          cumulative: r.cumulativeVRR != null ? Number(r.cumulativeVRR.toFixed(3)) : null,
-          pressure: r.pressure != null ? Number(r.pressure.toFixed(1)) : null,
-          dpdt: r.dpdt != null ? Number(r.dpdt.toFixed(1)) : null,
+          instantaneous: !withheld && r.instantaneousVRR != null ? Number(r.instantaneousVRR.toFixed(3)) : null,
+          cumulative: !withheld && r.cumulativeVRR != null ? Number(r.cumulativeVRR.toFixed(3)) : null,
+          pressure: r.pressure != null ? Number(u.show('pressure', r.pressure).toFixed(1)) : null,
+          dpdt: r.dpdt != null ? Number(u.show('dpdt', r.dpdt).toFixed(1)) : null,
         })),
-    [series],
+    [series, u, withheld],
   );
 
   if (!hasPressure) {
@@ -46,7 +46,7 @@ const PressureChartPanel = () => {
       <CardHeader className="pb-2">
         <CardTitle className="text-base">
           VRR vs reservoir pressure
-          {trackActive && <span className="text-xs font-medium text-pl-info-text ml-2">pressure-dependent FVFs active</span>}
+          {trackActive && <span className="text-xs font-medium text-pl-info-text ml-2">pressure-dependent FVFs active ({pvt.mode === 'table' ? 'Fluid project table' : 'correlations'})</span>}
           {fillUp && (
             <span className="text-xs font-normal text-pl-muted ml-2">
               {fillUp.startedAbove ? 'record starts at or above fill-up' : `fill-up reached ${fillUp.label}`}
@@ -72,7 +72,7 @@ const PressureChartPanel = () => {
               stroke={LINE.pressure}
               tick={{ fill: LINE.pressure, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
               domain={['auto', 'auto']}
-              label={{ value: 'Pressure (psia)', angle: 90, position: 'insideRight', fill: LINE.pressure, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
+              label={{ value: `Pressure (${u.label('pressure')})`, angle: 90, position: 'insideRight', fill: LINE.pressure, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
             />
             <Tooltip
               contentStyle={TOOLTIP_STYLE}
@@ -81,7 +81,7 @@ const PressureChartPanel = () => {
               formatter={(value, name, item) => {
                 if (item?.dataKey === 'pressure') {
                   const d = item?.payload?.dpdt;
-                  return [`${value} psia${d != null ? ` (dp/dt ${d} psi/mo)` : ''}`, name];
+                  return [`${value} ${u.label('pressure')}${d != null ? ` (dp/dt ${d} ${u.label('dpdt')})` : ''}`, name];
                 }
                 return [value, name];
               }}

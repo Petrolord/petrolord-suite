@@ -4,10 +4,11 @@ import { Info } from 'lucide-react';
 import { useVrrMonitor } from '@/contexts/VrrMonitorContext';
 import { StatTile } from '@/components/ui/stat-tile';
 import { THEMED_TONE } from '@/components/studio/studioTheme';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { statusAgainstBand } from './vrrBand';
 
 const fmt = (v, d = 0) =>
-  v == null || !Number.isFinite(v) ? '-' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
+  v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
 
 // Each KPI is the shared StatTile (mono value, muted unit); the headline
 // tile keeps a primary outline.
@@ -16,9 +17,9 @@ const Kpi = ({ title, value, unit, accent }) => (
 );
 
 const VrrKpiPanel = () => {
-  const { summary, rolling, flags, targetBand, isImported, ledgerWells, worstPattern } = useVrrMonitor();
+  const { summary, rolling, flags, targetBand, isImported, ledgerWells, worstPattern, u, withheld, ledger } = useVrrMonitor();
   const status = statusAgainstBand(summary?.cumulativeVRR ?? null, targetBand);
-  const latestRolling = rolling.length ? rolling[rolling.length - 1] : null;
+  const latestRolling = rolling.length && !withheld ? rolling[rolling.length - 1] : null;
   const flagged = flags.filter((f) => f != null);
   const outOfBand = flagged.filter((f) => f !== 'in-band').length;
 
@@ -28,7 +29,7 @@ const VrrKpiPanel = () => {
         <Info className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
         <div>
           <div className="font-semibold text-sm">Voidage status (cum. VRR = {fmt(summary?.cumulativeVRR, 2)})</div>
-          <div className="text-xs opacity-90" data-testid="vrr-status">{status.label}</div>
+          <div className="text-xs opacity-90" data-testid="vrr-status">{withheld || status.label}</div>
           {status.screen && <div className="text-[11px] opacity-70 mt-1">{status.screen}</div>}
         </div>
       </div>
@@ -37,11 +38,14 @@ const VrrKpiPanel = () => {
       <Kpi title="Latest Rolling VRR" value={fmt(latestRolling, 2)} />
       <Kpi
         title={`Vs target band ${targetBand.min.toFixed(2)} to ${targetBand.max.toFixed(2)}`}
-        value={flagged.length ? `${outOfBand} / ${flagged.length}` : '-'}
+        value={flagged.length ? `${outOfBand} / ${flagged.length}` : EMPTY_VALUE}
         unit={flagged.length ? 'periods out' : ''}
       />
-      <Kpi title="Total Produced Voidage" value={fmt(summary?.totalProducedVoidage)} unit="RB" />
-      <Kpi title="Total Injected Voidage" value={fmt(summary?.totalInjectedVoidage)} unit="RB" />
+      <Kpi title="Total Produced Voidage" value={fmt(u.show('reservoir', summary?.totalProducedVoidage))} unit={u.label('reservoir')} />
+      <Kpi title="Total Injected Voidage" value={fmt(u.show('reservoir', summary?.totalInjectedVoidage))} unit={u.label('reservoir')} />
+      {summary && ledger.totals.freeGasRB > 0 && (
+        <Kpi title="Free gas in produced voidage" value={fmt(u.show('reservoir', ledger.totals.freeGasRB))} unit={u.label('reservoir')} />
+      )}
       {isImported && (
         <Kpi title="Wells" value={`${ledgerWells.producers.length} prod / ${ledgerWells.injectors.length} inj`} />
       )}

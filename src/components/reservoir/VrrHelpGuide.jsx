@@ -2,7 +2,7 @@
 // VRR upgrade re-housed this from a standalone Dialog).
 import React from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { BookOpen, Droplets, Table2, LineChart, Scale, Upload, AlertTriangle, FolderOpen, Gauge, Network } from 'lucide-react';
+import { BookOpen, Droplets, Table2, LineChart, Scale, Upload, AlertTriangle, FolderOpen, Gauge, Network, FileText, Ruler, FlaskConical } from 'lucide-react';
 
 const helpContent = [
   {
@@ -15,16 +15,30 @@ const helpContent = [
   {
     id: 'projects',
     icon: FolderOpen,
-    title: 'Projects and auto-save',
+    title: 'Projects, sharing and auto-save',
     content:
-      'Use the Project selector in the left rail to create a project. Once a project is open, your fluid properties and period table auto-save about 10 seconds after each change, and the save indicator in the header shows when the last save happened. Click the indicator to save immediately. Reopening the app restores the project exactly as you left it.',
+      'Use the Project selector in the left rail to create a project. Once a project is open, everything you enter auto-saves about 10 seconds after each change, and the save indicator in the header shows when the last save happened. Click the indicator to save immediately. Projects your colleagues share with the organisation are listed under Shared with me: one shared for viewing opens read-only (Save a copy makes your own), one shared for editing can be checked out by one person at a time from the sharing bar. Material Balance Studio reads the pressure surveys of a saved project by its id, so delete a project only when no case uses it. Projects travel in a .pld project package.',
   },
   {
     id: 'pvt',
     icon: Droplets,
     title: 'Step 1: Set PVT / formation volume factors',
     content:
-      'All volumes are converted to reservoir barrels (RB) before the ratio is taken, so the engine needs your fluid properties: Bo (oil FVF, RB/STB), Bw (water FVF, RB/STB), Bg (gas FVF, RB/Mscf) and Rs (solution GOR, scf/STB). These are the defaults and they apply to every period unless you override them. Where fluid properties have moved over the life of the record, switch on the PVT override columns in the period grid and give a period its own Bo, Bw, Bg and Rs; any period you leave blank falls back to the defaults above. Solution gas (Rs times Np) is already carried in Bo, so only free produced gas above solution adds to voidage; the engine subtracts it automatically.',
+      'All volumes are converted to reservoir volume before the ratio is taken, so the analysis needs Bo (oil FVF), Bw (water FVF), Bg (gas FVF, RB/Mscf in oilfield units) and Rs (solution GOR). This constant set applies to every period unless you override it. A blank or mistyped value (for example 1,25) stops the VRR and says why; it is never read as zero. Click "State where these values came from" to record a source (lab, correlation, offset well, assumed) and a note for each; the report prints it, and a starting value nobody changed prints as an assumption. Where fluid properties have moved over the life of the record, switch on the PVT override columns in the period grid and give a period its own Bo, Bw, Bg and Rs; any period you leave blank falls back to the constant set. Solution gas (Rs times Np) is already carried in Bo, so only free produced gas above solution adds to voidage; the engine subtracts it automatically.',
+  },
+  {
+    id: 'fluid',
+    icon: FlaskConical,
+    title: 'FVFs from a Fluid Systems Studio project',
+    content:
+      'Under the constant set, choose a saved Fluid Systems Studio project (or open the app with ?fluidProject= and its id) and click Take the PVT table. The app keeps the table of the pvt-1 block with this project (Bg converted from RB/scf to RB/Mscf), fills the constant set at the pressure you state (blank: the bubble point) and switches the FVF mode to Fluid table: each period with a pressure then takes its Bo, Bw, Bg and Rs from the table at that pressure. A period outside the table keeps the constant set and is named; the table is never extrapolated. The intake card says where the fluid came from, the method of each value, "Edited after intake" when you change a value, and "Source changed since" when the Fluid project now says something different; Read it again takes the new block.',
+  },
+  {
+    id: 'units',
+    icon: Ruler,
+    title: 'Units',
+    content:
+      'The Oilfield and SI switch in the header changes every field, table, chart, report and CSV: STB, bbl, Mscf, RB and psia, or sm3, 10^3 sm3, rm3 and kPa. A new project opens in the system of your Suite unit profile; a saved project keeps its own. Values are saved in oilfield units whatever you display, so other apps that read the project (Material Balance reads its pressure surveys) always get psia. In SI, Bo and Bw keep their number (rm3/sm3) and Bg is 0.0056146 times its RB/Mscf value.',
   },
   {
     id: 'periods',
@@ -45,7 +59,7 @@ const helpContent = [
     icon: Gauge,
     title: 'Pressure tab: the maintenance proof',
     content:
-      'VRR is a means to an end; the end is reservoir pressure. On the Pressure tab, enter or import pressure surveys (date and psia) and the app interpolates them onto each period, overlays pressure on the VRR trend, shows dp/dt in the tooltip, and marks fill-up where cumulative VRR first reaches 1. A VRR near 1 with steady pressure is the proof of pressure maintenance; a VRR near 1 with falling pressure suggests out-of-zone injection or unaccounted voidage. With Pressure track mode on, Bo, Bw, Bg and Rs are derived per period from black-oil correlations at the interpolated pressure. That matters most below the bubble point where gas properties move quickly. The chart is withheld with a stated reason until pressure actually attaches to your periods.',
+      'VRR is a means to an end; the end is reservoir pressure. On the Pressure tab, enter or import pressure surveys (date and psia) and the app interpolates them onto each period, overlays pressure on the VRR trend, shows dp/dt in the tooltip, and marks fill-up where cumulative VRR first reaches 1. A VRR near 1 with steady pressure is the proof of pressure maintenance; a VRR near 1 with falling pressure suggests out-of-zone injection or unaccounted voidage. Enter surveys as absolute average reservoir pressure, or import a table: the door reads the unit from the header (psia, psig, kPa, bar, MPa; a gauge reading gets the atmosphere added) and asks what the file cannot settle. State the datum depth the surveys are quoted at; it is printed, and no correction is applied. With Pressure track mode on, Bo, Bw, Bg and Rs are derived per period from black-oil correlations (Standing, Papay Z, McCain Bw) at the interpolated pressure, once every fluid input is typed; Fluid table reads them from a Fluid Systems Studio table instead. That matters most below the bubble point where gas properties move quickly. Patterns and their injection advice use the same per-period FVFs as the field. The chart is withheld with a stated reason until pressure actually attaches to your periods.',
   },
   {
     id: 'patterns',
@@ -66,21 +80,28 @@ const helpContent = [
     icon: Upload,
     title: 'Importing real field data (per-well CSV)',
     content:
-      'The Data & PVT tab imports real allocation files: one row per well per date (daily or monthly), with columns for date, well, oil, water and gas produced, and water and gas injected. Common header aliases are recognized (oil_bbl, np, bopd, water_inj, inj_bbl, gas_inj and more) and units auto-scale from the header (MMscf and Bscf to Mscf, Mbbl to bbl). Rows the importer cannot use are listed in the import report, so nothing is dropped silently. Daily rows aggregate to calendar months. Download the Template for the exact schema, or click Sample wells to load a worked 3-month, 4-well example. Wells that ever inject classify as injectors, including gas injectors.',
+      'The Data & PVT tab imports real allocation files: one row per well per date (daily or monthly), with columns for date, well, oil, water and gas produced, and water and gas injected, in any order. The import door reads any separator (comma, semicolon, tab) and either decimal mark, skips text above the table, totals rows and comment lines, and shows what it read before anything changes: each field\'s column, its unit and where the unit came from. A header that names injection (Water Inj, gas_injected, BWIPD) is always an injection column. Units come from the header (bbl, Mbbl, sm3, Mscf, MMscf, 10^3 sm3) or are chosen at the door; a column with no unit is read in your display units and said so. A daily rate (BOPD, Mscf/d) is turned into each row\'s volume by the days of its period: one day for daily rows, the calendar month for monthly rows. When nothing in the file settles whether 01/02/2025 is the 1st of February or the 2nd of January, the door asks. Rows left out are listed with the reason. Daily rows aggregate to calendar months. Download the Template for the schema, or click Sample wells to load a worked 3-month, 4-well example. Wells that ever inject classify as injectors, including gas injectors.',
   },
   {
     id: 'data',
     icon: Table2,
     title: 'Manual entry, sample and export',
     content:
-      'Without an import, enter monthly field totals directly in the period grid. Click Sample to load a 6-month waterflood dataset, Export to download the grid as CSV, and Import on the grid toolbar to load that same format back in (columns: label, Np, Wp, Gp, Wi, Gi). When a per-well import is active, the grid is replaced by the read-only monthly ledger; clear the import to return to manual entry.',
+      'Without an import, enter monthly field totals directly in the period grid; label periods YYYY-MM so they carry a date (pressure surveys and the calendar figures need it). Click Sample to load a 6-month waterflood dataset, Export to download the grid with the units in its headers, and Import on the grid toolbar to load that same format back in. When a per-well import is active, the grid is replaced by the read-only monthly ledger; clear the import to return to manual entry.',
+  },
+  {
+    id: 'report',
+    icon: FileText,
+    title: 'Report tab: the PDF and the ledger CSV',
+    content:
+      'The Report tab holds the identification a reviewer signs against (company, field, licence, reservoir, pattern area, data source, analyst) and shows the report model: headline results, every input with its unit and source, the voidage ledger by period and by term (oil, water and free gas produced; water and gas injected; all in reservoir volume) closing on its totals, and the limits of the analysis. Export PDF prints that with the FVFs of every period, the patterns, the basis and conventions, and figures on a calendar axis (VRR with the 1.0 line and the target band, voidage by term, pressure history, rates, FVFs by period, pattern VRR); a figure that does not apply says why. Ledger CSV writes the same ledger with a provenance header.',
   },
   {
     id: 'assumptions',
     icon: AlertTriangle,
     title: 'Assumptions and limitations',
     content:
-      'VRR is a material-balance surveillance ratio. It does not replace a full reservoir simulation. It assumes your FVFs are representative for the period and that reported volumes are allocated correctly to this pattern or reservoir. It says nothing about sweep efficiency or where injected fluid actually goes; a VRR of 1 with poor conformance can still leave oil behind. Use it alongside pressure data and pattern analysis.',
+      'VRR is a material-balance surveillance ratio. It does not replace a full reservoir simulation. It assumes your FVFs are representative for the period and that reported volumes are allocated correctly to this pattern or reservoir. Free gas is computed per period at field (or pattern) level, so a well producing below its solution GOR offsets one producing free gas; injected water and gas are converted at the produced-water Bw and produced-gas Bg. Pressures are used as given at the datum you state; no correction to datum is applied. VRR says nothing about sweep efficiency or where injected fluid actually goes; a VRR of 1 with poor conformance can still leave oil behind, and a VRR of 1 with falling pressure points to out-of-zone injection or unmeasured voidage. Use it alongside pressure data and pattern analysis.',
   },
 ];
 

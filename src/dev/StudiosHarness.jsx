@@ -162,6 +162,8 @@ function useScalRows(app) {
   }
   // a Fluid project may have been saved on the Fluid harness since SCAL was first opened
   if (app === 'scal') storeFor('scal')[FLUID_TABLE] = loadFluidRows();
+  // VRR-U1: the Fluid projects of the tab, read by id for the pvt-1 intake
+  if (app === 'vrr') storeFor('vrr')[FLUID_TABLE] = loadFluidRows();
   useEffect(() => (app === 'scal' ? watchScalRows(storeFor('scal')) : undefined), [app]);
 }
 
