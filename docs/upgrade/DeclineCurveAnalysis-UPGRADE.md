@@ -424,9 +424,9 @@ merges: re-pin, regenerate the manifest, delete the rows.
 
 | Item | State | Proving test |
 |---|---|---|
-| U2-001 Modified hyperbolic, terminal decline Dmin | Done | engines `dca.modifiedHyperbolic.test.js` (14); Suite `dcaTerminalDecline.test.js` (8) |
+| U2-001 Modified hyperbolic, terminal decline Dmin | Done | engines `dca.modifiedHyperbolic.test.js` (14); Suite `dcaTerminalDecline.test.js` (9) |
 | U2-002 Rate against cumulative fitting | Done | engines `dca.rateCumulative.test.js` (11); Suite `dcaRateCum.test.js` (7) |
-| U2-004 Typed decline on a stated basis | Done | `declineInput.test.js` (44, SPEE REP #6 all 37 rows), `forecastScenarioDeclineBasis.test.js` (7) |
+| U2-004 Typed decline on a stated basis | Done | `declineInput.test.js` (43, SPEE REP #6 all 37 rows), `forecastScenarioDeclineBasis.test.js` (7) |
 | U2-008 Scenarios in the report | Done | `dcaReportScenarios.test.js` (3) |
 | U2-018 Forecast Scenario Hub report on the kit | Done | `forecastScenarioReport.test.js` (7, golden `hub-three-cases`) |
 | U2-013 Hub to EPE import keeps its source | Done | `epeHubIntake.test.js` (5) |
@@ -623,6 +623,17 @@ result equals the single-well path run by hand on the same window.
 - The downtime factor and batch fit have no published reference: they are
   arithmetic on the gated single-well path, checked by identity.
 - Nothing was run against live data or a customer file.
+
+### Samples and kit use
+
+- `/root/dca-report-sample.pdf` (7 pages): a synthetic b 1.3 well with
+  Dmin 8 %/yr effective, the rate-cumulative cross-check and three
+  scenarios. `/root/hub-report-sample.pdf` (4 pages): a set of three cases
+  (one entered with a secant-effective decline, one from DCA, the same with
+  10 percent downtime).
+- Both reports title their flags block for what it holds (`flagsTitle`,
+  added to the kit by the SCAL round): "Flags on this analysis" and "Flags
+  on this set". No change to the kit; Well Test goldens byte-identical.
 
 ### Release note
 
