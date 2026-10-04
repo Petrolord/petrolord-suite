@@ -190,3 +190,19 @@ slugs (`nodal-analysis-studio`, `nodal-analysis-engine`,
 `nodal-performance-optimizer`) are in `src/design/rollout/w2d.js`. Test:
 `src/pages/apps/__tests__/NodalAnalysisStudio.theme.test.jsx`. No engine
 or calculation change.
+
+## 2026-10-04: SI typing fix, WTA-U1-021 (branch `fix/nodal-si-typing`)
+
+- Defect: under SI, every `UnitField` re-rendered the stored oilfield value
+  converted back on each key, so the decimal point vanished ("13.7" m of
+  node depth was stored as 137 m; "0.5" kPa as 5 kPa). Found in the Well
+  Test round (WTA-U1-017 there).
+- Fix: `useUnitDraft` in `src/components/nodalstudio/primitives.jsx` keeps
+  the typed text while it is the source of the stored value; the converted
+  value shows again on blur or when the value changes from elsewhere. Same
+  pattern as Well Test's hook (not yet on main, so written locally).
+- Covers all 26 converted Nodal inputs: every one goes through `UnitField`
+  (InputCards 18: fluid, inflow, well, completion; Panels 8: traverse,
+  sensitivity, gas lift, choke). No other Nodal input converts units.
+- Gate: `src/components/nodalstudio/__tests__/unitTyping.test.jsx`
+  (11 tests; 10 failed on the old code, all pass now).
