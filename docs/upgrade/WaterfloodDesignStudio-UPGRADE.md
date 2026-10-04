@@ -13,8 +13,9 @@ Read first: `docs/scope/AppUpgrade-Reservoir-PLAN.md`,
 `docs/scope/WaterfloodDesignStudio-STATUS.md`.
 
 - Harness: `/dev/studio/waterflood` (in-memory Supabase double).
-- Status: Step 1 done 2026-10-04; Step 2 Batch A building on `feat/waterflood-u2`
-  (worktree `/root/wt-res-wf2`), see section 9.
+- Status: Step 1 done 2026-10-04; Step 2 built 2026-10-04 on `feat/waterflood-u2`
+  (worktree `/root/wt-res-wf2`): Batch A (nine-spot not built) and Batch B
+  006 and 008, see section 9. Engines PR #306 (not merged).
 
 ## 1. Step 1 checks
 
@@ -280,3 +281,33 @@ Recorded verbatim:
 | WF-U2-014 | Done (closes WF-U1-021, WF-U1-023) | Each Monte Carlo parameter carries its unit kind (`UNCERTAINTY_PARAMS[].kind`, `name`); the Uncertainty tab shows and takes min, mode, max, mean and standard deviation in the display units through the unit-aware field, and the config stays oilfield (every kind converts by a factor, so a standard deviation converts as a value). The tornado names the parameters without a unit (a rank correlation has none). The layer thickness cells use a new label-less `UInput` primitive that keeps the SI draft ("2.") while the stored ft follows each complete number. The help no longer says the distributions are oilfield only. | `wfSiInputs.test.jsx` (6): pinned conversions (40 acres = 16.1874256896 ha, 25 ft = 7.62 m, 800 RB/d = 127.18983594 rm3/d, FVF and viscosity unchanged); a stored triangular shown in ha and a typed 20 ha stored as 49.42 acres; oilfield unchanged; a standard deviation 2.5 ft shown 0.762 m; the SI layer cell keeps "2." and stores 2.5 m as 8.2021 ft. Negative control: the old cell drops the decimal point. |
 | WF-U2-006 | Done (Batch B) | `src/utils/waterflooddesign/chanWindows.js`: the engine's late-time window (the last 40 percent of the points, WOR' > 0) reproduced and shown, shaded on the plot, its log-log slope with the 95 percent interval of the engine's `olsLine`; a window chosen in days since water onset (the plot's own time axis) with a required reason, kept per series (`chanWindows`, 'field' or a producer), the mechanism decided again by the engine's `classifyChan`. Report: a Chan table (window, points, slope, interval, indicative reading) and a log-log Chan figure per series with the window shaded and its fitted line (the report printed no Chan result before); a limits flag when the slope interval spans both regimes. **Goldens change deliberately** (reviewer: the Chan table, three figures, three "not resolved" flags: the sample's 90-day history cannot separate the regimes). | `wfChanWindows.test.js` (5): the known case WOR = 0.01 t^2 to day 85 then t^0.5 through `analyzeWaterflood`: the engine slope reproduced to 1e-12 with its interval; a window on the late segment reads about -0.5 and coning, on the early segment about +1 and channeling; refusals; the report rows and figures. Negative control: the engine window straddles the change and misses -0.5. e2e U2-006. |
 | WF-U2-008 | Done (Batch B; surveillance only) | Engines-first (same engines PR #306, second commit; `vrr.js` untouched): `computeFieldVRR` takes `config.fvf_by_date`. App `src/utils/waterflooddesign/fvfTrack.js`: dated reservoir pressure surveys (typed on the Surveillance tab in the display pressure unit, or taken with a VRR Monitor ledger, whose `vrr-ledger-1` now carries them), pressure linear in time between surveys and held outside them, Bo, Bw, Bg (RB/scf to RB/Mscf through the registry) and Rs read from the pvt-1 table now kept with the intake (`trackTable`), never extrapolated: a pressure outside the table refuses the track by name and the single set is used and flagged. An intake taken before keeps no table and says "take it again". Report: the basis row says so, a table "Formation volume factors by period" (first, last and survey dates), a flag when asked and not applied. The pattern forecast keeps one PVT pressure (owner default). | `wfFvfTrack.test.js` (5): the voidage with the track equals the VRR core's `computePeriodVoidage` day by day at each day's FVF read with `tableAt`, times the engine's calendar weight, to 1e-12; interpolation and holding; the report basis and table; refusals; VRR surveys travel. Negative control: the single set misses by more than 1e-3. Engine `waterflood.wfu2fvf.test.js` (3): equals `computeVRRSeries` with per-period overrides to 1e-12; a track equal to the single set is bit-identical. e2e U2-008. |
+
+### Deferred, with reasons
+
+| ID | Why not now |
+|---|---|
+| WF-U2-002 nine-spot | No published nine-spot areal sweep correlation could be read here: Ahmed (3rd ed.) cites Muskat's nine-spot theory and gives no usable form; Kimbler, Caudle and Cooper (1964) and Craig's monograph charts sit behind paywalls. A chart digitised from memory is not a validation. The selector says so. |
+| WF-U2-004 VRR side | The "Send to Waterflood Design Studio" link in VRR Monitor (a `?vrrProject=<id>` deep link the Waterflood side already reads) waits for VRR U1 (#874), which is rewriting VRR Monitor's files; adding it now would conflict. The Waterflood side lists the VRR projects itself, so the exchange works without it. |
+| WF-U2-007 | Heterogeneity index plot: Batch B, not chosen (lead decision 2026-10-04). |
+| WF-U2-009 | Craig-Geffen-Morse prediction: Batch B, not chosen. Now has a published worked example in reach (Ahmed Example 14-11 is a CGM case), which would make it a strong cross-check later. |
+| WF-U2-012 | Initial gas oil in place and the fill-up oil bank: Batch B, not chosen; the limits flag of WF-U1-019 stays. |
+| WF-U2-010 | Deck to Reservoir Simulation Studio: goes to the Simulation round. |
+| WF-U2-011 | Bubble map: needs well coordinates from the wells registry; Batch C. |
+| WF-U2-013 | Bottomhole correction of the injection pressure: needs a stated well (depth, tubing); Batch C. |
+| WF-U2-015 | Multi-pattern field: Batch C. |
+
+### What changes numbers (Step 2)
+
+- No saved project moves on opening: a project without a pattern is a five-spot (the series are the same, gate), the flood start, Hall and Chan windows, the seed and the FVF track are all new and blank by default, and the Monte Carlo fingerprint of saved projects is unchanged.
+- The Waterflood report gains rows and pages by design: a "Flood pattern" input row (every report), and a Chan table, one Chan figure per series and "not resolved" flags wherever surveillance data are loaded. Goldens regenerated deliberately (bare: one row; reviewer: the row, the Chan table, three figures, three flags).
+- Forecast Scenario Hub gains a case kind (profile); Arps cases, their report and the `fsh-case-1` contract of an Arps case are unchanged (hub goldens byte-identical). EPE: a new import; the cash-flow engine is unchanged (gate).
+- Engines: `forecastPattern` and `computeFieldVRR` defaults unchanged; NextGen and every other caller get the old numbers unless they ask (engines PR #306).
+
+### Where validation is weaker than asked (Step 2)
+
+- Line drives: Fassihi's coefficients are held as printed in Ahmed and the five-spot member of the same fit is checked against Willhite and Example 14-11; no published worked example of a line drive forecast was readable, so the line drive numbers are not held against a book answer. The mobility ratio basis of Fassihi's fit is not printed in Ahmed: the app uses Craig's M, the basis Ahmed's procedure applies to the areal sweep methods. The M range of 0.1 to 10 comes from secondary sources, not from the source read.
+- Example 14-11 is matched within 2 percent, not exactly: the book reads SwBT and the tangent off its plots; the engine interpolates the table linearly.
+- `wf-forecast-1` in the hub: day-for-day exact for whole-day steps; the monthly step (30.4375 days) is split by exact day fractions, so the hub cumulative at a step end equals the engine Np to 1e-6.
+- Hall and Chan windows: synthetic known cases and the engine's own fit; no published Hall or Chan interpretation reproduced.
+- FVF by period: held against the VRR core on a synthetic history; the pressure between surveys is an interpolation, stated.
+- The VRR exchange runs in one direction (VRR to Waterflood); the reverse (send the Waterflood history to VRR) was not built.
