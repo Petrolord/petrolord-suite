@@ -13,11 +13,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
-import { unitLabel, displayInputString, storeInputString } from '@/utils/welltest/units';
+import { unitLabel } from '@/utils/welltest/units';
 import {
   readGaugeTable, detectGaugeMapping, convertGaugeRows, PRESSURE_UNITS, TIME_UNITS, TEMPERATURE_UNITS, PWF_SOURCE_TEXT, gaugeTime,
 } from '@/utils/welltest/gaugeImport';
-import { SectionLabel, Field, UnitField, fmt, valueWithUnit } from './primitives';
+import { SectionLabel, Field, UnitField, UnitInput, fmt, valueWithUnit } from './primitives';
 import { IdentificationFields, CompletionFields, InputSourcesFields } from './ReportInputsFields';
 import PvtIntakeCard from '@/lib/inputProvenance/PvtIntakeCard';
 import { readFluidProjectPvt } from '@/lib/pvtSource';
@@ -212,8 +212,9 @@ const DataPanel = () => {
     reader.readAsText(file);
   };
 
+  // v arrives oilfield: the rate input converts (UnitInput)
   const setRate = (i, key, v) => setRateRows(rateRows.map((r, idx) => (idx === i
-    ? { ...r, [key]: key === 'q' ? storeInputString(rateKind, v, unitSystem) : v }
+    ? { ...r, [key]: v }
     : r)));
 
   return (
@@ -410,8 +411,8 @@ const DataPanel = () => {
           )}
           {rateRows.map((r, i) => (
             <div key={i} className="flex items-center gap-2">
-              <Input value={r.t} onChange={(e) => setRate(i, 't', e.target.value)} placeholder="Start hr" className="h-8" />
-              <Input value={displayInputString(rateKind, r.q, unitSystem)} onChange={(e) => setRate(i, 'q', e.target.value)} placeholder={unitLabel(rateKind, unitSystem)} className="h-8" />
+              <Input value={r.t} onChange={(e) => setRate(i, 't', e.target.value)} placeholder="Start hr" className="h-8" aria-label={`Start time, step ${i + 1} (hr)`} />
+              <UnitInput kind={rateKind} system={unitSystem} value={r.q} onChange={(v) => setRate(i, 'q', v)} placeholder={unitLabel(rateKind, unitSystem)} className="h-8" aria-label={`Rate, step ${i + 1}`} />
               <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-pl-muted" onClick={() => setRateRows(rateRows.filter((_, idx) => idx !== i))}>
                 <Trash2 className="w-4 h-4" />
               </Button>

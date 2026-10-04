@@ -148,3 +148,18 @@ test('PL3: a gas test runs on Dranchuk-Abou-Kassem by default, and the report na
   expect(pdf.flat).toMatch(/Dranchuk-Abou-Kassem z-factor/);
   expect(pdf.flat).toMatch(/Gas z-factor range Dranchuk-Abou-Kassem z-factor: Tpr/);
 });
+
+test('PL11 (WTA-U1-017): under SI a decimal typed key by key is kept, and the report converts it back', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openWithSample(page);
+  await page.getByRole('combobox', { name: 'Unit system' }).click();
+  await page.getByRole('option', { name: /SI \/ metric/ }).click();
+  const h = page.getByLabel('Net thickness h');
+  await h.fill('');
+  await h.pressSequentially('13.7', { delay: 40 });
+  await expect(h).toHaveValue('13.7');
+  await h.blur();
+  await expect(h).toHaveValue('13.7');
+  const pdf = await exportPdf(page, 'wta-u1-si-typing.pdf');
+  expect(pdf.flat).toMatch(/Net pay h 13\.7 m/);
+});

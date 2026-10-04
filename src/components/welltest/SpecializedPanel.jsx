@@ -9,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
-import { unitLabel, displayInputString, storeInputString } from '@/utils/welltest/units';
-import { SectionLabel, Field, UnitField, fmt } from './primitives';
+import { unitLabel } from '@/utils/welltest/units';
+import { SectionLabel, Field, UnitField, UnitInput, fmt } from './primitives';
 
 const SpecializedPanel = () => {
   const {
@@ -23,8 +23,9 @@ const SpecializedPanel = () => {
   const radial = regimes.find((r) => r.regime === 'radial');
   const rows = deliverabilityInputs.rows || [];
   const rowKind = (key) => (key === 'q' ? 'gasRate' : 'pressure');
+  // v arrives oilfield: the inputs convert (UnitInput)
   const setRow = (i, key, v) => setDeliverabilityRows(rows.map((r, idx) => (idx === i
-    ? { ...r, [key]: storeInputString(rowKind(key), v, unitSystem) }
+    ? { ...r, [key]: v }
     : r)));
 
   return (
@@ -100,8 +101,8 @@ const SpecializedPanel = () => {
               )}
               {rows.map((r, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <Input value={displayInputString('gasRate', r.q, unitSystem)} onChange={(e) => setRow(i, 'q', e.target.value)} placeholder={unitLabel('gasRate', unitSystem)} className="h-8" />
-                  <Input value={displayInputString('pressure', r.pwf, unitSystem)} onChange={(e) => setRow(i, 'pwf', e.target.value)} placeholder={`pwf ${unitLabel('pressureAbs', unitSystem)}`} className="h-8" />
+                  <UnitInput kind={rowKind('q')} system={unitSystem} value={r.q} onChange={(v) => setRow(i, 'q', v)} placeholder={unitLabel('gasRate', unitSystem)} className="h-8" aria-label={`Gas rate, point ${i + 1}`} />
+                  <UnitInput kind={rowKind('pwf')} system={unitSystem} value={r.pwf} onChange={(v) => setRow(i, 'pwf', v)} placeholder={`pwf ${unitLabel('pressureAbs', unitSystem)}`} className="h-8" aria-label={`Flowing pressure, point ${i + 1}`} />
                   <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-pl-muted" onClick={() => setDeliverabilityRows(rows.filter((_, idx) => idx !== i))}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
