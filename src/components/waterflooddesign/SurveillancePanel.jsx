@@ -13,6 +13,7 @@ import { Field, UField, SectionLabel } from './primitives';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PvtIntakePanel from './PvtIntakePanel';
 import VrrIntakePanel from './VrrIntakePanel';
+import FvfTrackPanel from './FvfTrackPanel';
 
 const FLUID_FIELDS = [
   { k: 'bo', label: 'Bo', kind: 'fvfOil' },
@@ -175,6 +176,8 @@ const SurveillancePanel = () => {
       </section>
 
       <PvtIntakePanel target="surveillance" />
+
+      <FvfTrackPanel />
 
       <section data-testid="wds-pressure-basis">
         <SectionLabel>Injection pressure basis</SectionLabel>

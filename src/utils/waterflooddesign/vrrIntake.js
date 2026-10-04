@@ -48,6 +48,9 @@ export function surveillanceFromVrrLedger(contract, { at = new Date().toISOStrin
     'Monthly volumes per well from the VRR Monitor ledger, one row per well dated on the 1st of the month; rates are the volume over the days the row stands for, so volumes and VRR are those of VRR Monitor.',
     'No injection pressure in the ledger: no Hall plot from this source.',
   ];
+  // WF-U2-008: the VRR project's pressure surveys come along for FVF by period
+  const surveys = Array.isArray(contract.pressureSurveys) ? contract.pressureSurveys : [];
+  if (surveys.length) notes.push(`${surveys.length} reservoir pressure survey${surveys.length === 1 ? '' : 's'} of the VRR project taken for FVF by period (a month reads as its 1st).`);
   if (contract.totals?.ginj_mscf > 0) notes.push(`Gas injection of ${Math.round(contract.totals.ginj_mscf).toLocaleString('en-US')} Mscf in the ledger is not carried: the surveillance voidage has no gas injection term.`);
   const fvf = contract.fvf || {};
   const intake = {
@@ -61,7 +64,7 @@ export function surveillanceFromVrrLedger(contract, { at = new Date().toISOStrin
     fvfThere: { Bo: fvf.Bo ?? null, Bw: fvf.Bw ?? null, Bg: fvf.Bg ?? null, Rs: fvf.Rs ?? null },
     notes,
   };
-  return { ok: true, rows, intake };
+  return { ok: true, rows, intake, pressureSurveys: surveys.map((s) => ({ date: s.date.length === 7 ? `${s.date}-01` : s.date, p_psia: s.p_psia })) };
 }
 
 /** The read-back lines of an intake from VRR Monitor (the report and the panel print them). */

@@ -20,6 +20,7 @@ import { layeredFrom } from '@/utils/waterflooddesign/workspace';
 import { patternKeyOf } from '@/utils/waterflooddesign/patterns';
 import { applyHallWindows } from '@/utils/waterflooddesign/hallWindows';
 import { applyChanWindows } from '@/utils/waterflooddesign/chanWindows';
+import { surveillanceConfigWithTrack } from '@/utils/waterflooddesign/fvfTrack';
 
 export const WF_PROJECTS_TABLE = 'saved_waterflood_design_projects';
 
@@ -92,6 +93,9 @@ export const DEFAULT_SURVEILLANCE_CONFIG = {
   pressure_basis: 'wellhead',
   // WF-U1-007: the reservoir pressure at which a pvt-1 intake read the FVFs
   pvt_pressure: '',
+  // WF-U2-008: FVF by period from the pvt-1 table at each date's pressure
+  fvf_mode: 'constant', // 'constant' | 'by-period'
+  pressure_surveys: [], // [{date: 'YYYY-MM-DD', p_psia}]
 };
 
 // analyzeWaterflood expects numeric config; the studio keeps strings in form
@@ -278,11 +282,13 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
   const surveillanceResult = useMemo(() => {
     if (!surveillanceRows.length) return null;
     try {
-      return applyChanWindows(applyHallWindows(analyzeWaterflood(surveillanceRows, buildSurveillanceConfig(surveillanceConfig)), hallWindows), chanWindows);
+      const { config, track } = surveillanceConfigWithTrack(buildSurveillanceConfig(surveillanceConfig), surveillanceConfig, surveillanceRows, pvtIntake);
+      const r = applyChanWindows(applyHallWindows(analyzeWaterflood(surveillanceRows, config), hallWindows), chanWindows);
+      return track ? { ...r, fvfTrack: track } : r;
     } catch (e) {
       return { error: e.message || 'Surveillance analysis failed' };
     }
-  }, [surveillanceRows, surveillanceConfig, hallWindows, chanWindows]);
+  }, [surveillanceRows, surveillanceConfig, hallWindows, chanWindows, pvtIntake]);
 
   // ---- Uncertainty (Monte Carlo) run: on demand, results transient ----
   const runUncertainty = useCallback(async () => {

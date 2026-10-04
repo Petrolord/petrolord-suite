@@ -299,6 +299,19 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
     };
   }
 
+  // ---- FVF by period (WF-U2-008) ------------------------------------------------
+  let fvfTrack = null;
+  if (sr?.fvfTrack?.ok) {
+    const t = sr.fvfTrack;
+    const surveyDates = new Set(t.surveys.map((x) => x.date));
+    const keep = t.rows.filter((r, i) => i === 0 || i === t.rows.length - 1 || surveyDates.has(r.date));
+    fvfTrack = {
+      head: ['Date', u.head('Reservoir pressure', 'pressure'), u.head('Bo', 'fvfOil'), u.head('Bw', 'fvfOil'), u.head('Bg', 'fvfGas'), u.head('Rs', 'gor')],
+      rows: keep.map((r) => [r.date + (r.held ? ' (held)' : ''), g(u.show('pressure', r.p_psia), 5), g(u.show('fvfOil', r.Bo), 4), g(u.show('fvfOil', r.Bw), 4), r.Bg != null ? g(u.show('fvfGas', r.Bg), 4) : EMPTY_VALUE, r.Rs != null ? g(u.show('gor', r.Rs), 4) : EMPTY_VALUE]),
+      note: `The first and last dates of the history and the survey dates. Read by linear interpolation in the pvt-1 table of the intake (never extrapolated); Bg converted from RB/scf to RB/Mscf. ${t.held ? `${t.held} dates outside the surveys hold the nearest survey.` : ''}`.trim(),
+    };
+  }
+
   // ---- Hall windows ----------------------------------------------------------
   let hall = null;
   if (sr?.hall_plots?.length) {
@@ -343,7 +356,9 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
     ['Uncertainty', 'Monte Carlo through the canonical module (src/lib/monteCarlo.js), each realization rerunning the forecast; summary kept, realizations not kept'],
   ];
   const basis = [
-    ['Formation volume factors', 'Bo and Bw in reservoir barrels per stock-tank barrel (RB/STB); Bg in reservoir barrels per Mscf; one value for the whole history at the pressure stated with the intake'],
+    ['Formation volume factors', sr?.fvfTrack?.ok
+      ? `Bo and Bw in reservoir barrels per stock-tank barrel (RB/STB); Bg in reservoir barrels per Mscf. Surveillance: read from the pvt-1 table at each date's reservoir pressure (${sr.fvfTrack.rows.length} dates, ${g(sr.fvfTrack.pRange[0], 5)} to ${g(sr.fvfTrack.pRange[1], 5)} psia from ${sr.fvfTrack.surveys.length} surveys, linear in time, held outside them). Pattern forecast: one value at the pressure stated with the intake`
+      : 'Bo and Bw in reservoir barrels per stock-tank barrel (RB/STB); Bg in reservoir barrels per Mscf; one value for the whole history at the pressure stated with the intake'],
     ['Rates and volumes', 'Injection rate of the forecast in reservoir barrels per day; produced oil and water in stock-tank barrels; surveillance rates are daily rates as imported'],
     ['Water-oil ratio and water cut', 'Surface (STB/STB); the Dykstra-Parsons WOR is at reservoir conditions'],
     ['VRR', 'Reservoir barrels injected over reservoir barrels of voidage produced'],
@@ -367,6 +382,7 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
   const editedRows = inputs.filter((r) => /^Edited in this app after the intake/.test(r.source));
   if (editedRows.length) flags.push(`Edited after the intake: ${editedRows.map((r) => r.label).join(', ')}.`);
   if (mcState === 'stale') flags.push('The Monte Carlo summary was run on earlier inputs and does not describe this case.');
+  if (sc.fvf_mode === 'by-period' && sr?.fvfTrack && !sr.fvfTrack.ok) flags.push(`FVF by period was asked for and not applied: ${sr.fvfTrack.problems.join(' ')}`);
   // WF-U2-006: a Chan reading whose slope interval spans both regimes is not resolved
   for (const c of chanSeries) {
     const w = c.window || engineChanWindow(c.points);
@@ -422,6 +438,7 @@ export function buildWaterfloodReportModel(s, { projectName = '', organizationNa
     surveillance,
     hall,
     chan,
+    fvfTrack,
     layeredTable,
     model,
     basis,

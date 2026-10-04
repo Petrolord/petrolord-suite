@@ -23,7 +23,7 @@
 //   volumes                     [{ month, well, oil_stb, water_stb, gas_mscf, winj_stb, ginj_mscf }] per well per month
 //   totals                      field sums of the five volumes
 //   fvf                         the FVF set of the VRR project (Bo, Bw, Bg, Rs) as stored, for comparison
-//   pressureSurveys             count of dated surveys (Material Balance reads them; not carried here)
+//   pressureSurveys             the dated reservoir pressure surveys of the project [{date, p_psia}] (WF-U2-008)
 //   fingerprint
 import { fingerprint } from '@/utils/declineCurve/dcaModel';
 import { monthKeyOf, classifyLedgerWells } from '@/utils/vrrCalculations';
@@ -40,7 +40,7 @@ const n = (v) => {
 
 /** FNV-1a over what the ledger says (never over who sent it or when). */
 export function vrrLedgerFingerprint(c) {
-  return fingerprint({ projectId: c.projectId, wells: c.wells, months: c.months, volumes: c.volumes, fvf: c.fvf });
+  return fingerprint({ projectId: c.projectId, wells: c.wells, months: c.months, volumes: c.volumes, fvf: c.fvf, pressureSurveys: c.pressureSurveys });
 }
 
 /**
@@ -80,7 +80,9 @@ export function buildVrrLedgerContract({ projectId, projectName = null, projectS
     volumes,
     totals,
     fvf: { ...(inputs.fvf || {}) },
-    pressureSurveys: Array.isArray(inputs.pressureSurveys) ? inputs.pressureSurveys.length : 0,
+    pressureSurveys: (Array.isArray(inputs.pressureSurveys) ? inputs.pressureSurveys : [])
+      .map((s) => ({ date: String(s?.date ?? '').trim(), p_psia: Number(s?.p_psia) }))
+      .filter((s) => /^\d{4}-\d{2}(-\d{2})?$/.test(s.date) && Number.isFinite(s.p_psia) && s.p_psia > 0),
   };
   contract.fingerprint = vrrLedgerFingerprint(contract);
   return { ok: true, contract };

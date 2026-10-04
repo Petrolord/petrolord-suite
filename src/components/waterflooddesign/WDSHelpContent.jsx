@@ -116,6 +116,13 @@ const WDSHelpContent = () => (
         are decided again, and the report prints them as chosen with your reason. "Back to the thirds" clears them.
       </p>
       <p>
+        "FVF by period" reads Bo, Bw, Bg and Rs of the voidage from the PVT table of the Fluid Systems Studio intake at
+        each date's reservoir pressure, instead of one set for the whole history. Type the dated pressure surveys
+        (or take them with a VRR Monitor ledger); the pressure is linear in time between surveys and held at the
+        first and last outside them. A pressure outside the table is refused, never extrapolated, and the single
+        set is used. The pattern forecast keeps one pressure.
+      </p>
+      <p>
         The Chan plot shades the late-time window its reading comes from (by default the last 40 percent of the
         points) and prints the slope of WOR' with its 95 percent interval. Under the plot you can choose the window in
         days since water onset and give the reason; the reading is decided again on that window. The report prints a

@@ -335,3 +335,24 @@ test('U2-006 Chan window chosen in days with a reason; the slope carries its int
   await expect(page.getByTestId('chan-window')).toContainText('day 40 to 90, chosen: After the pattern balance in February');
   await page.screenshot({ path: path.join(OUT, 'u2-006-chan.png') });
 });
+
+test('U2-008 FVF by period: surveys typed, the PVT table of the intake read at each date', async ({ page }) => {
+  test.setTimeout(240000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await seedProjects(page);
+  await openApp(page);
+  await tab(page, 'Surveillance').click();
+  await page.getByRole('button', { name: 'Sample', exact: true }).click();
+  const panel = page.getByTestId('wds-pvt-intake-surveillance');
+  await panel.getByTestId('wds-fluid-project').selectOption(FLUID_ID);
+  await panel.getByTestId('wds-fluid-pressure').fill('2500');
+  await panel.getByTestId('wds-fluid-take').click();
+  await expect(panel.getByTestId('pvt-intake-status')).toHaveText('As received');
+  await page.getByTestId('wds-fvf-by-period').click();
+  await page.getByTestId('wds-pressure-surveys').fill('2024-01-01 2600\n2024-03-30 2300');
+  await page.getByTestId('wds-pressure-surveys').blur();
+  await expect(page.getByTestId('wds-fvf-track-status')).toContainText('at 90 dates, pressures 2300 to 2600 psi');
+  await page.screenshot({ path: path.join(OUT, 'u2-008-fvf.png') });
+  const pdf = await exportPdf(page, 'report-fvf-track.pdf');
+  expect(pdf.flat).toContain('Formation volume factors by period (surveillance)');
+});

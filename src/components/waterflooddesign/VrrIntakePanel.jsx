@@ -13,7 +13,7 @@ import { listVrrLedgers, getVrrLedger, compareVrrWithSource } from '@/utils/vrr/
 import { surveillanceFromVrrLedger, VRR_INTAKE_SOURCE } from '@/utils/waterflooddesign/vrrIntake';
 
 export default function VrrIntakePanel() {
-  const { setSurveillanceRows, setSurveillanceImport, surveillanceImport, addNotification, canWrite } = useWaterfloodDesign();
+  const { setSurveillanceRows, setSurveillanceImport, surveillanceImport, addNotification, canWrite, setSurveillanceField } = useWaterfloodDesign();
   const location = useLocation();
   const [list, setList] = useState(null);
   const [open, setOpen] = useState(false);
@@ -25,6 +25,7 @@ export default function VrrIntakePanel() {
     if (!got.ok) { addNotification(got.reason, 'error'); return; }
     setSurveillanceRows(got.rows);
     setSurveillanceImport(got.intake);
+    if (got.pressureSurveys.length) setSurveillanceField('pressure_surveys', got.pressureSurveys);
     setOpen(false);
     addNotification(`History taken from VRR Monitor project "${contract.projectName}": ${got.intake.months.count} months, ${got.rows.length} rows.`, 'success');
   };
