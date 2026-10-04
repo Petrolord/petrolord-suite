@@ -239,6 +239,15 @@ merged; vendored byte-identical with `welltest-u2` ledger rows meanwhile).
 
 ## Step 2 build log
 
+### U2-002 Changing wellbore storage, Hegeman first: done (engines-first, PR #311)
+
+- Engine `engines/welltest/models/changingStorage.js`: Fair's wellbore balance q_sf/q = 1 - C_D (dp_wD/dt_D - dp_phiD/dt_D) in Laplace space, p_w = p_sf (1 + C_D u^2 p_phi) / (1 + C_D u^2 p_sf), with p_sf any catalog model at cd = 0. Hegeman p_phiD = C_phiD erf(t_D/alpha_D) (Laplace C_phiD erfcx(u alpha_D/2)/u); Fair p_phiD = C_phiD (1 - exp(-t_D/alpha_D)). The user states C (final), Ci/C and alpha (hours); C_phiD follows from the early-time limit 1/C_iD = 1/C_D + dp_phiD/dt_D(0).
+- Catalog: composed ids `<model>+hegeman` and `<model>+fair` (`getModel`, `splitModelId`, `composeModelId`), so every reservoir model takes changing storage, the auto-fit fits Ci/C and alpha, and a fit on one storage model is not reported for another. Saved projects keep their plain ids.
+- Studio: Match tab "Wellbore storage" select; the Match tab, the Report tab and the PDF print Ci, C, C_phiD and alpha_D (`changingStorageRows`, one model in the context); the limits row names the model and its check.
+- Validation: the 1993 paper's type-curve values were not readable on this box (OnePetro). The model equations were read in Tobing (2008), Lemigas Scientific Contributions 31(2) 40-48, eqs. 2 to 7, which reproduce Fair and Hegeman. Gates (engines `welltest.changingStorage.test.js`, 9): an independent real-time oracle (Fair's balance solved as a Volterra equation, implicit step by step, sharing only the sandface response) within 1 percent at nine times from t_D 1 to 1e6 for three Hegeman cases (decreasing, the hump, skin 5) and one Fair case (observed worst 0.5 percent); C_phiD = 0 equals constant storage to rounding; the early unit slope sits on Ci and the late response on constant storage; erfcx against tabulated erfc; every catalog model composes; Ci/C = 1 reproduces the constant buildup; auto-fit round trip. Negative controls: the Fair kernel against the error-function oracle misses by more than 5 percent, a sign-flipped C_phiD by more than 50 percent.
+- Proving test (Suite): `wellTestU2.test.jsx` U2-002 (2): the studio's regression on a Hegeman buildup recovers k and Ci/C, the constant-storage fit leaves more than 20 times the residual (negative control), the PDF prints both storages and the reference, the composed id saves and opens.
+- Goldens: one sentence of the limits table changed on purpose in all six (the storage row now says the change can be matched); the .txt diff is that sentence only.
+
 ### U2-001 Fluid's pvt-1 table into gas tests: done
 
 - A pvt-1 handoff (router state or `?fluidProject=` by id) now carries its gas columns (pressure, Z, mu_g, ascending) into the project as `pvtIntake.gasTable` with the methods the block names, its span, temperature and range flags (`gasTableFromContract`, `pvtIntakeFromBackbone`). The project switches its gas PVT to the table (`reservoirInputs.gasPvtSource = 'fluid-table'`) and takes the block's temperature.

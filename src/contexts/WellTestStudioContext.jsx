@@ -23,7 +23,7 @@ import { provenanceFromPayload, setProvenanceField } from '@/lib/inputProvenance
 import {
   DEFAULT_IDENTIFICATION, DEFAULT_COMPLETION, resolveTotalCompressibility,
   buildSkinBreakdown, buildInputsTable, buildFlowSummary, buildIdentificationRows,
-  buildPressureBasisRows, buildDataUseRows, buildLimitsRows, pvtIntakeFromBackbone,
+  buildPressureBasisRows, buildDataUseRows, buildLimitsRows, pvtIntakeFromBackbone, changingStorageRows,
 } from '@/utils/welltest/reportModel';
 import { buildHistoryMatch, buildOverviewData, thinRows } from '@/utils/welltest/plotData';
 
@@ -871,6 +871,14 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     };
   }, [reservoirSpec, matchParams]);
 
+  // WTA-U2-002: the storage on both sides of a changing-storage match, for
+  // the Match tab, the Report tab and the PDF
+  const changingStorage = useMemo(() => {
+    const r = reservoirSpec.reservoir;
+    if (!r || !matchParams) return [];
+    return changingStorageRows({ model, params: matchParams, reservoir: r, groups: toDimensionlessGroups({ ...r, k: matchParams.k }), unitSystem });
+  }, [model, matchParams, reservoirSpec, unitSystem]);
+
   // ---- Auto-fit (on demand, transient result) ----
   const runAutoFit = useCallback(async () => {
     if (isFitting) return;
@@ -1297,7 +1305,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     reservoirSpec, configSpec, model,
     prepared, loglog, regimes, flowPeriods, pseudoTime, rtaResult,
     autoSemilogWindow, semilogWindowSource, matchKpis, sqrtMeaningful,
-    matchParams, modelSeries,
+    matchParams, modelSeries, changingStorage,
     semilogResult, pssResult, sqrtResult, derivedKpis,
     multiRateResult, deliverabilityResult,
     // report model and shared plot series (tester round 2)

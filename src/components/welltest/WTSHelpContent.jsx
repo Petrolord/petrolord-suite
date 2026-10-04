@@ -308,6 +308,18 @@ const WTSHelpContent = () => (
       prints the table, its span and its source, and checks the test pressures against the span.
     </P>
 
+    <H>Changing wellbore storage</H>
+    <P>
+      On the Match tab, Wellbore storage chooses Constant, Changing (Hegeman) or Changing (Fair). The two changing
+      models work with every reservoir model and add two parameters: Ci/C, the initial apparent storage over the final
+      storage C, and the change time in hours. Ci/C above 1 is decreasing storage: the pressure change climbs from a
+      lower unit-slope line to a higher one and the derivative rises above the unit slope. Below 1 the phase
+      redistribution pressure can overshoot, which is the hump of a gas-cut well after shut-in. Hegeman, Hallford and
+      Joseph (1993) use an error function for the change and Fair (1981) an exponential; Hegeman's is sharper and is
+      the usual first choice. Auto-fit fits both new parameters with the rest. The report prints Ci, C and the
+      dimensionless C_phiD and alpha_D.
+    </P>
+
     <H>Conventions</H>
     <P>
       Display units follow the selector on the Data tab, in either oilfield (md, ft, cp, psi, STB/D, RB/STB, hours) or

@@ -140,3 +140,55 @@ describe('WTA-U2-001: a gas test takes the Fluid Systems Studio pvt-1 table', ()
     studio.unmount();
   }, 600000);
 });
+
+describe('WTA-U2-002: changing wellbore storage (Hegeman) in the studio', () => {
+  const { getModel, evaluateBuildup } = require('@/utils/welltest/models/modelCatalog');
+  const reservoir = { h: 45, phi: 0.18, rw: 0.354, B: 1.25, mu: 0.9, ct: 0.000012, q: 450, pi: 4800 };
+  const truth = { k: 85, skin: 6.5, C: 0.015, ciOverC: 4, alpha: 0.05 };
+  const hegemanBuildup = () => {
+    const dts = Array.from({ length: 60 }, (_, i) => Math.pow(10, -3 + (4.6 * i) / 59));
+    const pts = evaluateBuildup({ model: getModel('homogeneous+hegeman'), params: truth, reservoir, tp: 36, dts });
+    return { rows: pts.map((p) => ({ t: p.dt, p: p.pws })), pwf: pts.pwfAtShutIn };
+  };
+
+  test('the regression on a Hegeman buildup recovers Ci/C and alpha; the constant-storage fit is far worse (negative control); the report states both storages', async () => {
+    const { rows, pwf } = hegemanBuildup();
+    const studio = await sample((c) => {
+      c.setGaugeRows(rows);
+      c.setTestField('pwfShutIn', pwf.toFixed(3));
+    });
+    await studio.act((c) => c.setMatchField('modelId', 'homogeneous'));
+    await studio.act((c) => c.runAutoFit());
+    const constant = studio.ctx.fitResult;
+    await studio.act((c) => c.setMatchField('modelId', 'homogeneous+hegeman'));
+    expect(studio.ctx.model.parameters.map((p) => p.key)).toEqual(['k', 'skin', 'C', 'ciOverC', 'alpha']);
+    await studio.act((c) => { c.setMatchField('ciOverC', '2'); c.setMatchField('alpha', '0.1'); });
+    await studio.act((c) => c.runAutoFit());
+    const fit = studio.ctx.fitResult;
+    expect(fit.modelId).toBe('homogeneous+hegeman');
+    expect(fit.params.k / truth.k).toBeCloseTo(1, 1);
+    expect(fit.params.ciOverC / truth.ciOverC).toBeCloseTo(1, 0);
+    expect(fit.ssr * 20).toBeLessThan(constant.ssr);
+    const t = flat(readPdf(build(studio.ctx).doc).text);
+    expect(t).toMatch(/changing storage \(Hegeman\)/);
+    expect(t).toMatch(/Changing wellbore storage/);
+    expect(t).toMatch(/Hegeman, Hallford and Joseph \(1993\)/);
+    const ci = t.match(/Initial storage Ci \(bbl\/psi\) ([\d.e-]+)/);
+    const c = t.match(/Final storage C \(bbl\/psi\) ([\d.e-]+)/);
+    expect(Number(ci[1]) / Number(c[1])).toBeCloseTo(fit.params.ciOverC, 2);
+    // the composed id travels with the project and opens again
+    const saved = studio.ctx.serializeInputs();
+    expect(saved.matchInputs.modelId).toBe('homogeneous+hegeman');
+    await studio.act((cc) => cc.importProjectPayload(saved));
+    expect(studio.ctx.model.id).toBe('homogeneous+hegeman');
+    studio.unmount();
+  }, 900000);
+
+  test('the limits row names the storage model; constant storage says the change can be matched', async () => {
+    const studio = await sample();
+    expect(studio.ctx.limitsRows.find((r) => r[0] === 'Wellbore storage')[1]).toMatch(/Constant wellbore storage\. A storage change/);
+    await studio.act((c) => c.setMatchField('modelId', 'homogeneous+fair'));
+    expect(studio.ctx.limitsRows.find((r) => r[0] === 'Wellbore storage')[1]).toMatch(/Fair \(1981\)/);
+    studio.unmount();
+  }, 600000);
+});

@@ -54,7 +54,7 @@ const ReportResults = () => {
     matchParams, semilogResult, sqrtResult, pssResult, derivedKpis, sqrtMeaningful,
     multiRateResult, deliverabilityResult, fitResult, matchMethod, regimes, notes, model,
     unitSystem, rtaResult,
-    identificationRows, inputsTable, skinBreakdown, flowSummary, pressureBasisRows, dataUse, limitsRows,
+    identificationRows, inputsTable, skinBreakdown, flowSummary, pressureBasisRows, dataUse, limitsRows, changingStorage,
   } = ctx;
   const uL = (kind) => unitLabel(kind, unitSystem);
 
@@ -177,6 +177,7 @@ const ReportResults = () => {
                 );
               })}
               <Row label="Dimensionless storage CD" value={fmt.sig3(derivedKpis?.cd)} />
+              {changingStorage.map(([label, value]) => <Row key={label} label={label} value={value} />)}
               <Row label="Flow efficiency" value={fmt.pct(derivedKpis?.flowEfficiency)} />
               <Row label="Match method" value={MATCH_METHOD_LABEL(matchMethod, fitResult)} />
               {matchMethod?.kind === 'regression' && ci(fitResult.confidence95.k) && <Row label="k 95% CI" value={ci(fitResult.confidence95.k)} unit="md" />}

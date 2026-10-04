@@ -728,6 +728,31 @@ export function gasRangeCheck({ reservoir, pressures = [] }) {
   };
 }
 
+/** The wellbore storage statement of the limits table (WTA-U2-002). */
+export function wellboreLimitText(model) {
+  if (model?.wellboreModel === 'hegeman' || model?.wellboreModel === 'fair') {
+    return `${model.wellboreModel === 'hegeman' ? 'Changing wellbore storage, Hegeman, Hallford and Joseph (1993), error-function transition' : 'Changing wellbore storage, Fair (1981), exponential transition'}: C is the final storage, Ci/C the ratio of the initial apparent storage to it, alpha the time of the change. The change starts with each rate period, so in a buildup it acts on the shut-in. Checked against an independent real-time solution of the wellbore balance, not against the published type curves.`;
+  }
+  return 'Constant wellbore storage. A storage change (phase redistribution, a closing valve) can be matched with the Hegeman or Fair model on the Match tab.';
+}
+
+/**
+ * The storage of a changing-storage match in the display system: Ci and
+ * the dimensionless C_phiD and alpha_D from the engine's own mapping.
+ * @returns {Array<[string, string]>} [] for constant storage
+ */
+export function changingStorageRows({ model, params, reservoir, groups, unitSystem = 'oilfield' }) {
+  if (!model?.wellboreModel || model.wellboreModel === 'constant' || !params || !reservoir || !groups || typeof model.toDimless !== 'function') return [];
+  const d = model.toDimless(params, groups);
+  const S = unitLabel('storage', unitSystem);
+  return [
+    [`Initial storage Ci (${S})`, plain(fromOilfield('storage', params.C * params.ciOverC, unitSystem))],
+    [`Final storage C (${S})`, plain(fromOilfield('storage', params.C, unitSystem))],
+    ['C_phiD (phase redistribution, dimensionless)', plain(d.cphiD)],
+    ['alpha_D (dimensionless)', plain(d.alphaD)],
+  ];
+}
+
 /**
  * What the interpretation assumes, and where its methods stop, as
  * [topic, statement] rows. The gas row carries the reduced state of the
@@ -739,7 +764,7 @@ export function buildLimitsRows({ reservoir, config, model, prepared }) {
     ['Fluid', gas
       ? 'Single-phase real gas in pseudo-pressure m(p); dimensionless time at the initial mu ct unless pseudo-time is chosen. The skin is the apparent skin s\', which includes any rate-dependent skin; separating it needs tests at more than one rate.'
       : 'Single-phase flow of a slightly compressible liquid with constant viscosity, formation volume factor and total compressibility. Gas coming out of solution near the well is not modelled.'],
-    ['Wellbore storage', 'Constant wellbore storage. Changing storage (phase redistribution, a closing valve) has no model in the catalog; its hump on the derivative is not matched.'],
+    ['Wellbore storage', wellboreLimitText(model)],
     ['Well geometry', `${model?.label ? `${model.label} model. ` : ''}A vertical well open over the net pay unless the horizontal model is chosen. Partial penetration enters as a pseudo-skin only (Papatzacos 1987, vertical wells): there is no limited-entry (spherical flow) model, and a deviated well is treated as vertical.`],
     ['Time basis', config?.family === 'buildup'
       ? 'Buildup on Agarwal equivalent time with the producing time tp, or on superposition of the rate history when one is entered.'

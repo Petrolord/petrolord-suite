@@ -203,8 +203,8 @@ Method and its limits
  Fluid                          Single-phase flow of a slightly compressible liquid with constant viscosity, formation volume factor and total
                                 compressibility. Gas coming out of solution near the well is not modelled.
 
- Wellbore storage               Constant wellbore storage. Changing storage (phase redistribution, a closing valve) has no model in the catalog; its
-                                hump on the derivative is not matched.
+ Wellbore storage               Constant wellbore storage. A storage change (phase redistribution, a closing valve) can be matched with the
+                                Hegeman or Fair model on the Match tab.
 
  Well geometry                  Homogeneous reservoir model. A vertical well open over the net pay unless the horizontal model is chosen. Partial
                                 penetration enters as a pseudo-skin only (Papatzacos 1987, vertical wells): there is no limited-entry (spherical flow)

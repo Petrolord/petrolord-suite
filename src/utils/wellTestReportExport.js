@@ -143,6 +143,8 @@ export const collectReportArgs = (ctx) => ({
   pressureBasisRows: ctx.pressureBasisRows,
   limitsRows: ctx.limitsRows,
   dataUse: ctx.dataUse,
+  // WTA-U2-002: only while the match is the interpretation
+  changingStorage: ctx.derivedKpis?.source === 'match' ? (ctx.changingStorage || []) : [],
   figures: buildReportFigures(ctx),
 });
 
@@ -236,6 +238,13 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
           : 'Manual match: no regression was run on these values, so no confidence intervals are given.',
       },
     );
+    // WTA-U2-002: a changing-storage match states its storage on both sides of the change
+    const cs = a.changingStorage || [];
+    if (cs.length) {
+      table('Changing wellbore storage', ['Quantity', 'Value'], cs.map(([k, v]) => [pdfText(k), v]), {
+        note: `${model.wellboreReference}. p_w = p_sf (1 + C_D u^2 p_phi) / (1 + C_D u^2 p_sf) in Laplace space, with the ${model.wellboreModel === 'hegeman' ? 'error-function p_phiD = C_phiD erf(t_D / alpha_D)' : 'exponential p_phiD = C_phiD (1 - exp(-t_D / alpha_D))'}.`,
+      });
+    }
   }
 
   const straight = [];
