@@ -2,6 +2,7 @@
 // curve, the Spearman tornado, and rejection accounting for the last Monte
 // Carlo run. Results are transient (never persisted); a stale banner appears
 // when the working case changes after a run.
+import { UNCERTAINTY_PARAMS } from '@/utils/waterfloodUncertainty';
 import React, { useMemo } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
@@ -28,7 +29,8 @@ const UncertaintyResults = () => {
 
   const tornadoData = useMemo(() => (
     (uncertaintyResult?.sensitivity || []).map((s) => ({
-      label: s.label,
+      // a rank correlation has no unit: the name without the oilfield unit (WF-U2-014)
+      label: UNCERTAINTY_PARAMS.find((p) => p.key === s.parameter)?.name || s.label,
       rho: Number(s.rho.toFixed(3)),
       contribution: Number(s.contribution.toFixed(1)),
     }))

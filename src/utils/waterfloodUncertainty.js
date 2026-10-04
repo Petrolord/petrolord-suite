@@ -35,18 +35,21 @@ import { forecastPattern } from './patternForecastCalculations';
 // parameters that only exist when the displacement uses Corey curves (a
 // pasted kr table has no Swc/Sor/endpoint knobs to perturb).
 export const UNCERTAINTY_PARAMS = [
-  { key: 'Swc', group: 'displacement', label: 'Connate water Swc', coreyOnly: true },
-  { key: 'Sor', group: 'displacement', label: 'Residual oil Sor', coreyOnly: true },
-  { key: 'krwMax', group: 'displacement', label: 'krw endpoint', coreyOnly: true },
-  { key: 'kroMax', group: 'displacement', label: 'kro endpoint', coreyOnly: true },
-  { key: 'muO', group: 'displacement', label: 'Oil viscosity (cp)' },
-  { key: 'muW', group: 'displacement', label: 'Water viscosity (cp)' },
-  { key: 'area_acres', group: 'pattern', label: 'Pattern area (acres)' },
-  { key: 'h_ft', group: 'pattern', label: 'Net thickness (ft)' },
-  { key: 'phi', group: 'pattern', label: 'Porosity (frac)' },
-  { key: 'Bo', group: 'pattern', label: 'Bo (rb/stb)' },
-  { key: 'iw_bpd', group: 'pattern', label: 'Injection rate (rb/d)' },
-  { key: 'EV', group: 'pattern', label: 'Vertical sweep EV' },
+  // WF-U2-014: `name` (no unit) and `kind` (the Waterflood unit kind,
+  // src/utils/waterflooddesign/units.js) let the Uncertainty tab show and take
+  // the distributions in the display units; the config stays oilfield.
+  { key: 'Swc', group: 'displacement', label: 'Connate water Swc', name: 'Connate water Swc', kind: 'fraction', coreyOnly: true },
+  { key: 'Sor', group: 'displacement', label: 'Residual oil Sor', name: 'Residual oil Sor', kind: 'fraction', coreyOnly: true },
+  { key: 'krwMax', group: 'displacement', label: 'krw endpoint', name: 'krw endpoint', kind: 'dimensionless', coreyOnly: true },
+  { key: 'kroMax', group: 'displacement', label: 'kro endpoint', name: 'kro endpoint', kind: 'dimensionless', coreyOnly: true },
+  { key: 'muO', group: 'displacement', label: 'Oil viscosity (cp)', name: 'Oil viscosity', kind: 'viscosity' },
+  { key: 'muW', group: 'displacement', label: 'Water viscosity (cp)', name: 'Water viscosity', kind: 'viscosity' },
+  { key: 'area_acres', group: 'pattern', label: 'Pattern area (acres)', name: 'Pattern area', kind: 'area' },
+  { key: 'h_ft', group: 'pattern', label: 'Net thickness (ft)', name: 'Net thickness', kind: 'length' },
+  { key: 'phi', group: 'pattern', label: 'Porosity (frac)', name: 'Porosity', kind: 'fraction' },
+  { key: 'Bo', group: 'pattern', label: 'Bo (rb/stb)', name: 'Bo', kind: 'fvfOil' },
+  { key: 'iw_bpd', group: 'pattern', label: 'Injection rate (rb/d)', name: 'Injection rate', kind: 'resRate' },
+  { key: 'EV', group: 'pattern', label: 'Vertical sweep EV', name: 'Vertical sweep EV', kind: 'dimensionless' },
 ];
 
 const DISPLACEMENT_KEYS = new Set(['muO', 'muW']);

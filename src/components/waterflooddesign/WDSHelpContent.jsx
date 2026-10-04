@@ -92,7 +92,7 @@ const WDSHelpContent = () => (
         rejected and counted, with none silently clamped; a high rejection rate means the distributions are too wide.
         The realizations are not saved; the summary of the last run (percentiles, counts, rejections) is saved with the
         project with a note of the inputs it was run on, so a reopened project says whether it still describes the
-        working case. The distributions are entered in oilfield units whatever the display units.
+        working case. The distributions are entered in the display units (oilfield or SI) and stored in oilfield units, like every input.
       </p>
     </Section>
 

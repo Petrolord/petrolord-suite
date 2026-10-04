@@ -64,6 +64,32 @@ export const UField = ({ label, kind, u, value, onChange, placeholder, testId })
   );
 };
 
+// WF-U2-014 (closes WF-U1-023): the unit-aware input without its label, for
+// table cells. In SI the text being typed ("2.", "-") is kept as a draft
+// while the stored oilfield value follows each complete number, as UField.
+export const UInput = ({ kind, u, value, onChange, placeholder, ariaLabel, testId, className = 'h-8 text-xs' }) => {
+  const [draft, setDraft] = React.useState(null);
+  const shown = draft != null ? draft : (u ? u.text(kind, value) : value);
+  return (
+    <Input
+      value={shown ?? ''}
+      inputMode="decimal"
+      aria-label={ariaLabel}
+      data-testid={testId}
+      onChange={(e) => {
+        const text = e.target.value;
+        const stored = u ? u.toState(kind, text) : text;
+        if (stored == null) { setDraft(text); return; }
+        setDraft(u && u.system !== 'oilfield' ? text : null);
+        onChange(stored);
+      }}
+      onBlur={() => setDraft(null)}
+      placeholder={placeholder}
+      className={className}
+    />
+  );
+};
+
 export const Kpi = ({ title, value, unit, accent }) => (
   <Card className={accent ? 'ring-1 ring-pl-primary/40' : undefined}>
     <CardContent className="p-3">

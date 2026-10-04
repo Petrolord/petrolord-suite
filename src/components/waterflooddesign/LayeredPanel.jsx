@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Trash2, Upload, Beaker } from 'lucide-react';
 import { useWaterfloodDesign, DEFAULT_LAYERS } from '@/contexts/WaterfloodDesignContext';
 import { sampleLayeredData } from '@/utils/layeredSweepCalculations';
-import { Field, SectionLabel, fmt } from './primitives';
+import { Field, SectionLabel, fmt, UInput } from './primitives';
 
 const LayeredPanel = () => {
   const { layers, setLayers, layeredConfig, setLayeredField, displacement, addNotification, u, layeredResult, patternInputs } = useWaterfloodDesign();
@@ -64,7 +64,7 @@ const LayeredPanel = () => {
         <div className="space-y-2">
           {layers.map((l, i) => (
             <div key={i} className="flex gap-2 items-center">
-              <Input value={u.text('length', l.h)} onChange={(e) => setCell(i, 'h', e.target.value)} placeholder="h" aria-label={`Layer ${i + 1} thickness`} className="h-8 text-xs" />
+              <UInput kind="length" u={u} value={l.h} onChange={(v) => setLayers((prev) => prev.map((x, j) => (j === i ? { ...x, h: v } : x)))} placeholder="h" ariaLabel={`Layer ${i + 1} thickness`} testId={`wds-layer-${i}-h`} />
               <Input value={l.k} onChange={(e) => setCell(i, 'k', e.target.value)} placeholder="k" aria-label={`Layer ${i + 1} permeability`} className="h-8 text-xs" />
               <Button variant="ghost" size="icon" className="h-8 w-8 text-pl-muted hover:text-pl-danger-text shrink-0" onClick={() => removeRow(i)}>
                 <Trash2 size={13} />
