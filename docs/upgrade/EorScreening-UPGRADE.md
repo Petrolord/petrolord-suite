@@ -241,3 +241,29 @@ table.
 | EOR-U2-006 | Done | Range of current projects per method and criterion, `PROJECT_RANGES` in the engine, transcribed from the page images of Part 2, Tables 1, 2, 3, 5, 6 and 7 (pp. 200 to 203; the ranges are in Part 2, not Part 1), with "inside" or "outside" for this reservoir, a column on the Screening tab and in the report, and the table and page in each method's note. Recorded as printed: no range for the chemical floods (Table 4) or immiscible gas; the combustion temperature printed "100 to 22" (upper end not legible as a temperature, only the lower end used); nitrogen and hydrocarbon gravity ranges are of miscible projects. Context only, never scored | `src/utils/eor/__tests__/eorProjectRanges.test.js` (every printed value against an independent transcription, the gaps, inside/outside in oilfield and SI, outcomes unchanged), goldens, e2e `U2-006` |
 | EOR-U2-008 | Partial | With the pvt-1 intake, a compositional Fluid project also gives C1 + N2 from its feed (normalised to 100 mol %, the project and method in the Source column). C2 to C10 is NOT taken: Fluid's feed lumps C7 and heavier into C7+, so C7 to C10 cannot be separated; the card prints the known part (C2 to C6 with CO2) as a lower bound and asks for the laboratory value. The MMP is therefore not made from Fluid alone. Composition is still not screened against Taber's composition guide (the guide is words, not limits) | `src/utils/eor/__tests__/eorComposition.test.js` (C1 + N2 from the saved fixture, normalisation, black-oil and empty feed refused, MMP not made from C1 + N2 alone, source text), e2e `U2-008` |
 | EOR-U2-005 | Done (Swi typed; kr-1 or Petrophysics Swi not wired) | Remaining oil saturation from material balance, `src/utils/eor/remainingOil.js`: So = (1 - Np/N)(Bo/Boi)(1 - Swi), N and Np (last timestep) and the initial and last pressures from the mbal-1 intake, Bo and Boi from the pvt-1 intake's table at those pressures (never extrapolated), Swi a new stated context input. Refused for an aquifer, injection, no Np, or a pressure outside the table. Shown under the oil saturation field; "Use as the oil saturation" copies it with the method as its source, so the report's Source column prints N, Np, Bo, Boi, Swi and both projects | `src/utils/eor/__tests__/eorRemainingOil.test.js` (engine against the pore-volume statement computed separately; negative controls: aquifer, injection, no Swi, no series, pressure outside the table, no pvt intake), e2e `U2-005` (79.76 % PV on the harness case) |
+
+### 9b. Deferred, with reasons
+
+| ID | Reason |
+|---|---|
+| EOR-U2-004 | Aladasani and Bai (2010, SPE-130726): the paper is not in hand (owner question 3). Taber 1997 stays the only criteria set |
+| EOR-U2-009 | Many reservoirs at once: after NAPE (owner question 6) |
+| EOR-U2-010 to 014 | Batch C, not chosen for this round: methods outside Taber 1997, the Simulation starting deck, results first at narrow widths (U1-017 stays open), CO2 utilisation to EPE, the kit flags-heading layout (U1-019 stays open) |
+| Recovery Factor reader | `eor-screen-1` has no reader yet. Recovery Factor Estimator reads it in its own Step 2 (owner question 5); nothing was built inside Recovery Factor here |
+| N2 and hydrocarbon MMP | The only readable MMP paper covers pure CO2; nitrogen and hydrocarbon miscibility stay on the Taber depth criteria |
+
+### 9c. What changes for users (Step 2)
+
+- No Taber verdict, count or ranking changes: the MMP check, the distance
+  to the limit and the range of current projects are printed beside the
+  verdicts and never scored. The sample still qualifies 3 of 8.
+- The report gains a CO2 miscibility table and two columns per method
+  table (range of current projects, distance to the limit); the sample
+  report is 9 pages (was 8).
+- Three new context inputs (C1 + N2, C2 to C10 with CO2, Swi), printed
+  with their sources and not screened.
+- Fluid, Well Test and Material Balance each gain a "Send to EOR
+  Screening" button; Well Test saves the project before sending.
+- `eor-screen-1` is readable by id; saving still needs migration
+  `20261004220000` (NOT APPLIED); until then a reader says the table is
+  not switched on.
