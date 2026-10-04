@@ -88,6 +88,24 @@ const ImportMapping = ({ imported, onChange }) => {
             </SelectContent>
           </Select>
         </div>
+        {mapping.timeUnit === 'datetime' && (
+          <div className="space-y-1 col-span-2" data-testid="wts-import-date-order">
+            <Label className="text-xs text-pl-muted">Date order</Label>
+            <Select value={mapping.dateOrder || 'ask'} onValueChange={(v) => set('dateOrder', v === 'ask' ? null : v)}>
+              <SelectTrigger className="h-8" aria-label="Date order"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ask">Not settled by the file: choose</SelectItem>
+                <SelectItem value="dmy">Day first (13/09/2026)</SelectItem>
+                <SelectItem value="mdy">Month first (09/13/2026)</SelectItem>
+              </SelectContent>
+            </Select>
+            {imported.dateQuestion && (
+              <p className="text-[11px] text-pl-warning-text">
+                No date in the file has a day above 12 ({(imported.dateQuestion.examples || []).join(', ')}), so the order cannot be read from it. Nothing was loaded: choose the order.
+              </p>
+            )}
+          </div>
+        )}
         <div className="space-y-1">
           <Label className="text-xs text-pl-muted">Temperature column</Label>
           <Select value={String(mapping.temperatureCol ?? -1)} onValueChange={(v) => set('temperatureCol', Number(v))}>
@@ -144,7 +162,12 @@ const DataPanel = () => {
   const isBuildupFamily = testConfig.testType === 'buildup' || testConfig.testType === 'falloff';
 
   const applyImport = (table, mapping, fileName, announce) => {
-    const { rows, skipped, temperatureCount } = convertGaugeRows(table, mapping);
+    const { rows, skipped, temperatureCount, dateQuestion = null } = convertGaugeRows(table, mapping);
+    if (dateQuestion) {
+      addNotification(`The dates in ${fileName} could be day first or month first. Choose the date order below; nothing was loaded yet.`, 'info');
+      setImported({ table, mapping, fileName, skipped, count: 0, temperatureCount, dateQuestion });
+      return;
+    }
     if (rows.length < 5) {
       addNotification(`Could not read at least 5 (time, pressure) readings with the ${columnName(table, mapping.timeCol)} and ${columnName(table, mapping.pressureCol)} columns. Pick the time and pressure columns below.`, 'error');
       setImported({ table, mapping, fileName, skipped, count: rows.length, temperatureCount });
@@ -157,6 +180,7 @@ const DataPanel = () => {
       fileName,
       pressureUnit: mapping.pressureUnit,
       timeUnit: mapping.timeUnit,
+      dateOrder: mapping.timeUnit === 'datetime' ? (mapping.dateOrder || null) : null,
       temperatureUnit: mapping.temperatureCol >= 0 ? mapping.temperatureUnit : null,
       count: rows.length,
       skipped,

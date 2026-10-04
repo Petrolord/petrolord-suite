@@ -25,7 +25,9 @@
  * (the historical reading), and `certain` is false.
  */
 import Papa from 'papaparse';
-import { detectTableDelimiter, detectDecimalMark, parseNumber, splitRows } from '@/lib/tabularParse';
+import {
+  detectTableDelimiter, detectDecimalMark, parseNumber, splitRows, detectDateOrder, parseDate, looksLikeDate,
+} from '@/lib/tabularParse';
 
 export const ATM_PSI = 14.695948775513449; // 101.325 kPa
 const PSI_PER_KPA = 1 / 6.894757293168361;
@@ -76,13 +78,20 @@ function findDecimal(rows, delimiter = ',') {
   return detectDecimalMark(cells, { delimiter });
 }
 
-const stamp = (v, decimal = '.') => {
-  if (v == null) return NaN;
+// WTA-U1-009: date stamps are read by the shared reader, never Date.parse
+// (which read 03/09/2026 as 9 March and dropped 13/09/2026). A numeric
+// day/month needs the column's order unless its own numbers settle it.
+const isStamp = (v, decimal = '.') => {
+  if (v == null) return false;
   const s = String(v).trim();
   // a plain number is not a date stamp
-  if (s === '' || Number.isFinite(Number(s)) || Number.isFinite(num(s, decimal))) return NaN;
-  const ms = Date.parse(s.includes(' ') && !s.includes('T') && /^\d{4}-\d{2}-\d{2} /.test(s) ? s.replace(' ', 'T') : s);
-  return Number.isFinite(ms) ? ms : NaN;
+  if (s === '' || Number.isFinite(Number(s)) || Number.isFinite(num(s, decimal))) return false;
+  return looksLikeDate(s);
+};
+const stamp = (v, decimal = '.', order = null) => {
+  if (!isStamp(v, decimal)) return NaN;
+  const d = parseDate(String(v).trim(), { order });
+  return d && Number.isFinite(d.ms) ? d.ms : NaN;
 };
 
 /**
@@ -101,7 +110,7 @@ export function readGaugeTable(text) {
   const first = table[0];
   const found = findDecimal(table, delimiter);
   const decimal = { mark: found.mark, certain: found.certain, reason: found.reason };
-  const looksLikeData = (c) => Number.isFinite(num(c, decimal.mark)) || Number.isFinite(stamp(c, decimal.mark));
+  const looksLikeData = (c) => Number.isFinite(num(c, decimal.mark)) || isStamp(c, decimal.mark);
   const isHeader = first.some((c) => String(c).trim() !== '' && !looksLikeData(c));
   const headers = isHeader
     ? Array.from({ length: columnCount }, (_, i) => String(first[i] ?? '').trim() || `Column ${i + 1}`)
@@ -161,7 +170,7 @@ export function detectGaugeMapping({ headers, rows, decimal }, { defaultPressure
   const sample = rows.slice(0, 50);
   const columnCount = Math.max(headers?.length || 0, ...sample.map((r) => r.length), 0);
   const numericCol = (i) => sample.filter((r) => Number.isFinite(num(r[i], mark))).length >= Math.max(1, sample.length / 2);
-  const stampCol = (i) => sample.filter((r) => Number.isFinite(stamp(r[i], mark))).length >= Math.max(1, sample.length / 2);
+  const stampCol = (i) => sample.filter((r) => isStamp(r[i], mark)).length >= Math.max(1, sample.length / 2);
 
   let timeCol = -1;
   let pressureCol = -1;
@@ -188,8 +197,13 @@ export function detectGaugeMapping({ headers, rows, decimal }, { defaultPressure
   const timeUnit = (headers && timeUnitFromHeader(headers[timeCol]))
     || (stampCol(timeCol) && !numericCol(timeCol) ? 'datetime' : 'hr');
   const pressureUnit = (headers && pressureUnitFromHeader(headers[pressureCol])) || defaultPressure;
+  // the order of a numeric date column, settled by the whole column or left
+  // open (null) for the user to choose
+  const dates = timeUnit === 'datetime' ? detectDateOrder(rows.map((r) => r[timeCol])) : null;
   return {
     timeCol, pressureCol, timeUnit, pressureUnit,
+    dateOrder: dates ? dates.order : null,
+    dateCheck: dates,
     temperatureCol, temperatureUnit,
     detectedFrom,
     unitsFromHeader: {
@@ -210,7 +224,7 @@ export function detectGaugeMapping({ headers, rows, decimal }, { defaultPressure
  * the flowing period (prepareTestData separates them).
  */
 export function convertGaugeRows({ rows, decimal }, {
-  timeCol, pressureCol, timeUnit = 'hr', pressureUnit = 'psia', temperatureCol = -1, temperatureUnit = 'degF',
+  timeCol, pressureCol, timeUnit = 'hr', pressureUnit = 'psia', temperatureCol = -1, temperatureUnit = 'degF', dateOrder = null,
 }) {
   const mark = decimalOf({ rows, decimal });
   const pu = PRESSURE_UNITS[pressureUnit] || PRESSURE_UNITS.psia;
@@ -221,11 +235,19 @@ export function convertGaugeRows({ rows, decimal }, {
   const out = [];
   let skipped = 0;
   let t0 = NaN;
+  // numeric dates no value settles are not guessed: nothing is read until
+  // the order is chosen (WTA-U1-009)
+  if (tu.hrPer == null && !dateOrder) {
+    const check = detectDateOrder(rows.map((r) => r[timeCol]));
+    if (check.ambiguous || check.conflict) {
+      return { rows: [], skipped: rows.length, temperatureCount: 0, dateQuestion: check };
+    }
+  }
   for (const raw of rows) {
     const pRaw = num(raw[pressureCol], mark);
     let t;
     if (tu.hrPer == null) {
-      const ms = stamp(raw[timeCol], mark);
+      const ms = stamp(raw[timeCol], mark, dateOrder);
       if (Number.isFinite(ms) && !Number.isFinite(t0)) t0 = ms;
       t = Number.isFinite(ms) ? (ms - t0) / 3.6e6 : NaN;
     } else {
@@ -248,8 +270,8 @@ export function convertGaugeRows({ rows, decimal }, {
 export function importGaugeCsv(text, opts = {}) {
   const table = readGaugeTable(text);
   const mapping = { ...detectGaugeMapping(table, opts), ...(opts.mapping || {}) };
-  const { rows, skipped, temperatureCount } = convertGaugeRows(table, mapping);
-  return { table, mapping, rows, skipped, temperatureCount };
+  const { rows, skipped, temperatureCount, dateQuestion = null } = convertGaugeRows(table, mapping);
+  return { table, mapping, rows, skipped, temperatureCount, dateQuestion };
 }
 
 /** Gauge-clock time for display (shut-in / start of flow), hours. */

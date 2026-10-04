@@ -550,7 +550,7 @@ export function buildPressureBasisRows({ completion, gaugeImport, unitSystem = '
   ];
   if (gaugeImport && !gaugeImport.sample && gaugeImport.fileName) {
     const tu = TIME_UNITS[gaugeImport.timeUnit]?.label;
-    rows.push(['Gauge file', `${gaugeImport.fileName}: ${gaugeImport.count ?? EMPTY_VALUE} readings read${gaugeImport.skipped ? `, ${gaugeImport.skipped} rows skipped as not numbers` : ''}${tu ? `; time in ${tu}` : ''}`]);
+    rows.push(['Gauge file', `${gaugeImport.fileName}: ${gaugeImport.count ?? EMPTY_VALUE} readings read${gaugeImport.skipped ? `, ${gaugeImport.skipped} rows skipped as not numbers` : ''}${tu ? `; time in ${tu}` : ''}${gaugeImport.dateOrder ? `, dates ${gaugeImport.dateOrder === 'dmy' ? 'day first' : 'month first'}` : ''}`]);
   }
   return rows;
 }
