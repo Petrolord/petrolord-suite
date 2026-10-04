@@ -72,15 +72,31 @@ const CapillaryPanel = () => {
               ))}
             </div>
           )}
-          <ScalField
-            label="Shared Swirr override (blank = data-driven)"
-            value={capillary.SwirrOverride}
-            onChange={(v) => setCapillaryField('SwirrOverride', v)}
-            placeholder="e.g. 0.12"
-          />
+          <label className="flex items-center gap-2 text-xs text-pl-text">
+            <input
+              type="checkbox" className="h-3.5 w-3.5 accent-pl-primary" data-testid="scal-swirr-fit"
+              checked={!!capillary.SwirrFit}
+              onChange={(e) => setCapillaryField('SwirrFit', e.target.checked)}
+            />
+            Fit Swirr with a and b
+          </label>
+          {!capillary.SwirrFit && (
+            <ScalField
+              label="Shared Swirr override (blank = data-driven)"
+              value={capillary.SwirrOverride}
+              onChange={(v) => setCapillaryField('SwirrOverride', v)}
+              placeholder="e.g. 0.12"
+            />
+          )}
+          {capillary.SwirrFit && jResolved.meta?.swirr?.fit && (
+            <p className="text-xs text-pl-text" data-testid="scal-swirr-fitted">
+              Fitted Swirr {jResolved.meta.swirr.fit.value.toFixed(3)} (95% CI {jResolved.meta.swirr.fit.ci95?.[0]?.toFixed(3)} to {jResolved.meta.swirr.fit.ci95?.[1]?.toFixed(3)}), from {jResolved.meta.swirr.fit.points} lab J points, started at {jResolved.meta.swirr.fit.start.toFixed(3)}.
+            </p>
+          )}
           <p className="text-[11px] text-pl-muted">
-            Samples are normalized to Sw*, averaged geometrically and refitted. If the refit quality is poor, the
-            data-driven Swirr guess is probably too high; set the override.
+            Samples are normalized to Sw* with one Swirr, averaged geometrically and refitted. The Swirr is the
+            lowest Sw less 0.02 unless you type one, or fit it: the fit takes a, b and Swirr together from every
+            included sample's lab J, and that Swirr is then used for the average.
           </p>
         </section>
       )}

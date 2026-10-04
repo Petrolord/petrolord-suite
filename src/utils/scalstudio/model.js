@@ -79,11 +79,54 @@ export const LAB_SYSTEM_FLUIDS = Object.freeze({ air_brine: 'Air and brine', air
 export const OW_KEYS = Object.freeze(['Swc', 'Sor', 'krwMax', 'kroMax', 'nw', 'no']);
 export const GO_KEYS = Object.freeze(['Swc', 'Sgc', 'Sorg', 'krgMax', 'krogMax', 'ng', 'nog']);
 
+/** The string form values of the Curves tab from a fitted oil-water set (the precision the button applies). */
+export const appliedOwFromFit = (p) => ({
+  Swc: p.Swc.toFixed(3),
+  Sor: p.Sor.toFixed(3),
+  krwMax: p.krwMax.toPrecision(4),
+  kroMax: p.kroMax.toPrecision(4),
+  nw: p.nw.toFixed(2),
+  no: p.no.toFixed(2),
+});
+
+/** The same for a fitted gas-oil set (SCAL-U2-004). */
+export const appliedGoFromFit = (p) => ({
+  Swc: p.Swc.toFixed(3),
+  Sgc: p.Sgc.toFixed(3),
+  Sorg: p.Sorg.toFixed(3),
+  krgMax: p.krgMax.toPrecision(4),
+  krogMax: p.krogMax.toPrecision(4),
+  ng: p.ng.toFixed(2),
+  nog: p.nog.toFixed(2),
+});
+
+const END_SOURCE_WORDS = { table: 'from the table', entered: 'entered for the fit', fitted: 'fitted' };
+
+/**
+ * How the end points of a fit were taken, as words (SCAL-U2-003 and 004).
+ * A fit made before the engine said (no endpointSource) took everything
+ * from the table.
+ */
+export function fitEndpointsText(fit, set = 'oil_water') {
+  const es = fit?.endpointSource;
+  if (set === 'gas_oil') {
+    const swc = fit?.swcFrom ? `Swc ${fit.params?.Swc} (${fit.swcFrom}); ` : '';
+    if (!es || (es.Sgc === 'table' && es.krgMax === 'table' && es.krogMax === 'table')) return `${swc}Sgc and Sorg from the first and last Sg of the lab table; krg and krog end points from its end rows`;
+    const sat = es.Sgc === 'entered' ? 'Sgc and Sorg entered for the fit' : 'Sgc and Sorg from the first and last Sg of the lab table';
+    return `${swc}${sat}; krg end point ${END_SOURCE_WORDS[es.krgMax]}; krog at Swc ${END_SOURCE_WORDS[es.krogMax]}`;
+  }
+  if (!es || (es.Swc === 'table' && es.krwMax === 'table' && es.kroMax === 'table')) return 'Swc and Sor from the first and last Sw of the lab table; krw at Sor and kro at Swc from the end rows of the table';
+  const sat = es.Swc === 'entered' ? 'Swc and Sor entered for the fit' : 'Swc and Sor from the first and last Sw of the lab table';
+  return `${sat}; krw at Sor ${END_SOURCE_WORDS[es.krwMax]}; kro at Swc ${END_SOURCE_WORDS[es.kroMax]}`;
+}
+
 /**
  * The record kept when a sample's fit is applied to the Curves tab.
- * @param {{sample: object, fit: object, applied: object, at?: string}} a
+ * @param {{sample: object, fit: object, applied: object, at?: string, set?: 'oil_water'|'gas_oil'}} a
  */
-export function fittedOrigin({ sample, fit, applied, at = new Date().toISOString() }) {
+export function fittedOrigin({ sample, fit, applied, at = new Date().toISOString(), set = 'oil_water' }) {
+  const go = set === 'gas_oil';
+  const [e1, e2] = go ? ['ng', 'nog'] : ['nw', 'no'];
   return {
     kind: 'fitted',
     sampleId: sample.id,
@@ -91,17 +134,17 @@ export function fittedOrigin({ sample, fit, applied, at = new Date().toISOString
     at,
     applied: { ...applied },
     fit: {
-      nw: fit.params.nw,
-      no: fit.params.no,
-      ci95: { nw: fit.ci95?.nw || null, no: fit.ci95?.no || null },
+      [e1]: fit.params[e1],
+      [e2]: fit.params[e2],
+      ci95: { [e1]: fit.ci95?.[e1] || null, [e2]: fit.ci95?.[e2] || null },
       rmsLog: fit.rmsLog,
       r2Log: fit.r2Log,
       pointsUsed: fit.pointsUsed,
       converged: !!fit.converged,
       iterations: fit.iterations,
-      // fitCoreyToKrTable reads Swc and Sor from the first and last rows of
-      // the table and the end point kr from the end rows; only nw and no are fitted
-      endpoints: 'Swc and Sor from the first and last Sw of the lab table; krw at Sor and kro at Swc from the end rows of the table',
+      // stated only when something other than the table set an end point (SCAL-U2-003)
+      ...(fit.endpointSource && Object.values(fit.endpointSource).some((v) => v !== 'table') ? { endpointSource: { ...fit.endpointSource } } : {}),
+      endpoints: fitEndpointsText(fit, set),
       residuals: 'log10 kr of both curves; points with kr at or below 1e-4 left out',
     },
   };

@@ -2,7 +2,7 @@
 // Design Studio with the kr-1 block, download the working tables as CSV with
 // their provenance and units, and move whole projects as JSON. Chart PNGs
 // come from the download button on every chart.
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,13 @@ import { useScalStudio } from '@/contexts/ScalStudioContext';
 import { exportProjectAsJSON, importProjectFromJSON } from '@/utils/savedProjects';
 import { krContractCsvHeader, KR_PROJECT_PARAM, KR_HANDOFF_STATE_KEY } from '@/lib/inputProvenance/krContract';
 import { buildScalKrHandoffV2 } from '@/utils/scalstudio/krHandoff';
-import { buildKrCsv, buildHeightCsv, buildPcCsv, downloadCsv } from './exports';
+import { buildKrCsv, buildGoKrCsv, buildHeightCsv, buildPcCsv, downloadCsv } from './exports';
+import { buildSatKeywords, SAT_DECK_UNITS } from '@/utils/scalstudio/simKeywords';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 
 const slug = (s) => (s || 'scal').replace(/[^a-z0-9-]+/gi, '-').toLowerCase();
 
@@ -28,7 +34,7 @@ const ExportTab = () => {
   const fileRef = useRef(null);
   const c = useScalStudio();
   const {
-    projectName, curves, ow, heightProfile, reservoirPc, height, unitSystem,
+    projectName, curves, ow, go, jResolved, reservoir, heightProfile, reservoirPc, height, unitSystem,
     addNotification, currentProjectId, manualSave, contractFor,
   } = c;
 
@@ -61,6 +67,38 @@ const ExportTab = () => {
       return;
     }
     downloadCsv(csv, `scal-kr-${slug(projectName)}.csv`);
+  };
+
+  // SCAL-U2-001: SWOF and SGOF for a simulator deck, Pc from the working J
+  const [deckUnits, setDeckUnits] = useState(unitSystem === 'si' ? 'METRIC' : 'FIELD');
+  const [deckPc, setDeckPc] = useState(true);
+  const satOut = buildSatKeywords({
+    contract: contractFor(currentProjectId, projectName),
+    ow: ow.params, go: go.params, jSpec: jResolved?.jSpec, reservoir: reservoir?.props,
+    withPc: deckPc, units: deckUnits, displayUnits: c.u.line(),
+  });
+  const exportDeck = () => {
+    if (!satOut.ok) {
+      addNotification(satOut.errors[0], 'error');
+      return;
+    }
+    const blob = new Blob([satOut.text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `scal-swof-sgof-${slug(projectName)}.inc`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // SCAL-U2-002: the gas-oil set leaves the studio too (at connate water)
+  const exportGo = () => {
+    const csv = buildGoKrCsv(go.params, 25, { header: header('gas-oil relative permeability at connate water, working Corey set, 26 rows') });
+    if (!csv) {
+      addNotification('Fix the gas-oil Corey set on the Curves tab first.', 'error');
+      return;
+    }
+    downloadCsv(csv, `scal-kr-gas-oil-${slug(projectName)}.csv`);
   };
 
   const exportHeight = () => {
@@ -130,14 +168,18 @@ const ExportTab = () => {
         <CardHeader>
           <CardTitle className="text-base">CSV exports</CardTitle>
           <CardDescription>
-            Working tables for simulators and spreadsheets: the Corey kr set (25 intervals), the reservoir Pc curve,
+            Working tables for simulators and spreadsheets: the oil-water and gas-oil Corey sets (25 intervals each; the
+            gas-oil set at connate water), the reservoir Pc curve,
             and the saturation-height profile (with TVDSS when a FWL is set). Each file opens with lines starting with #
             that say where it came from and in which units; Pc and heights are in the display units.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={exportKr} data-testid="scal-csv-kr">
-            <FileSpreadsheet className="w-4 h-4 mr-1.5" /> kr table
+            <FileSpreadsheet className="w-4 h-4 mr-1.5" /> Oil-water kr table
+          </Button>
+          <Button variant="outline" onClick={exportGo} data-testid="scal-csv-go">
+            <FileSpreadsheet className="w-4 h-4 mr-1.5" /> Gas-oil kr table
           </Button>
           <Button variant="outline" onClick={exportPc} data-testid="scal-csv-pc">
             <FileSpreadsheet className="w-4 h-4 mr-1.5" /> Reservoir Pc
@@ -145,6 +187,39 @@ const ExportTab = () => {
           <Button variant="outline" onClick={exportHeight} data-testid="scal-csv-height">
             <FileSpreadsheet className="w-4 h-4 mr-1.5" /> Saturation-height
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card data-testid="scal-deck-card">
+        <CardHeader>
+          <CardTitle className="text-base">Simulator keywords (SWOF and SGOF)</CardTitle>
+          <CardDescription>
+            The working oil-water and gas-oil sets as SWOF and SGOF tables for an Eclipse or OPM Flow deck, with the
+            capillary pressure of the working J curve in the SWOF Pcow column. SWOF runs from Swc to Sw = 1 and SGOF from
+            Sg = 0 to 1 - Swc, so the two close; this needs one Swc in both sets. The file opens with comment lines that
+            say where the curves came from, the units and the conventions. Gas-oil capillary pressure is written as zero.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="space-y-1">
+              <Label className="text-xs text-pl-muted">Deck units</Label>
+              <Select value={deckUnits} onValueChange={setDeckUnits}>
+                <SelectTrigger className="h-8 w-36" aria-label="Deck units" data-testid="scal-deck-units"><SelectValue /></SelectTrigger>
+                <SelectContent>{Object.entries(SAT_DECK_UNITS).map(([k, v]) => <SelectItem key={k} value={k}>{v.label} (Pc in {v.pc})</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch checked={deckPc} onCheckedChange={setDeckPc} aria-label="Capillary pressure in SWOF" data-testid="scal-deck-pc" />
+              <Label className="text-xs text-pl-muted">Capillary pressure in SWOF</Label>
+            </div>
+            <Button variant="outline" onClick={exportDeck} disabled={!satOut.ok} data-testid="scal-deck-export">
+              <FileSpreadsheet className="w-4 h-4 mr-1.5" /> SWOF and SGOF (.inc)
+            </Button>
+          </div>
+          {!satOut.ok && <p className="text-xs text-pl-warning-text" data-testid="scal-deck-refused">{satOut.errors.join(' ')}</p>}
+          {satOut.ok && satOut.warnings.map((w) => <p key={w} className="text-xs text-pl-warning-text">{w}</p>)}
+          <p className="text-[11px] text-pl-muted">Simulation Studio does not read this file by id yet; that comes with its own upgrade round.</p>
         </CardContent>
       </Card>
 

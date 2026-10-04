@@ -184,7 +184,10 @@ export function deterministicInputRows({ inputs = {}, fluidType = 'oil', unitSys
   }
   rows.push(row('ntg', 'Net-to-gross (NTG)', num(inputs.ntg, 3)));
   rows.push(row('porosity', 'Porosity (phi)', num(inputs.porosity, 3)));
-  rows.push(row('sw', 'Water saturation (Sw)', num(inputs.sw, 3)));
+  const swRow = row('sw', 'Water saturation (Sw)', num(inputs.sw, 3));
+  // SCAL-U2-009: Sw from a SCAL Studio saturation height names its kr-1 source
+  if (inputs.swSource === 'saturation height' && inputs.swSourceText && swRow[1] !== EMPTY_VALUE) swRow[3] = inputs.swSourceText;
+  rows.push(swRow);
   if (showOil) {
     rows.push(row('fvf', 'Oil FVF (Bo)', num(inputs.fvf, 3)));
     rows.push(row('owc', 'Oil-water contact (OWC), TVDSS', num(inputs.owc, 1)));

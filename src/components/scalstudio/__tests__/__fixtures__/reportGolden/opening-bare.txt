@@ -1,49 +1,79 @@
 Special Core Analysis Report
 Petrolord SCAL Studio
 
-Project                      Ekene E-2000 SCAL                           Company                 Org from the profile
-Field                        n/a                                         Licence or block        n/a
-Well                         n/a                                         Reservoir or zone       n/a
-Cored interval               n/a                                         Core samples            n/a
-Laboratory                   n/a                                         Lab report number n/a
-Test dates                   n/a                                         Analyst                 n/a
-Analysis date                n/a                                         Analysis type           Corey relative permeability and Leverett J
-                                                                                                 capillary pressure (two-phase)
-Software build               Petrolord Suite test (fixture)              Display units           Oilfield (Pc psi, IFT dyn/cm, depth and
-                                                                                                 height ft, temperature degF, permeability
-                                                                                                 md)
-Generated                    2026-10-03 09:00 UTC
+Project                  Ekene E-2000 SCAL                                  Company                  Org from the profile
+Field                    n/a                                                Licence or block         n/a
+Well                     n/a                                                Reservoir or zone        n/a
+Cored interval           n/a                                                Core samples             n/a
+Laboratory               n/a                                                Lab report number n/a
+Test dates               n/a                                                Analyst                  n/a
+Analysis date            n/a                                                Analysis type            Corey relative permeability and Leverett J
+                                                                                                     capillary pressure (two-phase)
+Software build           Petrolord Suite test (fixture)                     Display units            Oilfield (Pc psi, IFT dyn/cm, depth and
+                                                                                                     height ft, temperature degF, permeability
+                                                                                                     md)
+Generated                2026-10-03 09:00 UTC
 
 
-Headline results
- Quantity                                        Value                   Unit            Basis
+Summary
+ Item                                  Value
 
- Oil-water: Swc / Sor                            0.2 / 0.25              fraction        Entered by the user
+ Oil-water set                         Swc 0.2, Sor 0.25, krw(Sor) 0.35, kro(Swc) 0.9, nw 2.5, no 2. Entered by the user
 
- Oil-water: krw(Sor) / kro(Swc)                  0.35 / 0.9              fraction        End points
+ Gas-oil set (at connate water)        Swc 0.2, Sgc 0.05, Sorg 0.15, krg 0.6, krog 0.85, ng 2, nog 2.5. Entered by the user
 
- Oil-water: nw / no                              2.5 / 2                                 Corey exponents
+ Lab data                              No core sample: the curves and the J function were entered
 
- Mobile saturation span                          0.550                   fraction        1 - Swc - Sor
+ Leverett J                            a 0.25, b 1.4, Swirr 0.15; typed power law
 
- Crossover Sw (krw = kro)                        0.553                   fraction        Solved on the working curves
+ At Sw = 0.5                           Pc 3.449 psi, height above the FWL 31.8 ft
 
- Gas-oil: Sgc / Sorg / ng / nog                  0.05 / 0.15 / 2 / 2.5                   Entered by the user
+ Free water level                      Not entered
 
- Leverett J: a / b / Swirr                       0.25 / 1.4 / 0.15                       Typed power law
+ Fluid gravities                       water 1.05, hydrocarbon 0.80; Assumed: the starting value of the app, not field data
 
- Pc at Sw = 0.5 (reservoir)                      3.449                   psi             Working J scaled to reservoir rock and fluids
+ Where the curves go                   The kr-1 block (last table) to Waterflood Design Studio and the saturation-height readers; SWOF and
+                                       SGOF keywords and CSV tables from the Export tab
 
- Height above FWL at Sw = 0.5                    31.8                    ft              Pc / gradient difference
+ Flags                                 1 flag on the inputs, the samples and the fits
 
- Free water level                                n/a                                     Not entered
+ First flag                            No free water level is entered: heights are above the FWL only, with no depth.
+
+This page summarises the pages after it: every value here is printed there in full, with its inputs, sources, method and limits.
+
+
+
+
+Special Core Analysis Report                                                                                                         Page 1 of 10
+Headline results
+ Quantity                                    Value                      Unit             Basis
+
+ Oil-water: Swc / Sor                        0.2 / 0.25                 fraction         Entered by the user
+
+ Oil-water: krw(Sor) / kro(Swc)              0.35 / 0.9                 fraction         End points
+
+ Oil-water: nw / no                          2.5 / 2                                     Corey exponents
+
+ Mobile saturation span                      0.550                      fraction         1 - Swc - Sor
+
+ Crossover Sw (krw = kro)                    0.553                      fraction         Solved on the working curves
+
+ Gas-oil: Sgc / Sorg / ng / nog              0.05 / 0.15 / 2 / 2.5                       Entered by the user
+
+ Leverett J: a / b / Swirr                   0.25 / 1.4 / 0.15                           Typed power law
+
+ Pc at Sw = 0.5 (reservoir)                  3.449                      psi              Working J scaled to reservoir rock and fluids
+
+ Height above FWL at Sw = 0.5                31.8                       ft               Pc / gradient difference
+
+ Free water level                            n/a                                         Not entered
 
 Values as the screen shows them, from the same derived state. Saturations are fractions of pore volume.
 
 
 
 
-Special Core Analysis Report                                                                                                         Page 1 of 9
+Special Core Analysis Report                                                                                                        Page 2 of 10
 Inputs and their sources
  Input                                         Value                 Unit              Source and quality
 
@@ -106,7 +136,7 @@ handoff.
 
 
 
-Special Core Analysis Report                                                                                                             Page 2 of 9
+Special Core Analysis Report                                                                                                            Page 3 of 10
 Leverett scaling and height conversion, by component
  Component                               How                                                        Value                    Unit
 
@@ -148,7 +178,7 @@ Model
  Gas-oil curves                            Corey. Sgn = (Sg - Sgc) / (1 - Swc - Sorg - Sgc), held in 0 to 1; krg = krg(end) Sgn^ng; krog = krog(Swc)
                                            (1 - Sgn)^nog; at connate water
 
- Source of the gas-oil set                 Entered by the user (gas-oil sets are not fitted in this app)
+ Source of the gas-oil set                 Entered by the user
 
  Leverett J                                J = 0.21645 Pc / (sigma cos theta) sqrt(k / phi), Pc in psi, sigma in dyn/cm, k in md; J = a Sw*^(-b), Sw*
                                            = (Sw - Swirr) / (1 - Swirr)
@@ -182,7 +212,7 @@ Basis and conventions
 
 
 
-Special Core Analysis Report                                                                                                                Page 3 of 9
+Special Core Analysis Report                                                                                                               Page 4 of 10
 Limits of this analysis
 - Corey power-law curves only: one exponent per phase over the whole mobile range. A lab curve that bends away from a power law (common
 near the end points) is smoothed by the fit.
@@ -215,121 +245,121 @@ Flags on the inputs, the samples and the fits
 
 
 
-Special Core Analysis Report                                                                                                                 Page 4 of 9
+Special Core Analysis Report                                                                                                               Page 5 of 10
 Oil-water relative permeability table (working Corey set)
  Sw                                     krw                           kro
 
-                               0.2000                       0.00000          0.90000
+                               0.2000                       0.00000           0.90000
 
-                               0.2229                       0.00012          0.82656
+                               0.2229                       0.00012           0.82656
 
-                               0.2458                       0.00070          0.75625
+                               0.2458                       0.00070           0.75625
 
-                               0.2687                       0.00193          0.68906
+                               0.2687                       0.00193           0.68906
 
-                               0.2917                       0.00397          0.62500
+                               0.2917                       0.00397           0.62500
 
-                               0.3146                       0.00693          0.56406
+                               0.3146                       0.00693           0.56406
 
-                               0.3375                       0.01094          0.50625
+                               0.3375                       0.01094           0.50625
 
-                               0.3604                       0.01608          0.45156
+                               0.3604                       0.01608           0.45156
 
-                               0.3833                       0.02245          0.40000
+                               0.3833                       0.02245           0.40000
 
-                               0.4063                       0.03014          0.35156
+                               0.4063                       0.03014           0.35156
 
-                               0.4292                       0.03922          0.30625
+                               0.4292                       0.03922           0.30625
 
-                               0.4521                       0.04978          0.26406
+                               0.4521                       0.04978           0.26406
 
-                               0.4750                       0.06187          0.22500
+                               0.4750                       0.06187           0.22500
 
-                               0.4979                       0.07558          0.18906
+                               0.4979                       0.07558           0.18906
 
-                               0.5208                       0.09096          0.15625
+                               0.5208                       0.09096           0.15625
 
-                               0.5437                       0.10809          0.12656
+                               0.5437                       0.10809           0.12656
 
-                               0.5667                       0.12701          0.10000
+                               0.5667                       0.12701           0.10000
 
-                               0.5896                       0.14780          0.07656
+                               0.5896                       0.14780           0.07656
 
-                               0.6125                       0.17050          0.05625
+                               0.6125                       0.17050           0.05625
 
-                               0.6354                       0.19517          0.03906
+                               0.6354                       0.19517           0.03906
 
-                               0.6583                       0.22188          0.02500
+                               0.6583                       0.22188           0.02500
 
-                               0.6813                       0.25066          0.01406
+                               0.6813                       0.25066           0.01406
 
-                               0.7042                       0.28158          0.00625
+                               0.7042                       0.28158           0.00625
 
-                               0.7271                       0.31467          0.00156
+                               0.7271                       0.31467           0.00156
 
-                               0.7500                       0.35000          0.00000
-
-
+                               0.7500                       0.35000           0.00000
 
 
-Special Core Analysis Report                                                Page 5 of 9
+
+
+Special Core Analysis Report                                                Page 6 of 10
 Gas-oil relative permeability table (working Corey set)
  Sg                                     krg                         krog
 
-                               0.0500                     0.00000           0.85000
+                               0.0500                     0.00000            0.85000
 
-                               0.0750                     0.00104           0.76421
+                               0.0750                     0.00104            0.76421
 
-                               0.1000                     0.00417           0.68383
+                               0.1000                     0.00417            0.68383
 
-                               0.1250                     0.00937           0.60875
+                               0.1250                     0.00937            0.60875
 
-                               0.1500                     0.01667           0.53885
+                               0.1500                     0.01667            0.53885
 
-                               0.1750                     0.02604           0.47400
+                               0.1750                     0.02604            0.47400
 
-                               0.2000                     0.03750           0.41407
+                               0.2000                     0.03750            0.41407
 
-                               0.2250                     0.05104           0.35893
+                               0.2250                     0.05104            0.35893
 
-                               0.2500                     0.06667           0.30845
+                               0.2500                     0.06667            0.30845
 
-                               0.2750                     0.08438           0.26249
+                               0.2750                     0.08438            0.26249
 
-                               0.3000                     0.10417           0.22091
+                               0.3000                     0.10417            0.22091
 
-                               0.3250                     0.12604           0.18355
+                               0.3250                     0.12604            0.18355
 
-                               0.3500                     0.15000           0.15026
+                               0.3500                     0.15000            0.15026
 
-                               0.3750                     0.17604           0.12089
+                               0.3750                     0.17604            0.12089
 
-                               0.4000                     0.20417           0.09526
+                               0.4000                     0.20417            0.09526
 
-                               0.4250                     0.23438           0.07320
+                               0.4250                     0.23438            0.07320
 
-                               0.4500                     0.26667           0.05453
+                               0.4500                     0.26667            0.05453
 
-                               0.4750                     0.30104           0.03905
+                               0.4750                     0.30104            0.03905
 
-                               0.5000                     0.33750           0.02656
+                               0.5000                     0.33750            0.02656
 
-                               0.5250                     0.37604           0.01684
+                               0.5250                     0.37604            0.01684
 
-                               0.5500                     0.41667           0.00964
+                               0.5500                     0.41667            0.00964
 
-                               0.5750                     0.45937           0.00470
+                               0.5750                     0.45937            0.00470
 
-                               0.6000                     0.50417           0.00170
+                               0.6000                     0.50417            0.00170
 
-                               0.6250                     0.55104           0.00030
+                               0.6250                     0.55104            0.00030
 
-                               0.6500                     0.60000           0.00000
-
-
+                               0.6500                     0.60000            0.00000
 
 
-Special Core Analysis Report                                               Page 6 of 9
+
+
+Special Core Analysis Report                                               Page 7 of 10
 Capillary pressure and saturation height
  Sw                       Pc (psi)                      Height above FWL (ft)                                         TVDSS (ft)
 
@@ -401,7 +431,7 @@ Physics and ReservoirCalc Pro read the saturation-height function of the same sa
 
 
 
-Special Core Analysis Report                                                                                                              Page 7 of 9
+Special Core Analysis Report                                                                                                             Page 8 of 10
 Plots
 Figure 1. Oil-water relative permeability (working curves)
 
@@ -472,7 +502,7 @@ Corey: Swc 0.2, Sgc 0.05, Sorg 0.15, krg 0.6, krog 0.85, ng 2, nog 2.5. Entered 
 
 
 
-Special Core Analysis Report                                                                                                           Page 8 of 9
+Special Core Analysis Report                                                                                                          Page 9 of 10
 Figure 5. Leverett J function
 
                                          Working J
@@ -570,5 +600,5 @@ h = Pc / (0.4335 (gamma_w - gamma_hc)), gamma_w 1.05, gamma_hc 0.8. No FWL depth
 
 
 
-Special Core Analysis Report                                                                                                           Page 9 of 9
+Special Core Analysis Report                                                                                                        Page 10 of 10
 

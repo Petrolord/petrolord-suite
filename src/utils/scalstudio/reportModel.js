@@ -21,6 +21,8 @@ import {
 import { OW_NORMALISATION, GO_NORMALISATION, J_DEFINITION, HEIGHT_DEFINITION } from './krHandoff.js';
 import { crossoverSw, heightAtSwFt } from './series.js';
 import { resolveFwl } from './fwlDatum.js';
+import { scalPvtSourceText } from './pvtGravities.js';
+import { editedAfterHandoffText } from '@/lib/inputProvenance/pvtContract';
 
 export const REPORT_TITLE = 'Special Core Analysis Report';
 export const APP_NAME = 'Petrolord SCAL Studio';
@@ -121,10 +123,11 @@ function inputsBlock(s, u) {
   }
   if (!owAuto) for (const r of rows) r.source = groupSource(meta.ow, null, owStart);
   const goStart = untouched(s.curves?.go, STARTING_VALUES.go);
+  const goAuto = s.goStatus?.kind === 'fitted' || s.goStatus?.kind === 'edited-after-fit' ? s.goStatus.text : null;
   const GO = [['Swc', 'Connate water saturation Swc'], ['Sgc', 'Critical gas saturation Sgc'], ['Sorg', 'Residual oil to gas Sorg'], ['krgMax', 'krg end point'], ['krogMax', 'krog at Swc (end point)'], ['ng', 'Gas Corey exponent ng'], ['nog', 'Oil Corey exponent nog']];
   for (const [k, label] of GO) {
-    const r = inputRow({ key: `go.${k}`, label: `Gas-oil: ${label}`, value: s.go?.params ? g(s.go.params[k]) : text(s.curves?.go?.[k]), unit: unitOf(k), meta: meta.go });
-    r.source = groupSource(meta.go, null, goStart);
+    const r = inputRow({ key: `go.${k}`, label: `Gas-oil: ${label}`, value: s.go?.params ? g(s.go.params[k]) : text(s.curves?.go?.[k]), unit: unitOf(k), meta: meta.go, auto: goAuto });
+    if (!goAuto) r.source = groupSource(meta.go, null, goStart);
     rows.push({ ...r, engineKeys: [`go.${k}`] });
   }
   const jMode = s.capillary?.jMode;
@@ -135,7 +138,10 @@ function inputsBlock(s, u) {
     const spec = s.jResolved?.jSpec;
     rows.push({ ...inputRow({ key: 'j.a', label: 'Leverett J: a (J at Sw* = 1)', value: spec ? g(spec.a) : '', unit: '', auto }), engineKeys: ['j.a'] });
     rows.push({ ...inputRow({ key: 'j.b', label: 'Leverett J: b (exponent)', value: spec ? g(spec.b) : '', unit: '', auto }), engineKeys: ['j.b'] });
-    const swAuto = meta2?.swirr?.from === 'override' ? 'Entered as the shared Swirr override' : 'Computed: lowest Sw of the included samples less 0.02';
+    const sf = meta2?.swirr?.fit;
+    const swAuto = meta2?.swirr?.from === 'fitted'
+      ? `Fitted with a and b to the pooled lab J of the included samples (95% CI ${f(sf.ci95?.[0], 3)} to ${f(sf.ci95?.[1], 3)}, ${sf.points} points, r2 ${f(sf.r2Log, 4)} in log space)`
+      : meta2?.swirr?.from === 'override' ? 'Entered as the shared Swirr override' : 'Computed: lowest Sw of the included samples less 0.02';
     rows.push({ ...inputRow({ key: 'j.Swirr', label: 'Leverett J: Swirr (shared by all samples)', value: spec ? g(spec.Swirr) : '', unit: 'fraction', auto: swAuto }), engineKeys: ['j.Swirr'] });
   } else {
     const jStart = untouched(s.capillary?.manual, STARTING_VALUES.jManual);
@@ -163,6 +169,12 @@ function inputsBlock(s, u) {
   for (const [k, label, mk] of [['gammaW', 'Water specific gravity', 'gammaW'], ['gammaHc', 'Hydrocarbon specific gravity', 'gammaHc']]) {
     const r = inputRow({ key: `height.${k}`, label, value: text(h[k]), unit: 'water = 1', meta: meta[mk] });
     if (r.source !== 'Not provided') r.source = groupSource(meta[mk], null, String(h[k]) === STARTING_VALUES.height[k]);
+    // SCAL-U2-005: taken from a Fluid Systems Studio project; an edit after the intake is said
+    const fromPvt = scalPvtSourceText(s.pvtIntake, k);
+    if (fromPvt) {
+      const received = s.pvtIntake.values[k];
+      r.source = Number(h[k]) === Number(received) ? fromPvt : editedAfterHandoffText(fromPvt, received);
+    }
     rows.push({ ...r, engineKeys: [`height.${k}`] });
   }
   const fwl = n(h.fwl_tvdss);
@@ -227,11 +239,13 @@ function samplesTables(s, u) {
     const fit = x.krFit;
     if (!fit) return [x.name, `${x.krRows.length}`, EMPTY_VALUE, EMPTY_VALUE, EMPTY_VALUE, EMPTY_VALUE, EMPTY_VALUE, EMPTY_VALUE, x.krFitError || 'No fit'];
     const ci = (pair) => (Array.isArray(pair) && pair.every(Number.isFinite) ? `${f(pair[0], 2)} to ${f(pair[1], 2)}` : EMPTY_VALUE);
+    const es = fit.endpointSource || {};
+    const tag = (k) => (es[k] && es[k] !== 'table' ? ` (${es[k]})` : '');
     return [
       x.name,
       `${fit.pointsUsed} of ${x.krRows.length * 2}`,
-      `${f(fit.params.Swc, 3)} / ${f(fit.params.Sor, 3)}`,
-      `${f(fit.params.krwMax, 4)} / ${f(fit.params.kroMax, 4)}`,
+      `${f(fit.params.Swc, 3)} / ${f(fit.params.Sor, 3)}${es.Swc === 'entered' ? ' (entered)' : ''}`,
+      `${f(fit.params.krwMax, 4)}${tag('krwMax')} / ${f(fit.params.kroMax, 4)}${tag('kroMax')}`,
       `${f(fit.params.nw, 2)} (${ci(fit.ci95?.nw)})`,
       `${f(fit.params.no, 2)} (${ci(fit.ci95?.no)})`,
       f(fit.rmsLog, 4),
@@ -239,17 +253,40 @@ function samplesTables(s, u) {
       fit.converged ? `Converged in ${fit.iterations} iterations` : `Stopped at the iteration cap (${fit.iterations}); approximate`,
     ];
   });
+  // SCAL-U2-004: the gas-oil fits, one row per sample with a gas-oil table
+  const goFits = samples.filter((x) => (x.goRows?.length || 0) > 0).map((x) => {
+    const fit = x.goFit;
+    if (!fit) return [x.name, `${x.goRows.length}`, EMPTY_VALUE, EMPTY_VALUE, EMPTY_VALUE, EMPTY_VALUE, EMPTY_VALUE, EMPTY_VALUE, x.goFitError || 'No fit'];
+    const ci = (pair) => (Array.isArray(pair) && pair.every(Number.isFinite) ? `${f(pair[0], 2)} to ${f(pair[1], 2)}` : EMPTY_VALUE);
+    return [
+      x.name,
+      `${fit.pointsUsed} of ${x.goRows.length * 2}`,
+      `${f(fit.params.Swc, 3)} (${fit.swcFrom}) / ${f(fit.params.Sgc, 3)} / ${f(fit.params.Sorg, 3)}${fit.endpointSource?.Sgc === 'entered' ? ' (entered)' : ''}`,
+      `${f(fit.params.krgMax, 4)}${fit.endpointSource?.krgMax === 'fitted' ? ' (fitted)' : ''} / ${f(fit.params.krogMax, 4)}${fit.endpointSource?.krogMax === 'fitted' ? ' (fitted)' : ''}`,
+      `${f(fit.params.ng, 2)} (${ci(fit.ci95?.ng)})`,
+      `${f(fit.params.nog, 2)} (${ci(fit.ci95?.nog)})`,
+      f(fit.rmsLog, 4),
+      f(fit.r2Log, 4),
+      fit.converged ? `Converged in ${fit.iterations} iterations` : `Stopped at the iteration cap (${fit.iterations}); approximate`,
+    ];
+  });
   // RL5: what was imported and what was left out, per sample and table
-  const imp = (rec, n) => (rec ? `${rec.file || 'file'}: ${rec.read} read, ${rec.skippedCount ?? (rec.skipped || []).length} left out${rec.units?.pc ? `; Pc in ${rec.units.pc} (${rec.units.pcHow})` : ''}; Sw as ${rec.units?.saturation || 'fraction'}` : (n ? `${n} rows, entered or saved before the import record` : EMPTY_VALUE));
-  const imports = samples.map((x) => [x.name, imp(x.krImport, x.krRows?.length || 0), imp(x.pcImport, x.pcRows?.length || 0)]);
+  const imp = (rec, n) => (rec ? `${rec.file || 'file'}${rec.sheet ? ` (sheet "${rec.sheet}")` : ''}: ${rec.read} read, ${rec.skippedCount ?? (rec.skipped || []).length} left out${rec.units?.pc ? `; Pc in ${rec.units.pc} (${rec.units.pcHow})` : ''}; Sw as ${rec.units?.saturation || 'fraction'}` : (n ? `${n} rows, entered or saved before the import record` : EMPTY_VALUE));
+  const anyGo = samples.some((x) => (x.goRows?.length || 0) > 0 || x.goImport);
+  const imports = samples.map((x) => [x.name, imp(x.krImport, x.krRows?.length || 0), imp(x.pcImport, x.pcRows?.length || 0), ...(anyGo ? [imp(x.goImport, x.goRows?.length || 0).replace('; Sw as', '; Sg as')] : [])]);
   return {
-    imports: { head: ['Sample', 'kr table', 'Pc table'], rows: imports, note: 'Rows left out at the door are listed on the Lab Data tab with the reason for each.' },
+    imports: { head: ['Sample', 'kr table', 'Pc table', ...(anyGo ? ['Gas-oil kr table'] : [])], rows: imports, note: 'Rows left out at the door are listed on the Lab Data tab with the reason for each.' },
     props: { head: ['Sample', 'Depth', 'k (md)', 'Porosity', `Lab IFT (${u.label('ift')})`, 'Angle (deg)', `sigma cos theta (${u.label('ift')})`, 'Lab fluids', 'kr points', 'Pc points'], rows: props },
     pedigree: { head: ['Sample', 'Lab or analog', 'kr test', 'Pc test', 'Wettability', 'Core condition', 'Test temperature', 'Laboratory, report'], rows: pedigree },
     fits: fits.length ? {
       head: ['Sample', 'kr points used', 'Swc / Sor', 'krw(Sor) / kro(Swc)', 'nw (95% CI)', 'no (95% CI)', 'RMS log10 kr', 'r2 log10 kr', 'Regression'],
       rows: fits,
-      note: 'Levenberg-Marquardt on log10 kr of both curves at once. Swc and Sor are the first and last Sw of the lab table and the end point kr its end rows; only the exponents are fitted. Points with kr at or below 1e-4 are left out (log of a definitional zero). Points used counts both curves.',
+      note: `Levenberg-Marquardt on log10 kr of both curves at once. Swc and Sor are the first and last Sw of the lab table and the end point kr its end rows; only the exponents are fitted${fits.some((r) => / \((entered|fitted)\)/.test(`${r[2]} ${r[3]}`)) ? ', except where marked: "entered" end points were stated for the sample because its table stops short of one, and a "fitted" end point kr is a parameter of the fit' : ''}. Points with kr at or below 1e-4 are left out (log of a definitional zero). Points used counts both curves.`,
+    } : null,
+    goFits: goFits.length ? {
+      head: ['Sample', 'kr points used', 'Swc (from) / Sgc / Sorg', 'krg end / krog(Swc)', 'ng (95% CI)', 'nog (95% CI)', 'RMS log10 kr', 'r2 log10 kr', 'Regression'],
+      rows: goFits,
+      note: 'The gas-oil table at connate water, fitted with the oil-water fit on the gas axis (Sg for Sw, Sgc for Swc, Swc + Sorg for Sor). Swc is the one stated for the sample, else the working gas-oil Swc; Sgc and Sorg are the first Sg and 1 - Swc - the last Sg of the table, and the end point kr its end rows.',
     } : null,
   };
 }
@@ -270,7 +307,7 @@ function jSection(s) {
   });
   const ci = fit?.ci95?.b;
   return {
-    text: `Geometric mean of the lab J of ${included.length} sample${included.length === 1 ? '' : 's'} on a ${meta.avg?.grid?.length || 0}-point normalised grid, refitted as J = a Sw*^(-b): a ${g(spec.a)}, b ${g(spec.b)}${Array.isArray(ci) && ci.every(Number.isFinite) ? ` (95% CI ${f(ci[0], 3)} to ${f(ci[1], 3)})` : ''}, r2 ${f(fit?.r2Log, 4)} in log space. One Swirr, ${g(spec.Swirr)} (${meta.swirr?.from === 'override' ? 'entered' : 'the lowest Sw of the included samples less 0.02'}), normalises every sample and maps the fit back to true Sw.`,
+    text: `Geometric mean of the lab J of ${included.length} sample${included.length === 1 ? '' : 's'} on a ${meta.avg?.grid?.length || 0}-point normalised grid, refitted as J = a Sw*^(-b): a ${g(spec.a)}, b ${g(spec.b)}${Array.isArray(ci) && ci.every(Number.isFinite) ? ` (95% CI ${f(ci[0], 3)} to ${f(ci[1], 3)})` : ''}, r2 ${f(fit?.r2Log, 4)} in log space. One Swirr, ${g(spec.Swirr)} (${meta.swirr?.from === 'fitted' ? `fitted with a and b to the pooled lab J, 95% CI ${f(meta.swirr.fit.ci95?.[0], 3)} to ${f(meta.swirr.fit.ci95?.[1], 3)}` : meta.swirr?.from === 'override' ? 'entered' : 'the lowest Sw of the included samples less 0.02'}), normalises every sample and maps the fit back to true Sw.`,
     table: { head: ['Sample', 'Used', 'Pc points', 'J points', 'Sw range', 'Note'], rows },
   };
 }
@@ -309,6 +346,14 @@ function limitsBlock(s, u) {
       if (!fit.converged) flags.push(`Sample "${x.name}": the Corey fit stopped at the iteration cap.`);
     }
   }
+  for (const x of samples) {
+    const fit = x.goFit;
+    if (!fit) continue;
+    for (const k of ['ng', 'nog']) if (fit.params[k] <= 0.5 + 1e-6 || fit.params[k] >= 8 - 1e-6) flags.push(`Sample "${x.name}": the fitted gas-oil ${k} sits on its bound (${f(fit.params[k], 2)}); the data do not settle it.`);
+    if (fit.r2Log < 0.95) flags.push(`Sample "${x.name}": the gas-oil Corey fit explains little of the data (r2 ${f(fit.r2Log, 3)} in log space).`);
+    if (!fit.converged) flags.push(`Sample "${x.name}": the gas-oil Corey fit stopped at the iteration cap.`);
+  }
+  if (s.goStatus?.kind === 'edited-after-fit') flags.push(`The working gas-oil set was edited after it was fitted (${s.goStatus.edited.join(', ')}); the fit statistics do not describe it.`);
   if (s.owStatus?.kind === 'edited-after-fit') flags.push(`The working oil-water set was edited after it was fitted (${s.owStatus.edited.join(', ')}); the fit statistics do not describe it.`);
   const fitJ = s.jResolved?.meta?.avg?.fit;
   if (fitJ && fitJ.r2Log < 0.98) flags.push(`The averaged J refit is poor (r2 ${f(fitJ.r2Log, 3)}): the samples may not share one rock type, or the shared Swirr needs setting.`);
@@ -317,6 +362,12 @@ function limitsBlock(s, u) {
   if (s.jResolved?.meta?.mode === 'samples' && Number.isFinite(swMin)) {
     const inc = samples.filter((x) => (s.capillary?.includedSampleIds || []).includes(x.id)).flatMap((x) => (x.jRows || []).map((r) => r.Sw));
     if (inc.length && swMin < Math.min(...inc)) flags.push(`The Pc and height tables start at Sw ${g(swMin)}, below the lowest lab Sw (${g(Math.min(...inc))}): that part of the curve is extrapolated.`);
+  }
+  const swf = s.jResolved?.meta?.swirr?.fit;
+  if (swf) {
+    if (swf.value <= 1e-9) flags.push('The fitted Swirr sits on its lower bound (0): the data do not settle it.');
+    if (Array.isArray(swf.ci95) && swf.ci95.every(Number.isFinite) && swf.ci95[1] - swf.ci95[0] > 0.1) flags.push(`The fitted Swirr is loosely settled (95% CI ${f(swf.ci95[0], 3)} to ${f(swf.ci95[1], 3)}).`);
+    if (!swf.converged) flags.push('The Swirr fit stopped at the iteration cap.');
   }
   if (spec && Number.isFinite(swMin) && swMin <= spec.Swirr) flags.push(`The Sw window starts at or below Swirr (${g(spec.Swirr)}), where the power-law J has no finite value.`);
   if (!Number.isFinite(n(s.height?.fwl_tvdss))) flags.push('No free water level is entered: heights are above the FWL only, with no depth.');
@@ -339,7 +390,7 @@ function headlineRows(s, u) {
     }
   }
   const q = s.go?.params;
-  if (q) rows.push(['Gas-oil: Sgc / Sorg / ng / nog', `${g(q.Sgc)} / ${g(q.Sorg)} / ${g(q.ng)} / ${g(q.nog)}`, '', 'Entered by the user']);
+  if (q) rows.push(['Gas-oil: Sgc / Sorg / ng / nog', `${g(q.Sgc)} / ${g(q.Sorg)} / ${g(q.ng)} / ${g(q.nog)}`, '', s.goStatus?.text || 'Entered by the user']);
   const spec = s.jResolved?.jSpec;
   if (spec) rows.push(['Leverett J: a / b / Swirr', `${g(spec.a)} / ${g(spec.b)} / ${g(spec.Swirr)}`, '', s.jResolved.meta?.mode === 'samples' ? `Averaged from ${s.jResolved.meta.sampleCount} samples` : 'Typed power law']);
   const comp = scalingComponents(s, u);
@@ -351,6 +402,47 @@ function headlineRows(s, u) {
   const fwl = n(s.height?.fwl_tvdss);
   rows.push(['Free water level', Number.isFinite(fwl) ? thousands(u.show('length', fwl), 1) : EMPTY_VALUE, Number.isFinite(fwl) ? `${u.label('length')} TVDSS` : '', Number.isFinite(fwl) ? 'Entered' : 'Not entered']);
   return { head: ['Quantity', 'Value', 'Unit', 'Basis'], rows };
+}
+
+/**
+ * The one-page summary at the front of the report (SCAL-U2-012), for the
+ * reader who reads one page: the working sets and where each came from,
+ * the lab data behind them, the J curve and its Swirr, Pc and height at
+ * Sw 0.5, the fluid gravities and their source, where the curves go, and
+ * the flags. Every value is one the later pages print in full.
+ * @param {object} m the model buildScalReportModel builds (without summary)
+ * @param {object} s the studio state
+ */
+export function summaryBlock(m, s) {
+  const rows = [];
+  const p = s.ow?.params;
+  rows.push(['Oil-water set', p ? `Swc ${g(p.Swc)}, Sor ${g(p.Sor)}, krw(Sor) ${g(p.krwMax)}, kro(Swc) ${g(p.kroMax)}, nw ${g(p.nw)}, no ${g(p.no)}. ${s.owStatus?.text || 'Entered by the user'}` : `Not valid: ${s.ow?.error || 'no parameters'}`]);
+  const q = s.go?.params;
+  rows.push(['Gas-oil set (at connate water)', q ? `Swc ${g(q.Swc)}, Sgc ${g(q.Sgc)}, Sorg ${g(q.Sorg)}, krg ${g(q.krgMax)}, krog ${g(q.krogMax)}, ng ${g(q.ng)}, nog ${g(q.nog)}. ${s.goStatus?.text || 'Entered by the user'}` : `Not valid: ${s.go?.error || 'no parameters'}`]);
+  const smp = s.samplesDerived || [];
+  const count = (k) => smp.filter((x) => (x[k]?.length || 0) > 0).length;
+  const analog = smp.filter((x) => pedigreeOf(x).origin === 'analog').length;
+  rows.push(['Lab data', smp.length ? `${smp.length} core sample${smp.length === 1 ? '' : 's'}: ${count('krRows')} with an oil-water kr table, ${count('goRows')} with a gas-oil table, ${count('pcRows')} with a Pc table${analog ? `; ${analog} stated as an analog` : ''}` : 'No core sample: the curves and the J function were entered']);
+  const spec = s.jResolved?.jSpec;
+  const sw = s.jResolved?.meta?.swirr;
+  const swWords = sw ? ({ fitted: 'fitted with a and b', override: 'entered', data: 'lowest lab Sw less 0.02' }[sw.from] || '') : '';
+  rows.push(['Leverett J', spec ? `a ${g(spec.a)}, b ${g(spec.b)}, Swirr ${g(spec.Swirr)}${swWords ? ` (${swWords})` : ''}; ${s.jResolved.meta?.mode === 'samples' ? `averaged from ${s.jResolved.meta.sampleCount} sample${s.jResolved.meta.sampleCount === 1 ? '' : 's'}, refit r2 ${f(s.jResolved.meta.avg?.fit?.r2Log, 4)}` : 'typed power law'}` : (s.jResolved?.error || 'No working J curve')]);
+  const pcRow = m.headline.rows.find(([k]) => k === 'Pc at Sw = 0.5 (reservoir)');
+  const hRow = m.headline.rows.find(([k]) => k === 'Height above FWL at Sw = 0.5');
+  rows.push(['At Sw = 0.5', pcRow ? `Pc ${pcRow[1]} ${pcRow[2]}, height above the FWL ${hRow?.[1] ?? EMPTY_VALUE} ${hRow?.[2] ?? ''}`.trim() : EMPTY_VALUE]);
+  const fwlRow = m.headline.rows.find(([k]) => k === 'Free water level');
+  rows.push(['Free water level', fwlRow && fwlRow[1] !== EMPTY_VALUE ? `${fwlRow[1]} ${fwlRow[2]}` : 'Not entered']);
+  const gw = m.inputs.rows.find((r) => r.key === 'height.gammaW');
+  const gh = m.inputs.rows.find((r) => r.key === 'height.gammaHc');
+  rows.push(['Fluid gravities', `water ${gw?.value || EMPTY_VALUE}, hydrocarbon ${gh?.value || EMPTY_VALUE}; ${s.pvtIntake?.from?.recordName ? `from Fluid Systems Studio project "${s.pvtIntake.from.recordName}"` : (gh?.source || 'source not stated')}`]);
+  rows.push(['Where the curves go', 'The kr-1 block (last table) to Waterflood Design Studio and the saturation-height readers; SWOF and SGOF keywords and CSV tables from the Export tab']);
+  const flags = m.limits.flags.length;
+  rows.push(['Flags', `${flags} flag${flags === 1 ? '' : 's'} on the inputs, the samples and the fits`]);
+  if (flags) rows.push(['First flag', m.limits.flags[0].length > 300 ? `${m.limits.flags[0].slice(0, 297)}...` : m.limits.flags[0]]);
+  return {
+    rows,
+    note: 'This page summarises the pages after it: every value here is printed there in full, with its inputs, sources, method and limits.',
+  };
 }
 
 /** Every 4th row of a table plus the last, for a printed table that a page holds. */
@@ -372,7 +464,7 @@ export function buildScalReportModel(s, { projectName = '', organizationName = '
   const hp = s.heightProfile || [];
   const pcTable = thin(hp, 4).map((r) => [f(r.Sw, 4), f(u.show('pc', r.Pc_psi), 4), f(u.show('length', r.h_ft), 2), Number.isFinite(fwl) ? thousands(u.show('length', fwl - r.h_ft), 1) : EMPTY_VALUE]);
   const samples = samplesTables(s, u);
-  return {
+  const model = {
     title: REPORT_TITLE,
     appName: APP_NAME,
     system: u.system,
@@ -389,7 +481,7 @@ export function buildScalReportModel(s, { projectName = '', organizationName = '
       ['Oil-water curves', `Corey. ${OW_NORMALISATION}`],
       ['Source of the oil-water set', s.owStatus?.text || 'Entered by the user'],
       ['Gas-oil curves', `Corey. ${GO_NORMALISATION}`],
-      ['Source of the gas-oil set', 'Entered by the user (gas-oil sets are not fitted in this app)'],
+      ['Source of the gas-oil set', s.goStatus?.text || 'Entered by the user'],
       ['Leverett J', J_DEFINITION],
       ['Capillary pressure at reservoir conditions', 'Pc = J sigma cos(theta) / (0.21645 sqrt(k / phi)) with the reservoir k, porosity, IFT and contact angle'],
       ['Saturation height', HEIGHT_DEFINITION],
@@ -412,6 +504,7 @@ export function buildScalReportModel(s, { projectName = '', organizationName = '
     },
     notes: text(s.notes),
   };
+  return { ...model, summary: summaryBlock(model, s) };
 }
 
 /** Rows of the Report tab's source controls, with how many still print as the starting values. */
@@ -419,7 +512,7 @@ export function startingValueGroups(s) {
   const meta = s.inputMeta || {};
   const out = [];
   if (untouched(s.curves?.ow, STARTING_VALUES.ow) && !isStated(meta.ow) && s.owStatus?.kind !== 'fitted') out.push('ow');
-  if (untouched(s.curves?.go, STARTING_VALUES.go) && !isStated(meta.go)) out.push('go');
+  if (untouched(s.curves?.go, STARTING_VALUES.go) && !isStated(meta.go) && s.goStatus?.kind !== 'fitted') out.push('go');
   if (s.capillary?.jMode !== 'samples' && untouched(s.capillary?.manual, STARTING_VALUES.jManual) && !isStated(meta.jManual)) out.push('jManual');
   for (const [k, mk] of [['k_md', 'k_md'], ['phi', 'phi'], ['sigma_dyncm', 'sigma'], ['thetaDeg', 'theta']]) {
     if (String(s.capillary?.reservoir?.[k]) === STARTING_VALUES.reservoir[k] && !isStated(meta[mk])) out.push(mk);

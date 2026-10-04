@@ -30,7 +30,7 @@ const GO_FIELDS = [
 
 const CurvesPanel = () => {
   const {
-    curves, setCurveField, setOwField, setGoField, ow, go, owStatus,
+    curves, setCurveField, setOwField, setGoField, ow, go, owStatus, goStatus,
   } = useScalStudio();
   const isOw = curves.phase === 'oilwater';
 
@@ -66,7 +66,9 @@ const CurvesPanel = () => {
           </p>
         )}
         {!isOw && (
-          <p className="text-[11px] text-pl-muted">Source of this set: entered by the user. Gas-oil sets are not fitted in this app.</p>
+          <p className={`text-[11px] ${goStatus?.kind === 'edited-after-fit' ? 'text-pl-warning-text' : 'text-pl-muted'}`} data-testid="scal-go-origin" data-origin={goStatus?.kind}>
+            Source of this set: {goStatus?.text || 'Entered by the user'}. Fit a sample's gas-oil table on the Lab Data tab to apply it here.
+          </p>
         )}
       </section>
 

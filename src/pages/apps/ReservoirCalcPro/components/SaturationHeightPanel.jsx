@@ -34,7 +34,7 @@ export default function SaturationHeightPanel() {
       // SCAL saves the FWL as a TVDSS depth in ft; RCP contacts are elevations
       const fwlFt = Number.isFinite(shm.fwlTvdssM) ? shm.fwlTvdssM * FT_PER_M : null;
       const fwl = fwlFt === null ? (sh?.fwl ?? null) : -(state.unitSystem === 'metric' ? fwlFt / FT_PER_M : fwlFt);
-      updateInputs({ saturationHeight: { projectId: id, name: shm.name, jSpec: shm.jSpec, reservoir: shm.reservoir, fluids: shm.fluids, fwl } });
+      updateInputs({ saturationHeight: { projectId: id, name: shm.name, jSpec: shm.jSpec, reservoir: shm.reservoir, fluids: shm.fluids, fwl, sourceText: shm.sourceText } });
     } catch (e) { setError(e.message); }
   };
 

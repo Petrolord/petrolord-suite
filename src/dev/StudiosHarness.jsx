@@ -11,6 +11,7 @@ import { useParams } from 'react-router-dom';
 import InMemorySupabase, { createStore, DEV_USER } from './InMemorySupabase';
 import DevAuth from './DevAuth';
 import { loadScalRows, watchScalRows, persistScalRows, SCAL_TABLE } from './scalProjectsStore';
+import { loadFluidRows, FLUID_TABLE } from './fluidProjectsStore';
 import { savedScalRows } from '@/components/scalstudio/__fixtures__/savedProjects';
 
 const APPS = {
@@ -50,7 +51,8 @@ const SEEDS = {
     const rows = loadScalRows();
     const wantFixtures = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('saved') === '1';
     if (wantFixtures) for (const r of savedScalRows(U)) if (!rows.some((x) => x.id === r.id)) rows.push(r);
-    return { [SCAL_TABLE]: rows };
+    // SCAL-U2-005: the Fluid Systems projects saved on the Fluid harness in this tab, read by id
+    return { [SCAL_TABLE]: rows, [FLUID_TABLE]: loadFluidRows() };
   },
   waterflood: () => ({ [SCAL_TABLE]: loadScalRows() }),
   // AFE: budget 8.5M; EAC max(budget, actual + commitment) unless entered:
@@ -151,6 +153,8 @@ function useScalRows(app) {
     if (stores.scal) persistScalRows(stores.scal);
     storeFor('waterflood')[SCAL_TABLE] = loadScalRows();
   }
+  // a Fluid project may have been saved on the Fluid harness since SCAL was first opened
+  if (app === 'scal') storeFor('scal')[FLUID_TABLE] = loadFluidRows();
   useEffect(() => (app === 'scal' ? watchScalRows(storeFor('scal')) : undefined), [app]);
 }
 

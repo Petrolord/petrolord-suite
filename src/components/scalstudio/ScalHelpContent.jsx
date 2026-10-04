@@ -27,7 +27,7 @@ const ScalHelpContent = () => (
     <H>1. Curves</H>
     <P>
       Corey parameter sets for oil-water and gas-oil systems: end point saturations, end point kr values and the two
-      exponents. Under the oil-water set the app says where it came from: entered by you, or fitted to a sample's
+      exponents. Under each set the app says where it came from: entered by you, or fitted to a sample's
       lab table (with the fit's r2), or fitted and then edited, in which case the fit statistics no longer describe
       it. The optional fractional flow preview is curves only; displacement design stays in the Waterflood Design
       Studio.
@@ -37,7 +37,8 @@ const ScalHelpContent = () => (
     <P>
       Core samples with their rock properties, their pedigree (lab or analog, the kr and Pc test methods, drainage
       or imbibition, wettability, core condition, test temperature, laboratory and report number) and their lab
-      tables. The kr and Pc doors read CSV, tab, semicolon or space separated files, with comma decimals, a header
+      tables. The kr, gas-oil and Pc doors read CSV, tab, semicolon or space separated files and Excel workbooks
+      (the first sheet that holds the table is read, and its name is kept), with comma decimals, a header
       in any order or none, and units in the header such as Pc (kPa) or Sw (%). When the file names no unit, the
       unit you choose above the buttons is used. After each import the app shows what it read: which column became
       what, in which unit, how many rows were read and every row left out with the reason. The same record goes
@@ -45,9 +46,20 @@ const ScalHelpContent = () => (
     </P>
     <P>
       Each sample with a kr table gets a Corey fit of the two exponents with 95 percent confidence intervals; Swc
-      and Sor come from the first and last rows of the table, so the table needs both end points. Apply a fit to
+      and Sor come from the first and last rows of the table. When the table stops short of an end point, as
+      unsteady-state data often do at residual oil, state Swc and Sor for the fit on the sample: every row must
+      lie between them, and the kr end point the table does not reach becomes a fitted value with its own
+      confidence interval. The card, the report and the kr-1 block say which end points were entered and which
+      were fitted. Apply a fit to
       the Curves tab with one click; the record of the fit travels with the set. The normalised overlay compares
       curve shapes across samples. The synthetic demo pair is marked as an analog wherever it is printed.
+    </P>
+    <P>
+      A sample can also carry a gas-oil table at connate water (Sg, krg, krog), read by its own door. It is fitted
+      the same way, at the Swc of the test: the one you state for the sample, or else the working gas-oil Swc. Sgc
+      is the first Sg of the table and Sorg is 1 minus Swc minus its last Sg. Use gas-oil fit on the Curves tab
+      applies it, and the gas-oil set then says which sample it was fitted to, on screen, in the report and in the
+      kr-1 block.
     </P>
 
     <H>3. Capillary</H>
@@ -56,7 +68,9 @@ const ScalHelpContent = () => (
       the saturation normalised above Swirr. In samples mode the studio averages the J tables computed from your lab
       capillary data (geometric mean on a normalised axis) and refits the power law. One Swirr is used for every
       sample, both to normalise them and to map the fit back to Sw: the override when you type one (it must sit below
-      the lowest Sw of every sample), otherwise the lowest Sw of the included samples less 0.02. The reservoir rock
+      the lowest Sw of every sample), otherwise the lowest Sw of the included samples less 0.02. Fit Swirr with a
+      and b fits the three together to the pooled lab J of the included samples and uses that Swirr, with its 95
+      percent interval printed beside it; the lowest Sw less 0.02 is only a guess and sets the start. The reservoir rock
       inputs scale the J curve to capillary pressure through Pc = J sigma cos theta divided by 0.21645 root k over
       phi; the lab points scaled the same way are drawn over the curve.
     </P>
@@ -67,6 +81,14 @@ const ScalHelpContent = () => (
       water minus hydrocarbon specific gravity difference. The free water level is entered as TVDSS, or as TVD below
       the depth reference of a well from the wells registry, which the Suite's datum module turns into TVDSS (or
       refuses, with the reason, when the well has no reference elevation). The FWL is marked on the chart.
+    </P>
+    <P>
+      The water and oil gravities can come from a saved Fluid Systems Studio project: choose it (or open SCAL Studio
+      with the project in the address), state the reservoir pressure or leave it at the bubble point, and take them.
+      The oil density is the stock-tank oil and its dissolved gas over Bo, and the brine density the standard density
+      for the salinity over Bw, read from the project's PVT table at that pressure and never extrapolated past it. A
+      card beside them keeps the source: it says when the Fluid project now holds a different fluid, and when you
+      typed over a value. The interfacial tension is not part of the Fluid project's PVT block, so it stays as entered.
     </P>
 
     <H>5. Report</H>
@@ -89,7 +111,16 @@ const ScalHelpContent = () => (
       id and print its source.
     </P>
     <P>
-      The CSV files (kr, reservoir Pc, saturation-height) open with lines starting with # that say where they came
+      Simulator keywords writes the working sets as SWOF and SGOF tables for an Eclipse or OPM Flow deck, in FIELD
+      units (Pc in psi) or METRIC units (Pc in bar). SWOF runs from Swc to Sw = 1, with the capillary pressure of
+      the working J curve in its fourth column when that switch is on; SGOF runs from Sg = 0 to 1 minus Swc, so the
+      two tables close, which needs the same Swc in both sets. Gas-oil capillary pressure is written as zero. The
+      file opens with comment lines saying where the curves came from, the units and the conventions. The export
+      is refused, with the reason, when the two Swc differ or when Swc sits at or below the Swirr of the J curve
+      (the power law has no finite Pc there). Simulation Studio reading the file by id comes with its own round.
+    </P>
+    <P>
+      The CSV files (oil-water kr, gas-oil kr at connate water, reservoir Pc, saturation-height) open with lines starting with # that say where they came
       from and in which units. The project JSON is the saved payload itself; importing it restores the whole
       project on screen. Every chart has a PNG download button.
     </P>

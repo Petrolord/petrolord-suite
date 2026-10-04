@@ -19,11 +19,13 @@ import {
   buildCoreyGasOil,
   computeJTable,
   fitCoreyToKrTable,
+  fitCoreyGasOilToKrTable,
   averageJCurves,
+  fitJPowerLaw,
   pcFromJ,
   swVsHeight,
 } from '@/utils/scalCalculations';
-import { curveOriginStatus, OW_KEYS, identificationOf } from './model.js';
+import { curveOriginStatus, OW_KEYS, GO_KEYS, identificationOf } from './model.js';
 import { deserializeProvenance } from '@/lib/inputProvenance/model';
 import { SCAL_UNIT_SYSTEMS } from './units.js';
 
@@ -125,9 +127,18 @@ export function buildJSpec(capillary, samples) {
   // samples to Sw* and to map the averaged fit back to true Sw. The engine
   // left alone takes each sample's own Swirr, which put the working curve
   // 16 percent low at Sw 0.5 for samples starting at different Sw.
-  const swirrOverride = num(capillary.SwirrOverride);
   const lowest = included.map((s) => ({ name: s.name, sw: Math.min(...s.jRows.map((r) => r.Sw)) }));
-  if (Number.isFinite(swirrOverride)) {
+  // SCAL-U2-006: the shared Swirr fitted with a and b to the pooled lab J
+  // of the included samples (engine fitJPowerLaw, fitSwirr), then used as
+  // the one Swirr of the averaging, as an override would be
+  let swirrFit = null;
+  if (capillary.SwirrFit) {
+    const fit = fitJPowerLaw(included.flatMap((s) => s.jRows), { fitSwirr: true });
+    if (!fit.ok) return { jSpec: null, meta: null, error: `Swirr could not be fitted: ${fit.errors[0]}` };
+    swirrFit = { value: fit.Swirr, ci95: fit.ci95.Swirr, a: fit.a, b: fit.b, r2Log: fit.r2Log, rmsLog: fit.rmsLog, converged: fit.converged, start: fit.swirrStart, points: included.reduce((n, s) => n + s.jRows.length, 0) };
+  }
+  const swirrOverride = swirrFit ? swirrFit.value : num(capillary.SwirrOverride);
+  if (!swirrFit && Number.isFinite(swirrOverride)) {
     const above = lowest.find((l) => !(swirrOverride < l.sw));
     if (swirrOverride < 0 || above) {
       return {
@@ -144,7 +155,9 @@ export function buildJSpec(capillary, samples) {
     : Math.max(0, Math.min(...lowest.map((l) => l.sw)) - 0.02);
   const avg = averageJCurves(included.map((s) => ({ name: s.name, jRows: s.jRows })), { Swirr: swirr });
   if (!avg.ok) return { jSpec: null, meta: null, error: avg.errors[0] };
-  const swirrMeta = { value: swirr, from: Number.isFinite(swirrOverride) ? 'override' : 'data' };
+  const swirrMeta = swirrFit
+    ? { value: swirr, from: 'fitted', fit: swirrFit }
+    : { value: swirr, from: Number.isFinite(swirrOverride) ? 'override' : 'data' };
   if (!avg.fit) {
     return { jSpec: null, meta: { mode: 'samples', avg, swirr: swirrMeta }, error: 'The averaged J curve could not be fitted; check the sample data.' };
   }
@@ -167,9 +180,10 @@ export function deriveCurves(curves) {
   const ow = buildOwParams(curves.ow);
   const go = buildGoParams(curves.go);
   const owStatus = curveOriginStatus(curves.ow, curves.owOrigin, OW_KEYS);
+  const goStatus = curveOriginStatus(curves.go, curves.goOrigin, GO_KEYS);
   const owCurves = ow.params ? buildCoreyOilWater(ow.params, { n: 101 }) : null;
   const goCurves = go.params ? buildCoreyGasOil(go.params, { n: 101 }) : null;
-  return { ow, go, owStatus, owCurves, goCurves, fwPreview: deriveFwPreview(curves, ow) };
+  return { ow, go, owStatus, goStatus, owCurves, goCurves, fwPreview: deriveFwPreview(curves, ow) };
 }
 
 export function deriveFwPreview(curves, ow) {
@@ -188,21 +202,44 @@ export function deriveFwPreview(curves, ow) {
   return { rows, muW, muO };
 }
 
-/** Per-sample J tables and Corey fits. */
-export function deriveSamples(samples) {
+/**
+ * The gas-oil fit of one sample (SCAL-U2-004), at the Swc of its test: the
+ * sample's own when stated, else the working gas-oil set's.
+ */
+export function deriveGoFit(s, workingGoSwc) {
+  if ((s.goRows?.length ?? 0) < 3) return { goFit: null, goFitError: null };
+  const own = num(s.goSwc);
+  const Swc = Number.isFinite(own) ? own : num(workingGoSwc);
+  const swcFrom = Number.isFinite(own) ? 'stated for the sample' : 'the working gas-oil set';
+  // SCAL-U2-003: Sgc and Sorg stated for the sample (both, or neither)
+  const sgc = num(s.goSgc);
+  const sorg = num(s.goSorg);
+  const fixedEndpoints = Number.isFinite(sgc) && Number.isFinite(sorg) ? { Sgc: sgc, Sorg: sorg } : null;
+  const res = fitCoreyGasOilToKrTable(s.goRows, { Swc, fixedEndpoints });
+  return res.ok ? { goFit: { ...res, swcFrom }, goFitError: null } : { goFit: null, goFitError: res.errors[0] };
+}
+
+/** Per-sample J tables and Corey fits (oil-water, and gas-oil at the given working Swc). */
+export function deriveSamples(samples, { goSwc = null } = {}) {
   return (samples || []).map((s) => {
     const props = {
       k_md: num(s.k_md), phi: num(s.phi),
       sigma_dyncm: num(s.sigma_dyncm), thetaDeg: num(s.thetaDeg),
     };
     const jTable = (s.pcRows?.length ?? 0) >= 3 ? computeJTable(s.pcRows, props) : null;
-    const krFit = (s.krRows?.length ?? 0) >= 3 ? fitCoreyToKrTable(s.krRows) : null;
+    // SCAL-U2-003: Swc and Sor stated for the sample (both, or neither) let a
+    // table that stops short of an end point be fitted
+    const fSwc = num(s.fitSwc);
+    const fSor = num(s.fitSor);
+    const fixedEndpoints = Number.isFinite(fSwc) && Number.isFinite(fSor) ? { Swc: fSwc, Sor: fSor } : null;
+    const krFit = (s.krRows?.length ?? 0) >= 3 ? fitCoreyToKrTable(s.krRows, fixedEndpoints ? { fixedEndpoints } : {}) : null;
     return {
       ...s,
       jRows: jTable?.ok ? jTable.rows.map((r) => ({ Sw: r.Sw, J: r.J })) : [],
       jError: jTable && !jTable.ok ? jTable.errors[0] : null,
       krFit: krFit?.ok ? krFit : null,
       krFitError: krFit && !krFit.ok ? krFit.errors[0] : null,
+      ...deriveGoFit(s, goSwc),
     };
   });
 }
@@ -233,7 +270,7 @@ export function deriveHeightProfile(jResolved, reservoir, height) {
 /** Every derived object of the studio from its saved inputs, in one call. */
 export function deriveScalState(inputs) {
   const curves = deriveCurves(inputs.curves);
-  const samplesDerived = deriveSamples(inputs.samples);
+  const samplesDerived = deriveSamples(inputs.samples, { goSwc: inputs.curves?.go?.Swc });
   const jResolved = buildJSpec(inputs.capillary, samplesDerived);
   const reservoir = buildReservoirProps(inputs.capillary.reservoir);
   return {
@@ -266,6 +303,8 @@ export function inputsFromPayload(payload) {
     },
     height: { ...DEFAULT_HEIGHT, ...(payload?.height || {}) },
     notes: typeof payload?.notes === 'string' ? payload.notes : '',
+    // SCAL-U2-005: the gravities taken from a Fluid Systems Studio project, with their record
+    pvtIntake: payload?.pvtIntake && typeof payload.pvtIntake === 'object' ? payload.pvtIntake : null,
     identification: identificationOf(payload),
     inputMeta: deserializeProvenance(payload?.inputMeta),
     // a saved project keeps its own system; one saved before the upgrade is oilfield

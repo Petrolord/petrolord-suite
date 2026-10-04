@@ -58,13 +58,27 @@ const toPsi = (v, unit) => {
 const ROLE_TESTS = {
   Sw: (n) => /^s\s*[_-]?\s*w\b|^sw|water\s*sat|^s\s*w\s*$/i.test(n),
   krw: (n) => /^kr\s*[_-]?\s*w|^krw|water\s*rel/i.test(n),
-  kro: (n) => /^kr\s*[_-]?\s*o|^kro|oil\s*rel/i.test(n),
+  kro: (n) => !/^kr\s*[_-]?\s*o\s*[_-]?\s*g/i.test(n) && /^kr\s*[_-]?\s*o|^kro|oil\s*rel/i.test(n),
   Pc: (n) => /^p\s*[_-]?\s*c\b|^pc|capillary/i.test(n),
+  // SCAL-U2-004: the gas-oil door
+  Sg: (n) => /^s\s*[_-]?\s*g\b|^sg|gas\s*sat/i.test(n),
+  krg: (n) => /^kr\s*[_-]?\s*g|gas\s*rel/i.test(n),
+  krog: (n) => /^kr\s*[_-]?\s*o\s*[_-]?\s*g|oil.{0,6}gas\s*rel/i.test(n),
 };
+
+// The columns of the other kr door: a header that names these and none of
+// the door's own is the wrong table, not one to read by position.
+const FOREIGN_ROLES = { Sw: ['Sg', 'krg', 'krog'], Sg: ['Sw', 'krw', 'kro'] };
 
 function findColumns(table, roles) {
   const out = {};
   const numeric = table.columns.filter((c) => c.kind === 'number');
+  const foreign = FOREIGN_ROLES[roles[0]] || [];
+  if (table.header && foreign.length) {
+    const own = table.columns.some((c) => roles.some((r) => ROLE_TESTS[r](c.name || '')));
+    const other = foreign.filter((r) => table.columns.some((c) => ROLE_TESTS[r](c.name || '')));
+    if (!own && other.length) return { cols: null, missing: roles, byOrder: false, foreign: other };
+  }
   if (table.header) {
     for (const role of roles) {
       const col = table.columns.find((c) => c.kind !== 'text' && ROLE_TESTS[role](c.name || '') && !Object.values(out).includes(c.index));
@@ -85,7 +99,8 @@ function sharedRead(text, roles, chosen) {
   if (!table.rows.length) return { table, fail: empty('No table was found in the file.') };
   const found = findColumns(table, roles);
   if (!found.cols) {
-    return { table, fail: empty(`The file has no column for ${found.missing.join(', ')}. Name the columns (for example ${roles.join(', ')}) or put them in that order.`) };
+    const wrong = found.foreign ? ` Its header names ${found.foreign.join(', ')}: it looks like ${roles[0] === 'Sg' ? 'an oil-water' : 'a gas-oil'} table, which has its own door.` : '';
+    return { table, fail: empty(`The file has no column for ${found.missing.join(', ')}. Name the columns (for example ${roles.join(', ')}) or put them in that order.${wrong}`) };
   }
   return { table, cols: found.cols, byOrder: found.byOrder };
 }
@@ -109,6 +124,35 @@ function skippedOf(table) {
   ];
 }
 
+function readTwoCurveTable(text, chosen, keys) {
+  const [S, a, b] = keys;
+  const { table, fail, cols, byOrder } = sharedRead(text, keys, chosen);
+  if (fail) return fail;
+  const sat = satScale(table, cols[S], chosen);
+  const f = sat.unit === 'percent' ? 0.01 : 1;
+  const rows = [];
+  const skipped = skippedOf(table);
+  for (const r of table.rows) {
+    const sv = r.values[cols[S]]; const av = r.values[cols[a]]; const bv = r.values[cols[b]];
+    if (![sv, av, bv].every(Number.isFinite)) { skipped.push({ line: r.line, reason: `a blank or non-numeric ${S}, ${a} or ${b}` }); continue; }
+    const row = { [S]: Number((sv * f).toPrecision(12)), [a]: av, [b]: bv };
+    if (row[S] < 0 || row[S] > 1) { skipped.push({ line: r.line, reason: `${S} ${sv} is outside 0 to 1 after reading it as a ${sat.unit}` }); continue; }
+    if (av < 0 || av > 1 || bv < 0 || bv > 1) { skipped.push({ line: r.line, reason: 'kr outside 0 to 1' }); continue; }
+    rows.push(row);
+  }
+  rows.sort((x, y) => x[S] - y[S]);
+  skipped.sort((x, y) => x.line - y.line);
+  const columns = { [S]: nameOf(table, cols[S]), [a]: nameOf(table, cols[a]), [b]: nameOf(table, cols[b]), byOrder };
+  const summary = [
+    `${rows.length} row${rows.length === 1 ? '' : 's'} read, ${skipped.length} left out.`,
+    byOrder ? `No header names the columns: read in the order ${S}, ${a}, ${b}.` : `Columns: ${S} from "${columns[S]}", ${a} from "${columns[a]}", ${b} from "${columns[b]}".`,
+    `${S} read as a ${sat.unit} (${sat.how}).`,
+    `Separator: ${table.delimiterName}; decimal mark: ${table.decimal.mark === ',' ? 'comma' : 'point'}.`,
+    ...table.questions.map(questionText),
+  ].join(' ');
+  return { ok: rows.length >= 3, error: rows.length >= 3 ? undefined : 'Fewer than 3 usable rows.', rows, read: rows.length, skipped, columns, units: { saturation: sat.unit, saturationHow: sat.how }, decimal: table.decimal.mark, questions: table.questions, summary };
+}
+
 /**
  * Read a lab kr table.
  * @param {string} text
@@ -117,31 +161,16 @@ function skippedOf(table) {
  *   skipped: Array<{line: number, reason: string}>, columns: ?object, units: ?object, questions: object[], summary: string}}
  */
 export function readKrTable(text, chosen = {}) {
-  const { table, fail, cols, byOrder } = sharedRead(text, ['Sw', 'krw', 'kro'], chosen);
-  if (fail) return fail;
-  const sat = satScale(table, cols.Sw, chosen);
-  const f = sat.unit === 'percent' ? 0.01 : 1;
-  const rows = [];
-  const skipped = skippedOf(table);
-  for (const r of table.rows) {
-    const Sw = r.values[cols.Sw]; const krw = r.values[cols.krw]; const kro = r.values[cols.kro];
-    if (![Sw, krw, kro].every(Number.isFinite)) { skipped.push({ line: r.line, reason: 'a blank or non-numeric Sw, krw or kro' }); continue; }
-    const row = { Sw: Number((Sw * f).toPrecision(12)), krw, kro };
-    if (row.Sw < 0 || row.Sw > 1) { skipped.push({ line: r.line, reason: `Sw ${Sw} is outside 0 to 1 after reading it as a ${sat.unit}` }); continue; }
-    if (krw < 0 || krw > 1 || kro < 0 || kro > 1) { skipped.push({ line: r.line, reason: 'kr outside 0 to 1' }); continue; }
-    rows.push(row);
-  }
-  rows.sort((a, b) => a.Sw - b.Sw);
-  skipped.sort((a, b) => a.line - b.line);
-  const columns = { Sw: nameOf(table, cols.Sw), krw: nameOf(table, cols.krw), kro: nameOf(table, cols.kro), byOrder };
-  const summary = [
-    `${rows.length} row${rows.length === 1 ? '' : 's'} read, ${skipped.length} left out.`,
-    byOrder ? 'No header names the columns: read in the order Sw, krw, kro.' : `Columns: Sw from "${columns.Sw}", krw from "${columns.krw}", kro from "${columns.kro}".`,
-    `Sw read as a ${sat.unit} (${sat.how}).`,
-    `Separator: ${table.delimiterName}; decimal mark: ${table.decimal.mark === ',' ? 'comma' : 'point'}.`,
-    ...table.questions.map(questionText),
-  ].join(' ');
-  return { ok: rows.length >= 3, error: rows.length >= 3 ? undefined : 'Fewer than 3 usable rows.', rows, read: rows.length, skipped, columns, units: { saturation: sat.unit, saturationHow: sat.how }, decimal: table.decimal.mark, questions: table.questions, summary };
+  return readTwoCurveTable(text, chosen, ['Sw', 'krw', 'kro']);
+}
+
+/**
+ * Read a lab gas-oil kr table at connate water (SCAL-U2-004): Sg, krg,
+ * krog. Same reader and read-back as the oil-water door.
+ * @returns the shape of readKrTable, rows [{Sg, krg, krog}]
+ */
+export function readGoKrTable(text, chosen = {}) {
+  return readTwoCurveTable(text, chosen, ['Sg', 'krg', 'krog']);
 }
 
 /**
@@ -193,3 +222,48 @@ export const importRecord = (res, fileName, at = new Date().toISOString()) => ({
   units: res.units,
   summary: res.summary,
 });
+
+// ---------------------------------------------------------------------------
+// Workbooks at the doors (SCAL-U2-011)
+// ---------------------------------------------------------------------------
+
+const DOOR_READERS = { kr: readKrTable, go: readGoKrTable, pc: readPcTable };
+const DOOR_WORDS = { kr: 'kr table', go: 'gas-oil kr table', pc: 'capillary pressure table' };
+
+/** One sheet of string cells as tab-separated text for the typed reader (a cell with a tab, quote or line break is quoted). */
+export function sheetToText(rows) {
+  return (rows || []).map((r) => (r || []).map((c) => {
+    const v = String(c ?? '');
+    return /["\t\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  }).join('\t')).join('\n');
+}
+
+/**
+ * Read a lab table from what readTabularFile (src/lib/tabularFile.js) gave:
+ * a delimited text, or a workbook whose sheets are tried in order until one
+ * holds the door's table. The read-back names the sheet.
+ * @param {{kind: 'delimited'|'workbook', text?: string, sheets?: Array<{name: string, rows: string[][]}>}} loaded
+ * @param {'kr'|'go'|'pc'} door
+ * @param {object} [chosen] the door's choices (units, decimal mark)
+ */
+export function readLabFile(loaded, door, chosen = {}) {
+  const read = DOOR_READERS[door];
+  if (!read) throw new Error(`Unknown lab door "${door}"`);
+  if (loaded?.kind !== 'workbook') return read(loaded?.text || '', chosen);
+  const sheets = loaded.sheets || [];
+  let first = null;
+  for (const sh of sheets) {
+    const res = read(sheetToText(sh.rows), chosen);
+    if (!first) first = res;
+    if (res.ok) {
+      return {
+        ...res,
+        sheet: sh.name,
+        summary: `Sheet "${sh.name}" of a workbook of ${sheets.length} sheet${sheets.length === 1 ? '' : 's'}. ${res.summary}`,
+      };
+    }
+  }
+  const looked = sheets.map((s) => s.name).join(', ') || 'none';
+  const error = `No sheet of the workbook holds a ${DOOR_WORDS[door]} (looked at: ${looked}).`;
+  return { ...(first || { rows: [], read: 0, skipped: [], columns: null, units: null, questions: [] }), ok: false, error, summary: error };
+}

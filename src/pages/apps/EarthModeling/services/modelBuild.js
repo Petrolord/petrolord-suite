@@ -716,8 +716,10 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       const g = shmSwGrid({ spec: specM, top, base, contact: owcAt, shm: r, fwlM, rock: definition.shm?.rock || 'project', phi: props.phi });
       props.sw = g.sw;
       const usedFwl = !owcAt || !Array.from(owcAt).some(Number.isFinite);
-      provenance.sw = [{ block: 0, methodUsed: 'shm', wells: 0, fellBack: false, note: `${r.name || 'SCAL project'}, FWL ${fwlM.toFixed(1)} m, rock from ${definition.shm?.rock === 'model' ? 'the modelled porosity' : 'the project'}` }];
-      shm = { project: r.name || 'SCAL project', fwlM, rock: definition.shm?.rock || 'project', transitionNodes: g.transitionNodes, fwlAsContact: usedFwl };
+      // SCAL-U2-009: the kr-1 source words of the J function travel with the zone into the report
+      const scalSource = r.sourceText || null;
+      provenance.sw = [{ block: 0, methodUsed: 'shm', wells: 0, fellBack: false, note: `${r.name || 'SCAL project'}, FWL ${fwlM.toFixed(1)} m, rock from ${definition.shm?.rock === 'model' ? 'the modelled porosity' : 'the project'}${scalSource ? `; SCAL source: ${scalSource}` : ''}` }];
+      shm = { project: r.name || 'SCAL project', fwlM, rock: definition.shm?.rock || 'project', transitionNodes: g.transitionNodes, fwlAsContact: usedFwl, source: scalSource };
       if (usedFwl) {
         // no OWC typed: the FWL bounds the hydrocarbon leg, or the water below it would count
         if (eng) eng.owc = fwlM;

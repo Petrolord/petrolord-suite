@@ -23,6 +23,13 @@ const n = (v) => {
 };
 const round = (v, d) => (Number.isFinite(v) ? Number(v.toFixed(d)) : null);
 
+// SCAL-U2-005: where the fluid gravities of the height conversion came from
+function gravitiesFromWords(intake, height) {
+  const f = intake.from || {};
+  const edited = ['gammaW', 'gammaHc'].filter((k) => Number(height?.[k]) !== Number(intake.values[k]));
+  return `${f.app || 'Fluid Systems Studio'} project "${f.recordName || 'unnamed'}" (pvt-1 at ${intake.pressure_psia} psia, ${intake.pressure_from})${edited.length ? `; edited after the intake: ${edited.join(', ')}` : ''}`;
+}
+
 function originBlock(status) {
   if (status.kind === 'entered') return { kind: 'entered' };
   const o = status.origin;
@@ -62,6 +69,7 @@ export function sampleBlock(s) {
     thetaDeg: n(s.thetaDeg),
     kr_points: s.krRows?.length || 0,
     pc_points: s.pcRows?.length || 0,
+    go_points: s.goRows?.length || 0,
   };
 }
 
@@ -103,6 +111,7 @@ export function buildScalKrContract(a) {
         ...(fromSamples ? {
           samples: (samples || []).filter((s) => (a.capillary?.includedSampleIds || []).includes(s.id)).map((s) => s.name),
           swirr_from: jResolved.meta?.swirr?.from || null,
+          ...(jResolved.meta?.swirr?.fit ? { swirr_fit: { ci95: jResolved.meta.swirr.fit.ci95, r2Log: jResolved.meta.swirr.fit.r2Log, points: jResolved.meta.swirr.fit.points, method: 'J = a Sw*^(-b) with Swirr, fitted together to the pooled lab J of the included samples' } } : {}),
           fit: jResolved.meta?.avg?.fit ? { r2Log: jResolved.meta.avg.fit.r2Log, rmsLog: jResolved.meta.avg.fit.rmsLog, ci95: jResolved.meta.avg.fit.ci95 } : null,
         } : {}),
         definition: J_DEFINITION,
@@ -113,6 +122,7 @@ export function buildScalKrContract(a) {
         gammaW: n(height?.gammaW),
         gammaHc: n(height?.gammaHc),
         fwl_tvdss_ft: fwl,
+        ...(a.pvtIntake?.values ? { gravities_from: gravitiesFromWords(a.pvtIntake, height) } : {}),
         definition: HEIGHT_DEFINITION,
       },
       table: (heightProfile || []).map((r) => ({ Sw: round(r.Sw, 6), Pc_psi: round(r.Pc_psi, 6), h_ft: round(r.h_ft, 4) })),

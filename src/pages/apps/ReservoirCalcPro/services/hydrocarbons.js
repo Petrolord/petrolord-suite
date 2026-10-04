@@ -123,9 +123,15 @@ export function applySaturationHeight(res, hyps, { shm, fwlElev, unitSystem, owc
     hcPoreVolume: hcpvOil + hcpvGas, hcPoreVolumeOil: hcpvOil, hcPoreVolumeGas: hcpvGas,
     recoverableOil, recoverableGas,
     recoverable: fluidType === 'gas' ? recoverableGas : recoverableOil,
-    saturationHeight: { project: shm.name || null, fwlElevation: fwlElev, swOil, swGas, unit: lenU },
-    // the Sw shown with the result (slide, report) is the one used
-    inputs: { ...inp, sw: Number.isFinite(swOil) ? swOil : (Number.isFinite(swGas) ? swGas : inp.sw), swSource: 'saturation height' },
+    saturationHeight: { project: shm.name || null, fwlElevation: fwlElev, swOil, swGas, unit: lenU, source: shm.sourceText || null },
+    // the Sw shown with the result (slide, report) is the one used, with the
+    // kr-1 source of the J function it came from (SCAL-U2-009)
+    inputs: {
+      ...inp,
+      sw: Number.isFinite(swOil) ? swOil : (Number.isFinite(swGas) ? swGas : inp.sw),
+      swSource: 'saturation height',
+      swSourceText: `Saturation height, averaged over the leg; SCAL source: ${shm.sourceText || 'not stored with this case; pick the SCAL project again to record it'}`,
+    },
     warnings: [...(res.warnings || []), ...warnings],
   };
 }

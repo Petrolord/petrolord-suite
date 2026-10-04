@@ -18,7 +18,7 @@ import { useStudioNotifications } from '@/components/studio/useStudioNotificatio
 import { setProvenanceField, serializeProvenance } from '@/lib/inputProvenance/model';
 import { KR_CONTRACT_PAYLOAD_KEY } from '@/lib/inputProvenance/krContract';
 import {
-  EMPTY_IDENTIFICATION, fittedOrigin, LAB_SYSTEM_FLUIDS,
+  EMPTY_IDENTIFICATION, fittedOrigin, LAB_SYSTEM_FLUIDS, appliedOwFromFit, appliedGoFromFit,
 } from '@/utils/scalstudio/model';
 import {
   DEFAULT_CURVES, DEFAULT_CAPILLARY, DEFAULT_HEIGHT, buildReservoirProps, buildJSpec,
@@ -62,6 +62,7 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
   const [capillary, setCapillary] = useState(DEFAULT_CAPILLARY);
   const [height, setHeight] = useState(DEFAULT_HEIGHT);
   const [notes, setNotes] = useState('');
+  const [pvtIntake, setPvtIntake] = useState(null); // SCAL-U2-005
   const [identification, setIdentification] = useState(EMPTY_IDENTIFICATION);
   const [inputMeta, setInputMeta] = useState({});
   const [unitSystemSaved, setUnitSystemSaved] = useState(null); // null: a new workspace follows the profile
@@ -108,8 +109,9 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
   const setSourceField = useCallback((key, field, value) => setInputMeta((prev) => setProvenanceField(prev, key, field, value)), []);
 
   // ---- Derived (the pure pipeline of utils/scalstudio/workspace) ----
-  const { ow, go, owStatus, owCurves, goCurves, fwPreview } = useMemo(() => deriveCurves(curves), [curves]);
-  const samplesDerived = useMemo(() => deriveSamples(samples), [samples]);
+  const { ow, go, owStatus, goStatus, owCurves, goCurves, fwPreview } = useMemo(() => deriveCurves(curves), [curves]);
+  const goSwc = curves.go?.Swc;
+  const samplesDerived = useMemo(() => deriveSamples(samples, { goSwc }), [samples, goSwc]);
 
   // Apply a sample's fitted Corey parameters to the Curves tab working set
   // (values become strings, the studio form convention), and keep the record
@@ -120,15 +122,7 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
       addNotification('That sample has no successful Corey fit to apply.', 'error');
       return;
     }
-    const p = s.krFit.params;
-    const applied = {
-      Swc: p.Swc.toFixed(3),
-      Sor: p.Sor.toFixed(3),
-      krwMax: p.krwMax.toPrecision(4),
-      kroMax: p.kroMax.toPrecision(4),
-      nw: p.nw.toFixed(2),
-      no: p.no.toFixed(2),
-    };
+    const applied = appliedOwFromFit(s.krFit.params);
     setCurves((prev) => ({
       ...prev,
       phase: 'oilwater',
@@ -136,6 +130,23 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
       owOrigin: fittedOrigin({ sample: s, fit: s.krFit, applied }),
     }));
     addNotification(`Fitted Corey set from "${s.name}" applied to the Curves tab.`, 'success');
+  }, [samplesDerived, addNotification]);
+
+  // SCAL-U2-004: the same for a sample's gas-oil fit
+  const applyGoFitToCurves = useCallback((sampleId) => {
+    const s = samplesDerived.find((x) => x.id === sampleId);
+    if (!s?.goFit?.params) {
+      addNotification('That sample has no successful gas-oil Corey fit to apply.', 'error');
+      return;
+    }
+    const applied = appliedGoFromFit(s.goFit.params);
+    setCurves((prev) => ({
+      ...prev,
+      phase: 'gasoil',
+      go: applied,
+      goOrigin: fittedOrigin({ sample: s, fit: s.goFit, applied, set: 'gas_oil' }),
+    }));
+    addNotification(`Fitted gas-oil Corey set from "${s.name}" applied to the Curves tab.`, 'success');
   }, [samplesDerived, addNotification]);
 
   // ---- Derived: working J spec, reservoir Pc, saturation-height ----
@@ -147,9 +158,15 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
   // ---- The kr-1 block (SCAL-U1, RL11): one builder for save, handoff and report ----
   const projectRef = useRef({ id: null, name: '' });
   const contractFor = useCallback((id, name, generatedAt = new Date()) => buildScalKrContract({
-    curves, ow, go, capillary, jResolved, reservoir, height, heightProfile, samples, identification,
+    curves, ow, go, capillary, jResolved, reservoir, height, heightProfile, samples, identification, pvtIntake,
     projectId: id, projectName: name, build, generatedAt,
-  }), [curves, ow, go, capillary, jResolved, reservoir, height, heightProfile, samples, identification, build]);
+  }), [curves, ow, go, capillary, jResolved, reservoir, height, heightProfile, samples, identification, pvtIntake, build]);
+
+  // SCAL-U2-005: take the gravities of a Fluid Systems Studio project (its pvt-1 block)
+  const takeFluidGravities = useCallback((patch, intake) => {
+    setHeight((prev) => ({ ...prev, ...patch }));
+    setPvtIntake(intake);
+  }, []);
 
   // ---- Project persistence (inputs, the model around them, the kr-1 block) ----
   const serialize = useCallback((id, name) => ({
@@ -164,9 +181,10 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
     capillary,
     height,
     notes,
+    ...(pvtIntake ? { pvtIntake } : {}),
     [KR_CONTRACT_PAYLOAD_KEY]: contractFor(id, name),
     modified: new Date().toISOString(),
-  }), [unitSystem, identification, inputMeta, curves, samples, capillary, height, notes, contractFor]);
+  }), [unitSystem, identification, inputMeta, curves, samples, capillary, height, notes, pvtIntake, contractFor]);
 
   const hydrate = useCallback((payload) => {
     const i = inputsFromPayload(payload);
@@ -175,12 +193,13 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
     setCapillary(i.capillary);
     setHeight(i.height);
     setNotes(i.notes);
+    setPvtIntake(i.pvtIntake);
     setIdentification(i.identification);
     setInputMeta(i.inputMeta);
     setUnitSystemSaved(i.unitSystem);
   }, []);
 
-  const changeKey = useMemo(() => [curves, samples, capillary, height, notes, identification, inputMeta, unitSystem], [curves, samples, capillary, height, notes, identification, inputMeta, unitSystem]);
+  const changeKey = useMemo(() => [curves, samples, capillary, height, notes, identification, inputMeta, unitSystem, pvtIntake], [curves, samples, capillary, height, notes, identification, inputMeta, unitSystem, pvtIntake]);
   const proj = useScalProjects({ serialize, hydrate, changeKey, addNotification, sharingStore });
   projectRef.current = { id: proj.currentProjectId, name: proj.projectName };
   const contract = useMemo(
@@ -204,15 +223,15 @@ export const ScalStudioProvider = ({ children, sharingStore = null, profileSyste
     // inputs
     curves, setCurveField, setOwField, setGoField,
     samples, setSamples, addSample, updateSample, removeSample,
-    applyKrFitToCurves,
+    applyKrFitToCurves, applyGoFitToCurves,
     capillary, setCapillaryField, setManualJField, setReservoirField,
-    height, setHeightField, setFwlEntry,
+    height, setHeightField, setFwlEntry, pvtIntake, takeFluidGravities,
     notes, setNotes,
     identification, setIdentificationField,
     inputMeta, setSourceField,
     unitSystem, setUnitSystem, u, profileSystem, followsProfile: unitSystemSaved == null && !!profileSystem,
     // derived
-    ow, go, owStatus, owCurves, goCurves, fwPreview,
+    ow, go, owStatus, goStatus, owCurves, goCurves, fwPreview,
     samplesDerived, jResolved, reservoir, reservoirPc, heightProfile,
     contract, contractFor, build, serialize, serializeForExport, hydrateFromFile,
   };

@@ -17,9 +17,11 @@ import {
 // Senior test T1: one-decimal labels on auto ticks printed 0.25 as 0.3.
 const UNIT_TICKS = [0, 0.2, 0.4, 0.6, 0.8, 1];
 import { useScalStudio } from '@/contexts/ScalStudioContext';
-import { buildCoreyOilWater, normalizeKrTable } from '@/utils/scalCalculations';
+import { buildCoreyOilWater, buildCoreyGasOil, normalizeKrTable } from '@/utils/scalCalculations';
 import { Kpi, LINE, SCENARIO_COLORS } from '@/components/waterflooddesign/primitives';
 import { sfmt as fmt } from '@/utils/scalstudio/format';
+import { SERIES_COLORS } from '@/utils/scalstudio/series';
+import { fitEndpointsText } from '@/utils/scalstudio/model';
 
 const axisProps = {
   stroke: CHART_COLORS.axisLine,
@@ -31,12 +33,17 @@ const ci = (pair) => (Array.isArray(pair) && pair.every(Number.isFinite)
   : EMPTY_VALUE);
 
 const LabDataResults = ({ selectedId }) => {
-  const { samplesDerived, applyKrFitToCurves } = useScalStudio();
+  const { samplesDerived, applyKrFitToCurves, applyGoFitToCurves } = useScalStudio();
   const selected = samplesDerived.find((s) => s.id === selectedId) ?? null;
 
   const fitCurveRows = useMemo(() => {
     if (!selected?.krFit?.params) return null;
     return buildCoreyOilWater(selected.krFit.params, { n: 80 }).rows;
+  }, [selected]);
+
+  const goFitRows = useMemo(() => {
+    if (!selected?.goFit?.params) return null;
+    return buildCoreyGasOil(selected.goFit.params, { n: 80 }).rows;
   }, [selected]);
 
   const normalizedOverlay = useMemo(() => {
@@ -74,6 +81,7 @@ const LabDataResults = ({ selectedId }) => {
             <Kpi title="RMS (log10 kr)" value={fmt.f3(fit.rmsLog)} />
             <Kpi title="r² (log space)" value={fmt.f3(fit.r2Log)} accent={fit.r2Log > 0.98} />
           </div>
+          <p className="text-[11px] text-pl-muted" data-testid="scal-fit-endpoints">End points: {fitEndpointsText(fit)}.</p>
           <div className="flex items-center gap-3">
             <Button size="sm" onClick={() => applyKrFitToCurves(selected.id)}>
               <ArrowRightCircle className="w-4 h-4 mr-1.5" /> Use fit on the Curves tab
@@ -122,6 +130,58 @@ const LabDataResults = ({ selectedId }) => {
                   <>
                     <Line data={fitCurveRows} dataKey="krw" name="krw (Corey fit)" stroke={LINE.water} strokeWidth={1.5} strokeDasharray="5 3" dot={false} />
                     <Line data={fitCurveRows} dataKey="kro" name="kro (Corey fit)" stroke={LINE.oil} strokeWidth={1.5} strokeDasharray="5 3" dot={false} />
+                  </>
+                )}
+              </ComposedChart>
+            </ChartFrame>
+          </CardContent>
+        </Card>
+      )}
+
+      {(selected.goRows?.length ?? 0) > 0 && (
+        <Card data-testid="scal-go-fit">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Lab gas-oil kr with Corey fit: {selected.name}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {selected.goFit ? (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <Kpi title="ng (fit)" value={fmt.f2(selected.goFit.params.ng)} unit={`CI ${ci(selected.goFit.ci95.ng)}`} />
+                  <Kpi title="nog (fit)" value={fmt.f2(selected.goFit.params.nog)} unit={`CI ${ci(selected.goFit.ci95.nog)}`} />
+                  <Kpi title="Sgc / Sorg" value={`${fmt.f3(selected.goFit.params.Sgc)} / ${fmt.f3(selected.goFit.params.Sorg)}`} unit={`at Swc ${fmt.f3(selected.goFit.params.Swc)}`} />
+                  <Kpi title="r² (log space)" value={fmt.f3(selected.goFit.r2Log)} accent={selected.goFit.r2Log > 0.98} />
+                </div>
+                <p className="text-[11px] text-pl-muted">End points: {fitEndpointsText(selected.goFit, 'gas_oil')}.</p>
+                <Button size="sm" onClick={() => applyGoFitToCurves(selected.id)} data-testid="scal-apply-go-fit">
+                  <ArrowRightCircle className="w-4 h-4 mr-1.5" /> Use gas-oil fit on the Curves tab
+                </Button>
+              </>
+            ) : (
+              <p className="text-sm text-pl-muted">{selected.goFitError || 'The gas-oil table cannot be fitted.'}</p>
+            )}
+          </CardContent>
+          <CardContent className="p-0">
+            <ChartFrame height={280} exportFilename="scal-lab-gas-oil-fit">
+              <ComposedChart margin={{ top: 16, right: 16, bottom: 8, left: 8 }}>
+                <CartesianGrid {...GRID_STYLE} vertical={false} />
+                <XAxis height={XAXIS_LABEL_HEIGHT}
+                  dataKey="Sg" type="number" domain={[0, 1]}
+                  ticks={UNIT_TICKS} tickFormatter={(v) => v.toFixed(1)} {...axisProps}
+                  label={{ value: 'Gas saturation Sg', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: 11 }}
+                />
+                <YAxis
+                  domain={[0, 1]} ticks={UNIT_TICKS} tickFormatter={(v) => v.toFixed(1)} {...axisProps}
+                  label={{ value: 'kr', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: 11 }}
+                />
+                <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: CHART_COLORS.tooltipText }} formatter={(v, name) => [Number(v).toFixed(4), name]} />
+                <Legend {...LEGEND_PROPS} />
+                <Scatter data={selected.goRows} dataKey="krg" name="krg (lab)" fill={SERIES_COLORS.gas.hex} />
+                <Scatter data={selected.goRows} dataKey="krog" name="krog (lab)" fill={LINE.oil} />
+                {goFitRows && (
+                  <>
+                    <Line data={goFitRows} dataKey="krg" name="krg (Corey fit)" stroke={SERIES_COLORS.gas.hex} strokeWidth={1.5} strokeDasharray="5 3" dot={false} />
+                    <Line data={goFitRows} dataKey="krog" name="krog (Corey fit)" stroke={LINE.oil} strokeWidth={1.5} strokeDasharray="5 3" dot={false} />
                   </>
                 )}
               </ComposedChart>

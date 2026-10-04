@@ -153,6 +153,12 @@ const ScalReportTab = () => {
         </div>
       </Section>
 
+      {model.summary && (
+        <Section title="Summary (page 1 of the PDF)" testId="scal-report-summary" note={model.summary.note}>
+          <ModelTable head={['Item', 'Value']} rows={model.summary.rows} />
+        </Section>
+      )}
+
       <Section title="Headline results" testId="scal-report-headline" note={model.headline.note}>
         <ModelTable head={model.headline.head} rows={model.headline.rows} />
       </Section>
@@ -174,6 +180,8 @@ const ScalReportTab = () => {
           <ModelTable head={model.samples.imports.head} rows={model.samples.imports.rows} dense testId="scal-report-imports" />
           {model.samples.fits && <ModelTable head={model.samples.fits.head} rows={model.samples.fits.rows} dense testId="scal-report-fits" />}
           {model.samples.fits && <p className="text-xs text-pl-muted">{model.samples.fits.note}</p>}
+          {model.samples.goFits && <ModelTable head={model.samples.goFits.head} rows={model.samples.goFits.rows} dense testId="scal-report-go-fits" />}
+          {model.samples.goFits && <p className="text-xs text-pl-muted">{model.samples.goFits.note}</p>}
         </Section>
       )}
 

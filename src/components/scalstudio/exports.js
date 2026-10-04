@@ -7,7 +7,7 @@
 // samples, the scope) and its units; the Pc and height files print in the
 // display units of the project, named in the column heads. Without options
 // the files are the SC5 files, so a reader of the old shape still works.
-import { buildCoreyOilWater } from '@/utils/scalCalculations';
+import { buildCoreyOilWater, buildCoreyGasOil } from '@/utils/scalCalculations';
 import { scalUnits } from '@/utils/scalstudio/units';
 
 const line = (cells) => cells.join(',');
@@ -20,6 +20,20 @@ export function buildKrCsv(owParams, n = 25, { header = null } = {}) {
   return withHeader(header, [
     line(['Sw', 'krw', 'kro']),
     ...rows.map((r) => line([r.Sw.toFixed(4), r.krw.toFixed(5), r.kro.toFixed(5)])),
+  ]);
+}
+
+/**
+ * Working gas-oil Corey set -> kr CSV (Sg,krg,krog) over the mobile gas
+ * range, Sgc to 1 - Swc - Sorg, at connate water (SCAL-U2-002). The rows
+ * are the engine's buildCoreyGasOil.
+ */
+export function buildGoKrCsv(goParams, n = 25, { header = null } = {}) {
+  if (!goParams) return null;
+  const { rows } = buildCoreyGasOil(goParams, { n });
+  return withHeader(header, [
+    line(['Sg', 'krg', 'krog']),
+    ...rows.map((r) => line([r.Sg.toFixed(4), r.krg.toFixed(5), r.krog.toFixed(5)])),
   ]);
 }
 
