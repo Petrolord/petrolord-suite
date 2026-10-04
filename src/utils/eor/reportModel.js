@@ -210,7 +210,7 @@ function buildFigures(ranked, inputs, u) {
     figs.push({
       id: 'ranking',
       title: 'Share of screened criteria that pass, by method',
-      caption: `Bars in ranking order: green qualified, amber marginal, grey screened out. A marginal verdict does not count as a pass. Criteria: ${CRITERIA_EDITION.short}.`,
+      caption: `Bars in ranking order: green qualified, amber marginal, dark grey screened out. A marginal verdict does not count as a pass. Criteria: ${CRITERIA_EDITION.short}.`,
       panels: [{
         kind: 'bars',
         height: 72,

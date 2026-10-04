@@ -453,8 +453,8 @@ Figure 1. Share of screened criteria that pass, by method
 
 
 
-Bars in ranking order: green qualified, amber marginal, grey screened out. A marginal verdict does not count as a pass. Criteria: Taber, Martin and
-Seright (1997).
+Bars in ranking order: green qualified, amber marginal, dark grey screened out. A marginal verdict does not count as a pass. Criteria: Taber, Martin
+and Seright (1997).
 
 
 Figure 2. Oil gravity and depth against the CO2 miscible minimum depth
