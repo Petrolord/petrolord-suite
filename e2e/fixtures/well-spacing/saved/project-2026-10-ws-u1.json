@@ -1,0 +1,656 @@
+{
+  "id": "ws-fixture-1",
+  "name": "Ekene spacing (WS-U1)",
+  "schema": 1,
+  "inputs": {
+    "form": {
+      "fieldName": "Ekene",
+      "latitude": "",
+      "longitude": "",
+      "reservoirArea": "5000",
+      "avgNetPayThickness": "60",
+      "porosity": "15.2",
+      "initialWaterSaturation": "0.25",
+      "recoveryFactor": "35",
+      "reservoirTemperature": "220",
+      "oilGravity": "40.7",
+      "gasGravity": "0.855",
+      "initialSolutionGOR": "768",
+      "oilFvf": "1.4411",
+      "wellCost": "5000000",
+      "operatingExpense": "200000",
+      "minEconomicFlowRate": "10",
+      "typicalWellDeclineRate": "15",
+      "oilPrice": "75",
+      "gasPrice": "3.5",
+      "discountRate": "10",
+      "projectDuration": "20",
+      "royaltiesTaxes": "25",
+      "minSpacing": "20",
+      "maxSpacing": "160",
+      "spacingIncrement": "10",
+      "wellLayout": "square",
+      "reservoirPressure": "3985",
+      "flowingPressure": "1500",
+      "permeability": "182.4",
+      "skin": "2.1",
+      "oilViscosity": "0.444",
+      "totalCompressibility": "0.000015",
+      "wellboreRadius": "0.354"
+    },
+    "context": {
+      "ooipStb": "152000000",
+      "dcaEurStb": "2070000"
+    },
+    "unitSystem": "oilfield",
+    "identification": {
+      "company": "Lordsway Energy",
+      "field": "Ekene",
+      "licence": "OML 999",
+      "reservoir": "E-2000 sand",
+      "wells": "EK-1 to EK-4",
+      "dataDate": "2026-09-30",
+      "analyst": "A. Analyst"
+    },
+    "inputMeta": {},
+    "intakes": {
+      "pvt": {
+        "kind": "pvt",
+        "from": {
+          "app": "Fluid Systems Studio",
+          "recordId": "fluid-1",
+          "recordName": "Good Oil Well No. 4 PVT",
+          "at": "2026-10-02T09:00:00.000Z",
+          "takenAt": "2026-10-05T11:00:00.000Z",
+          "build": "Petrolord Suite test (fixture)",
+          "schema": "pvt-1"
+        },
+        "pressure_psia": 3985,
+        "pressure_from": "stated",
+        "values": {
+          "oilFvf": "1.4411",
+          "oilViscosity": "0.444",
+          "initialSolutionGOR": "768",
+          "oilGravity": "40.7",
+          "gasGravity": "0.855",
+          "reservoirTemperature": "220"
+        },
+        "fields": [
+          "oilFvf",
+          "oilViscosity",
+          "initialSolutionGOR",
+          "oilGravity",
+          "gasGravity",
+          "reservoirTemperature"
+        ],
+        "methods": {
+          "oilFvf": "Correlation: Standing, multiplied by 0.9059 plus 0.1281 RB/STB (laboratory match), correlations matched to lab data, at 3985 psia, the stated average reservoir pressure (undersaturated), from Fluid Systems Studio project \"Good Oil Well No. 4 PVT\" (2026-10-02 09:00 UTC). Read from the project's PVT table, linear between rows",
+          "oilViscosity": "Correlation: Vasquez-Beggs, correlations matched to lab data, at 3985 psia, the stated average reservoir pressure (undersaturated), from Fluid Systems Studio project \"Good Oil Well No. 4 PVT\" (2026-10-02 09:00 UTC). Read from the project's PVT table, linear between rows",
+          "initialSolutionGOR": "Solution GOR at the bubble point (input of the fluid model), Fluid Systems Studio, project \"Good Oil Well No. 4 PVT\"",
+          "oilGravity": "Input of the fluid model, Fluid Systems Studio, project \"Good Oil Well No. 4 PVT\"",
+          "gasGravity": "Input of the fluid model, Fluid Systems Studio, project \"Good Oil Well No. 4 PVT\"",
+          "reservoirTemperature": "Input of the fluid model (the PVT temperature), Fluid Systems Studio, project \"Good Oil Well No. 4 PVT\""
+        },
+        "contract": {
+          "schema": "pvt-1",
+          "source_app": "Fluid Systems Studio",
+          "project_id": "fluid-1",
+          "project_name": "Good Oil Well No. 4 PVT",
+          "generated_at": "2026-10-02T09:00:00.000Z",
+          "app_build": "Petrolord Suite test (fixture)",
+          "model": "black-oil-correlations",
+          "model_detail": {
+            "blended": false,
+            "rs_scale": 0.7908726264036331,
+            "correlation_pb": 2502.9512603759763
+          },
+          "units": {
+            "pressure": "psia",
+            "temperature": "degF",
+            "Rs": "scf/STB",
+            "Bo": "RB/STB",
+            "Bg": "RB/scf",
+            "Z": "dimensionless",
+            "mu_o": "cP",
+            "mu_g": "cP",
+            "co": "1/psi",
+            "Bw": "RB/STB",
+            "mu_w": "cP",
+            "oil_gravity": "degAPI",
+            "gas_gravity": "air = 1",
+            "salinity": "ppm"
+          },
+          "columns": [
+            "pressure",
+            "Rs",
+            "Bo",
+            "Bg",
+            "Z",
+            "mu_o",
+            "mu_g",
+            "co",
+            "Bw",
+            "mu_w"
+          ],
+          "standard_conditions": {
+            "pressure_psia": 14.7,
+            "temperature_degF": 60
+          },
+          "separator_conditions": [
+            {
+              "pressure_psia": 114.7,
+              "temperature_degF": 75
+            }
+          ],
+          "methods": {
+            "pb": {
+              "method": "Laboratory saturation pressure (correlation match)",
+              "reference": "",
+              "kind": "lab",
+              "note": "Standing alone puts the bubble point at 2503 psia. Below the laboratory pressure its Rs is multiplied by 0.791 and shifted by 122.3 scf/STB, so that Rs meets the solution GOR there and follows the laboratory Rs below it. Below 174 psia, the lowest laboratory pressure of the fit, Rs follows the correlation scaled to meet the matched curve there."
+            },
+            "rs": {
+              "method": "Standing, multiplied by 0.7909 plus 122.3 scf/STB (laboratory match)",
+              "reference": "Standing (1947)",
+              "kind": "correlation",
+              "note": "Held at the solution GOR above the bubble point."
+            },
+            "bo": {
+              "method": "Standing, multiplied by 0.9059 plus 0.1281 RB/STB (laboratory match)",
+              "reference": "Standing (1947)",
+              "kind": "correlation",
+              "note": "Above the bubble point: Bo(Pb) (Pb / p)^A, the Vasquez-Beggs compressibility co = A / p integrated."
+            },
+            "co": {
+              "method": "Vasquez-Beggs",
+              "reference": "Vasquez and Beggs (1980)",
+              "kind": "correlation"
+            },
+            "mu_od": {
+              "method": "Beggs-Robinson, multiplied by 1.1606 (laboratory match)",
+              "reference": "Beggs and Robinson (1975)",
+              "kind": "correlation"
+            },
+            "mu_o": {
+              "method": "Beggs-Robinson, multiplied by 1.1606 (laboratory match)",
+              "reference": "Beggs and Robinson (1975)",
+              "kind": "correlation"
+            },
+            "mu_o_undersaturated": {
+              "method": "Vasquez-Beggs",
+              "reference": "Vasquez and Beggs (1980)",
+              "kind": "correlation"
+            },
+            "z": {
+              "method": "Dranchuk-Abou-Kassem, with Sutton pseudo-critical properties",
+              "reference": "Dranchuk and Abou-Kassem (1975); Sutton (1985)",
+              "kind": "correlation",
+              "note": "Within 1.25 percent of the Standing-Katz chart from pseudo-reduced temperature 1.2 to 3 and pressure 0.2 to 15. Between Tpr 1.05 and 1.2 it departs from the Standing-Katz chart by up to 6 percent at Tpr 1.10 and 18 percent at Tpr 1.05."
+            },
+            "mu_g": {
+              "method": "Lee-Gonzalez-Eakin",
+              "reference": "Lee, Gonzalez and Eakin (1966)",
+              "kind": "correlation"
+            },
+            "bg": {
+              "method": "Real gas law, Bg = 0.00504 Z T / p",
+              "reference": "",
+              "kind": "definition",
+              "note": "The constant is for field units (RB/scf, T in degR, p in psia), at the standard conditions of this report."
+            },
+            "bw": {
+              "method": "McCain, with the Numbere-Brigham-Standing salinity correction",
+              "reference": "McCain (1990); Numbere, Brigham and Standing (1977)",
+              "kind": "correlation",
+              "note": "Gas-free water. The brine ratio for 35000 ppm is applied (Equation 10 of the Stanford report)."
+            },
+            "mu_w": {
+              "method": "McCain",
+              "reference": "McCain (1991)",
+              "kind": "correlation"
+            }
+          },
+          "basis": {
+            "kind": "correlation-separator",
+            "text": "Black-oil correlations on a surface separation (flash) basis: Rs and Bo are per stock-tank barrel, and the correlations do not distinguish differential from flash liberation below the bubble point."
+          },
+          "pb_source": "lab",
+          "tuning": {
+            "status": "tuned",
+            "kind": "black-oil-correlation-match",
+            "parameters": {
+              "bubble_point_psia": 2634.696,
+              "rs_multiplier": 0.7908726264036331,
+              "rs_shift_scf_per_STB": 122.25747843986483,
+              "bo_multiplier": 0.9058998020979356,
+              "bo_shift_RB_per_STB": 0.12805752867912937,
+              "mu_o_multiplier": 1.160570940088023
+            },
+            "variables": "Per property, value = multiplier x correlation + shift: the laboratory bubble point, Rs (meeting the solution GOR there), Bo, and a multiplier on the oil viscosity",
+            "at": "2026-10-02T09:00:00.000Z",
+            "oil_basis": "adjusted",
+            "matched": [
+              {
+                "target": "pb",
+                "unit": "psia",
+                "points": 1,
+                "measured": 2634.696,
+                "untuned": 2502.9512603759763,
+                "tuned": 2634.696,
+                "error_before": -5.000377258857326,
+                "error_after": 0,
+                "error_unit": "percent"
+              },
+              {
+                "target": "Rs",
+                "points": 11,
+                "error_before": 22.11269834889567,
+                "error_after": 3.2421607228891505,
+                "max_error_before": 71.44303998570167,
+                "max_error_after": 19.700926413202065,
+                "error_unit": "percent, mean absolute deviation over the laboratory points"
+              },
+              {
+                "target": "Bo",
+                "points": 20,
+                "error_before": 1.9077786488598352,
+                "error_after": 0.29791820206597186,
+                "max_error_before": 5.686443813987915,
+                "max_error_after": 1.97768829049725,
+                "error_unit": "percent, mean absolute deviation over the laboratory points"
+              },
+              {
+                "target": "mu_o",
+                "points": 18,
+                "error_before": 8.34052514552517,
+                "error_after": 5.221242787330949,
+                "max_error_before": 22.75272161741836,
+                "max_error_after": 16.951788491446344,
+                "error_unit": "percent, mean absolute deviation over the laboratory points"
+              }
+            ],
+            "uncertainty": [
+              {
+                "parameter": "rsMult",
+                "unit": "dimensionless",
+                "value": 0.7908726264036331,
+                "points": 10,
+                "standard_error": 0.0068931922048638475,
+                "ci95": [
+                  0.7752802256362311,
+                  0.8064650271710351
+                ],
+                "note": "Student t 95 percent interval of the least-squares estimate"
+              },
+              {
+                "parameter": "rsShift",
+                "unit": "scf/STB",
+                "value": 122.25747843986483,
+                "points": 10,
+                "standard_error": null,
+                "ci95": null,
+                "note": "Tied to the multiplier by the bubble point condition"
+              },
+              {
+                "parameter": "boMult",
+                "unit": "dimensionless",
+                "value": 0.9058998020979356,
+                "points": 20,
+                "standard_error": 0.012252530671004938,
+                "ci95": [
+                  0.8801572351581542,
+                  0.931642369037717
+                ],
+                "note": "Student t 95 percent interval of the least-squares estimate"
+              },
+              {
+                "parameter": "boShift",
+                "unit": "RB/STB",
+                "value": 0.12805752867912937,
+                "points": 20,
+                "standard_error": 0.017001599777154982,
+                "ci95": [
+                  0.09233716754732675,
+                  0.163777889810932
+                ],
+                "note": "Student t 95 percent interval of the least-squares estimate"
+              },
+              {
+                "parameter": "mu",
+                "unit": "dimensionless",
+                "value": 1.160570940088023,
+                "points": 18,
+                "standard_error": 0.020468550325012644,
+                "ci95": [
+                  1.1181760181257505,
+                  1.2045732381512424
+                ],
+                "note": "Student t 95 percent interval of the least-squares estimate"
+              }
+            ]
+          },
+          "range_flags": [
+            {
+              "method": "Standing",
+              "variable": "pressure",
+              "scope": "table",
+              "value": null,
+              "low": 130,
+              "high": 7000,
+              "unit": "psia",
+              "properties": [
+                "Solution GOR Rs",
+                "Oil formation volume factor Bo"
+              ],
+              "text": "Standing: 1 table row (15 psia) outside its published pressure range (130 to 7000 psia)."
+            },
+            {
+              "method": "Lee-Gonzalez-Eakin",
+              "variable": "pressure",
+              "scope": "table",
+              "value": null,
+              "low": 100,
+              "high": 8000,
+              "unit": "psia",
+              "properties": [
+                "Gas viscosity"
+              ],
+              "text": "Lee-Gonzalez-Eakin: 1 table row (15 psia) outside its published pressure range (100 to 8000 psia)."
+            },
+            {
+              "method": "McCain, with the Numbere-Brigham-Standing salinity correction",
+              "variable": "pressure",
+              "scope": "table",
+              "value": null,
+              "low": 0,
+              "high": 5000,
+              "unit": "psia",
+              "properties": [
+                "Water formation volume factor Bw"
+              ],
+              "text": "McCain, with the Numbere-Brigham-Standing salinity correction: 1 table row (5015 psia) outside its published pressure range (0 to 5000 psia)."
+            }
+          ],
+          "inputs": {
+            "oil_gravity": 40.7,
+            "gas_gravity": 0.855,
+            "rsb": 768,
+            "temperature": 220,
+            "salinity": 35000
+          },
+          "at_saturation": {
+            "pressure": 2635,
+            "Rs": 768,
+            "Bo": 1.4754,
+            "mu_o": 0.3855,
+            "co": 0.00002162,
+            "Bg": 0.001098,
+            "Z": 0.8437,
+            "Bw": 1.0425,
+            "mu_w": 0.3489,
+            "mu_od": 1.1838,
+            "cw": 0.000002039509048430535,
+            "viscosibility_w": 0.00005027186657317369
+          },
+          "identification": {
+            "company": "Good Oil Company",
+            "field": "Productive",
+            "licence": "Samson County, Texas",
+            "well": "Oil Well No. 4",
+            "reservoir": "Cretaceous",
+            "sampleName": "Subsurface sample",
+            "sampleDepth": "8,500 ft",
+            "sampleDate": "",
+            "samplingMethod": "Bottomhole",
+            "laboratory": "Core Laboratories",
+            "labReport": "RFL 88001",
+            "analyst": "A. Analyst",
+            "analysisDate": "2026-10-02"
+          },
+          "lab_data": {
+            "tables": [
+              {
+                "kind": "cce",
+                "rows": 24,
+                "temperature_degF": 220,
+                "source": "good-oil-cce-spaces.txt",
+                "imported_at": "2026-10-02T09:00:00.000Z"
+              },
+              {
+                "kind": "dl",
+                "rows": 12,
+                "temperature_degF": 220,
+                "source": "good-oil-dl-twin.csv",
+                "imported_at": "2026-10-02T09:00:00.000Z"
+              },
+              {
+                "kind": "viscosity",
+                "rows": 18,
+                "temperature_degF": 220,
+                "source": "good-oil-viscosity.csv",
+                "imported_at": "2026-10-02T09:00:00.000Z"
+              }
+            ],
+            "oil_basis": "adjusted",
+            "qc": {
+              "flags": [
+                {
+                  "table": "cce",
+                  "check": "y-function",
+                  "pressure_psia": 2619.696,
+                  "text": "The Y function 2.574 at 2620 psia is -3.5 percent off the straight line through the others (2.668); near the saturation pressure a small error in the relative volume does this."
+                }
+              ],
+              "mass_balance_max_percent": 0.071
+            },
+            "separator_test": {
+              "Bofb": 1.474,
+              "Rsfb": 768
+            },
+            "saturation_pressure_psia": 2634.696,
+            "misfit": [
+              {
+                "property": "Bo",
+                "points": 20,
+                "outside_table": 0,
+                "mean_abs_percent": 0.298,
+                "bias_percent": 0.005,
+                "max_abs_percent": 1.978,
+                "max_at_psia": 173.696,
+                "basis": "adjusted"
+              },
+              {
+                "property": "Rs",
+                "points": 11,
+                "outside_table": 0,
+                "mean_abs_percent": 3.242,
+                "bias_percent": 0.906,
+                "max_abs_percent": 19.701,
+                "max_at_psia": 173.696,
+                "basis": "adjusted"
+              },
+              {
+                "property": "mu_o",
+                "points": 18,
+                "outside_table": 0,
+                "mean_abs_percent": 5.221,
+                "bias_percent": 0.26,
+                "max_abs_percent": 16.952,
+                "max_at_psia": 14.696,
+                "basis": "as-measured"
+              },
+              {
+                "property": "Z",
+                "points": 10,
+                "outside_table": 0,
+                "mean_abs_percent": 1.211,
+                "bias_percent": -1.211,
+                "max_abs_percent": 1.95,
+                "max_at_psia": 1364.696,
+                "basis": "as-measured"
+              },
+              {
+                "property": "Bg",
+                "points": 10,
+                "outside_table": 0,
+                "mean_abs_percent": 0.767,
+                "bias_percent": -0.719,
+                "max_abs_percent": 1.508,
+                "max_at_psia": 1364.696,
+                "basis": "as-measured"
+              },
+              {
+                "property": "Vrel",
+                "points": 24,
+                "outside_table": 0,
+                "mean_abs_percent": 1.916,
+                "bias_percent": -1.915,
+                "max_abs_percent": 10.637,
+                "max_at_psia": 486.696,
+                "basis": "as-measured"
+              }
+            ]
+          },
+          "pressure_range": {
+            "min_psia": 15,
+            "max_psia": 5015,
+            "requested_max_psia": null,
+            "source": "default"
+          },
+          "table_rows": 41
+        }
+      },
+      "wta": {
+        "kind": "wta",
+        "from": {
+          "app": "Well Test Analysis Studio",
+          "recordId": "wt-1",
+          "recordName": "EK-3 buildup",
+          "at": "2026-10-03T09:00:00.000Z",
+          "takenAt": "2026-10-05T11:00:00.000Z",
+          "schema": "wta-1"
+        },
+        "values": {
+          "permeability": "182.4",
+          "skin": "2.1",
+          "reservoirPressure": "3985"
+        },
+        "fields": [
+          "permeability",
+          "skin",
+          "reservoirPressure"
+        ],
+        "methods": {
+          "permeability": "Horner straight line, window 2 to 20 hr of shut-in time dt. Well test permeability is the average over the tested interval and the radius of investigation, Well Test Analysis Studio, project \"EK-3 buildup\", well EK-3",
+          "skin": "Total skin (mechanical 1.4, partial penetration 0.7), Horner straight line, Well Test Analysis Studio, project \"EK-3 buildup\", well EK-3",
+          "reservoirPressure": "Extrapolated p* of the Horner straight line. Basis: absolute, at the gauge depth (no correction to a datum), Well Test Analysis Studio, project \"EK-3 buildup\", well EK-3"
+        },
+        "fingerprint": {
+          "k": 182.4,
+          "kMethod": "Horner straight line",
+          "s": 2.1,
+          "p": 3985
+        }
+      },
+      "mbal": {
+        "kind": "mbal",
+        "from": {
+          "app": "Material Balance Studio",
+          "recordId": "rb-1",
+          "recordName": "Ekene E-2000",
+          "at": "2026-10-02T15:00:00Z",
+          "takenAt": "2026-10-05T11:00:00.000Z",
+          "schema": "mbal-1"
+        },
+        "values": {
+          "ooipStb": "152000000"
+        },
+        "fields": [
+          "ooipStb"
+        ],
+        "methods": {
+          "ooipStb": "Havlena-Odeh regression, slope, r2 0.987, Material Balance Studio, case \"Ekene E-2000\", run of 2026-10-02 15:00 UTC"
+        },
+        "fingerprint": {
+          "n": 152000000,
+          "q": "OOIP",
+          "run": "run-1"
+        }
+      },
+      "dca": {
+        "kind": "dca",
+        "from": {
+          "app": "Decline Curve Analysis",
+          "recordId": "dca-1",
+          "recordName": "Ekene decline",
+          "at": "2026-10-01T08:00:00.000Z",
+          "takenAt": "2026-10-05T11:00:00.000Z",
+          "schema": "dca-forecast-1",
+          "wellId": "w-ek2",
+          "wellName": "EK-2",
+          "stream": "oil"
+        },
+        "values": {
+          "dcaEurStb": "2070000"
+        },
+        "fields": [
+          "dcaEurStb"
+        ],
+        "methods": {
+          "dcaEurStb": "EUR of EK-2, oil, hyperbolic fitted 2026-09-30, project \"Ekene decline\" (Decline Curve Analysis): produced 820,000 STB to the cut-off plus the forecast to the economic limit"
+        },
+        "fingerprint": {
+          "eur": 2070000,
+          "fp": "abc123"
+        }
+      },
+      "wells": {
+        "kind": "wells",
+        "from": {
+          "app": "Wells registry (Well Data Manager)",
+          "recordId": null,
+          "recordName": "4 wells",
+          "at": null,
+          "takenAt": "2026-10-05T11:00:00.000Z",
+          "schema": "geo_wells"
+        },
+        "xyUnit": "ft",
+        "crs": "EPSG:26191",
+        "wells": [
+          {
+            "id": "gw-1",
+            "name": "EK-1",
+            "x": 500000,
+            "y": 300000
+          },
+          {
+            "id": "gw-2",
+            "name": "EK-2",
+            "x": 501320,
+            "y": 300000
+          },
+          {
+            "id": "gw-3",
+            "name": "EK-3",
+            "x": 500000,
+            "y": 301320
+          },
+          {
+            "id": "gw-4",
+            "name": "EK-4",
+            "x": 501320,
+            "y": 301320
+          }
+        ],
+        "values": {},
+        "fields": [],
+        "methods": {},
+        "fingerprint": {
+          "wells": "gw-1:500000:300000|gw-2:501320:300000|gw-3:500000:301320|gw-4:501320:301320"
+        }
+      }
+    },
+    "sampleNote": null
+  },
+  "modified": "2026-10-05T12:00:00.000Z"
+}
