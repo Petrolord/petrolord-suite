@@ -64,13 +64,19 @@ const PVT_REFS = (base) => [
 export const INTAKE_SOFT_REFS = Object.freeze({
   saved_waterflood_design_projects: [
     ...KR_REFS('inputs_data.displacementInputs'),
+    // WTA-U1-012/013: the Well Test project the permeability was read from (wta-1)
+    { path: 'inputs_data.displacementInputs.kIntake.projectId', table: 'saved_well_test_projects', optional: true },
     // scenario snapshots keep the intake of their working case: any id under them is optional
     { path: 'inputs_data.scenarios.*', table: 'saved_scal_projects', optional: true },
     ...PVT_REFS('inputs_data'),
   ],
   // the same pvt-1 intake record in the other consumers (SCAL-U2-005, Well Test)
   saved_scal_projects: PVT_REFS('inputs_data'),
-  saved_well_test_projects: PVT_REFS('inputs_data'),
+  saved_well_test_projects: [
+    ...PVT_REFS('inputs_data'),
+    // WTA-U1-013: the wta-1 results block names its own project
+    { path: 'inputs_data.wta.project.id', table: 'saved_well_test_projects', optional: true },
+  ],
   // VRR-U1: the FVF table taken from a Fluid project (the payload nests its inputs one level down)
   saved_vrr_projects: PVT_REFS('inputs_data.inputs'),
 });
