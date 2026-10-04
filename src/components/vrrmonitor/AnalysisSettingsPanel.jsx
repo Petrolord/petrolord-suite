@@ -14,7 +14,7 @@ const FIELDS = [
 ];
 
 const AnalysisSettingsPanel = () => {
-  const { inputs, setSettingsField } = useVrrMonitor();
+  const { inputs, setSettingsField, settingsNotes } = useVrrMonitor();
   return (
     <div className="space-y-3">
       {FIELDS.map(({ key, label }) => (
@@ -24,10 +24,16 @@ const AnalysisSettingsPanel = () => {
             id={`vrr-set-${key}`}
             value={inputs.settings[key]}
             onChange={(e) => setSettingsField(key, e.target.value)}
+            inputMode="decimal"
             className="h-9 font-pl-mono tabular-nums"
           />
         </div>
       ))}
+      {settingsNotes.length > 0 && (
+        <div className="text-xs text-pl-warning-text space-y-0.5" data-testid="vrr-settings-notes">
+          {settingsNotes.map((n) => <div key={n}>{n}</div>)}
+        </div>
+      )}
       <p className="text-xs text-pl-muted leading-relaxed">
         Many operators hold VRR slightly above 1 after fill-up (for example 1.0 to 1.2). Periods
         outside the band flag as Under or Over on the ledger and dashboard.

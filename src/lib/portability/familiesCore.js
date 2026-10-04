@@ -71,6 +71,8 @@ export const INTAKE_SOFT_REFS = Object.freeze({
   // the same pvt-1 intake record in the other consumers (SCAL-U2-005, Well Test)
   saved_scal_projects: PVT_REFS('inputs_data'),
   saved_well_test_projects: PVT_REFS('inputs_data'),
+  // VRR-U1: the FVF table taken from a Fluid project (the payload nests its inputs one level down)
+  saved_vrr_projects: PVT_REFS('inputs_data.inputs'),
 });
 
 registerFamily('apps', {

@@ -10,21 +10,19 @@ import GatedNotice from '@/components/vrrmonitor/GatedNotice';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { useVrrMonitor } from '@/contexts/VrrMonitorContext';
 import { plain } from './vrrBand';
-import { THEMED_TONE, THEMED_TONE_TEXT } from '@/components/studio/studioTheme';
+import { THEMED_TONE_TEXT } from '@/components/studio/studioTheme';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { vrrUnits } from '@/utils/vrr/units';
 
 const LINE = { inst: '#2563eb', cum: '#059669', ref: '#dc2626' };
 
 const fmt = (v, d = 2) =>
-  v == null || !Number.isFinite(v) ? '-' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
+  v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
 
-const FLAG_STYLE = {
-  under: 'text-amber-400',
-  'in-band': 'text-emerald-400',
-  over: 'text-sky-400',
-};
 const FLAG_TONE = { under: 'warn', 'in-band': 'good', over: 'info' };
 
-const PatternCard = ({ analysis, targetBand }) => {
+const PatternCard = ({ analysis, targetBand, system }) => {
+  const u = vrrUnits(system);
   const { pattern } = analysis;
   if (analysis.withheld) {
     return (
@@ -81,11 +79,11 @@ const PatternCard = ({ analysis, targetBand }) => {
                 Rolling VRR {fmt(recommendation.currentVRR)} against a target of {fmt(recommendation.targetVRR)}, so
                 scale water injection by {fmt(recommendation.scale)}
                 {recommendation.clamped && <span className={THEMED_TONE_TEXT.warn}> (clamped: the unclamped step was implausible, so re-check allocation and PVT first)</span>}
-                : from {fmt(recommendation.currentWi, 0)} to <span className="text-pl-text font-semibold">{fmt(recommendation.recommendedWi, 0)} bbl/period</span>
+                : from {fmt(u.show('water', recommendation.currentWi), 0)} to <span className="text-pl-text font-semibold">{fmt(u.show('water', recommendation.recommendedWi), 0)} {u.label('water')}/period</span>
               </div>
               {recommendation.perInjector.map((r) => (
                 <div key={r.well} className="font-pl-mono tabular-nums">
-                  {r.well}: {fmt(r.currentWi, 0)} to {fmt(r.recommendedWi, 0)} bbl/period ({r.deltaWi >= 0 ? '+' : ''}{fmt(r.deltaWi, 0)})
+                  {r.well}: {fmt(u.show('water', r.currentWi), 0)} to {fmt(u.show('water', r.recommendedWi), 0)} {u.label('water')}/period ({r.deltaWi >= 0 ? '+' : ''}{fmt(u.show('water', r.deltaWi), 0)})
                 </div>
               ))}
             </div>
@@ -97,7 +95,7 @@ const PatternCard = ({ analysis, targetBand }) => {
 };
 
 const PatternResultsPanel = () => {
-  const { isImported, inputs, patternAnalyses, summary, targetBand } = useVrrMonitor();
+  const { isImported, inputs, patternAnalyses, summary, targetBand, u, trackActive } = useVrrMonitor();
 
   if (!isImported) {
     return (
@@ -122,7 +120,10 @@ const PatternResultsPanel = () => {
     <>
       {/* Field / pattern rollup */}
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">Rollup</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Rollup</CardTitle>
+          {trackActive && <p className="text-xs text-pl-muted">Patterns and their advice use the same per-period FVFs as the field.</p>}
+        </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -145,8 +146,8 @@ const PatternResultsPanel = () => {
               {patternAnalyses.map((a) => (
                 <TableRow key={a.pattern.id}>
                   <TableCell>{a.pattern.name}</TableCell>
-                  <TableCell className="text-right font-pl-mono tabular-nums">{a.withheld ? '-' : fmt(a.summary?.cumulativeVRR)}</TableCell>
-                  <TableCell className="text-right font-pl-mono tabular-nums">{a.withheld ? '-' : fmt(a.summary?.latestInstantaneousVRR)}</TableCell>
+                  <TableCell className="text-right font-pl-mono tabular-nums">{a.withheld ? EMPTY_VALUE : fmt(a.summary?.cumulativeVRR)}</TableCell>
+                  <TableCell className="text-right font-pl-mono tabular-nums">{a.withheld ? EMPTY_VALUE : fmt(a.summary?.latestInstantaneousVRR)}</TableCell>
                   <TableCell className="text-right font-pl-mono tabular-nums">{a.pattern.producers.length}</TableCell>
                   <TableCell className="text-xs text-pl-muted">{a.withheld ? a.reason : plain(a.summary?.status?.label)}</TableCell>
                 </TableRow>
@@ -157,7 +158,7 @@ const PatternResultsPanel = () => {
       </Card>
 
       {patternAnalyses.map((a) => (
-        <PatternCard key={a.pattern.id} analysis={a} targetBand={targetBand} />
+        <PatternCard key={a.pattern.id} analysis={a} targetBand={targetBand} system={u.system} />
       ))}
     </>
   );

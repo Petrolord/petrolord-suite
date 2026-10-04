@@ -21,8 +21,8 @@ import * as ML from '@/utils/dataAi/engine/ml';
 import { MAX_IMPORTANCE_ROWS } from '@/utils/dataAi/mlData';
 
 /** The engine build the studio runs: petrolord-engines at the VENDOR.json pin. */
-export const ENGINE_VERSION = 'petrolord-engines dd0eba4 (engines/dataai/ml.js, PR #252; PR #254 added the rowNoun option, default messages unchanged; ml.js unchanged since ef4058f)';
-export const ENGINE_COMMIT = 'dd0eba4d741e54aae5790de33578c1caf8ae102a';
+export const ENGINE_VERSION = 'petrolord-engines 4f91416 (engines/dataai/ml.js, PR #252; PR #254 added the rowNoun option, default messages unchanged; ml.js unchanged since ef4058f)';
+export const ENGINE_COMMIT = '4f91416c4927e50a04ec522de750bc8818be9699';
 
 export const DEFAULT_SEED = 42;
 

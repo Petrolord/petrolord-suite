@@ -204,3 +204,38 @@ error and two omissions:
 - Tab-name drift fixed: "Data tab" and "Dashboard tab" are labelled
   **Data & PVT** and **VRR Dashboard**.
 - Added the V4 weakest-pattern KPI to the Patterns section.
+
+## 2026-10-04 — Reservoir upgrade round, Step 1 (VRR-U1, branch `feat/vrr-u1`)
+
+Working doc: `docs/upgrade/VoidageReplacementMonitor-UPGRADE.md` (28
+findings, the Step 1 table, the Step 2 ranked backlog). In short:
+
+- **Two S1 in the import door, fixed**: "Water Inj (bbl)" was dropped with
+  no word (VRR 0); a daily-rate column on monthly rows was summed as the
+  month's volume (VRR 31.6 for 1.02). The ledger, pressure and grid doors
+  now read through `src/lib/tabularParse.js` with units at the door, a
+  read-back and questions for what a file cannot settle (hostile set in
+  `e2e/fixtures/vrr/hostile/`).
+- **The report** on the shared Report Kit (`src/utils/vrr/reportModel.js`,
+  `reportFigures.js`, `vrrReportExport.js`, the Report tab) and a ledger CSV
+  with a provenance header (`ledgerCsv.js`). One derived model for screen,
+  report and CSV: `src/utils/vrr/workspace.js` (`deriveVrr`).
+- **Engine** (engines PR #305, merged; pinned at engines 4f91416):
+  `resolvePeriodFvf`, `voidageTerms`, `buildVoidageLedger`, `applyPeriodFvf`
+  and a `periodFvf` option of `recommendPatternInjection` in `vrrLedger.js`.
+  `vrr.js` is byte-identical.
+- **S2 fixed**: blank FVFs read as zero (now withheld with the reason);
+  patterns and advice ignored the pressure track (now the same per-period
+  FVFs as the field).
+- **`pvt-1` intake**: a Fluid Systems Studio table read by id
+  (`src/utils/vrr/pvtIntake.js`, `FluidPvtIntake.jsx`), a third FVF mode
+  ("Fluid table"), the shared PVT intake card.
+- **Units** (`src/utils/vrr/units.js`, `UnitInput.jsx`), **record sharing**
+  (view, check-out editing, Save a copy), the **datum** stated (no
+  correction), the correlation track needs every fluid input.
+- **Material Balance contract kept**: `inputs.pressureSurveys[].p_psia` in
+  psia whatever the display units; payload `{ id, name, schema: 1, inputs }`;
+  pinned by `src/utils/vrr/__tests__/vrrMbalContract.test.js`.
+- Payload additions (schema stays 1): `unitSystem`, `identification`,
+  `inputMeta`, `pvtIntake`, `importInfo`, `pressureImportInfo`, `datum`,
+  `sampleNote`. A project saved before opens in oilfield, unchanged.

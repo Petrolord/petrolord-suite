@@ -1,26 +1,28 @@
 // Voidage Replacement Monitor state + persistence on the shared Studio-shell
 // convention (V1 of the VRR upgrade program, docs/scope/
-// VoidageReplacementMonitor-STATUS.md). Follows the useFluidStudioProjects
-// lifecycle recipe (createSavedProjectsService + hydrated guard + 10s
-// debounced autosave), but as a context because the app grows to multiple
-// tabs sharing this state (import, pressure, patterns in V2-V4).
+// VoidageReplacementMonitor-STATUS.md; VRR-U1 of the Reservoir upgrade
+// round, docs/upgrade/VoidageReplacementMonitor-UPGRADE.md).
 //
-// Persistence: saved_vrr_projects (owner-scoped RLS). Payload
-// { id, name, schema: 1, inputs, modified } — inputs only; results are a
-// pure function of inputs and are recomputed on load.
+// Persistence: saved_vrr_projects, under the record-sharing rules since
+// 20261002130000 (VRR-U1-012): the picker lists my projects, then those
+// colleagues shared with the organisation; a colleague's project opens to
+// view, or to edit while I hold its check-out. Payload
+// { id, name, schema: 1, inputs, modified }: inputs only, in oilfield
+// units always; everything shown is derived from them by deriveVrr
+// (src/utils/vrr/workspace.js), the one model of the screen, the report and
+// the ledger CSV. Material Balance Studio reads inputs.pressureSurveys
+// (date, p_psia) of a saved project by id: that contract is kept.
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
-import {
-  computeVRRSeries, summarizeVRR, sampleVRRData,
-  buildFieldPeriods, classifyLedgerWells, computeRollingVRR, flagPeriods,
-  attachPressure, findFillUp,
-  validateAllocation, patternHasAllocation, buildPatternPeriods, recommendPatternInjection,
-} from '@/utils/vrrCalculations';
-import { derivePeriodFvf } from '@/utils/vrr/pvtTrack';
+import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjects';
+import { sampleVRRData } from '@/utils/vrrCalculations';
+import { deriveVrr } from '@/utils/vrr/workspace';
+import { vrrUnits } from '@/utils/vrr/units';
+import { setProvenanceField } from '@/lib/inputProvenance/model';
 
-const TABLE = 'saved_vrr_projects';
+export const TABLE = 'saved_vrr_projects';
 
 export const service = createSavedProjectsService(TABLE, {
   signInMessage: 'Sign in to save VRR projects.',
@@ -40,7 +42,18 @@ export const friendlyError = (error) => {
 
 export const emptyPeriod = () => ({ label: '', Np: '', Wp: '', Gp: '', Wi: '', Gi: '' });
 
-export const defaultInputs = () => ({
+/** The identification of the report header, typed per project (RL4). */
+export const IDENTIFICATION_FIELDS = Object.freeze([
+  ['company', 'Company'],
+  ['field', 'Field'],
+  ['licence', 'Licence or block'],
+  ['reservoir', 'Reservoir or zone'],
+  ['area', 'Pattern area or segment'],
+  ['dataSource', 'Production data source'],
+  ['analyst', 'Analyst'],
+]);
+
+export const defaultInputs = (unitSystem = 'oilfield') => ({
   fvf: { Bo: '1.25', Bw: '1.02', Bg: '0.9', Rs: '550' },
   periods: [emptyPeriod()],
   // V2: imported per-well ledger mode + analysis settings.
@@ -48,12 +61,21 @@ export const defaultInputs = () => ({
   wellRows: [],   // vrrLedger row schema {date, well, oil_stb, ...}
   settings: { targetBandMin: '1.0', targetBandMax: '1.2', rollingWindow: '3' },
   // V3: reservoir pressure track + pressure-dependent PVT.
-  pressureSurveys: [], // [{date: 'YYYY-MM-DD'|'YYYY-MM', p_psia: number}]
-  pvtMode: 'constant', // 'constant' (global FVF set) | 'track' (correlation-derived per period)
+  pressureSurveys: [], // [{date: 'YYYY-MM-DD'|'YYYY-MM', p_psia: number}] (Material Balance reads these by id)
+  pvtMode: 'constant', // 'constant' | 'track' (correlations) | 'table' (the pvt-1 table of a Fluid project, VRR-U1)
   fluid: { api: '35', gasSg: '0.7', gor: '550', salinityPpm: '35000', tempF: '180' },
   // V4: patterns + injector->producer allocation factors.
   patterns: [],   // [{id, name, producers: [well, ...]}]
   allocation: {}, // {[injector]: {[producer]: fraction-string}}
+  // VRR-U1 (additive, schema stays 1)
+  unitSystem: unitSystem === 'si' ? 'si' : 'oilfield',
+  identification: {},
+  inputMeta: {},         // provenance per input key (src/lib/inputProvenance)
+  pvtIntake: null,       // the pvt-1 table kept with the project (src/utils/vrr/pvtIntake.js)
+  importInfo: null,      // what the ledger door read (file, rows, columns, units, cut-off)
+  pressureImportInfo: null,
+  datum: { depth: '', reference: '' }, // the depth the surveys are quoted at, stated (no correction applied)
+  sampleNote: null,      // set when the inputs came from a built-in sample
 });
 
 /** Restore inputs from a payload, tolerating missing keys from older rows. */
@@ -70,12 +92,24 @@ export const inputsFromPayload = (payload) => {
     wellRows: Array.isArray(raw.wellRows) ? raw.wellRows : [],
     settings: { ...base.settings, ...(raw.settings || {}) },
     pressureSurveys: Array.isArray(raw.pressureSurveys) ? raw.pressureSurveys : [],
-    pvtMode: raw.pvtMode === 'track' ? 'track' : 'constant',
+    pvtMode: ['track', 'table'].includes(raw.pvtMode) ? raw.pvtMode : 'constant',
     fluid: { ...base.fluid, ...(raw.fluid || {}) },
     patterns: Array.isArray(raw.patterns) ? raw.patterns : [],
     allocation: raw.allocation && typeof raw.allocation === 'object' ? raw.allocation : {},
+    // a project saved before VRR-U1 opens in oilfield units, as it was made
+    unitSystem: raw.unitSystem === 'si' ? 'si' : 'oilfield',
+    identification: raw.identification && typeof raw.identification === 'object' ? raw.identification : {},
+    inputMeta: raw.inputMeta && typeof raw.inputMeta === 'object' ? raw.inputMeta : {},
+    pvtIntake: raw.pvtIntake && typeof raw.pvtIntake === 'object' ? raw.pvtIntake : null,
+    importInfo: raw.importInfo || null,
+    pressureImportInfo: raw.pressureImportInfo || null,
+    datum: { ...base.datum, ...(raw.datum || {}) },
+    sampleNote: raw.sampleNote || null,
   };
 };
+
+/** The saved payload of a project (what `.pld` carries and Material Balance reads). */
+export const projectPayload = ({ id, name, inputs }) => ({ id, name, schema: 1, inputs, modified: new Date().toISOString() });
 
 const VrrMonitorContext = createContext();
 
@@ -85,204 +119,141 @@ export const useVrrMonitor = () => {
   return context;
 };
 
-export const VrrMonitorProvider = ({ children }) => {
+/**
+ * @param {{children: any, sharingStore?: ?object, profileSystem?: ?('oilfield'|'si'), organizationName?: ?string}} props
+ *   `sharingStore` the record sharing store (supabaseSharingStore() on the page, a memory store in tests);
+ *   `profileSystem` the system the Suite unit profile leans to, for a new workspace only
+ */
+export const VrrMonitorProvider = ({ children, sharingStore = null, profileSystem = null, organizationName = null }) => {
   const { notifications, addNotification, removeNotification } = useStudioNotifications();
 
-  const [inputs, setInputs] = useState(defaultInputs);
-  const [projects, setProjects] = useState([]);
+  const [inputs, setInputs] = useState(() => defaultInputs(profileSystem));
   const [currentProjectId, setCurrentProjectId] = useState(null);
   const [projectName, setProjectName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [lastSaveTime, setLastSaveTime] = useState(null);
   const [hydrated, setHydrated] = useState(false);
+  const shared = useSharedSavedProjects({ table: TABLE, service, sharingStore });
+  const [projectRows, setProjectRows] = useState([]);
+  const canWrite = shared.canWrite;
 
-  // --- Derived analysis (pure functions of inputs) ---
-  // In imported mode the per-well ledger aggregates to monthly field
-  // periods (vrrLedger.buildFieldPeriods); manual mode uses the grid rows
-  // directly. Everything downstream (series, rolling, flags) is shared.
-  const isImported = inputs.mode === 'imported';
-  const basePeriods = useMemo(
-    () => (isImported ? buildFieldPeriods(inputs.wellRows) : inputs.periods),
-    [isImported, inputs.wellRows, inputs.periods],
-  );
-  // V3: pressure survey interpolation onto period mid-months (labels must
-  // be YYYY-MM; manual free-text labels honestly yield pressure null).
-  const periodsWithPressure = useMemo(
-    () => attachPressure(basePeriods, inputs.pressureSurveys),
-    [basePeriods, inputs.pressureSurveys],
-  );
-  const hasPressure = useMemo(
-    () => periodsWithPressure.some((p) => p.pressure != null),
-    [periodsWithPressure],
-  );
-  // Pressure-dependent PVT: correlation-derived per-period overrides
-  // (Suite-side pvtTrack; the engine's resolveFvf honors them). Track
-  // overrides win over any manual per-period entries.
-  const trackActive = inputs.pvtMode === 'track' && hasPressure;
-  const pvtTrack = useMemo(() => {
-    if (!trackActive) return null;
-    return derivePeriodFvf(inputs.fluid, periodsWithPressure.map((p) => p.pressure));
-  }, [trackActive, inputs.fluid, periodsWithPressure]);
-  const effectivePeriods = useMemo(() => {
-    if (!pvtTrack) return periodsWithPressure;
-    return periodsWithPressure.map((p, i) => (pvtTrack.overrides[i] ? { ...p, ...pvtTrack.overrides[i] } : p));
-  }, [periodsWithPressure, pvtTrack]);
-  const series = useMemo(() => computeVRRSeries(effectivePeriods, inputs.fvf), [effectivePeriods, inputs.fvf]);
-  const fillUp = useMemo(() => findFillUp(series), [series]);
-  const summary = useMemo(() => summarizeVRR(series), [series]);
-  const rolling = useMemo(
-    () => computeRollingVRR(series, parseFloat(inputs.settings.rollingWindow) || 3),
-    [series, inputs.settings.rollingWindow],
-  );
-  const targetBand = useMemo(() => ({
-    min: parseFloat(inputs.settings.targetBandMin) || 1.0,
-    max: parseFloat(inputs.settings.targetBandMax) || 1.2,
-  }), [inputs.settings.targetBandMin, inputs.settings.targetBandMax]);
-  const flags = useMemo(() => flagPeriods(series, targetBand), [series, targetBand]);
-  const ledgerWells = useMemo(
-    () => (isImported ? classifyLedgerWells(inputs.wellRows) : { injectors: [], producers: [] }),
-    [isImported, inputs.wellRows],
-  );
+  // a new workspace follows the profile once it is known (a saved project keeps its own)
+  const touched = useRef(false);
+  useEffect(() => {
+    if (!touched.current && !currentProjectId && profileSystem) setInputs((prev) => ({ ...prev, unitSystem: profileSystem === 'si' ? 'si' : 'oilfield' }));
+  }, [profileSystem, currentProjectId]);
+  const edit = useCallback((fn) => { touched.current = true; setInputs(fn); }, []);
 
-  // V4: per-pattern analyses. Only meaningful on an imported ledger (wells
-  // are the allocation unit); each pattern is either an analysis or an
-  // honest { withheld, reason }.
-  const allocationCheck = useMemo(() => validateAllocation(inputs.allocation), [inputs.allocation]);
-  const patternAnalyses = useMemo(() => {
-    if (!isImported) return [];
-    return inputs.patterns.map((pattern) => {
-      if (!allocationCheck.ok) {
-        return { pattern, withheld: true, reason: 'Allocation matrix has errors (a row sums above 1 or holds a bad value). Fix it first.' };
-      }
-      if (!pattern.producers?.length) {
-        return { pattern, withheld: true, reason: 'No producers assigned to this pattern yet.' };
-      }
-      if (!patternHasAllocation(pattern, inputs.allocation)) {
-        return { pattern, withheld: true, reason: 'No allocation factors route injection to this pattern. Fill the matrix; even splits are never assumed.' };
-      }
-      const periods = buildPatternPeriods(inputs.wellRows, pattern, inputs.allocation);
-      const pSeries = computeVRRSeries(periods, inputs.fvf);
-      const pRolling = computeRollingVRR(pSeries, parseFloat(inputs.settings.rollingWindow) || 3);
-      const pFlags = flagPeriods(pSeries, targetBand);
-      const pSummary = summarizeVRR(pSeries);
-      const recommendation = recommendPatternInjection(inputs.wellRows, pattern, inputs.allocation, inputs.fvf, {
-        targetVRR: targetBand.min,
-        windowPeriods: parseFloat(inputs.settings.rollingWindow) || 3,
-      });
-      return { pattern, withheld: false, series: pSeries, rolling: pRolling, flags: pFlags, summary: pSummary, recommendation };
-    });
-  }, [isImported, inputs.patterns, inputs.allocation, inputs.wellRows, inputs.fvf, inputs.settings.rollingWindow, targetBand, allocationCheck]);
-
-  const worstPattern = useMemo(() => {
-    const live = patternAnalyses.filter((a) => !a.withheld && a.summary?.cumulativeVRR != null);
-    if (!live.length) return null;
-    return live.reduce((worst, a) => (a.summary.cumulativeVRR < worst.summary.cumulativeVRR ? a : worst));
-  }, [patternAnalyses]);
+  // --- Derived analysis: one pure function of the inputs ---
+  const derived = useMemo(() => deriveVrr(inputs), [inputs]);
+  const u = useMemo(() => vrrUnits(inputs.unitSystem), [inputs.unitSystem]);
 
   // --- Input actions ---
+  const setUnitSystem = useCallback((system) => edit((prev) => ({ ...prev, unitSystem: system === 'si' ? 'si' : 'oilfield' })), [edit]);
   const setFvfField = useCallback((key, value) => {
-    setInputs((prev) => ({ ...prev, fvf: { ...prev.fvf, [key]: value } }));
-  }, []);
+    edit((prev) => ({ ...prev, fvf: { ...prev.fvf, [key]: value }, sampleNote: prev.sampleNote }));
+  }, [edit]);
+  const setInputMetaField = useCallback((key, field, value) => {
+    edit((prev) => ({ ...prev, inputMeta: setProvenanceField(prev.inputMeta || {}, key, field, value) }));
+  }, [edit]);
+  const setIdentificationField = useCallback((key, value) => {
+    edit((prev) => ({ ...prev, identification: { ...(prev.identification || {}), [key]: value } }));
+  }, [edit]);
+  const setDatumField = useCallback((key, value) => {
+    edit((prev) => ({ ...prev, datum: { ...(prev.datum || {}), [key]: value } }));
+  }, [edit]);
 
   const updatePeriodCell = useCallback((index, key, value) => {
-    setInputs((prev) => ({
-      ...prev,
-      periods: prev.periods.map((row, i) => (i === index ? { ...row, [key]: value } : row)),
-    }));
-  }, []);
-
-  const addPeriod = useCallback(() => {
-    setInputs((prev) => ({ ...prev, periods: [...prev.periods, emptyPeriod()] }));
-  }, []);
-
+    edit((prev) => ({ ...prev, periods: prev.periods.map((row, i) => (i === index ? { ...row, [key]: value } : row)) }));
+  }, [edit]);
+  const addPeriod = useCallback(() => edit((prev) => ({ ...prev, periods: [...prev.periods, emptyPeriod()] })), [edit]);
   const removePeriod = useCallback((index) => {
-    setInputs((prev) => ({
-      ...prev,
-      periods: prev.periods.length > 1 ? prev.periods.filter((_, i) => i !== index) : [emptyPeriod()],
-    }));
-  }, []);
-
-  const setPeriods = useCallback((periods) => {
-    setInputs((prev) => ({ ...prev, periods: periods.length ? periods : [emptyPeriod()] }));
-  }, []);
+    edit((prev) => ({ ...prev, periods: prev.periods.length > 1 ? prev.periods.filter((_, i) => i !== index) : [emptyPeriod()] }));
+  }, [edit]);
+  const setPeriods = useCallback((periods, source = null) => {
+    edit((prev) => ({ ...prev, periods: periods.length ? periods : [emptyPeriod()], importInfo: source ? { kind: 'grid', ...source } : prev.importInfo }));
+  }, [edit]);
 
   const loadSample = useCallback(() => {
     const s = sampleVRRData();
-    setInputs((prev) => ({
+    edit((prev) => ({
       ...prev,
       fvf: { Bo: String(s.fvf.Bo), Bw: String(s.fvf.Bw), Bg: String(s.fvf.Bg), Rs: String(s.fvf.Rs) },
       periods: s.periods.map((p) => ({
         ...emptyPeriod(), ...p, Np: String(p.Np), Wp: String(p.Wp), Gp: String(p.Gp), Wi: String(p.Wi), Gi: String(p.Gi),
       })),
+      sampleNote: 'The built-in 6-month waterflood sample of the app (illustrative volumes).',
     }));
     addNotification('Sample loaded: a 6-month waterflood dataset is ready.', 'success');
-  }, [addNotification]);
+  }, [edit, addNotification]);
 
   const clearAll = useCallback(() => {
-    setInputs((prev) => ({ ...prev, periods: [emptyPeriod()] }));
+    edit((prev) => ({ ...prev, periods: [emptyPeriod()] }));
     addNotification('Periods cleared', 'info');
-  }, [addNotification]);
+  }, [edit, addNotification]);
 
   // --- V2: imported ledger + settings actions ---
-  const importWellRows = useCallback((rows, sourceName) => {
-    setInputs((prev) => ({ ...prev, mode: 'imported', wellRows: rows }));
+  const importWellRows = useCallback((rows, sourceName, info = null) => {
+    edit((prev) => ({
+      ...prev,
+      mode: 'imported',
+      wellRows: rows,
+      importInfo: { kind: 'ledger', file: sourceName || null, at: new Date().toISOString(), ...(info || {}) },
+      sampleNote: info?.sample ? info.sample : null,
+    }));
     addNotification(`Loaded ${rows.length.toLocaleString()} well-rows${sourceName ? ` from ${sourceName}` : ''}`, 'success');
-  }, [addNotification]);
+  }, [edit, addNotification]);
 
   const clearImported = useCallback(() => {
-    setInputs((prev) => ({ ...prev, mode: 'manual', wellRows: [] }));
+    edit((prev) => ({ ...prev, mode: 'manual', wellRows: [], importInfo: null }));
     addNotification('Imported data cleared; back to manual entry', 'info');
-  }, [addNotification]);
+  }, [edit, addNotification]);
 
   const setSettingsField = useCallback((key, value) => {
-    setInputs((prev) => ({ ...prev, settings: { ...prev.settings, [key]: value } }));
-  }, []);
+    edit((prev) => ({ ...prev, settings: { ...prev.settings, [key]: value } }));
+  }, [edit]);
 
   // --- V3: pressure survey + PVT mode actions ---
-  const setPressureSurveys = useCallback((surveys) => {
-    setInputs((prev) => ({ ...prev, pressureSurveys: surveys }));
-  }, []);
-
+  const setPressureSurveys = useCallback((surveys, info = null) => {
+    edit((prev) => ({ ...prev, pressureSurveys: surveys, pressureImportInfo: info ? { at: new Date().toISOString(), ...info } : prev.pressureImportInfo }));
+  }, [edit]);
   const updateSurvey = useCallback((index, key, value) => {
-    setInputs((prev) => ({
-      ...prev,
-      pressureSurveys: prev.pressureSurveys.map((s, i) => (i === index ? { ...s, [key]: value } : s)),
-    }));
-  }, []);
-
+    edit((prev) => ({ ...prev, pressureSurveys: prev.pressureSurveys.map((s, i) => (i === index ? { ...s, [key]: value } : s)) }));
+  }, [edit]);
   const addSurvey = useCallback(() => {
-    setInputs((prev) => ({ ...prev, pressureSurveys: [...prev.pressureSurveys, { date: '', p_psia: '' }] }));
-  }, []);
-
+    edit((prev) => ({ ...prev, pressureSurveys: [...prev.pressureSurveys, { date: '', p_psia: '' }] }));
+  }, [edit]);
   const removeSurvey = useCallback((index) => {
-    setInputs((prev) => ({ ...prev, pressureSurveys: prev.pressureSurveys.filter((_, i) => i !== index) }));
-  }, []);
-
+    edit((prev) => ({ ...prev, pressureSurveys: prev.pressureSurveys.filter((_, i) => i !== index) }));
+  }, [edit]);
   const setPvtMode = useCallback((mode) => {
-    setInputs((prev) => ({ ...prev, pvtMode: mode === 'track' ? 'track' : 'constant' }));
-  }, []);
-
+    edit((prev) => ({ ...prev, pvtMode: ['track', 'table'].includes(mode) ? mode : 'constant' }));
+  }, [edit]);
   const setFluidField = useCallback((key, value) => {
-    setInputs((prev) => ({ ...prev, fluid: { ...prev.fluid, [key]: value } }));
-  }, []);
+    edit((prev) => ({ ...prev, fluid: { ...prev.fluid, [key]: value } }));
+  }, [edit]);
+
+  // --- VRR-U1: the pvt-1 intake from Fluid Systems Studio ---
+  /** Keep the table, fill the constant set at the stated pressure, and run the periods on the table. */
+  const takePvt = useCallback((intake, constant) => {
+    edit((prev) => ({ ...prev, pvtIntake: intake, fvf: { ...prev.fvf, ...constant }, pvtMode: 'table' }));
+  }, [edit]);
+  const clearPvt = useCallback(() => {
+    edit((prev) => ({ ...prev, pvtIntake: null, pvtMode: prev.pvtMode === 'table' ? 'constant' : prev.pvtMode }));
+  }, [edit]);
 
   // --- V4: pattern + allocation actions ---
   const addPattern = useCallback((name) => {
     const clean = String(name || '').trim();
     if (!clean) return;
-    setInputs((prev) => ({
-      ...prev,
-      patterns: [...prev.patterns, { id: `pt_${uuidv4().slice(0, 8)}`, name: clean, producers: [] }],
-    }));
-  }, []);
-
+    edit((prev) => ({ ...prev, patterns: [...prev.patterns, { id: `pt_${uuidv4().slice(0, 8)}`, name: clean, producers: [] }] }));
+  }, [edit]);
   const removePattern = useCallback((id) => {
-    setInputs((prev) => ({ ...prev, patterns: prev.patterns.filter((p) => p.id !== id) }));
-  }, []);
-
+    edit((prev) => ({ ...prev, patterns: prev.patterns.filter((p) => p.id !== id) }));
+  }, [edit]);
   const togglePatternProducer = useCallback((id, well) => {
-    setInputs((prev) => ({
+    edit((prev) => ({
       ...prev,
       patterns: prev.patterns.map((p) => {
         if (p.id !== id) return p;
@@ -290,77 +261,75 @@ export const VrrMonitorProvider = ({ children }) => {
         return { ...p, producers: has ? p.producers.filter((w) => w !== well) : [...p.producers, well] };
       }),
     }));
-  }, []);
-
+  }, [edit]);
   const setAllocationCell = useCallback((injector, producer, value) => {
-    setInputs((prev) => {
+    edit((prev) => {
       const row = { ...(prev.allocation[injector] || {}) };
       if (String(value).trim() === '') delete row[producer];
       else row[producer] = value;
       return { ...prev, allocation: { ...prev.allocation, [injector]: row } };
     });
-  }, []);
-
+  }, [edit]);
   // Explicit user action, so this is not the engine faking a split.
   const evenSplitInjector = useCallback((injector, producers) => {
     if (!producers.length) return;
     const frac = (1 / producers.length).toFixed(4);
-    setInputs((prev) => ({
-      ...prev,
-      allocation: {
-        ...prev.allocation,
-        [injector]: Object.fromEntries(producers.map((p) => [p, frac])),
-      },
-    }));
-  }, []);
+    edit((prev) => ({ ...prev, allocation: { ...prev.allocation, [injector]: Object.fromEntries(producers.map((p) => [p, frac])) } }));
+  }, [edit]);
 
-  // --- Project lifecycle (useFluidStudioProjects recipe) ---
-  const serialize = useCallback((name) => ({
-    id: currentProjectId,
-    name,
-    schema: 1,
-    inputs,
-    modified: new Date().toISOString(),
-  }), [currentProjectId, inputs]);
+  // --- Project lifecycle, with record sharing ---
+  const serialize = useCallback((name, id = currentProjectId) => projectPayload({ id, name, inputs }), [currentProjectId, inputs]);
+
+  const refresh = useCallback(async () => {
+    const list = await shared.refreshList();
+    setProjectRows(list);
+    return list;
+  }, [shared]);
 
   useEffect(() => {
     (async () => {
       try {
-        setProjects(await service.list());
+        await refresh();
       } catch (e) {
         console.error(e);
         addNotification(friendlyError(e), 'error');
       }
     })();
-  }, [addNotification]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const myId = shared.sharing.userId;
+  const projects = useMemo(() => projectRows.filter((p) => !sharingStore || !myId || !p.userId || p.userId === myId), [projectRows, sharingStore, myId]);
+  const sharedProjects = useMemo(() => (sharingStore && myId ? projectRows.filter((p) => p.userId && p.userId !== myId) : []), [projectRows, sharingStore, myId]);
 
   const createProject = useCallback(async (name) => {
     const id = uuidv4();
     try {
-      await service.save(id, { id, name, schema: 1, inputs, modified: new Date().toISOString() });
+      await service.save(id, projectPayload({ id, name, inputs }));
+      await shared.adoptRow(id);
       setCurrentProjectId(id);
       setProjectName(name);
       setHydrated(true);
       setLastSaveTime(new Date());
       setSaveError(null);
-      setProjects(await service.list());
+      await refresh();
       addNotification(`Project "${name}" created`, 'success');
     } catch (e) {
       console.error(e);
       addNotification(friendlyError(e), 'error');
     }
-  }, [inputs, addNotification]);
+  }, [inputs, shared, refresh, addNotification]);
 
   const openProject = useCallback(async (id) => {
     try {
-      const payload = await service.load(id);
+      const payload = await shared.loadForOpen(id);
       const restored = inputsFromPayload(payload);
       if (!restored) {
         addNotification('Project not found', 'error');
         return;
       }
+      touched.current = true;
       setCurrentProjectId(id);
-      setProjectName(payload.name || projects.find((p) => p.id === id)?.name || 'Untitled project');
+      setProjectName(payload.name || projectRows.find((p) => p.id === id)?.name || 'Untitled project');
       setInputs(restored);
       setHydrated(true);
       setSaveError(null);
@@ -368,7 +337,7 @@ export const VrrMonitorProvider = ({ children }) => {
       console.error(e);
       addNotification(friendlyError(e), 'error');
     }
-  }, [projects, addNotification]);
+  }, [shared, projectRows, addNotification]);
 
   const deleteProject = useCallback(async (id) => {
     try {
@@ -378,44 +347,72 @@ export const VrrMonitorProvider = ({ children }) => {
         setProjectName('');
         setHydrated(false);
         setLastSaveTime(null);
+        shared.close();
       }
-      setProjects(await service.list());
+      await refresh();
       addNotification('Project deleted', 'info');
     } catch (e) {
       console.error(e);
       addNotification(friendlyError(e), 'error');
     }
-  }, [currentProjectId, addNotification]);
+  }, [currentProjectId, shared, refresh, addNotification]);
 
+  const writeNow = useCallback(async () => {
+    const res = await shared.write(currentProjectId, serialize(projectName));
+    if (res.ok) { setLastSaveTime(new Date()); setSaveError(null); }
+    else if (!res.readOnly) { setSaveError('Save failed'); addNotification(res.message || 'Save failed', 'error'); }
+    return res;
+  }, [shared, currentProjectId, serialize, projectName, addNotification]);
+
+  /** Save now. @returns {Promise<boolean>} whether the project was written */
   const manualSave = useCallback(async () => {
     if (!currentProjectId) {
       addNotification('Create or open a project first', 'info');
-      return;
+      return false;
+    }
+    if (!canWrite) {
+      addNotification(shared.sharing.readOnlyReason || 'This project is open read-only.', 'info');
+      return false;
     }
     setIsSaving(true);
     try {
-      await service.save(currentProjectId, serialize(projectName));
-      setLastSaveTime(new Date());
-      setSaveError(null);
+      const res = await writeNow();
+      return !!res.ok;
     } catch (e) {
       console.error(e);
       setSaveError('Save failed');
+      return false;
     } finally {
       setIsSaving(false);
     }
-  }, [currentProjectId, projectName, serialize, addNotification]);
+  }, [currentProjectId, canWrite, shared, writeNow, addNotification]);
 
-  // Debounced autosave (10 s), only once a project is open and hydrated.
+  /** "Save a copy": the project on screen as my own new project. */
+  const saveCopy = useCallback(async () => {
+    const name = shared.copyNameFor(projectName || 'VRR project');
+    const id = uuidv4();
+    try {
+      await service.save(id, projectPayload({ id, name, inputs }));
+      await refresh();
+      await openProject(id);
+      addNotification(`Saved a copy as "${name}"`, 'success');
+      return id;
+    } catch (e) {
+      addNotification(`Could not save a copy: ${e.message}`, 'error');
+      return null;
+    }
+  }, [shared, projectName, inputs, refresh, openProject, addNotification]);
+
+  // Debounced autosave (10 s), only once a project is open and hydrated, and
+  // never while it is open read-only (a colleague's, or not checked out by me)
   const autosaveRef = useRef(null);
-  autosaveRef.current = () => serialize(projectName);
+  autosaveRef.current = writeNow;
   useEffect(() => {
-    if (!currentProjectId || !hydrated) return undefined;
+    if (!currentProjectId || !hydrated || !canWrite) return undefined;
     const timer = setTimeout(async () => {
       setIsSaving(true);
       try {
-        await service.save(currentProjectId, autosaveRef.current());
-        setLastSaveTime(new Date());
-        setSaveError(null);
+        await autosaveRef.current();
       } catch (e) {
         console.error(e);
         setSaveError('Auto-save failed');
@@ -424,29 +421,20 @@ export const VrrMonitorProvider = ({ children }) => {
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [inputs, currentProjectId, hydrated]);
+  }, [inputs, currentProjectId, hydrated, canWrite]);
 
   const value = {
     // inputs + derived
     inputs,
-    series,
-    summary,
-    rolling,
-    flags,
-    targetBand,
-    isImported,
-    ledgerWells,
-    effectivePeriods,
-    periodsWithPressure,
-    hasPressure,
-    trackActive,
-    pvtTrack,
-    fillUp,
-    allocationCheck,
-    patternAnalyses,
-    worstPattern,
+    ...derived,
+    u,
+    organizationName,
     // input actions
+    setUnitSystem,
     setFvfField,
+    setInputMetaField,
+    setIdentificationField,
+    setDatumField,
     updatePeriodCell,
     addPeriod,
     removePeriod,
@@ -462,19 +450,27 @@ export const VrrMonitorProvider = ({ children }) => {
     removeSurvey,
     setPvtMode,
     setFluidField,
+    takePvt,
+    clearPvt,
     addPattern,
     removePattern,
     togglePatternProducer,
     setAllocationCell,
     evenSplitInjector,
-    // projects
+    // projects and sharing
     projects,
+    sharedProjects,
     currentProjectId,
     projectName,
+    projectRow: shared.projectRow,
+    sharing: shared.sharing,
+    viewingShared: shared.viewingShared,
+    canWrite,
     createProject,
     openProject,
     deleteProject,
     manualSave,
+    saveCopy,
     isSaving,
     saveError,
     lastSaveTime,
