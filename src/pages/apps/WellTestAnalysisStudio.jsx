@@ -32,6 +32,11 @@ import DiagnosticsRail from '@/components/welltest/DiagnosticsRail';
 import WTSHelpContent from '@/components/welltest/WTSHelpContent';
 import { pvtIntakeFromBackbone } from '@/utils/welltest/reportModel';
 import { readFluidProjectPvt, handoffFromContract, PVT_PROJECT_PARAM } from '@/lib/pvtSource';
+import { supabaseSharingStore } from '@/lib/recordSharing';
+import { RecordSharingBar } from '@/components/recordSharing';
+
+// one store per page: the record sharing rules over the user's session
+const SHARING_STORE = supabaseSharingStore();
 
 const TABS = [
   { value: 'data', label: 'Data' },
@@ -49,7 +54,8 @@ const WellTestStudioContent = () => {
     TABS.some((t) => t.value === requested) ? requested : 'data',
   );
   const {
-    projects, currentProjectId, createProject, openProject, deleteProject,
+    projects, sharedProjects, currentProjectId, createProject, openProject, deleteProject,
+    projectRow, sharing, viewingShared, canWrite, saveCopy,
     manualSave, isSaving, saveError, lastSaveTime,
     notifications, removeNotification, addNotification,
     setReservoirField, isFitting, setPvtIntake,
@@ -97,12 +103,29 @@ const WellTestStudioContent = () => {
       <section>
         <StudioProjectManager
           projects={projects}
+          sharedProjects={sharedProjects}
+          canDelete={!viewingShared}
           currentProjectId={currentProjectId}
           onCreate={createProject}
           onOpen={openProject}
           onDelete={deleteProject}
           confirmDeleteMessage="Delete this well test project? The gauge data and interpretation stored with it are removed."
         />
+        {projectRow && (
+          <RecordSharingBar
+            sharing={sharing}
+            label="project"
+            className="mt-2"
+            onSaveCopy={saveCopy}
+            onReload={() => openProject(currentProjectId)}
+            fieldLabels={{ project_name: 'name', inputs_data: 'gauge data, inputs, match and report fields' }}
+          />
+        )}
+        {projectRow && sharing.ready && !canWrite && (
+          <p className="mt-2 text-xs text-pl-warning-text" data-testid="wts-read-only">
+            {sharing.readOnlyReason || 'This project is open read-only.'} Changes you make here are not saved to it.
+          </p>
+        )}
       </section>
       {activeTab === 'data' && <DataPanel />}
       {activeTab === 'diagnostics' && <DiagnosticsPanel />}
@@ -173,11 +196,11 @@ const useOrganizationName = () => {
   try { return useAuth()?.organization?.name || ''; } catch { return ''; }
 };
 
-export default function WellTestAnalysisStudio() {
+export default function WellTestAnalysisStudio({ sharingStore = SHARING_STORE }) {
   const organizationName = useOrganizationName();
   return (
     <div data-testid="wts-theme-scope">
-      <WellTestStudioProvider organizationName={organizationName}>
+      <WellTestStudioProvider organizationName={organizationName} sharingStore={sharingStore}>
         <WellTestStudioContent />
       </WellTestStudioProvider>
     </div>

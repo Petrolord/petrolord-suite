@@ -8,6 +8,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
+import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjects';
 import { getModel, evaluateModelTest, evaluateBuildup, toDimensionlessGroups } from '@/utils/welltest/models/modelCatalog';
 import { bourdetDerivative, logDecimate, trimSpikes, detectFlowRegimes } from '@/utils/welltest/derivative';
 import { agarwalEquivalentTime, rateStepsFromHistory, detectFlowPeriods, equivalentProducingTime } from '@/utils/welltest/superposition';
@@ -17,6 +18,7 @@ import { buildGasPvtTable, makePseudoPressure, deliverabilityAnalysis, normalize
 import { UNIT_SYSTEMS } from '@/utils/welltest/units';
 import { useProfileSystem } from '@/lib/units/useProfileSystem';
 import { buildLabel } from '@/lib/platformBuild';
+import { buildWtaRecord } from '@/lib/wellTestSource';
 import { provenanceFromPayload, setProvenanceField } from '@/lib/inputProvenance';
 import {
   DEFAULT_IDENTIFICATION, DEFAULT_COMPLETION, resolveTotalCompressibility,
@@ -44,7 +46,8 @@ export const useWellTestStudio = () => {
   return ctx;
 };
 
-const service = createSavedProjectsService('saved_well_test_projects', {
+export const WT_PROJECTS_TABLE = 'saved_well_test_projects';
+const service = createSavedProjectsService(WT_PROJECTS_TABLE, {
   signInMessage: 'Sign in to save well test projects.',
 });
 
@@ -455,8 +458,16 @@ export function generateSampleBuildup() {
   return { gaugeRows, tp, truth, pwfShutIn: clean.pwfAtShutIn };
 }
 
-export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
+export const WellTestStudioProvider = ({ children, organizationName = '', sharingStore = null }) => {
   const { notifications, addNotification, removeNotification } = useStudioNotifications();
+
+  // WTA-U1-011: saved_well_test_projects is under the record sharing rules
+  // (migration 20261002130000, applied). With a store the picker lists my
+  // projects, then those colleagues shared; a save goes through the store
+  // and only while I may write (the owner, or the colleague holding the
+  // check-out). Without a store every save is the plain owner save.
+  const shared = useSharedSavedProjects({ table: WT_PROJECTS_TABLE, service, sharingStore });
+  const canWrite = shared.canWrite;
 
   // Projects
   const [projects, setProjects] = useState([]);
@@ -973,6 +984,14 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
     addNotification('Sample buildup loaded (synthetic homogeneous test, tp = 36 hr).', 'success');
   }, [addNotification]);
 
+  // WTA-U1-012: the wta-1 record of the interpretation on screen, written
+  // into every save so other apps read the results by id (lib/wellTestSource)
+  const wtaRecord = useMemo(() => buildWtaRecord({
+    reservoirSpec, derivedKpis, configSpec, semilogResult, matchMethod, fitResult, model, skinBreakdown, prepared,
+    completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId,
+  }), [reservoirSpec, derivedKpis, configSpec, semilogResult, matchMethod, fitResult, model, skinBreakdown, prepared,
+    completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId]);
+
   // ---- Project persistence ----
   const serializeInputs = useCallback(() => ({
     id: currentProjectId,
@@ -998,8 +1017,9 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
     rtaRows,
     rtaWindows,
     rtaImport,
+    wta: wtaRecord ? { ...wtaRecord, computed_at: new Date().toISOString() } : null,
     modified: new Date().toISOString(),
-  }), [currentProjectId, projectName, wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows, rtaImport]);
+  }), [wtaRecord, currentProjectId, projectName, wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows, rtaImport]);
 
   const hydrate = useCallback((payload) => {
     setWellName(payload?.wellName || '');
@@ -1034,16 +1054,22 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
     setFitStale(false);
   }, []);
 
+  const refreshProjects = useCallback(async () => {
+    const list = await shared.refreshList();
+    setProjects(list);
+    return list;
+  }, [shared.refreshList]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     (async () => {
       try {
-        setProjects(await service.list());
+        await refreshProjects();
       } catch (e) {
         console.error(e);
         addNotification('Could not load saved projects', 'error');
       }
     })();
-  }, [addNotification]);
+  }, [addNotification]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!profileUnitSystem || hydrated || currentProjectId || unitPickedRef.current) return;
@@ -1052,7 +1078,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
 
   const openProject = useCallback(async (id) => {
     try {
-      const payload = await service.load(id);
+      const payload = await shared.loadForOpen(id);
       if (!payload) {
         addNotification('Project not found', 'error');
         return;
@@ -1066,7 +1092,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
       console.error(e);
       addNotification('Could not open project', 'error');
     }
-  }, [addNotification, hydrate]);
+  }, [addNotification, hydrate, shared.loadForOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // An exported project JSON read back into the workspace (not saved until
   // the user saves it or it lands in an open project's autosave).
@@ -1084,17 +1110,18 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
     const id = uuidv4();
     try {
       await service.save(id, { ...serializeInputs(), id, name });
+      await shared.adoptRow(id);
       setCurrentProjectId(id);
       setProjectName(name);
       setHydrated(true);
       setLastSaveTime(new Date());
-      setProjects(await service.list());
+      await refreshProjects();
       addNotification(`Project "${name}" created`, 'success');
     } catch (e) {
       console.error(e);
       addNotification(e.message || 'Could not create project', 'error');
     }
-  }, [serializeInputs, addNotification]);
+  }, [serializeInputs, addNotification, refreshProjects]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const deleteProject = useCallback(async (id) => {
     try {
@@ -1103,44 +1130,75 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
         setCurrentProjectId(null);
         setProjectName('');
         setHydrated(false);
+        shared.close();
       }
-      setProjects(await service.list());
+      await refreshProjects();
       addNotification('Project deleted', 'info');
     } catch (e) {
       console.error(e);
       addNotification('Could not delete project', 'error');
     }
-  }, [currentProjectId, addNotification]);
+  }, [currentProjectId, addNotification, refreshProjects]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const manualSave = useCallback(async () => {
     if (!currentProjectId) {
       addNotification('Create or open a project first', 'info');
-      return;
+      return false;
     }
     setIsSaving(true);
     try {
-      await service.save(currentProjectId, serializeInputs());
+      const res = await shared.write(currentProjectId, serializeInputs());
+      if (!res.ok) {
+        setSaveError(res.readOnly ? 'Read-only' : 'Save failed');
+        addNotification(res.message, res.readOnly ? 'info' : 'error');
+        return false;
+      }
       setLastSaveTime(new Date());
       setSaveError(null);
+      return true;
     } catch (e) {
       console.error(e);
       setSaveError('Save failed');
+      return false;
     } finally {
       setIsSaving(false);
     }
-  }, [currentProjectId, serializeInputs, addNotification]);
+  }, [currentProjectId, serializeInputs, addNotification, shared.write]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Debounced autosave (10 s after the last change), only once a project is open.
+  // "Save a copy": the project on screen as my own new project
+  const saveCopy = useCallback(async () => {
+    const name = shared.copyNameFor(projectName || 'Well test project');
+    const id = uuidv4();
+    try {
+      await service.save(id, { ...serializeInputs(), id, name });
+      await refreshProjects();
+      await openProject(id);
+      addNotification(`Saved a copy as "${name}"`, 'success');
+      return id;
+    } catch (e) {
+      addNotification(`Could not save a copy: ${e.message}`, 'error');
+      return null;
+    }
+  }, [projectName, serializeInputs, refreshProjects, openProject, addNotification]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced autosave (10 s after the last change), only once a project is
+  // open and never while it is open read-only.
   const autosaveRef = useRef(serializeInputs);
   autosaveRef.current = serializeInputs;
+  const writeRef = useRef(shared.write);
+  writeRef.current = shared.write;
   useEffect(() => {
-    if (!currentProjectId || !hydrated) return undefined;
+    if (!currentProjectId || !hydrated || !canWrite) return undefined;
     const timer = setTimeout(async () => {
       setIsSaving(true);
       try {
-        await service.save(currentProjectId, autosaveRef.current());
-        setLastSaveTime(new Date());
-        setSaveError(null);
+        const res = await writeRef.current(currentProjectId, autosaveRef.current());
+        if (res.ok) {
+          setLastSaveTime(new Date());
+          setSaveError(null);
+        } else if (!res.readOnly) {
+          setSaveError('Auto-save failed');
+        }
       } catch (e) {
         console.error(e);
         setSaveError('Auto-save failed');
@@ -1149,15 +1207,19 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows, rtaImport, currentProjectId, hydrated]);
+  }, [wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows, rtaImport, currentProjectId, hydrated, canWrite]);
 
   const value = {
     // shell plumbing
     notifications, addNotification, removeNotification,
     organizationName,
     // projects
-    projects, currentProjectId, projectName,
-    createProject, openProject, deleteProject, manualSave,
+    // my own projects (with a store), then those shared with me
+    projects: shared.projects.length || !projects.length ? shared.projects : projects,
+    currentProjectId, projectName,
+    createProject, openProject, deleteProject, manualSave, saveCopy,
+    sharedProjects: shared.sharedProjects,
+    projectRow: shared.projectRow, sharing: shared.sharing, viewingShared: shared.viewingShared, canWrite,
     isSaving, saveError, lastSaveTime,
     // inputs
     wellName, setWellName,
@@ -1191,7 +1253,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
     multiRateResult, deliverabilityResult,
     // report model and shared plot series (tester round 2)
     skinBreakdown, inputsTable, flowSummary, identificationRows, historyMatch, overview,
-    pressureBasisRows, dataUse, limitsRows,
+    pressureBasisRows, dataUse, limitsRows, wtaRecord,
     // auto-fit
     fitResult, isFitting, fitStale, runAutoFit, matchMethod,
     // sample

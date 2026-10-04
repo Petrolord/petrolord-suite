@@ -35,6 +35,8 @@ import ReportTab from '@/components/waterflooddesign/ReportTab';
 import { mapScalKrIntake, scalKrFromContract } from '@/components/waterflooddesign/scalKrIntake';
 import { readScalProjectKr, KR_PROJECT_PARAM } from '@/lib/krSource';
 import { supabaseSharingStore } from '@/lib/recordSharing';
+import { supabase } from '@/lib/customSupabaseClient';
+import { readWellTestProject, wellTestDataFromContract, WTA_PROJECT_PARAM } from '@/lib/wellTestSource';
 import { RecordSharingBar } from '@/components/recordSharing';
 import { useProfileSystem } from '@/lib/units/useProfileSystem';
 import { buildLabel } from '@/lib/platformBuild';
@@ -78,20 +80,31 @@ const WaterfloodDesignContent = () => {
   // handoff, the Pipeline Sizer contract): applied to the displacement k.
   const location = useLocation();
   const wtIntakeDone = useRef(false);
+  // WTA-U1-012: the wta-1 record by id when the router state is gone
+  const wellTestProjectId = searchParams.get(WTA_PROJECT_PARAM);
   useEffect(() => {
-    const wt = location.state?.wellTestData;
-    if (!wt || wtIntakeDone.current) return;
-    wtIntakeDone.current = true;
-    if (Number.isFinite(wt.k_md) && wt.k_md > 0) {
+    if (wtIntakeDone.current) return;
+    const take = (wt) => {
+      if (!(Number.isFinite(wt?.k_md) && wt.k_md > 0)) return;
       setDisplacementField('k_md', wt.k_md.toPrecision(3));
-      // WF-U1-026 (RL11): the source is kept with the project and printed, no longer a toast only
-      setDisplacementField('kIntake', { from: wt.source || 'Well Test Analysis Studio', at: new Date().toISOString(), value: wt.k_md.toPrecision(3) });
+      // WF-U1-026 (RL11): the source is kept with the project and printed, no longer a toast only;
+      // WTA-U1-012: with the method that produced k
+      const from = `${wt.source || 'Well Test Analysis Studio'}${wt.kMethod ? `, k from ${wt.kMethod}` : ''}`;
+      setDisplacementField('kIntake', { from, at: wt.sentAt || new Date().toISOString(), value: wt.k_md.toPrecision(3), projectId: wt.contract?.project?.id || null });
       addNotification(
-        `Permeability ${wt.k_md.toPrecision(3)} md received from ${wt.source || 'the Well Test Analysis Studio'} and applied to the displacement inputs.`,
+        `Permeability ${wt.k_md.toPrecision(3)} md received from ${wt.source || 'the Well Test Analysis Studio'}${wt.kMethod ? ` (${wt.kMethod})` : ''} and applied to the displacement inputs.`,
         'success',
       );
-    }
-  }, [location.state, setDisplacementField, addNotification]);
+    };
+    const wt = location.state?.wellTestData;
+    if (wt) { wtIntakeDone.current = true; take(wt); return; }
+    if (!wellTestProjectId) return;
+    wtIntakeDone.current = true;
+    readWellTestProject(supabase, wellTestProjectId).then((res) => {
+      if (!res.ok) { addNotification(`Well test permeability not applied. ${res.reason}`, 'error'); return; }
+      take(wellTestDataFromContract(res.contract));
+    });
+  }, [location.state, wellTestProjectId, setDisplacementField, addNotification]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Rel-perm set from SCAL Studio (SC5; same navigate-state contract).
   // Mapping is the jest-guarded pure function in scalKrIntake.js.
