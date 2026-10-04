@@ -14,10 +14,13 @@ function rows() {
   const a = runSample(SAMPLE_CASE_IDS.ahmed);
   const id = SAMPLE_CASE_IDS.ahmed;
   const own = (r) => ({ ...r, user_id: DEV_USER.id });
+  // the engine stand-in names runs and results by the clock: fixed ids keep the fixture stable
+  const run = own({ ...a.run, id: 'run-rf-e2e-1', duration_ms: 0 });
+  const result = { ...a.result, id: 'res-rf-e2e-1', run_id: run.id };
   return {
     rb_cases: [own({ ...a.db.rb_cases.find((c) => c.id === id), archived_at: null })],
-    rb_runs: [own(a.run)],
-    rb_results: [a.result],
+    rb_runs: [run],
+    rb_results: [result],
     rb_run_configs: [a.runConfig],
     expected: { value: a.result.estimated_ooip_stb, record: buildMbalRecord({ caseData: a.db.rb_cases.find((c) => c.id === id), result: a.result, run: a.run, runConfig: a.runConfig }).record.in_place },
   };
