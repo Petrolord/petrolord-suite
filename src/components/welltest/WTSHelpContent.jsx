@@ -296,6 +296,88 @@ const WTSHelpContent = () => (
       its k and skin next to the single-rate answers.
     </P>
 
+    <H>Gas PVT from Fluid Systems Studio</H>
+    <P>
+      When a Fluid Systems Studio project is sent here (or opened with its project id), its PVT table comes with it.
+      For a gas test, choose Fluid Systems Studio table under Gas PVT: m(p), z, viscosity and the gas compressibility
+      are then interpolated in the table rows, with the methods Fluid Systems Studio names, and the gas gravity is kept
+      for the record only. Projects without a Fluid intake keep the correlations. The card at the top of the
+      Reservoir and fluid section says where the table came from and when, and warns when the source project was saved
+      again with different content since; Read it again takes the new table. If the table stops below the initial
+      pressure the analysis refuses it and offers a link that asks Fluid Systems Studio for a taller table. The report
+      prints the table, its span and its source, and checks the test pressures against the span.
+    </P>
+
+    <H>Changing wellbore storage</H>
+    <P>
+      On the Match tab, Wellbore storage chooses Constant, Changing (Hegeman) or Changing (Fair). The two changing
+      models work with every reservoir model and add two parameters: Ci/C, the initial apparent storage over the final
+      storage C, and the change time in hours. Ci/C above 1 is decreasing storage: the pressure change climbs from a
+      lower unit-slope line to a higher one and the derivative rises above the unit slope. Below 1 the phase
+      redistribution pressure can overshoot, which is the hump of a gas-cut well after shut-in. Hegeman, Hallford and
+      Joseph (1993) use an error function for the change and Fair (1981) an exponential; Hegeman's is sharper and is
+      the usual first choice. Auto-fit fits both new parameters with the rest. The report prints Ci, C and the
+      dimensionless C_phiD and alpha_D.
+    </P>
+
+    <H>Rate-dependent skin</H>
+    <P>
+      The skin of a gas test is the apparent skin s&apos; = s + D q: turbulence near the well adds a skin that grows with
+      the rate. On the Specialized tab, enter the apparent skin of the well at two or more rates (flow periods or
+      separate tests, each long enough to reach radial flow; Add this test takes the current one). The straight line
+      through them gives the skin s at its intercept and D at its slope. A deliverability test entered in
+      pseudo-pressure gives D too, from its turbulent coefficient b (D = b k h / 1422 T). When D is known the skin
+      table splits the rate-dependent part D q from the mechanical skin, and the report and the results sent to other
+      apps carry it.
+    </P>
+
+    <H>Gauge depth and the pressure datum</H>
+    <P>
+      Under Completion, state the gauge depth (MD and TVD), the pressure datum in TVDSS and the elevation of the depth
+      reference (KB or RT) above the datum, which puts the gauge TVD on the datum. With no gradient stated nothing is
+      corrected: every pressure is analysed and reported at the gauge depth, and the report says so. State a gradient
+      and its source (a fluid column from its density, or a static survey) and the studio adds gradient times the
+      depth difference to p* and the pressure at shut-in, prints them at the datum beside the gauge values, and sends
+      the datum pressure to Material Balance. Permeability and skin do not change: the analysis stays at the gauge.
+    </P>
+
+    <H>The pressure in Material Balance</H>
+    <P>
+      Every save writes the results of the interpretation into the project. On its Data tab Material Balance Studio
+      can take this test&apos;s average pressure as a pressure point: p* of the Horner line (or the initial pressure the
+      test states), at the datum when a gradient was stated and at the gauge otherwise, on the row of its table dated
+      on the day of the test. Type the test dates here, so the point lands on the right row. Material Balance prints
+      the project, the method and the date, and says if the value was edited there afterwards. Its numbers change only
+      when the analyst takes the point.
+    </P>
+
+    <H>Large gauge files</H>
+    <P>
+      A gauge file is read in the background, so the page stays usable while a file of several hundred thousand
+      readings loads; a line under Import CSV shows how far it has got and Cancel stops it with nothing loaded.
+      Changing a column or a unit on the mapping card re-reads the file the same way. The analysis of the loaded
+      readings then runs on the page and can take a second or two for the largest files.
+    </P>
+
+    <H>Deviated wells</H>
+    <P>
+      When the perforations carry both measured and true vertical depths and the measured interval is the longer, the
+      well is deviated over the pay. The report then splits a slant pseudo-skin off the total skin (Cinco-Ley, Ramey
+      and Miller, 1975), which is negative: a slanted well sees more of the pay than a vertical one. It joins the
+      partial-penetration pseudo-skin, and the mechanical skin is what remains. For a well that is both slanted and
+      partly open the split is approximate, and the report says so.
+    </P>
+
+    <H>Stimulated wells on every radial model</H>
+    <P>
+      Skin can go down to -5 on the boundary models (fault, constant pressure, channel, closed circle, closed
+      rectangle) and the dual-porosity models, as it always could on the plain homogeneous model. A negative skin is
+      handled as a larger effective wellbore radius, with the boundary distances and the interporosity coefficient
+      seen from that radius, so the boundaries and the fissure transition stay where they are in real time. The
+      horizontal well and the fracture models keep skin at zero or above; a fractured well shows its stimulation
+      through the fracture itself.
+    </P>
+
     <H>Conventions</H>
     <P>
       Display units follow the selector on the Data tab, in either oilfield (md, ft, cp, psi, STB/D, RB/STB, hours) or

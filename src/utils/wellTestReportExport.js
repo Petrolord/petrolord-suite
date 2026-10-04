@@ -26,6 +26,7 @@ import { loadPetrolordLogo } from '@/lib/pdfBrand';
 import { buildLabel } from '@/lib/platformBuild';
 import {
   buildIdentificationRows, skinBreakdownRows, flowSummaryHead, flowSummaryBody, inputsFootnote, orNA, deliverabilityUnits,
+  rateSkinRows, RATE_SKIN_METHOD_TEXT,
 } from '@/utils/welltest/reportModel';
 import { buildReportFigures } from '@/utils/welltest/reportFigures';
 import {
@@ -143,6 +144,10 @@ export const collectReportArgs = (ctx) => ({
   pressureBasisRows: ctx.pressureBasisRows,
   limitsRows: ctx.limitsRows,
   dataUse: ctx.dataUse,
+  // WTA-U2-002: only while the match is the interpretation
+  changingStorage: ctx.derivedKpis?.source === 'match' ? (ctx.changingStorage || []) : [],
+  // WTA-U2-003: shown once a route has data (rates entered or a pseudo-pressure LIT)
+  rateSkin: ctx.rateSkin && (ctx.rateSkin.points.length || Number.isFinite(ctx.rateSkin.litD)) ? ctx.rateSkin : null,
   figures: buildReportFigures(ctx),
 });
 
@@ -207,12 +212,21 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
     const lines = [];
     if (skinBreakdown.status === 'ok' || skinBreakdown.status === 'full') {
       lines.push(`${skinBreakdown.method}: ${skinBreakdown.formula}, with hpD = hp/h, rD = (rw/h) sqrt(kv/kh), h1D = h1/h, A = 1/(h1D + hpD/4), B = 1/(h1D + 3 hpD/4).`);
+      if (skinBreakdown.slant) lines.push(`Slant: ${skinBreakdown.slant.formula} (${skinBreakdown.slant.reference}).`);
       if (skinBreakdown.splitFormula) lines.push(`Mechanical skin: ${skinBreakdown.splitFormula}.`);
     }
     if (skinBreakdown.message) lines.push(skinBreakdown.message);
     table('Skin components', ['Component', 'Value', 'Basis'], sbRows, {
       columnStyles: { 0: { cellWidth: 80 }, 1: { cellWidth: 26 } },
       note: lines.join(' '),
+    });
+  }
+
+  // WTA-U2-003: the rate-dependent part of a gas skin, with its method and data needs
+  if (isGas && a.rateSkin) {
+    table('Rate-dependent skin', ['Quantity', 'Value', 'Basis'], rateSkinRows(a.rateSkin, unitSystem).map((r) => r.map(pdfText)), {
+      columnStyles: { 0: { cellWidth: 62 }, 1: { cellWidth: 30 } },
+      note: RATE_SKIN_METHOD_TEXT,
     });
   }
 
@@ -236,6 +250,13 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
           : 'Manual match: no regression was run on these values, so no confidence intervals are given.',
       },
     );
+    // WTA-U2-002: a changing-storage match states its storage on both sides of the change
+    const cs = a.changingStorage || [];
+    if (cs.length) {
+      table('Changing wellbore storage', ['Quantity', 'Value'], cs.map(([k, v]) => [pdfText(k), v]), {
+        note: `${model.wellboreReference}. p_w = p_sf (1 + C_D u^2 p_phi) / (1 + C_D u^2 p_sf) in Laplace space, with the ${model.wellboreModel === 'hegeman' ? 'error-function p_phiD = C_phiD erf(t_D / alpha_D)' : 'exponential p_phiD = C_phiD (1 - exp(-t_D / alpha_D))'}.`,
+      });
+    }
   }
 
   const straight = [];
@@ -281,7 +302,7 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
 
   // Reviewer round, items 1 and 2: every input with its unit and its source
   if (inputsTable.length) {
-    report.inputsTable(inputsTable, { title: 'Reservoir and fluid inputs', note: inputsFootnote(isGas) });
+    report.inputsTable(inputsTable, { title: 'Reservoir and fluid inputs', note: inputsFootnote(isGas, reservoir?.pvtSource) });
   }
 
   // Item 5: one row per flow or shut-in period

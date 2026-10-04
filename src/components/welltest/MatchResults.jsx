@@ -26,6 +26,7 @@ const MatchResults = () => {
     loglog, modelSeries, prepared, matchParams, model,
     reservoirSpec, configSpec, fitResult, fitStale, matchKpis, matchMethod,
     unitSystem, pseudoTime, historyMatch,
+    changingStorage,
   } = useWellTestStudio();
   const dpKind = reservoirSpec.reservoir?.fluid === 'gas' ? 'pseudoPressure' : 'pressure';
 
@@ -70,6 +71,11 @@ const MatchResults = () => {
         <Kpi title="kh" value={fmtU('kh', matchKpis?.kh, unitSystem, fmt.sig3)} unit={unitLabel('kh', unitSystem)} />
         <Kpi title="CD" value={fmt.sig3(matchKpis?.cd)} />
       </div>
+      {changingStorage?.length > 0 && (
+        <p className="text-xs text-pl-muted" data-testid="wts-changing-storage">
+          {changingStorage.map(([label, value]) => `${label} ${value}`).join('; ')}.
+        </p>
+      )}
 
       <ChartCard title="Log-log match" height={360}>
         <LogLogChart loglog={displayLoglog} modelSeries={displayModel} xLabel={xLabel} yLabel={`${isGas ? 'Δm(p)' : 'Δp'} and derivative (${unitLabel(dpKind, unitSystem)})`} />

@@ -28,6 +28,7 @@ import { OILFIELD_UNITS } from './mbalUnits';
 import { excludedOf, exclusionRows } from './exclusions';
 import { volumetricBasis } from './rcpVolumetricIntake';
 import { pressureProvenance } from './vrrPressureIntake';
+import { wellTestPointProvenance } from './wellTestPressureIntake';
 import { readStudy } from './studyMeta';
 import tierMatrix from './tierMatrix.json';
 
@@ -478,6 +479,9 @@ export function dataSummary(a) {
   if (anyWinj || anyGinj) notes.push(injectionState(series).legacy ? INJECTION_LEGACY_NOTE : INJECTION_NOTE);
   const taken = pressureProvenance(a.study, rows);
   if (taken) notes.push(taken.text);
+  // WTA-U2-005: pressure points taken from saved Well Test projects
+  const tested = wellTestPointProvenance(a.study, rows);
+  if (tested) notes.push(tested.text);
   return { head, body, totals, note: notes.join(' '), injection: anyWinj || anyGinj, counts };
 }
 
