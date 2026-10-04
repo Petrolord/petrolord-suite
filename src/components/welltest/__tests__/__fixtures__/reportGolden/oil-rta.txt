@@ -1,15 +1,15 @@
 Well Test Analysis Report
 Petrolord Well Test Analysis Studio
 
-Project                   Untitled interpretation                          Well                    Sample well 1
-Field                     n/a                                              Company                 n/a
-Licence                   n/a                                              Zone or sand            Sample sand
-Analyst                   n/a                                              Test type               Pressure buildup, production test
-Test dates                n/a                                              Perforations, MD        9850 to 9880 ft
-Perforations, TVD         n/a                                              Software build          Petrolord Suite dev
+Project                   Untitled interpretation                          Well                     Sample well 1
+Field                     n/a                                              Company                  n/a
+Licence                   n/a                                              Zone or sand             Sample sand
+Analyst                   n/a                                              Test type                Pressure buildup, production test
+Test dates                n/a                                              Perforations, MD         9850 to 9880 ft
+Perforations, TVD         n/a                                              Software build           Petrolord Suite dev
 Fluid                     Oil                                              Producing time tp 36.0 hr
-Shut-in time              0 hr elapsed (gauge clock 0 hr)                  pwf at shut-in          4530.8 psi at shut-in time 0 hr (entered)
-Display units             Oilfield                                         Generated               2026-10-02 09:00 UTC
+Shut-in time              0 hr elapsed (gauge clock 0 hr)                  pwf at shut-in           4530.8 psi at shut-in time 0 hr (entered)
+Display units             Oilfield                                         Generated                2026-10-02 09:00 UTC
 
 
 Headline results
@@ -39,6 +39,8 @@ Gauge, datum and pressure basis
 
  Pressure datum                          Not stated
 
+ Gradient, gauge to datum                None stated (no correction is applied unless a gradient is stated)
+
  Correction to the datum                 None applied: every pressure in this report is at the gauge depth
 
  Absolute or gauge                       Absolute: the synthetic sample test.
@@ -46,7 +48,7 @@ Gauge, datum and pressure basis
 
 
 
-Well Test Analysis Report, Well Sample well 1                                                                                          Page 1 of 7
+Well Test Analysis Report, Well Sample well 1                                                                                           Page 1 of 7
 Skin components
  Component                                                           Value               Basis
 
@@ -203,12 +205,13 @@ Method and its limits
  Fluid                          Single-phase flow of a slightly compressible liquid with constant viscosity, formation volume factor and total
                                 compressibility. Gas coming out of solution near the well is not modelled.
 
- Wellbore storage               Constant wellbore storage. Changing storage (phase redistribution, a closing valve) has no model in the catalog; its
-                                hump on the derivative is not matched.
+ Wellbore storage               Constant wellbore storage. A storage change (phase redistribution, a closing valve) can be matched with the
+                                Hegeman or Fair model on the Match tab.
 
  Well geometry                  Homogeneous reservoir model. A vertical well open over the net pay unless the horizontal model is chosen. Partial
-                                penetration enters as a pseudo-skin only (Papatzacos 1987, vertical wells): there is no limited-entry (spherical flow)
-                                model, and a deviated well is treated as vertical.
+                                penetration enters as a pseudo-skin only (Papatzacos 1987): there is no limited-entry (spherical flow) model. A
+                                deviated interval (MD longer than TVD) enters as the Cinco-Ley et al. (1975) slant pseudo-skin, split off the total
+                                skin; the flow model stays that of a vertical well.
 
  Time basis                     Buildup on Agarwal equivalent time with the producing time tp, or on superposition of the rate history when one is
                                 entered.

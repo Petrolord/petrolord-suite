@@ -16,7 +16,11 @@ const SpecializedPanel = () => {
   const {
     windows, setWindowField, configSpec, regimes, reservoirSpec, autoSemilogWindow, semilogWindowSource,
     deliverabilityInputs, setDeliverabilityField, setDeliverabilityRows,
+    rateSkinRows, setRateSkinRows, reservoirInputs, derivedKpis,
   } = useWellTestStudio();
+  // WTA-U2-003: v arrives oilfield (UnitInput converts the rate)
+  const setSkinRow = (i, key, v) => setRateSkinRows(rateSkinRows.map((r, idx) => (idx === i ? { ...r, [key]: v } : r)));
+  const canAddThis = Number.isFinite(derivedKpis?.skin) && parseFloat(reservoirInputs.q) > 0;
   const { unitSystem } = useWellTestStudio();
   const isBuildup = configSpec.config?.family === 'buildup';
   const isGas = reservoirSpec.reservoir?.fluid === 'gas';
@@ -110,6 +114,35 @@ const SpecializedPanel = () => {
               ))}
               <Button size="sm" variant="ghost" className="text-pl-muted" onClick={() => setDeliverabilityRows([...rows, { q: '', pwf: '' }])}>
                 <Plus className="w-4 h-4 mr-1" /> Add test point
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {isGas && (
+        <section data-testid="wts-rate-skin">
+          <SectionLabel>Rate-dependent skin</SectionLabel>
+          <div className="space-y-2">
+            <p className="text-[11px] text-pl-muted">
+              The skin of a gas test is apparent: s&apos; = s + D q. Enter the apparent skin of this well at two or more rates (flow periods or tests that each reached radial flow); the line through them gives s and D. A pseudo-pressure deliverability fit gives D from its b as well.
+            </p>
+            {rateSkinRows.map((r, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <UnitInput kind="gasRate" system={unitSystem} value={r.q} onChange={(v) => setSkinRow(i, 'q', v)} placeholder={unitLabel('gasRate', unitSystem)} className="h-8" aria-label={`Rate of skin point ${i + 1}`} />
+                <Input value={r.skin} onChange={(e) => setSkinRow(i, 'skin', e.target.value)} placeholder="s'" className="h-8" aria-label={`Apparent skin of point ${i + 1}`} />
+                <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-pl-muted" onClick={() => setRateSkinRows(rateSkinRows.filter((_, idx) => idx !== i))} aria-label={`Remove skin point ${i + 1}`}>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="ghost" className="text-pl-muted" onClick={() => setRateSkinRows([...rateSkinRows, { q: '', skin: '' }])}>
+                <Plus className="w-4 h-4 mr-1" /> Add a rate
+              </Button>
+              <Button size="sm" variant="outline" disabled={!canAddThis} data-testid="wts-rate-skin-add-this"
+                onClick={() => setRateSkinRows([...rateSkinRows, { q: String(reservoirInputs.q), skin: derivedKpis.skin.toFixed(3), note: 'this test' }])}>
+                Add this test
               </Button>
             </div>
           </div>

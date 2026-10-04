@@ -3,7 +3,7 @@ import React from 'react';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { unitLabel, fromOilfield, kindForCatalogUnit } from '@/utils/welltest/units';
 import { gaugeTime, PWF_SOURCE_TEXT } from '@/utils/welltest/gaugeImport';
-import { skinBreakdownRows, flowSummaryHead, flowSummaryBody, inputsFootnote } from '@/utils/welltest/reportModel';
+import { skinBreakdownRows, flowSummaryHead, flowSummaryBody, inputsFootnote, rateSkinRows, RATE_SKIN_METHOD_TEXT } from '@/utils/welltest/reportModel';
 import { buildReportFigures } from '@/utils/welltest/reportFigures';
 import { buildCrossCheckRows } from '@/utils/wellTestReportExport';
 import { Kpi, fmt, fmtU, MATCH_METHOD_LABEL } from './primitives';
@@ -54,7 +54,7 @@ const ReportResults = () => {
     matchParams, semilogResult, sqrtResult, pssResult, derivedKpis, sqrtMeaningful,
     multiRateResult, deliverabilityResult, fitResult, matchMethod, regimes, notes, model,
     unitSystem, rtaResult,
-    identificationRows, inputsTable, skinBreakdown, flowSummary, pressureBasisRows, dataUse, limitsRows,
+    identificationRows, inputsTable, skinBreakdown, flowSummary, pressureBasisRows, dataUse, limitsRows, changingStorage, rateSkin,
   } = ctx;
   const uL = (kind) => unitLabel(kind, unitSystem);
 
@@ -147,11 +147,18 @@ const ReportResults = () => {
         <Table head={['Component', 'Value', 'Basis']} body={skinBreakdownRows(skinBreakdown, unitSystem)} minWidth={420} />
         {(skinBreakdown.status === 'ok' || skinBreakdown.status === 'full') && (
           <p className="text-[11px] text-pl-muted mt-2">
-            {skinBreakdown.method}: {skinBreakdown.formula}.{skinBreakdown.splitFormula ? ` Mechanical skin: ${skinBreakdown.splitFormula}.` : ''}
+            {skinBreakdown.method}: {skinBreakdown.formula}.{skinBreakdown.slant ? ` Slant: ${skinBreakdown.slant.formula} (${skinBreakdown.slant.reference}).` : ''}{skinBreakdown.splitFormula ? ` Mechanical skin: ${skinBreakdown.splitFormula}.` : ''}
           </p>
         )}
         {skinBreakdown.message && <p className="text-[11px] text-pl-muted mt-1" data-testid="wts-report-skin-note">{skinBreakdown.message}</p>}
       </Card>
+
+      {isGas && rateSkin && (rateSkin.points.length > 0 || Number.isFinite(rateSkin.litD)) && (
+        <Card title="Rate-dependent skin" testId="wts-report-rate-skin">
+          <Table head={['Quantity', 'Value', 'Basis']} body={rateSkinRows(rateSkin, unitSystem)} minWidth={420} />
+          <p className="text-[11px] text-pl-muted mt-1">{RATE_SKIN_METHOD_TEXT}</p>
+        </Card>
+      )}
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className="rounded-lg border border-pl-border bg-pl-surface p-4">
@@ -177,6 +184,7 @@ const ReportResults = () => {
                 );
               })}
               <Row label="Dimensionless storage CD" value={fmt.sig3(derivedKpis?.cd)} />
+              {changingStorage.map(([label, value]) => <Row key={label} label={label} value={value} />)}
               <Row label="Flow efficiency" value={fmt.pct(derivedKpis?.flowEfficiency)} />
               <Row label="Match method" value={MATCH_METHOD_LABEL(matchMethod, fitResult)} />
               {matchMethod?.kind === 'regression' && ci(fitResult.confidence95.k) && <Row label="k 95% CI" value={ci(fitResult.confidence95.k)} unit="md" />}
@@ -212,7 +220,7 @@ const ReportResults = () => {
 
       <Card title="Reservoir and fluid inputs" testId="wts-report-inputs">
         <Table head={['Input', 'Value', 'Unit', 'Source and quality']} body={inputsTable.map((r) => [r.label, r.value, r.unit, r.source])} />
-        <p className="text-[11px] text-pl-muted mt-2">{inputsFootnote(isGas)}</p>
+        <p className="text-[11px] text-pl-muted mt-2">{inputsFootnote(isGas, reservoirSpec.reservoir?.pvtSource)}</p>
       </Card>
 
       <Card title="Flow and shut-in summary" testId="wts-report-flow">

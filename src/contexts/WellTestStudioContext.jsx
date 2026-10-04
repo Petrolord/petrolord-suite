@@ -14,7 +14,7 @@ import { bourdetDerivative, logDecimate, trimSpikes, detectFlowRegimes } from '@
 import { agarwalEquivalentTime, rateStepsFromHistory, detectFlowPeriods, equivalentProducingTime } from '@/utils/welltest/superposition';
 import { mdhAnalysis, hornerAnalysis, cartesianPssAnalysis, sqrtTimeAnalysis, radiusOfInvestigation, skinPressureDrop, flowEfficiency, multiRateSemilogAnalysis } from '@/utils/welltest/analysis';
 import { autoFitModel } from '@/utils/welltest/autoFit';
-import { buildGasPvtTable, makePseudoPressure, deliverabilityAnalysis, normalizedPseudoTime, GAS, WELLTEST_Z_METHODS } from '@/utils/welltest/gas';
+import { buildGasPvtTable, makePseudoPressure, deliverabilityAnalysis, normalizedPseudoTime, GAS, WELLTEST_Z_METHODS, rateDependentSkinFit, nonDarcyDFromF } from '@/utils/welltest/gas';
 import { UNIT_SYSTEMS } from '@/utils/welltest/units';
 import { useProfileSystem } from '@/lib/units/useProfileSystem';
 import { buildLabel } from '@/lib/platformBuild';
@@ -23,7 +23,7 @@ import { provenanceFromPayload, setProvenanceField } from '@/lib/inputProvenance
 import {
   DEFAULT_IDENTIFICATION, DEFAULT_COMPLETION, resolveTotalCompressibility,
   buildSkinBreakdown, buildInputsTable, buildFlowSummary, buildIdentificationRows,
-  buildPressureBasisRows, buildDataUseRows, buildLimitsRows,
+  buildPressureBasisRows, buildDataUseRows, buildLimitsRows, pvtIntakeFromBackbone, gasTablePatch, changingStorageRows, completionDatumCorrection,
 } from '@/utils/welltest/reportModel';
 import { buildHistoryMatch, buildOverviewData, thinRows } from '@/utils/welltest/plotData';
 
@@ -71,6 +71,11 @@ export const DEFAULT_RESERVOIR = {
   // a project saved before 2026-10-04 carries no method and opens on Papay,
   // the method it was interpreted with (see hydrate).
   gasZMethod: 'dranchuk_abou_kassem',
+  // WTA-U2-001: where a gas test's z and viscosity come from. 'correlation'
+  // (gasZMethod with Lee-Gonzalez-Eakin, the path of every project without
+  // a Fluid intake) or 'fluid-table' (the Z and mu_g columns of the pvt-1
+  // table a Fluid Systems Studio project sent, kept in pvtIntake.gasTable).
+  gasPvtSource: 'correlation',
   // Tester round 2 (report inputs). ctMode 'total' keeps ct as the one
   // entered number; 'components' sums cf + So co + Sw cw + Sg cg in the
   // engine. Everything below is blank until entered and prints as n/a.
@@ -124,7 +129,7 @@ export const DEFAULT_WINDOWS = {
  * gas expression in m(p) space. mOfP/pOfM convert gauge pressures in and
  * answers back out.
  */
-export function buildReservoirInputs(r) {
+export function buildReservoirInputs(r, { gasTable = null } = {}) {
   const fluid = r.fluid === 'gas' ? 'gas' : 'oil';
   const out = {
     h: num(r.h), phi: num(r.phi), rw: num(r.rw), B: num(r.B),
@@ -152,8 +157,36 @@ export function buildReservoirInputs(r) {
       return { reservoir: null, error: 'Reservoir temperature must be given in degF.' };
     }
     const zMethod = WELLTEST_Z_METHODS[r.gasZMethod] ? r.gasZMethod : 'papay';
-    const pvt = makePseudoPressure(buildGasPvtTable({ gasGravity, tempF, pMax: Math.max(out.pi * 1.5, 2000), zMethod }));
+    // WTA-U2-001: the Fluid Systems Studio table, when chosen and held
+    const fromTable = r.gasPvtSource === 'fluid-table';
+    if (fromTable && !(gasTable?.rows?.length >= 3)) {
+      return { reservoir: null, error: 'The gas PVT is set to the Fluid Systems Studio table, but this project holds none. Take a Fluid Systems Studio project, or switch the gas PVT to correlations.' };
+    }
+    if (fromTable && out.pi > gasTable.pMax * (1 + 1e-9)) {
+      return { reservoir: null, error: `The Fluid Systems Studio table stops at ${gasTable.pMax} psia, below the initial pressure ${out.pi} psia. Ask Fluid Systems Studio for a table up to the initial pressure, or switch the gas PVT to correlations.`, tableTooShort: { pMax: gasTable.pMax, need: out.pi } };
+    }
+    const tableRows = fromTable
+      ? buildGasPvtTable({ table: gasTable.rows.map((x) => ({ p: x.p, z: x.z, mu: x.mu })) })
+      : buildGasPvtTable({ gasGravity, tempF, pMax: Math.max(out.pi * 1.5, 2000), zMethod });
+    const pvt = makePseudoPressure(tableRows);
     if (!pvt) return { reservoir: null, error: 'Gas PVT table could not be built.' };
+    if (fromTable) {
+      // the engine names a supplied table; the studio adds where it came from
+      pvt.source = {
+        ...pvt.source,
+        kind: 'fluid-table',
+        z: `Fluid Systems Studio table (${gasTable.zMethod})`,
+        viscosity: `Fluid Systems Studio table (${gasTable.muMethod})`,
+        zMethod: gasTable.zMethod,
+        muMethod: gasTable.muMethod,
+        origin: gasTable.origin,
+        rows: gasTable.n,
+        pMin: gasTable.pMin,
+        pMax: gasTable.pMax,
+        temperatureF: gasTable.temperatureF,
+        rangeFlags: gasTable.rangeFlags || [],
+      };
+    }
     const muI = pvt.muOf(out.pi);
     // components: a gas saturation with no cg entered takes cg(pi) from the PVT table
     const ctInfoGas = componentMode ? resolveTotalCompressibility(r, { cgFallback: pvt.cgOf(out.pi) }) : null;
@@ -169,7 +202,7 @@ export function buildReservoirInputs(r) {
         B: (GAS.SEMILOG_SLOPE * tempR) / (162.6 * muI),
         tempR,
         gasGravity,
-        zMethod,
+        zMethod: fromTable ? null : zMethod,
         mOfP: pvt.mOfP,
         pOfM: pvt.pOfM,
         // WT8 pseudo-time abscissa: mu(p) ct(p) along the gauge pressures.
@@ -500,6 +533,8 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   const setInputMetaField = useCallback((key, k, v) => setInputMeta((prev) => setProvenanceField(prev, key, k, v)), []);
   const setPeriodMetaField = useCallback((key, k, v) => setPeriodMeta((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), [k]: v } })), []);
   const [reservoirInputs, setReservoirInputs] = useState(DEFAULT_RESERVOIR);
+  const reservoirInputsRef = useRef(reservoirInputs);
+  reservoirInputsRef.current = reservoirInputs;
   const [testConfig, setTestConfig] = useState(DEFAULT_TEST_CONFIG);
   const [gaugeRows, setGaugeRows] = useState([]); // [{t, p}] numbers
   const [rateRows, setRateRows] = useState([]); // [{t, q}] strings
@@ -507,6 +542,8 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   const [windows, setWindows] = useState(DEFAULT_WINDOWS);
   const [deliverabilityInputs, setDeliverabilityInputs] = useState(DEFAULT_DELIVERABILITY);
   const [notes, setNotes] = useState('');
+  // WTA-U2-003: apparent skins of the well at other rates [{q (Mscf/D), skin, note}] strings
+  const [rateSkinRows, setRateSkinRows] = useState([]);
   // WT8: display-layer unit system; state and engines stay oilfield always
   const [unitSystem, setUnitSystemRaw] = useState('oilfield');
   // Suite unit profile: a NEW (not yet saved or opened) workspace starts
@@ -549,7 +586,8 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   const setDeliverabilityRows = useCallback((rows) => setDeliverabilityInputs((prev) => ({ ...prev, rows })), []);
 
   // ---- Derived analysis (never persisted) ----
-  const reservoirSpec = useMemo(() => buildReservoirInputs(reservoirInputs), [reservoirInputs]);
+  const gasTable = pvtIntake?.gasTable || null;
+  const reservoirSpec = useMemo(() => buildReservoirInputs(reservoirInputs, { gasTable }), [reservoirInputs, gasTable]);
   const configSpec = useMemo(() => buildTestConfig(testConfig), [testConfig]);
   const model = useMemo(() => getModel(matchInputs.modelId) || getModel('homogeneous'), [matchInputs.modelId]);
 
@@ -784,6 +822,10 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     return { rows, rowsTe, series, loglogRta, fmb, linear, isGas };
   }, [reservoirSpec, rtaRows, rtaWindows]);
 
+  // WTA-U2-003: rate-dependent skin. Route 1, the apparent skins of two or
+  // more rates on a line (engine rateDependentSkinFit); route 2, the
+  // pseudo-pressure LIT b as the non-Darcy coefficient F (Ahmed eq. 6-159).
+  // Computed after derivedKpis below (it needs this test's k and s').
   // Headline quantities derived from the working match (falls back to the
   // semilog answer when no match parameters are set).
   const derivedKpis = useMemo(() => {
@@ -827,6 +869,26 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     };
   }, [reservoirSpec, matchParams, matchInputs, fitResult, semilogResult, prepared]);
 
+  const rateSkin = useMemo(() => {
+    const r = reservoirSpec.reservoir;
+    if (!r || r.fluid !== 'gas') return null;
+    const pts = rateSkinRows.map((row) => ({ q: num(row.q), skin: num(row.skin) })).filter((x) => x.q > 0 && Number.isFinite(x.skin));
+    const fit = rateDependentSkinFit(pts);
+    const lit = deliverabilityResult?.method === 'pseudo-pressure' && deliverabilityResult.lit?.b > 0 && derivedKpis?.k > 0
+      ? nonDarcyDFromF({ F: deliverabilityResult.lit.b, k: derivedKpis.k, h: r.h, tempR: r.tempR })
+      : NaN;
+    const source = fit.ok ? 'multi-rate' : (Number.isFinite(lit) ? 'lit' : null);
+    const D = source === 'multi-rate' ? fit.D : (source === 'lit' ? lit : NaN);
+    const sApparent = Number.isFinite(derivedKpis?.skin) ? derivedKpis.skin : NaN;
+    const Dq = Number.isFinite(D) ? D * r.q : NaN;
+    return {
+      fit, points: pts, litD: lit, source, D, q: r.q, Dq,
+      // the true skin of THIS test: s' - D q (route 1 also gives its own intercept s)
+      trueSkin: Number.isFinite(sApparent) && Number.isFinite(Dq) ? sApparent - Dq : NaN,
+      apparentSkin: sApparent,
+    };
+  }, [reservoirSpec, rateSkinRows, deliverabilityResult, derivedKpis]);
+
   // kh and CD of the working match itself, for the Match tab
   const matchKpis = useMemo(() => {
     const r = reservoirSpec.reservoir;
@@ -836,6 +898,14 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
       cd: Number.isFinite(matchParams.C) ? matchParams.C * toDimensionlessGroups({ ...r, k: matchParams.k }).cdPerBblPsi : NaN,
     };
   }, [reservoirSpec, matchParams]);
+
+  // WTA-U2-002: the storage on both sides of a changing-storage match, for
+  // the Match tab, the Report tab and the PDF
+  const changingStorage = useMemo(() => {
+    const r = reservoirSpec.reservoir;
+    if (!r || !matchParams) return [];
+    return changingStorageRows({ model, params: matchParams, reservoir: r, groups: toDimensionlessGroups({ ...r, k: matchParams.k }), unitSystem });
+  }, [model, matchParams, reservoirSpec, unitSystem]);
 
   // ---- Auto-fit (on demand, transient result) ----
   const runAutoFit = useCallback(async () => {
@@ -910,7 +980,8 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     completion,
     kvkhInput: reservoirInputs.kvkh,
     isGas: reservoirInputs.fluid === 'gas',
-  }), [derivedKpis, reservoirSpec, completion, reservoirInputs.kvkh, reservoirInputs.fluid]);
+    rateSkin,
+  }), [derivedKpis, reservoirSpec, completion, reservoirInputs.kvkh, reservoirInputs.fluid, rateSkin]);
 
   const inputsTable = useMemo(() => buildInputsTable({
     reservoirInputs, reservoirSpec, completion, inputMeta, unitSystem, pvtIntake,
@@ -927,11 +998,17 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
 
   // WTA-U1-005 and -006: the pressure basis and the readings left out, once
   // for the Report tab and the PDF
-  const pressureBasisRows = useMemo(() => buildPressureBasisRows({ completion, gaugeImport, unitSystem }), [completion, gaugeImport, unitSystem]);
+  // WTA-U2-004: the correction to datum with the user's gradient (none by default)
+  const datum = useMemo(() => completionDatumCorrection(completion), [completion]);
+  const pressureBasisRows = useMemo(() => buildPressureBasisRows({
+    completion, gaugeImport, unitSystem, datum,
+    pStar: configSpec.config?.family === 'buildup' ? semilogResult?.pStar : NaN,
+    pwfShutIn: prepared.pwfShutIn,
+  }), [completion, gaugeImport, unitSystem, datum, configSpec, semilogResult, prepared]);
   const dataUse = useMemo(() => buildDataUseRows({ prepared, unitSystem }), [prepared, unitSystem]);
   const limitsRows = useMemo(() => buildLimitsRows({
-    reservoir: reservoirSpec.reservoir, config: configSpec.config, model, prepared,
-  }), [reservoirSpec, configSpec, model, prepared]);
+    reservoir: reservoirSpec.reservoir, config: configSpec.config, model, prepared, datum,
+  }), [reservoirSpec, configSpec, model, prepared, datum]);
 
   // History match (model against the gauge over the whole record) and the
   // test overview: one calculation, drawn on the tabs and in the PDF.
@@ -951,11 +1028,27 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   const analysisInputsKey = useMemo(() => {
     const r = reservoirSpec.reservoir;
     if (!r) return `invalid:${reservoirSpec.error || ''}`;
-    return [r.fluid, r.h, r.phi, r.rw, r.B, r.mu, r.ct, r.q, r.pi, r.tempR ?? '', r.gasGravity ?? '', r.zMethod ?? ''].join('|');
+    const table = r.pvtSource?.kind === 'fluid-table' ? `table:${r.pvtSource.rows}:${r.pvtSource.pMin}:${r.pvtSource.pMax}:${r.pvtSource.origin}` : '';
+    return [r.fluid, r.h, r.phi, r.rw, r.B, r.mu, r.ct, r.q, r.pi, r.tempR ?? '', r.gasGravity ?? '', r.zMethod ?? '', table].join('|');
   }, [reservoirSpec]);
   useEffect(() => {
     if (hasFitResult.current) setFitStale(true);
   }, [gaugeRows, analysisInputsKey, testConfig]);
+
+  // ---- PVT from Fluid Systems Studio (router state or read by id) ----
+  // WTA-U2-001: one door for the first intake and for "Read it again" on
+  // the shared card. The handoff's values go into the inputs, the record
+  // (with the gas table when the block carries one) is kept with the
+  // project. Returns the intake, or null when the handoff held nothing.
+  const takeFluidPvt = useCallback((fluid, how = 'received from Fluid Systems Studio') => {
+    const intake = pvtIntakeFromBackbone(fluid);
+    if (!intake) return null;
+    const gas = gasTablePatch(intake.intake, reservoirInputsRef.current?.fluid);
+    setReservoirInputs((prev) => ({ ...prev, ...intake.patch, ...(gas?.patch || {}) }));
+    setPvtIntake(intake.intake);
+    addNotification(`Fluid properties ${how}: ${[...intake.applied, ...(gas ? [gas.applied] : [])].join(', ')} applied. Review total compressibility manually.`, 'success');
+    return intake;
+  }, [addNotification]);
 
   // ---- Sample test ----
   const loadSampleTest = useCallback(() => {
@@ -988,9 +1081,9 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   // into every save so other apps read the results by id (lib/wellTestSource)
   const wtaRecord = useMemo(() => buildWtaRecord({
     reservoirSpec, derivedKpis, configSpec, semilogResult, matchMethod, fitResult, model, skinBreakdown, prepared,
-    completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId,
-  }), [reservoirSpec, derivedKpis, configSpec, semilogResult, matchMethod, fitResult, model, skinBreakdown, prepared,
-    completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId]);
+    completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId, rateSkin, datum,
+  }), [datum, reservoirSpec, derivedKpis, configSpec, semilogResult, matchMethod, fitResult, model, skinBreakdown, prepared,
+    completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId, rateSkin]);
 
   // ---- Project persistence ----
   const serializeInputs = useCallback(() => ({
@@ -1013,13 +1106,14 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     windows,
     deliverabilityInputs,
     notes,
+    rateSkinRows,
     unitSystem,
     rtaRows,
     rtaWindows,
     rtaImport,
     wta: wtaRecord ? { ...wtaRecord, computed_at: new Date().toISOString() } : null,
     modified: new Date().toISOString(),
-  }), [wtaRecord, currentProjectId, projectName, wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows, rtaImport]);
+  }), [wtaRecord, currentProjectId, projectName, wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, rateSkinRows, unitSystem, rtaRows, rtaWindows, rtaImport]);
 
   const hydrate = useCallback((payload) => {
     setWellName(payload?.wellName || '');
@@ -1044,6 +1138,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     setWindows({ ...DEFAULT_WINDOWS, ...(payload?.windows || {}) });
     setDeliverabilityInputs({ ...DEFAULT_DELIVERABILITY, ...(payload?.deliverabilityInputs || {}) });
     setNotes(payload?.notes || '');
+    setRateSkinRows(Array.isArray(payload?.rateSkinRows) ? payload.rateSkinRows : []);
     // a saved project keeps the system it was saved with
     setUnitSystemRaw(UNIT_SYSTEMS.includes(payload?.unitSystem) ? payload.unitSystem : 'oilfield');
     setRtaRows(Array.isArray(payload?.rtaRows) ? payload.rtaRows : []);
@@ -1207,7 +1302,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows, rtaImport, currentProjectId, hydrated, canWrite]);
+  }, [wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, rateSkinRows, unitSystem, rtaRows, rtaWindows, rtaImport, currentProjectId, hydrated, canWrite]);
 
   const value = {
     // shell plumbing
@@ -1229,7 +1324,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     completion, setCompletionField, setCompletion,
     inputMeta, setInputMetaField,
     periodMeta, setPeriodMetaField,
-    pvtIntake, setPvtIntake,
+    pvtIntake, setPvtIntake, takeFluidPvt,
     gaugeImport, setGaugeImport,
     serializeInputs, importProjectPayload,
     reservoirInputs, setReservoirField,
@@ -1240,6 +1335,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     windows, setWindowField,
     notes, setNotes,
     deliverabilityInputs, setDeliverabilityField, setDeliverabilityRows,
+    rateSkinRows, setRateSkinRows, rateSkin,
     unitSystem, setUnitSystem, profileUnitSystem,
     rtaRows, setRtaRows,
     rtaWindows, setRtaWindowField,
@@ -1248,12 +1344,12 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     reservoirSpec, configSpec, model,
     prepared, loglog, regimes, flowPeriods, pseudoTime, rtaResult,
     autoSemilogWindow, semilogWindowSource, matchKpis, sqrtMeaningful,
-    matchParams, modelSeries,
+    matchParams, modelSeries, changingStorage,
     semilogResult, pssResult, sqrtResult, derivedKpis,
     multiRateResult, deliverabilityResult,
     // report model and shared plot series (tester round 2)
     skinBreakdown, inputsTable, flowSummary, identificationRows, historyMatch, overview,
-    pressureBasisRows, dataUse, limitsRows, wtaRecord,
+    pressureBasisRows, dataUse, limitsRows, wtaRecord, datum,
     // auto-fit
     fitResult, isFitting, fitStale, runAutoFit, matchMethod,
     // sample
