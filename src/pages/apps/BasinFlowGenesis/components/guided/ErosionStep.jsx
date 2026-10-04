@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Mountain, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useBasinFlow } from '../../contexts/BasinFlowContext';
-import { depthToDisplay, depthFromDisplay, tidy } from '../../services/units';
+import { depthToDisplay, depthFromDisplay } from '../../services/units';
+import UnitNumberInput from '../UnitNumberInput';
 
 const ErosionStep = () => {
     const { wizardData, setWizardData } = useGuidedMode();
@@ -55,7 +56,7 @@ const ErosionStep = () => {
                                         </label>
                                         <label className="text-pl-muted">
                                             Section removed ({units.depth})
-                                            <Input type="number" step="any" data-testid="bf-wizard-erosion-amount" value={tidy(depthToDisplay(custom.amount, units.depth))} onChange={(e) => setCustom({ amount: depthFromDisplay(parseFloat(e.target.value), units.depth) })} className="mt-1 h-8" />
+                                            <UnitNumberInput data-testid="bf-wizard-erosion-amount" name="Section removed" unit={units.depth} value={custom.amount} toDisplay={(m) => depthToDisplay(m, units.depth)} fromDisplay={(v) => depthFromDisplay(v, units.depth)} onCommit={(amount) => setCustom({ amount })} className="mt-1 h-8" />
                                         </label>
                                     </div>
                                 )}

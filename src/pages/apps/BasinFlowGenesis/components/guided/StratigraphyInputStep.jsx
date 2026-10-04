@@ -8,7 +8,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Trash2, GripVertical, Layers, AlertCircle } from 'lucide-react';
 import { useGuidedMode } from '../../contexts/GuidedModeContext';
 import { useBasinFlow } from '../../contexts/BasinFlowContext';
-import { depthToDisplay, depthFromDisplay, tidy } from '../../services/units';
+import { depthToDisplay, depthFromDisplay } from '../../services/units';
+import UnitNumberInput from '../UnitNumberInput';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
 
 const LayerCard = ({ layer, index, updateLayer, removeLayer }) => {
@@ -74,11 +75,14 @@ const LayerCard = ({ layer, index, updateLayer, removeLayer }) => {
                                         </div>
                                          <div>
                                             <Label className="text-[10px] text-pl-muted">Thick ({depthUnit})</Label>
-                                            <Input 
-                                                type="number" 
-                                                step="any"
-                                                value={tidy(depthToDisplay(layer.thickness || 0, depthUnit))} 
-                                                onChange={(e) => updateLayer(layer.id, { thickness: depthFromDisplay(parseFloat(e.target.value), depthUnit) })}
+                                            <UnitNumberInput
+                                                data-testid={`bf-guided-layer-thickness-${index}`}
+                                                name="Thickness"
+                                                unit={depthUnit}
+                                                value={layer.thickness || 0}
+                                                toDisplay={(m) => depthToDisplay(m, depthUnit)}
+                                                fromDisplay={(v) => depthFromDisplay(v, depthUnit)}
+                                                onCommit={(thickness) => updateLayer(layer.id, { thickness })}
                                                 className="h-7 text-xs"
                                             />
                                         </div>
