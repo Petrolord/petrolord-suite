@@ -47,17 +47,17 @@ Voidage Replacement Report, Ekene waterflood                                    
 Inputs and their sources
  Input                                          Value                    Unit                   Source and quality
 
- Oil formation volume factor Bo                 1.25                     RB/STB                 Assumed: the starting value of the app (1.25 RB/STB), not
-                                                                                                field data
+ Oil formation volume factor Bo                 1.25                     RB/STB                 Assumed: the starting value of the app (1.25 RB/STB); no
+                                                                                                field data behind it
 
- Water formation volume factor Bw               1.02                     RB/STB                 Assumed: the starting value of the app (1.02 RB/STB), not
-                                                                                                field data
+ Water formation volume factor Bw               1.02                     RB/STB                 Assumed: the starting value of the app (1.02 RB/STB); no
+                                                                                                field data behind it
 
- Gas formation volume factor Bg                 0.9                      RB/Mscf                Assumed: the starting value of the app (0.9 RB/Mscf), not
-                                                                                                field data
+ Gas formation volume factor Bg                 0.9                      RB/Mscf                Assumed: the starting value of the app (0.9 RB/Mscf); no
+                                                                                                field data behind it
 
- Solution gas-oil ratio Rs                      550                      scf/STB                Assumed: the starting value of the app (550 scf/STB), not
-                                                                                                field data
+ Solution gas-oil ratio Rs                      550                      scf/STB                Assumed: the starting value of the app (550 scf/STB); no
+                                                                                                field data behind it
 
  FVFs per period                                One constant FVF                                Chosen by the analyst
                                                 set for every period
@@ -68,7 +68,7 @@ Voidage Replacement Report, Ekene waterflood                                    
                                                                                                 depth they were quoted
 
  Production and injection volumes               6 periods                STB, bbl, Mscf         The built-in 6-month waterflood sample of the app
-                                                                                                (illustrative volumes, not field data).
+                                                                                                (illustrative volumes).
 
  Target VRR band, lower edge                    1                                               The starting value of the app (an operator choice)
 

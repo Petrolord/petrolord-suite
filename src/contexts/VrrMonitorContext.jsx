@@ -183,7 +183,7 @@ export const VrrMonitorProvider = ({ children, sharingStore = null, profileSyste
       periods: s.periods.map((p) => ({
         ...emptyPeriod(), ...p, Np: String(p.Np), Wp: String(p.Wp), Gp: String(p.Gp), Wi: String(p.Wi), Gi: String(p.Gi),
       })),
-      sampleNote: 'The built-in 6-month waterflood sample of the app (illustrative volumes, not field data).',
+      sampleNote: 'The built-in 6-month waterflood sample of the app (illustrative volumes).',
     }));
     addNotification('Sample loaded: a 6-month waterflood dataset is ready.', 'success');
   }, [edit, addNotification]);

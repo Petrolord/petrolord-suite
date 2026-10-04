@@ -92,7 +92,7 @@ Voidage Replacement Report, Ekene, E-2000                                       
  Production and injection volumes               3 periods                  STB, bbl, Mscf         Imported per-well ledger the sample ledger: 12 rows, 4
                                                                                                   wells, 2025-01-01 to 2025-03-01. The built-in sample
                                                                                                   ledger of the app (3 months, 2 producers, 2 injectors; the
-                                                                                                  engine test fixture, not field data).
+                                                                                                  engine test fixture, illustrative volumes).
 
  Target VRR band, lower edge                    1                                                 The starting value of the app (an operator choice)
 
@@ -186,7 +186,7 @@ Water injection advice by pattern
  South                   0.9121                                1                          1.096             7,067 to 7,747 bbl per period
 
 Scale = target (the band minimum) over the rolling VRR of the last 3 periods, clamped to 0.5 to 2.0; split per injector by allocated share; gas
-injection is reported, not scaled.
+injection is reported and left unscaled.
 
 
 

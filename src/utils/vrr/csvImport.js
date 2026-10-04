@@ -564,7 +564,7 @@ export function parsePeriodGridCSV(text, choices = {}) {
     const col = parsed.columns[map[k]];
     const fromHeader = unitFromHeader(stream, col.unit, col.unit);
     const def = DOOR_UNITS[stream].find((d) => d.key === (fromHeader || ASSUMED_UNIT[system][stream]));
-    if (def.basis === 'rate') return { periods: [], refusal: `${col.header}: the grid holds the volume of each period, not a daily rate.`, skipped: [], units: {}, warnings: [] };
+    if (def.basis === 'rate') return { periods: [], refusal: `${col.header}: the grid holds the volume of each period; a daily rate cannot go in it.`, skipped: [], units: {}, warnings: [] };
     units[k] = { key: def.key, from: fromHeader ? 'header' : 'assumed', factor: convert(def.family, 1, def.unit, STATE_UNIT[stream]) };
     if (!fromHeader) warnings.push(`${col.header}: no unit in the header; read as ${def.label}.`);
   }

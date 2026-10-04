@@ -119,7 +119,7 @@ for (const [w, h] of [[1366, 768], [1440, 900], [390, 844]]) {
         await page.screenshot({ path: path.join(OUT, `pl6-${w}-${scheme}-${name.replace(/\W+/g, '')}.png`) });
       }
       await expect(page.getByTestId('vrr-report-tab')).toBeVisible();
-      await expect(page.getByTestId('vrr-report-inputs')).toContainText('Assumed: the starting value of the app (1.25 RB/STB), not field data');
+      await expect(page.getByTestId('vrr-report-inputs')).toContainText('Assumed: the starting value of the app (1.25 RB/STB); no field data behind it');
       await expect(page.getByTestId('vrr-report-ledger')).toContainText('62,865');
       await expect(page.getByTestId('vrr-report-limits')).toContainText('FVFs are held constant over the record');
       expect(await noPageScroll(page)).toBe(true);

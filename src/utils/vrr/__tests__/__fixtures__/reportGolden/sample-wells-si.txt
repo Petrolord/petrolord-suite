@@ -50,17 +50,17 @@ Voidage Replacement Report, Ekene, E-2000                                       
 Inputs and their sources
  Input                                                   Value                       Unit                      Source and quality
 
- Oil formation volume factor Bo                          1.25                        rm3/sm3                   Assumed: the starting value of the app (1.25 rm3/sm3),
-                                                                                                               not field data
+ Oil formation volume factor Bo                          1.25                        rm3/sm3                   Assumed: the starting value of the app (1.25 rm3/sm3); no
+                                                                                                               field data behind it
 
- Water formation volume factor Bw                        1.02                        rm3/sm3                   Assumed: the starting value of the app (1.02 rm3/sm3),
-                                                                                                               not field data
+ Water formation volume factor Bw                        1.02                        rm3/sm3                   Assumed: the starting value of the app (1.02 rm3/sm3); no
+                                                                                                               field data behind it
 
- Gas formation volume factor Bg                          0.0050531                   rm3/sm3                   Assumed: the starting value of the app (0.9 rm3/sm3), not
-                                                                                                               field data
+ Gas formation volume factor Bg                          0.0050531                   rm3/sm3                   Assumed: the starting value of the app (0.9 rm3/sm3); no
+                                                                                                               field data behind it
 
- Solution gas-oil ratio Rs                               97.959                      sm3/sm3                   Assumed: the starting value of the app (550 sm3/sm3),
-                                                                                                               not field data
+ Solution gas-oil ratio Rs                               97.959                      sm3/sm3                   Assumed: the starting value of the app (550 sm3/sm3); no
+                                                                                                               field data behind it
 
  FVFs per period                                         One constant FVF                                      Chosen by the analyst
                                                          set for every period
@@ -73,7 +73,7 @@ Voidage Replacement Report, Ekene, E-2000                                       
  Production and injection volumes                        3 periods                   sm3, sm3,                 Imported per-well ledger the sample ledger: 12 rows, 4
                                                                                      10^3 sm3                  wells, 2025-01-01 to 2025-03-01. The built-in sample
                                                                                                                ledger of the app (3 months, 2 producers, 2 injectors; the
-                                                                                                               engine test fixture, not field data).
+                                                                                                               engine test fixture, illustrative volumes).
 
  Target VRR band, lower edge                             1                                                     The starting value of the app (an operator choice)
 

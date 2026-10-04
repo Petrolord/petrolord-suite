@@ -15,7 +15,7 @@ import {
 } from '@/utils/vrr/csvImport';
 import { downloadText } from './download';
 
-const SAMPLE_NOTE = 'The built-in sample ledger of the app (3 months, 2 producers, 2 injectors; the engine test fixture, not field data).';
+const SAMPLE_NOTE = 'The built-in sample ledger of the app (3 months, 2 producers, 2 injectors; the engine test fixture, illustrative volumes).';
 const FROM_WORDS = { header: 'from the header', chosen: 'chosen', assumed: 'assumed: no unit in the header', file: 'settled by the file', user: 'chosen' };
 
 /** What the project keeps about an import, for the report. */

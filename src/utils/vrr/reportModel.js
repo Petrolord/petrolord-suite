@@ -34,7 +34,7 @@ const text = (v) => (v != null && String(v).trim() !== '' ? String(v).trim() : '
 const fx = (v, d) => (finite(v) ? Number(v).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }) : EMPTY_VALUE);
 const g = (v, s = 4) => (finite(v) ? String(parseFloat(Number(v).toPrecision(s))) : EMPTY_VALUE);
 /** An input nobody changed from the app's starting value. */
-export const startingText = (value) => `Assumed: the starting value of the app (${value}), not field data`;
+export const startingText = (value) => `Assumed: the starting value of the app (${value}); no field data behind it`;
 const isMonth = (label) => /^\d{4}-\d{2}$/.test(String(label || ''));
 
 const FVF_INPUTS = Object.freeze({
@@ -118,7 +118,7 @@ function inputsBlock(inputs, d, u) {
   if (intake) {
     rows.push({
       key: 'pvtTable', label: 'PVT table (Bo, Rs, Bg, Bw against pressure)', value: `${intake.table?.length || 0} rows`, unit: '',
-      source: `Fluid Systems Studio pvt-1, project "${intake.from?.recordName || 'not named'}", saved ${String(intake.from?.at || '').slice(0, 16).replace('T', ' ')}; ${intake.table?.[0]?.p} to ${intake.table?.[intake.table.length - 1]?.p} psia; ${tableMode ? 'read at each period pressure' : 'kept, not used for the periods (constant set chosen)'}`,
+      source: `Fluid Systems Studio pvt-1, project "${intake.from?.recordName || 'not named'}", saved ${String(intake.from?.at || '').slice(0, 16).replace('T', ' ')}; ${intake.table?.[0]?.p} to ${intake.table?.[intake.table.length - 1]?.p} psia; ${tableMode ? 'read at each period pressure' : 'kept; the periods use the constant set (chosen)'}`,
       engineKeys: ['pvtTable'],
     });
   }
@@ -271,7 +271,7 @@ function patternsBlock(inputs, d, u) {
   return {
     rollup: { head: ['Level', 'Producers', 'Cum. VRR', 'Latest inst. VRR', 'Status'], rows: rollup },
     matrix: { head: ['Injector', ...producers, 'Row sum'], rows: matrix, note: `Fraction of each injector's volume reaching each producer, as entered. A row below 1 leaves the rest out of zone (unallocated).${d.allocationCheck.warnings.length ? ` ${d.allocationCheck.warnings.join(' ')}` : ''}` },
-    advice: advice.length ? { head: ['Pattern', 'Rolling VRR', 'Target', 'Scale', 'Water injection'], rows: advice, note: `Scale = target (the band minimum) over the rolling VRR of the last ${d.windowPeriods} periods, clamped to 0.5 to 2.0; split per injector by allocated share; gas injection is reported, not scaled.` } : null,
+    advice: advice.length ? { head: ['Pattern', 'Rolling VRR', 'Target', 'Scale', 'Water injection'], rows: advice, note: `Scale = target (the band minimum) over the rolling VRR of the last ${d.windowPeriods} periods, clamped to 0.5 to 2.0; split per injector by allocated share; gas injection is reported and left unscaled.` } : null,
   };
 }
 
@@ -290,7 +290,7 @@ const BASIS = (d, inputs) => [
 function limitsBlock(inputs, d) {
   const assumptions = [];
   if (d.pvt.mode === 'constant' || !d.pvt.active) assumptions.push('FVFs are held constant over the record. Below the bubble point Bg and Rs move strongly with pressure, so a constant set misstates the free gas term as pressure falls; use the pressure track or a Fluid Systems Studio table where pressure changes.');
-  if (d.pvt.mode === 'track' && d.pvt.active) assumptions.push('FVFs follow the pressure history through black-oil correlations (Standing, Papay Z, McCain Bw) on typed fluid inputs, not a fluid study; their published ranges apply.');
+  if (d.pvt.mode === 'track' && d.pvt.active) assumptions.push('FVFs follow the pressure history through black-oil correlations (Standing, Papay Z, McCain Bw) on typed fluid inputs with no fluid study behind them; their published ranges apply.');
   if (d.pvt.mode === 'table' && d.pvt.active) assumptions.push('FVFs follow the pressure history through the Fluid Systems Studio table, linearly interpolated; outside the table the constant set applies and the period is named in the flags.');
   assumptions.push('Free gas is produced gas above Rs x oil in each period, summed at field (or pattern) level before the floor at zero: a well producing below its solution GOR offsets a well producing free gas. Gas that is flared or used on lease must be in the produced gas column to count.');
   assumptions.push('Injected water is converted at the Bw of the produced water and injected gas at the Bg of the produced gas, at the period pressure; differences in injected fluid composition are not modelled.');

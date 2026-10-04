@@ -45,7 +45,7 @@ describe('RL1: every input the analysis read is on the page, with unit and sourc
     expect(by.Bo.source).toMatch(/project "Good Oil Well No. 4 PVT"/);
     expect(by.pvtMode.source).toMatch(/interpolated in the PVT table at each period's reservoir pressure \(\d+ rows/);
     const plain = reportOf(sampleWells()).model.inputs.rows.find((r) => r.key === 'Bo');
-    expect(plain.source).toBe('Assumed: the starting value of the app (1.25 RB/STB), not field data');
+    expect(plain.source).toBe('Assumed: the starting value of the app (1.25 RB/STB); no field data behind it');
   });
   it('RL8: a value edited after the intake says so', () => {
     const inputs = fluidTablePatterns();

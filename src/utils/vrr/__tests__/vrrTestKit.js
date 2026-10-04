@@ -29,8 +29,8 @@ export function sampleWells({ system = 'oilfield', surveys = true, ident = true 
     ...defaultInputs(system),
     mode: 'imported',
     wellRows: r.rows,
-    importInfo: { kind: 'ledger', file: 'the sample ledger', at: '2026-10-04T10:00:00Z', ...importInfoOf(r, { sample: 'The built-in sample ledger of the app (3 months, 2 producers, 2 injectors; the engine test fixture, not field data).' }) },
-    sampleNote: 'The built-in sample ledger of the app (3 months, 2 producers, 2 injectors; the engine test fixture, not field data).',
+    importInfo: { kind: 'ledger', file: 'the sample ledger', at: '2026-10-04T10:00:00Z', ...importInfoOf(r, { sample: 'The built-in sample ledger of the app (3 months, 2 producers, 2 injectors; the engine test fixture, illustrative volumes).' }) },
+    sampleNote: 'The built-in sample ledger of the app (3 months, 2 producers, 2 injectors; the engine test fixture, illustrative volumes).',
     pressureSurveys: surveys ? SAMPLE_SURVEYS.map((s) => ({ ...s })) : [],
     identification: ident ? { ...IDENT } : {},
   };
@@ -41,7 +41,7 @@ export function manualSample() {
   return {
     ...defaultInputs(),
     periods: s.periods.map((p) => ({ label: p.label, Np: String(p.Np), Wp: String(p.Wp), Gp: String(p.Gp), Wi: String(p.Wi), Gi: String(p.Gi) })),
-    sampleNote: 'The built-in 6-month waterflood sample of the app (illustrative volumes, not field data).',
+    sampleNote: 'The built-in 6-month waterflood sample of the app (illustrative volumes).',
   };
 }
 
