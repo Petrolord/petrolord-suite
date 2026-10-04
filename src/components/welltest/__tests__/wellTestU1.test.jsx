@@ -139,3 +139,75 @@ describe('WTA-U1-004: company and software build in the report header', () => {
     studio.unmount();
   }, 600000);
 });
+
+describe('WTA-U1-005: gauge depth and the pressure datum, stated, with no correction applied', () => {
+  test('the report prints the gauge depth, the datum, that no correction was applied, and how gauge pressures became absolute', async () => {
+    const studio = await sample((c) => {
+      c.setCompletionField('gaugeDepthMd', '9800');
+      c.setCompletionField('gaugeDepthTvd', '9560');
+      c.setCompletionField('datumDepthTvdss', '9500');
+      c.setGaugeImport({ fileName: 'gauge-B12.csv', pressureUnit: 'psig', timeUnit: 'hr', temperatureUnit: null, count: 45, skipped: 2 });
+    });
+    const t = flat(readPdf(build(studio.ctx).doc).text);
+    expect(t).toMatch(/Gauge, datum and pressure basis/);
+    expect(t).toMatch(/Gauge depth 9800 ft MD, 9560 ft TVD/);
+    expect(t).toMatch(/Pressure datum 9500 ft TVDSS/);
+    expect(t).toMatch(/Correction to the datum None applied: every pressure in this report is at the gauge depth/);
+    expect(t).toMatch(/read in psig; one standard atmosphere \(14\.696 psi\) was added to each reading/);
+    expect(t).toMatch(/gauge-B12\.csv/);
+    // the Report tab has the same rows
+    expect(studio.ctx.pressureBasisRows.map((r) => r[0])).toEqual(expect.arrayContaining(['Gauge depth', 'Pressure datum', 'Correction to the datum', 'Absolute or gauge']));
+    studio.unmount();
+  }, 600000);
+
+  test('not entered prints n/a and still says no correction was applied; the SI report converts the depths', async () => {
+    const studio = await sample((c) => c.setUnitSystem('si'));
+    const t = flat(readPdf(build(studio.ctx).doc).text);
+    expect(t).toMatch(/Gauge depth n\/a/);
+    expect(t).toMatch(/Pressure datum Not stated/);
+    expect(t).toMatch(/Correction to the datum None applied/);
+    expect(t).toMatch(/Absolute or gauge Absolute: the synthetic sample test/);
+    await studio.act((c) => c.setCompletionField('gaugeDepthMd', '10000'));
+    expect(flat(readPdf(build(studio.ctx).doc).text)).toMatch(/Gauge depth 3048 m MD/);
+    studio.unmount();
+  }, 600000);
+
+  test('the gauge record of a project saved before this round says it was not recorded', async () => {
+    const studio = await sample();
+    const old = { ...studio.ctx.serializeInputs() };
+    delete old.gaugeImport;
+    await studio.act((c) => c.importProjectPayload(old));
+    expect(flat(readPdf(build(studio.ctx).doc).text)).toMatch(/Absolute or gauge Not recorded with this project/);
+    studio.unmount();
+  }, 600000);
+});
+
+describe('WTA-U1-006: the gauge readings left out of the analysis, each with its reason', () => {
+  test('readings before the shut-in, spikes, the shut-in instant and thinning are listed and close on the record', async () => {
+    const studio = await sample((c) => {
+      // a gauge record with 6 readings of the flowing period before the
+      // shut-in and two spikes in the buildup
+      const rows = c.gaugeRows.map((r) => ({ ...r, t: r.t + 2 }));
+      const before = [0.5, 0.8, 1.1, 1.4, 1.7, 1.95].map((t) => ({ t, p: 4531 - (2 - t) }));
+      rows[20] = { ...rows[20], p: rows[20].p + 400 };
+      rows[30] = { ...rows[30], p: rows[30].p - 350 };
+      c.setGaugeRows([...before, { t: 2, p: 4530.8 }, ...rows]);
+      c.setTestField('testStartTime', '2');
+      c.setTestField('pointsPerDecade', '8');
+    });
+    const ex = studio.ctx.prepared.exclusions;
+    expect(ex.before.count).toBe(6);
+    expect(ex.atShutIn).toBe(1);
+    expect(ex.spikes.length).toBe(2);
+    expect(ex.thinned).toBeGreaterThan(0);
+    // every reading is accounted for, once
+    expect(ex.before.count + ex.atShutIn + ex.spikes.length + ex.thinned + ex.notAboveBase + studio.ctx.prepared.points.length).toBe(studio.ctx.gaugeRows.length - ex.unreadable);
+    const t = flat(readPdf(build(studio.ctx).doc).text);
+    expect(t).toMatch(/Gauge data used and left out/);
+    expect(t).toMatch(/Before the shut-in \(gauge clock 0\.5 to 1\.95 hr\) 6 Left out: the preceding flow period/);
+    expect(t).toMatch(/Spike filter 2 Left out: more than 6 robust standard deviations from the five-point median/);
+    expect(t).toMatch(/Spikes removed \(shut-in time dt, hr; psi\)/);
+    expect(t).toMatch(/Analysis points \d+ Used/);
+    studio.unmount();
+  }, 600000);
+});

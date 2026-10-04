@@ -1,11 +1,11 @@
 {
-  "pages": 6,
-  "sha256": "4dac7546f394f8021d7a44370c349c00ad5aae1122d28aa408bb3987d8c438ec",
+  "pages": 7,
+  "sha256": "7118b6ac72c22610cc084e19c9f90a5fec9b63f429f02574ea7e1a98a4fcb3db",
   "figures": [
     {
       "id": "overview",
       "number": 1,
-      "page": 4,
+      "page": 5,
       "plotted": true,
       "panels": [
         {
@@ -28,7 +28,7 @@
     {
       "id": "loglog",
       "number": 2,
-      "page": 4,
+      "page": 5,
       "plotted": true,
       "panels": [
         {
@@ -53,7 +53,7 @@
     {
       "id": "semilog",
       "number": 3,
-      "page": 5,
+      "page": 6,
       "plotted": true,
       "panels": [
         {
@@ -76,14 +76,14 @@
     {
       "id": "sqrt",
       "number": 4,
-      "page": 5,
+      "page": 6,
       "plotted": false,
       "panels": []
     },
     {
       "id": "history",
       "number": 5,
-      "page": 5,
+      "page": 6,
       "plotted": true,
       "panels": [
         {
@@ -106,7 +106,7 @@
     {
       "id": "rta",
       "number": 6,
-      "page": 6,
+      "page": 7,
       "plotted": true,
       "panels": [
         {

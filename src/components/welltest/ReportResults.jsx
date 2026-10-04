@@ -54,7 +54,7 @@ const ReportResults = () => {
     matchParams, semilogResult, sqrtResult, pssResult, derivedKpis, sqrtMeaningful,
     multiRateResult, deliverabilityResult, fitResult, matchMethod, regimes, notes, model,
     unitSystem, rtaResult,
-    identificationRows, inputsTable, skinBreakdown, flowSummary,
+    identificationRows, inputsTable, skinBreakdown, flowSummary, pressureBasisRows, dataUse,
   } = ctx;
   const uL = (kind) => unitLabel(kind, unitSystem);
 
@@ -139,6 +139,10 @@ const ReportResults = () => {
             : 'No interpretation yet: fit a model or set a semilog window.'}
       </p>
 
+      <Card title="Gauge, datum and pressure basis" testId="wts-report-basis">
+        <Table head={['Item', 'Statement']} body={pressureBasisRows} minWidth={420} />
+      </Card>
+
       <Card title="Skin components" testId="wts-report-skin">
         <Table head={['Component', 'Value', 'Basis']} body={skinBreakdownRows(skinBreakdown, unitSystem)} minWidth={420} />
         {(skinBreakdown.status === 'ok' || skinBreakdown.status === 'full') && (
@@ -215,6 +219,19 @@ const ReportResults = () => {
         {flowSummary.rows.length > 0 && <Table head={flowSummaryHead(flowSummary, unitSystem)} body={flowSummaryBody(flowSummary)} minWidth={640} />}
         <p className="text-[11px] text-pl-muted mt-2">{flowSummary.note} Choke and recovered volume are entered on the Data tab.</p>
       </Card>
+
+      {dataUse.rows.length > 0 && (
+        <Card title="Gauge data used and left out" testId="wts-report-datause">
+          <Table head={['Readings', 'Count', 'Treatment']} body={dataUse.rows} minWidth={460} />
+          {dataUse.spikes.length > 0 && (
+            <div className="mt-3">
+              <p className="text-[11px] text-pl-muted mb-1">Spikes removed</p>
+              <Table head={dataUse.spikeHead} body={dataUse.spikes} minWidth={260} />
+              {dataUse.spikeNote && <p className="text-[11px] text-pl-muted mt-1">{dataUse.spikeNote}</p>}
+            </div>
+          )}
+        </Card>
+      )}
 
       {deliverabilityResult && (
         <div className="rounded-lg border border-pl-border bg-pl-surface p-4">

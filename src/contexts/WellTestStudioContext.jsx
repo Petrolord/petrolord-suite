@@ -21,6 +21,7 @@ import { provenanceFromPayload, setProvenanceField } from '@/lib/inputProvenance
 import {
   DEFAULT_IDENTIFICATION, DEFAULT_COMPLETION, resolveTotalCompressibility,
   buildSkinBreakdown, buildInputsTable, buildFlowSummary, buildIdentificationRows,
+  buildPressureBasisRows, buildDataUseRows,
 } from '@/utils/welltest/reportModel';
 import { buildHistoryMatch, buildOverviewData, thinRows } from '@/utils/welltest/plotData';
 
@@ -246,7 +247,7 @@ export function buildTestConfig(t) {
 export function prepareTestData({ gaugeRows, reservoir, config }) {
   const empty = (warnings = []) => ({
     points: [], pwfShutIn: NaN, pwfSource: null, testStartTime: config?.testStartTime || 0, preTestPoints: 0, preTest: [], info: [],
-    skinWithheld: null, removedSpikes: 0, warnings,
+    skinWithheld: null, removedSpikes: 0, warnings, exclusions: null,
     paI: NaN, paShutIn: NaN, fromAnalysis: (v) => v, dpToGauge: (v) => v,
   });
   // Gauge clock -> elapsed test time: dt = t - testStartTime (tester round
@@ -275,10 +276,12 @@ export function prepareTestData({ gaugeRows, reservoir, config }) {
 
   let series = rows;
   let removedSpikes = 0;
+  let spikeList = [];
   if (config.spikeTrimOn) {
     const { kept, removed } = trimSpikes(rows, { threshold: config.spikeThreshold, yKey: 'p' });
     series = kept;
     removedSpikes = removed.length;
+    spikeList = removed.map((r) => ({ t: r.t, p: r.p }));
   }
 
   const decimated = logDecimate(series, { pointsPerDecade: config.pointsPerDecade, xKey: 't' });
@@ -348,8 +351,28 @@ export function prepareTestData({ gaugeRows, reservoir, config }) {
   if (removedSpikes > 0) warnings.push(`${removedSpikes} outlier point${removedSpikes > 1 ? 's' : ''} removed by the spike filter.`);
 
   const dpToGauge = (dp) => fromM(base + s * dp);
+  // WTA-U1-006 (RL5): every gauge reading is accounted for once, used or
+  // left out with its reason; the report lists them
+  const exclusions = {
+    total: (gaugeRows || []).length,
+    unreadable: (gaugeRows || []).length - all.length,
+    before: {
+      count: before.length,
+      from: before.length ? before[0].t + t0 : NaN,
+      to: before.length ? before[before.length - 1].t + t0 : NaN,
+    },
+    atShutIn: all.filter((r) => Math.abs(r.t) <= SHUT_IN_T_EPS_HR).length,
+    spikes: spikeList,
+    spikeThreshold: config.spikeTrimOn ? config.spikeThreshold : null,
+    thinned: series.length - decimated.length,
+    pointsPerDecade: config.pointsPerDecade,
+    notAboveBase: decimated.length - points.length,
+    family: config.family,
+    mirror: config.mirror,
+  };
   return {
     points,
+    exclusions,
     pwfShutIn,
     pwfSource,
     testStartTime: t0,
@@ -457,6 +480,10 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
   const [inputMeta, setInputMeta] = useState({}); // { [inputKey]: { source, correlation, note } }
   const [periodMeta, setPeriodMeta] = useState({}); // { [period start]: { choke, recovered, remark } }
   const [pvtIntake, setPvtIntake] = useState(null); // { fields: [...], text } from a Fluid Systems Studio handoff
+  // WTA-U1-005: what the gauge import read (file, units, rows), so the report
+  // can say whether pressures were gauge and how they became absolute.
+  // null = not recorded (data typed in, or a project saved before 2026-10-04)
+  const [gaugeImport, setGaugeImport] = useState(null);
   const setIdentificationField = useCallback((k, v) => setIdentification((prev) => ({ ...prev, [k]: v })), []);
   const setCompletionField = useCallback((k, v) => setCompletion((prev) => ({ ...prev, [k]: v })), []);
   const setInputMetaField = useCallback((key, k, v) => setInputMeta((prev) => setProvenanceField(prev, key, k, v)), []);
@@ -885,6 +912,11 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
     organizationName, build: buildLabel(),
   }), [projectName, wellName, fieldName, analyst, identification, completion, configSpec, unitSystem, organizationName]);
 
+  // WTA-U1-005 and -006: the pressure basis and the readings left out, once
+  // for the Report tab and the PDF
+  const pressureBasisRows = useMemo(() => buildPressureBasisRows({ completion, gaugeImport, unitSystem }), [completion, gaugeImport, unitSystem]);
+  const dataUse = useMemo(() => buildDataUseRows({ prepared, unitSystem }), [prepared, unitSystem]);
+
   // History match (model against the gauge over the whole record) and the
   // test overview: one calculation, drawn on the tabs and in the PDF.
   const historyMatch = useMemo(() => buildHistoryMatch({
@@ -932,6 +964,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
     setInputMeta({});
     setPeriodMeta({});
     setPvtIntake(null);
+    setGaugeImport({ sample: true, pressureUnit: 'psia', timeUnit: 'hr', count: sample.gaugeRows.length, skipped: 0 });
     addNotification('Sample buildup loaded (synthetic homogeneous test, tp = 36 hr).', 'success');
   }, [addNotification]);
 
@@ -947,6 +980,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
     inputMeta,
     periodMeta,
     pvtIntake,
+    gaugeImport,
     reservoirInputs,
     testConfig,
     gaugeRows,
@@ -959,7 +993,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
     rtaRows,
     rtaWindows,
     modified: new Date().toISOString(),
-  }), [currentProjectId, projectName, wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows]);
+  }), [currentProjectId, projectName, wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows]);
 
   const hydrate = useCallback((payload) => {
     setWellName(payload?.wellName || '');
@@ -971,6 +1005,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
     setInputMeta(provenanceFromPayload(payload));
     setPeriodMeta(payload?.periodMeta && typeof payload.periodMeta === 'object' ? payload.periodMeta : {});
     setPvtIntake(payload?.pvtIntake && Array.isArray(payload.pvtIntake.fields) ? payload.pvtIntake : null);
+    setGaugeImport(payload?.gaugeImport && typeof payload.gaugeImport === 'object' ? payload.gaugeImport : null);
     // WTA-U1-003: a payload with reservoir inputs but no z method was saved
     // before the method existed, and was interpreted on Papay; it keeps it
     const savedInputs = payload?.reservoirInputs || {};
@@ -1107,7 +1142,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows, currentProjectId, hydrated]);
+  }, [wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows, currentProjectId, hydrated]);
 
   const value = {
     // shell plumbing
@@ -1126,6 +1161,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
     inputMeta, setInputMetaField,
     periodMeta, setPeriodMetaField,
     pvtIntake, setPvtIntake,
+    gaugeImport, setGaugeImport,
     serializeInputs, importProjectPayload,
     reservoirInputs, setReservoirField,
     testConfig, setTestField,
@@ -1147,6 +1183,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '' }) => {
     multiRateResult, deliverabilityResult,
     // report model and shared plot series (tester round 2)
     skinBreakdown, inputsTable, flowSummary, identificationRows, historyMatch, overview,
+    pressureBasisRows, dataUse,
     // auto-fit
     fitResult, isFitting, fitStale, runAutoFit, matchMethod,
     // sample

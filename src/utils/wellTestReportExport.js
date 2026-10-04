@@ -139,6 +139,8 @@ export const collectReportArgs = (ctx) => ({
   inputsTable: ctx.inputsTable,
   skinBreakdown: ctx.skinBreakdown,
   flowSummary: ctx.flowSummary,
+  pressureBasisRows: ctx.pressureBasisRows,
+  dataUse: ctx.dataUse,
   figures: buildReportFigures(ctx),
 });
 
@@ -156,6 +158,7 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
     semilogResult, sqrtResult, pssResult, multiRateResult, deliverabilityResult,
     rtaResult, regimes, notes, unitSystem = 'oilfield',
     inputsTable = [], skinBreakdown = null, flowSummary = null, figures = [],
+    pressureBasisRows = [], dataUse = null,
   } = a;
   const report = createReport({ title: TITLE, appName: 'Petrolord Well Test Analysis Studio', logo });
   const { table, section } = report;
@@ -188,6 +191,13 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
     ['Analysis points', String(prepared?.points?.length ?? 0)],
     ['Headline values from', derivedKpis?.source === 'match' ? 'The working model match' : derivedKpis?.source === 'semilog' ? 'The semilog straight line (no model matched yet)' : EMPTY_VALUE],
   ]);
+
+  // WTA-U1-005 (RL7): where the pressures were measured and on what basis
+  if (pressureBasisRows.length) {
+    table('Gauge, datum and pressure basis', ['Item', 'Statement'], pressureBasisRows, {
+      columnStyles: { 0: { cellWidth: 48 } },
+    });
+  }
 
   // Skin split for a partially penetrating well (reviewer round, item 3)
   if (skinBreakdown) {
@@ -280,6 +290,18 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
       });
     } else {
       section('Flow and shut-in summary', flowSummary.note);
+    }
+  }
+
+  // WTA-U1-006 (RL5): every gauge reading, used or left out, with the reason
+  if (dataUse?.rows?.length) {
+    table('Gauge data used and left out', ['Readings', 'Count', 'Treatment'], dataUse.rows, {
+      columnStyles: { 0: { cellWidth: 70 }, 1: { cellWidth: 18 } },
+    });
+    if (dataUse.spikes.length) {
+      table(`Spikes removed (${isBuildup ? 'shut-in time dt' : 'elapsed time'}, hr; ${uL('pressure')})`, dataUse.spikeHead.map(pdfText), dataUse.spikes, {
+        note: dataUse.spikeNote || undefined,
+      });
     }
   }
 

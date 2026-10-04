@@ -20,6 +20,7 @@ import { unitLabel, fromOilfield } from './units.js';
 import { partialPenetrationSkin } from './partialPenetration.js';
 import { totalCompressibility } from './compressibility.js';
 import { summarizeFlowPeriods } from './flowSummary.js';
+import { PRESSURE_UNITS, TIME_UNITS, gaugeTime } from './gaugeImport.js';
 
 const num = (v) => {
   if (v == null || v === '') return NaN;
@@ -62,6 +63,10 @@ export const DEFAULT_COMPLETION = Object.freeze({
   perfTopMd: '', perfBaseMd: '', payTopMd: '',
   perfTopTvd: '', perfBaseTvd: '', payTopTvd: '',
   tvdSource: '',
+  // WTA-U1-005 (owner default, plan question 6): the gauge depth and the
+  // pressure datum are stated inputs, printed in the report; no correction
+  // to the datum is applied and the report says so
+  gaugeDepthMd: '', gaugeDepthTvd: '', datumDepthTvdss: '',
 });
 
 /** "Pressure buildup, drill stem test (DST)" style line for the header. */
@@ -490,4 +495,84 @@ export function buildIdentificationRows({
     // WTA-U1-004 (RL4): the software that produced the numbers
     ['Software build', orNA(build)],
   ];
+}
+
+// ---- gauge, datum and pressure basis (WTA-U1-005, RL7) ----------------------
+
+/** How the gauge pressures became absolute, in words, from what the import recorded. */
+export function absoluteBasisText(gaugeImport) {
+  if (!gaugeImport) return 'Not recorded with this project (data entered or saved before 2026-10-04). The analysis treats every pressure as absolute.';
+  if (gaugeImport.sample) return 'Absolute: the synthetic sample test.';
+  const u = PRESSURE_UNITS[gaugeImport.pressureUnit];
+  if (!u) return 'Not recorded with this project. The analysis treats every pressure as absolute.';
+  if (!u.gauge) return `Absolute: the file was read in ${u.label}.`;
+  const atm = gaugeImport.pressureUnit === 'psig' ? '14.696 psi' : gaugeImport.pressureUnit === 'kpag' ? '101.325 kPa' : gaugeImport.pressureUnit === 'barg' ? '1.01325 bar' : '0.101325 MPa';
+  return `Converted: the file was read in ${gaugeImport.pressureUnit === 'psig' ? 'psig' : u.label}; one standard atmosphere (${atm}) was added to each reading. A local barometric pressure was not applied.`;
+}
+
+/**
+ * The rows a reviewer reads before trusting any pressure in the report:
+ * where the gauge sat, which datum the field reports pressures at, that no
+ * correction to that datum was applied, and whether the readings were
+ * gauge or absolute. [label, value].
+ */
+export function buildPressureBasisRows({ completion, gaugeImport, unitSystem = 'oilfield' }) {
+  const c = completion || {};
+  const L = unitLabel('length', unitSystem);
+  const len = (v) => (Number.isFinite(num(v)) ? `${shown('length', num(v), unitSystem)} ${L}` : null);
+  const md = len(c.gaugeDepthMd);
+  const tvd = len(c.gaugeDepthTvd);
+  const gauge = [md ? `${md} MD` : null, tvd ? `${tvd} TVD` : null].filter(Boolean).join(', ');
+  const datum = len(c.datumDepthTvdss);
+  const rows = [
+    ['Gauge depth', gauge || EMPTY_VALUE],
+    ['Pressure datum', datum ? `${datum} TVDSS` : 'Not stated'],
+    ['Correction to the datum', 'None applied: every pressure in this report is at the gauge depth'],
+    ['Absolute or gauge', absoluteBasisText(gaugeImport)],
+  ];
+  if (gaugeImport && !gaugeImport.sample && gaugeImport.fileName) {
+    const tu = TIME_UNITS[gaugeImport.timeUnit]?.label;
+    rows.push(['Gauge file', `${gaugeImport.fileName}: ${gaugeImport.count ?? EMPTY_VALUE} readings read${gaugeImport.skipped ? `, ${gaugeImport.skipped} rows skipped as not numbers` : ''}${tu ? `; time in ${tu}` : ''}`]);
+  }
+  return rows;
+}
+
+// ---- gauge readings used and left out (WTA-U1-006, RL5) ---------------------
+
+const SPIKE_LIST_MAX = 20;
+
+/**
+ * Every gauge reading, used or left out of the analysis series, with the
+ * reason. Built from prepareTestData's `exclusions`; the counts close on
+ * the readings in the record.
+ * @returns {{rows: Array<[string, string, string]>, spikes: Array<[string, string]>, spikeNote: ?string}}
+ */
+export function buildDataUseRows({ prepared, unitSystem = 'oilfield' }) {
+  const ex = prepared?.exclusions;
+  if (!ex) return { rows: [], spikes: [], spikeNote: null };
+  const buildup = ex.family === 'buildup';
+  const P = unitLabel('pressure', unitSystem);
+  const rows = [['Readings in the gauge record', String(ex.total), 'As loaded']];
+  if (ex.unreadable) rows.push(['Without a time or a pressure', String(ex.unreadable), 'Left out: not readable as numbers']);
+  if (ex.before.count) {
+    const what = buildup ? (ex.mirror ? 'Before the shut-in of the injector' : 'Before the shut-in') : 'Before the start of flow';
+    rows.push([`${what} (gauge clock ${gaugeTime(ex.before.from)} to ${gaugeTime(ex.before.to)} hr)`, String(ex.before.count), 'Left out: the preceding flow period (drawn on the history match)']);
+  }
+  if (ex.atShutIn) rows.push([buildup ? 'At the shut-in instant (dt = 0)' : 'At the start of flow (t = 0)', String(ex.atShutIn), buildup ? 'Used as the pressure at shut-in only; dt = 0 has no place on a log axis' : 'Left out: t = 0 has no place on a log axis']);
+  if (ex.spikeThreshold != null) {
+    rows.push(['Spike filter', String(ex.spikes.length), ex.spikes.length
+      ? `Left out: more than ${plain(ex.spikeThreshold)} robust standard deviations from the five-point median`
+      : `None removed (threshold ${plain(ex.spikeThreshold)} robust standard deviations)`]);
+  } else {
+    rows.push(['Spike filter', EMPTY_VALUE, 'Off: no reading was tested']);
+  }
+  if (ex.thinned) rows.push(['Thinned on the log time axis', String(ex.thinned), `Left out: ${ex.pointsPerDecade} points per log cycle are kept`]);
+  if (ex.notAboveBase) {
+    rows.push([buildup ? 'No pressure change from the shut-in' : (ex.mirror ? 'Below the initial pressure' : 'Above the initial pressure'), String(ex.notAboveBase),
+      buildup ? 'Left out: the change from the pressure at shut-in is zero or negative' : 'Left out: on the wrong side of the initial pressure']);
+  }
+  rows.push(['Analysis points', String(prepared.points.length), 'Used']);
+  const spikes = ex.spikes.slice(0, SPIKE_LIST_MAX).map((r) => [plain(r.t), plain(fromOilfield('pressure', r.p, unitSystem))]);
+  const spikeNote = ex.spikes.length > SPIKE_LIST_MAX ? `The first ${SPIKE_LIST_MAX} of ${ex.spikes.length} are listed.` : null;
+  return { rows, spikes, spikeNote, spikeHead: [buildup ? 'Shut-in time dt (hr)' : 'Elapsed time (hr)', `Pressure (${P})`] };
 }

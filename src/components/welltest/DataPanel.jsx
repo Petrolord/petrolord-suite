@@ -133,7 +133,7 @@ const DataPanel = () => {
     rateRows, setRateRows,
     addNotification, loadSampleTest,
     unitSystem, setUnitSystem, profileUnitSystem, reservoirSpec,
-    pvtIntake,
+    pvtIntake, setGaugeImport,
   } = useWellTestStudio();
   const fileRef = useRef(null);
   // the file just imported, held so its column/unit mapping can be changed
@@ -152,6 +152,16 @@ const DataPanel = () => {
     }
     setGaugeRows(rows);
     setImported({ table, mapping, fileName, skipped, count: rows.length, temperatureCount });
+    // WTA-U1-005: kept with the project so the report can state the basis
+    setGaugeImport({
+      fileName,
+      pressureUnit: mapping.pressureUnit,
+      timeUnit: mapping.timeUnit,
+      temperatureUnit: mapping.temperatureCol >= 0 ? mapping.temperatureUnit : null,
+      count: rows.length,
+      skipped,
+      at: new Date().toISOString(),
+    });
     if (announce) {
       const pu = PRESSURE_UNITS[mapping.pressureUnit]?.label;
       const tu = TIME_UNITS[mapping.timeUnit]?.label;
