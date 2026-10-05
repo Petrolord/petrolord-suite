@@ -71,7 +71,9 @@ describe('jobView', () => {
     expect(jobView(job({ progress_message: DISPLAY_READY_MESSAGE })).canOpen).toBe(true);
     const done = jobView(job({ status: 'succeeded', progress: 1, result_refs: { volume_id: 'vol-1', trace_count: 1024, display_bytes: 7722, f32_bytes: 35850 } }));
     expect(done).toMatchObject({ canOpen: true, canCancel: false, pct: 100, volumeId: 'vol-1' });
-    expect(done.detail).toBe('1,024 traces; display copy 0.0 MB, full copy 0.0 MB');
+    expect(done.detail).toBe('1,024 traces; display copy 7.5 KB, full copy 35.0 KB');
+    expect(jobView(job({ status: 'succeeded', result_refs: { trace_count: 1e6, display_bytes: 900 * 1024 ** 2, f32_bytes: 7.5 * 1024 ** 3 } })).detail)
+      .toBe('1,000,000 traces; display copy 900.0 MB, full copy 7.5 GB');
   });
   test('a failure shows the server message; a requested cancel shows as stopping', () => {
     expect(jobView(job({ status: 'failed', error_message: 'Over quota.' }))).toMatchObject({ detail: 'Over quota.', canOpen: false });

@@ -132,6 +132,7 @@ const ForecastScenarioHubHarness = lazy(() => import('@/dev/ForecastScenarioHubH
 const WellTestHarness = lazy(() => import('@/dev/WellTestHarness'));
 const FluidStudioHarness = lazy(() => import('@/dev/FluidStudioHarness'));
 const SimStudioHarness = lazy(() => import('@/dev/SimStudioHarness'));
+const SeismolordServerImportHarness = lazy(() => import('@/dev/SeismolordServerImportHarness'));
 const FdpHarness = lazy(() => import('@/dev/FdpHarness'));
 const NodalHarness = lazy(() => import('@/dev/NodalHarness'));
 const VoiHarness = lazy(() => import('@/dev/VoiHarness'));
@@ -989,6 +990,7 @@ function App() {
                                     <Route path="/dev/seismolord-workspace" element={<SeismolordWorkspaceHarness />} />
                                     <Route path="/dev/seismolord-u2" element={<SeismolordU2Harness />} />
                                     <Route path="/dev/seismolord-help" element={<SeismolordHelpGuide />} />
+                                    <Route path="/dev/seismolord-server-import" element={<SeismolordServerImportHarness />} />
                                     <Route path="/dev/well-data-manager" element={<WellDataManagerHarness />} />
                                     <Route path="/dev/well-data-manager/help" element={<WellDataManagerHelpGuide backTo="/dev/well-data-manager" />} />
                                     <Route path="/dev/petrophysics-studio" element={<PetrophysicsStudioHarness />} />

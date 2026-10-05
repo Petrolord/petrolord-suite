@@ -937,7 +937,7 @@ export default function ImportPanel({
         <div className="flex gap-3">
           <Button
             onClick={startIngest}
-            disabled={!scan || busy || phase === 'scanning' || !crsChosen || sanityBlocks || Boolean(blockReason)}
+            disabled={!scan || busy || phase === 'scanning' || phase === 'background' || !crsChosen || sanityBlocks || Boolean(blockReason)}
             title={!scan ? undefined
               : blockReason ? blockReason
               : !crsChosen ? 'Choose the coordinate reference system of this file first'

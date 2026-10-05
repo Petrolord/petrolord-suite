@@ -17,6 +17,14 @@ const STATUS_LABEL = {
 /** The display copy is up once the upload moves on to the float32 copy. */
 export const DISPLAY_READY_MESSAGE = 'Uploading full-resolution copy';
 
+/** Bytes as KB, MB or GB (1024-based), one decimal. */
+export function fmtSize(bytes) {
+  const b = Number(bytes) || 0;
+  if (b >= 1024 ** 3) return `${(b / 1024 ** 3).toFixed(1)} GB`;
+  if (b >= 1024 ** 2) return `${(b / 1024 ** 2).toFixed(1)} MB`;
+  return `${(b / 1024).toFixed(1)} KB`;
+}
+
 export function jobView(job) {
   const status = job?.status || 'queued';
   const active = status === 'queued' || status === 'running';
@@ -28,8 +36,7 @@ export function jobView(job) {
   if (status === 'failed') detail = job.error_message || 'The job failed.';
   if (status === 'cancelled') detail = 'Stopped at your request.';
   if (status === 'succeeded' && job.kind === 'stack_to_v4') {
-    const mb = (b) => (Number(b) / 1048576).toFixed(1);
-    detail = `${Number(result.trace_count || 0).toLocaleString('en-US')} traces; display copy ${mb(result.display_bytes || 0)} MB, full copy ${mb(result.f32_bytes || 0)} MB`;
+    detail = `${Number(result.trace_count || 0).toLocaleString('en-US')} traces; display copy ${fmtSize(result.display_bytes)}, full copy ${fmtSize(result.f32_bytes)}`;
   }
   return {
     id: job.id,
