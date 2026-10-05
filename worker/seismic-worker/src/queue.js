@@ -38,6 +38,7 @@ export function createQueue(supa, cfg) {
       return supa.patch('qi_jobs', guard(job), {
         status: 'succeeded',
         progress: 1,
+        progress_message: null, // the last step's message would otherwise linger after success
         result_refs: resultRefs ?? {},
         finished_at: new Date().toISOString(),
         engine_commit: cfg.engineCommit,

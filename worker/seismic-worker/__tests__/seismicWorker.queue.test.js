@@ -170,7 +170,7 @@ describe('queue client', () => {
     const [, table, query, fields] = supa.calls[0];
     expect(table).toBe('qi_jobs');
     expect(query).toBe('id=eq.j9&status=eq.running&claimed_by=eq.w-test&attempt=eq.3');
-    expect(fields).toMatchObject({ status: 'succeeded', progress: 1, result_refs: { a: 1 }, engine_commit: 'abc1234' });
+    expect(fields).toMatchObject({ status: 'succeeded', progress: 1, progress_message: null, result_refs: { a: 1 }, engine_commit: 'abc1234' });
   });
   test('heartbeat maps the RPC row to cancel and ownership flags', async () => {
     const supa = recordingSupa({ qi_heartbeat_job: [{ cancel_requested: true, still_mine: true }] });
