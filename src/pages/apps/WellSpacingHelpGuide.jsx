@@ -12,7 +12,7 @@
 
 import React from 'react';
 import {
-  BookOpen, Zap, Sliders, Calculator, LineChart, AlertTriangle, Share2,
+  BookOpen, Zap, Sliders, Calculator, LineChart, AlertTriangle, Share2, Gauge, Link2, FileText,
 } from 'lucide-react';
 import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Code,
@@ -26,6 +26,9 @@ const sections = [
   { id: 'inputs', icon: Sliders, title: 'The inputs' },
   { id: 'engine', icon: Calculator, title: 'How a case is computed' },
   { id: 'results', icon: LineChart, title: 'Reading the results' },
+  { id: 'drainage', icon: Gauge, title: 'Drainage, timing and deliverability' },
+  { id: 'intakes', icon: Link2, title: 'Values from other apps' },
+  { id: 'report', icon: FileText, title: 'Saving, sharing and the report' },
   { id: 'choosing', icon: Share2, title: 'Choosing a spacing' },
   { id: 'pitfalls', icon: AlertTriangle, title: 'Pitfalls' },
 ];
@@ -91,27 +94,34 @@ const WellSpacingHelpGuideContent = () => (
 
     <GuideSection id="quickstart">
       <SectionHeading icon={Zap}>Quick start</SectionHeading>
-      <Step n={1} title="Fill in the field, rock and fluid basics">
+      <Step n={1} title="Start from the example field, or a saved project">
+        Load example field fills every input with an illustrative case (it is labelled as a sample
+        until you change it), or open a saved project from the picker. A new project opens in the
+        unit system of your Suite unit profile; Oilfield or SI is switched in the header.
+      </Step>
+      <Step n={2} title="Fill in the field, rock and fluid basics">
         Reservoir area, average net pay, porosity, initial water saturation and recovery factor.
         Watch the units: porosity and recovery factor are percentages while water saturation is a
-        fraction.
+        fraction. Give a Bo if you have one from the lab or from Fluid Systems Studio; blank, the
+        app uses Standing&apos;s correlation and says so.
       </Step>
-      <Step n={2} title="Give the well and economic parameters">
-        Well cost, annual opex per well, minimum economic rate, decline rate, prices, discount rate,
-        project duration and the combined royalty and tax rate.
+      <Step n={3} title="Give the well and economic parameters">
+        Well cost, annual opex per well, economic limit rate, decline rate (effective, per year),
+        prices, discount rate, project duration and the royalty on gross revenue.
       </Step>
-      <Step n={3} title="Set the spacing range">
-        Minimum, maximum and increment, in acres per well. Start wide and coarse to see the shape,
-        then narrow the range and reduce the increment around the region you care about.
+      <Step n={4} title="Set the spacing range and the layout">
+        Smallest, largest and step, in acres or hectares per well. The layout (square or staggered
+        grid) sets the distance between neighbouring wells for a spacing.
       </Step>
-      <Step n={4} title="Calculate and read the table">
-        Every spacing in the range gets a row. The charts show the same information as curves. There
-        is no recommended row to look for; the choice is yours to make from the table.
+      <Step n={5} title="Read the table as you type">
+        The cases recompute on every edit; there is no Calculate button and no stale table. When an
+        input is missing or out of range the panel lists what needs attention instead of numbers.
       </Step>
-      <Callout tone="info" title="Nothing is saved">
-        This app has no projects. Inputs and results are lost on reload, and there are no defaults,
-        so you will be retyping everything. Export the CSV or the JSON before you navigate away.
-      </Callout>
+      <Step n={6} title="Add the drainage inputs">
+        Average and flowing pressure, permeability, skin, oil viscosity, total compressibility and
+        wellbore radius give each case its interference time, pseudosteady time and deliverable
+        rate. Take them from Well Test and Fluid Systems Studio where you can.
+      </Step>
     </GuideSection>
 
     <GuideSection id="inputs">
@@ -135,19 +145,27 @@ const WellSpacingHelpGuideContent = () => (
         field. It used to be accepted, which made the mobile pore volume negative and produced
         nonsense throughout the table with no warning at all.
       </Para>
-      <SubHeading>Inputs that are recorded and not used</SubHeading>
+      <SubHeading>Inputs that are recorded and not used in any equation</SubHeading>
       <Para>
-        Reservoir temperature, reservoir pressure, oil gravity, gas gravity, well pattern type and
-        the map coordinates are stored on the case and travel into the JSON export. They enter no
-        equation in this engine. They are no longer marked required, because requiring them implied
-        they were doing something.
+        Only the field name and the map coordinates. They are printed in the report for the
+        record. Every other input enters either the case (EUR, NPV and every number of the case
+        table) or the drainage diagnostics, and the inputs table of the report says which.
       </Para>
-      <Callout tone="info" title="Why that matters for a future version">
-        Those inputs are exactly what a productivity model would need. If this app is ever given
-        rate physics, pressure, temperature and gravity would feed the fluid properties and the
-        drawdown, and only permeability and a flowing bottomhole pressure would be genuinely new.
-        That is the change that would make an optimum meaningful.
-      </Callout>
+      <Table
+        headers={['Input', 'Enters']}
+        rows={[
+          ['Area, net pay, porosity, Swi, RF, Bo or the fluid that gives it, costs, prices, decline, economic limit, duration, royalty, spacing range', 'The case: EUR, NPV, capex, cost per barrel'],
+          ['Average reservoir pressure', 'The deliverable rate, and the pressure at which Bo and viscosity are read from a Fluid Systems Studio table'],
+          ['Flowing pressure, permeability, skin, viscosity, total compressibility, wellbore radius, layout', 'The drainage diagnostics only'],
+          ['Field name, map coordinates', 'The record only'],
+        ]}
+        widths={[3.6, 3]}
+      />
+      <Para>
+        Earlier builds asked for a well pattern type (5-spot, 7-spot, line drive) that entered no
+        equation; those are waterflood patterns. It is replaced by the layout, which sets the
+        distance between wells. A saved 7-spot opens as a staggered grid, the rest as a square grid.
+      </Para>
     </GuideSection>
 
     <GuideSection id="engine">
@@ -211,22 +229,98 @@ const WellSpacingHelpGuideContent = () => (
           ['EUR per Well', 'What the well would ultimately recover if it ran to its economic rate.'],
           ['Produced per Well', 'What it actually produces inside your project duration. A marker means the duration truncated it.'],
           ['Field Recovery', 'Coverage times your recovery factor. It steps because coverage steps.'],
-          ['Total Capex', 'Well cost times well count, in millions.'],
-          ['NPV', 'Field NPV in millions, at your discount rate.'],
-          ['Cost per Barrel', 'Capital plus opex divided by the volume actually produced.'],
+          ['Between wells', 'Distance from a well to its neighbour on the chosen layout.'],
+          ['Capex (US$ MM)', 'Well cost times well count, in US$ million. Earlier builds headed this $M, which in oilfield usage means thousands.'],
+          ['NPV (US$ MM)', 'Field NPV in US$ million, at your discount rate, mid-year discounting.'],
+          ['Cost (US$/STB)', 'Capital plus opex divided by the volume actually produced.'],
+          ['Initial rate', 'The day-one rate of the decline each well is given. It grows with the spacing because the EUR does; hold it against the deliverable rate.'],
         ]}
         widths={[1.9, 4.7]}
       />
-      <SubHeading>The three charts</SubHeading>
+      <SubHeading>The four charts</SubHeading>
       <Para>
-        NPV, field recovery and cost per barrel against spacing. All three are plotted in spacing
-        order. If you have used an older version and remember these curves zigzagging, that was a
+        NPV, EUR and produced per well, and cost per barrel against spacing, and the plan initial
+        rate beside the deliverable rate. All are plotted in spacing order. If you have used an older version and remember these curves zigzagging, that was a
         defect: the results array was being sorted by cost per barrel before it reached the chart,
         so the curves were drawn across an axis that was not in order.
+      </Para>
+      <SubHeading>Economics by part and the added wells</SubHeading>
+      <Para>
+        Under the table the economics of each case are split into revenue, royalty, opex and capex,
+        which close on the undiscounted net cash; NPV is the same stream discounted. The
+        incremental table holds each spacing against the next wider one: the added wells, the
+        added capex, the added oil and the added NPV per added well. Under this model the added
+        wells add almost no oil, which the table makes plain.
       </Para>
       <Para>
         Cost per barrel is the most useful of the three for a screening conversation, because it
         falls smoothly with spacing and is not distorted by the coverage steps in the way NPV is.
+      </Para>
+    </GuideSection>
+
+    <GuideSection id="drainage">
+      <SectionHeading icon={Gauge}>Drainage, timing and deliverability</SectionHeading>
+      <Para>
+        Beside each case the app prints what the spacing means for a well, in field units with t in
+        hours inside the formulas. None of it changes an EUR or an NPV; it tells you whether the
+        assumptions behind them hold.
+      </Para>
+      <Formula>distance between wells = sqrt(A) on a square grid, sqrt(2 A / sqrt 3) on a staggered grid</Formula>
+      <Formula>drainage radius re = sqrt(43,560 A / pi)   (40 acres: 745 ft)</Formula>
+      <Formula>radius of investigation ri = sqrt(k t / (948 phi mu ct)), k in md, t in hours</Formula>
+      <Formula>pseudosteady state from tDA = 0.0002637 k t / (phi mu ct A) = 0.1</Formula>
+      <Formula>deliverable rate q = k h (pbar - pwf) / (141.2 B mu (0.5 ln(2.2458 A / (CA rw^2)) + s))</Formula>
+      <Para>
+        Interference begins when each well&apos;s radius of investigation reaches half the distance
+        to its neighbour. The deliverable rate is what a well on that drainage area gives at
+        pseudosteady state; CA is 30.88 for a square and 31.6 for a hexagon (Earlougher). When the
+        plan initial rate is above the deliverable rate, the decline the economics assume starts at
+        a rate the well cannot give: that case&apos;s NPV is too high, and the report flags it.
+      </Para>
+      <Callout tone="info" title="Checked against published worked examples">
+        The deliverable rate reproduces Ahmed and McKinney (2005) Example 1.18, 416 STB/d; the
+        drainage radius their 745 ft for 40 acres; the line-source interference their Example 1.21
+        arguments. Every constant is pinned with a test that fails if k is typed in darcies or t in
+        days.
+      </Callout>
+    </GuideSection>
+
+    <GuideSection id="intakes">
+      <SectionHeading icon={Link2}>Values from other apps</SectionHeading>
+      <Para>
+        From other apps reads a saved record by id and keeps it with the project, with its source,
+        time and method, so the report can say where each value came from.
+      </Para>
+      <Table
+        headers={['Source', 'What it gives']}
+        rows={[
+          ['Fluid Systems Studio (pvt-1)', 'Bo and oil viscosity read from the project table at your average pressure, the solution GOR, the gravities and the temperature'],
+          ['Well Test Analysis Studio (wta-1)', 'Permeability, total skin and the average pressure'],
+          ['Material Balance Studio (mbal-1)', 'OOIP, held against the volumetric OOIP of your case'],
+          ['Decline Curve Analysis (dca-forecast-1)', 'One well\'s oil EUR, turned into the drainage area it implies at your rock and RF'],
+          ['Wells registry', 'Well names and surface locations: the map in the report and the spacing the wells already have'],
+        ]}
+        widths={[2.4, 4.2]}
+      />
+      <Para>
+        Each card says As received, Edited after intake when you change a value it gave, or Source
+        changed since when the record has been saved again with different content.
+      </Para>
+    </GuideSection>
+
+    <GuideSection id="report">
+      <SectionHeading icon={FileText}>Saving, sharing and the report</SectionHeading>
+      <Para>
+        A study is saved as a project and can be shared with your organisation, to view or to edit
+        one person at a time with a check-out. Until the database table is switched on the page
+        says so and keeps the study on screen; export the report or the CSV to keep a copy.
+      </Para>
+      <Para>
+        The Report tab takes the identification (company, field, licence, reservoir, wells, data
+        date, analyst) and exports a PDF: the cases, the economics by part, the incremental
+        economics, every input with its unit and source, the drainage table, the cross-checks, the
+        methods and references, the limits of the analysis, and four figures. The CSV prints in the
+        display units of the project.
       </Para>
     </GuideSection>
 
@@ -253,9 +347,13 @@ const WellSpacingHelpGuideContent = () => (
         setting the volume, and your spacing is not. Extend it or accept that you are comparing
         acceleration more than recovery.
       </Step>
-      <Step n={5} title="Re-run at a low and a high price">
-        There is no built-in sensitivity analysis. Changing the price and recalculating is the
-        honest way to test robustness, and it takes seconds.
+      <Step n={5} title="Hold the plan rate against the deliverable rate">
+        Discard cases where the plan initial rate is above what a well can deliver, or lower the
+        decline until it is not.
+      </Step>
+      <Step n={6} title="Re-run at a low and a high price">
+        There is no built-in sensitivity analysis. Changing the price is the honest way to test
+        robustness; the table follows as you type.
       </Step>
       <Callout tone="warn" title="On the sensitivity panel that used to be here">
         An earlier version displayed three sensitivity cards for oil price, well cost and recovery
@@ -273,9 +371,9 @@ const WellSpacingHelpGuideContent = () => (
         and the answer moves. That is the clearest sign that the number is a property of your range.
         It says nothing about your reservoir.
       </Para>
-      <SubHeading>Dollars are in millions on screen</SubHeading>
+      <SubHeading>Dollars are in US$ million on screen</SubHeading>
       <Para>
-        The NPV and capex columns are labelled in millions. The well cost and opex you type are raw
+        The NPV and capex columns are US$ million (US$ MM). The well cost and opex you type are raw
         dollars.
       </Para>
       <SubHeading>Every well is assumed on stream in year one</SubHeading>
@@ -290,9 +388,11 @@ const WellSpacingHelpGuideContent = () => (
         It is a flat annual charge per well for the life of the well, so a low rate well late in
         life carries the same operating cost as a new one.
       </Para>
-      <SubHeading>Nothing is saved and nothing is prefilled</SubHeading>
+      <SubHeading>A wider spacing gets a higher initial rate</SubHeading>
       <Para>
-        Two dozen inputs, no defaults and no persistence. Export before you leave the page.
+        The decline is the same at every spacing and is anchored on the EUR, so the initial rate
+        grows in proportion to the area. A real well&apos;s rate is set by kh and drawdown and barely
+        depends on its drainage area. Read the deliverable rate before trusting a wide case.
       </Para>
     </GuideSection>
   </HelpGuideShell>

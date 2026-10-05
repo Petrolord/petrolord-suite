@@ -24,6 +24,16 @@ jest.mock('@/components/charts/ChartLogo', () => () => null);
 jest.mock('framer-motion', () => ({ motion: { div: ({ children }) => <div>{children}</div> } }));
 
 import ResultsPanel from '@/components/wellspacing/ResultsPanel';
+import { WellSpacingProvider } from '@/contexts/WellSpacingContext';
+import { defaultInputs, blankForm } from '@/utils/wellspacing/model';
+
+// WS-U1: the panel reads the study from its provider (the results are a
+// pure function of the inputs on screen)
+const renderPanel = (form) => render(
+  <WellSpacingProvider initialInputs={{ ...defaultInputs('oilfield'), form: { ...blankForm(), ...form } }}>
+    <ResultsPanel downloadCSV={() => {}} downloadJSON={() => {}} />
+  </WellSpacingProvider>,
+);
 
 const SAMPLE = {
   fieldName: 'Example field', reservoirArea: '5000', avgNetPayThickness: '60', porosity: '15.2',
@@ -56,7 +66,7 @@ describe('H6: the export nominates no optimum, as the screen says', () => {
   it('the JSON and the screen carry the same sentence', async () => {
     const results = await evaluateSpacingCases(SAMPLE);
     const json = generateJSON(SAMPLE, results);
-    render(<ResultsPanel results={results} downloadCSV={() => {}} downloadJSON={() => {}} />);
+    renderPanel(SAMPLE);
     expect(NO_OPTIMUM_NOTE).toMatch(/no optimum is nominated/);
     expect(json.metadata.reading).toBe(NO_OPTIMUM_NOTE);
     expect(screen.getByTestId('ws-no-optimum')).toHaveTextContent(NO_OPTIMUM_NOTE);
@@ -84,7 +94,7 @@ describe('H6: a fallback Bo is called a fallback', () => {
     const note = boNote(results);
     expect(note).toMatch(/fallback/);
     expect(note).not.toMatch(/from Standing's correlation/);
-    render(<ResultsPanel results={results} downloadCSV={() => {}} downloadJSON={() => {}} />);
+    renderPanel({ ...SAMPLE, ...patch });
     expect(screen.getByTestId('ws-bo-note')).toHaveTextContent(/fallback of 1\.000 rb\/stb/);
     expect(screen.getByTestId('ws-bo-note')).not.toHaveTextContent(/from Standing's correlation/);
     const json = generateJSON({ ...SAMPLE, ...patch }, results);
@@ -95,7 +105,8 @@ describe('H6: a fallback Bo is called a fallback', () => {
 describe('H7: the discounting convention is labelled on the screen', () => {
   it('the results state mid-year discounting and the engine', async () => {
     const results = await evaluateSpacingCases(SAMPLE);
-    render(<ResultsPanel results={results} downloadCSV={() => {}} downloadJSON={() => {}} />);
+    renderPanel(SAMPLE);
+    expect(results.spacingResults.length).toBeGreaterThan(0);
     expect(screen.getByTestId('ws-npv-convention')).toHaveTextContent(/mid-year discounting/);
     expect(screen.getByTestId('ws-npv-convention')).toHaveTextContent(/Suite screening economics engine/);
   });

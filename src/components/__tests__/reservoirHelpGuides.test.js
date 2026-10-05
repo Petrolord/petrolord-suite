@@ -103,7 +103,12 @@ const COVERAGE = {
     /does not nominate an optimum/i,
     /Coverage/,
     /fraction/,
-    /recorded and not used/i,
+    /recorded and not used in any equation/i,
+    // WS-U1: the drainage diagnostics, the intakes, the report, the US$ MM heading
+    /deliverable rate/i,
+    /416 STB\/d/,
+    /dca-forecast-1/,
+    /US\$ million/,
   ],
   'Risked Reserves Valuation': [
     /petroleum convention/i,
@@ -121,6 +126,8 @@ const FORBIDDEN = {
   'Material Balance Studio': [/water influx history/i],
   'Well Test Analysis Studio': [/Oilfield units throughout/i],
   'Reservoir Simulation Studio': [/3D grid visualization and compositional runs are not included/i],
+  // WS-U1: the app saves projects now, and has no Calculate button
+  'Well Spacing Optimizer': [/Nothing is saved/i, /This app has no projects/i, /Calculate and read the table/i],
 };
 
 const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
