@@ -76,4 +76,29 @@ reset role;
 set role service_role;
 select pg_temp.ok(public.qi_sweep_stale_jobs(120, 2) = 0, 'healthy running job not swept');
 reset role;
+
+-- ---------------------------------------------------------------- qi_datasets
+select pg_temp.ok(not exists (select 1 from information_schema.role_table_grants where table_name = 'qi_datasets' and grantee = 'anon'), 'anon holds no grants on qi_datasets');
+select pg_temp.ok((select array_agg(privilege_type::text) from information_schema.role_table_grants where table_name = 'qi_datasets' and grantee = 'authenticated') = array['SELECT'], 'authenticated may only SELECT qi_datasets');
+insert into public.qi_datasets (user_id, name, original_filename, bucket, object_key, bytes, part_size, part_count, upload_id)
+values ('00000000-0000-0000-0000-000000000001', 'big', 'big.sgy', 'seismic-raw', 'u1/d1/big.sgy', 1000, 67108864, 1, 'up1'),
+       ('00000000-0000-0000-0000-000000000001', 'old', 'old.sgy', 'seismic-raw', 'u1/d2/old.sgy', 500, 67108864, 1, null);
+update public.qi_datasets set status = 'deleted' where name = 'old';
+select pg_temp.ok((select updated_at > created_at or updated_at = created_at from public.qi_datasets where name = 'old'), 'updated_at maintained');
+set role service_role;
+select pg_temp.ok(public.qi_user_storage_bytes('00000000-0000-0000-0000-000000000001') = 1000, 'storage counts live uploads only (deleted excluded)');
+reset role;
+set role authenticated; set test.uid = '00000000-0000-0000-0000-000000000001';
+select pg_temp.ok((select count(*) from public.qi_datasets) = 2, 'owner sees own datasets');
+do $$ begin perform public.qi_user_storage_bytes('00000000-0000-0000-0000-000000000002'); raise exception 'FAIL: client read another user quota';
+  exception when insufficient_privilege then raise notice 'ok  client cannot call qi_user_storage_bytes'; end $$;
+do $$ begin insert into public.qi_datasets (user_id, name, original_filename, bucket, object_key, bytes, part_size, part_count)
+  values (auth.uid(), 'x', 'x', 'seismic-raw', 'k', 1, 1, 1); raise exception 'FAIL: client inserted a dataset';
+  exception when insufficient_privilege then raise notice 'ok  client cannot insert datasets'; end $$;
+set test.uid = '00000000-0000-0000-0000-000000000002';
+select pg_temp.ok((select count(*) from public.qi_datasets) = 0, 'other user sees no datasets (RLS)');
+reset role;
+do $$ begin insert into public.qi_datasets (user_id, name, original_filename, bucket, object_key, bytes, part_size, part_count)
+  values ('00000000-0000-0000-0000-000000000001', 'dup', 'd', 'seismic-raw', 'u1/d1/big.sgy', 1, 1, 1); raise exception 'FAIL: duplicate object key';
+  exception when unique_violation then raise notice 'ok  one registry row per object'; end $$;
 select 'ALL BEHAVIOUR CHECKS PASSED' as result;
