@@ -105,7 +105,8 @@ export function objectKeyFor(uid: string, datasetId: string, filename: string) {
   return `${uid}/${datasetId}/${safe}`;
 }
 
-export type StartRequest = { action: 'start'; filename: string; bytes: number; name?: string; organization_id?: string | null };
+export type Fingerprint = { algo: string; hash: string };
+export type StartRequest = { action: 'start'; filename: string; bytes: number; name?: string; organization_id?: string | null; fingerprint: Fingerprint | null };
 
 export function validateStart(body: Record<string, unknown>): { ok: true; value: StartRequest } | { ok: false; error: string } {
   const filename = typeof body.filename === 'string' ? body.filename.trim() : '';
@@ -115,7 +116,19 @@ export function validateStart(body: Record<string, unknown>): { ok: true; value:
   if (bytes > MAX_FILE_BYTES) return { ok: false, error: `Files larger than ${MAX_FILE_BYTES / 1024 ** 3} GiB cannot be uploaded yet.` };
   const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 200) : filename.slice(0, 200);
   const org = typeof body.organization_id === 'string' && body.organization_id ? body.organization_id : null;
-  return { ok: true, value: { action: 'start', filename, bytes, name, organization_id: org } };
+  // Optional: the browser's sampled content fingerprint. With it, a start for
+  // a file this user is already uploading resumes that upload, from any
+  // browser or computer, instead of opening a second one.
+  let fingerprint: Fingerprint | null = null;
+  if (body.fingerprint != null) {
+    const f = body.fingerprint as Record<string, unknown>;
+    const algo = typeof f?.algo === 'string' ? f.algo : '';
+    const hash = typeof f?.hash === 'string' ? f.hash.toLowerCase() : '';
+    if (!/^[a-z0-9._-]{1,40}$/.test(algo) || !/^[0-9a-f]{64}$/.test(hash)) return { ok: false, error: 'fingerprint must be { algo, hash } with a 64-character hex hash.' };
+    if (f.size != null && Number(f.size) !== bytes) return { ok: false, error: 'The fingerprint is for a file of a different size.' };
+    fingerprint = { algo, hash };
+  }
+  return { ok: true, value: { action: 'start', filename, bytes, name, organization_id: org, fingerprint } };
 }
 
 export function validatePartNumbers(raw: unknown, totalParts: number): number[] | string {

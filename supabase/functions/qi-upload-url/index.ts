@@ -4,8 +4,10 @@
 // function for presigned part URLs, PUTs the bytes, and asks it to complete.
 //
 // POST JSON, signed in (Authorization: Bearer <user JWT>):
-//   { action: 'start', filename, bytes, name?, organization_id? }
-//        -> { dataset_id, part_size, part_count }
+//   { action: 'start', filename, bytes, name?, organization_id?, fingerprint? }
+//        -> { dataset_id, part_size, part_count, resumed? }
+//        (with a fingerprint, the user's unfinished upload of the same file
+//        is returned with resumed: true, from any browser)
 //   { action: 'sign', dataset_id, part_numbers: [..<=100] } -> { urls: { n: url } }
 //   { action: 'parts', dataset_id } -> { parts: [{ partNumber, size, etag }] }   (resume)
 //   { action: 'complete', dataset_id } -> { dataset }
@@ -95,10 +97,23 @@ Deno.serve(async (req) => {
     if (action === 'start') {
       const v = validateStart(body);
       if (!v.ok) return json({ error: v.error }, 400);
-      const { filename, bytes, name, organization_id } = v.value;
+      const { filename, bytes, name, organization_id, fingerprint } = v.value;
       if (organization_id) {
         const { data: member } = await userClient.rpc('is_org_member', { org_id: organization_id });
         if (member !== true) return json({ error: 'You are not a member of that organization.' }, 403);
+      }
+      // Resume across browsers and computers: this user's unfinished upload of
+      // the same file (same size and content fingerprint) carries on instead of
+      // a second upload starting. The caller then asks for 'parts'.
+      if (fingerprint) {
+        const { data: open } = await admin.from('qi_datasets').select('id,part_size,part_count,upload_id')
+          .eq('user_id', user.id).eq('status', 'uploading').eq('bytes', bytes)
+          .eq('meta->fingerprint->>hash', fingerprint.hash)
+          .order('created_at', { ascending: false }).limit(1);
+        const hit = open && open[0];
+        if (hit && hit.upload_id) {
+          return json({ dataset_id: hit.id, part_size: hit.part_size, part_count: hit.part_count, resumed: true });
+        }
       }
       const { data: used, error: qErr } = await admin.rpc('qi_user_storage_bytes', { p_user_id: user.id });
       if (qErr) return json({ error: 'Could not check your storage allowance.' }, 502);
@@ -115,6 +130,7 @@ Deno.serve(async (req) => {
         id, user_id: user.id, organization_id, name, kind: 'segy_upload', status: 'uploading',
         original_filename: filename.slice(0, 500), bucket: s3.bucket, object_key: key,
         bytes, part_size: partSize, part_count: parts, upload_id: uploadId,
+        meta: fingerprint ? { fingerprint } : {},
       });
       if (insErr) {
         await fetch(await sign('DELETE', key, { uploadId }), { method: 'DELETE' });

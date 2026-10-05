@@ -8,6 +8,7 @@
 import { uploadLargeFile } from '@/lib/qiUpload';
 import { enqueueJob } from '@/lib/qiService';
 import { prepareV4Row } from './importJobsRuntime';
+import { fileFingerprint } from './ingestResume';
 
 const GiB = 1024 ** 3;
 
@@ -46,7 +47,10 @@ export async function startServerImport({
   const upload = deps.upload || uploadLargeFile;
   const prepare = deps.prepare || prepareV4Row;
   const enqueue = deps.enqueue || enqueueJob;
-  const dataset = await upload(file, { name: name || file.name, onProgress: onUploadProgress, signal });
+  // the same sampled fingerprint the volume row records: with it the server
+  // resumes this user's unfinished upload of the file from any browser
+  const fingerprint = deps.fingerprint || fileFingerprint;
+  const dataset = await upload(file, { name: name || file.name, onProgress: onUploadProgress, signal, fingerprint });
   const prep = await prepare({ file, mapping, nativeCrs, name });
   const jobId = await enqueue('stack_to_v4', {
     dataset_id: dataset.id,

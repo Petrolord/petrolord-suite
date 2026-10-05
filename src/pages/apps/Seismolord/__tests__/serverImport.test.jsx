@@ -39,6 +39,8 @@ describe('startServerImport', () => {
     };
     const out = await startServerImport({ file, mapping: { ilByte: 189 }, scan: { il: {}, xl: {} }, nativeCrs: 'EPSG:32631', name: 'Big' }, deps);
     expect(order).toEqual(['upload', 'prepare', 'enqueue']);
+    // the upload carries a fingerprint function so the server can resume it from any browser
+    expect(typeof deps.upload.mock.calls[0][1].fingerprint).toBe('function');
     expect(out).toEqual({ jobId: 'job-1', volumeId: 'vol-1', datasetId: 'ds-1' });
     expect(deps.prepare).toHaveBeenCalledWith({ file, mapping: { ilByte: 189 }, nativeCrs: 'EPSG:32631', name: 'Big' });
     expect(deps.enqueue).toHaveBeenCalledWith('stack_to_v4', {

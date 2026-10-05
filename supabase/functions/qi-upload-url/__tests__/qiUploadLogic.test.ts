@@ -80,6 +80,14 @@ describe('multipart plan and validation', () => {
     expect(validateStart({ filename: 'a', bytes: MAX_FILE_BYTES + 1 })).toMatchObject({ ok: false });
   });
 
+  test('an optional fingerprint is validated and normalised', () => {
+    const fp = { algo: 'sha256-sampled-64k-v1', hash: 'EC125DAA5C4D6E11410C5B120FDEB62C20F76BC680CE86F542E19DE58F89B6BD', size: 10 };
+    expect(validateStart({ filename: 'a', bytes: 10, fingerprint: fp })).toMatchObject({ ok: true, value: { fingerprint: { algo: fp.algo, hash: fp.hash.toLowerCase() } } });
+    expect(validateStart({ filename: 'a', bytes: 10 })).toMatchObject({ ok: true, value: { fingerprint: null } });
+    expect(validateStart({ filename: 'a', bytes: 10, fingerprint: { algo: 'x', hash: 'nothex' } })).toMatchObject({ ok: false });
+    expect(validateStart({ filename: 'a', bytes: 11, fingerprint: fp })).toMatchObject({ ok: false, error: expect.stringMatching(/different size/) });
+  });
+
   test('part number requests are bounded', () => {
     expect(validatePartNumbers([1, 2, 2], 5)).toEqual([1, 2]);
     expect(validatePartNumbers([0], 5)).toMatch(/outside/);

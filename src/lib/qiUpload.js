@@ -50,6 +50,7 @@ export async function uploadLargeFile(file, {
   name,
   organizationId = null,
   sleep = sleepMs,
+  fingerprint = null, // async (file) => {algo, hash, size}: lets the server resume across browsers
 } = {}) {
   const store = safeStorage(storage);
   const memoKey = KEY_PREFIX + fileFingerprint(file);
@@ -58,25 +59,36 @@ export async function uploadLargeFile(file, {
   let partCount;
   const done = new Set();
 
+  const loadParts = async () => {
+    const r = await invoke({ action: 'parts', dataset_id: datasetId });
+    partSize = r.part_size;
+    partCount = r.part_count;
+    for (const p of r.parts || []) {
+      const expected = p.partNumber < partCount ? partSize : file.size - partSize * (partCount - 1);
+      if (p.size === expected) done.add(p.partNumber);
+    }
+  };
+
   if (datasetId) {
     try {
-      const r = await invoke({ action: 'parts', dataset_id: datasetId });
-      partSize = r.part_size;
-      partCount = r.part_count;
-      for (const p of r.parts || []) {
-        const expected = p.partNumber < partCount ? partSize : file.size - partSize * (partCount - 1);
-        if (p.size === expected) done.add(p.partNumber);
-      }
+      await loadParts();
     } catch (e) {
       if (e.status === 404 || e.status === 409 || e.status === 403) { store.del(memoKey); datasetId = null; } else throw e;
     }
   }
   if (!datasetId) {
-    const r = await invoke({ action: 'start', filename: file.name, bytes: file.size, name: name || file.name, organization_id: organizationId });
+    const fp = fingerprint ? await fingerprint(file) : null;
+    const r = await invoke({
+      action: 'start', filename: file.name, bytes: file.size, name: name || file.name, organization_id: organizationId,
+      ...(fp ? { fingerprint: fp } : {}),
+    });
     datasetId = r.dataset_id;
     partSize = r.part_size;
     partCount = r.part_count;
     store.set(memoKey, datasetId);
+    // the server found this user's unfinished upload of the same file
+    // (another browser, another computer, cleared storage): carry it on
+    if (r.resumed) await loadParts();
   }
 
   const sizeOf = (n) => (n < partCount ? partSize : file.size - partSize * (partCount - 1));

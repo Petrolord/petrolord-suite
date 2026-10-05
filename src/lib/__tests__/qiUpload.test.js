@@ -28,8 +28,14 @@ function fakeServer() {
   const invoke = async (body) => {
     log.push(body.action);
     if (body.action === 'start') {
+      // as the function does: an unfinished upload of the same file
+      // (size + fingerprint) is resumed instead of a second one starting
+      if (body.fingerprint) {
+        const hit = [...uploads].find(([, u]) => u.status === 'uploading' && u.bytes === body.bytes && u.fp === body.fingerprint.hash);
+        if (hit) return { dataset_id: hit[0], part_size: PART, part_count: hit[1].partCount, resumed: true };
+      }
       const id = `ds-${nextId++}`;
-      uploads.set(id, { bytes: body.bytes, partCount: Math.ceil(body.bytes / PART), parts: new Map(), status: 'uploading', signed: 0 });
+      uploads.set(id, { bytes: body.bytes, partCount: Math.ceil(body.bytes / PART), parts: new Map(), status: 'uploading', signed: 0, fp: body.fingerprint?.hash });
       return { dataset_id: id, part_size: PART, part_count: Math.ceil(body.bytes / PART) };
     }
     const u = uploads.get(body.dataset_id);
@@ -159,6 +165,54 @@ describe('uploadLargeFile', () => {
     const dropPart2 = async (url, init) => (new URL(url).pathname.endsWith('/2') ? { ok: true, status: 200 } : s.fetchImpl(url, init));
     await expect(uploadLargeFile(file, { invoke: s.invoke, fetchImpl: dropPart2, storage: memStorage(), sleep: noSleep }))
       .rejects.toMatchObject({ status: 409 });
+  });
+});
+
+describe('resume across browsers (server-side match)', () => {
+  const fp = (hash) => async (file) => ({ algo: 'sha256-sampled-64k-v1', hash, size: file.size });
+  const H1 = 'a'.repeat(64);
+  const H2 = 'b'.repeat(64);
+
+  async function interrupted(s, file) {
+    const ctl = new AbortController();
+    let puts = 0;
+    const flaky = async (url, init) => {
+      if (++puts === 3) { ctl.abort(); throw Object.assign(new Error('aborted'), { name: 'AbortError' }); }
+      return s.fetchImpl(url, init);
+    };
+    await expect(uploadLargeFile(file, { invoke: s.invoke, fetchImpl: flaky, storage: memStorage(), signal: ctl.signal, concurrency: 1, sleep: noSleep, fingerprint: fp(H1) }))
+      .rejects.toMatchObject({ name: 'AbortError' });
+  }
+
+  test('another browser (nothing remembered locally) carries on the same upload and sends only what is missing', async () => {
+    const s = fakeServer();
+    const file = fakeFile(5200);
+    await interrupted(s, file);
+    const [id] = [...s.uploads.keys()];
+    const sent = [];
+    const ds = await uploadLargeFile(file, {
+      invoke: s.invoke, storage: memStorage(), sleep: noSleep, fingerprint: fp(H1),
+      fetchImpl: async (url, init) => { sent.push(Number(new URL(url).pathname.split('/')[2])); return s.fetchImpl(url, init); },
+    });
+    expect(ds.id).toBe(id);
+    expect(s.uploads.size).toBe(1);
+    expect(sent.sort()).toEqual([3, 4, 5, 6]);
+    expect(same(s.uploads.get(id).assembled, file.bytes)).toBe(true);
+  });
+
+  test('negative control: a different file fingerprint starts its own upload', async () => {
+    const s = fakeServer();
+    const file = fakeFile(5200);
+    await interrupted(s, file);
+    await uploadLargeFile(file, { invoke: s.invoke, fetchImpl: s.fetchImpl, storage: memStorage(), sleep: noSleep, fingerprint: fp(H2) });
+    expect(s.uploads.size).toBe(2);
+  });
+
+  test('without a fingerprint the server is not asked to match (unchanged behaviour)', async () => {
+    const s = fakeServer();
+    const file = fakeFile(1500);
+    await uploadLargeFile(file, { invoke: s.invoke, fetchImpl: s.fetchImpl, storage: memStorage(), sleep: noSleep });
+    expect(s.uploads.get('ds-1').fp).toBeUndefined();
   });
 });
 
