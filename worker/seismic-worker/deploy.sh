@@ -2,7 +2,7 @@
 # Deploy the seismic worker to seismic-worker.petrolord.com, gated.
 # Run from a checkout on the studio VPS:  worker/seismic-worker/deploy.sh [git-ref]
 #   1. jest suite for the worker, and db-tests (qi_jobs behaviour on real Postgres)
-#   2. ships `git archive <ref>` of the worker + packages/engines to the host
+#   2. bundles `git archive <ref>` with esbuild (build.mjs) and ships the bundle
 #   3. builds there, runs the in-image selfcheck, and only then starts it
 # Fails closed at every step. The host keeps its own .env (never shipped).
 set -euo pipefail
@@ -18,8 +18,14 @@ npx jest worker/seismic-worker --silent
 echo "==> Gate 2: qi_jobs behaviour on real Postgres"
 worker/seismic-worker/db-tests/run.sh | tail -1
 
-echo "==> Shipping ${SHA} (${ENGINE_COMMIT}) to ${HOST}"
-git archive --format=tar "$REF" worker/seismic-worker packages/engines | \
+echo "==> Bundling ${SHA} (${ENGINE_COMMIT})"
+BUILD=$(mktemp -d); trap 'rm -rf "$BUILD"' EXIT
+git archive --format=tar "$REF" | tar -x -C "$BUILD"
+ln -s "$(pwd)/node_modules" "$BUILD/node_modules"
+node "$BUILD/worker/seismic-worker/build.mjs" "$BUILD/bundle"
+
+echo "==> Shipping to ${HOST}"
+tar -C "$BUILD" -cf - bundle worker/seismic-worker/Dockerfile worker/seismic-worker/docker-compose.yml | \
   ssh -o BatchMode=yes "$HOST" 'set -e; D=/opt/seismic-worker/worker; mkdir -p $D; rm -rf $D/src-tree.new; mkdir -p $D/src-tree.new; tar -x -C $D/src-tree.new; rm -rf $D/src-tree; mv $D/src-tree.new $D/src-tree; cp $D/src-tree/worker/seismic-worker/docker-compose.yml $D/docker-compose.yml'
 
 ssh -o BatchMode=yes "$HOST" ENGINE_COMMIT="$ENGINE_COMMIT" 'bash -s' <<'REMOTE'

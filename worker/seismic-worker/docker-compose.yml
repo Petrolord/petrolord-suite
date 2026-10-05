@@ -33,7 +33,7 @@ services:
   selfcheck:
     profiles: ["verify"]
     image: seismic-worker:current
-    entrypoint: ["node", "src/selfcheck.js"]
+    entrypoint: ["node", "dist/selfcheck.mjs"]
     restart: "no"
 networks:
   storage:

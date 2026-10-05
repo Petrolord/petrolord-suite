@@ -8,7 +8,11 @@ import { loadConfig, assertRunnable } from './config.js';
 import { createSupa } from './supa.js';
 import { createQueue } from './queue.js';
 import { runJob } from './runJob.js';
-import { HANDLERS, KINDS } from './handlers/index.js';
+import { createClient } from '@supabase/supabase-js';
+import { createHandlers, KINDS } from './handlers/index.js';
+import { makeSigner } from './s3.js';
+import { supabaseStorageClient } from '../../../src/pages/apps/Seismolord/services/seismicStorageClient.js';
+import { resolveCodec, DEFLATE_RAW } from '../../../packages/engines/engines/seismolord/brickCodecV4.js';
 import { pollOnce } from './loop.js';
 
 const log = {
@@ -23,13 +27,23 @@ async function main() {
   fs.mkdirSync(cfg.scratchDir, { recursive: true });
   const supa = createSupa({ url: cfg.supabaseUrl, key: cfg.serviceRoleKey });
   const queue = createQueue(supa, cfg);
+  const admin = createClient(cfg.supabaseUrl, cfg.serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  const handlers = createHandlers({
+    admin,
+    storage: supabaseStorageClient(admin, 'seismic'),
+    sign: makeSigner(cfg.s3),
+    scratchDir: cfg.scratchDir,
+    // CompressionStream deflate-raw, the same codec the browser import uses
+    codec: resolveCodec({ compression: DEFLATE_RAW }),
+    memoryBudgetBytes: cfg.convertBudgetBytes,
+  });
   const running = new Map();
   const health = { startedAt: new Date().toISOString(), lastPollOk: null, lastPollError: null };
   let stopping = false;
 
   const launch = (job) => {
     log.info(`claimed ${job.kind} job ${job.id} (attempt ${job.attempt})`);
-    const p = runJob(job, { queue, handlers: HANDLERS, cfg, log })
+    const p = runJob(job, { queue, handlers, cfg, log })
       .then((outcome) => log.info(`job ${job.id} ${outcome}`))
       .finally(() => running.delete(job.id));
     running.set(job.id, p);

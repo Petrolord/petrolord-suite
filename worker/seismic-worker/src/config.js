@@ -32,6 +32,9 @@ export function loadConfig() {
       rawBucket: env('S3_RAW_BUCKET', 'seismic-raw'),
       workBucket: env('S3_WORK_BUCKET', 'seismic-work'),
     }),
+    // Conversion memory budget: the browser uses 320 MiB; the server can read
+    // a survey in fewer passes. Output bricks do not depend on it.
+    convertBudgetBytes: num('CONVERT_BUDGET_BYTES', 2 * 1024 ** 3),
     engineCommit: env('ENGINE_COMMIT', 'unknown'),
     healthPort: num('HEALTH_PORT', 8080),
   });
