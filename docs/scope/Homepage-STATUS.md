@@ -1,5 +1,18 @@
 # Suite public homepage: status
 
+## 2026-10-05 counts reconciled with NextGen
+
+Branch `fix/homepage-counts`; full table and definitions in
+`docs/scope/Homepage-Counts.md`. Figures verified against the live
+databases (read-only): 104 live apps across 10 modules (all routed; SC3
+and SC4 are live), 79 NextGen courses of which 72 are built on a Suite app.
+Labels now say "Suite modules" and "79 NextGen Academy courses, 72 of them
+built on these apps", so they cannot read as contradicting NextGen's 12
+academy disciplines or its engine and practice courses. The guard test
+compares the module lists with a snapshot of `master_apps`
+(`src/data/__fixtures__/live-catalogue.json`) name by name and checks every
+live app has a route.
+
 ## 2026-09-27 redesign
 
 The homepage at petrolord.com was rebuilt as a sibling of the NextGen

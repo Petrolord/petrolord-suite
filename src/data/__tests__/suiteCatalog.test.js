@@ -1,7 +1,8 @@
 // Guards the public catalogue that the homepage and Solutions page read.
 import fs from 'fs';
 import path from 'path';
-import { SUITE_MODULES, suiteStats, NEXTGEN_LIVE_COURSES } from '@/data/suiteCatalog';
+import { SUITE_MODULES, suiteStats, NEXTGEN_LIVE_COURSES, NEXTGEN_APP_COURSES } from '@/data/suiteCatalog';
+import LIVE from '@/data/__fixtures__/live-catalogue.json';
 import { MODULE_PRICING } from '@/data/pricingModels';
 
 const read = (rel) => fs.readFileSync(path.resolve(__dirname, '../..', rel), 'utf8');
@@ -18,15 +19,33 @@ describe('the public app catalogue', () => {
     expect(new Set(apps).size).toBe(apps.length);
   });
 
-  it('matches the live catalogue checked on 2026-09-27, with SC3 and SC4', () => {
-    // 102 Active, built and functional tiles in master_apps on 2026-09-27,
-    // plus the Materials & Spares Planner (SC3, 20260928120000) and the Marine
-    // Logistics Planner (SC4, 20260929120000). Update this
-    // number together with the module lists when an app goes live.
+  // The reconciled homepage counts (docs/scope/Homepage-Counts.md), pinned
+  // to a read-only snapshot of the live databases taken 2026-10-05. Change
+  // the lists, the constants and the snapshot together.
+  it('matches the live catalogue snapshot module by module, name by name', () => {
+    expect(LIVE.taken).toBe('2026-10-05');
+    const live = {};
+    for (const a of LIVE.suiteLiveApps) (live[a.module] ||= []).push(a.name);
+    const listed = Object.fromEntries(SUITE_MODULES.map((m) => [m.slug, [...m.apps].sort()]));
+    for (const k of Object.keys(live)) live[k].sort();
+    expect(listed).toEqual(live);
     expect(suiteStats()).toEqual({ apps: 104, modules: 10, modulesWord: 'Ten' });
-    // Live academy_apps with status 'available' on 2026-09-27. Update this
-    // pin together with the constant when a NextGen course goes live.
-    expect(NEXTGEN_LIVE_COURSES).toBe(79);
+    expect(suiteStats().apps).toBe(LIVE.suiteLiveApps.length);
+  });
+
+  it('counts only apps that have a route on main', () => {
+    const app = read('App.jsx');
+    const unrouted = LIVE.suiteLiveApps.filter(
+      (a) => !app.includes(`appId="${a.slug}"`) && !app.includes(`path="apps/${a.module}/${a.slug}"`),
+    );
+    expect(unrouted).toEqual([]);
+  });
+
+  it('pins the NextGen course figures to the academy catalogue', () => {
+    const available = LIVE.nextgenCourses.filter((c) => c.status === 'available');
+    expect(NEXTGEN_LIVE_COURSES).toBe(available.length);
+    expect(NEXTGEN_APP_COURSES).toBe(available.filter((c) => c.courseType === 'app').length);
+    expect([NEXTGEN_LIVE_COURSES, NEXTGEN_APP_COURSES]).toEqual([79, 72]);
   });
 
   it('follows the owner copy rule: no em or en dashes', () => {

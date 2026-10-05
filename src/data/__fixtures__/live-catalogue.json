@@ -1,0 +1,1002 @@
+{
+ "_about": "Read-only snapshot of the live catalogues the two homepages count, taken 2026-10-05. Suite: public.master_apps where status = 'Active' and is_built and is_functional, joined to public.modules for the slug (project ssyckywijlrkgcwvkwlr). NextGen: public.academy_apps (project txcsbtvcdaqmkjjbhbeg). See docs/scope/Homepage-Counts.md for the queries and the definitions. Refresh it with those queries when an app or a course goes live, together with suiteCatalog.js.",
+ "taken": "2026-10-05",
+ "suiteLiveApps": [
+  {
+   "module": "assurance",
+   "slug": "audit-findings-manager",
+   "name": "Audit & Findings Manager"
+  },
+  {
+   "module": "assurance",
+   "slug": "document-control",
+   "name": "Document Control"
+  },
+  {
+   "module": "assurance",
+   "slug": "iso-compliance-tool",
+   "name": "ISO Compliance Tool"
+  },
+  {
+   "module": "assurance",
+   "slug": "lesson-learned-db",
+   "name": "Lesson Learned DB"
+  },
+  {
+   "module": "assurance",
+   "slug": "management-of-change",
+   "name": "Management of Change"
+  },
+  {
+   "module": "assurance",
+   "slug": "peer-review-manager",
+   "name": "Peer Review Manager"
+  },
+  {
+   "module": "assurance",
+   "slug": "quality-assurance-plan",
+   "name": "Quality Assurance Plan"
+  },
+  {
+   "module": "assurance",
+   "slug": "regulatory-compliance",
+   "name": "Regulatory Compliance"
+  },
+  {
+   "module": "assurance",
+   "slug": "risk-heatmap",
+   "name": "Risk Heatmap"
+  },
+  {
+   "module": "assurance",
+   "slug": "risk-register",
+   "name": "Risk Register"
+  },
+  {
+   "module": "data-ai",
+   "slug": "ai-evaluation-studio",
+   "name": "AI Evaluation Studio"
+  },
+  {
+   "module": "data-ai",
+   "slug": "data-quality-studio",
+   "name": "Data Quality Studio"
+  },
+  {
+   "module": "data-ai",
+   "slug": "electrofacies-studio",
+   "name": "Electrofacies Studio"
+  },
+  {
+   "module": "data-ai",
+   "slug": "forecasting-ml-workbench",
+   "name": "Production Forecasting ML Workbench"
+  },
+  {
+   "module": "data-ai",
+   "slug": "ml-workbench",
+   "name": "ML Workbench"
+  },
+  {
+   "module": "drilling",
+   "slug": "casing-tubing-design-pro",
+   "name": "Casing & Tubing Design Studio"
+  },
+  {
+   "module": "drilling",
+   "slug": "cementing-studio",
+   "name": "Cementing Studio"
+  },
+  {
+   "module": "drilling",
+   "slug": "completion-design-studio",
+   "name": "Completion Design Studio"
+  },
+  {
+   "module": "drilling",
+   "slug": "drilling-fluids-hydraulics",
+   "name": "Drilling Fluids & Hydraulics Studio"
+  },
+  {
+   "module": "drilling",
+   "slug": "geomechanics-studio",
+   "name": "Geomechanics & Wellbore Stability Studio"
+  },
+  {
+   "module": "drilling",
+   "slug": "perforation-sand-control",
+   "name": "Perforation & Sand Control Designer"
+  },
+  {
+   "module": "drilling",
+   "slug": "stimulation-designer",
+   "name": "Stimulation Designer"
+  },
+  {
+   "module": "drilling",
+   "slug": "torque-drag-studio",
+   "name": "Torque & Drag Studio"
+  },
+  {
+   "module": "drilling",
+   "slug": "well-control-studio",
+   "name": "Well Control Studio"
+  },
+  {
+   "module": "drilling",
+   "slug": "well-cost-time",
+   "name": "Well Cost & Time Estimator"
+  },
+  {
+   "module": "drilling",
+   "slug": "well-integrity-pa",
+   "name": "Well Integrity & P&A Studio"
+  },
+  {
+   "module": "drilling",
+   "slug": "well-planning",
+   "name": "Well Design Studio"
+  },
+  {
+   "module": "economics",
+   "slug": "afe-cost-control-manager",
+   "name": "AFE Cost Control Manager"
+  },
+  {
+   "module": "economics",
+   "slug": "capital-portfolio-studio",
+   "name": "Capital Portfolio Studio"
+  },
+  {
+   "module": "economics",
+   "slug": "decision-studio",
+   "name": "Decision Studio"
+  },
+  {
+   "module": "economics",
+   "slug": "decision-tree-builder",
+   "name": "Decision Tree Builder"
+  },
+  {
+   "module": "economics",
+   "slug": "epe-suite",
+   "name": "Petroleum Economics Studio"
+  },
+  {
+   "module": "economics",
+   "slug": "fdp-accelerator",
+   "name": "FDP Accelerator"
+  },
+  {
+   "module": "economics",
+   "slug": "fiscal-regime-designer",
+   "name": "Fiscal Regime Designer"
+  },
+  {
+   "module": "economics",
+   "slug": "npv-scenario-builder",
+   "name": "NPV Scenario Builder"
+  },
+  {
+   "module": "economics",
+   "slug": "probabilistic-breakeven-analyzer",
+   "name": "Probabilistic Breakeven Analyzer"
+  },
+  {
+   "module": "economics",
+   "slug": "project-management-pro",
+   "name": "Project Management Pro"
+  },
+  {
+   "module": "economics",
+   "slug": "technical-report-autopilot",
+   "name": "Technical Report Autopilot"
+  },
+  {
+   "module": "economics",
+   "slug": "value-of-information-analyzer",
+   "name": "Value of Information Analyzer"
+  },
+  {
+   "module": "facilities",
+   "slug": "compressor-station-designer",
+   "name": "Compressor Station Designer"
+  },
+  {
+   "module": "facilities",
+   "slug": "control-valve-sizing",
+   "name": "Control Valve & Choke Sizing"
+  },
+  {
+   "module": "facilities",
+   "slug": "corrosion-rate-predictor",
+   "name": "Corrosion & Integrity Studio"
+  },
+  {
+   "module": "facilities",
+   "slug": "facility-layout-mapper",
+   "name": "Facility Layout Mapper"
+  },
+  {
+   "module": "facilities",
+   "slug": "facility-network-hydraulics",
+   "name": "Pipeline & Line Sizing Studio"
+  },
+  {
+   "module": "facilities",
+   "slug": "flow-metering-designer",
+   "name": "Flow Metering Designer"
+  },
+  {
+   "module": "facilities",
+   "slug": "gas-treating-dehydration",
+   "name": "Gas Processing Studio"
+  },
+  {
+   "module": "facilities",
+   "slug": "heat-exchanger-sizer",
+   "name": "Heat Exchanger & Cooling Studio"
+  },
+  {
+   "module": "facilities",
+   "slug": "produced-water-treatment",
+   "name": "Produced Water Treatment Studio"
+  },
+  {
+   "module": "facilities",
+   "slug": "pump-station-designer",
+   "name": "Pump Station Designer"
+  },
+  {
+   "module": "facilities",
+   "slug": "relief-blowdown-sizer",
+   "name": "Relief & Flare Studio"
+  },
+  {
+   "module": "facilities",
+   "slug": "separator-slug-catcher-designer",
+   "name": "Separator & Slug Catcher Studio"
+  },
+  {
+   "module": "facilities",
+   "slug": "storage-tank-designer",
+   "name": "Storage Tank & Venting Designer"
+  },
+  {
+   "module": "geoscience",
+   "slug": "basinflow-genesis",
+   "name": "Basin & Charge Modeling"
+  },
+  {
+   "module": "geoscience",
+   "slug": "earth-modeling",
+   "name": "Earth Modeling"
+  },
+  {
+   "module": "geoscience",
+   "slug": "mapping-surface-studio",
+   "name": "Mapping & Surface Studio"
+  },
+  {
+   "module": "geoscience",
+   "slug": "petrophysics-studio",
+   "name": "Petrophysics Studio"
+  },
+  {
+   "module": "geoscience",
+   "slug": "pore-pressure-studio",
+   "name": "Pore Pressure Studio"
+  },
+  {
+   "module": "geoscience",
+   "slug": "reservoircalc-pro",
+   "name": "ReservoirCalc Pro"
+  },
+  {
+   "module": "geoscience",
+   "slug": "rock-physics-studio",
+   "name": "Rock Physics Studio"
+  },
+  {
+   "module": "geoscience",
+   "slug": "seismolord",
+   "name": "Seismolord"
+  },
+  {
+   "module": "geoscience",
+   "slug": "stratigraphy-studio",
+   "name": "Stratigraphy Studio"
+  },
+  {
+   "module": "geoscience",
+   "slug": "well-correlation",
+   "name": "Well Correlation"
+  },
+  {
+   "module": "geoscience",
+   "slug": "well-data-manager",
+   "name": "Well Data Manager"
+  },
+  {
+   "module": "geoscience",
+   "slug": "wellsite-studio",
+   "name": "Wellsite Studio"
+  },
+  {
+   "module": "midstream-downstream",
+   "slug": "carbon-footprint-abatement",
+   "name": "Carbon Footprint & Abatement Studio"
+  },
+  {
+   "module": "midstream-downstream",
+   "slug": "crude-assay-blending-studio",
+   "name": "Crude Assay & Blending Studio"
+  },
+  {
+   "module": "midstream-downstream",
+   "slug": "energy-utilities-efficiency",
+   "name": "Energy & Utilities Efficiency Studio"
+  },
+  {
+   "module": "midstream-downstream",
+   "slug": "flare-gas-to-value",
+   "name": "Flare Gas to Value Studio"
+  },
+  {
+   "module": "midstream-downstream",
+   "slug": "fuel-pricing-supply-chain",
+   "name": "Fuel Pricing & Supply Chain Studio"
+  },
+  {
+   "module": "midstream-downstream",
+   "slug": "lpg-cng-rollout-studio",
+   "name": "LPG & CNG Rollout Studio"
+  },
+  {
+   "module": "midstream-downstream",
+   "slug": "marine-logistics-planner",
+   "name": "Marine Logistics Planner"
+  },
+  {
+   "module": "midstream-downstream",
+   "slug": "materials-spares-planner",
+   "name": "Materials & Spares Planner"
+  },
+  {
+   "module": "midstream-downstream",
+   "slug": "modular-refinery-feasibility",
+   "name": "Modular Refinery Feasibility Studio"
+  },
+  {
+   "module": "midstream-downstream",
+   "slug": "product-blending-optimizer",
+   "name": "Product Blending Optimizer"
+  },
+  {
+   "module": "midstream-downstream",
+   "slug": "refinery-planning-scheduling",
+   "name": "Refinery Planning & Scheduling Studio"
+  },
+  {
+   "module": "midstream-downstream",
+   "slug": "terminal-depot-studio",
+   "name": "Terminal & Depot Studio"
+  },
+  {
+   "module": "process-safety",
+   "slug": "consequence-studio",
+   "name": "Consequence Modelling Studio"
+  },
+  {
+   "module": "process-safety",
+   "slug": "lopa-sil-studio",
+   "name": "LOPA & SIL Studio"
+  },
+  {
+   "module": "process-safety",
+   "slug": "qra-studio",
+   "name": "QRA Studio"
+  },
+  {
+   "module": "production",
+   "slug": "artificial-lift-designer",
+   "name": "Artificial Lift Advisor"
+  },
+  {
+   "module": "production",
+   "slug": "choke-performance-studio",
+   "name": "Choke & Wellhead Performance Studio"
+  },
+  {
+   "module": "production",
+   "slug": "esp-design-studio",
+   "name": "ESP Design Studio"
+  },
+  {
+   "module": "production",
+   "slug": "flow-assurance-studio",
+   "name": "Flow Assurance Studio"
+  },
+  {
+   "module": "production",
+   "slug": "gas-lift-design-studio",
+   "name": "Gas Lift Design Studio"
+  },
+  {
+   "module": "production",
+   "slug": "gas-well-performance-studio",
+   "name": "Gas Well Performance Studio"
+  },
+  {
+   "module": "production",
+   "slug": "nodal-analysis-engine",
+   "name": "Nodal Analysis Studio"
+  },
+  {
+   "module": "production",
+   "slug": "production-allocation-studio",
+   "name": "Production Allocation Studio"
+  },
+  {
+   "module": "production",
+   "slug": "production-network-studio",
+   "name": "Production Network Studio"
+  },
+  {
+   "module": "production",
+   "slug": "production-surveillance-studio",
+   "name": "Production Surveillance Studio"
+  },
+  {
+   "module": "production",
+   "slug": "rod-pump-design-studio",
+   "name": "Rod Pump Design Studio"
+  },
+  {
+   "module": "production",
+   "slug": "well-intervention-planner",
+   "name": "Well Intervention Planner"
+  },
+  {
+   "module": "reservoir",
+   "slug": "decline-curve-analysis",
+   "name": "Decline Curve Analysis"
+  },
+  {
+   "module": "reservoir",
+   "slug": "eor-screening",
+   "name": "EOR Screening"
+  },
+  {
+   "module": "reservoir",
+   "slug": "fluid-systems-studio",
+   "name": "Fluid Systems Studio"
+  },
+  {
+   "module": "reservoir",
+   "slug": "forecast-scenario-hub",
+   "name": "Forecast Scenario Hub"
+  },
+  {
+   "module": "reservoir",
+   "slug": "fractional-flow-calculator",
+   "name": "Waterflood Design Studio"
+  },
+  {
+   "module": "reservoir",
+   "slug": "recovery-factor-estimator",
+   "name": "Recovery Factor Estimator"
+  },
+  {
+   "module": "reservoir",
+   "slug": "reservoir-balance",
+   "name": "Material Balance Studio"
+  },
+  {
+   "module": "reservoir",
+   "slug": "reservoir-simulation-studio",
+   "name": "Reservoir Simulation Studio"
+  },
+  {
+   "module": "reservoir",
+   "slug": "risked-reserves-valuation",
+   "name": "Risked Reserves Valuation"
+  },
+  {
+   "module": "reservoir",
+   "slug": "scal-studio",
+   "name": "SCAL Studio"
+  },
+  {
+   "module": "reservoir",
+   "slug": "voidage-replacement-monitor",
+   "name": "Voidage Replacement Monitor"
+  },
+  {
+   "module": "reservoir",
+   "slug": "well-spacing-optimizer",
+   "name": "Well Spacing Optimizer"
+  },
+  {
+   "module": "reservoir",
+   "slug": "well-test-analyzer",
+   "name": "Well Test Analysis Studio"
+  }
+ ],
+ "nextgenCourses": [
+  {
+   "slug": "appliedai",
+   "module": "data_ai",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "basin",
+   "module": "geoscience",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "carbon",
+   "module": "energy_transition",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "cashflow",
+   "module": "economics",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "casingtubing",
+   "module": "drilling",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "cementing",
+   "module": "drilling",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "completion",
+   "module": "drilling",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "compliance",
+   "module": "assurance",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "consequence",
+   "module": "hse",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "contracts",
+   "module": "supply_chain",
+   "status": "available",
+   "courseType": "practice"
+  },
+  {
+   "slug": "corrosion",
+   "module": "facilities",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "crude",
+   "module": "commercial_trading",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "dataqc",
+   "module": "data_ai",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "dca",
+   "module": "reservoir",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "decision",
+   "module": "economics",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "earthmodel",
+   "module": "geoscience",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "esp",
+   "module": "production",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "facies",
+   "module": "data_ai",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "farmout",
+   "module": "economics",
+   "status": "available",
+   "courseType": "engine"
+  },
+  {
+   "slug": "fdp",
+   "module": "economics",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "fiscal",
+   "module": "economics",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "flowassurance",
+   "module": "production",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "fluid",
+   "module": "reservoir",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "forecastml",
+   "module": "data_ai",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "gaslift",
+   "module": "production",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "gasprocessing",
+   "module": "facilities",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "gasvalue",
+   "module": "energy_transition",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "gaswell",
+   "module": "production",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "geomech",
+   "module": "drilling",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "gsa",
+   "module": "economics",
+   "status": "available",
+   "courseType": "engine"
+  },
+  {
+   "slug": "heattransfer",
+   "module": "facilities",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "hydraulics",
+   "module": "drilling",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "hygiene",
+   "module": "hse",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "integrity",
+   "module": "drilling",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "intervention",
+   "module": "production",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "joa",
+   "module": "economics",
+   "status": "available",
+   "courseType": "engine"
+  },
+  {
+   "slug": "linesizing",
+   "module": "facilities",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "lopa",
+   "module": "hse",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "mapping",
+   "module": "geoscience",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "marine",
+   "module": "supply_chain",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "materials",
+   "module": "supply_chain",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "mbal",
+   "module": "reservoir",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "metering",
+   "module": "facilities",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "mlcore",
+   "module": "data_ai",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "network",
+   "module": "production",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "nodal",
+   "module": "production",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "perfsand",
+   "module": "drilling",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "petrophysics",
+   "module": "geoscience",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "pia",
+   "module": "economics",
+   "status": "available",
+   "courseType": "engine"
+  },
+  {
+   "slug": "porepressure",
+   "module": "geoscience",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "portfolio",
+   "module": "economics",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "prms",
+   "module": "economics",
+   "status": "available",
+   "courseType": "engine"
+  },
+  {
+   "slug": "procurement",
+   "module": "supply_chain",
+   "status": "available",
+   "courseType": "engine"
+  },
+  {
+   "slug": "producedwater",
+   "module": "facilities",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "qra",
+   "module": "hse",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "refinery",
+   "module": "commercial_trading",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "relief",
+   "module": "facilities",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "reservoircalc",
+   "module": "geoscience",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "riskchange",
+   "module": "assurance",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "rockphysics",
+   "module": "geoscience",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "rodpump",
+   "module": "production",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "rotating",
+   "module": "facilities",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "safetystats",
+   "module": "hse",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "scal",
+   "module": "reservoir",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "seismolord",
+   "module": "geoscience",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "separation",
+   "module": "facilities",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "sim",
+   "module": "reservoir",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "stimulation",
+   "module": "drilling",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "supply",
+   "module": "supply_chain",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "surveillance",
+   "module": "production",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "torquedrag",
+   "module": "drilling",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "uncertainty",
+   "module": "economics",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "waterflood",
+   "module": "reservoir",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "wellcontrol",
+   "module": "drilling",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "wellcorrelation",
+   "module": "geoscience",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "wellcost",
+   "module": "drilling",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "welldata",
+   "module": "geoscience",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "welldesign",
+   "module": "drilling",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "welltest",
+   "module": "reservoir",
+   "status": "available",
+   "courseType": "app"
+  }
+ ]
+}

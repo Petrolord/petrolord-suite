@@ -1,14 +1,15 @@
 // The public face of the app catalogue: the homepage and the Solutions page
 // both read this file, so there is one list to keep honest.
 //
-// It mirrors the live master_apps catalogue, counting only tiles a customer
-// can open (status 'Active', is_built and is_functional). Checked against the
-// database on 2026-09-27: 102 apps across 10 modules, plus the Materials &
-// Spares Planner (SC3) and the Marine Logistics Planner (SC4), each counted
-// here with the PR that ships it and live once its held activation migration
-// (20260928120000, 20260929120000) is applied. When an app goes live
-// or is retired, change its module's list here in the same PR; the counts on
-// both pages are derived from these lists, never typed by hand.
+// WHAT IS COUNTED (docs/scope/Homepage-Counts.md): a live app is a tile a
+// customer can open today, meaning a master_apps row with status 'Active',
+// is_built and is_functional, whose route is on main. Checked against the
+// database on 2026-10-05: 104 apps across 10 modules, every one routed in
+// src/App.jsx. The snapshot is src/data/__fixtures__/live-catalogue.json and
+// the guard test compares these lists with it name by name. When an app goes
+// live or is retired, change its module's list here and refresh the snapshot
+// in the same PR; the counts on both pages are derived from these lists,
+// never typed by hand.
 //
 // Slugs match modules.slug and the /dashboard/<slug> hub routes, and are the
 // keys of MODULE_PRICING, so the price shown beside a module is the one the
@@ -228,8 +229,12 @@ export const suiteStats = (modules = SUITE_MODULES) => {
   };
 };
 
-// Live NextGen Academy courses (academy_apps with status 'available',
-// 79 checked 2026-09-27, after the 72 first recorded that day went stale).
-// The academy homepage reads this live; here it is a
-// static figure, so update it when a course goes live.
+// NextGen Academy courses (academy_apps on the NextGen project, checked
+// 2026-10-05 into the same snapshot). NEXTGEN_LIVE_COURSES counts status
+// 'available', which is what nextgen.petrolord.com shows as its course count;
+// NEXTGEN_APP_COURSES counts those of course_type 'app', the ones built on a
+// Suite app (the rest are engine and practice courses). The academy homepage
+// reads these live; here they are static, so update both with the snapshot
+// when a course goes live.
 export const NEXTGEN_LIVE_COURSES = 79;
+export const NEXTGEN_APP_COURSES = 72;
