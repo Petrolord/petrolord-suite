@@ -335,6 +335,7 @@ const WellSpacingHelpGuideContent = () => (
           ['Fluid Systems Studio (pvt-1)', 'Bo and oil viscosity read from the project table at your average pressure, the solution GOR, the gravities and the temperature'],
           ['Well Test Analysis Studio (wta-1)', 'Permeability, total skin and the average pressure'],
           ['Material Balance Studio (mbal-1)', 'OOIP, held against the volumetric OOIP of your case'],
+          ['Recovery Factor Estimator (rf-1)', 'The oil recovery factor with its method and source; the reservoir estimate is given to each well over its drained area'],
           ['Decline Curve Analysis (dca-forecast-1)', 'One well\'s oil EUR, turned into the drainage area it implies at your rock and RF'],
           ['Wells registry', 'Well names and surface locations: the map in the report and the spacing the wells already have'],
         ]}

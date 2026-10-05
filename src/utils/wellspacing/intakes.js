@@ -15,6 +15,8 @@
  *   mbal-1           Material Balance        OOIP, for the in-place cross-check
  *   dca-forecast-1   Decline Curve Analysis  one well's EUR (oil), for the
  *                                            EUR-implied drainage area
+ *   rf-1             Recovery Factor         the oil recovery factor with its
+ *                    Estimator               method (WS-U2-005)
  *   geo_wells        the wells registry      well names and surface locations,
  *                                            for the map and the spacing the
  *                                            wells already have
@@ -30,6 +32,7 @@ import { WTA_APP } from '@/lib/wellTestSource';
 import { MBAL_APP } from '@/lib/mbalCaseSource';
 import { DCA_APP, DCA_FORECAST_SCHEMA, dcaSourceLine } from '@/utils/declineCurve/dcaForecastContract';
 import { tableAt } from '@/utils/eor/intakes';
+import { RF_APP, RF_CONTRACT } from '@/lib/rfEstimateSource';
 
 export { intakeCardModel, intakeSourceText } from '@/utils/eor/intakes';
 export const REGISTRY_APP = 'Wells registry (Well Data Manager)';
@@ -156,6 +159,42 @@ export function wsMbalIntake(record, { at: takenAt = new Date().toISOString() } 
       fields: Object.keys(values),
       methods,
       fingerprint: mbalFingerprint(record),
+    },
+  };
+}
+
+export const rfFingerprint = (r) => (r ? { v: r.recovery_factor?.value ?? null, m: r.recovery_factor?.method ?? null, at: r.computed_at ?? null } : null);
+
+/**
+ * WS-U2-005: the oil recovery factor of a Recovery Factor Estimator project
+ * (rf-1), as the percent this app types. The estimator's RF is a fraction of
+ * OOIP over the whole reservoir; here it is given to each well over its
+ * drained area, which the method line says.
+ * @param {object} record rf-1
+ */
+export function wsRfIntake(record, { projectId = null, projectName = null, updatedAt = null, at: takenAt = new Date().toISOString() } = {}) {
+  if (!record || record.contract !== RF_CONTRACT) return { ok: false, errors: ['No rf-1 record.'] };
+  if (record.phase !== 'oil') return { ok: false, errors: ['The estimate is for gas; this app takes an oil recovery factor.'] };
+  const v = record.recovery_factor?.value;
+  if (!finite(v) || !(v > 0)) return { ok: false, errors: [record.recovery_factor?.withheld || 'The estimate has no recovery factor to take.'] };
+  const name = projectName || record.project?.name || projectId;
+  const values = { recoveryFactor: String(+(v * 100).toFixed(6)) };
+  const dist = record.distribution?.rf ? `; at the source P90 ${(record.distribution.rf.p90 * 100).toFixed(1)}, P50 ${(record.distribution.rf.p50 * 100).toFixed(1)}, P10 ${(record.distribution.rf.p10 * 100).toFixed(1)} percent (P90 the low case), seed ${record.distribution.seed}` : '';
+  const methods = {
+    recoveryFactor: `${record.recovery_factor.method_label}, ${RF_APP}, project "${name}"${record.project?.field ? ` (field ${record.project.field})` : ''}, saved ${String(record.computed_at || '').slice(0, 16).replace('T', ' ')} UTC${record.case_data === 'sample' ? ' (the sample case of that app)' : ''}${dist}. The reservoir recovery factor of the estimate, given here to each well over its drained area`,
+  };
+  return {
+    ok: true,
+    errors: [],
+    patch: values,
+    context: {},
+    intake: {
+      kind: 'rf',
+      from: { app: RF_APP, recordId: projectId ?? record.project?.id ?? null, recordName: name ?? null, at: updatedAt ?? record.computed_at ?? null, takenAt, schema: RF_CONTRACT },
+      values,
+      fields: Object.keys(values),
+      methods,
+      fingerprint: rfFingerprint(record),
     },
   };
 }
