@@ -30,7 +30,7 @@
 import { DAYS_PER_YEAR as REGISTRY_YEAR } from '@/lib/units/registry';
 import { pvtCalcs } from './pvtCalculations';
 import { calculateEconomics } from './npvCalculations';
-import { drainageCase, layoutOf, DEFAULT_LAYOUT } from './wellspacing/drainage';
+import { drainageCase, layoutOf, DEFAULT_LAYOUT, lineSourceDropPsi, lineSourceArgument } from './wellspacing/drainage';
 
 const REQUIRED_NUMERIC = [
   { key: 'reservoirArea', label: 'Reservoir area', min: 0 },
@@ -68,6 +68,8 @@ const OPTIONAL_NUMERIC = [
   { key: 'oilViscosity', label: 'Oil viscosity', min: 0 },
   { key: 'totalCompressibility', label: 'Total compressibility', min: 0, max: 0.01, unit: '1/psi' },
   { key: 'wellboreRadius', label: 'Wellbore radius', min: 0, max: 5, unit: 'ft' },
+  { key: 'interferenceDays', label: 'Interference test time', min: 0 },
+  { key: 'gaugeResolutionPsi', label: 'Gauge resolution', min: 0 },
 ];
 
 /**
@@ -371,6 +373,35 @@ export const spacingEconomicsInputs = (spacing, p) => {
   };
 };
 
+const row0Distance = (spacing, p) => drainageCase({ spacingAcres: spacing, layout: p.layout, planRateStbd: NaN }).distanceFt;
+
+/**
+ * WS-U2-006: the pressure drop at the neighbouring well when one well of the
+ * case produces at its starting rate for the stated time and the neighbour
+ * is shut in as the observer: the line source of the Step 1 gates (Ahmed and
+ * McKinney 2005 Eq. 1.2.134), dp = 70.6 q mu B / (k h) E1(948 phi mu ct r^2
+ * / (k t)), t in hours, r the distance between wells. Held against the gauge
+ * resolution: measurable when the drop is at least the resolution.
+ * Infinite acting: the other wells are shut in and no boundary is felt.
+ */
+export function interferenceAtNeighbour(rFt, qStbd, p) {
+  const tDays = p.interferenceDays;
+  const missing = [['interference test time', tDays], ['permeability', p.permeability], ['oil viscosity', p.oilViscosity], ['total compressibility', p.totalCompressibility]]
+    .filter(([, v]) => !(Number.isFinite(v) && v > 0)).map(([n]) => n);
+  if (missing.length) return { computed: false, text: `Not computed: ${missing.join(', ')} not given.` };
+  const args = { qStbd, muCp: p.oilViscosity, bo: p.bo, kMd: p.permeability, hFt: p.avgNetPay, phi: p.porosity, ctPerPsi: p.totalCompressibility, rFt, tHours: tDays * 24 };
+  const dropPsi = lineSourceDropPsi(args);
+  const x = lineSourceArgument(args);
+  const res = p.gaugeResolutionPsi;
+  return {
+    computed: Number.isFinite(dropPsi),
+    tDays, rFt, qStbd, x, dropPsi,
+    resolutionPsi: Number.isFinite(res) && res > 0 ? res : null,
+    measurable: Number.isFinite(res) && res > 0 && Number.isFinite(dropPsi) ? dropPsi >= res : null,
+    text: null,
+  };
+}
+
 // One canonical economics run of a case, with the volumes it was run on.
 const economicsOf = (spacing, p) => {
   const field = fieldProfile(spacing, p);
@@ -462,6 +493,8 @@ const evaluateSpacing = (spacing, p) => {
       lifeLimited: limitedRun.field.endYears,
       lifeUnlimited: unlimitedRun.field.endYears,
     },
+    // WS-U2-006: measurable interference at the neighbour; diagnostics only
+    interference: interferenceAtNeighbour(row0Distance(spacing, p), rl.on ? rl.startRateStbd : qiAnnual / DAYS_PER_YEAR, p),
     // WS-U1: geometry, timing and deliverability; diagnostics only
     drainage: drainageCase({
       spacingAcres: spacing,
@@ -531,6 +564,9 @@ export const runSpacingCases = (formData) => {
     oilViscosity: parseFloat(formData.oilViscosity),
     totalCompressibility: parseFloat(formData.totalCompressibility),
     wellboreRadius: parseFloat(formData.wellboreRadius),
+    // WS-U2-006: optional; NaN when blank
+    interferenceDays: parseFloat(formData.interferenceDays),
+    gaugeResolutionPsi: parseFloat(formData.gaugeResolutionPsi),
     // WS-U2-001: on unless switched off (the owner default of 2026-10-05)
     rateLimit: formData.rateLimit !== 'off',
     // WS-U2-003: all wells in year 1 unless a schedule is chosen (the owner default)

@@ -69,7 +69,7 @@ wells. Initial rate: the rate on day one of the decline each well is given, risi
 
 
 
-Well Spacing Report, Ekene, Spacing study                                                                                                    Page 1 of 8
+Well Spacing Report, Ekene, Spacing study                                                                                                    Page 1 of 9
 Economics of each case, by part
  Spacing (acres/well)              Revenue        Royalty           Opex       Capex          Net cash, undiscounted            NPV         Payback (years)
 
@@ -149,7 +149,7 @@ changed. Where the rate limit binds, the extra wells also bring the oil forward,
 
 
 
-Well Spacing Report, Ekene, Spacing study                                                                                                                   Page 2 of 8
+Well Spacing Report, Ekene, Spacing study                                                                                                                   Page 2 of 9
 Rate limit: before and after
  Spacing        Plan initial   Deliverable    Rate          Plateau     Produced per well,   Produced per well,   NPV          NPV             Change
  (acres/well)   rate (STB/d)   rate (STB/d)   produced      (years)     unlimited (Mbbl)     limited (Mbbl)       unlimited    rate-limited    (US$ MM)
@@ -232,7 +232,7 @@ Inputs and their sources
  Drilling schedule [case]                         All wells on stream                        Entered, source not stated
 
 
-Well Spacing Report, Ekene, Spacing study                                                                                                     Page 3 of 8
+Well Spacing Report, Ekene, Spacing study                                                                                                     Page 3 of 9
  Input                                          Value                  Unit              Source and quality
 
                                                 in year 1
@@ -287,6 +287,10 @@ Well Spacing Report, Ekene, Spacing study                                       
  Wellbore radius [case, through the rate        0.354                  ft                Entered, source not stated
  limit]
 
+ Interference test time [diagnostics]           7                      days              Entered, source not stated
+
+ Gauge resolution [diagnostics]                 0.01                   psi               Entered, source not stated
+
  Field location, WGS84 latitude and             5.21, 6.43             degrees           Entered or picked on the map
  longitude [record]
 
@@ -303,7 +307,7 @@ enter no equation. Values taken from another app name the project and the method
 
 
 
-Well Spacing Report, Ekene, Spacing study                                                                                                  Page 4 of 8
+Well Spacing Report, Ekene, Spacing study                                                                                                  Page 4 of 9
 Drainage geometry, timing and deliverability
  Spacing          Between wells   Drainage radius    Interference begins   Pseudosteady state   Deliverable rate    Plan initial rate   Plan /
  (acres/well)     (ft)            re (ft)            (days)                (days)               (STB/d)             (STB/d)             deliverable
@@ -345,16 +349,72 @@ drainage area at the stated pressures (Ahmed and McKinney 2005, Eq. 1.2.124). Pl
 start at a rate the well cannot deliver at that spacing; with the rate limit on, the case is capped there (the rate limit table).
 
 
-Cross-checks
- Check                                    Value                  Against
 
- In place: volumetric OOIP of this        238.03 MMSTB           Not compared: no Material Balance OOIP was taken.
+
+Well Spacing Report, Ekene, Spacing study                                                                                                 Page 5 of 9
+Measurable interference at the neighbour
+ Spacing           Between wells     Rate of the active well   Time       Ei           Drop at the neighbour   Gauge resolution   Measurable
+ (acres/well)      (ft)              (STB/d)                   (days)     argument x   (psi)                   (psi)
+
+ 20                1,003             158.3                     7          3.678        0.33                    0.01               yes
+
+ 30                1,228.4           232.4                     7          5.518        0.0544                  0.01               yes
+
+ 40                1,418.4           301.4                     7          7.357        0.00868                 0.01               no, below the gauge
+                                                                                                                                  resolution
+
+ 50                1,585.9           297.6                     7          9.196        0.00111                 0.01               no, below the gauge
+                                                                                                                                  resolution
+
+ 60                1,737.2           294.6                     7          11.04        0.000148                0.01               no, below the gauge
+                                                                                                                                  resolution
+
+ 70                1,876.4           292.2                     7          12.87        0.0000202               0.01               no, below the gauge
+                                                                                                                                  resolution
+
+ 80                2,006             290.1                     7          14.71        0.00000281              0.01               no, below the gauge
+                                                                                                                                  resolution
+
+ 90                2,127.6           288.2                     7          16.55        3.97e-7                 0.01               no, below the gauge
+                                                                                                                                  resolution
+
+ 100               2,242.7           286.6                     7          18.39        5.68e-8                 0.01               no, below the gauge
+                                                                                                                                  resolution
+
+ 110               2,352.2           285.2                     7          20.23        8.21e-9                 0.01               no, below the gauge
+                                                                                                                                  resolution
+
+ 120               2,456.8           283.8                     7          22.07        1.19e-9                 0.01               no, below the gauge
+                                                                                                                                  resolution
+
+ 130               2,557.1           282.6                     7          23.91        1.75e-10                0.01               no, below the gauge
+                                                                                                                                  resolution
+
+ 140               2,653.6           281.5                     7          25.75        2.58e-11                0.01               no, below the gauge
+                                                                                                                                  resolution
+
+ 150               2,746.8           280.5                     7          27.59        3.82e-12                0.01               no, below the gauge
+                                                                                                                                  resolution
+
+ 160               2,836.9           279.6                     7          29.43        5.69e-13                0.01               no, below the gauge
+                                                                                                                                  resolution
+
+One well of the case produces at its starting rate (the rate produced, with the rate limit as set) for the stated time while its neighbour is shut in as
+the observer. The drop there is the line source, dp = 70.6 q mu B / (k h) E1(x), x = 948 phi mu ct r^2 / (k t), t in hours, r the distance between wells
+(Ahmed and McKinney 2005, Eq. 1.2.134; E1 as gated on Abramowitz and Stegun Table 5.1). Infinite acting: the other wells are shut in and no
+boundary is felt in the time. Measurable means the drop is at least the gauge resolution.
+
+
+Cross-checks
+ Check                                   Value                     Against
+
+ In place: volumetric OOIP of this       238.03 MMSTB              Not compared: no Material Balance OOIP was taken.
  case
 
- Drainage area implied by a               n/a                    Not computed: no Decline Curve Analysis EUR was taken.
+ Drainage area implied by a              n/a                       Not computed: no Decline Curve Analysis EUR was taken.
  decline EUR
 
- Spacing the registry wells already       n/a                    Not computed: no wells were taken from the registry.
+ Spacing the registry wells already      n/a                       Not computed: no wells were taken from the registry.
  have
 
 Independent numbers held against the stated case. None of them changes a number of the case.
@@ -362,39 +422,42 @@ Independent numbers held against the stated case. None of them changes a number 
 
 
 
-Well Spacing Report, Ekene, Spacing study                                                                                                 Page 5 of 8
+Well Spacing Report, Ekene, Spacing study                                                                                                      Page 6 of 9
 Methods and references
- Quantity                       Method                                                                                    Reference
+ Quantity                        Method                                                                                    Reference
 
- Oil in place per well          N = 7,758 A h phi (1 - Swi) / Bo, STB; A the spacing in acres                             Volumetric equation (Craft and Hawkins 1959)
+ Oil in place per well           N = 7,758 A h phi (1 - Swi) / Bo, STB; A the spacing in acres                             Volumetric equation (Craft and Hawkins 1959)
 
- Bo                             As given on the form; its source is in the inputs table                                   Inputs table
+ Bo                              As given on the form; its source is in the inputs table                                   Inputs table
 
- EUR per well                   N times the stated recovery factor                                                        Stated model (no interference)
+ EUR per well                    N times the stated recovery factor                                                        Stated model (no interference)
 
- Production per well            Exponential decline, Dn = -ln(1 - De); qi = EUR Dn + q limit; life = ln(qi / q limit) /   Arps (1945)
-                                Dn; yearly volumes integrated exactly; a year is 365.25 days
+ Production per well             Exponential decline, Dn = -ln(1 - De); qi = EUR Dn + q limit; life = ln(qi / q limit) /   Arps (1945)
+                                 Dn; yearly volumes integrated exactly; a year is 365.25 days
 
- Rate limit                     Where qi > qd (deliverable): plateau at qd for tp = (qi - qd) / (Dn qd), then qd          Plateau then exponential decline; qd from
-                                exp(-Dn (t - tp)) to the limit; the volume to the limit stays the EUR                     Ahmed and McKinney (2005) Eq. 1.2.124
+ Rate limit                      Where qi > qd (deliverable): plateau at qd for tp = (qi - qd) / (Dn qd), then qd          Plateau then exponential decline; qd from
+                                 exp(-Dn (t - tp)) to the limit; the volume to the limit stays the EUR                     Ahmed and McKinney (2005) Eq. 1.2.124
 
- NPV, revenue, royalty, opex,   calculateEconomics, TaxRoyalty, mid-year discounting; all wells on stream in              Suite screening economics engine
- capex, payback                 year 1, each well's capex in its year and its opex while on stream                        (docs/scope/ReservoirEngineering-Module.md
-                                                                                                                          section 5)
+ NPV, revenue, royalty, opex,    calculateEconomics, TaxRoyalty, mid-year discounting; all wells on stream in              Suite screening economics engine
+ capex, payback                  year 1, each well's capex in its year and its opex while on stream                        (docs/scope/ReservoirEngineering-Module.md
+                                                                                                                           section 5)
 
- Field profile                  The per-well profile shifted to each year's wells and cut at the end of the project       Superposition of identical wells in time
-                                duration; every yearly volume is a difference of the exact field cumulative
+ Field profile                   The per-well profile shifted to each year's wells and cut at the end of the project       Superposition of identical wells in time
+                                 duration; every yearly volume is a difference of the exact field cumulative
 
- Distance between wells         Square: d = sqrt(A); staggered: d = sqrt(2 A / sqrt 3)                                    Geometry; 40 acres square is 1,320 ft
+ Distance between wells          Square: d = sqrt(A); staggered: d = sqrt(2 A / sqrt 3)                                    Geometry; 40 acres square is 1,320 ft
 
- Drainage radius                re = sqrt(43,560 A / pi), ft                                                              Ahmed and McKinney (2005), Ex. 1.5: 40
-                                                                                                                          acres, 745 ft
+ Drainage radius                 re = sqrt(43,560 A / pi), ft                                                              Ahmed and McKinney (2005), Ex. 1.5: 40
+                                                                                                                           acres, 745 ft
 
- Interference and               ri = sqrt(k t / (948 phi mu ct)), t in hours; tDA = 0.0002637 k t / (phi mu ct A)         Lee (1982); Earlougher (1977) Table C.1
+ Interference and                ri = sqrt(k t / (948 phi mu ct)), t in hours; tDA = 0.0002637 k t / (phi mu ct A)         Lee (1982); Earlougher (1977) Table C.1
  pseudosteady timing
 
- Deliverable rate               q = k h (pbar - pwf) / (141.2 B mu (0.5 ln(2.2458 A / (CA rw^2)) + s))                    Ahmed and McKinney (2005), Eq. 1.2.124, Ex.
-                                                                                                                          1.18
+ Deliverable rate                q = k h (pbar - pwf) / (141.2 B mu (0.5 ln(2.2458 A / (CA rw^2)) + s))                    Ahmed and McKinney (2005), Eq. 1.2.124, Ex.
+                                                                                                                           1.18
+
+ Interference at the neighbour   dp = 70.6 q mu B / (k h) E1(948 phi mu ct r^2 / (k t)), t in hours, r the distance        Ahmed and McKinney (2005), Eq. 1.2.134, Ex.
+                                 between wells                                                                             1.21; Abramowitz and Stegun Table 5.1
 
 
 
@@ -420,11 +483,13 @@ printed as stated, absolute, with no datum correction.
 Flags on the inputs and the cases
 - At 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160 acres/well the plan's initial rate is above the pseudosteady rate a well can deliver; the
 rate limit caps those cases (a plateau of up to 20.2 years).
+- At 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160 acres/well the drop at the neighbour after 7 days is below the gauge resolution: an
+interference test of that length would not see the neighbour.
 
 
 
 
-Well Spacing Report, Ekene, Spacing study                                                                                                                       Page 6 of 8
+Well Spacing Report, Ekene, Spacing study                                                                                                                        Page 7 of 9
 Plots
 Figure 1. EUR and oil produced per well against spacing
 
@@ -503,7 +568,7 @@ dotted line is the other side of the rate-limit switch.
 
 
 
-Well Spacing Report, Ekene, Spacing study                                                                                                   Page 7 of 8
+Well Spacing Report, Ekene, Spacing study                                                                                                   Page 8 of 9
 Figure 3. Plan initial rate and deliverable rate against spacing
 
                            Plan initial rate        Deliverable (pseudosteady)   Rate produced (rate limit on)
@@ -544,5 +609,5 @@ Does not apply: no wells were taken from the registry.
 
 
 
-Well Spacing Report, Ekene, Spacing study                                                                                                  Page 8 of 8
+Well Spacing Report, Ekene, Spacing study                                                                                                  Page 9 of 9
 

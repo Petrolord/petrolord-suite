@@ -33,6 +33,10 @@ export function buildWellSpacingPdf({ model }, { logo = null, generatedAt = new 
   }
   report.inputsTable(model.inputs.rows, { title: 'Inputs and their sources', note: model.inputs.note });
   if (model.hasResults) table('Drainage geometry, timing and deliverability', model.drainage.head, model.drainage.rows, { note: model.drainage.note, fontSize: SMALL });
+  if (model.hasResults) {
+    if (model.interference.rows.length) table('Measurable interference at the neighbour', model.interference.head, model.interference.rows, { note: model.interference.note, fontSize: SMALL });
+    else section('Measurable interference at the neighbour', model.interference.note);
+  }
   table('Cross-checks', model.cross.head, model.cross.rows, { note: model.cross.note, columnStyles: { 0: { cellWidth: 46 }, 1: { cellWidth: 30 } } });
   table('Methods and references', model.methods.head, model.methods.rows, { columnStyles: { 0: { cellWidth: 36 } }, fontSize: 7 });
 

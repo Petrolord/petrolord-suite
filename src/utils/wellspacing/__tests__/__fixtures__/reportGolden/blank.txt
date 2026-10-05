@@ -126,6 +126,10 @@ Well Spacing Report, Spacing study                                              
  Wellbore radius [case, through the rate        n/a                    ft                Not provided
  limit]
 
+ Interference test time [diagnostics]           n/a                    days              Not provided
+
+ Gauge resolution [diagnostics]                 n/a                    psi               Not provided
+
  Field location, WGS84 latitude and             n/a                    degrees           Not provided
  longitude [record]
 
@@ -144,51 +148,54 @@ enter no equation. Values taken from another app name the project and the method
 
 Well Spacing Report, Spacing study                                                                                                         Page 2 of 4
 Cross-checks
- Check                                    Value                        Against
+ Check                                     Value                        Against
 
- In place: volumetric OOIP of this        n/a                          Not compared: the volumetric inputs are incomplete.
+ In place: volumetric OOIP of this         n/a                          Not compared: the volumetric inputs are incomplete.
  case
 
- Drainage area implied by a               n/a                          Not computed: no Decline Curve Analysis EUR was taken.
+ Drainage area implied by a                n/a                          Not computed: no Decline Curve Analysis EUR was taken.
  decline EUR
 
- Spacing the registry wells already       n/a                          Not computed: no wells were taken from the registry.
+ Spacing the registry wells already        n/a                          Not computed: no wells were taken from the registry.
  have
 
 Independent numbers held against the stated case. None of them changes a number of the case.
 
 Methods and references
- Quantity                       Method                                                                                    Reference
+ Quantity                        Method                                                                                    Reference
 
- Oil in place per well          N = 7,758 A h phi (1 - Swi) / Bo, STB; A the spacing in acres                             Volumetric equation (Craft and Hawkins 1959)
+ Oil in place per well           N = 7,758 A h phi (1 - Swi) / Bo, STB; A the spacing in acres                             Volumetric equation (Craft and Hawkins 1959)
 
- Bo                             Standing: Bo = 0.9759 + 0.00012 (Rs sqrt(gg / go) + 1.25 T)^1.2                           Standing (1947); McCain (1990)
+ Bo                              Standing: Bo = 0.9759 + 0.00012 (Rs sqrt(gg / go) + 1.25 T)^1.2                           Standing (1947); McCain (1990)
 
- EUR per well                   N times the stated recovery factor                                                        Stated model (no interference)
+ EUR per well                    N times the stated recovery factor                                                        Stated model (no interference)
 
- Production per well            Exponential decline, Dn = -ln(1 - De); qi = EUR Dn + q limit; life = ln(qi / q limit) /   Arps (1945)
-                                Dn; yearly volumes integrated exactly; a year is 365.25 days
+ Production per well             Exponential decline, Dn = -ln(1 - De); qi = EUR Dn + q limit; life = ln(qi / q limit) /   Arps (1945)
+                                 Dn; yearly volumes integrated exactly; a year is 365.25 days
 
- Rate limit                     Where qi > qd (deliverable): plateau at qd for tp = (qi - qd) / (Dn qd), then qd          Plateau then exponential decline; qd from
-                                exp(-Dn (t - tp)) to the limit; the volume to the limit stays the EUR                     Ahmed and McKinney (2005) Eq. 1.2.124
+ Rate limit                      Where qi > qd (deliverable): plateau at qd for tp = (qi - qd) / (Dn qd), then qd          Plateau then exponential decline; qd from
+                                 exp(-Dn (t - tp)) to the limit; the volume to the limit stays the EUR                     Ahmed and McKinney (2005) Eq. 1.2.124
 
- NPV, revenue, royalty, opex,   calculateEconomics, TaxRoyalty, mid-year discounting; all wells on stream in              Suite screening economics engine
- capex, payback                 year 1, each well's capex in its year and its opex while on stream                        (docs/scope/ReservoirEngineering-Module.md
-                                                                                                                          section 5)
+ NPV, revenue, royalty, opex,    calculateEconomics, TaxRoyalty, mid-year discounting; all wells on stream in              Suite screening economics engine
+ capex, payback                  year 1, each well's capex in its year and its opex while on stream                        (docs/scope/ReservoirEngineering-Module.md
+                                                                                                                           section 5)
 
- Field profile                  The per-well profile shifted to each year's wells and cut at the end of the project       Superposition of identical wells in time
-                                duration; every yearly volume is a difference of the exact field cumulative
+ Field profile                   The per-well profile shifted to each year's wells and cut at the end of the project       Superposition of identical wells in time
+                                 duration; every yearly volume is a difference of the exact field cumulative
 
- Distance between wells         Square: d = sqrt(A); staggered: d = sqrt(2 A / sqrt 3)                                    Geometry; 40 acres square is 1,320 ft
+ Distance between wells          Square: d = sqrt(A); staggered: d = sqrt(2 A / sqrt 3)                                    Geometry; 40 acres square is 1,320 ft
 
- Drainage radius                re = sqrt(43,560 A / pi), ft                                                              Ahmed and McKinney (2005), Ex. 1.5: 40
-                                                                                                                          acres, 745 ft
+ Drainage radius                 re = sqrt(43,560 A / pi), ft                                                              Ahmed and McKinney (2005), Ex. 1.5: 40
+                                                                                                                           acres, 745 ft
 
- Interference and               ri = sqrt(k t / (948 phi mu ct)), t in hours; tDA = 0.0002637 k t / (phi mu ct A)         Lee (1982); Earlougher (1977) Table C.1
+ Interference and                ri = sqrt(k t / (948 phi mu ct)), t in hours; tDA = 0.0002637 k t / (phi mu ct A)         Lee (1982); Earlougher (1977) Table C.1
  pseudosteady timing
 
- Deliverable rate               q = k h (pbar - pwf) / (141.2 B mu (0.5 ln(2.2458 A / (CA rw^2)) + s))                    Ahmed and McKinney (2005), Eq. 1.2.124, Ex.
-                                                                                                                          1.18
+ Deliverable rate                q = k h (pbar - pwf) / (141.2 B mu (0.5 ln(2.2458 A / (CA rw^2)) + s))                    Ahmed and McKinney (2005), Eq. 1.2.124, Ex.
+                                                                                                                           1.18
+
+ Interference at the neighbour   dp = 70.6 q mu B / (k h) E1(948 phi mu ct r^2 / (k t)), t in hours, r the distance        Ahmed and McKinney (2005), Eq. 1.2.134, Ex.
+                                 between wells                                                                             1.21; Abramowitz and Stegun Table 5.1
 
 
 
@@ -217,7 +224,7 @@ No input is flagged.
 
 
 
-Well Spacing Report, Spacing study                                                                                                                              Page 3 of 4
+Well Spacing Report, Spacing study                                                                                                                               Page 3 of 4
 Plots
 Figure 1. EUR and oil produced per well against spacing
 Does not apply: no spacing case has been computed.

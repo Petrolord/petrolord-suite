@@ -277,6 +277,16 @@ const WellSpacingHelpGuideContent = () => (
         plan initial rate is above the deliverable rate, the unlimited decline starts at a rate the
         well cannot give, and the report flags it.
       </Para>
+      <SubHeading>Measurable interference</SubHeading>
+      <Para>
+        Give an interference test time and a gauge resolution to see, for every case, the pressure
+        drop at the neighbouring well when one well produces at its starting rate for that time and
+        the neighbour is shut in as the observer. The drop is the line source of Ahmed and McKinney
+        Eq. 1.2.134 at the distance between wells, the same function the Step 1 gates hold to their
+        Example 1.21 and to the tabulated E1. A drop below the gauge resolution means a test of that
+        length would not see the neighbour. On the example field, 7 days and a 0.01 psi gauge see
+        the neighbour up to 50 acres a well and not from 60 acres.
+      </Para>
       <SubHeading>Drilling schedule</SubHeading>
       <Para>
         All wells come on stream in year 1 unless you choose a schedule under Drilling schedule: so

@@ -1,11 +1,11 @@
 {
-  "pages": 8,
-  "sha256": "8f00cf41016bb1d75609a6a0223aea98ff6cbdd2b66008ff68215543d610d577",
+  "pages": 9,
+  "sha256": "11b761959e404d5fc63c23a59735fb8d05292b1bf5e9f06cb71ecae2992ef7ed",
   "figures": [
     {
       "id": "eur",
       "number": 1,
-      "page": 7,
+      "page": 8,
       "plotted": true,
       "panels": [
         {
@@ -28,7 +28,7 @@
     {
       "id": "npv",
       "number": 2,
-      "page": 7,
+      "page": 8,
       "plotted": true,
       "panels": [
         {
@@ -52,7 +52,7 @@
     {
       "id": "deliverability",
       "number": 3,
-      "page": 8,
+      "page": 9,
       "plotted": true,
       "panels": [
         {
@@ -76,7 +76,7 @@
     {
       "id": "map",
       "number": 4,
-      "page": 8,
+      "page": 9,
       "plotted": false,
       "panels": []
     }

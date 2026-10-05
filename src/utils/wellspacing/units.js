@@ -33,6 +33,8 @@ export const WS_KINDS = Object.freeze({
   length: fam('depth', 'ft', 'm', { oilfield: 'ft', si: 'm' }),
   temperature: fam('temperature', 'degF', 'degC', { oilfield: 'degF', si: 'degC' }),
   pressure: fam('pressure', 'psi', 'kPa', { oilfield: 'psia', si: 'kPa' }),
+  // WS-U2-006: a pressure difference (a drop, a gauge resolution): no absolute basis
+  pressureDiff: fam('pressure', 'psi', 'kPa', { oilfield: 'psi', si: 'kPa' }),
   gor: fam('gor', 'scf/STB', 'm3/m3', { oilfield: 'scf/STB', si: 'sm3/sm3' }),
   rate: fam('liquidRate', 'STB/d', 'm3/d', { oilfield: 'STB/d', si: 'sm3/d' }),
   eur: fam('liquidVolume', 'MSTB', '10^3 m3', { oilfield: 'Mbbl', si: '10^3 sm3' }),

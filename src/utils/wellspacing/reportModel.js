@@ -212,6 +212,24 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
     ].filter(Boolean).join(' '),
   };
 
+  // WS-U2-006: measurable interference at the neighbour (line source, the validated E1)
+  const i0 = rows[0]?.interference;
+  const interference = {
+    head: [u.head('Spacing', 'spacing'), u.head('Between wells', 'length'), u.head('Rate of the active well', 'rate'), 'Time (days)', 'Ei argument x', u.head('Drop at the neighbour', 'pressureDiff'), u.head('Gauge resolution', 'pressureDiff'), 'Measurable'],
+    rows: rows.filter((r) => r.interference?.computed).map((r) => {
+      const I = r.interference;
+      return [
+        sp(r.spacing), u.fmt('length', I.rFt, 5), u.fmt('rate', I.qStbd, 4), String(Number(I.tDays.toPrecision(6))), String(Number(I.x.toPrecision(4))),
+        u.fmt('pressureDiff', I.dropPsi, 3), I.resolutionPsi == null ? EMPTY_VALUE : u.fmt('pressureDiff', I.resolutionPsi, 3),
+        I.measurable == null ? 'no resolution given' : (I.measurable ? 'yes' : 'no, below the gauge resolution'),
+      ];
+    }),
+    note: [
+      'One well of the case produces at its starting rate (the rate produced, with the rate limit as set) for the stated time while its neighbour is shut in as the observer. The drop there is the line source, dp = 70.6 q mu B / (k h) E1(x), x = 948 phi mu ct r^2 / (k t), t in hours, r the distance between wells (Ahmed and McKinney 2005, Eq. 1.2.134; E1 as gated on Abramowitz and Stegun Table 5.1). Infinite acting: the other wells are shut in and no boundary is felt in the time. Measurable means the drop is at least the gauge resolution.',
+      i0 && !i0.computed ? i0.text : '',
+    ].filter(Boolean).join(' '),
+  };
+
   const cc = crossChecks(inputs, results);
   const crossRows = [];
   crossRows.push(['In place: volumetric OOIP of this case', finite(cc.inPlace.volumetricStb) ? `${u.fmt('volume', cc.inPlace.volumetricStb / 1e6, 5)} ${u.label('volume')}` : EMPTY_VALUE,
@@ -236,6 +254,7 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
       ['Drainage radius', 're = sqrt(43,560 A / pi), ft', 'Ahmed and McKinney (2005), Ex. 1.5: 40 acres, 745 ft'],
       ['Interference and pseudosteady timing', 'ri = sqrt(k t / (948 phi mu ct)), t in hours; tDA = 0.0002637 k t / (phi mu ct A)', 'Lee (1982); Earlougher (1977) Table C.1'],
       ['Deliverable rate', 'q = k h (pbar - pwf) / (141.2 B mu (0.5 ln(2.2458 A / (CA rw^2)) + s))', 'Ahmed and McKinney (2005), Eq. 1.2.124, Ex. 1.18'],
+      ['Interference at the neighbour', 'dp = 70.6 q mu B / (k h) E1(948 phi mu ct r^2 / (k t)), t in hours, r the distance between wells', 'Ahmed and McKinney (2005), Eq. 1.2.134, Ex. 1.21; Abramowitz and Stegun Table 5.1'],
     ],
   };
 
@@ -250,6 +269,8 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
   }
   const late2 = rows.filter((r) => r.wellsAfterDuration > 0);
   if (late2.length) flags.push(`At ${late2.map((r) => sp(r.spacing)).join(', ')} ${u.label('spacing')} the drilling schedule brings wells on stream after the project duration ends (${late2.map((r) => r.wellsAfterDuration).join(', ')} wells): they carry their capex and produce nothing inside it.`);
+  const quiet = rows.filter((r) => r.interference?.measurable === false);
+  if (quiet.length) flags.push(`At ${quiet.map((r) => sp(r.spacing)).join(', ')} ${u.label('spacing')} the drop at the neighbour after ${rows[0].interference.tDays} days is below the gauge resolution: an interference test of that length would not see the neighbour.`);
   const never = rows.filter((r) => r.rateLimit?.belowLimit);
   if (never.length) flags.push(`At ${never.map((r) => sp(r.spacing)).join(', ')} ${u.label('spacing')} the deliverable rate is at or below the economic limit rate: the wells never produce at an economic rate.`);
   const late = rows.filter((r) => finite(r.drainage.pssDays) && r.drainage.pssDays > 365);
@@ -291,6 +312,7 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
     economics,
     incremental,
     rateLimit,
+    interference,
     drainage,
     cross,
     crossChecks: cc,

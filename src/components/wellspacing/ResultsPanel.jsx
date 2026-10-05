@@ -200,6 +200,11 @@ const ResultsPanel = ({ downloadCSV, downloadJSON }) => {
       <Section title="Drainage geometry, timing and deliverability" testId="ws-drainage">
         <Table head={model.drainage.head} rows={model.drainage.rows} testId="ws-drainage-table" note={model.drainage.note} />
       </Section>
+      <Section title="Measurable interference at the neighbour" testId="ws-interference">
+        {model.interference.rows.length > 0
+          ? <Table head={model.interference.head} rows={model.interference.rows} testId="ws-interference-table" note={model.interference.note} />
+          : <p className="text-xs text-pl-muted" data-testid="ws-interference-none">{model.interference.note}</p>}
+      </Section>
       <Section title="Cross-checks" testId="ws-cross">
         <Table head={model.cross.head} rows={model.cross.rows} testId="ws-cross-table" note={model.cross.note} />
       </Section>

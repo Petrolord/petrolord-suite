@@ -241,3 +241,14 @@ test('WS-U2-003 drilling schedule: all wells in year 1 by default; rigs spread t
   await page.screenshot({ path: `${OUT}/u2-003-schedule.png` });
   expect(errors).toEqual([]);
 });
+
+test('WS-U2-006 measurable interference: the drop at the neighbour per case against the gauge resolution', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openApp(page);
+  const t = page.getByTestId('ws-interference-table');
+  await expect(t.getByRole('row', { name: /^20 / })).toContainText('yes');
+  await expect(t.getByRole('row', { name: /^60 / })).toContainText('no, below the gauge resolution');
+  await page.getByTestId('ws-interferenceDays').fill('');
+  await expect(page.getByTestId('ws-interference-none')).toContainText('interference test time not given');
+  expect(errors).toEqual([]);
+});

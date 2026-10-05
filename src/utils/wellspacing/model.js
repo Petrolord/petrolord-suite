@@ -62,6 +62,9 @@ export const FIELDS = Object.freeze([
   { key: 'oilViscosity', label: 'Oil viscosity at reservoir conditions', kind: 'viscosity', group: 'drainage', reads: 'rate' },
   { key: 'totalCompressibility', label: 'Total compressibility', kind: 'compressibility', group: 'drainage', reads: 'diagnostics' },
   { key: 'wellboreRadius', label: 'Wellbore radius', kind: 'length', group: 'drainage', reads: 'rate' },
+  // WS-U2-006: measurable interference at the neighbour
+  { key: 'interferenceDays', label: 'Interference test time', kind: 'days', group: 'drainage', reads: 'diagnostics' },
+  { key: 'gaugeResolutionPsi', label: 'Gauge resolution', kind: 'pressureDiff', group: 'drainage', reads: 'diagnostics' },
 ]);
 
 export const FORM_KEYS = Object.freeze(['fieldName', 'latitude', 'longitude', ...FIELDS.map((f) => f.key)]);
@@ -84,6 +87,7 @@ export const SAMPLE_FORM = Object.freeze({
   minSpacing: '20', maxSpacing: '160', spacingIncrement: '10', wellLayout: 'square',
   rateLimit: 'on', drillingSchedule: 'year1', wellsPerYear: '', rigCount: '', wellsPerRigYear: '',
   // WS-U2-001: 5 md (it was 50 md in Step 1, where no case reached its deliverable rate), so the example shows the limit
+  interferenceDays: '7', gaugeResolutionPsi: '0.01',
   flowingPressure: '1500', permeability: '5', skin: '2', oilViscosity: '1.2', totalCompressibility: '0.000015', wellboreRadius: '0.354',
 });
 
@@ -92,7 +96,7 @@ export const SAMPLE_NOTE = 'Sample inputs: an illustrative example field built i
 const asStrings = (o) => Object.fromEntries(Object.entries(o || {}).map(([k, v]) => [k, v == null ? '' : String(v)]));
 export const blankForm = () => ({ ...Object.fromEntries(FORM_KEYS.map((k) => [k, ''])), wellLayout: 'square', rateLimit: 'on', drillingSchedule: 'year1' });
 
-export const emptyIntakes = () => ({ pvt: null, wta: null, mbal: null, dca: null, wells: null });
+export const emptyIntakes = () => ({ pvt: null, wta: null, mbal: null, rf: null, dca: null, wells: null });
 
 export const defaultInputs = (unitSystem = 'oilfield', { sample = false } = {}) => ({
   form: sample ? { ...blankForm(), ...asStrings(SAMPLE_FORM) } : blankForm(),
