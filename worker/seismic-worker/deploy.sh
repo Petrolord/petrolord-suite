@@ -30,13 +30,24 @@ export ENGINE_COMMIT
 echo "==> Building on host"
 docker compose build --quiet
 echo "==> Gate 3: in-image selfcheck"
-if ! docker compose --profile verify run --rm selfcheck; then
+# -T and </dev/null: `compose run` otherwise reads this heredoc from stdin and
+# silently swallows every step after it (found 2026-10-05).
+if ! docker compose --profile verify run --rm -T selfcheck </dev/null; then
   echo "GATE FAILED: the selfcheck did not pass inside the new image. Worker NOT restarted." >&2
   exit 1
 fi
 echo "==> Starting"
-docker compose up -d seismic-worker
-sleep 5
-docker compose logs --tail 5 seismic-worker
+docker compose up -d seismic-worker </dev/null
+# Fail closed unless the new container is up and its health endpoint answers.
+for i in $(seq 1 30); do
+  if docker exec seismic-worker node -e "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" 2>/dev/null; then
+    echo "==> Healthy:"; docker exec seismic-worker node -e "fetch('http://127.0.0.1:8080/healthz').then(r=>r.text()).then(console.log)"
+    exit 0
+  fi
+  sleep 2
+done
+echo "WORKER DID NOT BECOME HEALTHY. Last logs:" >&2
+docker compose logs --tail 30 seismic-worker >&2
+exit 1
 REMOTE
 echo "==> Deployed ${ENGINE_COMMIT}"
