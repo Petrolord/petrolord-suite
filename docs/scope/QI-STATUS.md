@@ -6,7 +6,7 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
 
 | Phase | State |
 |---|---|
-| Q0 Seismic worker foundations | In progress: server, object store, worker core, queue, uploads built and tested; owner setup pending; stack_to_v4 job and jobs panel next |
+| Q0 Seismic worker foundations | In progress: worker LIVE; queue, uploads and stack_to_v4 proven live; jobs and upload panel in Seismolord next |
 | Q0b Seismolord on the worker | Not started |
 | Milestone A (Q1, Q2, Q4a, Q6a) | Not started |
 | Milestone B (Q8a, Q9a, Q10, Q11) | Not started |
@@ -92,7 +92,7 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
   upload.
 - `src/lib/qiUpload.js` resumes after a reload from the server's part list (9 tests).
 
-### Owner setup (pending)
+### Owner setup (DONE 2026-10-05; verified)
 `bash /root/qi-q0-owner-setup.sh`:
 1. applies both migrations;
 2. sets the function secrets;
@@ -100,3 +100,39 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
 4. writes the worker's `.env` on the host.
 
 No secret value is printed.
+
+### Worker live (2026-10-05)
+- **Owner setup verified:**
+  - both migrations are applied (RLS on, anon 0 grants, clients may enqueue but not claim);
+  - `qi-upload-url` is deployed and answers 401 without a JWT;
+  - the worker `.env` holds all 8 keys (mode 0600).
+- **Deploy gates:** the worker is deployed only through `deploy.sh` (jest, db-tests, then the in-image selfcheck, then health).
+- **Defect found on the first deploy:** `docker compose run` swallowed the rest of the remote script, and the script still reported success. Fixed: the selfcheck now runs with `-T </dev/null`, and the deploy fails closed unless the container is healthy.
+- **Live queue tests**, enqueued as the owner's account through `qi_enqueue_job`:
+
+  | Test | Result |
+  |---|---|
+  | 20 s job | succeeded, attempt 1 |
+  | Cancel while running | `cancel_requested`, then cancelled at 47% |
+  | Requested failure | failed / `requested_failure` |
+  | Worker SIGKILLed mid-job, then redeployed | stale sweep requeued it; attempt 2 succeeded |
+
+- **Defect found live:** the last progress message lingered after success. Fixed and confirmed live.
+
+### stack_to_v4: server conversion (2026-10-05)
+- **What it runs:** the browser import's own code, in the order of `importJobs.start()`.
+- **What the browser keeps:** the steps that need the local file or the user's settings: the scan preview, the fingerprint, the CRS plan, and registering the `converting` row.
+- **Service-role guards:**
+  - the upload and the volume must belong to the job's user;
+  - the volume must still be `converting`;
+  - the quota is checked by the new `seismic_storage_usage_bytes_for`. That migration was applied by the owner 2026-10-05 after a live rolled-back dry run.
+- **Parity gate (jest):** the browser import manager and the server handler, run on one SEG-Y fixture, store the same objects byte for byte, the same manifest and the same row transitions. One changed input sample breaks the gate (negative control). There are 6 guard tests.
+- **Live run:** `dome_ieee.sgy` (511,504 bytes) took 3.9 s. The row went `ready`, with the browser fingerprint and v4 `survey_meta`.
+  - It holds 5 stored objects: display copy 7,722 bytes and float32 copy 35,850 bytes.
+  - All 5 are byte-identical to a reference conversion using the browser code and native deflate-raw, and identical when decoded.
+  - The manifest is v4, display and f32 complete, 32 x 32 x 64.
+  - The volume is in the owner's Seismolord as "QI Q0 server conversion test".
+- **Codec parity:** Chrome 149 `CompressionStream('deflate-raw')` and the worker's Node 24 give identical compressed bytes on four payloads: a shuffled float32 brick, a u8 display brick, random data and zeros.
+  - Server and browser therefore produce byte-identical v4 volumes. This meets the Q0 acceptance item "bricks match a browser-transcoded copy byte for byte".
+- **Packaging:** the worker is one esbuild bundle (`build.mjs`) of the deployed commit, 98 modules with no React.
+  - `v4SurveyMeta` moved to its own module, re-exported by `importJobs`.
