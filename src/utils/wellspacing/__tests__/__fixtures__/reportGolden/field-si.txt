@@ -1,74 +1,76 @@
 Well Spacing Report
 Petrolord Well Spacing Optimizer
 
-Project                  Spacing study                                         Company                Lordsway Energy
-Field                    Ekene                                                 Licence or block       OML 999
-Reservoir or zone        E-2000 sand                                           Well or wells          EK-1 to EK-4
-Data as of               2026-09-30                                            Analyst                A. Analyst
-Analysis type            Spacing economics at a stated recovery Model                                 Each well drains its spacing area at the
-                         factor, with drainage geometry, timing and                                   stated recovery factor (no interference, no
-                         deliverability diagnostics (screening)                                       incremental recovery from infill); one
-                                                                                                      exponential decline per well anchored on
-                                                                                                      that EUR; all wells on stream in year 1.
-                                                                                                      Rate limit on: each well capped at its
-                                                                                                      deliverable rate (the same EUR, later)
-Economics                Suite screening economics engine                      Software build         test-build
+Project                  Spacing study                                     Company                  Lordsway Energy
+Field                    Ekene                                             Licence or block         OML 999
+Reservoir or zone        E-2000 sand                                       Well or wells            EK-1 to EK-4
+Data as of               2026-09-30                                        Analyst                  A. Analyst
+Analysis type            Spacing economics at a stated recovery Model                               Each well drains its spacing area at the
+                         factor, with drainage geometry, timing and                                 stated recovery factor (no interference, no
+                         deliverability diagnostics (screening)                                     incremental recovery from infill); one
+                                                                                                    exponential decline per well anchored on
+                                                                                                    that EUR; all wells on stream in year 1.
+                                                                                                    Rate limit on: each well capped at its
+                                                                                                    deliverable rate (the same EUR, later)
+Economics                Suite screening economics engine                  Software build           test-build
                          (calculateEconomics), mid-year
                          discounting
-Inputs                   Entered or taken from other apps (sources Display units                      SI (area ha, spacing ha/well, thickness
-                         below)                                                                       and distance m, pressure kPa,
-                                                                                                      temperature degC, GOR sm3/sm3, rate
-                                                                                                      sm3/d, EUR 10^3 sm3, FVF rm3/sm3,
-                                                                                                      viscosity mPa.s, compressibility 1/kPa,
-                                                                                                      permeability mD). Money in US$: oil per
-                                                                                                      STB, gas per Mscf, in both systems. The
-                                                                                                      engine computes in oilfield units.
+Inputs                   Entered or taken from other apps (sources Display units                    SI (area ha, spacing ha/well, thickness
+                         below)                                                                     and distance m, pressure kPa,
+                                                                                                    temperature degC, GOR sm3/sm3, rate
+                                                                                                    sm3/d, EUR 10^3 sm3, FVF rm3/sm3,
+                                                                                                    viscosity mPa.s, compressibility 1/kPa,
+                                                                                                    permeability mD). Money in US$: oil per
+                                                                                                    STB, gas per Mscf, in both systems. The
+                                                                                                    engine computes in oilfield units.
 Generated                2026-10-05 12:00 UTC
 
 
 Spacing cases
- Spacing       Wells   Between        EUR per well (10^3   Produced per well       Field          Capex (US$   NPV (US$   Cost         Initial rate
- (ha/well)             wells (m)      sm3)                 (10^3 sm3)              recovery (%)   MM)          MM)        (US$/STB)    (sm3/d)
+ Spacing      Wells   Between      EUR per well      Produced per well    Field        Capex        NPV          Cost        Initial rate   Drilled over
+ (ha/well)            wells (m)    (10^3 sm3)        (10^3 sm3)           recovery     (US$ MM)     (US$ MM)     (US$/STB)   (sm3/d)        (years)
+                                                                          (%)
 
- 8.09371       250     305.71         53.0                 53.0                    35.0           1,250.0      1,568.6    25.20        25.16
+ 8.09371      250     305.71       53.0              53.0                 35.0         1,250.0      1,568.6      25.20       25.16          1
 
- 12.1406       166     374.42         79.5                 79.5                    34.9           830.0        2,034.9    17.75        36.95
+ 12.1406      166     374.42       79.5              79.5                 34.9         830.0        2,034.9      17.75       36.95          1
 
- 16.1874       125     432.34         106.0                105.3 *                 35.0           625.0        2,282.2    13.59        48.74
+ 16.1874      125     432.34       106.0             105.3 *              35.0         625.0        2,282.2      13.59       48.74          1
 
- 20.2343       100     483.37         132.5                130.6 *                 35.0           500.0        2,374.3    10.96        60.53
+ 20.2343      100     483.37       132.5             130.6 *              35.0         500.0        2,374.3      10.96       60.53          1
 
- 24.2811       83      529.5          158.9                155.5 *                 34.9           415.0        2,355.9    9.20         72.31
+ 24.2811      83      529.5        158.9             155.5 *              34.9         415.0        2,355.9      9.20        72.31          1
 
- 28.328        71      571.93         185.4                179.9 *                 34.8           355.0        2,293.2    7.95         84.1
+ 28.328       71      571.93       185.4             179.9 *              34.8         355.0        2,293.2      7.95        84.1           1
 
- 32.3749       62      611.42         211.9                203.7 *                 34.7           310.0        2,206.1    7.03         95.89
+ 32.3749      62      611.42       211.9             203.7 *              34.7         310.0        2,206.1      7.03        95.89          1
 
- 36.4217       55      648.51         238.4                226.6 *                 34.6           275.0        2,107.3    6.31         107.7
+ 36.4217      55      648.51       238.4             226.6 *              34.6         275.0        2,107.3      6.31        107.7          1
 
- 40.4686       50      683.59         264.9                248.4 *                 35.0           250.0        2,028.2    5.76         119.5
+ 40.4686      50      683.59       264.9             248.4 *              35.0         250.0        2,028.2      5.76        119.5          1
 
- 44.5154       45      716.95         291.4                268.7 *                 34.6           225.0        1,907.2    5.33         131.2
+ 44.5154      45      716.95       291.4             268.7 *              34.6         225.0        1,907.2      5.33        131.2          1
 
- 48.5623       41      748.83         317.9                287.0 *                 34.4           205.0        1,796.2    4.98         143
+ 48.5623      41      748.83       317.9             287.0 *              34.4         205.0        1,796.2      4.98        143            1
 
- 52.6091       38      779.41         344.4                302.8 *                 34.6           190.0        1,705.2    4.73         154.8
+ 52.6091      38      779.41       344.4             302.8 *              34.6         190.0        1,705.2      4.73        154.8          1
 
- 56.656        35      808.83         370.9                315.1 *                 34.3           175.0        1,595.5    4.54         166.6
+ 56.656       35      808.83       370.9             315.1 *              34.3         175.0        1,595.5      4.54        166.6          1
 
- 60.7028       33      837.22         397.4                322.9 *                 34.6           165.0        1,516.2    4.43         178.4
+ 60.7028      33      837.22       397.4             322.9 *              34.6         165.0        1,516.2      4.43        178.4          1
 
- 64.7497       31      864.68         423.8                324.7 *                 34.7           155.0        1,424.0    4.41         190.2
+ 64.7497      31      864.68       423.8             324.7 *              34.7         155.0        1,424.0      4.41        190.2          1
 
 The highest NPV here is arithmetic and does not amount to an engineering recommendation, so no optimum is nominated. NPV is computed by
 the Suite screening economics engine with mid-year discounting: each year's cash flow, the well cost in the first year included, is discounted to the
 middle of its year. Cost per barrel is capex plus opex over the oil produced, undiscounted, before royalty. * produced volume cut short by the
-project duration. Initial rate: the rate on day one of the decline each well is given, rising with the spacing because the EUR does.
+project duration. Drilled over: the years in which wells come on stream (all wells on stream in year 1); produced per well is the field total over the
+wells. Initial rate: the rate on day one of the decline each well is given, rising with the spacing because the EUR does.
 
 
 
 
-Well Spacing Report, Ekene, Spacing study                                                                                                 Page 1 of 8
+Well Spacing Report, Ekene, Spacing study                                                                                                       Page 1 of 8
 Economics of each case, by part
  Spacing (ha/well)               Revenue           Royalty      Opex       Capex       Net cash, undiscounted             NPV           Payback (years)
 
@@ -228,11 +230,22 @@ Inputs and their sources
  Well decline rate [case]                          15                         % per year,     Entered, source not stated
                                                                               effective
 
- Oil price [case]                                  75                         US$/STB         Entered, source not stated
+ Drilling schedule [case]                          All wells on stream                        Entered, source not stated
 
 
 Well Spacing Report, Ekene, Spacing study                                                                                                       Page 3 of 8
  Input                                          Value                  Unit              Source and quality
+
+                                                in year 1
+
+ Wells brought on stream a year [case]          n/a                    wells per year    Not provided
+
+ Rigs [case]                                    n/a                    rigs              Not provided
+
+ Wells a rig drills in a year [case]            n/a                    wells per rig     Not provided
+                                                                       per year
+
+ Oil price [case]                               75                     US$/STB           Entered, source not stated
 
  Gas price [case]                               3.5                    US$/Mscf          Entered, source not stated
 
@@ -352,34 +365,37 @@ Independent numbers held against the stated case. None of them changes a number 
 
 Well Spacing Report, Ekene, Spacing study                                                                                                  Page 5 of 8
 Methods and references
- Quantity                       Method                                                                              Reference
+ Quantity                       Method                                                                                    Reference
 
- Oil in place per well          N = 7,758 A h phi (1 - Swi) / Bo, STB; A the spacing in acres                       Volumetric equation (Craft and Hawkins 1959)
+ Oil in place per well          N = 7,758 A h phi (1 - Swi) / Bo, STB; A the spacing in acres                             Volumetric equation (Craft and Hawkins 1959)
 
- Bo                             As given on the form; its source is in the inputs table                             Inputs table
+ Bo                             As given on the form; its source is in the inputs table                                   Inputs table
 
- EUR per well                   N times the stated recovery factor                                                  Stated model (no interference)
+ EUR per well                   N times the stated recovery factor                                                        Stated model (no interference)
 
- Production per well            Exponential decline, Dn = -ln(1 - De); qi = EUR Dn + q limit; life = ln(qi / q      Arps (1945)
-                                limit) / Dn; yearly volumes integrated exactly; a year is 365.25 days
+ Production per well            Exponential decline, Dn = -ln(1 - De); qi = EUR Dn + q limit; life = ln(qi / q limit) /   Arps (1945)
+                                Dn; yearly volumes integrated exactly; a year is 365.25 days
 
- Rate limit                     Where qi > qd (deliverable): plateau at qd for tp = (qi - qd) / (Dn qd), then qd    Plateau then exponential decline; qd from Ahmed
-                                exp(-Dn (t - tp)) to the limit; the volume to the limit stays the EUR               and McKinney (2005) Eq. 1.2.124
+ Rate limit                     Where qi > qd (deliverable): plateau at qd for tp = (qi - qd) / (Dn qd), then qd          Plateau then exponential decline; qd from
+                                exp(-Dn (t - tp)) to the limit; the volume to the limit stays the EUR                     Ahmed and McKinney (2005) Eq. 1.2.124
 
- NPV, revenue, royalty, opex,   calculateEconomics, TaxRoyalty, mid-year discounting, all wells drilled in year     Suite screening economics engine
- capex, payback                 1                                                                                   (docs/scope/ReservoirEngineering-Module.md
-                                                                                                                    section 5)
+ NPV, revenue, royalty, opex,   calculateEconomics, TaxRoyalty, mid-year discounting; all wells on stream in              Suite screening economics engine
+ capex, payback                 year 1, each well's capex in its year and its opex while on stream                        (docs/scope/ReservoirEngineering-Module.md
+                                                                                                                          section 5)
 
- Distance between wells         Square: d = sqrt(A); staggered: d = sqrt(2 A / sqrt 3)                              Geometry; 40 acres square is 1,320 ft
+ Field profile                  The per-well profile shifted to each year's wells and cut at the end of the project       Superposition of identical wells in time
+                                duration; every yearly volume is a difference of the exact field cumulative
 
- Drainage radius                re = sqrt(43,560 A / pi), ft                                                        Ahmed and McKinney (2005), Ex. 1.5: 40 acres,
-                                                                                                                    745 ft
+ Distance between wells         Square: d = sqrt(A); staggered: d = sqrt(2 A / sqrt 3)                                    Geometry; 40 acres square is 1,320 ft
 
- Interference and               ri = sqrt(k t / (948 phi mu ct)), t in hours; tDA = 0.0002637 k t / (phi mu ct A)   Lee (1982); Earlougher (1977) Table C.1
+ Drainage radius                re = sqrt(43,560 A / pi), ft                                                              Ahmed and McKinney (2005), Ex. 1.5: 40
+                                                                                                                          acres, 745 ft
+
+ Interference and               ri = sqrt(k t / (948 phi mu ct)), t in hours; tDA = 0.0002637 k t / (phi mu ct A)         Lee (1982); Earlougher (1977) Table C.1
  pseudosteady timing
 
- Deliverable rate               q = k h (pbar - pwf) / (141.2 B mu (0.5 ln(2.2458 A / (CA rw^2)) + s))              Ahmed and McKinney (2005), Eq. 1.2.124, Ex.
-                                                                                                                    1.18
+ Deliverable rate               q = k h (pbar - pwf) / (141.2 B mu (0.5 ln(2.2458 A / (CA rw^2)) + s))                    Ahmed and McKinney (2005), Eq. 1.2.124, Ex.
+                                                                                                                          1.18
 
 
 
@@ -392,8 +408,9 @@ deliver. Recovery that responds to spacing is a simulation or analog question.
 A wider spacing therefore gets a proportionally higher initial rate. With the rate limit on, a well whose decline would start above its deliverable rate
 produces at the deliverable rate first; the deliverable rate is held at the stated average pressure for the whole plateau (no depletion of the pressure
 inside it), so a long plateau is optimistic.
-- All wells come on stream in the first year; no drilling schedule, ramp-up, facility limit or downtime. Gas is sold at the initial solution GOR
-throughout (no free gas, no GOR rise below the bubble point).
+- Drilling: all wells on stream in year 1. A well comes on stream at the start of the year its cost is spent, every well has the same profile whenever it
+starts (no depletion by the wells before it), and there is no ramp-up, facility limit or downtime. Gas is sold at the initial solution GOR throughout (no
+free gas, no GOR rise below the bubble point).
 - Royalty is one rate on gross revenue; no income tax or production sharing. NPV discounts each year at its middle; the Petroleum Economics
 Studio discounts year-end, so the two do not match for the same case.
 - Drainage diagnostics assume a homogeneous, isotropic layer of the stated permeability, single-phase oil, a vertical well at the centre of its
@@ -408,7 +425,7 @@ rate is above the pseudosteady rate a well can deliver; the rate limit caps thos
 
 
 
-Well Spacing Report, Ekene, Spacing study                                                                                                                   Page 6 of 8
+Well Spacing Report, Ekene, Spacing study                                                                                                                       Page 6 of 8
 Plots
 Figure 1. EUR and oil produced per well against spacing
 

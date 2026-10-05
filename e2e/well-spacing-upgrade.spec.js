@@ -225,3 +225,19 @@ test('WS-U2-004 ws-case-1: a spacing case opens in Forecast Scenario Hub as a pr
   await page.screenshot({ path: `${OUT}/u2-004-epe.png` });
   expect(errors).toEqual([]);
 });
+
+test('WS-U2-003 drilling schedule: all wells in year 1 by default; rigs spread the wells and the NPV follows', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openApp(page);
+  await expect(page.getByTestId('ws-drillingSchedule')).toHaveValue('year1');
+  await expect(page.getByTestId('ws-case-table')).toContainText('1,885.8');
+  await page.getByTestId('ws-drillingSchedule').selectOption('rigs');
+  await expect(page.getByTestId('ws-errors')).toContainText('Rigs is required for this drilling schedule');
+  await page.getByTestId('ws-rigCount').fill('2');
+  await page.getByTestId('ws-wellsPerRigYear').fill('15');
+  const row40 = page.getByTestId('ws-case-table').getByRole('row', { name: /^40 125 / });
+  await expect(row40).toContainText('1,627.7');
+  await expect(row40).toContainText(/ 5$/);
+  await page.screenshot({ path: `${OUT}/u2-003-schedule.png` });
+  expect(errors).toEqual([]);
+});

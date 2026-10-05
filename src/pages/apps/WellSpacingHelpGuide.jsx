@@ -277,6 +277,16 @@ const WellSpacingHelpGuideContent = () => (
         plan initial rate is above the deliverable rate, the unlimited decline starts at a rate the
         well cannot give, and the report flags it.
       </Para>
+      <SubHeading>Drilling schedule</SubHeading>
+      <Para>
+        All wells come on stream in year 1 unless you choose a schedule under Drilling schedule: so
+        many wells a year, or rigs times the wells a rig drills in a year. Each year&apos;s wells
+        carry their cost in that year and produce the same per-well profile from the start of it,
+        cut at the end of the project duration. A tight spacing on a slow schedule brings wells on
+        stream late, so its NPV falls; wells that would start after the project duration ends are
+        flagged. On the example field, 2 rigs at 15 wells a rig a year drill the 40-acre case over 5
+        years and its NPV falls from US$ 1,885.8 MM to US$ 1,627.7 MM.
+      </Para>
       <SubHeading>The rate limit (on by default)</SubHeading>
       <Para>
         With the rate limit on, a well whose decline would start above its deliverable rate
