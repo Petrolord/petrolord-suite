@@ -23,6 +23,10 @@ export const REPORT_TITLE = 'Well Spacing Report';
 export const APP_NAME = 'Petrolord Well Spacing Optimizer';
 export const ANALYSIS_TYPE = 'Spacing economics at a stated recovery factor, with drainage geometry, timing and deliverability diagnostics (screening)';
 export const MODEL_TEXT = 'Each well drains its spacing area at the stated recovery factor (no interference, no incremental recovery from infill); one exponential decline per well anchored on that EUR; all wells on stream in year 1';
+/** WS-U2-001: the model sentence of the rate limit, by its switch. */
+export const rateLimitModelText = (on) => (on
+  ? 'Rate limit on: each well capped at its deliverable rate (the same EUR, later)'
+  : 'Rate limit off: the unlimited decline, for comparison');
 
 export const IDENTIFICATION = Object.freeze([
   ['company', 'Company'], ['field', 'Field'], ['licence', 'Licence or block'], ['reservoir', 'Reservoir or zone'],
@@ -40,6 +44,10 @@ export function inputSource(inputs, key, results) {
   const value = inputs.form?.[key];
   const intake = intakeSourceText(inputs.intakes, key, value);
   if (intake) return sourceText(inputs.inputMeta?.[key], intake);
+  if (key === 'rateLimit') {
+    if (inputs.inputMeta?.[key]?.source) return sourceText(inputs.inputMeta[key]);
+    return value === 'off' ? 'Chosen by the user (the unlimited decline, for comparison)' : assumedDefaultText('on (the owner default of 2026-10-05)');
+  }
   if (key === 'wellLayout') {
     if (inputs.inputMeta?.[key]?.source) return sourceText(inputs.inputMeta[key]);
     return text(value) && value !== 'square' ? 'Chosen by the user' : assumedDefaultText('square grid');
@@ -53,13 +61,14 @@ export function inputSource(inputs, key, results) {
   return sourceText(inputs.inputMeta?.[key]);
 }
 
-const READS_WORDS = { economics: 'case', diagnostics: 'diagnostics', record: 'record' };
+const READS_WORDS = { economics: 'case', rate: 'case, through the rate limit', diagnostics: 'diagnostics', record: 'record' };
 
 function inputRows(inputs, u, results) {
   const rows = FIELDS.map((d) => {
     const raw = inputs.form?.[d.key];
     let value;
     if (d.key === 'wellLayout') value = layoutOf(raw).label;
+    else if (d.select) value = (d.options.find(([v]) => v === raw) || d.options[0])[1];
     else if (d.key === 'oilFvf' && !text(raw) && finite(results?.boUsed)) value = u.fmt('fvf', results.boUsed, 5);
     else value = num(raw) == null ? '' : (d.kind && ['wellCost', 'opex'].includes(d.kind) ? Number(raw).toLocaleString('en-US') : u.fmt(d.kind, num(raw), 6));
     return {
@@ -96,7 +105,7 @@ function identificationPairs(inputs, { projectName, organizationName, build }) {
     pairs.push([label, v || EMPTY_VALUE]);
   }
   pairs.push(['Analysis type', ANALYSIS_TYPE]);
-  pairs.push(['Model', MODEL_TEXT]);
+  pairs.push(['Model', `${MODEL_TEXT}. ${rateLimitModelText(inputs.form?.rateLimit !== 'off')}`]);
   pairs.push(['Economics', 'Suite screening economics engine (calculateEconomics), mid-year discounting']);
   pairs.push(['Software build', text(build) || EMPTY_VALUE]);
   pairs.push(['Inputs', inputs.sampleNote ? 'Includes built-in sample values (illustrative)' : 'Entered or taken from other apps (sources below)']);
@@ -149,7 +158,33 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
   const incremental = {
     head: [u.head('Spacing', 'spacing'), u.head('Against', 'spacing'), 'Added wells', 'Added capex (US$ MM)', u.head('Added oil produced', 'eur'), 'Added NPV (US$ MM)', 'Added NPV per added well (US$ MM)'],
     rows: inc.map((x) => [sp(x.spacing), sp(x.against), String(x.addedWells), m1(x.addedCapex), u.fixed('eur', x.addedProducedMbbl, 1), m1(x.addedNpv), x.addedNpvPerWell == null ? EMPTY_VALUE : m2(x.addedNpvPerWell)]),
-    note: 'Each spacing against the next wider one in the table (fewer wells): what the extra wells add. The NPVs are those of the case table; this takes differences only. Under the stated model the extra wells add almost no oil (the differences of a few hundred Mbbl either way come from the undrained remainder of the area and the project duration cut), so the added NPV is mostly the added capex with its sign changed.',
+    note: 'Each spacing against the next wider one in the table (fewer wells): what the extra wells add. The NPVs are those of the case table; this takes differences only. Under the stated model the extra wells add almost no oil (the differences of a few hundred Mbbl either way come from the undrained remainder of the area and the project duration cut), so without a rate limit the added NPV is mostly the added capex with its sign changed. Where the rate limit binds, the extra wells also bring the oil forward, which is worth money.',
+  };
+
+  // WS-U2-001: the rate limit, before and after (both sides are canonical runs)
+  const rlOn = inputs.form?.rateLimit !== 'off';
+  const rateLimit = {
+    on: rlOn,
+    head: [u.head('Spacing', 'spacing'), u.head('Plan initial rate', 'rate'), u.head('Deliverable rate', 'rate'), u.head('Rate produced', 'rate'), 'Plateau (years)', u.head('Produced per well, unlimited', 'eur'), u.head('Produced per well, limited', 'eur'), 'NPV unlimited (US$ MM)', 'NPV rate-limited (US$ MM)', 'Change (US$ MM)'],
+    rows: rows.map((r) => {
+      const L = r.rateLimit;
+      if (!L.computed) return [sp(r.spacing), u.fmt('rate', r.initialRateBpd, 4), EMPTY_VALUE, u.fmt('rate', r.initialRateBpd, 4), EMPTY_VALUE, u.fixed('eur', r.producedPerWell, 1), EMPTY_VALUE, m1(r.npv), EMPTY_VALUE, EMPTY_VALUE];
+      return [
+        sp(r.spacing), u.fmt('rate', r.initialRateBpd, 4), u.fmt('rate', r.drainage.pssRateStbd, 4),
+        u.fmt('rate', rlOn ? L.limitedStartRateStbd : r.initialRateBpd, 4),
+        L.belowLimit ? 'never on' : (L.binding ? L.plateauYears.toFixed(2) : 'none'),
+        u.fixed('eur', L.producedUnlimited, 1), u.fixed('eur', L.producedLimited, 1),
+        m1(L.npvUnlimited), m1(L.npvLimited), m1(L.npvLimited - L.npvUnlimited),
+      ];
+    }),
+    note: [
+      rlOn
+        ? 'The rate limit is ON: the case table, the economics and the NPV chart use the rate-limited column.'
+        : 'The rate limit is OFF: the case table, the economics and the NPV chart use the unlimited column; the rate-limited column shows what the limit would change.',
+      'Where the plan initial rate of the decline is above the deliverable rate, the well produces at the deliverable rate for the plateau, then declines at the stated decline from it; the EUR is unchanged and arrives later, so the NPV falls and the produced volume can be cut by the project duration. Both NPVs are canonical runs (calculateEconomics) on the two profiles.',
+      rows.some((r) => !r.rateLimit.computed) ? `Not applied: ${rows[0]?.drainage?.deliverability || 'the deliverable rate is not computed'}` : '',
+      rows.some((r) => r.rateLimit.belowLimit) ? '"never on": the deliverable rate is at or below the economic limit rate, so the well never produces at an economic rate and the case carries its capex for no oil.' : '',
+    ].filter(Boolean).join(' '),
   };
 
   const d0 = rows[0]?.drainage;
@@ -163,7 +198,7 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
     note: [
       `Layout: ${layout.label}; shape factor CA ${layout.CA}, pseudosteady state exact from tDA ${layout.tdaExact} (Earlougher 1977, Table C.1).`,
       'Interference begins when each well\'s radius of investigation, sqrt(k t / (948 phi mu ct)), reaches half the distance to its neighbour (Lee 1982). Deliverable rate: the pseudosteady-state rate k h (pbar - pwf) / (141.2 B mu (0.5 ln(2.2458 A / (CA rw^2)) + s)) on the drainage area at the stated pressures (Ahmed and McKinney 2005, Eq. 1.2.124).',
-      'Plan / deliverable above 1 means the decline the economics assume starts at a rate the well cannot deliver at that spacing: the EUR would take longer to produce and the NPV is too high.',
+      rlOn ? 'Plan / deliverable above 1 means the unlimited decline would start at a rate the well cannot deliver at that spacing; with the rate limit on, the case is capped there (the rate limit table).' : 'Plan / deliverable above 1 means the decline the economics assume starts at a rate the well cannot deliver at that spacing: the EUR would take longer to produce and the NPV is too high (the rate limit is off).',
       d0?.timing || '',
       d0?.deliverability || '',
     ].filter(Boolean).join(' '),
@@ -186,6 +221,7 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
       ['Bo', results?.boSource === 'given' ? 'As given on the form; its source is in the inputs table' : 'Standing: Bo = 0.9759 + 0.00012 (Rs sqrt(gg / go) + 1.25 T)^1.2', results?.boSource === 'given' ? 'Inputs table' : 'Standing (1947); McCain (1990)'],
       ['EUR per well', 'N times the stated recovery factor', 'Stated model (no interference)'],
       ['Production per well', 'Exponential decline, Dn = -ln(1 - De); qi = EUR Dn + q limit; life = ln(qi / q limit) / Dn; yearly volumes integrated exactly; a year is 365.25 days', 'Arps (1945)'],
+      ['Rate limit', 'Where qi > qd (deliverable): plateau at qd for tp = (qi - qd) / (Dn qd), then qd exp(-Dn (t - tp)) to the limit; the volume to the limit stays the EUR', 'Plateau then exponential decline; qd from Ahmed and McKinney (2005) Eq. 1.2.124'],
       ['NPV, revenue, royalty, opex, capex, payback', 'calculateEconomics, TaxRoyalty, mid-year discounting, all wells drilled in year 1', 'Suite screening economics engine (docs/scope/ReservoirEngineering-Module.md section 5)'],
       ['Distance between wells', 'Square: d = sqrt(A); staggered: d = sqrt(2 A / sqrt 3)', 'Geometry; 40 acres square is 1,320 ft'],
       ['Drainage radius', 're = sqrt(43,560 A / pi), ft', 'Ahmed and McKinney (2005), Ex. 1.5: 40 acres, 745 ft'],
@@ -198,7 +234,13 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
   if (inputs.sampleNote) flags.push(inputs.sampleNote);
   if (results?.boSource === 'fallback') flags.push('Bo fell back to 1.000: a fluid input of Standing\'s correlation is blank. Every volume and dollar figure is in reservoir barrels priced as stock-tank barrels.');
   const over = rows.filter((r) => finite(r.drainage.rateRatio) && r.drainage.rateRatio > 1);
-  if (over.length) flags.push(`At ${over.map((r) => sp(r.spacing)).join(', ')} ${u.label('spacing')} the plan's initial rate is above the pseudosteady rate a well can deliver; the economics of those cases assume a rate the reservoir does not give.`);
+  if (over.length) {
+    flags.push(rlOn
+      ? `At ${over.map((r) => sp(r.spacing)).join(', ')} ${u.label('spacing')} the plan's initial rate is above the pseudosteady rate a well can deliver; the rate limit caps those cases (a plateau of up to ${Math.max(...over.map((r) => r.rateLimit.plateauYears)).toFixed(1)} years).`
+      : `At ${over.map((r) => sp(r.spacing)).join(', ')} ${u.label('spacing')} the plan's initial rate is above the pseudosteady rate a well can deliver; the rate limit is off, so the economics of those cases assume a rate the reservoir does not give.`);
+  }
+  const never = rows.filter((r) => r.rateLimit?.belowLimit);
+  if (never.length) flags.push(`At ${never.map((r) => sp(r.spacing)).join(', ')} ${u.label('spacing')} the deliverable rate is at or below the economic limit rate: the wells never produce at an economic rate.`);
   const late = rows.filter((r) => finite(r.drainage.pssDays) && r.drainage.pssDays > 365);
   if (late.length) flags.push(`At ${late.map((r) => sp(r.spacing)).join(', ')} ${u.label('spacing')} the well needs more than a year to feel its drainage boundary; a closed-area volumetric EUR is optimistic over the first years.`);
   for (const it of Object.values(inputs.intakes || {})) {
@@ -216,8 +258,8 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
 
   const limits = {
     assumptions: [
-      'A screening study of spacing economics. Every well recovers the stated recovery factor of the oil under its own spacing area, whatever the spacing: the model has no interference, no acceleration-only infill and no incremental recovery from tighter spacing. Field oil is therefore nearly the same at every spacing and NPV rises as wells are removed. Recovery that responds to spacing is a simulation or analog question.',
-      'One exponential decline per well, the stated effective annual decline at every spacing, anchored so the volume to the economic limit is the EUR. A wider spacing therefore gets a proportionally higher initial rate; the deliverability check shows where that rate exceeds what a well can deliver.',
+      'A screening study of spacing economics. Every well recovers the stated recovery factor of the oil under its own spacing area, whatever the spacing: the model has no interference, no acceleration-only infill and no incremental recovery from tighter spacing. Field oil is therefore nearly the same at every spacing; without a rate limit NPV rises as wells are removed, and with it the wide cases are held back by what each well can deliver. Recovery that responds to spacing is a simulation or analog question.',
+      'One exponential decline per well, the stated effective annual decline at every spacing, anchored so the volume to the economic limit is the EUR. A wider spacing therefore gets a proportionally higher initial rate. With the rate limit on, a well whose decline would start above its deliverable rate produces at the deliverable rate first; the deliverable rate is held at the stated average pressure for the whole plateau (no depletion of the pressure inside it), so a long plateau is optimistic.',
       'All wells come on stream in the first year; no drilling schedule, ramp-up, facility limit or downtime. Gas is sold at the initial solution GOR throughout (no free gas, no GOR rise below the bubble point).',
       'Royalty is one rate on gross revenue; no income tax or production sharing. NPV discounts each year at its middle; the Petroleum Economics Studio discounts year-end, so the two do not match for the same case.',
       'Drainage diagnostics assume a homogeneous, isotropic layer of the stated permeability, single-phase oil, a vertical well at the centre of its drainage area and pseudosteady state at the stated average pressure. They change no EUR and no NPV.',
@@ -237,11 +279,12 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
     cases,
     economics,
     incremental,
+    rateLimit,
     drainage,
     cross,
     crossChecks: cc,
     methods,
-    inputs: { rows: inputRows(inputs, u, results), note: 'Every value the study read, with its source. [case] enters the EUR, the NPV and every number of the case table; [diagnostics] enters only the drainage table; [cross-check] and [record] enter no equation. Values taken from another app name the project and the method; an edit after the intake says so.' },
+    inputs: { rows: inputRows(inputs, u, results), note: 'Every value the study read, with its source. [case] enters the EUR, the NPV and every number of the case table; [case, through the rate limit] enters the deliverable rate, which caps the decline when the rate limit is on; [diagnostics] enters only the drainage table; [cross-check] and [record] enter no equation. Values taken from another app name the project and the method; an edit after the intake says so.' },
     limits,
     figures,
     notes: text(inputs.identification?.notes) || null,
@@ -279,13 +322,18 @@ function buildFigures(rows, inputs, u, results) {
     figs.push({
       id: 'npv',
       title: 'Field NPV against the number of wells',
-      caption: 'One point per spacing case, by its well count; mid-year discounting through the Suite screening economics engine. Capex on the right axis. Under the stated model the NPV falls as wells are added because they add capex and almost no oil.',
+      caption: `One point per spacing case, by its well count; mid-year discounting through the Suite screening economics engine. Capex on the right axis. Under the stated model the NPV falls as wells are added because they add capex and almost no oil${rows.some((r) => r.rateLimit?.binding) ? ', until the rate limit holds back the wide cases: the dotted line is the other side of the rate-limit switch' : ''}.`,
       panels: [{
         height: 70,
         spec: {
           xTitle: 'Wells', yTitle: 'NPV, US$ MM', y2Title: 'Capex, US$ MM',
           series: [
             { name: 'NPV', type: 'both', pts: rows.map((r) => [r.numberOfWells, r.npv]), rgb: SERIES_RGB.emerald },
+            // WS-U2-001: the other side of the rate-limit switch, where it differs
+            ...(rows.some((r) => r.rateLimit?.binding) ? [{
+              name: inputs.form?.rateLimit !== 'off' ? 'NPV, unlimited decline' : 'NPV, rate-limited', type: 'line', dash: [0.8, 0.8],
+              pts: rows.map((r) => [r.numberOfWells, inputs.form?.rateLimit !== 'off' ? r.rateLimit.npvUnlimited : r.rateLimit.npvLimited]), rgb: SERIES_RGB.red,
+            }] : []),
             { name: 'Capex', type: 'line', dash: [1.5, 1], axis: 'y2', pts: rows.map((r) => [r.numberOfWells, r.totalCapex]), rgb: SERIES_RGB.slate },
           ],
         },
@@ -299,7 +347,7 @@ function buildFigures(rows, inputs, u, results) {
       figs.push({
         id: 'deliverability',
         title: 'Plan initial rate and deliverable rate against spacing',
-        caption: 'The plan rate is the day-one rate of the decline the economics use; the deliverable rate is the pseudosteady-state rate of a well on that drainage area at the stated pressures, permeability and skin. Where the plan line is above the deliverable line, the case assumes a rate the well cannot give.',
+        caption: 'The plan rate is the day-one rate of the unlimited decline; the deliverable rate is the pseudosteady-state rate of a well on that drainage area at the stated pressures, permeability and skin. Where the plan line is above the deliverable line, the unlimited case assumes a rate the well cannot give; with the rate limit on, the rate produced follows the lower of the two.',
         panels: [{
           height: 70,
           spec: {
@@ -307,6 +355,7 @@ function buildFigures(rows, inputs, u, results) {
             series: [
               { name: 'Plan initial rate', type: 'both', pts: rows.map((r) => [u.show('spacing', r.spacing), u.show('rate', r.initialRateBpd)]), rgb: SERIES_RGB.red },
               { name: 'Deliverable (pseudosteady)', type: 'both', pts: deliv.map((r) => [u.show('spacing', r.spacing), u.show('rate', r.drainage.pssRateStbd)]), rgb: SERIES_RGB.blue },
+              ...(inputs.form?.rateLimit !== 'off' && deliv.some((r) => r.rateLimit?.binding) ? [{ name: 'Rate produced (rate limit on)', type: 'line', dash: [1.5, 1], pts: rows.map((r) => [u.show('spacing', r.spacing), u.show('rate', r.rateLimit.limitedStartRateStbd)]), rgb: SERIES_RGB.emerald }] : []),
             ],
           },
         }],

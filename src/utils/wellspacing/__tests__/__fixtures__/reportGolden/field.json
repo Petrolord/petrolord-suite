@@ -1,11 +1,11 @@
 {
-  "pages": 7,
-  "sha256": "f7172c878c3d559764d4d40e30541568f9cd33faa8aefb14e1b53f80c22f0bab",
+  "pages": 8,
+  "sha256": "8f4636e2f769d4e2d7f41360e79e11a2a5478a3a015c2b77251ff1a296eb843b",
   "figures": [
     {
       "id": "eur",
       "number": 1,
-      "page": 6,
+      "page": 7,
       "plotted": true,
       "panels": [
         {
@@ -28,7 +28,7 @@
     {
       "id": "npv",
       "number": 2,
-      "page": 6,
+      "page": 7,
       "plotted": true,
       "panels": [
         {
@@ -40,9 +40,10 @@
           },
           "drawn": {
             "NPV": 15,
+            "NPV, unlimited decline": 15,
             "Capex": 15
           },
-          "total": 30,
+          "total": 45,
           "bands": 0,
           "logo": true
         }
@@ -51,7 +52,7 @@
     {
       "id": "deliverability",
       "number": 3,
-      "page": 7,
+      "page": 8,
       "plotted": true,
       "panels": [
         {
@@ -63,9 +64,10 @@
           },
           "drawn": {
             "Plan initial rate": 15,
-            "Deliverable (pseudosteady)": 15
+            "Deliverable (pseudosteady)": 15,
+            "Rate produced (rate limit on)": 15
           },
-          "total": 30,
+          "total": 45,
           "bands": 0,
           "logo": true
         }
@@ -74,7 +76,7 @@
     {
       "id": "map",
       "number": 4,
-      "page": 7,
+      "page": 8,
       "plotted": false,
       "panels": []
     }

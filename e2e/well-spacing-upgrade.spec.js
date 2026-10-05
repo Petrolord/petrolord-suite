@@ -175,3 +175,22 @@ test('PL3 units: SI shows converted values; a decimal typed in SI stays', async 
   await expect(h).toHaveValue('18.288');
   await expect(page.getByTestId('ws-case-table').locator('tr').nth(1)).toContainText('1,174.8');
 });
+
+// ---- WS-U2 (Step 2) ----
+
+test('WS-U2-001 rate limit: on by default with before and after; the switch off gives the unlimited decline back', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openApp(page);
+  await expect(page.getByTestId('ws-rate-limit-state')).toContainText('The rate limit is on. It binds at 12 of 15 spacings.');
+  const row100 = page.getByTestId('ws-rate-limit-table').getByRole('row', { name: /^100 653.4 / });
+  await expect(row100).toContainText('2,316.6');
+  await expect(row100).toContainText('1,892.6');
+  await expect(row100).toContainText('-424.0');
+  await expect(page.getByTestId('ws-case-table')).toContainText('1,892.6');
+  await page.getByTestId('ws-rateLimit').selectOption('off');
+  await expect(page.getByTestId('ws-rate-limit-state')).toContainText('The rate limit is off.');
+  await expect(page.getByTestId('ws-case-table')).toContainText('2,316.6');
+  await expect(page.getByTestId('ws-case-table')).not.toContainText('1,892.6');
+  await page.screenshot({ path: `${OUT}/u2-rate-limit.png`, fullPage: false });
+  expect(errors).toEqual([]);
+});

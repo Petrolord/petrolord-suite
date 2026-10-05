@@ -262,8 +262,8 @@ const WellSpacingHelpGuideContent = () => (
       <SectionHeading icon={Gauge}>Drainage, timing and deliverability</SectionHeading>
       <Para>
         Beside each case the app prints what the spacing means for a well, in field units with t in
-        hours inside the formulas. None of it changes an EUR or an NPV; it tells you whether the
-        assumptions behind them hold.
+        hours inside the formulas. The timing never changes an EUR or an NPV. The deliverable rate
+        does when the rate limit is on (below).
       </Para>
       <Formula>distance between wells = sqrt(A) on a square grid, sqrt(2 A / sqrt 3) on a staggered grid</Formula>
       <Formula>drainage radius re = sqrt(43,560 A / pi)   (40 acres: 745 ft)</Formula>
@@ -274,8 +274,26 @@ const WellSpacingHelpGuideContent = () => (
         Interference begins when each well&apos;s radius of investigation reaches half the distance
         to its neighbour. The deliverable rate is what a well on that drainage area gives at
         pseudosteady state; CA is 30.88 for a square and 31.6 for a hexagon (Earlougher). When the
-        plan initial rate is above the deliverable rate, the decline the economics assume starts at
-        a rate the well cannot give: that case&apos;s NPV is too high, and the report flags it.
+        plan initial rate is above the deliverable rate, the unlimited decline starts at a rate the
+        well cannot give, and the report flags it.
+      </Para>
+      <SubHeading>The rate limit (on by default)</SubHeading>
+      <Para>
+        With the rate limit on, a well whose decline would start above its deliverable rate
+        produces at the deliverable rate first (a plateau), then declines at the stated decline from
+        it. The plateau lasts exactly long enough for the volume to the economic limit to stay the
+        EUR, so the oil is the same and it arrives later; the NPV of the wide spacings falls, and the
+        project duration can cut what is produced.
+      </Para>
+      <Formula>plateau tp = (qi - qd) / (Dn qd), then q = qd exp(-Dn (t - tp)) to the economic limit</Formula>
+      <Para>
+        Switch it off under Deliverability and drainage to see the unlimited decline of earlier
+        releases. Either way the Rate limit table prints both NPVs for every spacing (each a run of
+        the Suite screening economics engine) and the change between them. On the example field
+        (5 md) the limit binds from 50 acres a well, and the NPV at 100 acres falls from US$ 2,316.6
+        MM to US$ 1,892.6 MM. The deliverable rate is held at the stated average pressure for the
+        whole plateau, so a long plateau is optimistic. A deliverable rate at or below the economic
+        limit rate means the well never produces at an economic rate.
       </Para>
       <Callout tone="info" title="Checked against published worked examples">
         The deliverable rate reproduces Ahmed and McKinney (2005) Example 1.18, 416 STB/d; the

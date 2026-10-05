@@ -261,4 +261,14 @@ BUILD in this order, one commit per item:
 
 ### Items built
 
-(one row per item as it lands)
+Numbers that change (example field, field NPV in US$ MM, unlimited then
+rate-limited): 20 to 40 acres unchanged (1,174.8, 1,640.4, 1,885.8); 50
+acres 2,029.4 to 2,024.5; 80 acres 2,226.8 to 2,003.6; 100 acres 2,316.6 to
+1,892.6; 160 acres 2,404.9 to 1,435.2. The NPV now peaks at 60 acres
+(2,063.1) on the example; without the limit it rose to the widest spacing.
+The H7 sample (no drainage inputs) does not move: the limit cannot be
+computed there and says so.
+
+| ID | Status | What | Proving test |
+|---|---|---|---|
+| WS-U2-001 | Done | Rate-limited profile, on by default with a switch (Deliverability and drainage card). Where the plan's qi is above the deliverable (pseudosteady) rate qd of the Step 1 check, the well produces at qd for tp = (qi - qd) / (Dn qd), then declines at the stated Dn from qd to the limit: the volume to the limit stays the EUR, later. Both sides are canonical `calculateEconomics` runs (a second run only where the limit binds); the "Rate limit: before and after" table (screen and PDF) prints plan, deliverable and produced rate, plateau, produced per well and NPV on both sides with the change; the NPV chart and figure draw the other side dotted. The sample's permeability moves from 50 to 5 md (at 50 md no case reached its deliverable rate: 2,870 to 3,218 STB/d against plan 139 to 1,039), so the example shows the limit | `wsRateLimit.test.js` (9: the qd is the drainage engine's; plateau and post-plateau closed form; EUR conserved; switch off returns Step 1; NPV is the engine on the limited profile; blank inputs; qd below the limit). Negative control: tp divided by qi in place of qd fails 3. e2e "WS-U2-001 rate limit" |

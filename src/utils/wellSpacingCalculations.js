@@ -209,48 +209,114 @@ export const NPV_CONVENTION_NOTE = 'NPV is computed by the Suite screening econo
  *   =>  qi = EUR * Dn + qLimit
  *   life = ln(qi / qLimit) / Dn
  */
-// Volumes and life of one well at a spacing: the exponential decline
-// anchored on the EUR, integrated exactly over each project year.
-const wellProfile = (spacing, p) => {
+const finiteNum = (v) => typeof v === 'number' && Number.isFinite(v);
+
+/**
+ * WS-U2-001: the deliverable rate a well has at a spacing, STB/d: the
+ * pseudosteady-state rate of the Step 1 drainage check (drainage.js,
+ * Ahmed and McKinney 2005 Eq. 1.2.124), NaN when a drainage input is blank.
+ */
+export const deliverableRateStbd = (spacing, p) => drainageCase({
+  spacingAcres: spacing,
+  layout: p.layout,
+  planRateStbd: NaN,
+  rock: {
+    kMd: p.permeability, phi: p.porosity, muCp: p.oilViscosity, ctPerPsi: p.totalCompressibility,
+    hFt: p.avgNetPay, pAvgPsia: p.reservoirPressure, pwfPsia: p.flowingPressure, bo: p.bo, rwFt: p.wellboreRadius, skin: p.skin,
+  },
+}).pssRateStbd;
+
+/**
+ * The production of one well at a spacing (rates per year, t in years from
+ * its first production).
+ *
+ * Unlimited (Step 1, and the switch off): one exponential decline from qi,
+ * anchored so the volume to the economic limit is the EUR.
+ *
+ * Rate-limited (WS-U2-001, on by default): when the plan's qi is above the
+ * deliverable rate qd, the well produces at qd (a plateau) until the
+ * exponential decline from qd would leave exactly the rest of the EUR:
+ *   plateau tp = (qi - qd) / (Dn qd);  then q = qd exp(-Dn (t - tp))
+ *   life = tp + ln(qd / qLimit) / Dn;  volume to the limit = EUR (unchanged)
+ * The same oil, later. A deliverable rate at or below the economic limit
+ * rate produces nothing (the well never makes the limit).
+ *
+ * `cum(t)` is the exact cumulative, used for every yearly volume.
+ */
+export const wellProfile = (spacing, p) => {
   const oiipPerWell = (spacing * p.avgNetPay * p.porosity * (1 - p.swi) * BBL_PER_ACRE_FT) / (p.bo || 1);
   const eurPerWellBbl = oiipPerWell * p.recoveryFactor;
   const Dn = -Math.log(1 - p.declineRate);
   const qLimitAnnual = p.minEconomicRate * DAYS_PER_YEAR;
   const qiAnnual = eurPerWellBbl * Dn + qLimitAnnual;
-  const economicLife = Math.log(qiAnnual / qLimitAnnual) / Dn;
-  const actualLife = Math.min(economicLife, p.projectDuration);
+  const deliverable = deliverableRateStbd(spacing, p);
+  const capAnnual = finiteNum(deliverable) && deliverable > 0 ? deliverable * DAYS_PER_YEAR : NaN;
+  const binding = p.rateLimit !== false && finiteNum(capAnnual) && capAnnual < qiAnnual;
+  let qStart = qiAnnual;
+  let plateauYears = 0;
+  let economicLife;
+  let belowLimit = false;
+  if (binding && capAnnual <= qLimitAnnual) {
+    belowLimit = true;
+    qStart = capAnnual;
+    economicLife = 0;
+  } else {
+    if (binding) {
+      qStart = capAnnual;
+      plateauYears = (qiAnnual - capAnnual) / (Dn * capAnnual);
+    }
+    economicLife = plateauYears + Math.log(qStart / qLimitAnnual) / Dn;
+  }
+  const cum = (t) => {
+    const x = Math.max(0, Math.min(t, economicLife));
+    if (x <= plateauYears) return qStart * x;
+    return qStart * plateauYears + (qStart / Dn) * (1 - Math.exp(-Dn * (x - plateauYears)));
+  };
+  return {
+    eurPerWellBbl, Dn, qiAnnual, qLimitAnnual, economicLife, cum,
+    deliverableStbd: deliverable,
+    rateLimit: { on: p.rateLimit !== false, computed: finiteNum(capAnnual), binding, belowLimit, plateauYears, startRateStbd: qStart / DAYS_PER_YEAR },
+  };
+};
+
+// The yearly volumes of one well over the project duration, from its exact cumulative.
+const wellYears = (spacing, p) => {
+  const prof = wellProfile(spacing, p);
+  const actualLife = Math.min(prof.economicLife, p.projectDuration);
   const years = [];
   for (let year = 1; year <= Math.ceil(actualLife); year++) {
     const from = year - 1;
     const to = Math.min(year, actualLife);
     if (to <= from) break;
-    // Exact integral of qi*exp(-Dn*t) over [from, to].
-    years.push({ oil: (qiAnnual / Dn) * (Math.exp(-Dn * from) - Math.exp(-Dn * to)), fraction: to - from });
+    years.push({ oil: prof.cum(to) - prof.cum(from), fraction: to - from });
   }
-  return { eurPerWellBbl, qiAnnual, economicLife, actualLife, years };
+  return { ...prof, actualLife, years };
 };
 
 /**
  * The `calculateEconomics` inputs of one spacing case, for the whole field.
  * Royalties and taxes are one percentage of gross revenue on the form, so
  * they enter as the royalty rate with no income tax. Costs are in $MM, as
- * the engine expects. Opex of a part year is pro-rated.
+ * the engine expects. Opex of a part year is pro-rated. A case whose wells
+ * never produce keeps its capex in year 1.
  */
 export const spacingEconomicsInputs = (spacing, p) => {
   const numberOfWells = Math.floor(p.reservoirArea / spacing);
-  const { years } = wellProfile(spacing, p);
-  const n = years.length;
+  const { years } = wellYears(spacing, p);
+  const n = Math.max(1, years.length);
+  const yr = (i) => years[i] || { oil: 0, fraction: 0 };
+  const idx = Array.from({ length: n }, (_, i) => i);
   return {
     projectLife: n,
     discountRate: p.discountRate * 100,
     fiscalType: 'TaxRoyalty',
     production: {
-      oil: years.map((y) => numberOfWells * y.oil),                  // bbl
-      gas: years.map((y) => (numberOfWells * y.oil * p.gor) / 1000), // Mscf
+      oil: idx.map((i) => numberOfWells * yr(i).oil),                  // bbl
+      gas: idx.map((i) => (numberOfWells * yr(i).oil * p.gor) / 1000), // Mscf
     },
     price: { oil: new Array(n).fill(p.oilPrice), gas: new Array(n).fill(p.gasPrice) },
-    capex: years.map((_, i) => (i === 0 ? (numberOfWells * p.wellCost) / 1e6 : 0)),
-    opexFixed: years.map((y) => (numberOfWells * p.opex * y.fraction) / 1e6),
+    capex: idx.map((i) => (i === 0 ? (numberOfWells * p.wellCost) / 1e6 : 0)),
+    opexFixed: idx.map((i) => (numberOfWells * p.opex * yr(i).fraction) / 1e6),
     opexVariable: new Array(n).fill(0),
     abandonment: new Array(n).fill(0),
     royaltyRate: p.royaltiesTaxes * 100,
@@ -258,11 +324,31 @@ export const spacingEconomicsInputs = (spacing, p) => {
   };
 };
 
+// One canonical economics run of a case, with the volumes it was run on.
+const economicsOf = (spacing, p) => {
+  const prof = wellYears(spacing, p);
+  const { metrics } = calculateEconomics(spacingEconomicsInputs(spacing, p), { skipIrr: true });
+  return { prof, metrics, producedPerWell: prof.years.reduce((sum, y) => sum + y.oil, 0) };
+};
+
 const evaluateSpacing = (spacing, p) => {
   const numberOfWells = Math.floor(p.reservoirArea / spacing);
   if (numberOfWells < 1) return null;
 
-  const { eurPerWellBbl, qiAnnual, economicLife, actualLife, years } = wellProfile(spacing, p);
+  // H7: the canonical screening NPV. No discounting is done in this file.
+  const run = economicsOf(spacing, p);
+  const { eurPerWellBbl, qiAnnual, economicLife, actualLife, years } = run.prof;
+  const { metrics } = run;
+
+  // WS-U2-001: the other side of the rate-limit switch, for the before and
+  // after. A second canonical run only where the limit binds; elsewhere the
+  // two profiles are the same and so are the numbers.
+  const rl = run.prof.rateLimit;
+  const other = rl.binding || (!rl.on && rl.computed && run.prof.deliverableStbd * DAYS_PER_YEAR < qiAnnual)
+    ? economicsOf(spacing, { ...p, rateLimit: !rl.on })
+    : run;
+  const limitedRun = rl.on ? run : other;
+  const unlimitedRun = rl.on ? other : run;
 
   // Areal coverage is the share of the field that whole wells actually drain.
   // It is what makes the field-recovery curve step: a spacing that divides
@@ -273,10 +359,7 @@ const evaluateSpacing = (spacing, p) => {
 
   const totalCapex = (numberOfWells * p.wellCost) / 1e6;
 
-  // H7: the canonical screening NPV. No discounting is done in this file.
-  const { metrics } = calculateEconomics(spacingEconomicsInputs(spacing, p), { skipIrr: true });
-
-  const producedPerWell = years.reduce((sum, y) => sum + y.oil, 0);
+  const producedPerWell = run.producedPerWell;
   const opexTotalPerWell = years.reduce((sum, y) => sum + p.opex * y.fraction, 0);
   const totalProduction = numberOfWells * producedPerWell;
   const totalOpexAllWells = numberOfWells * opexTotalPerWell;
@@ -309,6 +392,22 @@ const evaluateSpacing = (spacing, p) => {
     netCashUndiscounted: metrics.totalRevenue - metrics.totalRoyalty - metrics.totalOpex - metrics.totalCapex - metrics.totalTax,
     payback: metrics.payback,
     paybackStatus: metrics.paybackStatus,
+    // WS-U2-001: the rate limit, both sides of the switch (canonical NPVs)
+    rateLimit: {
+      on: rl.on,
+      computed: rl.computed,
+      binding: limitedRun.prof.rateLimit.binding,
+      belowLimit: limitedRun.prof.rateLimit.belowLimit,
+      plateauYears: limitedRun.prof.rateLimit.plateauYears,
+      producedRateStbd: rl.on ? rl.startRateStbd : qiAnnual / DAYS_PER_YEAR,
+      limitedStartRateStbd: limitedRun.prof.rateLimit.startRateStbd,
+      npvLimited: limitedRun.metrics.npv,
+      npvUnlimited: unlimitedRun.metrics.npv,
+      producedLimited: limitedRun.producedPerWell / 1000,
+      producedUnlimited: unlimitedRun.producedPerWell / 1000,
+      lifeLimited: Math.min(limitedRun.prof.economicLife, p.projectDuration),
+      lifeUnlimited: Math.min(unlimitedRun.prof.economicLife, p.projectDuration),
+    },
     // WS-U1: geometry, timing and deliverability; diagnostics only
     drainage: drainageCase({
       spacingAcres: spacing,
@@ -378,6 +477,8 @@ export const runSpacingCases = (formData) => {
     oilViscosity: parseFloat(formData.oilViscosity),
     totalCompressibility: parseFloat(formData.totalCompressibility),
     wellboreRadius: parseFloat(formData.wellboreRadius),
+    // WS-U2-001: on unless switched off (the owner default of 2026-10-05)
+    rateLimit: formData.rateLimit !== 'off',
   };
   const { bo, source: boSource } = standingBo(p);
   p.bo = bo;
@@ -464,6 +565,9 @@ export const generateJSON = (formData, results) => ({
     units: 'Oilfield: acres, ft, psia, degF, scf/STB, STB/d, Mbbl (EUR and produced per well), RB/STB, cp, 1/psi, md; money in US$ ($MM for capex and NPV)',
     declineBasis: 'typicalWellDeclineRate is an effective annual decline in percent; the engine converts it to nominal Dn = -ln(1 - De)',
     recoveryModel: 'stated recovery factor over the area covered by whole wells; no interference physics',
-    version: 'WellSpacingOptimizer v3 (WS-U1)',
+    rateLimit: formData.rateLimit === 'off'
+      ? 'off: the unlimited decline (each case carries rateLimit.npvLimited for comparison)'
+      : 'on: each well capped at its deliverable (pseudosteady) rate, the same EUR later (each case carries rateLimit.npvUnlimited for comparison)',
+    version: 'WellSpacingOptimizer v4 (WS-U2)',
   },
 });
