@@ -243,3 +243,22 @@ Batch C: 012 to 015.
 | 4 | Drilling schedule default | All wells in year 1 stays the default; a schedule is optional and printed |
 | 5 | Unconventional lateral spacing in this app? | No; a separate tool if the market asks (Batch C) |
 | 6 | Downstream sender target | Forecast Scenario Hub and Petroleum Economics Studio, as a profile contract like `wf-forecast-1` |
+
+## 12. Step 2 build (WS-U2)
+
+Branch `feat/wsp-u2`, worktree `/root/wt-res-wsp2`, started 2026-10-05 at
+origin/main e4748d14e (Step 1 merged as PR #885). The migration
+`20261005010000_saved_well_spacing_projects.sql` is still NOT APPLIED
+(owner); the Step 1 fallback ("saving is not switched on") stays.
+
+### Batch decision (programme lead, 2026-10-05)
+
+Owner-question defaults in force: the rate limit changes NPV, with a switch to compare and before/after printed; recovery vs spacing is user-calibrated (analogs, DCA, simulation), never a built-in uncited curve; migration staging first (owner); the default drilling schedule stays all wells in year 1; no unconventional laterals in this app; the sender goes to Forecast Scenario Hub and Petroleum Economics Studio.
+BUILD in this order, one commit per item:
+- Batch A: 001 rate-limited profile (each case's profile capped at the deliverable rate from the Step 1 check, with the switch and before/after in the report; economics through calculateEconomics); 004 `ws-case-1` sender to the Hub (profile case) and EPE (follow wf-forecast-1 exactly; the cash-flow engine gated to ignore the provenance record); 003 drilling schedule (wells per year or rig count, default all in year 1; NPV through calculateEconomics); 006 measurable interference (the offset-well pressure drop at a stated time and distance printed per case, from the validated E1 engine); 005 rf-1 intake only if on main.
+- Batch B if time remains: 008 Monte Carlo through the canonical module (seeded, seed and count saved and printed, exceedance convention stated); 007 sensitivity tornado (no new NPV maths); 002 recovery responding to spacing, user-calibrated only (from DCA per-well EURs at different spacings via dca-forecast-1, from analog points the user types with a source, or from simulation runs via sim-forecast-1), with the fit and its points printed; 010 tax and PSC terms only if calculateEconomics already supports them (wire, do not implement).
+- DEFERRED (record reasons): 009 empirical EUR from DCA plus registry (unless 002's DCA route covers it), 011 proposed grid on the map, all of Batch C.
+
+### Items built
+
+(one row per item as it lands)
