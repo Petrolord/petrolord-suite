@@ -10,3 +10,6 @@ exception when duplicate_object then null; end $$;
 grant usage on schema public, auth to anon, authenticated, service_role;
 insert into auth.users values ('00000000-0000-0000-0000-000000000001'), ('00000000-0000-0000-0000-000000000002');
 insert into public.organizations values ('00000000-0000-0000-0000-0000000000aa');
+-- Supabase grants every new public table to these roles by default; mirror it
+-- so the migration's revokes are actually tested.
+alter default privileges in schema public grant all on tables to anon, authenticated, service_role;

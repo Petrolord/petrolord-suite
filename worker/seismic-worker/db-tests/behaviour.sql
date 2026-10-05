@@ -1,9 +1,10 @@
 -- qi_jobs behaviour checks (QI Q0). Run via db-tests/run.sh; each check raises on failure.
 \set ON_ERROR_STOP 1
-grant select on public.qi_jobs to authenticated;
 grant select, update on public.qi_jobs to service_role;
 create or replace function pg_temp.ok(c boolean, label text) returns void language plpgsql as $$
 begin if not c then raise exception 'FAIL: %', label; end if; raise notice 'ok  %', label; end $$;
+select pg_temp.ok(not exists (select 1 from information_schema.role_table_grants where table_name = 'qi_jobs' and grantee = 'anon'), 'anon holds no grants on qi_jobs');
+select pg_temp.ok((select array_agg(privilege_type::text order by privilege_type::text) from information_schema.role_table_grants where table_name = 'qi_jobs' and grantee = 'authenticated') = array['SELECT']::text[], 'authenticated may only SELECT qi_jobs');
 
 -- user 1 enqueues as authenticated
 set role authenticated; set test.uid = '00000000-0000-0000-0000-000000000001';

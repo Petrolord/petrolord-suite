@@ -62,6 +62,13 @@ create policy "qi_jobs_select_own"
     on public.qi_jobs for select
     using (auth.uid() = user_id);
 
+-- Supabase's default privileges grant every new public table to anon and
+-- authenticated. RLS already hides all rows; the grants are narrowed as well
+-- so anon holds nothing and signed-in users can only read.
+revoke all on public.qi_jobs from anon;
+revoke insert, update, delete, truncate, references, trigger on public.qi_jobs from authenticated;
+grant select on public.qi_jobs to authenticated;
+
 comment on table public.qi_jobs is
   'Seismic worker job queue (QI programme Q0). Clients enqueue and cancel only through qi_enqueue_job and qi_cancel_job; the worker claims with the service role.';
 
