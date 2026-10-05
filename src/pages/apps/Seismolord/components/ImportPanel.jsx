@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Upload, FileText, AlertTriangle, CheckCircle2, Loader2, XCircle, Play, Ban,
-  RotateCcw, Trash2, Eye,
+  RotateCcw, Trash2, Eye, Server, Pause,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { scanFile, ingestVolume } from '../services/ingestService';
 import { listVolumes, deleteVolume } from '../services/volumesService';
 import { publishConversionProgress, clearConversionProgress } from '../sources/conversionProgress';
 import { getImportJobs, v4ImportSupport, V4_STATUS } from '../services/importJobsRuntime';
+import { serverImportAdvice, startServerImport } from '../services/serverImport';
 import CrsPicker from '@/components/crs/CrsPicker';
 import StorageMeter from './StorageMeter';
 import CrsBadge from '@/components/crs/CrsBadge';
@@ -24,6 +25,7 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { COORD_UNITS, SAMPLE_FORMATS, needsTraceLattice } from '../lib/segyDoor';
 
 const fmtInt = (v) => (v == null ? EMPTY_VALUE : v.toLocaleString('en-US'));
+const fmtBytes = (b) => (b >= 1024 ** 3 ? `${(b / 1024 ** 3).toFixed(2)} GB` : `${(b / 1024 ** 2).toFixed(1)} MB`);
 
 /** SEIS-U1-012: a trace-header byte position is committed on Enter or
  *  blur, only when it is a whole number the header can hold. Typing
@@ -118,7 +120,7 @@ const PHASE_LABEL = {
  * @param {() => void} [p.onViewNow] show the viewer (the dialog closes)
  */
 export default function ImportPanel({
-  onIngested, onBusyChange, frameless, onFilePicked, onViewNow, onBackgroundStarted,
+  onIngested, onBusyChange, frameless, onFilePicked, onViewNow, onBackgroundStarted, onServerImportStarted,
 }) {
   const { toast } = useToast();
   const fileRef = useRef(null);
@@ -162,6 +164,14 @@ export default function ImportPanel({
       .catch(() => { if (!stale) setV4Support({ ok: false, reason: 'no-opfs' }); });
     return () => { stale = true; };
   }, [file]);
+  // Server import (QI programme Q0): offered for every file, chosen by
+  // default from 2 GB or when this browser cannot run the background import
+  const serverAdvice = useMemo(() => (file ? serverImportAdvice(file.size, v4Support) : null), [file, v4Support]);
+  const [useServer, setUseServer] = useState(false);
+  useEffect(() => { setUseServer(Boolean(serverAdvice?.preferred)); }, [serverAdvice]);
+  const [upload, setUpload] = useState(null);       // {bytesDone, bytesTotal}
+  const [serverStarted, setServerStarted] = useState(false);
+  const uploadAbortRef = useRef(null);
   const useV4 = Boolean(v4Support?.ok) && !compress16;
 
   const runScan = async (f, m) => {
@@ -230,7 +240,38 @@ export default function ImportPanel({
     }
   };
 
+  const startServer = async () => {
+    setPhase('uploading');
+    setError(null);
+    setUpload({ bytesDone: 0, bytesTotal: file.size });
+    const ctl = new AbortController();
+    uploadAbortRef.current = ctl;
+    try {
+      await startServerImport({
+        file, mapping, scan: scanData.scan, nativeCrs: crsTag, onUploadProgress: setUpload, signal: ctl.signal,
+      });
+      setServerStarted(true);
+      setPhase('background');
+      toast({
+        title: 'Converting on the server',
+        description: `${file.name} is uploaded. The server converts it; follow it under Server jobs.`,
+      });
+      if (onIngested) onIngested({ status: V4_STATUS.CONVERTING, name: file.name });
+      if (onServerImportStarted) onServerImportStarted();
+    } catch (e) {
+      if (e?.name === 'AbortError') {
+        setError('Upload paused. Pick the same file again and start the import to continue from where it stopped.');
+      } else {
+        setError(e.message);
+      }
+      setPhase('error');
+    } finally {
+      uploadAbortRef.current = null;
+    }
+  };
+
   const startIngest = async () => {
+    if (useServer) { await startServer(); return; }
     if (useV4) { await startBackground(); return; }
     setPhase('ingesting');
     setError(null);
@@ -264,7 +305,7 @@ export default function ImportPanel({
   const scan = scanData?.scan;
 
   useEffect(() => {
-    if (onBusyChange) onBusyChange(phase === 'ingesting');
+    if (onBusyChange) onBusyChange(phase === 'ingesting' || phase === 'uploading');
   }, [phase, onBusyChange]);
 
   // Project CRS context for the CRS step (refreshes after each run in
@@ -329,9 +370,11 @@ export default function ImportPanel({
   };
 
   const crsChosen = Boolean(crsTag);
+  // the server import is always the v4 path, so the lattice rule is met
   const blockReason = importBlockReason({
-    scan, domain, useV4, v4Support, compress16,
+    scan, domain, useV4: useV4 || useServer, v4Support, compress16: useServer ? false : compress16,
   });
+  const busy = phase === 'ingesting' || phase === 'uploading';
   const sanityBlocks = Boolean(sanity && !sanity.ok && sanity.verdict === 'out-of-area' && !sanityOverride);
   const projectSet = Boolean(project?.tag && isTransformableTag(project.tag));
   const willConvert = projectSet && crsTag && isTransformableTag(crsTag)
@@ -520,7 +563,7 @@ export default function ImportPanel({
                       (p) => `${p.ilByte}/${p.xlByte}` === e.target.value);
                     if (preset) onMappingChange({ ilByte: preset.ilByte, xlByte: preset.xlByte });
                   }}
-                  disabled={phase === 'ingesting'}
+                  disabled={busy}
                 >
                   {MAPPING_PRESETS.map((p) => (
                     <option key={p.label} value={`${p.ilByte}/${p.xlByte}`}>{p.label}</option>
@@ -537,7 +580,7 @@ export default function ImportPanel({
                 <ByteField
                   value={mapping.ilByte} max={237} ariaLabel="Inline byte"
                   onCommit={(n) => onMappingChange({ ilByte: n })}
-                  disabled={phase === 'ingesting'}
+                  disabled={busy}
                 />
               </div>
               <div>
@@ -545,7 +588,7 @@ export default function ImportPanel({
                 <ByteField
                   value={mapping.xlByte} max={237} ariaLabel="Crossline byte"
                   onCommit={(n) => onMappingChange({ xlByte: n })}
-                  disabled={phase === 'ingesting'}
+                  disabled={busy}
                 />
               </div>
             </div>
@@ -565,7 +608,7 @@ export default function ImportPanel({
                     <ByteField
                       value={mapping.xByte ?? DEFAULT_MAPPING.xByte} max={237} ariaLabel="X byte"
                       onCommit={(n) => onMappingChange({ xByte: n })}
-                      disabled={phase === 'ingesting'}
+                      disabled={busy}
                     />
                   </div>
                   <div>
@@ -573,7 +616,7 @@ export default function ImportPanel({
                     <ByteField
                       value={mapping.yByte ?? DEFAULT_MAPPING.yByte} max={237} ariaLabel="Y byte"
                       onCommit={(n) => onMappingChange({ yByte: n })}
-                      disabled={phase === 'ingesting'}
+                      disabled={busy}
                     />
                   </div>
                   <div>
@@ -581,7 +624,7 @@ export default function ImportPanel({
                     <ByteField
                       value={mapping.scalarByte ?? DEFAULT_MAPPING.scalarByte} max={239} ariaLabel="Scalar byte"
                       onCommit={(n) => onMappingChange({ scalarByte: n })}
-                      disabled={phase === 'ingesting'}
+                      disabled={busy}
                     />
                   </div>
                 </div>
@@ -637,11 +680,11 @@ export default function ImportPanel({
               <Label className="text-pl-text">Vertical axis of this file</Label>
               <div className="flex flex-wrap gap-4 text-sm text-pl-text">
                 <label className="flex items-center gap-2">
-                  <input type="radio" name="sl-domain" checked={domain === 'time'} onChange={() => setDomain('time')} disabled={phase === 'ingesting'} />
+                  <input type="radio" name="sl-domain" checked={domain === 'time'} onChange={() => setDomain('time')} disabled={busy} />
                   Two-way time (sample interval {scan.dtUs / 1000} ms)
                 </label>
                 <label className="flex items-center gap-2">
-                  <input type="radio" name="sl-domain" checked={domain === 'depth'} onChange={() => setDomain('depth')} disabled={phase === 'ingesting'} />
+                  <input type="radio" name="sl-domain" checked={domain === 'depth'} onChange={() => setDomain('depth')} disabled={busy} />
                   Depth (a depth-migrated volume)
                 </label>
               </div>
@@ -664,7 +707,7 @@ export default function ImportPanel({
                 onChange={onCrsPick}
                 customDefs={project?.customDefs || {}}
                 suggestions={crsHints.suggestions}
-                disabled={phase === 'ingesting'}
+                disabled={busy}
               />
               {crsHints.unitHints.length > 0 && (
                 <div className="text-xs text-pl-muted">
@@ -800,18 +843,37 @@ export default function ImportPanel({
           </div>
         )}
 
+        {phase === 'uploading' && upload && (
+          <div className="space-y-2" data-testid="sl-server-upload">
+            <div className="flex items-center text-pl-text text-sm">
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              {`Uploading to the Petrolord server: ${fmtBytes(upload.bytesDone)} of ${fmtBytes(upload.bytesTotal)}`}
+            </div>
+            <div className="h-2 rounded bg-pl-sunken overflow-hidden">
+              <div
+                className="h-full bg-pl-primary transition-all"
+                style={{ width: `${Math.round((upload.bytesDone / Math.max(1, upload.bytesTotal)) * 100)}%` }}
+              />
+            </div>
+            <div className="text-xs text-pl-muted">
+              Keep this tab open until the upload finishes. If it stops, pick the same file again: the upload continues from where it stopped.
+            </div>
+          </div>
+        )}
         {phase === 'background' && (
           <div className="flex items-center text-pl-success-text text-sm">
             <CheckCircle2 className="w-4 h-4 mr-2" />
-            Import started. It continues in the background; progress is in the status bar.
+            {serverStarted
+              ? 'Uploaded. The server is converting it; follow it under Server jobs. You can close this tab.'
+              : 'Import started. It continues in the background; progress is in the status bar.'}
           </div>
         )}
-        {file && scan && useV4 && phase !== 'ingesting' && phase !== 'background' && (
+        {file && scan && useV4 && !useServer && !busy && phase !== 'background' && (
           <div className="text-xs text-pl-muted leading-relaxed" data-testid="import-expectation">
             {importExpectation(file.size, typeof navigator !== 'undefined' ? navigator.deviceMemory : null).text}
           </div>
         )}
-        {file && v4Support && !v4Support.ok && (
+        {file && v4Support && !v4Support.ok && !useServer && (
           <div className="text-xs text-pl-warning-text leading-relaxed">
             The import will upload as it converts and this dialog stays open until it finishes,
             because {V4_FALLBACK_REASON[v4Support.reason] || 'this browser cannot run the background import'}.
@@ -829,13 +891,39 @@ export default function ImportPanel({
           </div>
         )}
 
+        {file && scan && serverAdvice?.offer && phase !== 'background' && (
+          <fieldset className="rounded-lg border border-pl-border p-3 space-y-2 text-sm text-pl-text" data-testid="sl-import-where">
+            <legend className="px-1 text-pl-muted">Where to convert</legend>
+            <label className="flex items-start gap-2">
+              <input type="radio" name="sl-import-where" checked={useServer} onChange={() => setUseServer(true)} disabled={busy} />
+              <span>
+                <Server className="inline w-4 h-4 mr-1 -mt-0.5" />
+                On the Petrolord server
+                {serverAdvice.reason === 'large' && <span className="text-pl-muted"> (recommended for files of 2 GB or more)</span>}
+                {serverAdvice.reason === 'browser' && <span className="text-pl-muted"> (recommended: this browser cannot run the background import)</span>}
+                <span className="block text-xs text-pl-muted">
+                  The file uploads straight to the server, which converts it. Once the upload finishes you can close the tab;
+                  the conversion carries on and shows under Server jobs.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2">
+              <input type="radio" name="sl-import-where" checked={!useServer} onChange={() => setUseServer(false)} disabled={busy} />
+              <span>
+                In this browser
+                <span className="block text-xs text-pl-muted">Converts on this computer, then uploads the result.</span>
+              </span>
+            </label>
+          </fieldset>
+        )}
+
         <div className="flex items-center gap-3 text-sm text-pl-text">
           <label className="flex items-center gap-2" title={`${v4Support?.ok ? 'Uses the older import path: it uploads while converting, keeps this dialog open and makes no display copy. ' : ''}Bricks store as scaled 16-bit integers with per-brick scaling: half the storage and egress. Quantization error is bounded by 1/65534 of each brick's own amplitude range; display and every computation still run in float32. Attribute volumes need a float32 parent.`}>
             <input
               type="checkbox"
-              checked={compress16}
+              checked={compress16 && !useServer}
               onChange={(e) => setCompress16(e.target.checked)}
-              disabled={phase === 'ingesting'}
+              disabled={busy || useServer}
             />
             16-bit storage (half size)
           </label>
@@ -849,7 +937,7 @@ export default function ImportPanel({
         <div className="flex gap-3">
           <Button
             onClick={startIngest}
-            disabled={!scan || phase === 'ingesting' || phase === 'scanning' || !crsChosen || sanityBlocks || Boolean(blockReason)}
+            disabled={!scan || busy || phase === 'scanning' || !crsChosen || sanityBlocks || Boolean(blockReason)}
             title={!scan ? undefined
               : blockReason ? blockReason
               : !crsChosen ? 'Choose the coordinate reference system of this file first'
@@ -871,6 +959,12 @@ export default function ImportPanel({
             >
               <Eye className="w-4 h-4 mr-2" />
               View it now
+            </Button>
+          )}
+          {phase === 'uploading' && (
+            <Button variant="outline" onClick={() => uploadAbortRef.current?.abort()}>
+              <Pause className="w-4 h-4 mr-2" />
+              Pause upload
             </Button>
           )}
           {phase === 'ingesting' && (
