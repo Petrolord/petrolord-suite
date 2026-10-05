@@ -189,6 +189,28 @@ describe('reconcileWithMbal oil implied-RF path', () => {
     expect(ok.withinBand).toBe(true);
   });
 
+  it('RF-U2-006: the bands are the Recovery Factor Estimator table (one source); what moved is stated', async () => {
+    const { getDriveMechanism, MBAL_OIL_DRIVE_TO_RF } = await import('@/utils/recoveryFactorCalculations');
+    for (const [mbal, rf] of Object.entries(MBAL_OIL_DRIVE_TO_RF)) {
+      expect(OIL_RF_BANDS[mbal].lo).toBe(getDriveMechanism(rf).low);
+      expect(OIL_RF_BANDS[mbal].hi).toBe(getDriveMechanism(rf).high);
+    }
+    // unchanged by the move: solution gas 5-30, gas cap 20-40, water drive 35-75
+    expect([OIL_RF_BANDS.depletion_drive.lo, OIL_RF_BANDS.depletion_drive.hi]).toEqual([0.05, 0.30]);
+    expect([OIL_RF_BANDS.gas_cap_drive.lo, OIL_RF_BANDS.gas_cap_drive.hi]).toEqual([0.20, 0.40]);
+    expect([OIL_RF_BANDS.strong_water_drive.lo, OIL_RF_BANDS.strong_water_drive.hi]).toEqual([0.35, 0.75]);
+    // moved: combination 20-60 to 20-50; partial water drive 25-60 to 20-50 (read as combination)
+    expect([OIL_RF_BANDS.combination_drive.lo, OIL_RF_BANDS.combination_drive.hi]).toEqual([0.20, 0.50]);
+    expect([OIL_RF_BANDS.water_drive_with_depletion.lo, OIL_RF_BANDS.water_drive_with_depletion.hi]).toEqual([0.20, 0.50]);
+    expect(OIL_RF_BANDS.water_drive_with_depletion.label).toBe('partial water drive, read as combination drive');
+    // a 55 percent implied RF under a combination drive was inside the old 20-60 copy and is outside now
+    const r = reconcileWithMbal({ fluidSystem: 'oil', inPlace: 100e6, producedToDate: 30e6, dcaRemaining: 25e6, driveMechanism: 'combination_drive' });
+    expect(r.impliedRF).toBeCloseTo(0.55, 12);
+    expect(r.withinBand).toBe(false);
+    // the gas and injection classes have no oil band (unchanged)
+    expect(OIL_RF_BANDS.injection_pressure_maintenance).toBeUndefined();
+  });
+
   it('degrades gracefully for unknown mechanisms and missing inputs', () => {
     const r = reconcileWithMbal({
       fluidSystem: 'oil',

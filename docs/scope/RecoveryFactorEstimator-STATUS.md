@@ -115,3 +115,24 @@ Working doc: `docs/upgrade/RecoveryFactorEstimator-UPGRADE.md` (21 findings,
   the engine, negative control 9 of 15 failing on the pre-fix engine),
   `src/utils/rfestimator/__tests__/*`, `src/contexts/__tests__/rfSharing.test.jsx`,
   e2e `e2e/recovery-factor-upgrade.spec.js`; T1 e2e re-pinned to 42.3 percent.
+
+## Step 2 upgrade (2026-10-04, branch `feat/rf-u2`)
+
+Reservoir round app 10, Step 2 (`docs/upgrade/RecoveryFactorEstimator-UPGRADE.md`,
+"Step 2 build"). Built: the `rf-1` contract (`src/lib/rfEstimateSource.js`)
+written into every save and a sender into ReservoirCalc Pro (which keeps
+its own recovery factor until the user takes the value, then says when it
+was edited or the source changed); RF x in-place uncertainty on the
+canonical Monte Carlo (`src/utils/rfestimator/uncertainty.js`, seeded, P90
+the low case, seed and realisations saved and printed); gas z and Bgi by
+Dranchuk-Abou-Kassem from the canonical engines (saved projects keep their
+typed z with a note); one drive band table shared with Material Balance
+(its combination and partial water drive bands move to 20 to 50 percent);
+the drive suggested by the Material Balance drive indices; decline EUR over
+OOIP as a cross-check (dca-forecast-1 by id); water-drive gas abandoned at
+pa (Bga); one porosity, Swi and Boi per case; displacement x sweep from a
+kr-1 set through the canonical Welge engine. Engine version
+`rf-3 (2026-10, RF-U2)`. Deferred: Guthrie-Greenberger (source not
+readable), a sourced analog table, multi-zone, PRMS (owner: after NAPE),
+CSV, EOR incremental RF; the eor-screen-1 reader waits for EOR U2. No
+migration; no engines change.

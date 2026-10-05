@@ -8,7 +8,7 @@ Analyst                  A. Engineer                                         Dat
 Fluid                    Oil                                                 Analysis type          Recovery factor screening: API (1967):
                                                                                                     water drive
 Case data                Entered by the user                                 Software build         Petrolord Suite test (fixture)
-Engine                   rf-2 (2026-10, RF-U1)                               Display units          Oilfield
+Engine                   rf-3 (2026-10, RF-U2)                               Display units          Oilfield
 Generated                2026-10-04 09:00 UTC
 
 
@@ -96,13 +96,14 @@ Inputs and their sources
                                                                                         Systems Studio project "Good Oil Well No. 4 PVT"
                                                                                         (2026-10-02 09:00 UTC)
 
- Porosity                                      0.22                   frac              Measured (lab)
+ Porosity                                      0.22                   frac              The volumetric value (one value per case): Porosity,
+                                                                                        source above
 
- Initial water saturation Swi                  0.28                   frac              Correlation: Archie
+ Initial water saturation Swi                  0.28                   frac              The volumetric value (one value per case): Water
+                                                                                        saturation Sw, source above
 
- Initial oil FVF Boi                           1.444                  RB/STB            Correlation: Standing, at 4200 psia (pi), from Fluid
-                                                                                        Systems Studio project "Good Oil Well No. 4 PVT"
-                                                                                        (2026-10-02 09:00 UTC)
+ Initial oil FVF Boi                           1.444                  RB/STB            The volumetric value (one value per case): Initial oil FVF
+                                                                                        Boi, source above
 
  Permeability k                                150                    md                Measured (lab). Core plug geometric mean
 
@@ -160,6 +161,8 @@ Basis and conventions
 
  Display units                    Oilfield (area acres, thickness ft, pressure psia, Bo RB/STB, Bgi ft3/scf, volumes STB and scf, permeability md,
                                   viscosity cP)
+
+ Uncertainty                      Not run: the estimate is deterministic
 
 
 Limits of this analysis

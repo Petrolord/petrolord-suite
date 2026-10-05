@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useRfEstimator } from '@/contexts/RfEstimatorContext';
 import { IDENTIFICATION_FIELDS } from '@/utils/rfestimator/model';
 import { collectRfReportArgs, exportRfPdf } from '@/utils/rfestimator/reportExport';
-import { CORR_FIELDS, VOL_FIELDS_OIL, VOL_FIELDS_GAS, PLAIN_LABELS } from './rfFields';
+import { corrFieldsFor, VOL_FIELDS_OIL, VOL_FIELDS_GAS, PLAIN_LABELS } from './rfFields';
 
 function useOrganizationName() {
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -36,12 +36,12 @@ const ReportTab = () => {
   const [busy, setBusy] = useState(false);
   const state = {
     inputs: c.inputs, derived: c.derived, identification: c.identification, inputMeta: c.inputMeta,
-    pvtIntake: c.pvtIntake, inPlaceIntake: c.inPlaceIntake, migration: c.migration,
+    pvtIntake: c.pvtIntake, inPlaceIntake: c.inPlaceIntake, migration: c.migration, dcaCheck: c.dcaCheck, krIntake: c.krIntake,
   };
   const args = useMemo(
     () => collectRfReportArgs({ state, system: c.unitSystem, projectName: c.projectName, organizationName, build: c.build }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [c.inputs, c.derived, c.identification, c.inputMeta, c.pvtIntake, c.inPlaceIntake, c.migration, c.unitSystem, c.projectName, organizationName, c.build],
+    [c.inputs, c.derived, c.identification, c.inputMeta, c.pvtIntake, c.inPlaceIntake, c.migration, c.dcaCheck, c.krIntake, c.unitSystem, c.projectName, organizationName, c.build],
   );
   const { model, figures } = args;
 
@@ -51,9 +51,9 @@ const ReportTab = () => {
     if (c.inputs.inPlaceMode === 'direct') { if (!c.inPlaceIntake) out.push(['ooipDirect', c.inputs.phase === 'gas' ? 'OGIP' : 'OOIP']); } else {
       for (const [k] of c.inputs.phase === 'gas' ? VOL_FIELDS_GAS : VOL_FIELDS_OIL) out.push([`vol.${k}`, `${PLAIN_LABELS[k]} (volumetrics)`]);
     }
-    for (const [k] of CORR_FIELDS[c.inputs.method] || []) out.push([`corr.${k}`, PLAIN_LABELS[k]]);
+    for (const [k] of corrFieldsFor(c.inputs)) out.push([`corr.${k}`, PLAIN_LABELS[k]]);
     return out;
-  }, [c.inputs.inPlaceMode, c.inputs.phase, c.inputs.method, c.inPlaceIntake]);
+  }, [c.inputs.inPlaceMode, c.inputs.phase, c.inputs.method, c.inputs.corr?.gwdMode, c.inPlaceIntake]);
 
   const exportPdf = async () => {
     setBusy(true);
@@ -113,6 +113,22 @@ const ReportTab = () => {
           {model.headline.note && <p className="text-xs text-pl-muted">{model.headline.note}</p>}
         </CardContent>
       </Card>
+      {model.uncertainty?.rows && (
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Uncertainty: recovery factor x in-place volume</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            <ModelTable head={model.uncertainty.head} rows={model.uncertainty.rows} testId="rf-report-uncertainty" />
+            <ModelTable head={['Item', 'As run']} rows={model.uncertainty.runRows} testId="rf-report-uncertainty-run" />
+            <p className="text-xs text-pl-muted">{model.uncertainty.note}</p>
+          </CardContent>
+        </Card>
+      )}
+      {model.dcaCheck && (
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Cross-check: decline EUR over the in-place volume</CardTitle></CardHeader>
+          <CardContent className="space-y-2"><ModelTable head={model.dcaCheck.head} rows={model.dcaCheck.rows} testId="rf-report-dca" /><p className="text-xs text-pl-muted">{model.dcaCheck.note}</p></CardContent>
+        </Card>
+      )}
       {model.inPlaceSplit && (
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">{c.inputs.phase === 'gas' ? 'OGIP' : 'OOIP'} by its parts</CardTitle></CardHeader>

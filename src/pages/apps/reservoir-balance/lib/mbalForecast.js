@@ -14,10 +14,13 @@
  *         through the run's own p/z history so the z at abandonment is
  *         consistent with the PVT the engine actually used;
  *   oil — implied recovery factor (produced + DCA remaining) / N compared
- *         with the statistical recovery ranges by drive mechanism (Arps /
- *         API study ranges as tabulated in Ahmed, Reservoir Engineering
- *         Handbook). A screening comparison, not a promise.
+ *         with the recovery ranges by drive mechanism of the Recovery
+ *         Factor Estimator (RF-U2-006: one table in the Suite; transcribed
+ *         screening ranges, not validated against a published table). A
+ *         screening comparison, not a promise.
  */
+
+import { MBAL_OIL_DRIVE_TO_RF, bandForMbalDrive } from '@/utils/recoveryFactorCalculations';
 
 const DAY_MS = 86_400_000;
 
@@ -146,16 +149,16 @@ export function pOverZAt(plotData, targetPsia) {
 }
 
 /**
- * Statistical oil recovery-factor ranges by the engine's drive-mechanism
- * classification (Arps / API study ranges as tabulated in Ahmed REH).
+ * Oil recovery-factor ranges by the engine's drive-mechanism classification.
+ * RF-U2-006: read from the Recovery Factor Estimator's table, the one source
+ * of drive bands in the Suite (src/utils/recoveryFactorCalculations.js,
+ * bandForMbalDrive). Until 2026-10 this file held its own copy, which put
+ * combination drive at 20 to 60 percent and partial water drive at 25 to 60;
+ * both now read the combination range of that table (20 to 50).
  */
-export const OIL_RF_BANDS = {
-  depletion_drive: { lo: 0.05, hi: 0.30, label: 'solution gas drive' },
-  combination_drive: { lo: 0.20, hi: 0.60, label: 'combination drive' },
-  gas_cap_drive: { lo: 0.20, hi: 0.40, label: 'gas cap drive' },
-  water_drive_with_depletion: { lo: 0.25, hi: 0.60, label: 'partial water drive' },
-  strong_water_drive: { lo: 0.35, hi: 0.75, label: 'water drive' },
-};
+export const OIL_RF_BANDS = Object.freeze(Object.fromEntries(
+  Object.keys(MBAL_OIL_DRIVE_TO_RF).map((k) => [k, bandForMbalDrive(k)]),
+));
 
 /**
  * Reconcile the DCA remaining reserves with the material balance.

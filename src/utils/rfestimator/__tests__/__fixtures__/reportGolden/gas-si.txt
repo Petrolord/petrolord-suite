@@ -8,7 +8,7 @@ Analyst                     n/a                                                D
 Fluid                       Gas                                                Analysis type          Recovery factor screening: p/z depletion
                                                                                                       (exact)
 Case data                   Entered by the user                                Software build         Petrolord Suite test (fixture)
-Engine                      rf-2 (2026-10, RF-U1)                              Display units          SI
+Engine                      rf-3 (2026-10, RF-U2)                              Display units          SI
 Generated                   2026-10-04 09:00 UTC
 
 
@@ -119,28 +119,32 @@ Method
                                      range. Low and High are the edges of the range, not P90 and P10.
 
 
-Basis and conventions
- Item                                As used in this report
-
- Recovery factor                     Fraction of OGIP at stock-tank (standard) conditions, printed in percent
-
- In-place volume                     volumetric, from the inputs below
-
- Recoverable volume                  Technically recoverable volume RF x in-place; no economic limit, no development plan and no PRMS
-                                     classification applied
-
- Pressures                           Absolute, as entered; no datum correction
-
- Range                               Low and high are the edges of the analog screening range of the drive named, not P90 and P10 of a distribution
-
- Display units                       SI (area ha, thickness m, pressure kPa absolute, FVF rm3/sm3, volumes sm3, permeability mD, viscosity
-                                     mPa.s)
-
-
 
 
 Recovery Factor Report, Ekene, G-1 gas                                                                                                       Page 2 of 5
-Limits of this analysis
+Basis and conventions
+ Item                              As used in this report
+
+ Recovery factor                   Fraction of OGIP at stock-tank (standard) conditions, printed in percent
+
+ In-place volume                   volumetric, from the inputs below
+
+ Recoverable volume                Technically recoverable volume RF x in-place; no economic limit, no development plan and no PRMS
+                                   classification applied
+
+ Pressures                         Absolute, as entered; no datum correction
+
+ Gas z factor and Bgi              Typed (or taken from Fluid Systems Studio)
+
+ Range                             Low and high are the edges of the analog screening range of the drive named, not P90 and P10 of a distribution
+
+ Display units                     SI (area ha, thickness m, pressure kPa absolute, FVF rm3/sm3, volumes sm3, permeability mD, viscosity
+                                   mPa.s)
+
+ Uncertainty                       Not run: the estimate is deterministic
+
+
+Limits of this analysis
 - A screening estimate. It does not replace a reservoir simulation, a decline or material balance forecast, or a reserves study.
 - p/z depletion: exact for a volumetric (closed, no aquifer) gas reservoir at constant temperature, RF = 1 - (pa/za)/(pi/zi).
 - Recovery depends on the development plan, well count, secondary and tertiary recovery and economics; none of these is modelled.
@@ -169,7 +173,7 @@ No Fluid Systems Studio intake: any volume factor, viscosity, pressure or z abov
 
 
 
-Recovery Factor Report, Ekene, G-1 gas                                                                                              Page 3 of 5
+Recovery Factor Report, Ekene, G-1 gas                                                                                                Page 3 of 5
 Plots
 Figure 1. Recoverable volume: analog range edges and the estimate
 

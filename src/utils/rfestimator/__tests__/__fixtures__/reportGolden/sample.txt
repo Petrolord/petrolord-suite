@@ -8,7 +8,7 @@ Analyst                  n/a                                                 Dat
 Fluid                    Oil                                                 Analysis type         Recovery factor screening:
                                                                                                    Drive-mechanism analog
 Case data                Sample data shipped with the app                    Software build        Petrolord Suite test (fixture)
-Engine                   rf-2 (2026-10, RF-U1)                               Display units         Oilfield
+Engine                   rf-3 (2026-10, RF-U2)                               Display units         Oilfield
 Generated                2026-10-04 09:00 UTC
 
 
@@ -115,6 +115,8 @@ Basis and conventions
 
  Display units                       Oilfield (area acres, thickness ft, pressure psia, Bo RB/STB, Bgi ft3/scf, volumes STB and scf, permeability md,
                                      viscosity cP)
+
+ Uncertainty                         Not run: the estimate is deterministic
 
 
 Limits of this analysis
