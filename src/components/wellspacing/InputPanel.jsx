@@ -22,6 +22,7 @@ const GROUPS = [
   ['reservoir', 'Reservoir', 'Read by the case: EUR, NPV and every number of the table.'],
   ['fluid', 'Fluid', 'Bo divides the oil in place; the GOR also sells the gas. A Bo you give replaces Standing\'s correlation.'],
   ['well', 'Well', 'Decline is effective annual: 15 means the rate falls 15% in a year.'],
+  ['schedule', 'Drilling schedule', 'All wells on stream in year 1 unless you choose a schedule. Each well\'s cost falls in the year it comes on stream, and it produces from the start of that year.'],
   ['economics', 'Economics', 'Money in US$. Royalty is one rate on gross revenue; no income tax.'],
   ['range', 'Spacing range', 'The layout sets the distance between wells for a spacing.'],
   ['drainage', 'Deliverability and drainage', 'With the rate limit on, each well produces no faster than the pseudosteady rate these give, which can move the NPV (the same oil, later). Blank, the decline is not limited and the table says why.'],
@@ -91,7 +92,7 @@ const InputPanel = () => {
       {GROUPS.map(([g, title, note], gi) => (
         <Card key={g} title={title} note={note} delay={0.1 + gi * 0.03} testId={`ws-group-${g}`}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
-            {FIELDS.filter((d) => d.group === g).map((d) => (
+            {FIELDS.filter((d) => d.group === g && (!d.showWhen || Object.entries(d.showWhen).every(([k, v]) => (form[k] || '') === v))).map((d) => (
               <div key={d.key} className="space-y-0.5 min-w-0">
                 {d.select ? (
                   <div className="space-y-1">

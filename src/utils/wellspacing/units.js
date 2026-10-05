@@ -57,6 +57,9 @@ export const WS_KINDS = Object.freeze({
   moneyPerWell: same('US$ million per well'),
   costPerBbl: same('US$/STB'),
   wells: same('wells'),
+  wellsPerYear: same('wells per year'),
+  rigs: same('rigs'),
+  wellsPerRig: same('wells per rig per year'),
   ratio: same(''),
 });
 

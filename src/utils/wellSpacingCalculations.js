@@ -131,6 +131,18 @@ export const validateInputs = (formData) => {
     errors.push('Flowing bottomhole pressure must be below the average reservoir pressure.');
   }
 
+  // WS-U2-003: the drilling schedule
+  const schedule = formData?.drillingSchedule || 'year1';
+  if (schedule === 'wellsPerYear' || schedule === 'rigs') {
+    const need = schedule === 'wellsPerYear' ? [['wellsPerYear', 'Wells brought on stream a year']] : [['rigCount', 'Rigs'], ['wellsPerRigYear', 'Wells a rig drills in a year']];
+    const vals = need.map(([k, label]) => {
+      const v = parseFloat(formData?.[k]);
+      if (!Number.isFinite(v) || !(v > 0)) errors.push(`${label} is required for this drilling schedule and must be greater than zero.`);
+      return v;
+    });
+    if (vals.every((v) => v > 0) && Math.floor(vals.reduce((a, b) => a * b, 1) + 1e-9) < 1) errors.push('The drilling schedule brings fewer than one well on stream a year.');
+  }
+
   const min = parseFloat(formData?.minSpacing);
   const max = parseFloat(formData?.maxSpacing);
   const step = parseFloat(formData?.spacingIncrement);
@@ -279,12 +291,35 @@ export const wellProfile = (spacing, p) => {
   };
 };
 
+/** WS-U2-003: the schedules a case can be drilled on. */
+export const SCHEDULES = Object.freeze(['year1', 'wellsPerYear', 'rigs']);
+
+/** Wells brought on stream a year under the schedule, or null when all are in year 1. */
+export const wellsPerYearOf = (p) => {
+  if (p.schedule === 'wellsPerYear') return Math.floor(p.wellsPerYear);
+  if (p.schedule === 'rigs') return Math.floor(p.rigCount * p.wellsPerRigYear + 1e-9);
+  return null;
+};
+
 /**
  * The wells of a case by the year they come on stream (WS-U2-003): a list
  * of { startYear (0 = the first project year), wells }. All in year 1 by
- * default, as every release before the schedule.
+ * default, as every release before the schedule; otherwise so many wells a
+ * year (typed, or rigs times wells per rig a year), the last year taking
+ * the rest. Each well's capex falls in its year and it is on stream from the
+ * start of that year.
  */
-export const drillingCohorts = (numberOfWells) => [{ startYear: 0, wells: numberOfWells }];
+export const drillingCohorts = (numberOfWells, p = {}) => {
+  const perYear = wellsPerYearOf(p);
+  if (!perYear || perYear >= numberOfWells) return [{ startYear: 0, wells: numberOfWells }];
+  const out = [];
+  for (let k = 0, left = numberOfWells; left > 0; k += 1) {
+    const w = Math.min(perYear, left);
+    out.push({ startYear: k, wells: w });
+    left -= w;
+  }
+  return out;
+};
 
 const overlap = (a0, a1, b0, b1) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
 
@@ -407,6 +442,10 @@ const evaluateSpacing = (spacing, p) => {
     netCashUndiscounted: metrics.totalRevenue - metrics.totalRoyalty - metrics.totalOpex - metrics.totalCapex - metrics.totalTax,
     payback: metrics.payback,
     paybackStatus: metrics.paybackStatus,
+    // WS-U2-003: the wells by the year they come on stream
+    schedule: run.field.cohorts.map((c) => ({ year: c.startYear + 1, wells: c.wells, producingYears: c.life })),
+    drillingYears: run.field.cohorts.length,
+    wellsAfterDuration: run.field.cohorts.filter((c) => c.startYear >= p.projectDuration).reduce((sum, c) => sum + c.wells, 0),
     // WS-U2-001: the rate limit, both sides of the switch (canonical NPVs)
     rateLimit: {
       on: rl.on,
@@ -494,6 +533,11 @@ export const runSpacingCases = (formData) => {
     wellboreRadius: parseFloat(formData.wellboreRadius),
     // WS-U2-001: on unless switched off (the owner default of 2026-10-05)
     rateLimit: formData.rateLimit !== 'off',
+    // WS-U2-003: all wells in year 1 unless a schedule is chosen (the owner default)
+    schedule: SCHEDULES.includes(formData.drillingSchedule) ? formData.drillingSchedule : 'year1',
+    wellsPerYear: parseFloat(formData.wellsPerYear),
+    rigCount: parseFloat(formData.rigCount),
+    wellsPerRigYear: parseFloat(formData.wellsPerRigYear),
   };
   const { bo, source: boSource } = standingBo(p);
   p.bo = bo;

@@ -22,7 +22,15 @@ import { crossChecks } from './crossChecks.js';
 export const REPORT_TITLE = 'Well Spacing Report';
 export const APP_NAME = 'Petrolord Well Spacing Optimizer';
 export const ANALYSIS_TYPE = 'Spacing economics at a stated recovery factor, with drainage geometry, timing and deliverability diagnostics (screening)';
-export const MODEL_TEXT = 'Each well drains its spacing area at the stated recovery factor (no interference, no incremental recovery from infill); one exponential decline per well anchored on that EUR; all wells on stream in year 1';
+export const MODEL_TEXT = 'Each well drains its spacing area at the stated recovery factor (no interference, no incremental recovery from infill); one exponential decline per well anchored on that EUR';
+/** WS-U2-003: the drilling schedule in words, from the form. */
+export function scheduleText(form = {}) {
+  const s = form.drillingSchedule || 'year1';
+  const n = (v) => Number(Number(v).toPrecision(6));
+  if (s === 'wellsPerYear') return `${n(form.wellsPerYear)} wells a year on stream from the start of each year, the last year taking the rest`;
+  if (s === 'rigs') return `${n(form.rigCount)} rigs at ${n(form.wellsPerRigYear)} wells a rig a year (${Math.floor(Number(form.rigCount) * Number(form.wellsPerRigYear) + 1e-9)} wells a year), on stream from the start of each year`;
+  return 'all wells on stream in year 1';
+}
 /** WS-U2-001: the model sentence of the rate limit, by its switch. */
 export const rateLimitModelText = (on) => (on
   ? 'Rate limit on: each well capped at its deliverable rate (the same EUR, later)'
@@ -105,7 +113,7 @@ function identificationPairs(inputs, { projectName, organizationName, build }) {
     pairs.push([label, v || EMPTY_VALUE]);
   }
   pairs.push(['Analysis type', ANALYSIS_TYPE]);
-  pairs.push(['Model', `${MODEL_TEXT}. ${rateLimitModelText(inputs.form?.rateLimit !== 'off')}`]);
+  pairs.push(['Model', `${MODEL_TEXT}; ${scheduleText(inputs.form)}. ${rateLimitModelText(inputs.form?.rateLimit !== 'off')}`]);
   pairs.push(['Economics', 'Suite screening economics engine (calculateEconomics), mid-year discounting']);
   pairs.push(['Software build', text(build) || EMPTY_VALUE]);
   pairs.push(['Inputs', inputs.sampleNote ? 'Includes built-in sample values (illustrative)' : 'Entered or taken from other apps (sources below)']);
@@ -136,13 +144,13 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
   const sp = (s) => u.fmt('spacing', s, 6);
 
   const cases = {
-    head: [u.head('Spacing', 'spacing'), 'Wells', u.head('Between wells', 'length'), u.head('EUR per well', 'eur'), u.head('Produced per well', 'eur'), 'Field recovery (%)', 'Capex (US$ MM)', 'NPV (US$ MM)', 'Cost (US$/STB)', u.head('Initial rate', 'rate')],
+    head: [u.head('Spacing', 'spacing'), 'Wells', u.head('Between wells', 'length'), u.head('EUR per well', 'eur'), u.head('Produced per well', 'eur'), 'Field recovery (%)', 'Capex (US$ MM)', 'NPV (US$ MM)', 'Cost (US$/STB)', u.head('Initial rate', 'rate'), 'Drilled over (years)'],
     rows: rows.map((r) => [
       sp(r.spacing), String(r.numberOfWells), u.fmt('length', r.drainage.distanceFt, 5), u.fixed('eur', r.eurPerWell, 1),
       `${u.fixed('eur', r.producedPerWell, 1)}${r.truncatedByDuration ? ' *' : ''}`, r.totalFieldRecovery.toFixed(1), m1(r.totalCapex), m1(r.npv),
-      Number.isFinite(r.costPerBarrel) ? m2(r.costPerBarrel) : EMPTY_VALUE, u.fmt('rate', r.initialRateBpd, 4),
+      Number.isFinite(r.costPerBarrel) ? m2(r.costPerBarrel) : EMPTY_VALUE, u.fmt('rate', r.initialRateBpd, 4), String(r.drillingYears ?? 1),
     ]),
-    note: `${NO_OPTIMUM_NOTE} ${NPV_CONVENTION_NOTE} Cost per barrel is capex plus opex over the oil produced, undiscounted, before royalty. * produced volume cut short by the project duration. Initial rate: the rate on day one of the decline each well is given, rising with the spacing because the EUR does.`,
+    note: `${NO_OPTIMUM_NOTE} ${NPV_CONVENTION_NOTE} Cost per barrel is capex plus opex over the oil produced, undiscounted, before royalty. * produced volume cut short by the project duration. Drilled over: the years in which wells come on stream (${scheduleText(inputs.form)}); produced per well is the field total over the wells. Initial rate: the rate on day one of the decline each well is given, rising with the spacing because the EUR does.`,
   };
 
   const economics = {
@@ -222,7 +230,8 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
       ['EUR per well', 'N times the stated recovery factor', 'Stated model (no interference)'],
       ['Production per well', 'Exponential decline, Dn = -ln(1 - De); qi = EUR Dn + q limit; life = ln(qi / q limit) / Dn; yearly volumes integrated exactly; a year is 365.25 days', 'Arps (1945)'],
       ['Rate limit', 'Where qi > qd (deliverable): plateau at qd for tp = (qi - qd) / (Dn qd), then qd exp(-Dn (t - tp)) to the limit; the volume to the limit stays the EUR', 'Plateau then exponential decline; qd from Ahmed and McKinney (2005) Eq. 1.2.124'],
-      ['NPV, revenue, royalty, opex, capex, payback', 'calculateEconomics, TaxRoyalty, mid-year discounting, all wells drilled in year 1', 'Suite screening economics engine (docs/scope/ReservoirEngineering-Module.md section 5)'],
+      ['NPV, revenue, royalty, opex, capex, payback', `calculateEconomics, TaxRoyalty, mid-year discounting; ${scheduleText(inputs.form)}, each well's capex in its year and its opex while on stream`, 'Suite screening economics engine (docs/scope/ReservoirEngineering-Module.md section 5)'],
+      ['Field profile', 'The per-well profile shifted to each year\'s wells and cut at the end of the project duration; every yearly volume is a difference of the exact field cumulative', 'Superposition of identical wells in time'],
       ['Distance between wells', 'Square: d = sqrt(A); staggered: d = sqrt(2 A / sqrt 3)', 'Geometry; 40 acres square is 1,320 ft'],
       ['Drainage radius', 're = sqrt(43,560 A / pi), ft', 'Ahmed and McKinney (2005), Ex. 1.5: 40 acres, 745 ft'],
       ['Interference and pseudosteady timing', 'ri = sqrt(k t / (948 phi mu ct)), t in hours; tDA = 0.0002637 k t / (phi mu ct A)', 'Lee (1982); Earlougher (1977) Table C.1'],
@@ -239,6 +248,8 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
       ? `At ${over.map((r) => sp(r.spacing)).join(', ')} ${u.label('spacing')} the plan's initial rate is above the pseudosteady rate a well can deliver; the rate limit caps those cases (a plateau of up to ${Math.max(...over.map((r) => r.rateLimit.plateauYears)).toFixed(1)} years).`
       : `At ${over.map((r) => sp(r.spacing)).join(', ')} ${u.label('spacing')} the plan's initial rate is above the pseudosteady rate a well can deliver; the rate limit is off, so the economics of those cases assume a rate the reservoir does not give.`);
   }
+  const late2 = rows.filter((r) => r.wellsAfterDuration > 0);
+  if (late2.length) flags.push(`At ${late2.map((r) => sp(r.spacing)).join(', ')} ${u.label('spacing')} the drilling schedule brings wells on stream after the project duration ends (${late2.map((r) => r.wellsAfterDuration).join(', ')} wells): they carry their capex and produce nothing inside it.`);
   const never = rows.filter((r) => r.rateLimit?.belowLimit);
   if (never.length) flags.push(`At ${never.map((r) => sp(r.spacing)).join(', ')} ${u.label('spacing')} the deliverable rate is at or below the economic limit rate: the wells never produce at an economic rate.`);
   const late = rows.filter((r) => finite(r.drainage.pssDays) && r.drainage.pssDays > 365);
@@ -260,7 +271,7 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
     assumptions: [
       'A screening study of spacing economics. Every well recovers the stated recovery factor of the oil under its own spacing area, whatever the spacing: the model has no interference, no acceleration-only infill and no incremental recovery from tighter spacing. Field oil is therefore nearly the same at every spacing; without a rate limit NPV rises as wells are removed, and with it the wide cases are held back by what each well can deliver. Recovery that responds to spacing is a simulation or analog question.',
       'One exponential decline per well, the stated effective annual decline at every spacing, anchored so the volume to the economic limit is the EUR. A wider spacing therefore gets a proportionally higher initial rate. With the rate limit on, a well whose decline would start above its deliverable rate produces at the deliverable rate first; the deliverable rate is held at the stated average pressure for the whole plateau (no depletion of the pressure inside it), so a long plateau is optimistic.',
-      'All wells come on stream in the first year; no drilling schedule, ramp-up, facility limit or downtime. Gas is sold at the initial solution GOR throughout (no free gas, no GOR rise below the bubble point).',
+      `Drilling: ${scheduleText(inputs.form)}. A well comes on stream at the start of the year its cost is spent, every well has the same profile whenever it starts (no depletion by the wells before it), and there is no ramp-up, facility limit or downtime. Gas is sold at the initial solution GOR throughout (no free gas, no GOR rise below the bubble point).`,
       'Royalty is one rate on gross revenue; no income tax or production sharing. NPV discounts each year at its middle; the Petroleum Economics Studio discounts year-end, so the two do not match for the same case.',
       'Drainage diagnostics assume a homogeneous, isotropic layer of the stated permeability, single-phase oil, a vertical well at the centre of its drainage area and pseudosteady state at the stated average pressure. They change no EUR and no NPV.',
       'Bo is Standing\'s correlation at the bubble point unless a Bo is given; above the bubble point it slightly overstates Bo. The pressure entered is printed as stated, absolute, with no datum correction.',

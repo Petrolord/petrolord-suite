@@ -39,6 +39,11 @@ export const FIELDS = Object.freeze([
   { key: 'operatingExpense', label: 'Operating expense', kind: 'opex', group: 'well', reads: 'economics', required: true },
   { key: 'minEconomicFlowRate', label: 'Economic limit rate per well', kind: 'rate', group: 'well', reads: 'economics', required: true },
   { key: 'typicalWellDeclineRate', label: 'Well decline rate', kind: 'declinePct', group: 'well', reads: 'economics', required: true },
+  // WS-U2-003: the drilling schedule (all wells in year 1 by default)
+  { key: 'drillingSchedule', label: 'Drilling schedule', kind: null, group: 'schedule', reads: 'economics', select: true, options: [['year1', 'All wells on stream in year 1'], ['wellsPerYear', 'So many wells a year'], ['rigs', 'Rigs and wells per rig a year']] },
+  { key: 'wellsPerYear', label: 'Wells brought on stream a year', kind: 'wellsPerYear', group: 'schedule', reads: 'economics', showWhen: { drillingSchedule: 'wellsPerYear' } },
+  { key: 'rigCount', label: 'Rigs', kind: 'rigs', group: 'schedule', reads: 'economics', showWhen: { drillingSchedule: 'rigs' } },
+  { key: 'wellsPerRigYear', label: 'Wells a rig drills in a year', kind: 'wellsPerRig', group: 'schedule', reads: 'economics', showWhen: { drillingSchedule: 'rigs' } },
   { key: 'oilPrice', label: 'Oil price', kind: 'oilPrice', group: 'economics', reads: 'economics', required: true },
   { key: 'gasPrice', label: 'Gas price', kind: 'gasPrice', group: 'economics', reads: 'economics', required: true },
   { key: 'discountRate', label: 'Discount rate', kind: 'percent', group: 'economics', reads: 'economics', required: true },
@@ -77,7 +82,7 @@ export const SAMPLE_FORM = Object.freeze({
   wellCost: '5000000', operatingExpense: '200000', minEconomicFlowRate: '10', typicalWellDeclineRate: '15',
   oilPrice: '75', gasPrice: '3.5', discountRate: '10', projectDuration: '20', royaltiesTaxes: '25',
   minSpacing: '20', maxSpacing: '160', spacingIncrement: '10', wellLayout: 'square',
-  rateLimit: 'on',
+  rateLimit: 'on', drillingSchedule: 'year1', wellsPerYear: '', rigCount: '', wellsPerRigYear: '',
   // WS-U2-001: 5 md (it was 50 md in Step 1, where no case reached its deliverable rate), so the example shows the limit
   flowingPressure: '1500', permeability: '5', skin: '2', oilViscosity: '1.2', totalCompressibility: '0.000015', wellboreRadius: '0.354',
 });
@@ -85,7 +90,7 @@ export const SAMPLE_FORM = Object.freeze({
 export const SAMPLE_NOTE = 'Sample inputs: an illustrative example field built into the app. It is not a real field; replace every value before you rely on the case.';
 
 const asStrings = (o) => Object.fromEntries(Object.entries(o || {}).map(([k, v]) => [k, v == null ? '' : String(v)]));
-export const blankForm = () => ({ ...Object.fromEntries(FORM_KEYS.map((k) => [k, ''])), wellLayout: 'square', rateLimit: 'on' });
+export const blankForm = () => ({ ...Object.fromEntries(FORM_KEYS.map((k) => [k, ''])), wellLayout: 'square', rateLimit: 'on', drillingSchedule: 'year1' });
 
 export const emptyIntakes = () => ({ pvt: null, wta: null, mbal: null, dca: null, wells: null });
 
