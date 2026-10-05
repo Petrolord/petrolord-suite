@@ -1,209 +1,199 @@
+// Well Spacing Optimizer (Reservoir module; WS-U1 of the Reservoir upgrade
+// round, docs/upgrade/WellSpacingOptimizer-UPGRADE.md). Spacing economics at
+// a stated recovery factor through the canonical screening NPV
+// (calculateEconomics), with drainage geometry, timing and deliverability
+// beside each case.
+//
+// WS-U1: saved projects with record sharing (saved_well_spacing_projects,
+// migration file not applied yet), the Suite unit profile (oilfield / SI,
+// the engine in oilfield), a source beside every input, intakes by id from
+// Fluid Systems Studio (pvt-1), Well Test Analysis Studio (wta-1), Material
+// Balance Studio (mbal-1), Decline Curve Analysis (dca-forecast-1) and the
+// wells registry, the cases recomputed on every edit, and a report on the
+// shared kit.
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
 import { Target, HelpCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { AppHeader } from '@/components/ui/app-shell';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import StudioAutoSave from '@/components/studio/StudioAutoSave';
+import StudioProjectManager from '@/components/studio/StudioProjectManager';
+import { RecordSharingBar } from '@/components/recordSharing';
+import { supabaseSharingStore } from '@/lib/recordSharing';
+import { useProfileSystem } from '@/lib/units/useProfileSystem';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { WellSpacingProvider, useWellSpacing } from '@/contexts/WellSpacingContext';
+import { WS_PROFILE_FAMILIES } from '@/utils/wellspacing/units';
+import { generateCSV, generateJSON } from '@/utils/wellSpacingCalculations';
 import InputPanel from '@/components/wellspacing/InputPanel';
+import IntakesPanel from '@/components/wellspacing/IntakesPanel';
 import ResultsPanel from '@/components/wellspacing/ResultsPanel';
-import EmptyState from '@/components/wellspacing/EmptyState';
-import { 
-  validateInputs, 
-  evaluateSpacingCases,
-  generateCSV,
-  generateJSON
-} from '@/utils/wellSpacingCalculations';
+import ReportTab from '@/components/wellspacing/ReportTab';
 
-const WellSpacingOptimizerContent = () => {
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState(null);
-  
-  const [formData, setFormData] = useState({
-    fieldName: '',
-    latitude: '',
-    longitude: '',
-    reservoirArea: '',
-    avgNetPayThickness: '',
-    porosity: '',
-    initialWaterSaturation: '',
-    reservoirTemperature: '',
-    reservoirPressure: '',
-    recoveryFactor: '',
-    wellPatternType: '5-spot',
-    oilGravity: '',
-    gasGravity: '',
-    initialSolutionGOR: '',
-    wellCost: '',
-    operatingExpense: '',
-    minEconomicFlowRate: '',
-    typicalWellDeclineRate: '',
-    oilPrice: '',
-    gasPrice: '',
-    discountRate: '',
-    projectDuration: '',
-    royaltiesTaxes: '',
-    minSpacing: '',
-    maxSpacing: '',
-    spacingIncrement: ''
-  });
+const TABS = [
+  { value: 'study', label: 'Study' },
+  { value: 'report', label: 'Report' },
+];
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+// One store per page; record sharing of saved_well_spacing_projects (PL5).
+const SHARING_STORE = supabaseSharingStore();
 
-  // Senior test T1: two dozen required boxes opened blank with nothing to
-  // start from. The example is the placeholders the form already shows.
-  const handleLoadExample = () => {
-    setFormData((prev) => ({
-      ...prev,
-      fieldName: 'Example field', latitude: '29.7604', longitude: '-95.3698',
-      reservoirArea: '5000', avgNetPayThickness: '60', porosity: '15.2', initialWaterSaturation: '0.25',
-      reservoirTemperature: '180', reservoirPressure: '3500', recoveryFactor: '35', wellPatternType: '5-spot',
-      oilGravity: '35', gasGravity: '0.75', initialSolutionGOR: '500',
-      wellCost: '5000000', operatingExpense: '200000', minEconomicFlowRate: '10', typicalWellDeclineRate: '15',
-      oilPrice: '75', gasPrice: '3.5', discountRate: '10', projectDuration: '20', royaltiesTaxes: '25',
-      minSpacing: '20', maxSpacing: '160', spacingIncrement: '10',
-    }));
-  };
+const Notifications = () => {
+  const { notifications, removeNotification } = useWellSpacing();
+  if (!notifications?.length) return null;
+  return (
+    <div className="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm" data-testid="ws-notifications">
+      {notifications.map((n) => (
+        <button
+          key={n.id} type="button" onClick={() => removeNotification(n.id)}
+          className={`block w-full text-left rounded-md border px-3 py-2 text-xs shadow ${n.type === 'error' ? 'border-pl-danger/40 bg-pl-danger-bg text-pl-danger-text' : 'border-pl-border bg-pl-surface text-pl-text'}`}
+        >
+          {n.message}
+        </button>
+      ))}
+    </div>
+  );
+};
 
-  const handleLocationSelect = (lat, lng) => {
-    setFormData(prev => ({
-      ...prev,
-      latitude: lat,
-      longitude: lng
-    }));
-  };
+const ProjectCard = () => {
+  const {
+    projects, sharedProjects, viewingShared, projectRow, sharing, saveCopy, canWrite,
+    currentProjectId, createProject, openProject, deleteProject, savingAvailable, savingReason,
+  } = useWellSpacing();
+  return (
+    <Card className="h-fit">
+      <CardContent className="pt-4 space-y-2">
+        <StudioProjectManager
+          projects={projects}
+          sharedProjects={sharedProjects}
+          canDelete={!viewingShared}
+          currentProjectId={currentProjectId}
+          onCreate={createProject}
+          onOpen={openProject}
+          onDelete={deleteProject}
+          confirmDeleteMessage="Delete this Well Spacing project?"
+        />
+        {!savingAvailable && <p className="text-xs text-pl-warning-text" data-testid="ws-saving-off">{savingReason}</p>}
+        {projectRow && (
+          <RecordSharingBar
+            sharing={sharing}
+            label="project"
+            onSaveCopy={saveCopy}
+            onReload={() => openProject(currentProjectId)}
+            fieldLabels={{ project_name: 'name', inputs_data: 'inputs, sources, intakes and report fields' }}
+          />
+        )}
+        {projectRow && sharing.ready && !canWrite && (
+          <p className="text-xs text-pl-warning-text" data-testid="ws-read-only">
+            {sharing.readOnlyReason || 'This project is open read-only.'} Changes you make here are not saved to it.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
 
-  const handleCalculate = async () => {
-    const { ok, errors } = validateInputs(formData);
-    if (!ok) {
-      toast({
-        title: errors.length === 1 ? 'One input needs attention' : `${errors.length} inputs need attention`,
-        // Name the offending fields. With two dozen inputs on screen, "fill in
-        // all required fields" left users hunting.
-        description: errors.slice(0, 4).join(' ') + (errors.length > 4 ? ' ...' : ''),
-        variant: "destructive",
-        duration: 7000,
-      });
-      return;
-    }
+const download = (content, type, name) => {
+  const blob = new Blob([content], { type });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  window.URL.revokeObjectURL(url);
+};
 
-    setLoading(true);
-
-    try {
-      // The sweep is a few hundred closed-form evaluations and returns in
-      // milliseconds. There used to be a hard-coded three second wait here,
-      // which read as a heavy simulation running.
-      const spacingResults = await evaluateSpacingCases(formData);
-
-      setResults(spacingResults);
-
-      toast({
-        title: "Spacing economics ready",
-        description: `${spacingResults.spacingResults.length} spacings evaluated. Read the table and pick the case that fits your development plan.`,
-        duration: 4000,
-      });
-    } catch (error) {
-      toast({
-        title: "Calculation Failed",
-        description: error?.message || "There was an error evaluating the spacing cases. Please try again.",
-        variant: "destructive",
-        duration: 4000,
-      });
-    }
-    
-    setLoading(false);
-  };
-
-  const downloadCSV = () => {
-    if (!results) return;
-    
-    const csvContent = generateCSV(results);
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'well_spacing_results.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  const downloadJSON = () => {
-    if (!results) return;
-    
-    const jsonData = generateJSON(formData, results);
-    const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'well_spacing_summary.json';
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
+function WellSpacingContent() {
+  const { inputs, results, u, setUnitSystem, isSaving, saveError, lastSaveTime, manualSave } = useWellSpacing();
+  const [tab, setTab] = useState('study');
+  const downloadCSV = () => results && download(generateCSV(results, u), 'text/csv', 'well_spacing_results.csv');
+  const downloadJSON = () => results && download(JSON.stringify(generateJSON(inputs.form, results), null, 2), 'application/json', 'well_spacing_summary.json');
   return (
     <>
       <Helmet>
         <title>Well Spacing Optimizer - Petrolord Suite</title>
-        <meta name="description" content="Compare well spacing cases on capex, volume, cost per barrel and NPV at a stated recovery factor." />
+        <meta name="description" content="Compare well spacing cases on capex, volume, cost per barrel and NPV at a stated recovery factor, with drainage timing and deliverability." />
       </Helmet>
-
       <AppHeader
         backTo="/dashboard/reservoir"
         backLabel="Back to Reservoir"
         icon={Target}
         title="Well Spacing Optimizer"
-        subtitle="Compare well spacing cases on capex, volume, cost per barrel and NPV"
+        subtitle="Spacing economics at a stated recovery factor, with drainage timing and deliverability"
         actions={(
-          <Button asChild variant="outline" size="sm">
-            <Link to="/dashboard/apps/reservoir/well-spacing-optimizer/help">
-              <HelpCircle className="w-4 h-4 mr-2" /> Help guide
-            </Link>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={inputs.unitSystem} onValueChange={setUnitSystem}>
+              <SelectTrigger className="h-8 w-[104px] text-xs" aria-label="Display units" data-testid="ws-unit-system" title="Display units of this project (the saved values and the engine stay in oilfield units)">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="oilfield">Oilfield</SelectItem>
+                <SelectItem value="si">SI</SelectItem>
+              </SelectContent>
+            </Select>
+            <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />
+            <Button asChild variant="outline" size="sm">
+              <Link to="/dashboard/apps/reservoir/well-spacing-optimizer/help">
+                <HelpCircle className="w-4 h-4 mr-2" /> Help guide
+              </Link>
+            </Button>
+          </div>
         )}
       />
       <div className="p-4 md:p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <InputPanel 
-            formData={formData}
-            handleInputChange={handleInputChange}
-            handleLocationSelect={handleLocationSelect}
-            handleCalculate={handleCalculate}
-            handleLoadExample={handleLoadExample}
-            loading={loading}
-          />
-
-          <div className="lg:col-span-2 space-y-6">
-            {results ? (
-              <ResultsPanel 
-                results={results}
-                downloadCSV={downloadCSV}
-                downloadJSON={downloadJSON}
-              />
-            ) : (
-              <EmptyState />
-            )}
-          </div>
+        <div className="mb-4 flex gap-1 border-b border-pl-border" role="tablist">
+          {TABS.map((t) => (
+            <button
+              key={t.value} type="button" role="tab" aria-selected={tab === t.value} data-testid={`ws-tab-${t.value}`}
+              onClick={() => setTab(t.value)}
+              className={`px-3 py-1.5 text-sm -mb-px border-b-2 ${tab === t.value ? 'border-pl-primary text-pl-text font-medium' : 'border-transparent text-pl-muted'}`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
+        {tab === 'study' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 space-y-4 min-w-0">
+              <ProjectCard />
+              <InputPanel />
+              <IntakesPanel />
+            </div>
+            <div className="lg:col-span-2 min-w-0">
+              <ResultsPanel downloadCSV={downloadCSV} downloadJSON={downloadJSON} />
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 min-w-0"><ProjectCard /></div>
+            <div className="lg:col-span-2 min-w-0"><ReportTab /></div>
+          </div>
+        )}
       </div>
+      <Notifications />
     </>
   );
+}
+
+const useOrganizationName = () => {
+  try { return useAuth()?.organization?.name || ''; } catch { return ''; }
 };
 
 // Design system rollout batch 2A (docs/scope/DesignSystem-Rollout.md): the
 // page sits in the dashboard scope, so it opens light and the header toggle
 // switches it to dark per user. The spacing charts keep the white chart
 // standard.
-const WellSpacingOptimizer = () => (
-  <div className="min-h-screen" data-testid="wso-theme-scope">
-    <WellSpacingOptimizerContent />
-  </div>
-);
-
-export default WellSpacingOptimizer;
+export default function WellSpacingOptimizer({ sharingStore = SHARING_STORE }) {
+  const profileSystem = useProfileSystem('wellspacing', WS_PROFILE_FAMILIES);
+  const organizationName = useOrganizationName();
+  return (
+    <div className="min-h-screen" data-testid="wso-theme-scope">
+      <WellSpacingProvider sharingStore={sharingStore} profileSystem={profileSystem} organizationName={organizationName}>
+        <WellSpacingContent />
+      </WellSpacingProvider>
+    </div>
+  );
+}

@@ -19,6 +19,7 @@ export const SYSTEM_VOCAB = Object.freeze({
   sim: { oilfield: 'oilfield', metric: 'si' },
   rf: { oilfield: 'oilfield', metric: 'si' },
   eor: { oilfield: 'oilfield', metric: 'si' },
+  wellspacing: { oilfield: 'oilfield', metric: 'si' },
 });
 
 /** App spellings of registry units, per family (app key -> registry key). */

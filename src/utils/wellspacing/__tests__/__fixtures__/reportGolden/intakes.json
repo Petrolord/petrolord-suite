@@ -1,0 +1,97 @@
+{
+  "pages": 7,
+  "sha256": "8258b33072acbb50b63da2edd900af27d69a31392709e9b155712bcca47a63d5",
+  "figures": [
+    {
+      "id": "eur",
+      "number": 1,
+      "page": 6,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 29,
+            "w": 182,
+            "h": 70
+          },
+          "drawn": {
+            "EUR per well": 15,
+            "Produced in the project duration": 15
+          },
+          "total": 30,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "npv",
+      "number": 2,
+      "page": 6,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 119.72,
+            "w": 182,
+            "h": 70
+          },
+          "drawn": {
+            "NPV": 15,
+            "Capex": 15
+          },
+          "total": 30,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "deliverability",
+      "number": 3,
+      "page": 7,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 70
+          },
+          "drawn": {
+            "Plan initial rate": 15,
+            "Deliverable (pseudosteady)": 15
+          },
+          "total": 30,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "map",
+      "number": 4,
+      "page": 7,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 117.08,
+            "w": 182,
+            "h": 80
+          },
+          "drawn": {
+            "Registry wells": 4
+          },
+          "total": 4,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    }
+  ]
+}

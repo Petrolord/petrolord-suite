@@ -15,13 +15,15 @@
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import {
   INPUT_SOURCES, sourceText, assumedDefaultText, pvtIntake as intakeFromHandoff, intakeSourceText, editedAfterHandoffText,
+  pvtContractOf, pvtContractOrigin,
 } from '@/lib/inputProvenance';
 import { unitLabel, fromOilfield } from './units.js';
-import { partialPenetrationSkin } from './partialPenetration.js';
+import { partialPenetrationSkin, slantPseudoSkin, decomposeSkin } from './partialPenetration.js';
 import { totalCompressibility } from './compressibility.js';
 import { summarizeFlowPeriods } from './flowSummary.js';
 import { PRESSURE_UNITS, TIME_UNITS, gaugeTime } from './gaugeImport.js';
 import { suttonPseudoCriticals, GAS_Z_METHODS } from '../../../packages/engines/engines/fluid/blackOil';
+import { datumCorrection } from './datum.js';
 
 const num = (v) => {
   if (v == null || v === '') return NaN;
@@ -68,7 +70,18 @@ export const DEFAULT_COMPLETION = Object.freeze({
   // pressure datum are stated inputs, printed in the report; no correction
   // to the datum is applied and the report says so
   gaugeDepthMd: '', gaugeDepthTvd: '', datumDepthTvdss: '',
+  // WTA-U2-004: what puts the gauge on the datum. The gradient is the
+  // user's (owner default: none stated, no correction) with its source.
+  depthRefElev: '', datumGradient: '', datumGradientSource: '',
 });
+
+/** The correction to datum of a completion through the engine (welltest/datum.js); depths ft, psi/ft. */
+export function completionDatumCorrection(completion) {
+  const c = completion || {};
+  return datumCorrection({
+    gaugeTvd: num(c.gaugeDepthTvd), refElevation: num(c.depthRefElev), datumTvdss: num(c.datumDepthTvdss), gradient: num(c.datumGradient),
+  });
+}
 
 /** "Pressure buildup, drill stem test (DST)" style line for the header. */
 export function testTypeText(config, identification) {
@@ -130,6 +143,8 @@ export const SOURCED_INPUTS = Object.freeze([
 /** Engine PVT source (gas.js) as a sentence, or null when the engine gave none. */
 export function gasPvtSourceText(source) {
   if (!source) return null;
+  // WTA-U2-001: the pvt-1 table of a Fluid Systems Studio project
+  if (source.kind === 'fluid-table') return `Fluid Systems Studio table: z by ${source.zMethod}, viscosity by ${source.muMethod}${source.origin || ''}`;
   if (source.kind === 'table') return 'Supplied PVT table';
   const parts = [`${source.z} z-factor`, `${source.viscosity} viscosity`];
   if (source.pseudoCriticals) parts.push(`${source.pseudoCriticals} pseudo-criticals`);
@@ -147,6 +162,54 @@ export const WELLTEST_PVT_FIELDS = Object.freeze([
   { property: 'inlet_temperature', key: 'temperature', storeKey: 'reservoirTempF', label: 'temperature' },
 ]);
 
+// ---- the gas PVT table of a Fluid Systems Studio project (WTA-U2-001) --------
+
+/**
+ * The gas rows of a pvt-1 block: pressure, Z and gas viscosity, in the
+ * units the block states (psia, cP), ascending in pressure, with the
+ * method of each column as the block names it. The table of a black-oil
+ * project carries Z and mu_g at every pressure (the separator gas); an
+ * equation-of-state table carries them where it has a gas phase.
+ * @returns {?{rows: Array<{p: number, z: number, mu: number}>, n: number, pMin: number, pMax: number,
+ *   zMethod: string, muMethod: string, origin: string, temperatureF: ?number, gasGravity: ?number, rangeFlags: string[]}}
+ *   null when the block has fewer than three usable gas rows or states other units
+ */
+export function gasTableFromContract(carrier) {
+  const b = pvtContractOf(carrier);
+  if (!b || !Array.isArray(b.table)) return null;
+  const u = b.units || {};
+  if (u.pressure !== 'psia' || (u.mu_g && !/^c[Pp]$/.test(u.mu_g))) return null;
+  const rows = b.table
+    .map((r) => ({ p: Number(r?.pressure), z: Number(r?.Z), mu: Number(r?.mu_g) }))
+    .filter((r) => Number.isFinite(r.p) && r.p > 0 && r.z > 0 && r.mu > 0)
+    .sort((a, c) => a.p - c.p)
+    .filter((r, i, arr) => i === 0 || r.p > arr[i - 1].p);
+  if (rows.length < 3) return null;
+  const finiteOr = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : null);
+  return {
+    rows,
+    n: rows.length,
+    pMin: rows[0].p,
+    pMax: rows[rows.length - 1].p,
+    zMethod: b.methods?.z?.method || 'method not stated by the block',
+    muMethod: b.methods?.mu_g?.method || 'method not stated by the block',
+    origin: pvtContractOrigin(b),
+    temperatureF: finiteOr(b.inputs?.temperature),
+    gasGravity: finiteOr(b.inputs?.gas_gravity),
+    rangeFlags: (b.range_flags || []).filter((f) => (f.properties || []).some((x) => /Gas deviation|Gas viscosity/.test(x))).map((f) => f.text).filter(Boolean),
+  };
+}
+
+/** The shared card's rows in this studio: the oil values, and the gas table when the intake holds one (method from the block). */
+export function wellTestPvtCardFields(intake) {
+  const gt = intake?.gasTable;
+  if (!gt) return WELLTEST_PVT_FIELDS;
+  return [
+    ...WELLTEST_PVT_FIELDS,
+    { property: 'z', key: 'gasTableRows', label: `Gas Z and viscosity table (rows, ${plain(gt.pMin)} to ${plain(gt.pMax)} psia)`, method: `Z: ${gt.zMethod}; viscosity: ${gt.muMethod}` },
+  ];
+}
+
 /**
  * A Fluid Systems Studio handoff (the fluid backbone) as a patch of the
  * reservoir inputs and the words for the Source column. Bo and viscosity
@@ -163,13 +226,33 @@ export function pvtIntakeFromBackbone(fluid) {
   // values received only for a pvt-1 handoff, so a value edited after a
   // version-1 handoff kept the handoff as its source. The values applied are
   // recorded here for every handoff.
-  const intake = out.intake.values ? out.intake : {
+  let intake = out.intake.values ? out.intake : {
     ...out.intake,
     values: Object.fromEntries(WELLTEST_PVT_FIELDS
       .filter((f) => out.patch[f.storeKey || f.key] != null && out.patch[f.storeKey || f.key] !== '')
       .map((f) => [f.key, out.patch[f.storeKey || f.key]])),
   };
+  // WTA-U2-001: a gas test takes the gas columns of the pvt-1 table with the
+  // project (the summary the shared intake keeps has no table)
+  // (the receiving studio switches a gas test to the table: takeFluidPvt)
+  const gasTable = gasTableFromContract(fluid?.contract || fluid);
+  if (gasTable) intake = { ...intake, gasTable, values: { ...(intake.values || {}), gasTableRows: String(gasTable.n) } };
   return { patch: out.patch, applied: out.applied, intake };
+}
+
+/**
+ * What a gas test takes besides the version-1 values when the intake holds
+ * a gas table (WTA-U2-001): the table as its gas PVT, and the temperature
+ * the table was built at. An oil test only keeps the table with the
+ * project, to be chosen if the test is switched to gas.
+ */
+export function gasTablePatch(intake, fluid) {
+  const gt = intake?.gasTable;
+  if (!gt || fluid !== 'gas') return null;
+  return {
+    patch: { gasPvtSource: 'fluid-table', ...(gt.temperatureF != null ? { tempF: String(gt.temperatureF) } : {}) },
+    applied: `the gas Z and viscosity table (${gt.n} rows)`,
+  };
 }
 
 // ---- total compressibility --------------------------------------------------
@@ -197,6 +280,31 @@ export function resolveTotalCompressibility(r, { cgFallback = NaN } = {}) {
     mode: 'components', ct: out.ct, error: null,
     breakdown: { ...out, cgFromCorrelation: Number.isFinite(sg) && sg > 0 && !Number.isFinite(cgEntered) && Number.isFinite(cgFallback) },
   };
+}
+
+// ---- rate-dependent skin (WTA-U2-003) ----------------------------------------
+
+export const RATE_SKIN_METHOD_TEXT = "s' = s + D q (Ahmed 2010, eq. 6-160). Route 1: the apparent skin of each of two or more flow periods or tests at different rates, each from its own analysis reaching radial flow, on a straight line against the rate (intercept s, slope D). Route 2: the turbulent coefficient b of a pseudo-pressure LIT deliverability fit is the non-Darcy coefficient F, and D = F k h / (1422 T) (eq. 6-159); a pressure-squared b is not F and is not used.";
+
+/**
+ * Rows of the rate-dependent skin table: [quantity, value, basis], in the display system.
+ */
+export function rateSkinRows(rs, system = 'oilfield') {
+  if (!rs) return [];
+  const f2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : EMPTY_VALUE);
+  const dU = unitLabel('nonDarcySkin', system);
+  const D = (v) => plain(fromOilfield('nonDarcySkin', v, system));
+  const rows = [];
+  if (rs.fit?.ok) {
+    rows.push([`D, multi-rate line (${dU})`, D(rs.fit.D), `${rs.fit.n} points at ${rs.fit.rates} rates${rs.fit.r2 != null ? `, r2 ${rs.fit.r2.toFixed(3)}` : ''}`]);
+    rows.push(['s, intercept of the multi-rate line', f2(rs.fit.s), rs.fit.method]);
+  } else {
+    rows.push([`D, multi-rate line (${dU})`, EMPTY_VALUE, rs.fit?.reason || 'Not computed']);
+  }
+  rows.push([`D, from the LIT b (${dU})`, Number.isFinite(rs.litD) ? D(rs.litD) : EMPTY_VALUE, Number.isFinite(rs.litD) ? 'D = F k h / (1422 T), F = b of the pseudo-pressure LIT fit, k of this test' : 'Needs a pseudo-pressure deliverability fit with b above zero']);
+  rows.push([`D q at this test's rate`, f2(rs.Dq), rs.source === 'multi-rate' ? 'D of the multi-rate line' : rs.source === 'lit' ? 'D from the LIT b' : 'No D: the skin stays apparent']);
+  rows.push(["This test: s' and s = s' - D q", `${f2(rs.apparentSkin)} and ${f2(rs.trueSkin)}`, 'From the interpretation']);
+  return rows;
 }
 
 // ---- completion and the skin split ------------------------------------------
@@ -227,7 +335,17 @@ export function buildCompletion(completion) {
   const d = hasTvd ? tvd : md;
   if (!(d.base > d.top)) return { status: 'invalid', basis, reason: 'The base of the perforated interval must be deeper than its top.', ...shared };
   const h1Assumed = !Number.isFinite(d.payTop);
-  return { status: 'ok', basis, hp: d.base - d.top, h1: h1Assumed ? 0 : d.top - d.payTop, h1Assumed, ...shared };
+  // WTA-U2-007: with both MD and TVD of the perforations, a longer MD than
+  // TVD interval is a deviated well; its angle from vertical over the interval
+  let deviation = null;
+  if (hasMd && hasTvd) {
+    const dMd = md.base - md.top;
+    const dTvd = tvd.base - tvd.top;
+    if (dMd > 0 && dTvd > 0 && dTvd <= dMd * (1 + 1e-9) && dMd > dTvd * (1 + 1e-6)) {
+      deviation = { thetaDeg: (Math.acos(Math.min(dTvd / dMd, 1)) * 180) / Math.PI, dMd, dTvd };
+    }
+  }
+  return { status: 'ok', basis, hp: d.base - d.top, h1: h1Assumed ? 0 : d.top - d.payTop, h1Assumed, deviation, ...shared };
 }
 
 /**
@@ -237,8 +355,16 @@ export function buildCompletion(completion) {
  *   'refused' (the engine would not compute, with its reason),
  *   'full' (the whole pay is open), 'ok'.
  */
-export function buildSkinBreakdown({ totalSkin, reservoir, completion, kvkhInput, isGas = false }) {
+export function buildSkinBreakdown({ totalSkin, reservoir, completion, kvkhInput, isGas = false, rateSkin = null }) {
   const comp = buildCompletion(completion);
+  // WTA-U2-003: the rate-dependent part D q of a gas skin, when a route gave D
+  const Dq = isGas && Number.isFinite(rateSkin?.Dq) ? rateSkin.Dq : NaN;
+  const rate = Number.isFinite(Dq) ? {
+    Dq, D: rateSkin.D, q: rateSkin.q,
+    source: rateSkin.source === 'multi-rate'
+      ? `D from the apparent skins at ${rateSkin.fit?.rates} rates (${rateSkin.fit?.method})`
+      : 'D from the pseudo-pressure LIT b as the non-Darcy coefficient F: D = F k h / (1422 T) (Ahmed 2010, eq. 6-159)',
+  } : null;
   const kvkhEntered = num(kvkhInput);
   const kvkhGiven = kvkhInput != null && String(kvkhInput).trim() !== '';
   const kvkh = kvkhGiven ? kvkhEntered : DEFAULT_KVKH;
@@ -249,7 +375,8 @@ export function buildSkinBreakdown({ totalSkin, reservoir, completion, kvkhInput
     basis: comp.basis || null, kvkh, kvkhDefaulted: !kvkhGiven,
     method: null, formula: null, splitFormula: null, reference: null, splitReference: null,
     totalLabel: isGas ? "Apparent skin s'" : 'Total skin s',
-    mechanicalLabel: isGas ? 'Mechanical and rate-dependent skin' : 'Mechanical (damage) skin s_d',
+    mechanicalLabel: isGas && !rate ? 'Mechanical and rate-dependent skin' : 'Mechanical (damage) skin s_d',
+    rate,
   };
   if (comp.status === 'none') {
     return { ...base, status: 'not-entered', message: `${comp.reason} The skin is reported as a total and is not split.` };
@@ -261,13 +388,28 @@ export function buildSkinBreakdown({ totalSkin, reservoir, completion, kvkhInput
     h: reservoir.h, hp: comp.hp, h1: comp.h1, rw: reservoir.rw, kvkh,
   });
   if (!out.ok) return { ...base, status: 'refused', code: out.code, message: `${out.reason} The skin is not split.` };
+  // WTA-U2-007: the slant pseudo-skin of a deviated interval (Cinco-Ley et al. 1975, engine)
+  const slantOut = comp.deviation ? slantPseudoSkin({ thetaDeg: comp.deviation.thetaDeg, h: reservoir.h, rw: reservoir.rw, kvkh }) : null;
+  const slant = slantOut?.ok ? {
+    sTheta: slantOut.sTheta, thetaDeg: comp.deviation.thetaDeg, thetaPrime: slantOut.thetaPrime, hD: slantOut.hD,
+    method: slantOut.method, formula: slantOut.formula, reference: slantOut.reference, warnings: slantOut.warnings,
+  } : null;
+  // the mechanical skin left after every pseudo-skin and the rate-dependent
+  // part, through the engine's split s_d = (hp/h) (s - the rest)
+  const rest = out.spp + (slant ? slant.sTheta : 0) + (rate ? rate.Dq : 0);
+  const split = Number.isFinite(totalSkin) ? decomposeSkin({ totalSkin, h: reservoir.h, hp: out.hpD * reservoir.h, spp: rest }) : null;
   const named = {
     ...base, spp: out.spp, hpD: out.hpD, h1D: out.h1D, rD: out.rD,
     method: out.method, formula: out.formula, reference: out.reference,
-    splitFormula: out.split?.formula || null, splitReference: out.split?.reference || null,
-    mechanicalSkin: out.split?.ok ? out.split.mechanicalSkin : NaN,
+    splitReference: out.split?.reference || null,
+    slant,
+    mechanicalSkin: split?.ok ? split.mechanicalSkin : NaN,
+    splitFormula: out.split?.formula ? `s_d = (hp/h) (s - s_pp${slant ? ' - s_theta' : ''}${rate ? ' - D q' : ''})` : null,
   };
   const notes = [];
+  if (comp.deviation && !slant) notes.push(`The interval is deviated ${comp.deviation.thetaDeg.toFixed(1)} degrees from vertical, but no slant pseudo-skin was computed: ${slantOut?.reason || 'it could not be evaluated'}`);
+  if (slant && !out.fullyOpen) notes.push('For a well both slanted and partially open the published Cinco-Ley table holds a larger slant term than the full-penetration correlation used here, so this split is approximate.');
+  if (slant?.warnings?.length) notes.push(...slant.warnings);
   if (comp.basis === 'MD') notes.push('Lengths are measured depths, which is exact for a vertical hole only.');
   if (comp.h1Assumed) notes.push('Top of net pay not entered: the perforations are taken to start at the top of the pay.');
   if (!kvkhGiven) notes.push(`kv/kh not entered: ${DEFAULT_KVKH} is assumed.`);
@@ -284,8 +426,13 @@ export function skinBreakdownRows(sb, system = 'oilfield') {
   const f2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : EMPTY_VALUE);
   const L = unitLabel('length', system);
   const rows = [[sb.totalLabel, f2(sb.totalSkin), 'From the interpretation']];
+  if (sb.rate) {
+    rows.push([`Rate-dependent skin D q (q ${plain(fromOilfield('gasRate', sb.rate.q, system))} ${unitLabel('gasRate', system)})`, f2(sb.rate.Dq), sb.rate.source]);
+    rows.push(["Skin without the rate-dependent part s = s' - D q", f2(sb.totalSkin - sb.rate.Dq), 'From the interpretation and D']);
+  }
   if (sb.status === 'ok' || sb.status === 'full') {
     rows.push(['Partial-penetration pseudo-skin s_pp', f2(sb.spp), sb.method]);
+    if (sb.slant) rows.push([`Slant pseudo-skin s_theta (${sb.slant.thetaDeg.toFixed(1)} degrees from vertical)`, f2(sb.slant.sTheta), `${sb.slant.method}, from the MD and TVD of the perforations`]);
     rows.push([sb.mechanicalLabel, f2(sb.mechanicalSkin), sb.splitFormula || EMPTY_VALUE]);
     rows.push([`Net pay h (${L})`, shown('length', sb.h, system), 'Input']);
     rows.push([`Perforated length hp (${L})`, shown('length', sb.hp, system), sb.basis === 'TVD' ? 'True vertical depth' : 'Measured depth']);
@@ -345,9 +492,17 @@ export function buildInputsTable({
 
   if (isGas) {
     const pvtAuto = gasPvtSourceText(res?.pvtSource);
+    const fromTable = res?.pvtSource?.kind === 'fluid-table';
     add('mu', 'Gas viscosity mu at pi', 'viscosity', res?.mu, sourceText(meta('mu'), pvtAuto || 'Not computed'));
     rows.push({ key: 'z', label: 'Gas z-factor at pi', value: plain(res?.pvt?.zOf ? res.pvt.zOf(res.pi) : NaN), unit: '', source: sourceText(null, pvtAuto || 'Not computed') });
-    add('gasGravity', 'Gas gravity', 'gasGravity', r.gasGravity, entered('gasGravity'));
+    if (fromTable) {
+      const gt = res.pvtSource;
+      rows.push({
+        key: 'gasTable', label: 'Gas PVT table', value: `${gt.rows} rows, ${shown('pressureAbs', gt.pMin, unitSystem)} to ${shown('pressureAbs', gt.pMax, unitSystem)}`, unit: uL('pressureAbs'),
+        source: `pvt-1 block${gt.origin || ''}${gt.changedSince ? '; the source project was saved again since and now differs' : ''}`,
+      });
+    }
+    add('gasGravity', 'Gas gravity', 'gasGravity', r.gasGravity, fromTable ? `${entered('gasGravity')}; not used by the table (recorded)` : entered('gasGravity'));
     add('temperature', 'Reservoir temperature', 'temperature', r.tempF, entered('temperature'));
   } else {
     // a value changed here after the handoff says so (RL11): the source the
@@ -388,7 +543,10 @@ export function buildInputsTable({
 }
 
 /** One sentence under the inputs table saying which inputs the analysis used. */
-export function inputsFootnote(isGas) {
+export function inputsFootnote(isGas, pvtSource = null) {
+  if (isGas && pvtSource?.kind === 'fluid-table') {
+    return 'The gas analysis uses h, phi, rw, ct, temperature, pi and q, with z and viscosity interpolated in the Fluid Systems Studio table. Sw and gas gravity are recorded for the report.';
+  }
   return isGas
     ? 'The gas analysis uses h, phi, rw, ct, gas gravity and temperature (viscosity and z from the correlation), pi and q. Sw is recorded for the report.'
     : 'The oil analysis uses h, phi, rw, ct, mu_o, Bo, pi and q. Sw, API gravity, GOR, gas gravity and temperature are recorded for the report and do not enter the calculation unless ct is built from its components.';
@@ -545,20 +703,36 @@ export function absoluteBasisText(gaugeImport) {
  * correction to that datum was applied, and whether the readings were
  * gauge or absolute. [label, value].
  */
-export function buildPressureBasisRows({ completion, gaugeImport, unitSystem = 'oilfield' }) {
+export function buildPressureBasisRows({ completion, gaugeImport, unitSystem = 'oilfield', datum = null, pStar = NaN, pwfShutIn = NaN }) {
   const c = completion || {};
   const L = unitLabel('length', unitSystem);
+  const P = unitLabel('pressure', unitSystem);
   const len = (v) => (Number.isFinite(num(v)) ? `${shown('length', num(v), unitSystem)} ${L}` : null);
   const md = len(c.gaugeDepthMd);
   const tvd = len(c.gaugeDepthTvd);
-  const gauge = [md ? `${md} MD` : null, tvd ? `${tvd} TVD` : null].filter(Boolean).join(', ');
-  const datum = len(c.datumDepthTvdss);
+  const corr = datum || completionDatumCorrection(c);
+  const gauge = [md ? `${md} MD` : null, tvd ? `${tvd} TVD` : null, corr.ok ? `${shown('length', corr.gaugeTvdss, unitSystem)} ${L} TVDSS` : null].filter(Boolean).join(', ');
+  const datumDepth = len(c.datumDepthTvdss);
+  const elev = len(c.depthRefElev);
+  const grad = num(c.datumGradient);
+  const gradText = Number.isFinite(grad)
+    ? `${plain(fromOilfield('pressureGradient', grad, unitSystem))} ${unitLabel('pressureGradient', unitSystem)}, ${text(c.datumGradientSource) || 'source not stated'}`
+    : 'None stated (no correction is applied unless a gradient is stated)';
+  const sign = (v) => `${v >= 0 ? '+' : ''}${plain(fromOilfield('pressure', v, unitSystem))} ${P}`;
   const rows = [
     ['Gauge depth', gauge || EMPTY_VALUE],
-    ['Pressure datum', datum ? `${datum} TVDSS` : 'Not stated'],
-    ['Correction to the datum', 'None applied: every pressure in this report is at the gauge depth'],
-    ['Absolute or gauge', absoluteBasisText(gaugeImport)],
+    ['Pressure datum', datumDepth ? `${datumDepth} TVDSS` : 'Not stated'],
   ];
+  if (elev) rows.push(['Depth reference elevation above the datum', elev]);
+  rows.push(['Gradient, gauge to datum', gradText]);
+  if (corr.ok) {
+    rows.push(['Correction to the datum', `${sign(corr.correction)} (${plain(fromOilfield('pressureGradient', grad, unitSystem))} ${unitLabel('pressureGradient', unitSystem)} over ${plain(fromOilfield('length', corr.dz, unitSystem))} ${L}), added to the pressures given at the datum below; the analysis itself runs at the gauge depth`]);
+    if (Number.isFinite(pStar)) rows.push([`p* at the datum (${P})`, plain(fromOilfield('pressure', corr.apply(pStar), unitSystem))]);
+    if (Number.isFinite(pwfShutIn)) rows.push([`Pressure at shut-in at the datum (${P})`, plain(fromOilfield('pressure', corr.apply(pwfShutIn), unitSystem))]);
+  } else {
+    rows.push(['Correction to the datum', Number.isFinite(grad) ? `None applied: ${corr.reason.replace(/^./, (x) => x.toLowerCase())}` : 'None applied: every pressure in this report is at the gauge depth']);
+  }
+  rows.push(['Absolute or gauge', absoluteBasisText(gaugeImport)]);
   if (gaugeImport && !gaugeImport.sample && gaugeImport.fileName) {
     const tu = TIME_UNITS[gaugeImport.timeUnit]?.label;
     rows.push(['Gauge file', `${gaugeImport.fileName}: ${gaugeImport.count ?? EMPTY_VALUE} readings read${gaugeImport.skipped ? `, ${gaugeImport.skipped} rows skipped as not numbers` : ''}${tu ? `; time in ${tu}` : ''}${gaugeImport.dateOrder ? `, dates ${gaugeImport.dateOrder === 'dmy' ? 'day first' : 'month first'}` : ''}`]);
@@ -617,6 +791,22 @@ const r2 = (v) => (Number.isFinite(v) ? String(parseFloat(v.toPrecision(3))) : E
  */
 export function gasRangeCheck({ reservoir, pressures = [] }) {
   if (reservoir?.fluid !== 'gas') return null;
+  // WTA-U2-001: a Fluid table holds its own span; the test is checked against it
+  if (reservoir.pvtSource?.kind === 'fluid-table') {
+    const src = reservoir.pvtSource;
+    const ps = [reservoir.pi, ...pressures].filter((p) => Number.isFinite(p) && p > 0);
+    const lo = Math.min(...ps);
+    const hi = Math.max(...ps);
+    const inside = lo >= src.pMin && hi <= src.pMax;
+    const flags = src.rangeFlags?.length ? ` The block flags: ${src.rangeFlags.join(' ')}` : '';
+    const temp = Number.isFinite(src.temperatureF) && Number.isFinite(reservoir.tempR) && Math.abs(src.temperatureF - (reservoir.tempR - 460)) > 0.5
+      ? ` The table was built at ${plain(src.temperatureF)} degF and the test temperature is ${plain(reservoir.tempR - 460)} degF.`
+      : '';
+    return {
+      method: 'fluid-table', label: 'Fluid Systems Studio table', inside,
+      text: `z and viscosity from the Fluid Systems Studio table (${src.zMethod}; ${src.muMethod}), ${plain(src.pMin)} to ${plain(src.pMax)} psia. The test spans ${plain(lo)} to ${plain(hi)} psia, ${inside ? 'inside the table' : 'OUTSIDE the table: m(p) is extrapolated on the end segment'}.${temp}${flags}`,
+    };
+  }
   const method = reservoir.zMethod || 'papay';
   const { ppc, tpc } = suttonPseudoCriticals(reservoir.gasGravity);
   const tempF = reservoir.tempR - 460;
@@ -639,26 +829,57 @@ export function gasRangeCheck({ reservoir, pressures = [] }) {
   };
 }
 
+/** The pressures statement of the limits table (WTA-U2-004). */
+export function datumLimitText(datum) {
+  if (datum?.ok) return 'Analysed at the gauge depth. p* and the pressure at shut-in are also given at the datum with the one stated gradient (a static column of one fluid between the depths; no friction or temperature correction). No gravity or friction correction between gauge and sandface.';
+  return 'Analysed and reported at the gauge depth; no correction to a datum and no gravity or friction correction between gauge and sandface.';
+}
+
+/** The wellbore storage statement of the limits table (WTA-U2-002). */
+export function wellboreLimitText(model) {
+  if (model?.wellboreModel === 'hegeman' || model?.wellboreModel === 'fair') {
+    return `${model.wellboreModel === 'hegeman' ? 'Changing wellbore storage, Hegeman, Hallford and Joseph (1993), error-function transition' : 'Changing wellbore storage, Fair (1981), exponential transition'}: C is the final storage, Ci/C the ratio of the initial apparent storage to it, alpha the time of the change. The change starts with each rate period, so in a buildup it acts on the shut-in. Checked against an independent real-time solution of the wellbore balance, not against the published type curves.`;
+  }
+  return 'Constant wellbore storage. A storage change (phase redistribution, a closing valve) can be matched with the Hegeman or Fair model on the Match tab.';
+}
+
+/**
+ * The storage of a changing-storage match in the display system: Ci and
+ * the dimensionless C_phiD and alpha_D from the engine's own mapping.
+ * @returns {Array<[string, string]>} [] for constant storage
+ */
+export function changingStorageRows({ model, params, reservoir, groups, unitSystem = 'oilfield' }) {
+  if (!model?.wellboreModel || model.wellboreModel === 'constant' || !params || !reservoir || !groups || typeof model.toDimless !== 'function') return [];
+  const d = model.toDimless(params, groups);
+  const S = unitLabel('storage', unitSystem);
+  return [
+    [`Initial storage Ci (${S})`, plain(fromOilfield('storage', params.C * params.ciOverC, unitSystem))],
+    [`Final storage C (${S})`, plain(fromOilfield('storage', params.C, unitSystem))],
+    ['C_phiD (phase redistribution, dimensionless)', plain(d.cphiD)],
+    ['alpha_D (dimensionless)', plain(d.alphaD)],
+  ];
+}
+
 /**
  * What the interpretation assumes, and where its methods stop, as
  * [topic, statement] rows. The gas row carries the reduced state of the
  * test against its z method's window.
  */
-export function buildLimitsRows({ reservoir, config, model, prepared }) {
+export function buildLimitsRows({ reservoir, config, model, prepared, datum = null }) {
   const gas = reservoir?.fluid === 'gas';
   const rows = [
     ['Fluid', gas
       ? 'Single-phase real gas in pseudo-pressure m(p); dimensionless time at the initial mu ct unless pseudo-time is chosen. The skin is the apparent skin s\', which includes any rate-dependent skin; separating it needs tests at more than one rate.'
       : 'Single-phase flow of a slightly compressible liquid with constant viscosity, formation volume factor and total compressibility. Gas coming out of solution near the well is not modelled.'],
-    ['Wellbore storage', 'Constant wellbore storage. Changing storage (phase redistribution, a closing valve) has no model in the catalog; its hump on the derivative is not matched.'],
-    ['Well geometry', `${model?.label ? `${model.label} model. ` : ''}A vertical well open over the net pay unless the horizontal model is chosen. Partial penetration enters as a pseudo-skin only (Papatzacos 1987, vertical wells): there is no limited-entry (spherical flow) model, and a deviated well is treated as vertical.`],
+    ['Wellbore storage', wellboreLimitText(model)],
+    ['Well geometry', `${model?.label ? `${model.label} model. ` : ''}A vertical well open over the net pay unless the horizontal model is chosen. Partial penetration enters as a pseudo-skin only (Papatzacos 1987): there is no limited-entry (spherical flow) model. A deviated interval (MD longer than TVD) enters as the Cinco-Ley et al. (1975) slant pseudo-skin, split off the total skin; the flow model stays that of a vertical well.`],
     ['Time basis', config?.family === 'buildup'
       ? 'Buildup on Agarwal equivalent time with the producing time tp, or on superposition of the rate history when one is entered.'
       : 'Drawdown on elapsed time from the start of flow; a rate history with more than one rate is analysed by superposition (Odeh-Jones).'],
-    ['Pressures', 'Analysed and reported at the gauge depth; no correction to a datum and no gravity or friction correction between gauge and sandface.'],
+    ['Pressures', datumLimitText(datum)],
   ];
   const range = gasRangeCheck({ reservoir, pressures: (prepared?.points || []).map((p) => p.p) });
-  if (range) rows.push(['Gas z-factor range', range.text]);
+  if (range) rows.push([range.method === 'fluid-table' ? 'Gas PVT table range' : 'Gas z-factor range', range.text]);
   return rows;
 }
 

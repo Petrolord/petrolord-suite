@@ -17,6 +17,7 @@ import { loadVrrRows, watchVrrRows, VRR_TABLE } from './vrrProjectsStore';
 import { harnessRegistry } from './vrrHarnessWells';
 import { rfHarnessSeed } from './rfHarnessStore';
 import { eorHarnessTables } from './eorHarnessRows';
+import { wsHarnessTables } from './wsHarnessRows';
 import { savedScalRows } from '@/components/scalstudio/__fixtures__/savedProjects';
 import { savedWaterfloodRows } from '@/components/waterflooddesign/__fixtures__/savedProjects';
 
@@ -76,6 +77,9 @@ const SEEDS = {
   'recovery-factor': () => rfHarnessSeed(U),
   // EOR-U1: a Fluid project saved in this tab (pvt-1), a Well Test project (wta-1) and a Material Balance case (mbal-1), read by id
   eor: () => ({ [FLUID_TABLE]: loadFluidRows(), ...eorHarnessTables(U) }),
+  // WS-U1: a Fluid project saved in this tab (pvt-1), a Well Test project (wta-1), a Material Balance
+  // case (mbal-1), a Decline Curve Analysis forecast (dca-forecast-1) and four registry wells, read by id
+  'well-spacing': () => ({ [FLUID_TABLE]: loadFluidRows(), ...wsHarnessTables(U) }),
   // AFE: budget 8.5M; EAC max(budget, actual + commitment) unless entered:
   // RIG 5.0M, CSG 2.3M (entered), SVC 1.5M, so 8.8M and a 0.3M overrun;
   // EV 5.0 x 0.6 + 2.0 x 0.9 + 1.5 x 0.3 = 5.25M against 5.2M actual.
@@ -185,6 +189,8 @@ function useScalRows(app) {
   if (app === 'recovery-factor') storeFor('recovery-factor')[FLUID_TABLE] = loadFluidRows();
   // EOR-U1: the same for the EOR Screening pvt-1 intake
   if (app === 'eor') storeFor('eor')[FLUID_TABLE] = loadFluidRows();
+  // WS-U1: and for the Well Spacing pvt-1 intake
+  if (app === 'well-spacing') storeFor('well-spacing')[FLUID_TABLE] = loadFluidRows();
   useEffect(() => (app === 'scal' ? watchScalRows(storeFor('scal')) : undefined), [app]);
   // WF-U2-001: keep the Waterflood projects of the tab in sessionStorage for the receivers' harnesses
   useEffect(() => (app === 'waterflood' ? watchWfRows(storeFor('waterflood')) : undefined), [app]);

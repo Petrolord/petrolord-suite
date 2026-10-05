@@ -1,0 +1,516 @@
+Well Spacing Report
+Petrolord Well Spacing Optimizer
+
+Project                   Spacing study                                       Company                    Lordsway Energy
+Field                     Ekene                                               Licence or block           OML 999
+Reservoir or zone         E-2000 sand                                         Well or wells              EK-1 to EK-4
+Data as of                2026-09-30                                          Analyst                    A. Analyst
+Analysis type             Spacing economics at a stated recovery Model                                   Each well drains its spacing area at the
+                          factor, with drainage geometry, timing and                                     stated recovery factor (no interference, no
+                          deliverability diagnostics (screening)                                         incremental recovery from infill); one
+                                                                                                         exponential decline per well anchored on
+                                                                                                         that EUR; all wells on stream in year 1
+Economics                 Suite screening economics engine                    Software build             test-build
+                          (calculateEconomics), mid-year
+                          discounting
+Inputs                    Entered or taken from other apps (sources Display units                        Oilfield (area acres, spacing acres/well,
+                          below)                                                                         thickness and distance ft, pressure psia,
+                                                                                                         temperature degF, GOR scf/STB, rate
+                                                                                                         STB/d, EUR Mbbl, FVF RB/STB, viscosity
+                                                                                                         cp, compressibility 1/psi, permeability md).
+                                                                                                         Money in US$: oil per STB, gas per Mscf,
+                                                                                                         in both systems. The engine computes in
+                                                                                                         oilfield units.
+Generated                 2026-10-05 12:00 UTC
+
+
+Spacing cases
+ Spacing          Wells   Between        EUR per well     Produced per well     Field recovery   Capex (US$      NPV (US$   Cost        Initial rate
+ (acres/well)             wells (ft)     (Mbbl)           (Mbbl)                (%)              MM)             MM)        (US$/STB)   (STB/d)
+
+ 20               250     933.38         257.8            257.8                 35.0             1,250.0         925.0      31.45       124.7
+
+ 30               166     1,143.2        386.6            386.6                 34.9             830.0           1,389.0    22.17       182
+
+ 40               125     1,320          515.5            515.5                 35.0             625.0           1,632.3    17.28       239.4
+
+ 50               100     1,475.8        644.4            641.0 *               35.0             500.0           1,775.7    14.04       296.7
+
+ 60               83      1,616.7        773.3            764.9 *               34.9             415.0           1,863.8    11.77       354.1
+
+ 70               71      1,746.2        902.1            888.8 *               34.8             355.0           1,927.9    10.13       411.4
+
+ 80               62      1,866.8        1,031.0          1,012.7 *             34.7             310.0           1,974.8    8.89        468.8
+
+ 90               55      1,980          1,159.9          1,136.6 *             34.6             275.0           2,010.3    7.92        526.1
+
+ 100              50      2,087.1        1,288.8          1,260.4 *             35.0             250.0           2,062.4    7.14        583.4
+
+ 110              45      2,189          1,417.7          1,384.3 *             34.6             225.0           2,067.6    6.50        640.8
+
+ 120              41      2,286.3        1,546.5          1,508.2 *             34.4             205.0           2,076.4    5.97        698.1
+
+ 130              38      2,379.7        1,675.4          1,632.1 *             34.6             190.0           2,103.0    5.51        755.5
+
+ 140              35      2,469.5        1,804.3          1,756.0 *             34.3             175.0           2,101.4    5.13        812.8
+
+ 150              33      2,556.2        1,933.2          1,879.8 *             34.6             165.0           2,136.4    4.79        870.2
+
+ 160              31      2,640          2,062.1          2,003.7 *             34.7             155.0           2,152.6    4.49        927.5
+
+The highest NPV here is arithmetic and does not amount to an engineering recommendation, so no optimum is nominated. NPV is computed by
+the Suite screening economics engine with mid-year discounting: each year's cash flow, the well cost in the first year included, is discounted to the
+middle of its year. Cost per barrel is capex plus opex over the oil produced, undiscounted, before royalty. * produced volume cut short by the
+project duration. Initial rate: the rate on day one of the decline each well is given, rising with the spacing because the EUR does.
+
+
+
+
+Well Spacing Report, Ekene, Spacing study                                                                                                   Page 1 of 7
+Economics of each case, by part
+ Spacing (acres/well)              Revenue        Royalty           Opex       Capex         Net cash, undiscounted            NPV         Payback (years)
+
+ 20                                5,006.1        1,251.5           776.3      1,250.0       1,728.3                           925.0       2.55
+
+ 30                                4,986.1        1,246.5           592.8      830.0         2,316.8                           1,389.0     1.57
+
+ 40                                5,006.1        1,251.5           488.5      625.0         2,641.1                           1,632.3     1.13
+
+ 50                                4,979.9        1,245.0           400.0      500.0         2,835.0                           1,775.7     within year 1
+
+ 60                                4,932.2        1,233.0           332.0      415.0         2,952.1                           1,863.8     within year 1
+
+ 70                                4,902.4        1,225.6           284.0      355.0         3,037.8                           1,927.9     within year 1
+
+ 80                                4,877.7        1,219.4           248.0      310.0         3,100.3                           1,974.8     within year 1
+
+ 90                                4,856.3        1,214.1           220.0      275.0         3,147.2                           2,010.3     within year 1
+
+ 100                               4,896.0        1,224.0           200.0      250.0         3,222.0                           2,062.4     within year 1
+
+ 110                               4,839.5        1,209.9           180.0      225.0         3,224.6                           2,067.6     within year 1
+
+ 120                               4,803.9        1,201.0           164.0      205.0         3,233.9                           2,076.4     within year 1
+
+ 130                               4,818.1        1,204.5           152.0      190.0         3,271.6                           2,103.0     within year 1
+
+ 140                               4,774.6        1,193.7           140.0      175.0         3,266.0                           2,101.4     within year 1
+
+ 150                               4,819.4        1,204.8           132.0      165.0         3,317.5                           2,136.4     within year 1
+
+ 160                               4,825.6        1,206.4           124.0      155.0         3,340.2                           2,152.6     within year 1
+
+US$ million, field totals over the project duration. Revenue is oil at the oil price plus gas at the gas price, the gas being the oil times the initial
+solution GOR. Revenue less royalty, opex and capex is the undiscounted net cash; NPV is the same yearly stream discounted to the middle of
+each year. No income tax is applied. Payback is counted in whole years of the yearly stream; "within year 1" means the first year's net cash
+already exceeds the capex spent in it.
+
+
+Incremental economics: the added wells
+ Spacing                Against              Added          Added capex (US$        Added oil produced        Added NPV (US$      Added NPV per added well (US$
+ (acres/well)           (acres/well)         wells          MM)                     (Mbbl)                    MM)                 MM)
+
+ 20                     30                   84             420.0                   257.8                     -464.1              -5.52
+
+ 30                     40                   41             205.0                   -257.8                    -243.3              -5.93
+
+ 40                     50                   25             125.0                   337.3                     -143.4              -5.74
+
+ 50                     60                   17             85.0                    615.0                     -88.1               -5.18
+
+ 60                     70                   12             60.0                    383.1                     -64.1               -5.34
+
+ 70                     80                   9              45.0                    318.3                     -46.9               -5.21
+
+ 80                     90                   7              35.0                    275.1                     -35.4               -5.06
+
+ 90                     100                  5              25.0                    -511.4                    -52.2               -10.43
+
+ 100                    110                  5              25.0                    727.4                     -5.2                -1.04
+
+ 110                    120                  4              20.0                    458.1                     -8.8                -2.21
+
+ 120                    130                  3              15.0                    -183.0                    -26.6               -8.87
+
+ 130                    140                  3              15.0                    560.3                     1.6                 0.53
+
+ 140                    150                  2              10.0                    -576.2                    -35.0               -17.48
+
+ 150                    160                  2              10.0                    -80.7                     -16.2               -8.08
+
+Each spacing against the next wider one in the table (fewer wells): what the extra wells add. The NPVs are those of the case table; this takes
+differences only. Under the stated model the extra wells add almost no oil (the differences of a few hundred Mbbl either way come from the
+undrained remainder of the area and the project duration cut), so the added NPV is mostly the added capex with its sign changed.
+
+
+
+
+Well Spacing Report, Ekene, Spacing study                                                                                                                  Page 2 of 7
+Inputs and their sources
+ Input                                         Value               Unit           Source and quality
+
+ Field name [record]                           Ekene                              Entered
+
+ Reservoir area [case]                         5,000               acres          Entered, source not stated
+
+ Average net pay [case]                        60                  ft             Entered, source not stated
+
+ Porosity [case]                               15.2                %              Entered, source not stated
+
+ Initial water saturation [case]               0.25                fraction       Entered, source not stated
+
+ Recovery factor (per well, over its drained   35                  %              Entered, source not stated
+ area) [case]
+
+ Reservoir temperature [case]                  220                 degF           Input of the fluid model (the PVT temperature), Fluid
+                                                                                  Systems Studio, project "Good Oil Well No. 4 PVT"
+
+ Oil gravity [case]                            40.7                degAPI         Input of the fluid model, Fluid Systems Studio, project
+                                                                                  "Good Oil Well No. 4 PVT"
+
+ Gas gravity [case]                            0.855               air = 1        Input of the fluid model, Fluid Systems Studio, project
+                                                                                  "Good Oil Well No. 4 PVT"
+
+ Initial solution GOR (also the producing      768                 scf/STB        Solution GOR at the bubble point (input of the fluid
+ GOR) [case]                                                                      model), Fluid Systems Studio, project "Good Oil Well No.
+                                                                                  4 PVT"
+
+ Oil FVF Bo (blank: Standing's correlation)    1.4411              RB/STB         Correlation: Standing, multiplied by 0.9059 plus 0.1281
+ [case]                                                                           RB/STB (laboratory match), correlations matched to lab
+                                                                                  data, at 3985 psia, the stated average reservoir pressure
+                                                                                  (undersaturated), from Fluid Systems Studio project
+                                                                                  "Good Oil Well No. 4 PVT" (2026-10-02 09:00 UTC). Read
+                                                                                  from the project's PVT table, linear between rows
+
+ Well cost [case]                              5,000,000           US$ per well   Entered, source not stated
+
+ Operating expense [case]                      200,000             US$ per well   Entered, source not stated
+                                                                   per year
+
+ Economic limit rate per well [case]           10                  STB/d          Entered, source not stated
+
+ Well decline rate [case]                      15                  % per year,    Entered, source not stated
+                                                                   effective
+
+ Oil price [case]                              75                  US$/STB        Entered, source not stated
+
+ Gas price [case]                              3.5                 US$/Mscf       Entered, source not stated
+
+ Discount rate [case]                          10                  %              Entered, source not stated
+
+ Project duration [case]                       20                  years          Entered, source not stated
+
+ Royalty (on gross revenue) [case]             25                  %              Entered, source not stated
+
+ Smallest spacing [case]                       20                  acres/well     Entered, source not stated
+
+ Largest spacing [case]                        160                 acres/well     Entered, source not stated
+
+ Spacing step [case]                           10                  acres/well     Entered, source not stated
+
+ Well layout [diagnostics]                     Square grid (each                  Assumed default square grid (no value entered)
+                                               well drains a
+                                               square)
+
+ Average reservoir pressure [diagnostics]      3,985               psia           Extrapolated p* of the Horner straight line. Basis:
+                                                                                  absolute, at the gauge depth (no correction to a datum),
+                                                                                  Well Test Analysis Studio, project "EK-3 buildup", well
+                                                                                  EK-3
+
+ Flowing bottomhole pressure [diagnostics]     1,500               psia           Entered, source not stated
+
+ Permeability [diagnostics]                    182.4               md             Horner straight line, window 2 to 20 hr of shut-in time dt.
+                                                                                  Well test permeability is the average over the tested
+                                                                                  interval and the radius of investigation, Well Test Analysis
+                                                                                  Studio, project "EK-3 buildup", well EK-3
+
+
+
+Well Spacing Report, Ekene, Spacing study                                                                                           Page 3 of 7
+ Input                                          Value                       Unit               Source and quality
+
+ Skin [diagnostics]                             2.1                                            Total skin (mechanical 1.4, partial penetration 0.7), Horner
+                                                                                               straight line, Well Test Analysis Studio, project "EK-3
+                                                                                               buildup", well EK-3
+
+ Oil viscosity at reservoir conditions          0.444                       cp                 Correlation: Vasquez-Beggs, correlations matched to lab
+ [diagnostics]                                                                                 data, at 3985 psia, the stated average reservoir pressure
+                                                                                               (undersaturated), from Fluid Systems Studio project
+                                                                                               "Good Oil Well No. 4 PVT" (2026-10-02 09:00 UTC). Read
+                                                                                               from the project's PVT table, linear between rows
+
+ Total compressibility [diagnostics]            0.000015                    1/psi              Entered, source not stated
+
+ Wellbore radius [diagnostics]                  0.354                       ft                 Entered, source not stated
+
+ Field location, WGS84 latitude and             n/a                         degrees            Not provided
+ longitude [record]
+
+ OOIP of a Material Balance run                 152                         MMSTB              Havlena-Odeh regression, slope, r2 0.987, Material
+ [cross-check]                                                                                 Balance Studio, case "Ekene E-2000", run of 2026-10-02
+                                                                                               15:00 UTC
+
+ EUR of one well from Decline Curve             2,070                       Mbbl               EUR of EK-2, oil, hyperbolic fitted 2026-09-30, project
+ Analysis [cross-check]                                                                        "Ekene decline" (Decline Curve Analysis): produced
+                                                                                               820,000 STB to the cut-off plus the forecast to the
+                                                                                               economic limit
+
+Every value the study read, with its source. [case] enters the EUR, the NPV and every number of the case table; [diagnostics] enters only the
+drainage table; [cross-check] and [record] enter no equation. Values taken from another app name the project and the method; an edit after the
+intake says so.
+
+
+Drainage geometry, timing and deliverability
+ Spacing           Between wells   Drainage radius    Interference begins        Pseudosteady state    Deliverable rate     Plan initial rate   Plan /
+ (acres/well)      (ft)            re (ft)            (days)                     (days)                (STB/d)              (STB/d)             deliverable
+
+ 20                933.38          526.6              0.05                       0.08                  34,730               124.7               0.0036
+
+ 30                1,143.2         645                0.07                       0.11                  33,940               182                 0.0054
+
+ 40                1,320           744.7              0.10                       0.15                  33,400               239.4               0.0072
+
+ 50                1,475.8         832.6              0.12                       0.19                  32,990               296.7               0.009
+
+ 60                1,616.7         912.1              0.14                       0.23                  32,660               354.1               0.011
+
+ 70                1,746.2         985.2              0.17                       0.27                  32,390               411.4               0.013
+
+ 80                1,866.8         1,053              0.19                       0.31                  32,160               468.8               0.015
+
+ 90                1,980           1,117              0.21                       0.34                  31,960               526.1               0.016
+
+ 100               2,087.1         1,178              0.24                       0.38                  31,780               583.4               0.018
+
+ 110               2,189           1,235              0.26                       0.42                  31,620               640.8               0.02
+
+ 120               2,286.3         1,290              0.29                       0.46                  31,480               698.1               0.022
+
+ 130               2,379.7         1,343              0.31                       0.50                  31,350               755.5               0.024
+
+ 140               2,469.5         1,393              0.33                       0.53                  31,230               812.8               0.026
+
+ 150               2,556.2         1,442              0.36                       0.57                  31,120               870.2               0.028
+
+ 160               2,640           1,489              0.38                       0.61                  31,010               927.5               0.03
+
+Layout: Square grid (each well drains a square); shape factor CA 30.8828, pseudosteady state exact from tDA 0.1 (Earlougher 1977, Table C.1).
+Interference begins when each well's radius of investigation, sqrt(k t / (948 phi mu ct)), reaches half the distance to its neighbour (Lee 1982).
+Deliverable rate: the pseudosteady-state rate k h (pbar - pwf) / (141.2 B mu (0.5 ln(2.2458 A / (CA rw^2)) + s)) on the drainage area at the stated
+pressures (Ahmed and McKinney 2005, Eq. 1.2.124). Plan / deliverable above 1 means the decline the economics assume starts at a rate the well
+cannot deliver at that spacing: the EUR would take longer to produce and the NPV is too high.
+
+
+
+
+Well Spacing Report, Ekene, Spacing study                                                                                                         Page 4 of 7
+Cross-checks
+ Check                                    Value                        Against
+
+ In place: volumetric OOIP of this        184.11 MMSTB                 Material Balance OOIP 152 MMSTB; volumetric / Material Balance 1.21
+ case
+
+ Drainage area implied by a               160.6 acres/well             EUR 2,070 Mbbl of EK-2 at the stated h, porosity, Swi, Bo and RF: A = EUR Bo /
+ decline EUR                                                           (7,758 h phi (1 - Swi) RF). Outside the spacing range studied.
+
+ Spacing the registry wells already       40 acres/well                4 wells; nearest neighbour 1,320 to 1,320 ft, mean 1,320 ft; the area per well on
+ have                                                                  the square layout at the mean distance.
+
+Independent numbers held against the stated case. None of them changes a number of the case.
+
+Methods and references
+ Quantity                       Method                                                                              Reference
+
+ Oil in place per well          N = 7,758 A h phi (1 - Swi) / Bo, STB; A the spacing in acres                       Volumetric equation (Craft and Hawkins 1959)
+
+ Bo                             As given on the form; its source is in the inputs table                             Inputs table
+
+ EUR per well                   N times the stated recovery factor                                                  Stated model (no interference)
+
+ Production per well            Exponential decline, Dn = -ln(1 - De); qi = EUR Dn + q limit; life = ln(qi / q      Arps (1945)
+                                limit) / Dn; yearly volumes integrated exactly; a year is 365.25 days
+
+ NPV, revenue, royalty, opex,   calculateEconomics, TaxRoyalty, mid-year discounting, all wells drilled in year     Suite screening economics engine
+ capex, payback                 1                                                                                   (docs/scope/ReservoirEngineering-Module.md
+                                                                                                                    section 5)
+
+ Distance between wells         Square: d = sqrt(A); staggered: d = sqrt(2 A / sqrt 3)                              Geometry; 40 acres square is 1,320 ft
+
+ Drainage radius                re = sqrt(43,560 A / pi), ft                                                        Ahmed and McKinney (2005), Ex. 1.5: 40 acres,
+                                                                                                                    745 ft
+
+ Interference and               ri = sqrt(k t / (948 phi mu ct)), t in hours; tDA = 0.0002637 k t / (phi mu ct A)   Lee (1982); Earlougher (1977) Table C.1
+ pseudosteady timing
+
+ Deliverable rate               q = k h (pbar - pwf) / (141.2 B mu (0.5 ln(2.2458 A / (CA rw^2)) + s))              Ahmed and McKinney (2005), Eq. 1.2.124, Ex.
+                                                                                                                    1.18
+
+
+
+Limits of this analysis
+- A screening study of spacing economics. Every well recovers the stated recovery factor of the oil under its own spacing area, whatever the
+spacing: the model has no interference, no acceleration-only infill and no incremental recovery from tighter spacing. Field oil is therefore nearly the
+same at every spacing and NPV rises as wells are removed. Recovery that responds to spacing is a simulation or analog question.
+- One exponential decline per well, the stated effective annual decline at every spacing, anchored so the volume to the economic limit is the EUR.
+A wider spacing therefore gets a proportionally higher initial rate; the deliverability check shows where that rate exceeds what a well can deliver.
+- All wells come on stream in the first year; no drilling schedule, ramp-up, facility limit or downtime. Gas is sold at the initial solution GOR
+throughout (no free gas, no GOR rise below the bubble point).
+- Royalty is one rate on gross revenue; no income tax or production sharing. NPV discounts each year at its middle; the Petroleum Economics
+Studio discounts year-end, so the two do not match for the same case.
+- Drainage diagnostics assume a homogeneous, isotropic layer of the stated permeability, single-phase oil, a vertical well at the centre of its
+drainage area and pseudosteady state at the stated average pressure. They change no EUR and no NPV.
+- Bo is Standing's correlation at the bubble point unless a Bo is given; above the bubble point it slightly overstates Bo. The pressure entered is
+printed as stated, absolute, with no datum correction.
+
+Flags on the inputs and the cases
+- The drainage area a decline EUR implies falls outside the spacing range studied.
+
+
+
+
+Well Spacing Report, Ekene, Spacing study                                                                                                                   Page 5 of 7
+Plots
+Figure 1. EUR and oil produced per well against spacing
+
+                              EUR per well        Produced in the project duration
+                   2500
+
+
+
+                   2000
+  Per well, Mbbl
+
+
+
+
+                   1500
+
+
+
+                   1000
+
+
+
+                   500
+
+
+
+                     0
+                          0                  25                    50                 75                100   125             150                175
+
+                                                                                       Spacing, acres/well
+
+EUR per well is the stated recovery factor of the oil under the spacing; produced is what the decline delivers inside the project duration. Straight
+lines join the computed cases. Volumes in Mbbl.
+
+
+Figure 2. Field NPV against the number of wells
+
+                              NPV        Capex
+                   2250                                                                                                                  1400
+
+
+                                                                                                                                         1200
+                   2000
+
+                                                                                                                                         1000
+                   1750
+
+
+
+
+                                                                                                                                                    Capex, US$ MM
+  NPV, US$ MM
+
+
+
+
+                                                                                                                                         800
+                   1500
+                                                                                                                                         600
+
+                   1250
+                                                                                                                                         400
+
+                   1000
+                                                                                                                                         200
+
+
+                   750                                                                                                                  0
+                          0                         50                          100                   150           200               250
+
+                                                                                           Wells
+
+One point per spacing case, by its well count; mid-year discounting through the Suite screening economics engine. Capex on the right axis. Under
+the stated model the NPV falls as wells are added because they add capex and almost no oil.
+
+
+
+
+Well Spacing Report, Ekene, Spacing study                                                                                                   Page 6 of 7
+Figure 3. Plan initial rate and deliverable rate against spacing
+
+                                             Plan initial rate        Deliverable (pseudosteady)
+                                  1e5
+  Rate, STB/d (log scale)
+
+
+
+
+                                 10000
+
+
+
+
+                                 1000
+
+
+
+
+                                  100
+                                         0                       25                  50            75                    100     125          150        175
+
+                                                                                                      Spacing, acres/well
+
+The plan rate is the day-one rate of the decline the economics use; the deliverable rate is the pseudosteady-state rate of a well on that drainage
+area at the stated pressures, permeability and skin. Where the plan line is above the deliverable line, the case assumes a rate the well cannot
+give.
+
+
+Figure 4. Wells taken from the registry
+
+                                             Registry wells
+                                 1500
+
+
+
+
+                                 1000
+  Northing from the origin, ft
+
+
+
+
+                                  500
+
+
+
+
+                                    0
+
+
+
+
+                                  -500
+                                     -500                                       0                             500                      1000             1500
+
+                                                                                                   Easting from the origin, ft
+
+Surface locations in EPSG:26191, ft, measured from easting 500,000 and northing 300,000; axes not drawn to equal scale. Wells: EK-1, EK-2,
+EK-3, EK-4.
+
+
+
+
+Well Spacing Report, Ekene, Spacing study                                                                                                           Page 7 of 7
+

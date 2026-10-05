@@ -228,7 +228,7 @@ export function detectGaugeMapping({ headers, rows, decimal }, { defaultPressure
  */
 export function convertGaugeRows({ rows, decimal }, {
   timeCol, pressureCol, timeUnit = 'hr', pressureUnit = 'psia', temperatureCol = -1, temperatureUnit = 'degF', dateOrder = null,
-}) {
+}, { onProgress = null, progressEvery = 25000 } = {}) {
   const mark = decimalOf({ rows, decimal });
   const pu = PRESSURE_UNITS[pressureUnit] || PRESSURE_UNITS.psia;
   const tempU = TEMPERATURE_UNITS[temperatureUnit] || TEMPERATURE_UNITS.degF;
@@ -246,7 +246,11 @@ export function convertGaugeRows({ rows, decimal }, {
       return { rows: [], skipped: rows.length, temperatureCount: 0, dateQuestion: check };
     }
   }
+  // WTA-U2-010: progress for the worker (the reading itself is unchanged)
+  let seen = 0;
   for (const raw of rows) {
+    seen += 1;
+    if (onProgress && seen % progressEvery === 0) onProgress(seen, rows.length);
     const pRaw = num(raw[pressureCol], mark);
     let t;
     if (tu.hrPer == null) {

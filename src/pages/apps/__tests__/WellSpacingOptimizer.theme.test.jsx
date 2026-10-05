@@ -46,7 +46,7 @@ describe('Well Spacing Optimizer theme, results and help', () => {
     renderApp();
     await ready();
     fireEvent.click(screen.getByRole('button', { name: /Load example field/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Calculate|Optimi[sz]e|Run/i }));
+    // WS-U1: the cases recompute on every edit; there is no Calculate button
     expect(await screen.findByText('Spacing cases')).toBeInTheDocument();
     expect(screen.getByText('How to read this')).toBeInTheDocument();
     expectNoLegacyChrome();
@@ -55,7 +55,7 @@ describe('Well Spacing Optimizer theme, results and help', () => {
     fireEvent.click(screen.getByTestId('theme-toggle'));
     expect(scope).toHaveAttribute('data-pl-theme', 'dark');
     const panels = scope.querySelectorAll('[data-canvas="chart"]');
-    expect(panels.length).toBe(3);
+    expect(panels.length).toBe(4); // WS-U1: NPV, EUR, cost per barrel, plan and deliverable rate
     expectNoLegacyChrome();
   });
 

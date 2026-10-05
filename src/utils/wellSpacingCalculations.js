@@ -30,6 +30,7 @@
 import { DAYS_PER_YEAR as REGISTRY_YEAR } from '@/lib/units/registry';
 import { pvtCalcs } from './pvtCalculations';
 import { calculateEconomics } from './npvCalculations';
+import { drainageCase, layoutOf, DEFAULT_LAYOUT } from './wellspacing/drainage';
 
 const REQUIRED_NUMERIC = [
   { key: 'reservoirArea', label: 'Reservoir area', min: 0 },
@@ -50,6 +51,23 @@ const REQUIRED_NUMERIC = [
   { key: 'minSpacing', label: 'Minimum spacing', min: 0 },
   { key: 'maxSpacing', label: 'Maximum spacing', min: 0 },
   { key: 'spacingIncrement', label: 'Spacing increment', min: 0 },
+];
+
+/**
+ * WS-U1: inputs that are optional. Oil FVF replaces Standing's Bo when it
+ * is given (a lab value, or the pvt-1 table at the reservoir pressure). The
+ * rest feed the drainage diagnostics (wellspacing/drainage.js), which change
+ * no EUR and no NPV; blank, the diagnostic says what it waits for.
+ */
+const OPTIONAL_NUMERIC = [
+  { key: 'oilFvf', label: 'Oil formation volume factor', min: 1, allowZero: true, max: 5, unit: 'RB/STB' },
+  { key: 'reservoirPressure', label: 'Average reservoir pressure', min: 0 },
+  { key: 'flowingPressure', label: 'Flowing bottomhole pressure', min: 0, allowZero: true },
+  { key: 'permeability', label: 'Permeability', min: 0 },
+  { key: 'skin', label: 'Skin', min: -7, allowZero: true, max: 100 },
+  { key: 'oilViscosity', label: 'Oil viscosity', min: 0 },
+  { key: 'totalCompressibility', label: 'Total compressibility', min: 0, max: 0.01, unit: '1/psi' },
+  { key: 'wellboreRadius', label: 'Wellbore radius', min: 0, max: 5, unit: 'ft' },
 ];
 
 /**
@@ -94,6 +112,25 @@ export const validateInputs = (formData) => {
     }
   }
 
+  // WS-U1: optional inputs. Blank means "not given" (the diagnostic that
+  // needs it says so); a typed value must be a usable number.
+  for (const spec of OPTIONAL_NUMERIC) {
+    const raw = formData?.[spec.key];
+    if (raw === undefined || raw === null || String(raw).trim() === '') continue;
+    const value = parseFloat(raw);
+    if (!Number.isFinite(value)) { errors.push(`${spec.label} must be a number.`); continue; }
+    if (spec.min !== undefined && !(spec.allowZero ? value >= spec.min : value > spec.min)) {
+      errors.push(`${spec.label} must be ${spec.allowZero ? 'zero or greater' : `greater than ${spec.min}`}.`);
+      continue;
+    }
+    if (spec.max !== undefined && !(value <= spec.max)) errors.push(`${spec.label} must be ${spec.max} or less${spec.unit ? ` (${spec.unit})` : ''}.`);
+  }
+  const pAvg = parseFloat(formData?.reservoirPressure);
+  const pwf = parseFloat(formData?.flowingPressure);
+  if (Number.isFinite(pAvg) && Number.isFinite(pwf) && !(pwf < pAvg)) {
+    errors.push('Flowing bottomhole pressure must be below the average reservoir pressure.');
+  }
+
   const min = parseFloat(formData?.minSpacing);
   const max = parseFloat(formData?.maxSpacing);
   const step = parseFloat(formData?.spacingIncrement);
@@ -128,6 +165,8 @@ const BBL_PER_ACRE_FT = 7758;
 // a fallback and is reported as one: the note used to say "Bo 1.000 rb/stb,
 // from Standing's correlation".
 export const standingBo = (p) => {
+  // WS-U1: a Bo given on the form (lab, or the pvt-1 table) wins over the correlation
+  if (Number.isFinite(p.boGiven) && p.boGiven > 0) return { bo: p.boGiven, source: 'given' };
   const bo = pvtCalcs.standing_bo(p.gor, p.api, p.gasGravity, p.temperatureF);
   return Number.isFinite(bo) && bo > 0 ? { bo, source: 'standing' } : { bo: 1, source: 'fallback' };
 };
@@ -135,6 +174,7 @@ export const standingBo = (p) => {
 /** The Bo sentence under the results, for the screen and the test. */
 export const boNote = (results) => {
   if (!Number.isFinite(results?.boUsed)) return null;
+  if (results.boSource === 'given') return `Volumes are stock-tank barrels: oil in place is divided by Bo ${results.boUsed.toFixed(4)} RB/STB, as given on the form (Standing's correlation is not used).`;
   return results.boSource === 'standing'
     ? `Volumes are stock-tank barrels: oil in place is divided by Bo ${results.boUsed.toFixed(3)} rb/stb, from Standing's correlation on your GOR, oil gravity, gas gravity and temperature.`
     : `Bo could not be computed: Standing's correlation needs the GOR, oil gravity, gas gravity and temperature, and one of them is blank or out of range. A fallback of ${results.boUsed.toFixed(3)} rb/stb is used, so the volumes shown are reservoir barrels counted as stock-tank barrels and are too high by the true Bo.`;
@@ -265,10 +305,50 @@ const evaluateSpacing = (spacing, p) => {
     truncatedByDuration: economicLife > p.projectDuration,
     initialRateBpd: qiAnnual / DAYS_PER_YEAR,
     wholeYears: Math.floor(actualLife),
+    // the undiscounted net cash flow and payback of the same canonical run
+    netCashUndiscounted: metrics.totalRevenue - metrics.totalRoyalty - metrics.totalOpex - metrics.totalCapex - metrics.totalTax,
+    payback: metrics.payback,
+    paybackStatus: metrics.paybackStatus,
+    // WS-U1: geometry, timing and deliverability; diagnostics only
+    drainage: drainageCase({
+      spacingAcres: spacing,
+      layout: p.layout,
+      planRateStbd: qiAnnual / DAYS_PER_YEAR,
+      rock: {
+        kMd: p.permeability, phi: p.porosity, muCp: p.oilViscosity, ctPerPsi: p.totalCompressibility,
+        hFt: p.avgNetPay, pAvgPsia: p.reservoirPressure, pwfPsia: p.flowingPressure, bo: p.bo, rwFt: p.wellboreRadius, skin: p.skin,
+      },
+    }),
   };
 };
 
-export const evaluateSpacingCases = async (formData) => {
+/**
+ * WS-U1 incremental economics: each case against the next wider spacing in
+ * the table (fewer wells). The NPVs are the canonical ones; this only takes
+ * differences. null on the widest case, and where the well count is equal.
+ */
+export function incrementalRows(rows) {
+  const bySpacing = [...rows].sort((a, b) => a.spacing - b.spacing);
+  return bySpacing.map((r, i) => {
+    const wider = bySpacing[i + 1];
+    if (!wider) return { spacing: r.spacing, against: null };
+    const dWells = r.numberOfWells - wider.numberOfWells;
+    const dNpv = r.npv - wider.npv;
+    const dProduced = (r.numberOfWells * r.producedPerWell) - (wider.numberOfWells * wider.producedPerWell); // Mbbl
+    return {
+      spacing: r.spacing,
+      against: wider.spacing,
+      addedWells: dWells,
+      addedNpv: dNpv,
+      addedNpvPerWell: dWells > 0 ? dNpv / dWells : null,
+      addedProducedMbbl: dProduced,
+      addedCapex: r.totalCapex - wider.totalCapex,
+    };
+  });
+}
+
+/** The sweep, synchronously (closed form, milliseconds): the page recomputes on every edit. */
+export const runSpacingCases = (formData) => {
   const p = {
     reservoirArea: parseFloat(formData.reservoirArea),
     avgNetPay: parseFloat(formData.avgNetPayThickness),
@@ -288,6 +368,16 @@ export const evaluateSpacingCases = async (formData) => {
     api: parseFloat(formData.oilGravity),
     gasGravity: parseFloat(formData.gasGravity),
     temperatureF: parseFloat(formData.reservoirTemperature),
+    // WS-U1: optional; NaN when blank
+    boGiven: parseFloat(formData.oilFvf),
+    layout: layoutOf(formData.wellLayout || formData.wellPatternType || DEFAULT_LAYOUT).key,
+    reservoirPressure: parseFloat(formData.reservoirPressure),
+    flowingPressure: parseFloat(formData.flowingPressure),
+    permeability: parseFloat(formData.permeability),
+    skin: parseFloat(formData.skin),
+    oilViscosity: parseFloat(formData.oilViscosity),
+    totalCompressibility: parseFloat(formData.totalCompressibility),
+    wellboreRadius: parseFloat(formData.wellboreRadius),
   };
   const { bo, source: boSource } = standingBo(p);
   p.bo = bo;
@@ -314,8 +404,10 @@ export const evaluateSpacingCases = async (formData) => {
   // interference the highest NPV is the widest spacing that divides the area
   // with least waste, which is arithmetic. The screen says so, and the
   // result and the export now say the same: the table is the output.
+  const incremental = incrementalRows(spacingResults);
   return {
     spacingResults,
+    incremental,
     boUsed: p.bo,
     boSource,
     // the parsed inputs every case was run on, and how the NPV was computed
@@ -324,23 +416,37 @@ export const evaluateSpacingCases = async (formData) => {
   };
 };
 
-export const generateCSV = (results) => {
+/** The sweep as a promise, for the callers of earlier builds. */
+export const evaluateSpacingCases = async (formData) => runSpacingCases(formData);
+
+/**
+ * The case table as CSV, in the display units of the project (WS-U1, PL3):
+ * `u` is the units helper of wellspacing/units.js; without one, oilfield.
+ * Money is US$ million in both systems.
+ */
+export const generateCSV = (results, u = null) => {
+  const sys = u?.system === 'si' ? 'si' : 'oilfield';
+  const conv = (kind, v) => (u ? u.show(kind, v) : v);
+  const lab = (kind, oil) => (u ? u.label(kind) : oil);
   const header = [
-    'Well Spacing (acres/well)', 'Number of Wells', 'Areal Coverage (%)',
-    'EUR per Well (Mbbl)', 'Produced per Well (Mbbl)', 'Total Field Recovery (%)',
-    'Total Capex ($MM)', 'NPV ($MM; mid-year discounting)', 'Cost per Barrel ($/bbl)', 'Economic Life (years)',
+    `Well Spacing (${lab('spacing', 'acres/well')})`, 'Number of Wells', `Distance Between Wells (${lab('length', 'ft')})`, 'Areal Coverage (%)',
+    `EUR per Well (${lab('eur', 'Mbbl')})`, `Produced per Well (${lab('eur', 'Mbbl')})`, 'Total Field Recovery (%)',
+    'Total Capex ($MM)', 'NPV ($MM; mid-year discounting)', 'Cost per Barrel ($/bbl)', 'Economic Life (years)', `Initial Rate (${lab('rate', 'STB/d')})`,
   ];
+  const fx = (v, d) => (Number.isFinite(v) ? Number(v).toFixed(d) : '');
   const rows = results.spacingResults.map((r) => [
-    r.spacing,
+    sys === 'si' ? fx(conv('spacing', r.spacing), 4) : r.spacing,
     r.numberOfWells,
+    fx(conv('length', r.drainage?.distanceFt), 1),
     (r.arealCoverage * 100).toFixed(1),
-    r.eurPerWell.toFixed(1),
-    r.producedPerWell.toFixed(1),
+    fx(conv('eur', r.eurPerWell), 1),
+    fx(conv('eur', r.producedPerWell), 1),
     r.totalFieldRecovery.toFixed(1),
     r.totalCapex.toFixed(1),
     r.npv.toFixed(1),
     Number.isFinite(r.costPerBarrel) ? r.costPerBarrel.toFixed(2) : '',
     r.economicLife.toFixed(1),
+    fx(conv('rate', r.initialRateBpd), 1),
   ]);
   return [header, ...rows].map((row) => row.join(',')).join('\n');
 };
@@ -355,7 +461,9 @@ export const generateJSON = (formData, results) => ({
     reading: NO_OPTIMUM_NOTE,
     bo: { value: results.boUsed, unit: 'rb/stb', source: results.boSource },
     npv: { unit: '$MM', ...results.npvConvention },
+    units: 'Oilfield: acres, ft, psia, degF, scf/STB, STB/d, Mbbl (EUR and produced per well), RB/STB, cp, 1/psi, md; money in US$ ($MM for capex and NPV)',
+    declineBasis: 'typicalWellDeclineRate is an effective annual decline in percent; the engine converts it to nominal Dn = -ln(1 - De)',
     recoveryModel: 'stated recovery factor over the area covered by whole wells; no interference physics',
-    version: 'WellSpacingOptimizer v2.1',
+    version: 'WellSpacingOptimizer v3 (WS-U1)',
   },
 });
