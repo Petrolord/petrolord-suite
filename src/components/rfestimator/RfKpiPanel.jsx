@@ -37,6 +37,9 @@ const RfKpiPanel = () => {
       {migration?.note && (
         <div className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg px-3 py-2 text-xs text-pl-warning-text" data-testid="rf-migration-note">{migration.note}</div>
       )}
+      {migration?.zNote && inputs.phase === 'gas' && inputs.zMethod === 'typed' && (
+        <div className="rounded-lg border border-pl-border bg-pl-sunken px-3 py-2 text-xs text-pl-text" data-testid="rf-z-kept-note">{migration.zNote}</div>
+      )}
       <Kpi title="Recovery Factor" value={fmtPct(result.rf)} accent testId="rf-kpi-rf"
         sub={`${methodLabel(result.method)}, fraction of ${ip}`} />
       <Kpi title="Analog range (edges)" value={`${fmtPct(result.rfLow)} to ${fmtPct(result.rfHigh)}`} testId="rf-kpi-range"

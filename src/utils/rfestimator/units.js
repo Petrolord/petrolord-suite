@@ -38,6 +38,8 @@ export const RF_KINDS = Object.freeze({
   gasVolumeB: fam('gasVolume', 'Bscf', '10^9 m3', { oilfield: 'Bscf', si: '10^9 sm3' }),
   rockVolume: fam('rockVolume', 'acre-ft', '10^6 m3', { oilfield: 'acre-ft', si: '10^6 m3' }),
   resVolumeMM: fam('liquidVolume', 'MMRB', '10^6 m3', { oilfield: 'MMRB', si: '10^6 rm3' }),
+  // RF-U2-003: the reservoir temperature of the gas z
+  temperature: fam('temperature', 'degF', 'degC', { oilfield: 'degF', si: 'degC' }),
   permeability: same('md', 'mD'),
   viscosity: same('cP', 'mPa.s'),
   fraction: same('frac'),

@@ -13,6 +13,7 @@
  * Pure.
  */
 import { RCP_APP } from '@/pages/apps/reservoir-balance/lib/rcpVolumetricIntake';
+import { MBAL_OIL_DRIVE_TO_RF, getDriveMechanism } from '@/utils/recoveryFactorCalculations';
 
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
 const day = (iso) => (iso ? String(iso).slice(0, 10) : 'date not recorded');
@@ -47,6 +48,9 @@ export function inPlaceFromMbal(record, { phase, now = new Date().toISOString() 
       ci95: ci,
       method: record.in_place.method,
       drive: record.drive?.mechanism ?? null,
+      // RF-U2-008: the drive indices of the run, for the drive suggestion
+      driveIndices: record.drive?.indices ?? null,
+      aquiferStrength: record.drive?.aquifer_strength ?? null,
       status: record.status,
       ranAt: record.run?.ran_at ?? null,
       takenAt: now,
@@ -93,4 +97,46 @@ export function inPlaceSourceText(intake, currentValue) {
   const same = finite(v) && Math.abs(v - intake.value) <= 1e-6 * Math.max(1, Math.abs(intake.value));
   const base = `${intake.text} (taken ${day(intake.takenAt)})`;
   return same ? base : `Edited in this app after the intake (received ${intake.value}). The intake said: ${base}`;
+}
+
+// ---- RF-U2-008: the drive suggested by the Material Balance drive indices ----
+
+/** The Material Balance gas classifications as this app's gas drives. */
+export const MBAL_GAS_DRIVE_TO_RF = Object.freeze({
+  gas_expansion_drive: 'gas_volumetric',
+  rock_water_compressibility_drive: 'gas_volumetric',
+  weak_water_drive: 'gas_volumetric',
+  moderate_water_drive: 'gas_water_drive',
+  strong_water_drive: 'gas_water_drive',
+});
+
+const INDEX_NAMES = Object.freeze({ ddi: 'DDI', gdi: 'GDI', cdi: 'CDI', wdi: 'WDI', winj_di: 'water injection', ginj_di: 'gas injection' });
+
+/**
+ * What the drive indices of the Material Balance case the in-place volume was
+ * taken from suggest for the drive of this estimate. A suggestion only: the
+ * user picks. Null when the volume did not come from Material Balance or the
+ * classification has no counterpart here.
+ * @param {?object} intake the in-place intake (mbal-1)
+ * @param {'oil'|'gas'} phase
+ * @param {string} currentDrive the drive named now
+ * @returns {?{code: string, label: string, mechanism: string, indices: string, agrees: boolean, text: string}}
+ */
+export function driveSuggestion(intake, phase, currentDrive) {
+  if (!intake || intake.contract !== 'mbal-1' || !intake.drive) return null;
+  const mechanism = intake.drive;
+  const words = mechanism.replace(/_/g, ' ');
+  if (mechanism === 'injection_pressure_maintenance') {
+    return { code: null, label: null, mechanism, indices: '', agrees: false, text: `Material Balance classifies the case as ${words}: injection supplies most of the voidage, which is not a primary drive, so no analog range is suggested.` };
+  }
+  const code = (phase === 'gas' ? MBAL_GAS_DRIVE_TO_RF : MBAL_OIL_DRIVE_TO_RF)[mechanism];
+  const d = code ? getDriveMechanism(code) : null;
+  if (!d) return null;
+  const idx = intake.driveIndices || {};
+  const indices = Object.entries(INDEX_NAMES)
+    .filter(([k]) => typeof idx[k] === 'number' && Number.isFinite(idx[k]) && (idx[k] !== 0 || ['ddi', 'gdi', 'wdi'].includes(k)))
+    .map(([k, n]) => `${n} ${idx[k].toFixed(2)}`).join(', ');
+  const agrees = d.code === currentDrive;
+  const text = `Material Balance case "${intake.recordName || intake.recordId}" classifies the drive as ${words}${indices ? ` (drive indices at the last step: ${indices})` : ''}; the nearest drive here is ${d.label}${mechanism === 'water_drive_with_depletion' ? ' (a partial water drive is two mechanisms together)' : ''}${phase === 'gas' && mechanism === 'weak_water_drive' ? ' (a weak aquifer barely supports a gas reservoir)' : ''}.`;
+  return { code: d.code, label: d.label, mechanism, indices, agrees, text };
 }

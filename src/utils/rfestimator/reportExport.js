@@ -34,6 +34,10 @@ export function buildRfPdf(a, { logo = null, generatedAt = new Date() } = {}) {
     columnStyles: { 0: { cellWidth: 50 }, 1: { cellWidth: 30 }, 2: { cellWidth: 18 } },
     note: model.headline.note || undefined,
   });
+  if (model.uncertainty?.rows) {
+    table('Uncertainty: recovery factor x in-place volume', model.uncertainty.head, model.uncertainty.rows, { columnStyles: { 0: { cellWidth: 40 } }, note: model.uncertainty.note });
+    table('The uncertainty run', ['Item', 'As run'], model.uncertainty.runRows, { columnStyles: { 0: { cellWidth: 45 } } });
+  }
   if (model.inPlaceSplit) table(`${model.phase === 'gas' ? 'OGIP' : 'OOIP'} by its parts`, model.inPlaceSplit.head, model.inPlaceSplit.rows, { columnStyles: { 0: { cellWidth: 70 } }, note: model.inPlaceSplit.note });
   else section('In-place volume by its parts', 'Not split: the in-place volume was entered directly or taken from another app (its source is in the inputs table).', { need: 14 });
   if (model.methodSplit) table('The method by its parts', model.methodSplit.head, model.methodSplit.rows, { columnStyles: { 0: { cellWidth: 70 } }, note: model.methodSplit.note, emptyValue: '' });
@@ -52,6 +56,7 @@ export function buildRfPdf(a, { logo = null, generatedAt = new Date() } = {}) {
     rangesTitle: 'Domain of each method, as checked by the app',
   });
 
+  if (model.dcaCheck) table('Cross-check: decline EUR over the in-place volume', model.dcaCheck.head, model.dcaCheck.rows, { columnStyles: { 0: { cellWidth: 38 } }, note: model.dcaCheck.note, emptyValue: '' });
   if (model.inPlaceBlock) table('In-place volume received from another app', ['Item', 'Value'], model.inPlaceBlock, { columnStyles: { 0: { cellWidth: 50 } } });
   if (model.pvtBlock) table('pvt-1 block received from Fluid Systems Studio', ['Item', 'Value'], model.pvtBlock, { columnStyles: { 0: { cellWidth: 40 } } });
   else section('PVT source', 'No Fluid Systems Studio intake: any volume factor, viscosity, pressure or z above was entered in this app.', { need: 12 });

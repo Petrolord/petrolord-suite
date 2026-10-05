@@ -6,7 +6,8 @@
  *
  * Pure: returns Report Kit figure entries.
  */
-import { reservesBars, analogRangeRows } from './series.js';
+import { reservesBars, analogRangeRows, exceedanceSeries } from './series.js';
+import { displacementProfile } from '@/utils/recoveryFactorCalculations';
 
 const g = (v, s = 3) => (Number.isFinite(v) ? String(parseFloat(Number(v).toPrecision(s))) : 'n/a');
 const RGB = { low: [100, 116, 139], est: [5, 150, 105], high: [37, 99, 235], ref: [220, 38, 38], typical: [124, 58, 237] };
@@ -38,6 +39,23 @@ export function buildRfReportFigures({ model, state }) {
     });
   } else {
     figs.push({ id: 'reserves', title: 'Recoverable volume: analog range edges and the estimate', statement: 'Not drawn: there is no in-place volume, so no recoverable volume can be computed.' });
+  }
+
+  // 1b. RF-U2-002: the exceedance curve of the recoverable volume (only when the run is on)
+  if (derived.uncertainty?.ok) {
+    const ex = exceedanceSeries(derived.uncertainty, derived.phase, u.system);
+    figs.push({
+      id: 'exceedance',
+      title: 'Recoverable volume: probability of exceedance',
+      caption: `The seeded Monte Carlo of RF x ${derived.phase === 'gas' ? 'OGIP' : 'OOIP'} (seed ${derived.uncertainty.seed}, ${derived.uncertainty.accepted} realisations): the probability that the recoverable volume meets or exceeds each value. P90 (the low case) ${g(ex.marks[0].x, 4)}, P50 ${g(ex.marks[1].x, 4)}, P10 (the high case) ${g(ex.marks[2].x, 4)} ${ex.unit}.`,
+      panels: [{ height: 62, spec: {
+        xTitle: `Recoverable volume (${ex.unit})`, yTitle: 'Probability of exceedance (percent)', yInclude: [0, 100],
+        series: [
+          { name: 'Exceedance', type: 'line', rgb: RGB.high, pts: ex.pts.map((p) => [p.x, p.y]), width: 0.5 },
+          { name: 'P90, P50, P10', type: 'scatter', rgb: RGB.ref, pts: ex.marks.map((m) => [m.x, m.y]), marker: 'circle' },
+        ],
+      } }],
+    });
   }
 
   // 2. the analog ranges of the phase, with the estimate as a line
@@ -78,6 +96,22 @@ export function buildRfReportFigures({ model, state }) {
         lines: [{ y: 1, label: '1', rgb: RGB.low, dash: [1, 1] }],
       } }],
     });
+  } else if (model.method === 'displacement_sweep' && d && Number.isFinite(d.ed)) {
+    // RF-U2-009: the displacement efficiency against pore volumes injected, the point used marked
+    const pts = displacementProfile({ kr: d.kr, muoi: inputs.corr?.muoi, muwi: inputs.corr?.muwi }).filter(([q]) => q <= Math.max(3, (d.qi || 0) * 1.2));
+    const xUsed = d.qi != null ? d.qi : pts[pts.length - 1][0];
+    figs.push({
+      id: 'factors',
+      title: 'Displacement efficiency against pore volumes injected',
+      caption: `Buckley-Leverett displacement efficiency ED of the kr-1 oil-water set (Welge construction, canonical engine) against pore volumes of water injected; breakthrough at ${g(d.qiBt, 3)} PV with ED ${g(d.edBt, 3)}, the end point ${g(d.edMax, 3)}. The marked point is the ED used, ${g(d.ed, 4)}; times the stated sweep ${g(d.ev, 3)} it gives the recovery factor ${g(d.rf, 4)}.`,
+      panels: [{ height: 62, spec: {
+        xTitle: 'Pore volumes of water injected, Qi', yTitle: 'Displacement efficiency ED', xInclude: [0], yInclude: [0, 1],
+        series: [
+          { name: 'ED (Welge)', type: 'line', rgb: RGB.high, pts, width: 0.5 },
+          { name: 'ED used', type: 'scatter', rgb: RGB.ref, pts: [[xUsed, d.ed]], marker: 'circle' },
+        ],
+      } }],
+    });
   } else if (model.method === 'gas_pz' && Number.isFinite(r.rfRaw)) {
     const c = inputs.corr || {};
     const pzi = u.show('pressure', num(c.pi) / num(c.zi));
@@ -98,7 +132,7 @@ export function buildRfReportFigures({ model, state }) {
     const why = model.method === 'analog'
       ? 'Does not apply: the analog method reads the typical value of a range and has no factors.'
       : model.method === 'gas_water_drive'
-        ? 'Does not apply as a plot: the trapped-gas estimate is two factors, printed in the method table.'
+        ? 'Does not apply as a plot: the trapped-gas estimate is a few factors, printed in the method table.'
         : 'Not drawn: the method gave no value.';
     figs.push({ id: 'factors', title: 'The method by its factors', statement: why });
   }

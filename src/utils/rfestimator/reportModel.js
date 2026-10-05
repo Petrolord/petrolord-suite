@@ -16,11 +16,13 @@ import { describePvtContract } from '@/lib/inputProvenance/pvtContract';
 import {
   METHOD_BASIS, ANALOG_BAND_SOURCE, API_SOLUTION_GAS, RF_ENGINE_VERSION,
 } from '@/utils/recoveryFactorCalculations';
-import { CORR_FIELDS, VOL_FIELDS_OIL, VOL_FIELDS_GAS, PLAIN_LABELS, methodLabel } from '@/components/rfestimator/rfFields';
+import { corrFieldsFor, VOL_FIELDS_OIL, VOL_FIELDS_GAS, PLAIN_LABELS, methodLabel } from '@/components/rfestimator/rfFields';
 import { rfUnits } from './units.js';
-import { IDENTIFICATION_FIELDS } from './model.js';
+import { IDENTIFICATION_FIELDS, LINKED_KEYS } from './model.js';
 import { rfPvtSourceText } from './pvtIntake.js';
-import { inPlaceSourceText } from './inPlaceIntake.js';
+import { inPlaceSourceText, driveSuggestion } from './inPlaceIntake.js';
+import { Z_METHOD_DAK, Z_REFERENCE, zMethodLabel } from './gasZ.js';
+import { dcaImpliedRf } from './dcaCrossCheck.js';
 
 export const REPORT_TITLE = 'Recovery Factor Report';
 export const APP_NAME = 'Petrolord Recovery Factor Estimator';
@@ -31,8 +33,9 @@ export const VALIDATION_STATE = Object.freeze({
   analog: 'Not validated: the ranges are transcribed screening ranges and were not checked against a published table in this build.',
   api_solution_gas: 'Equation checked as restated with k in darcies (Ahmed, Reservoir Engineering Handbook); a worked value on the sample case is held by a test that calls the engine. No published worked example was available to compare with, and the API D14 data ranges were not available, so no range check against the data set is made.',
   api_water_drive: 'As for the solution-gas correlation: equation checked as restated with k in darcies, worked value held by a test; no published worked example; API D14 data ranges not checked.',
+  displacement_sweep: 'ED comes from the canonical fractional-flow engine (welgeTangent, recoveryProfile), gated in the engines library against published Buckley-Leverett cases; the test here holds ED at breakthrough and at the end point to their closed forms and the product ED x Ev. The sweep is a stated input, not validated.',
   gas_pz: 'Exact relation; checked against 1 - Bgi/Bga from the canonical fluid engine at constant temperature (agreement to 1e-12).',
-  gas_water_drive: 'Definition checked by volume bookkeeping of the swept and unswept volumes; no published worked example compared.',
+  gas_water_drive: 'Definition checked by volume bookkeeping of the swept and unswept volumes; with the swept volume abandoned at pa (RF-U2-010) the relation is held to reduce exactly to the maintained form at pa = pi and to the p/z depletion relation at Ev = 0. No published worked example compared.',
 });
 
 const text = (v) => (v != null && String(v).trim() !== '' ? String(v).trim() : '');
@@ -46,11 +49,18 @@ const th = (v, d = 0) => (Number.isFinite(v) ? Number(v).toLocaleString('en-US',
 const pct = (v, d = 1) => (Number.isFinite(v) ? (v * 100).toFixed(d) : EMPTY_VALUE);
 
 /** The engine input of the case: what the completeness guard holds the inputs rows against. */
-export function engineInputOf(inputs) {
+export function engineInputOf(inputs, krIntake = null) {
   const method = inputs?.method || 'analog';
   const corr = {};
-  for (const [k] of CORR_FIELDS[method] || []) corr[k] = inputs?.corr?.[k];
+  for (const [k] of corrFieldsFor(inputs)) corr[k] = inputs?.corr?.[k];
   const out = { method, driveCode: inputs?.driveCode, correlationInputs: corr };
+  // RF-U2-009: the Corey set the displacement efficiency reads
+  if (method === 'displacement_sweep') out.kr = { ...(krIntake?.params || { Swc: null, Sor: null, krwMax: null, kroMax: null, nw: null, no: null }) };
+  // RF-U2-003: z by Dranchuk-Abou-Kassem reads gas gravity, temperature and pi
+  if (inputs?.phase === 'gas' && inputs?.zMethod === Z_METHOD_DAK) {
+    out.gasZ = { gasGravity: inputs?.corr?.gasGravity, tempF: inputs?.corr?.tempF };
+    if (!('pi' in corr)) out.gasZ.pi = inputs?.corr?.pi; // pi printed with the method inputs otherwise
+  }
   if (inputs?.inPlaceMode === 'direct') out.ooip = inputs?.ooipDirect;
   else {
     const fields = inputs?.phase === 'gas' ? VOL_FIELDS_GAS : VOL_FIELDS_OIL;
@@ -106,6 +116,10 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
     return sourceText(meta[metaKey]);
   };
   const shown = (kind, v) => (Number.isFinite(num(v)) ? g(u.show(kind, num(v)), 6) : '');
+  // RF-U2-003: the values the engine read (zi, za and Bgi computed on Dranchuk-Abou-Kassem)
+  const used = derived.inputsUsed || inputs;
+  const gz = derived.gasZ;
+  const zSource = (what) => `Computed (${what}): ${Z_REFERENCE}`;
 
   const inputRows = [];
   const add = (key, label, value, unit, source, engineKeys) => {
@@ -122,11 +136,34 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
       auto || sourceText(meta.ooipDirect), ['ooip']);
   } else {
     for (const [k, , kind] of gas ? VOL_FIELDS_GAS : VOL_FIELDS_OIL) {
+      if (k === 'bgi' && gz?.ok) { add('vol.bgi', `${PLAIN_LABELS.bgi} (volumetrics)`, shown(kind, used.vol.bgi), u.label(kind), zSource('Bgi at pi'), ['vol.bgi']); continue; }
       add(`vol.${k}`, `${PLAIN_LABELS[k]} (volumetrics)`, shown(kind, inputs.vol?.[k]), u.label(kind), srcOf('vol', k, inputs.vol?.[k]), [`vol.${k}`]);
     }
   }
-  for (const [k, , kind] of CORR_FIELDS[method] || []) {
+  const corrKeys = corrFieldsFor(inputs).map(([k]) => k);
+  for (const [k, , kind] of corrFieldsFor(inputs)) {
+    if ((k === 'zi' || k === 'za') && gz?.ok && used.corr?.[k] != null && (k === 'zi' || gz.za)) {
+      add(`corr.${k}`, PLAIN_LABELS[k], shown(kind, used.corr[k]), u.label(kind), zSource(k === 'zi' ? 'z at pi' : 'z at pa'), [`correlationInputs.${k}`]);
+      continue;
+    }
+    if (inputs.linked && inputs.inPlaceMode !== 'direct' && LINKED_KEYS[k]) {
+      add(`corr.${k}`, PLAIN_LABELS[k], shown(kind, used.corr?.[k]), u.label(kind), `The volumetric value (one value per case): ${PLAIN_LABELS[LINKED_KEYS[k]] || LINKED_KEYS[k]}, source above`, [`correlationInputs.${k}`]);
+      continue;
+    }
     add(`corr.${k}`, PLAIN_LABELS[k], shown(kind, inputs.corr?.[k]), u.label(kind), srcOf('corr', k, inputs.corr?.[k]), [`correlationInputs.${k}`]);
+  }
+  // RF-U2-009: the kr-1 Corey set
+  if (method === 'displacement_sweep') {
+    const kp = s.krIntake?.params || {};
+    for (const [k, label] of [['Swc', 'Connate water Swc (kr-1)'], ['Sor', 'Residual oil Sor (kr-1)'], ['krwMax', 'krw at Sor (kr-1)'], ['kroMax', 'kro at Swc (kr-1)'], ['nw', 'Corey exponent nw (kr-1)'], ['no', 'Corey exponent no (kr-1)']]) {
+      add(`kr.${k}`, label, Number.isFinite(kp[k]) ? g(kp[k], 6) : '', 'frac', s.krIntake ? s.krIntake.source : 'Not taken', [`kr.${k}`]);
+    }
+  }
+  // RF-U2-003: what the z computation read
+  if (gas && inputs.zMethod === Z_METHOD_DAK) {
+    add('corr.gasGravity', PLAIN_LABELS.gasGravity, shown('dimensionless', inputs.corr?.gasGravity), '', srcOf('corr', 'gasGravity', inputs.corr?.gasGravity), ['gasZ.gasGravity']);
+    add('corr.tempF', PLAIN_LABELS.tempF, shown('temperature', inputs.corr?.tempF), u.label('temperature'), srcOf('corr', 'tempF', inputs.corr?.tempF), ['gasZ.tempF']);
+    if (!corrKeys.includes('pi')) add('corr.pi', PLAIN_LABELS.pi, shown('pressure', inputs.corr?.pi), u.label('pressure'), srcOf('corr', 'pi', inputs.corr?.pi), ['gasZ.pi']);
   }
   const inputsNote = 'Every value the estimate read, in the display units. A value taken from another app names it; a sample value is labelled as such; "Entered, source not stated" means nobody said where the number came from.';
 
@@ -190,29 +227,54 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
       ],
       note: 'Volumetric depletion at constant temperature: the gas produced is the fall of p/z along a straight line to the abandonment pressure.',
     };
-  } else if (method === 'gas_water_drive' && Number.isFinite(r.rfRaw)) {
-    const c = inputs.corr || {};
-    const disp = 1 - num(c.sgr) / (1 - num(c.swi));
+  } else if (method === 'displacement_sweep' && d && Number.isFinite(d.ed)) {
     methodSplit = {
       head: ['Step', 'Value', 'Unit'],
       rows: [
-        ['Initial gas saturation 1 - Swi', g(1 - num(c.swi), 5), 'fraction'],
-        ['Displacement efficiency 1 - Sgr/(1 - Swi)', g(disp, 5), 'fraction'],
-        ['Volumetric sweep Ev', g(num(c.sweep), 5), 'fraction'],
-        ['Recovery factor Ev x displacement', g(r.rfRaw, 5), 'fraction'],
+        ['End-point mobility ratio M', g(d.mobilityRatio, 5), ''],
+        ['Front saturation Swf (Welge tangent)', g(d.swf, 5), 'fraction'],
+        ['Pore volumes injected at breakthrough', g(d.qiBt, 5), 'PV'],
+        ['Displacement efficiency at breakthrough', g(d.edBt, 5), 'fraction'],
+        ['Displacement efficiency at the end point (1 - Swc - Sor)/(1 - Swc)', g(d.edMax, 5), 'fraction'],
+        [`Displacement efficiency ED used (${d.at}${d.qi != null ? `, Qi ${g(d.qi, 4)} PV` : ''})`, g(d.ed, 5), 'fraction'],
+        ['Volumetric sweep Ev (stated)', g(d.ev, 5), 'fraction'],
+        ['Recovery factor ED x Ev', g(d.rf, 5), 'fraction'],
       ],
-      note: 'The swept volume is abandoned at the initial pressure with Sgr trapped; the unswept volume gives nothing.',
+      note: 'One-dimensional Buckley-Leverett displacement by the Welge construction of the canonical engine (horizontal, capillary pressure neglected, Bo unchanged, the flood from Swc), times the stated sweep. ED x Ev closes on the recovery factor.',
+    };
+  } else if (method === 'gas_water_drive' && Number.isFinite(r.rfRaw) && d) {
+    const rows = [
+      ['Initial gas saturation Sgi = 1 - Swi', g(d.sgi, 5), 'fraction'],
+      ['Displacement efficiency 1 - Sgr/Sgi', g(d.displacement, 5), 'fraction'],
+      ['Volumetric sweep Ev', g(d.sweep, 5), 'fraction'],
+    ];
+    if (d.mode === 'abandonment') {
+      rows.push(
+        ['Bgi/Bga = (pa/za)/(pi/zi)', g(d.bgiOverBga, 6), 'fraction'],
+        ['Trapped gas left in the swept volume, Ev (Sgr/Sgi) Bgi/Bga', g(d.trappedSwept, 5), 'fraction of OGIP'],
+        ['Gas left in the unswept volume, (1 - Ev) Bgi/Bga', g(d.unswept, 5), 'fraction of OGIP'],
+        ['Recovery factor 1 - the two', g(r.rfRaw, 5), 'fraction'],
+      );
+    } else rows.push(['Recovery factor Ev x displacement', g(r.rfRaw, 5), 'fraction']);
+    methodSplit = {
+      head: ['Step', 'Value', 'Unit'],
+      rows,
+      note: d.mode === 'abandonment'
+        ? 'The swept volume is abandoned at pa with Sgr trapped and the unswept volume keeps its gas at pa; the parts left and the recovery close on 1.'
+        : 'The swept volume is abandoned at the initial pressure with Sgr trapped; the unswept volume gives nothing.',
     };
   }
 
   // ---- method, basis and validation ---------------------------------------
+  const basisText = method === 'gas_water_drive' && inputs.corr?.gwdMode === 'abandonment' ? METHOD_BASIS.gas_water_drive_pa : METHOD_BASIS[method];
   const methodRows = [
     ['Method', methodLabel(method)],
-    ['What it assumes', METHOD_BASIS[method] || EMPTY_VALUE],
+    ['What it assumes', basisText || EMPTY_VALUE],
     ['Reference', method.startsWith('api_') ? API_SOLUTION_GAS.reference
       : method === 'gas_pz' ? 'Gas material balance for a volumetric reservoir (Craft and Hawkins, Applied Petroleum Reservoir Engineering)'
         : method === 'gas_water_drive' ? 'Trapped gas behind an advancing water front (Craft and Hawkins, Applied Petroleum Reservoir Engineering)'
-          : ANALOG_BAND_SOURCE],
+          : method === 'displacement_sweep' ? 'Buckley and Leverett (1942) and Welge (1952), as in Dake, Fundamentals of Reservoir Engineering, ch. 10, and Willhite, Waterflooding, ch. 3; canonical engine packages/engines/engines/scal/fractionalFlow.js'
+            : ANALOG_BAND_SOURCE],
     ['Validation in this build', VALIDATION_STATE[method] || EMPTY_VALUE],
     ['Analog range source', ANALOG_BAND_SOURCE],
   ];
@@ -221,14 +283,45 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
     ['In-place volume', ipBasis],
     ['Recoverable volume', 'Technically recoverable volume RF x in-place; no economic limit, no development plan and no PRMS classification applied'],
     ['Pressures', 'Absolute, as entered; no datum correction'],
+    ...(gas ? [['Gas z factor and Bgi', inputs.zMethod === Z_METHOD_DAK ? `${zMethodLabel(Z_METHOD_DAK)}: ${Z_REFERENCE}; Bgi in ft3/scf at pi` : zMethodLabel('typed')]] : []),
     ['Range', 'Low and high are the edges of the analog screening range of the drive named, not P90 and P10 of a distribution'],
     ['Display units', u.line()],
+    ['Uncertainty', derived.uncertainty?.ok ? `Seeded Monte Carlo on the Suite's canonical sampler, seed ${derived.uncertainty.seed}, ${derived.uncertainty.accepted} realisations. ${derived.uncertainty.convention}` : 'Not run: the estimate is deterministic'],
   ];
+
+  // ---- uncertainty (RF-U2-002) ---------------------------------------------
+  let uncertainty = null;
+  const unc = derived.uncertainty;
+  if (unc?.ok) {
+    const st = unc.stats;
+    const vol = (v) => big(v);
+    uncertainty = {
+      head: ['Quantity', 'P90 (low)', 'P50', 'P10 (high)', 'Mean', 'Unit'],
+      rows: [
+        ['Recovery factor', pct(st.rf.p90), pct(st.rf.p50), pct(st.rf.p10), pct(st.rf.mean), 'percent'],
+        [ip, vol(st.inPlace.p90), vol(st.inPlace.p50), vol(st.inPlace.p10), vol(st.inPlace.mean), u.label(bigKind)],
+        ['Recoverable volume', vol(st.recoverable.p90), vol(st.recoverable.p50), vol(st.recoverable.p10), vol(st.recoverable.mean), u.label(bigKind)],
+      ],
+      runRows: [
+        ['Recovery factor distribution', unc.words.rf],
+        [`${ip} distribution`, unc.words.ip],
+        ['Dependence', 'RF and the in-place volume drawn independently'],
+        ['Sampler', 'The Suite\'s canonical Monte Carlo module (src/lib/monteCarlo.js), mulberry32 generator'],
+        ['Seed', String(unc.seed)],
+        ['Realisations', `${unc.accepted} used of ${unc.iterations}${unc.rejected ? `; ${unc.rejected} rejected (RF outside 0 to 1 or a volume not above zero)` : ''}`],
+        ['Convention', unc.convention],
+      ],
+      note: `Recoverable volume is RF x ${ip} in each realisation; its percentiles are not the products of the RF and ${ip} percentiles. Technically recoverable, no economic limit, not a PRMS class.`,
+      notes: unc.notes,
+    };
+  } else if (unc && !unc.ok) {
+    uncertainty = { failed: unc.errors };
+  }
 
   // ---- limits and flags (RL9) ----------------------------------------------
   const assumptions = [
     'A screening estimate. It does not replace a reservoir simulation, a decline or material balance forecast, or a reserves study.',
-    METHOD_BASIS[method],
+    basisText,
     'Recovery depends on the development plan, well count, secondary and tertiary recovery and economics; none of these is modelled.',
   ];
   if (method.startsWith('api_')) assumptions.push('The API correlations are empirical fits with wide scatter. The API D14 data ranges were not available in this build, so an input inside the physical domain may still be outside the data the correlation was fitted to.');
@@ -243,7 +336,9 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
     ],
   };
   const flags = [...(r.withheld ? [r.withheld] : []), ...derived.flags.map((f) => f.text)];
+  if (derived.uncertainty && !derived.uncertainty.ok) flags.push(`Uncertainty not run: ${derived.uncertainty.errors.join(' ')}`);
   if (s.migration?.note) flags.push(s.migration.note);
+  if (s.migration?.zNote && gas && inputs.zMethod === 'typed') flags.push(s.migration.zNote);
 
   // ---- intake blocks (RL11) -------------------------------------------------
   const pvtBlock = s.pvtIntake?.contract ? [
@@ -260,7 +355,28 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
     ['95 percent interval at the source', s.inPlaceIntake.ci95 ? `${th(s.inPlaceIntake.ci95[0])} to ${th(s.inPlaceIntake.ci95[1])} ${s.inPlaceIntake.unit}` : 'Not stated by the source'],
     ['Status at the source', s.inPlaceIntake.status === 'earlier_run' ? 'The case was changed after this run' : 'Current run of the case'],
     ['Taken at', `${String(s.inPlaceIntake.takenAt || '').slice(0, 16).replace('T', ' ')} UTC`],
+    // RF-U2-008: what the drive indices suggest, and whether the drive named follows it
+    ...(() => {
+      const sg = driveSuggestion(s.inPlaceIntake, derived.phase, inputs.driveCode);
+      return sg ? [['Drive suggested by the source', `${sg.text}${sg.code ? (sg.agrees ? ' The drive named in this report is the suggested one.' : ` The drive named in this report is ${r.analog?.label || 'none'}, chosen by the user.`) : ''}`]] : [];
+    })(),
   ] : null;
+
+  // ---- RF-U2-014: decline EUR over in-place, a cross-check ------------------
+  let dcaCheck = null;
+  const imp = dcaImpliedRf(s.dcaCheck, { inPlace: derived.inPlace, phase: derived.phase, rf: r.rf });
+  if (imp) {
+    dcaCheck = {
+      head: ['Well', 'Decline Curve Analysis project', 'Data cut-off', 'EUR', 'Unit', 'Forecast ends at'],
+      rows: [
+        ...s.dcaCheck.items.map((i) => [i.wellName || EMPTY_VALUE, i.projectName || EMPTY_VALUE, i.cutoff || EMPTY_VALUE, big(i.eur), u.label(bigKind),
+          i.endReason === 'economic-limit' ? 'economic limit' : i.endReason === 'horizon' ? 'horizon' : (i.endReason || EMPTY_VALUE)]),
+        ['Sum of the wells taken', '', '', big(imp.eur), u.label(bigKind), ''],
+        [`EUR over ${ip}`, '', '', imp.impliedRf == null ? EMPTY_VALUE : pct(imp.impliedRf), 'percent', ''],
+      ],
+      note: `${imp.text} ${imp.vsEstimate || ''} Read by id as dca-forecast-1; oil volumes in bbl at stock-tank conditions are STB, gas volumes in Mscf are times 1,000 for scf.`.trim(),
+    };
+  }
 
   const who = [text(id.field), text(id.reservoir)].filter(Boolean).join(', ');
   return {
@@ -273,12 +389,14 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
     inPlaceSplit,
     methodSplit,
     inputs: { rows: inputRows, note: inputsNote },
-    engineInput: engineInputOf(inputs),
+    engineInput: engineInputOf(inputs, s.krIntake),
     methodRows,
     basis,
     limits: { assumptions, ranges, flags },
     pvtBlock,
     inPlaceBlock,
+    uncertainty,
+    dcaCheck,
     notes: text(id.notes),
     footerWho: who || text(projectName),
     caseState,

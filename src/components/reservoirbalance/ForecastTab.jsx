@@ -289,15 +289,15 @@ const ForecastTab = () => {
               {reconciliation.withinBand === false && (
                 <p className="text-sm text-pl-warning-text flex items-start gap-2">
                   <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                  The implied recovery factor sits outside the statistical range for this drive mechanism
-                  (Arps and API study ranges as tabulated in Ahmed). That does not make either number wrong, but the
+                  The implied recovery factor sits outside the screening range for this drive mechanism
+                  (the Recovery Factor Estimator's drive ranges, transcribed and not validated against a published table). That does not make either number wrong, but the
                   decline forecast and the material balance are telling different stories; check the economic limit,
                   the fit window and the aquifer model before quoting reserves.
                 </p>
               )}
               {reconciliation.withinBand === true && (
                 <p className="text-xs text-pl-muted">
-                  The implied recovery factor is consistent with the statistical range for this drive mechanism.
+                  The implied recovery factor is consistent with the screening range for this drive mechanism (the Recovery Factor Estimator's drive ranges).
                 </p>
               )}
             </div>

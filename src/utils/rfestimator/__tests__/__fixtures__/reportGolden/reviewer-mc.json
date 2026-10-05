@@ -1,11 +1,11 @@
 {
-  "pages": 5,
-  "sha256": "45d6ee35d3f0e386eb4985f83171eb00a026fa8518f0faf40e3b57d30f4f2313",
+  "pages": 7,
+  "sha256": "4eb89ff8dd345ec05cf62b655ed7436614ae225dac0eecf34116477265085b68",
   "figures": [
     {
       "id": "reserves",
       "number": 1,
-      "page": 4,
+      "page": 6,
       "plotted": true,
       "panels": [
         {
@@ -25,9 +25,9 @@
       ]
     },
     {
-      "id": "analog",
+      "id": "exceedance",
       "number": 2,
-      "page": 4,
+      "page": 6,
       "plotted": true,
       "panels": [
         {
@@ -35,23 +35,22 @@
             "x": 14,
             "y": 111.72,
             "w": 182,
-            "h": 70
+            "h": 62
           },
           "drawn": {
-            "Low edge": 2,
-            "Typical": 2,
-            "High edge": 2
+            "Exceedance": 101,
+            "P90, P50, P10": 3
           },
-          "total": 6,
+          "total": 104,
           "bands": 0,
           "logo": true
         }
       ]
     },
     {
-      "id": "factors",
+      "id": "analog",
       "number": 3,
-      "page": 5,
+      "page": 7,
       "plotted": true,
       "panels": [
         {
@@ -59,11 +58,34 @@
             "x": 14,
             "y": 23,
             "w": 182,
-            "h": 62
+            "h": 70
           },
           "drawn": {
-            "p/z line": 2,
-            "Extrapolation to p/z = 0": 2
+            "Low edge": 5,
+            "Typical": 5,
+            "High edge": 5
+          },
+          "total": 15,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "factors",
+      "number": 4,
+      "page": 7,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 113.72,
+            "w": 182,
+            "h": 58
+          },
+          "drawn": {
+            "Factor": 4
           },
           "total": 4,
           "bands": 0,

@@ -17,10 +17,12 @@ import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjec
 import { setProvenanceField, serializeProvenance, deserializeProvenance } from '@/lib/inputProvenance';
 import {
   RF_PAYLOAD_VERSION, RF_PROJECTS_TABLE, DEFAULT_DRIVE, DEFAULT_IDENTIFICATION,
-  defaultInputs as modelDefaultInputs, inputsFromPayload as modelInputsFromPayload, migrateRfPayload, sampleInputs,
+  defaultInputs as modelDefaultInputs, inputsFromPayload as modelInputsFromPayload, migrateRfPayload, sampleInputs, zKeptNote,
 } from '@/utils/rfestimator/model';
 import { deriveRf } from '@/utils/rfestimator/workspace';
 import { rfUnits } from '@/utils/rfestimator/units';
+import { rfRecordOf } from '@/utils/rfestimator/rfRecord';
+import { drawSeed } from '@/utils/rfestimator/uncertainty';
 
 const TABLE = RF_PROJECTS_TABLE;
 
@@ -72,10 +74,12 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
   const u = useMemo(() => rfUnits(unitSystem), [unitSystem]);
   const [pvtIntake, setPvtIntake] = useState(null);
   const [inPlaceIntake, setInPlaceIntake] = useState(null);
+  const [dcaCheck, setDcaCheck] = useState(null);
+  const [krIntake, setKrIntake] = useState(null); // RF-U2-009: the kr-1 oil-water set of a SCAL project // RF-U2-014: decline forecasts taken as a cross-check
   const [migration, setMigration] = useState(null);
 
   // --- Derived analysis (pure functions of inputs) ---
-  const derived = useMemo(() => deriveRf(inputs, { inPlaceIntake, pvtIntake }), [inputs, inPlaceIntake, pvtIntake]);
+  const derived = useMemo(() => deriveRf(inputs, { inPlaceIntake, pvtIntake, krIntake }), [inputs, inPlaceIntake, pvtIntake, krIntake]);
   const { drives, inPlace, result } = derived;
 
   // Any edit of a value moves the case off the sample (the untouched sample
@@ -90,19 +94,30 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
   }, [edit]);
 
   const setMethod = useCallback((method) => edit((prev) => ({ ...prev, method })), [edit]);
+  const setLinked = useCallback((on) => edit((prev) => ({ ...prev, linked: !!on })), [edit]);
+  const setZMethod = useCallback((zMethod) => edit((prev) => ({ ...prev, zMethod })), [edit]);
   const setDriveCode = useCallback((driveCode) => edit((prev) => ({ ...prev, driveCode })), [edit]);
   const setInPlaceMode = useCallback((inPlaceMode) => edit((prev) => ({ ...prev, inPlaceMode: inPlaceMode === 'direct' ? 'direct' : 'volumetric' })), [edit]);
   const setOoipDirect = useCallback((value) => edit((prev) => ({ ...prev, ooipDirect: value, origin: 'entered' })), [edit]);
   const setVolField = useCallback((key, value) => edit((prev) => ({ ...prev, vol: { ...prev.vol, [key]: value }, origin: prev.origin === 'sample' ? 'sample-edited' : prev.origin })), [edit]);
   const setCorrField = useCallback((key, value) => edit((prev) => ({ ...prev, corr: { ...prev.corr, [key]: value }, origin: prev.origin === 'sample' ? 'sample-edited' : prev.origin })), [edit]);
+  // RF-U2-002: the uncertainty run. Switching it on draws a seed when none is held, so the run is reproducible.
+  const setMcField = useCallback((key, value) => edit((prev) => ({ ...prev, mc: { ...prev.mc, [key]: value } })), [edit]);
+  const setMcEnabled = useCallback((on) => edit((prev) => ({
+    ...prev, mc: { ...prev.mc, enabled: !!on, seed: on && !String(prev.mc?.seed ?? '').trim() ? String(drawSeed()) : prev.mc?.seed },
+  })), [edit]);
+  const newMcSeed = useCallback(() => edit((prev) => ({ ...prev, mc: { ...prev.mc, seed: String(drawSeed()) } })), [edit]);
   const setIdentificationField = useCallback((k, v) => setIdentification((prev) => ({ ...prev, [k]: v })), []);
   const setInputSource = useCallback((key, field, value) => setInputMeta((prev) => setProvenanceField(prev, key, field, value)), []);
   const setUnitSystem = useCallback((sys) => setUnitSystemSaved(sys === 'si' ? 'si' : 'oilfield'), []);
 
   /** A pvt-1 intake: values land in the method and volumetric inputs, the record is kept. */
   const takePvt = useCallback((patch, intake) => {
+    // RF-U2-003: z or Bgi taken from Fluid Systems Studio are used as received (typed method)
+    const takesZ = ['zi', 'za'].some((k) => patch?.corr?.[k] != null) || patch?.vol?.bgi != null;
     edit((prev) => ({
       ...prev,
+      ...(takesZ ? { zMethod: 'typed' } : {}),
       corr: { ...prev.corr, ...(patch?.corr || {}) },
       vol: { ...prev.vol, ...(patch?.vol || {}) },
       origin: prev.origin === 'sample' ? 'sample-edited' : prev.origin,
@@ -121,11 +136,13 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
     setInputs(sampleInputs());
     setPvtIntake(null);
     setInPlaceIntake(null);
+    setDcaCheck(null);
+    setKrIntake(null);
     addNotification('Sample loaded: a water-drive oil case. Its values are labelled as sample values until you replace them.', 'success');
   }, [addNotification]);
 
   // --- Project lifecycle ---
-  const serialize = useCallback((name) => ({
+  const serialize = useCallback((name, idOverride = null) => ({
     id: currentProjectId,
     name,
     schema: 1,
@@ -136,8 +153,12 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
     unitSystem,
     pvtIntake,
     inPlaceIntake,
+    dcaCheck,
+    krIntake,
+    // RF-U2-001: the rf-1 record of the estimate on screen, read by id by ReservoirCalc Pro
+    rf: rfRecordOf({ inputs, derived, identification, inPlaceIntake }, { projectId: idOverride || currentProjectId, projectName: name }),
     modified: new Date().toISOString(),
-  }), [currentProjectId, inputs, identification, inputMeta, unitSystem, pvtIntake, inPlaceIntake]);
+  }), [currentProjectId, inputs, identification, inputMeta, unitSystem, pvtIntake, inPlaceIntake, dcaCheck, krIntake, derived]);
 
   const hydrate = useCallback((raw) => {
     const payload = migrateRfPayload(raw);
@@ -149,7 +170,10 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
     setUnitSystemSaved(payload.unitSystem === 'si' || payload.unitSystem === 'oilfield' ? payload.unitSystem : null);
     setPvtIntake(payload.pvtIntake || null);
     setInPlaceIntake(payload.inPlaceIntake || null);
-    setMigration(payload.migratedFrom ? { from: payload.migratedFrom, note: payload.apiBasisNote || null } : null);
+    setDcaCheck(payload.dcaCheck || null);
+    setKrIntake(payload.krIntake || null);
+    const zNote = zKeptNote(raw);
+    setMigration(payload.migratedFrom || zNote ? { from: payload.migratedFrom || null, note: payload.apiBasisNote || null, zNote } : null);
     return true;
   }, []);
 
@@ -176,7 +200,7 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
   const createProject = useCallback(async (name) => {
     const id = uuidv4();
     try {
-      await service.save(id, { ...serialize(name), id, name });
+      await service.save(id, { ...serialize(name, id), id, name });
       await shared.adoptRow(id);
       setCurrentProjectId(id);
       setProjectName(name);
@@ -256,7 +280,7 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
     const name = shared.copyNameFor(projectName || 'Recovery Factor project');
     const id = uuidv4();
     try {
-      await service.save(id, { ...serialize(name), id, name });
+      await service.save(id, { ...serialize(name, id), id, name });
       await refreshProjects();
       await openProject(id);
       addNotification(`Saved a copy as "${name}"`, 'success');
@@ -292,7 +316,7 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [inputs, identification, inputMeta, unitSystemSaved, pvtIntake, inPlaceIntake, currentProjectId, hydrated, canWrite]);
+  }, [inputs, identification, inputMeta, unitSystemSaved, pvtIntake, inPlaceIntake, dcaCheck, krIntake, currentProjectId, hydrated, canWrite]);
 
   const value = {
     // inputs + derived
@@ -309,6 +333,8 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
     setOoipDirect,
     setVolField,
     setCorrField,
+    setMcField, setMcEnabled, newMcSeed, setZMethod, setLinked,
+    uncertainty: derived.uncertainty,
     loadSample,
     // report, sources, units, intakes
     identification, setIdentificationField,
@@ -316,6 +342,8 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
     unitSystem, setUnitSystem, u, profileSystem, followsProfile: unitSystemSaved == null && !!profileSystem,
     pvtIntake, takePvt,
     inPlaceIntake, takeInPlace, clearInPlaceIntake,
+    dcaCheck, setDcaCheck,
+    krIntake, setKrIntake,
     migration,
     build,
     serialize,
