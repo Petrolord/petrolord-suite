@@ -67,6 +67,7 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { pvtTableCoverage } from './lib/pvtSource';
 import { RecordSharingBar } from '@/components/recordSharing';
 import { MBAL_CONTRACT } from '@/lib/mbalCaseSource';
+import { eorScreeningHref } from '@/lib/eorScreeningLinks';
 
 // MBAL-U2-004: where the case is sent (the reader reads it by id, contract mbal-1)
 export const RCP_CROSS_CHECK_PATH = '/dashboard/apps/geoscience/reservoircalc-pro';
@@ -194,6 +195,7 @@ const RunPanel = () => {
     caseData, lastResult, lastRunConfig, running, handleRun, runStaleness, units, defaultCfg,
   } = useMaterialBalanceStudio();
   const navigate = useNavigate();
+  const location = useLocation();
   // what the next run would be made on: the PVT table of the case against its pressures
   const coverage = pvtTableCoverage(caseData, defaultCfg);
   const stale = Boolean(runStaleness?.stale);
@@ -337,10 +339,16 @@ const RunPanel = () => {
                 data-testid="mbal-send-rcp">
                 Cross-check in ReservoirCalc Pro
               </Button>
+              <Button variant="outline" size="sm" disabled={stale || isGas}
+                title={isGas ? 'EOR Screening takes oil cases' : undefined}
+                onClick={() => navigate(eorScreeningHref('mbal', caseData.id, { inHarness: location.pathname.startsWith('/dev/') }))}
+                data-testid="mbal-send-eor">
+                Send to EOR Screening
+              </Button>
               <p className="text-[11px] text-pl-muted min-w-0 flex-1">
                 {stale
                   ? 'Run the case again first: only the run of the current inputs is sent.'
-                  : `ReservoirCalc Pro reads this case by its id (contract ${MBAL_CONTRACT}): the ${isGas ? 'gas' : 'oil'} in place with its method and run, the drive mechanism and the last average pressure, and prints them beside its volumetric result.`}
+                  : `ReservoirCalc Pro reads this case by its id (contract ${MBAL_CONTRACT}): the ${isGas ? 'gas' : 'oil'} in place with its method and run, the drive mechanism and the last average pressure, and prints them beside its volumetric result.${isGas ? '' : ' EOR Screening reads the OOIP and the last average pressure of the same run by id.'}`}
               </p>
             </div>
 

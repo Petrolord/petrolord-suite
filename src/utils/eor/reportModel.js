@@ -14,11 +14,12 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { sourceText, NOT_PROVIDED } from '@/lib/inputProvenance/wording';
 import { SERIES_RGB } from '@/lib/reportKit/theme';
 import {
-  CRITERIA_EDITION, RANKING_BASIS, SRC, CO2_DEPTH_BY_GRAVITY, sampleEorScreeningData, formationLabel, screenAllMethods, engineInputOf,
+  CRITERIA_EDITION, RANKING_BASIS, SRC, PROJECT_RANGES, CO2_DEPTH_BY_GRAVITY, sampleEorScreeningData, formationLabel, screenAllMethods, engineInputOf,
 } from '../eorScreeningCalculations.js';
 import { eorUnits } from './units.js';
-import { requiredText, actualText, averageText, reasonText, STATUS_WORDS, OUTCOME_WORDS } from './format.js';
+import { requiredText, actualText, averageText, reasonText, distanceText, projectRangeText, STATUS_WORDS, OUTCOME_WORDS } from './format.js';
 import { intakeSourceText } from './intakes.js';
+import { eorMmpCheck, MMP_CORRELATION, mmpVerdictWords, MPA_TO_PSI } from './mmp.js';
 
 export const REPORT_TITLE = 'EOR Screening Report';
 export const APP_NAME = 'Petrolord EOR Screening';
@@ -60,6 +61,11 @@ export const INPUT_DEFS = Object.freeze([
   { key: 'reservoirPressurePsia', label: 'Reservoir pressure (context, not screened)', kind: 'pressure', group: 'context' },
   { key: 'saturationPressurePsia', label: 'Bubble point pressure (context, not screened)', kind: 'pressure', group: 'context' },
   { key: 'ooipStb', label: 'Original oil in place (context, not screened)', kind: 'ooip', group: 'context' },
+  // EOR-U2-001: the oil composition the CO2 MMP correlation reads
+  { key: 'volatilesMolPct', label: 'Oil composition C1 + N2, for the MMP (context, not screened)', kind: 'molpct', group: 'context' },
+  { key: 'intermediatesMolPct', label: 'Oil composition C2 to C10 with CO2, for the MMP (context, not screened)', kind: 'molpct', group: 'context' },
+  // EOR-U2-005: for the material balance remaining oil estimate
+  { key: 'swiPct', label: 'Initial water saturation, for the remaining oil estimate (context, not screened)', kind: 'saturation', group: 'context' },
 ]);
 
 const SAMPLE = sampleEorScreeningData();
@@ -104,6 +110,50 @@ function identificationPairs(inputs, { projectName, organizationName, build }) {
 
 const pct = (r) => (r.applicable ? `${Math.round(r.score * 100)}%` : EMPTY_VALUE);
 
+const STATUS_TEXT = Object.freeze({ made: null, 'mmp only': 'MMP only: no reservoir pressure to compare', 'not made': 'Not made' });
+
+/**
+ * EOR-U2-001: the CO2 miscibility check as rows, in the display units. The
+ * Screening tab and the report print the same rows (RL12).
+ */
+export function mmpSection(check, u) {
+  const c = MMP_CORRELATION;
+  const q = (kind, v, d) => (Number.isFinite(v) ? `${u.fmt(kind, v, d)} ${u.label(kind)}` : EMPTY_VALUE);
+  const i = check.inputs || {};
+  const pct2 = (v) => (Number.isFinite(v) ? `${String(parseFloat(v.toPrecision(4)))} mol %` : EMPTY_VALUE);
+  // the reason in the display units (the engine's own words are in psi)
+  let why = check.reason;
+  if (check.status === 'made') {
+    why = `${mmpVerdictWords(check.verdict)} by ${q('pressure', Math.abs(check.margin_psi), 4)}.`;
+    if (check.within_error) why += ` The difference is within the largest deviation of the correlation on its own data (${q('pressure', c.error.maxMpa * MPA_TO_PSI, 4)}): a measured slim-tube MMP is needed to decide.`;
+    if (check.outside?.length) why += ` Extrapolated: ${check.outside.join('; ')} (the data of the paper).`;
+  }
+  const verdict = check.verdict ? `${mmpVerdictWords(check.verdict)}${check.within_error ? ' (within the error of the correlation)' : ''}${check.outside?.length ? ' (extrapolated)' : ''}` : STATUS_TEXT[check.status];
+  return {
+    head: ['Item', 'Value'],
+    rows: [
+      ['Gas', 'CO2 (pure); the correlation does not cover nitrogen, hydrocarbon gas or impure CO2'],
+      ['Correlation', `${c.short}: ${c.where}`],
+      ['Equation', c.equation],
+      ['Reservoir temperature', q('temperature', i.temperature_degF, 4)],
+      ['Oil composition C1 + N2', pct2(i.volatiles_mol_pct)],
+      ['Oil composition C2 to C10 with CO2', pct2(i.intermediates_mol_pct)],
+      ['Minimum miscibility pressure', q('pressure', check.mmp_psia, 4)],
+      ['Reservoir pressure', q('pressure', i.reservoir_pressure_psia, 5)],
+      ['Pressure minus MMP', Number.isFinite(check.margin_psi) ? `${check.margin_psi >= 0 ? '+' : '-'}${u.fmt('pressure', Math.abs(check.margin_psi), 4)} ${u.label('pressure')}` : EMPTY_VALUE],
+      ['Verdict', verdict],
+      ['Why', why],
+      ['Data of the correlation', `T ${c.range.temperatureC.join(' to ')} degC; C1 + N2 ${c.range.volatilesMolPct.join(' to ')} mol %; C2 to C10 ${c.range.intermediatesMolPct.join(' to ')} mol %; MMP ${c.range.mmpMpa.join(' to ')} MPa (the paper states no formal range)`],
+      ['Error of the correlation', c.errorText],
+      ['Scope', c.scope],
+      ['Reference', c.citation],
+    ],
+    note: 'The check is printed beside the Taber verdicts and changes none of them: CO2 miscible keeps the Part 2, Table 3 depth-by-gravity criterion. A verdict within the error of the correlation, or on inputs outside its data, needs a measured slim-tube MMP.',
+    check,
+    why,
+  };
+}
+
 /**
  * @param {object} inputs the project inputs (EorScreeningContext)
  * @param {{projectName?: string, organizationName?: string, build?: string, system?: string, results?: object[]}} o
@@ -113,6 +163,7 @@ export function buildEorReportModel(inputs, { projectName = '', organizationName
   const u = eorUnits(sys);
   const engineInput = engineInputOf(inputs.form);
   const ranked = results || screenAllMethods(engineInput);
+  const mmp = mmpSection(eorMmpCheck(inputs), u);
 
   const ranking = {
     head: ['Rank', 'Method', 'Outcome', 'Pass', 'Marginal', 'Fail', 'Not screened', 'Share passing'],
@@ -123,9 +174,9 @@ export function buildEorReportModel(inputs, { projectName = '', organizationName
   const methods = ranked.map((r) => ({
     id: r.id,
     title: `${r.name}: ${OUTCOME_WORDS[r.outcome].toLowerCase()} (${r.group})`,
-    head: ['Criterion', 'Required', 'Project average', 'This reservoir', 'Verdict', 'Reason', 'Source'],
-    rows: r.verdicts.map((v) => [v.criterion, requiredText(v, sys), averageText(v, sys) || EMPTY_VALUE, actualText(v, sys), STATUS_WORDS[v.status], reasonText(v, sys) || EMPTY_VALUE, v.source || EMPTY_VALUE]),
-    note: `Oil composition guide (not screened: the app has no composition input): ${r.composition}.`,
+    head: ['Criterion', 'Required', 'Project average', 'Range of current projects', 'This reservoir', 'Verdict', 'Distance to the limit', 'Reason', 'Source'],
+    rows: r.verdicts.map((v) => [v.criterion, requiredText(v, sys), averageText(v, sys) || EMPTY_VALUE, projectRangeText(r.id, v, sys) || EMPTY_VALUE, actualText(v, sys), STATUS_WORDS[v.status], distanceText(v, sys), reasonText(v, sys) || EMPTY_VALUE, v.source || EMPTY_VALUE]),
+    note: `Oil composition guide (not screened: the app has no composition input): ${r.composition}. ${PROJECT_RANGES[r.id] ? `Range of current projects: ${PROJECT_RANGES[r.id].source}, the field projects of 1996, for context; never scored.` : 'Part 2 prints no range of current projects for this method.'}`,
     outcome: r.outcome,
   }));
 
@@ -165,13 +216,15 @@ export function buildEorReportModel(inputs, { projectName = '', organizationName
   const api = num(inputs.form?.gravityApi);
   if (api != null && (api < 5 || api > 70)) flags.push(`Oil gravity ${api} API is outside 5 to 70 API, an unusual value for a crude oil; check the entry.`);
   if (!inputs.depthReference) flags.push('The depth reference is not stated.');
+  if (mmp.check.outside?.length) flags.push(`CO2 MMP extrapolated beyond the data of the correlation: ${mmp.check.outside.join('; ')}.`);
+  if (mmp.check.within_error) flags.push('CO2 MMP: the reservoir pressure is within the error of the correlation; a measured slim-tube MMP is needed to decide miscibility.');
 
   const limits = {
     assumptions: [
       'Screening shortlists candidate methods; it does not design a process or predict recovery (Part 2, Summary). A method that qualifies needs laboratory work, simulation and economics before any decision.',
       'The criteria come from the oil and reservoir properties of field projects up to 1996 and the displacement mechanisms behind them. Limits are not sharp in nature: the paper says a value just past a limit does not make a method impossible (Part 1, p. 192). Here a value on a limit passes; nothing is interpolated between methods.',
       'Verdicts are pass, marginal, fail or not screened. Marginal means the paper itself softens the limit: a preferred formation (Part 2, Tables 4 and 5), a carbonate fracture sweep (Part 1, Table 3, note b), or a formation the table does not name for gas injection.',
-      'The CO2 minimum depth by oil gravity is for typical Permian Basin oils; oils of different composition need a measured minimum miscibility pressure. Reservoir pressure and temperature are not screened against a miscibility pressure here.',
+      'The CO2 minimum depth by oil gravity is for typical Permian Basin oils; oils of different composition need a measured minimum miscibility pressure. The CO2 MMP check beside it uses one published correlation (Zhu et al. 2025, from Ordos Basin black oils): it states miscible or immiscible against the reservoir pressure and changes no Taber verdict.',
       'Each input is one value for the reservoir. Heterogeneity, layering, dip, vertical permeability and fractures are not screened; the geometry notes of the gas methods ("thin unless dipping") are printed and not scored.',
       'Viscosity is the oil viscosity at reservoir conditions. Transmissibility k h / mu (notes c and d) is computed from the permeability, net thickness and that viscosity.',
       'Criteria are compared in oilfield units, as published; values typed or shown in SI are converted first.',
@@ -191,6 +244,7 @@ export function buildEorReportModel(inputs, { projectName = '', organizationName
     inputs: { rows: inputRows(inputs, u), note: 'Every value the screening read, with its source. Values taken from another app name the project and the method; an edit after the intake says so. Context rows are printed for the reviewer and are not screened by these criteria.' },
     edition,
     co2DepthTable,
+    mmp,
     methods,
     limits,
     figures,

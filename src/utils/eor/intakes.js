@@ -96,6 +96,8 @@ export function eorPvtIntake(contract, { pressurePsia = null, at: takenAt = new 
       fields: Object.keys(values),
       methods,
       contract: pvtContractSummary(b),
+      // EOR-U2-005: the Bo column of the project's table, for the remaining oil estimate
+      bo_table: (b.table || []).filter((r) => finite(r.pressure) && finite(r.Bo)).map((r) => ({ pressure: r.pressure, Bo: r.Bo })),
     },
   };
 }
@@ -170,6 +172,21 @@ export function eorMbalIntake(record, { at: takenAt = new Date().toISOString() }
       fields: Object.keys(values),
       methods,
       fingerprint: mbalFingerprint(record),
+      // EOR-U2-005: what the remaining oil estimate needs from the run
+      balance: (() => {
+        const series = Array.isArray(record.pressure?.series) ? record.pressure.series : [];
+        const last = series.length ? series[series.length - 1] : null;
+        return {
+          np_stb: finite(last?.cum_oil_stb) ? last.cum_oil_stb : null,
+          p_initial_psia: record.pressure?.initial_psia ?? null,
+          p_last_psia: record.pressure?.last_psia ?? null,
+          mechanism: record.drive?.mechanism ?? null,
+          aquifer_model: record.drive?.aquifer_model ?? null,
+          wdi: record.drive?.indices?.wdi ?? null,
+          winj_di: record.drive?.indices?.winj_di ?? null,
+          ginj_di: record.drive?.indices?.ginj_di ?? null,
+        };
+      })(),
     },
   };
 }
@@ -230,4 +247,54 @@ export function intakeSourceText(intakes, key, now) {
     return base;
   }
   return null;
+}
+
+const INTERMEDIATE_KEYS = Object.freeze(['CO2', 'C2', 'C3', 'iC4', 'nC4', 'iC5', 'nC5', 'nC6']);
+
+/**
+ * EOR-U2-008: the oil composition the CO2 MMP correlation reads, from the
+ * saved inputs of a compositional Fluid Systems Studio project (the feed of
+ * its equation of state, `inputs.streamA.composition.zPct`, mol %).
+ * C1 + N2 is taken, normalised to 100 mol %. C2 to C10 is not taken: the
+ * feed lumps C7 and heavier into C7+, so C7 to C10 cannot be separated; the
+ * known part (C2 to C6 with CO2) is returned as a lower bound, never as the
+ * whole. Pure.
+ * @param {object} fluidInputs the `inputs` of the saved Fluid payload
+ */
+export function eorCompositionIntake(fluidInputs, { recordId = null, recordName = null } = {}) {
+  if (fluidInputs?.fluidModel !== 'eos') return { ok: false, errors: ['The Fluid Systems Studio project is a black-oil model: it holds no composition.'] };
+  const z = fluidInputs?.streamA?.composition?.zPct || {};
+  const n = (k) => (finite(Number(z[k])) ? Number(z[k]) : 0);
+  const total = Object.keys(z).reduce((s, k) => s + n(k), 0);
+  if (!(total > 0)) return { ok: false, errors: ['The Fluid Systems Studio project has no feed composition.'] };
+  const scale = 100 / total;
+  const vol = (n('C1') + n('N2')) * scale;
+  const low = INTERMEDIATE_KEYS.reduce((s, k) => s + n(k), 0) * scale;
+  const plus = n('C7+') * scale;
+  const origin = `${PVT_PRODUCER}${recordName ? `, project "${recordName}"` : ''}`;
+  const norm = Math.abs(total - 100) > 1e-6 ? `, normalised from a feed total of ${g4(total)} mol %` : '';
+  return {
+    ok: true,
+    errors: [],
+    context: { volatilesMolPct: g4(vol) },
+    methods: { volatilesMolPct: `Feed composition of the equation-of-state model: C1 ${g4(n('C1') * scale)} + N2 ${g4(n('N2') * scale)} mol %${norm}, ${origin}` },
+    intermediatesLowerBound: Number(g4(low)),
+    notTaken: `C2 to C10 is not taken: the feed lumps C7 and heavier into C7+ (${g4(plus)} mol %), so C7 to C10 cannot be separated. The known part, C2 to C6 with CO2, is ${g4(low)} mol %: C2 to C10 is at least that. Enter C2 to C10 from the laboratory composition.`,
+    from: { app: PVT_PRODUCER, recordId, recordName },
+  };
+}
+
+/** A pvt intake with the composition taken beside it (EOR-U2-008); unchanged when there is none. */
+export function withComposition(res, comp) {
+  if (!res?.ok || !comp?.ok) return res;
+  return {
+    ...res,
+    context: { ...(res.context || {}), ...comp.context },
+    intake: {
+      ...res.intake,
+      values: { ...res.intake.values, ...comp.context },
+      methods: { ...res.intake.methods, ...comp.methods },
+      composition: { intermediates_lower_bound_mol_pct: comp.intermediatesLowerBound, not_taken: comp.notTaken },
+    },
+  };
 }

@@ -10,6 +10,7 @@
  * Pure.
  */
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { eorContextRows } from './eorContext.js';
 import { inputRow, sourceText } from '@/lib/inputProvenance/wording';
 import { isStated } from '@/lib/inputProvenance/model';
 import { describePvtContract } from '@/lib/inputProvenance/pvtContract';
@@ -378,6 +379,9 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
     };
   }
 
+  // ---- the EOR screening beside the estimate (eor-screen-1 by id), context only ----
+  const eorContext = eorContextRows(s.eorContext, { fmtPressure: (p) => `${g(u.show('pressure', p), 4)} ${u.label('pressure')}` });
+
   const who = [text(id.field), text(id.reservoir)].filter(Boolean).join(', ');
   return {
     u,
@@ -397,6 +401,7 @@ export function buildRfReportModel(s, { projectName = '', organizationName = '',
     inPlaceBlock,
     uncertainty,
     dcaCheck,
+    eorContext,
     notes: text(id.notes),
     footerWho: who || text(projectName),
     caseState,

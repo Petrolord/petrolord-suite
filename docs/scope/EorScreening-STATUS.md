@@ -49,3 +49,27 @@ Branch `feat/eor-u1`; working doc `docs/upgrade/EorScreening-UPGRADE.md`
   temperature, bubble point), wta-1 (permeability, pressure), mbal-1 (OOIP,
   pressure) with their cards. No sender out yet (Step 2).
 - e2e: `e2e/eor-screening-upgrade.spec.js`; T1 counts updated.
+
+## Reservoir upgrade round, Step 2 (EOR-U2, 2026-10-04)
+
+Branch `feat/eor-u2`; working doc `docs/upgrade/EorScreening-UPGRADE.md`
+sections 8 and 9 (batch decision, build log, MMP source, deferred).
+
+- U2-001: CO2 MMP check against reservoir pressure, `src/utils/eor/mmp.js`
+  (Zhu et al. 2025, ACS Omega 10 (47) 57267-57276, Model 9; the classic
+  papers could not be read). Gate `src/utils/eor/__tests__/eorMmp.test.js`
+  reproduces the paper's MAE 0.4825 MPa, MAPE 2.53 %, RMSE 0.7494 on its
+  Table 2, with negative controls. Miscible or immiscible with the margin,
+  "within the error" under 2.05 MPa, inputs outside the data flagged.
+  Never changes a Taber verdict.
+- U2-002: Send to EOR Screening from Fluid, Well Test (saves first) and
+  Material Balance, by id (`src/lib/eorScreeningLinks.js`).
+- U2-003: `eor-screen-1` read-by-id contract, `src/lib/eorScreenSource.js`
+  (inputs with sources, verdicts per criterion, edition, MMP, fingerprint);
+  first reader is Recovery Factor, in its own Step 2.
+- U2-007 distance to each limit; U2-006 range of current projects (Part 2,
+  Tables 1 to 7); U2-008 C1 + N2 from a compositional Fluid project (C2 to
+  C10 not separable from C7+, left to the user); U2-005 remaining oil from
+  mbal-1 and pvt-1 with a stated Swi.
+- Deferred: U2-004 (paper), U2-009 (after NAPE), Batch C.
+- Migration `20261004220000` still NOT APPLIED; saving says so.

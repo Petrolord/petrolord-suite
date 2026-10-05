@@ -16,16 +16,18 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { readFluidProjectPvt, PVT_PROJECT_PARAM } from '@/lib/pvtSource';
 import { readWellTestProject, WTA_PROJECT_PARAM, WTA_TABLE } from '@/lib/wellTestSource';
 import { readMbalCase } from '@/lib/mbalCaseSource';
+import { MBAL_CASE_PARAM } from '@/lib/eorScreeningLinks';
 import { readFluidProjectBlock } from '@/pages/apps/reservoir-balance/lib/pvtIntake';
 import PvtIntakeCard from '@/lib/inputProvenance/PvtIntakeCard';
 import {
   eorPvtIntake, eorWtaIntake, eorMbalIntake, eorPvtCardFields, intakeCardModel, wtaFingerprint, mbalFingerprint,
+  eorCompositionIntake, withComposition,
 } from '@/utils/eor/intakes';
 import { INPUT_DEFS } from '@/utils/eor/reportModel';
 import { useEorScreening } from '@/contexts/EorScreeningContext';
 import EorField from './EorField';
 
-export const MBAL_CASE_PARAM = 'mbalCase';
+export { MBAL_CASE_PARAM };
 // the card prints what was received, in the stored (oilfield) units
 const STORED_UNIT = { permeabilityMd: 'md', reservoirPressurePsia: 'psia', ooipStb: 'STB', saturationPressurePsia: 'psia' };
 const LABELS = Object.fromEntries(INPUT_DEFS.map((d) => [d.key, `${d.label.replace(' (context, not screened)', '')}${STORED_UNIT[d.key] ? ` (${STORED_UNIT[d.key]})` : ''}`]));
@@ -35,6 +37,17 @@ const SOURCES = {
   wta: { title: 'Well Test Analysis Studio (wta-1)', table: WTA_TABLE, name: 'project_name', param: WTA_PROJECT_PARAM, takes: 'Permeability; average pressure for context' },
   mbal: { title: 'Material Balance Studio (mbal-1)', table: 'rb_cases', name: 'name', param: MBAL_CASE_PARAM, takes: 'OOIP and the last average pressure, for context' },
 };
+
+/** EOR-U2-008: the saved Fluid inputs (the feed composition of a compositional project), by id. */
+async function readFluidInputs(id) {
+  try {
+    const { data, error } = await supabase.from('saved_fluid_studio_projects').select('*').eq('id', id).maybeSingle();
+    if (error || !data) return null;
+    return data.inputs_data?.inputs || null;
+  } catch {
+    return null;
+  }
+}
 
 async function listProjects(table, nameCol) {
   try {
@@ -108,6 +121,9 @@ const SourceBlock = ({ kind }) => {
         name = read.projectName;
         const p = pressure === '' ? null : Number(pressure);
         res = eorPvtIntake(read.block, { pressurePsia: Number.isFinite(p) ? p : null });
+        const fluidInputs = res.ok ? await readFluidInputs(pick) : null;
+        const comp = fluidInputs ? eorCompositionIntake(fluidInputs, { recordId: pick, recordName: name }) : null;
+        res = withComposition(res, comp);
       } else if (kind === 'wta') {
         const read = await readWellTestProject(supabase, pick);
         if (!read.ok) { setMessage(read.reason); return; }
@@ -143,6 +159,11 @@ const SourceBlock = ({ kind }) => {
           {(list || []).map((p) => <option key={p.id} value={p.id}>{p.name}{p.updatedAt ? ` (saved ${String(p.updatedAt).slice(0, 10)})` : ''}</option>)}
         </select>
       </div>
+      {searchParams.get(s.param) && !intake && (
+        <p className="text-xs text-pl-info-text" data-testid={`eor-intake-named-${kind}`}>
+          Sent here from {s.title.replace(/ \(.*\)$/, '')}: the project named in the address is chosen. Take values reads it by id.
+        </p>
+      )}
       {kind === 'pvt' && (
         <EorField
           id="eor-pvt-pressure" label="Reservoir pressure for the viscosity (blank: the bubble point)" kind="pressure"
@@ -157,6 +178,13 @@ const SourceBlock = ({ kind }) => {
         {intake && <Button size="sm" variant="ghost" className="h-8" disabled={!canWrite} onClick={() => clearIntake(kind)}>Forget the source</Button>}
       </div>
       {message && <p className="text-xs text-pl-danger-text" data-testid={`eor-intake-message-${kind}`}>{message}</p>}
+      {intake && kind === 'pvt' && (
+        <p className="text-[10px] text-pl-muted" data-testid="eor-composition-note">
+          {intake.values?.volatilesMolPct != null
+            ? `Oil composition for the MMP: C1 + N2 ${intake.values.volatilesMolPct} mol % taken. ${intake.composition?.not_taken || ''}`
+            : 'Oil composition for the MMP: none taken (the project is not a compositional model, or holds no feed).'}
+        </p>
+      )}
       {intake && kind === 'pvt' && (
         <PvtIntakeCard intake={intake} current={inputs.form} fields={eorPvtCardFields(intake)} readLatest={readFluidProjectPvt} title="PVT taken from Fluid Systems Studio" />
       )}

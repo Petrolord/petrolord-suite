@@ -36,12 +36,12 @@ const ReportTab = () => {
   const [busy, setBusy] = useState(false);
   const state = {
     inputs: c.inputs, derived: c.derived, identification: c.identification, inputMeta: c.inputMeta,
-    pvtIntake: c.pvtIntake, inPlaceIntake: c.inPlaceIntake, migration: c.migration, dcaCheck: c.dcaCheck, krIntake: c.krIntake,
+    pvtIntake: c.pvtIntake, inPlaceIntake: c.inPlaceIntake, migration: c.migration, dcaCheck: c.dcaCheck, krIntake: c.krIntake, eorContext: c.eorContext,
   };
   const args = useMemo(
     () => collectRfReportArgs({ state, system: c.unitSystem, projectName: c.projectName, organizationName, build: c.build }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [c.inputs, c.derived, c.identification, c.inputMeta, c.pvtIntake, c.inPlaceIntake, c.migration, c.dcaCheck, c.krIntake, c.unitSystem, c.projectName, organizationName, c.build],
+    [c.inputs, c.derived, c.identification, c.inputMeta, c.pvtIntake, c.inPlaceIntake, c.migration, c.dcaCheck, c.krIntake, c.eorContext, c.unitSystem, c.projectName, organizationName, c.build],
   );
   const { model, figures } = args;
 
@@ -121,6 +121,12 @@ const ReportTab = () => {
             <ModelTable head={['Item', 'As run']} rows={model.uncertainty.runRows} testId="rf-report-uncertainty-run" />
             <p className="text-xs text-pl-muted">{model.uncertainty.note}</p>
           </CardContent>
+        </Card>
+      )}
+      {model.eorContext && (
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Context: EOR screening of this reservoir</CardTitle></CardHeader>
+          <CardContent className="space-y-2"><ModelTable head={model.eorContext.head} rows={model.eorContext.rows} testId="rf-report-eor" /><p className="text-xs text-pl-muted">{model.eorContext.note}</p></CardContent>
         </Card>
       )}
       {model.dcaCheck && (

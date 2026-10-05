@@ -2,7 +2,7 @@
 // handoffs (WT5): PDF report, project JSON, p*/k/s to Material Balance Studio
 // and k to the Waterflood Design Studio via the navigate-state contract.
 import React, { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Download, FileText, Send, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,15 +11,17 @@ import { exportWellTestPdf, collectReportArgs } from '@/utils/wellTestReportExpo
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { SectionLabel } from './primitives';
 import { wellTestDataFromContract, WTA_PROJECT_PARAM } from '@/lib/wellTestSource';
+import { eorScreeningHref } from '@/lib/eorScreeningLinks';
 
 const ReportPanel = () => {
   const ctx = useWellTestStudio();
   const {
     notes, setNotes, projectName, wellName, addNotification,
     prepared, currentProjectId, wtaRecord,
-    serializeInputs, importProjectPayload,
+    serializeInputs, importProjectPayload, manualSave,
   } = ctx;
   const navigate = useNavigate();
+  const location = useLocation();
   const importRef = useRef(null);
   const [exporting, setExporting] = useState(false);
 
@@ -74,6 +76,16 @@ const ReportPanel = () => {
     navigate(`/dashboard/apps/reservoir/waterflood-design-studio${byId}`, { state: { wellTestData: { ...handoff, sentAt: new Date().toISOString() } } });
   };
 
+  // EOR-U2-002: EOR Screening reads the saved wta-1 record by id (permeability
+  // and the average pressure), so the project is saved first and nothing
+  // travels in router state.
+  const sendToEor = async () => {
+    const href = eorScreeningHref('wta', currentProjectId, { inHarness: location.pathname.startsWith('/dev/') });
+    if (!href) { addNotification('Save the project first: EOR Screening reads it by id.', 'info'); return; }
+    if (manualSave && !(await manualSave())) { addNotification('The project could not be saved first, so EOR Screening would read an older record.', 'error'); return; }
+    navigate(href);
+  };
+
   return (
     <div className="space-y-6">
       <section>
@@ -120,9 +132,18 @@ const ReportPanel = () => {
           >
             <Send className="w-4 h-4 mr-2" /> k to Waterflood Design Studio
           </Button>
+          <Button
+            size="sm" variant="outline" className="w-full"
+            disabled={!Number.isFinite(kBest) || !currentProjectId}
+            title={currentProjectId ? undefined : 'Save the project first: EOR Screening reads it by id'}
+            onClick={sendToEor}
+            data-testid="wts-send-eor"
+          >
+            <Send className="w-4 h-4 mr-2" /> Send to EOR Screening
+          </Button>
         </div>
         <p className="text-[11px] text-pl-muted mt-2" data-testid="wts-send-note">
-          Material Balance Studio receives the pressure for a new case; Waterflood Design Studio receives the permeability. Each value travels with its method{currentProjectId ? ' and the saved project, so the receiver can read it again by id.' : '. Save the project first so the receiver can read the results again after a refresh.'}
+          Material Balance Studio receives the pressure for a new case; Waterflood Design Studio receives the permeability; EOR Screening reads the permeability and the average pressure from the saved project. Each value travels with its method{currentProjectId ? ' and the saved project, so the receiver can read it again by id.' : '. Save the project first so the receiver can read the results again after a refresh.'}
           {handoff && ` What is sent: k ${Number(handoff.k_md).toPrecision(3)} md (${handoff.kMethod})${Number.isFinite(pBar) ? `, pressure ${Number(pBar).toFixed(1)} psia (${handoff.contract?.pressure?.p_star_psia != null ? 'extrapolated p*, not corrected to an average pressure' : 'initial pressure as entered'})` : ''}.`}
         </p>
       </section>

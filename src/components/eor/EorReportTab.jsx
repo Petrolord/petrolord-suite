@@ -92,6 +92,13 @@ const EorReportTab = () => {
         </CardContent>
       </Card>
       <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-base">CO2 miscibility: MMP against reservoir pressure</CardTitle></CardHeader>
+        <CardContent>
+          <SmallTable head={model.mmp.head} rows={model.mmp.rows} testId="eor-report-mmp" />
+          <p className="text-xs text-pl-muted mt-2">{model.mmp.note}</p>
+        </CardContent>
+      </Card>
+      <Card>
         <CardHeader className="pb-2"><CardTitle className="text-base">Limits of this analysis</CardTitle></CardHeader>
         <CardContent className="text-xs space-y-1" data-testid="eor-report-limits">
           {model.limits.assumptions.map((a) => <p key={a}>{a}</p>)}

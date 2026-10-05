@@ -28,12 +28,13 @@ export function buildEorPdf({ model }, { logo = null, generatedAt = new Date() }
   report.inputsTable(model.inputs.rows, { title: 'Inputs and their sources', note: model.inputs.note });
   table('Criteria used: edition', model.edition.head, model.edition.rows, { columnStyles: { 0: { cellWidth: 24 } } });
   table('CO2 miscible: minimum depth by oil gravity', model.co2DepthTable.head, model.co2DepthTable.rows, { note: model.co2DepthTable.note });
+  table('CO2 miscibility: MMP against reservoir pressure', model.mmp.head, model.mmp.rows, { columnStyles: { 0: { cellWidth: 44 } }, note: model.mmp.note });
 
   report.heading('Each method, criterion by criterion', 30);
   report.layout.y += 5;
   for (const m of model.methods) {
     table(m.title, m.head, m.rows, {
-      columnStyles: { 0: { cellWidth: 22 }, 1: { cellWidth: 26 }, 2: { cellWidth: 17 }, 3: { cellWidth: 19 }, 4: { cellWidth: 15 }, 6: { cellWidth: 26 } },
+      columnStyles: { 0: { cellWidth: 18 }, 1: { cellWidth: 25 }, 2: { cellWidth: 13 }, 3: { cellWidth: 20 }, 4: { cellWidth: 15 }, 5: { cellWidth: 11 }, 6: { cellWidth: 22 }, 8: { cellWidth: 21 } },
       note: m.note,
       fontSize: 6.5,
     });
