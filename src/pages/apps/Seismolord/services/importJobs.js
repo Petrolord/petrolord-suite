@@ -18,9 +18,14 @@
 import { useSyncExternalStore } from 'react';
 import { buildManifestV4, volumeDir } from '../engine/manifest';
 import { createTwoStageUpload, UPLOAD_STATUS } from './uploadV4';
+import { v4SurveyMeta } from './v4SurveyMeta';
 import { applyCrsToScan } from './ingestCrs';
 import { scanForManifest } from '../lib/segyDoor';
 import { publishConversionProgress, clearConversionProgress } from '../sources/conversionProgress';
+
+// The row's survey_meta builder lives in its own module so the seismic
+// worker (worker/seismic-worker) can import it without React.
+export { v4SurveyMeta };
 
 export const V4_STATUS = Object.freeze({
   CONVERTING: 'converting',
@@ -54,41 +59,6 @@ export const JOB_PHASE = Object.freeze({
 
 const PENDING = new Set([JOB_PHASE.CONVERTING, JOB_PHASE.UPLOADING, JOB_PHASE.PAUSED, JOB_PHASE.OFFLINE]);
 export const isPendingJob = (job) => PENDING.has(job?.phase);
-
-/**
- * The survey_meta a v4 row carries once the display copy is up: the v1
- * fields (so every existing consumer reads it unchanged) plus the v4
- * copy sizes. storage_bytes is what is actually stored (compressed).
- */
-export function v4SurveyMeta(manifest, record, ingestRec) {
-  const g = manifest.geometry;
-  const displayBytes = record.bricks.display.storedBytes;
-  const f32Bytes = record.bricks.f32.storedBytes;
-  return {
-    il: g.il,
-    xl: g.xl,
-    ns: g.ns,
-    dt_us: g.dt_us,
-    corners: g.corners,
-    ...(g.affine ? { affine: g.affine } : {}),
-    ...(g.coord_scalar != null ? { coord_scalar: g.coord_scalar } : {}),
-    ...(g.crs ? { crs: g.crs } : {}),
-    sample_format: manifest.source.sample_format,
-    il_byte: manifest.source.il_byte,
-    xl_byte: manifest.source.xl_byte,
-    brick: manifest.brick.grid,
-    brick_size: manifest.brick.size,
-    stats: manifest.stats,
-    storage_bytes: displayBytes + f32Bytes,
-    v4: {
-      display_bytes: displayBytes,
-      f32_bytes: f32Bytes,
-      clip: manifest.display.clip,
-      levels: manifest.display.levels.length,
-    },
-    ingest: ingestRec,
-  };
-}
 
 /**
  * @param {Object} deps

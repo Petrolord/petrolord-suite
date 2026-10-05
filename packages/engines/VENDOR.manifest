@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit cb7b884076084c47f4c0df1195e2fc1c918a8de4
+# commit 51f2e9d0e91ea423f3848275fb285f9cf6d61253
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 80b08bf546799e96d5448d67c63c98f2ec1b9703 README.md
@@ -198,6 +198,7 @@ e80da8efdd7cd8a39a69cfc427173837c5ebfeda __tests__/seismolord.latticeexport.test
 a2b2db7aea12cc3c1b17551047687a2497ad7397 __tests__/seismolord.localsource.test.js
 b0bae05701a81bdc60ed1f72bb230c19b099b073 __tests__/seismolord.manifestgate.test.js
 636459112a6ddc831edc8c35f26b83215593641f __tests__/seismolord.pickexport.test.js
+d439c4815386e9d7cc43601f8a74f1dd3a80a046 __tests__/seismolord.previewreads.test.js
 57e279cc8db53c734fac234b3909b68b6a0230f3 __tests__/seismolord.segyformats.test.js
 bf7806d278a935fac4082f53a7fc2f2f5147e5fe __tests__/seismolord.stratal.test.js
 76069a1f31a767f3e9418accdfe5a6605e72974f __tests__/seismolord.structure.test.js
@@ -527,7 +528,7 @@ c352fe76d01254fe9ea24a068da707e1fdcbd92e engines/seismolord/manifest.js
 86ec91bef9453522dabde1db8e78076a1c8eb363 engines/seismolord/pickImport.js
 de3474443e760832527784db15aada29e62baeee engines/seismolord/reader.js
 8d241d76b57115e3b50bfd8297c5e3ffe0299cb2 engines/seismolord/segyDecode.js
-bc143f0d8bc52dfc593fab38f7c7ef6d80d81159 engines/seismolord/segyScan.js
+eeb7dd106e142166c4de428017a5e2a8fea28e5d engines/seismolord/segyScan.js
 ac0554cb6ad75998b8ca0045bf3b602b514cd4a8 engines/seismolord/segyTranscode.js
 39b0ebeea7d3f288c368aa273cbbfe096cb10f51 engines/seismolord/sliceAssembly.js
 05b9661fd623d38f677d9bfdb5d81f25e142b778 engines/seismolord/structureAttributes.js

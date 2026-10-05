@@ -8,7 +8,7 @@ import { SEISMOLORD_UNIT_APP, SEISMOLORD_UNITS, SEISMOLORD_LEGACY_UNIT_KEYS } fr
 import { appPath as appRoutePath } from '@/components/wells/appLinks';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Loader2, Route, Box, ScanLine, Save, Map as MapIcon, X, Bot, Waves, Spline, Wrench, Compass,
+  Loader2, Route, Box, ScanLine, Save, Map as MapIcon, X, Bot, Waves, Spline, Wrench, Compass, Server,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -142,6 +142,7 @@ import SeismicExplorer from './workspace/SeismicExplorer';
 import StatusBar from './workspace/StatusBar';
 import SliceLoadError from './workspace/SliceLoadError';
 import RightDock from './workspace/RightDock';
+import ServerJobsPanel from './workspace/ServerJobsPanel';
 import { horizonColorFor, faultColorFor, surfaceColor } from './workspace/interpretationColors';
 import useDisplaySettings from '../hooks/useDisplaySettings';
 import useFaultStickEditor from '../hooks/useFaultStickEditor';
@@ -533,6 +534,24 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
     // selectVolume intentionally omitted: the '' path only clears state
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [volumesRefresh]);
+
+  // Jobs dock (QI programme Q0): Open on a server import re-lists volumes and
+  // selects the volume once it appears in the list
+  const openAfterRefreshRef = useRef(null);
+  const [jobsRefresh, setJobsRefresh] = useState(0);
+  useEffect(() => {
+    const id = openAfterRefreshRef.current;
+    if (id && volumes.some((v) => v.id === id)) {
+      openAfterRefreshRef.current = null;
+      selectVolume(id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [volumes]);
+  const openServerVolume = useCallback((id) => {
+    openAfterRefreshRef.current = id;
+    setVolumesRefresh((k) => k + 1);
+  }, []);
+  const refreshVolumeList = useCallback(() => setVolumesRefresh((k) => k + 1), []);
 
   const geom = useMemo(() => (manifest ? geomFromManifest(manifest) : null), [manifest]);
   const velocityModel = useMemo(() => normalizeVelocity(manifest?.velocity), [manifest]);
@@ -3886,6 +3905,16 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
         >
           <Bot className="w-4 h-4" />
         </button>
+        <button
+          type="button"
+          title="Server jobs: imports and other work the Petrolord server does for you"
+          data-testid="sl-jobs-toggle"
+          onClick={() => openDockPanel('jobs')}
+          className={`p-1 rounded ${dockOpen && dockPanel === 'jobs'
+            ? 'text-pl-primary-text bg-pl-primary/10' : 'text-pl-muted hover:text-pl-text'}`}
+        >
+          <Server className="w-4 h-4" />
+        </button>
         <ThemeToggle className="h-7 w-7 ml-1" />
         </>
       )}
@@ -4201,13 +4230,13 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
         onDockOpenChange={setDockOpen}
         dock={(
           <RightDock
-            title={{ start: 'Start here', toolbox: 'Interpretation toolbox' }[dockPanel] || 'Interpretation copilot'}
-            icon={{ start: Compass, toolbox: Wrench }[dockPanel]}
+            title={{ start: 'Start here', toolbox: 'Interpretation toolbox', jobs: 'Server jobs' }[dockPanel] || 'Interpretation copilot'}
+            icon={{ start: Compass, toolbox: Wrench, jobs: Server }[dockPanel]}
             onClose={() => setDockOpen(false)}
           >
             <div className="h-full min-h-0 flex flex-col">
               <div className="shrink-0 flex border-b border-pl-border text-xs" role="tablist">
-                {[['start', 'Start here'], ['toolbox', 'Toolbox'], ['copilot', 'Copilot']].map(([k, label]) => (
+                {[['start', 'Start here'], ['toolbox', 'Toolbox'], ['copilot', 'Copilot'], ['jobs', 'Jobs']].map(([k, label]) => (
                   <button
                     key={k}
                     type="button"
@@ -4220,6 +4249,14 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
                     {label}
                   </button>
                 ))}
+              </div>
+              <div className={dockPanel === 'jobs' ? 'flex-1 min-h-0' : 'hidden'}>
+                <ServerJobsPanel
+                  visible={dockOpen && dockPanel === 'jobs'}
+                  refreshKey={jobsRefresh}
+                  onOpenVolume={openServerVolume}
+                  onVolumesChanged={refreshVolumeList}
+                />
               </div>
               <div className={dockPanel === 'start' ? 'flex-1 min-h-0' : 'hidden'}>
                 <StartHerePanel
@@ -4638,6 +4675,11 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
         open={openDialog === 'import'}
         onOpenChange={(o) => setOpenDialog(o ? 'import' : null)}
         onIngested={() => setVolumesRefresh((k) => k + 1)}
+        onServerImportStarted={() => {
+          setJobsRefresh((k) => k + 1);
+          setDockPanel('jobs');
+          setDockOpen(true);
+        }}
         onFilePicked={openLocalFile}
         onViewNow={() => setOpenDialog(null)}
       />
