@@ -8,7 +8,7 @@
 // the heading read 1,000 times low), the initial rate each case assumes was
 // computed and never shown (WS-U1-005), and the results stayed on screen
 // after an input changed until Calculate was pressed (WS-U1-006).
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, FileText, Target, AlertTriangle } from 'lucide-react';
 import {
@@ -76,10 +76,11 @@ const Section = ({ title, children, testId, actions = null }) => (
 );
 
 const ResultsPanel = ({ downloadCSV, downloadJSON }) => {
-  const { inputs, results, errors, u, projectName, organizationName } = useWellSpacing();
+  const { inputs, results, errors, u, projectName, organizationName, mc, mcStale, runMonteCarlo } = useWellSpacing();
+  const [mcBusy, setMcBusy] = useState(false);
   const model = useMemo(
-    () => (results ? buildWellSpacingReportModel(inputs, { results, projectName, organizationName, system: u.system }) : null),
-    [inputs, results, projectName, organizationName, u.system],
+    () => (results ? buildWellSpacingReportModel(inputs, { results, projectName, organizationName, system: u.system, mc }) : null),
+    [inputs, results, projectName, organizationName, u.system, mc],
   );
 
   if (!results) {
@@ -102,6 +103,8 @@ const ResultsPanel = ({ downloadCSV, downloadJSON }) => {
     spacing: u.show('spacing', r.spacing),
     wells: r.numberOfWells,
     npv: r.npv,
+    npvOther: r.rateLimit?.binding ? (inputs.form?.rateLimit !== 'off' ? r.rateLimit.npvUnlimited : r.rateLimit.npvLimited) : null,
+    produced_rate: u.show('rate', r.rateLimit?.limitedStartRateStbd),
     eur: u.show('eur', r.eurPerWell),
     produced: u.show('eur', r.producedPerWell),
     cost: Number.isFinite(r.costPerBarrel) ? r.costPerBarrel : null,
@@ -109,6 +112,8 @@ const ResultsPanel = ({ downloadCSV, downloadJSON }) => {
     deliverable: Number.isFinite(r.drainage.pssRateStbd) ? u.show('rate', r.drainage.pssRateStbd) : null,
   }));
   const hasDeliv = data.some((d) => d.deliverable != null);
+  const anyBinding = rows.some((r) => r.rateLimit?.binding);
+  const rlOn = inputs.form?.rateLimit !== 'off';
   const rateVals = data.flatMap((d) => [d.plan, d.deliverable]).filter((v) => v > 0);
   const rateLog = hasDeliv && Math.max(...rateVals) / Math.min(...rateVals) > 20;
   const spacingLabel = `Well spacing (${u.label('spacing')})`;
@@ -132,12 +137,13 @@ const ResultsPanel = ({ downloadCSV, downloadJSON }) => {
           <p className="text-pl-warning-text text-sm">
             This model gives every well the recovery factor you entered over the area it drains, and models no interference
             between wells. Under that assumption total field volume barely changes with spacing while capex falls as wells are
-            removed, so NPV rises with spacing and the highest NPV is simply the widest spacing that divides your area with least
-            waste. <span data-testid="ws-no-optimum">{NO_OPTIMUM_NOTE}</span> The JSON export and the report carry the same sentence and name no case.
+            removed, so without a rate limit NPV rises with spacing and the highest NPV is simply the widest spacing that divides
+            your area with least waste. <span data-testid="ws-no-optimum">{NO_OPTIMUM_NOTE}</span> The JSON export and the report carry the same sentence and name no case.
           </p>
           <p className="text-pl-warning-text text-sm">
-            Each case also assumes an initial rate that grows with the spacing (the last column). The drainage table below holds
-            it against what a well can deliver at that spacing; read the two together before choosing a case.
+            Each case also assumes an initial rate that grows with the spacing (the last column). With the rate limit on, a well
+            whose decline would start above what it can deliver produces at its deliverable rate first, so the same oil arrives
+            later and the NPV of the wide cases falls; the rate limit table prints both sides.
           </p>
           {boNote(results) && (
             <p className="text-pl-warning-text text-sm" data-testid="ws-bo-note" data-bo-source={results.boSource}>{boNote(results)}</p>
@@ -151,7 +157,7 @@ const ResultsPanel = ({ downloadCSV, downloadJSON }) => {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <ChartPanel title="NPV against well spacing" subtitle="US$ million, mid-year discounting, Suite screening economics engine.">
             <div className="relative h-64">
-              <SpacingChart data={data} xKey="spacing" xLabel={spacingLabel} unit="NPV (US$ MM)" fmt={(v) => Number(v).toFixed(0)} lines={[{ key: 'npv', name: 'NPV', color: '#16a34a' }]} />
+              <SpacingChart data={data} xKey="spacing" xLabel={spacingLabel} unit="NPV (US$ MM)" fmt={(v) => Number(v).toFixed(0)} lines={[{ key: 'npv', name: 'NPV', color: '#16a34a' }, ...(anyBinding ? [{ key: 'npvOther', name: rlOn ? 'NPV, unlimited decline' : 'NPV, rate-limited', color: '#dc2626', dash: '3 3' }] : [])]} />
               <ChartLogo style={LOGO_STYLE} />
             </div>
           </ChartPanel>
@@ -171,7 +177,7 @@ const ResultsPanel = ({ downloadCSV, downloadJSON }) => {
           <ChartPanel title="Plan initial rate and deliverable rate" subtitle={hasDeliv ? `Day-one rate of the decline against the pseudosteady rate a well can deliver${rateLog ? ' (log scale)' : ''}.` : 'Deliverable rate not computed: give the drainage inputs.'}>
             <div className="relative h-64">
               <SpacingChart data={data} xKey="spacing" xLabel={spacingLabel} unit={`Rate (${u.label('rate')})`} fmt={(v) => Number(Number(v).toPrecision(3))} log={rateLog}
-                lines={[{ key: 'plan', name: 'Plan initial rate', color: '#dc2626' }, ...(hasDeliv ? [{ key: 'deliverable', name: 'Deliverable', color: '#2563eb' }] : [])]} />
+                lines={[{ key: 'plan', name: 'Plan initial rate', color: '#dc2626' }, ...(hasDeliv ? [{ key: 'deliverable', name: 'Deliverable', color: '#2563eb' }] : []), ...(rlOn && anyBinding ? [{ key: 'produced_rate', name: 'Rate produced', color: '#16a34a', dash: '5 3' }] : [])]} />
               <ChartLogo style={LOGO_STYLE} />
             </div>
           </ChartPanel>
@@ -184,8 +190,44 @@ const ResultsPanel = ({ downloadCSV, downloadJSON }) => {
       <Section title="Incremental economics: the added wells" testId="ws-incremental">
         <Table head={model.incremental.head} rows={model.incremental.rows} testId="ws-incremental-table" note={model.incremental.note} />
       </Section>
+      {model.calibration.on && (
+        <Section title="Recovery against spacing (your calibration)" testId="ws-calibration">
+          <Table head={model.calibration.pointsHead} rows={model.calibration.pointsRows} testId="ws-calibration-points" note={model.calibration.note} />
+          <Table head={model.calibration.casesHead} rows={model.calibration.casesRows} testId="ws-calibration-cases" />
+        </Section>
+      )}
+      <Section title="Sensitivity: NPV with one input moved" testId="ws-sensitivity">
+        <Table head={model.sensitivity.head} rows={model.sensitivity.rows} testId="ws-sensitivity-table" note={model.sensitivity.note} />
+      </Section>
+      <Section
+        title="Uncertainty: NPV of each case" testId="ws-uncertainty"
+        actions={(
+          <Button size="sm" variant="outline" disabled={mcBusy || !model.uncertainty.given} data-testid="ws-mc-run"
+            onClick={() => { setMcBusy(true); setTimeout(() => { try { runMonteCarlo(); } finally { setMcBusy(false); } }, 0); }}>
+            {mcBusy ? 'Running' : 'Run'}
+          </Button>
+        )}
+      >
+        {mcStale && !mc && <p className="text-xs text-pl-warning-text" data-testid="ws-mc-stale">The inputs changed since the last run; run it again to see the uncertainty of the cases on screen.</p>}
+        {model.uncertainty.ok
+          ? <Table head={model.uncertainty.head} rows={model.uncertainty.rows} testId="ws-mc-table" note={model.uncertainty.note} />
+          : <p className="text-xs text-pl-muted" data-testid="ws-mc-none">{model.uncertainty.note}</p>}
+      </Section>
+      <Section title="Rate limit: before and after" testId="ws-rate-limit">
+        <p className="text-xs text-pl-text" data-testid="ws-rate-limit-state">
+          The rate limit is <strong>{rlOn ? 'on' : 'off'}</strong>.{' '}
+          {anyBinding ? `It binds at ${rows.filter((r) => r.rateLimit.binding).length} of ${rows.length} spacings.` : 'It binds at no spacing of this study.'}{' '}
+          Switch it under Deliverability and drainage to compare.
+        </p>
+        <Table head={model.rateLimit.head} rows={model.rateLimit.rows} testId="ws-rate-limit-table" note={model.rateLimit.note} />
+      </Section>
       <Section title="Drainage geometry, timing and deliverability" testId="ws-drainage">
         <Table head={model.drainage.head} rows={model.drainage.rows} testId="ws-drainage-table" note={model.drainage.note} />
+      </Section>
+      <Section title="Measurable interference at the neighbour" testId="ws-interference">
+        {model.interference.rows.length > 0
+          ? <Table head={model.interference.head} rows={model.interference.rows} testId="ws-interference-table" note={model.interference.note} />
+          : <p className="text-xs text-pl-muted" data-testid="ws-interference-none">{model.interference.note}</p>}
       </Section>
       <Section title="Cross-checks" testId="ws-cross">
         <Table head={model.cross.head} rows={model.cross.rows} testId="ws-cross-table" note={model.cross.note} />

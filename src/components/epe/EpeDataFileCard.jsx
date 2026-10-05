@@ -11,6 +11,9 @@ import { compareWfWithSource } from '@/utils/waterflooddesign/wfForecastContract
 import { simProvenanceOf, simProvenanceText } from '@/pages/apps/epe/epeSimIntake';
 import { getSimForecast } from '@/utils/simstudio/simForecastService';
 import { compareSimWithSource } from '@/utils/simstudio/simForecastContract';
+import { wsProvenanceOf, wsProvenanceText } from '@/pages/apps/epe/epeWsIntake';
+import { getWsCase } from '@/utils/wellspacing/wsCaseService';
+import { compareWsWithSource } from '@/utils/wellspacing/wsCaseContract';
 import { motion } from 'framer-motion';
 import {
   FileSpreadsheet, Loader2, Trash2, Play, CheckCircle2, AlertCircle, ChevronDown, ChevronUp
@@ -141,6 +144,17 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
       .catch((e) => { if (alive) setSimState({ state: 'unreadable', text: `The source could not be read: ${e.message}` }); });
     return () => { alive = false; };
   }, [simP?.fingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
+  // WS-U2-004: a file received from Well Spacing Optimizer
+  const wsP = status === 'PROCESSED' ? wsProvenanceOf(file) : null;
+  const [wsState, setWsState] = useState(null);
+  useEffect(() => {
+    if (!wsP) return undefined;
+    let alive = true;
+    getWsCase(supabase, { projectId: wsP.projectId })
+      .then((now) => { if (alive) setWsState(compareWsWithSource(wsP, now)); })
+      .catch((e) => { if (alive) setWsState({ state: 'unreadable', text: `The source could not be read: ${e.message}` }); });
+    return () => { alive = false; };
+  }, [wsP?.fingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
   const previewCols = previewRows.length > 0 ? Object.keys(previewRows[0]).slice(0, 6) : [];
 
   return (
@@ -231,6 +245,17 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
           {wfState && (
             <p className={wfState.state === 'unchanged' ? '' : 'text-pl-warning-text'} data-testid="epe-wf-source-state">
               {wfState.text}{wfState.state === 'changed' ? ' Import it again from Waterflood Design Studio to take the new forecast.' : ''}
+            </p>
+          )}
+        </div>
+      )}
+
+      {wsP && (
+        <div className="mt-2 rounded border border-pl-border bg-pl-sunken p-2 text-[11px] text-pl-muted space-y-1" data-testid="epe-ws-provenance">
+          <p>{wsProvenanceText(wsP)}</p>
+          {wsState && (
+            <p className={wsState.state === 'unchanged' ? '' : 'text-pl-warning-text'} data-testid="epe-ws-source-state">
+              {wsState.text}{wsState.state === 'changed' ? ' Import it again from Well Spacing Optimizer to take the new case.' : ''}
             </p>
           )}
         </div>

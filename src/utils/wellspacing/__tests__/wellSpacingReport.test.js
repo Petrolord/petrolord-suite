@@ -104,6 +104,8 @@ describe('the PDF read back', () => {
     expect(t).toMatch(/Inside the spacing range studied|Outside the spacing range studied/);
     expect(listCaptions(pdf).map((c) => c.title)).toEqual([
       'EUR and oil produced per well against spacing', 'Field NPV against the number of wells', 'Plan initial rate and deliverable rate against spacing', 'Wells taken from the registry',
+      // WS-U2-007: the tornado of one case, last so the Step 1 figure numbers hold
+      'Sensitivity of the NPV at 90 acres/well',
     ]);
     for (const f of built.figures.filter((x) => x.plotted)) expectFigureDrawn(pdf, f, { logo: true });
     const counts = pointCounts(built.figures);

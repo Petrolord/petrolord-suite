@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  GitBranch, Plus, Copy, Trash2, Save, FolderOpen, Download, Info, HelpCircle, TrendingDown, RefreshCw, FileDown, Droplets, Cuboid,
+  GitBranch, Plus, Copy, Trash2, Save, FolderOpen, Download, Info, HelpCircle, TrendingDown, RefreshCw, FileDown, Droplets, Cuboid, Target,
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -23,13 +23,15 @@ import {
 } from '@/utils/chartTheme';
 import { compareCases, sampleScenarioCases, EUR_MAX_YEARS, DAYS_PER_YEAR, caseDailyDecline } from '@/utils/forecastScenarioCalculations';
 import { buildHubCsv, HUB_DEFAULT_START } from '@/utils/forecastScenarioExport';
-import { caseFromDcaContract, caseFromWfContract, caseFromSimContract, caseSourceText, caseValuesFromContract } from '@/utils/forecastScenarioIntake';
+import { caseFromDcaContract, caseFromWfContract, caseFromSimContract, caseFromWsContract, caseSourceText, caseValuesFromContract } from '@/utils/forecastScenarioIntake';
 import { listDcaForecasts, getDcaForecast } from '@/utils/declineCurve/dcaForecastService';
 import { compareWithSource } from '@/utils/declineCurve/dcaForecastContract';
 import { listWfForecasts, getWfForecast } from '@/utils/waterflooddesign/wfForecastService';
 import { compareWfWithSource, WF_FORECAST_SCHEMA, wfEndWords } from '@/utils/waterflooddesign/wfForecastContract';
 import { listSimForecasts, getSimForecast } from '@/utils/simstudio/simForecastService';
 import { compareSimWithSource, SIM_FORECAST_SCHEMA, SIM_PHASES } from '@/utils/simstudio/simForecastContract';
+import { listWsCases, getWsCase } from '@/utils/wellspacing/wsCaseService';
+import { compareWsWithSource, WS_CASE_SCHEMA } from '@/utils/wellspacing/wsCaseContract';
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjects';
 import { supabaseSharingStore } from '@/lib/recordSharing';
@@ -188,6 +190,10 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
   // SIM-U2-002: completed runs from Reservoir Simulation Studio
   const [simOpen, setSimOpen] = useState(false);
   const [simList, setSimList] = useState(null);
+  // WS-U2-004: spacing cases from Well Spacing Optimizer
+  const [wsOpen, setWsOpen] = useState(false);
+  const [wsList, setWsList] = useState(null);
+  const [wsNote, setWsNote] = useState(null);
   const [saveName, setSaveName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [sourceStates, setSourceStates] = useState({});
@@ -247,6 +253,10 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
       try {
         if (k.schema === WF_FORECAST_SCHEMA) {
           out[c.id] = compareWfWithSource(k, await getWfForecast(supabase, { projectId: k.projectId }));
+          continue;
+        }
+        if (k.schema === WS_CASE_SCHEMA) {
+          out[c.id] = compareWsWithSource(k, await getWsCase(supabase, { projectId: k.projectId }));
           continue;
         }
         if (k.schema === SIM_FORECAST_SCHEMA) {
@@ -326,6 +336,49 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
     } catch (e) {
       setSimList([]);
       toast({ title: 'Could not list runs', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const takeWsContract = useCallback((contract) => {
+    const made = caseFromWsContract(contract, { id: `ws-${uuidv4().slice(0, 8)}`, build: buildLabel() });
+    if (!made.ok) {
+      toast({ title: 'Not added', description: made.reason, variant: 'destructive' });
+      return false;
+    }
+    setCases((cs) => [...cs, made.case]);
+    toast({ title: 'Case added from Well Spacing Optimizer', description: made.case.name });
+    return true;
+  }, [toast]);
+
+  // a deep link from Well Spacing Optimizer: ?wsProject=
+  useEffect(() => {
+    const projectId = params.get('wsProject');
+    if (!projectId) return;
+    (async () => {
+      try {
+        const got = await getWsCase(supabase, { projectId }, { build: buildLabel() });
+        if (!got) toast({ title: 'Not added', description: 'The Well Spacing Optimizer project could not be read.', variant: 'destructive' });
+        else if (!got.ok) toast({ title: 'Not added', description: got.reason, variant: 'destructive' });
+        else takeWsContract(got.contract);
+      } catch (e) {
+        toast({ title: 'Not added', description: e.message, variant: 'destructive' });
+      } finally {
+        const next = new URLSearchParams(params);
+        next.delete('wsProject');
+        setParams(next, { replace: true });
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openWs = async () => {
+    setWsOpen(true);
+    setWsList(null);
+    setWsNote(null);
+    try {
+      setWsList(await listWsCases(supabase, { build: buildLabel() }));
+    } catch (e) {
+      setWsList([]);
+      setWsNote(e.message);
     }
   };
 
@@ -544,6 +597,9 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
               </Button>
               <Button size="sm" variant="outline" className="h-8" onClick={openSim} disabled={!canWrite} data-testid="fsh-from-sim">
                 <Cuboid size={14} className="mr-1" /> From Reservoir Simulation Studio
+              </Button>
+              <Button size="sm" variant="outline" className="h-8" onClick={openWs} disabled={!canWrite} data-testid="fsh-from-ws">
+                <Target size={14} className="mr-1" /> From Well Spacing Optimizer
               </Button>
               <Button size="sm" variant="outline" className="h-8" onClick={() => setLoadOpen(true)}>
                 <FolderOpen size={14} className="mr-1" /> Load
@@ -767,6 +823,30 @@ function ForecastScenarioHubContent({ sharingStore = SHARING_STORE }) {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setWfOpen(false)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={wsOpen} onOpenChange={setWsOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Spacing cases in Well Spacing Optimizer</DialogTitle></DialogHeader>
+            <p className="text-xs text-pl-muted">A case is the field oil profile of the spacing case chosen in a saved project, every well on its drilling schedule, from its first production date. It ends where that case ends. The case keeps where it came from.</p>
+            <div className="space-y-2 max-h-80 overflow-y-auto py-2" data-testid="fsh-ws-list">
+              {wsList === null ? <p className="text-sm text-pl-muted">Reading your projects...</p>
+                : wsList.length === 0 ? <p className="text-sm text-pl-muted italic" data-testid="fsh-ws-empty">{wsNote || 'No Well Spacing Optimizer projects found. Choose a case and its first production date under "Send a case" there, and save the project.'}</p>
+                  : wsList.map((f) => (
+                    <div key={f.projectId} className="flex items-center gap-2 p-2 rounded border border-pl-border bg-pl-sunken text-xs">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-pl-text truncate">{f.projectName}</div>
+                        <div className="text-[10px] text-pl-muted truncate">{f.ok ? `${Number(f.contract.source.spacingAcres)} acres, ${f.contract.source.wells} wells; Np ${Math.round(f.contract.forecast.Np).toLocaleString()} STB from ${f.contract.forecast.start} to ${f.contract.forecast.end}` : f.reason}</div>
+                      </div>
+                      <Button size="sm" variant="outline" className="h-7 text-[11px]" disabled={!f.ok} data-testid="fsh-ws-use"
+                        onClick={() => { if (takeWsContract(f.contract)) setWsOpen(false); }}>Use</Button>
+                    </div>
+                  ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setWsOpen(false)}>Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

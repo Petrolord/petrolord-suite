@@ -1,11 +1,11 @@
 {
-  "pages": 7,
-  "sha256": "f7172c878c3d559764d4d40e30541568f9cd33faa8aefb14e1b53f80c22f0bab",
+  "pages": 11,
+  "sha256": "f6b66fc19188d41b138088bd150fca73c0ba8d57f6fea5820cd04f125c63c8a0",
   "figures": [
     {
       "id": "eur",
       "number": 1,
-      "page": 6,
+      "page": 10,
       "plotted": true,
       "panels": [
         {
@@ -28,7 +28,7 @@
     {
       "id": "npv",
       "number": 2,
-      "page": 6,
+      "page": 10,
       "plotted": true,
       "panels": [
         {
@@ -40,9 +40,10 @@
           },
           "drawn": {
             "NPV": 15,
+            "NPV, unlimited decline": 15,
             "Capex": 15
           },
-          "total": 30,
+          "total": 45,
           "bands": 0,
           "logo": true
         }
@@ -51,7 +52,7 @@
     {
       "id": "deliverability",
       "number": 3,
-      "page": 7,
+      "page": 11,
       "plotted": true,
       "panels": [
         {
@@ -63,9 +64,10 @@
           },
           "drawn": {
             "Plan initial rate": 15,
-            "Deliverable (pseudosteady)": 15
+            "Deliverable (pseudosteady)": 15,
+            "Rate produced (rate limit on)": 15
           },
-          "total": 30,
+          "total": 45,
           "bands": 0,
           "logo": true
         }
@@ -74,9 +76,32 @@
     {
       "id": "map",
       "number": 4,
-      "page": 7,
+      "page": 11,
       "plotted": false,
       "panels": []
+    },
+    {
+      "id": "tornado",
+      "number": 5,
+      "page": 11,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 130.94,
+            "w": 182,
+            "h": 60
+          },
+          "drawn": {
+            "Input 30 percent down": 4,
+            "Input 30 percent up": 4
+          },
+          "total": 8,
+          "bands": 0,
+          "logo": true
+        }
+      ]
     }
   ]
 }

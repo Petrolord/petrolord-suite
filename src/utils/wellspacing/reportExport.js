@@ -27,11 +27,23 @@ export function buildWellSpacingPdf({ model }, { logo = null, generatedAt = new 
     table('Spacing cases', model.cases.head, model.cases.rows, { note: model.cases.note, fontSize: SMALL });
     table('Economics of each case, by part', model.economics.head, model.economics.rows, { note: model.economics.note, fontSize: SMALL });
     table('Incremental economics: the added wells', model.incremental.head, model.incremental.rows, { note: model.incremental.note, fontSize: SMALL });
+    table('Rate limit: before and after', model.rateLimit.head, model.rateLimit.rows, { note: model.rateLimit.note, fontSize: SMALL });
+    if (model.calibration.on && model.calibration.pointsRows.length) {
+      table('Recovery against spacing: the points', model.calibration.pointsHead, model.calibration.pointsRows, { note: model.calibration.note, fontSize: SMALL });
+      table('Recovery against spacing: each case', model.calibration.casesHead, model.calibration.casesRows, { fontSize: SMALL });
+    } else if (model.calibration.on) section('Recovery against spacing', model.calibration.note);
+    table('Sensitivity: NPV of each case with one input moved', model.sensitivity.head, model.sensitivity.rows, { note: model.sensitivity.note, fontSize: 5.5 });
+    if (model.uncertainty.ok) table('Uncertainty: NPV of each case (Monte Carlo)', model.uncertainty.head, model.uncertainty.rows, { note: model.uncertainty.note, fontSize: SMALL });
+    else section('Uncertainty: NPV of each case (Monte Carlo)', model.uncertainty.note);
   } else {
     section('Spacing cases', 'No case has been computed: the inputs are incomplete. The inputs table below says which are missing.');
   }
   report.inputsTable(model.inputs.rows, { title: 'Inputs and their sources', note: model.inputs.note });
   if (model.hasResults) table('Drainage geometry, timing and deliverability', model.drainage.head, model.drainage.rows, { note: model.drainage.note, fontSize: SMALL });
+  if (model.hasResults) {
+    if (model.interference.rows.length) table('Measurable interference at the neighbour', model.interference.head, model.interference.rows, { note: model.interference.note, fontSize: SMALL });
+    else section('Measurable interference at the neighbour', model.interference.note);
+  }
   table('Cross-checks', model.cross.head, model.cross.rows, { note: model.cross.note, columnStyles: { 0: { cellWidth: 46 }, 1: { cellWidth: 30 } } });
   table('Methods and references', model.methods.head, model.methods.rows, { columnStyles: { 0: { cellWidth: 36 } }, fontSize: 7 });
 

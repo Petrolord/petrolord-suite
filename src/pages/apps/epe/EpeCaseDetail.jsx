@@ -4,6 +4,7 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
 import EpeDcaImport from '@/pages/apps/epe/EpeDcaImport';
 import EpeWfImport from '@/pages/apps/epe/EpeWfImport';
 import EpeSimImport from '@/pages/apps/epe/EpeSimImport';
+import EpeWsImport from '@/pages/apps/epe/EpeWsImport';
     import { Helmet } from 'react-helmet';
     import { useParams, Link, useNavigate } from 'react-router-dom';
     import { useToast } from '@/components/ui/use-toast';
@@ -438,6 +439,7 @@ import EpeSimImport from '@/pages/apps/epe/EpeSimImport';
                           <EpeDcaImport caseId={caseId} userId={user?.id} productionVolumes={productionVolumes} onDone={fetchData} toast={toast} />
                           <EpeWfImport caseId={caseId} userId={user?.id} productionVolumes={productionVolumes} onDone={fetchData} toast={toast} />
                           <EpeSimImport caseId={caseId} userId={user?.id} productionVolumes={productionVolumes} onDone={fetchData} toast={toast} />
+                          <EpeWsImport caseId={caseId} userId={user?.id} productionVolumes={productionVolumes} onDone={fetchData} toast={toast} />
                         </>
                       )}
                     </CardContent>

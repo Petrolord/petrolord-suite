@@ -206,16 +206,20 @@ const WellSpacingHelpGuideContent = () => (
         Associated gas comes from the solution GOR applied to the oil rate. NPV is computed by the
         Suite screening economics engine, the same one NPV Scenario Builder uses, with mid-year
         discounting: each year&apos;s cash flow is discounted to the middle of its year, and the well
-        cost is spent in the first year and discounted with it. Royalties and taxes enter as one
-        percentage of gross revenue. Until October 2026 this app ran its own loop with year-end
+        cost is spent in the year its well comes on stream and discounted with it. The royalty is one
+        percentage of gross revenue. Under Fiscal terms you can add an income tax (with straight-line
+        depreciation of the capex and, if you choose, losses carried forward) or a production sharing
+        contract (a cost recovery cap and the contractor&apos;s share of profit oil): these are the
+        economics engine&apos;s own terms, wired here, and the economics table then splits out the
+        income tax and the government&apos;s profit oil. Until October 2026 this app ran its own loop with year-end
         discounting and the well cost undiscounted, so an NPV from an older export is lower than the
         one shown now for the same inputs (by about 6 to 17 percent on the example field).
       </Para>
       <Callout tone="warn" title="What the cash flow leaves out">
-        There is no facilities or infrastructure capital, no abandonment cost, no drilling schedule
-        (every well is treated as producing from year one), no price escalation or inflation, and no
-        tax loss carried forward. A real development drills over several years, and that alone will
-        move NPV more than most of the spacing differences you see here.
+        There is no facilities or infrastructure capital, no abandonment cost, no price escalation or
+        inflation, no signature bonus and no ring fence. Every well is on stream in year one unless
+        you set a drilling schedule; a real development drills over several years, and that alone
+        can move NPV more than many of the spacing differences you see here.
       </Callout>
     </GuideSection>
 
@@ -262,8 +266,8 @@ const WellSpacingHelpGuideContent = () => (
       <SectionHeading icon={Gauge}>Drainage, timing and deliverability</SectionHeading>
       <Para>
         Beside each case the app prints what the spacing means for a well, in field units with t in
-        hours inside the formulas. None of it changes an EUR or an NPV; it tells you whether the
-        assumptions behind them hold.
+        hours inside the formulas. The timing never changes an EUR or an NPV. The deliverable rate
+        does when the rate limit is on (below).
       </Para>
       <Formula>distance between wells = sqrt(A) on a square grid, sqrt(2 A / sqrt 3) on a staggered grid</Formula>
       <Formula>drainage radius re = sqrt(43,560 A / pi)   (40 acres: 745 ft)</Formula>
@@ -274,8 +278,75 @@ const WellSpacingHelpGuideContent = () => (
         Interference begins when each well&apos;s radius of investigation reaches half the distance
         to its neighbour. The deliverable rate is what a well on that drainage area gives at
         pseudosteady state; CA is 30.88 for a square and 31.6 for a hexagon (Earlougher). When the
-        plan initial rate is above the deliverable rate, the decline the economics assume starts at
-        a rate the well cannot give: that case&apos;s NPV is too high, and the report flags it.
+        plan initial rate is above the deliverable rate, the unlimited decline starts at a rate the
+        well cannot give, and the report flags it.
+      </Para>
+      <SubHeading>Recovery against spacing (your calibration)</SubHeading>
+      <Para>
+        By default every case takes the stated recovery factor. Choose Calibrated on your points under
+        Reservoir to let recovery respond to spacing: add points of a recovery factor you know at a
+        spacing, each with its source (an analog field, a decline type well at its spacing, a
+        simulation run). The app fits RF = a + b ln(S) by least squares and gives each case the fit
+        at its spacing; there is no built-in curve, and a point with no source is not used. The
+        points, the fit and each case&apos;s RF are printed, and a case outside the points is
+        flagged as extrapolated. The Monte Carlo range on the RF does not apply in this mode.
+      </Para>
+      <SubHeading>Sensitivity</SubHeading>
+      <Para>
+        The sensitivity table moves oil price, capex, opex and the oil volume 30 percent down and up,
+        one at a time, for every case. It is the Suite screening engine&apos;s own sweep run on the
+        same yearly arrays as the case table, so its base is the case NPV. The oil volume moves the
+        oil only (the solution gas is held). The report draws the tornado of the case chosen to
+        send, or of the middle case of the range when none is chosen.
+      </Para>
+      <SubHeading>Uncertainty (Monte Carlo)</SubHeading>
+      <Para>
+        Give a low and a high around the recovery factor, the reservoir area or the oil price
+        (triangular, the value on the form the most likely) and press Run on the uncertainty table.
+        The draws come from the Suite&apos;s canonical Monte Carlo sampler, seeded, and every
+        realisation runs each case through the same economics engine as the case table, with the
+        same draws for every spacing. The seed and the number of realisations are saved with the
+        project and printed; the same seed and count give the same numbers. P90 is the low case: a
+        90 percent probability that the NPV meets or exceeds it. The PDF export runs it when it is
+        asked for, and a run made before an edit is never shown as current.
+      </Para>
+      <SubHeading>Measurable interference</SubHeading>
+      <Para>
+        Give an interference test time and a gauge resolution to see, for every case, the pressure
+        drop at the neighbouring well when one well produces at its starting rate for that time and
+        the neighbour is shut in as the observer. The drop is the line source of Ahmed and McKinney
+        Eq. 1.2.134 at the distance between wells, the same function the Step 1 gates hold to their
+        Example 1.21 and to the tabulated E1. A drop below the gauge resolution means a test of that
+        length would not see the neighbour. On the example field, 7 days and a 0.01 psi gauge see
+        the neighbour up to 50 acres a well and not from 60 acres.
+      </Para>
+      <SubHeading>Drilling schedule</SubHeading>
+      <Para>
+        All wells come on stream in year 1 unless you choose a schedule under Drilling schedule: so
+        many wells a year, or rigs times the wells a rig drills in a year. Each year&apos;s wells
+        carry their cost in that year and produce the same per-well profile from the start of it,
+        cut at the end of the project duration. A tight spacing on a slow schedule brings wells on
+        stream late, so its NPV falls; wells that would start after the project duration ends are
+        flagged. On the example field, 2 rigs at 15 wells a rig a year drill the 40-acre case over 5
+        years and its NPV falls from US$ 1,885.8 MM to US$ 1,627.7 MM.
+      </Para>
+      <SubHeading>The rate limit (on by default)</SubHeading>
+      <Para>
+        With the rate limit on, a well whose decline would start above its deliverable rate
+        produces at the deliverable rate first (a plateau), then declines at the stated decline from
+        it. The plateau lasts exactly long enough for the volume to the economic limit to stay the
+        EUR, so the oil is the same and it arrives later; the NPV of the wide spacings falls, and the
+        project duration can cut what is produced.
+      </Para>
+      <Formula>plateau tp = (qi - qd) / (Dn qd), then q = qd exp(-Dn (t - tp)) to the economic limit</Formula>
+      <Para>
+        Switch it off under Deliverability and drainage to see the unlimited decline of earlier
+        releases. Either way the Rate limit table prints both NPVs for every spacing (each a run of
+        the Suite screening economics engine) and the change between them. On the example field
+        (5 md) the limit binds from 50 acres a well, and the NPV at 100 acres falls from US$ 2,316.6
+        MM to US$ 1,892.6 MM. The deliverable rate is held at the stated average pressure for the
+        whole plateau, so a long plateau is optimistic. A deliverable rate at or below the economic
+        limit rate means the well never produces at an economic rate.
       </Para>
       <Callout tone="info" title="Checked against published worked examples">
         The deliverable rate reproduces Ahmed and McKinney (2005) Example 1.18, 416 STB/d; the
@@ -297,6 +368,7 @@ const WellSpacingHelpGuideContent = () => (
           ['Fluid Systems Studio (pvt-1)', 'Bo and oil viscosity read from the project table at your average pressure, the solution GOR, the gravities and the temperature'],
           ['Well Test Analysis Studio (wta-1)', 'Permeability, total skin and the average pressure'],
           ['Material Balance Studio (mbal-1)', 'OOIP, held against the volumetric OOIP of your case'],
+          ['Recovery Factor Estimator (rf-1)', 'The oil recovery factor with its method and source; the reservoir estimate is given to each well over its drained area'],
           ['Decline Curve Analysis (dca-forecast-1)', 'One well\'s oil EUR, turned into the drainage area it implies at your rock and RF'],
           ['Wells registry', 'Well names and surface locations: the map in the report and the spacing the wells already have'],
         ]}
@@ -305,6 +377,16 @@ const WellSpacingHelpGuideContent = () => (
       <Para>
         Each card says As received, Edited after intake when you change a value it gave, or Source
         changed since when the record has been saved again with different content.
+      </Para>
+      <SubHeading>Sending a case (ws-case-1)</SubHeading>
+      <Para>
+        Under Send a case, choose one spacing case and its first production date, with a project
+        open. Forecast Scenario Hub takes the field oil profile of that case (every well, on its
+        drilling schedule, with the rate limit as the case ran it) as a profile case from that date.
+        Petroleum Economics Studio takes its oil and solution gas by calendar year as a production
+        file; enter the drilling capex of the case there, from the schedule printed on the file
+        card. Both read the saved project by id, keep where the numbers came from, and say when the
+        case changes here later. Until saving is switched on for this app, nothing can be sent.
       </Para>
     </GuideSection>
 

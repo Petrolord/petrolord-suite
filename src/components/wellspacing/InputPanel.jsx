@@ -13,18 +13,21 @@ import { Label } from '@/components/ui/label';
 import InputSourceControl from '@/lib/inputProvenance/InputSourceControl';
 import { formatCoordinates } from '@/utils/coordinateUtils';
 import InteractiveMap from '@/components/wellspacing/InteractiveMap';
-import { FIELDS, LAYOUT_OPTIONS } from '@/utils/wellspacing/model';
+import { FIELDS } from '@/utils/wellspacing/model';
 import { inputSource } from '@/utils/wellspacing/reportModel';
 import { useWellSpacing } from '@/contexts/WellSpacingContext';
 import WsField from './WsField';
+import RfPointsEditor from './RfPointsEditor';
 
 const GROUPS = [
   ['reservoir', 'Reservoir', 'Read by the case: EUR, NPV and every number of the table.'],
   ['fluid', 'Fluid', 'Bo divides the oil in place; the GOR also sells the gas. A Bo you give replaces Standing\'s correlation.'],
   ['well', 'Well', 'Decline is effective annual: 15 means the rate falls 15% in a year.'],
-  ['economics', 'Economics', 'Money in US$. Royalty is one rate on gross revenue; no income tax.'],
+  ['schedule', 'Drilling schedule', 'All wells on stream in year 1 unless you choose a schedule. Each well\'s cost falls in the year it comes on stream, and it produces from the start of that year.'],
+  ['economics', 'Economics', 'Money in US$. Royalty is one rate on gross revenue. Income tax or a production sharing contract are the Suite economics engine\'s own terms; royalty only is the default.'],
   ['range', 'Spacing range', 'The layout sets the distance between wells for a spacing.'],
-  ['drainage', 'Drainage diagnostics', 'Optional. Timing and deliverability per case; they change no EUR and no NPV.'],
+  ['uncertainty', 'Uncertainty (Monte Carlo)', 'Optional. A low and a high around the value on the form, triangular; blank holds the input. Run it on the results. Seeded: the same seed and count give the same numbers.'],
+  ['drainage', 'Deliverability and drainage', 'With the rate limit on, each well produces no faster than the pseudosteady rate these give, which can move the NPV (the same oil, later). Blank, the decline is not limited and the table says why.'],
 ];
 
 const SourceLine = ({ k }) => {
@@ -91,17 +94,17 @@ const InputPanel = () => {
       {GROUPS.map(([g, title, note], gi) => (
         <Card key={g} title={title} note={note} delay={0.1 + gi * 0.03} testId={`ws-group-${g}`}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
-            {FIELDS.filter((d) => d.group === g).map((d) => (
-              <div key={d.key} className="space-y-0.5 min-w-0">
-                {d.select ? (
+            {FIELDS.filter((d) => d.group === g && (!d.showWhen || Object.entries(d.showWhen).every(([k, v]) => (form[k] || '') === v)) && (!d.showWhenAny || Object.entries(d.showWhenAny).every(([k, vs]) => vs.includes(form[k] || '')))).filter((d) => !d.custom || form.recoveryModel === 'calibrated').map((d) => (
+              <div key={d.key} className={`space-y-0.5 min-w-0 ${d.custom ? 'sm:col-span-2 lg:col-span-1 xl:col-span-2' : ''}`}>
+                {d.custom ? <RfPointsEditor /> : d.select ? (
                   <div className="space-y-1">
-                    <Label htmlFor="ws-wellLayout" className="text-xs text-pl-muted">{d.label}</Label>
+                    <Label htmlFor={`ws-${d.key}`} className="text-xs text-pl-muted">{d.label}</Label>
                     <select
-                      id="ws-wellLayout" data-testid="ws-wellLayout" value={form.wellLayout || 'square'} disabled={!canWrite}
-                      onChange={(e) => setFormField('wellLayout', e.target.value)}
+                      id={`ws-${d.key}`} data-testid={`ws-${d.key}`} value={form[d.key] || d.options[0][0]} disabled={!canWrite}
+                      onChange={(e) => setFormField(d.key, e.target.value)}
                       className="w-full h-8 px-2 border border-pl-border-strong bg-pl-surface rounded-md text-sm text-pl-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus"
                     >
-                      {LAYOUT_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                      {d.options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
                   </div>
                 ) : (
@@ -115,8 +118,9 @@ const InputPanel = () => {
       ))}
       <p className="text-[11px] text-pl-muted flex gap-1.5">
         <Info size={13} className="shrink-0 mt-0.5" />
-        The cases recompute as you type. Each well gets the recovery factor over its own spacing, with no interference:
-        read the drainage table before choosing a spacing.
+        The cases recompute as you type. Each well gets the recovery factor over its own spacing, with no interference
+        in its recovery; with the rate limit on, no well produces faster than it can deliver. Read the rate limit and
+        drainage tables before choosing a spacing.
       </p>
     </div>
   );

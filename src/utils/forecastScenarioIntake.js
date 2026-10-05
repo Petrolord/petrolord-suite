@@ -13,9 +13,10 @@ import { DAYS_PER_YEAR } from '@/utils/forecastScenarioCalculations';
 import { dcaSourceLine, dcaBasisLine } from '@/utils/declineCurve/dcaForecastContract';
 import { wfSourceLine, wfBasisLine, WF_FORECAST_SCHEMA } from '@/utils/waterflooddesign/wfForecastContract';
 import { simSourceLine, simBasisLine, SIM_FORECAST_SCHEMA } from '@/utils/simstudio/simForecastContract';
+import { wsSourceLine, wsBasisLine, WS_CASE_SCHEMA } from '@/utils/wellspacing/wsCaseContract';
 
-/** The schemas the hub takes as a profile case (no Arps parameters). */
-export const PROFILE_SCHEMAS = Object.freeze([WF_FORECAST_SCHEMA, SIM_FORECAST_SCHEMA]);
+/** The schemas the hub takes as a profile case (no Arps parameters). WS-U2-004 adds ws-case-1. */
+export const PROFILE_SCHEMAS = Object.freeze([WF_FORECAST_SCHEMA, SIM_FORECAST_SCHEMA, WS_CASE_SCHEMA]);
 const isProfileSchema = (k) => PROFILE_SCHEMAS.includes(k?.schema);
 
 const r6 = (v) => Number(Number(v).toPrecision(10));
@@ -107,10 +108,31 @@ export function caseFromSimContract(contract, { id = `sim-${Date.now()}`, receiv
   };
 }
 
+/**
+ * WS-U2-004: a hub case from a `ws-case-1` contract (the field oil profile
+ * of one spacing case, every well on its schedule, day for day from the
+ * first production date), or a refusal.
+ * @returns {{ok: true, case: object}|{ok: false, reason: string}}
+ */
+export function caseFromWsContract(contract, { id = `ws-${Date.now()}`, receivedAt = new Date().toISOString(), build = null } = {}) {
+  if (!contract || contract.schema !== WS_CASE_SCHEMA) return { ok: false, reason: 'Not a Well Spacing Optimizer case.' };
+  if (!(contract.forecast?.Np > 0)) return { ok: false, reason: 'The spacing case produces no oil.' };
+  return {
+    ok: true,
+    case: {
+      id,
+      name: `${contract.source?.field || contract.projectName || 'Spacing'} ${Number(contract.source?.spacingAcres)} acres (Well Spacing)`,
+      ...caseValuesFromContract(contract),
+      source: { contract, receivedAt, receivedBuild: build },
+    },
+  };
+}
+
 /** One line naming where a received case came from, whichever app sent it. */
 export function upstreamSourceLine(k) {
   if (k?.schema === WF_FORECAST_SCHEMA) return wfSourceLine(k);
   if (k?.schema === SIM_FORECAST_SCHEMA) return simSourceLine(k);
+  if (k?.schema === WS_CASE_SCHEMA) return wsSourceLine(k);
   return dcaSourceLine(k);
 }
 
@@ -142,6 +164,9 @@ export function caseSourceText(c) {
   if (!c?.source?.contract) return null;
   const k = c.source.contract;
   const edited = editedAfterHandoff(c);
+  if (k.schema === WS_CASE_SCHEMA) {
+    return `From ${wsSourceLine(k)}, received ${String(c.source.receivedAt || '').slice(0, 10)}. ${wsBasisLine(k)}.${edited.length ? ` Edited here after the handoff: ${edited.join(', ')}.` : ''}`;
+  }
   if (k.schema === SIM_FORECAST_SCHEMA) {
     return `From ${simSourceLine(k)}, received ${String(c.source.receivedAt || '').slice(0, 10)}. ${simBasisLine(k)}.${edited.length ? ` Edited here after the handoff: ${edited.join(', ')}.` : ''}`;
   }

@@ -10,6 +10,7 @@ import InMemorySupabase, { createStore } from './InMemorySupabase';
 import { loadDcaRows, DCA_TABLE } from './dcaProjectsStore';
 import { loadWfRows, WF_TABLE } from './wfProjectsStore';
 import { simStoreFromSnapshot } from './simProjectsStore';
+import { loadWsRows, WS_TABLE } from './wsProjectsStore';
 
 const HUB_TABLE = 'saved_scenario_hub_projects';
 const KEY = 'harness.saved_scenario_hub_projects.v1';
@@ -23,6 +24,8 @@ export default function ForecastScenarioHubHarness() {
   db[DCA_TABLE] = loadDcaRows();
   // WF-U2-001: the Waterflood projects saved on /dev/studio/waterflood in this tab
   db[WF_TABLE] = loadWfRows();
+  // WS-U2-004: the Well Spacing projects saved on /dev/studio/well-spacing in this tab
+  db[WS_TABLE] = loadWsRows();
   // SIM-U2-002: the simulation cases, runs and summaries of /dev/reservoir-simulation-studio in this tab
   {
     const sim = simStoreFromSnapshot();

@@ -175,3 +175,135 @@ test('PL3 units: SI shows converted values; a decimal typed in SI stays', async 
   await expect(h).toHaveValue('18.288');
   await expect(page.getByTestId('ws-case-table').locator('tr').nth(1)).toContainText('1,174.8');
 });
+
+// ---- WS-U2 (Step 2) ----
+
+test('WS-U2-001 rate limit: on by default with before and after; the switch off gives the unlimited decline back', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openApp(page);
+  await expect(page.getByTestId('ws-rate-limit-state')).toContainText('The rate limit is on. It binds at 12 of 15 spacings.');
+  const row100 = page.getByTestId('ws-rate-limit-table').getByRole('row', { name: /^100 653.4 / });
+  await expect(row100).toContainText('2,316.6');
+  await expect(row100).toContainText('1,892.6');
+  await expect(row100).toContainText('-424.0');
+  await expect(page.getByTestId('ws-case-table')).toContainText('1,892.6');
+  await page.getByTestId('ws-rateLimit').selectOption('off');
+  await expect(page.getByTestId('ws-rate-limit-state')).toContainText('The rate limit is off.');
+  await expect(page.getByTestId('ws-case-table')).toContainText('2,316.6');
+  await expect(page.getByTestId('ws-case-table')).not.toContainText('1,892.6');
+  await page.screenshot({ path: `${OUT}/u2-rate-limit.png`, fullPage: false });
+  expect(errors).toEqual([]);
+});
+
+test('WS-U2-004 ws-case-1: a spacing case opens in Forecast Scenario Hub as a profile case and in EPE as a file, each with its source', async ({ page }) => {
+  test.setTimeout(600000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const errors = watchErrors(page);
+  await openApp(page);
+  await expect(page.getByTestId('ws-send-refusal')).toContainText('Create or open a project first');
+  await page.getByRole('button', { name: 'Create new project' }).first().click();
+  await page.getByLabel('Project name').fill('Ekene spacing');
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await expect(page.getByTestId('ws-send-refusal')).toContainText('Choose the case to send', { timeout: 60000 });
+  await page.getByTestId('ws-send-spacing').selectOption('80');
+  await page.getByTestId('ws-send-start').fill('2027-01-01');
+  await expect(page.getByTestId('ws-send-basis')).toContainText('rate-limited at 297.7 STB/d a well for 4.69 years');
+  await page.getByTestId('ws-send-hub').click();
+  await expect(page).toHaveURL(/\/dev\/forecast-scenario-hub/, { timeout: 60000 });
+  await expect(page.getByText('Case comparison')).toBeVisible({ timeout: 240000 });
+  const source = page.locator('[data-testid$="-source"]').first();
+  await expect(source).toContainText('case 80 acres a well (62 wells, Example field) from 2027-01-01, project "Ekene spacing" (Well Spacing Optimizer)');
+  await expect(page.locator('[data-testid$="-source-state"]').first()).toContainText('Unchanged since it was received', { timeout: 60000 });
+  await page.screenshot({ path: `${OUT}/u2-004-hub.png` });
+  const id = await page.evaluate(() => JSON.parse(window.sessionStorage.getItem('harness.saved_well_spacing_projects.v1') || '[]')[0]?.id);
+  expect(id).toBeTruthy();
+  await page.goto(`/dev/epe/cases/c1?wsProject=${id}`, { timeout: 240000 });
+  await expect(page.getByTestId('epe-ws-list')).toContainText('Ekene spacing', { timeout: 120000 });
+  await page.getByTestId('epe-ws-import').click();
+  await expect(page.getByTestId('epe-ws-provenance')).toContainText('Wells on stream: 62 in year 1', { timeout: 60000 });
+  await expect(page.getByTestId('epe-ws-source-state')).toContainText('Unchanged since it was received', { timeout: 60000 });
+  await page.screenshot({ path: `${OUT}/u2-004-epe.png` });
+  expect(errors).toEqual([]);
+});
+
+test('WS-U2-003 drilling schedule: all wells in year 1 by default; rigs spread the wells and the NPV follows', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openApp(page);
+  await expect(page.getByTestId('ws-drillingSchedule')).toHaveValue('year1');
+  await expect(page.getByTestId('ws-case-table')).toContainText('1,885.8');
+  await page.getByTestId('ws-drillingSchedule').selectOption('rigs');
+  await expect(page.getByTestId('ws-errors')).toContainText('Rigs is required for this drilling schedule');
+  await page.getByTestId('ws-rigCount').fill('2');
+  await page.getByTestId('ws-wellsPerRigYear').fill('15');
+  const row40 = page.getByTestId('ws-case-table').getByRole('row', { name: /^40 125 / });
+  await expect(row40).toContainText('1,627.7');
+  await expect(row40.locator('td').last()).toHaveText('5');
+  await page.screenshot({ path: `${OUT}/u2-003-schedule.png` });
+  expect(errors).toEqual([]);
+});
+
+test('WS-U2-006 measurable interference: the drop at the neighbour per case against the gauge resolution', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openApp(page);
+  const t = page.getByTestId('ws-interference-table');
+  await expect(t.getByRole('row', { name: /^20 / })).toContainText('yes');
+  await expect(t.getByRole('row', { name: /^60 / })).toContainText('no, below the gauge resolution');
+  await page.getByTestId('ws-interferenceDays').fill('');
+  await expect(page.getByTestId('ws-interference-none')).toContainText('interference test time not given');
+  expect(errors).toEqual([]);
+});
+
+test('WS-U2-008 uncertainty: a seeded Monte Carlo per case, the seed and count printed, P90 the low case', async ({ page }) => {
+  test.setTimeout(300000);
+  const errors = watchErrors(page);
+  await openApp(page);
+  await expect(page.getByTestId('ws-mc-none')).toContainText('Not run yet');
+  await page.getByTestId('ws-mc-run').click();
+  await expect(page.getByTestId('ws-mc-table')).toBeVisible({ timeout: 240000 });
+  await expect(page.getByTestId('ws-uncertainty')).toContainText('300 realisations, seed 20260829');
+  await expect(page.getByTestId('ws-uncertainty')).toContainText('P90 is the low case');
+  await page.getByTestId('ws-oilPrice').fill('76');
+  await expect(page.getByTestId('ws-mc-stale')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('WS-U2-007 sensitivity: every case with one input 30 percent down and up, the canonical sweep', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openApp(page);
+  const t = page.getByTestId('ws-sensitivity-table');
+  await expect(t).toContainText('Oil price -30% (US$ MM)');
+  await expect(t.getByRole('row', { name: /^100 1,892.6 / })).toBeVisible();
+  await expect(page.getByTestId('ws-sensitivity')).toContainText('runSensitivityAnalysis');
+  expect(errors).toEqual([]);
+});
+
+test('WS-U2-002 recovery against spacing: calibrated on cited points only, the fit and the points printed', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openApp(page);
+  await page.getByTestId('ws-recoveryModel').selectOption('calibrated');
+  for (const [i, s, rf, src] of [[0, '20', '40', 'Sector model run 12'], [1, '80', '31', 'Type well EK-2 at 80 acres']]) {
+    await page.getByTestId('ws-rfp-add').click();
+    await page.getByTestId(`ws-rfp-spacing-${i}`).fill(s);
+    await page.getByTestId(`ws-rfp-rf-${i}`).fill(rf);
+    if (i === 1) await expect(page.getByTestId('ws-rf-fit')).toContainText('Point 2: give its source');
+    await page.getByTestId(`ws-rfp-source-${i}`).fill(src);
+  }
+  await page.getByTestId('ws-mcRfLow').fill('');
+  await page.getByTestId('ws-mcRfHigh').fill('');
+  await expect(page.getByTestId('ws-rf-fit')).toContainText('two points: the line through them');
+  await expect(page.getByTestId('ws-calibration-points')).toContainText('Type well EK-2 at 80 acres');
+  await expect(page.getByTestId('ws-calibration-cases').getByRole('row', { name: /^160 / })).toContainText('no, extrapolated');
+  expect(errors).toEqual([]);
+});
+
+test('WS-U2-010 fiscal terms: royalty only by default; income tax splits out in the economics table', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openApp(page);
+  await expect(page.getByTestId('ws-fiscalTerms')).toHaveValue('royalty');
+  await page.getByTestId('ws-fiscalTerms').selectOption('taxRoyalty');
+  await expect(page.getByTestId('ws-errors')).toContainText('Income tax rate is required for these fiscal terms.');
+  await page.getByTestId('ws-incomeTaxRate').fill('30');
+  await expect(page.getByTestId('ws-economics-table')).toContainText('Income tax');
+  await expect(page.getByTestId('ws-economics')).toContainText('income tax 30 percent');
+  expect(errors).toEqual([]);
+});

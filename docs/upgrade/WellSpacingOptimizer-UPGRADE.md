@@ -160,10 +160,12 @@ or its "does not apply" line). Sample: `/root/ws-report-sample.pdf`.
 | mbal-1 | Material Balance Studio, by id | OOIP | in-place cross-check |
 | dca-forecast-1 | Decline Curve Analysis, by project and well | oil EUR | EUR-implied drainage area |
 | geo_wells | wells registry | names, surface x/y, unit and CRS (mixed units or CRS refused) | map and the existing spacing |
-| rf-1 | Recovery Factor Estimator | not on main yet | Step 2 (U2-005) |
+| rf-1 | Recovery Factor Estimator, by id (WS-U2-005) | the oil recovery factor, its method, source and (when run) the P90/P50/P10 at the source | the recovery factor of the case, each well over its drained area |
 
-Sender: none yet; listed as U2-004 (`ws-case-1` profile to Forecast
-Scenario Hub and Petroleum Economics Studio).
+Sender (WS-U2-004): `ws-case-1`, the field profile of the chosen spacing
+case from its first production date, read by id from the saved project by
+Forecast Scenario Hub (profile case) and Petroleum Economics Studio
+(production file of oil and solution gas). See section 12.
 
 ## 9. Migration (NOT APPLIED)
 
@@ -243,3 +245,83 @@ Batch C: 012 to 015.
 | 4 | Drilling schedule default | All wells in year 1 stays the default; a schedule is optional and printed |
 | 5 | Unconventional lateral spacing in this app? | No; a separate tool if the market asks (Batch C) |
 | 6 | Downstream sender target | Forecast Scenario Hub and Petroleum Economics Studio, as a profile contract like `wf-forecast-1` |
+
+## 12. Step 2 build (WS-U2)
+
+Branch `feat/wsp-u2`, worktree `/root/wt-res-wsp2`, started 2026-10-05 at
+origin/main e4748d14e (Step 1 merged as PR #885). The migration
+`20261005010000_saved_well_spacing_projects.sql` is still NOT APPLIED
+(owner); the Step 1 fallback ("saving is not switched on") stays.
+
+### Batch decision (programme lead, 2026-10-05)
+
+Owner-question defaults in force: the rate limit changes NPV, with a switch to compare and before/after printed; recovery vs spacing is user-calibrated (analogs, DCA, simulation), never a built-in uncited curve; migration staging first (owner); the default drilling schedule stays all wells in year 1; no unconventional laterals in this app; the sender goes to Forecast Scenario Hub and Petroleum Economics Studio.
+BUILD in this order, one commit per item:
+- Batch A: 001 rate-limited profile (each case's profile capped at the deliverable rate from the Step 1 check, with the switch and before/after in the report; economics through calculateEconomics); 004 `ws-case-1` sender to the Hub (profile case) and EPE (follow wf-forecast-1 exactly; the cash-flow engine gated to ignore the provenance record); 003 drilling schedule (wells per year or rig count, default all in year 1; NPV through calculateEconomics); 006 measurable interference (the offset-well pressure drop at a stated time and distance printed per case, from the validated E1 engine); 005 rf-1 intake only if on main.
+- Batch B if time remains: 008 Monte Carlo through the canonical module (seeded, seed and count saved and printed, exceedance convention stated); 007 sensitivity tornado (no new NPV maths); 002 recovery responding to spacing, user-calibrated only (from DCA per-well EURs at different spacings via dca-forecast-1, from analog points the user types with a source, or from simulation runs via sim-forecast-1), with the fit and its points printed; 010 tax and PSC terms only if calculateEconomics already supports them (wire, do not implement).
+- DEFERRED (record reasons): 009 empirical EUR from DCA plus registry (unless 002's DCA route covers it), 011 proposed grid on the map, all of Batch C.
+
+### Items built
+
+Numbers that change (example field, field NPV in US$ MM, unlimited then
+rate-limited): 20 to 40 acres unchanged (1,174.8, 1,640.4, 1,885.8); 50
+acres 2,029.4 to 2,024.5; 80 acres 2,226.8 to 2,003.6; 100 acres 2,316.6 to
+1,892.6; 160 acres 2,404.9 to 1,435.2. The NPV now peaks at 60 acres
+(2,063.1) on the example; without the limit it rose to the widest spacing.
+The H7 sample (no drainage inputs) does not move: the limit cannot be
+computed there and says so.
+
+| ID | Status | What | Proving test |
+|---|---|---|---|
+| WS-U2-001 | Done | Rate-limited profile, on by default with a switch (Deliverability and drainage card). Where the plan's qi is above the deliverable (pseudosteady) rate qd of the Step 1 check, the well produces at qd for tp = (qi - qd) / (Dn qd), then declines at the stated Dn from qd to the limit: the volume to the limit stays the EUR, later. Both sides are canonical `calculateEconomics` runs (a second run only where the limit binds); the "Rate limit: before and after" table (screen and PDF) prints plan, deliverable and produced rate, plateau, produced per well and NPV on both sides with the change; the NPV chart and figure draw the other side dotted. The sample's permeability moves from 50 to 5 md (at 50 md no case reached its deliverable rate: 2,870 to 3,218 STB/d against plan 139 to 1,039), so the example shows the limit | `wsRateLimit.test.js` (9: the qd is the drainage engine's; plateau and post-plateau closed form; EUR conserved; switch off returns Step 1; NPV is the engine on the limited profile; blank inputs; qd below the limit). Negative control: tp divided by qi in place of qd fails 3. e2e "WS-U2-001 rate limit" |
+| WS-U2-004 | Done | `ws-case-1` sender, the `wf-forecast-1` pattern: "Send a case" on the Study tab (case by spacing, first production date, saved project); the contract carries the field oil and solution gas of every well of the case on its schedule with the rate limit as run, as steps of a twelfth of a 365.25-day year and calendar years, both from the engine's exact field cumulative (`fieldProfile`), so they sum to the volume the canonical economics ran on. Hub: "From Well Spacing Optimizer", deep link `?wsProject=`, source re-read. EPE: "Import from Well Spacing Optimizer", rows oil_bbl and gas_mscf with the contract last under `ws_case_1`, file card with the schedule and "source changed since". A missing table (migration not applied) is said in words in both receivers and on the panel. Harness: `src/dev/wsProjectsStore.js` | `wsCaseContract.test.js` (10: steps, calendar years and economics volume agree to 1e-12; plateau steps; hub EUR is the sender Np; hub report; EPE rows; computeCashFlow ignores the record; re-read names the change; the missing table in words). Negative controls: the volume filter without `ws_case_1` counts the record as a row; the hub case without its profile kind is refused. e2e "WS-U2-004" (WS to hub to EPE on the harnesses) |
+| WS-U2-003 | Done | Drilling schedule (Drilling schedule card): all wells in year 1 (default, unchanged numbers), so many wells a year, or rigs times wells a rig drills a year; the last year takes the rest. Each year's wells carry their capex in that year and produce the same per-well profile (with the rate limit) from its start, cut at the project duration; opex runs for the well-years on stream. The field cumulative `fieldProfile` superposes the cohorts; the arrays go to `calculateEconomics` unchanged. The cases table gains "Drilled over (years)"; model, methods and limits print the schedule; wells that would start after the duration are flagged; the ws-case-1 contract carries the schedule. Example: 2 rigs at 15 wells a rig a year, 40 acres, NPV 1,885.8 to 1,627.7 US$ MM over 5 drilling years | `wsSchedule.test.js` (5: cohorts; default unchanged; superposition of the year-1 per-well volumes shifted by each start, capex and opex by year; NPV is the engine on the arrays; validation and the late-wells flag). Negative control: a one-year slip of each cohort's start fails 2. e2e "WS-U2-003" |
+| WS-U2-006 | Done | Measurable interference: an interference test time and a gauge resolution (Deliverability and drainage card; a new `pressureDiff` unit kind, psi or kPa, never psia). For every case the drop at the neighbouring well when one well produces at its starting rate (the rate produced, so the rate limit applies) for that time, the neighbour shut in as the observer, from the Step 1 line source `lineSourceDropPsi` (Ahmed and McKinney Eq. 1.2.134, E1 gated on Abramowitz and Stegun) at the distance between wells; the Ei argument and "measurable" against the resolution, on screen, in the report (with a section when not computed) and a flag. Example (7 days, 0.01 psi): 0.977 psi at 20 acres, 0.0175 psi at 50 acres, below the gauge from 60 acres | `wsInterference.test.js` (5: at a time where x = 1 the drop is 70.6 q mu B / (k h) E1(1) with the tabulated 0.219384; rate-limited cases use the rate produced; the drop falls with spacing; blank time says why; the unit pin 1 psi = 6.894757 kPa). Negative control: the time read in days moves x 24 times and the drop off the tabulated value. e2e "WS-U2-006" |
+| WS-U2-005 | Done | rf-1 intake (RF U2 merged as #887, taken in by merging origin/main): "Recovery Factor Estimator (rf-1)" on From other apps, read by id with the estimator's own `readRfProject`; the oil RF lands in the recovery factor as a percent with its method, project, save time and source distribution in the Source column; gas estimates refused; card with edited after intake and source changed since (fingerprint on value, method and save time); `.pld` follows the id | `wsRfIntake.test.js` (4: a record built by the estimator's own deriveRf and rfRecordOf; the case runs on it; report source and the edited-after-intake flag; gas refused; read by id). No e2e: the WS harness seeds no Recovery Factor project (unit coverage through the estimator's reader) |
+| WS-U2-008 | Done | Uncertainty on RF, area and oil price per case: triangular low / form value / high (Uncertainty card), drawn by the canonical sampler `createCorrelatedSampler` with `mulberry32(seed)` from `src/lib/monteCarlo.js` (the module CLAUDE.md names); each realisation's NPV is the case table's canonical run (`spacingNpv`, calculateEconomics on `spacingEconomicsInputs`), the same draws for every spacing; P90 (10th percentile, the low case), P50, P10, mean, probability of a loss; seed (default 20260829, the screening default) and count (default 300) saved with the project and printed with the distributions and the PRMS exceedance sentence. On demand (Run), kept with the form it ran on (stale said); the PDF export runs it when asked for | `wsMonteCarlo.test.js` (4: same seed same numbers, another seed others; with only the price uncertain each NPV percentile equals the case run at that percentile of the prices drawn again by the canonical sampler; refusals; report note). Negative control: the labels swapped break P90 <= P50 <= P10. e2e "WS-U2-008" |
+| WS-U2-007 | Done | Sensitivity per case through the canonical `runSensitivityAnalysis` of the screening engine (the only sensitivity module; no NPV maths in the app) on each case's own `spacingEconomicsInputs`: oil price, capex, fixed opex and oil volume 30 percent down and up; a table of every case (screen and PDF) and a tornado figure (bars from the base) of the case chosen to send, else the middle case, added last so the Step 1 figure numbers hold. Stated: the canonical sweep scales the oil volume and not the solution gas | `wsSensitivity.test.js` (3: the base is the case NPV for every case; a bar equals a direct calculateEconomics run with the price up 30 percent; price swings equal and opposite; bars ordered; the figure's case). Negative control: the sweep on another spacing's arrays misses the base. e2e "WS-U2-007" |
+| WS-U2-002 | Partial | Recovery against spacing, user-calibrated only (Reservoir card: "Calibrated on your points"): points of RF at a spacing, each with a kind (analog, DCA type well, simulation, other) and a required source; least squares RF = a + b ln S; each case takes the fit at its spacing (`rfOf`), the EUR and the economics follow through calculateEconomics; the points, the fit and every case's RF on screen and in the PDF; extrapolation flagged; a fit outside 0 to 100 percent in the range refused; the MC RF range refused in this mode; the ws-case-1 contract says which recovery model. PARTIAL: the points are typed (with the DCA or simulation source named in words); reading DCA per-well EURs at their spacings by id (dca-forecast-1) or simulation runs (sim-forecast-1) straight into points is not built | `wsRfCalibration.test.js` (5: the fit against a hand least squares; two points give the line through them; each case's RF and EUR follow the fit; NPV is the engine on the case; report rows and the extrapolation flag; MC refusal). Negative control: a point without a source is refused and no curve is fitted to it. e2e "WS-U2-002" |
+| WS-U2-010 | Done | Fiscal terms wired, not implemented: `calculateEconomics` already takes income tax (straight-line depreciation, optional loss carry-forward) and a PSC (cost recovery cap with the pool carried, contractor profit split, tax on contractor profit); Fiscal terms on the Economics card, royalty only the default (numbers unchanged). The economics table gains Income tax and Government profit oil; the net cash closes on the government take; methods, limits and the economics note print the terms | `wsFiscal.test.js` (4: default unchanged; income tax against a hand mid-year sum on the case arrays; a PSC with full cost recovery, all profit oil to the contractor and no tax is the royalty-only case; closure on the government take; validation and report). Negative control: without the tax wired the after-tax NPV would equal the royalty-only one (asserted different by more than US$ 100 MM) |
+
+### Deferred, with reasons
+
+- WS-U2-009 empirical EUR against spacing from many DCA forecasts and the
+  registry spacing: needs per-well spacing from the registry for every DCA
+  well and a type-well grouping; 002's typed points cover the DCA route by
+  hand (a DCA type well at its spacing, source named) until it is built.
+- WS-U2-011 proposed grid on the map: a map editor over the registry wells
+  and a field outline; outside this round's NAPE window, and no number
+  depends on it.
+- WS-U2-002 by-id routes: DCA per-well EURs (dca-forecast-1) and
+  simulation runs (sim-forecast-1) read straight into calibration points.
+  The typed points with their sources are built; the by-id doors are the
+  next step.
+- Batch C (012 XLSX, 013 gas reservoirs, 014 unconventional laterals, the
+  owner said no to laterals in this app, 015 pressure datum): not chosen.
+
+### Where validation is weaker than asked (Step 2)
+
+- The rate-limited plateau holds the deliverable rate at the stated
+  average pressure for the whole plateau; there is no published worked
+  example of the plateau-then-decline profile, so it is held by its closed
+  form and the conserved EUR.
+- The interference drop is the infinite-acting line source with the
+  neighbour as a shut-in observer; held at x = 1 against the tabulated E1
+  and by the Step 1 Ex. 1.21 gates, not against a field interference test.
+- The drilling schedule superposes identical wells in time with no
+  depletion by earlier wells.
+- The calibrated recovery relation is only as good as the user's points;
+  the app holds the fit to a hand least squares, not to any field truth.
+- The Monte Carlo inputs are independent (no correlation between RF, area
+  and price), and the oil volume of the canonical sensitivity sweep moves
+  oil and not the solution gas (the screening engine's own definition).
+
+### Gates and numbers (Step 2)
+
+Example field (5 md, rate limit on, all wells in year 1), field NPV in
+US$ MM: 40 acres 1,885.8 (unchanged); 100 acres 1,892.6 (2,316.6 unlimited);
+160 acres 1,435.2 (2,404.9). Two rigs at 15 wells a rig a year: 40 acres
+1,627.7. Changes numbers in other apps: none. Forecast Scenario Hub and
+Petroleum Economics Studio gain a source (ws-case-1); their existing cases,
+files and numbers do not move (the EPE provenance key list gains
+`ws_case_1`, gated through computeCashFlow).

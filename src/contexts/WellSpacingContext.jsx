@@ -22,6 +22,7 @@ import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjec
 import { setProvenanceField } from '@/lib/inputProvenance/model';
 import { validateInputs, runSpacingCases } from '@/utils/wellSpacingCalculations';
 import { wsUnits } from '@/utils/wellspacing/units';
+import { runSpacingMonteCarlo } from '@/utils/wellspacing/monteCarlo';
 import {
   defaultInputs, inputsFromPayload, projectPayload, blankForm, emptyIntakes, SAMPLE_FORM, SAMPLE_NOTE, CONTEXT_KEYS,
 } from '@/utils/wellspacing/model';
@@ -88,12 +89,27 @@ export const WellSpacingProvider = ({ children, sharingStore = null, profileSyst
   const { results, errors } = useMemo(() => computeResults(inputs.form), [inputs.form]);
   const u = useMemo(() => wsUnits(inputs.unitSystem), [inputs.unitSystem]);
 
+  // WS-U2-008: the uncertainty run, on demand (hundreds of full case runs);
+  // kept with the form it ran on, so a stale run is never shown as current
+  const [mcRun, setMcRun] = useState(null);
+  const formKey = useMemo(() => JSON.stringify(inputs.form), [inputs.form]);
+  const runMonteCarlo = useCallback(() => {
+    if (!results) return null;
+    const r = runSpacingMonteCarlo(inputs.form);
+    setMcRun({ key: formKey, result: r });
+    return r;
+  }, [results, inputs.form, formKey]);
+  const mc = mcRun && mcRun.key === formKey ? mcRun.result : null;
+  const mcStale = !!mcRun && mcRun.key !== formKey;
+
   // --- input actions ---
   const setUnitSystem = useCallback((system) => edit((prev) => ({ ...prev, unitSystem: system === 'si' ? 'si' : 'oilfield' })), [edit]);
   /** A form input, stored in oilfield units as a string. */
   const setFormField = useCallback((key, value) => edit((prev) => ({ ...prev, form: { ...prev.form, [key]: value } })), [edit]);
   const setFormFields = useCallback((patch) => edit((prev) => ({ ...prev, form: { ...prev.form, ...patch } })), [edit]);
   const setInputMetaField = useCallback((key, field, value) => edit((prev) => ({ ...prev, inputMeta: setProvenanceField(prev.inputMeta || {}, key, field, value) })), [edit]);
+  // WS-U2-004: the case the ws-case-1 sender sends ({ spacing, start }), saved with the project
+  const setSenderField = useCallback((key, value) => edit((prev) => ({ ...prev, sender: { ...(prev.sender || {}), [key]: value } })), [edit]);
   const setIdentificationField = useCallback((key, value) => edit((prev) => ({ ...prev, identification: { ...(prev.identification || {}), [key]: value } })), [edit]);
 
   const loadSample = useCallback(() => {
@@ -284,6 +300,10 @@ export const WellSpacingProvider = ({ children, sharingStore = null, profileSyst
     setFormFields,
     setInputMetaField,
     setIdentificationField,
+    setSenderField,
+    mc,
+    mcStale,
+    runMonteCarlo,
     loadSample,
     clearInputs,
     takeIntake,

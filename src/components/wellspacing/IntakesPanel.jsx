@@ -18,12 +18,13 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { readFluidProjectPvt, PVT_PROJECT_PARAM } from '@/lib/pvtSource';
 import { readWellTestProject, WTA_PROJECT_PARAM, WTA_TABLE } from '@/lib/wellTestSource';
 import { readMbalCase } from '@/lib/mbalCaseSource';
+import { readRfProject, RF_PROJECT_PARAM, RF_TABLE } from '@/lib/rfEstimateSource';
 import { listWells } from '@/lib/wellsRegistry';
 import { listDcaForecasts, getDcaForecast } from '@/utils/declineCurve/dcaForecastService';
 import { readFluidProjectBlock } from '@/pages/apps/reservoir-balance/lib/pvtIntake';
 import PvtIntakeCard from '@/lib/inputProvenance/PvtIntakeCard';
 import {
-  wsPvtIntake, wsWtaIntake, wsMbalIntake, wsDcaIntake, wsWellsIntake, intakeCardModel, wtaFingerprint, mbalFingerprint, dcaFingerprint, PVT_FIELDS,
+  wsPvtIntake, wsWtaIntake, wsMbalIntake, wsDcaIntake, wsRfIntake, wsWellsIntake, intakeCardModel, wtaFingerprint, mbalFingerprint, dcaFingerprint, rfFingerprint, PVT_FIELDS,
 } from '@/utils/wellspacing/intakes';
 import { FIELDS } from '@/utils/wellspacing/model';
 import { useWellSpacing } from '@/contexts/WellSpacingContext';
@@ -31,7 +32,7 @@ import { useWellSpacing } from '@/contexts/WellSpacingContext';
 export const MBAL_CASE_PARAM = 'mbalCase';
 export const DCA_PROJECT_PARAM = 'dcaProject';
 // the card prints what was received, in the stored (oilfield) units
-const STORED_UNIT = { permeability: 'md', reservoirPressure: 'psia', ooipStb: 'STB', dcaEurStb: 'STB', skin: '' };
+const STORED_UNIT = { permeability: 'md', reservoirPressure: 'psia', ooipStb: 'STB', dcaEurStb: 'STB', skin: '', recoveryFactor: '%' };
 const LABELS = {
   ...Object.fromEntries(FIELDS.map((d) => [d.key, `${d.label}${STORED_UNIT[d.key] ? ` (${STORED_UNIT[d.key]})` : ''}`])),
   ooipStb: 'OOIP (STB)', dcaEurStb: 'EUR of the well (STB)',
@@ -41,6 +42,8 @@ const SOURCES = {
   pvt: { title: 'Fluid Systems Studio (pvt-1)', table: 'saved_fluid_studio_projects', name: 'project_name', param: PVT_PROJECT_PARAM, takes: 'Bo and oil viscosity at the average reservoir pressure, solution GOR, gravities, temperature' },
   wta: { title: 'Well Test Analysis Studio (wta-1)', table: WTA_TABLE, name: 'project_name', param: WTA_PROJECT_PARAM, takes: 'Permeability, total skin, average pressure' },
   mbal: { title: 'Material Balance Studio (mbal-1)', table: 'rb_cases', name: 'name', param: MBAL_CASE_PARAM, takes: 'OOIP, for the in-place cross-check' },
+  // WS-U2-005: the oil recovery factor with its method
+  rf: { title: 'Recovery Factor Estimator (rf-1)', table: RF_TABLE, name: 'project_name', param: RF_PROJECT_PARAM, takes: 'The oil recovery factor with its method and source, given to each well over its drained area' },
   dca: { title: 'Decline Curve Analysis (dca-forecast-1)', param: DCA_PROJECT_PARAM, takes: 'One well\'s oil EUR, for the drainage area it implies' },
 };
 
@@ -73,6 +76,7 @@ const IntakeCard = ({ kind, intake }) => {
     let alive = true;
     if (!id) return undefined;
     if (kind === 'wta') readWellTestProject(supabase, id).then((r) => alive && setLatest(r.ok ? { fp: wtaFingerprint(r.contract) } : { error: r.reason })).catch(() => {});
+    if (kind === 'rf') readRfProject(supabase, id).then((r) => alive && setLatest(r.ok ? { fp: rfFingerprint(r.contract) } : { error: r.reason })).catch(() => {});
     if (kind === 'mbal') readMbalCase(supabase, id).then((r) => alive && setLatest(r.record ? { fp: mbalFingerprint(r.record) } : { error: r.error })).catch(() => {});
     if (kind === 'dca' && intake.from.wellId) {
       getDcaForecast(supabase, { projectId: id, wellId: intake.from.wellId, stream: 'oil' })
@@ -137,6 +141,11 @@ const SourceBlock = ({ kind }) => {
         if (!read.ok) { setMessage(read.reason); return; }
         name = read.projectName;
         res = wsWtaIntake(read.contract, { recordId: pick, recordName: read.projectName, updatedAt: read.updatedAt });
+      } else if (kind === 'rf') {
+        const read = await readRfProject(supabase, pick);
+        if (!read.ok) { setMessage(read.reason); return; }
+        name = read.projectName;
+        res = wsRfIntake(read.contract, { projectId: pick, projectName: read.projectName, updatedAt: read.updatedAt });
       } else if (kind === 'mbal') {
         const read = await readMbalCase(supabase, pick);
         if (!read.record) { setMessage(read.error); return; }
@@ -242,7 +251,7 @@ const WellsBlock = () => {
 const IntakesPanel = () => (
   <div className="bg-pl-surface border border-pl-border rounded-xl p-4 shadow-pl-sm space-y-4" data-testid="ws-intakes">
     <h3 className="text-lg font-bold text-pl-text flex items-center gap-2"><Link2 className="w-4 h-4 text-pl-primary-text" /> From other apps</h3>
-    {['pvt', 'wta', 'mbal', 'dca'].map((k) => <SourceBlock key={k} kind={k} />)}
+    {['pvt', 'wta', 'mbal', 'rf', 'dca'].map((k) => <SourceBlock key={k} kind={k} />)}
     <WellsBlock />
     <p className="text-[10px] text-pl-muted">
       Values are read from the saved record by id and kept with this project with their source. A value you change afterwards

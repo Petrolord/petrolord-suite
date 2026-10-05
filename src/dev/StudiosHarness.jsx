@@ -14,6 +14,7 @@ import { loadScalRows, watchScalRows, persistScalRows, SCAL_TABLE } from './scal
 import { loadFluidRows, FLUID_TABLE } from './fluidProjectsStore';
 import { loadWfRows, watchWfRows, WF_TABLE } from './wfProjectsStore';
 import { loadVrrRows, watchVrrRows, VRR_TABLE } from './vrrProjectsStore';
+import { watchWsRows } from './wsProjectsStore';
 import { harnessRegistry } from './vrrHarnessWells';
 import { rfHarnessSeed } from './rfHarnessStore';
 import { eorHarnessTables } from './eorHarnessRows';
@@ -195,6 +196,8 @@ function useScalRows(app) {
   // WF-U2-001: keep the Waterflood projects of the tab in sessionStorage for the receivers' harnesses
   useEffect(() => (app === 'waterflood' ? watchWfRows(storeFor('waterflood')) : undefined), [app]);
   useEffect(() => (app === 'vrr' ? watchVrrRows(storeFor('vrr')) : undefined), [app]);
+  // WS-U2-004: keep the Well Spacing projects of the tab in sessionStorage for the receivers' harnesses
+  useEffect(() => (app === 'well-spacing' ? watchWsRows(storeFor('well-spacing')) : undefined), [app]);
 }
 
 export default function StudiosHarness() {

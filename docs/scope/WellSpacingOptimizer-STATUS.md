@@ -50,3 +50,25 @@ Doc: `docs/upgrade/WellSpacingOptimizer-UPGRADE.md` (branch `feat/wsp-u1`).
   NOT APPLIED (owner).
 - Step 2: 15 items ranked, Batch A deliverability-limited profile, drilling
   schedule, `ws-case-1` sender, rf-1 intake, measurable interference.
+
+## 2026-10-05: Reservoir round Step 2 (WS-U2)
+
+Doc: `docs/upgrade/WellSpacingOptimizer-UPGRADE.md` section 12 (branch `feat/wsp-u2`).
+
+- Batch A done: 001 rate-limited profile (each case capped at its
+  deliverable rate, on by default, switch and before/after in the report;
+  the example field moves to 5 md: NPV at 100 acres 2,316.6 to 1,892.6
+  US$ MM, peak now at 60 acres); 004 `ws-case-1` sender to Forecast Scenario
+  Hub (profile case) and Petroleum Economics Studio (production file),
+  read by id; 003 drilling schedule (wells a year or rigs, default all in
+  year 1); 006 measurable interference (line-source drop at the neighbour
+  against the gauge resolution); 005 rf-1 intake from the Recovery Factor
+  Estimator.
+- Batch B: 008 Monte Carlo on RF, area and price (canonical sampler, seeded,
+  P90 the low case); 007 sensitivity through `runSensitivityAnalysis` with a
+  tornado figure; 002 recovery against spacing calibrated on the user's
+  cited points (partial: typed points; DCA and simulation by-id doors not
+  built); 010 income tax and PSC terms wired to `calculateEconomics`.
+- Deferred: 009, 011, Batch C. Migration `20261005010000` still NOT APPLIED
+  (owner); the sender says in words that nothing can be sent until saving
+  is on.

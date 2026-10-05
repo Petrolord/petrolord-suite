@@ -111,6 +111,8 @@ export const INTAKE_SOFT_REFS = Object.freeze({
     { path: 'inputs_data.inputs.intakes.wta.from.recordId', table: 'saved_well_test_projects', optional: true },
     { path: 'inputs_data.inputs.intakes.mbal.from.recordId', table: 'rb_cases', optional: true },
     { path: 'inputs_data.inputs.intakes.dca.from.recordId', table: 'saved_dca_projects', optional: true },
+    // WS-U2-005: the Recovery Factor Estimator project of the rf-1 intake
+    { path: 'inputs_data.inputs.intakes.rf.from.recordId', table: 'saved_rf_projects', optional: true },
   ],
 });
 
