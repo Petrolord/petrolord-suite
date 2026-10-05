@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Check, Menu, Search, X } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import BookDemoModal from '@/components/BookDemoModal';
-import { SUITE_MODULES, suiteStats, NEXTGEN_LIVE_COURSES } from '@/data/suiteCatalog';
+import { SUITE_MODULES, suiteStats, NEXTGEN_LIVE_COURSES, NEXTGEN_APP_COURSES } from '@/data/suiteCatalog';
 import './Home.css';
 
 // Public homepage, redesigned 2026-09-27 as a sibling of the NextGen Academy
@@ -293,9 +293,9 @@ function Home() {
           <div className="ledger">
             <ul className="wrap" aria-label="The Suite at a glance">
               <li><strong>{stats.apps}</strong><span>engineering applications live today</span></li>
-              <li><strong>{stats.modules}</strong><span>modules across the energy value chain</span></li>
+              <li><strong>{stats.modules}</strong><span>Suite modules across the energy value chain</span></li>
               <li><strong>1</strong><span>sign-in for every studio your organisation licenses</span></li>
-              <li><strong>{NEXTGEN_LIVE_COURSES}</strong><span>NextGen Academy courses taught on these apps</span></li>
+              <li><strong>{NEXTGEN_LIVE_COURSES}</strong><span>NextGen Academy courses, {NEXTGEN_APP_COURSES} of them built on these apps</span></li>
               <li><strong>0</strong><span>software to install. It runs in the browser</span></li>
             </ul>
           </div>
@@ -368,7 +368,7 @@ function Home() {
               <article className="ng">
                 <p className="eyebrow">NextGen Academy</p>
                 <h3>Learn on the same apps you will work with.</h3>
-                <p>{NEXTGEN_LIVE_COURSES} hands-on courses taught inside the Suite, from geoscience to HSE. Each has Associate, Professional and Expert tiers, earned on auto-graded practicals.</p>
+                <p>{NEXTGEN_LIVE_COURSES} hands-on courses from geoscience to HSE, {NEXTGEN_APP_COURSES} of them built on Suite apps. Each has Associate, Professional and Expert tiers, earned on auto-graded practicals.</p>
                 <ul>
                   <li>Certificates anyone can verify on a public register</li>
                   <li>Employers sponsor seats and follow every learner&apos;s progress</li>
