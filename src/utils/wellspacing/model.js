@@ -97,6 +97,8 @@ export const defaultInputs = (unitSystem = 'oilfield', { sample = false } = {}) 
   inputMeta: {},
   intakes: emptyIntakes(),
   sampleNote: sample ? SAMPLE_NOTE : null,
+  // WS-U2-004: the case the ws-case-1 sender sends, and its first production date
+  sender: { spacing: '', start: '' },
 });
 
 /** Restore inputs from a payload, tolerating missing keys; the flood-pattern field of earlier builds becomes the layout. */
@@ -116,6 +118,7 @@ export const inputsFromPayload = (payload) => {
     inputMeta: raw.inputMeta && typeof raw.inputMeta === 'object' ? raw.inputMeta : {},
     intakes: { ...base.intakes, ...(raw.intakes && typeof raw.intakes === 'object' ? raw.intakes : {}) },
     sampleNote: raw.sampleNote || null,
+    sender: { ...base.sender, ...asStrings(raw.sender && typeof raw.sender === 'object' ? raw.sender : {}) },
   };
 };
 

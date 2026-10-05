@@ -32,6 +32,7 @@ import InputPanel from '@/components/wellspacing/InputPanel';
 import IntakesPanel from '@/components/wellspacing/IntakesPanel';
 import ResultsPanel from '@/components/wellspacing/ResultsPanel';
 import ReportTab from '@/components/wellspacing/ReportTab';
+import WsSendPanel from '@/components/wellspacing/WsSendPanel';
 
 const TABS = [
   { value: 'study', label: 'Study' },
@@ -161,6 +162,7 @@ function WellSpacingContent() {
               <ProjectCard />
               <InputPanel />
               <IntakesPanel />
+              <WsSendPanel />
             </div>
             <div className="lg:col-span-2 min-w-0">
               <ResultsPanel downloadCSV={downloadCSV} downloadJSON={downloadJSON} />

@@ -25,6 +25,7 @@ import EpeHelpGuide from '../EpeHelpGuide';
 import RUN from './ekeneRun.json';
 import { loadDcaRows } from '@/dev/dcaProjectsStore';
 import { loadWfRows } from '@/dev/wfProjectsStore';
+import { loadWsRows } from '@/dev/wsProjectsStore';
 import { simStoreFromSnapshot } from '@/dev/simProjectsStore';
 import { makeStorage } from '@/dev/InMemorySupabase';
 
@@ -53,6 +54,8 @@ const DB = {
   saved_dca_projects: [],
   // WF-U2-001: the Waterflood Design Studio projects saved on /dev/studio/waterflood in this tab
   saved_waterflood_design_projects: [],
+  // WS-U2-004: the Well Spacing projects saved on /dev/studio/well-spacing in this tab
+  saved_well_spacing_projects: [],
   // SIM-U2-002: the simulation cases and runs of /dev/reservoir-simulation-studio in this tab
   sim_cases: [],
   sim_runs: [],
@@ -79,7 +82,7 @@ function query(table) {
   };
   // only the tables of the handoff are filtered; every other table answers
   // as it always did on this harness (its specs rely on that)
-  const FILTERED = ['saved_dca_projects', 'saved_waterflood_design_projects', 'epe_production_volumes', 'sim_cases', 'sim_runs'];
+  const FILTERED = ['saved_dca_projects', 'saved_waterflood_design_projects', 'epe_production_volumes', 'sim_cases', 'sim_runs', 'saved_well_spacing_projects'];
   const current = () => {
     const v = inserted || DB[table];
     if (!Array.isArray(v) || !FILTERED.includes(table)) return v;
@@ -98,6 +101,7 @@ export default function EpeHarness() {
     const saved = { from: supabase.from, invoke: supabase.functions?.invoke, getUser: supabase.auth?.getUser };
     DB.saved_dca_projects = loadDcaRows();
     DB.saved_waterflood_design_projects = loadWfRows();
+    DB.saved_well_spacing_projects = loadWsRows();
     const sim = simStoreFromSnapshot();
     DB.sim_cases = sim.sim_cases;
     DB.sim_runs = sim.sim_runs;

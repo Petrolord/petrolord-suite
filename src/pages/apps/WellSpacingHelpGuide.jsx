@@ -324,6 +324,16 @@ const WellSpacingHelpGuideContent = () => (
         Each card says As received, Edited after intake when you change a value it gave, or Source
         changed since when the record has been saved again with different content.
       </Para>
+      <SubHeading>Sending a case (ws-case-1)</SubHeading>
+      <Para>
+        Under Send a case, choose one spacing case and its first production date, with a project
+        open. Forecast Scenario Hub takes the field oil profile of that case (every well, on its
+        drilling schedule, with the rate limit as the case ran it) as a profile case from that date.
+        Petroleum Economics Studio takes its oil and solution gas by calendar year as a production
+        file; enter the drilling capex of the case there, from the schedule printed on the file
+        card. Both read the saved project by id, keep where the numbers came from, and say when the
+        case changes here later. Until saving is switched on for this app, nothing can be sent.
+      </Para>
     </GuideSection>
 
     <GuideSection id="report">

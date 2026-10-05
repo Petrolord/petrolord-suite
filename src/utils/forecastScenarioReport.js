@@ -82,6 +82,8 @@ export function collectHubReportArgs({ cases, econ, setStart = HUB_DEFAULT_START
   const fromWf = profiles.filter((c) => c.source.contract.app === 'Waterflood Design Studio');
   // SIM-U2-002: profile cases received from Reservoir Simulation Studio
   const fromSim = profiles.filter((c) => c.source.contract.app === 'Reservoir Simulation Studio');
+  // WS-U2-004: profile cases received from Well Spacing Optimizer
+  const fromWs = profiles.filter((c) => c.source.contract.app === 'Well Spacing Optimizer');
   const wells = [...new Set(fromDca.map((c) => c.source.contract.source?.wellName).filter(Boolean))];
   const fields = [...new Set(fromDca.map((c) => c.source.contract.source?.field).filter(Boolean))];
   const identificationRows = [
@@ -90,7 +92,7 @@ export function collectHubReportArgs({ cases, econ, setStart = HUB_DEFAULT_START
     ['Scenario set', text(setName) || 'Not saved'],
     ['Set start', setStart || HUB_DEFAULT_START],
     ['Cases', profiles.length
-      ? `${cases.length} (${[`${fromDca.length - profiles.length} from Decline Curve Analysis`, ...(fromWf.length ? [`${fromWf.length} from Waterflood Design Studio`] : []), ...(fromSim.length ? [`${fromSim.length} from Reservoir Simulation Studio`] : []), `${cases.length - fromDca.length} entered here`].join(', ')})`
+      ? `${cases.length} (${[`${fromDca.length - profiles.length} from Decline Curve Analysis`, ...(fromWf.length ? [`${fromWf.length} from Waterflood Design Studio`] : []), ...(fromSim.length ? [`${fromSim.length} from Reservoir Simulation Studio`] : []), ...(fromWs.length ? [`${fromWs.length} from Well Spacing Optimizer`] : []), `${cases.length - fromDca.length} entered here`].join(', ')})`
       : `${cases.length} (${fromDca.length} from Decline Curve Analysis, ${cases.length - fromDca.length} entered here)`],
     ['Wells behind the cases', wells.length ? wells.join(', ') : 'none named (cases entered here)'],
     ['Analyst', text(identification.analyst) || EMPTY_VALUE],
@@ -206,6 +208,7 @@ export function collectHubReportArgs({ cases, econ, setStart = HUB_DEFAULT_START
     'The hub holds oil cases only. Rates are calendar-day rates at stock-tank conditions.',
   ];
   if (fromWf.length) assumptions.push('A case from Waterflood Design Studio is the pattern oil profile of the wf-forecast-1 contract, day for day from the flood start, with no Arps parameters. It is cut at its horizon here and ends where the sender ended it (the WOR limit or the sender\'s horizon); its EUR is the sender\'s Np.');
+  if (fromWs.length) assumptions.push('A case from Well Spacing Optimizer is the field oil profile of one spacing case (the ws-case-1 contract): every well of the case on its drilling schedule, with the rate limit as the case ran it, as a step rate over each twelfth of a year from the first production date, with no Arps parameters. It is cut at its horizon here and ends where the case ended (the economic limit or the project duration); its EUR is the case\'s field Np.');
   if (fromSim.length) assumptions.push('A case from Reservoir Simulation Studio is the field oil profile of one completed OPM Flow run (the sim-forecast-1 contract), the simulator\'s rate over each time step, day for day from the run start or from the history end, with no Arps parameters. It is cut at its horizon here and ends where the run ended; its EUR is the run\'s cumulative oil in the phase sent.');
 
   return {

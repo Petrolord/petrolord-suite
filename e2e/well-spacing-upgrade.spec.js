@@ -194,3 +194,34 @@ test('WS-U2-001 rate limit: on by default with before and after; the switch off 
   await page.screenshot({ path: `${OUT}/u2-rate-limit.png`, fullPage: false });
   expect(errors).toEqual([]);
 });
+
+test('WS-U2-004 ws-case-1: a spacing case opens in Forecast Scenario Hub as a profile case and in EPE as a file, each with its source', async ({ page }) => {
+  test.setTimeout(600000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const errors = watchErrors(page);
+  await openApp(page);
+  await expect(page.getByTestId('ws-send-refusal')).toContainText('Create or open a project first');
+  await page.getByRole('button', { name: 'Create new project' }).first().click();
+  await page.getByLabel('Project name').fill('Ekene spacing');
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await expect(page.getByTestId('ws-send-refusal')).toContainText('Choose the case to send', { timeout: 60000 });
+  await page.getByTestId('ws-send-spacing').selectOption('80');
+  await page.getByTestId('ws-send-start').fill('2027-01-01');
+  await expect(page.getByTestId('ws-send-basis')).toContainText('rate-limited at 297.7 STB/d a well for 4.69 years');
+  await page.getByTestId('ws-send-hub').click();
+  await expect(page).toHaveURL(/\/dev\/forecast-scenario-hub/, { timeout: 60000 });
+  await expect(page.getByText('Case comparison')).toBeVisible({ timeout: 240000 });
+  const source = page.locator('[data-testid$="-source"]').first();
+  await expect(source).toContainText('case 80 acres a well (62 wells, Example field) from 2027-01-01, project "Ekene spacing" (Well Spacing Optimizer)');
+  await expect(page.locator('[data-testid$="-source-state"]').first()).toContainText('Unchanged since it was received', { timeout: 60000 });
+  await page.screenshot({ path: `${OUT}/u2-004-hub.png` });
+  const id = await page.evaluate(() => JSON.parse(window.sessionStorage.getItem('harness.saved_well_spacing_projects.v1') || '[]')[0]?.id);
+  expect(id).toBeTruthy();
+  await page.goto(`/dev/epe/cases/c1?wsProject=${id}`, { timeout: 240000 });
+  await expect(page.getByTestId('epe-ws-list')).toContainText('Ekene spacing', { timeout: 120000 });
+  await page.getByTestId('epe-ws-import').click();
+  await expect(page.getByTestId('epe-ws-provenance')).toContainText('Wells on stream: 62 in year 1', { timeout: 60000 });
+  await expect(page.getByTestId('epe-ws-source-state')).toContainText('Unchanged since it was received', { timeout: 60000 });
+  await page.screenshot({ path: `${OUT}/u2-004-epe.png` });
+  expect(errors).toEqual([]);
+});

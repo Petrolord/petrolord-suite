@@ -279,44 +279,56 @@ export const wellProfile = (spacing, p) => {
   };
 };
 
-// The yearly volumes of one well over the project duration, from its exact cumulative.
-const wellYears = (spacing, p) => {
+/**
+ * The wells of a case by the year they come on stream (WS-U2-003): a list
+ * of { startYear (0 = the first project year), wells }. All in year 1 by
+ * default, as every release before the schedule.
+ */
+export const drillingCohorts = (numberOfWells) => [{ startYear: 0, wells: numberOfWells }];
+
+const overlap = (a0, a1, b0, b1) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
+
+/**
+ * The field production of one case: the per-well profile shifted to each
+ * cohort's start and cut at the end of the project duration. `F(t)` is the
+ * exact field cumulative oil (STB) at t years from the first project year;
+ * every yearly volume, the sender's profile and the totals come from it.
+ */
+export const fieldProfile = (spacing, p) => {
+  const numberOfWells = Math.floor(p.reservoirArea / spacing);
   const prof = wellProfile(spacing, p);
-  const actualLife = Math.min(prof.economicLife, p.projectDuration);
-  const years = [];
-  for (let year = 1; year <= Math.ceil(actualLife); year++) {
-    const from = year - 1;
-    const to = Math.min(year, actualLife);
-    if (to <= from) break;
-    years.push({ oil: prof.cum(to) - prof.cum(from), fraction: to - from });
-  }
-  return { ...prof, actualLife, years };
+  const cohorts = drillingCohorts(numberOfWells, p).map((c) => ({ ...c, life: Math.max(0, Math.min(prof.economicLife, p.projectDuration - c.startYear)) }));
+  const endYears = Math.max(0, ...cohorts.map((c) => c.startYear + c.life));
+  const F = (t) => cohorts.reduce((sum, c) => sum + c.wells * prof.cum(Math.max(0, Math.min(t - c.startYear, c.life))), 0);
+  /** well-years on stream between a and b (years from the first project year) */
+  const wellYearsOn = (a, b) => cohorts.reduce((sum, c) => sum + c.wells * overlap(a, b, c.startYear, c.startYear + c.life), 0);
+  return { numberOfWells, prof, cohorts, endYears, F, wellYearsOn };
 };
 
 /**
  * The `calculateEconomics` inputs of one spacing case, for the whole field.
  * Royalties and taxes are one percentage of gross revenue on the form, so
  * they enter as the royalty rate with no income tax. Costs are in $MM, as
- * the engine expects. Opex of a part year is pro-rated. A case whose wells
- * never produce keeps its capex in year 1.
+ * the engine expects. Opex runs for the well-years on stream in each year
+ * (a part year pro-rated). Each cohort's capex falls in its first year; a
+ * case whose wells never produce keeps its capex.
  */
 export const spacingEconomicsInputs = (spacing, p) => {
-  const numberOfWells = Math.floor(p.reservoirArea / spacing);
-  const { years } = wellYears(spacing, p);
-  const n = Math.max(1, years.length);
-  const yr = (i) => years[i] || { oil: 0, fraction: 0 };
+  const { cohorts, endYears, F, wellYearsOn } = fieldProfile(spacing, p);
+  const n = Math.max(1, Math.ceil(endYears - 1e-9), ...cohorts.map((c) => c.startYear + 1));
   const idx = Array.from({ length: n }, (_, i) => i);
+  const oil = idx.map((i) => F(i + 1) - F(i)); // bbl
   return {
     projectLife: n,
     discountRate: p.discountRate * 100,
     fiscalType: 'TaxRoyalty',
     production: {
-      oil: idx.map((i) => numberOfWells * yr(i).oil),                  // bbl
-      gas: idx.map((i) => (numberOfWells * yr(i).oil * p.gor) / 1000), // Mscf
+      oil,
+      gas: oil.map((v) => (v * p.gor) / 1000), // Mscf
     },
     price: { oil: new Array(n).fill(p.oilPrice), gas: new Array(n).fill(p.gasPrice) },
-    capex: idx.map((i) => (i === 0 ? (numberOfWells * p.wellCost) / 1e6 : 0)),
-    opexFixed: idx.map((i) => (numberOfWells * p.opex * yr(i).fraction) / 1e6),
+    capex: idx.map((i) => (cohorts.filter((c) => c.startYear === i).reduce((sum, c) => sum + c.wells, 0) * p.wellCost) / 1e6),
+    opexFixed: idx.map((i) => (wellYearsOn(i, i + 1) * p.opex) / 1e6),
     opexVariable: new Array(n).fill(0),
     abandonment: new Array(n).fill(0),
     royaltyRate: p.royaltiesTaxes * 100,
@@ -326,9 +338,11 @@ export const spacingEconomicsInputs = (spacing, p) => {
 
 // One canonical economics run of a case, with the volumes it was run on.
 const economicsOf = (spacing, p) => {
-  const prof = wellYears(spacing, p);
-  const { metrics } = calculateEconomics(spacingEconomicsInputs(spacing, p), { skipIrr: true });
-  return { prof, metrics, producedPerWell: prof.years.reduce((sum, y) => sum + y.oil, 0) };
+  const field = fieldProfile(spacing, p);
+  const inputs = spacingEconomicsInputs(spacing, p);
+  const { metrics } = calculateEconomics(inputs, { skipIrr: true });
+  const produced = field.F(field.endYears);
+  return { field, prof: field.prof, inputs, metrics, producedPerWell: field.numberOfWells > 0 ? produced / field.numberOfWells : 0 };
 };
 
 const evaluateSpacing = (spacing, p) => {
@@ -337,8 +351,10 @@ const evaluateSpacing = (spacing, p) => {
 
   // H7: the canonical screening NPV. No discounting is done in this file.
   const run = economicsOf(spacing, p);
-  const { eurPerWellBbl, qiAnnual, economicLife, actualLife, years } = run.prof;
+  const { eurPerWellBbl, qiAnnual, economicLife } = run.prof;
   const { metrics } = run;
+  const actualLife = run.field.endYears;
+  const lastStart = Math.max(...run.field.cohorts.map((c) => c.startYear));
 
   // WS-U2-001: the other side of the rate-limit switch, for the before and
   // after. A second canonical run only where the limit binds; elsewhere the
@@ -360,9 +376,8 @@ const evaluateSpacing = (spacing, p) => {
   const totalCapex = (numberOfWells * p.wellCost) / 1e6;
 
   const producedPerWell = run.producedPerWell;
-  const opexTotalPerWell = years.reduce((sum, y) => sum + p.opex * y.fraction, 0);
   const totalProduction = numberOfWells * producedPerWell;
-  const totalOpexAllWells = numberOfWells * opexTotalPerWell;
+  const totalOpexAllWells = run.field.wellYearsOn(0, actualLife) * p.opex;
   const costPerBarrel = totalProduction > 0
     ? (totalCapex * 1e6 + totalOpexAllWells) / totalProduction
     : NaN;
@@ -385,7 +400,7 @@ const evaluateSpacing = (spacing, p) => {
     },
     costPerBarrel,
     economicLife: actualLife,
-    truncatedByDuration: economicLife > p.projectDuration,
+    truncatedByDuration: economicLife > p.projectDuration - lastStart,
     initialRateBpd: qiAnnual / DAYS_PER_YEAR,
     wholeYears: Math.floor(actualLife),
     // the undiscounted net cash flow and payback of the same canonical run
@@ -405,8 +420,8 @@ const evaluateSpacing = (spacing, p) => {
       npvUnlimited: unlimitedRun.metrics.npv,
       producedLimited: limitedRun.producedPerWell / 1000,
       producedUnlimited: unlimitedRun.producedPerWell / 1000,
-      lifeLimited: Math.min(limitedRun.prof.economicLife, p.projectDuration),
-      lifeUnlimited: Math.min(unlimitedRun.prof.economicLife, p.projectDuration),
+      lifeLimited: limitedRun.field.endYears,
+      lifeUnlimited: unlimitedRun.field.endYears,
     },
     // WS-U1: geometry, timing and deliverability; diagnostics only
     drainage: drainageCase({

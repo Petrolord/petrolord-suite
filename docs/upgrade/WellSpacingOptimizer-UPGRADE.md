@@ -162,8 +162,10 @@ or its "does not apply" line). Sample: `/root/ws-report-sample.pdf`.
 | geo_wells | wells registry | names, surface x/y, unit and CRS (mixed units or CRS refused) | map and the existing spacing |
 | rf-1 | Recovery Factor Estimator | not on main yet | Step 2 (U2-005) |
 
-Sender: none yet; listed as U2-004 (`ws-case-1` profile to Forecast
-Scenario Hub and Petroleum Economics Studio).
+Sender (WS-U2-004): `ws-case-1`, the field profile of the chosen spacing
+case from its first production date, read by id from the saved project by
+Forecast Scenario Hub (profile case) and Petroleum Economics Studio
+(production file of oil and solution gas). See section 12.
 
 ## 9. Migration (NOT APPLIED)
 
@@ -272,3 +274,4 @@ computed there and says so.
 | ID | Status | What | Proving test |
 |---|---|---|---|
 | WS-U2-001 | Done | Rate-limited profile, on by default with a switch (Deliverability and drainage card). Where the plan's qi is above the deliverable (pseudosteady) rate qd of the Step 1 check, the well produces at qd for tp = (qi - qd) / (Dn qd), then declines at the stated Dn from qd to the limit: the volume to the limit stays the EUR, later. Both sides are canonical `calculateEconomics` runs (a second run only where the limit binds); the "Rate limit: before and after" table (screen and PDF) prints plan, deliverable and produced rate, plateau, produced per well and NPV on both sides with the change; the NPV chart and figure draw the other side dotted. The sample's permeability moves from 50 to 5 md (at 50 md no case reached its deliverable rate: 2,870 to 3,218 STB/d against plan 139 to 1,039), so the example shows the limit | `wsRateLimit.test.js` (9: the qd is the drainage engine's; plateau and post-plateau closed form; EUR conserved; switch off returns Step 1; NPV is the engine on the limited profile; blank inputs; qd below the limit). Negative control: tp divided by qi in place of qd fails 3. e2e "WS-U2-001 rate limit" |
+| WS-U2-004 | Done | `ws-case-1` sender, the `wf-forecast-1` pattern: "Send a case" on the Study tab (case by spacing, first production date, saved project); the contract carries the field oil and solution gas of every well of the case on its schedule with the rate limit as run, as steps of a twelfth of a 365.25-day year and calendar years, both from the engine's exact field cumulative (`fieldProfile`), so they sum to the volume the canonical economics ran on. Hub: "From Well Spacing Optimizer", deep link `?wsProject=`, source re-read. EPE: "Import from Well Spacing Optimizer", rows oil_bbl and gas_mscf with the contract last under `ws_case_1`, file card with the schedule and "source changed since". A missing table (migration not applied) is said in words in both receivers and on the panel. Harness: `src/dev/wsProjectsStore.js` | `wsCaseContract.test.js` (10: steps, calendar years and economics volume agree to 1e-12; plateau steps; hub EUR is the sender Np; hub report; EPE rows; computeCashFlow ignores the record; re-read names the change; the missing table in words). Negative controls: the volume filter without `ws_case_1` counts the record as a row; the hub case without its profile kind is refused. e2e "WS-U2-004" (WS to hub to EPE on the harnesses) |

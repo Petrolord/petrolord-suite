@@ -94,6 +94,8 @@ export const WellSpacingProvider = ({ children, sharingStore = null, profileSyst
   const setFormField = useCallback((key, value) => edit((prev) => ({ ...prev, form: { ...prev.form, [key]: value } })), [edit]);
   const setFormFields = useCallback((patch) => edit((prev) => ({ ...prev, form: { ...prev.form, ...patch } })), [edit]);
   const setInputMetaField = useCallback((key, field, value) => edit((prev) => ({ ...prev, inputMeta: setProvenanceField(prev.inputMeta || {}, key, field, value) })), [edit]);
+  // WS-U2-004: the case the ws-case-1 sender sends ({ spacing, start }), saved with the project
+  const setSenderField = useCallback((key, value) => edit((prev) => ({ ...prev, sender: { ...(prev.sender || {}), [key]: value } })), [edit]);
   const setIdentificationField = useCallback((key, value) => edit((prev) => ({ ...prev, identification: { ...(prev.identification || {}), [key]: value } })), [edit]);
 
   const loadSample = useCallback(() => {
@@ -284,6 +286,7 @@ export const WellSpacingProvider = ({ children, sharingStore = null, profileSyst
     setFormFields,
     setInputMetaField,
     setIdentificationField,
+    setSenderField,
     loadSample,
     clearInputs,
     takeIntake,
