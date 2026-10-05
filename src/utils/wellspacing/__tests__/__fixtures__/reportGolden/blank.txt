@@ -97,6 +97,19 @@ Well Spacing Report, Spacing study                                              
 
  Project duration [case]                        n/a                   years            Not provided
 
+ Fiscal terms [case]                            Royalty only                           Entered, source not stated
+
+ Income tax rate [case]                         n/a                   %                Not provided
+
+ Capex depreciation (straight line) [case]      n/a                   years            Not provided
+
+ Tax losses carried forward [case]              No                                     Entered, source not stated
+
+ Cost recovery cap (share of net revenue)       n/a                   %                Not provided
+ [case]
+
+ Contractor share of profit oil [case]          n/a                   %                Not provided
+
  Royalty (on gross revenue) [case]              n/a                   %                Not provided
 
  Smallest spacing [case]                        n/a                   acres/well       Not provided
@@ -137,32 +150,33 @@ Well Spacing Report, Spacing study                                              
 
  Reservoir area, low [uncertainty]              n/a                   acres            Not provided
 
- Reservoir area, high [uncertainty]             n/a                   acres            Not provided
-
- Oil price, low [uncertainty]                   n/a                   US$/STB          Not provided
-
- Oil price, high [uncertainty]                  n/a                   US$/STB          Not provided
-
- Realisations [uncertainty]                     n/a                                    Not provided
-
- Seed [uncertainty]                             n/a                                    Not provided
-
- Interference test time [diagnostics]           n/a                   days             Not provided
-
- Gauge resolution [diagnostics]                 n/a                   psi              Not provided
 
 
 
 Well Spacing Report, Spacing study                                                                                                      Page 2 of 5
- Input                                               Value                      Unit                  Source and quality
+ Input                                          Value                 Unit              Source and quality
 
- Field location, WGS84 latitude and                  n/a                        degrees               Not provided
+ Reservoir area, high [uncertainty]             n/a                   acres             Not provided
+
+ Oil price, low [uncertainty]                   n/a                   US$/STB           Not provided
+
+ Oil price, high [uncertainty]                  n/a                   US$/STB           Not provided
+
+ Realisations [uncertainty]                     n/a                                     Not provided
+
+ Seed [uncertainty]                             n/a                                     Not provided
+
+ Interference test time [diagnostics]           n/a                   days              Not provided
+
+ Gauge resolution [diagnostics]                 n/a                   psi               Not provided
+
+ Field location, WGS84 latitude and             n/a                   degrees           Not provided
  longitude [record]
 
- OOIP of a Material Balance run                      n/a                        MMSTB                 Not provided
+ OOIP of a Material Balance run                 n/a                   MMSTB             Not provided
  [cross-check]
 
- EUR of one well from Decline Curve                  n/a                        Mbbl                  Not provided
+ EUR of one well from Decline Curve             n/a                   Mbbl              Not provided
  Analysis [cross-check]
 
 Every value the study read, with its source. [uncertainty] enters only the Monte Carlo table. [case] enters the EUR, the NPV and every number of
@@ -172,20 +186,24 @@ intake says so.
 
 
 Cross-checks
- Check                                     Value                        Against
+ Check                                  Value                   Against
 
- In place: volumetric OOIP of this         n/a                          Not compared: the volumetric inputs are incomplete.
+ In place: volumetric OOIP of this      n/a                     Not compared: the volumetric inputs are incomplete.
  case
 
- Drainage area implied by a                n/a                          Not computed: no Decline Curve Analysis EUR was taken.
+ Drainage area implied by a             n/a                     Not computed: no Decline Curve Analysis EUR was taken.
  decline EUR
 
- Spacing the registry wells already        n/a                          Not computed: no wells were taken from the registry.
+ Spacing the registry wells already     n/a                     Not computed: no wells were taken from the registry.
  have
 
 Independent numbers held against the stated case. None of them changes a number of the case.
 
-Methods and references
+
+
+
+Well Spacing Report, Spacing study                                                                                                         Page 3 of 5
+Methods and references
  Quantity                        Method                                                                      Reference
 
  Oil in place per well           N = 7,758 A h phi (1 - Swi) / Bo, STB; A the spacing in acres               Volumetric equation (Craft and Hawkins 1959)
@@ -202,9 +220,9 @@ Methods and references
                                  then qd exp(-Dn (t - tp)) to the limit; the volume to the limit stays the   McKinney (2005) Eq. 1.2.124
                                  EUR
 
- NPV, revenue, royalty, opex,    calculateEconomics, TaxRoyalty, mid-year discounting; all wells on          Suite screening economics engine
- capex, payback                  stream in year 1, each well's capex in its year and its opex while on       (docs/scope/ReservoirEngineering-Module.md section 5)
-                                 stream
+ NPV, revenue, royalty, opex,    calculateEconomics, mid-year discounting; royalty 0 percent of gross        Suite screening economics engine
+ capex, payback                  revenue, no income tax; all wells on stream in year 1, each well's          (docs/scope/ReservoirEngineering-Module.md section 5)
+                                 capex in its year and its opex while on stream
 
  Field profile                   The per-well profile shifted to each year's wells and cut at the end of     Superposition of identical wells in time
                                  the project duration; every yearly volume is a difference of the exact
@@ -229,9 +247,7 @@ Methods and references
 
 
 
-
-Well Spacing Report, Spacing study                                                                                                                          Page 3 of 5
-Limits of this analysis
+Limits of this analysis
 - A screening study of spacing economics. Every well recovers the stated recovery factor of the oil under its own spacing area, whatever the
 spacing: the model has no interference, no acceleration-only infill and no incremental recovery from tighter spacing. Field oil is therefore nearly the
 same at every spacing; without a rate limit NPV rises as wells are removed, and with it the wide cases are held back by what each well can
@@ -243,8 +259,8 @@ inside it), so a long plateau is optimistic.
 - Drilling: all wells on stream in year 1. A well comes on stream at the start of the year its cost is spent, every well has the same profile whenever it
 starts (no depletion by the wells before it), and there is no ramp-up, facility limit or downtime. Gas is sold at the initial solution GOR throughout (no
 free gas, no GOR rise below the bubble point).
-- Royalty is one rate on gross revenue; no income tax or production sharing. NPV discounts each year at its middle; the Petroleum Economics
-Studio discounts year-end, so the two do not match for the same case.
+- Fiscal terms: royalty 0 percent of gross revenue, no income tax, the Suite screening engine's own (no bonus, no ring fence). NPV discounts each
+year at its middle; the Petroleum Economics Studio discounts year-end, so the two do not match for the same case.
 - Drainage diagnostics assume a homogeneous, isotropic layer of the stated permeability, single-phase oil, a vertical well at the centre of its
 drainage area and pseudosteady state at the stated average pressure. They change no EUR and no NPV.
 - Bo is Standing's correlation at the bubble point unless a Bo is given; above the bubble point it slightly overstates Bo. The pressure entered is
@@ -256,7 +272,7 @@ No input is flagged.
 
 
 
-Well Spacing Report, Spacing study                                                                                                           Page 4 of 5
+Well Spacing Report, Spacing study                                                                                                                          Page 4 of 5
 Plots
 Figure 1. EUR and oil produced per well against spacing
 Does not apply: no spacing case has been computed.

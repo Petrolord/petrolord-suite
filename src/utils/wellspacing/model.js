@@ -52,6 +52,13 @@ export const FIELDS = Object.freeze([
   { key: 'gasPrice', label: 'Gas price', kind: 'gasPrice', group: 'economics', reads: 'economics', required: true },
   { key: 'discountRate', label: 'Discount rate', kind: 'percent', group: 'economics', reads: 'economics', required: true },
   { key: 'projectDuration', label: 'Project duration', kind: 'years', group: 'economics', reads: 'economics', required: true },
+  // WS-U2-010: fiscal terms of the canonical engine, wired
+  { key: 'fiscalTerms', label: 'Fiscal terms', kind: null, group: 'economics', reads: 'economics', select: true, options: [['royalty', 'Royalty only'], ['taxRoyalty', 'Royalty and income tax'], ['psc', 'Production sharing contract']] },
+  { key: 'incomeTaxRate', label: 'Income tax rate', kind: 'percent', group: 'economics', reads: 'economics', showWhenAny: { fiscalTerms: ['taxRoyalty', 'psc'] } },
+  { key: 'depreciationYears', label: 'Capex depreciation (straight line)', kind: 'years', group: 'economics', reads: 'economics', showWhen: { fiscalTerms: 'taxRoyalty' } },
+  { key: 'lossCarryForward', label: 'Tax losses carried forward', kind: null, group: 'economics', reads: 'economics', select: true, options: [['no', 'No'], ['yes', 'Yes, without limit']], showWhen: { fiscalTerms: 'taxRoyalty' } },
+  { key: 'costRecoveryCap', label: 'Cost recovery cap (share of net revenue)', kind: 'percent', group: 'economics', reads: 'economics', showWhen: { fiscalTerms: 'psc' } },
+  { key: 'contractorProfitShare', label: 'Contractor share of profit oil', kind: 'percent', group: 'economics', reads: 'economics', showWhen: { fiscalTerms: 'psc' } },
   { key: 'royaltiesTaxes', label: 'Royalty (on gross revenue)', kind: 'percent', group: 'economics', reads: 'economics', required: true },
   { key: 'minSpacing', label: 'Smallest spacing', kind: 'spacing', group: 'range', reads: 'economics', required: true },
   { key: 'maxSpacing', label: 'Largest spacing', kind: 'spacing', group: 'range', reads: 'economics', required: true },
@@ -98,7 +105,7 @@ export const SAMPLE_FORM = Object.freeze({
   wellCost: '5000000', operatingExpense: '200000', minEconomicFlowRate: '10', typicalWellDeclineRate: '15',
   oilPrice: '75', gasPrice: '3.5', discountRate: '10', projectDuration: '20', royaltiesTaxes: '25',
   minSpacing: '20', maxSpacing: '160', spacingIncrement: '10', wellLayout: 'square',
-  rateLimit: 'on', drillingSchedule: 'year1', recoveryModel: 'stated', rfPoints: '[]', wellsPerYear: '', rigCount: '', wellsPerRigYear: '',
+  rateLimit: 'on', drillingSchedule: 'year1', recoveryModel: 'stated', rfPoints: '[]', fiscalTerms: 'royalty', lossCarryForward: 'no', wellsPerYear: '', rigCount: '', wellsPerRigYear: '',
   // WS-U2-001: 5 md (it was 50 md in Step 1, where no case reached its deliverable rate), so the example shows the limit
   interferenceDays: '7', gaugeResolutionPsi: '0.01',
   mcRfLow: '25', mcRfHigh: '45', mcAreaLow: '4000', mcAreaHigh: '6000', mcPriceLow: '55', mcPriceHigh: '95', mcIterations: '300', mcSeed: '20260829',
@@ -108,7 +115,7 @@ export const SAMPLE_FORM = Object.freeze({
 export const SAMPLE_NOTE = 'Sample inputs: an illustrative example field built into the app. It is not a real field; replace every value before you rely on the case.';
 
 const asStrings = (o) => Object.fromEntries(Object.entries(o || {}).map(([k, v]) => [k, v == null ? '' : String(v)]));
-export const blankForm = () => ({ ...Object.fromEntries(FORM_KEYS.map((k) => [k, ''])), wellLayout: 'square', rateLimit: 'on', drillingSchedule: 'year1', recoveryModel: 'stated', rfPoints: '[]' });
+export const blankForm = () => ({ ...Object.fromEntries(FORM_KEYS.map((k) => [k, ''])), wellLayout: 'square', rateLimit: 'on', drillingSchedule: 'year1', recoveryModel: 'stated', rfPoints: '[]', fiscalTerms: 'royalty', lossCarryForward: 'no' });
 
 export const emptyIntakes = () => ({ pvt: null, wta: null, mbal: null, rf: null, dca: null, wells: null });
 

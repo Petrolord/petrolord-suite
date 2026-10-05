@@ -149,6 +149,18 @@ export const validateInputs = (formData) => {
     }
   }
 
+  // WS-U2-010: fiscal terms
+  const fiscal = formData?.fiscalTerms || 'royalty';
+  const pctIn = (key, label, required) => {
+    const raw = formData?.[key];
+    if (raw == null || String(raw).trim() === '') { if (required) errors.push(`${label} is required for these fiscal terms.`); return; }
+    const v = parseFloat(raw);
+    if (!(Number.isFinite(v) && v >= 0 && v <= 100)) errors.push(`${label} must be between 0 and 100 (%).`);
+  };
+  if (fiscal === 'taxRoyalty' || fiscal === 'psc') pctIn('incomeTaxRate', 'Income tax rate', true);
+  if (fiscal === 'psc') { pctIn('costRecoveryCap', 'Cost recovery cap', true); pctIn('contractorProfitShare', 'Contractor share of profit oil', true); }
+  if (fiscal === 'taxRoyalty' && String(formData?.depreciationYears ?? '').trim() !== '' && !(parseFloat(formData.depreciationYears) >= 1)) errors.push('Depreciation years must be 1 or more.');
+
   // WS-U2-003: the drilling schedule
   const schedule = formData?.drillingSchedule || 'year1';
   if (schedule === 'wellsPerYear' || schedule === 'rigs') {
@@ -380,7 +392,8 @@ export const spacingEconomicsInputs = (spacing, p) => {
   return {
     projectLife: n,
     discountRate: p.discountRate * 100,
-    fiscalType: 'TaxRoyalty',
+    // WS-U2-010: the fiscal terms calculateEconomics already supports, wired (no fiscal maths here)
+    fiscalType: p.fiscal === 'psc' ? 'PSC' : 'TaxRoyalty',
     production: {
       oil,
       gas: oil.map((v) => (v * p.gor) / 1000), // Mscf
@@ -391,7 +404,10 @@ export const spacingEconomicsInputs = (spacing, p) => {
     opexVariable: new Array(n).fill(0),
     abandonment: new Array(n).fill(0),
     royaltyRate: p.royaltiesTaxes * 100,
-    taxRate: 0,
+    taxRate: p.fiscal === 'royalty' ? 0 : p.taxRatePct,
+    capexDepreciationYears: p.fiscal === 'taxRoyalty' && p.depreciationYears > 0 ? p.depreciationYears : 1,
+    lossCarryForward: p.fiscal === 'taxRoyalty' && p.lossCarryForward,
+    ...(p.fiscal === 'psc' ? { costRecoveryCap: p.costRecoveryCapPct, profitSplitContractor: p.contractorSharePct } : {}),
   };
 };
 
@@ -485,6 +501,8 @@ const evaluateSpacing = (spacing, p) => {
       totalRoyalty: metrics.totalRoyalty,
       totalOpex: metrics.totalOpex,
       totalCapex: metrics.totalCapex,
+      totalTax: metrics.totalTax,
+      totalGovProfit: metrics.totalGovTake - metrics.totalRoyalty - metrics.totalTax,
     },
     costPerBarrel,
     economicLife: actualLife,
@@ -492,7 +510,8 @@ const evaluateSpacing = (spacing, p) => {
     initialRateBpd: qiAnnual / DAYS_PER_YEAR,
     wholeYears: Math.floor(actualLife),
     // the undiscounted net cash flow and payback of the same canonical run
-    netCashUndiscounted: metrics.totalRevenue - metrics.totalRoyalty - metrics.totalOpex - metrics.totalCapex - metrics.totalTax,
+    // WS-U2-010: revenue less the government take (royalty, tax and any government profit oil) and the costs
+    netCashUndiscounted: metrics.totalRevenue - metrics.totalGovTake - metrics.totalOpex - metrics.totalCapex,
     payback: metrics.payback,
     paybackStatus: metrics.paybackStatus,
     // WS-U2-003: the wells by the year they come on stream
@@ -594,6 +613,13 @@ export const spacingParameters = (formData) => {
     rateLimit: formData.rateLimit !== 'off',
     // WS-U2-002: the user's recovery against spacing fit, or null (the stated RF)
     rfFit: formData.recoveryModel === 'calibrated' ? (() => { const f = fitRfAgainstSpacing(rfPointsOf(formData)); return f.ok ? f : null; })() : null,
+    // WS-U2-010: royalty only (the default, as every earlier release), royalty and income tax, or a PSC
+    fiscal: ['taxRoyalty', 'psc'].includes(formData.fiscalTerms) ? formData.fiscalTerms : 'royalty',
+    taxRatePct: Number.isFinite(parseFloat(formData.incomeTaxRate)) ? parseFloat(formData.incomeTaxRate) : 0,
+    depreciationYears: parseFloat(formData.depreciationYears),
+    lossCarryForward: formData.lossCarryForward === 'yes',
+    costRecoveryCapPct: parseFloat(formData.costRecoveryCap),
+    contractorSharePct: parseFloat(formData.contractorProfitShare),
     // WS-U2-003: all wells in year 1 unless a schedule is chosen (the owner default)
     schedule: SCHEDULES.includes(formData.drillingSchedule) ? formData.drillingSchedule : 'year1',
     wellsPerYear: parseFloat(formData.wellsPerYear),

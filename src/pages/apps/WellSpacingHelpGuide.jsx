@@ -206,16 +206,20 @@ const WellSpacingHelpGuideContent = () => (
         Associated gas comes from the solution GOR applied to the oil rate. NPV is computed by the
         Suite screening economics engine, the same one NPV Scenario Builder uses, with mid-year
         discounting: each year&apos;s cash flow is discounted to the middle of its year, and the well
-        cost is spent in the first year and discounted with it. Royalties and taxes enter as one
-        percentage of gross revenue. Until October 2026 this app ran its own loop with year-end
+        cost is spent in the year its well comes on stream and discounted with it. The royalty is one
+        percentage of gross revenue. Under Fiscal terms you can add an income tax (with straight-line
+        depreciation of the capex and, if you choose, losses carried forward) or a production sharing
+        contract (a cost recovery cap and the contractor&apos;s share of profit oil): these are the
+        economics engine&apos;s own terms, wired here, and the economics table then splits out the
+        income tax and the government&apos;s profit oil. Until October 2026 this app ran its own loop with year-end
         discounting and the well cost undiscounted, so an NPV from an older export is lower than the
         one shown now for the same inputs (by about 6 to 17 percent on the example field).
       </Para>
       <Callout tone="warn" title="What the cash flow leaves out">
-        There is no facilities or infrastructure capital, no abandonment cost, no drilling schedule
-        (every well is treated as producing from year one), no price escalation or inflation, and no
-        tax loss carried forward. A real development drills over several years, and that alone will
-        move NPV more than most of the spacing differences you see here.
+        There is no facilities or infrastructure capital, no abandonment cost, no price escalation or
+        inflation, no signature bonus and no ring fence. Every well is on stream in year one unless
+        you set a drilling schedule; a real development drills over several years, and that alone
+        can move NPV more than many of the spacing differences you see here.
       </Callout>
     </GuideSection>
 

@@ -33,6 +33,14 @@ export function modelText(form = {}) {
   return `Each well drains its spacing area at the recovery factor of the user's calibration against spacing (${fit.ok ? rfFitText(fit) : 'not fitted'}), no other interference; one exponential decline per well anchored on that EUR`;
 }
 
+/** WS-U2-010: the fiscal terms in words, from the form. */
+export function fiscalText(form = {}) {
+  const n = (v) => Number(Number(v).toPrecision(6));
+  if (form.fiscalTerms === 'taxRoyalty') return `royalty ${n(form.royaltiesTaxes)} percent of gross revenue and income tax ${n(form.incomeTaxRate)} percent of revenue after royalty, opex and depreciation (capex straight line over ${Number(form.depreciationYears) >= 1 ? n(form.depreciationYears) : 1} year${Number(form.depreciationYears) > 1 ? 's' : ''}; losses ${form.lossCarryForward === 'yes' ? 'carried forward without limit' : 'not carried forward'})`;
+  if (form.fiscalTerms === 'psc') return `production sharing: royalty ${n(form.royaltiesTaxes)} percent, cost recovery up to ${n(form.costRecoveryCap)} percent of net revenue with unrecovered cost carried forward, contractor ${n(form.contractorProfitShare)} percent of profit oil, income tax ${n(form.incomeTaxRate)} percent on the contractor's profit oil`;
+  return `royalty ${n(form.royaltiesTaxes)} percent of gross revenue, no income tax`;
+}
+
 /** WS-U2-003: the drilling schedule in words, from the form. */
 export function scheduleText(form = {}) {
   const s = form.drillingSchedule || 'year1';
@@ -175,12 +183,12 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
   };
 
   const economics = {
-    head: [u.head('Spacing', 'spacing'), 'Revenue', 'Royalty', 'Opex', 'Capex', 'Net cash, undiscounted', 'NPV', 'Payback (years)'],
+    head: [u.head('Spacing', 'spacing'), 'Revenue', 'Royalty', 'Income tax', 'Government profit oil', 'Opex', 'Capex', 'Net cash, undiscounted', 'NPV', 'Payback (years)'],
     rows: rows.map((r) => [
-      sp(r.spacing), m1(r.economics.totalRevenue), m1(r.economics.totalRoyalty), m1(r.economics.totalOpex), m1(r.economics.totalCapex),
+      sp(r.spacing), m1(r.economics.totalRevenue), m1(r.economics.totalRoyalty), m1(r.economics.totalTax ?? 0), m1(r.economics.totalGovProfit ?? 0), m1(r.economics.totalOpex), m1(r.economics.totalCapex),
       m1(r.netCashUndiscounted), m1(r.npv), paybackText(r),
     ]),
-    note: 'US$ million, field totals over the project duration. Revenue is oil at the oil price plus gas at the gas price, the gas being the oil times the initial solution GOR. Revenue less royalty, opex and capex is the undiscounted net cash; NPV is the same yearly stream discounted to the middle of each year. No income tax is applied. Payback is counted in whole years of the yearly stream; "within year 1" means the first year\'s net cash already exceeds the capex spent in it.',
+    note: `US$ million, field totals over the project duration. Revenue is oil at the oil price plus gas at the gas price, the gas being the oil times the initial solution GOR. Revenue less royalty, income tax, government profit oil, opex and capex is the undiscounted net cash; NPV is the same yearly stream discounted to the middle of each year. Fiscal terms: ${fiscalText(inputs.form)}, as the Suite screening engine computes them. Payback is counted in whole years of the yearly stream; "within year 1" means the first year\'s net cash already exceeds the capex spent in it.`,
   };
 
   const inc = (results?.incremental || []).filter((x) => x.against != null);
@@ -308,7 +316,7 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
       ['EUR per well', 'N times the stated recovery factor', 'Stated model (no interference)'],
       ['Production per well', 'Exponential decline, Dn = -ln(1 - De); qi = EUR Dn + q limit; life = ln(qi / q limit) / Dn; yearly volumes integrated exactly; a year is 365.25 days', 'Arps (1945)'],
       ['Rate limit', 'Where qi > qd (deliverable): plateau at qd for tp = (qi - qd) / (Dn qd), then qd exp(-Dn (t - tp)) to the limit; the volume to the limit stays the EUR', 'Plateau then exponential decline; qd from Ahmed and McKinney (2005) Eq. 1.2.124'],
-      ['NPV, revenue, royalty, opex, capex, payback', `calculateEconomics, TaxRoyalty, mid-year discounting; ${scheduleText(inputs.form)}, each well's capex in its year and its opex while on stream`, 'Suite screening economics engine (docs/scope/ReservoirEngineering-Module.md section 5)'],
+      ['NPV, revenue, royalty, opex, capex, payback', `calculateEconomics, mid-year discounting; ${fiscalText(inputs.form)}; ${scheduleText(inputs.form)}, each well's capex in its year and its opex while on stream`, 'Suite screening economics engine (docs/scope/ReservoirEngineering-Module.md section 5)'],
       ['Field profile', 'The per-well profile shifted to each year\'s wells and cut at the end of the project duration; every yearly volume is a difference of the exact field cumulative', 'Superposition of identical wells in time'],
       ['Distance between wells', 'Square: d = sqrt(A); staggered: d = sqrt(2 A / sqrt 3)', 'Geometry; 40 acres square is 1,320 ft'],
       ['Drainage radius', 're = sqrt(43,560 A / pi), ft', 'Ahmed and McKinney (2005), Ex. 1.5: 40 acres, 745 ft'],
@@ -358,7 +366,7 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
       'A screening study of spacing economics. Every well recovers the stated recovery factor of the oil under its own spacing area, whatever the spacing: the model has no interference, no acceleration-only infill and no incremental recovery from tighter spacing. Field oil is therefore nearly the same at every spacing; without a rate limit NPV rises as wells are removed, and with it the wide cases are held back by what each well can deliver. Recovery that responds to spacing is a simulation or analog question.',
       'One exponential decline per well, the stated effective annual decline at every spacing, anchored so the volume to the economic limit is the EUR. A wider spacing therefore gets a proportionally higher initial rate. With the rate limit on, a well whose decline would start above its deliverable rate produces at the deliverable rate first; the deliverable rate is held at the stated average pressure for the whole plateau (no depletion of the pressure inside it), so a long plateau is optimistic.',
       `Drilling: ${scheduleText(inputs.form)}. A well comes on stream at the start of the year its cost is spent, every well has the same profile whenever it starts (no depletion by the wells before it), and there is no ramp-up, facility limit or downtime. Gas is sold at the initial solution GOR throughout (no free gas, no GOR rise below the bubble point).`,
-      'Royalty is one rate on gross revenue; no income tax or production sharing. NPV discounts each year at its middle; the Petroleum Economics Studio discounts year-end, so the two do not match for the same case.',
+      `Fiscal terms: ${fiscalText(inputs.form)}, the Suite screening engine's own (no bonus, no ring fence). NPV discounts each year at its middle; the Petroleum Economics Studio discounts year-end, so the two do not match for the same case.`,
       'Drainage diagnostics assume a homogeneous, isotropic layer of the stated permeability, single-phase oil, a vertical well at the centre of its drainage area and pseudosteady state at the stated average pressure. They change no EUR and no NPV.',
       'Bo is Standing\'s correlation at the bubble point unless a Bo is given; above the bubble point it slightly overstates Bo. The pressure entered is printed as stated, absolute, with no datum correction.',
     ],

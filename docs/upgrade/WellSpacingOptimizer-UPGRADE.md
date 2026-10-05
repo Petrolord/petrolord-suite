@@ -281,3 +281,47 @@ computed there and says so.
 | WS-U2-008 | Done | Uncertainty on RF, area and oil price per case: triangular low / form value / high (Uncertainty card), drawn by the canonical sampler `createCorrelatedSampler` with `mulberry32(seed)` from `src/lib/monteCarlo.js` (the module CLAUDE.md names); each realisation's NPV is the case table's canonical run (`spacingNpv`, calculateEconomics on `spacingEconomicsInputs`), the same draws for every spacing; P90 (10th percentile, the low case), P50, P10, mean, probability of a loss; seed (default 20260829, the screening default) and count (default 300) saved with the project and printed with the distributions and the PRMS exceedance sentence. On demand (Run), kept with the form it ran on (stale said); the PDF export runs it when asked for | `wsMonteCarlo.test.js` (4: same seed same numbers, another seed others; with only the price uncertain each NPV percentile equals the case run at that percentile of the prices drawn again by the canonical sampler; refusals; report note). Negative control: the labels swapped break P90 <= P50 <= P10. e2e "WS-U2-008" |
 | WS-U2-007 | Done | Sensitivity per case through the canonical `runSensitivityAnalysis` of the screening engine (the only sensitivity module; no NPV maths in the app) on each case's own `spacingEconomicsInputs`: oil price, capex, fixed opex and oil volume 30 percent down and up; a table of every case (screen and PDF) and a tornado figure (bars from the base) of the case chosen to send, else the middle case, added last so the Step 1 figure numbers hold. Stated: the canonical sweep scales the oil volume and not the solution gas | `wsSensitivity.test.js` (3: the base is the case NPV for every case; a bar equals a direct calculateEconomics run with the price up 30 percent; price swings equal and opposite; bars ordered; the figure's case). Negative control: the sweep on another spacing's arrays misses the base. e2e "WS-U2-007" |
 | WS-U2-002 | Partial | Recovery against spacing, user-calibrated only (Reservoir card: "Calibrated on your points"): points of RF at a spacing, each with a kind (analog, DCA type well, simulation, other) and a required source; least squares RF = a + b ln S; each case takes the fit at its spacing (`rfOf`), the EUR and the economics follow through calculateEconomics; the points, the fit and every case's RF on screen and in the PDF; extrapolation flagged; a fit outside 0 to 100 percent in the range refused; the MC RF range refused in this mode; the ws-case-1 contract says which recovery model. PARTIAL: the points are typed (with the DCA or simulation source named in words); reading DCA per-well EURs at their spacings by id (dca-forecast-1) or simulation runs (sim-forecast-1) straight into points is not built | `wsRfCalibration.test.js` (5: the fit against a hand least squares; two points give the line through them; each case's RF and EUR follow the fit; NPV is the engine on the case; report rows and the extrapolation flag; MC refusal). Negative control: a point without a source is refused and no curve is fitted to it. e2e "WS-U2-002" |
+| WS-U2-010 | Done | Fiscal terms wired, not implemented: `calculateEconomics` already takes income tax (straight-line depreciation, optional loss carry-forward) and a PSC (cost recovery cap with the pool carried, contractor profit split, tax on contractor profit); Fiscal terms on the Economics card, royalty only the default (numbers unchanged). The economics table gains Income tax and Government profit oil; the net cash closes on the government take; methods, limits and the economics note print the terms | `wsFiscal.test.js` (4: default unchanged; income tax against a hand mid-year sum on the case arrays; a PSC with full cost recovery, all profit oil to the contractor and no tax is the royalty-only case; closure on the government take; validation and report). Negative control: without the tax wired the after-tax NPV would equal the royalty-only one (asserted different by more than US$ 100 MM) |
+
+### Deferred, with reasons
+
+- WS-U2-009 empirical EUR against spacing from many DCA forecasts and the
+  registry spacing: needs per-well spacing from the registry for every DCA
+  well and a type-well grouping; 002's typed points cover the DCA route by
+  hand (a DCA type well at its spacing, source named) until it is built.
+- WS-U2-011 proposed grid on the map: a map editor over the registry wells
+  and a field outline; outside this round's NAPE window, and no number
+  depends on it.
+- WS-U2-002 by-id routes: DCA per-well EURs (dca-forecast-1) and
+  simulation runs (sim-forecast-1) read straight into calibration points.
+  The typed points with their sources are built; the by-id doors are the
+  next step.
+- Batch C (012 XLSX, 013 gas reservoirs, 014 unconventional laterals, the
+  owner said no to laterals in this app, 015 pressure datum): not chosen.
+
+### Where validation is weaker than asked (Step 2)
+
+- The rate-limited plateau holds the deliverable rate at the stated
+  average pressure for the whole plateau; there is no published worked
+  example of the plateau-then-decline profile, so it is held by its closed
+  form and the conserved EUR.
+- The interference drop is the infinite-acting line source with the
+  neighbour as a shut-in observer; held at x = 1 against the tabulated E1
+  and by the Step 1 Ex. 1.21 gates, not against a field interference test.
+- The drilling schedule superposes identical wells in time with no
+  depletion by earlier wells.
+- The calibrated recovery relation is only as good as the user's points;
+  the app holds the fit to a hand least squares, not to any field truth.
+- The Monte Carlo inputs are independent (no correlation between RF, area
+  and price), and the oil volume of the canonical sensitivity sweep moves
+  oil and not the solution gas (the screening engine's own definition).
+
+### Gates and numbers (Step 2)
+
+Example field (5 md, rate limit on, all wells in year 1), field NPV in
+US$ MM: 40 acres 1,885.8 (unchanged); 100 acres 1,892.6 (2,316.6 unlimited);
+160 acres 1,435.2 (2,404.9). Two rigs at 15 wells a rig a year: 40 acres
+1,627.7. Changes numbers in other apps: none. Forecast Scenario Hub and
+Petroleum Economics Studio gain a source (ws-case-1); their existing cases,
+files and numbers do not move (the EPE provenance key list gains
+`ws_case_1`, gated through computeCashFlow).

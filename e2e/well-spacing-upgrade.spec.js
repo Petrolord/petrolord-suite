@@ -295,3 +295,15 @@ test('WS-U2-002 recovery against spacing: calibrated on cited points only, the f
   await expect(page.getByTestId('ws-calibration-cases').getByRole('row', { name: /^160 / })).toContainText('no, extrapolated');
   expect(errors).toEqual([]);
 });
+
+test('WS-U2-010 fiscal terms: royalty only by default; income tax splits out in the economics table', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openApp(page);
+  await expect(page.getByTestId('ws-fiscalTerms')).toHaveValue('royalty');
+  await page.getByTestId('ws-fiscalTerms').selectOption('taxRoyalty');
+  await expect(page.getByTestId('ws-errors')).toContainText('Income tax rate is required for these fiscal terms.');
+  await page.getByTestId('ws-incomeTaxRate').fill('30');
+  await expect(page.getByTestId('ws-economics-table')).toContainText('Income tax');
+  await expect(page.getByTestId('ws-economics')).toContainText('income tax 30 percent');
+  expect(errors).toEqual([]);
+});
