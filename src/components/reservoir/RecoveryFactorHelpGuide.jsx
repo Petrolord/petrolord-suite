@@ -45,14 +45,14 @@ const helpContent = [
     icon: Percent,
     title: 'Step 2: Method, drive-mechanism analog (default)',
     content:
-      'Pick the reservoir\'s primary drive mechanism and the tool returns a low edge, a typical value and a high edge of a screening range. Five oil mechanisms: solution-gas drive 5 to 30%, gas-cap expansion 20 to 40%, water drive 35 to 75%, gravity drainage 40 to 80%, combination drive 20 to 50%. Two gas mechanisms: volumetric depletion 70 to 90% and water drive 35 to 75%, lower because an advancing aquifer traps gas behind the front. These ranges are transcribed from reservoir engineering texts and were not checked against a published table in this build; the typical value is the app\'s own central choice. The edges bound a range: they are not P90 and P10 of a distribution.',
+      'Pick the reservoir\'s primary drive mechanism and the tool returns a low edge, a typical value and a high edge of a screening range. Five oil mechanisms: solution-gas drive 5 to 30%, gas-cap expansion 20 to 40%, water drive 35 to 75%, gravity drainage 40 to 80%, combination drive 20 to 50%. Two gas mechanisms: volumetric depletion 70 to 90% and water drive 35 to 75%, lower because an advancing aquifer traps gas behind the front. These ranges are transcribed from reservoir engineering texts and were not checked against a published table in this build; the typical value is the app\'s own central choice. The edges bound a range: they are not P90 and P10 of a distribution. This table is the one source of drive ranges in the Suite: Material Balance Studio reads its forecast reconciliation band from it (a partial water drive there reads the combination-drive range). When the in-place volume came from a Material Balance case, the drive its indices classify is suggested under the drive menu; it is a suggestion, and the choice stays yours.',
   },
   {
     id: 'correlations',
     icon: Calculator,
     title: 'Step 2 (alt): Correlations',
     content:
-      'The method menu is filtered by phase. For oil, the API (Arps et al. 1967) solution-gas-drive and water-drive correlations. The published equations take permeability in darcies: type k in md and the estimator divides by 1,000 (before October 2026 it used md directly and the estimate was 1.7 to 2 times too high; a project saved before then says so when it opens). For gas, the exact p/z depletion relation RF = 1 - (pa/za)/(pi/zi), or the water-drive gas method RF = Ev (1 - Sgr/(1 - Swi)), which assumes the swept volume is abandoned at the initial pressure. Every input is checked against the domain of its method (abandonment below the bubble point or the initial pressure, fractions between 0 and 1, Sgr below 1 - Swi, z between 0.2 and 2), and a correlation used under another drive is flagged. A value outside 0 to 100 percent is withheld with its reason; it is never clamped.',
+      'The method menu is filtered by phase. For oil, the API (Arps et al. 1967) solution-gas-drive and water-drive correlations. The published equations take permeability in darcies: type k in md and the estimator divides by 1,000 (before October 2026 it used md directly and the estimate was 1.7 to 2 times too high; a project saved before then says so when it opens). For gas, the exact p/z depletion relation RF = 1 - (pa/za)/(pi/zi), or the water-drive gas method RF = Ev (1 - Sgr/(1 - Swi)), which assumes the swept volume is abandoned at the initial pressure; choose "an abandonment pressure pa" to leave the trapped gas and the gas of the unswept volume at Bga, RF = 1 - (Bgi/Bga)[Ev Sgr/Sgi + (1 - Ev)]. For oil, "Displacement x sweep (kr-1)" takes the oil-water relative permeability of a SCAL Studio project by id and computes the Buckley-Leverett displacement efficiency ED by the Welge construction at the pore volumes injected you state (blank: the end point); RF = ED x Ev with the sweep Ev = EA x EI a stated input. In a gas case, zi, za and Bgi come from Dranchuk-Abou-Kassem on Sutton pseudo-criticals (the canonical engines) from the gas gravity and temperature; choose "Typed" to enter them, and a project saved before October 2026 keeps its typed values. In a new case porosity, Swi and Boi are one value per case: the method reads the volumetric values unless you untick the box to state others. Every input is checked against the domain of its method (abandonment below the bubble point or the initial pressure, fractions between 0 and 1, Sgr below 1 - Swi, z between 0.2 and 2), and a correlation used under another drive is flagged. A value outside 0 to 100 percent is withheld with its reason; it is never clamped.',
   },
   {
     id: 'pvt',
@@ -69,11 +69,25 @@ const helpContent = [
       'The cards show the RF with its method and basis, the analog range edges, the in-place volume and where it came from, and the recoverable volume. Flags and warnings sit under them. The chart shows the recoverable volume at the low edge, the estimate and the high edge, in the display unit.',
   },
   {
+    id: 'uncertainty',
+    icon: BarChart3,
+    title: 'Uncertainty: RF x in-place volume',
+    content:
+      'Under the chart, switch on the uncertainty run. The recovery factor is drawn from a triangular on the analog range edges (with the typical value or the method\'s estimate as the mode) or one you state; the in-place volume is fixed, a triangular you state, the P90, P50 and P10 of ReservoirCalc Pro, or the 95 percent interval of a Material Balance history match read as a normal. The draws go through the Suite\'s canonical Monte Carlo module, seeded: the seed is drawn when you switch the run on, New seed draws another, and the seed and the realisation count are saved and printed. P90 is the low case and P10 the high case (probability of exceedance). Realisations outside the physical range are rejected and counted, never clamped.',
+  },
+  {
+    id: 'send',
+    icon: Percent,
+    title: 'Send to ReservoirCalc Pro, and the decline cross-check',
+    content:
+      'Send to ReservoirCalc Pro saves the project and opens ReservoirCalc Pro with ?rfProject= so it reads the estimate by id (contract rf-1) with its method, basis, range and source. ReservoirCalc Pro keeps its own recovery factor until you press Use there; it then keeps the record, says when the value was edited after the intake and when the estimate here changed since. Under Cross-check, take the oil or gas forecasts of the reservoir\'s wells from Decline Curve Analysis (dca-forecast-1, by id): their EUR over the in-place volume is printed beside the estimate. It counts only the wells taken, so with wells missing it is a lower bound.',
+  },
+  {
     id: 'report',
     icon: BarChart3,
     title: 'The report',
     content:
-      'The Report tab takes the identification (company, field, licence, reservoir, wells, analyst, data date, notes) and the source of each typed input, shows what the PDF prints and exports it. The report holds the headline with its basis, the in-place volume and the method by their parts (the factors of a correlation close on its product), every input with its unit and source, the method, its reference and its validation state, the basis and conventions, the limits and every flag, the records of the Material Balance or ReservoirCalc Pro and Fluid intakes, and three figures.',
+      'The Report tab takes the identification (company, field, licence, reservoir, wells, analyst, data date, notes) and the source of each typed input, shows what the PDF prints and exports it. The report holds the headline with its basis, the in-place volume and the method by their parts (the factors of a correlation close on its product), every input with its unit and source, the method, its reference and its validation state, the basis and conventions, the limits and every flag, the records of the Material Balance or ReservoirCalc Pro and Fluid intakes, the uncertainty tables when the run is on, the decline cross-check, and the figures (three, plus the exceedance curve when the run is on).',
   },
   {
     id: 'reference',

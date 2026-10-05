@@ -28,6 +28,8 @@ import EorInputsPanel from '@/components/eor/EorInputsPanel';
 import EorIntakesPanel from '@/components/eor/EorIntakesPanel';
 import EorResults from '@/components/eor/EorResults';
 import EorReportTab from '@/components/eor/EorReportTab';
+import { EOR_SCREEN_CONTRACT } from '@/lib/eorScreenSource';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const TABS = [
   { value: 'screening', label: 'Screening' },
@@ -57,7 +59,7 @@ const Notifications = () => {
 const ProjectCard = () => {
   const {
     projects, sharedProjects, viewingShared, projectRow, sharing, saveCopy, canWrite,
-    currentProjectId, createProject, openProject, deleteProject, savingAvailable, savingReason,
+    currentProjectId, createProject, openProject, deleteProject, savingAvailable, savingReason, screenRecord,
   } = useEorScreening();
   return (
     <Card className="h-fit">
@@ -82,6 +84,12 @@ const ProjectCard = () => {
             fieldLabels={{ project_name: 'name', inputs_data: 'inputs, sources, intakes and report fields' }}
           />
         )}
+        {/* EOR-U2-003: what a reader gets from this project by id */}
+        <p className="text-[10px] text-pl-muted" data-testid="eor-contract-note">
+          {currentProjectId
+            ? `Other apps read this saved project by id (contract ${EOR_SCREEN_CONTRACT}, content ${screenRecord?.fingerprint || EMPTY_VALUE}): every input with its source, each method's verdict per criterion and the CO2 MMP check.`
+            : `Save the screening as a project so other apps can read it by id (contract ${EOR_SCREEN_CONTRACT}).`}
+        </p>
         {projectRow && sharing.ready && !canWrite && (
           <p className="text-xs text-pl-warning-text" data-testid="eor-read-only">
             {sharing.readOnlyReason || 'This project is open read-only.'} Changes you make here are not saved to it.

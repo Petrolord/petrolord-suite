@@ -57,7 +57,7 @@ export function sampleCase({ system = 'oilfield' } = {}) {
 export function fieldCase({ system = 'oilfield' } = {}) {
   const i = defaultInputs(system, { sample: false });
   i.form = { gravityApi: '34', viscosityCp: '1.1', oilSatPct: '42', formation: 'sandstone', netThicknessFt: '60', permeabilityMd: '150', depthFt: '7200', temperatureF: '190' };
-  i.context = { reservoirPressurePsia: '3150', saturationPressurePsia: '', ooipStb: '' };
+  i.context = { reservoirPressurePsia: '3150', saturationPressurePsia: '', ooipStb: '', volatilesMolPct: '20.19', intermediatesMolPct: '39.94' };
   i.depthReference = 'tvdss';
   i.identification = { ...IDENT };
   i.inputMeta = {

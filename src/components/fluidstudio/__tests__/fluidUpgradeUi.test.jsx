@@ -116,6 +116,9 @@ describe('Fluid Systems Studio upgrade: the page', () => {
     renderApp();
     expect(screen.getByTestId('fluid-handoff-note')).toHaveTextContent('This fluid is not saved as a project yet.');
     expect(screen.getByRole('button', { name: /Send to Well Test Analysis Studio/ })).toBeEnabled();
+    // EOR-U2-002: EOR Screening reads the fluid by id, so an unsaved fluid is not sent
+    expect(screen.getByTestId('fluid-send-eor')).toBeDisabled();
+    expect(screen.getByTestId('fluid-send-eor')).toHaveAttribute('title', 'Save the fluid as a project first: EOR Screening reads it by id');
   });
 
   it('compositional mode: the cards and the report switch to the equation of state, and say which stream the KPI row is', async () => {

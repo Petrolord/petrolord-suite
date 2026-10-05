@@ -191,3 +191,79 @@ Balance can deep-link with `?fluidProject=`, `?wellTestProject=`,
 | 4 | Which MMP correlation for U2-001? | One published correlation with its own validation data in the paper (for example Yellig and Metcalfe 1980 for CO2); the report names it and its range |
 | 5 | First reader of `eor-screen-1`? | Recovery Factor Estimator, after its U1 merges |
 | 6 | Many-reservoir screening (U2-009) before NAPE? | No: after NAPE |
+
+## 8. Batch decision (programme lead, 2026-10-04)
+
+Recorded verbatim.
+
+Owner-question defaults in force: migration staging first (owner); the moved sample counts announced in the release note; Aladasani and Bai built only once the paper is in hand (deferred); MMP from one published correlation with its own validation data; Recovery Factor is the first reader of eor-screen-1 (after RF U1 merges); many-reservoir screening after NAPE.
+BUILD in this order, one commit per item:
+- Batch A: U2-001 MMP check against reservoir pressure for CO2 (and N2/hydrocarbon if the same source covers them): one published correlation whose paper you can actually read with its own data (e.g. Yellig and Metcalfe 1980 for CO2; or Alston, Kokolis and James 1985, or Cronquist 1978, whichever you can read), validated against that paper's tabulated measured MMPs within the paper's stated error, negative control; the screening states miscible or immiscible by MMP vs reservoir pressure, with the correlation, its range and its error in the report; U2-002 "Send to EOR Screening" buttons in Fluid, Well Test and Material Balance (open EOR with the source by id, following the Send-to-Simulation pattern); U2-003 the `eor-screen-1` read-by-id contract (methods, pass/marginal/fail per criterion, inputs with sources, criteria edition, MMP result, fingerprint), documented, with a contract test; no RF reader yet.
+- Batch B if time remains: U2-007 distance to each limit (how far each input sits from each published limit, in the report); U2-006 range of published field projects per method (Taber Part 1 tables as printed, with page); U2-008 composition from pvt-1 where Fluid holds one (feeding the MMP correlation if it needs C5+ MW or volatile/intermediate fractions); U2-005 remaining oil saturation from mbal-1.
+- DEFERRED (record reasons): U2-004 Aladasani and Bai (needs the paper), U2-009 many reservoirs (after NAPE), all of Batch C.
+
+Branch `feat/eor-u2`, worktree `/root/wt-res-eor2`, started 2026-10-04 at
+origin/main 55e22d372. The build log per item follows in section 9.
+
+## 9. Step 2 build log
+
+| ID | State | What was built | Proving test |
+|---|---|---|---|
+| EOR-U2-002 | Done | "Send to EOR Screening" in Fluid Systems Studio (Integration Suite, saved project only), Well Test Analysis Studio (Report tab; saves first, then sends; unsaved workspace disabled) and Material Balance Studio (Run tab, oil cases, current run only). Each opens EOR with the record named by id (`src/lib/eorScreeningLinks.js`, harness-aware); EOR chooses it and says it was sent here; Take values reads it by id. No router state | `src/lib/__tests__/eorScreeningLinks.test.js` (with the no-id negative control), `src/components/welltest/__tests__/reportPanelSendEor.test.jsx` (save first; failed save does not navigate), `fluidUpgradeUi.test.jsx` (unsaved fluid not sent), e2e `U2-002 sent here` and the MBAL sender test |
+| EOR-U2-003 | Done | The `eor-screen-1` read-by-id contract, `src/lib/eorScreenSource.js` (every field documented in its header): project and identification, criteria edition, oilfield units, depth reference, every input with its unit, whether it is screened, and its source words; each method ranked with outcome, counts and pass/marginal/fail/na per criterion with the required range, the value, the side, the table and the reason; the MMP check (U2-001); an FNV-1a content fingerprint (not over who read it or when). Built on read from the saved inputs by the same engine as the screen and the report; `?eorProject=<id>` names the project; a missing table reads "not switched on yet". The project card says what a reader gets. No reader yet: Recovery Factor reads it in its own Step 2 | `src/lib/__tests__/eorScreenSource.test.js` (8 tests: verdicts equal the engine and the report ranking; sources; SI stays oilfield; sample flag; fingerprint stable over time and changed by an input; negative controls: tampered outcome and miscounted record fail validation; reader by id with not found, unnamed, table missing, no inputs) |
+| EOR-U2-001 | Done (source differs from the examples, see 9a) | CO2 MMP check against reservoir pressure, `src/utils/eor/mmp.js`: Zhu et al. (2025) Model 9, MMP from temperature and the C1+N2 and C2-C10 (with CO2) fractions of the oil; two new context inputs (mol %); miscible or immiscible with the margin, "within the error of the correlation" when the margin is under its largest deviation (2.05 MPa), inputs outside the paper's data flagged as extrapolated; a card on the Screening tab, a report table (equation, inputs, MMP, pressure, margin, verdict, data range, error, scope, reference), a limits line and flags; in `eor-screen-1`. Changes no Taber verdict. MMP in psia or kPa through the unit registry | `src/utils/eor/__tests__/eorMmp.test.js` (11 tests): the engine on all 12 rows of the paper's Table 2 reproduces MAE 0.4825 MPa, MAPE 2.53 %, RMSE 0.7494, H138 +2.05 MPa (11.07 %), 11 of 12 within 10 %; negative controls (coefficient +2 %, degF fed as degC, CO2 left out of the lump, Yellig and Metcalfe on the same oils lands at 26.1 % against the paper's 25.35 %); pinned 17.94 MPa = 2,602 psia = 17,940 kPa; printed range equals Table 2; report rows in oilfield and SI; e2e `U2-001 MMP` |
+
+### 9a. The MMP source (U2-001)
+
+Yellig and Metcalfe (1980, SPE-7477-PA), Cronquist (1978, DOE symposium)
+and Alston, Kokolis and James (1985, SPE-11959-PA) could not be read:
+OnePetro returns 403, and the OSTI records of the 1978 symposium and of
+Alston have no full text. The batch decision asks for a correlation whose
+paper can be read with its own data, so the app uses the one such paper
+found: Zhu, Wang, Liang, Liu, Xu, Yang and Wang, "Prediction of the
+Minimum Miscibility Pressure of the CO2-Crude Oil System in the Ordos
+Basin", ACS Omega 10 (47), 2025, 57267-57276 (open access; full text at
+PMC12676357, copy in `/root/eor-refs/zhu2025.xml`). Its Table 2 prints 12
+slim-tube MMPs (10 measured by the authors, 2 from earlier studies; which
+two is not marked), and its stated error is reproduced exactly by the
+engine.
+
+Weaker than a classic correlation in three ways, all printed in the
+report: the data are 12 Ordos Basin black oils (43 to 92 degC); it covers
+pure CO2 only (no N2, hydrocarbon gas or impure CO2, so U2-001 is CO2
+only); and it needs the oil composition, which the app did not hold (two
+context inputs added; U2-008 fills them from a compositional pvt-1). The
+paper prints no page numbers in the copy read, so sections and tables are
+cited. Owner item: supply SPE-7477-PA (Yellig and Metcalfe) to add the
+classic temperature-only correlation beside it, validated on its own
+table.
+| EOR-U2-007 | Done | Distance to the limit on every criterion row of the Screening tab and the report (new column): the gap from the limit the verdict was judged on, in the display units (a temperature gap converts without its offset), above or below, minimum or maximum, and as a share of the limit; for a window the nearer end, for a fail the side it fails. Information only, never a score | `src/utils/eor/__tests__/eorDistance.test.js` (band limit for CO2 depth, windows, signs, SI temperature 18 degF = 10 degC, negative controls for blank, not critical and formation, ranking unchanged), goldens, e2e `U2-007` |
+| EOR-U2-006 | Done | Range of current projects per method and criterion, `PROJECT_RANGES` in the engine, transcribed from the page images of Part 2, Tables 1, 2, 3, 5, 6 and 7 (pp. 200 to 203; the ranges are in Part 2, not Part 1), with "inside" or "outside" for this reservoir, a column on the Screening tab and in the report, and the table and page in each method's note. Recorded as printed: no range for the chemical floods (Table 4) or immiscible gas; the combustion temperature printed "100 to 22" (upper end not legible as a temperature, only the lower end used); nitrogen and hydrocarbon gravity ranges are of miscible projects. Context only, never scored | `src/utils/eor/__tests__/eorProjectRanges.test.js` (every printed value against an independent transcription, the gaps, inside/outside in oilfield and SI, outcomes unchanged), goldens, e2e `U2-006` |
+| EOR-U2-008 | Partial | With the pvt-1 intake, a compositional Fluid project also gives C1 + N2 from its feed (normalised to 100 mol %, the project and method in the Source column). C2 to C10 is NOT taken: Fluid's feed lumps C7 and heavier into C7+, so C7 to C10 cannot be separated; the card prints the known part (C2 to C6 with CO2) as a lower bound and asks for the laboratory value. The MMP is therefore not made from Fluid alone. Composition is still not screened against Taber's composition guide (the guide is words, not limits) | `src/utils/eor/__tests__/eorComposition.test.js` (C1 + N2 from the saved fixture, normalisation, black-oil and empty feed refused, MMP not made from C1 + N2 alone, source text), e2e `U2-008` |
+| EOR-U2-005 | Done (Swi typed; kr-1 or Petrophysics Swi not wired) | Remaining oil saturation from material balance, `src/utils/eor/remainingOil.js`: So = (1 - Np/N)(Bo/Boi)(1 - Swi), N and Np (last timestep) and the initial and last pressures from the mbal-1 intake, Bo and Boi from the pvt-1 intake's table at those pressures (never extrapolated), Swi a new stated context input. Refused for an aquifer, injection, no Np, or a pressure outside the table. Shown under the oil saturation field; "Use as the oil saturation" copies it with the method as its source, so the report's Source column prints N, Np, Bo, Boi, Swi and both projects | `src/utils/eor/__tests__/eorRemainingOil.test.js` (engine against the pore-volume statement computed separately; negative controls: aquifer, injection, no Swi, no series, pressure outside the table, no pvt intake), e2e `U2-005` (79.76 % PV on the harness case) |
+
+### 9b. Deferred, with reasons
+
+| ID | Reason |
+|---|---|
+| EOR-U2-004 | Aladasani and Bai (2010, SPE-130726): the paper is not in hand (owner question 3). Taber 1997 stays the only criteria set |
+| EOR-U2-009 | Many reservoirs at once: after NAPE (owner question 6) |
+| EOR-U2-010 to 014 | Batch C, not chosen for this round: methods outside Taber 1997, the Simulation starting deck, results first at narrow widths (U1-017 stays open), CO2 utilisation to EPE, the kit flags-heading layout (U1-019 stays open) |
+| Recovery Factor reader | Built after RF Step 2 merged (#887), on the lead's brief change of 2026-10-05: RF prints the EOR screening as context by id, with source changed since; no RF number changes (see the RF UPGRADE doc). An EOR incremental RF (RF-U2-016) stays deferred |
+| N2 and hydrocarbon MMP | The only readable MMP paper covers pure CO2; nitrogen and hydrocarbon miscibility stay on the Taber depth criteria |
+
+### 9c. What changes for users (Step 2)
+
+- No Taber verdict, count or ranking changes: the MMP check, the distance
+  to the limit and the range of current projects are printed beside the
+  verdicts and never scored. The sample still qualifies 3 of 8.
+- The report gains a CO2 miscibility table and two columns per method
+  table (range of current projects, distance to the limit); the sample
+  report is 9 pages (was 8).
+- Three new context inputs (C1 + N2, C2 to C10 with CO2, Swi), printed
+  with their sources and not screened.
+- Fluid, Well Test and Material Balance each gain a "Send to EOR
+  Screening" button; Well Test saves the project before sending.
+- `eor-screen-1` is readable by id; saving still needs migration
+  `20261004220000` (NOT APPLIED); until then a reader says the table is
+  not switched on.

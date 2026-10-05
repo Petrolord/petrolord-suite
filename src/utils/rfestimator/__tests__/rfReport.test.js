@@ -1,7 +1,7 @@
 // Recovery Factor U1: the report on the kit, read back (RL1 to RL12).
 import { readPdf, flat, listCaptions, pointCounts, expectFigureDrawn, expectFigureStatement, checkGolden } from '@/lib/reportKit/testKit';
 import { missingInputRows } from '@/lib/reportKit/completeness';
-import { reservesBars } from '@/utils/rfestimator/series';
+import { reservesBars, exceedanceSeries } from '@/utils/rfestimator/series';
 import { samplePayload, reviewerPayload, gasPayload, reportOf, pdfOf, GOLDEN_DIR, UPDATE } from './rfTestKit';
 
 describe('the reviewer case (API water drive, PVT from a Fluid project)', () => {
@@ -12,7 +12,7 @@ describe('the reviewer case (API water drive, PVT from a Fluid project)', () => 
   afterAll(() => pdf.close && pdf.close());
 
   it('RL4: identification, units, build, engine', () => {
-    for (const s of ['Recovery Factor Report', 'Ekene Energy', 'OML 999', 'E-2000 sand', 'E-1, E-2, E-3', 'A. Engineer', '2026-09-30', 'Petrolord Suite test (fixture)', 'rf-2 (2026-10, RF-U1)', 'Entered by the user']) expect(text).toContain(s);
+    for (const s of ['Recovery Factor Report', 'Ekene Energy', 'OML 999', 'E-2000 sand', 'E-1, E-2, E-3', 'A. Engineer', '2026-09-30', 'Petrolord Suite test (fixture)', 'rf-3 (2026-10, RF-U2)', 'Entered by the user']) expect(text).toContain(s);
     expect(text).toMatch(/Analysis type Recovery factor screening: API \(1967\): water drive/);
   });
 
@@ -103,5 +103,60 @@ describe('the gas p/z case in SI', () => {
   });
   it('golden', () => {
     checkGolden(built, { dir: GOLDEN_DIR, name: 'gas-si', update: UPDATE });
+  });
+});
+
+describe('RF-U2-002: the reviewer case with the uncertainty run on', () => {
+  const p = reviewerPayload();
+  p.inputs.mc = { enabled: true, rfSource: 'analog', ipSource: 'percentiles', ipP90: '30', ipP50: '36', ipP10: '44', iterations: '4000', seed: '20261004' };
+  const r = reportOf(p);
+  const built = pdfOf(r);
+  const pdf = readPdf(built.doc, { ink: true });
+  const text = flat(pdf.text);
+  afterAll(() => pdf.close && pdf.close());
+  it('prints P90, P50 and P10 with the convention, the seed and the realisation count', () => {
+    const st = r.state.derived.uncertainty.stats;
+    expect(text).toMatch(/Uncertainty: recovery factor x in-place volume/);
+    expect(text).toMatch(/P90 \(low\)/);
+    expect(text).toMatch(/Seed 20261004/);
+    expect(text).toMatch(/Realisations 4000 used of 4000/);
+    expect(text).toMatch(/P90 is the low case and P10 the high case/);
+    expect(text).toContain(`Recovery factor ${(st.rf.p90 * 100).toFixed(1)} ${(st.rf.p50 * 100).toFixed(1)} ${(st.rf.p10 * 100).toFixed(1)}`);
+    expect(text).toMatch(/Uncertainty Seeded Monte Carlo on the Suite's canonical sampler, seed 20261004/);
+  });
+  it('RL6: the exceedance curve is drawn with the screen series', () => {
+    expect(listCaptions(pdf).map((c) => c.title)).toContain('Recoverable volume: probability of exceedance');
+    for (const f of built.figures.filter((x) => x.plotted)) expectFigureDrawn(pdf, f, { logo: true });
+    const screen = exceedanceSeries(r.state.derived.uncertainty, 'oil', 'oilfield');
+    expect(pointCounts(built.figures).exceedance[0]).toEqual({ Exceedance: screen.pts.length, 'P90, P50, P10': 3 });
+  });
+  it('the rf-1 record carries the distribution', async () => {
+    const { rfRecordOf } = await import('@/utils/rfestimator/rfRecord');
+    const rec = rfRecordOf(r.state);
+    expect(rec.distribution).toMatchObject({ seed: 20261004, realisations: 4000, rejected: 0 });
+    expect(rec.distribution.rf.p90).toBe(r.state.derived.uncertainty.stats.rf.p90);
+  });
+  it('a run that cannot go says why in the flags', () => {
+    const q = reviewerPayload();
+    q.inputs.mc = { enabled: true, seed: '' };
+    expect(reportOf(q).model.limits.flags.join(' ')).toMatch(/Uncertainty not run: The seed must be/);
+  });
+  it('golden', () => {
+    checkGolden(built, { dir: GOLDEN_DIR, name: 'reviewer-mc', update: UPDATE });
+  });
+});
+
+describe('RF-U2-010: water-drive gas abandoned at pa, in the report', () => {
+  it('the method by its parts closes on 1, pi, zi, pa, za are inputs, the assumption is the pa form', () => {
+    const p = gasPayload();
+    p.inputs = { ...p.inputs, method: 'gas_water_drive', driveCode: 'gas_water_drive', corr: { ...p.inputs.corr, swi: '0.25', sgr: '0.3', sweep: '0.7', gwdMode: 'abandonment' } };
+    const r = reportOf(p);
+    const d = r.state.derived.result.detail;
+    expect(d.mode).toBe('abandonment');
+    expect(d.trappedSwept + d.unswept + r.state.derived.result.rf).toBeCloseTo(1, 12);
+    expect(r.model.methodSplit.rows.map((x) => x[0])).toContain('Bgi/Bga = (pa/za)/(pi/zi)');
+    expect(r.model.inputs.rows.map((x) => x.key)).toEqual(expect.arrayContaining(['corr.pi', 'corr.zi', 'corr.pa', 'corr.za']));
+    expect(r.model.methodRows.find((x) => x[0] === 'What it assumes')[1]).toMatch(/abandoned at pa/);
+    expect(missingInputRows(r.model.engineInput, r.model.inputs.rows)).toEqual([]);
   });
 });

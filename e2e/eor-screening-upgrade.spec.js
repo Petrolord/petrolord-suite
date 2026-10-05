@@ -136,3 +136,98 @@ test('PL3 units: SI shows converted values; a limit typed in SI is on the limit'
   await expect(row).toContainText('pass');
   await expect(row).toContainText('1,372 m');
 });
+
+// EOR-U2-002: a sender names its saved record in the address; EOR chooses it
+// and reads it by id when Take values is pressed.
+test('U2-002 sent here: the Well Test project named in the address is chosen and taken by id', async ({ page }) => {
+  test.setTimeout(180000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/dev/studio/eor?wellTestProject=wt0e0000-0000-4000-8000-0000000e0e01&mbalCase=rb0e0000-0000-4000-8000-0000000e0e01', { timeout: 120000 });
+  await expect(page.getByText('Method ranking')).toBeVisible({ timeout: 120000 });
+  await expect(page.getByTestId('eor-intake-named-wta')).toContainText('Sent here from Well Test Analysis Studio');
+  await expect(page.getByTestId('eor-intake-named-mbal')).toBeVisible();
+  await expect(page.getByTestId('eor-intake-named-pvt')).toHaveCount(0);
+  await expect(page.getByTestId('eor-pick-wta')).toHaveValue('wt0e0000-0000-4000-8000-0000000e0e01');
+  await page.getByTestId('eor-take-wta').click();
+  await expect(page.getByTestId('eor-permeabilityMd')).toHaveValue('182.4');
+  await expect(page.getByTestId('eor-intake-named-wta')).toHaveCount(0);
+});
+
+// EOR-U2-001: the CO2 MMP check against reservoir pressure, beside the Taber verdicts.
+test('U2-001 MMP: composition and pressure give miscible or immiscible; the report prints the rows', async ({ page }) => {
+  test.setTimeout(180000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await expect(page.getByTestId('eor-mmp')).toHaveAttribute('data-status', 'not made');
+  await page.getByTestId('eor-temperatureF').fill('190');
+  await page.getByTestId('eor-volatilesMolPct').fill('20.19');
+  await page.getByTestId('eor-intermediatesMolPct').fill('39.94');
+  await page.getByTestId('eor-reservoirPressurePsia').fill('3500');
+  await expect(page.getByTestId('eor-mmp')).toHaveAttribute('data-verdict', 'miscible');
+  await expect(page.getByTestId('eor-mmp-minimum')).toHaveText('2,949 psia');
+  await page.getByTestId('eor-reservoirPressurePsia').fill('2500');
+  await expect(page.getByTestId('eor-mmp')).toHaveAttribute('data-verdict', 'immiscible');
+  await page.getByTestId('eor-tab-report').click();
+  await expect(page.getByTestId('eor-report-mmp')).toContainText('Zhu et al. (2025)');
+  await expect(page.getByTestId('eor-report-mmp')).toContainText('Immiscible: the reservoir pressure is below the MMP');
+  expect(await page.evaluate(() => document.body.innerText.includes('—'))).toBe(false);
+});
+
+// EOR-U2-007: distance to each limit, as information beside the verdict.
+test('U2-007 distance to the limit: the sample CO2 depth sits 2,400 ft above its 2,800 ft band', async ({ page }) => {
+  test.setTimeout(180000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await page.getByTestId('eor-method-co2').getByRole('button').first().click();
+  await expect(page.getByTestId('eor-distance-co2-depth')).toHaveText('2,400 ft above the minimum 2,800 ft (86 %)');
+  await expect(page.getByTestId('eor-distance-co2-formation')).toHaveText('n/a');
+});
+
+// EOR-U2-006: the range of current projects (Part 2, Tables 1 to 7) beside each limit.
+test('U2-006 range of current projects: the sample CO2 gravity inside, no printed depth range', async ({ page }) => {
+  test.setTimeout(180000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await page.getByTestId('eor-method-co2').getByRole('button').first().click();
+  await expect(page.getByTestId('eor-range-co2-gravity')).toHaveText('27 to 44 degAPI (inside)');
+  await expect(page.getByTestId('eor-range-co2-depth')).toHaveText('n/a');
+});
+
+// EOR-U2-008: C1 + N2 taken from a compositional Fluid project with the pvt-1 intake; C2 to C10 not assumed.
+test('U2-008 composition: C1 + N2 from the feed of a compositional Fluid project, C2 to C10 left to the user', async ({ page }) => {
+  test.setTimeout(180000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const rows = JSON.parse(FLUID_ROWS);
+  rows[0].inputs_data.inputs = { fluidModel: 'eos', streamA: { composition: { zPct: { N2: 0.5, CO2: 2, H2S: 0, C1: 39.5, C2: 7, C3: 6, iC4: 0, nC4: 5, iC5: 0, nC5: 0, nC6: 6, 'C7+': 34 } } } };
+  await page.addInitScript((f) => { try { window.sessionStorage.setItem('harness.saved_fluid_studio_projects.v1', f); } catch { /* blocked */ } }, JSON.stringify(rows));
+  await page.goto('/dev/studio/eor', { timeout: 120000 });
+  await expect(page.getByText('Method ranking')).toBeVisible({ timeout: 120000 });
+  await page.getByTestId('eor-pick-pvt').selectOption({ index: 1 });
+  await page.getByTestId('eor-pvt-pressure').fill('3400');
+  await page.getByTestId('eor-take-pvt').click();
+  await expect(page.getByTestId('eor-composition-note')).toContainText('C1 + N2 40 mol % taken');
+  await expect(page.getByTestId('eor-composition-note')).toContainText('C2 to C6 with CO2, is 26 mol %: C2 to C10 is at least that');
+  await expect(page.getByTestId('eor-volatilesMolPct')).toHaveValue('40');
+  await expect(page.getByTestId('eor-intermediatesMolPct')).toHaveValue('');
+  await expect(page.getByTestId('eor-mmp')).toHaveAttribute('data-status', 'not made');
+});
+
+// EOR-U2-005: remaining oil saturation from the mbal-1 and pvt-1 intakes with a stated Swi.
+test('U2-005 remaining oil: estimate from Material Balance and Fluid, used as the oil saturation with its method', async ({ page }) => {
+  test.setTimeout(180000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await expect(page.getByTestId('eor-remaining-oil')).toHaveAttribute('data-ok', 'no');
+  await page.getByTestId('eor-pick-pvt').selectOption({ index: 1 });
+  await page.getByTestId('eor-take-pvt').click();
+  await page.getByTestId('eor-pick-mbal').selectOption({ index: 1 });
+  await page.getByTestId('eor-take-mbal').click();
+  await page.getByTestId('eor-swiPct').fill('20');
+  const box = page.getByTestId('eor-remaining-oil');
+  await expect(box).toBeVisible();
+  await expect(box).toHaveAttribute('data-ok', 'yes');
+  await expect(page.getByTestId('eor-remaining-oil-value')).toHaveText('79.76 % PV');
+  await page.getByTestId('eor-remaining-oil-use').click();
+  await expect(page.getByTestId('eor-oilSatPct')).toHaveValue('79.76');
+  await expect(page.getByTestId('eor-source-oilSatPct')).toContainText('Material balance remaining oil');
+});

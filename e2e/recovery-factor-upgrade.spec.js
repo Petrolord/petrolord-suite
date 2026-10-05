@@ -171,3 +171,58 @@ test('PL3 SI display: known conversions, and a decimal typed in kPa survives', a
   await pi.pressSequentially('2', { delay: 20 });
   await expect(pi).toHaveValue('28958.2');
 });
+
+// ---- Step 2 (RF-U2; docs/upgrade/RecoveryFactorEstimator-UPGRADE.md, "Step 2 build") ----
+
+test('RF-U2-002 the seeded uncertainty run: P90 low, seed and realisations printed, the curve on white', async ({ page }) => {
+  test.setTimeout(240000);
+  const errors = watchErrors(page);
+  await openApp(page);
+  await page.getByTestId('rf-mc-enabled').check();
+  const seedBox = page.getByTestId('rf-mc-seed');
+  await expect(seedBox).not.toHaveValue('');
+  await seedBox.fill('20261004');
+  await expect(page.getByTestId('rf-mc-run')).toContainText('Seed 20261004, 5,000 realisations');
+  await expect(page.getByTestId('rf-mc-run')).toContainText('P90 is the low case');
+  await expect(page.getByTestId('rf-mc-table')).toContainText('P90 (low)');
+  const frames = page.getByTestId('rf-uncertainty').locator('[data-canvas="chart"]');
+  await expect(frames).toHaveCount(1);
+  expect(await frames.first().evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)');
+  const first = await page.getByTestId('rf-mc-table').textContent();
+  await page.getByTestId('rf-mc-newseed').click();
+  await expect(page.getByTestId('rf-mc-run')).not.toContainText('Seed 20261004,');
+  await seedBox.fill('20261004');
+  await expect(page.getByTestId('rf-mc-table')).toHaveText(first);
+  const pdf = await exportPdf(page, 'uncertainty.pdf');
+  expect(pdf.flat).toContain('Uncertainty: recovery factor x in-place volume');
+  expect(pdf.flat).toContain('Seed 20261004');
+  expect(pdf.flat).toContain('Recoverable volume: probability of exceedance');
+  expect(errors).toEqual([]);
+});
+
+test('RF-U2-003 a gas case reads zi, za and Bgi from Dranchuk-Abou-Kassem', async ({ page }) => {
+  test.setTimeout(240000);
+  await openApp(page);
+  await page.getByRole('button', { name: 'gas', exact: true }).click();
+  await page.getByRole('button', { name: 'p/z depletion (exact)' }).click();
+  await expect(page.getByTestId('rf-gas-z-values')).toContainText('zi 0.9436');
+  await expect(page.getByTestId('rf-corr-zi')).toBeDisabled();
+  await expect(page.getByTestId('rf-kpi-rf')).toHaveText('62.4%');
+  await page.getByTestId('rf-z-method').selectOption('typed');
+  await expect(page.getByTestId('rf-kpi-rf')).toHaveText('65.4%');
+});
+
+test('RF-U2-008 and RF-U2-001: the drive suggested by Material Balance, and the sender needs a saved project', async ({ page }) => {
+  test.setTimeout(240000);
+  await seed(page);
+  await openApp(page, `?mbalCase=${MBAL_CASE}`);
+  await page.getByTestId('rf-inplace-take').click();
+  await expect(page.getByTestId('rf-drive-suggestion')).toContainText('classifies the drive as depletion drive');
+  // a suggestion only: the drive stays as it was until the user takes it
+  await expect(page.getByTestId('rf-drive')).toHaveValue('water_drive');
+  await page.getByTestId('rf-drive-suggestion-use').click();
+  await expect(page.getByTestId('rf-drive')).toHaveValue('solution_gas');
+  await openRail(page);
+  await page.getByTestId('rf-send-rcp-button').click();
+  await expect(page.getByTestId('rf-send-rcp-message')).toContainText('Save the estimate as a project first');
+});

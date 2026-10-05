@@ -14,7 +14,9 @@
 import {
   estimateRecovery, stoiipVolumetric, ogipVolumetric, volumetricInputFlags, DRIVE_MECHANISMS,
 } from '@/utils/recoveryFactorCalculations';
-import { sampleKeysInUse } from './model';
+import { sampleKeysInUse, inputsWithLinked } from './model';
+import { rfUncertainty } from './uncertainty.js';
+import { rfGasZ, inputsWithGasZ } from './gasZ.js';
 
 const num = (v) => {
   const n = typeof v === 'number' ? v : parseFloat(v);
@@ -54,7 +56,12 @@ export function inPlaceParts(vol, phase) {
  * @param {object} inputs the stored inputs (strings, oilfield units)
  * @param {{inPlaceIntake?: ?object, pvtIntake?: ?object}} [extra]
  */
-export function deriveRf(inputs, { inPlaceIntake = null, pvtIntake = null } = {}) {
+export function deriveRf(typed, { inPlaceIntake = null, pvtIntake = null, krIntake = null } = {}) {
+  // RF-U2-003: a gas case on Dranchuk-Abou-Kassem reads zi, za and Bgi from the
+  // canonical engines; every engine call below takes the inputs as used
+  const gasZ = rfGasZ(typed);
+  // RF-U2-012: linked, the method reads the volumetric porosity, Swi and Boi
+  const inputs = inputsWithGasZ(inputsWithLinked(typed), gasZ);
   const phase = inputs?.phase === 'gas' ? 'gas' : 'oil';
   const direct = inputs?.inPlaceMode === 'direct';
   const parts = direct ? null : inPlaceParts(inputs?.vol, phase);
@@ -67,6 +74,8 @@ export function deriveRf(inputs, { inPlaceIntake = null, pvtIntake = null } = {}
   }
   const result = estimateRecovery({
     method: inputs?.method, driveCode: inputs?.driveCode, ooip: inPlace, correlationInputs: inputs?.corr,
+    // RF-U2-009: the oil-water Corey set of a SCAL project (kr-1)
+    kr: krIntake?.params || null,
   });
   const volFlags = direct ? [] : volumetricInputFlags(inputs?.vol, phase).map((f) => ({ ...f, scope: 'volumetric' }));
   if (direct && inPlace == null) volFlags.push({ key: 'ooipDirect', scope: 'volumetric', text: `${phase === 'gas' ? 'OGIP' : 'OOIP'} is blank, zero or not a number, so no reserves are computed.` });
@@ -75,7 +84,7 @@ export function deriveRf(inputs, { inPlaceIntake = null, pvtIntake = null } = {}
   // fields are separate boxes; a difference is said, never reconciled silently.
   const consistency = [];
   const shared = { api_solution_gas: ['phi', 'swi'], api_water_drive: ['phi', 'swi', 'boi'], gas_water_drive: ['swi'] }[inputs?.method] || [];
-  if (!direct) {
+  if (!direct && !typed?.linked) {
     for (const [v, c, label] of [['phi', 'phi', 'Porosity'], ['sw', 'swi', 'Water saturation'], ['boi', 'boi', 'Boi']]) {
       if (!shared.includes(c)) continue;
       const a = num(inputs.vol?.[v]); const b = num(inputs.corr?.[c]);
@@ -98,8 +107,18 @@ export function deriveRf(inputs, { inPlaceIntake = null, pvtIntake = null } = {}
       }
     }
   }
-  const flags = [...volFlags, ...(result.flags || []), ...consistency];
+  // RF-U2-009: the kr-1 set's Swc against the case's water saturation
+  if (inputs?.method === 'displacement_sweep' && krIntake?.params && !direct) {
+    const swc = Number(krIntake.params.Swc); const sw = num(inputs?.vol?.sw);
+    if (Number.isFinite(swc) && Number.isFinite(sw) && Math.abs(swc - sw) > 0.005) consistency.push({ key: 'kr', scope: 'consistency', text: `The kr-1 set starts the flood at Swc ${swc} and the volumetric water saturation is ${sw}: the displacement efficiency is for a flood from Swc.` });
+  }
+  const flags = [...volFlags, ...(result.flags || []), ...consistency, ...(gasZ?.flags || [])];
+  // RF-U2-002: RF x in-place through the canonical Monte Carlo, seeded (null when off)
+  const uncertainty = rfUncertainty(inputs?.mc, { result, inPlace, inPlaceIntake, phase });
   return {
+    gasZ,
+    inputsUsed: inputs,
+    uncertainty,
     phase,
     direct,
     parts,
@@ -107,7 +126,7 @@ export function deriveRf(inputs, { inPlaceIntake = null, pvtIntake = null } = {}
     result,
     flags,
     drives: DRIVE_MECHANISMS.filter((d) => d.phase === phase),
-    sampleKeys: sampleKeysInUse(inputs),
-    isSample: inputs?.origin === 'sample',
+    sampleKeys: sampleKeysInUse(typed),
+    isSample: typed?.origin === 'sample',
   };
 }

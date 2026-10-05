@@ -21,6 +21,7 @@ import LabMatchCard from '@/components/fluidstudio/LabMatchCard';
 import { blackOilMatchSection } from '@/utils/fluidstudio/reportModel';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { PVT_PROJECT_PARAM } from '@/lib/inputProvenance/pvtContract';
+import { EOR_SCREENING_ROUTES } from '@/lib/eorScreeningLinks';
 import { useFluidUnits } from '@/components/fluidstudio/FluidUnitsContext';
 import { pvtTableCsv, downloadText } from '@/utils/fluidstudio/csvExport';
 import { buildSimKeywords } from '@/utils/fluidstudio/simKeywords';
@@ -52,6 +53,8 @@ const ROUTES = {
   waterflood: ['/dashboard/apps/reservoir/waterflood-design-studio', '/dev/studio/waterflood'],
   // SIM-U1-003: the deck builder reads the saved block by id (PVTO, PVDG and PVTW from its table)
   simulation: ['/dashboard/apps/reservoir/reservoir-simulation-studio', '/dev/reservoir-simulation-studio'],
+  // EOR-U2-002: EOR Screening reads gravity, viscosity, temperature and the bubble point by id
+  eor: EOR_SCREENING_ROUTES,
 };
 
 // Facilities F1: the hand-off returns, pointing at the Pipeline & Line
@@ -84,6 +87,7 @@ const IntegrationSuite = ({ backbone, projectId, onBeforeSend }) => {
   // Waterflood takes viscosities and FVFs from the saved table at a pressure it states, so it needs the project id
   const sendToWaterflood = () => { if (projectId) send('waterflood', '&tab=pattern'); };
   const sendToSimulation = () => { if (projectId) send('simulation', '&tab=builder'); };
+  const sendToEor = () => { if (projectId) send('eor'); };
 
   return (
     <Card className="mt-6" data-testid="fluid-integration">
@@ -100,7 +104,7 @@ const IntegrationSuite = ({ backbone, projectId, onBeforeSend }) => {
             ? 'This fluid is a saved project: it is saved before sending, and the receiving app can read it again after a page refresh.'
             : 'This fluid is not saved as a project yet. The handoff works, but the receiving app cannot read it again after a page refresh. Create a project first to keep the link.'}
         </p>
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-4">
           <Button onClick={sendToLineSizing} disabled={!ready} className="flex-1 disabled:opacity-40">
             <Zap className="w-4 h-4 mr-2" /> Send to Line Sizing Studio
           </Button>
@@ -112,6 +116,9 @@ const IntegrationSuite = ({ backbone, projectId, onBeforeSend }) => {
           </Button>
           <Button onClick={sendToSimulation} disabled={!projectId} variant="outline" className="flex-1 disabled:opacity-40" title={projectId ? undefined : 'Save the fluid as a project first: Reservoir Simulation Studio reads it by id'} data-testid="fluid-send-simulation">
             <Zap className="w-4 h-4 mr-2" /> Send to Reservoir Simulation Studio
+          </Button>
+          <Button onClick={sendToEor} disabled={!projectId} variant="outline" className="flex-1 disabled:opacity-40" title={projectId ? undefined : 'Save the fluid as a project first: EOR Screening reads it by id'} data-testid="fluid-send-eor">
+            <Zap className="w-4 h-4 mr-2" /> Send to EOR Screening
           </Button>
         </div>
       </CardContent>

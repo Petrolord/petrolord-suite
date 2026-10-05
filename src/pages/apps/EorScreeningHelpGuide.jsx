@@ -135,6 +135,64 @@ const EorScreeningHelpGuideContent = () => (
         then change is marked edited after intake, and a source saved again with different
         content is marked source changed since.
       </Para>
+      <Para>
+        You can also start from the other app: Send to EOR Screening in Fluid Systems Studio
+        (Integration Suite), Well Test Analysis Studio (Report tab, Send results) and Material
+        Balance Studio (Run tab, after a run of an oil case) opens this app with that saved
+        project already chosen. Press Take values to read it. Each sender needs a saved
+        project, because this app reads it by id.
+      </Para>
+      <SubHeading>Range of current projects</SubHeading>
+      <Para>
+        Beside the project average, each row prints the range of the field projects of 1996 for
+        that method, as Part 2 of the paper prints it in Tables 1 to 7 (pages 200 to 203), and
+        whether your value sits inside it. Part 2 prints no range for the chemical floods or for
+        immiscible gas, and the combustion temperature range is cut short on the page (printed
+        "100 to 22"), so only its lower end is used. The range is context: it is never scored.
+      </Para>
+      <SubHeading>Distance to the limit</SubHeading>
+      <Para>
+        Each criterion row also says how far your value sits from the limit it was judged on, in
+        your display units and as a share of the limit (for a window such as polymer viscosity,
+        the nearer end). The paper says its limits are not sharp, so a value just inside or just
+        outside deserves a second look. The distance is information only: it never changes a
+        verdict or the ranking.
+      </Para>
+      <SubHeading>CO2 miscibility: MMP against reservoir pressure</SubHeading>
+      <Para>
+        Taber 1997 judges CO2 miscibility by depth for typical Permian Basin oils and says other
+        oils need a measured minimum miscibility pressure. The app adds that check beside the
+        verdicts, from one published correlation whose own slim-tube data it is tested against:
+        Zhu et al. (2025), ACS Omega 10 (47), 57267-57276. It reads the reservoir temperature and
+        two fractions of the reservoir oil, C1 + N2 and C2 to C10 (count CO2 dissolved in the oil
+        with C2 to C10), in mol %. With the reservoir pressure stated it says miscible (pressure
+        above the MMP) or immiscible, and by how much. On its 12 points the correlation is within
+        0.48 MPa on average and 2.05 MPa at worst, so a difference smaller than that is flagged
+        as needing a measured MMP.
+      </Para>
+      <Para>
+        When the Fluid Systems Studio project you take is a compositional (equation of state)
+        model, the app also takes C1 + N2 from its feed. It does not take C2 to C10: the feed
+        lumps C7 and heavier into C7+, so C7 to C10 cannot be separated. The card prints the
+        known part (C2 to C6 with CO2) as a lower bound; enter C2 to C10 from the laboratory
+        composition.
+      </Para>
+      <Callout tone="warn" title="Know where the correlation comes from">
+        The paper fitted black oils of the Ordos Basin (43 to 92 degC) with pure CO2. Inputs
+        outside its data are computed and flagged as extrapolated. It does not cover nitrogen,
+        hydrocarbon gas or impure CO2. The check changes no Taber verdict: CO2 miscible still
+        uses the depth by oil gravity table.
+      </Callout>
+      <SubHeading>Remaining oil from Material Balance</SubHeading>
+      <Para>
+        Under the oil saturation field the app estimates the oil saturation now, once you have
+        taken a Material Balance case and a Fluid Systems Studio project and stated the initial
+        water saturation: So = (1 - Np/N) (Bo/Boi) (1 - Swi), with N and Np from the case, Bo and
+        Boi from the Fluid project's table at the last and initial pressures, and your Swi. Use
+        as the oil saturation copies it into the field with the method as its source. It is a
+        reservoir average for a volumetric reservoir: a case with an aquifer or injection gets no
+        estimate, and swept zones hold less oil than the average.
+      </Para>
       <SubHeading>Blank and zero are different</SubHeading>
       <Para>
         A blank field is left unscored. A zero is a real measured value and is tested like any

@@ -8,6 +8,7 @@ import { rfPvtSourceText } from '@/utils/rfestimator/pvtIntake';
 import { inPlaceSourceText } from '@/utils/rfestimator/inPlaceIntake';
 import RfField from './RfField';
 import InPlaceIntakePanel from './InPlaceIntakePanel';
+import { Z_METHOD_DAK } from '@/utils/rfestimator/gasZ';
 
 const InPlacePanel = () => {
   const {
@@ -15,7 +16,10 @@ const InPlacePanel = () => {
   } = useRfEstimator();
   const volFields = inputs.phase === 'gas' ? VOL_FIELDS_GAS : VOL_FIELDS_OIL;
   const flagged = new Set(derived.flags.filter((f) => f.scope === 'volumetric').map((f) => f.key));
+  // RF-U2-003: Bgi computed by Dranchuk-Abou-Kassem shows the value used, not editable
+  const bgiComputed = (k) => k === 'bgi' && inputs.phase === 'gas' && inputs.zMethod === Z_METHOD_DAK;
   const note = (key) => {
+    if (bgiComputed(key)) return 'From Dranchuk-Abou-Kassem z at pi and T (Gas z factor, under Method)';
     const pvt = rfPvtSourceText(pvtIntake, 'vol', key, inputs.vol[key]);
     if (pvt) return pvt.startsWith('Edited') ? 'Edited after the Fluid intake' : 'From Fluid Systems Studio';
     if (derived.sampleKeys.has(`vol.${key}`)) return 'Sample value';
@@ -65,8 +69,9 @@ const InPlacePanel = () => {
       ) : (
         <div className="grid grid-cols-2 gap-3">
           {volFields.map(([k, lbl, kind]) => (
-            <RfField key={k} id={`rf-vol-${k}`} label={lbl} kind={kind} u={u} value={inputs.vol[k] ?? ''}
-              onChange={(v) => setVolField(k, v)} flagged={flagged.has(k)} note={note(k)} />
+            <RfField key={`${k}-${bgiComputed(k)}`} id={`rf-vol-${k}`} label={lbl} kind={kind} u={u}
+              value={bgiComputed(k) ? String(parseFloat(Number(derived.inputsUsed?.vol?.bgi).toPrecision(5)) || '') : (inputs.vol[k] ?? '')}
+              disabled={bgiComputed(k)} onChange={(v) => setVolField(k, v)} flagged={flagged.has(k)} note={note(k)} />
           ))}
         </div>
       )}
