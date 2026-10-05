@@ -366,6 +366,8 @@ grades P on every applicable check except RL6 (no sensitivity plot, stated).
 
 ### 4.13 Well Spacing Optimizer
 
+Corrections after Step 1 (WS-U1, 2026-10-05): no S1. RL12 F rested on H6 and H7, both closed in Step 0e before the round. RL7 Pa understated the "$M" heading: values in US$ million under a heading that reads thousands is S2 (WS-U1-001). Code reading missed two defects: the table and the JSON stayed on old results after an edit until Calculate (S2, WS-U1-006), and the chart mark sat over the last X tick labels (S4). The plan's "no STATUS doc exists" was out of date. Details in `docs/upgrade/WellSpacingOptimizer-UPGRADE.md`.
+
 Exports: `well_spacing_results.csv` and `well_spacing_summary.json`
 (`U/wellSpacingCalculations.js:303-338`). Nothing saved.
 

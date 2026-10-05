@@ -11,11 +11,11 @@ test('T1: example loads, stock-tank EUR, recharts on the chart standard', async 
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.goto('/dev/studio/well-spacing', { timeout: 120000 });
   await page.getByRole('button', { name: 'Load example field' }).click();
-  await page.getByRole('button', { name: 'Calculate' }).click();
+  // WS-U1: the cases recompute on every edit; there is no Calculate button
   await expect(page.getByTestId('ws-bo-note')).toContainText('Bo 1.28', { timeout: 30000 });
   await expect(page.getByRole('cell', { name: '289.2' }).first()).toBeVisible();
   await expect(page.getByRole('cell', { name: '371.5' })).toHaveCount(0);
-  expect(await page.locator('.recharts-wrapper').count()).toBe(3);
+  expect(await page.locator('.recharts-wrapper').count()).toBe(4); // WS-U1: the plan and deliverable rate chart
   expect(await page.locator('canvas').count()).toBe(0);
   expect(errors).toEqual([]);
 });

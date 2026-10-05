@@ -1,0 +1,34 @@
+{
+  "pages": 4,
+  "sha256": "c99524a371b4519add89c86d4fb67b3afd5a0e306b317f0696ba93bbb1344406",
+  "figures": [
+    {
+      "id": "eur",
+      "number": 1,
+      "page": 4,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "npv",
+      "number": 2,
+      "page": 4,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "deliverability",
+      "number": 3,
+      "page": 4,
+      "plotted": false,
+      "panels": []
+    },
+    {
+      "id": "map",
+      "number": 4,
+      "page": 4,
+      "plotted": false,
+      "panels": []
+    }
+  ]
+}
