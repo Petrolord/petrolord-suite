@@ -266,3 +266,13 @@ test('WS-U2-008 uncertainty: a seeded Monte Carlo per case, the seed and count p
   await expect(page.getByTestId('ws-mc-stale')).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('WS-U2-007 sensitivity: every case with one input 30 percent down and up, the canonical sweep', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openApp(page);
+  const t = page.getByTestId('ws-sensitivity-table');
+  await expect(t).toContainText('Oil price -30% (US$ MM)');
+  await expect(t.getByRole('row', { name: /^100 1,892.6 / })).toBeVisible();
+  await expect(page.getByTestId('ws-sensitivity')).toContainText('runSensitivityAnalysis');
+  expect(errors).toEqual([]);
+});

@@ -190,6 +190,9 @@ const ResultsPanel = ({ downloadCSV, downloadJSON }) => {
       <Section title="Incremental economics: the added wells" testId="ws-incremental">
         <Table head={model.incremental.head} rows={model.incremental.rows} testId="ws-incremental-table" note={model.incremental.note} />
       </Section>
+      <Section title="Sensitivity: NPV with one input moved" testId="ws-sensitivity">
+        <Table head={model.sensitivity.head} rows={model.sensitivity.rows} testId="ws-sensitivity-table" note={model.sensitivity.note} />
+      </Section>
       <Section
         title="Uncertainty: NPV of each case" testId="ws-uncertainty"
         actions={(

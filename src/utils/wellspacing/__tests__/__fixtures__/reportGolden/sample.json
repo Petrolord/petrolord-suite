@@ -1,6 +1,6 @@
 {
   "pages": 11,
-  "sha256": "d6ac81f231062a8787329fcb895d0a0c080f0697b3ff95db7830388cc95b142b",
+  "sha256": "4b7136785b1ba08bd1a0aef7502724761eb4042c29c1946db32395bdfbf3ec14",
   "figures": [
     {
       "id": "eur",
@@ -79,6 +79,29 @@
       "page": 11,
       "plotted": false,
       "panels": []
+    },
+    {
+      "id": "tornado",
+      "number": 5,
+      "page": 11,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 130.94,
+            "w": 182,
+            "h": 60
+          },
+          "drawn": {
+            "Input 30 percent down": 4,
+            "Input 30 percent up": 4
+          },
+          "total": 8,
+          "bands": 0,
+          "logo": true
+        }
+      ]
     }
   ]
 }

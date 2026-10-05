@@ -273,6 +273,10 @@ Figure 4. Wells taken from the registry
 Does not apply: no wells were taken from the registry.
 
 
+Figure 5. Sensitivity of the NPV of one case
+Does not apply: no spacing case has been computed.
+
+
 
 
 Well Spacing Report, Spacing study                                 Page 5 of 5

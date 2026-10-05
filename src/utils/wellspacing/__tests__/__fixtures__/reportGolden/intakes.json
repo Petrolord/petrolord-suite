@@ -1,11 +1,11 @@
 {
-  "pages": 10,
-  "sha256": "55722178d9392ae769ee66c8f7b9e8367ad42672a6f5bf39c5d4b5f038453cf3",
+  "pages": 12,
+  "sha256": "1bc275d5b3691eb2bd7348defe75d40ae3f82e9d4950cf1ab7a80ada0e7c990c",
   "figures": [
     {
       "id": "eur",
       "number": 1,
-      "page": 9,
+      "page": 10,
       "plotted": true,
       "panels": [
         {
@@ -28,7 +28,7 @@
     {
       "id": "npv",
       "number": 2,
-      "page": 9,
+      "page": 10,
       "plotted": true,
       "panels": [
         {
@@ -51,7 +51,7 @@
     {
       "id": "deliverability",
       "number": 3,
-      "page": 10,
+      "page": 11,
       "plotted": true,
       "panels": [
         {
@@ -74,7 +74,7 @@
     {
       "id": "map",
       "number": 4,
-      "page": 10,
+      "page": 11,
       "plotted": true,
       "panels": [
         {
@@ -88,6 +88,29 @@
             "Registry wells": 4
           },
           "total": 4,
+          "bands": 0,
+          "logo": true
+        }
+      ]
+    },
+    {
+      "id": "tornado",
+      "number": 5,
+      "page": 12,
+      "plotted": true,
+      "panels": [
+        {
+          "box": {
+            "x": 14,
+            "y": 23,
+            "w": 182,
+            "h": 60
+          },
+          "drawn": {
+            "Input 30 percent down": 4,
+            "Input 30 percent up": 4
+          },
+          "total": 8,
           "bands": 0,
           "logo": true
         }

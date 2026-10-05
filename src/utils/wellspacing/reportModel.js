@@ -19,6 +19,7 @@ import { wsUnits } from './units.js';
 import { intakeSourceText } from './intakes.js';
 import { crossChecks } from './crossChecks.js';
 import { MC_VARIABLES } from './monteCarlo.js';
+import { spacingSensitivities, tornadoCaseOf, SENSITIVITY_RANGE_PCT } from './sensitivity.js';
 
 export const REPORT_TITLE = 'Well Spacing Report';
 export const APP_NAME = 'Petrolord Well Spacing Optimizer';
@@ -245,6 +246,17 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
       : (mc && !mc.ok ? `Not run: ${mc.errors.join(' ')}` : (mcGiven ? 'Not run yet: run the uncertainty on the Study tab (the PDF export runs it).' : 'Not run: no low and high is given for the recovery factor, the area or the oil price.')),
   };
 
+  // WS-U2-007: the canonical sensitivity sweep on each case's own economics inputs
+  const sens = spacingSensitivities(results);
+  const SENS_ORDER = ['Oil price', 'Capex', 'Opex', 'Oil volume'];
+  const tornado = tornadoCaseOf(results, inputs.sender?.spacing);
+  const sensitivity = {
+    head: [u.head('Spacing', 'spacing'), 'Base NPV (US$ MM)', ...SENS_ORDER.flatMap((n) => [`${n} -${SENSITIVITY_RANGE_PCT}% (US$ MM)`, `${n} +${SENSITIVITY_RANGE_PCT}% (US$ MM)`])],
+    rows: sens.map((c) => [sp(c.spacing), m1(c.base), ...SENS_ORDER.flatMap((n) => { const b = c.bars.find((x) => x.name === n); return [m1(b?.low), m1(b?.high)]; })]),
+    note: `Each case's NPV with one input ${SENSITIVITY_RANGE_PCT} percent down and up, the others held: the Suite screening engine's own sweep (runSensitivityAnalysis) on the arrays the case table ran on, each point a calculateEconomics run. Oil volume scales the oil (the solution gas is held); opex is the fixed opex. The tornado figure draws ${tornado ? `${sp(tornado.spacing)} ${u.label('spacing')}, ${tornado.why}` : 'no case'}.`,
+    tornado: tornado ? { ...tornado, sens: sens.find((c) => c.spacing === tornado.spacing) } : null,
+  };
+
   const cc = crossChecks(inputs, results);
   const crossRows = [];
   crossRows.push(['In place: volumetric OOIP of this case', finite(cc.inPlace.volumetricStb) ? `${u.fmt('volume', cc.inPlace.volumetricStb / 1e6, 5)} ${u.label('volume')}` : EMPTY_VALUE,
@@ -318,6 +330,28 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
   };
 
   const figures = buildFigures(rows, inputs, u, results);
+  // WS-U2-007: the tornado of one case, bars from the base NPV
+  const T = sensitivity.tornado;
+  if (T?.sens) {
+    const bars = T.sens.bars;
+    figures.push({
+      id: 'tornado',
+      title: `Sensitivity of the NPV at ${sp(T.spacing)} ${u.label('spacing')}`,
+      caption: `Change in NPV from the base (${m1(T.sens.base)} US$ MM) with one input ${SENSITIVITY_RANGE_PCT} percent down and up, largest swing first: ${bars.map((b, i) => `${i + 1} ${b.name.toLowerCase()}`).join(', ')}. The case is ${T.why}; the canonical sweep of the screening engine.`,
+      panels: [{
+        height: 60,
+        spec: {
+          xTitle: 'Input (numbered as in the caption)', yTitle: 'Change in NPV, US$ MM', barWidth: 0.6, xInclude: [0.4, bars.length + 0.6],
+          series: [
+            { name: 'Input 30 percent down', type: 'bar', pts: bars.map((b, i) => [i + 1, b.low - T.sens.base]), rgb: SERIES_RGB.red },
+            { name: 'Input 30 percent up', type: 'bar', pts: bars.map((b, i) => [i + 1, b.high - T.sens.base]), rgb: SERIES_RGB.emerald },
+          ],
+        },
+      }],
+    });
+  } else if (!rows.length) {
+    figures.push({ id: 'tornado', title: 'Sensitivity of the NPV of one case', statement: 'Does not apply: no spacing case has been computed.' });
+  }
   const who = [text(inputs.identification?.field) || text(inputs.form?.fieldName), text(projectName)].filter(Boolean).join(', ');
   return {
     system: sys,
@@ -330,6 +364,7 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
     rateLimit,
     interference,
     uncertainty,
+    sensitivity,
     drainage,
     cross,
     crossChecks: cc,

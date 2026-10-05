@@ -277,6 +277,14 @@ const WellSpacingHelpGuideContent = () => (
         plan initial rate is above the deliverable rate, the unlimited decline starts at a rate the
         well cannot give, and the report flags it.
       </Para>
+      <SubHeading>Sensitivity</SubHeading>
+      <Para>
+        The sensitivity table moves oil price, capex, opex and the oil volume 30 percent down and up,
+        one at a time, for every case. It is the Suite screening engine&apos;s own sweep run on the
+        same yearly arrays as the case table, so its base is the case NPV. The oil volume moves the
+        oil only (the solution gas is held). The report draws the tornado of the case chosen to
+        send, or of the middle case of the range when none is chosen.
+      </Para>
       <SubHeading>Uncertainty (Monte Carlo)</SubHeading>
       <Para>
         Give a low and a high around the recovery factor, the reservoir area or the oil price

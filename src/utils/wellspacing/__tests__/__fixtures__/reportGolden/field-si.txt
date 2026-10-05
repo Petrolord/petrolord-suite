@@ -70,7 +70,7 @@ wells. Initial rate: the rate on day one of the decline each well is given, risi
 
 
 
-Well Spacing Report, Ekene, Spacing study                                                                                                   Page 1 of 10
+Well Spacing Report, Ekene, Spacing study                                                                                                   Page 1 of 11
 Economics of each case, by part
  Spacing (ha/well)               Revenue           Royalty      Opex       Capex       Net cash, undiscounted             NPV           Payback (years)
 
@@ -150,7 +150,7 @@ changed. Where the rate limit binds, the extra wells also bring the oil forward,
 
 
 
-Well Spacing Report, Ekene, Spacing study                                                                                                           Page 2 of 10
+Well Spacing Report, Ekene, Spacing study                                                                                                           Page 2 of 11
 Rate limit: before and after
  Spacing     Plan initial   Deliverable    Rate       Plateau   Produced per well,     Produced per well,    NPV           NPV              Change
  (ha/well)   rate (sm3/d)   rate (sm3/d)   produced   (years)   unlimited (10^3 sm3)   limited (10^3 sm3)    unlimited     rate-limited     (US$ MM)
@@ -194,39 +194,79 @@ unchanged and arrives later, so the NPV falls and the produced volume can be cut
 
 
 
-Well Spacing Report, Ekene, Spacing study                                                                                                 Page 3 of 10
-Uncertainty: NPV of each case (Monte Carlo)
- Spacing (ha/well)    Base NPV (US$ MM)   P90 NPV, low (US$ MM)      P50 NPV (US$ MM)    P10 NPV, high (US$ MM)   Mean (US$ MM)   Probability NPV < 0 (%)
+Well Spacing Report, Ekene, Spacing study                                                                                                 Page 3 of 11
+Sensitivity: NPV of each case with one input moved
+ Spacing      Base NPV            Oil price -30%    Oil price +30%   Capex -30%          Capex +30%      Opex -30%     Opex +30%           Oil volume -30%    Oil volume +30%
+ (ha/well)    (US$ MM)            (US$ MM)          (US$ MM)         (US$ MM)            (US$ MM)        (US$ MM)      (US$ MM)            (US$ MM)           (US$ MM)
 
- 8.09371              1,568.6             922.4                      1,595.8             2,259.9                  1,605.0         0.0
+ 8.09371      1,568.6             636.0             2,501.1          1,926.1             1,211.0         1,694.8       1,442.4             636.0              2,501.1
 
- 12.1406              2,034.9             1,427.8                    2,071.9             2,748.0                  2,080.1         0.0
+ 12.1406      2,034.9             1,120.4           2,949.4          2,272.3             1,797.5         2,122.9       1,947.0             1,120.4            2,949.4
 
- 16.1874              2,282.2             1,659.2                    2,299.7             2,993.6                  2,312.2         0.0
+ 16.1874      2,282.2             1,373.0           3,191.4          2,461.0             2,103.4         2,349.1       2,215.2             1,373.0            3,191.4
 
- 20.2343              2,374.3             1,783.2                    2,379.9             3,023.5                  2,392.9         0.0
+ 20.2343      2,374.3             1,486.1           3,262.5          2,517.3             2,231.3         2,427.9       2,320.7             1,486.1            3,262.5
 
- 24.2811              2,355.9             1,822.2                    2,369.2             2,951.1                  2,380.7         0.0
+ 24.2811      2,355.9             1,505.8           3,206.0          2,474.6             2,237.2         2,400.4       2,311.4             1,505.8            3,206.0
 
- 28.328               2,293.2             1,799.0                    2,303.9             2,841.8                  2,318.7         0.0
+ 28.328       2,293.2             1,484.5           3,101.9          2,394.8             2,191.7         2,331.3       2,255.2             1,484.5            3,101.9
 
- 32.3749              2,206.1             1,744.2                    2,224.6             2,725.1                  2,231.5         0.0
+ 32.3749      2,206.1             1,440.2           2,971.9          2,294.8             2,117.4         2,239.3       2,172.9             1,440.2            2,971.9
 
- 36.4217              2,107.3             1,684.3                    2,122.0             2,597.0                  2,132.1         0.0
+ 36.4217      2,107.3             1,383.9           2,830.7          2,185.9             2,028.6         2,136.8       2,077.8             1,383.9            2,830.7
 
- 40.4686              2,028.2             1,604.1                    2,018.3             2,450.9                  2,027.6         0.0
+ 40.4686      2,028.2             1,337.5           2,718.8          2,099.7             1,956.7         2,055.0       2,001.4             1,337.5            2,718.8
 
- 44.5154              1,907.2             1,530.2                    1,922.2             2,325.0                  1,925.1         0.0
+ 44.5154      1,907.2             1,261.6           2,552.8          1,971.5             1,842.8         1,931.3       1,883.1             1,261.6            2,552.8
 
- 48.5623              1,796.2             1,436.1                    1,815.8             2,171.3                  1,821.0         0.0
+ 48.5623      1,796.2             1,190.8           2,401.5          1,854.8             1,737.5         1,818.1       1,774.2             1,190.8            2,401.5
 
- 52.6091              1,705.2             1,362.3                    1,706.8             2,057.6                  1,717.5         0.0
+ 52.6091      1,705.2             1,132.3           2,278.1          1,759.5             1,650.8         1,725.5       1,684.8             1,132.3            2,278.1
 
- 56.656               1,595.5             1,290.1                    1,604.7             1,923.8                  1,618.5         0.0
+ 56.656       1,595.5             1,060.5           2,130.5          1,645.6             1,545.5         1,614.3       1,576.8             1,060.5            2,130.5
 
- 60.7028              1,516.2             1,223.2                    1,509.8             1,806.4                  1,517.9         0.0
+ 60.7028      1,516.2             1,008.3           2,024.1          1,563.4             1,469.0         1,533.9       1,498.5             1,008.3            2,024.1
 
- 64.7497              1,424.0             1,144.0                    1,413.9             1,687.0                  1,425.6         0.0
+ 64.7497      1,424.0             947.0             1,901.0          1,468.3             1,379.6         1,440.6       1,407.4             947.0              1,901.0
+
+
+Each case's NPV with one input 30 percent down and up, the others held: the Suite screening engine's own sweep (runSensitivityAnalysis) on the
+arrays the case table ran on, each point a calculateEconomics run. Oil volume scales the oil (the solution gas is held); opex is the fixed opex. The
+tornado figure draws 36.4217 ha/well, the middle case of the range (no case is chosen to send).
+
+
+Uncertainty: NPV of each case (Monte Carlo)
+ Spacing (ha/well)      Base NPV (US$ MM)          P90 NPV, low (US$ MM)       P50 NPV (US$ MM)       P10 NPV, high (US$ MM)     Mean (US$ MM)         Probability NPV < 0 (%)
+
+ 8.09371                1,568.6                    922.4                       1,595.8                2,259.9                    1,605.0               0.0
+
+ 12.1406                2,034.9                    1,427.8                     2,071.9                2,748.0                    2,080.1               0.0
+
+ 16.1874                2,282.2                    1,659.2                     2,299.7                2,993.6                    2,312.2               0.0
+
+ 20.2343                2,374.3                    1,783.2                     2,379.9                3,023.5                    2,392.9               0.0
+
+ 24.2811                2,355.9                    1,822.2                     2,369.2                2,951.1                    2,380.7               0.0
+
+ 28.328                 2,293.2                    1,799.0                     2,303.9                2,841.8                    2,318.7               0.0
+
+ 32.3749                2,206.1                    1,744.2                     2,224.6                2,725.1                    2,231.5               0.0
+
+ 36.4217                2,107.3                    1,684.3                     2,122.0                2,597.0                    2,132.1               0.0
+
+ 40.4686                2,028.2                    1,604.1                     2,018.3                2,450.9                    2,027.6               0.0
+
+ 44.5154                1,907.2                    1,530.2                     1,922.2                2,325.0                    1,925.1               0.0
+
+ 48.5623                1,796.2                    1,436.1                     1,815.8                2,171.3                    1,821.0               0.0
+
+ 52.6091                1,705.2                    1,362.3                     1,706.8                2,057.6                    1,717.5               0.0
+
+ 56.656                 1,595.5                    1,290.1                     1,604.7                1,923.8                    1,618.5               0.0
+
+ 60.7028                1,516.2                    1,223.2                     1,509.8                1,806.4                    1,517.9               0.0
+
+ 64.7497                1,424.0                    1,144.0                     1,413.9                1,687.0                    1,425.6               0.0
 
 300 realisations, seed 20260829, drawn by the Suite's canonical Monte Carlo sampler (src/lib/monteCarlo.js, mulberry32); every realisation is a full
 case run whose NPV is calculateEconomics, the same draws for every spacing. Triangular: recovery factor 25 / 35 / 45 %; reservoir area 4000 /
@@ -235,136 +275,133 @@ where more is better: P90 is the low case (the 10th percentile of the realisatio
 quantity meets or exceeds this value, per SPE PRMS.
 
 
-Inputs and their sources
- Input                                              Value                 Unit              Source and quality
 
- Field name [record]                                Ekene                                   Entered
 
- Reservoir area [case]                              2,023.43              ha                Entered, source not stated
+Well Spacing Report, Ekene, Spacing study                                                                                                                         Page 4 of 11
+Inputs and their sources
+ Input                                         Value                 Unit             Source and quality
 
- Average net pay [case]                             18.288                m                 Entered, source not stated
+ Field name [record]                           Ekene                                  Entered
 
- Porosity [case]                                    18                    %                 Measured (lab). Core report CR-17, 42 plugs
+ Reservoir area [case]                         2,023.43              ha               Entered, source not stated
 
- Initial water saturation [case]                    0.25                  fraction          Entered, source not stated
+ Average net pay [case]                        18.288                m                Entered, source not stated
 
- Recovery factor (per well, over its drained        35                    %                 Offset well. Analog: E-1000 sand, same field
+ Porosity [case]                               18                    %                Measured (lab). Core report CR-17, 42 plugs
+
+ Initial water saturation [case]               0.25                  fraction         Entered, source not stated
+
+ Recovery factor (per well, over its drained   35                    %                Offset well. Analog: E-1000 sand, same field
  area) [case]
 
- Reservoir temperature [case]                       82.2222               degC              Entered, source not stated
+ Reservoir temperature [case]                  82.2222               degC             Entered, source not stated
 
- Oil gravity [case]                                 35                    degAPI            Entered, source not stated
+ Oil gravity [case]                            35                    degAPI           Entered, source not stated
 
- Gas gravity [case]                                 0.75                  air = 1           Entered, source not stated
+ Gas gravity [case]                            0.75                  air = 1          Entered, source not stated
 
- Initial solution GOR (also the producing           89.0538               sm3/sm3           Entered, source not stated
+ Initial solution GOR (also the producing      89.0538               sm3/sm3          Entered, source not stated
  GOR) [case]
 
- Oil FVF Bo (blank: Standing's correlation)         1.32                  rm3/sm3           Measured (lab). PVT report 2024-11, differential liberation
- [case]                                                                                     adjusted to separator
+ Oil FVF Bo (blank: Standing's correlation)    1.32                  rm3/sm3          Measured (lab). PVT report 2024-11, differential liberation
+ [case]                                                                               adjusted to separator
 
- Well cost [case]                                   5,000,000             US$ per well      Entered, source not stated
+ Well cost [case]                              5,000,000             US$ per well     Entered, source not stated
 
- Operating expense [case]                           200,000               US$ per well      Entered, source not stated
-                                                                          per year
+ Operating expense [case]                      200,000               US$ per well     Entered, source not stated
+                                                                     per year
 
- Economic limit rate per well [case]                1.58987               sm3/d             Entered, source not stated
+ Economic limit rate per well [case]           1.58987               sm3/d            Entered, source not stated
 
- Well decline rate [case]                           15                    % per year,       Entered, source not stated
-                                                                          effective
+ Well decline rate [case]                      15                    % per year,      Entered, source not stated
+                                                                     effective
 
- Drilling schedule [case]                           All wells on stream                     Entered, source not stated
+ Drilling schedule [case]                      All wells on stream                    Entered, source not stated
+                                               in year 1
 
+ Wells brought on stream a year [case]         n/a                   wells per year   Not provided
 
+ Rigs [case]                                   n/a                   rigs             Not provided
 
-Well Spacing Report, Ekene, Spacing study                                                                                                    Page 4 of 10
- Input                                          Value                 Unit             Source and quality
+ Wells a rig drills in a year [case]           n/a                   wells per rig    Not provided
+                                                                     per year
 
-                                                in year 1
+ Oil price [case]                              75                    US$/STB          Entered, source not stated
 
- Wells brought on stream a year [case]          n/a                   wells per year   Not provided
+ Gas price [case]                              3.5                   US$/Mscf         Entered, source not stated
 
- Rigs [case]                                    n/a                   rigs             Not provided
+ Discount rate [case]                          10                    %                Entered, source not stated
 
- Wells a rig drills in a year [case]            n/a                   wells per rig    Not provided
-                                                                      per year
+ Project duration [case]                       20                    years            Entered, source not stated
 
- Oil price [case]                               75                    US$/STB          Entered, source not stated
+ Royalty (on gross revenue) [case]             25                    %                Entered, source not stated
 
- Gas price [case]                               3.5                   US$/Mscf         Entered, source not stated
+ Smallest spacing [case]                       8.09371               ha/well          Entered, source not stated
 
- Discount rate [case]                           10                    %                Entered, source not stated
+ Largest spacing [case]                        64.7497               ha/well          Entered, source not stated
 
- Project duration [case]                        20                    years            Entered, source not stated
+ Spacing step [case]                           4.04686               ha/well          Entered, source not stated
 
- Royalty (on gross revenue) [case]              25                    %                Entered, source not stated
+ Well layout [case, through the rate limit]    Staggered                              Chosen by the user
+                                               (triangular) grid
+                                               (each well drains a
+                                               regular hexagon)
 
- Smallest spacing [case]                        8.09371               ha/well          Entered, source not stated
+ Rate limit [case]                             On: each well                          Assumed default on (the owner default of 2026-10-05) (no
+                                               capped at its                          value entered)
+                                               deliverable rate
 
- Largest spacing [case]                         64.7497               ha/well          Entered, source not stated
-
- Spacing step [case]                            4.04686               ha/well          Entered, source not stated
-
- Well layout [case, through the rate limit]     Staggered                              Chosen by the user
-                                                (triangular) grid
-                                                (each well drains a
-                                                regular hexagon)
-
- Rate limit [case]                              On: each well                          Assumed default on (the owner default of 2026-10-05) (no
-                                                capped at its                          value entered)
-                                                deliverable rate
-
- Average reservoir pressure [case, through      24,131.7              kPa              Entered, source not stated
+ Average reservoir pressure [case, through     24,131.7              kPa              Entered, source not stated
  the rate limit]
 
- Flowing bottomhole pressure [case,             10,342.1              kPa              Entered, source not stated
+ Flowing bottomhole pressure [case,            10,342.1              kPa              Entered, source not stated
+
+
+
+Well Spacing Report, Ekene, Spacing study                                                                                             Page 5 of 11
+ Input                                          Value                 Unit              Source and quality
+
  through the rate limit]
 
- Permeability [case, through the rate limit]    5                     mD               Entered, source not stated
+ Permeability [case, through the rate limit]    5                     mD                Entered, source not stated
 
- Skin [case, through the rate limit]            2                                      Entered, source not stated
+ Skin [case, through the rate limit]            2                                       Entered, source not stated
 
- Oil viscosity at reservoir conditions [case,   1.2                   mPa.s            Entered, source not stated
+ Oil viscosity at reservoir conditions [case,   1.2                   mPa.s             Entered, source not stated
  through the rate limit]
 
- Total compressibility [diagnostics]            0.00000217557         1/kPa            Entered, source not stated
+ Total compressibility [diagnostics]            0.00000217557         1/kPa             Entered, source not stated
 
- Wellbore radius [case, through the rate        0.107899              m                Entered, source not stated
+ Wellbore radius [case, through the rate        0.107899              m                 Entered, source not stated
  limit]
 
- Recovery factor, low [uncertainty]             25                    %                Entered, source not stated
+ Recovery factor, low [uncertainty]             25                    %                 Entered, source not stated
 
- Recovery factor, high [uncertainty]            45                    %                Entered, source not stated
+ Recovery factor, high [uncertainty]            45                    %                 Entered, source not stated
 
- Reservoir area, low [uncertainty]              1,618.74              ha               Entered, source not stated
+ Reservoir area, low [uncertainty]              1,618.74              ha                Entered, source not stated
 
- Reservoir area, high [uncertainty]             2,428.11              ha               Entered, source not stated
+ Reservoir area, high [uncertainty]             2,428.11              ha                Entered, source not stated
 
- Oil price, low [uncertainty]                   55                    US$/STB          Entered, source not stated
+ Oil price, low [uncertainty]                   55                    US$/STB           Entered, source not stated
 
- Oil price, high [uncertainty]                  95                    US$/STB          Entered, source not stated
+ Oil price, high [uncertainty]                  95                    US$/STB           Entered, source not stated
 
- Realisations [uncertainty]                     300                                    Entered, source not stated
+ Realisations [uncertainty]                     300                                     Entered, source not stated
 
- Seed [uncertainty]                             20260829                               Entered, source not stated
+ Seed [uncertainty]                             20260829                                Entered, source not stated
 
- Interference test time [diagnostics]           7                     days             Entered, source not stated
+ Interference test time [diagnostics]           7                     days              Entered, source not stated
 
- Gauge resolution [diagnostics]                 0.0689476             kPa              Entered, source not stated
+ Gauge resolution [diagnostics]                 0.0689476             kPa               Entered, source not stated
 
- Field location, WGS84 latitude and             5.21, 6.43            degrees          Entered or picked on the map
+ Field location, WGS84 latitude and             5.21, 6.43            degrees           Entered or picked on the map
  longitude [record]
 
- OOIP of a Material Balance run                 n/a                   10^6 sm3         Not provided
-
-
-
-Well Spacing Report, Ekene, Spacing study                                                                                           Page 5 of 10
- Input                                          Value                       Unit            Source and quality
-
+ OOIP of a Material Balance run                 n/a                   10^6 sm3          Not provided
  [cross-check]
 
- EUR of one well from Decline Curve             n/a                         10^3 sm3        Not provided
+ EUR of one well from Decline Curve             n/a                   10^3 sm3          Not provided
  Analysis [cross-check]
 
 Every value the study read, with its source. [uncertainty] enters only the Monte Carlo table. [case] enters the EUR, the NPV and every number of
@@ -373,39 +410,42 @@ the drainage table; [cross-check] and [record] enter no equation. Values taken f
 intake says so.
 
 
-Drainage geometry, timing and deliverability
- Spacing         Between wells   Drainage radius re   Interference begins     Pseudosteady state   Deliverable rate   Plan initial rate   Plan /
- (ha/well)       (m)             (m)                  (days)                  (days)               (sm3/d)            (sm3/d)             deliverable
 
- 8.09371         305.71          160.5                6.44                    8.92                 49.85              25.16               0.50
 
- 12.1406         374.42          196.6                9.66                    13.4                 48.7               36.95               0.76
+Well Spacing Report, Ekene, Spacing study                                                                                                Page 6 of 11
+Drainage geometry, timing and deliverability
+ Spacing        Between wells   Drainage radius re   Interference begins   Pseudosteady state   Deliverable rate    Plan initial rate   Plan /
+ (ha/well)      (m)             (m)                  (days)                (days)               (sm3/d)             (sm3/d)             deliverable
 
- 16.1874         432.34          227                  12.9                    17.8                 47.91              48.74               1.02
+ 8.09371        305.71          160.5                6.44                  8.92                 49.85               25.16               0.50
 
- 20.2343         483.37          253.8                16.1                    22.3                 47.32              60.53               1.28
+ 12.1406        374.42          196.6                9.66                  13.4                 48.7                36.95               0.76
 
- 24.2811         529.5           278                  19.3                    26.8                 46.85              72.31               1.54
+ 16.1874        432.34          227                  12.9                  17.8                 47.91               48.74               1.02
 
- 28.328          571.93          300.3                22.5                    31.2                 46.45              84.1                1.81
+ 20.2343        483.37          253.8                16.1                  22.3                 47.32               60.53               1.28
 
- 32.3749         611.42          321                  25.7                    35.7                 46.12              95.89               2.08
+ 24.2811        529.5           278                  19.3                  26.8                 46.85               72.31               1.54
 
- 36.4217         648.51          340.5                29.0                    40.1                 45.82              107.7               2.35
+ 28.328         571.93          300.3                22.5                  31.2                 46.45               84.1                1.81
 
- 40.4686         683.59          358.9                32.2                    44.6                 45.57              119.5               2.62
+ 32.3749        611.42          321                  25.7                  35.7                 46.12               95.89               2.08
 
- 44.5154         716.95          376.4                35.4                    49.1                 45.34              131.2               2.89
+ 36.4217        648.51          340.5                29.0                  40.1                 45.82               107.7               2.35
 
- 48.5623         748.83          393.2                38.6                    53.5                 45.13              143                 3.17
+ 40.4686        683.59          358.9                32.2                  44.6                 45.57               119.5               2.62
 
- 52.6091         779.41          409.2                41.8                    58.0                 44.94              154.8               3.45
+ 44.5154        716.95          376.4                35.4                  49.1                 45.34               131.2               2.89
 
- 56.656          808.83          424.7                45.1                    62.4                 44.76              166.6               3.72
+ 48.5623        748.83          393.2                38.6                  53.5                 45.13               143                 3.17
 
- 60.7028         837.22          439.6                48.3                    66.9                 44.6               178.4               4.00
+ 52.6091        779.41          409.2                41.8                  58.0                 44.94               154.8               3.45
 
- 64.7497         864.68          454                  51.5                    71.4                 44.45              190.2               4.28
+ 56.656         808.83          424.7                45.1                  62.4                 44.76               166.6               3.72
+
+ 60.7028        837.22          439.6                48.3                  66.9                 44.6                178.4               4.00
+
+ 64.7497        864.68          454                  51.5                  71.4                 44.45               190.2               4.28
 
 Layout: Staggered (triangular) grid (each well drains a regular hexagon); shape factor CA 31.6, pseudosteady state exact from tDA 0.1
 (Earlougher 1977, Table C.1). Interference begins when each well's radius of investigation, sqrt(k t / (948 phi mu ct)), reaches half the distance to
@@ -416,7 +456,7 @@ start at a rate the well cannot deliver at that spacing; with the rate limit on,
 
 
 
-Well Spacing Report, Ekene, Spacing study                                                                                                  Page 6 of 10
+Well Spacing Report, Ekene, Spacing study                                                                                                Page 7 of 11
 Measurable interference at the neighbour
  Spacing         Between wells    Rate of the active well   Time       Ei           Drop at the neighbour   Gauge resolution     Measurable
  (ha/well)       (m)              (sm3/d)                   (days)     argument x   (kPa)                   (kPa)
@@ -487,7 +527,7 @@ Independent numbers held against the stated case. None of them changes a number 
 
 
 
-Well Spacing Report, Ekene, Spacing study                                                                                                     Page 7 of 10
+Well Spacing Report, Ekene, Spacing study                                                                                                     Page 8 of 11
 Methods and references
  Quantity                        Method                                                                      Reference
 
@@ -560,7 +600,7 @@ neighbour after 7 days is below the gauge resolution: an interference test of th
 
 
 
-Well Spacing Report, Ekene, Spacing study                                                                                                                   Page 8 of 10
+Well Spacing Report, Ekene, Spacing study                                                                                                                   Page 9 of 11
 Plots
 Figure 1. EUR and oil produced per well against spacing
 
@@ -640,35 +680,35 @@ dotted line is the other side of the rate-limit switch.
 
 
 
-Well Spacing Report, Ekene, Spacing study                                                                                                 Page 9 of 10
+Well Spacing Report, Ekene, Spacing study                                                                                                Page 10 of 11
 Figure 3. Plan initial rate and deliverable rate against spacing
 
-                          Plan initial rate        Deliverable (pseudosteady)   Rate produced (rate limit on)
-                200
+                                     Plan initial rate        Deliverable (pseudosteady)     Rate produced (rate limit on)
+                          200
 
 
 
 
-                150
+                          150
   Rate, sm3/d
 
 
 
 
-                100
+                          100
 
 
 
 
-                50
+                           50
 
 
 
 
-                 0
-                      0                       10                  20               30                      40   50            60                 70
+                            0
+                                 0                       10                  20                 30                      40       50       60          70
 
-                                                                                        Spacing, ha/well
+                                                                                                     Spacing, ha/well
 
 The plan rate is the day-one rate of the unlimited decline; the deliverable rate is the pseudosteady-state rate of a well on that drainage area at the
 stated pressures, permeability and skin. Where the plan line is above the deliverable line, the unlimited case assumes a rate the well cannot give;
@@ -679,7 +719,35 @@ Figure 4. Wells taken from the registry
 Does not apply: no wells were taken from the registry.
 
 
+Figure 5. Sensitivity of the NPV at 36.4217 ha/well
+
+                                     Input 30 percent down           Input 30 percent up
+                          750
+  Change in NPV, US$ MM
 
 
-Well Spacing Report, Ekene, Spacing study                                                                                                Page 10 of 10
+
+
+                          500
+
+                          250
+
+                            0
+
+                          -250
+
+                          -500
+
+                          -750
+                                 0                               1                          2                                3        4                5
+
+                                                                                           Input (numbered as in the caption)
+
+Change in NPV from the base (2,107.3 US$ MM) with one input 30 percent down and up, largest swing first: 1 oil price, 2 oil volume, 3 capex, 4
+opex. The case is the middle case of the range (no case is chosen to send); the canonical sweep of the screening engine.
+
+
+
+
+Well Spacing Report, Ekene, Spacing study                                                                                                      Page 11 of 11
 
