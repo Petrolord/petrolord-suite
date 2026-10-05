@@ -1,9 +1,9 @@
 // What an EOR Screening project says about its reservoir, for the apps that
 // read it (EOR-U2-003, contract `eor-screen-1`).
 //
-// The sender out of EOR Screening. The first reader is to be Recovery Factor
-// Estimator (an EOR increment band by method), built in its own Step 2; no
-// reader exists yet. A reader opened with `?eorProject=<id>` reads the saved
+// The sender out of EOR Screening. The first reader is Recovery Factor
+// Estimator, which prints the screening beside its estimate as context
+// (src/utils/rfestimator/eorContext.js); it changes no RF number. A reader opened with `?eorProject=<id>` reads the saved
 // project BY ID from saved_eor_screening_projects and builds this record
 // from the saved inputs with the screening engine, the one model of the
 // screen and the report (the payload stores inputs only; results are always

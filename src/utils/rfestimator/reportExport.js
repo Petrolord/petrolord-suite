@@ -56,6 +56,7 @@ export function buildRfPdf(a, { logo = null, generatedAt = new Date() } = {}) {
     rangesTitle: 'Domain of each method, as checked by the app',
   });
 
+  if (model.eorContext) table('Context: EOR screening of this reservoir', model.eorContext.head, model.eorContext.rows, { columnStyles: { 0: { cellWidth: 52 } }, note: model.eorContext.note, emptyValue: '' });
   if (model.dcaCheck) table('Cross-check: decline EUR over the in-place volume', model.dcaCheck.head, model.dcaCheck.rows, { columnStyles: { 0: { cellWidth: 38 } }, note: model.dcaCheck.note, emptyValue: '' });
   if (model.inPlaceBlock) table('In-place volume received from another app', ['Item', 'Value'], model.inPlaceBlock, { columnStyles: { 0: { cellWidth: 50 } } });
   if (model.pvtBlock) table('pvt-1 block received from Fluid Systems Studio', ['Item', 'Value'], model.pvtBlock, { columnStyles: { 0: { cellWidth: 40 } } });

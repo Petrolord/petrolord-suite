@@ -249,7 +249,7 @@ table.
 | EOR-U2-004 | Aladasani and Bai (2010, SPE-130726): the paper is not in hand (owner question 3). Taber 1997 stays the only criteria set |
 | EOR-U2-009 | Many reservoirs at once: after NAPE (owner question 6) |
 | EOR-U2-010 to 014 | Batch C, not chosen for this round: methods outside Taber 1997, the Simulation starting deck, results first at narrow widths (U1-017 stays open), CO2 utilisation to EPE, the kit flags-heading layout (U1-019 stays open) |
-| Recovery Factor reader | `eor-screen-1` has no reader yet. Recovery Factor Estimator reads it in its own Step 2 (owner question 5); nothing was built inside Recovery Factor here |
+| Recovery Factor reader | Built after RF Step 2 merged (#887), on the lead's brief change of 2026-10-05: RF prints the EOR screening as context by id, with source changed since; no RF number changes (see the RF UPGRADE doc). An EOR incremental RF (RF-U2-016) stays deferred |
 | N2 and hydrocarbon MMP | The only readable MMP paper covers pure CO2; nitrogen and hydrocarbon miscibility stay on the Taber depth criteria |
 
 ### 9c. What changes for users (Step 2)
