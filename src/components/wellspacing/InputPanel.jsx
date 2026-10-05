@@ -17,6 +17,7 @@ import { FIELDS } from '@/utils/wellspacing/model';
 import { inputSource } from '@/utils/wellspacing/reportModel';
 import { useWellSpacing } from '@/contexts/WellSpacingContext';
 import WsField from './WsField';
+import RfPointsEditor from './RfPointsEditor';
 
 const GROUPS = [
   ['reservoir', 'Reservoir', 'Read by the case: EUR, NPV and every number of the table.'],
@@ -93,9 +94,9 @@ const InputPanel = () => {
       {GROUPS.map(([g, title, note], gi) => (
         <Card key={g} title={title} note={note} delay={0.1 + gi * 0.03} testId={`ws-group-${g}`}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
-            {FIELDS.filter((d) => d.group === g && (!d.showWhen || Object.entries(d.showWhen).every(([k, v]) => (form[k] || '') === v))).map((d) => (
-              <div key={d.key} className="space-y-0.5 min-w-0">
-                {d.select ? (
+            {FIELDS.filter((d) => d.group === g && (!d.showWhen || Object.entries(d.showWhen).every(([k, v]) => (form[k] || '') === v))).filter((d) => !d.custom || form.recoveryModel === 'calibrated').map((d) => (
+              <div key={d.key} className={`space-y-0.5 min-w-0 ${d.custom ? 'sm:col-span-2 lg:col-span-1 xl:col-span-2' : ''}`}>
+                {d.custom ? <RfPointsEditor /> : d.select ? (
                   <div className="space-y-1">
                     <Label htmlFor={`ws-${d.key}`} className="text-xs text-pl-muted">{d.label}</Label>
                     <select

@@ -19,12 +19,20 @@ import { wsUnits } from './units.js';
 import { intakeSourceText } from './intakes.js';
 import { crossChecks } from './crossChecks.js';
 import { MC_VARIABLES } from './monteCarlo.js';
+import { rfPointsOf, fitRfAgainstSpacing, rfAtSpacing, rfFitText, RF_POINT_KINDS } from './rfCalibration.js';
 import { spacingSensitivities, tornadoCaseOf, SENSITIVITY_RANGE_PCT } from './sensitivity.js';
 
 export const REPORT_TITLE = 'Well Spacing Report';
 export const APP_NAME = 'Petrolord Well Spacing Optimizer';
 export const ANALYSIS_TYPE = 'Spacing economics at a stated recovery factor, with drainage geometry, timing and deliverability diagnostics (screening)';
 export const MODEL_TEXT = 'Each well drains its spacing area at the stated recovery factor (no interference, no incremental recovery from infill); one exponential decline per well anchored on that EUR';
+/** WS-U2-002: the recovery model in words, from the form. */
+export function modelText(form = {}) {
+  if (form.recoveryModel !== 'calibrated') return MODEL_TEXT;
+  const fit = fitRfAgainstSpacing(rfPointsOf(form));
+  return `Each well drains its spacing area at the recovery factor of the user's calibration against spacing (${fit.ok ? rfFitText(fit) : 'not fitted'}), no other interference; one exponential decline per well anchored on that EUR`;
+}
+
 /** WS-U2-003: the drilling schedule in words, from the form. */
 export function scheduleText(form = {}) {
   const s = form.drillingSchedule || 'year1';
@@ -54,6 +62,14 @@ export function inputSource(inputs, key, results) {
   const value = inputs.form?.[key];
   const intake = intakeSourceText(inputs.intakes, key, value);
   if (intake) return sourceText(inputs.inputMeta?.[key], intake);
+  if (key === 'recoveryModel') {
+    if (inputs.inputMeta?.[key]?.source) return sourceText(inputs.inputMeta[key]);
+    return value === 'calibrated' ? 'Chosen by the user: calibrated on the points below, each with its source' : assumedDefaultText('the stated RF at every spacing');
+  }
+  if (key === 'rfPoints') {
+    const n = rfPointsOf(inputs.form).length;
+    return n ? `Typed by the user, each point with its own source (the Recovery against spacing table)${inputs.form?.recoveryModel === 'calibrated' ? '' : '; not used while the stated RF is chosen'}` : NOT_PROVIDED;
+  }
   if (key === 'rateLimit') {
     if (inputs.inputMeta?.[key]?.source) return sourceText(inputs.inputMeta[key]);
     return value === 'off' ? 'Chosen by the user (the unlimited decline, for comparison)' : assumedDefaultText('on (the owner default of 2026-10-05)');
@@ -78,6 +94,7 @@ function inputRows(inputs, u, results) {
     const raw = inputs.form?.[d.key];
     let value;
     if (d.key === 'wellLayout') value = layoutOf(raw).label;
+    else if (d.key === 'rfPoints') { const n = fitRfAgainstSpacing(rfPointsOf(inputs.form)); value = rfPointsOf(inputs.form).length ? `${rfPointsOf(inputs.form).length} points${n.ok ? `; ${rfFitText(n)}` : ''}` : ''; }
     else if (d.select) value = (d.options.find(([v]) => v === raw) || d.options[0])[1];
     else if (d.key === 'oilFvf' && !text(raw) && finite(results?.boUsed)) value = u.fmt('fvf', results.boUsed, 5);
     // a seed or a count prints whole (6 significant figures would round a seed)
@@ -117,7 +134,7 @@ function identificationPairs(inputs, { projectName, organizationName, build }) {
     pairs.push([label, v || EMPTY_VALUE]);
   }
   pairs.push(['Analysis type', ANALYSIS_TYPE]);
-  pairs.push(['Model', `${MODEL_TEXT}; ${scheduleText(inputs.form)}. ${rateLimitModelText(inputs.form?.rateLimit !== 'off')}`]);
+  pairs.push(['Model', `${modelText(inputs.form)}; ${scheduleText(inputs.form)}. ${rateLimitModelText(inputs.form?.rateLimit !== 'off')}`]);
   pairs.push(['Economics', 'Suite screening economics engine (calculateEconomics), mid-year discounting']);
   pairs.push(['Software build', text(build) || EMPTY_VALUE]);
   pairs.push(['Inputs', inputs.sampleNote ? 'Includes built-in sample values (illustrative)' : 'Entered or taken from other apps (sources below)']);
@@ -246,6 +263,22 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
       : (mc && !mc.ok ? `Not run: ${mc.errors.join(' ')}` : (mcGiven ? 'Not run yet: run the uncertainty on the Study tab (the PDF export runs it).' : 'Not run: no low and high is given for the recovery factor, the area or the oil price.')),
   };
 
+  // WS-U2-002: recovery against spacing, the user's points and the fit
+  const calOn = inputs.form?.recoveryModel === 'calibrated';
+  const fit = fitRfAgainstSpacing(rfPointsOf(inputs.form));
+  const kindLabel = (k) => (RF_POINT_KINDS.find(([v]) => v === k) || RF_POINT_KINDS[3])[1];
+  const calibration = {
+    on: calOn,
+    fitText: fit.ok ? rfFitText(fit) : null,
+    pointsHead: [u.head('Spacing', 'spacing'), 'RF (%)', 'Kind', 'Source'],
+    pointsRows: fit.ok ? fit.points.map((pt) => [sp(pt.spacing), String(pt.rf), kindLabel(pt.kind), pt.source]) : [],
+    casesHead: [u.head('Spacing', 'spacing'), 'RF of the case (%)', 'Inside the points'],
+    casesRows: calOn && fit.ok ? rows.map((r) => [sp(r.spacing), rfAtSpacing(fit, r.spacing).toFixed(2), r.spacing >= fit.sMin - 1e-9 && r.spacing <= fit.sMax + 1e-9 ? 'yes' : 'no, extrapolated']) : [],
+    note: calOn
+      ? (fit.ok ? `${rfFitText(fit)}. Each case's recovery factor is the fit at its spacing; the app has no built-in curve, so the relation is only as good as the points and their sources.` : `Not fitted: ${fit.errors.join(' ')}`)
+      : 'Not used: every case takes the stated recovery factor (the model of earlier releases).',
+  };
+
   // WS-U2-007: the canonical sensitivity sweep on each case's own economics inputs
   const sens = spacingSensitivities(results);
   const SENS_ORDER = ['Oil price', 'Capex', 'Opex', 'Oil volume'];
@@ -297,6 +330,10 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
   }
   const late2 = rows.filter((r) => r.wellsAfterDuration > 0);
   if (late2.length) flags.push(`At ${late2.map((r) => sp(r.spacing)).join(', ')} ${u.label('spacing')} the drilling schedule brings wells on stream after the project duration ends (${late2.map((r) => r.wellsAfterDuration).join(', ')} wells): they carry their capex and produce nothing inside it.`);
+  if (calOn && fit.ok) {
+    const out = rows.filter((r) => r.spacing < fit.sMin - 1e-9 || r.spacing > fit.sMax + 1e-9);
+    if (out.length) flags.push(`At ${out.map((r) => sp(r.spacing)).join(', ')} ${u.label('spacing')} the recovery factor is extrapolated beyond the calibration points (${sp(fit.sMin)} to ${sp(fit.sMax)} ${u.label('spacing')}).`);
+  }
   const quiet = rows.filter((r) => r.interference?.measurable === false);
   if (quiet.length) flags.push(`At ${quiet.map((r) => sp(r.spacing)).join(', ')} ${u.label('spacing')} the drop at the neighbour after ${rows[0].interference.tDays} days is below the gauge resolution: an interference test of that length would not see the neighbour.`);
   const never = rows.filter((r) => r.rateLimit?.belowLimit);
@@ -329,6 +366,7 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
     noFlagsText: 'No input is flagged.',
   };
 
+  if (calOn) limits.assumptions[0] = 'A screening study of spacing economics. Every well recovers the recovery factor the user\'s calibration gives at its spacing (a least-squares fit of RF against ln S on the user\'s cited points, printed with them); outside the points it is extrapolated and flagged. Beyond that fit the model has no interference and no acceleration-only infill.';
   const figures = buildFigures(rows, inputs, u, results);
   // WS-U2-007: the tornado of one case, bars from the base NPV
   const T = sensitivity.tornado;
@@ -364,6 +402,7 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
     rateLimit,
     interference,
     uncertainty,
+    calibration,
     sensitivity,
     drainage,
     cross,

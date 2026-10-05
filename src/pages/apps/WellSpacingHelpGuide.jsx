@@ -277,6 +277,16 @@ const WellSpacingHelpGuideContent = () => (
         plan initial rate is above the deliverable rate, the unlimited decline starts at a rate the
         well cannot give, and the report flags it.
       </Para>
+      <SubHeading>Recovery against spacing (your calibration)</SubHeading>
+      <Para>
+        By default every case takes the stated recovery factor. Choose Calibrated on your points under
+        Reservoir to let recovery respond to spacing: add points of a recovery factor you know at a
+        spacing, each with its source (an analog field, a decline type well at its spacing, a
+        simulation run). The app fits RF = a + b ln(S) by least squares and gives each case the fit
+        at its spacing; there is no built-in curve, and a point with no source is not used. The
+        points, the fit and each case&apos;s RF are printed, and a case outside the points is
+        flagged as extrapolated. The Monte Carlo range on the RF does not apply in this mode.
+      </Para>
       <SubHeading>Sensitivity</SubHeading>
       <Para>
         The sensitivity table moves oil price, capex, opex and the oil volume 30 percent down and up,

@@ -31,6 +31,9 @@ export const FIELDS = Object.freeze([
   { key: 'porosity', label: 'Porosity', kind: 'percent', group: 'reservoir', reads: 'economics', required: true },
   { key: 'initialWaterSaturation', label: 'Initial water saturation', kind: 'fraction', group: 'reservoir', reads: 'economics', required: true },
   { key: 'recoveryFactor', label: 'Recovery factor (per well, over its drained area)', kind: 'percent', group: 'reservoir', reads: 'economics', required: true },
+  // WS-U2-002: recovery that responds to spacing, only from the user's cited points
+  { key: 'recoveryModel', label: 'Recovery against spacing', kind: null, group: 'reservoir', reads: 'economics', select: true, options: [['stated', 'The stated RF at every spacing'], ['calibrated', 'Calibrated on your points (analogs, DCA, simulation)']] },
+  { key: 'rfPoints', label: 'Recovery against spacing points', kind: null, group: 'reservoir', reads: 'economics', custom: true },
   { key: 'reservoirTemperature', label: 'Reservoir temperature', kind: 'temperature', group: 'fluid', reads: 'economics' },
   { key: 'oilGravity', label: 'Oil gravity', kind: 'api', group: 'fluid', reads: 'economics' },
   { key: 'gasGravity', label: 'Gas gravity', kind: 'gasGravity', group: 'fluid', reads: 'economics' },
@@ -95,7 +98,7 @@ export const SAMPLE_FORM = Object.freeze({
   wellCost: '5000000', operatingExpense: '200000', minEconomicFlowRate: '10', typicalWellDeclineRate: '15',
   oilPrice: '75', gasPrice: '3.5', discountRate: '10', projectDuration: '20', royaltiesTaxes: '25',
   minSpacing: '20', maxSpacing: '160', spacingIncrement: '10', wellLayout: 'square',
-  rateLimit: 'on', drillingSchedule: 'year1', wellsPerYear: '', rigCount: '', wellsPerRigYear: '',
+  rateLimit: 'on', drillingSchedule: 'year1', recoveryModel: 'stated', rfPoints: '[]', wellsPerYear: '', rigCount: '', wellsPerRigYear: '',
   // WS-U2-001: 5 md (it was 50 md in Step 1, where no case reached its deliverable rate), so the example shows the limit
   interferenceDays: '7', gaugeResolutionPsi: '0.01',
   mcRfLow: '25', mcRfHigh: '45', mcAreaLow: '4000', mcAreaHigh: '6000', mcPriceLow: '55', mcPriceHigh: '95', mcIterations: '300', mcSeed: '20260829',
@@ -105,7 +108,7 @@ export const SAMPLE_FORM = Object.freeze({
 export const SAMPLE_NOTE = 'Sample inputs: an illustrative example field built into the app. It is not a real field; replace every value before you rely on the case.';
 
 const asStrings = (o) => Object.fromEntries(Object.entries(o || {}).map(([k, v]) => [k, v == null ? '' : String(v)]));
-export const blankForm = () => ({ ...Object.fromEntries(FORM_KEYS.map((k) => [k, ''])), wellLayout: 'square', rateLimit: 'on', drillingSchedule: 'year1' });
+export const blankForm = () => ({ ...Object.fromEntries(FORM_KEYS.map((k) => [k, ''])), wellLayout: 'square', rateLimit: 'on', drillingSchedule: 'year1', recoveryModel: 'stated', rfPoints: '[]' });
 
 export const emptyIntakes = () => ({ pvt: null, wta: null, mbal: null, rf: null, dca: null, wells: null });
 

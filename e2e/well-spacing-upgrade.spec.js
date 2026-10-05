@@ -276,3 +276,22 @@ test('WS-U2-007 sensitivity: every case with one input 30 percent down and up, t
   await expect(page.getByTestId('ws-sensitivity')).toContainText('runSensitivityAnalysis');
   expect(errors).toEqual([]);
 });
+
+test('WS-U2-002 recovery against spacing: calibrated on cited points only, the fit and the points printed', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openApp(page);
+  await page.getByTestId('ws-recoveryModel').selectOption('calibrated');
+  for (const [i, s, rf, src] of [[0, '20', '40', 'Sector model run 12'], [1, '80', '31', 'Type well EK-2 at 80 acres']]) {
+    await page.getByTestId('ws-rfp-add').click();
+    await page.getByTestId(`ws-rfp-spacing-${i}`).fill(s);
+    await page.getByTestId(`ws-rfp-rf-${i}`).fill(rf);
+    if (i === 1) await expect(page.getByTestId('ws-rf-fit')).toContainText('Point 2: give its source');
+    await page.getByTestId(`ws-rfp-source-${i}`).fill(src);
+  }
+  await page.getByTestId('ws-mcRfLow').fill('');
+  await page.getByTestId('ws-mcRfHigh').fill('');
+  await expect(page.getByTestId('ws-rf-fit')).toContainText('two points: the line through them');
+  await expect(page.getByTestId('ws-calibration-points')).toContainText('Type well EK-2 at 80 acres');
+  await expect(page.getByTestId('ws-calibration-cases').getByRole('row', { name: /^160 / })).toContainText('no, extrapolated');
+  expect(errors).toEqual([]);
+});

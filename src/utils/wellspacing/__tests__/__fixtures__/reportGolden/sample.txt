@@ -297,6 +297,11 @@ Well Spacing Report, Example field, Spacing study                               
  Recovery factor (per well, over its drained   35                    %                Assumed: the built-in sample value of the app (illustrative,
  area) [case]                                                                         no field data behind it)
 
+ Recovery against spacing [case]               The stated RF at                       Assumed default the stated RF at every spacing (no value
+                                               every spacing                          entered)
+
+ Recovery against spacing points [case]        n/a                                    Not provided
+
  Reservoir temperature [case]                  180                   degF             Assumed: the built-in sample value of the app (illustrative,
                                                                                       no field data behind it)
 
@@ -350,15 +355,16 @@ Well Spacing Report, Example field, Spacing study                               
  Royalty (on gross revenue) [case]             25                    %                Assumed: the built-in sample value of the app (illustrative,
                                                                                       no field data behind it)
 
- Smallest spacing [case]                       20                    acres/well       Assumed: the built-in sample value of the app (illustrative,
-                                                                                      no field data behind it)
-
- Largest spacing [case]                        160                   acres/well       Assumed: the built-in sample value of the app (illustrative,
-                                                                                      no field data behind it)
 
 
 Well Spacing Report, Example field, Spacing study                                                                                      Page 5 of 11
  Input                                          Value               Unit         Source and quality
+
+ Smallest spacing [case]                        20                  acres/well   Assumed: the built-in sample value of the app (illustrative,
+                                                                                 no field data behind it)
+
+ Largest spacing [case]                         160                 acres/well   Assumed: the built-in sample value of the app (illustrative,
+                                                                                 no field data behind it)
 
  Spacing step [case]                            10                  acres/well   Assumed: the built-in sample value of the app (illustrative,
                                                                                  no field data behind it)

@@ -1,29 +1,29 @@
 Well Spacing Report
 Petrolord Well Spacing Optimizer
 
-Project                     Spacing study                                Company              Org Name
-Field                       n/a                                          Licence or block     n/a
-Reservoir or zone           n/a                                          Well or wells        n/a
-Data as of                  n/a                                          Analyst              n/a
-Analysis type               Spacing economics at a stated recovery Model                      Each well drains its spacing area at the
-                            factor, with drainage geometry, timing and                        stated recovery factor (no interference, no
-                            deliverability diagnostics (screening)                            incremental recovery from infill); one
+Project                   Spacing study                                  Company              Org Name
+Field                     n/a                                            Licence or block     n/a
+Reservoir or zone         n/a                                            Well or wells        n/a
+Data as of                n/a                                            Analyst              n/a
+Analysis type             Spacing economics at a stated recovery Model                        Each well drains its spacing area at the
+                          factor, with drainage geometry, timing and                          stated recovery factor (no interference, no
+                          deliverability diagnostics (screening)                              incremental recovery from infill); one
                                                                                               exponential decline per well anchored on
                                                                                               that EUR; all wells on stream in year 1.
                                                                                               Rate limit on: each well capped at its
                                                                                               deliverable rate (the same EUR, later)
-Economics                   Suite screening economics engine             Software build       test-build
-                            (calculateEconomics), mid-year
-                            discounting
-Inputs                      Entered or taken from other apps (sources Display units           Oilfield (area acres, spacing acres/well,
-                            below)                                                            thickness and distance ft, pressure psia,
+Economics                 Suite screening economics engine               Software build       test-build
+                          (calculateEconomics), mid-year
+                          discounting
+Inputs                    Entered or taken from other apps (sources Display units             Oilfield (area acres, spacing acres/well,
+                          below)                                                              thickness and distance ft, pressure psia,
                                                                                               temperature degF, GOR scf/STB, rate
                                                                                               STB/d, EUR Mbbl, FVF RB/STB, viscosity
                                                                                               cp, compressibility 1/psi, permeability md).
                                                                                               Money in US$: oil per STB, gas per Mscf,
                                                                                               in both systems. The engine computes in
                                                                                               oilfield units.
-Generated                   2026-10-05 12:00 UTC
+Generated                 2026-10-05 12:00 UTC
 
 
 Spacing cases
@@ -46,6 +46,11 @@ Inputs and their sources
  Recovery factor (per well, over its drained   n/a                %                Not provided
  area) [case]
 
+ Recovery against spacing [case]               The stated RF at                    Assumed default the stated RF at every spacing (no value
+                                               every spacing                       entered)
+
+ Recovery against spacing points [case]        n/a                                 Not provided
+
  Reservoir temperature [case]                  n/a                degF             Not provided
 
  Oil gravity [case]                            n/a                degAPI           Not provided
@@ -63,16 +68,16 @@ Inputs and their sources
  Operating expense [case]                      n/a                US$ per well     Not provided
                                                                   per year
 
- Economic limit rate per well [case]           n/a                STB/d            Not provided
-
- Well decline rate [case]                      n/a                % per year,      Not provided
-                                                                  effective
 
 
 
-
-Well Spacing Report, Spacing study                                                                                              Page 1 of 5
+Well Spacing Report, Spacing study                                                                                               Page 1 of 5
  Input                                          Value                 Unit             Source and quality
+
+ Economic limit rate per well [case]            n/a                   STB/d            Not provided
+
+ Well decline rate [case]                       n/a                   % per year,      Not provided
+                                                                      effective
 
  Drilling schedule [case]                       All wells on stream                    Entered, source not stated
                                                 in year 1
@@ -146,16 +151,15 @@ Well Spacing Report, Spacing study                                              
 
  Gauge resolution [diagnostics]                 n/a                   psi              Not provided
 
- Field location, WGS84 latitude and             n/a                   degrees          Not provided
- longitude [record]
-
- OOIP of a Material Balance run                 n/a                   MMSTB            Not provided
-
 
 
 Well Spacing Report, Spacing study                                                                                                      Page 2 of 5
  Input                                               Value                      Unit                  Source and quality
 
+ Field location, WGS84 latitude and                  n/a                        degrees               Not provided
+ longitude [record]
+
+ OOIP of a Material Balance run                      n/a                        MMSTB                 Not provided
  [cross-check]
 
  EUR of one well from Decline Curve                  n/a                        Mbbl                  Not provided
@@ -225,17 +229,14 @@ Methods and references
 
 
 
-Limits of this analysis
+
+Well Spacing Report, Spacing study                                                                                                                          Page 3 of 5
+Limits of this analysis
 - A screening study of spacing economics. Every well recovers the stated recovery factor of the oil under its own spacing area, whatever the
 spacing: the model has no interference, no acceleration-only infill and no incremental recovery from tighter spacing. Field oil is therefore nearly the
 same at every spacing; without a rate limit NPV rises as wells are removed, and with it the wide cases are held back by what each well can
 deliver. Recovery that responds to spacing is a simulation or analog question.
-
-
-
-
-Well Spacing Report, Spacing study                                                                                                                          Page 3 of 5
-- One exponential decline per well, the stated effective annual decline at every spacing, anchored so the volume to the economic limit is the EUR.
+- One exponential decline per well, the stated effective annual decline at every spacing, anchored so the volume to the economic limit is the EUR.
 A wider spacing therefore gets a proportionally higher initial rate. With the rate limit on, a well whose decline would start above its deliverable rate
 produces at the deliverable rate first; the deliverable rate is held at the stated average pressure for the whole plateau (no depletion of the pressure
 inside it), so a long plateau is optimistic.

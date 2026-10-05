@@ -31,6 +31,7 @@ import { DAYS_PER_YEAR as REGISTRY_YEAR } from '@/lib/units/registry';
 import { pvtCalcs } from './pvtCalculations';
 import { calculateEconomics } from './npvCalculations';
 import { drainageCase, layoutOf, DEFAULT_LAYOUT, lineSourceDropPsi, lineSourceArgument } from './wellspacing/drainage';
+import { rfPointsOf, fitRfAgainstSpacing, rfAtSpacing } from './wellspacing/rfCalibration';
 
 const REQUIRED_NUMERIC = [
   { key: 'reservoirArea', label: 'Reservoir area', min: 0 },
@@ -133,6 +134,21 @@ export const validateInputs = (formData) => {
     errors.push('Flowing bottomhole pressure must be below the average reservoir pressure.');
   }
 
+  // WS-U2-002: recovery against spacing, calibrated on the user's points
+  if (formData?.recoveryModel === 'calibrated') {
+    const fit = fitRfAgainstSpacing(rfPointsOf(formData));
+    if (!fit.ok) errors.push(...fit.errors);
+    else {
+      const lo = parseFloat(formData?.minSpacing);
+      const hi = parseFloat(formData?.maxSpacing);
+      for (const s0 of [lo, hi]) {
+        if (!(s0 > 0)) continue;
+        const rf = rfAtSpacing(fit, s0);
+        if (!(rf > 0 && rf <= 100)) errors.push(`The recovery against spacing fit gives ${rf.toFixed(1)} percent at ${s0} acres a well, outside 0 to 100: narrow the spacing range or add points.`);
+      }
+    }
+  }
+
   // WS-U2-003: the drilling schedule
   const schedule = formData?.drillingSchedule || 'year1';
   if (schedule === 'wellsPerYear' || schedule === 'rigs') {
@@ -226,6 +242,12 @@ export const NPV_CONVENTION_NOTE = 'NPV is computed by the Suite screening econo
 const finiteNum = (v) => typeof v === 'number' && Number.isFinite(v);
 
 /**
+ * WS-U2-002: the recovery factor of a case, a fraction: the stated RF, or
+ * with the calibrated model the user's fit RF(S) = a + b ln S at the spacing.
+ */
+export const rfOf = (spacing, p) => (p.rfFit ? rfAtSpacing(p.rfFit, spacing) / 100 : p.recoveryFactor);
+
+/**
  * WS-U2-001: the deliverable rate a well has at a spacing, STB/d: the
  * pseudosteady-state rate of the Step 1 drainage check (drainage.js,
  * Ahmed and McKinney 2005 Eq. 1.2.124), NaN when a drainage input is blank.
@@ -259,7 +281,7 @@ export const deliverableRateStbd = (spacing, p) => drainageCase({
  */
 export const wellProfile = (spacing, p) => {
   const oiipPerWell = (spacing * p.avgNetPay * p.porosity * (1 - p.swi) * BBL_PER_ACRE_FT) / (p.bo || 1);
-  const eurPerWellBbl = oiipPerWell * p.recoveryFactor;
+  const eurPerWellBbl = oiipPerWell * rfOf(spacing, p);
   const Dn = -Math.log(1 - p.declineRate);
   const qLimitAnnual = p.minEconomicRate * DAYS_PER_YEAR;
   const qiAnnual = eurPerWellBbl * Dn + qLimitAnnual;
@@ -437,7 +459,7 @@ const evaluateSpacing = (spacing, p) => {
   // evenly into the area covers all of it, one that does not leaves a
   // remainder undrained.
   const arealCoverage = (numberOfWells * spacing) / p.reservoirArea;
-  const totalFieldRecovery = arealCoverage * p.recoveryFactor * 100;
+  const totalFieldRecovery = arealCoverage * rfOf(spacing, p) * 100;
 
   const totalCapex = (numberOfWells * p.wellCost) / 1e6;
 
@@ -570,6 +592,8 @@ export const spacingParameters = (formData) => {
     gaugeResolutionPsi: parseFloat(formData.gaugeResolutionPsi),
     // WS-U2-001: on unless switched off (the owner default of 2026-10-05)
     rateLimit: formData.rateLimit !== 'off',
+    // WS-U2-002: the user's recovery against spacing fit, or null (the stated RF)
+    rfFit: formData.recoveryModel === 'calibrated' ? (() => { const f = fitRfAgainstSpacing(rfPointsOf(formData)); return f.ok ? f : null; })() : null,
     // WS-U2-003: all wells in year 1 unless a schedule is chosen (the owner default)
     schedule: SCHEDULES.includes(formData.drillingSchedule) ? formData.drillingSchedule : 'year1',
     wellsPerYear: parseFloat(formData.wellsPerYear),

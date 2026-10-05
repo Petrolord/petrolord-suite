@@ -293,6 +293,11 @@ Well Spacing Report, Ekene, Spacing study                                       
  Recovery factor (per well, over its drained   35                    %                Entered, source not stated
  area) [case]
 
+ Recovery against spacing [case]               The stated RF at                       Assumed default the stated RF at every spacing (no value
+                                               every spacing                          entered)
+
+ Recovery against spacing points [case]        n/a                                    Not provided
+
  Reservoir temperature [case]                  220                   degF             Input of the fluid model (the PVT temperature), Fluid
                                                                                       Systems Studio, project "Good Oil Well No. 4 PVT"
 
@@ -349,17 +354,17 @@ Well Spacing Report, Ekene, Spacing study                                       
 
  Spacing step [case]                           10                    acres/well       Entered, source not stated
 
- Well layout [case, through the rate limit]    Square grid (each                      Assumed default square grid (no value entered)
-                                               well drains a
-                                               square)
-
- Rate limit [case]                             On: each well                          Assumed default on (the owner default of 2026-10-05) (no
 
 
 
 Well Spacing Report, Ekene, Spacing study                                                                                             Page 5 of 12
  Input                                          Value                 Unit              Source and quality
 
+ Well layout [case, through the rate limit]     Square grid (each                       Assumed default square grid (no value entered)
+                                                well drains a
+                                                square)
+
+ Rate limit [case]                              On: each well                           Assumed default on (the owner default of 2026-10-05) (no
                                                 capped at its                           value entered)
                                                 deliverable rate
 

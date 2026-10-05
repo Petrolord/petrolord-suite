@@ -28,6 +28,10 @@ export function buildWellSpacingPdf({ model }, { logo = null, generatedAt = new 
     table('Economics of each case, by part', model.economics.head, model.economics.rows, { note: model.economics.note, fontSize: SMALL });
     table('Incremental economics: the added wells', model.incremental.head, model.incremental.rows, { note: model.incremental.note, fontSize: SMALL });
     table('Rate limit: before and after', model.rateLimit.head, model.rateLimit.rows, { note: model.rateLimit.note, fontSize: SMALL });
+    if (model.calibration.on && model.calibration.pointsRows.length) {
+      table('Recovery against spacing: the points', model.calibration.pointsHead, model.calibration.pointsRows, { note: model.calibration.note, fontSize: SMALL });
+      table('Recovery against spacing: each case', model.calibration.casesHead, model.calibration.casesRows, { fontSize: SMALL });
+    } else if (model.calibration.on) section('Recovery against spacing', model.calibration.note);
     table('Sensitivity: NPV of each case with one input moved', model.sensitivity.head, model.sensitivity.rows, { note: model.sensitivity.note, fontSize: 5.5 });
     if (model.uncertainty.ok) table('Uncertainty: NPV of each case (Monte Carlo)', model.uncertainty.head, model.uncertainty.rows, { note: model.uncertainty.note, fontSize: SMALL });
     else section('Uncertainty: NPV of each case (Monte Carlo)', model.uncertainty.note);

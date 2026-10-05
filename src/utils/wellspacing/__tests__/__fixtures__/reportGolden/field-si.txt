@@ -294,6 +294,11 @@ Well Spacing Report, Ekene, Spacing study                                       
  Recovery factor (per well, over its drained   35                    %                Offset well. Analog: E-1000 sand, same field
  area) [case]
 
+ Recovery against spacing [case]               The stated RF at                       Assumed default the stated RF at every spacing (no value
+                                               every spacing                          entered)
+
+ Recovery against spacing points [case]        n/a                                    Not provided
+
  Reservoir temperature [case]                  82.2222               degC             Entered, source not stated
 
  Oil gravity [case]                            35                    degAPI           Entered, source not stated
@@ -351,16 +356,15 @@ Well Spacing Report, Ekene, Spacing study                                       
                                                capped at its                          value entered)
                                                deliverable rate
 
- Average reservoir pressure [case, through     24,131.7              kPa              Entered, source not stated
- the rate limit]
-
- Flowing bottomhole pressure [case,            10,342.1              kPa              Entered, source not stated
-
 
 
 Well Spacing Report, Ekene, Spacing study                                                                                             Page 5 of 11
  Input                                          Value                 Unit              Source and quality
 
+ Average reservoir pressure [case, through      24,131.7              kPa               Entered, source not stated
+ the rate limit]
+
+ Flowing bottomhole pressure [case,             10,342.1              kPa               Entered, source not stated
  through the rate limit]
 
  Permeability [case, through the rate limit]    5                     mD                Entered, source not stated

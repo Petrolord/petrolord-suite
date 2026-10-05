@@ -72,6 +72,7 @@ export function runSpacingMonteCarlo(form, { keepValues = false } = {}) {
   const seedRaw = num(form.mcSeed);
   const seed = Number.isFinite(seedRaw) ? Math.round(seedRaw) : DEFAULT_MC_SEED;
   if (!(iterations >= 50 && iterations <= MC_MAX_ITERATIONS)) errors.push(`Realisations must be between 50 and ${MC_MAX_ITERATIONS}.`);
+  if (form.recoveryModel === 'calibrated' && dists.recoveryFactor?.type === 'triangular') errors.push('Recovery factor: with recovery calibrated against spacing the stated RF is not used, so its low and high do not apply; clear them or use the stated RF.');
   if (errors.length) return { ok: false, errors };
   const sampler = createCorrelatedSampler({ inputs: dists, paramOrder: MC_VARIABLES.map((v) => v.key), rng: mulberry32(seed) });
   if (!sampler.varKeys.length) return { ok: false, errors: ['No input is uncertain: give a low and a high for at least one of recovery factor, area and oil price.'] };

@@ -190,6 +190,12 @@ const ResultsPanel = ({ downloadCSV, downloadJSON }) => {
       <Section title="Incremental economics: the added wells" testId="ws-incremental">
         <Table head={model.incremental.head} rows={model.incremental.rows} testId="ws-incremental-table" note={model.incremental.note} />
       </Section>
+      {model.calibration.on && (
+        <Section title="Recovery against spacing (your calibration)" testId="ws-calibration">
+          <Table head={model.calibration.pointsHead} rows={model.calibration.pointsRows} testId="ws-calibration-points" note={model.calibration.note} />
+          <Table head={model.calibration.casesHead} rows={model.calibration.casesRows} testId="ws-calibration-cases" />
+        </Section>
+      )}
       <Section title="Sensitivity: NPV with one input moved" testId="ws-sensitivity">
         <Table head={model.sensitivity.head} rows={model.sensitivity.rows} testId="ws-sensitivity-table" note={model.sensitivity.note} />
       </Section>

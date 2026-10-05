@@ -31,10 +31,10 @@
 // spacing not in the study) is refused with the reason.
 import { fingerprint } from '@/utils/declineCurve/dcaModel';
 import { DAYS_PER_YEAR } from '@/lib/units/registry';
-import { validateInputs, runSpacingCases, fieldProfile, NPV_CONVENTION_NOTE } from '@/utils/wellSpacingCalculations';
+import { validateInputs, runSpacingCases, fieldProfile, rfOf, NPV_CONVENTION_NOTE } from '@/utils/wellSpacingCalculations';
 import { inputsFromPayload } from './model';
 import { layoutOf } from './drainage';
-import { MODEL_TEXT, rateLimitModelText } from './reportModel';
+import { modelText, rateLimitModelText } from './reportModel';
 
 export const WS_CASE_SCHEMA = 'ws-case-1';
 export const WS_APP = 'Well Spacing Optimizer';
@@ -151,7 +151,8 @@ export function buildWsCaseContract({ projectId, projectName = null, projectSave
       boSource: results.boSource,
       gor: p.gor,
       eurPerWellStb: row.eurPerWell * 1000,
-      recoveryFactorPct: p.recoveryFactor * 100,
+      recoveryFactorPct: rfOf(row.spacing, p) * 100,
+      recoveryModel: p.rfFit ? 'calibrated against spacing' : 'stated',
       declineEffectivePct: p.declineRate * 100,
       rateLimit: {
         on: L.on, computed: L.computed, binding: L.on && L.binding, deliverableStbd: Number.isFinite(row.drainage.pssRateStbd) ? row.drainage.pssRateStbd : null,
@@ -160,7 +161,7 @@ export function buildWsCaseContract({ projectId, projectName = null, projectSave
       schedule: field.cohorts.map((c) => ({ year: c.startYear + 1, wells: c.wells })),
     },
     model: {
-      recovery: `${MODEL_TEXT}. ${rateLimitModelText(L.on)}`,
+      recovery: `${modelText(inputs.form)}. ${rateLimitModelText(L.on)}`,
       economics: 'Suite screening economics engine (calculateEconomics), mid-year discounting',
       npvUsdMM: row.npv,
       npvConvention: NPV_CONVENTION_NOTE,
