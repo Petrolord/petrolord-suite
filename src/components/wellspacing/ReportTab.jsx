@@ -29,17 +29,23 @@ const SmallTable = ({ head, rows, testId }) => (
 );
 
 const ReportTab = () => {
-  const { inputs, results, setIdentificationField, projectName, organizationName, u, addNotification, canWrite } = useWellSpacing();
+  const { inputs, results, setIdentificationField, projectName, organizationName, u, addNotification, canWrite, mc, runMonteCarlo } = useWellSpacing();
   const [busy, setBusy] = useState(false);
   const args = useMemo(
-    () => collectWellSpacingReportArgs(inputs, { results, projectName, organizationName, build: buildLabel(), system: u.system }),
-    [inputs, results, projectName, organizationName, u.system],
+    () => collectWellSpacingReportArgs(inputs, { results, projectName, organizationName, build: buildLabel(), system: u.system, mc }),
+    [inputs, results, projectName, organizationName, u.system, mc],
   );
   const { model } = args;
   const id = inputs.identification || {};
   const exportPdf = async () => {
     setBusy(true);
-    const ok = await exportWellSpacingPdf(args, { projectName });
+    // WS-U2-008: the PDF carries the uncertainty of the inputs on screen: run it now if it is asked for and not current
+    let use = args;
+    if (results && args.model.uncertainty.given && !mc) {
+      const fresh = runMonteCarlo();
+      use = collectWellSpacingReportArgs(inputs, { results, projectName, organizationName, build: buildLabel(), system: u.system, mc: fresh });
+    }
+    const ok = await exportWellSpacingPdf(use, { projectName });
     setBusy(false);
     addNotification(ok ? 'Report saved as PDF.' : 'The report could not be built.', ok ? 'success' : 'error');
   };

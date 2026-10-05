@@ -21,7 +21,8 @@ export const SCHEMA = 1;
  * The inputs. `reads`: 'economics' (EUR, NPV and every number of the case
  * table), 'rate' (the deliverable rate: the case through the rate limit
  * when it is on, the diagnostics otherwise), 'diagnostics' (drainage timing
- * and interference only), 'record' (printed, enters no equation).
+ * and interference only), 'uncertainty' (the Monte Carlo only), 'record'
+ * (printed, enters no equation).
  * `required` mirrors validateInputs.
  */
 export const FIELDS = Object.freeze([
@@ -62,6 +63,15 @@ export const FIELDS = Object.freeze([
   { key: 'oilViscosity', label: 'Oil viscosity at reservoir conditions', kind: 'viscosity', group: 'drainage', reads: 'rate' },
   { key: 'totalCompressibility', label: 'Total compressibility', kind: 'compressibility', group: 'drainage', reads: 'diagnostics' },
   { key: 'wellboreRadius', label: 'Wellbore radius', kind: 'length', group: 'drainage', reads: 'rate' },
+  // WS-U2-008: uncertainty, triangular low / form value / high, through the canonical sampler
+  { key: 'mcRfLow', label: 'Recovery factor, low', kind: 'percent', group: 'uncertainty', reads: 'uncertainty' },
+  { key: 'mcRfHigh', label: 'Recovery factor, high', kind: 'percent', group: 'uncertainty', reads: 'uncertainty' },
+  { key: 'mcAreaLow', label: 'Reservoir area, low', kind: 'area', group: 'uncertainty', reads: 'uncertainty' },
+  { key: 'mcAreaHigh', label: 'Reservoir area, high', kind: 'area', group: 'uncertainty', reads: 'uncertainty' },
+  { key: 'mcPriceLow', label: 'Oil price, low', kind: 'oilPrice', group: 'uncertainty', reads: 'uncertainty' },
+  { key: 'mcPriceHigh', label: 'Oil price, high', kind: 'oilPrice', group: 'uncertainty', reads: 'uncertainty' },
+  { key: 'mcIterations', label: 'Realisations', kind: 'count', group: 'uncertainty', reads: 'uncertainty' },
+  { key: 'mcSeed', label: 'Seed', kind: 'count', group: 'uncertainty', reads: 'uncertainty' },
   // WS-U2-006: measurable interference at the neighbour
   { key: 'interferenceDays', label: 'Interference test time', kind: 'days', group: 'drainage', reads: 'diagnostics' },
   { key: 'gaugeResolutionPsi', label: 'Gauge resolution', kind: 'pressureDiff', group: 'drainage', reads: 'diagnostics' },
@@ -88,6 +98,7 @@ export const SAMPLE_FORM = Object.freeze({
   rateLimit: 'on', drillingSchedule: 'year1', wellsPerYear: '', rigCount: '', wellsPerRigYear: '',
   // WS-U2-001: 5 md (it was 50 md in Step 1, where no case reached its deliverable rate), so the example shows the limit
   interferenceDays: '7', gaugeResolutionPsi: '0.01',
+  mcRfLow: '25', mcRfHigh: '45', mcAreaLow: '4000', mcAreaHigh: '6000', mcPriceLow: '55', mcPriceHigh: '95', mcIterations: '300', mcSeed: '20260829',
   flowingPressure: '1500', permeability: '5', skin: '2', oilViscosity: '1.2', totalCompressibility: '0.000015', wellboreRadius: '0.354',
 });
 

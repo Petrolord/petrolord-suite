@@ -12,6 +12,7 @@ import { evaluateSpacingCases, validateInputs } from '@/utils/wellSpacingCalcula
 import { defaultInputs } from '../model';
 import { wsPvtIntake, wsWtaIntake, wsMbalIntake, wsDcaIntake, wsWellsIntake } from '../intakes';
 import { collectWellSpacingReportArgs, buildWellSpacingPdf } from '../reportExport';
+import { runSpacingMonteCarlo, MC_VARIABLES } from '../monteCarlo';
 
 export const AT = new Date('2026-10-05T12:00:00Z');
 export const TAKEN = '2026-10-05T11:00:00.000Z';
@@ -129,7 +130,10 @@ export async function resultsOf(inputs) {
 
 export async function reportOf(inputs, opts = {}) {
   const results = await resultsOf(inputs);
-  return { results, ...collectWellSpacingReportArgs(inputs, { results, projectName: 'Spacing study', organizationName: 'Org Name', build: BUILD, ...opts }) };
+  // WS-U2-008: as the export does, the uncertainty is run when it is asked for
+  const asked = MC_VARIABLES.some((v) => String(inputs.form[v.low] ?? '') !== '' || String(inputs.form[v.high] ?? '') !== '');
+  const mc = results && asked ? runSpacingMonteCarlo(inputs.form) : null;
+  return { results, mc, ...collectWellSpacingReportArgs(inputs, { results, projectName: 'Spacing study', organizationName: 'Org Name', build: BUILD, mc, ...opts }) };
 }
 
 export async function pdfOf(inputs, opts = {}) {

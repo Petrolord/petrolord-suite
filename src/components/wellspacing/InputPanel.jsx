@@ -25,6 +25,7 @@ const GROUPS = [
   ['schedule', 'Drilling schedule', 'All wells on stream in year 1 unless you choose a schedule. Each well\'s cost falls in the year it comes on stream, and it produces from the start of that year.'],
   ['economics', 'Economics', 'Money in US$. Royalty is one rate on gross revenue; no income tax.'],
   ['range', 'Spacing range', 'The layout sets the distance between wells for a spacing.'],
+  ['uncertainty', 'Uncertainty (Monte Carlo)', 'Optional. A low and a high around the value on the form, triangular; blank holds the input. Run it on the results. Seeded: the same seed and count give the same numbers.'],
   ['drainage', 'Deliverability and drainage', 'With the rate limit on, each well produces no faster than the pseudosteady rate these give, which can move the NPV (the same oil, later). Blank, the decline is not limited and the table says why.'],
 ];
 

@@ -71,83 +71,103 @@ Inputs and their sources
 
 
 
-Well Spacing Report, Spacing study                                                                                              Page 1 of 4
- Input                                          Value                  Unit              Source and quality
+Well Spacing Report, Spacing study                                                                                              Page 1 of 5
+ Input                                          Value                 Unit             Source and quality
 
- Drilling schedule [case]                       All wells on stream                      Entered, source not stated
+ Drilling schedule [case]                       All wells on stream                    Entered, source not stated
                                                 in year 1
 
- Wells brought on stream a year [case]          n/a                    wells per year    Not provided
+ Wells brought on stream a year [case]          n/a                   wells per year   Not provided
 
- Rigs [case]                                    n/a                    rigs              Not provided
+ Rigs [case]                                    n/a                   rigs             Not provided
 
- Wells a rig drills in a year [case]            n/a                    wells per rig     Not provided
-                                                                       per year
+ Wells a rig drills in a year [case]            n/a                   wells per rig    Not provided
+                                                                      per year
 
- Oil price [case]                               n/a                    US$/STB           Not provided
+ Oil price [case]                               n/a                   US$/STB          Not provided
 
- Gas price [case]                               n/a                    US$/Mscf          Not provided
+ Gas price [case]                               n/a                   US$/Mscf         Not provided
 
- Discount rate [case]                           n/a                    %                 Not provided
+ Discount rate [case]                           n/a                   %                Not provided
 
- Project duration [case]                        n/a                    years             Not provided
+ Project duration [case]                        n/a                   years            Not provided
 
- Royalty (on gross revenue) [case]              n/a                    %                 Not provided
+ Royalty (on gross revenue) [case]              n/a                   %                Not provided
 
- Smallest spacing [case]                        n/a                    acres/well        Not provided
+ Smallest spacing [case]                        n/a                   acres/well       Not provided
 
- Largest spacing [case]                         n/a                    acres/well        Not provided
+ Largest spacing [case]                         n/a                   acres/well       Not provided
 
- Spacing step [case]                            n/a                    acres/well        Not provided
+ Spacing step [case]                            n/a                   acres/well       Not provided
 
- Well layout [case, through the rate limit]     Square grid (each                        Assumed default square grid (no value entered)
+ Well layout [case, through the rate limit]     Square grid (each                      Assumed default square grid (no value entered)
                                                 well drains a
                                                 square)
 
- Rate limit [case]                              On: each well                            Assumed default on (the owner default of 2026-10-05) (no
-                                                capped at its                            value entered)
+ Rate limit [case]                              On: each well                          Assumed default on (the owner default of 2026-10-05) (no
+                                                capped at its                          value entered)
                                                 deliverable rate
 
- Average reservoir pressure [case, through      n/a                    psia              Not provided
+ Average reservoir pressure [case, through      n/a                   psia             Not provided
  the rate limit]
 
- Flowing bottomhole pressure [case,             n/a                    psia              Not provided
+ Flowing bottomhole pressure [case,             n/a                   psia             Not provided
  through the rate limit]
 
- Permeability [case, through the rate limit]    n/a                    md                Not provided
+ Permeability [case, through the rate limit]    n/a                   md               Not provided
 
- Skin [case, through the rate limit]            n/a                                      Not provided
+ Skin [case, through the rate limit]            n/a                                    Not provided
 
- Oil viscosity at reservoir conditions [case,   n/a                    cp                Not provided
+ Oil viscosity at reservoir conditions [case,   n/a                   cp               Not provided
  through the rate limit]
 
- Total compressibility [diagnostics]            n/a                    1/psi             Not provided
+ Total compressibility [diagnostics]            n/a                   1/psi            Not provided
 
- Wellbore radius [case, through the rate        n/a                    ft                Not provided
+ Wellbore radius [case, through the rate        n/a                   ft               Not provided
  limit]
 
- Interference test time [diagnostics]           n/a                    days              Not provided
+ Recovery factor, low [uncertainty]             n/a                   %                Not provided
 
- Gauge resolution [diagnostics]                 n/a                    psi               Not provided
+ Recovery factor, high [uncertainty]            n/a                   %                Not provided
 
- Field location, WGS84 latitude and             n/a                    degrees           Not provided
+ Reservoir area, low [uncertainty]              n/a                   acres            Not provided
+
+ Reservoir area, high [uncertainty]             n/a                   acres            Not provided
+
+ Oil price, low [uncertainty]                   n/a                   US$/STB          Not provided
+
+ Oil price, high [uncertainty]                  n/a                   US$/STB          Not provided
+
+ Realisations [uncertainty]                     n/a                                    Not provided
+
+ Seed [uncertainty]                             n/a                                    Not provided
+
+ Interference test time [diagnostics]           n/a                   days             Not provided
+
+ Gauge resolution [diagnostics]                 n/a                   psi              Not provided
+
+ Field location, WGS84 latitude and             n/a                   degrees          Not provided
  longitude [record]
 
- OOIP of a Material Balance run                 n/a                    MMSTB             Not provided
+ OOIP of a Material Balance run                 n/a                   MMSTB            Not provided
+
+
+
+Well Spacing Report, Spacing study                                                                                                      Page 2 of 5
+ Input                                               Value                      Unit                  Source and quality
+
  [cross-check]
 
- EUR of one well from Decline Curve             n/a                    Mbbl              Not provided
+ EUR of one well from Decline Curve                  n/a                        Mbbl                  Not provided
  Analysis [cross-check]
 
-Every value the study read, with its source. [case] enters the EUR, the NPV and every number of the case table; [case, through the rate limit]
-enters the deliverable rate, which caps the decline when the rate limit is on; [diagnostics] enters only the drainage table; [cross-check] and [record]
-enter no equation. Values taken from another app name the project and the method; an edit after the intake says so.
+Every value the study read, with its source. [uncertainty] enters only the Monte Carlo table. [case] enters the EUR, the NPV and every number of
+the case table; [case, through the rate limit] enters the deliverable rate, which caps the decline when the rate limit is on; [diagnostics] enters only
+the drainage table; [cross-check] and [record] enter no equation. Values taken from another app name the project and the method; an edit after the
+intake says so.
 
 
-
-
-Well Spacing Report, Spacing study                                                                                                         Page 2 of 4
-Cross-checks
+Cross-checks
  Check                                     Value                        Against
 
  In place: volumetric OOIP of this         n/a                          Not compared: the volumetric inputs are incomplete.
@@ -162,40 +182,46 @@ Well Spacing Report, Spacing study                                              
 Independent numbers held against the stated case. None of them changes a number of the case.
 
 Methods and references
- Quantity                        Method                                                                                    Reference
+ Quantity                        Method                                                                      Reference
 
- Oil in place per well           N = 7,758 A h phi (1 - Swi) / Bo, STB; A the spacing in acres                             Volumetric equation (Craft and Hawkins 1959)
+ Oil in place per well           N = 7,758 A h phi (1 - Swi) / Bo, STB; A the spacing in acres               Volumetric equation (Craft and Hawkins 1959)
 
- Bo                              Standing: Bo = 0.9759 + 0.00012 (Rs sqrt(gg / go) + 1.25 T)^1.2                           Standing (1947); McCain (1990)
+ Bo                              Standing: Bo = 0.9759 + 0.00012 (Rs sqrt(gg / go) + 1.25 T)^1.2             Standing (1947); McCain (1990)
 
- EUR per well                    N times the stated recovery factor                                                        Stated model (no interference)
+ EUR per well                    N times the stated recovery factor                                          Stated model (no interference)
 
- Production per well             Exponential decline, Dn = -ln(1 - De); qi = EUR Dn + q limit; life = ln(qi / q limit) /   Arps (1945)
-                                 Dn; yearly volumes integrated exactly; a year is 365.25 days
+ Production per well             Exponential decline, Dn = -ln(1 - De); qi = EUR Dn + q limit; life =        Arps (1945)
+                                 ln(qi / q limit) / Dn; yearly volumes integrated exactly; a year is
+                                 365.25 days
 
- Rate limit                      Where qi > qd (deliverable): plateau at qd for tp = (qi - qd) / (Dn qd), then qd          Plateau then exponential decline; qd from
-                                 exp(-Dn (t - tp)) to the limit; the volume to the limit stays the EUR                     Ahmed and McKinney (2005) Eq. 1.2.124
+ Rate limit                      Where qi > qd (deliverable): plateau at qd for tp = (qi - qd) / (Dn qd),    Plateau then exponential decline; qd from Ahmed and
+                                 then qd exp(-Dn (t - tp)) to the limit; the volume to the limit stays the   McKinney (2005) Eq. 1.2.124
+                                 EUR
 
- NPV, revenue, royalty, opex,    calculateEconomics, TaxRoyalty, mid-year discounting; all wells on stream in              Suite screening economics engine
- capex, payback                  year 1, each well's capex in its year and its opex while on stream                        (docs/scope/ReservoirEngineering-Module.md
-                                                                                                                           section 5)
+ NPV, revenue, royalty, opex,    calculateEconomics, TaxRoyalty, mid-year discounting; all wells on          Suite screening economics engine
+ capex, payback                  stream in year 1, each well's capex in its year and its opex while on       (docs/scope/ReservoirEngineering-Module.md section 5)
+                                 stream
 
- Field profile                   The per-well profile shifted to each year's wells and cut at the end of the project       Superposition of identical wells in time
-                                 duration; every yearly volume is a difference of the exact field cumulative
+ Field profile                   The per-well profile shifted to each year's wells and cut at the end of     Superposition of identical wells in time
+                                 the project duration; every yearly volume is a difference of the exact
+                                 field cumulative
 
- Distance between wells          Square: d = sqrt(A); staggered: d = sqrt(2 A / sqrt 3)                                    Geometry; 40 acres square is 1,320 ft
+ Distance between wells          Square: d = sqrt(A); staggered: d = sqrt(2 A / sqrt 3)                      Geometry; 40 acres square is 1,320 ft
 
- Drainage radius                 re = sqrt(43,560 A / pi), ft                                                              Ahmed and McKinney (2005), Ex. 1.5: 40
-                                                                                                                           acres, 745 ft
+ Drainage radius                 re = sqrt(43,560 A / pi), ft                                                Ahmed and McKinney (2005), Ex. 1.5: 40 acres, 745 ft
 
- Interference and                ri = sqrt(k t / (948 phi mu ct)), t in hours; tDA = 0.0002637 k t / (phi mu ct A)         Lee (1982); Earlougher (1977) Table C.1
- pseudosteady timing
+ Interference and                ri = sqrt(k t / (948 phi mu ct)), t in hours; tDA = 0.0002637 k t / (phi    Lee (1982); Earlougher (1977) Table C.1
+ pseudosteady timing             mu ct A)
 
- Deliverable rate                q = k h (pbar - pwf) / (141.2 B mu (0.5 ln(2.2458 A / (CA rw^2)) + s))                    Ahmed and McKinney (2005), Eq. 1.2.124, Ex.
-                                                                                                                           1.18
+ Deliverable rate                q = k h (pbar - pwf) / (141.2 B mu (0.5 ln(2.2458 A / (CA rw^2)) + s))      Ahmed and McKinney (2005), Eq. 1.2.124, Ex. 1.18
 
- Interference at the neighbour   dp = 70.6 q mu B / (k h) E1(948 phi mu ct r^2 / (k t)), t in hours, r the distance        Ahmed and McKinney (2005), Eq. 1.2.134, Ex.
-                                 between wells                                                                             1.21; Abramowitz and Stegun Table 5.1
+ Uncertainty (P90, P50, P10      Triangular draws of RF, area and oil price by the canonical sampler         src/lib/monteCarlo.js (ReservoirCalc Pro
+ NPV)                            (seeded mulberry32); each realisation a full case run through               MonteCarloEngine lineage,
+                                 calculateEconomics; P90 the 10th percentile (the low case)                  docs/scope/ReservoirEngineering-Module.md section 5);
+                                                                                                             SPE PRMS exceedance convention
+
+ Interference at the neighbour   dp = 70.6 q mu B / (k h) E1(948 phi mu ct r^2 / (k t)), t in hours, r the   Ahmed and McKinney (2005), Eq. 1.2.134, Ex. 1.21;
+                                 distance between wells                                                      Abramowitz and Stegun Table 5.1
 
 
 
@@ -204,7 +230,12 @@ Limits of this analysis
 spacing: the model has no interference, no acceleration-only infill and no incremental recovery from tighter spacing. Field oil is therefore nearly the
 same at every spacing; without a rate limit NPV rises as wells are removed, and with it the wide cases are held back by what each well can
 deliver. Recovery that responds to spacing is a simulation or analog question.
-- One exponential decline per well, the stated effective annual decline at every spacing, anchored so the volume to the economic limit is the EUR.
+
+
+
+
+Well Spacing Report, Spacing study                                                                                                                          Page 3 of 5
+- One exponential decline per well, the stated effective annual decline at every spacing, anchored so the volume to the economic limit is the EUR.
 A wider spacing therefore gets a proportionally higher initial rate. With the rate limit on, a well whose decline would start above its deliverable rate
 produces at the deliverable rate first; the deliverable rate is held at the stated average pressure for the whole plateau (no depletion of the pressure
 inside it), so a long plateau is optimistic.
@@ -224,7 +255,7 @@ No input is flagged.
 
 
 
-Well Spacing Report, Spacing study                                                                                                                               Page 3 of 4
+Well Spacing Report, Spacing study                                                                                                           Page 4 of 5
 Plots
 Figure 1. EUR and oil produced per well against spacing
 Does not apply: no spacing case has been computed.
@@ -244,5 +275,5 @@ Does not apply: no wells were taken from the registry.
 
 
 
-Well Spacing Report, Spacing study                                 Page 4 of 4
+Well Spacing Report, Spacing study                                 Page 5 of 5
 

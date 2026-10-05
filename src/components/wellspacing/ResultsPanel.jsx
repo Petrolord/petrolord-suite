@@ -8,7 +8,7 @@
 // the heading read 1,000 times low), the initial rate each case assumes was
 // computed and never shown (WS-U1-005), and the results stayed on screen
 // after an input changed until Calculate was pressed (WS-U1-006).
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, FileText, Target, AlertTriangle } from 'lucide-react';
 import {
@@ -76,10 +76,11 @@ const Section = ({ title, children, testId, actions = null }) => (
 );
 
 const ResultsPanel = ({ downloadCSV, downloadJSON }) => {
-  const { inputs, results, errors, u, projectName, organizationName } = useWellSpacing();
+  const { inputs, results, errors, u, projectName, organizationName, mc, mcStale, runMonteCarlo } = useWellSpacing();
+  const [mcBusy, setMcBusy] = useState(false);
   const model = useMemo(
-    () => (results ? buildWellSpacingReportModel(inputs, { results, projectName, organizationName, system: u.system }) : null),
-    [inputs, results, projectName, organizationName, u.system],
+    () => (results ? buildWellSpacingReportModel(inputs, { results, projectName, organizationName, system: u.system, mc }) : null),
+    [inputs, results, projectName, organizationName, u.system, mc],
   );
 
   if (!results) {
@@ -188,6 +189,20 @@ const ResultsPanel = ({ downloadCSV, downloadJSON }) => {
       </Section>
       <Section title="Incremental economics: the added wells" testId="ws-incremental">
         <Table head={model.incremental.head} rows={model.incremental.rows} testId="ws-incremental-table" note={model.incremental.note} />
+      </Section>
+      <Section
+        title="Uncertainty: NPV of each case" testId="ws-uncertainty"
+        actions={(
+          <Button size="sm" variant="outline" disabled={mcBusy || !model.uncertainty.given} data-testid="ws-mc-run"
+            onClick={() => { setMcBusy(true); setTimeout(() => { try { runMonteCarlo(); } finally { setMcBusy(false); } }, 0); }}>
+            {mcBusy ? 'Running' : 'Run'}
+          </Button>
+        )}
+      >
+        {mcStale && !mc && <p className="text-xs text-pl-warning-text" data-testid="ws-mc-stale">The inputs changed since the last run; run it again to see the uncertainty of the cases on screen.</p>}
+        {model.uncertainty.ok
+          ? <Table head={model.uncertainty.head} rows={model.uncertainty.rows} testId="ws-mc-table" note={model.uncertainty.note} />
+          : <p className="text-xs text-pl-muted" data-testid="ws-mc-none">{model.uncertainty.note}</p>}
       </Section>
       <Section title="Rate limit: before and after" testId="ws-rate-limit">
         <p className="text-xs text-pl-text" data-testid="ws-rate-limit-state">

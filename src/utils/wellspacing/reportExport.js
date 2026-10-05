@@ -28,6 +28,8 @@ export function buildWellSpacingPdf({ model }, { logo = null, generatedAt = new 
     table('Economics of each case, by part', model.economics.head, model.economics.rows, { note: model.economics.note, fontSize: SMALL });
     table('Incremental economics: the added wells', model.incremental.head, model.incremental.rows, { note: model.incremental.note, fontSize: SMALL });
     table('Rate limit: before and after', model.rateLimit.head, model.rateLimit.rows, { note: model.rateLimit.note, fontSize: SMALL });
+    if (model.uncertainty.ok) table('Uncertainty: NPV of each case (Monte Carlo)', model.uncertainty.head, model.uncertainty.rows, { note: model.uncertainty.note, fontSize: SMALL });
+    else section('Uncertainty: NPV of each case (Monte Carlo)', model.uncertainty.note);
   } else {
     section('Spacing cases', 'No case has been computed: the inputs are incomplete. The inputs table below says which are missing.');
   }

@@ -18,6 +18,7 @@ import { FIELDS, SAMPLE_FORM } from './model.js';
 import { wsUnits } from './units.js';
 import { intakeSourceText } from './intakes.js';
 import { crossChecks } from './crossChecks.js';
+import { MC_VARIABLES } from './monteCarlo.js';
 
 export const REPORT_TITLE = 'Well Spacing Report';
 export const APP_NAME = 'Petrolord Well Spacing Optimizer';
@@ -69,7 +70,7 @@ export function inputSource(inputs, key, results) {
   return sourceText(inputs.inputMeta?.[key]);
 }
 
-const READS_WORDS = { economics: 'case', rate: 'case, through the rate limit', diagnostics: 'diagnostics', record: 'record' };
+const READS_WORDS = { economics: 'case', rate: 'case, through the rate limit', diagnostics: 'diagnostics', uncertainty: 'uncertainty', record: 'record' };
 
 function inputRows(inputs, u, results) {
   const rows = FIELDS.map((d) => {
@@ -78,6 +79,8 @@ function inputRows(inputs, u, results) {
     if (d.key === 'wellLayout') value = layoutOf(raw).label;
     else if (d.select) value = (d.options.find(([v]) => v === raw) || d.options[0])[1];
     else if (d.key === 'oilFvf' && !text(raw) && finite(results?.boUsed)) value = u.fmt('fvf', results.boUsed, 5);
+    // a seed or a count prints whole (6 significant figures would round a seed)
+    else if (d.kind === 'count') value = num(raw) == null ? '' : String(Math.round(num(raw)));
     else value = num(raw) == null ? '' : (d.kind && ['wellCost', 'opex'].includes(d.kind) ? Number(raw).toLocaleString('en-US') : u.fmt(d.kind, num(raw), 6));
     return {
       key: d.key,
@@ -136,7 +139,7 @@ const days = (v) => (finite(v) ? (v < 10 ? v.toFixed(2) : v < 100 ? v.toFixed(1)
  * @param {object} inputs the project inputs (WellSpacingContext)
  * @param {{results: ?object, projectName?: string, organizationName?: string, build?: string, system?: string}} o
  */
-export function buildWellSpacingReportModel(inputs, { results = null, projectName = '', organizationName = '', build = '', system = null } = {}) {
+export function buildWellSpacingReportModel(inputs, { results = null, projectName = '', organizationName = '', build = '', system = null, mc = null } = {}) {
   const sys = system || inputs.unitSystem || 'oilfield';
   const u = wsUnits(sys);
   const rows = results?.spacingResults || [];
@@ -230,6 +233,18 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
     ].filter(Boolean).join(' '),
   };
 
+  // WS-U2-008: uncertainty through the canonical sampler and calculateEconomics
+  const mcGiven = MC_VARIABLES.some((v) => text(inputs.form?.[v.low]) || text(inputs.form?.[v.high]));
+  const uncertainty = {
+    given: mcGiven,
+    ok: !!mc?.ok,
+    head: [u.head('Spacing', 'spacing'), 'Base NPV (US$ MM)', 'P90 NPV, low (US$ MM)', 'P50 NPV (US$ MM)', 'P10 NPV, high (US$ MM)', 'Mean (US$ MM)', 'Probability NPV < 0 (%)'],
+    rows: mc?.ok ? mc.cases.map((c) => [sp(c.spacing), m1(c.base), m1(c.p90), m1(c.p50), m1(c.p10), m1(c.mean), (c.probLoss * 100).toFixed(1)]) : [],
+    note: mc?.ok
+      ? `${mc.iterations} realisations, seed ${mc.seed}, drawn by the Suite's canonical Monte Carlo sampler (src/lib/monteCarlo.js, mulberry32); every realisation is a full case run whose NPV is calculateEconomics, the same draws for every spacing. Triangular: ${MC_VARIABLES.filter((v) => mc.distributions[v.key]?.type === 'triangular').map((v) => `${v.label.toLowerCase()} ${mc.distributions[v.key].min} / ${mc.distributions[v.key].mode} / ${mc.distributions[v.key].max} ${v.unit}`).join('; ')} (low / most likely / high); the others held at their values; inputs independent. ${mc.convention}`
+      : (mc && !mc.ok ? `Not run: ${mc.errors.join(' ')}` : (mcGiven ? 'Not run yet: run the uncertainty on the Study tab (the PDF export runs it).' : 'Not run: no low and high is given for the recovery factor, the area or the oil price.')),
+  };
+
   const cc = crossChecks(inputs, results);
   const crossRows = [];
   crossRows.push(['In place: volumetric OOIP of this case', finite(cc.inPlace.volumetricStb) ? `${u.fmt('volume', cc.inPlace.volumetricStb / 1e6, 5)} ${u.label('volume')}` : EMPTY_VALUE,
@@ -254,6 +269,7 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
       ['Drainage radius', 're = sqrt(43,560 A / pi), ft', 'Ahmed and McKinney (2005), Ex. 1.5: 40 acres, 745 ft'],
       ['Interference and pseudosteady timing', 'ri = sqrt(k t / (948 phi mu ct)), t in hours; tDA = 0.0002637 k t / (phi mu ct A)', 'Lee (1982); Earlougher (1977) Table C.1'],
       ['Deliverable rate', 'q = k h (pbar - pwf) / (141.2 B mu (0.5 ln(2.2458 A / (CA rw^2)) + s))', 'Ahmed and McKinney (2005), Eq. 1.2.124, Ex. 1.18'],
+      ['Uncertainty (P90, P50, P10 NPV)', 'Triangular draws of RF, area and oil price by the canonical sampler (seeded mulberry32); each realisation a full case run through calculateEconomics; P90 the 10th percentile (the low case)', 'src/lib/monteCarlo.js (ReservoirCalc Pro MonteCarloEngine lineage, docs/scope/ReservoirEngineering-Module.md section 5); SPE PRMS exceedance convention'],
       ['Interference at the neighbour', 'dp = 70.6 q mu B / (k h) E1(948 phi mu ct r^2 / (k t)), t in hours, r the distance between wells', 'Ahmed and McKinney (2005), Eq. 1.2.134, Ex. 1.21; Abramowitz and Stegun Table 5.1'],
     ],
   };
@@ -313,11 +329,12 @@ export function buildWellSpacingReportModel(inputs, { results = null, projectNam
     incremental,
     rateLimit,
     interference,
+    uncertainty,
     drainage,
     cross,
     crossChecks: cc,
     methods,
-    inputs: { rows: inputRows(inputs, u, results), note: 'Every value the study read, with its source. [case] enters the EUR, the NPV and every number of the case table; [case, through the rate limit] enters the deliverable rate, which caps the decline when the rate limit is on; [diagnostics] enters only the drainage table; [cross-check] and [record] enter no equation. Values taken from another app name the project and the method; an edit after the intake says so.' },
+    inputs: { rows: inputRows(inputs, u, results), note: 'Every value the study read, with its source. [uncertainty] enters only the Monte Carlo table. [case] enters the EUR, the NPV and every number of the case table; [case, through the rate limit] enters the deliverable rate, which caps the decline when the rate limit is on; [diagnostics] enters only the drainage table; [cross-check] and [record] enter no equation. Values taken from another app name the project and the method; an edit after the intake says so.' },
     limits,
     figures,
     notes: text(inputs.identification?.notes) || null,

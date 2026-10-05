@@ -252,3 +252,17 @@ test('WS-U2-006 measurable interference: the drop at the neighbour per case agai
   await expect(page.getByTestId('ws-interference-none')).toContainText('interference test time not given');
   expect(errors).toEqual([]);
 });
+
+test('WS-U2-008 uncertainty: a seeded Monte Carlo per case, the seed and count printed, P90 the low case', async ({ page }) => {
+  test.setTimeout(300000);
+  const errors = watchErrors(page);
+  await openApp(page);
+  await expect(page.getByTestId('ws-mc-none')).toContainText('Not run yet');
+  await page.getByTestId('ws-mc-run').click();
+  await expect(page.getByTestId('ws-mc-table')).toBeVisible({ timeout: 240000 });
+  await expect(page.getByTestId('ws-uncertainty')).toContainText('300 realisations, seed 20260829');
+  await expect(page.getByTestId('ws-uncertainty')).toContainText('P90 is the low case');
+  await page.getByTestId('ws-oilPrice').fill('76');
+  await expect(page.getByTestId('ws-mc-stale')).toBeVisible();
+  expect(errors).toEqual([]);
+});

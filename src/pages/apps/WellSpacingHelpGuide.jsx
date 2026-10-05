@@ -277,6 +277,17 @@ const WellSpacingHelpGuideContent = () => (
         plan initial rate is above the deliverable rate, the unlimited decline starts at a rate the
         well cannot give, and the report flags it.
       </Para>
+      <SubHeading>Uncertainty (Monte Carlo)</SubHeading>
+      <Para>
+        Give a low and a high around the recovery factor, the reservoir area or the oil price
+        (triangular, the value on the form the most likely) and press Run on the uncertainty table.
+        The draws come from the Suite&apos;s canonical Monte Carlo sampler, seeded, and every
+        realisation runs each case through the same economics engine as the case table, with the
+        same draws for every spacing. The seed and the number of realisations are saved with the
+        project and printed; the same seed and count give the same numbers. P90 is the low case: a
+        90 percent probability that the NPV meets or exceeds it. The PDF export runs it when it is
+        asked for, and a run made before an edit is never shown as current.
+      </Para>
       <SubHeading>Measurable interference</SubHeading>
       <Para>
         Give an interference test time and a gauge resolution to see, for every case, the pressure

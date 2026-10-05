@@ -534,7 +534,8 @@ export function incrementalRows(rows) {
 }
 
 /** The sweep, synchronously (closed form, milliseconds): the page recomputes on every edit. */
-export const runSpacingCases = (formData) => {
+/** The parsed inputs every case runs on (oilfield, fractions), Bo resolved. */
+export const spacingParameters = (formData) => {
   const p = {
     reservoirArea: parseFloat(formData.reservoirArea),
     avgNetPay: parseFloat(formData.avgNetPayThickness),
@@ -577,6 +578,18 @@ export const runSpacingCases = (formData) => {
   };
   const { bo, source: boSource } = standingBo(p);
   p.bo = bo;
+  p.boSource = boSource;
+  return p;
+};
+
+/** The NPV of one case alone (US$ MM), the canonical run the case table uses; 0 when no whole well fits. */
+export const spacingNpv = (spacing, p) => (Math.floor(p.reservoirArea / spacing) < 1
+  ? 0
+  : calculateEconomics(spacingEconomicsInputs(spacing, p), { skipIrr: true }).metrics.npv);
+
+export const runSpacingCases = (formData) => {
+  const p = spacingParameters(formData);
+  const boSource = p.boSource;
 
   const minSpacing = parseFloat(formData.minSpacing);
   const maxSpacing = parseFloat(formData.maxSpacing);
