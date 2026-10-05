@@ -6,7 +6,7 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
 
 | Phase | State |
 |---|---|
-| Q0 Seismic worker foundations | In progress: worker LIVE; queue, uploads and stack_to_v4 proven live; jobs and upload panel in Seismolord next |
+| Q0 Seismic worker foundations | Acceptance met 2026-10-05 (10 GB upload, cross-browser resume, server conversion verified); full jest then merge of #891 |
 | Q0b Seismolord on the worker | Not started |
 | Milestone A (Q1, Q2, Q4a, Q6a) | Not started |
 | Milestone B (Q8a, Q9a, Q10, Q11) | Not started |
@@ -136,3 +136,33 @@ No secret value is printed.
   - Server and browser therefore produce byte-identical v4 volumes. This meets the Q0 acceptance item "bricks match a browser-transcoded copy byte for byte".
 - **Packaging:** the worker is one esbuild bundle (`build.mjs`) of the deployed commit, 98 modules with no React.
   - `v4SurveyMeta` moved to its own module, re-exported by `importJobs`.
+
+### Seismolord server import, Jobs dock and the 10 GB acceptance (2026-10-05)
+- **Import dialog and Jobs dock:**
+  - The import dialog offers "Where to convert" and recommends the Petrolord server from 2 GB, or when the browser cannot run the background import.
+  - The file uploads first, then the row is registered (`prepareV4Row`), then `stack_to_v4` is enqueued.
+  - The Jobs dock tab shows progress, Cancel, and Open once the display copy is up.
+- **Live walks** with the QA account `qa-seismic@petrolord.com` (created for automated browser tests; owns no client data), on the dev-only page `/dev/seismolord-server-import`, real project.
+- **Small file walk:** fine end to end. Two fixes from it:
+  - Start import stayed enabled after an import had started, so a duplicate volume was possible.
+  - Sizes under 1 MB read 0.0 MB.
+- **Engine finding, fixed** (engines #312, vendored 51f2e9d):
+  - The sampled preview scan read each trace header on its own: 30,004 reads for 1,000,000 traces. A Chromium Blob read costs about 45 ms here, so a 10 GB preview took over 20 minutes.
+  - It now reads runs: 228 reads, 30 s in Node on this VPS.
+  - The browser preview on this VPS still takes 1.5 to 9 minutes, because it reads about 290 MB at about 7 MB/s through Blob under load.
+  - Q0b will shrink the 10,000-trace head after measuring on a desktop.
+- **Finding, fixed (resume across browsers):**
+  - The unfinished upload was remembered only in localStorage, so a fresh browser restarted it at 0 and left orphan parts.
+  - `qi-upload-url` `start` now matches this user's unfinished upload by size and sampled content fingerprint and resumes it. The owner redeployed the function 2026-10-05.
+  - The two orphan uploads were aborted.
+- **10 GB acceptance** (synthetic, 1,000 x 1,000 traces x 2,500 samples, 10,240,003,600 bytes):
+
+  | Step | Result |
+  |---|---|
+  | Browser A preview | 181 s; server preselected with the 2 GB note |
+  | Browser A uploads, then quits | 1.00 GB in 5.7 min |
+  | Fresh browser B (new profile) | first progress **1.00 GB of 9.54 GB**: resumed, not restarted; one upload row in the database, with fingerprint |
+  | B finishes the upload | 8.5 GB in 45 min (the studio VPS to worker link is about 3.6 MB/s) |
+  | Worker conversion | about 12 min. Open was offered from the display copy (84%); ready at 23:01 |
+  | Stored volume | v4 manifest, display and f32 complete, 1000 x 1000 x 2500. Display copy 27.2 MB, f32 copy 85.2 MB (the synthetic repeats one shifted template, so it compresses heavily) |
+  | Sample check | 30 of 30 samples (corners, centre, 25 random positions, 30 bricks) are exact float matches with the source SEG-Y. Negative control: comparing against the neighbouring trace disagrees in 14 of 25 |
