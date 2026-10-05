@@ -237,7 +237,7 @@ test('WS-U2-003 drilling schedule: all wells in year 1 by default; rigs spread t
   await page.getByTestId('ws-wellsPerRigYear').fill('15');
   const row40 = page.getByTestId('ws-case-table').getByRole('row', { name: /^40 125 / });
   await expect(row40).toContainText('1,627.7');
-  await expect(row40).toContainText(/ 5$/);
+  await expect(row40.locator('td').last()).toHaveText('5');
   await page.screenshot({ path: `${OUT}/u2-003-schedule.png` });
   expect(errors).toEqual([]);
 });
