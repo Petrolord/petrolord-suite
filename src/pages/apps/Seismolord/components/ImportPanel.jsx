@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Upload, FileText, AlertTriangle, CheckCircle2, Loader2, XCircle, Play, Ban,
-  RotateCcw, Trash2, Eye, Server, Pause,
+  RotateCcw, Trash2, Eye, Server, Pause, Link2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,9 @@ import { scanFile, ingestVolume } from '../services/ingestService';
 import { listVolumes, deleteVolume } from '../services/volumesService';
 import { publishConversionProgress, clearConversionProgress } from '../sources/conversionProgress';
 import { getImportJobs, v4ImportSupport, V4_STATUS } from '../services/importJobsRuntime';
-import { serverImportAdvice, startServerImport } from '../services/serverImport';
+import {
+  serverImportAdvice, startServerImport, fetchFromLink, scanRemoteFile, startRemoteConversion,
+} from '../services/serverImport';
 import CrsPicker from '@/components/crs/CrsPicker';
 import StorageMeter from './StorageMeter';
 import CrsBadge from '@/components/crs/CrsBadge';
@@ -168,10 +170,17 @@ export default function ImportPanel({
   // default from 2 GB or when this browser cannot run the background import
   const serverAdvice = useMemo(() => (file ? serverImportAdvice(file.size, v4Support) : null), [file, v4Support]);
   const [useServer, setUseServer] = useState(false);
-  useEffect(() => { setUseServer(Boolean(serverAdvice?.preferred)); }, [serverAdvice]);
+  // a remote file only exists on the server: it is always converted there
+  useEffect(() => { setUseServer(Boolean(file?.remote) || Boolean(serverAdvice?.preferred)); }, [serverAdvice, file]);
   const [upload, setUpload] = useState(null);       // {bytesDone, bytesTotal}
   const [serverStarted, setServerStarted] = useState(false);
   const uploadAbortRef = useRef(null);
+  // QI Q0b-3: import from a link. The worker fetches the file; the dialog
+  // then works with a remote file {remote, datasetId, name, size, fingerprint}
+  // and scans and converts it on the server.
+  const [source, setSource] = useState('local');   // local | link
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkProgress, setLinkProgress] = useState(null);
   const useV4 = Boolean(v4Support?.ok) && !compress16;
 
   const runScan = async (f, m) => {
@@ -183,7 +192,7 @@ export default function ImportPanel({
     setError(null);
     setScanData(null);
     try {
-      const data = await scanFile(f, m);
+      const data = f?.remote ? await scanRemoteFile(f, m) : await scanFile(f, m);
       if (seq !== scanSeqRef.current) return;
       setScanData(data);
       setPhase('scanned');
@@ -211,7 +220,7 @@ export default function ImportPanel({
     const m = { ...mapping, ...next };
     setMapping(m);
     if (file) runScan(file, m);
-    if (file && onFilePicked) onFilePicked(file, m);
+    if (file && !file.remote && onFilePicked) onFilePicked(file, m); // a remote file has no local bytes to view
   };
 
   const startBackground = async () => {
@@ -234,6 +243,43 @@ export default function ImportPanel({
       });
       if (onIngested) onIngested({ status: V4_STATUS.CONVERTING, name: file.name });
       if (onBackgroundStarted) onBackgroundStarted();
+    } catch (e) {
+      setError(e.message);
+      setPhase('error');
+    }
+  };
+
+  const fetchLink = async () => {
+    setPhase('fetching');
+    setError(null);
+    setLinkProgress({ progress: 0, message: 'Queued on the server' });
+    try {
+      const remote = await fetchFromLink({ url: linkUrl.trim(), onProgress: setLinkProgress });
+      setFile(remote);
+      setCrsTag(null);
+      setSanityOverride(false);
+      crsPrefilledRef.current = false;
+      setDomain('time');
+      domainPrefilledRef.current = false;
+      setLinkProgress(null);
+      runScan(remote, mapping);
+    } catch (e) {
+      setLinkProgress(null);
+      setError(e.message);
+      setPhase('error');
+    }
+  };
+
+  const startRemote = async () => {
+    setPhase('ingesting');
+    setError(null);
+    try {
+      await startRemoteConversion({ remote: file, mapping, scan: scanData.scan, nativeCrs: crsTag });
+      setServerStarted(true);
+      setPhase('background');
+      toast({ title: 'Converting on the server', description: `${file.name}: follow it under Server jobs.` });
+      if (onIngested) onIngested({ status: V4_STATUS.CONVERTING, name: file.name });
+      if (onServerImportStarted) onServerImportStarted();
     } catch (e) {
       setError(e.message);
       setPhase('error');
@@ -271,6 +317,7 @@ export default function ImportPanel({
   };
 
   const startIngest = async () => {
+    if (file?.remote) { await startRemote(); return; }
     if (useServer) { await startServer(); return; }
     if (useV4) { await startBackground(); return; }
     setPhase('ingesting');
@@ -305,7 +352,7 @@ export default function ImportPanel({
   const scan = scanData?.scan;
 
   useEffect(() => {
-    if (onBusyChange) onBusyChange(phase === 'ingesting' || phase === 'uploading');
+    if (onBusyChange) onBusyChange(phase === 'ingesting' || phase === 'uploading' || phase === 'fetching');
   }, [phase, onBusyChange]);
 
   // Project CRS context for the CRS step (refreshes after each run in
@@ -374,7 +421,7 @@ export default function ImportPanel({
   const blockReason = importBlockReason({
     scan, domain, useV4: useV4 || useServer, v4Support, compress16: useServer ? false : compress16,
   });
-  const busy = phase === 'ingesting' || phase === 'uploading';
+  const busy = phase === 'ingesting' || phase === 'uploading' || phase === 'fetching';
   const sanityBlocks = Boolean(sanity && !sanity.ok && sanity.verdict === 'out-of-area' && !sanityOverride);
   const projectSet = Boolean(project?.tag && isTransformableTag(project.tag));
   const willConvert = projectSet && crsTag && isTransformableTag(crsTag)
@@ -519,28 +566,83 @@ export default function ImportPanel({
           </div>
         )}
 
-        <div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".sgy,.segy,.SGY,.SEGY"
-            className="hidden"
-            onChange={onPickFile}
-          />
-          <Button
-            variant="outline"
-            onClick={() => fileRef.current?.click()}
-            disabled={phase === 'ingesting' || phase === 'scanning'}
-          >
-            <FileText className="w-4 h-4 mr-2" />
-            {file ? file.name : 'Choose SEG-Y file'}
-          </Button>
-          {file && (
-            <span className="ml-3 text-sm text-pl-muted">
-              {(file.size / (1024 * 1024)).toFixed(1)} MB, processed in windows and not loaded whole
-            </span>
-          )}
+        <div className="flex gap-1 text-sm" role="tablist" aria-label="Where the SEG-Y is">
+          {[['local', 'From this computer'], ['link', 'From a link']].map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={source === k}
+              disabled={busy || phase === 'scanning'}
+              onClick={() => setSource(k)}
+              className={`px-3 py-1 rounded border ${source === k ? 'border-pl-primary text-pl-primary-text bg-pl-primary/10' : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
+
+        {source === 'local' ? (
+          <div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".sgy,.segy,.SGY,.SEGY"
+              className="hidden"
+              onChange={onPickFile}
+            />
+            <Button
+              variant="outline"
+              onClick={() => fileRef.current?.click()}
+              disabled={phase === 'ingesting' || phase === 'scanning'}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              {file ? file.name : 'Choose SEG-Y file'}
+            </Button>
+            {file && (
+              <span className="ml-3 text-sm text-pl-muted">
+                {(file.size / (1024 * 1024)).toFixed(1)} MB, processed in windows and not loaded whole
+              </span>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2" data-testid="sl-import-link">
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                placeholder="https://… link to a .sgy or .segy file"
+                aria-label="Link to the SEG-Y file"
+                disabled={busy || phase === 'scanning'}
+                className="flex-1 rounded border border-pl-border bg-pl-sunken px-2 py-1.5 text-sm text-pl-text"
+              />
+              <Button variant="outline" onClick={fetchLink} disabled={!/^https:\/\//i.test(linkUrl.trim()) || busy || phase === 'scanning'}>
+                <Link2 className="w-4 h-4 mr-2" />
+                Fetch
+              </Button>
+            </div>
+            <p className="text-xs text-pl-muted">
+              The Petrolord server downloads the file itself, so nothing passes through this computer. The link must be https and serve the file directly.
+            </p>
+            {phase === 'fetching' && linkProgress && (
+              <div className="space-y-1">
+                <div className="flex items-center text-sm text-pl-text">
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {linkProgress.message || 'Fetching on the server'}
+                </div>
+                <div className="h-2 rounded bg-pl-sunken overflow-hidden">
+                  <div className="h-full bg-pl-primary transition-all" style={{ width: `${Math.round(100 * (linkProgress.progress || 0))}%` }} />
+                </div>
+              </div>
+            )}
+            {file?.remote && (
+              <div className="text-sm text-pl-muted">
+                {file.name}: {(file.size / (1024 * 1024)).toFixed(1)} MB, stored on the Petrolord server
+              </div>
+            )}
+          </div>
+        )}
 
         {phase === 'scanning' && (
           <div className="flex items-center text-pl-text">
@@ -891,7 +993,7 @@ export default function ImportPanel({
           </div>
         )}
 
-        {file && scan && serverAdvice?.offer && phase !== 'background' && (
+        {file && !file.remote && scan && serverAdvice?.offer && phase !== 'background' && (
           <fieldset className="rounded-lg border border-pl-border p-3 space-y-2 text-sm text-pl-text" data-testid="sl-import-where">
             <legend className="px-1 text-pl-muted">Where to convert</legend>
             <label className="flex items-start gap-2">
@@ -923,7 +1025,7 @@ export default function ImportPanel({
               type="checkbox"
               checked={compress16 && !useServer}
               onChange={(e) => setCompress16(e.target.checked)}
-              disabled={busy || useServer}
+              disabled={busy || useServer || Boolean(file?.remote)}
             />
             16-bit storage (half size)
           </label>

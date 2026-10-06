@@ -5,12 +5,18 @@
 // get them from createHandlers(deps); main.js builds the real ones.
 import { noop } from './noop.js';
 import { stackToV4 } from './stackToV4.js';
+import { attributeVolume } from './attributeVolume.js';
+import { ingestUrl } from './ingestUrl.js';
+import { scanDataset } from './scanDataset.js';
 
-export const KINDS = Object.freeze(['noop', 'stack_to_v4']);
+export const KINDS = Object.freeze(['noop', 'stack_to_v4', 'attribute_volume', 'ingest_url', 'scan_dataset']);
 
 export function createHandlers(deps = {}) {
   return Object.freeze({
     noop,
     stack_to_v4: (ctx) => stackToV4(ctx, deps),
+    attribute_volume: (ctx) => attributeVolume(ctx, deps),
+    ingest_url: (ctx) => ingestUrl(ctx, deps),
+    scan_dataset: (ctx) => scanDataset(ctx, deps),
   });
 }

@@ -10,52 +10,19 @@
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { buildDerivedManifest, brickRelPath, volumeDir, manifestPath } from '../engine/manifest';
-import { ATTRIBUTE_DEFS } from '../engine/attributes';
-import { DISCONTINUITY_DEFS } from '../engine/discontinuity';
-import { mapGradientTransform } from '../engine/structureAttributes';
-import { surveyAffine } from '../engine/surveyGeometry';
 import { SEISMIC_BUCKET, assertQuota } from './seismicStorage';
 import { deleteVolume } from './volumesService';
 import { newAttributeWorker } from './attributeWorkerFactory';
+import {
+  ALL_ATTRIBUTE_DEFS, attributePrecheck, assertFloat32Parent, derivedStorageBytes, derivedSurveyMeta,
+} from './attributeSurveyMeta';
+
+// moved to a pure module so the seismic worker can share them
+export {
+  ALL_ATTRIBUTE_DEFS, attributePrecheck, assertFloat32Parent, derivedStorageBytes, derivedSurveyMeta,
+};
 
 let nextJobId = 1;
-
-/** Every computable derived-volume attribute: per-trace + neighborhood. */
-export const ALL_ATTRIBUTE_DEFS = { ...ATTRIBUTE_DEFS, ...DISCONTINUITY_DEFS };
-
-/**
- * Why an attribute cannot be computed on this parent, or null. Today only
- * map-frame attributes (needsAffine: Dip azimuth, grid north) have a
- * precondition: the survey's measured orientation.
- */
-export function attributePrecheck(attributeName, parentManifest) {
-  const def = Object.prototype.hasOwnProperty.call(ALL_ATTRIBUTE_DEFS, attributeName)
-    ? ALL_ATTRIBUTE_DEFS[attributeName] : null;
-  if (!def?.needsAffine) return null;
-  try {
-    mapGradientTransform(surveyAffine(parentManifest?.geometry));
-    return null;
-  } catch (e) {
-    return e.message;
-  }
-}
-
-/** Brick-store footprint of a volume on the parent's lattice. */
-export function derivedStorageBytes(parentManifest) {
-  const b = parentManifest?.brick;
-  if (!b?.count || !b?.size) throw new Error('Parent manifest has no brick block.');
-  // derived volumes always write float32 bricks on the parent's PADDED grid
-  return b.count * b.size ** 3 * 4;
-}
-
-/** W4.4: attribute math needs full-precision input — surface the engine
- *  rule as friendly copy before any work starts. */
-export function assertFloat32Parent(parentManifest) {
-  const dtype = parentManifest?.brick?.dtype ?? 'float32le';
-  if (dtype !== 'float32le') {
-    throw new Error('Attribute volumes need a float32 parent. This volume was imported with 16-bit storage. Re-import it without compression to compute attributes.');
-  }
-}
 
 /** Default display name for a derived volume. */
 export function defaultDerivedName(parentName, attributeName, params = {}) {
@@ -88,22 +55,12 @@ async function accessToken() {
 }
 
 /**
- * Compute a derived attribute volume from a ready parent volume.
- *
- * @param {Object} p
- * @param {Object} p.parent seismic_volumes row of the parent (status 'ready')
- * @param {Object} p.parentManifest the parent's EFFECTIVE manifest (the
- *   viewer's composed manifest — row-authoritative interp state included)
- * @param {{name: string, params?: Object}} p.attribute registry attribute
- * @param {string} [p.name] display name (defaultDerivedName otherwise)
- * @param {(p:{phase:string,done:number,total:number})=>void} [p.onProgress]
- * @param {{cancelled?: boolean}} [p.cancelToken] set .cancelled = true to abort
- * @param {() => Worker} [p.workerFactory] test seam
- * @returns {Promise<{volumeId: string, manifest: Object, row: Object}>}
+ * Check the parent and register the derived row ('ingesting'). The first
+ * step of both routes: the browser computation below, and the server job
+ * (serverAttribute.js), so a row is registered the same way either way.
+ * @returns {Promise<{row: Object, volumeId: string, userId: string, dir: string, displayName: string}>}
  */
-export async function computeAttributeVolume({
-  parent, parentManifest, attribute, name, onProgress, cancelToken = {}, workerFactory,
-}) {
+export async function registerAttributeVolume({ parent, parentManifest, attribute, name }) {
   if (parent?.status === 'display_ready') {
     // v4: only the 8-bit display copy is up; attributes compute on float32
     throw new Error('This volume is still uploading its full-precision copy. Attributes can be computed once that finishes.');
@@ -142,6 +99,29 @@ export async function computeAttributeVolume({
     })
     .select().single();
   if (insertError) throw new Error(`Could not register the attribute volume: ${insertError.message}`);
+  return { row, volumeId, userId, dir, displayName };
+}
+
+/**
+ * Compute a derived attribute volume from a ready parent volume.
+ *
+ * @param {Object} p
+ * @param {Object} p.parent seismic_volumes row of the parent (status 'ready')
+ * @param {Object} p.parentManifest the parent's EFFECTIVE manifest (the
+ *   viewer's composed manifest — row-authoritative interp state included)
+ * @param {{name: string, params?: Object}} p.attribute registry attribute
+ * @param {string} [p.name] display name (defaultDerivedName otherwise)
+ * @param {(p:{phase:string,done:number,total:number})=>void} [p.onProgress]
+ * @param {{cancelled?: boolean}} [p.cancelToken] set .cancelled = true to abort
+ * @param {() => Worker} [p.workerFactory] test seam
+ * @returns {Promise<{volumeId: string, manifest: Object, row: Object}>}
+ */
+export async function computeAttributeVolume({
+  parent, parentManifest, attribute, name, onProgress, cancelToken = {}, workerFactory,
+}) {
+  const { row, volumeId, userId, dir, displayName } = await registerAttributeVolume({
+    parent, parentManifest, attribute, name,
+  });
 
   // Failed/cancelled derived jobs are deleted, not resumed: recompute is
   // the resume story, and a dangling 'ingesting' attribute row would only
@@ -243,23 +223,7 @@ export async function computeAttributeVolume({
     const { data: updated, error: updateError } = await supabase.from('seismic_volumes')
       .update({
         status: 'ready',
-        survey_meta: {
-          il: manifest.geometry.il,
-          xl: manifest.geometry.xl,
-          ns: manifest.geometry.ns,
-          dt_us: manifest.geometry.dt_us,
-          corners: manifest.geometry.corners,
-          ...(manifest.geometry.affine ? { affine: manifest.geometry.affine } : {}),
-          ...(manifest.geometry.coord_scalar != null
-            ? { coord_scalar: manifest.geometry.coord_scalar } : {}),
-          ...(manifest.geometry.crs ? { crs: manifest.geometry.crs } : {}),
-          brick: manifest.brick.grid,
-          brick_size: manifest.brick.size,
-          stats: manifest.stats,
-          storage_bytes: derivedStorageBytes(manifest),
-          attribute: manifest.attribute,
-          parent_volume_id: parent.id,
-        },
+        survey_meta: derivedSurveyMeta(manifest, parent.id),
         updated_at: new Date().toISOString(),
       })
       .eq('id', volumeId)

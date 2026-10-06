@@ -6,8 +6,8 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
 
 | Phase | State |
 |---|---|
-| Q0 Seismic worker foundations | Acceptance met 2026-10-05 (10 GB upload, cross-browser resume, server conversion verified); full jest then merge of #891 |
-| Q0b Seismolord on the worker | Not started |
+| Q0 Seismic worker foundations | DONE: merged #891 (main 728a53b7e), 2026-10-06 |
+| Q0b Seismolord on the worker | Built on feat/qi-q0b: server attributes (live), housekeeping, import from a link, storage tiers, fair scheduling; two migrations for the owner to apply |
 | Milestone A (Q1, Q2, Q4a, Q6a) | Not started |
 | Milestone B (Q8a, Q9a, Q10, Q11) | Not started |
 | Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Not started |
@@ -166,3 +166,57 @@ No secret value is printed.
   | Worker conversion | about 12 min. Open was offered from the display copy (84%); ready at 23:01 |
   | Stored volume | v4 manifest, display and f32 complete, 1000 x 1000 x 2500. Display copy 27.2 MB, f32 copy 85.2 MB (the synthetic repeats one shifted template, so it compresses heavily) |
   | Sample check | 30 of 30 samples (corners, centre, 25 random positions, 30 bricks) are exact float matches with the source SEG-Y. Negative control: comparing against the neighbouring trace disagrees in 14 of 25 |
+
+## Q0b: Seismolord on the worker (2026-10-06)
+
+The owner directed on 2026-10-06 that the Q series run non-stop with decisions made along the way. Each decision is recorded here with its reason.
+
+### Q0b-1 Attribute volumes on the worker
+- The `attribute_volume` job runs the browser attribute worker's own computation:
+  - v4BrickFetcher, then runVolumeJob or runNeighborhoodJob;
+  - buildDerivedManifest;
+  - the same row metadata, via the shared pure module `attributeSurveyMeta.js`.
+- `registerAttributeVolume` was split out, so both routes register rows the same way.
+- **Decisions:**
+  - The worker reads the parent's stored `manifest.json`, because the composed viewer manifest can exceed the 64 KB settings cap.
+  - It runs on the user's own volumes only: the dialog does not offer the server for shared volumes, and the worker refuses them.
+  - The server is the default from 1 GiB of output.
+  - A failure removes the registered row and anything uploaded.
+- **Gates:**
+  - Parity with the browser computation, byte for byte, for envelope (per-trace) and variance (neighbourhood), with a one-sample negative control.
+  - Guards for ownership, state, quota and cancel with cleanup.
+- **Live run:** envelope of the QA dome volume. All 1,024 traces are exact against a local engine recomputation from the stored parent bricks (worst difference 0).
+
+### Q0b-2 Housekeeping
+- An upload unfinished 7 days after it starts is aborted.
+- A raw SEG-Y is removed 30 days after its upload completed. Converted volumes are never touched.
+- **Decision:** 30 days is long enough to reconvert, and the worker disk is the scarce resource.
+- It runs between jobs, at most once an hour. It is idempotent and guarded on the status it read.
+
+### Q0b-3 Import from a link
+- **Worker:** `ingest_url` streams an https link into a multipart upload, then fingerprints the stored file as the browser does. `scan_dataset` runs the dialog's preview scan on the server.
+- **Dialog:** "From this computer | From a link". The remote file is converted on the server.
+- **Fetch guard** (SSRF):
+  - https on 443 only, with no credentials in the URL;
+  - every DNS answer must be public (private, loopback, link-local, CGNAT, metadata, multicast, reserved, IPv4-mapped and NAT64 forms are refused);
+  - the connection is pinned to the vetted address;
+  - redirects are vetted per hop, 3 at most.
+- **Tests:** 38 guard cases; the ingest is byte-exact across 3 parts with the browser fingerprint; every refusal path; scan parity.
+- **Live run:**
+  - A public link imported as the QA user (14,600 B), then scanned on the server: 5 x 5 traces, 50 samples at 4 ms, 40 text lines, with the zero-coordinate warning.
+  - The metadata address and a nip.io name for 10.0.0.1 were both refused (`fetch_refused`).
+
+### Q0b-4 Storage tiers (migration `20261006100000`, owner apply)
+- A new table, `seismic_storage_tiers`. A user's quota is the largest tier among their active memberships, never below 20 GiB.
+- `seismic_storage_quota_bytes()` now returns the caller's quota, so the bucket insert policy follows the tier without a policy change.
+- The table ships empty: tier sizes and prices are an owner decision.
+- **Gates:** 42 database checks. A live dry run in a rolled-back transaction passed.
+
+### Q0b-5 Preview head (decision: unchanged)
+- The 10,000-trace contiguous head keeps a full inline in the preview for surveys up to 10,000 crosslines.
+- The converter validates every trace against the predicted grid, so a shorter head could stop a wide survey mid-conversion.
+- On an SSD the preview reads its roughly 300 MB in seconds.
+
+### Q0b-6 Fair scheduling (migration `20261006110000`, owner apply)
+- The claim takes the oldest job of the user with the fewest jobs running.
+- **Gate:** db-tests (44 checks). The old oldest-first claim fails the new check.

@@ -14,6 +14,7 @@ import { makeSigner } from './s3.js';
 import { supabaseStorageClient } from '../../../src/pages/apps/Seismolord/services/seismicStorageClient.js';
 import { resolveCodec, DEFLATE_RAW } from '../../../packages/engines/engines/seismolord/brickCodecV4.js';
 import { pollOnce } from './loop.js';
+import { runJanitor } from './janitor.js';
 
 const log = {
   info: (m) => console.log(JSON.stringify({ t: new Date().toISOString(), level: 'info', m })),
@@ -36,8 +37,14 @@ async function main() {
     // CompressionStream deflate-raw, the same codec the browser import uses
     codec: resolveCodec({ compression: DEFLATE_RAW }),
     memoryBudgetBytes: cfg.convertBudgetBytes,
+    // attribute_volume reads parent bricks the way the browser worker does,
+    // with the service key as its bearer token
+    supabaseUrl: cfg.supabaseUrl,
+    serviceRoleKey: cfg.serviceRoleKey,
+    rawBucket: cfg.s3.rawBucket,
   });
   const running = new Map();
+  let lastJanitor = 0;
   const health = { startedAt: new Date().toISOString(), lastPollOk: null, lastPollError: null };
   let stopping = false;
 
@@ -73,6 +80,13 @@ async function main() {
       const claimed = await pollOnce({ queue, cfg, running, launch, kinds: KINDS });
       health.lastPollOk = new Date().toISOString();
       if (claimed && running.size < cfg.maxConcurrent) continue;
+      // housekeeping between jobs, at most once an hour (janitor.js)
+      if (running.size === 0 && Date.now() - lastJanitor > cfg.janitorIntervalMs) {
+        lastJanitor = Date.now();
+        const j = await runJanitor({ admin, sign: makeSigner(cfg.s3), log });
+        if (j.abandoned || j.expired || j.errors) log.info(`janitor: ${JSON.stringify(j)}`);
+        health.lastJanitor = { at: new Date().toISOString(), ...j };
+      }
     } catch (e) {
       health.lastPollError = `${new Date().toISOString()} ${e.message}`;
       log.error(`poll cycle failed: ${e.message}`);

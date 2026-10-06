@@ -3,6 +3,7 @@
 
 const KIND_LABEL = {
   stack_to_v4: 'Server import',
+  attribute_volume: 'Attribute volume',
   noop: 'Test job',
 };
 
@@ -13,6 +14,9 @@ const STATUS_LABEL = {
   failed: 'Failed',
   cancelled: 'Cancelled',
 };
+
+/** Jobs whose result is a volume the viewer can open. */
+const VOLUME_KINDS = new Set(['stack_to_v4', 'attribute_volume']);
 
 /** The display copy is up once the upload moves on to the float32 copy. */
 export const DISPLAY_READY_MESSAGE = 'Uploading full-resolution copy';
@@ -35,6 +39,9 @@ export function jobView(job) {
   if (status === 'running' && job.progress_message) detail = job.progress_message;
   if (status === 'failed') detail = job.error_message || 'The job failed.';
   if (status === 'cancelled') detail = 'Stopped at your request.';
+  if (status === 'succeeded' && job.kind === 'attribute_volume') {
+    detail = `${Number(result.bricks || 0).toLocaleString('en-US')} bricks computed`;
+  }
   if (status === 'succeeded' && job.kind === 'stack_to_v4') {
     detail = `${Number(result.trace_count || 0).toLocaleString('en-US')} traces; display copy ${fmtSize(result.display_bytes)}, full copy ${fmtSize(result.f32_bytes)}`;
   }
@@ -50,9 +57,10 @@ export function jobView(job) {
     canCancel: active && !job.cancel_requested,
     cancelling: active && Boolean(job.cancel_requested),
     // a server import's volume opens once its display copy is up
-    volumeId: job.kind === 'stack_to_v4' ? (result.volume_id || params.volume_id || null) : null,
-    canOpen: job.kind === 'stack_to_v4' && (status === 'succeeded'
-      || (status === 'running' && job.progress_message === DISPLAY_READY_MESSAGE)),
+    volumeId: VOLUME_KINDS.has(job.kind) ? (result.volume_id || params.volume_id || null) : null,
+    canOpen: (job.kind === 'stack_to_v4' && (status === 'succeeded'
+      || (status === 'running' && job.progress_message === DISPLAY_READY_MESSAGE)))
+      || (job.kind === 'attribute_volume' && status === 'succeeded'),
     queuedAt: job.queued_at,
   };
 }
