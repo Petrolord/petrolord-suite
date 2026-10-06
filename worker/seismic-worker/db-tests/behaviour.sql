@@ -122,4 +122,17 @@ do $$ begin perform public.seismic_storage_quota_bytes_for('00000000-0000-0000-0
 do $$ begin update public.seismic_storage_tiers set quota_bytes = 999999999999; raise exception 'FAIL: client changed a tier';
   exception when insufficient_privilege then raise notice 'ok  clients cannot change tiers'; end $$;
 reset role;
+
+-- ------------------------------------------------- fair claim (Q0b-6)
+delete from public.qi_jobs;
+insert into public.qi_jobs (id, user_id, kind, status, claimed_by, attempt, heartbeat_at, queued_at) values
+  ('00000000-0000-0000-0000-00000000f001', '00000000-0000-0000-0000-000000000001', 'noop', 'running', 'w', 1, now(), now() - interval '50 minutes');
+insert into public.qi_jobs (id, user_id, kind, queued_at) values
+  ('00000000-0000-0000-0000-00000000f002', '00000000-0000-0000-0000-000000000001', 'noop', now() - interval '40 minutes'),
+  ('00000000-0000-0000-0000-00000000f003', '00000000-0000-0000-0000-000000000001', 'noop', now() - interval '30 minutes'),
+  ('00000000-0000-0000-0000-00000000f004', '00000000-0000-0000-0000-000000000002', 'noop', now() - interval '5 minutes');
+set role service_role;
+select pg_temp.ok((select id from public.qi_claim_job('w2', array['noop'])) = '00000000-0000-0000-0000-00000000f004', 'fair claim: the user with nothing running goes first, though their job is newest');
+select pg_temp.ok((select id from public.qi_claim_job('w3', array['noop'])) = '00000000-0000-0000-0000-00000000f002', 'fair claim: then oldest first among equals');
+reset role;
 select 'ALL BEHAVIOUR CHECKS PASSED' as result;
