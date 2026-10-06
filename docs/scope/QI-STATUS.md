@@ -266,3 +266,19 @@ The quota is pooled per organisation. Building that is the next item.
   1. Apply the migration.
   2. Redeploy generate-quote, verify-paystack-payment, paystack-webhook, stripe-webhook (if used) and process-subscription-renewals from a clean checkout of main.
   3. Upload the Suite build at the next milestone.
+
+### A2 Elastic set and local shear trend (2026-10-06)
+- **Engines #316** (`rockphysics/elasticSet.js`):
+  - the elastic set with LMR, EI and EEI;
+  - Vs-on-Vp OLS with Student t prediction intervals;
+  - a `brineVs` option on `iterativeVs` and `shearForWell`.
+- **Validation:**
+  - The oracle's anchors include the exact EEI reflectivity identity and the published t table.
+  - numpy and scipy agree to 1.5e-12.
+  - Negative controls: AI^2 - SI^2, tan^2 in EEI, and a normal quantile in place of Student t.
+- **Suite:** the Rock Physics Studio "Elastic logs" view and the local shear trend, as described in RockPhysicsStudio-STATUS.
+- **Decisions:**
+  - The trend is calibrated on water-bearing samples only, the brine-filled trend Greenberg-Castagna also describes.
+  - It is applied only where there is no shear log, so measured and estimated shear are never mixed.
+  - EEI references are the zone means.
+- **Next in A2:** the multi-well crossplot workbench (WebGL scatter, no 1,500-point cap, polygons to facies curves).

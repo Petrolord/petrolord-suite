@@ -13,6 +13,7 @@
 
 import { iterativeVs } from '../engine/vsEstimate';
 import { makeSampler } from './scenario';
+import { brineVsOf } from './localShear';
 
 /**
  * @param {Object} model SI well model (prep.buildModel); only changed when its Vs is estimated
@@ -37,6 +38,8 @@ export function applyIterativeVs(model, scenario, rock, zone = null) {
     try {
       const out = iterativeVs({
         vp, rho, phi, kmin: sm.kmin(i), fluidInSitu: sm.fluidA(i), fluidBrine: sm.brine, vsh: model.vsh ? model.vsh[i] : 0,
+        // QI A2: the brine state lies on the local shear trend when one is in use
+        brineVs: model.vsMethod === 'local' ? brineVsOf(rock?.localVs) : null,
       });
       if (out.converged && out.vs > 0 && out.vs < vp) { vs[i] = out.vs; applied += 1; } else { failed += 1; firstError = firstError || 'the iteration did not settle'; }
     } catch (e) {
@@ -52,6 +55,14 @@ export function applyIterativeVs(model, scenario, rock, zone = null) {
 export function shearSourceText(model) {
   if (model?.vsSource !== 'estimated') return 'measured shear log';
   const base = model.vpSource === 'estimated' ? 'Vs estimated from the estimated Vp' : 'Vs estimated';
+  if (model.vsTrend) {
+    const t = model.vsTrend;
+    const what = `the local shear trend${t.label ? ` from ${t.label}` : ''} (${t.n} samples, ±${Math.round(t.s)} m/s)`;
+    const iter = model.vsMethod === 'iterative' && model.vsIter?.applied
+      ? `; iterated through the brine state in ${model.vsIter.applied} hydrocarbon sample${model.vsIter.applied === 1 ? '' : 's'}${model.vsIter.failed ? `, ${model.vsIter.failed} kept the direct estimate` : ''}`
+      : '';
+    return `${base} from ${what}${iter}${t.extrapolated ? `; ${t.extrapolated} sample${t.extrapolated === 1 ? '' : 's'} outside the calibrated Vp range` : ''}; no shear log`;
+  }
   if (model.vsMethod === 'iterative' && model.vsIter?.applied) {
     return `${base} (Greenberg-Castagna on VSH; iterated through the brine state in ${model.vsIter.applied} hydrocarbon sample${model.vsIter.applied === 1 ? '' : 's'}${model.vsIter.failed ? `, ${model.vsIter.failed} kept the direct estimate` : ''}); no shear log`;
   }
