@@ -29,7 +29,7 @@ export function familyOf(mnemonic) {
   return null;
 }
 
-const editKind = (mnemonic) => {
+export const editKind = (mnemonic) => {
   const m = String(mnemonic || '').toUpperCase().split(':')[0].match(/_(SPL|ED|DC|DS|DIG)$/);
   return m ? { SPL: 'spliced', ED: 'edited', DC: 'drift-corrected', DS: 'depth-shifted', DIG: 'digitized' }[m[1]] : null;
 };

@@ -5,11 +5,12 @@
 // Copy rule: no em dashes, no "X, not Y" contrastives.
 // Guard: __tests__/helpGuide.test.jsx.
 import React from 'react';
-import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity } from 'lucide-react';
+import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity, Layers } from 'lucide-react';
 import { HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Step, Table } from '@/components/helpguide/HelpGuideLayout';
 import SharingHelp from '@/components/recordSharing/SharingHelp';
 import { GROUPS, STATES } from './services/inventory';
 import { FAMILIES } from './services/usability';
+import { INVERSION_METHODS, INVERSION_DEFAULTS } from './services/inversionRun';
 
 const APP_PATH = '/dashboard/apps/geoscience/qi-studio';
 
@@ -19,6 +20,7 @@ export const HELP_SECTIONS = [
   { id: 'inventory', icon: ClipboardList, title: 'Data inventory' },
   { id: 'usability', icon: Grid3x3, title: 'Usability matrix' },
   { id: 'qc', icon: Activity, title: 'Seismic QC' },
+  { id: 'inversion', icon: Layers, title: 'Impedance inversion' },
   { id: 'issues', icon: AlertTriangle, title: 'Issue register' },
   { id: 'feasibility', icon: Scale, title: 'Feasibility per target' },
   { id: 'report', icon: FileText, title: 'The report' },
@@ -91,6 +93,26 @@ function QIStudioHelpGuideContent() {
           the survey. Signal-to-noise below 1 is a high-severity issue and below 3 a medium one; a band narrower than
           10 Hz, a footprint, and a dominant frequency that falls by 40 percent with depth are flagged too. Add the QC
           issues to the register with one click; the results are kept with the project and printed in the report.
+        </Para>
+      </GuideSection>
+
+      <GuideSection id="inversion">
+        <SectionHeading icon={Layers}>Impedance inversion</SectionHeading>
+        <Para>
+          The Inversion tab turns a stack into acoustic impedance on the seismic worker. Choose the volume, a method, the
+          wavelet and the horizons, then read the wells: each study well becomes impedance in time from its sonic and
+          density, through its committed tie (or its imported checkshots), on the trace at the middle of its log. A well
+          that cannot be used says why, and the curves each well uses are named, so an edited or digitized curve is visible.
+        </Para>
+        <Table
+          headers={['Method', 'What it gives']}
+          rows={Object.entries(INVERSION_METHODS).map(([, m]) => [m.label, m.absolute ? 'Absolute impedance, with the low-frequency model below the seismic band' : 'Relative impedance (band-limited), with no wavelet scaling and no model'])}
+        />
+        <Para>
+          {`The low-frequency model is each well's impedance kept below ${INVERSION_DEFAULTS.lfmHz} Hz, spread between the wells by inverse distance and kept at the same proportional position between your horizons, so a layer that thickens or dips keeps its impedance. With no horizons it follows constant time. The wavelet (the field wavelet averaged over the ties, or one well's) is scaled to the seismic at the wells by least squares, which also fixes its polarity.`}
+        </Para>
+        <Para>
+          {`Check at the wells first. Each well is left out of the model in turn, inverted, and compared with its own log after a high cut at ${INVERSION_DEFAULTS.truthHz} Hz: the blind correlation and the blind impedance error, beside the same figures with the well in the model. A blind correlation under 0.6, a blind error over 10 percent, or a blind error far above the with-well error (the result leans on the model away from wells) is offered to the issue register. Then invert the volume: the impedance opens in Seismolord as a new volume, and the check and the runs are kept with the project and printed in the report.`}
         </Para>
       </GuideSection>
 

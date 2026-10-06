@@ -23,6 +23,7 @@ import { exportQIStudioPdf, reportModel } from './services/report';
 import { SetupPanel, InventoryPanel, UsabilityPanel, IssuesPanel, FeasibilityPanel } from './components/Panels';
 import QcPanel from './components/QcPanel';
 import TiesPanel from './components/TiesPanel';
+import InversionPanel from './components/InversionPanel';
 
 const TABS = [
   { value: 'setup', label: 'Setup' },
@@ -30,6 +31,7 @@ const TABS = [
   { value: 'usability', label: 'Usability' },
   { value: 'qc', label: 'Seismic QC' },
   { value: 'ties', label: 'Well ties' },
+  { value: 'inversion', label: 'Inversion' },
   { value: 'issues', label: 'Issues' },
   { value: 'feasibility', label: 'Feasibility' },
   { value: 'report', label: 'Report' },
@@ -148,6 +150,7 @@ function QIStudioContent({ organizationName }) {
         {tab === 'usability' && <UsabilityPanel />}
         {tab === 'qc' && <QcPanel />}
         {tab === 'ties' && <TiesPanel />}
+        {tab === 'inversion' && <InversionPanel />}
         {tab === 'issues' && <IssuesPanel />}
         {tab === 'feasibility' && <FeasibilityPanel />}
         {tab === 'report' && <ReportTab organizationName={organizationName} />}

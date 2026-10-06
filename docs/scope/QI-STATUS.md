@@ -7,9 +7,9 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
 | Phase | State |
 |---|---|
 | Q0 Seismic worker foundations | DONE: merged #891 (main 728a53b7e), 2026-10-06 |
-| Q0b Seismolord on the worker | Built on feat/qi-q0b: server attributes (live), housekeeping, import from a link, storage tiers, fair scheduling; two migrations for the owner to apply |
-| Milestone A (Q1, Q2, Q4a, Q6a) | Not started |
-| Milestone B (Q8a, Q9a, Q10, Q11) | Not started |
+| Q0b Seismolord on the worker | DONE: merged #893; both migrations applied and verified 2026-10-06 |
+| Milestone A (Q1, Q2, Q4a, Q6a) | DONE: A1 to A6 merged 2026-10-06 (#894, #896 to #901, #903). Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
+| Milestone B (Q8a, Q9a, Q10, Q11) | Q8a post-stack inversion built (engines #321, #322; Suite feat/qi-q8a-inversion) |
 | Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Not started |
 | Q12 Benchmark and tester waves | Not started |
 
@@ -336,3 +336,29 @@ The quota is pooled per organisation. Building that is the next item.
   - Synthetics offer a WDM-edited sonic (_DC, _ED, _SPL) as a sonic, labelled. When a drift-corrected sonic exists it is suggested with "Use it", never picked silently.
 - **Rock Physics Studio:** the gather's tie wavelet is now the stored wavelet itself, resampled to the gather interval. This fixes the plan's tieWavelet defect. An older record is still rebuilt as a phase-rotated Ricker and says to re-commit the tie.
 - **QI Studio, Well ties tab:** each well's tie (correlation, shift, wavelet), the aligned tie wavelets with their average (the field wavelet), and each well's fit to it. Issues cover no tie, poor (under 0.5) and fair (under 0.7) ties, wavelet not stored, phase spread over 30 degrees, frequency spread over 25 percent, and a well unlike the average (under 0.8). The report has a ties table.
+
+### B1 Q8a Post-stack inversion (2026-10-06)
+- **Engines #321 `qi/inversion.js`:**
+  - the pylops post-stack operator (centred derivative, centred convolution) and its adjoints;
+  - model-based inversion (CGLS with a pull to the low-frequency model) and a blocky variant (IRLS total variation);
+  - FISTA sparse-spike, integrated and merged with the model below a crossover;
+  - coloured inversion (Lancaster and Whitcombe 2000): one operator from the well impedance spectrum (a power law fitted to the logs) over the seismic spectrum, rotated by -90 degrees.
+- **Engines #322 `qi/lfm.js`:** the horizon-guided low-frequency model (inverse distance between wells, proportional position between horizons, constant offset outside them, constant time with none), a well left out for blind tests, and the blind-well score. `runVolumeJob` now passes each trace's grid position to the compute.
+- **Validation:**
+  - pylops oracle goldens: the forward operator, the model-based result and FISTA (pylops `eps` is twice the engine's lambda);
+  - coloured inversion against the band-limited true impedance, with the unrotated output as the negative control;
+  - the LFM is exact for a dipping layer with horizons; at constant time the same layer is smeared (negative control).
+- **Suite:**
+  - a shared run module (`QIStudio/services/inversionRun.js`) gated on a synthetic survey with dipping horizons. Every well passes blind (correlation over 0.95, AI error under 3 percent). Without horizons the blind error more than doubles (negative control).
+  - worker job `poststack_inversion`: blind mode (well traces only) and volume mode (every trace, published as a derived v4 volume Seismolord opens). Its blind table equals the run module's on the same traces.
+  - QI Studio Inversion tab: wells read into impedance in time, wavelet, horizons, method, the blind check, the volume run, issues and a report table.
+- **Decisions:**
+  - **Wavelet scaling:** the wavelet is scaled to the seismic at the wells by least squares over every well sample. The sign of the scale also fixes polarity, so a reversed-polarity volume needs no setting.
+  - **Wells in time:** each well's sonic and density go through its own time-depth relationship (the committed tie first, then imported checkshots). This is the Seismolord synthetics path. The trace is the well's position at the middle of its impedance log.
+  - **Blind check before the volume:** the tab offers the blind check first. Every volume run also records the blind table in the product's manifest, so the QC travels with the volume.
+  - **Score:** blind error is the RMS relative AI error against the log after a 50 Hz high cut. Relative impedance has no level, so coloured inversion reports correlation only, against the log band-passed between 8 and 50 Hz.
+  - **Issue thresholds:** blind correlation under 0.6 is high; blind error over 10 percent is medium; a blind error more than 5 points above the with-well error is low (the result leans on the model away from wells).
+  - **Labelling:** products carry `qi_class: elastic_estimate`, the method, the wells, the horizons and the settings (no logs or wavelet samples) in the derived manifest.
+  - **Horizons:** the user's own picks on the inverted volume only (the worker checks this, as RLS would). A trace where any chosen horizon has no pick falls back to constant time.
+- **Worker deploy:** needed after merge, for the new kind.
+- **Next in Q8a:** sensitivity sweeps (wavelet, noise, LFM) into P10/P50/P90 volumes, and the Marmousi2 synthetic-truth gate.

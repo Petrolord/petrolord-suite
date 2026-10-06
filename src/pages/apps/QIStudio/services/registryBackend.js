@@ -1,9 +1,17 @@
 // QI Studio reads (QI programme Q1 / A4): the shared wells registry (wells,
 // curve metadata, zones, tops), Seismolord's volumes and the surfaces
-// registry. Read only: QI Studio never writes another app's records.
+// registry. Read only: QI Studio never edits another app's records. The one
+// write is a new derived volume for an inversion (Q8a), registered as
+// Seismolord registers an attribute volume, which the seismic worker fills.
 
-import { listWells, listLogs, listZones, listTops } from '@/lib/wellsRegistry';
+import { listWells, listLogs, listZones, listTops, downloadCurve } from '@/lib/wellsRegistry';
 import { supabase } from '@/lib/customSupabaseClient';
+import { getManifest, deleteVolume } from '@/pages/apps/Seismolord/services/volumesService';
+import { listHorizons } from '@/pages/apps/Seismolord/services/horizonsService';
+import { assertQuota } from '@/pages/apps/Seismolord/services/seismicStorage';
+import { assertFloat32Parent, derivedStorageBytes } from '@/pages/apps/Seismolord/services/attributeSurveyMeta';
+import { volumeDir } from '../../../../../packages/engines/engines/seismolord/manifest';
+import { volumeFrame } from './inversionWells';
 
 export function makeRegistryBackend() {
   return {
@@ -14,11 +22,33 @@ export function makeRegistryBackend() {
     },
     async listVolumes() {
       const { data, error } = await supabase.from('seismic_volumes')
-        .select('id, name, kind, status, user_id, created_at')
+        .select('id, name, kind, status, user_id, created_at, storage_path, crs')
         .order('created_at', { ascending: false });
       if (error) throw new Error(`Could not load seismic volumes: ${error.message}`);
       return (data || []).filter((v) => (v.status || 'ready') === 'ready' && (!v.kind || v.kind === 'seismic'));
     },
+    async loadVolumeFrame(volume) {
+      return volumeFrame(await getManifest(volume));
+    },
+    async listHorizons(volumeId) {
+      return (await listHorizons(volumeId)).filter((h) => h.is_own);
+    },
+    downloadCurve,
+    async registerInversionVolume({ volume, name, summary }) {
+      const manifest = await getManifest(volume);
+      assertFloat32Parent(manifest);
+      await assertQuota(derivedStorageBytes(manifest));
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error('You must be signed in to run an inversion.');
+      const id = crypto.randomUUID();
+      const { data, error } = await supabase.from('seismic_volumes').insert({
+        id, user_id: user.id, name, storage_path: volumeDir(user.id, id), status: 'ingesting', kind: 'attribute',
+        parent_volume_id: volume.id, attribute_params: { name: 'qi_inversion', params: summary }, crs: volume.crs ?? null, survey_meta: {},
+      }).select().single();
+      if (error) throw new Error(`Could not register the inversion volume: ${error.message}`);
+      return data;
+    },
+    removeVolume: deleteVolume,
     async countSurfaces() {
       const { count, error } = await supabase.from('geo_surfaces').select('id', { count: 'exact', head: true });
       return error ? 0 : (count || 0);

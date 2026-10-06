@@ -9,8 +9,9 @@ import { attributeVolume } from './attributeVolume.js';
 import { ingestUrl } from './ingestUrl.js';
 import { scanDataset } from './scanDataset.js';
 import { seismicQc } from './seismicQc.js';
+import { poststackInversion } from './poststackInversion.js';
 
-export const KINDS = Object.freeze(['noop', 'stack_to_v4', 'attribute_volume', 'ingest_url', 'scan_dataset', 'seismic_qc']);
+export const KINDS = Object.freeze(['noop', 'stack_to_v4', 'attribute_volume', 'ingest_url', 'scan_dataset', 'seismic_qc', 'poststack_inversion']);
 
 export function createHandlers(deps = {}) {
   return Object.freeze({
@@ -20,5 +21,6 @@ export function createHandlers(deps = {}) {
     ingest_url: (ctx) => ingestUrl(ctx, deps),
     scan_dataset: (ctx) => scanDataset(ctx, deps),
     seismic_qc: (ctx) => seismicQc(ctx, deps),
+    poststack_inversion: (ctx) => poststackInversion(ctx, deps),
   });
 }

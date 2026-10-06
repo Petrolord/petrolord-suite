@@ -26,6 +26,7 @@ export const blankProject = () => ({
   issues: [],
   feasibility: {},
   qc: {},
+  inversion: {},
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -49,6 +50,8 @@ export function projectFromPayload(payload) {
     feasibility: isObj(p.feasibility) ? { ...p.feasibility } : {},
     // seismic QC results per volume id: { jobId, at, volumeName, result: { qc, issues } }
     qc: isObj(p.qc) ? { ...p.qc } : {},
+    // post-stack inversion per volume id: { settings, blind: {jobId, at, result}, runs: [{jobId, volumeId, name, at}] }
+    inversion: isObj(p.inversion) ? { ...p.inversion } : {},
   };
 }
 
