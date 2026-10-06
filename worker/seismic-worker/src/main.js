@@ -36,6 +36,10 @@ async function main() {
     // CompressionStream deflate-raw, the same codec the browser import uses
     codec: resolveCodec({ compression: DEFLATE_RAW }),
     memoryBudgetBytes: cfg.convertBudgetBytes,
+    // attribute_volume reads parent bricks the way the browser worker does,
+    // with the service key as its bearer token
+    supabaseUrl: cfg.supabaseUrl,
+    serviceRoleKey: cfg.serviceRoleKey,
   });
   const running = new Map();
   const health = { startedAt: new Date().toISOString(), lastPollOk: null, lastPollError: null };

@@ -5,12 +5,14 @@
 // get them from createHandlers(deps); main.js builds the real ones.
 import { noop } from './noop.js';
 import { stackToV4 } from './stackToV4.js';
+import { attributeVolume } from './attributeVolume.js';
 
-export const KINDS = Object.freeze(['noop', 'stack_to_v4']);
+export const KINDS = Object.freeze(['noop', 'stack_to_v4', 'attribute_volume']);
 
 export function createHandlers(deps = {}) {
   return Object.freeze({
     noop,
     stack_to_v4: (ctx) => stackToV4(ctx, deps),
+    attribute_volume: (ctx) => attributeVolume(ctx, deps),
   });
 }

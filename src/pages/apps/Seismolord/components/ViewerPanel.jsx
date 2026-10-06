@@ -4659,6 +4659,11 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
         manifest={manifest}
         initialAttribute={attributeInitial}
         onComputed={() => setVolumesRefresh((k) => k + 1)}
+        onServerJobStarted={() => {
+          setJobsRefresh((k) => k + 1);
+          setDockPanel('jobs');
+          setDockOpen(true);
+        }}
       />
 
       <SessionsDialog
