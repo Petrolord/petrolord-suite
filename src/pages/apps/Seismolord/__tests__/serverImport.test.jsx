@@ -4,7 +4,9 @@
 // display copy is up.
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { serverImportAdvice, startServerImport, SERVER_IMPORT_SUGGEST_BYTES } from '../services/serverImport';
+import {
+  serverImportAdvice, startServerImport, SERVER_IMPORT_SUGGEST_BYTES, waitForJob, fetchFromLink, scanRemoteFile, startRemoteConversion,
+} from '../services/serverImport';
 import { jobView, volumesChanged, DISPLAY_READY_MESSAGE } from '../lib/serverJobsView';
 import ServerJobsPanel from '../components/workspace/ServerJobsPanel';
 
@@ -57,6 +59,40 @@ describe('startServerImport', () => {
     await expect(startServerImport({ file, mapping: {}, scan: {}, nativeCrs: null }, deps)).rejects.toMatchObject({ name: 'AbortError' });
     expect(deps.prepare).not.toHaveBeenCalled();
     expect(deps.enqueue).not.toHaveBeenCalled();
+  });
+});
+
+describe('import from a link', () => {
+  // a watchJob double: plays the given job rows, one per poll
+  const watchOf = (rows) => (id, onUpdate) => { let stopped = false; (async () => { for (const r of rows) { if (stopped) return; await Promise.resolve(); onUpdate(r, null); } })(); return () => { stopped = true; }; };
+
+  test('waitForJob resolves a finished job and rejects a failed one with its message and stage', async () => {
+    const seen = [];
+    const ok = await waitForJob('j', { watch: watchOf([{ status: 'queued' }, { status: 'running', progress: 0.5 }, { status: 'succeeded', result_refs: { x: 1 } }]), onUpdate: (j) => seen.push(j.status) });
+    expect(ok.result_refs).toEqual({ x: 1 });
+    expect(seen).toEqual(['queued', 'running', 'succeeded']);
+    await expect(waitForJob('j', { watch: watchOf([{ status: 'failed', error_message: 'That link points to a private or reserved address.', failure_stage: 'fetch_refused' }]) }))
+      .rejects.toMatchObject({ message: 'That link points to a private or reserved address.', stage: 'fetch_refused' });
+  });
+
+  test('fetch, scan and convert: the remote file carries the worker fingerprint into the row', async () => {
+    const fp = { algo: 'sha256-sampled-64k-v1', size: 9, hash: 'f'.repeat(64) };
+    const enqueue = jest.fn(async (kind) => `${kind}-job`);
+    const wait = async (id) => ({
+      'ingest_url-job': { status: 'succeeded', result_refs: { dataset_id: 'ds-9', file_name: 'F3.sgy', bytes: 9, fingerprint: fp } },
+      'scan_dataset-job': { status: 'succeeded', result_refs: { scan: { il: { count: 3 } }, textLines: ['C 1'], preview: [{ trace: 0 }] } },
+    }[id]);
+    const remote = await fetchFromLink({ url: 'https://data.example/F3.sgy' }, { enqueue, wait });
+    expect(remote).toMatchObject({ remote: true, datasetId: 'ds-9', name: 'F3.sgy', size: 9, fingerprint: fp });
+    expect(enqueue).toHaveBeenCalledWith('ingest_url', { url: 'https://data.example/F3.sgy' });
+    const scanned = await scanRemoteFile(remote, { ilByte: 189, xlByte: 193 }, { enqueue, wait });
+    expect(enqueue).toHaveBeenLastCalledWith('scan_dataset', { dataset_id: 'ds-9', mapping: { ilByte: 189, xlByte: 193 } });
+    expect(scanned).toEqual({ scan: { il: { count: 3 } }, textLines: ['C 1'], preview: [{ trace: 0 }] });
+    const prepare = jest.fn(async () => ({ volumeId: 'v9', name: 'F3', crsPlan: {}, customDefs: {}, ingestRec: { fingerprint: fp } }));
+    const out = await startRemoteConversion({ remote, mapping: {}, scan: scanned.scan, nativeCrs: null }, { prepare, enqueue });
+    expect(prepare).toHaveBeenCalledWith(expect.objectContaining({ file: { name: 'F3.sgy', size: 9 }, fingerprint: fp }));
+    expect(enqueue).toHaveBeenLastCalledWith('stack_to_v4', expect.objectContaining({ dataset_id: 'ds-9', volume_id: 'v9', file_name: 'F3.sgy' }));
+    expect(out).toEqual({ jobId: 'stack_to_v4-job', volumeId: 'v9', datasetId: 'ds-9' });
   });
 });
 
