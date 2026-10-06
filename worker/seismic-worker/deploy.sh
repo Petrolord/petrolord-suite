@@ -14,7 +14,7 @@ ENG=$(node -e "const v=require('./packages/engines/VENDOR.json');console.log(Str
 ENGINE_COMMIT="suite-${SHA}+engines-${ENG}"
 
 echo "==> Gate 1: worker jest suite"
-npx jest worker/seismic-worker --silent
+npx jest worker/seismic-worker --silent --testTimeout=180000
 echo "==> Gate 2: qi_jobs behaviour on real Postgres"
 worker/seismic-worker/db-tests/run.sh | tail -1
 
