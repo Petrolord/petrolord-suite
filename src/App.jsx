@@ -182,6 +182,10 @@ const RockPhysicsStudioHarness = lazy(() => import('@/pages/apps/RockPhysicsStud
 const MappingSurfaceStudio = lazy(() => import('@/pages/apps/MappingSurfaceStudio/MappingSurfaceStudio'));
 const RockPhysicsStudio = lazy(() => import('@/pages/apps/RockPhysicsStudio/RockPhysicsStudio'));
 const RockPhysicsStudioHelpGuide = lazy(() => import('@/pages/apps/RockPhysicsStudio/RockPhysicsStudioHelpGuide'));
+// QI Studio (QI A4): opens on a Seismolord or Rock Physics Studio licence (no tile or price of its own yet)
+const QIStudio = lazy(() => import('@/pages/apps/QIStudio/QIStudio'));
+const QIStudioHelpGuide = lazy(() => import('@/pages/apps/QIStudio/QIStudioHelpGuide'));
+const QIStudioHarness = lazy(() => import('@/pages/apps/QIStudio/QIStudioHarness'));
 const EarthModeling = lazy(() => import('@/pages/apps/EarthModeling/EarthModeling'));
 const EarthModelingHarness = lazy(() => import('@/pages/apps/EarthModeling/EarthModelingHarness'));
 const PorePressureStudioHarness = lazy(() => import('@/pages/apps/PorePressureStudio/PorePressureStudioHarness'));
@@ -596,6 +600,8 @@ function App() {
                                 <Route path="apps/geoscience/petrophysics-studio/help" element={<ProtectedAppRoute appId="petrophysics-studio" appName="Petrophysics Studio"><PetrophysicsHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/rock-physics-studio" element={<ProtectedAppRoute appId="rock-physics-studio" appName="Rock Physics Studio"><RockPhysicsStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/rock-physics-studio/help" element={<ProtectedAppRoute appId="rock-physics-studio" appName="Rock Physics Studio"><RockPhysicsStudioHelpGuide /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/qi-studio" element={<ProtectedAppRoute appId={['seismolord', 'rock-physics-studio']} appName="QI Studio"><QIStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/qi-studio/help" element={<ProtectedAppRoute appId={['seismolord', 'rock-physics-studio']} appName="QI Studio"><QIStudioHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/earth-modeling" element={<ProtectedAppRoute appId="earth-modeling" appName="Earth Modeling"><EarthModeling /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/earth-modeling/help" element={<ProtectedAppRoute appId="earth-modeling" appName="Earth Modeling"><EarthModelingHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/pore-pressure-studio" element={<ProtectedAppRoute appId="pore-pressure-studio" appName="Pore Pressure Studio"><PorePressureStudio /></ProtectedAppRoute>} />
@@ -1003,6 +1009,7 @@ function App() {
                                     <Route path="/dev/risked-reserves" element={<RiskedReservesHarness />} />
                                     <Route path="/dev/reservoircalc-pro" element={<ReservoirCalcProHarness />} />
                                     <Route path="/dev/rock-physics-studio" element={<RockPhysicsStudioHarness />} />
+                                    <Route path="/dev/qi-studio" element={<QIStudioHarness />} />
                                     <Route path="/dev/earth-modeling" element={<EarthModelingHarness />} />
                                     <Route path="/dev/pore-pressure-studio" element={<PorePressureStudioHarness />} />
                                     <Route path="/dev/basinflow-genesis" element={<BasinFlowGenesisHarness />} />

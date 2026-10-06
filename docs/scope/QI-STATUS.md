@@ -303,3 +303,10 @@ The quota is pooled per organisation. Building that is the next item.
   - Block shift between levels, with the minimum-delta-t variant not offered.
   - Ends beyond the levels are left uncorrected and flagged.
 - **Also live 2026-10-06:** the owner applied the seismic storage pool migration and redeployed 8 functions; verified.
+
+### A4 QI Studio (2026-10-06)
+- **What shipped:** a new app at `/dashboard/apps/geoscience/qi-studio`: setup, data inventory, usability matrix, issue register, feasibility per target, and the Package 1 report. Details in QIStudio-STATUS.md.
+- **Decisions:**
+  - It opens on a Seismolord or Rock Physics Studio licence, with no new tile or price. Those are owner items.
+  - Saving uses the new product table `saved_qi_studio_projects` (migration 20261006140000; a live dry run was clean; owner applies).
+  - The matrix is judged on recorded curve extent; sample-level QC stays in WDM and RP.

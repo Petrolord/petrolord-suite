@@ -41,6 +41,7 @@ export const DEV_APP_PATHS = {
   'well-correlation': '/dev/well-correlation',
   'mapping-surface-studio': '/dev/mapping-surface-studio',
   'rock-physics-studio': '/dev/rock-physics-studio',
+  'qi-studio': '/dev/qi-studio',
   'pore-pressure-studio': '/dev/pore-pressure-studio',
   'earth-modeling': '/dev/earth-modeling',
   'basinflow-genesis': '/dev/basinflow-genesis',

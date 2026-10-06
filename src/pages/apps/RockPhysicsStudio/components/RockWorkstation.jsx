@@ -529,6 +529,14 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         )}
         <OpenInAppMenu wellIds={selected ? [selected.id] : []} paths={appPaths} exclude={[RP_ID]} testIdPrefix="rp" className="whitespace-nowrap" />
         <Link
+          to={appPath('qi-studio', appPaths)}
+          data-testid="rp-qi-studio"
+          title="QI Studio: the data audit, usability matrix, issue register and feasibility report of a QI study"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border-strong text-pl-text hover:text-pl-text hover:bg-pl-sunken whitespace-nowrap"
+        >
+          QI Studio
+        </Link>
+        <Link
           to={`${appPath(RP_ID, appPaths)}/help`}
           data-testid="rp-help"
           title="Open the Rock Physics Studio help guide"
