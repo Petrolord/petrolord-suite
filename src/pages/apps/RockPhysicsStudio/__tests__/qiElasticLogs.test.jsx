@@ -129,3 +129,24 @@ describe('the Elastic logs panel', () => {
     expect(onRockChange).toHaveBeenCalledWith(expect.objectContaining({ localVs: null }));
   });
 });
+
+describe('published provenance names the shear basis', () => {
+  test('a well on the local trend publishes vs_method local-trend and the trend; Greenberg-Castagna stays as it was', async () => {
+    const { preparePublishLogs } = await import('../services/publish');
+    const { model: cal } = await load('TREND RP-5 (wet trend, gas bed)', { trend: true });
+    const { trend } = fitLocalShear(cal, all(cal), { wellName: 'TREND RP-5', zoneName: 'whole well' });
+    const { model: est, zones } = await load('AKOMA-2 (org shared)');
+    const idx = zoneIndices(est.depth, zones[0].top_md_m, zones[0].base_md_m);
+    const sub = { vp: est.vp, vs: est.vs, rho: est.rho };
+    const meta = { scenario: DEFAULT_SCENARIO, rock: DEFAULT_ROCK, kmin: 37e9 };
+    const local = applyLocalShearTrend(est, trend);
+    const vsLog = preparePublishLogs(local, { ...sub, vs: local.vs }, idx, zones[0], meta).find((l) => l.mnemonic === 'VS_SUB');
+    expect(vsLog.provenance.vs_method).toBe('local-trend');
+    expect(vsLog.provenance.vs_trend.label).toBe('TREND RP-5, whole well');
+    expect(vsLog.description).toMatch(/local shear trend from TREND RP-5, whole well/);
+    // negative control: without the trend the label is Greenberg-Castagna and there is no trend
+    const gc = preparePublishLogs(est, sub, idx, zones[0], meta).find((l) => l.mnemonic === 'VS_SUB');
+    expect(gc.provenance.vs_method).toBe('greenberg-castagna');
+    expect(gc.provenance.vs_trend).toBeNull();
+  });
+});

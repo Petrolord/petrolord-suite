@@ -627,7 +627,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
       <ElasticPanel model={model} zones={zones} units={units} zoneId={zoneId} onZoneChange={setZoneId} rock={rock} onRockChange={setRock} wellName={selected?.name || ''} />
     ) : needsWell
   ) : view === 'workbench' ? (
-    <WorkbenchPanel wells={wells || []} backend={backend} rock={rock} units={units} currentWellId={selectedId || null} />
+    <WorkbenchPanel wells={wells || []} backend={backend} rock={rock} units={units} currentWellId={selectedId || null} projectId={projectId} />
   ) : view === 'gather' ? (
     model ? (
       <GatherPanel model={model} zones={zones} scenario={scenario} rock={rock} avo={avo} onAvoChange={setAvo} units={units} zoneId={zoneId} onZoneChange={setZoneId} well={selected} onPublishGather={publishGather} publishingGather={publishingGather} publishNote={gatherNote} />

@@ -173,3 +173,71 @@ export function faciesCounts(points, facies, wellCount) {
   }
   return { counts, untagged };
 }
+
+/**
+ * A facies-code curve for one well over its whole depth grid, from polygons
+ * drawn on the workbench (QI A2): 1..n the first polygon holding the
+ * sample's (x, y), 0 inside none, null where x or y is missing. The axes,
+ * units and EEI settings travel in the provenance, so the curve can be
+ * reproduced. Prepared in the publish format (overwrite-own by mnemonic).
+ */
+export const FACIES_MNEMONIC = 'RP_FACIES';
+export function prepareFaciesLog(w, facies, { x, y, units, chi = 20, eeiInfo = null, projectId = null, pipelineVersion, engine }) {
+  if (!facies.length) throw new Error('Draw at least one facies polygon first.');
+  const vars = workbenchVariables(units, chi);
+  const vx = vars.find((v) => v.key === x);
+  const vy = vars.find((v) => v.key === y);
+  const m = w.model;
+  const el = elasticCurves({ vp: m.vp, vs: m.vs, rho: m.rho });
+  if (x === 'eei' || y === 'eei') {
+    if (!eeiInfo) throw new Error('EEI needs the K and references of the plot.');
+    el.eei = eeiCurve({ vp: m.vp, vs: m.vs, rho: m.rho }, chi, eeiInfo);
+  }
+  const raw = (key, i) => (key in el ? el[key][i] : (m[key] ? m[key][i] : NaN));
+  const n = m.depth.length;
+  const data = new Float32Array(n);
+  let nullCount = 0;
+  const tally = new Array(facies.length + 1).fill(0);
+  for (let i = 0; i < n; i++) {
+    const xv = vx.toDisplay(raw(x, i));
+    const yv = vy.toDisplay(raw(y, i));
+    if (!Number.isFinite(xv) || !Number.isFinite(yv)) { data[i] = NaN; nullCount += 1; continue; }
+    const f = facies.findIndex((fc) => pointInPolygon(xv, yv, fc.polygon));
+    data[i] = f + 1;
+    tally[f + 1] += 1;
+  }
+  const legend = facies.map((f, k) => `${k + 1} ${f.name}`).join(', ');
+  return {
+    mnemonic: FACIES_MNEMONIC,
+    description: `Rock physics facies from the Multi-well crossplot (${vy.label} against ${vx.label}): ${legend}; 0 inside no polygon`,
+    unit: 'CODE',
+    data,
+    startMdM: m.depth[0],
+    stopMdM: m.depth[n - 1],
+    stepM: n > 1 ? m.depth[1] - m.depth[0] : null,
+    nSamples: n,
+    nullCount,
+    provenance: {
+      computed: true,
+      engine,
+      pipeline_version: pipelineVersion,
+      project_id: projectId,
+      kind: 'facies',
+      codes: facies.map((f, k) => ({ code: k + 1, name: f.name, polygon: f.polygon })),
+      axes: { x: { key: vx.key, label: vx.label, unit: vx.unit }, y: { key: vy.key, label: vy.label, unit: vy.unit } },
+      units: { velocity: units.velocity, density: units.density, depth: units.depth },
+      eei: (x === 'eei' || y === 'eei') ? { chi, K: eeiInfo.K, ref: eeiInfo.ref } : null,
+      vs_source: m.vsSource || 'measured',
+      vs_trend: m.vsTrend || null,
+      samples_per_code: tally,
+    },
+  };
+}
+
+/** Which plotted wells a facies curve may be written to: the user's own; a colleague's shared well is read-only. */
+export function faciesWriteTargets(loaded) {
+  return {
+    own: loaded.filter((r) => r.well.is_own !== false),
+    skipped: loaded.filter((r) => r.well.is_own === false).map((r) => r.well.name),
+  };
+}

@@ -10,8 +10,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Crossplot from '../../PetrophysicsStudio/components/Crossplot';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import {
-  loadWellForWorkbench, workbenchVariables, workbenchData, faciesCounts, commonZoneNames, WELL_COLORS, ALL_SAMPLES,
+  loadWellForWorkbench, workbenchVariables, workbenchData, faciesCounts, commonZoneNames, prepareFaciesLog, faciesWriteTargets, WELL_COLORS, ALL_SAMPLES, FACIES_MNEMONIC,
 } from '../services/workbench';
+import { PIPELINE_VERSION, ENGINE } from '../services/publish';
 import { scaleColor } from '../services/crossplot';
 import { DEFAULT_UNITS } from '../services/units';
 
@@ -21,7 +22,7 @@ const pad = ([lo, hi], f = 0.06) => { const s = hi - lo || Math.abs(hi) * 0.1 ||
 const fmt = (v) => (Number.isFinite(v) ? Number(v.toPrecision(4)).toString() : EMPTY_VALUE);
 
 export default function WorkbenchPanel({
-  wells = [], backend, rock, units = DEFAULT_UNITS, currentWellId = null,
+  wells = [], backend, rock, units = DEFAULT_UNITS, currentWellId = null, projectId = null,
 }) {
   const [chosen, setChosen] = useState(() => (currentWellId ? [currentWellId] : []));
   const [loaded, setLoaded] = useState({}); // id -> {well, model, zones} | {error}
@@ -36,6 +37,8 @@ export default function WorkbenchPanel({
   const [facies, setFacies] = useState([]); // {name, color, polygon, axes}
   const [draft, setDraft] = useState(null); // null | [[x, y], ...]
   const [faciesName, setFaciesName] = useState('');
+  const [writing, setWriting] = useState(false);
+  const [writeNote, setWriteNote] = useState('');
   const trendKey = JSON.stringify(rock?.localVs?.coef || null) + JSON.stringify(rock?.pseudoSonic || null);
 
   // load each chosen well once; again when the saved shear trend or the
@@ -129,6 +132,31 @@ export default function WorkbenchPanel({
     setDraft(null);
     setFaciesName('');
   };
+  // write the facies codes to every plotted well the user owns; a colleague's
+  // shared well is read-only and is skipped with a note
+  const writeFacies = async () => {
+    if (!backend?.publishCurves || !activeFacies.length || !data || data.error) return;
+    setWriting(true);
+    setWriteNote('');
+    const done = []; const failedNames = [];
+    const { own, skipped } = faciesWriteTargets(ready);
+    for (const r of own) {
+      try {
+        const log = prepareFaciesLog(r, activeFacies, { x, y, units, chi, eeiInfo: data.eeiInfo, projectId, pipelineVersion: PIPELINE_VERSION, engine: ENGINE });
+        await backend.publishCurves(r.well.id, [log], projectId);
+        done.push(r.well.name);
+      } catch (e) {
+        failedNames.push(`${r.well.name} (${e.message})`);
+      }
+    }
+    setWriting(false);
+    setWriteNote([
+      done.length ? `${FACIES_MNEMONIC} written to ${done.join(', ')}.` : '',
+      skipped.length ? `Skipped ${skipped.join(', ')}: shared with you read-only.` : '',
+      failedNames.length ? `Not written: ${failedNames.join('; ')}.` : '',
+    ].filter(Boolean).join(' '));
+  };
+
   const select = 'bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-pl-text';
 
   return (
@@ -275,6 +303,21 @@ export default function WorkbenchPanel({
             <tr><td className="px-2 py-0.5 font-sans text-pl-muted" colSpan={ready.length + 2}>{`${counts.untagged} samples outside every polygon. A sample in two polygons counts in the first.`}</td></tr>
           </tbody>
         </table>
+      )}
+      {counts && backend?.publishCurves && (
+        <div className="flex flex-wrap items-center gap-2 text-[12px]">
+          <button
+            type="button"
+            data-testid="rp-workbench-facies-write"
+            onClick={writeFacies}
+            disabled={writing}
+            title={`Writes ${FACIES_MNEMONIC} (1 to ${activeFacies.length} by polygon, 0 inside none) over each plotted well's whole depth, for the other apps to use`}
+            className="px-2 py-1 rounded border border-pl-primary bg-pl-primary/10 text-pl-primary-text hover:bg-pl-primary/20 disabled:opacity-50"
+          >
+            {writing ? 'Writing' : 'Write facies to the wells'}
+          </button>
+          {writeNote && <span className="text-pl-muted" data-testid="rp-workbench-facies-note">{writeNote}</span>}
+        </div>
       )}
       {facies.length > activeFacies.length && (
         <p className="text-[11px] text-pl-muted">{`${facies.length - activeFacies.length} polygon${facies.length - activeFacies.length === 1 ? ' was' : 's were'} drawn on other axes or units and ${facies.length - activeFacies.length === 1 ? 'is' : 'are'} hidden here.`}</p>

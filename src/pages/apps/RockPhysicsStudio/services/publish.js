@@ -11,7 +11,10 @@
 // the Sw source, the K_min source and the Gassmann limits
 // rp-1.2.0 (RP-U2, 2026-10-01): vp_source / vp_method say when the sonic
 // itself is an estimate; DT_EST publishes the pseudo-sonic as its own curve
-export const PIPELINE_VERSION = 'rp-1.2.0';
+// rp-1.3.0 (QI A2, 2026-10-06): vs_method local-trend and vs_trend when the
+// local shear trend replaced Greenberg-Castagna; RP_FACIES from the
+// Multi-well crossplot (codes, polygons, axes and units in the provenance)
+export const PIPELINE_VERSION = 'rp-1.3.0';
 export const ENGINE = 'rock-physics-studio';
 
 const SPECS = [
@@ -20,6 +23,10 @@ const SPECS = [
   { mnemonic: 'RHOB_SUB', key: 'rho', unit: 'KG/M3', what: 'Bulk density' },
   { mnemonic: 'DT_SUB', key: 'dt', unit: 'US/M', what: 'Compressional slowness' },
 ];
+// The shear basis of an estimated Vs, in words.
+const vsBasis = (model) => (model.vsTrend
+  ? `local shear trend${model.vsTrend.label ? ` from ${model.vsTrend.label}` : ''}`
+  : 'Greenberg-Castagna');
 const slowness = (vp) => (Number.isFinite(vp) && vp > 0 ? 1e6 / vp : NaN);
 
 /**
@@ -52,7 +59,7 @@ export function preparePublishLogs(model, sub, indices, zone, meta) {
     }
     return {
       mnemonic: spec.mnemonic,
-      description: `${spec.what}, Gassmann ${label} in ${zone.name}${model.vpSource === 'estimated' && spec.key !== 'rho' ? ` (from an ESTIMATED sonic: ${model.vpNote})` : ''}${spec.key === 'vs' && model.vsSource === 'estimated' ? ` (Vs estimated, Greenberg-Castagna${model.vsMethod === 'iterative' ? ', iterated through brine in hydrocarbon samples' : ''})` : ''}`,
+      description: `${spec.what}, Gassmann ${label} in ${zone.name}${model.vpSource === 'estimated' && spec.key !== 'rho' ? ` (from an ESTIMATED sonic: ${model.vpNote})` : ''}${spec.key === 'vs' && model.vsSource === 'estimated' ? ` (Vs estimated, ${vsBasis(model)}${model.vsMethod === 'iterative' ? ', iterated through brine in hydrocarbon samples' : ''})` : ''}`,
       unit: spec.unit,
       data,
       startMdM: model.depth[0],
@@ -73,7 +80,9 @@ export function preparePublishLogs(model, sub, indices, zone, meta) {
         vp_method: model.vpSource === 'estimated' ? model.vpMethod : null,
         vp_note: model.vpSource === 'estimated' ? model.vpNote : null,
         vs_source: model.vsSource || 'measured',
-        vs_method: model.vsSource === 'estimated' ? (model.vsMethod === 'iterative' ? 'greenberg-castagna-iterative' : 'greenberg-castagna') : null,
+        vs_method: model.vsSource === 'estimated' ? `${model.vsTrend ? 'local-trend' : 'greenberg-castagna'}${model.vsMethod === 'iterative' ? '-iterative' : ''}` : null,
+        // QI A2: the locally calibrated shear trend, when it replaced Greenberg-Castagna
+        vs_trend: model.vsSource === 'estimated' && model.vsTrend ? { ...model.vsTrend } : null,
         vs_iterated_samples: model.vsIter?.applied || 0,
         fluids: label,
         phi_basis: sub.phiBasis || (model.phi ? (model.phiBasis || 'effective') : 'constant'),
