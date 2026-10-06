@@ -10,8 +10,10 @@ docker run -d --rm --name "$NAME" -e POSTGRES_PASSWORD=t postgres:16-alpine >/de
 trap 'docker rm -f "$NAME" >/dev/null 2>&1' EXIT
 until docker exec "$NAME" pg_isready -U postgres -q 2>/dev/null; do sleep 1; done; sleep 2
 docker cp stubs.sql "$NAME":/stubs.sql; docker cp behaviour.sql "$NAME":/b.sql
-# every qi_* migration, in filename order
-cat $(ls ../../../supabase/migrations/*_qi_*.sql | sort) > /tmp/qi-migs-$$.sql; docker cp /tmp/qi-migs-$$.sql "$NAME":/mig.sql; rm -f /tmp/qi-migs-$$.sql
+# every qi_* queue and storage migration, in filename order. App saved-project
+# tables (saved_qi_*_projects) need the Suite record-sharing objects the stubs
+# do not have, and are not part of the worker's database, so they are left out.
+cat $(ls ../../../supabase/migrations/*_qi_*.sql | grep -v '_saved_qi_' | sort) > /tmp/qi-migs-$$.sql; docker cp /tmp/qi-migs-$$.sql "$NAME":/mig.sql; rm -f /tmp/qi-migs-$$.sql
 docker exec "$NAME" psql -q -v ON_ERROR_STOP=1 -U postgres -f /stubs.sql
 docker exec "$NAME" psql -q -v ON_ERROR_STOP=1 -U postgres -f /mig.sql 2>/dev/null
 docker exec "$NAME" psql -q -v ON_ERROR_STOP=1 -U postgres -f /mig.sql 2>/dev/null   # idempotent re-apply
