@@ -754,7 +754,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
               )}
               {logs.length > 0 && mayEdit && (
                 <div className="flex items-center gap-2">
-                  <button type="button" className={btnCls} onClick={() => setEditOpen((v) => !v)} data-testid="wdm-edit-logs"
+                  <button type="button" className={btnCls} onClick={() => setEditOpen((v) => !v)} data-testid="wdm-log-editing-toggle"
                     title="Splice runs, edit a curve or drift-correct a sonic to the checkshots; the results are new curves">
                     {editOpen ? 'Close log editing' : 'Edit logs'}
                   </button>
