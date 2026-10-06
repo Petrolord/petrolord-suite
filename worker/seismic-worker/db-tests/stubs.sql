@@ -2,7 +2,7 @@
 create schema if not exists auth;
 create table auth.users (id uuid primary key);
 create or replace function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('test.uid', true), '')::uuid $$;
-create table public.organizations (id uuid primary key);
+create table public.organizations (id uuid primary key, name text);
 create or replace function public.is_org_member(o uuid) returns boolean language sql stable as $$ select o = '00000000-0000-0000-0000-0000000000aa'::uuid $$;
 do $$ begin
   create role anon; create role authenticated; create role service_role;
@@ -15,3 +15,11 @@ insert into public.organizations values ('00000000-0000-0000-0000-0000000000aa')
 alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
 create table if not exists public.organization_members (organization_id uuid, user_id uuid, status text);
 insert into public.organizations values ('00000000-0000-0000-0000-0000000000bb') on conflict do nothing;
+-- Supabase storage and pricing_config stand-ins (seismic storage pool, 2026-10-06)
+create schema if not exists storage;
+create table storage.objects (bucket_id text, name text, metadata jsonb);
+create or replace function storage.foldername(name text) returns text[] language sql immutable as $$
+  select (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'), 1) - 1] $$;
+grant usage on schema storage to anon, authenticated, service_role;
+create table if not exists public.pricing_config (key text primary key, value jsonb);
+update public.organizations set name = 'Org BB' where id = '00000000-0000-0000-0000-0000000000bb';
