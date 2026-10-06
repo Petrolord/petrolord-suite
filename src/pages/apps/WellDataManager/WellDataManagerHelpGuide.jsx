@@ -35,6 +35,7 @@ export const HELP_SECTIONS = [
   { id: 'zones', icon: Layers, title: 'Zones and computed curves' },
   { id: 'survey', icon: Compass, title: 'Deviation survey' },
   { id: 'checkshots', icon: Clock, title: 'Checkshots' },
+  { id: 'editing', icon: Layers, title: 'Editing logs: splice, edits and sonic drift' },
   { id: 'inventory', icon: ClipboardList, title: 'Inventory and QC flags' },
   { id: 'export', icon: Download, title: 'Exporting files' },
   { id: 'sharing', icon: Share2, title: 'Private and shared wells' },
@@ -298,6 +299,34 @@ export default function WellDataManagerHelpGuide({ backTo = APP_PATH }) {
             Enter checkshots the way Petrel exports them: the depth as MD, TVD or TVDSS, in metres or feet, with one-way
             or two-way time. They are stored as TVDSS and two-way time with the convention you entered, and the tab
             shows them back in any convention with View as.
+          </Para>
+        </GuideSection>
+
+        <GuideSection id="editing">
+          <SectionHeading icon={Layers}>Editing logs: splice, edits and sonic drift</SectionHeading>
+          <Para>
+            On the Logs tab, Edit logs opens three tools. Each saves its result as a new curve and records what was
+            done in it; the imported logs are never changed.
+          </Para>
+          <SubHeading>Splice runs</SubHeading>
+          <Para>
+            Tick the runs of one curve in priority order and give each its depth range. Each depth takes the first run
+            that has a value there. Match levels shifts each later run by its mean difference to the curve above over a
+            window around the join, and the preview shows each shift. The result is saved as the curve name with _SPL.
+          </Para>
+          <SubHeading>Edit a curve</SubHeading>
+          <Para>
+            Add edits over depth ranges: set to null, a constant, interpolate across, scale, offset, despike (Hampel)
+            or clip to a range. They run in order, and the saved curve (_ED) lists each one and how many samples it
+            changed.
+          </Para>
+          <SubHeading>Sonic drift</SubHeading>
+          <Para>
+            Drift-corrects a sonic to the well&apos;s checkshots. The sonic is integrated on TVDSS, like the vertical
+            checkshot times, and the drift between two levels is spread as a constant slowness correction, so the
+            corrected sonic (_DC) matches each checkshot; the preview lists the drift at each level and how closely the
+            result matches. Above the first and below the last level the sonic is left as it was. It needs at least
+            two checkshot levels and the well elevation set.
           </Para>
         </GuideSection>
 

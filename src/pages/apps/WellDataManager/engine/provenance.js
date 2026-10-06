@@ -13,8 +13,11 @@ const OPERATION_WORDS = {
   probabilistic: 'probabilistic run',
   scenario: 'scenario',
   conditioning: 'conditioning',
+  splice: 'splice',
+  edit: 'log edit',
+  'drift-correction': 'sonic drift correction',
 };
-const ENGINE_NAMES = { 'petrophysics-studio': 'Petrophysics Studio' };
+const ENGINE_NAMES = { 'petrophysics-studio': 'Petrophysics Studio', 'well-data-manager': 'Well Data Manager' };
 
 /**
  * @param {Object} log registry row

@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Trash2, Building2, Lock, Pencil, Download } from 'lucide-react';
 import LogTracks from './LogTracks';
+import LogEditPanel from './LogEditPanel';
 import ExportDialog from './ExportDialog';
 import ZonesPanel from './ZonesPanel';
 import { curveOrigin, assignedCrsProvenance } from '../engine/provenance';
@@ -117,6 +118,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
   const [exportOpen, setExportOpen] = useState(false);      // WDM-U2-002
   const [topsUndo, setTopsUndo] = useState(null);           // WDM-U2-016: {wellId, tops, what} before the last tops save
   const curveCache = useRef(new Map());         // log id -> Float32Array
+  const [editOpen, setEditOpen] = useState(false); // QI A3: the Edit logs panel
 
   const refreshChildren = useCallback(async () => {
     setTops(null);
@@ -749,6 +751,30 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
                     </button>
                   ) : <span className="text-pl-muted">Only the owner can reorient them.</span>}
                 </div>
+              )}
+              {logs.length > 0 && mayEdit && (
+                <div className="flex items-center gap-2">
+                  <button type="button" className={btnCls} onClick={() => setEditOpen((v) => !v)} data-testid="wdm-log-editing-toggle"
+                    title="Splice runs, edit a curve or drift-correct a sonic to the checkshots; the results are new curves">
+                    {editOpen ? 'Close log editing' : 'Edit logs'}
+                  </button>
+                </div>
+              )}
+              {logs.length > 0 && mayEdit && editOpen && (
+                <LogEditPanel
+                  well={well}
+                  logs={logs}
+                  backend={backend}
+                  unit={unit}
+                  onSaved={refreshChildren}
+                  loadCurve={async (log) => {
+                    // a curve an earlier release stored bottom-up is refused: reorient it first
+                    if (bottomUpLogs([log]).length) throw new Error(`${log.mnemonic} is stored bottom-up: reorient it first (the note above).`);
+                    let data = curveCache.current.get(log.id);
+                    if (!data) { data = await backend.downloadCurve(log); curveCache.current.set(log.id, data); }
+                    return data;
+                  }}
+                />
               )}
               {logs.length > 0 && (
                 <table className="text-xs" data-testid="wdm-logs-table">

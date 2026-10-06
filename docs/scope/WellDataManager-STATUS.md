@@ -449,3 +449,22 @@ PR #848, branch `feat/datum-digitizer`. Design and per-well plan:
   are implausibly small for a kelly bushing: owner to check.
 - Also fixed: Assign CRS merged into `crs_provenance` (it dropped Wellsite's
   survey source).
+
+## 2026-10-06: Edit logs (QI A3)
+
+On the Logs tab, "Edit logs" (owner only) opens three tools. Every result is a NEW curve, and the imported logs are never changed.
+- **Splice runs → `<MNEM>_SPL`:**
+  - runs in priority order on a common grid (the finest step), read by bracketing linear interpolation with nulls never bridged;
+  - an optional level match at each join;
+  - the runs and their offsets are kept in the provenance;
+  - runs in different units are refused.
+- **Edit a curve → `<MNEM>_ED`:** null, constant, interpolate, scale, offset, despike (Hampel) or clip over depth ranges, applied in order. The ledger, with the samples each edit changed, goes in the provenance.
+- **Sonic drift → `<DT>_DC`:**
+  - drift-corrected to the well's stored checkshots (TVDSS, TWT), with the slowness integrated over TVDSS like the vertical checkshot times;
+  - the block-shift method between levels;
+  - the drift table, the corrections, the closure and any uncorrected ends go in the provenance;
+  - it needs two or more levels and the elevation set;
+  - a curve stored bottom-up is refused until it is reoriented.
+- **Naming:** a repeat edit takes the next free name (`:2`). The curve badge reads "Computed by Well Data Manager (splice / log edit / sonic drift correction)".
+- **Engines:** `petrophysics/logEdit.js` (engines #317, vendored at ce06e87).
+- **Tests:** `qiLogEdit.test.js` (7, including a deviated well in a uniform medium showing no drift, with the along-hole-time negative control) and `qiLogEditPanel.test.jsx` (2).
