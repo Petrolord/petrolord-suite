@@ -215,5 +215,7 @@ depth frame (`makeWellFrame`); no KB arithmetic remains in the app.
 - **Statistics:** per-well and pooled statistics (pooled within-well SD). A pooling warning appears when a well's mean sits more than one within-well SD from the pooled mean.
 - **Facies polygons:** counted per well; first polygon wins, as in Petrophysics Studio.
 - **Decision:** the canvas is Petrophysics Studio's analytic Crossplot, with the same drawing, zoom, pan and identify, and batched rendering for large clouds. It is not a new WebGL renderer: canvas batching stays smooth at the sizes a multi-well study produces, and it keeps one crossplot tool across the two apps.
-- **Next:** write facies back as curves, and density and histogram views.
+- **Facies write-back:** "Write facies to the wells" publishes RP_FACIES on the plotted wells the user owns: 1..n by polygon, 0 inside none, null where a value is missing. Shared wells are skipped as read-only. The provenance carries the codes, the polygons, the axes, the units and the EEI settings. The pipeline version is rp-1.3.0.
+- **Provenance fix:** a well whose Vs came from the local shear trend now publishes vs_method local-trend and the trend. It used to say Greenberg-Castagna.
+- **Next:** density and histogram views.
 - **Tests:** `__tests__/qiWorkbench.test.jsx` (9).

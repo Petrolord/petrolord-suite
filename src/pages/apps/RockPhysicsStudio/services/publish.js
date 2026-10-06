@@ -11,7 +11,10 @@
 // the Sw source, the K_min source and the Gassmann limits
 // rp-1.2.0 (RP-U2, 2026-10-01): vp_source / vp_method say when the sonic
 // itself is an estimate; DT_EST publishes the pseudo-sonic as its own curve
-export const PIPELINE_VERSION = 'rp-1.2.0';
+// rp-1.3.0 (QI A2, 2026-10-06): vs_method local-trend and vs_trend when the
+// local shear trend replaced Greenberg-Castagna; RP_FACIES from the
+// Multi-well crossplot (codes, polygons, axes and units in the provenance)
+export const PIPELINE_VERSION = 'rp-1.3.0';
 export const ENGINE = 'rock-physics-studio';
 
 const SPECS = [

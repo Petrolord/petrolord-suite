@@ -253,6 +253,9 @@ function RockPhysicsStudioHelpGuideContent() {
         <Para>
           Draw a facies polygon, name it and close it; the table counts each well&apos;s samples inside it. A sample in
           two polygons counts in the first. Polygons belong to the axes and units they were drawn on.
+          Write facies to the wells saves RP_FACIES on each plotted well you own, over its whole depth: 1, 2 and
+          so on by polygon, 0 inside none. The polygons, axes and units travel with the curve. A well a colleague
+          shared with you is read-only and is skipped with a note.
         </Para>
       </GuideSection>
 

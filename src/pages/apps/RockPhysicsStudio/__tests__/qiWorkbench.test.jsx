@@ -147,3 +147,46 @@ describe('the Multi-well panel', () => {
     expect(screen.getByTestId('rp-workbench-stats').textContent).toMatch(/All wells/);
   });
 });
+
+describe('facies written back to the wells', () => {
+  const box = (x0, x1, y0, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+  test('codes 1..n by polygon, 0 inside none, null where a value is missing; provenance reproduces it', async () => {
+    const { prepareFaciesLog, FACIES_MNEMONIC } = await import('../services/workbench');
+    const [w] = await loadNamed(['TREND RP-5 (wet trend, gas bed)']);
+    const d = workbenchData([w], { x: 'vp', y: 'vs', units: SI });
+    // gas bed: low Vp and high Vs/Vp; a polygon around the gas points and one around everything else
+    const gasPts = d.points.filter((p) => w.model.sw[p.i] < 1);
+    const gx = gasPts.map((p) => p.x); const gy = gasPts.map((p) => p.y);
+    const facies = [
+      { name: 'Gas sand', polygon: box(Math.min(...gx) - 1, Math.max(...gx) + 1, Math.min(...gy) - 1, Math.max(...gy) + 1) },
+      { name: 'Everything', polygon: box(0, 10000, 0, 10000) },
+    ];
+    const log = prepareFaciesLog(w, facies, { x: 'vp', y: 'vs', units: SI, pipelineVersion: 'rp-1.3.0', engine: 'rock-physics-studio' });
+    expect(log.mnemonic).toBe(FACIES_MNEMONIC);
+    expect(log.nSamples).toBe(w.model.n);
+    for (const p of gasPts) expect(log.data[p.i]).toBe(1);
+    expect(log.provenance.samples_per_code[1]).toBeGreaterThanOrEqual(25);
+    expect(log.provenance.codes.map((c) => c.name)).toEqual(['Gas sand', 'Everything']);
+    expect(log.description).toMatch(/1 Gas sand, 2 Everything; 0 inside no polygon/);
+    // negative control: a polygon far away tags nothing (all 0)
+    const none = prepareFaciesLog(w, [{ name: 'Nowhere', polygon: box(1e6, 2e6, 1e6, 2e6) }], { x: 'vp', y: 'vs', units: SI, pipelineVersion: 'x', engine: 'y' });
+    expect(none.provenance.samples_per_code[1]).toBe(0);
+    expect(() => prepareFaciesLog(w, [], { x: 'vp', y: 'vs', units: SI })).toThrow(/at least one facies polygon/);
+  });
+
+  test('publish writes RP_FACIES to own wells, skips shared ones, and a republish replaces it', async () => {
+    const { prepareFaciesLog, faciesWriteTargets } = await import('../services/workbench');
+    const { backend, wells } = await wellsOf({ trend: true });
+    const keta = wells.find((w) => w.name === 'KETA RP-1');
+    const w = await loadWellForWorkbench(backend, keta);
+    const log = prepareFaciesLog(w, [{ name: 'All', polygon: box(-1e9, 1e9, -1e9, 1e9) }], { x: 'vp', y: 'rho', units: SI, pipelineVersion: 'rp-1.3.0', engine: 'rock-physics-studio' });
+    await backend.publishCurves(keta.id, [log], null);
+    await backend.publishCurves(keta.id, [log], null);
+    const logs = await backend.listLogs(keta.id);
+    expect(logs.filter((l) => l.mnemonic === 'RP_FACIES')).toHaveLength(1);
+    const akoma = await loadWellForWorkbench(backend, wells.find((x) => x.name.startsWith('AKOMA')));
+    const t = faciesWriteTargets([w, akoma]);
+    expect(t.own.map((r) => r.well.name)).toEqual(['KETA RP-1']);
+    expect(t.skipped).toEqual(['AKOMA-2 (org shared)']);
+  });
+});

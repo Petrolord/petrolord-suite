@@ -288,4 +288,6 @@ The quota is pooled per organisation. Building that is the next item.
   - Per-well and pooled statistics, and a pooling warning (negative control: the same well twice never warns).
   - EEI on one K across the wells; facies polygon counts.
   - **Decision:** canvas batching in place of a WebGL renderer, as recorded in RockPhysicsStudio-STATUS.
-  - **Still open:** facies write-back as curves, and density and histogram views.
+  - **Facies write-back:** RP_FACIES on own wells, with provenance (rp-1.3.0).
+  - **Provenance fix:** published Vs names the local trend.
+  - **Still open:** density and histogram views.
