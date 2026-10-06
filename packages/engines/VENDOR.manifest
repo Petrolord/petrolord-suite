@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 8c95c9158f4e3dae2f00071cb7ab98185c29abec
+# commit ce06e87d165cdf7de5a7553106cd44fb73f04d45
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 80b08bf546799e96d5448d67c63c98f2ec1b9703 README.md
@@ -146,6 +146,7 @@ e02b5c49b895e595c76d48d1f4a76855913d71d0 __tests__/mbal.carterTracyPD.test.ts
 66917aa10462c0197fc48e7c020bb24f62119186 __tests__/mbal.test.ts
 29da21629fec6f7e16f2285ce8d31c629192ea4f __tests__/mbalInjection.test.ts
 2c42cf594e3e98a5df4bbc5e1e4b5cb1c55f6380 __tests__/petrophysics.conditioning.test.js
+be6756cbfa3ceea3c6f61d32e9ffb219d6cd31ff __tests__/petrophysics.logEdit.test.js
 99a7f6a2d8dac3d210a23c0fdc66fe12bec49cd5 __tests__/petrophysics.mineral.test.js
 0d7c1d42f65d6d43bc4b1431cbbd65422217e0ca __tests__/petrophysics.pipeline.test.js
 15d8b25381221479eafa07a34f03d115cfc6babb __tests__/petrophysics.probabilistic.test.js
@@ -435,6 +436,7 @@ ef516365f4b51788d50a5d47a220329d3e545696 engines/mbal/lm.ts
 4321540b4db8db1dd76dc2c88551aeef47bd6452 engines/petrophysics/conditioning.js
 1bb63a55f341a5cfaabed4e8a8ef1b8466086f42 engines/petrophysics/crossplot.js
 9b271da64524654de29b7c91d41aac458ca2928d engines/petrophysics/digitizer.js
+f8ff2a15096dadf96f23322af6ef808134a46d71 engines/petrophysics/logEdit.js
 350eb550a47750cbc909ad4c385b3cc6a8a5f25c engines/petrophysics/matrix.js
 0f012752ac534b739bff97b7bfe5ee1b5f8ac1f7 engines/petrophysics/mineral.js
 427c7409be667d434fc276cbdbc2cddd501d3754 engines/petrophysics/netpay.js
@@ -811,10 +813,12 @@ a2be9c8031a2c9bada168d5ee8ba2fed845290a1 test-data/mbal/ahmed-ex-11-3-depletion.
 596d1810ed7e344ea0f3da62e523dabf22f82f7b test-data/mbal/injection/README.md
 480712a3adcd1f2dbc00faefe77577e5917cd2f4 test-data/mbal/injection/injection-golden.json
 b3cac4fdc730cd8c7cd3f1948c7de1aca0b63d8e test-data/mbal/injection/oracle.py
+ec998c14aa236af2e70ee539d0177ab3fbf4a82e test-data/petrophysics/README.logEdit.md
 370a4c4cdb8643ad3f44c3422de17c9b4556b4cc test-data/petrophysics/README.md
 531215a49638844945aaddcdb7a6b55083d640de test-data/petrophysics/analytic_cases.json
 8c6986135f225186df7f4eb0c4ca9df961dd55ca test-data/petrophysics/chart_points.json
 f5bd1fdcf3d8675adf05aab3cb4c583e940f343a test-data/petrophysics/goldens.json
+10e6aef31598db7efdc006044c0f622d3b70ab59 test-data/petrophysics/goldens.logEdit.json
 cf64367a40561bdc9a6128b5cc69fc35a898f07b test-data/petrophysics/log_scan.png
 cc04a004913589bb23e71dfde5b16d5aa9231d3a test-data/petrophysics/typewell.json
 5fa3ad8aee4514770d5013b4fcd17cd953593301 test-data/porepressure/casing-seat-example.json
@@ -1148,6 +1152,7 @@ ad24be471eb3fc2fdb4c55e4de86ed8ea706e391 tools/validation/mapping/oracle_rotatio
 f4623fab2722457babf3e4c8598b73840ccb2c69 tools/validation/mapping/oracle_welltie.py
 628eadeafbdefafe9f28e9c6b0f9dbeab43ffb3b tools/validation/petrophysics/genfixtures.py
 89df6409b7db821210daf8cc410d6599258a5720 tools/validation/petrophysics/oracle.py
+f68afb98fbf93c0e8ed1bfe97cc2e4a0d31b25ee tools/validation/petrophysics/oracle_log_edit.py
 3504fc811f208d0d657c5935cf8b285d04eb7775 tools/validation/porepressure/genfixtures.py
 622dd3e389624b11d2ef5a118e8143a74d837d03 tools/validation/porepressure/oracle.py
 71358880b3f19bda3602b31f6006bae5a4372507 tools/validation/porepressure/rls-pentest.sql
