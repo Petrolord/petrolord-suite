@@ -38,6 +38,7 @@ import FluidsPanel from './FluidsPanel';
 import AvoPanel from './AvoPanel';
 import CrossplotPanel from './CrossplotPanel';
 import ElasticPanel from './ElasticPanel';
+import WorkbenchPanel from './WorkbenchPanel';
 import GatherPanel from './GatherPanel';
 import WedgePanel from './WedgePanel';
 import { mapLogs, buildModel } from '../services/prep';
@@ -77,7 +78,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   const [rock, setRock] = useState(DEFAULT_ROCK);
   const [avo, setAvo] = useState(DEFAULT_AVO);
   const [wedge, setWedge] = useState(DEFAULT_WEDGE);
-  const [view, setView] = useState('fluids'); // 'fluids' | 'crossplot' | 'elastic' | 'avo' | 'gather' | 'wedge'
+  const [view, setView] = useState('fluids'); // 'fluids' | 'crossplot' | 'elastic' | 'workbench' | 'avo' | 'gather' | 'wedge'
   const [status, setStatus] = useState('Ready.');
   const [dockOpen, setDockOpen] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -492,6 +493,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         {viewButton('fluids', 'Fluids & Gassmann')}
         {viewButton('crossplot', 'Crossplot')}
         {viewButton('elastic', 'Elastic logs')}
+        {viewButton('workbench', 'Multi-well')}
         {viewButton('avo', 'AVO')}
         {viewButton('gather', 'Gather')}
         {viewButton('wedge', 'Wedge')}
@@ -624,6 +626,8 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
     model ? (
       <ElasticPanel model={model} zones={zones} units={units} zoneId={zoneId} onZoneChange={setZoneId} rock={rock} onRockChange={setRock} wellName={selected?.name || ''} />
     ) : needsWell
+  ) : view === 'workbench' ? (
+    <WorkbenchPanel wells={wells || []} backend={backend} rock={rock} units={units} currentWellId={selectedId || null} />
   ) : view === 'gather' ? (
     model ? (
       <GatherPanel model={model} zones={zones} scenario={scenario} rock={rock} avo={avo} onAvoChange={setAvo} units={units} zoneId={zoneId} onZoneChange={setZoneId} well={selected} onPublishGather={publishGather} publishingGather={publishingGather} publishNote={gatherNote} />

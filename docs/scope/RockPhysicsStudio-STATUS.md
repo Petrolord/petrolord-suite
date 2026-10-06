@@ -204,3 +204,16 @@ depth frame (`makeWellFrame`); no KB arithmetic remains in the app.
   - The shear note names the trend, and counts samples outside its calibrated Vp range.
 - **Engines:** `rockphysics/elasticSet.js` (engines #316, vendored at 8c95c91). The oracle reproduces the published t table; numpy and scipy agree to 1.5e-12.
 - **Tests:** `__tests__/qiElasticLogs.test.jsx` (7). On the TREND RP-5 harness well, the local trend recovers the true gas-bed shear more closely than Greenberg-Castagna.
+
+## 2026-10-06: Multi-well crossplot workbench (QI A2)
+
+- **Multi-well view:**
+  - Any two of 14 logs and elastic properties, for every ticked well, over every sample or a zone the wells share.
+  - **Every sample is drawn.** The 1,500-point cap stays only on the single-zone crossplot. The shared canvas batches clouds above 20,000 points into one path per colour.
+  - **Colour** by well, fluid (Sw < 0.7), lithology (VSH < 0.5) or a third property, with a colour bar.
+  - **EEI** uses one K and one set of references across the wells.
+- **Statistics:** per-well and pooled statistics (pooled within-well SD). A pooling warning appears when a well's mean sits more than one within-well SD from the pooled mean.
+- **Facies polygons:** counted per well; first polygon wins, as in Petrophysics Studio.
+- **Decision:** the canvas is Petrophysics Studio's analytic Crossplot, with the same drawing, zoom, pan and identify, and batched rendering for large clouds. It is not a new WebGL renderer: canvas batching stays smooth at the sizes a multi-well study produces, and it keeps one crossplot tool across the two apps.
+- **Next:** write facies back as curves, and density and histogram views.
+- **Tests:** `__tests__/qiWorkbench.test.jsx` (9).

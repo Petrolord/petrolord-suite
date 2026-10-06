@@ -18,6 +18,8 @@ import { makeScale, ticksFor, fmtTick } from './crossplotScales';
 const M = { l: 52, t: 12, b: 34 }; // left/top/bottom margins; right depends on the colorbar
 const CBAR_W = 10;
 const HIT_PX = 8;
+// above this many points the cloud is drawn batched by colour
+export const BIG_CLOUD = 20000;
 
 
 /**
@@ -222,18 +224,37 @@ export default function Crossplot({
       }
     }
 
-    // sample points; keep projected positions for the hover hit-test
+    // sample points; keep projected positions for the hover hit-test.
+    // A large cloud (the Rock Physics multi-well workbench, QI A2) draws
+    // 2.5 px squares batched into one path per colour, which stays smooth
+    // at hundreds of thousands of points; small clouds keep round dots.
     const screenPts = [];
+    const big = points.length > BIG_CLOUD;
+    const byColor = big ? new Map() : null;
     for (const pt of points) {
       const x = X(pt.x);
       const y = Y(pt.y);
       if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
       if (x < M.l || x > M.l + plotW || y < M.t || y > M.t + plotH) continue;
-      ctx.fillStyle = pt.color;
-      ctx.beginPath();
-      ctx.arc(x, y, 2.4, 0, Math.PI * 2);
-      ctx.fill();
+      if (big) {
+        let list = byColor.get(pt.color);
+        if (!list) { list = []; byColor.set(pt.color, list); }
+        list.push(x, y);
+      } else {
+        ctx.fillStyle = pt.color;
+        ctx.beginPath();
+        ctx.arc(x, y, 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
       screenPts.push({ sx: x, sy: y, pt });
+    }
+    if (big) {
+      for (const [col, xy] of byColor) {
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        for (let k = 0; k < xy.length; k += 2) ctx.rect(xy[k] - 1.25, xy[k + 1] - 1.25, 2.5, 2.5);
+        ctx.fill();
+      }
     }
     screenPtsRef.current = screenPts;
     ctx.restore();
