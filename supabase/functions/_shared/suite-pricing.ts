@@ -120,3 +120,35 @@ export function modulesCharge(moduleSlugs: string[], modulePricing: Record<strin
   const sum = [...selected].reduce((a, m) => a + (Number(modulePricing[m]) || 0), 0);
   return { allAccess, total: allAccess ? Math.min(rules.allAccessPrice, sum) : sum };
 }
+
+// Seismic storage tiers (owner-approved 2026-10-06). pricing_config
+// 'seismic_storage_tiers' is the single source; this fallback mirrors it and
+// quotePricingParity.test.js keeps the two (and the client) equal. The tier is
+// a pooled organisation quota on top of the included 20 GiB per seismic user.
+export type SeismicStorageTier = { key: string; label: string; quota_gib: number; price_usd: number; available: boolean; fits: string };
+export type SeismicStorageCatalogue = { included_gib_per_user: number; custom_price_per_tib_usd: number; tiers: SeismicStorageTier[] };
+export const SEISMIC_STORAGE_FALLBACK: SeismicStorageCatalogue = {
+  included_gib_per_user: 20,
+  custom_price_per_tib_usd: 150,
+  tiers: [
+    { key: 'project', label: 'Project', quota_gib: 250, price_usd: 99, available: true, fits: 'One 120 km2 post-stack QI study' },
+    { key: 'survey', label: 'Survey', quota_gib: 1024, price_usd: 299, available: true, fits: 'A QI study with prestack gathers, or a regional post-stack 3D' },
+    { key: 'basin', label: 'Basin', quota_gib: 5120, price_usd: 999, available: false, fits: 'Several regional surveys, or prestack on a large survey' },
+  ],
+};
+
+export function seismicStorageFromConfig(configMap: Record<string, unknown>): SeismicStorageCatalogue {
+  const v = asJson(configMap?.['seismic_storage_tiers']) as SeismicStorageCatalogue | null;
+  return v && Array.isArray(v.tiers) && v.tiers.length ? v : SEISMIC_STORAGE_FALLBACK;
+}
+
+// The monthly charge for a tier on a quote. No tier: nothing. A tier that is
+// unknown or not yet offered is refused with the reason.
+export function seismicStorageCharge(tierKey: string | null | undefined, catalogue: SeismicStorageCatalogue):
+  { tier: SeismicStorageTier | null; amount: number } {
+  if (!tierKey) return { tier: null, amount: 0 };
+  const tier = catalogue.tiers.find((t) => t.key === tierKey);
+  if (!tier) throw new Error(`Unknown seismic storage tier: ${tierKey}.`);
+  if (!tier.available) throw new Error(`The ${tier.label} seismic storage tier is available on request. Please contact us for a quote.`);
+  return { tier, amount: Number(tier.price_usd) };
+}

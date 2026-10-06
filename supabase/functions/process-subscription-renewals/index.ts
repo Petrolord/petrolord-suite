@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "./cors.ts";
 import { addMonths, termMonths } from "../_shared/billing-term.ts";
 import { loadNgnPerUsd, usdToNgn, ngnToKobo } from "../_shared/paystack-ngn.ts";
+import { grantSeismicStorage } from "../_shared/seismic-storage.ts";
 const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
 serve(async (req)=>{
   if (req.method === 'OPTIONS') {
@@ -123,6 +124,9 @@ serve(async (req)=>{
             paid_at: new Date().toISOString(),
             paystack_status: 'success'
           }).eq('id', payment.id);
+          // A paid seismic storage tier runs with the subscription.
+          await grantSeismicStorage(supabase, sub.organization_id, sub.quote_details?.seismic_storage?.tier_key || null,
+            nextRenewal.toISOString().split('T')[0], sub.quote_id || null, '[renewals]');
           // Audit
           await supabase.from('renewal_audit_log').insert({
             subscription_id: sub.id,

@@ -12,6 +12,7 @@ jest.mock('../email.ts', () => ({ sendEmail: jest.fn(async () => {}) }));
 import { provisionedEnd } from '../billing-term.ts';
 import { paymentAlreadyProcessed } from '../payment-status.ts';
 import { provisionPaidQuote, upsertSuiteSubscription } from '../provision-quote.ts';
+import { grantSeismicStorage, seismicTierOf } from '../seismic-storage.ts';
 
 // Minimal in-memory stand-in for the supabase-js query builder.
 function fakeSupabase(tables: Record<string, any[]>, rpcResult: unknown) {
@@ -117,5 +118,45 @@ describe('upsertSuiteSubscription (the verify page uses it too)', () => {
     expect(tables.subscriptions[0]).toMatchObject({ organization_id: 'org-1', status: 'active', payment_status: 'COMPLETED', modules: ['reservoir', 'hse_professional'] });
     expect(tables.subscriptions[0].quote_details).toMatchObject({ payment_method: 'paystack', provider_reference: 'ref', paystack_reference: 'ref' });
     expect((sb as any).calls.some((c: any) => c.table === 'organization_apps' && c.op === 'upsert')).toBe(true);
+  });
+});
+
+describe('seismic storage tier on a paid quote (owner-approved 2026-10-06)', () => {
+  const TIERED = { ...QUOTE, pricing_breakdown: { usd_total: 100, seismic_storage: { tier_key: 'survey', quota_gib: 1024, price_usd: 299 } } };
+
+  test('the payment grants the tier until the end of the paid term, and the subscription remembers it for renewals', async () => {
+    const tables = { subscriptions: [] as any[], organization_apps: [] as any[] };
+    const sb = fakeSupabase(tables, null);
+    await upsertSuiteSubscription(sb, { orgId: 'org-1', quote: TIERED, quoteTextId: 'QT-RENEW', paidAt: '2026-01-31T00:00:00Z', provider: 'paystack', reference: 'ref', rpcResult: null });
+    expect(sb.rpc).toHaveBeenCalledWith('seismic_storage_set_tier', {
+      p_organization_id: 'org-1', p_tier_key: 'survey', p_active_until: '2027-01-31T23:59:59Z', p_source_quote_id: 'q-uuid-2',
+    });
+    expect(tables.subscriptions[0].quote_details.seismic_storage).toEqual({ tier_key: 'survey', quota_gib: 1024, price_usd: 299 });
+  });
+
+  test('a quote without a tier grants none (negative control)', async () => {
+    const sb = fakeSupabase({ subscriptions: [], organization_apps: [] }, null);
+    await upsertSuiteSubscription(sb, { orgId: 'org-1', quote: QUOTE, quoteTextId: 'QT-RENEW', paidAt: '2026-01-31T00:00:00Z', provider: 'paystack', reference: 'ref', rpcResult: null });
+    expect(sb.rpc.mock.calls.some((c: any[]) => c[0] === 'seismic_storage_set_tier')).toBe(false);
+  });
+
+  test('a failed grant never fails the payment', async () => {
+    const sb = fakeSupabase({ subscriptions: [], organization_apps: [] }, null);
+    sb.rpc.mockImplementation(async (name: string) => (name === 'seismic_storage_set_tier' ? { data: null, error: { message: 'boom' } } : { data: null, error: null }));
+    const r = await upsertSuiteSubscription(sb, { orgId: 'org-1', quote: TIERED, quoteTextId: 'QT-RENEW', paidAt: '2026-01-31T00:00:00Z', provider: 'paystack', reference: 'ref', rpcResult: null });
+    expect(r.ok).toBe(true);
+    expect(await grantSeismicStorage(sb, 'org-1', 'survey', '2027-01-31', 'q', '[t]')).toBe(false);
+  });
+
+  test('provisionPaidQuote reads the breakdown, so Stripe and the webhook grant it too', async () => {
+    const sb = fakeSupabase({ quotes: [{ ...TIERED }], subscriptions: [] }, { status: 'success', expiry_date: '2027-12-20T10:00:00Z' });
+    await provisionPaidQuote(sb, { quoteTextId: 'QT-RENEW', provider: 'stripe', reference: 'cs_1', paidAt: '2026-12-20T10:00:00Z', sendEmail: false });
+    expect(sb.rpc).toHaveBeenCalledWith('seismic_storage_set_tier', expect.objectContaining({ p_tier_key: 'survey', p_active_until: '2027-12-20T23:59:59Z' }));
+  });
+
+  test('seismicTierOf', () => {
+    expect(seismicTierOf(TIERED)).toBe('survey');
+    expect(seismicTierOf(QUOTE)).toBeNull();
+    expect(seismicTierOf({ pricing_breakdown: { seismic_storage: { tier_key: '' } } })).toBeNull();
   });
 });

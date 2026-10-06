@@ -4,7 +4,7 @@
 // quotePricingParity.test.js runs the same scenarios through both.
 import {
   SEAT_TIERS, ESSENTIALS_SEAT_TIERS, ESSENTIALS_SEAT_APPS, INCLUDED_WITH,
-  ALL_ACCESS_PRICE, PLATFORM_FEE_WAIVED_TERMS, MODULE_PRICING,
+  ALL_ACCESS_PRICE, PLATFORM_FEE_WAIVED_TERMS, MODULE_PRICING, SEISMIC_STORAGE,
 } from '@/data/pricingModels';
 
 export const tieredSeatCost = (seats, tiers) => {
@@ -54,4 +54,14 @@ export const priceApp = (app, { moduleSlugs = [], quotedSlugs = new Set() } = {}
   const licence = covered || host ? 0 : Number(app.price) || 0;
   const seatCost = host ? 0 : appSeatCost(app.slug, app.seats || 1);
   return { licence, seatCost, covered, includedWith: host };
+};
+
+// The monthly charge for a seismic storage tier (same rule as the server's
+// seismicStorageCharge): no tier, nothing; unknown or not yet offered, refused.
+export const seismicStorageCharge = (tierKey, catalogue = SEISMIC_STORAGE) => {
+  if (!tierKey) return { tier: null, amount: 0 };
+  const tier = catalogue.tiers.find((t) => t.key === tierKey);
+  if (!tier) throw new Error(`Unknown seismic storage tier: ${tierKey}.`);
+  if (!tier.available) throw new Error(`The ${tier.label} seismic storage tier is available on request. Please contact us for a quote.`);
+  return { tier, amount: Number(tier.price_usd) };
 };

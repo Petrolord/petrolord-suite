@@ -16,6 +16,7 @@ import { redeemPromoForQuote } from "./promo-codes.ts";
 import { sendEmail } from "./email.ts";
 import { subscriptionWindow, provisionedEnd } from "./billing-term.ts";
 import { writeSubscriptionForQuote } from "./subscription-write.ts";
+import { grantSeismicStorage, seismicTierOf } from "./seismic-storage.ts";
 
 // Coerce the quote's jsonb `modules` (strings or objects) into text[] for
 // subscriptions.modules (a NOT NULL text[] column). Mirrors verify-paystack-payment.
@@ -70,7 +71,7 @@ export function suiteSubscriptionModules(modules: unknown): string[] {
 export interface SuiteSubscriptionOpts {
   orgId: string;
   // deno-lint-ignore no-explicit-any
-  quote: any;                   // quotes row: id, total_amount, currency, billing_term, billing_period, modules, apps, seats, user_seats
+  quote: any;                   // quotes row: id, total_amount, currency, billing_term, billing_period, modules, apps, seats, user_seats, pricing_breakdown
   quoteTextId: string;
   paidAt: string;               // ISO
   provider: string;             // 'paystack' | 'stripe' | ...
@@ -123,6 +124,8 @@ export async function upsertSuiteSubscription(supabase: any, o: SuiteSubscriptio
         payment_method: o.provider,
         provider_reference: o.reference,
         ...(o.provider === "paystack" ? { paystack_reference: o.reference } : {}),
+        // renewals extend this tier with the subscription
+        ...(seismicTierOf(quote) ? { seismic_storage: quote.pricing_breakdown.seismic_storage } : {}),
       },
       updated_at: new Date().toISOString(),
     };
@@ -132,6 +135,7 @@ export async function upsertSuiteSubscription(supabase: any, o: SuiteSubscriptio
     await writeSubscriptionForQuote(supabase, subRow);
 
     await grantHseWithSuite(supabase, o.orgId, userLimit, logPrefix);
+    await grantSeismicStorage(supabase, o.orgId, seismicTierOf(quote), endDate, quote.id, logPrefix);
     return { ok: true, endDate };
   } catch (subErr) {
     console.error(`${logPrefix} subscription sync failed (non-fatal):`, (subErr as Error).message);
@@ -169,7 +173,7 @@ export async function provisionPaidQuote(supabase: any, opts: ProvisionOpts): Pr
   const paidAt = opts.paidAt || new Date().toISOString();
 
   const { data: quote } = await supabase.from("quotes")
-    .select("id, organization_id, total_amount, currency, billing_term, billing_period, modules, apps, seats, user_seats")
+    .select("id, organization_id, total_amount, currency, billing_term, billing_period, modules, apps, seats, user_seats, pricing_breakdown")
     .eq("quote_id", opts.quoteTextId)
     .maybeSingle();
 

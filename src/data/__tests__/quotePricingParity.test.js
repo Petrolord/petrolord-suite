@@ -10,7 +10,7 @@ import path from 'path';
 import * as client from '../quotePricing';
 import {
   SEAT_TIERS, ESSENTIALS_SEAT_TIERS, ESSENTIALS_SEAT_APPS, INCLUDED_WITH,
-  ALL_ACCESS_PRICE, PLATFORM_FEE_WAIVED_TERMS, MODULE_PRICING,
+  ALL_ACCESS_PRICE, PLATFORM_FEE_WAIVED_TERMS, MODULE_PRICING, SEISMIC_STORAGE,
 } from '../pricingModels';
 import * as server from '../../../supabase/functions/_shared/suite-pricing.ts';
 
@@ -132,5 +132,41 @@ describe('the quote screens use the rules', () => {
   it('generate-quote applies the shared rules', () => {
     const src = read('supabase/functions/generate-quote/index.ts');
     ['pricingRulesFromConfig(configMap)', 'includedWithHost(', 'platformFeeWaived(', 'modulesCharge(', 'ruleSeatCost('].forEach((s) => expect(src).toContain(s));
+  });
+});
+
+describe('seismic storage tiers (owner-approved 2026-10-06)', () => {
+  const POOL = fs.readFileSync(path.join(root, 'supabase/migrations/20261006130000_qi_seismic_storage_pool.sql'), 'utf8');
+  const seeded = JSON.parse(POOL.match(/'seismic_storage_tiers',\s*'([\s\S]*?)'::jsonb/)[1]);
+
+  it('the migration, the server fallback and the client mirror are one catalogue', () => {
+    expect(seeded).toEqual(server.SEISMIC_STORAGE_FALLBACK);
+    expect(SEISMIC_STORAGE).toEqual(server.SEISMIC_STORAGE_FALLBACK);
+    expect(server.seismicStorageFromConfig({ seismic_storage_tiers: seeded })).toEqual(seeded);
+    expect(server.seismicStorageFromConfig({})).toEqual(server.SEISMIC_STORAGE_FALLBACK);
+  });
+
+  it('the approved sizes and prices', () => {
+    const t = Object.fromEntries(SEISMIC_STORAGE.tiers.map((x) => [x.key, x]));
+    expect([t.project.quota_gib, t.project.price_usd]).toEqual([250, 99]);
+    expect([t.survey.quota_gib, t.survey.price_usd]).toEqual([1024, 299]);
+    expect([t.basin.quota_gib, t.basin.price_usd, t.basin.available]).toEqual([5120, 999, false]);
+    expect(SEISMIC_STORAGE.custom_price_per_tib_usd).toBe(150);
+    // every tier is cheaper per GB than general storage, and cheaper again as it grows
+    const perGb = SEISMIC_STORAGE.tiers.map((x) => x.price_usd / x.quota_gib);
+    expect(Math.max(...perGb)).toBeLessThan(0.5);
+    expect(perGb).toEqual([...perGb].sort((a, b) => b - a));
+  });
+
+  it.each([[null, 0], ['project', 99], ['survey', 299]])('client and server charge the same for %s', (key, amount) => {
+    expect(client.seismicStorageCharge(key).amount).toBe(amount);
+    expect(server.seismicStorageCharge(key, server.SEISMIC_STORAGE_FALLBACK).amount).toBe(amount);
+  });
+
+  it('both refuse Basin until it is offered, and an unknown tier', () => {
+    expect(() => client.seismicStorageCharge('basin')).toThrow(/available on request/);
+    expect(() => server.seismicStorageCharge('basin', server.SEISMIC_STORAGE_FALLBACK)).toThrow(/available on request/);
+    expect(() => client.seismicStorageCharge('gold')).toThrow(/Unknown/);
+    expect(() => server.seismicStorageCharge('gold', server.SEISMIC_STORAGE_FALLBACK)).toThrow(/Unknown/);
   });
 });

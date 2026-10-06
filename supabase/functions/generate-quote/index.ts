@@ -6,7 +6,7 @@ import { bridgeCoversApp } from '../_shared/bridge-scope.ts';
 import { validatePromoCode } from '../_shared/promo-codes.ts';
 import { billingPeriodOf } from '../_shared/billing-term.ts';
 import { ngnPerUsdFromConfig, usdToNgn, ngnToKobo } from '../_shared/paystack-ngn.ts';
-import { pricingRulesFromConfig, appSeatCost as ruleSeatCost, includedWithHost, platformFeeWaived, modulesCharge } from '../_shared/suite-pricing.ts';
+import { pricingRulesFromConfig, appSeatCost as ruleSeatCost, includedWithHost, platformFeeWaived, modulesCharge, seismicStorageCharge, seismicStorageFromConfig } from '../_shared/suite-pricing.ts';
 // Logo URLs
 const LORDSWAY_LOGO_URL = 'https://horizons-cdn.hostinger.com/43fa5c4b-d185-4d6d-9ff4-a1d78861fb87/b55e5cb03a1912f6a06152592ab58d1c.png';
 const PETROLORD_LOGO_URL = 'https://horizons-cdn.hostinger.com/43fa5c4b-d185-4d6d-9ff4-a1d78861fb87/b7bb1181c53d21d5cae68a1a79fddaa7.png';
@@ -16,7 +16,7 @@ Deno.serve(async (req)=>{
   });
   try {
     const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-    const { modules = [], apps = [], seats = 1, billing_term = 'monthly', add_ons = [], user_id, organization_id, user_email, user_name, service_tier = 'starter', storage_gb = 0, manual_discount = 0, bridge_code = null, promo_code = null } = await req.json();
+    const { modules = [], apps = [], seats = 1, billing_term = 'monthly', add_ons = [], user_id, organization_id, user_email, user_name, service_tier = 'starter', storage_gb = 0, seismic_storage_tier = null, manual_discount = 0, bridge_code = null, promo_code = null } = await req.json();
     if (!user_id && !user_email) throw new Error('User ID or Email is required');
     // Special discounts are a sales instrument: only PLATFORM super admins may
     // apply manual_discount. Any org admin can generate a quote for their own
@@ -375,6 +375,15 @@ Deno.serve(async (req)=>{
     if (storageCost > 0) {
       lineItems.push({ description: `Storage (${storage_gb} GB)`, amount: storageCost });
     }
+    // Seismic storage tier (owner-approved 2026-10-06): a pooled organisation
+    // quota on top of the included 20 GiB per seismic user. Priced like other
+    // storage: full price, then the term and manual discounts.
+    const seismic = seismicStorageCharge(seismic_storage_tier, seismicStorageFromConfig(configMap));
+    const seismicStorageCost = seismic.amount;
+    if (seismic.tier) {
+      const size = seismic.tier.quota_gib >= 1024 ? `${seismic.tier.quota_gib / 1024} TiB` : `${seismic.tier.quota_gib} GiB`;
+      lineItems.push({ description: `Seismic storage: ${seismic.tier.label} (${size}, shared by the organisation)`, amount: seismicStorageCost });
+    }
     // Bridge discount: percentage of the certified module's monthly cost
     // (app prices + their seat costs). Platform fee, storage, add-ons and
     // other modules stay full price. Reduces the subtotal, so term and
@@ -397,7 +406,7 @@ Deno.serve(async (req)=>{
     let promoDiscountVal = 0;
     if (promo) {
       const promoBase = promo.scope === 'all'
-        ? BASE_PLATFORM_FEE + appsCost + seatsCost + addonsCost + storageCost - bridgeDiscountVal
+        ? BASE_PLATFORM_FEE + appsCost + seatsCost + addonsCost + storageCost + seismicStorageCost - bridgeDiscountVal
         : promoableCost;
       if (promoBase <= 0) {
         throw new Error(`Promo code ${promo.code} applies to the ${promo.scope} module. Add a ${promo.scope} app to the quote to use it.`);
@@ -409,7 +418,7 @@ Deno.serve(async (req)=>{
       });
       console.log(`[Generate Quote] Promo ${promo.code}: ${promo.percent}% off ${promo.scope} monthly ${promoBase} -> -${promoDiscountVal}`);
     }
-    const monthlySubtotal = BASE_PLATFORM_FEE + appsCost + seatsCost + addonsCost + storageCost - bridgeDiscountVal - promoDiscountVal;
+    const monthlySubtotal = BASE_PLATFORM_FEE + appsCost + seatsCost + addonsCost + storageCost + seismicStorageCost - bridgeDiscountVal - promoDiscountVal;
     // Term discount (per billing period) then optional manual discount, then ×months.
     const period = PERIODS[billing_term] || PERIODS.monthly;
     const months = period.months;
@@ -506,7 +515,11 @@ Deno.serve(async (req)=>{
       total_amount: totalAmount,
       currency: 'USD',
       // What Paystack is asked to charge, locked for the life of the quote.
-      pricing_breakdown: { usd_total: totalAmount, ngn_total: ngnTotal, ngn_per_usd: ngnPerUsd },
+      pricing_breakdown: {
+        usd_total: totalAmount, ngn_total: ngnTotal, ngn_per_usd: ngnPerUsd,
+        // provisioning grants this tier (seismic_storage_set_tier) when the quote is paid
+        ...(seismic.tier ? { seismic_storage: { tier_key: seismic.tier.key, quota_gib: seismic.tier.quota_gib, price_usd: seismic.tier.price_usd } } : {}),
+      },
       paystack_link: paystackLink,
       paystack_reference: paystackReference,
       validity_period: validityPeriod.toISOString(),
