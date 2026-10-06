@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "./cors.ts";
 import { redeemBridgeForQuote } from "../_shared/nextgen-bridge.ts";
 import { subscriptionWindow, provisionedEnd } from "../_shared/billing-term.ts";
+import { grantSeismicStorage, seismicTierOf } from "../_shared/seismic-storage.ts";
 
 // activate-bank-transfer
 // --------------------------------------------------------------------------
@@ -55,7 +56,7 @@ serve(async (req) => {
     if (sub.quote_id) {
       const { data: quote } = await supabase
         .from("quotes")
-        .select("id, quote_id, organization_id, billing_term, billing_period")
+        .select("id, quote_id, organization_id, billing_term, billing_period, pricing_breakdown")
         .eq("id", sub.quote_id)
         .maybeSingle();
       if (quote) { textQuoteId = quote.quote_id; quoteRow = quote; }
@@ -141,6 +142,16 @@ serve(async (req) => {
     } else {
       provisioningWarning =
         "Subscription has no linked quote; modules were not auto-provisioned.";
+    }
+
+    // 6b. A paid seismic storage tier, until the end of the term (best-effort,
+    //     same helper as the other rails; staff can set it by hand).
+    if (orgId && seismicTierOf(quoteRow)) {
+      await grantSeismicStorage(supabase, orgId, seismicTierOf(quoteRow), endDate, quoteRow.id, "[bank-transfer]");
+      const { data: subNow } = await supabase.from("subscriptions").select("quote_details").eq("id", sub.id).maybeSingle();
+      await supabase.from("subscriptions")
+        .update({ quote_details: { ...(subNow?.quote_details || {}), seismic_storage: quoteRow.pricing_breakdown.seismic_storage } })
+        .eq("id", sub.id);
     }
 
     // 7. Burn the NextGen bridge code, if the quote carried one. Self-guarding

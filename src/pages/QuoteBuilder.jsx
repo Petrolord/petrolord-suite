@@ -28,9 +28,9 @@ import { appCategories } from '@/data/applications';
 import {
   BASE_PLATFORM_FEE, STORAGE_GB_PRICE,
   TIERS, BILLING_PERIODS, VAT_RATE,
-  SEAT_TIERS, ESSENTIALS_SEAT_TIERS, MODULE_PRICING
+  SEAT_TIERS, ESSENTIALS_SEAT_TIERS, MODULE_PRICING, SEISMIC_STORAGE,
 } from '@/data/pricingModels';
-import { priceApp, appSeatCost, isEssentialsApp, modulesCharge, platformFeeWaived } from '@/data/quotePricing';
+import { priceApp, appSeatCost, isEssentialsApp, modulesCharge, platformFeeWaived, seismicStorageCharge } from '@/data/quotePricing';
 import { formatCurrency } from '@/utils/adminHelpers';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -39,8 +39,10 @@ import { isValidUUID } from '@/lib/utils';
 import { resolveUserOrgId } from '@/lib/orgContext';
 import { resolveRenewalSelection } from '@/lib/renewalSelection';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { COMPACT_FIELD_THEMED } from '@/components/ui/native-select';
+import { COMPACT_FIELD_THEMED, NativeSelect } from '@/components/ui/native-select';
 import { AccountScope, accountCallout } from '@/components/account/accountChrome';
+
+const seismicSize = (t) => (t.quota_gib >= 1024 ? `${t.quota_gib / 1024} TiB` : `${t.quota_gib} GiB`);
 
 const QuoteBuilder = () => {
   const navigate = useNavigate();
@@ -62,6 +64,8 @@ const QuoteBuilder = () => {
   const [serviceTier, setServiceTier] = useState('starter');
   const [appSeats, setAppSeats] = useState({}); // { [appId]: seatCount } — per-app seats
   const [storageGB, setStorageGB] = useState(10); // default to the free allowance; no storage charge until the user opts in
+  // Seismic storage tier (owner-approved 2026-10-06): '' is the included 20 GiB per seismic user.
+  const [seismicTier, setSeismicTier] = useState('');
   const [manualDiscount, setManualDiscount] = useState(0);
   // NextGen Expert bridge code (Academy Expert certificates issue a
   // single-use module discount code). Verified live via the
@@ -442,6 +446,20 @@ const QuoteBuilder = () => {
       type: 'storage',
       note: storageGB > 10 ? `${storageGB - 10} GB billable × $${STORAGE_GB_PRICE} (first 10 GB free)` : 'Within free allowance'
     });
+    // 3b) Seismic storage tier, shared by the organisation (mirrors generate-quote).
+    let seismicStorageCost = 0;
+    try {
+      const seismic = seismicStorageCharge(seismicTier || null);
+      seismicStorageCost = seismic.amount;
+      if (seismic.tier) {
+        breakdown.push({
+          item: `Seismic storage: ${seismic.tier.label} (${seismicSize(seismic.tier)})`,
+          cost: seismicStorageCost,
+          type: 'storage',
+          note: 'Shared by the organisation, on top of 20 GiB per seismic user',
+        });
+      }
+    } catch { seismicStorageCost = 0; }
 
     // NextGen Expert bridge: percentage off the certified module's monthly
     // cost (app licenses + their seats). Mirrors generate-quote, which is
@@ -466,7 +484,7 @@ const QuoteBuilder = () => {
     let promoDiscountVal = 0;
     if (promoInfo) {
       if (promoInfo.scope === 'all') {
-        promoDiscountVal = (baseFee + softwareCost + seatsCost + storageCost - bridgeDiscountVal) * (Number(promoInfo.percent) / 100);
+        promoDiscountVal = (baseFee + softwareCost + seatsCost + storageCost + seismicStorageCost - bridgeDiscountVal) * (Number(promoInfo.percent) / 100);
       } else {
         let promoableCost = 0;
         selectedApps.forEach(appId => {
@@ -481,7 +499,7 @@ const QuoteBuilder = () => {
       }
     }
 
-    const monthlySubtotal = baseFee + softwareCost + seatsCost + storageCost - bridgeDiscountVal - promoDiscountVal;
+    const monthlySubtotal = baseFee + softwareCost + seatsCost + storageCost + seismicStorageCost - bridgeDiscountVal - promoDiscountVal;
 
     const periodDiscountVal = monthlySubtotal * period.discount;
     const manualDiscountVal = (monthlySubtotal - periodDiscountVal) * (manualDiscount / 100);
@@ -499,6 +517,7 @@ const QuoteBuilder = () => {
       softwareCost,
       seatsCost,
       storageCost,
+      seismicStorageCost,
       monthlySubtotal,
       bridgeDiscountVal,
       promoDiscountVal,
@@ -516,7 +535,7 @@ const QuoteBuilder = () => {
       vatAmount: vat,
       totalWithVat: grandTotal
     };
-  }, [serviceTier, billingPeriod, selectedModules, selectedApps, appSeats, storageGB, manualDiscount, appsGroupedByModule, masterApps, bridgeInfo, promoInfo]);
+  }, [serviceTier, billingPeriod, selectedModules, selectedApps, appSeats, storageGB, seismicTier, manualDiscount, appsGroupedByModule, masterApps, bridgeInfo, promoInfo]);
 
   const handleCheckBridgeCode = async () => {
     const code = bridgeCode.trim();
@@ -628,6 +647,7 @@ const QuoteBuilder = () => {
           billing_term: billingPeriod,
           service_tier: serviceTier,
           storage_gb: storageGB,
+          seismic_storage_tier: seismicTier || null,
           manual_discount: manualDiscount,
           bridge_code: bridgeInfo ? bridgeInfo.code : null,
           promo_code: promoInfo ? promoInfo.code : null,
@@ -1025,6 +1045,28 @@ const QuoteBuilder = () => {
                       ) : (
                         <> Currently within free allowance.</>
                       )}
+                    </p>
+                  </div>
+
+                  <div data-testid="quote-seismic-storage">
+                    <div className="flex justify-between mb-2">
+                      <Label htmlFor="quote-seismic-tier">Seismic storage</Label>
+                      <span className="text-pl-text font-bold text-xl font-pl-mono tabular-nums">
+                        {calculation.seismicStorageCost > 0 ? `${formatCurrency(calculation.seismicStorageCost)}/mo` : 'Included'}
+                      </span>
+                    </div>
+                    <NativeSelect id="quote-seismic-tier" value={seismicTier} onChange={(e) => setSeismicTier(e.target.value)}>
+                      <option value="">Included: {SEISMIC_STORAGE.included_gib_per_user} GiB per seismic user</option>
+                      {SEISMIC_STORAGE.tiers.map((t) => (
+                        <option key={t.key} value={t.key} disabled={!t.available}>
+                          {`${t.label}: ${seismicSize(t)} shared, $${t.price_usd}/mo${t.available ? '' : ' (on request)'}`}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                    <p className="text-xs text-pl-muted mt-2">
+                      {seismicTier
+                        ? `${SEISMIC_STORAGE.tiers.find((t) => t.key === seismicTier)?.fits}. Shared by everyone in your organisation, on top of the ${SEISMIC_STORAGE.included_gib_per_user} GiB each seismic user has.`
+                        : `For Seismolord and QI volumes. A tier adds one pool your whole organisation shares. Above 5 TiB is quoted at $${SEISMIC_STORAGE.custom_price_per_tib_usd} per TiB a month.`}
                     </p>
                   </div>
                 </div>

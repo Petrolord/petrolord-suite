@@ -151,3 +151,17 @@ export const BILLING_PERIODS = [
   { id: '2year', name: '2 Years', months: 24, discount: 0.20, label: '24 Mo', description: 'Save 20%' },
   { id: '3year', name: '3 Years', months: 36, discount: 0.25, label: '36 Mo', description: 'Save 25%' }
 ];
+
+// Seismic storage tiers (owner-approved 2026-10-06): a pooled organisation
+// quota on top of the included 20 GiB per seismic user. pricing_config
+// 'seismic_storage_tiers' is authoritative; quotePricingParity.test.js keeps
+// this mirror, the server fallback and the migration equal.
+export const SEISMIC_STORAGE = {
+  included_gib_per_user: 20,
+  custom_price_per_tib_usd: 150,
+  tiers: [
+    { key: 'project', label: 'Project', quota_gib: 250, price_usd: 99, available: true, fits: 'One 120 km2 post-stack QI study' },
+    { key: 'survey', label: 'Survey', quota_gib: 1024, price_usd: 299, available: true, fits: 'A QI study with prestack gathers, or a regional post-stack 3D' },
+    { key: 'basin', label: 'Basin', quota_gib: 5120, price_usd: 999, available: false, fits: 'Several regional surveys, or prestack on a large survey' },
+  ],
+};

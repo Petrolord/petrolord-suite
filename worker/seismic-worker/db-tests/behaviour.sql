@@ -109,19 +109,57 @@ insert into public.organization_members values ('00000000-0000-0000-0000-0000000
   ('00000000-0000-0000-0000-0000000000bb', '00000000-0000-0000-0000-000000000002', 'invited');
 insert into public.seismic_storage_tiers (organization_id, quota_bytes, label) values
   ('00000000-0000-0000-0000-0000000000aa', 107374182400, '100 GiB'), ('00000000-0000-0000-0000-0000000000bb', 536870912000, '500 GiB');
-select pg_temp.ok(public.seismic_storage_quota_bytes_for('00000000-0000-0000-0000-000000000001') = 536870912000, 'member of two tiered orgs gets the largest');
+select pg_temp.ok(public.seismic_storage_quota_bytes_for('00000000-0000-0000-0000-000000000001') = 536870912000 + 21474836480, 'member of two tiered orgs draws on the largest: its tier plus 20 GiB per active member (one)');
 select pg_temp.ok(public.seismic_storage_quota_bytes_for('00000000-0000-0000-0000-000000000002') = 21474836480, 'an invited (not active) member does not get the tier');
 do $$ begin insert into public.seismic_storage_tiers values ('00000000-0000-0000-0000-0000000000aa', 1000, null);
   raise exception 'FAIL: tier below the floor accepted';
   exception when check_violation or unique_violation then raise notice 'ok  a tier below 20 GiB is refused'; end $$;
 set role authenticated; set test.uid = '00000000-0000-0000-0000-000000000001';
-select pg_temp.ok(public.seismic_storage_quota_bytes() = 536870912000, 'the caller-quota function follows the tier (bucket policy uses it)');
+select pg_temp.ok(public.seismic_storage_quota_bytes() = 536870912000 + 21474836480, 'the caller-quota function follows the pool (bucket policy uses it)');
 select pg_temp.ok((select count(*) from public.seismic_storage_tiers) = 1, 'tiers are visible only through is_org_member (the stub knows one org)');
 do $$ begin perform public.seismic_storage_quota_bytes_for('00000000-0000-0000-0000-000000000002'); raise exception 'FAIL: client read another quota';
   exception when insufficient_privilege then raise notice 'ok  clients cannot call seismic_storage_quota_bytes_for'; end $$;
 do $$ begin update public.seismic_storage_tiers set quota_bytes = 999999999999; raise exception 'FAIL: client changed a tier';
   exception when insufficient_privilege then raise notice 'ok  clients cannot change tiers'; end $$;
 reset role;
+
+-- ------------------------------------------------- pooled organisation quota (2026-10-06)
+insert into storage.objects values
+  ('seismic', '00000000-0000-0000-0000-000000000001/v1/b0.bin', '{"size": 10737418240}'),
+  ('seismic', '00000000-0000-0000-0000-000000000002/v2/b0.bin', '{"size": 5368709120}'),
+  ('seismic-raw', '00000000-0000-0000-0000-000000000001/raw/big.sgy', '{"size": 99999999999}');
+select pg_temp.ok(public.seismic_storage_usage_bytes_for('00000000-0000-0000-0000-000000000001') = 10737418240, 'pool usage counts active members only (the invited member''s 5 GiB is out) and only the seismic bucket');
+select pg_temp.ok(public.seismic_storage_usage_bytes_for('00000000-0000-0000-0000-000000000002') = 5368709120, 'a user with no active tier keeps their own usage');
+update public.organization_members set status = 'active' where user_id = '00000000-0000-0000-0000-000000000002';
+select pg_temp.ok(public.seismic_storage_usage_bytes_for('00000000-0000-0000-0000-000000000001') = 16106127360, 'once both are active the pool counts both (the per-user rule would say 10 GiB)');
+select pg_temp.ok(public.seismic_storage_usage_bytes_for('00000000-0000-0000-0000-000000000002') = 16106127360, 'both members see the same pool');
+select pg_temp.ok(public.seismic_storage_quota_bytes_for('00000000-0000-0000-0000-000000000002') = 536870912000 + 2 * 21474836480, 'pool quota: the tier plus 20 GiB for each of the two active members');
+set role authenticated; set test.uid = '00000000-0000-0000-0000-000000000002';
+select pg_temp.ok(public.seismic_storage_usage_bytes() = 16106127360, 'the caller-usage function (bucket policy) answers for the pool');
+select pg_temp.ok((public.seismic_storage_summary() ->> 'pooled')::boolean and public.seismic_storage_summary() ->> 'organization_name' = 'Org BB'
+  and (public.seismic_storage_summary() ->> 'members')::int = 2, 'the storage meter summary names the pool');
+do $$ begin perform public.seismic_storage_set_tier('00000000-0000-0000-0000-0000000000bb', 'basin'); raise exception 'FAIL: client set a tier';
+  exception when insufficient_privilege then raise notice 'ok  clients cannot set tiers'; end $$;
+do $$ begin perform public.seismic_storage_pool_org('00000000-0000-0000-0000-000000000001'); raise exception 'FAIL: client read a pool';
+  exception when insufficient_privilege then raise notice 'ok  clients cannot call seismic_storage_pool_org'; end $$;
+reset role;
+update public.seismic_storage_tiers set active_until = now() - interval '1 day' where organization_id = '00000000-0000-0000-0000-0000000000bb';
+select pg_temp.ok(public.seismic_storage_quota_bytes_for('00000000-0000-0000-0000-000000000001') = 107374182400 + 21474836480, 'an expired tier no longer counts: the user draws on the next tier');
+select pg_temp.ok(public.seismic_storage_quota_bytes_for('00000000-0000-0000-0000-000000000002') = 21474836480, 'with the only tier expired the member is back to 20 GiB (read-only once over)');
+select pg_temp.ok(public.seismic_storage_usage_bytes_for('00000000-0000-0000-0000-000000000002') = 5368709120, 'and back to their own usage');
+-- the catalogue and the grant
+set role service_role;
+select pg_temp.ok((select quota_bytes from public.seismic_storage_set_tier('00000000-0000-0000-0000-0000000000bb', 'project', now() + interval '30 days')) = 250::bigint * 1073741824, 'Project tier from the catalogue is 250 GiB');
+select pg_temp.ok((select label from public.seismic_storage_tiers where organization_id = '00000000-0000-0000-0000-0000000000bb') = 'Project', 'label from the catalogue');
+select pg_temp.ok((select quota_bytes from public.seismic_storage_set_tier('00000000-0000-0000-0000-0000000000bb', 'survey', now() + interval '10 days')) = 1024::bigint * 1073741824
+  and (select active_until from public.seismic_storage_tiers where organization_id = '00000000-0000-0000-0000-0000000000bb') > now() + interval '29 days', 'Survey is 1 TiB, and a shorter end date never cuts a paid term');
+select pg_temp.ok((select quota_bytes from public.seismic_storage_set_tier('00000000-0000-0000-0000-0000000000bb', 'custom', null, null, 8::bigint * 1099511627776)) = 8::bigint * 1099511627776, 'a custom size above 5 TiB is accepted');
+do $$ begin perform public.seismic_storage_set_tier('00000000-0000-0000-0000-0000000000bb', 'custom', null, null, 1099511627776); raise exception 'FAIL: small custom accepted';
+  exception when raise_exception then raise notice 'ok  a custom tier at or under 5 TiB is refused'; end $$;
+do $$ begin perform public.seismic_storage_set_tier('00000000-0000-0000-0000-0000000000bb', 'gold'); raise exception 'FAIL: unknown tier accepted';
+  exception when raise_exception then raise notice 'ok  an unknown tier is refused'; end $$;
+reset role;
+select pg_temp.ok((select value -> 'tiers' -> 2 ->> 'available' from public.pricing_config where key = 'seismic_storage_tiers') = 'false', 'Basin is in the catalogue but not offered yet');
 
 -- ------------------------------------------------- fair claim (Q0b-6)
 delete from public.qi_jobs;

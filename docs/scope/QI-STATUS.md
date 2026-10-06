@@ -252,3 +252,17 @@ The quota is pooled per organisation. Building that is the next item.
   - The Xu-White mineral is the Hashin-Shtrikman average, and clay pores take the clay share of the solid.
   - Constant cement defaults to cement of the mineral.
   - Fitting is offered for soft and stiff sand only, the two models with a single free parameter.
+
+### Seismic storage tiers: pricing and pooling (2026-10-06, migration `20261006130000`, owner apply)
+- **Pooling:** a tiered organisation shares one pool, the tier plus 20 GiB per active member. Until now each member got the whole tier.
+- **Expiry:** an expired tier stops counting. Uploads are refused once usage is over the floor, the data stays readable, and nothing is deleted automatically. Deletion after the 30-day read-only window is a staff step.
+- **Catalogue:** a `pricing_config` row, `seismic_storage_tiers`, mirrored in `src/data/pricingModels.js` and `_shared/suite-pricing.ts`. A parity test keeps all three equal.
+- **Quote builder:** a "Seismic storage" choice. Basin shows as on request.
+- **generate-quote** prices the tier like other storage (full price, then the term, manual and "all" promo discounts) and stores it in `pricing_breakdown.seismic_storage`.
+- **Payment:** every rail grants the tier through `upsertSuiteSubscription` until the end of the paid term (`_shared/seismic-storage.ts`), and the subscription's `quote_details` remembers it. `process-subscription-renewals` extends it on each renewal.
+- **Seismolord meter:** shows the shared pool ("Storage (shared, Survey)"), and the over-quota message names the organisation's pool.
+- **Staff path** for the first customers or a custom size, as the service role: `select public.seismic_storage_set_tier('<org uuid>', 'survey', '<end>'::timestamptz);` For a custom size, pass the tier `'custom'` with a byte size above 5 TiB as the fifth argument.
+- **Owner steps:**
+  1. Apply the migration.
+  2. Redeploy generate-quote, verify-paystack-payment, paystack-webhook, stripe-webhook (if used) and process-subscription-renewals from a clean checkout of main.
+  3. Upload the Suite build at the next milestone.
