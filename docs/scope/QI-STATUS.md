@@ -310,3 +310,17 @@ The quota is pooled per organisation. Building that is the next item.
   - It opens on a Seismolord or Rock Physics Studio licence, with no new tile or price. Those are owner items.
   - Saving uses the new product table `saved_qi_studio_projects` (migration 20261006140000; a live dry run was clean; owner applies).
   - The matrix is judged on recorded curve extent; sample-level QC stays in WDM and RP.
+
+### A5 Seismic QC (2026-10-06)
+- **Engines:**
+  - #318 `qi/seismicQc.js`: spectra and bandwidth, signal-to-noise from coherency, and footprint. Gated on the analytic Ricker spectrum, designed S/N (with dip) and a designed stripe, each with negative controls.
+  - #319: the footprint reports the fundamental period, its harmonics' share and a prominence. A period-4 pulse train had been read at its period-2 harmonic, and short random profiles had looked periodic.
+- **Suite:**
+  - `QIStudio/services/qcRun.js` is one runner for the worker and the browser. It samples inlines for the spectra and signal-to-noise in time windows, and RMS maps (+/- 8 samples) for the footprint.
+  - **Worker:** a new job kind, `seismic_qc` (own volumes, read only). Its result equals the runner's on the same bricks (gate).
+  - **QI Studio:** a Seismic QC tab with a spectrum chart, tables, issues to the register, and a report section.
+- **Decisions:**
+  - The footprint is measured on RMS amplitude maps, because a gain stripe averages away on signed seismic.
+  - A stripe needs a share over 0.3, a prominence of at least 10 and at least 5 cycles across the slice.
+  - No migration is needed: the queue accepts any well-formed job kind.
+- **Worker deploy:** needed after merge, for the new kind.

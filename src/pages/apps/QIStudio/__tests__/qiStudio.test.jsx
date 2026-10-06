@@ -128,3 +128,17 @@ test('the report: summary, inventory, matrix reasons, issues and feasibility, re
   expect(t).toMatch(/Verdict: Feasible\./);
   expect(t).toMatch(/Gas separates from brine in AI and Vp\/Vs/);
 });
+
+test('seismic QC: a job per chosen volume, its result on screen and kept, its issues added to the register', async () => {
+  global.ResizeObserver = global.ResizeObserver || class { observe() {} unobserve() {} disconnect() {} };
+  renderApp();
+  fireEvent.click(await screen.findByTestId('qi-volume-qi-v1', {}, { timeout: 20000 }));
+  fireEvent.click(screen.getByTestId('qi-tab-qc'));
+  fireEvent.click(screen.getByTestId('qi-qc-run-qi-v1'));
+  const result = await screen.findByTestId('qi-qc-result', {}, { timeout: 60000 });
+  expect(result).toHaveTextContent(/Footprint at \(ms\)/);
+  expect(result).toHaveTextContent(/stripe: period 4\.0/); // the in-memory volume has a stripe every 4 crosslines
+  fireEvent.click(screen.getByTestId('qi-qc-issues-qi-v1'));
+  fireEvent.click(screen.getByTestId('qi-tab-issues'));
+  expect(screen.getAllByTestId('qi-issue-row').some((r) => /acquisition footprint/.test(r.textContent))).toBe(true);
+});

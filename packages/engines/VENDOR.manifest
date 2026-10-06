@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit ce06e87d165cdf7de5a7553106cd44fb73f04d45
+# commit 290895d5f48fe0d6d544c1835dbdd2d41eded136
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 80b08bf546799e96d5448d67c63c98f2ec1b9703 README.md
@@ -170,6 +170,7 @@ ef3cd90f6bdb44da56c3b690cc5010d39511f80b __tests__/production.nodal.test.js
 34a78a4bbea21f6795eb8b457cabf8849575c14d __tests__/production.surveillance.test.js
 f25ba6e6e30355f8364a1af93656dd305c027ab1 __tests__/prospect.valuation.test.js
 8234569920a263cea09a57f8f5a1583cf632b820 __tests__/prototypeChainLookups.test.js
+7118d18a2558431d008a66c5806ada9fbae8752a __tests__/qi.seismicQc.test.js
 0d7df040715fddf9e2d1ab371ac66511589a7416 __tests__/rockphysics.elasticSet.test.js
 287153d56b19c0135029e9ede8d183df4791375a __tests__/rockphysics.granular.test.js
 40e01f5b5239d0f0ec43e089564ed307724cf229 __tests__/rockphysics.inclusion.test.js
@@ -490,6 +491,7 @@ b7a2a85022f3df59f44051d5202dcf9746502326 engines/production/pumpingUnit.js
 20e0cb3c3630577d2c4996495cc4f352850b86bc engines/production/rodString.js
 02b493abc6f3f626d6f6ef49575e22cbc5f62f41 engines/production/surveillance.js
 2468504187c6f984b84f318939d55929be3e667a engines/prospect/valuation.js
+00816e027603e25d60cd84661a1d32aed42a931b engines/qi/seismicQc.js
 dda8d721705bfd6f3ffddcdda092c828f5949fcf engines/rockphysics/avo.js
 ac672eb24b8e3fe0796b8469a90030348fa4014b engines/rockphysics/avoTrend.js
 481b5ed27afe98bc0c4fa2dc836be48cdda97e8c engines/rockphysics/elasticSet.js
@@ -837,6 +839,8 @@ b4117882a7836b4ce018a4afc830a91ab4fa1007 test-data/production/goldens/nodal_case
 50819360bd204f050b38c489db9fb9dd10ba6066 test-data/production/goldens/rodpump_cases.json
 e49131ca6ca53dc99ec608859868a449e7383765 test-data/production/goldens/surveillance_cases.json
 e81bc71967d6f64a5929130ed0f870ea4a741b23 test-data/prospect/goldens/valuation_cases.json
+d29918c15c11bc5454a88a4be7adcfdc7245062f test-data/qi/README.md
+d4d7db86331d3553802186e61102e80978516d7b test-data/qi/goldens.seismicQc.json
 24fad5ff79c18941b580e070e62ba933d0e7f39f test-data/rockphysics/README.md
 709118ddc42cd8be25c096e5ca0b9aa7eef68462 test-data/rockphysics/goldens.elastic.json
 08565d2e41c2b603860c944603d49791696abdbd test-data/rockphysics/goldens.granular.json
@@ -1171,6 +1175,7 @@ ef58410fe9addc47d2e49e1b6184a9da96e98185 tools/validation/production/oracle_inte
 6dc1b03acfeaa3ec3949fd58c9f0e4e9b01c9918 tools/validation/production/oracle_surveillance.py
 0336c603b3e4e5b2437d8b675739a36d59012a30 tools/validation/prospect/negcontrol_valuation.sh
 942d467db9a3407c1f0f7aed17736b07cee4b530 tools/validation/prospect/oracle_valuation.py
+7c802ec4dc4f8e76e0e4d119c3a7c6024a4d0529 tools/validation/qi/oracle_seismic_qc.py
 1d9f0f316ae1c59d449b881071008684d281dcc8 tools/validation/rockphysics/crosscheck_elastic_scipy.py
 784945cc56b622616f012560fc7490828003c042 tools/validation/rockphysics/crosscheck_inclusion_rockphypy.py
 d0eeebb8618e71d32b34fe7416f758bc71d282f7 tools/validation/rockphysics/crosscheck_rockphypy.py

@@ -12,7 +12,13 @@ QI Studio holds the first package of a quantitative interpretation study: the da
   - A depletion flag appears when seismic was acquired after first production.
 - **Issue register:** the matrix suggests one issue per well and gap kind, with a remedy. The user keeps, resolves or dismisses them, and adds their own.
 - **Feasibility per target:** a verdict, separability, detectability and the recommended route.
-- **Report:** the QI Data Audit and Feasibility Report on the shared Report Kit.
+- **Seismic QC** (A5): a `seismic_qc` job per chosen volume on the seismic worker. It measures:
+  - spectra, peak and the -6 dB band per time window;
+  - signal-to-noise from neighbouring-trace coherency;
+  - the acquisition footprint on RMS maps.
+
+  The result is kept with the project, and its issues can be added to the register.
+- **Report:** the QI Data Audit and Feasibility Report on the shared Report Kit, including the QC tables.
 
 ## Decisions
 
