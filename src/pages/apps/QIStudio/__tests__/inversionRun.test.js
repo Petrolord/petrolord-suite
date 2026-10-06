@@ -134,3 +134,43 @@ describe('blind wells', () => {
   });
   test('halfWindowFor', () => expect(halfWindowFor(8, 4)).toBe(16));
 });
+
+describe('sensitivity', () => {
+  const { validateSensitivity, sensitivityScenarios, makeScenarioInverters, blindSensitivity, spreadProducts } = require('../services/inversionRun');
+  const wrong = Array.from({ length: 41 }, (_, i) => { const t = ((i - 20) * dtMs) / 1000; const a = (Math.PI * 45 * t) ** 2; return (1 - 2 * a) * Math.exp(-a); });
+  const base = { ...INVERSION_DEFAULTS, method: 'model_based', wavelet: { samples: ricker, dt_ms: dtMs }, iters: 40 };
+  test('scenarios: wavelet x model cut x noise seed, with limits', () => {
+    const sc = sensitivityScenarios({ ...base, sensitivity: { wavelets: [{ label: 'A', samples: ricker }, { label: 'B', samples: wrong }], lfm_factors: [0.5, 1], snr: 5, seeds: 2 } });
+    expect(sc).toHaveLength(8);
+    expect(sc[0].label).toBe('A, model below 4 Hz, noise 1');
+    expect(validateSensitivity({ lfm_factors: [1] }, 'model_based')).toMatch(/at least two/);
+    expect(validateSensitivity({ lfm_factors: [0.5, 1] }, 'coloured')).toMatch(/absolute/);
+    expect(validateSensitivity({ lfm_factors: Array(13).fill(1) }, 'model_based')).toMatch(/At most 12/);
+    expect(validateSensitivity({ lfm_factors: [0.5, 1], snr: -1 }, 'model_based')).toMatch(/positive/);
+    expect(validateSensitivity({ lfm_factors: [0.5, 1] }, 'model_based')).toBeNull();
+  });
+  const at = horizonsAtFrom(grids, nXl, dtMs);
+  const traces = WELLS.map((w) => seismic(w.il));
+  test('the blind check across scenarios ranks the assumptions: the wrong wavelet costs most', () => {
+    const inv = { ...base, sensitivity: { wavelets: [{ label: 'right', samples: ricker }, { label: 'wrong', samples: wrong }], lfm_factors: [0.5, 1, 1.5] } };
+    const { scenarios, realise } = makeScenarioInverters({ inv, wells: WELLS, traces, posOf, horizonsAt: at, ns, dtMs });
+    const res = blindSensitivity({ realise, scenarios, wells: WELLS, traces, dtMs, truthHz: inv.truthHz });
+    for (const r of res.rows) { expect(r.q10).toBeLessThanOrEqual(r.q50); expect(r.q50).toBeLessThanOrEqual(r.q90); }
+    const mean = (re) => { const xs = res.byScenario.filter((b) => re.test(b.label)).map((b) => b.meanRmsPct); return xs.reduce((a, v) => a + v, 0) / xs.length; };
+    expect(mean(/^right/)).toBeLessThan(mean(/^wrong/));
+  });
+  test('noise scenarios are reproducible per trace, and the spread products follow the realisations', () => {
+    const inv = { ...base, sensitivity: { lfm_factors: [1], snr: 3, seeds: 3 } };
+    const { realise } = makeScenarioInverters({ inv, wells: WELLS, traces, posOf, horizonsAt: at, ns, dtMs });
+    const a = realise(traces[1], WELLS[1].il, WELLS[1].xl);
+    const b = realise(traces[1], WELLS[1].il, WELLS[1].xl);
+    expect(a.map((m) => Array.from(m))).toEqual(b.map((m) => Array.from(m)));
+    const [q10, q50, q90, spread] = spreadProducts(a);
+    let positive = 0;
+    for (let i = 0; i < ns; i++) { expect(q10[i]).toBeLessThanOrEqual(q50[i] + 1e-9); expect(q50[i]).toBeLessThanOrEqual(q90[i] + 1e-9); if (spread[i] > 1e-6) positive += 1; }
+    expect(positive).toBeGreaterThan(ns / 2);
+    // negative control: identical realisations have no spread
+    const same = spreadProducts([a[0], a[0], a[0]])[3];
+    expect(Math.max(...Array.from(same).map(Math.abs))).toBe(0);
+  });
+});

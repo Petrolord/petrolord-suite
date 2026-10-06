@@ -82,7 +82,13 @@ function makeInMemoryJobs() {
       if (kind === 'poststack_inversion') {
         // an illustrative result in the worker's shape (the maths is gated in the worker and engine tests)
         const blind = params.inversion.wells.map((w, i) => ({ name: w.name, blind: { corr: 0.9 - 0.04 * i, rmsPct: 4 + 2.5 * i, n: 120 }, withWell: { corr: 0.96, rmsPct: 2.5, n: 120 } }));
-        results.set(id, { id, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, volume_id: params.volume_id, settings: { method: params.inversion.method, qi_class: 'elastic_estimate', wavelet_scale: 1.2 }, blind } });
+        const sens = params.inversion.sensitivity;
+        const sensitivity = sens ? {
+          scenarios: ['scenario 1', 'scenario 2', 'scenario 3'],
+          rows: params.inversion.wells.map((w, i) => ({ name: w.name, q10: 3 + i, q50: 5 + i, q90: 8 + i })),
+          byScenario: [{ label: 'scenario 1', meanRmsPct: 4.5 }, { label: 'scenario 2', meanRmsPct: 6.1 }, { label: 'scenario 3', meanRmsPct: 9.8 }],
+        } : null;
+        results.set(id, { id, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, volume_id: params.volume_id, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}), settings: { method: params.inversion.method, qi_class: 'elastic_estimate', wavelet_scale: 1.2 }, blind, ...(sensitivity ? { sensitivity } : {}) } });
         return id;
       }
       const qc = await runSeismicQc({ getBrick, geom: { nIl, nXl, ns, brickSize: b, grid }, dtMs: 2, inlines: 6 });

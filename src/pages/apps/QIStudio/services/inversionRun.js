@@ -19,6 +19,7 @@ import {
 } from '../engine/inversion';
 import { lfmTrace, blindWellScore } from '../engine/lfm';
 import { fft, nextPow2 } from '../../../../../packages/engines/lib/fft';
+import { quantilesAcross, quantileSorted, relativeSpread, addNoise } from '../engine/inversionSpread';
 
 export const INVERSION_METHODS = {
   model_based: { label: 'Model-based', absolute: true },
@@ -64,7 +65,7 @@ export function validateInversionParams(p) {
   if (p.mode === 'blind' && wells.length < 2) return 'A blind-well check needs at least two wells.';
   const h = inv.horizon_ids || [];
   if (!Array.isArray(h) || h.length > MAX_HORIZONS) return `Use at most ${MAX_HORIZONS} horizons.`;
-  return null;
+  return validateSensitivity(inv.sensitivity, inv.method);
 }
 
 /** Moving-average half window in samples for a cut frequency. */
@@ -299,4 +300,115 @@ export function inversionIssues(blind, volumeName = 'the volume') {
     }
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Sensitivity (QI Q8a): the same inversion under alternative assumptions,
+// summarised per sample as Q10, Q50 and Q90 (the 10th, 50th and 90th
+// percentiles; parameters carry no P-labels, PT10 owner decision 1) and the
+// relative spread (Q90 - Q10) / Q50. Scenarios vary the wavelet (each one
+// scaled to the seismic at the wells on its own), the low-frequency model
+// cut, and seeded noise at a stated signal-to-noise ratio.
+
+export const MAX_SCENARIOS = 12;
+
+/** Why a sensitivity block cannot run, or null. */
+export function validateSensitivity(sens, method) {
+  if (!sens) return null;
+  if (!INVERSION_METHODS[method]?.absolute) return 'Sensitivity runs on the absolute methods (model-based, blocky, sparse-spike).';
+  const ws = sens.wavelets || [];
+  if (!Array.isArray(ws) || ws.some((w) => !Array.isArray(w?.samples) || w.samples.length < 5 || w.samples.length % 2 === 0 || !w.samples.every(fin))) return 'Each sensitivity wavelet needs an odd number of samples, at least five.';
+  const f = sens.lfm_factors || [1];
+  if (!Array.isArray(f) || !f.length || f.some((x) => !(x > 0 && x <= 4))) return 'The model cut factors must be between 0 and 4.';
+  if (sens.snr != null && !(sens.snr > 0)) return 'The signal-to-noise ratio must be positive.';
+  const seeds = sens.snr != null ? Math.max(1, sens.seeds || 1) : 1;
+  const n = (ws.length || 1) * f.length * seeds;
+  if (n < 2) return 'A sensitivity run needs at least two scenarios.';
+  if (n > MAX_SCENARIOS) return `At most ${MAX_SCENARIOS} scenarios per run (this one has ${n}).`;
+  return null;
+}
+
+/**
+ * The scenario list: wavelet x model cut x noise seed. The base wavelet is
+ * the first when the block names none.
+ * @returns {Array<{label: string, wavelet: number[], lfmHz: number, seed: ?number}>}
+ */
+export function sensitivityScenarios(inv) {
+  const sens = inv.sensitivity;
+  const s = { ...INVERSION_DEFAULTS, ...inv };
+  const ws = sens.wavelets?.length ? sens.wavelets : [{ label: 'the chosen wavelet', samples: inv.wavelet.samples }];
+  const factors = sens.lfm_factors || [1];
+  const seeds = sens.snr != null ? Array.from({ length: Math.max(1, sens.seeds || 1) }, (_, k) => k + 1) : [null];
+  const out = [];
+  for (const w of ws) {
+    for (const f of factors) {
+      for (const seed of seeds) {
+        out.push({
+          label: [w.label, `model below ${Number((s.lfmHz * f).toFixed(2))} Hz`, seed != null ? `noise ${seed}` : ''].filter(Boolean).join(', '),
+          wavelet: w.samples, lfmHz: s.lfmHz * f, seed,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+/** A per-trace noise seed that does not depend on the order traces are visited in. */
+const traceSeed = (seed, il, xl) => (((seed * 73856093) ^ (il * 19349663) ^ (xl * 83492791)) >>> 0);
+
+/**
+ * Build one inverter per scenario (each wavelet scaled at the wells, each
+ * model from the wells low-passed at its own cut) and a function that
+ * returns every scenario's ln(AI) for a trace.
+ * @returns {{scenarios, scales: number[], realise: (trace, il, xl, exclude?) => Float64Array[]}}
+ */
+export function makeScenarioInverters({ inv, wells, traces, posOf, horizonsAt, ns, dtMs }) {
+  const scenarios = sensitivityScenarios(inv);
+  const pairs = wells.map((w, k) => ({ trace: traces[k], lnAi: w.ln_ai }));
+  const scaleCache = new Map();
+  const lfmCache = new Map();
+  const inverters = scenarios.map((sc) => {
+    if (!scaleCache.has(sc.wavelet)) scaleCache.set(sc.wavelet, waveletScale(pairs, sc.wavelet).scale);
+    const scale = scaleCache.get(sc.wavelet);
+    if (!lfmCache.has(sc.lfmHz)) lfmCache.set(sc.lfmHz, lfmWells(wells, { dtMs, lfmHz: sc.lfmHz, posOf, horizonsAt }));
+    const invert = makeTraceInverter({
+      inv: { ...inv, lfmHz: sc.lfmHz }, wavelet: sc.wavelet.map((v) => v * scale), wells: lfmCache.get(sc.lfmHz), posOf, horizonsAt, ns, dtMs,
+    });
+    return { invert, scale, seed: sc.seed };
+  });
+  const live = (v) => Math.abs(v) <= NULL_LIM && fin(v);
+  const realise = (trace, il, xl, exclude) => inverters.map(({ invert, seed }) => {
+    const t = seed != null ? addNoise(trace, inv.sensitivity.snr, traceSeed(seed, il, xl), live) : trace;
+    return invert(t, il, xl, exclude);
+  });
+  return { scenarios, scales: inverters.map((x) => x.scale), realise };
+}
+
+/**
+ * The blind-well check under every scenario: per well the Q10, Q50 and Q90
+ * of the blind AI error across scenarios, and per scenario the mean blind
+ * error over the wells (which assumption moves the result most).
+ */
+export function blindSensitivity({ realise, scenarios, wells, traces, dtMs, truthHz }) {
+  const half = halfWindowFor(truthHz, dtMs);
+  const perScenario = scenarios.map(() => []);
+  const rows = wells.map((w, k) => {
+    const truth = lowPassFinite(w.ln_ai, half);
+    const errs = realise(traces[k], w.il, w.xl, w.name).map((m) => blindWellScore(m, truth).rmsPct);
+    errs.forEach((e, j) => perScenario[j].push(e));
+    const sorted = errs.filter(fin).sort((a, b) => a - b);
+    return { name: w.name, q10: quantileSorted(sorted, 0.1), q50: quantileSorted(sorted, 0.5), q90: quantileSorted(sorted, 0.9) };
+  });
+  const byScenario = scenarios.map((sc, j) => {
+    const e = perScenario[j].filter(fin);
+    return { label: sc.label, meanRmsPct: e.length ? e.reduce((a, v) => a + v, 0) / e.length : NaN };
+  });
+  return { rows, byScenario };
+}
+
+/** The four products of one trace from its realisations: AI at Q10, Q50 and Q90, and the relative spread. */
+export function spreadProducts(realisations) {
+  const ai = realisations.map((m) => m.map(Math.exp));
+  const [q10, q50, q90] = quantilesAcross(ai, [0.1, 0.5, 0.9]);
+  return [q10, q50, q90, relativeSpread(q10, q50, q90)];
 }
