@@ -291,3 +291,15 @@ The quota is pooled per organisation. Building that is the next item.
   - **Facies write-back:** RP_FACIES on own wells, with provenance (rp-1.3.0).
   - **Provenance fix:** published Vs names the local trend.
   - **Still open:** density and histogram views.
+
+### A3 Log editing (2026-10-06)
+- **Engines #317** (`petrophysics/logEdit.js`): splice, interval edits with a ledger, and sonic drift correction.
+  - **Oracle:** a synthetic well whose drift is known in closed form (D1-D5).
+  - **Closure:** reported, and bounded by half the correction spread times the step.
+- **Suite:** the Well Data Manager "Edit logs" panel (details in WellDataManager-STATUS).
+- **Decisions:**
+  - Results are always new curves (the digitized-curve rule).
+  - Drift is integrated on TVDSS with no dMD/dTVD factor, because the checkshot times are vertical. An along-hole integral would misread every deviated well.
+  - Block shift between levels, with the minimum-delta-t variant not offered.
+  - Ends beyond the levels are left uncorrected and flagged.
+- **Also live 2026-10-06:** the owner applied the seismic storage pool migration and redeployed 8 functions; verified.

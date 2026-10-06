@@ -73,7 +73,8 @@ describe('sonic drift correction on TVDSS', () => {
     const r = prepareDrift(well, log, data, { existingNames: ['DT'] });
     expect(r.log.mnemonic).toBe('DT_DC');
     expect(r.log.unit).toBe('US/F');
-    expect(r.report.usedLevels).toBe(3); // 800 m MD is TVDSS 770: above the sonic's reach? no: 800 MD = 770 TVDSS, so 800 TVDSS is the first level inside
+    // the sonic spans 800 to 1500 m MD, which is 770 to 1470 m TVDSS (KB 30 m): all four levels are inside
+    expect(r.report.usedLevels).toBe(4);
     expect(Math.max(...r.report.drift.map((x) => Math.abs(x.driftMs)))).toBeGreaterThan(0.9);
     expect(r.report.closureMs).toBeLessThan(0.01);
     expect(r.log.provenance.operation).toBe('drift-correction');
