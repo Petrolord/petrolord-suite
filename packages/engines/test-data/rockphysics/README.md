@@ -84,3 +84,31 @@ Not validated against a published table: the gather's amplitudes at angles
 other than the published reversals (they rest on the oracle), and the Faust
 constant's fit to any particular basin (it is calibrated per well in the
 Suite and the misfit is reported there).
+
+## Granular models (QI Q2, 2026-10-06)
+
+`goldens.granular.json` is written by `tools/validation/rockphysics/oracle_granular.py`
+(stdlib only; asserts anchors A1-A9 before writing; byte-identical on
+regeneration). It covers Hertz-Mindlin (both slip conditions), soft sand,
+stiff sand, Dvorkin-Nur contact cement (contact and surface schemes),
+Avseth constant cement, Hashin-Shtrikman-Walpole bounds and Brie.
+
+Cross-checked on 2026-10-06 against rockphypy (GM.hertzmindlin, softsand,
+stiffsand, contactcement, constantcement; Fluid.Brie) with
+`crosscheck_rockphypy.py`: worst relative difference 2.4e-15. rockphypy
+takes stress in MPa, and its docstring describes f the other way round;
+its formula, like ours, gives the classic no-slip Hertz-Mindlin at f = 1.
+
+## Inclusion models (QI A1b, 2026-10-06)
+
+`goldens.inclusion.json` is written by `tools/validation/rockphysics/oracle_inclusion.py`
+(stdlib only; anchors B1-B7, including the exact DEM result for dry spheres
+in a Poisson-0.2 host, K and G times (1 - phi)^2, and Kuster-Toksoz spheres
+equal to the Hashin-Shtrikman upper bound). It covers Berryman P and Q, Kuster-Toksoz,
+DEM (RK4, 20,000 steps) and Xu-White.
+
+`crosscheck_inclusion_rockphypy.py`: P and Q agree with rockphypy EM.PQ to
+6e-15 (oblate and spheres), and the DEM goldens agree with scipy odeint
+(rtol 1e-12) to 2e-12. Two rockphypy defects were found and are avoided:
+its prolate theta uses 1/cosh(alpha) for arccosh(alpha), and its EM.DEM
+passes the effective bulk and shear moduli to PQ in swapped order.
