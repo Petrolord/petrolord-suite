@@ -13,3 +13,5 @@ insert into public.organizations values ('00000000-0000-0000-0000-0000000000aa')
 -- Supabase grants every new public table to these roles by default; mirror it
 -- so the migration's revokes are actually tested.
 alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+create table if not exists public.organization_members (organization_id uuid, user_id uuid, status text);
+insert into public.organizations values ('00000000-0000-0000-0000-0000000000bb') on conflict do nothing;

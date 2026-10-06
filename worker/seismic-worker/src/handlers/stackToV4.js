@@ -19,6 +19,7 @@
 // seismic quota.
 import path from 'node:path';
 import { JobFailure } from '../runJob.js';
+import { seismicQuota, overQuotaMessage } from '../quota.js';
 import { openSegyDoor, scanForManifest } from '../../../../src/pages/apps/Seismolord/lib/segyDoor.js';
 import { convertToSpool } from '../../../../src/pages/apps/Seismolord/services/conversionV4.js';
 import { createTwoStageUpload } from '../../../../src/pages/apps/Seismolord/services/uploadV4.js';
@@ -116,15 +117,8 @@ export async function stackToV4(ctx, deps) {
     manifest.source.fingerprint = p.ingest_rec.fingerprint;
 
     const need = record.bricks.display.storedBytes + record.bricks.f32.storedBytes;
-    const [{ data: used, error: uErr }, { data: quota, error: qErr }] = await Promise.all([
-      admin.rpc('seismic_storage_usage_bytes_for', { p_user_id: uid }),
-      admin.rpc('seismic_storage_quota_bytes'),
-    ]);
-    if (uErr || qErr) throw new Error(`Could not check the storage quota: ${(uErr || qErr).message}`);
-    if (Number(used) + need > Number(quota)) {
-      const gib = (b) => (Number(b) / 1024 ** 3).toFixed(1);
-      throw new JobFailure('over_quota', `The converted volume needs ${gib(need)} GiB and you have ${gib(Number(quota) - Number(used))} GiB of your ${gib(quota)} GiB seismic storage left. Delete a volume or ask for more space.`);
-    }
+    const q = await seismicQuota(admin, uid);
+    if (q.used + need > q.quota) throw new JobFailure('over_quota', overQuotaMessage('The converted volume', need, q));
 
     const upload = createTwoStageUpload({
       storage: deps.storage,

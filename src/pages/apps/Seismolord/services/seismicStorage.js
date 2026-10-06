@@ -12,10 +12,24 @@ export const SEISMIC_BUCKET = 'seismic';
 // The AUTHORITATIVE layer is server-side since migration
 // 20260712120000_seismic_storage_quota.sql: the 'seismic' bucket's
 // INSERT policy refuses new objects once the user's bucket footprint
-// reaches the same 20 GiB (updates/deletes stay quota-free so an
-// over-quota user can still save work and free space). Keep the two
-// constants in lockstep.
-export const STORAGE_QUOTA_BYTES = 20 * 1024 ** 3;   // 20 GiB
+// reaches the user's quota (updates/deletes stay quota-free so an
+// over-quota user can still save work and free space). Both layers read
+// seismic_storage_quota_bytes() since QI Q0b-4.
+export const STORAGE_QUOTA_BYTES = 20 * 1024 ** 3;   // 20 GiB, everyone's floor
+
+// QI Q0b-4: an organization can have a larger seismic storage tier. The
+// signed-in user's quota is seismic_storage_quota_bytes(), the same function
+// the bucket's INSERT policy uses; on any failure (an older database, a read
+// hiccup) the friendly check falls back to the 20 GiB floor.
+export async function getQuotaBytes() {
+  try {
+    const { data, error } = await supabase.rpc('seismic_storage_quota_bytes');
+    const n = Number(data);
+    return !error && Number.isFinite(n) && n >= STORAGE_QUOTA_BYTES ? n : STORAGE_QUOTA_BYTES;
+  } catch {
+    return STORAGE_QUOTA_BYTES;
+  }
+}
 
 // One accounting for the friendly layer: OWN rows only (org-shared rows
 // visible under sharing v1 RLS are a teammate's footprint, not this
@@ -32,14 +46,15 @@ export async function getStorageUsage() {
   if (!user) return empty;
   const sum = (rows) => (rows || []).reduce(
     (s, r) => s + (Number(r.survey_meta?.storage_bytes) || 0), 0);
-  const [vols, lines] = await Promise.all([
+  const [vols, lines, quotaBytes] = await Promise.all([
     supabase.from('seismic_volumes').select('survey_meta').eq('user_id', user.id),
     supabase.from('seismic_lines').select('survey_meta').eq('user_id', user.id),
+    getQuotaBytes(),
   ]);
   if (vols.error || lines.error) return empty;
   return {
     usedBytes: sum(vols.data) + sum(lines.data),
-    quotaBytes: STORAGE_QUOTA_BYTES,
+    quotaBytes,
     known: true,
   };
 }

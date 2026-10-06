@@ -6,10 +6,12 @@
 let mockUser = { id: 'me' };
 let mockRows = {};
 let mockErrors = {};
+let mockQuota; // undefined: the double has no rpc (an older database)
 
 jest.mock('@/lib/customSupabaseClient', () => ({
   supabase: {
     auth: { getUser: async () => ({ data: { user: mockUser } }) },
+    get rpc() { return mockQuota === undefined ? undefined : async () => mockQuota; },
     from: (table) => ({
       select: () => ({
         eq: (col, val) => {
@@ -30,6 +32,7 @@ const GIB = 1024 ** 3;
 const vol = (userId, bytes) => ({ user_id: userId, survey_meta: { storage_bytes: bytes } });
 
 beforeEach(() => {
+  mockQuota = undefined;
   mockUser = { id: 'me' };
   mockErrors = {};
   mockRows = {
@@ -58,4 +61,17 @@ test('a read hiccup or missing user disables the check instead of blocking', asy
   mockErrors = {};
   mockUser = null;
   expect((await getStorageUsage()).known).toBe(false);
+});
+
+test('QI Q0b-4: the quota follows the organization tier the server reports', async () => {
+  mockQuota = { data: 500 * GIB, error: null };
+  expect((await getStorageUsage()).quotaBytes).toBe(500 * GIB);
+  await expect(assertQuota(100 * GIB)).resolves.toBeUndefined();
+});
+
+test('QI Q0b-4: an error or an implausible answer falls back to the 20 GiB floor', async () => {
+  mockQuota = { data: null, error: { message: 'function does not exist' } };
+  expect((await getStorageUsage()).quotaBytes).toBe(STORAGE_QUOTA_BYTES);
+  mockQuota = { data: 5, error: null };
+  expect((await getStorageUsage()).quotaBytes).toBe(STORAGE_QUOTA_BYTES);
 });

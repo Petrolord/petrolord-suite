@@ -101,4 +101,25 @@ reset role;
 do $$ begin insert into public.qi_datasets (user_id, name, original_filename, bucket, object_key, bytes, part_size, part_count)
   values ('00000000-0000-0000-0000-000000000001', 'dup', 'd', 'seismic-raw', 'u1/d1/big.sgy', 1, 1, 1); raise exception 'FAIL: duplicate object key';
   exception when unique_violation then raise notice 'ok  one registry row per object'; end $$;
+
+-- ------------------------------------------------- seismic storage tiers (Q0b-4)
+select pg_temp.ok(public.seismic_storage_quota_bytes_for('00000000-0000-0000-0000-000000000001') = 21474836480, 'no tier: quota is the 20 GiB floor');
+insert into public.organization_members values ('00000000-0000-0000-0000-0000000000aa', '00000000-0000-0000-0000-000000000001', 'active'),
+  ('00000000-0000-0000-0000-0000000000bb', '00000000-0000-0000-0000-000000000001', 'active'),
+  ('00000000-0000-0000-0000-0000000000bb', '00000000-0000-0000-0000-000000000002', 'invited');
+insert into public.seismic_storage_tiers (organization_id, quota_bytes, label) values
+  ('00000000-0000-0000-0000-0000000000aa', 107374182400, '100 GiB'), ('00000000-0000-0000-0000-0000000000bb', 536870912000, '500 GiB');
+select pg_temp.ok(public.seismic_storage_quota_bytes_for('00000000-0000-0000-0000-000000000001') = 536870912000, 'member of two tiered orgs gets the largest');
+select pg_temp.ok(public.seismic_storage_quota_bytes_for('00000000-0000-0000-0000-000000000002') = 21474836480, 'an invited (not active) member does not get the tier');
+do $$ begin insert into public.seismic_storage_tiers values ('00000000-0000-0000-0000-0000000000aa', 1000, null);
+  raise exception 'FAIL: tier below the floor accepted';
+  exception when check_violation or unique_violation then raise notice 'ok  a tier below 20 GiB is refused'; end $$;
+set role authenticated; set test.uid = '00000000-0000-0000-0000-000000000001';
+select pg_temp.ok(public.seismic_storage_quota_bytes() = 536870912000, 'the caller-quota function follows the tier (bucket policy uses it)');
+select pg_temp.ok((select count(*) from public.seismic_storage_tiers) = 1, 'tiers are visible only through is_org_member (the stub knows one org)');
+do $$ begin perform public.seismic_storage_quota_bytes_for('00000000-0000-0000-0000-000000000002'); raise exception 'FAIL: client read another quota';
+  exception when insufficient_privilege then raise notice 'ok  clients cannot call seismic_storage_quota_bytes_for'; end $$;
+do $$ begin update public.seismic_storage_tiers set quota_bytes = 999999999999; raise exception 'FAIL: client changed a tier';
+  exception when insufficient_privilege then raise notice 'ok  clients cannot change tiers'; end $$;
+reset role;
 select 'ALL BEHAVIOUR CHECKS PASSED' as result;

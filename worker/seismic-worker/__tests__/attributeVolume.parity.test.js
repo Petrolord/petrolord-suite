@@ -74,7 +74,7 @@ function adminMock({ derived, parent, used = 0, quota = 20 * 1024 ** 3 }) {
   };
   return {
     rows, log, from,
-    rpc: async (fn) => ({ data: fn === 'seismic_storage_quota_bytes' ? quota : used, error: null }),
+    rpc: async (fn) => ({ data: fn.startsWith('seismic_storage_quota_bytes') ? quota : used, error: null }),
     storage: { from: () => ({ remove: async (names) => { log.removed.push(...names); return { error: null }; } }) },
   };
 }
