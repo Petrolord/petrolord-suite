@@ -442,8 +442,16 @@ export default function SyntheticsPanel({
   // density too (listed after the measured curves, labelled as substituted)
   // RP-U2-007: the pseudo-sonic DT_EST (a well with no sonic log) is listed
   // too, last, under a label that says it is an estimate
-  const kindOf = (log) => guessCurveKind(log.mnemonic) || substitutedCurveKind(log) || estimatedCurveKind(log);
-  const curveLabel = (l) => (substitutedCurveKind(l) ? substitutedCurveLabel(l) : estimatedCurveKind(l) ? estimatedCurveLabel(l) : `${l.mnemonic} (${l.unit || '?'})`);
+  // QI A6: a curve Well Data Manager spliced, edited or drift-corrected
+  // (<MNEM>_SPL, _ED, _DC) is the same kind as its source; offered, never
+  // picked silently
+  const editedKind = (log) => {
+    const m = String(log.mnemonic || '').toUpperCase().split(':')[0].match(/^(.*)_(SPL|ED|DC)$/);
+    return m ? guessCurveKind(m[1]) : null;
+  };
+  const kindOf = (log) => guessCurveKind(log.mnemonic) || editedKind(log) || substitutedCurveKind(log) || estimatedCurveKind(log);
+  const isDriftCorrected = (l) => l?.provenance?.operation === 'drift-correction' || /_DC(:\d+)?$/i.test(String(l?.mnemonic || ''));
+  const curveLabel = (l) => (substitutedCurveKind(l) ? substitutedCurveLabel(l) : estimatedCurveKind(l) ? estimatedCurveLabel(l) : `${l.mnemonic} (${l.unit || '?'})${isDriftCorrected(l) ? ', drift-corrected to the checkshots' : ''}`);
   const sonicWells = useMemo(
     () => (wells || []).filter((w) => (logsByWell[w.id] || []).some((l) => kindOf(l) === 'sonic')),
     [wells, logsByWell],
@@ -658,8 +666,8 @@ export default function SyntheticsPanel({
   const waveletInfo = useMemo(() => {
     try {
       if (!dtMs) return null;
-      if (waveletMode === 'well' && wellWavelet) return { kind: 'well', lengthMs: (wellWavelet.wavelet.length - 1) * dtMs, peakHz: wellWavelet.peakHz, phaseDeg: wellWavelet.phaseDeg };
-      if (waveletMode === 'extracted' && extracted) return { kind: 'statistical', lengthMs: (extracted.length - 1) * dtMs, ...describeWavelet(extracted, dtMs) };
+      if (waveletMode === 'well' && wellWavelet) return { kind: 'well', lengthMs: (wellWavelet.wavelet.length - 1) * dtMs, peakHz: wellWavelet.peakHz, phaseDeg: wellWavelet.phaseDeg, samples: wellWavelet.wavelet, dtMs };
+      if (waveletMode === 'extracted' && extracted) return { kind: 'statistical', lengthMs: (extracted.length - 1) * dtMs, ...describeWavelet(extracted, dtMs), samples: extracted, dtMs };
       return { kind: 'ricker', lengthMs: 120, peakHz: freqHz, phaseDeg: 0 };
     } catch { return null; }
   }, [waveletMode, wellWavelet, extracted, freqHz, dtMs]);
@@ -959,6 +967,16 @@ export default function SyntheticsPanel({
             ))}
           </select>
         </label>
+        {(() => {
+          const dc = sonicLogs.find(isDriftCorrected);
+          if (!dc || dc.id === sonicId) return null;
+          return (
+            <span className="text-xs text-pl-muted" data-testid="synth-drift-hint">
+              {`${dc.mnemonic} is the sonic drift-corrected to this well's checkshots in Well Data Manager.`}
+              <button type="button" className="ml-1 underline hover:text-pl-text" onClick={() => setSonicId(dc.id)} data-testid="synth-use-drift">Use it</button>
+            </span>
+          );
+        })()}
         <label className="text-xs text-pl-muted flex items-center gap-1">
           Density
           <select className={inputCls} value={densityId} onChange={(e) => setDensityId(e.target.value)}

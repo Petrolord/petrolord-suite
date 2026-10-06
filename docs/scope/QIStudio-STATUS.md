@@ -18,7 +18,8 @@ QI Studio holds the first package of a quantitative interpretation study: the da
   - the acquisition footprint on RMS maps.
 
   The result is kept with the project, and its issues can be added to the register.
-- **Report:** the QI Data Audit and Feasibility Report on the shared Report Kit, including the QC tables.
+- **Well ties** (A6): each well's committed Seismolord tie, the tie wavelets compared and averaged (the field wavelet), and tie issues to the register.
+- **Report:** the QI Data Audit and Feasibility Report on the shared Report Kit, including the QC and tie tables.
 
 ## Decisions
 

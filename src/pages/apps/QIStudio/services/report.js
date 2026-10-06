@@ -7,7 +7,8 @@ import { createReport } from '@/lib/reportKit';
 import { loadPetrolordLogo } from '@/lib/pdfBrand';
 import { STATES, inventorySummary } from './inventory';
 import { FEASIBILITY_VERDICTS } from './model';
-import { isStripe } from './qcRun';
+import { isStripe, snrText } from './qcRun';
+import { tieRows, waveletComparison } from './ties';
 
 export const REPORT_TITLE = 'QI Data Audit and Feasibility Report';
 export const APP_NAME = 'Petrolord QI Studio';
@@ -59,9 +60,21 @@ export function reportModel({ projectName = '', organizationName = '', project, 
     qc: Object.values(project.qc || {}).filter((r) => r?.result?.qc).map((r) => ({
       volume: r.volumeName || r.result.volume_name || 'volume',
       at: String(r.at || '').slice(0, 10),
-      windows: r.result.qc.windows.map((w) => [`${Math.round(w.t0Ms)} to ${Math.round(w.t1Ms)}`, w.stats.peakHz.toFixed(1), `${w.stats.band6[0].toFixed(1)} to ${w.stats.band6[1].toFixed(1)}`, Number.isFinite(w.snr.median) ? `${w.snr.median.toFixed(2)} (${w.snr.medianDb?.toFixed(1)} dB)` : 'n/a']),
+      windows: r.result.qc.windows.map((w) => [`${Math.round(w.t0Ms)} to ${Math.round(w.t1Ms)}`, w.stats.peakHz.toFixed(1), `${w.stats.band6[0].toFixed(1)} to ${w.stats.band6[1].toFixed(1)}`, snrText(w.snr.median)]),
       footprints: r.result.qc.footprints.map((f) => [String(Math.round(f.tMs)), ...[f.alongCrossline, f.alongInline].map((v) => (f.error || !v ? (f.error || 'n/a') : `${isStripe(v) ? 'stripe' : 'none'}, period ${v.period.toFixed(1)}, ${Math.round(v.share * 100)} percent`))]),
     })),
+    ties: (() => {
+      const tr = tieRows(ready);
+      let cmp = null;
+      try { cmp = waveletComparison(tr); } catch { cmp = null; }
+      const fit = new Map((cmp?.misfit || []).map((m) => [m.name, m.corrToAverage]));
+      return tr.map((r) => [r.wellName, ...(r.tie ? [
+        r.tie.meanCorr != null ? r.tie.meanCorr.toFixed(2) : '',
+        r.tie.shiftMs != null ? r.tie.shiftMs.toFixed(1) : '',
+        r.tie.wavelet ? `${r.tie.wavelet.kind || 'tie'}, ${r.tie.wavelet.peakHz ?? ''} Hz, ${r.tie.wavelet.phaseDeg ?? ''} deg` : '',
+        fit.has(r.wellName) ? fit.get(r.wellName).toFixed(2) : '',
+      ] : ['no tie', '', '', ''])]);
+    })(),
     assumptions: [
       'Curve coverage is judged on each curve\'s recorded depth extent against the zone; gaps inside the extent are checked in Well Data Manager and Rock Physics Studio.',
       'A target is matched by zone name on every well.',
@@ -89,6 +102,7 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
     table(`Seismic QC: ${q.volume}`, ['Window (ms)', 'Peak (Hz)', '-6 dB band (Hz)', 'Signal-to-noise'], q.windows, { note: `Run on the seismic worker${q.at ? ` on ${q.at}` : ''}: spectra and the -6 dB band per window, signal-to-noise from neighbouring traces.` });
     table(`Acquisition footprint: ${q.volume}`, ['Time (ms)', 'Along crosslines', 'Along inlines'], q.footprints, { note: 'RMS amplitude maps around each time; a stripe is a period holding over 30 percent of the profile variance, at least ten times the median power of the band and repeated at least five times across the slice.' });
   }
+  if (model.ties.length) table('Well ties', ['Well', 'Mean correlation', 'Bulk shift (ms)', 'Wavelet', 'Fit to the field wavelet'], model.ties, { note: 'From the QC record committed with each tie in Seismolord. The field wavelet is the average of the stored tie wavelets, aligned and normalised.' });
   if (model.issues.rows.length) table('Issue register', model.issues.head, model.issues.rows, { fontSize: 6.5 });
   else section('Issue register', 'No open or resolved issues.');
   for (const f of model.feasibility) {

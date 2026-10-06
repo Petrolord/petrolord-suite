@@ -98,6 +98,17 @@ export async function runSeismicQc({ getBrick, geom, dtMs, inlines = 12, tracesP
  * QC issues for the issue register, from a result: weak signal, a narrow
  * band, a footprint, and a band that collapses with depth.
  */
+/**
+ * Signal-to-noise in words. Coherency saturates on noise-free data (the
+ * engine clamps the correlation just below 1), so very high values read as
+ * "over 10,000 (over 40 dB)" rather than a meaningless exact figure.
+ */
+export function snrText(snr) {
+  if (!Number.isFinite(snr)) return 'n/a';
+  if (snr >= 1e4) return 'over 10,000 (over 40 dB)';
+  return `${snr.toFixed(2)} (${(10 * Math.log10(Math.max(snr, 1e-12))).toFixed(1)} dB)`;
+}
+
 /** The footprint rule: a large share, a prominent peak and at least five repeats across the slice. */
 export const isStripe = (v) => !!v && v.share > 0.3 && v.prominence >= 10 && v.cycles >= 5;
 

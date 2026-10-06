@@ -10,6 +10,7 @@ import {
   angleGather, pickEvent, fitInterceptGradient, phaseRotatedRicker, GATHER_METHODS,
 } from '../engine/gather';
 import { shuey } from '../engine/avo';
+import { resampleWavelet } from '../engine/wavelets';
 import { meanAt } from './prep';
 
 export const DEFAULT_GATHER = Object.freeze({
@@ -48,6 +49,8 @@ export function tieWavelet(well) {
     peakHz: Number(w.peak_hz),
     phaseDeg: Number.isFinite(Number(w.phase_deg)) ? Number(w.phase_deg) : 0,
     measuredAt: qc.measured_at || null,
+    // QI A6: ties stored since 2026-10-06 keep the wavelet itself
+    ...(Array.isArray(w.samples) && w.samples.length >= 5 && Number(w.dt_ms) > 0 ? { samples: w.samples, dtMs: Number(w.dt_ms) } : {}),
   };
 }
 
@@ -58,13 +61,26 @@ export function waveletFor(cfg, well) {
   const freqHz = tie ? tie.peakHz : c.freqHz;
   const phaseDeg = tie ? tie.phaseDeg : c.phaseDeg;
   const half = Math.min(120, Math.max(40, Math.round(2000 / freqHz)));
+  // QI A6: the extracted wavelet itself when the tie stored it (resampled to
+  // the gather's interval); an older record is rebuilt as a phase-rotated Ricker
+  if (tie?.samples) {
+    const samples = tie.dtMs === c.dtMs ? Float64Array.from(tie.samples) : resampleWavelet(tie.samples, tie.dtMs, c.dtMs);
+    return {
+      samples,
+      source: 'tie-samples',
+      freqHz,
+      phaseDeg,
+      label: `Seismolord tie wavelet (${tie.kind}, the extracted wavelet itself${tie.dtMs === c.dtMs ? '' : `, resampled from ${tie.dtMs} ms`}; peak ${freqHz.toFixed(1)} Hz, phase ${phaseDeg.toFixed(0)} deg)`,
+      fellBack: false,
+    };
+  }
   return {
     samples: phaseRotatedRicker(freqHz, c.dtMs, phaseDeg, half),
     source: tie ? 'tie' : 'ricker',
     freqHz,
     phaseDeg,
     label: tie
-      ? `Seismolord tie wavelet (${tie.kind}, peak ${freqHz.toFixed(1)} Hz, phase ${phaseDeg.toFixed(0)} deg; rebuilt as a phase-rotated Ricker from the stored tie record)`
+      ? `Seismolord tie wavelet (${tie.kind}, peak ${freqHz.toFixed(1)} Hz, phase ${phaseDeg.toFixed(0)} deg; rebuilt as a phase-rotated Ricker: this tie was stored before wavelets were kept, so re-commit it in Seismolord to use the wavelet itself)`
       : `Ricker ${freqHz} Hz${phaseDeg ? `, phase ${phaseDeg} deg` : ', zero phase'}`,
     fellBack: c.wavelet === 'tie' && !tie,
   };
