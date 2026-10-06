@@ -178,8 +178,14 @@ test('inversion: the wells read into impedance, the blind-well check and a volum
   expect(params.inversion.wells.map((w) => w.name)).toEqual(['KETA-1', 'KETA-4']);
   expect(params.inversion.horizon_ids).toEqual(['qi-h1']);
   expect(params.inversion.wavelet.samples.length % 2).toBe(1);
+  // sensitivity: four wavelets (the field one and three ties) x three model cuts, then the spread at the wells
+  expect(screen.getByTestId('qi-inv-scenarios')).toHaveTextContent('12 scenarios (at most 12)');
+  fireEvent.click(screen.getByTestId('qi-inv-spread-blind'));
+  expect(await screen.findByTestId('qi-inv-spread-wells', {}, { timeout: 20000 })).toHaveTextContent(/KETA-4\s*4\.0\s*6\.0\s*9\.0/);
+  expect(enqueue.mock.calls[1][1].inversion.sensitivity).toMatchObject({ lfm_factors: [0.5, 1, 1.5] });
+  expect(enqueue.mock.calls[1][1].inversion.sensitivity.wavelets).toHaveLength(4);
   fireEvent.click(screen.getByTestId('qi-inv-run'));
   const runs = await screen.findByTestId('qi-inv-runs', {}, { timeout: 20000 });
   await waitFor(() => expect(runs).toHaveTextContent(/Ready: open in Seismolord/));
-  expect(enqueue.mock.calls[1][1]).toMatchObject({ mode: 'volume', volume_id: 'mem-inv-qi-v1' });
+  expect(enqueue.mock.calls[2][1]).toMatchObject({ mode: 'volume', volume_id: 'mem-inv-qi-v1' });
 });

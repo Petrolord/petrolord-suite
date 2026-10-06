@@ -168,3 +168,41 @@ test('the recorded settings carry no logs or wavelet samples', () => {
   expect(JSON.stringify(s)).not.toMatch(/ln_ai|samples/);
   expect(s.wells).toEqual(['A', 'B', 'C', 'D']);
 });
+
+describe('sensitivity', () => {
+  const O = ['66666666-6666-4666-8666-666666666661', '66666666-6666-4666-8666-666666666662', '66666666-6666-4666-8666-666666666663', '66666666-6666-4666-8666-666666666664'];
+  const SENS = { lfm_factors: [0.5, 1, 1.5] };
+  test('blind mode adds the error spread per well and per scenario', async () => {
+    const out = await poststackInversion(ctxFor(params('blind', { sensitivity: SENS })), depsFor({ volumes: { [VOL]: PARENT }, horizons: HZ_ROWS }));
+    expect(out.sensitivity.scenarios).toHaveLength(3);
+    expect(out.sensitivity.rows).toHaveLength(4);
+    for (const r of out.sensitivity.rows) expect(r.q10).toBeLessThanOrEqual(r.q90);
+    expect(out.settings.scenarios).toEqual(out.sensitivity.scenarios);
+  });
+  test('a volume run writes Q10, Q50, Q90 and the spread in one pass', async () => {
+    const uploads = new Map();
+    const storage = { upload: async (path, bytes) => { uploads.set(path, bytes); return {}; } };
+    const volumes = { [VOL]: PARENT };
+    O.forEach((id) => { volumes[id] = { ...DERIVED, id, storage_path: `${UID}/${id}` }; });
+    const p = { ...params('blind', { sensitivity: SENS }), mode: 'volume', volume_ids: { q10: O[0], q50: O[1], q90: O[2], spread: O[3] } };
+    const out = await poststackInversion(ctxFor(p), depsFor({ volumes, horizons: HZ_ROWS }, { storage }));
+    expect(out.volume_ids).toEqual({ q10: O[0], q50: O[1], q90: O[2], spread: O[3] });
+    const man = O.map((id) => JSON.parse(new TextDecoder().decode(uploads.get(`${UID}/${id}/manifest.json`))));
+    expect(man.map((m) => m.attribute.params.product)).toEqual(['q10', 'q50', 'q90', 'spread']);
+    const at = (id, il, xl, s) => new Float32Array(uploads.get(`${UID}/${id}/bricks/0-0-${Math.floor(s / B)}.f32`).buffer.slice(0))[((il % B) * B + xl) * B + (s % B)];
+    let spreadSeen = 0;
+    for (let s = 40; s < 130; s += 5) {
+      const [a, b2, c, sp] = O.map((id) => at(id, 3, 2, s));
+      expect(a).toBeLessThanOrEqual(b2 + 1e-3);
+      expect(b2).toBeLessThanOrEqual(c + 1e-3);
+      expect(sp).toBeCloseTo((c - a) / b2, 4);
+      if (sp > 1e-4) spreadSeen += 1;
+    }
+    expect(spreadSeen).toBeGreaterThan(5);
+    expect(man[3].stats.max).toBeLessThan(1); // a relative spread, not an impedance
+  });
+  test('refusals: the four volume ids, an absolute method', () => {
+    expect(validatePoststackParams({ ...params('volume', { sensitivity: SENS }) })).toMatch(/volume_ids/);
+    expect(validatePoststackParams(params('blind', { sensitivity: SENS, method: 'coloured' }))).toMatch(/absolute/);
+  });
+});

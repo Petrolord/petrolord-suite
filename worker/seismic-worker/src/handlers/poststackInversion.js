@@ -7,6 +7,10 @@
 //  - volume: the same check, then every trace, published as a derived v4
 //    volume the Seismolord viewer opens (the attribute_volume publishing:
 //    the browser registers the row 'ingesting', kind 'attribute', first).
+// With a sensitivity block (absolute methods) the blind result adds the
+// error spread per well and per scenario, and a volume run writes four
+// volumes in one pass: AI at Q10, Q50 and Q90 across the scenarios, and the
+// relative spread (params.volume_ids: {q10, q50, q90, spread}).
 //
 // params: { mode, parent_volume_id, volume_id? (volume mode), name?,
 //   inversion: { method, wavelet: {samples, dt_ms}, wells: [{name, il, xl,
@@ -23,6 +27,7 @@ import { seismicQuota, overQuotaMessage } from '../quota.js';
 import {
   validateInversionParams, lfmWells, horizonsAtFrom, waveletScale, makeTraceInverter,
   blindWellTable, colouredFromWells, INVERSION_DEFAULTS, INVERSION_METHODS,
+  makeScenarioInverters, blindSensitivity, spreadProducts,
 } from '../../../../src/pages/apps/QIStudio/services/inversionRun.js';
 import { assertFloat32Parent, derivedStorageBytes, derivedSurveyMeta } from '../../../../src/pages/apps/Seismolord/services/attributeSurveyMeta.js';
 import { storageBrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCache.js';
@@ -38,11 +43,21 @@ import {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const UPLOADS_IN_FLIGHT = 4;
 export const INVERSION_ATTRIBUTE = 'qi_inversion';
+export const SPREAD_PRODUCTS = Object.freeze([
+  { key: 'q10', label: 'AI, 10th percentile' },
+  { key: 'q50', label: 'AI, 50th percentile' },
+  { key: 'q90', label: 'AI, 90th percentile' },
+  { key: 'spread', label: 'Relative spread (Q90 - Q10) / Q50' },
+]);
 
 export function validatePoststackParams(p) {
   if (!p || typeof p !== 'object') return 'Missing job settings.';
   if (!UUID.test(String(p.parent_volume_id))) return 'parent_volume_id is required.';
-  if (p.mode === 'volume' && !UUID.test(String(p.volume_id))) return 'volume_id is required for a volume run.';
+  if (p.mode === 'volume') {
+    if (p.inversion?.sensitivity) {
+      if (!SPREAD_PRODUCTS.every((x) => UUID.test(String(p.volume_ids?.[x.key])))) return 'volume_ids needs q10, q50, q90 and spread for a sensitivity volume run.';
+    } else if (!UUID.test(String(p.volume_id))) return 'volume_id is required for a volume run.';
+  }
   const why = validateInversionParams(p);
   if (why) return why;
   if ((p.inversion.horizon_ids || []).some((h) => !UUID.test(String(h)))) return 'Each horizon id must be a uuid.';
@@ -85,24 +100,27 @@ export async function poststackInversion(ctx, deps) {
     if (error) throw new Error(`Could not read volume ${id}: ${error.message}`);
     return data;
   };
-  let derived = null;
+  const sens = absolute ? inv.sensitivity || null : null;
+  const targetIds = p.mode !== 'volume' ? [] : (sens ? SPREAD_PRODUCTS.map((x) => p.volume_ids[x.key]) : [p.volume_id]);
+  let derived = [];
   const uploaded = [];
   const cleanup = async () => {
-    if (!derived) return;
+    if (!derived.length) return;
     try {
       for (let i = 0; i < uploaded.length; i += 500) await admin.storage.from('seismic').remove(uploaded.slice(i, i + 500));
-      await admin.from('seismic_volumes').delete().eq('id', derived.id).eq('user_id', uid);
+      for (const d of derived) await admin.from('seismic_volumes').delete().eq('id', d.id).eq('user_id', uid);
     } catch (e) {
-      ctx.log?.warn?.(`cleanup of ${derived.id} failed: ${e.message}`);
+      ctx.log?.warn?.(`cleanup of ${derived.map((d) => d.id).join(', ')} failed: ${e.message}`);
     }
   };
-  if (p.mode === 'volume') {
-    derived = await rowOf(p.volume_id);
-    if (!derived || derived.user_id !== uid) { derived = null; throw new JobFailure('not_found', 'The inversion volume was not found in your account.'); }
-    if (derived.kind !== 'attribute' || derived.parent_volume_id !== p.parent_volume_id || derived.status !== 'ingesting') {
-      derived = null;
+  for (const id of targetIds) {
+    const row = await rowOf(id);
+    if (!row || row.user_id !== uid) { derived = []; throw new JobFailure('not_found', 'The inversion volume was not found in your account.'); }
+    if (row.kind !== 'attribute' || row.parent_volume_id !== p.parent_volume_id || row.status !== 'ingesting') {
+      derived = [];
       throw new JobFailure('validate_failed', 'The inversion volume is not a new volume registered on that seismic.');
     }
+    derived.push(row);
   }
 
   const fail = async (stage, message) => { await cleanup(); throw new JobFailure(stage, message); };
@@ -125,9 +143,9 @@ export async function poststackInversion(ctx, deps) {
     if (w.ln_ai.length !== ns) return fail('validate_failed', `Well ${w.name}: the impedance log has ${w.ln_ai.length} samples; the volume has ${ns}.`);
   }
   if (p.mode === 'volume') {
-    const need = derivedStorageBytes(manifest);
+    const need = derivedStorageBytes(manifest) * derived.length;
     const q = await seismicQuota(admin, uid);
-    if (q.used + need > q.quota) return fail('over_quota', overQuotaMessage('The inversion volume', need, q));
+    if (q.used + need > q.quota) return fail('over_quota', overQuotaMessage(derived.length > 1 ? 'The inversion volumes' : 'The inversion volume', need, q));
   }
 
   // horizons: the user's own picks on this volume
@@ -163,8 +181,11 @@ export async function poststackInversion(ctx, deps) {
   const posOf = aff ? (il, xl) => ilxlToWorld(aff, il, xl) : (il, xl) => ({ x: il, y: xl });
   const horizonsAt = horizonsAtFrom(grids, nXl, dtMs);
   const s = { ...INVERSION_DEFAULTS, ...inv };
-  let wavelet = Float64Array.from(inv.wavelet.samples);
-  if (Number(inv.wavelet.dt_ms) > 0 && Math.abs(inv.wavelet.dt_ms - dtMs) > 1e-9) wavelet = resampleWavelet(wavelet, inv.wavelet.dt_ms, dtMs);
+  const onGrid = (w) => {
+    const x = Float64Array.from(w.samples);
+    return Number(w.dt_ms) > 0 && Math.abs(w.dt_ms - dtMs) > 1e-9 ? resampleWavelet(x, w.dt_ms, dtMs) : x;
+  };
+  let wavelet = onGrid(inv.wavelet);
 
   ctx.progress(0.01, 'Reading the well traces');
   const traces = [];
@@ -188,20 +209,36 @@ export async function poststackInversion(ctx, deps) {
   const blind = inv.wells.length >= 2
     ? blindWellTable({ invert, wells: inv.wells, traces, dtMs, truthHz: s.truthHz, absolute, lowCutHz: s.band[0] })
     : [];
-  const summary = inversionSummary(inv, { ...(scale != null ? { wavelet_scale: scale } : {}), ...(alpha != null ? { impedance_slope: alpha } : {}) });
+  let scenarioRun = null; let sensitivity = null;
+  if (sens) {
+    ctx.progress(0.04, 'Sensitivity at the wells');
+    const invS = {
+      ...inv,
+      wavelet: { ...inv.wavelet, samples: Array.from(onGrid(inv.wavelet)) },
+      sensitivity: { ...sens, wavelets: (sens.wavelets || []).map((w) => ({ ...w, samples: Array.from(onGrid(w)) })) },
+    };
+    try {
+      scenarioRun = makeScenarioInverters({ inv: invS, wells: inv.wells, traces, posOf, horizonsAt, ns, dtMs });
+    } catch (e) {
+      return fail('compute_failed', e.message);
+    }
+    const bs = inv.wells.length >= 2 ? blindSensitivity({ ...scenarioRun, wells: inv.wells, traces, dtMs, truthHz: s.truthHz }) : { rows: [], byScenario: [] };
+    sensitivity = { scenarios: scenarioRun.scenarios.map((x) => x.label), scales: scenarioRun.scales, snr: sens.snr ?? null, ...bs };
+  }
+  const summary = inversionSummary(inv, { ...(scale != null ? { wavelet_scale: scale } : {}), ...(alpha != null ? { impedance_slope: alpha } : {}), ...(sensitivity ? { scenarios: sensitivity.scenarios } : {}) });
   if (ctx.cancelled) { await cleanup(); return null; }
   if (p.mode === 'blind') {
     ctx.progress(1, 'Done');
-    return { mode: 'blind', parent_volume_id: parent.id, volume_name: parent.name, settings: summary, blind };
+    return { mode: 'blind', parent_volume_id: parent.id, volume_name: parent.name, settings: summary, blind, ...(sensitivity ? { sensitivity } : {}) };
   }
 
   // the whole volume, published like an attribute volume
-  const dir = volumeDir(uid, derived.id);
+  const dirs = derived.map((d) => volumeDir(uid, d.id));
   const inflight = new Set();
   let uploadError = null;
-  const onBrick = async ({ i, j, k, data }) => {
+  const onBrick = async ({ i, j, k, data, output = 0 }) => {
     if (uploadError) throw uploadError;
-    const path = `${dir}/${brickRelPath(i, j, k)}`;
+    const path = `${dirs[output]}/${brickRelPath(i, j, k)}`;
     const task = deps.storage.upload(path, new Uint8Array(data.buffer, data.byteOffset, data.byteLength), { contentType: 'application/octet-stream', upsert: false })
       .then(() => { uploaded.push(path); })
       .catch((e) => { uploadError = uploadError || e; })
@@ -209,17 +246,17 @@ export async function poststackInversion(ctx, deps) {
     inflight.add(task);
     if (inflight.size >= UPLOADS_IN_FLIGHT) await Promise.race(inflight);
   };
-  const compute = (trace, out, il, xl) => {
-    const m = invert(trace, il, xl);
-    for (let k = 0; k < ns; k++) {
-      const v = absolute ? Math.exp(m[k]) : m[k];
-      out[k] = Number.isFinite(v) ? v : NULL_VALUE;
-    }
-  };
+  const put = (out, values) => { for (let k = 0; k < ns; k++) out[k] = Number.isFinite(values[k]) ? values[k] : NULL_VALUE; };
+  const compute = scenarioRun
+    ? (trace, outs, il, xl) => { spreadProducts(scenarioRun.realise(trace, il, xl)).forEach((v, o) => put(outs[o], v)); }
+    : (trace, out, il, xl) => {
+      const m = invert(trace, il, xl);
+      put(out, absolute ? m.map(Math.exp) : m);
+    };
   let result;
   try {
     result = await runVolumeJob({
-      geom, compute, fetchBrick, onBrick,
+      geom, compute, fetchBrick, onBrick, outputs: derived.length,
       shouldCancel: () => ctx.cancelled,
       onProgress: (done, total) => ctx.progress(0.03 + 0.92 * (total ? done / total : 0), 'Inverting'),
     });
@@ -232,15 +269,27 @@ export async function poststackInversion(ctx, deps) {
     throw e;
   }
   try {
-    const attribute = { name: INVERSION_ATTRIBUTE, params: { ...summary, blind } };
-    const out = buildDerivedManifest({ volumeId: derived.id, name: derived.name, parentManifest: manifest, attribute, job: result });
-    await deps.storage.upload(manifestPath(uid, derived.id), new TextEncoder().encode(JSON.stringify(out, null, 1)), { contentType: 'application/json', upsert: true });
-    const { error } = await admin.from('seismic_volumes')
-      .update({ status: 'ready', survey_meta: derivedSurveyMeta(out, parent.id), updated_at: new Date().toISOString() })
-      .eq('id', derived.id).eq('user_id', uid);
-    if (error) throw new Error(`Inversion computed but registration failed: ${error.message}`);
+    for (let o = 0; o < derived.length; o++) {
+      const d = derived[o];
+      const product = scenarioRun ? { product: SPREAD_PRODUCTS[o].key, product_label: SPREAD_PRODUCTS[o].label } : {};
+      const attribute = { name: INVERSION_ATTRIBUTE, params: { ...summary, ...product, blind, ...(sensitivity ? { sensitivity } : {}) } };
+      const job = scenarioRun ? { ...result, stats: result.statsByOutput[o] } : result;
+      const out = buildDerivedManifest({ volumeId: d.id, name: d.name, parentManifest: manifest, attribute, job });
+      await deps.storage.upload(manifestPath(uid, d.id), new TextEncoder().encode(JSON.stringify(out, null, 1)), { contentType: 'application/json', upsert: true });
+      const { error } = await admin.from('seismic_volumes')
+        .update({ status: 'ready', survey_meta: derivedSurveyMeta(out, parent.id), updated_at: new Date().toISOString() })
+        .eq('id', d.id).eq('user_id', uid);
+      if (error) throw new Error(`Inversion computed but registration failed: ${error.message}`);
+    }
     ctx.progress(1, 'Done');
-    return { mode: 'volume', volume_id: derived.id, parent_volume_id: parent.id, volume_name: parent.name, settings: summary, blind, bricks: uploaded.length, trace_count: result.traceCount };
+    return {
+      mode: 'volume',
+      volume_id: derived[0].id,
+      ...(scenarioRun ? { volume_ids: Object.fromEntries(SPREAD_PRODUCTS.map((x, o) => [x.key, derived[o].id])) } : {}),
+      parent_volume_id: parent.id, volume_name: parent.name, settings: summary, blind,
+      ...(sensitivity ? { sensitivity } : {}),
+      bricks: uploaded.length, trace_count: result.traceCount,
+    };
   } catch (e) {
     await cleanup();
     throw e;

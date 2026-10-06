@@ -76,17 +76,23 @@ export function reportModel({ projectName = '', organizationName = '', project, 
         fit.has(r.wellName) ? fit.get(r.wellName).toFixed(2) : '',
       ] : ['no tie', '', '', ''])]);
     })(),
-    inversion: Object.values(project.inversion || {}).filter((r) => r?.blind?.result?.blind?.length).map((r) => {
-      const res = r.blind.result;
+    inversion: Object.values(project.inversion || {}).filter((r) => r?.blind?.result?.blind?.length || r?.spread?.result?.blind?.length).map((r) => {
+      // the base blind table comes with the sensitivity run too
+      const rec = r.blind?.result?.blind?.length ? r.blind : r.spread;
+      const res = rec.result;
       const rel = res.settings?.output === 'relative AI';
       const n = (v, d) => (Number.isFinite(v) ? v.toFixed(d) : '');
       return {
-        volume: r.blind.volumeName || res.volume_name || 'volume',
-        at: String(r.blind.at || '').slice(0, 10),
+        volume: rec.volumeName || res.volume_name || 'volume',
+        at: String(rec.at || '').slice(0, 10),
         method: INVERSION_METHODS[res.settings?.method]?.label || res.settings?.method || '',
         relative: rel,
         rows: res.blind.map((w) => [w.name, n(w.blind.corr, 2), rel ? 'n/a' : n(w.blind.rmsPct, 1), n(w.withWell.corr, 2), rel ? 'n/a' : n(w.withWell.rmsPct, 1)]),
         volumes: (r.runs || []).filter((x) => x.status === 'ready').map((x) => x.name),
+        spread: r.spread?.result?.sensitivity ? {
+          rows: r.spread.result.sensitivity.rows.map((w) => [w.name, n(w.q10, 1), n(w.q50, 1), n(w.q90, 1)]),
+          scenarios: r.spread.result.sensitivity.byScenario.map((x) => [x.label, n(x.meanRmsPct, 1)]),
+        } : null,
       };
     }),
     assumptions: [
@@ -121,6 +127,10 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
     table(`Impedance inversion: ${v.volume}`, ['Well', 'Blind correlation', 'Blind AI error (percent)', 'With the well: correlation', 'With the well: error (percent)'], v.rows, {
       note: `${v.method}, run on the seismic worker${v.at ? ` on ${v.at}` : ''}. Each well is left out of the low-frequency model in turn and compared with its own log after a high cut at ${INVERSION_DEFAULTS.truthHz} Hz${v.relative ? '; relative impedance has no level, so only the correlation is reported' : ''}. Products are elastic estimates.${v.volumes.length ? ` Impedance volumes: ${v.volumes.join(', ')}.` : ''}`,
     });
+    if (v.spread) {
+      table(`Inversion sensitivity: ${v.volume}`, ['Well', 'Blind AI error Q10 (percent)', 'Q50', 'Q90'], v.spread.rows, { note: 'The blind-well check repeated under each scenario (wavelet, model cut, noise); Q10, Q50 and Q90 are the 10th, 50th and 90th percentiles across the scenarios.' });
+      table(`Inversion scenarios: ${v.volume}`, ['Scenario', 'Mean blind AI error (percent)'], v.spread.scenarios, { note: 'The assumption whose scenarios raise the error most is the one the result depends on most.' });
+    }
   }
   if (model.issues.rows.length) table('Issue register', model.issues.head, model.issues.rows, { fontSize: 6.5 });
   else section('Issue register', 'No open or resolved issues.');

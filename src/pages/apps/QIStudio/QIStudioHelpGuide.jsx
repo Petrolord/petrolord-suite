@@ -114,6 +114,14 @@ function QIStudioHelpGuideContent() {
         <Para>
           {`Check at the wells first. Each well is left out of the model in turn, inverted, and compared with its own log after a high cut at ${INVERSION_DEFAULTS.truthHz} Hz: the blind correlation and the blind impedance error, beside the same figures with the well in the model. A blind correlation under 0.6, a blind error over 10 percent, or a blind error far above the with-well error (the result leans on the model away from wells) is offered to the issue register. Then invert the volume: the impedance opens in Seismolord as a new volume, and the check and the runs are kept with the project and printed in the report.`}
         </Para>
+        <Para>
+          Sensitivity and uncertainty repeat the inversion under alternative assumptions: each tie wavelet and the field
+          wavelet, the model cut at half and one and a half times the setting, and seeded noise at a signal-to-noise ratio
+          you set (up to twelve scenarios). Checked at the wells, it gives each well&apos;s blind error at its 10th, 50th and
+          90th percentile across the scenarios, and the mean error of each scenario, so you see which assumption the result
+          depends on most. Inverted over the volume, it writes four volumes in one run: impedance at Q10, Q50 and Q90 (the
+          10th, 50th and 90th percentiles per sample) and the relative spread (Q90 - Q10) / Q50.
+        </Para>
       </GuideSection>
 
       <GuideSection id="issues">

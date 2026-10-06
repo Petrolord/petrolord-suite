@@ -12,7 +12,10 @@ import * as qiService from '@/lib/qiService';
 import { useQIStudio } from '../QIStudioContext';
 import { tieRows, waveletComparison } from '../services/ties';
 import { prepareWell } from '../services/inversionWells';
-import { INVERSION_METHODS, INVERSION_DEFAULTS, inversionIssues } from '../services/inversionRun';
+import { INVERSION_METHODS, INVERSION_DEFAULTS, inversionIssues, validateSensitivity, MAX_SCENARIOS } from '../services/inversionRun';
+
+const SPREAD_KEYS = [['q10', 'AI Q10'], ['q50', 'AI Q50'], ['q90', 'AI Q90'], ['spread', 'AI spread']];
+const LFM_FACTORS = [0.5, 1, 1.5];
 
 const card = 'rounded-lg border border-pl-border bg-pl-surface p-4 space-y-3';
 const muted = 'text-xs text-pl-muted';
@@ -34,6 +37,37 @@ export function waveletChoices(ready) {
     if (w?.samples) out.push({ key: `well:${r.wellId}`, label: `${r.wellName} tie wavelet`, samples: w.samples.length % 2 ? w.samples : w.samples.slice(0, -1), dtMs: w.dtMs });
   }
   return out;
+}
+
+/** The sensitivity block of a job from the panel's choices, or null. */
+export function sensitivityBlock({ varyWavelet, varyModel, noise, snr }, choices) {
+  if (!varyWavelet && !varyModel && !noise) return null;
+  return {
+    wavelets: varyWavelet ? choices.map((c) => ({ label: c.label, samples: c.samples, dt_ms: c.dtMs })) : [],
+    lfm_factors: varyModel ? LFM_FACTORS : [1],
+    ...(noise ? { snr: Number(snr), seeds: 3 } : {}),
+  };
+}
+
+function SpreadTables({ result }) {
+  const sens = result.sensitivity;
+  if (!sens) return null;
+  return (
+    <div className="space-y-2" data-testid="qi-inv-spread-result">
+      <table className="text-xs" data-testid="qi-inv-spread-wells">
+        <thead><tr><th className={th}>Well</th><th className={th}>Blind AI error Q10 (percent)</th><th className={th}>Q50</th><th className={th}>Q90</th></tr></thead>
+        <tbody className="font-mono tabular-nums">
+          {sens.rows.map((r) => <tr key={r.name}><td className={`${td} font-sans`}>{r.name}</td><td className={td}>{f(r.q10, 1)}</td><td className={td}>{f(r.q50, 1)}</td><td className={td}>{f(r.q90, 1)}</td></tr>)}
+        </tbody>
+      </table>
+      <table className="text-xs" data-testid="qi-inv-spread-scenarios">
+        <thead><tr><th className={th}>Scenario</th><th className={th}>Mean blind AI error (percent)</th></tr></thead>
+        <tbody>
+          {sens.byScenario.map((r) => <tr key={r.label}><td className={td}>{r.label}</td><td className={`${td} font-mono`}>{f(r.meanRmsPct, 1)}</td></tr>)}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function BlindTable({ result }) {
@@ -71,6 +105,7 @@ export default function InversionPanel() {
   const [prep, setPrep] = useState(null); // {busy} | {frame, wells} | {error}
   const [job, setJob] = useState({}); // mode -> {job} | {error}
   const [outName, setOutName] = useState('');
+  const [spreadOpts, setSpreadOpts] = useState({ varyWavelet: true, varyModel: true, noise: false, snr: 5 });
   const stops = useRef([]);
   useEffect(() => () => { for (const x of stops.current) x(); }, []);
   const choices = useMemo(() => waveletChoices(ready), [ready]);
@@ -141,6 +176,36 @@ export default function InversionPanel() {
     } catch (e) {
       if (row) { try { await backend.removeVolume(row); } catch { /* best effort */ } }
       setJob((j) => ({ ...j, volume: { error: qiService.friendlyError(e) } }));
+    }
+  };
+  const sensBlock = sensitivityBlock(spreadOpts, choices);
+  const scenarioCount = sensBlock ? Math.max(1, sensBlock.wavelets.length) * sensBlock.lfm_factors.length * (sensBlock.snr != null ? sensBlock.seeds : 1) : 0;
+  const sensProblem = sensBlock ? validateSensitivity(sensBlock, s.method) : 'Choose at least one assumption to vary.';
+  const runSpreadBlind = async () => {
+    setJob((j) => ({ ...j, spread: { job: { status: 'queued', progress: 0 } } }));
+    try {
+      const jobId = await client.enqueueJob('poststack_inversion', { mode: 'blind', parent_volume_id: volume.id, name: `${volume.name} sensitivity at the wells`, inversion: { ...inversionBlock(), sensitivity: sensBlock } });
+      watch('spread', jobId, (row) => setInversion(volume.id, { spread: { jobId, at: row.finished_at || new Date().toISOString(), volumeName: volume.name, result: row.result_refs } }));
+    } catch (e) {
+      setJob((j) => ({ ...j, spread: { error: qiService.friendlyError(e) } }));
+    }
+  };
+  const runSpreadVolume = async () => {
+    const stem = outName.trim() || `${volume.name} AI, ${INVERSION_METHODS[s.method].label}`;
+    setJob((j) => ({ ...j, spreadVolume: { job: { status: 'queued', progress: 0 } } }));
+    const rows = [];
+    try {
+      const summary = { qi_class: 'elastic_estimate', method: s.method, wells: usable.map((w) => w.name), horizon_ids: s.horizonIds, sensitivity: true };
+      for (const [key, label] of SPREAD_KEYS) rows.push({ key, row: await backend.registerInversionVolume({ volume, name: `${stem}, ${label}`, summary: { ...summary, product: key } }) });
+      const volumeIds = Object.fromEntries(rows.map((r) => [r.key, r.row.id]));
+      const jobId = await client.enqueueJob('poststack_inversion', { mode: 'volume', parent_volume_id: volume.id, volume_ids: volumeIds, name: `${stem} (uncertainty)`, inversion: { ...inversionBlock(), sensitivity: sensBlock } });
+      setInversion(volume.id, (cur) => ({ runs: [...(cur.runs || []), { jobId, volumeId: volumeIds.q50, volumeIds, name: `${stem}: Q10, Q50, Q90 and spread`, method: s.method, at: new Date().toISOString(), status: 'queued' }] }));
+      watch('spreadVolume', jobId, (done) => setInversion(volume.id, (cur) => ({
+        runs: (cur.runs || []).map((r) => (r.jobId === jobId ? { ...r, status: 'ready', at: done.finished_at || r.at } : r)),
+      })));
+    } catch (e) {
+      for (const r of rows) { try { await backend.removeVolume(r.row); } catch { /* best effort */ } }
+      setJob((j) => ({ ...j, spreadVolume: { error: qiService.friendlyError(e) } }));
     }
   };
   const issues = useMemo(() => inversionIssues(saved.blind?.result?.blind, saved.blind?.volumeName), [saved.blind]);
@@ -262,6 +327,27 @@ export default function InversionPanel() {
           <input className={`${input} w-72`} placeholder={`${volume.name} AI, ${INVERSION_METHODS[s.method].label}`} value={outName} onChange={(e) => setOutName(e.target.value)} aria-label="Name of the impedance volume" />
           <button type="button" className={btn} onClick={runVolume} disabled={!canRun || busy('volume')} data-testid="qi-inv-run">Invert the volume</button>
           {status('volume')}
+        </div>
+      )}
+      {prep?.wells && INVERSION_METHODS[s.method].absolute && (
+        <div className="rounded border border-pl-border p-3 space-y-2 text-xs" data-testid="qi-inv-spread">
+          <h3 className="text-xs font-semibold text-pl-text">Sensitivity and uncertainty</h3>
+          <p className={muted}>The same inversion under alternative assumptions. Impedance is summarised per sample as its 10th, 50th and 90th percentiles across the scenarios (Q10, Q50, Q90), with the relative spread (Q90 - Q10) / Q50.</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-1"><input type="checkbox" checked={spreadOpts.varyWavelet} onChange={(e) => setSpreadOpts((o) => ({ ...o, varyWavelet: e.target.checked }))} data-testid="qi-inv-vary-wavelet" />{`Each wavelet (${choices.length})`}</label>
+            <label className="flex items-center gap-1"><input type="checkbox" checked={spreadOpts.varyModel} onChange={(e) => setSpreadOpts((o) => ({ ...o, varyModel: e.target.checked }))} />Model cut at half, as set, and one and a half</label>
+            <label className="flex items-center gap-1"><input type="checkbox" checked={spreadOpts.noise} onChange={(e) => setSpreadOpts((o) => ({ ...o, noise: e.target.checked }))} />Noise at signal-to-noise</label>
+            {spreadOpts.noise && <input className={`${input} w-16`} type="number" min="0.5" step="0.5" value={spreadOpts.snr} onChange={(e) => setSpreadOpts((o) => ({ ...o, snr: e.target.value }))} aria-label="Signal-to-noise ratio" />}
+            <span className="text-pl-muted" data-testid="qi-inv-scenarios">{`${scenarioCount} scenario${scenarioCount === 1 ? '' : 's'} (at most ${MAX_SCENARIOS})`}</span>
+          </div>
+          {sensProblem && <p className="text-pl-warning-text">{sensProblem}</p>}
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" className={btn} onClick={runSpreadBlind} disabled={!canRun || !!sensProblem || usable.length < 2 || busy('spread')} data-testid="qi-inv-spread-blind">Check the spread at the wells</button>
+            {status('spread')}
+            <button type="button" className={btn} onClick={runSpreadVolume} disabled={!canRun || !!sensProblem || busy('spreadVolume')} data-testid="qi-inv-spread-run">Invert with uncertainty (four volumes)</button>
+            {status('spreadVolume')}
+          </div>
+          {saved.spread?.result && <SpreadTables result={saved.spread.result} />}
         </div>
       )}
       {(saved.runs || []).length > 0 && (

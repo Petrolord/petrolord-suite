@@ -13,6 +13,7 @@ const project = {
     v1: {
       blind: { jobId: 'j1', at: '2026-10-06T20:00:00Z', volumeName: 'Keta 3D full stack', result: { settings: { method: 'model_based', output: 'AI' }, blind } },
       runs: [{ jobId: 'j2', volumeId: 'o1', name: 'Keta AI model-based', status: 'ready' }],
+      spread: { jobId: 'j3', at: '2026-10-06T21:00:00Z', volumeName: 'Keta 3D full stack', result: { settings: { method: 'model_based' }, blind, sensitivity: { rows: [{ name: 'KETA-1', q10: 3.1, q50: 4.2, q90: 6.8 }], byScenario: [{ label: 'field wavelet, model below 4 Hz', meanRmsPct: 7.4 }] } } },
     },
   },
 };
@@ -27,6 +28,9 @@ test('the report carries the blind-well table and the impedance volumes', () => 
   expect(t).toMatch(/Model-based, run on the seismic worker on 2026-10-06/);
   expect(t).toMatch(/Impedance volumes: Keta AI model-based/);
   expect(t).toMatch(/elastic estimates/);
+  expect(t).toMatch(/Inversion sensitivity: Keta 3D full stack/);
+  expect(t).toMatch(/field wavelet, model below 4 Hz/);
+  expect(t).toMatch(/10th, 50th and 90th percentiles across the scenarios/);
 });
 
 test('blind-well issues: poor correlation, large error, a result that leans on the model', () => {

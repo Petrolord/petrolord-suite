@@ -361,4 +361,25 @@ The quota is pooled per organisation. Building that is the next item.
   - **Labelling:** products carry `qi_class: elastic_estimate`, the method, the wells, the horizons and the settings (no logs or wavelet samples) in the derived manifest.
   - **Horizons:** the user's own picks on the inverted volume only (the worker checks this, as RLS would). A trace where any chosen horizon has no pick falls back to constant time.
 - **Worker deploy:** needed after merge, for the new kind.
-- **Next in Q8a:** sensitivity sweeps (wavelet, noise, LFM) into P10/P50/P90 volumes, and the Marmousi2 synthetic-truth gate.
+- **Merged:** #904 (main a59211821). The worker was redeployed as suite-a59211821+engines-d13d787f7 and is healthy with `poststack_inversion`.
+
+### B2 Q8a benchmark and uncertainty (2026-10-06)
+- **Engines #323, blind-well benchmark with known truth:**
+  - Data: the 2D impedance model of pylops' post-stack tutorial (testdata `avo/poststack_model.npz`), 50 traces x 400 samples, a 20 Hz Ricker, five wells.
+  - The engine reproduces pylops' blind inversions to a ln(AI) difference under 1e-4.
+  - Blind AI error at the five wells: 7.0, 5.8, 7.4, 12.6 and 15.5 percent. The model alone gives 12.2 to 19.2 percent. Every well improves, and the edge wells, where the model extrapolates, are worst.
+  - Negative control: a reversed-polarity wavelet is worse than the model alone at every well.
+  - This model stands in for the plan's Marmousi2 gate: the Marmousi2 download hosts were unavailable (403 and a retry page). The pylops model gives known truth with real structure. Marmousi2 itself can be added when a source is reachable.
+- **Engines #324:**
+  - `qi/inversionSpread.js`: per-sample quantiles (type 7, numpy's default, gated on numpy goldens), the relative spread, and seeded noise at a stated signal-to-noise ratio.
+  - `runVolumeJob`: an `outputs` option writes several volumes in one pass. The single-output path is unchanged, bit for bit.
+- **Suite:**
+  - The run module's scenarios: wavelet x model cut x noise seed, at most 12. Each wavelet is scaled at the wells on its own.
+  - The worker reports, at the wells, each well's blind error at Q10, Q50 and Q90 and each scenario's mean error.
+  - A volume run writes AI at Q10, Q50 and Q90 and the relative spread as four volumes.
+  - QI Studio adds a Sensitivity and uncertainty block, report tables and a help paragraph.
+- **Decisions:**
+  - **Labels:** Q10, Q50 and Q90 (the 10th, 50th and 90th percentiles), following the PT10 owner decision that parameters never carry P labels. The plan's "P10/P50/P90 volumes" are these Q volumes.
+  - **Ranking test:** with the true and a wrong wavelet, the wrong wavelet's scenarios carry the higher mean blind error (gated). With identical realisations the spread is zero (negative control).
+  - **Reproducible noise:** each trace's noise seed comes from the scenario seed and the trace position. A rerun gives the same volumes in any trace order.
+- **Worker deploy:** needed after merge, for the sensitivity path.
