@@ -50,7 +50,9 @@ export default function ComputeAttributeDialog({
   const [userId, setUserId] = useState(null);
   useEffect(() => {
     let live = true;
-    supabase.auth.getUser().then(({ data }) => { if (live) setUserId(data?.user?.id || null); }).catch(() => {});
+    // a missing auth client (tests, offline) means "not known to be the owner"
+    Promise.resolve().then(() => supabase.auth.getUser())
+      .then(({ data }) => { if (live) setUserId(data?.user?.id || null); }).catch(() => {});
     return () => { live = false; };
   }, []);
   const serverAdvice = serverAttributeAdvice({ parentManifest: manifest, isOwnVolume: Boolean(userId && volume?.user_id === userId) });
