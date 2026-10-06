@@ -282,3 +282,10 @@ The quota is pooled per organisation. Building that is the next item.
   - It is applied only where there is no shear log, so measured and estimated shear are never mixed.
   - EEI references are the zone means.
 - **Next in A2:** the multi-well crossplot workbench (WebGL scatter, no 1,500-point cap, polygons to facies curves).
+- **A2 multi-well workbench (2026-10-06):**
+  - Rock Physics Studio "Multi-well" view, built on Petrophysics Studio's canvas Crossplot. Above 20,000 points it draws batched squares, one path per colour; a test records the canvas calls, with a small cloud as the negative control.
+  - Every sample drawn.
+  - Per-well and pooled statistics, and a pooling warning (negative control: the same well twice never warns).
+  - EEI on one K across the wells; facies polygon counts.
+  - **Decision:** canvas batching in place of a WebGL renderer, as recorded in RockPhysicsStudio-STATUS.
+  - **Still open:** facies write-back as curves, and density and histogram views.

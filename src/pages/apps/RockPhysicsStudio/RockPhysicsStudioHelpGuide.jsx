@@ -27,6 +27,7 @@ export const HELP_SECTIONS = [
   { id: 'fluids', icon: Droplets, title: 'Fluids and Gassmann substitution' },
   { id: 'crossplot', icon: ScatterChart, title: 'Impedance against Vp/Vs' },
   { id: 'elastic', icon: ScatterChart, title: 'Elastic logs and the local shear trend' },
+  { id: 'workbench', icon: ScatterChart, title: 'Multi-well crossplot' },
   { id: 'avo', icon: Activity, title: 'AVO and the wet trend' },
   { id: 'gather', icon: AreaChart, title: 'Angle gather' },
   { id: 'wedge', icon: Triangle, title: 'Wedge and tuning' },
@@ -230,6 +231,28 @@ function RockPhysicsStudioHelpGuideContent() {
           Greenberg-Castagna, including the brine state of the hydrocarbon iteration, and carry a Vs uncertainty
           from the interval. The shear note on those wells names the trend, and counts samples outside the Vp
           range it was calibrated on.
+        </Para>
+      </GuideSection>
+
+      <GuideSection id="workbench">
+        <SectionHeading icon={ScatterChart}>Multi-well crossplot</SectionHeading>
+        <Para>
+          Multi-well plots any two of Vp, Vs, density, porosity, VSH, Sw, depth, AI, SI, Vp/Vs, Poisson&apos;s ratio,
+          λρ, μρ and EEI for every well you tick, over every sample or a zone the wells share, and draws every
+          sample. Colour by well, by fluid (Sw below 0.7 is hydrocarbon), by lithology (VSH below 0.5 is sand) or by
+          a third property. EEI takes one K and one set of references across the wells, so they sit on one scale.
+        </Para>
+        <SubHeading>Pooling</SubHeading>
+        <Para>
+          The table gives each well&apos;s sample count, means and standard deviations, and the pooled values. When a
+          well&apos;s mean sits more than one within-well standard deviation from the pooled mean, a note says so:
+          the wells may be different populations (a depth trend, compaction or a different rock), and pooling them
+          blurs the separation a feasibility study looks for.
+        </Para>
+        <SubHeading>Facies polygons</SubHeading>
+        <Para>
+          Draw a facies polygon, name it and close it; the table counts each well&apos;s samples inside it. A sample in
+          two polygons counts in the first. Polygons belong to the axes and units they were drawn on.
         </Para>
       </GuideSection>
 
