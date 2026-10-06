@@ -9,7 +9,7 @@ import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import * as qiService from '@/lib/qiService';
 import { useQIStudio } from '../QIStudioContext';
-import { isStripe } from '../services/qcRun';
+import { isStripe, snrText } from '../services/qcRun';
 
 const card = 'rounded-lg border border-pl-border bg-pl-surface p-4 space-y-3';
 const muted = 'text-xs text-pl-muted';
@@ -48,7 +48,7 @@ function QcResult({ record }) {
               <td className={td}>{`${Math.round(w.t0Ms)} to ${Math.round(w.t1Ms)}`}</td>
               <td className={td}>{w.stats.peakHz.toFixed(1)}</td>
               <td className={td}>{`${w.stats.band6[0].toFixed(1)} to ${w.stats.band6[1].toFixed(1)}`}</td>
-              <td className={td}>{Number.isFinite(w.snr.median) ? `${w.snr.median.toFixed(2)} (${w.snr.medianDb?.toFixed(1)} dB)` : 'n/a'}</td>
+              <td className={td}>{snrText(w.snr.median)}</td>
             </tr>
           ))}
         </tbody>

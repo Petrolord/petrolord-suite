@@ -5,7 +5,7 @@
  * acquisition stripe every 4 crosslines. Negative controls: the same volume
  * with no stripe, and a noise-dominated volume.
  */
-import { runSeismicQc, qcIssues, isStripe } from '../services/qcRun';
+import { runSeismicQc, qcIssues, isStripe, snrText } from '../services/qcRun';
 
 function rng(seed) {
   let s = seed;
@@ -69,4 +69,10 @@ test('negative controls: no stripe gives no footprint issue; a noisy volume rais
 
 test('refuses traces too short for the windows', async () => {
   await expect(runSeismicQc({ ...makeVolume({ ns: 40 }), windows: 3 })).rejects.toThrow(/too short/);
+});
+
+test('signal-to-noise in words: saturated coherency reads as over 40 dB', () => {
+  expect(snrText(999998.99)).toBe('over 10,000 (over 40 dB)');
+  expect(snrText(4)).toBe('4.00 (6.0 dB)');
+  expect(snrText(NaN)).toBe('n/a');
 });

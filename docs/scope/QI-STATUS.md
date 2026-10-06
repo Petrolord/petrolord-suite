@@ -324,3 +324,15 @@ The quota is pooled per organisation. Building that is the next item.
   - A stripe needs a share over 0.3, a prominence of at least 10 and at least 5 cycles across the slice.
   - No migration is needed: the queue accepts any well-formed job kind.
 - **Worker deploy:** needed after merge, for the new kind.
+- **A5 live (2026-10-06):**
+  - Worker redeployed as suite-d9003f25b+engines-290895d5f with the `seismic_qc` kind. This followed the fix in #902: A4's saved-project migration had been caught by the db-tests glob.
+  - Live QC of the QA 1,000,000-trace volume (qi-10g.sgy): succeeded in 140 s. It found peaks of 24.9, 26.5 and 18.1 Hz in three windows, flagged a narrow band in each (the file is a synthetic sinusoid), and found no footprint.
+  - S/N saturates on that noise-free synthetic, so values of 10,000 or more now display as "over 10,000 (over 40 dB)".
+
+### A6 Tie extensions (2026-10-06)
+- **Engines #320 `qi/wavelets.js`:** resample, normalise, align, and compare and average wavelets across wells. Gated on a known shift, scale and resampling, with a 90 degree rotated well as the negative control.
+- **Seismolord:**
+  - A committed tie now stores its wavelet's samples with the QC record: at most 121, centred, 5 significant digits, with dt (`storedSamples`).
+  - Synthetics offer a WDM-edited sonic (_DC, _ED, _SPL) as a sonic, labelled. When a drift-corrected sonic exists it is suggested with "Use it", never picked silently.
+- **Rock Physics Studio:** the gather's tie wavelet is now the stored wavelet itself, resampled to the gather interval. This fixes the plan's tieWavelet defect. An older record is still rebuilt as a phase-rotated Ricker and says to re-commit the tie.
+- **QI Studio, Well ties tab:** each well's tie (correlation, shift, wavelet), the aligned tie wavelets with their average (the field wavelet), and each well's fit to it. Issues cover no tie, poor (under 0.5) and fair (under 0.7) ties, wavelet not stored, phase spread over 30 degrees, frequency spread over 25 percent, and a well unlike the average (under 0.8). The report has a ties table.

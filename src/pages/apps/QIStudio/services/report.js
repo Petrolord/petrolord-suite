@@ -7,7 +7,7 @@ import { createReport } from '@/lib/reportKit';
 import { loadPetrolordLogo } from '@/lib/pdfBrand';
 import { STATES, inventorySummary } from './inventory';
 import { FEASIBILITY_VERDICTS } from './model';
-import { isStripe } from './qcRun';
+import { isStripe, snrText } from './qcRun';
 import { tieRows, waveletComparison } from './ties';
 
 export const REPORT_TITLE = 'QI Data Audit and Feasibility Report';
@@ -60,7 +60,7 @@ export function reportModel({ projectName = '', organizationName = '', project, 
     qc: Object.values(project.qc || {}).filter((r) => r?.result?.qc).map((r) => ({
       volume: r.volumeName || r.result.volume_name || 'volume',
       at: String(r.at || '').slice(0, 10),
-      windows: r.result.qc.windows.map((w) => [`${Math.round(w.t0Ms)} to ${Math.round(w.t1Ms)}`, w.stats.peakHz.toFixed(1), `${w.stats.band6[0].toFixed(1)} to ${w.stats.band6[1].toFixed(1)}`, Number.isFinite(w.snr.median) ? `${w.snr.median.toFixed(2)} (${w.snr.medianDb?.toFixed(1)} dB)` : 'n/a']),
+      windows: r.result.qc.windows.map((w) => [`${Math.round(w.t0Ms)} to ${Math.round(w.t1Ms)}`, w.stats.peakHz.toFixed(1), `${w.stats.band6[0].toFixed(1)} to ${w.stats.band6[1].toFixed(1)}`, snrText(w.snr.median)]),
       footprints: r.result.qc.footprints.map((f) => [String(Math.round(f.tMs)), ...[f.alongCrossline, f.alongInline].map((v) => (f.error || !v ? (f.error || 'n/a') : `${isStripe(v) ? 'stripe' : 'none'}, period ${v.period.toFixed(1)}, ${Math.round(v.share * 100)} percent`))]),
     })),
     ties: (() => {
