@@ -1,0 +1,108 @@
+// QI Studio in-app help guide (QI programme Q1 / A4, 2026-10-06), on the
+// shared HelpGuideLayout shell. The inventory groups and the usability items
+// are quoted from the live services so the guide cannot drift.
+//
+// Copy rule: no em dashes, no "X, not Y" contrastives.
+// Guard: __tests__/helpGuide.test.jsx.
+import React from 'react';
+import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2 } from 'lucide-react';
+import { HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Step, Table } from '@/components/helpguide/HelpGuideLayout';
+import SharingHelp from '@/components/recordSharing/SharingHelp';
+import { GROUPS, STATES } from './services/inventory';
+import { FAMILIES } from './services/usability';
+
+const APP_PATH = '/dashboard/apps/geoscience/qi-studio';
+
+export const HELP_SECTIONS = [
+  { id: 'overview', icon: BookOpen, title: 'What QI Studio is' },
+  { id: 'quickstart', icon: Zap, title: 'Quick start (10 min)' },
+  { id: 'inventory', icon: ClipboardList, title: 'Data inventory' },
+  { id: 'usability', icon: Grid3x3, title: 'Usability matrix' },
+  { id: 'issues', icon: AlertTriangle, title: 'Issue register' },
+  { id: 'feasibility', icon: Scale, title: 'Feasibility per target' },
+  { id: 'report', icon: FileText, title: 'The report' },
+  { id: 'sharing', icon: Share2, title: 'Saving and sharing' },
+];
+
+function QIStudioHelpGuideContent() {
+  return (
+    <HelpGuideShell
+      title="QI Studio Help Guide"
+      subtitle="The data audit and feasibility of a quantitative interpretation study"
+      metaDescription="How to set up a QI study, audit the data, read the usability matrix, keep an issue register, record feasibility per target and produce the audit report in Petrolord QI Studio."
+      backTo={APP_PATH}
+      backLabel="Back to QI Studio"
+      sections={HELP_SECTIONS}
+    >
+      <GuideSection id="overview">
+        <SectionHeading icon={BookOpen}>What QI Studio is</SectionHeading>
+        <Para>
+          QI Studio holds the first package of a quantitative interpretation study: what data was asked for and what
+          arrived, whether each well can support rock physics and a seismic tie at each target, the issues that follow,
+          and whether the targets are feasible. It reads the Suite&apos;s shared records (the wells registry of Well Data
+          Manager, Seismolord&apos;s volumes) and never changes them. The rock physics evidence is built in Rock Physics
+          Studio; QI Studio records the verdicts and produces the report.
+        </Para>
+        <Para>QI Studio opens with a Seismolord or Rock Physics Studio licence.</Para>
+      </GuideSection>
+
+      <GuideSection id="quickstart">
+        <SectionHeading icon={Zap}>Quick start (10 min)</SectionHeading>
+        <Step n={1} title="Create a project">Give the study a name in the project box. Without a project the work stays on the page only.</Step>
+        <Step n={2} title="Setup">Tick the wells and the target intervals (zone names shared by the wells), the seismic volumes, the date the seismic was acquired and each well&apos;s first production date.</Step>
+        <Step n={3} title="Data inventory">Check each group&apos;s state. Groups the Suite already holds are suggested; change them to what was delivered.</Step>
+        <Step n={4} title="Usability and issues">Read the matrix, open a cell for the reasons, then keep, resolve or dismiss the suggested issues.</Step>
+        <Step n={5} title="Feasibility and report">Record a verdict per target from Rock Physics Studio, then download the report.</Step>
+      </GuideSection>
+
+      <GuideSection id="inventory">
+        <SectionHeading icon={ClipboardList}>Data inventory</SectionHeading>
+        <Para>{`Each group takes one of ${STATES.length} states: ${STATES.map((s) => s.label.toLowerCase()).join(', ')}. A received date and a note travel with it. The groups:`}</Para>
+        <Table headers={['Area', 'Data']} rows={GROUPS.map((g) => [g.area, g.label])} />
+        <Para>Suggestions come from the registries: for example the share of wells with a shear log, or the seismic volumes chosen. A suggestion is only a starting point.</Para>
+      </GuideSection>
+
+      <GuideSection id="usability">
+        <SectionHeading icon={Grid3x3}>Usability matrix</SectionHeading>
+        <Para>
+          Every well against every target is good, limited or missing. A target is found on a well by its zone name.
+          Each curve family is judged on the recorded depth extent of the best curve over the zone; a digitized curve
+          counts as limited. Missing sonic or density, a missing zone or an unset elevation make a cell missing;
+          no shear log, partial coverage, no checkshots or no survey make it limited.
+        </Para>
+        <Table headers={['Curve family', 'Mnemonics read']} rows={Object.values(FAMILIES).map((f) => [f.label, f.aliases.slice(0, 8).join(', ')])} />
+        <SubHeading>Depletion</SubHeading>
+        <Para>When the seismic was acquired after a well&apos;s first production date, the well is flagged: amplitudes near it may show pressure and saturation changes the logs do not.</Para>
+      </GuideSection>
+
+      <GuideSection id="issues">
+        <SectionHeading icon={AlertTriangle}>Issue register</SectionHeading>
+        <Para>The matrix suggests one issue per well and kind of gap, with a remedy. Keep a suggestion by giving it an owner or a status; a dismissed or resolved issue stays as you left it. Add your own issues at the foot of the table.</Para>
+      </GuideSection>
+
+      <GuideSection id="feasibility">
+        <SectionHeading icon={Scale}>Feasibility per target</SectionHeading>
+        <Para>For each target record a verdict (feasible, feasible with conditions or not feasible) and the reasoning: which properties separate the cases, whether the change is detectable against tuning and noise, and the recommended route. The evidence is built in Rock Physics Studio (fluid substitution, rock model lines, the multi-well crossplot).</Para>
+      </GuideSection>
+
+      <GuideSection id="report">
+        <SectionHeading icon={FileText}>The report</SectionHeading>
+        <Para>The Report tab builds the QI data audit and feasibility report: a summary, the inventory, the usability matrix with the reasons for every limited or missing item, depletion notes, the issue register (dismissed issues left out), the feasibility of each target and the assumptions behind them.</Para>
+      </GuideSection>
+
+      <GuideSection id="sharing">
+        <SectionHeading icon={Share2}>Saving and sharing</SectionHeading>
+        <Para>A project saves every few seconds once it is created. Saving needs the QI Studio projects table on the database; until it is switched on the page says so and the work stays on screen.</Para>
+        <SharingHelp record="project" where="The sharing control is under the project box once the project is saved." />
+      </GuideSection>
+    </HelpGuideShell>
+  );
+}
+
+export default function QIStudioHelpGuide() {
+  return (
+    <div className="min-h-screen" data-testid="qi-help-theme-scope">
+      <QIStudioHelpGuideContent />
+    </div>
+  );
+}
