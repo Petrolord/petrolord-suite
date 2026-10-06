@@ -7,6 +7,7 @@ import { createReport } from '@/lib/reportKit';
 import { loadPetrolordLogo } from '@/lib/pdfBrand';
 import { STATES, inventorySummary } from './inventory';
 import { FEASIBILITY_VERDICTS } from './model';
+import { isStripe } from './qcRun';
 
 export const REPORT_TITLE = 'QI Data Audit and Feasibility Report';
 export const APP_NAME = 'Petrolord QI Studio';
@@ -55,6 +56,12 @@ export function reportModel({ projectName = '', organizationName = '', project, 
       const f = project.feasibility[t] || {};
       return { target: t, verdict: verdicts[k], separability: f.separability || '', detectability: f.detectability || '', route: f.route || '' };
     }),
+    qc: Object.values(project.qc || {}).filter((r) => r?.result?.qc).map((r) => ({
+      volume: r.volumeName || r.result.volume_name || 'volume',
+      at: String(r.at || '').slice(0, 10),
+      windows: r.result.qc.windows.map((w) => [`${Math.round(w.t0Ms)} to ${Math.round(w.t1Ms)}`, w.stats.peakHz.toFixed(1), `${w.stats.band6[0].toFixed(1)} to ${w.stats.band6[1].toFixed(1)}`, Number.isFinite(w.snr.median) ? `${w.snr.median.toFixed(2)} (${w.snr.medianDb?.toFixed(1)} dB)` : 'n/a']),
+      footprints: r.result.qc.footprints.map((f) => [String(Math.round(f.tMs)), ...[f.alongCrossline, f.alongInline].map((v) => (f.error || !v ? (f.error || 'n/a') : `${isStripe(v) ? 'stripe' : 'none'}, period ${v.period.toFixed(1)}, ${Math.round(v.share * 100)} percent`))]),
+    })),
     assumptions: [
       'Curve coverage is judged on each curve\'s recorded depth extent against the zone; gaps inside the extent are checked in Well Data Manager and Rock Physics Studio.',
       'A target is matched by zone name on every well.',
@@ -77,6 +84,10 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
     if (model.usability.depletion.length) section('Depletion', model.usability.depletion.join(' '));
   } else {
     section('Usability matrix', 'No wells or targets were chosen.');
+  }
+  for (const q of model.qc) {
+    table(`Seismic QC: ${q.volume}`, ['Window (ms)', 'Peak (Hz)', '-6 dB band (Hz)', 'Signal-to-noise'], q.windows, { note: `Run on the seismic worker${q.at ? ` on ${q.at}` : ''}: spectra and the -6 dB band per window, signal-to-noise from neighbouring traces.` });
+    table(`Acquisition footprint: ${q.volume}`, ['Time (ms)', 'Along crosslines', 'Along inlines'], q.footprints, { note: 'RMS amplitude maps around each time; a stripe is a period holding over 30 percent of the profile variance, at least ten times the median power of the band and repeated at least five times across the slice.' });
   }
   if (model.issues.rows.length) table('Issue register', model.issues.head, model.issues.rows, { fontSize: 6.5 });
   else section('Issue register', 'No open or resolved issues.');

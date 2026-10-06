@@ -1,6 +1,9 @@
 // In-memory QI Studio backend for the dev harness and tests: three wells
 // with different gaps (one complete, one with no shear log or checkshots,
-// one with no elevation and a digitized density), one seismic volume.
+// one with no elevation and a digitized density), one seismic volume, and a
+// job client that runs the real QC runner on a small synthetic volume (a
+// 30 Hz signal with a stripe every 4 crosslines) so the harness shows results.
+import { runSeismicQc, qcIssues } from './qcRun';
 
 const log = (mnemonic, start, stop, extra = {}) => ({ id: `${mnemonic}-${start}`, mnemonic, start_md_m: start, stop_md_m: stop, step_m: 0.5, ...extra });
 const zones = (wellId) => [
@@ -31,5 +34,32 @@ export function makeInMemoryBackend() {
     },
     async listVolumes() { return [{ id: 'qi-v1', name: 'Keta 3D full stack', kind: 'seismic', status: 'ready' }]; },
     async countSurfaces() { return 2; },
+    jobs: makeInMemoryJobs(),
+  };
+}
+
+function makeInMemoryJobs() {
+  const nIl = 16; const nXl = 32; const ns = 192; const b = 16;
+  const grid = [1, 2, 12];
+  const value = (il, xl, s) => Math.sin(s * 0.37 + il * 0.2) * Math.cos(s * 0.11) * (xl % 4 === 0 ? 1.5 : 1) + 0.2 * Math.sin(il * 13.1 + xl * 7.7 + s * 3.3);
+  const getBrick = async (bi, bj, bk) => {
+    const out = new Float32Array(b * b * b);
+    for (let li = 0; li < b; li++) for (let lj = 0; lj < b; lj++) for (let lk = 0; lk < b; lk++) {
+      const il = bi * b + li; const xl = bj * b + lj; const s = bk * b + lk;
+      if (il < nIl && xl < nXl && s < ns) out[(li * b + lj) * b + lk] = value(il, xl, s);
+    }
+    return out;
+  };
+  const results = new Map();
+  let n = 0;
+  return {
+    async enqueueJob(kind, params) {
+      n += 1;
+      const id = `mem-job-${n}`;
+      const qc = await runSeismicQc({ getBrick, geom: { nIl, nXl, ns, brickSize: b, grid }, dtMs: 2, inlines: 6 });
+      results.set(id, { id, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { volume_id: params.volume_id, volume_name: 'Keta 3D full stack', qc, issues: qcIssues(qc, 'Keta 3D full stack') } });
+      return id;
+    },
+    watchJob(id, onUpdate) { onUpdate(results.get(id), null); return () => {}; },
   };
 }

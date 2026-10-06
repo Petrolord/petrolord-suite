@@ -5,7 +5,7 @@
 // Copy rule: no em dashes, no "X, not Y" contrastives.
 // Guard: __tests__/helpGuide.test.jsx.
 import React from 'react';
-import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2 } from 'lucide-react';
+import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity } from 'lucide-react';
 import { HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Step, Table } from '@/components/helpguide/HelpGuideLayout';
 import SharingHelp from '@/components/recordSharing/SharingHelp';
 import { GROUPS, STATES } from './services/inventory';
@@ -18,6 +18,7 @@ export const HELP_SECTIONS = [
   { id: 'quickstart', icon: Zap, title: 'Quick start (10 min)' },
   { id: 'inventory', icon: ClipboardList, title: 'Data inventory' },
   { id: 'usability', icon: Grid3x3, title: 'Usability matrix' },
+  { id: 'qc', icon: Activity, title: 'Seismic QC' },
   { id: 'issues', icon: AlertTriangle, title: 'Issue register' },
   { id: 'feasibility', icon: Scale, title: 'Feasibility per target' },
   { id: 'report', icon: FileText, title: 'The report' },
@@ -73,6 +74,24 @@ function QIStudioHelpGuideContent() {
         <Table headers={['Curve family', 'Mnemonics read']} rows={Object.values(FAMILIES).map((f) => [f.label, f.aliases.slice(0, 8).join(', ')])} />
         <SubHeading>Depletion</SubHeading>
         <Para>When the seismic was acquired after a well&apos;s first production date, the well is flagged: amplitudes near it may show pressure and saturation changes the logs do not.</Para>
+      </GuideSection>
+
+      <GuideSection id="qc">
+        <SectionHeading icon={Activity}>Seismic QC</SectionHeading>
+        <Para>
+          For each volume chosen on Setup, Run QC on the server reads the whole volume on the seismic worker and
+          measures, in three time windows: the average amplitude spectrum, its peak and the band within 6 dB of the
+          peak; and the signal-to-noise ratio from how alike neighbouring traces are (Hatton and others, 1986: for a
+          correlation c between neighbours, signal-to-noise is c / (1 - c)). On RMS amplitude maps around three times
+          it looks for an acquisition footprint: a stripe that repeats every few lines.
+        </Para>
+        <Para>
+          A stripe is reported when one period and its harmonics hold over 30 percent of the map profile&apos;s
+          variance, stand at least ten times above the band&apos;s median power, and repeat at least five times across
+          the survey. Signal-to-noise below 1 is a high-severity issue and below 3 a medium one; a band narrower than
+          10 Hz, a footprint, and a dominant frequency that falls by 40 percent with depth are flagged too. Add the QC
+          issues to the register with one click; the results are kept with the project and printed in the report.
+        </Para>
       </GuideSection>
 
       <GuideSection id="issues">

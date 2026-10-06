@@ -21,11 +21,13 @@ import { QIStudioProvider, useQIStudio } from './QIStudioContext';
 import { makeRegistryBackend } from './services/registryBackend';
 import { exportQIStudioPdf, reportModel } from './services/report';
 import { SetupPanel, InventoryPanel, UsabilityPanel, IssuesPanel, FeasibilityPanel } from './components/Panels';
+import QcPanel from './components/QcPanel';
 
 const TABS = [
   { value: 'setup', label: 'Setup' },
   { value: 'inventory', label: 'Data inventory' },
   { value: 'usability', label: 'Usability' },
+  { value: 'qc', label: 'Seismic QC' },
   { value: 'issues', label: 'Issues' },
   { value: 'feasibility', label: 'Feasibility' },
   { value: 'report', label: 'Report' },
@@ -142,6 +144,7 @@ function QIStudioContent({ organizationName }) {
         {tab === 'setup' && <SetupPanel />}
         {tab === 'inventory' && <InventoryPanel />}
         {tab === 'usability' && <UsabilityPanel />}
+        {tab === 'qc' && <QcPanel />}
         {tab === 'issues' && <IssuesPanel />}
         {tab === 'feasibility' && <FeasibilityPanel />}
         {tab === 'report' && <ReportTab organizationName={organizationName} />}

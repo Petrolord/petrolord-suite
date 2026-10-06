@@ -25,6 +25,7 @@ export const blankProject = () => ({
   inventory: {},
   issues: [],
   feasibility: {},
+  qc: {},
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -46,6 +47,8 @@ export function projectFromPayload(payload) {
     inventory: isObj(p.inventory) ? { ...p.inventory } : b.inventory,
     issues: Array.isArray(p.issues) ? p.issues.filter(isObj).map((i) => ({ ...i })) : [],
     feasibility: isObj(p.feasibility) ? { ...p.feasibility } : {},
+    // seismic QC results per volume id: { jobId, at, volumeName, result: { qc, issues } }
+    qc: isObj(p.qc) ? { ...p.qc } : {},
   };
 }
 
