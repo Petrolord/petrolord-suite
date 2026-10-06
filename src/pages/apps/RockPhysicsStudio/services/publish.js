@@ -20,6 +20,10 @@ const SPECS = [
   { mnemonic: 'RHOB_SUB', key: 'rho', unit: 'KG/M3', what: 'Bulk density' },
   { mnemonic: 'DT_SUB', key: 'dt', unit: 'US/M', what: 'Compressional slowness' },
 ];
+// The shear basis of an estimated Vs, in words.
+const vsBasis = (model) => (model.vsTrend
+  ? `local shear trend${model.vsTrend.label ? ` from ${model.vsTrend.label}` : ''}`
+  : 'Greenberg-Castagna');
 const slowness = (vp) => (Number.isFinite(vp) && vp > 0 ? 1e6 / vp : NaN);
 
 /**
@@ -52,7 +56,7 @@ export function preparePublishLogs(model, sub, indices, zone, meta) {
     }
     return {
       mnemonic: spec.mnemonic,
-      description: `${spec.what}, Gassmann ${label} in ${zone.name}${model.vpSource === 'estimated' && spec.key !== 'rho' ? ` (from an ESTIMATED sonic: ${model.vpNote})` : ''}${spec.key === 'vs' && model.vsSource === 'estimated' ? ` (Vs estimated, Greenberg-Castagna${model.vsMethod === 'iterative' ? ', iterated through brine in hydrocarbon samples' : ''})` : ''}`,
+      description: `${spec.what}, Gassmann ${label} in ${zone.name}${model.vpSource === 'estimated' && spec.key !== 'rho' ? ` (from an ESTIMATED sonic: ${model.vpNote})` : ''}${spec.key === 'vs' && model.vsSource === 'estimated' ? ` (Vs estimated, ${vsBasis(model)}${model.vsMethod === 'iterative' ? ', iterated through brine in hydrocarbon samples' : ''})` : ''}`,
       unit: spec.unit,
       data,
       startMdM: model.depth[0],
@@ -73,7 +77,9 @@ export function preparePublishLogs(model, sub, indices, zone, meta) {
         vp_method: model.vpSource === 'estimated' ? model.vpMethod : null,
         vp_note: model.vpSource === 'estimated' ? model.vpNote : null,
         vs_source: model.vsSource || 'measured',
-        vs_method: model.vsSource === 'estimated' ? (model.vsMethod === 'iterative' ? 'greenberg-castagna-iterative' : 'greenberg-castagna') : null,
+        vs_method: model.vsSource === 'estimated' ? `${model.vsTrend ? 'local-trend' : 'greenberg-castagna'}${model.vsMethod === 'iterative' ? '-iterative' : ''}` : null,
+        // QI A2: the locally calibrated shear trend, when it replaced Greenberg-Castagna
+        vs_trend: model.vsSource === 'estimated' && model.vsTrend ? { ...model.vsTrend } : null,
         vs_iterated_samples: model.vsIter?.applied || 0,
         fluids: label,
         phi_basis: sub.phiBasis || (model.phi ? (model.phiBasis || 'effective') : 'constant'),
