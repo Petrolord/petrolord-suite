@@ -164,9 +164,9 @@ migration.
   fluid_mixing, pore_pressure_source, sw_b_from_saturation_height).
 - Harness flags `?trend=1`, `?nosonic=1`, `?minerals=1`, `?pp=1`; e2e
   `e2e/rock-physics-u2.spec.js`.
-- Deferred: Xu-White and soft/stiff sand models, modelled AVO against
-  Seismolord attribute volumes, scenario Monte Carlo, several projects per
-  user, log editing.
+- Deferred: modelled AVO against Seismolord attribute volumes, scenario
+  Monte Carlo, several projects per user, log editing. (Xu-White and the
+  soft/stiff sand models shipped 2026-10-06, below.)
 
 ## 2026-10-02 Organisation sharing (built; migration NOT APPLIED, owner-run)
 
@@ -178,3 +178,15 @@ Design, rules, proof and the apply commands: `docs/scope/OrgSharing-DESIGN-AND-S
 
 The TVD used to place the published pore pressure comes from the shared
 depth frame (`makeWellFrame`); no KB arithmetic remains in the app.
+
+## 2026-10-06: rock physics models on the crossplot (QI Q2 / A1, closes U2-006)
+
+- **Rock model choice:** the crossplot's template lines can follow any of five rock models:
+  - critical porosity (the default, unchanged);
+  - soft sand and stiff sand (Hertz-Mindlin pack with modified Hashin-Shtrikman bounds);
+  - constant cement (Avseth, Dvorkin-Nur contact cement);
+  - Xu-White (differential effective medium with sand and clay pores).
+- **Parameters:** each model's parameters are editable under the plot: coordination number, effective pressure, critical and cemented porosity, clay pore share and pore aspect ratios.
+- **Fitting:** "Fit n to wet samples" fits the soft- or stiff-sand coordination number to the zone's water-bearing samples (Sw 0.9 or more). It reports the RMS misfit, and warns when the best fit sits at the end of the searched range.
+- **Engines:** the models live in the engines repo (`rockphysics/granular.js`, `inclusion.js`, `templates.js`; engines #313-#315, vendored at 8e02b59). Each is validated against an independent oracle and agrees with rockphypy to about 1e-15. Two rockphypy defects were found and documented.
+- **Tests:** `__tests__/qiRockModels.test.jsx` (12), plus 50 engine gates.

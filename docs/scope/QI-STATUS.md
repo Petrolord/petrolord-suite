@@ -206,7 +206,7 @@ The owner directed on 2026-10-06 that the Q series run non-stop with decisions m
   - A public link imported as the QA user (14,600 B), then scanned on the server: 5 x 5 traces, 50 samples at 4 ms, 40 text lines, with the zero-coordinate warning.
   - The metadata address and a nip.io name for 10.0.0.1 were both refused (`fetch_refused`).
 
-### Q0b-4 Storage tiers (migration `20261006100000`, owner apply)
+### Q0b-4 Storage tiers (migration `20261006100000`, APPLIED 2026-10-06)
 - A new table, `seismic_storage_tiers`. A user's quota is the largest tier among their active memberships, never below 20 GiB.
 - `seismic_storage_quota_bytes()` now returns the caller's quota, so the bucket insert policy follows the tier without a policy change.
 - The table ships empty: tier sizes and prices are an owner decision.
@@ -217,6 +217,38 @@ The owner directed on 2026-10-06 that the Q series run non-stop with decisions m
 - The converter validates every trace against the predicted grid, so a shorter head could stop a wide survey mid-conversion.
 - On an SSD the preview reads its roughly 300 MB in seconds.
 
-### Q0b-6 Fair scheduling (migration `20261006110000`, owner apply)
+### Q0b-6 Fair scheduling (migration `20261006110000`, APPLIED 2026-10-06)
 - The claim takes the oldest job of the user with the fewest jobs running.
 - **Gate:** db-tests (44 checks). The old oldest-first claim fails the new check.
+
+Both Q0b migrations were applied by the owner on 2026-10-06 and verified live:
+- the tier table is present and empty;
+- the QA quota is 20 GiB from both functions;
+- the claim orders by running jobs, and its index is present;
+- clients have no execute grant on the worker-only functions.
+
+The owner approved the tier prices the same day:
+- Project: 250 GiB, $99 a month.
+- Survey: 1 TiB, $299 a month.
+- Basin: 5 TiB, $999 a month, offered once full-resolution volumes move to external object storage.
+- Above 5 TiB: $150 per TiB.
+
+The quota is pooled per organisation. Building that is the next item.
+
+## Milestone A
+
+### A1 Rock physics models (2026-10-06)
+- **Engines first** (Petrolord/petrolord-engines):
+  - #313 granular models with calibration;
+  - #314 inclusion models (Berryman P and Q, Kuster-Toksoz, DEM, Xu-White);
+  - #315 rock-model template lines.
+- **Validation:**
+  - Each model has a stdlib oracle with physics anchors, and goldens that regenerate byte-identical.
+  - Cross-check with rockphypy: worst difference 2.4e-15 for the granular models and 6e-15 for P and Q. The DEM was checked against scipy odeint to 2e-12.
+  - Two rockphypy defects were found and kept as negative controls: its prolate theta, and swapped K and G in EM.DEM.
+- **Suite:** the Rock Physics Studio crossplot gets the rock model choice, the parameters and the coordination-number fit (closes RP U2-006).
+- **Decisions:**
+  - Xu-White uses DEM, never the dilute Kuster-Toksoz, which is 19% off at a porosity of 0.25 with aspect ratio 0.12. KT is kept and throws outside its range.
+  - The Xu-White mineral is the Hashin-Shtrikman average, and clay pores take the clay share of the solid.
+  - Constant cement defaults to cement of the mineral.
+  - Fitting is offered for soft and stiff sand only, the two models with a single free parameter.
