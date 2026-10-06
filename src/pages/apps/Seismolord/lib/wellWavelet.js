@@ -166,14 +166,26 @@ export function waveletCorrelation(a, b) {
   return xx > 0 && yy > 0 ? xy / Math.sqrt(xx * yy) : 0;
 }
 
+/** At most 121 samples about the centre, 5 significant digits (the stored copy of a wavelet). */
+export function storedSamples(w, max = 121) {
+  const n = w.length;
+  const keep = Math.min(n, max % 2 ? max : max - 1);
+  const start = Math.floor((n - keep) / 2);
+  return Array.from({ length: keep }, (_, i) => Number(Number(w[start + i]).toPrecision(5)));
+}
+
 const r3 = (v) => (Number.isFinite(v) ? Math.round(v * 1000) / 1000 : null);
 const r1 = (v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null);
 
 /**
  * The tie QC record stored with the tie.
  * @param {{qc: ?Array<{twtMs, corr}>, shiftMs?: number, phiDeg?: ?number,
- *   anchors?: number, wavelet?: {kind: string, lengthMs?: number, peakHz?: number, phaseDeg?: ?number},
+ *   anchors?: number, wavelet?: {kind: string, lengthMs?: number, peakHz?: number, phaseDeg?: ?number,
+ *   samples?: ArrayLike<number>, dtMs?: number},
  *   wellName?: string, volumeName?: ?string}} p
+ *   QI A6 (2026-10-06): the wavelet's samples are kept too (at most 121,
+ *   centred, 5 significant digits), so Rock Physics Studio and QI Studio use
+ *   the wavelet itself (earlier records carry only its peak and phase).
  */
 export function tieQcRecord({
   qc, shiftMs = 0, phiDeg = null, anchors = 0, wavelet = null, wellName = null, volumeName = null,
@@ -198,6 +210,7 @@ export function tieQcRecord({
       length_ms: r1(wavelet.lengthMs),
       peak_hz: r1(wavelet.peakHz),
       phase_deg: r1(wavelet.phaseDeg),
+      ...(wavelet.samples?.length && wavelet.dtMs > 0 ? { dt_ms: wavelet.dtMs, samples: storedSamples(wavelet.samples) } : {}),
     } : null,
     measured_at: new Date().toISOString(),
   };

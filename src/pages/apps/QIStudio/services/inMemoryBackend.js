@@ -11,14 +11,27 @@ const zones = (wellId) => [
   { id: `${wellId}-b`, name: 'SAND B', top_md_m: 2300, base_md_m: 2360 },
 ];
 
+// a committed tie with its stored wavelet (a phase-rotated Ricker)
+function tieRecord(meanCorr, phaseDeg, peakHz) {
+  const dt = 2; const half = 30;
+  const samples = Array.from({ length: 2 * half + 1 }, (_, i) => {
+    const t = ((i - half) * dt) / 1000; const a = (Math.PI * peakHz * t) ** 2;
+    const r = (1 - 2 * a) * Math.exp(-a);
+    const q = -Math.PI * peakHz * t * (3 - 2 * a) * Math.exp(-a);
+    const p = (phaseDeg * Math.PI) / 180;
+    return Number((Math.cos(p) * r + Math.sin(p) * q).toPrecision(5));
+  });
+  return { rows: [], provenance: { qc: { mean_corr: meanCorr, min_corr: meanCorr - 0.2, bulk_shift_ms: 4, anchors: 2, measured_at: '2026-10-01T10:00:00Z', wavelet: { kind: 'well', peak_hz: peakHz, phase_deg: phaseDeg, dt_ms: dt, samples } } } };
+}
+
 export function makeInMemoryBackend() {
   const wells = [
     {
-      well: { id: 'qi-w1', name: 'KETA-1', kb_m: 30, depth_ref_elev_m: 30, depth_ref_kind: 'KB', checkshots: [{ tvdss_m: 1500, twt_ms: 1300 }, { tvdss_m: 2400, twt_ms: 1950 }], deviation: [{ md: 0, inc: 0, azi: 0 }, { md: 3000, inc: 0, azi: 0 }], is_own: true },
+      well: { id: 'qi-w1', name: 'KETA-1', checkshots_derived: tieRecord(0.82, 0, 30), kb_m: 30, depth_ref_elev_m: 30, depth_ref_kind: 'KB', checkshots: [{ tvdss_m: 1500, twt_ms: 1300 }, { tvdss_m: 2400, twt_ms: 1950 }], deviation: [{ md: 0, inc: 0, azi: 0 }, { md: 3000, inc: 0, azi: 0 }], is_own: true },
       logs: [log('GR', 1500, 2800), log('DT', 1500, 2800), log('DTSM', 1500, 2800), log('RHOB', 1500, 2800), log('PHIE', 1500, 2800), log('VSH', 1500, 2800), log('SW', 1500, 2800)],
     },
     {
-      well: { id: 'qi-w2', name: 'AKOMA-2', kb_m: 28, depth_ref_elev_m: 28, depth_ref_kind: 'KB', checkshots: [], deviation: [], is_own: true },
+      well: { id: 'qi-w2', name: 'AKOMA-2', checkshots_derived: tieRecord(0.58, 45, 26), kb_m: 28, depth_ref_elev_m: 28, depth_ref_kind: 'KB', checkshots: [], deviation: [], is_own: true },
       logs: [log('GR', 1800, 2500), log('DTCO', 1800, 2500), log('RHOZ', 1800, 2500), log('PHIT', 1800, 2500), log('VSH', 1800, 2500), log('SW', 1800, 2500)],
     },
     {
