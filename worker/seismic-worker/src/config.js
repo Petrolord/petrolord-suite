@@ -35,6 +35,7 @@ export function loadConfig() {
     // Conversion memory budget: the browser uses 320 MiB; the server can read
     // a survey in fewer passes. Output bricks do not depend on it.
     convertBudgetBytes: num('CONVERT_BUDGET_BYTES', 2 * 1024 ** 3),
+    janitorIntervalMs: num('JANITOR_INTERVAL_MS', 3600e3),
     engineCommit: env('ENGINE_COMMIT', 'unknown'),
     healthPort: num('HEALTH_PORT', 8080),
   });
