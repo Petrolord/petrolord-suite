@@ -202,6 +202,9 @@ The owner directed on 2026-10-06 that the Q series run non-stop with decisions m
   - the connection is pinned to the vetted address;
   - redirects are vetted per hop, 3 at most.
 - **Tests:** 38 guard cases; the ingest is byte-exact across 3 parts with the browser fingerprint; every refusal path; scan parity.
+- **Live run:**
+  - A public link imported as the QA user (14,600 B), then scanned on the server: 5 x 5 traces, 50 samples at 4 ms, 40 text lines, with the zero-coordinate warning.
+  - The metadata address and a nip.io name for 10.0.0.1 were both refused (`fetch_refused`).
 
 ### Q0b-4 Storage tiers (migration `20261006100000`, owner apply)
 - A new table, `seismic_storage_tiers`. A user's quota is the largest tier among their active memberships, never below 20 GiB.
