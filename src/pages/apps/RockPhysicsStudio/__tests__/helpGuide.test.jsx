@@ -15,7 +15,7 @@ describe('RockPhysicsStudioHelpGuide', () => {
     renderGuide();
     expect(screen.getByRole('heading', { level: 1, name: /Rock Physics Studio Help Guide/ })).toBeInTheDocument();
     for (const { id } of HELP_SECTIONS) expect(document.getElementById(`section-${id}`)).not.toBeNull();
-    expect(HELP_SECTIONS.length).toBe(13);
+    expect(HELP_SECTIONS.length).toBe(14);
   });
 
   test('quotes the live curve aliases and unit choices', () => {

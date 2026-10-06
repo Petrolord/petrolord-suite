@@ -190,3 +190,17 @@ depth frame (`makeWellFrame`); no KB arithmetic remains in the app.
 - **Fitting:** "Fit n to wet samples" fits the soft- or stiff-sand coordination number to the zone's water-bearing samples (Sw 0.9 or more). It reports the RMS misfit, and warns when the best fit sits at the end of the searched range.
 - **Engines:** the models live in the engines repo (`rockphysics/granular.js`, `inclusion.js`, `templates.js`; engines #313-#315, vendored at 8e02b59). Each is validated against an independent oracle and agrees with rockphypy to about 1e-15. Two rockphypy defects were found and documented.
 - **Tests:** `__tests__/qiRockModels.test.jsx` (12), plus 50 engine gates.
+
+## 2026-10-06: Elastic logs and the local shear trend (QI A2)
+
+- **Elastic logs view:**
+  - Zone means of AI, SI, Vp/Vs, Poisson's ratio, K, mu, λρ and μρ (Goodway 1997), and EEI at a typed χ (Whitcombe et al. 2002).
+  - K and the reference values come from the zone, so EEI(0) is AI.
+  - Any of these can be drawn as a depth track, on a white chart with ChartLogo.
+- **Local shear trend:**
+  - On a well with a measured shear log, Vs is regressed on Vp (linear or quadratic) over the zone's water-bearing samples (Sw 0.9 or more), with the 90 percent prediction interval drawn.
+  - "Use this trend" saves it in the project (`rock.localVs`).
+  - Wells with no shear log then take Vs from the trend in place of Greenberg-Castagna, including the brine trend of the hydrocarbon iteration (engines `iterativeVs` `brineVs`). They also carry a sigma curve.
+  - The shear note names the trend, and counts samples outside its calibrated Vp range.
+- **Engines:** `rockphysics/elasticSet.js` (engines #316, vendored at 8c95c91). The oracle reproduces the published t table; numpy and scipy agree to 1.5e-12.
+- **Tests:** `__tests__/qiElasticLogs.test.jsx` (7). On the TREND RP-5 harness well, the local trend recovers the true gas-bed shear more closely than Greenberg-Castagna.

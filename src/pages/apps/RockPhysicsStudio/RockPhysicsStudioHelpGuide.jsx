@@ -26,6 +26,7 @@ export const HELP_SECTIONS = [
   { id: 'units', icon: Ruler, title: 'Display units' },
   { id: 'fluids', icon: Droplets, title: 'Fluids and Gassmann substitution' },
   { id: 'crossplot', icon: ScatterChart, title: 'Impedance against Vp/Vs' },
+  { id: 'elastic', icon: ScatterChart, title: 'Elastic logs and the local shear trend' },
   { id: 'avo', icon: Activity, title: 'AVO and the wet trend' },
   { id: 'gather', icon: AreaChart, title: 'Angle gather' },
   { id: 'wedge', icon: Triangle, title: 'Wedge and tuning' },
@@ -210,6 +211,25 @@ function RockPhysicsStudioHelpGuideContent() {
           mineral at zero porosity to nothing at a porosity of 0.40, and Gassmann puts the fluid in; porosity is
           marked at 0.10, 0.20 and 0.30. The mudrock line is Castagna&apos;s (1985) brine trend with Gardner density.
           They are guides for reading the cloud. Under Rock model you can draw the lines from soft sand, stiff sand, constant cement or Xu-White instead, with their parameters, and fit the soft- or stiff-sand coordination number to the zone's water-bearing samples (Sw 0.9 or more).
+        </Para>
+      </GuideSection>
+
+      <GuideSection id="elastic">
+        <SectionHeading icon={ScatterChart}>Elastic logs and the local shear trend</SectionHeading>
+        <Para>
+          Elastic logs shows the zone means of AI, SI, Vp/Vs, Poisson&apos;s ratio, the bulk and shear moduli,
+          λρ and μρ (Goodway, 1997) and the extended elastic impedance EEI at the angle χ you type (Whitcombe and
+          others, 2002), and draws any of them against depth. EEI uses K, the zone mean of (Vs/Vp)², and the zone
+          means of Vp, Vs and density as references, so EEI at 0 degrees is the acoustic impedance.
+        </Para>
+        <SubHeading>Local shear trend</SubHeading>
+        <Para>
+          On a well with a shear log, Fit to this zone regresses Vs on Vp over the zone&apos;s water-bearing samples
+          (Sw 0.9 or more), linear or quadratic, and draws the 90 percent prediction interval. Use this trend
+          saves it in the project. Wells with no shear log then take their Vs from the trend in place of
+          Greenberg-Castagna, including the brine state of the hydrocarbon iteration, and carry a Vs uncertainty
+          from the interval. The shear note on those wells names the trend, and counts samples outside the Vp
+          range it was calibrated on.
         </Para>
       </GuideSection>
 

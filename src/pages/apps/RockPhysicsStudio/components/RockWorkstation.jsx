@@ -37,6 +37,7 @@ import RockParamsPanel, { TEMPERATURE_UNITS, PRESSURE_UNITS, GOR_UNITS } from '.
 import FluidsPanel from './FluidsPanel';
 import AvoPanel from './AvoPanel';
 import CrossplotPanel from './CrossplotPanel';
+import ElasticPanel from './ElasticPanel';
 import GatherPanel from './GatherPanel';
 import WedgePanel from './WedgePanel';
 import { mapLogs, buildModel } from '../services/prep';
@@ -54,6 +55,7 @@ import { packGather } from '@/lib/rockPhysicsGather';
 import { PIPELINE_VERSION } from '../services/publish';
 import { projectRowFromState, projectStateFromRow } from '../services/projectState';
 import { applyIterativeVs, shearSourceText } from '../services/iterativeVs';
+import { applyLocalShearTrend } from '../services/localShear';
 
 const storage = () => { try { return window.localStorage; } catch { return null; } };
 const publishedBy = (logs) => logs.filter((l) => l.provenance?.computed && l.provenance?.engine === ENGINE);
@@ -75,7 +77,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   const [rock, setRock] = useState(DEFAULT_ROCK);
   const [avo, setAvo] = useState(DEFAULT_AVO);
   const [wedge, setWedge] = useState(DEFAULT_WEDGE);
-  const [view, setView] = useState('fluids'); // 'fluids' | 'crossplot' | 'avo' | 'gather' | 'wedge'
+  const [view, setView] = useState('fluids'); // 'fluids' | 'crossplot' | 'elastic' | 'avo' | 'gather' | 'wedge'
   const [status, setStatus] = useState('Ready.');
   const [dockOpen, setDockOpen] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -254,7 +256,8 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
     [baseModel, shm, shmKey],
   );
   const model = useMemo(
-    () => applyIterativeVs(fluidModel, scenario, rock, activeZone),
+    // QI A2: a saved local shear trend replaces Greenberg-Castagna on a well with no shear log
+    () => applyIterativeVs(applyLocalShearTrend(fluidModel, rock.localVs), scenario, rock, activeZone),
     [fluidModel, scenario, rock, activeZone],
   );
 
@@ -488,6 +491,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
       <div className="ml-4 flex items-center gap-1">
         {viewButton('fluids', 'Fluids & Gassmann')}
         {viewButton('crossplot', 'Crossplot')}
+        {viewButton('elastic', 'Elastic logs')}
         {viewButton('avo', 'AVO')}
         {viewButton('gather', 'Gather')}
         {viewButton('wedge', 'Wedge')}
@@ -615,6 +619,10 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
   const center = view === 'crossplot' ? (
     model ? (
       <CrossplotPanel model={model} zones={zones} scenario={scenario} rock={rock} units={units} zoneId={zoneId} onZoneChange={setZoneId} />
+    ) : needsWell
+  ) : view === 'elastic' ? (
+    model ? (
+      <ElasticPanel model={model} zones={zones} units={units} zoneId={zoneId} onZoneChange={setZoneId} rock={rock} onRockChange={setRock} wellName={selected?.name || ''} />
     ) : needsWell
   ) : view === 'gather' ? (
     model ? (
