@@ -41,6 +41,7 @@ async function main() {
     // with the service key as its bearer token
     supabaseUrl: cfg.supabaseUrl,
     serviceRoleKey: cfg.serviceRoleKey,
+    rawBucket: cfg.s3.rawBucket,
   });
   const running = new Map();
   let lastJanitor = 0;
