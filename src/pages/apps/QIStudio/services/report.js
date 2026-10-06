@@ -9,6 +9,7 @@ import { STATES, inventorySummary } from './inventory';
 import { FEASIBILITY_VERDICTS } from './model';
 import { isStripe, snrText } from './qcRun';
 import { tieRows, waveletComparison } from './ties';
+import { INVERSION_METHODS, INVERSION_DEFAULTS } from './inversionRun';
 
 export const REPORT_TITLE = 'QI Data Audit and Feasibility Report';
 export const APP_NAME = 'Petrolord QI Studio';
@@ -75,6 +76,19 @@ export function reportModel({ projectName = '', organizationName = '', project, 
         fit.has(r.wellName) ? fit.get(r.wellName).toFixed(2) : '',
       ] : ['no tie', '', '', ''])]);
     })(),
+    inversion: Object.values(project.inversion || {}).filter((r) => r?.blind?.result?.blind?.length).map((r) => {
+      const res = r.blind.result;
+      const rel = res.settings?.output === 'relative AI';
+      const n = (v, d) => (Number.isFinite(v) ? v.toFixed(d) : '');
+      return {
+        volume: r.blind.volumeName || res.volume_name || 'volume',
+        at: String(r.blind.at || '').slice(0, 10),
+        method: INVERSION_METHODS[res.settings?.method]?.label || res.settings?.method || '',
+        relative: rel,
+        rows: res.blind.map((w) => [w.name, n(w.blind.corr, 2), rel ? 'n/a' : n(w.blind.rmsPct, 1), n(w.withWell.corr, 2), rel ? 'n/a' : n(w.withWell.rmsPct, 1)]),
+        volumes: (r.runs || []).filter((x) => x.status === 'ready').map((x) => x.name),
+      };
+    }),
     assumptions: [
       'Curve coverage is judged on each curve\'s recorded depth extent against the zone; gaps inside the extent are checked in Well Data Manager and Rock Physics Studio.',
       'A target is matched by zone name on every well.',
@@ -103,6 +117,11 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
     table(`Acquisition footprint: ${q.volume}`, ['Time (ms)', 'Along crosslines', 'Along inlines'], q.footprints, { note: 'RMS amplitude maps around each time; a stripe is a period holding over 30 percent of the profile variance, at least ten times the median power of the band and repeated at least five times across the slice.' });
   }
   if (model.ties.length) table('Well ties', ['Well', 'Mean correlation', 'Bulk shift (ms)', 'Wavelet', 'Fit to the field wavelet'], model.ties, { note: 'From the QC record committed with each tie in Seismolord. The field wavelet is the average of the stored tie wavelets, aligned and normalised.' });
+  for (const v of model.inversion || []) {
+    table(`Impedance inversion: ${v.volume}`, ['Well', 'Blind correlation', 'Blind AI error (percent)', 'With the well: correlation', 'With the well: error (percent)'], v.rows, {
+      note: `${v.method}, run on the seismic worker${v.at ? ` on ${v.at}` : ''}. Each well is left out of the low-frequency model in turn and compared with its own log after a high cut at ${INVERSION_DEFAULTS.truthHz} Hz${v.relative ? '; relative impedance has no level, so only the correlation is reported' : ''}. Products are elastic estimates.${v.volumes.length ? ` Impedance volumes: ${v.volumes.join(', ')}.` : ''}`,
+    });
+  }
   if (model.issues.rows.length) table('Issue register', model.issues.head, model.issues.rows, { fontSize: 6.5 });
   else section('Issue register', 'No open or resolved issues.');
   for (const f of model.feasibility) {

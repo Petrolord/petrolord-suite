@@ -36,6 +36,9 @@ import { reportModel, buildQIStudioPdf } from '../services/report';
 // eslint-disable-next-line import/first
 import { readPdf, flat } from '@/lib/reportKit/testKit';
 
+// the app renders the whole studio per test; the default 5 s is short on a cold run
+jest.setTimeout(60000);
+
 const renderApp = () => render(<MemoryRouter><QIStudio backend={makeInMemoryBackend()} sharingStore={null} /></MemoryRouter>);
 
 async function setUp() {
@@ -141,4 +144,42 @@ test('seismic QC: a job per chosen volume, its result on screen and kept, its is
   fireEvent.click(screen.getByTestId('qi-qc-issues-qi-v1'));
   fireEvent.click(screen.getByTestId('qi-tab-issues'));
   expect(screen.getAllByTestId('qi-issue-row').some((r) => /acquisition footprint/.test(r.textContent))).toBe(true);
+});
+
+test('inversion: the wells read into impedance, the blind-well check and a volume run, kept in the project', async () => {
+  const backend = makeInMemoryBackend();
+  // a second complete well, so the blind check has two
+  const base = await backend.listWells();
+  const w4 = { ...base[0], id: 'qi-w4', name: 'KETA-4', surface_x: 600, surface_y: 300 };
+  const listWells = backend.listWells; const loadWell = backend.loadWell;
+  backend.listWells = async () => [...(await listWells()), w4];
+  backend.loadWell = async (w) => (w.id === 'qi-w4' ? { ...(await loadWell(base[0])), well: w4 } : loadWell(w));
+  const enqueue = jest.spyOn(backend.jobs, 'enqueueJob');
+  render(<MemoryRouter><QIStudio backend={backend} sharingStore={null} /></MemoryRouter>);
+  fireEvent.click(await screen.findByTestId('qi-well-qi-w1', {}, { timeout: 20000 }));
+  fireEvent.click(screen.getByTestId('qi-well-qi-w4'));
+  fireEvent.click(screen.getByTestId('qi-well-qi-w2'));
+  fireEvent.click(screen.getByTestId('qi-volume-qi-v1'));
+  fireEvent.click(screen.getByTestId('qi-tab-inversion'));
+  // the field wavelet from the two stored tie wavelets is offered first
+  expect(await screen.findByTestId('qi-inv-wavelet', {}, { timeout: 20000 })).toHaveTextContent(/Field wavelet \(average of 3 ties\)/);
+  fireEvent.click(within(await screen.findByTestId('qi-inv-horizons', {}, { timeout: 20000 })).getByLabelText('Top Sand A'));
+  fireEvent.click(screen.getByTestId('qi-inv-read-wells'));
+  const wells = await screen.findByTestId('qi-inv-wells', {}, { timeout: 20000 });
+  expect(wells).toHaveTextContent(/KETA-1\s*5, 8\s*DT and RHOB/);
+  expect(wells).toHaveTextContent(/KETA-4\s*12, 24/);
+  expect(wells).toHaveTextContent(/AKOMA-2No time-depth relationship/);
+  fireEvent.click(screen.getByTestId('qi-inv-blind'));
+  const blind = await screen.findByTestId('qi-inv-blind-table', {}, { timeout: 20000 });
+  expect(within(blind).getAllByRole('row')).toHaveLength(3);
+  const [kind, params] = enqueue.mock.calls[0];
+  expect(kind).toBe('poststack_inversion');
+  expect(params.mode).toBe('blind');
+  expect(params.inversion.wells.map((w) => w.name)).toEqual(['KETA-1', 'KETA-4']);
+  expect(params.inversion.horizon_ids).toEqual(['qi-h1']);
+  expect(params.inversion.wavelet.samples.length % 2).toBe(1);
+  fireEvent.click(screen.getByTestId('qi-inv-run'));
+  const runs = await screen.findByTestId('qi-inv-runs', {}, { timeout: 20000 });
+  await waitFor(() => expect(runs).toHaveTextContent(/Ready: open in Seismolord/));
+  expect(enqueue.mock.calls[1][1]).toMatchObject({ mode: 'volume', volume_id: 'mem-inv-qi-v1' });
 });

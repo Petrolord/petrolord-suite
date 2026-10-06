@@ -27,7 +27,7 @@ function tieRecord(meanCorr, phaseDeg, peakHz) {
 export function makeInMemoryBackend() {
   const wells = [
     {
-      well: { id: 'qi-w1', name: 'KETA-1', checkshots_derived: tieRecord(0.82, 0, 30), kb_m: 30, depth_ref_elev_m: 30, depth_ref_kind: 'KB', checkshots: [{ tvdss_m: 1500, twt_ms: 1300 }, { tvdss_m: 2400, twt_ms: 1950 }], deviation: [{ md: 0, inc: 0, azi: 0 }, { md: 3000, inc: 0, azi: 0 }], is_own: true },
+      well: { id: 'qi-w1', name: 'KETA-1', checkshots_derived: tieRecord(0.82, 0, 30), kb_m: 30, depth_ref_elev_m: 30, depth_ref_kind: 'KB', checkshots: [{ tvdss_m: 1500, twt_ms: 1300 }, { tvdss_m: 2400, twt_ms: 1950 }], deviation: [{ md: 0, inc: 0, azi: 0 }, { md: 3000, inc: 0, azi: 0 }], surface_x: 200, surface_y: 125, is_own: true },
       logs: [log('GR', 1500, 2800), log('DT', 1500, 2800), log('DTSM', 1500, 2800), log('RHOB', 1500, 2800), log('PHIE', 1500, 2800), log('VSH', 1500, 2800), log('SW', 1500, 2800)],
     },
     {
@@ -47,6 +47,16 @@ export function makeInMemoryBackend() {
     },
     async listVolumes() { return [{ id: 'qi-v1', name: 'Keta 3D full stack', kind: 'seismic', status: 'ready' }]; },
     async countSurfaces() { return 2; },
+    // the inversion inputs: a 16 x 32 survey at 4 ms on a 25 m grid, two horizons, synthetic curves
+    async loadVolumeFrame() { return { dtMs: 4, nIl: 16, nXl: 32, ns: 600, affine: { origin: { x: 0, y: 0 }, ilVec: { x: 0, y: 25 }, xlVec: { x: 25, y: 0 } } }; },
+    async listHorizons() { return [{ id: 'qi-h1', name: 'Top Sand A', is_own: true }, { id: 'qi-h2', name: 'Base Sand B', is_own: true }]; },
+    async downloadCurve(l) {
+      const n = Math.round((l.stop_md_m - l.start_md_m) / l.step_m) + 1;
+      const dt = /^DT/.test(l.mnemonic);
+      return Float32Array.from({ length: n }, (_, i) => (dt ? 330 - 0.03 * i * l.step_m + 15 * Math.sin(i / 40) : 2.3 + 0.0001 * i * l.step_m + 0.04 * Math.sin(i / 55)));
+    },
+    async registerInversionVolume({ volume, name }) { return { id: `mem-inv-${volume.id}`, name, status: 'ingesting' }; },
+    async removeVolume() {},
     jobs: makeInMemoryJobs(),
   };
 }
@@ -69,6 +79,12 @@ function makeInMemoryJobs() {
     async enqueueJob(kind, params) {
       n += 1;
       const id = `mem-job-${n}`;
+      if (kind === 'poststack_inversion') {
+        // an illustrative result in the worker's shape (the maths is gated in the worker and engine tests)
+        const blind = params.inversion.wells.map((w, i) => ({ name: w.name, blind: { corr: 0.9 - 0.04 * i, rmsPct: 4 + 2.5 * i, n: 120 }, withWell: { corr: 0.96, rmsPct: 2.5, n: 120 } }));
+        results.set(id, { id, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, volume_id: params.volume_id, settings: { method: params.inversion.method, qi_class: 'elastic_estimate', wavelet_scale: 1.2 }, blind } });
+        return id;
+      }
       const qc = await runSeismicQc({ getBrick, geom: { nIl, nXl, ns, brickSize: b, grid }, dtMs: 2, inlines: 6 });
       results.set(id, { id, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { volume_id: params.volume_id, volume_name: 'Keta 3D full stack', qc, issues: qcIssues(qc, 'Keta 3D full stack') } });
       return id;

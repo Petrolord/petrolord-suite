@@ -108,6 +108,7 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
   const saveIssue = useCallback((issue) => edit((p) => ({ ...p, issues: upsertIssue(p.issues, issue) })), [edit]);
   const setFeasibility = useCallback((target, patch) => edit((p) => ({ ...p, feasibility: { ...p.feasibility, [target]: { ...(p.feasibility[target] || {}), ...patch } } })), [edit]);
   const setQcResult = useCallback((volumeId, record) => edit((p) => ({ ...p, qc: { ...p.qc, [volumeId]: record } })), [edit]);
+  const setInversion = useCallback((volumeId, patch) => edit((p) => ({ ...p, inversion: { ...p.inversion, [volumeId]: { ...(p.inversion?.[volumeId] || {}), ...(typeof patch === 'function' ? patch(p.inversion?.[volumeId] || {}) : patch) } } })), [edit]);
 
   // --- project lifecycle with record sharing (the Well Spacing pattern)
   const refresh = useCallback(async () => {
@@ -191,8 +192,8 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
 
   const value = {
     project, wells, volumes, chosenVolumes, loaded, ready, loading, matrix, inventory, issues, targetChoices,
-    toggleWell, toggleVolume, toggleTarget, setSeismicAcquired, setFirstProduction, setInventory, saveIssue, setFeasibility, setQcResult,
-    jobs: backend.jobs || null,
+    toggleWell, toggleVolume, toggleTarget, setSeismicAcquired, setFirstProduction, setInventory, saveIssue, setFeasibility, setQcResult, setInversion,
+    jobs: backend.jobs || null, backend,
     projects, sharedProjects, currentProjectId, projectName, projectRow: shared.projectRow, sharing: shared.sharing,
     viewingShared: shared.viewingShared, canWrite, savingAvailable: saving.available, savingReason: saving.reason,
     createProject, openProject, deleteProject, manualSave, saveCopy, isSaving, saveError, lastSaveTime,
