@@ -31,10 +31,35 @@ export async function getQuotaBytes() {
   }
 }
 
-// One accounting for the friendly layer: OWN rows only (org-shared rows
-// visible under sharing v1 RLS are a teammate's footprint, not this
-// user's), volumes + 2D lines together. survey_meta.storage_bytes is the
-// registered footprint each ingest/derive writes.
+// Seismic storage tiers (owner-approved 2026-10-06): an organisation with a
+// tier shares one pool. seismic_storage_summary() answers exactly what the
+// bucket policy counts (pooled usage and quota) and names the pool; use it
+// when the database has it.
+async function pooledSummary() {
+  try {
+    const { data, error } = await supabase.rpc('seismic_storage_summary');
+    if (error || !data || typeof data !== 'object') return null;
+    const used = Number(data.used_bytes);
+    const quota = Number(data.quota_bytes);
+    if (!Number.isFinite(used) || !(quota >= STORAGE_QUOTA_BYTES)) return null;
+    return {
+      usedBytes: used,
+      quotaBytes: quota,
+      known: true,
+      pooled: !!data.pooled,
+      organizationName: data.organization_name || null,
+      tierLabel: data.tier_label || null,
+      members: Number(data.members) || null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Fallback accounting for the friendly layer (an older database): OWN rows
+// only (org-shared rows visible under sharing v1 RLS are a teammate's
+// footprint, not this user's), volumes + 2D lines together.
+// survey_meta.storage_bytes is the registered footprint each ingest/derive writes.
 export async function getStorageUsage() {
   const empty = { usedBytes: 0, quotaBytes: STORAGE_QUOTA_BYTES, known: false };
   let user;
@@ -44,6 +69,8 @@ export async function getStorageUsage() {
     return empty;
   }
   if (!user) return empty;
+  const pooled = await pooledSummary();
+  if (pooled) return pooled;
   const sum = (rows) => (rows || []).reduce(
     (s, r) => s + (Number(r.survey_meta?.storage_bytes) || 0), 0);
   const [vols, lines, quotaBytes] = await Promise.all([
@@ -56,18 +83,18 @@ export async function getStorageUsage() {
     usedBytes: sum(vols.data) + sum(lines.data),
     quotaBytes,
     known: true,
+    pooled: false,
   };
 }
 
-/** Friendly pre-flight quota check (the authoritative layer is the
- *  bucket's INSERT policy). Never blocks on a read hiccup. */
 export async function assertQuota(estimateBytes) {
   const usage = await getStorageUsage();
   if (!usage.known) return;
   if (usage.usedBytes + estimateBytes > usage.quotaBytes) {
     const gib = (n) => (n / 1024 ** 3).toFixed(1);
+    const whose = usage.pooled ? `your organisation's shared seismic storage (${gib(usage.quotaBytes)} GiB)` : `${gib(usage.quotaBytes)} GiB`;
     throw new Error(
       `Storage quota exceeded: ${gib(usage.usedBytes)} GiB used + ~${gib(estimateBytes)} GiB new `
-      + `> ${gib(usage.quotaBytes)} GiB. Delete old volumes or lines first.`);
+      + `> ${whose}. Delete old volumes or lines first${usage.pooled ? ', or ask your administrator about a larger storage tier' : ''}.`);
   }
 }

@@ -75,3 +75,42 @@ test('QI Q0b-4: an error or an implausible answer falls back to the 20 GiB floor
   mockQuota = { data: 5, error: null };
   expect((await getStorageUsage()).quotaBytes).toBe(STORAGE_QUOTA_BYTES);
 });
+
+describe('pooled organisation storage (seismic storage tiers, 2026-10-06)', () => {
+  const summary = {
+    used_bytes: 300 * GIB, quota_bytes: 1024 * GIB + 3 * 20 * GIB, pooled: true,
+    organization_name: 'Breeze Energy', tier_label: 'Survey', members: 3,
+  };
+  let rpcCalls;
+  beforeEach(() => {
+    rpcCalls = [];
+    mockQuota = undefined;
+  });
+  const withRpc = (answers) => {
+    mockQuota = async () => null; // placeholder so the getter returns a function below
+    jest.spyOn(require('@/lib/customSupabaseClient').supabase, 'rpc', 'get').mockReturnValue(async (name) => {
+      rpcCalls.push(name);
+      return answers[name] ?? { data: null, error: { message: 'missing' } };
+    });
+  };
+  afterEach(() => jest.restoreAllMocks());
+
+  test('uses the pooled summary the bucket policy counts, not the own-rows sum', async () => {
+    withRpc({ seismic_storage_summary: { data: summary, error: null } });
+    const u = await getStorageUsage();
+    expect(u).toMatchObject({ known: true, pooled: true, usedBytes: 300 * GIB, quotaBytes: 1084 * GIB, organizationName: 'Breeze Energy', tierLabel: 'Survey', members: 3 });
+    expect(rpcCalls[0]).toBe('seismic_storage_summary');
+  });
+
+  test('negative control: without the summary (an older database) it falls back to own rows', async () => {
+    withRpc({ seismic_storage_quota_bytes: { data: 20 * GIB, error: null } });
+    const u = await getStorageUsage();
+    expect(u.pooled).toBe(false);
+    expect(u.usedBytes).toBe(2.5 * GIB);
+  });
+
+  test('the over-quota message names the shared pool', async () => {
+    withRpc({ seismic_storage_summary: { data: { ...summary, used_bytes: 1080 * GIB }, error: null } });
+    await expect(assertQuota(10 * GIB)).rejects.toThrow(/your organisation's shared seismic storage \(1084\.0 GiB\).*larger storage tier/);
+  });
+});
