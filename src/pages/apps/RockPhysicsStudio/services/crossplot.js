@@ -5,10 +5,18 @@
 // brine and for fluid B at the scenario's conditions and mineral, and the
 // mudrock line with Gardner density. Pure; SI in, SI out (the panel
 // converts impedance to the display units).
+//
+// QI programme Q2 (2026-10-06): the sand line can be any of the engines'
+// rock models (critical porosity, soft sand, stiff sand, constant cement,
+// Xu-White; templates.js rockModelLine), and the granular models can be
+// fitted to the zone's water-bearing samples (calibrateZoneModel).
 
 import { brine } from '../engine/fluids';
 import { mixMinerals } from '../engine/minerals';
-import { sandLine, mudrockLine, CRITICAL_POROSITY_SANDSTONE } from '../engine/templates';
+import {
+  sandLine, mudrockLine, CRITICAL_POROSITY_SANDSTONE, rockModelLine, rockModelMaxPhi, ROCK_MODELS, ROCK_MODEL_DEFAULTS,
+} from '../engine/templates';
+import { calibrateGranular } from '../engine/granular';
 import { sideFluid, mixingOf } from './scenario';
 import { acousticImpedance, vpVs } from './elastic';
 
@@ -69,29 +77,50 @@ export function scaleColor(value, range) {
 const PHI_STEP = 0.0025;
 const PHI_MARKS = [0.1, 0.2, 0.3];
 
+/** The rock's mineral (Hill mix of the fractions, with the K_min override). */
+export function rockMineral(rock) {
+  const entries = Object.entries(rock.minerals || {}).filter(([, f]) => f > 0).map(([name, frac]) => ({ name, frac }));
+  const total = entries.reduce((s, e) => s + e.frac, 0);
+  if (!(total > 0)) throw new Error('Mineral fractions are all zero.');
+  const mineral = mixMinerals(entries.map((e) => ({ ...e, frac: e.frac / total })));
+  const override = parseFloat(rock.kminOverrideGPa);
+  if (Number.isFinite(override) && override > 0) mineral.k = override * 1e9;
+  return mineral;
+}
+
+export { ROCK_MODELS, ROCK_MODEL_DEFAULTS };
+
+/** The models whose coordination number can be fitted to well data. */
+export const CALIBRATABLE_MODELS = Object.freeze(['soft', 'stiff']);
+
 /**
  * The template lines at the scenario's conditions.
- * @returns {{mineral: {k, mu, rho}, phic: number, brine: Array, fluidB: ?Array, fluidBLabel: ?string,
- *   mudrock: Array, marks: Array<{ai, vpvs, label}>, error: ?string}}
+ * @param {Object} [opts]
+ * @param {string} [opts.rockModel] one of ROCK_MODELS (default the critical-porosity line)
+ * @param {Object} [opts.modelParams] see ROCK_MODEL_DEFAULTS (pMPa in MPa)
+ * @returns {{mineral: {k, mu, rho}, phic: number, rockModel: string, modelParams: Object, brine: Array,
+ *   fluidB: ?Array, fluidBLabel: ?string, mudrock: Array, marks: Array<{ai, vpvs, label}>, error: ?string}}
  */
-export function templateLines(scenario, rock, { phic = CRITICAL_POROSITY_SANDSTONE } = {}) {
-  const out = { mineral: null, phic, brine: [], fluidB: null, fluidBLabel: null, mudrock: [], marks: [], error: null };
+export function templateLines(scenario, rock, { phic = CRITICAL_POROSITY_SANDSTONE, rockModel = 'critical', modelParams = {} } = {}) {
+  const params = rockModel === 'critical' ? {} : { ...ROCK_MODEL_DEFAULTS, ...modelParams };
+  const out = {
+    mineral: null, phic, rockModel, modelParams: params, brine: [], fluidB: null, fluidBLabel: null, mudrock: [], marks: [], error: null,
+  };
   try {
-    const entries = Object.entries(rock.minerals || {}).filter(([, f]) => f > 0).map(([name, frac]) => ({ name, frac }));
-    const total = entries.reduce((s, e) => s + e.frac, 0);
-    if (!(total > 0)) throw new Error('Mineral fractions are all zero.');
-    const mineral = mixMinerals(entries.map((e) => ({ ...e, frac: e.frac / total })));
-    const override = parseFloat(rock.kminOverrideGPa);
-    if (Number.isFinite(override) && override > 0) mineral.k = override * 1e9;
+    if (!ROCK_MODELS.some((m) => m.key === rockModel)) throw new Error(`Unknown rock model: ${rockModel}.`);
+    const mineral = rockMineral(rock);
     out.mineral = mineral;
     const cond = scenario.conditions;
+    const top = rockModel === 'critical' ? phic : rockModelMaxPhi(rockModel, params);
     const phis = [];
-    for (let p = 0; p < phic - 1e-9; p += PHI_STEP) phis.push(Number(p.toFixed(4)));
+    for (let p = 0; p < top - 1e-9; p += PHI_STEP) phis.push(Number(p.toFixed(4)));
+    if (rockModel !== 'critical') phis.push(top);
+    const line = (fluid) => (rockModel === 'critical' ? sandLine(mineral, fluid, phis, phic) : rockModelLine(rockModel, mineral, fluid, phis, params));
     const br = brine(cond.tC, cond.pMPa, cond.salinity);
-    out.brine = sandLine(mineral, br, phis, phic);
+    out.brine = line(br);
     const flB = sideFluid(cond, scenario.fluidB, mixingOf(scenario));
     if (scenario.fluidB.sw < 1) {
-      out.fluidB = sandLine(mineral, flB, phis, phic);
+      out.fluidB = line(flB);
       out.fluidBLabel = flB.label;
     }
     for (const line of [out.brine, out.fluidB].filter(Boolean)) {
@@ -128,3 +157,43 @@ export function crossplotDomain(points, pad = 0.15) {
 }
 
 export const clipLine = (line, domain) => (line || []).filter((p) => p.ai >= domain.ai[0] && p.ai <= domain.ai[1] && p.vpvs >= domain.vpvs[0] && p.vpvs <= domain.vpvs[1]);
+
+/** Water saturation at or above this marks a sample as water-bearing for calibration. */
+export const WET_SW = 0.9;
+
+/**
+ * Fit the soft- or stiff-sand coordination number to the zone's
+ * water-bearing samples (Sw >= WET_SW, porosity below critical, Vp and Vs
+ * logged), at the scenario's brine and effective pressure.
+ * @returns {{n:number, rmsMs:number, samples:number, atEdge:boolean} | {error:string}}
+ */
+export function calibrateZoneModel(model, indices, scenario, rock, { rockModel, modelParams = {} }) {
+  if (!CALIBRATABLE_MODELS.includes(rockModel)) return { error: 'Only the soft-sand and stiff-sand models can be fitted to the wells.' };
+  if (!model?.sw) return { error: 'Fitting needs an Sw curve to find the water-bearing samples.' };
+  if (!model?.phi) return { error: 'Fitting needs a porosity curve.' };
+  const q = { ...ROCK_MODEL_DEFAULTS, ...modelParams };
+  try {
+    const mineral = rockMineral(rock);
+    const cond = scenario.conditions;
+    const br = brine(cond.tC, cond.pMPa, cond.salinity);
+    const samples = [];
+    for (const i of indices) {
+      const phi = model.phi[i];
+      if (model.sw[i] >= WET_SW && phi > 0 && phi < q.phiC && model.vp[i] > 0 && model.vs[i] > 0) {
+        samples.push({ phi, vp: model.vp[i], vs: model.vs[i] });
+      }
+    }
+    if (samples.length < 3) return { error: `Only ${samples.length} water-bearing samples (Sw ${WET_SW} or more) with porosity, Vp and Vs in this zone; fitting needs 3.` };
+    const r = calibrateGranular({
+      model: rockModel,
+      samples,
+      mineral: { K: mineral.k, G: mineral.mu, rho: mineral.rho },
+      fluid: { K: br.k, rho: br.rho },
+      phiC: q.phiC,
+      P: q.pMPa * 1e6,
+    });
+    return { n: r.n, rmsMs: r.rmsMs, samples: r.samples, atEdge: r.atEdge };
+  } catch (e) {
+    return { error: e.message };
+  }
+}

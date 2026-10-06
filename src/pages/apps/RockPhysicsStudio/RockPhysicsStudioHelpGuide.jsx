@@ -209,7 +209,7 @@ function RockPhysicsStudioHelpGuideContent() {
           and the fluid B sand line use the critical-porosity model (Nur): the dry frame weakens linearly from the
           mineral at zero porosity to nothing at a porosity of 0.40, and Gassmann puts the fluid in; porosity is
           marked at 0.10, 0.20 and 0.30. The mudrock line is Castagna&apos;s (1985) brine trend with Gardner density.
-          They are guides for reading the cloud. Soft-sand, stiff-sand and Xu-White models are not in this release.
+          They are guides for reading the cloud. Under Rock model you can draw the lines from soft sand, stiff sand, constant cement or Xu-White instead, with their parameters, and fit the soft- or stiff-sand coordination number to the zone's water-bearing samples (Sw 0.9 or more).
         </Para>
       </GuideSection>
 
