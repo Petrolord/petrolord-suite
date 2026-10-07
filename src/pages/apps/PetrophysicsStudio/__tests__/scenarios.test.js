@@ -42,6 +42,21 @@ test('the default low case is pessimistic and high optimistic on the type well z
   expect(a.mid.phi_avg).toBeLessThan(a.high.phi_avg);
   expect(a.low.sw_avg).toBeGreaterThan(a.mid.sw_avg);
   expect(a.mid.sw_avg).toBeGreaterThan(a.high.sw_avg);
+  // PETRO-M-003: shale volume follows the case at every sample (low more shale, high less); the
+  // clean line used to move the wrong way. Net-averaged Vsh is no test: the net interval itself changes.
+  const vsh = (c) => r[c].outputs.VSH;
+  let lowLess = 0; let highMore = 0; let lowMore = 0; let highLess = 0;
+  for (let i = 0; i < vsh('mid').length; i++) {
+    if (!Number.isFinite(vsh('mid')[i])) continue;
+    if (vsh('low')[i] < vsh('mid')[i] - 1e-12) lowLess += 1;
+    if (vsh('high')[i] > vsh('mid')[i] + 1e-12) highMore += 1;
+    if (vsh('low')[i] > vsh('mid')[i] + 1e-12) lowMore += 1;
+    if (vsh('high')[i] < vsh('mid')[i] - 1e-12) highLess += 1;
+  }
+  expect(lowLess).toBe(0); // never less shale in the low case (clamped samples tie)
+  expect(highMore).toBe(0);
+  expect(lowMore).toBeGreaterThan(20);
+  expect(highLess).toBeGreaterThan(20);
   expect(s.b.low.net_m).toBe(0);
 });
 
@@ -73,4 +88,20 @@ test('twins carry the suffix; CSV has a row per zone and case; template created 
   expect(l2.templates).toHaveLength(l1.templates.length);
   expect(l2.activeTemplateId).toBe(SCENARIO_TEMPLATE_ID);
   expect(ensureScenarioTemplate(l2)).toBe(l2);
+});
+
+test('PETRO-M-007: scenario zone summaries take the vertical thickness, so TVT matches the zone card on a deviated well', () => {
+  const sc = defaultScenarios(DEFAULT_PARAMS);
+  const r = runScenarios(curves, DEFAULT_PARAMS, [], sc);
+  const n = curves.DEPT.length;
+  // a 60 degree well: each sample's vertical thickness is half its MD thickness
+  const md = Float64Array.from({ length: n }, (_, i) => (i === 0 ? curves.DEPT[1] - curves.DEPT[0] : curves.DEPT[i] - curves.DEPT[i - 1]));
+  const vth = Float64Array.from(md, (t) => t * 0.5);
+  const s = scenarioSummaries(curves, r, DEFAULT_PARAMS, zones, {}, sc, { vth });
+  const z = zones[0].id;
+  expect(s[z].mid.tvt_source).toBe('deviation survey');
+  expect(s[z].mid.gross_tvt_m).toBeLessThan(0.6 * s[z].mid.gross_m);
+  // negative control: without it TVT equals MD (the old behaviour)
+  const plain = scenarioSummaries(curves, r, DEFAULT_PARAMS, zones, {}, sc);
+  expect(plain[z].mid.gross_tvt_m).toBeCloseTo(plain[z].mid.gross_m, 9);
 });

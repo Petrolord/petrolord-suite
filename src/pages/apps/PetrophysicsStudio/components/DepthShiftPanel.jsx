@@ -11,6 +11,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Undo2, RotateCcw, Save, MousePointerClick, Trash2 } from 'lucide-react';
 import TrackViewer from './TrackViewer';
+import { toDisplay, fromDisplay } from '@/components/wells/depthModes';
 import { tiePointWarp } from '../engine/conditioning';
 import {
   applyTies, buildShiftLog, dsName, isDsName, shiftLogFor, shiftOfLog, shiftTracks, verifyStoredShift,
@@ -95,22 +96,25 @@ export default function DepthShiftPanel({
     return true;
   }, [pairs, onStatus]);
 
+  // PETRO-M-005: ties are stored in metres MD and shown in the session's unit
+  const dU = depthUnit === 'ft' ? 'ft' : 'm';
+  const disp = useCallback((m) => String(Number(toDisplay(m, dU).toFixed(dU === 'ft' ? 2 : 3))), [dU]);
   const onTiePick = useCallback((mdM, trackIndex) => {
     if (trackIndex === TIE_TRACKS.ref) {
       setPending({ refMd: mdM });
-      onStatus(`Reference ${mdM} m picked. Now click ${srcKey} at the matching depth.`);
+      onStatus(`Reference ${disp(mdM)} ${dU} picked. Now click ${srcKey} at the matching depth.`);
       return;
     }
     if (trackIndex === TIE_TRACKS.target) {
       if (!pending) { onStatus('Click the reference curve first, then the target.'); return; }
       if (commit([...pairs, [pending.refMd, mdM]])) {
         setPending(null);
-        onStatus(`Tie ${pairs.length + 1}: ${srcKey} ${mdM} m moves to ${pending.refMd} m.`);
+        onStatus(`Tie ${pairs.length + 1}: ${srcKey} ${disp(mdM)} ${dU} moves to ${disp(pending.refMd)} ${dU}.`);
       }
       return;
     }
     onStatus('Click on the reference track or the target track.');
-  }, [pending, pairs, commit, onStatus, srcKey]);
+  }, [pending, pairs, commit, onStatus, srcKey, disp, dU]);
 
   const onTieMove = useCallback((index, side, mdM) => {
     const next = pairs.map((p, i) => (i === index ? (side === 'ref' ? [mdM, p[1]] : [p[0], mdM]) : p));
@@ -118,12 +122,14 @@ export default function DepthShiftPanel({
   }, [pairs, commit]);
 
   const editPair = (index, side, value) => {
+    const edited = drafts[`${index}-${side}`] !== undefined;
     setDrafts({});
+    if (!edited) return; // a blur with no edit must not move the tie by the display rounding
     const v = Number(value);
     if (!Number.isFinite(v)) return;
-    onTieMove(index, side, v);
+    onTieMove(index, side, fromDisplay(v, dU));
   };
-  const cellValue = (i, side, stateValue) => (drafts[`${i}-${side}`] ?? String(stateValue));
+  const cellValue = (i, side, stateValue) => (drafts[`${i}-${side}`] ?? disp(stateValue));
   const removePair = (index) => commit(pairs.filter((_, i) => i !== index));
   const undo = () => {
     if (!history.length) return;
@@ -238,7 +244,7 @@ export default function DepthShiftPanel({
         </div>
         {placing && (
           <p className="text-[10px] text-pl-primary-text">
-            {pending ? `Reference ${pending.refMd} m picked: click ${srcKey} at the matching depth.` : 'Click the reference curve at a feature, then the target curve at the same feature.'}
+            {pending ? `Reference ${disp(pending.refMd)} ${dU} picked: click ${srcKey} at the matching depth.` : 'Click the reference curve at a feature, then the target curve at the same feature.'}
           </p>
         )}
         {problem && <p className="text-[10px] text-pl-warning-text" data-testid="petro-shift-problem">Refused: {problem}</p>}
@@ -247,7 +253,7 @@ export default function DepthShiftPanel({
           {!pairs.length && <p className="text-[10px] text-pl-muted">None: the curve reads as raw. Place ties on the tracks or type them here.</p>}
           <table className="w-full text-[11px]" data-testid="petro-shift-pairs">
             {pairs.length > 0 && (
-              <thead><tr className="text-pl-muted"><th className="text-left font-normal">#</th><th className="text-left font-normal">Ref (m)</th><th className="text-left font-normal">Target (m)</th><th /></tr></thead>
+              <thead><tr className="text-pl-muted"><th className="text-left font-normal">#</th><th className="text-left font-normal">Ref ({dU})</th><th className="text-left font-normal">Target ({dU})</th><th /></tr></thead>
             )}
             <tbody>
               {pairs.map(([r, t], i) => (

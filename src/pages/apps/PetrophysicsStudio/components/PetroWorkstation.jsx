@@ -1022,6 +1022,14 @@ export default function PetroWorkstation({
   const runBatchWell = async (well) => {
     const logs = await backend.listLogs(well.id);
     const mapped = mapLogs(logs);
+    // PETRO-M-008: the curves picked in the explorer for the open well hold in
+    // a batch too (other wells have no picks and map automatically)
+    if (curvePicksRef.current.wellId === well.id) {
+      for (const [key, logId] of Object.entries(curvePicksRef.current.picks)) {
+        const log = logs.find((l) => l.id === logId);
+        if (log) mapped[key] = log;
+      }
+    }
     if (!mapped.DEPT) throw new Error('no depth curve');
     const raw = {};
     const inventory = [];
@@ -1029,7 +1037,16 @@ export default function PetroWorkstation({
       if (log) raw[log.mnemonic] = await backend.downloadCurve(log);
       inventory.push({ key, log });
     }
-    const { curves } = inputCurves(mapped, raw, { unitOverrides: unitOverridesRef.current[well.id] || {} });
+    const { curves: read } = inputCurves(mapped, raw, { unitOverrides: unitOverridesRef.current[well.id] || {} });
+    // PETRO-M-008: under porosity source 'mineral' each well runs the
+    // interpretation's mineral model, as the open well does; without one
+    // (or if the well lacks its inputs) the batch says so for that well
+    let curves = read;
+    if (params.phiSource === 'mineral') {
+      if (!mineralModel) throw new Error('the porosity source is the mineral model, but no mineral model is set');
+      const res = runMineralModel({ curves: read }, mineralModel);
+      curves = { ...read, PHI_MM: res.outputs.PHI_MM };
+    }
     // each well's OWN zones drive the overrides (patches are keyed by
     // zone id, so any well's zones the user has overridden apply here)
     const wellZones = await backend.listZones(well.id);
@@ -1714,6 +1731,7 @@ export default function PetroWorkstation({
         onSaved={() => select(wellData.wellId)}
         onStatus={setStatus}
         lastNormFit={lastNormFit}
+        depthUnit={depthUnit}
       />
     )}
     {wellData && (
@@ -1726,6 +1744,7 @@ export default function PetroWorkstation({
         zoneParamList={zoneParamList}
         zones={zones}
         zoneParams={zoneParams}
+        vth={sensitivityVth}
         depthUnit={depthUnit}
         wellName={selected?.name}
         canPublish={!!selected?.is_own && !publishing}

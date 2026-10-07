@@ -57,12 +57,13 @@ test('typed ties, a crossing refusal, undo, save with provenance, apply on read,
   expect(screen.getByTestId('petro-shift-problem').textContent).toMatch(/Ties cross/);
   expect(values()).toEqual([['2020', '2021'], ['2050', '2052.5']]);
 
-  // undo steps back one edit at a time: the 2052.5 edit, then the 2050 edit
-  // (a no-op edit is still a step), the 2021 edit, the 2020 edit, then the
-  // second tie itself
+  // undo steps back one edit at a time: the 2052.5 edit, the 2021 edit, the
+  // 2020 edit, then the second tie itself. Typing the value a cell already
+  // shows (the 2050) is no edit and no step: a blur without an edit never
+  // moves a tie (PETRO-M-005, display rounding in feet would have)
   fireEvent.click(screen.getByTestId('petro-shift-undo'));
   expect(values()).toEqual([['2020', '2021'], ['2050', '2050']]);
-  for (let k = 0; k < 4; k++) fireEvent.click(screen.getByTestId('petro-shift-undo'));
+  for (let k = 0; k < 3; k++) fireEvent.click(screen.getByTestId('petro-shift-undo'));
   await waitFor(() => expect(screen.getAllByTestId('petro-shift-pair')).toHaveLength(1));
   setInput(cell(0, 0), 2020); setInput(cell(0, 1), 2021);
   expect(values()).toEqual([['2020', '2021']]);
@@ -104,4 +105,21 @@ test('the panel tells the user the click order and needs the target after the re
   expect(screen.getByTestId('petro-shift-side').textContent).toMatch(/Click the reference curve at a feature/);
   fireEvent.click(screen.getByTestId('petro-shift-place'));
   expect(screen.getByTestId('petro-tracks').getAttribute('data-pick-mode')).toBe('');
+});
+
+test('PETRO-M-005: in a feet session the tie table reads and writes feet and stores metres', async () => {
+  const backend = makeInMemoryBackend();
+  let wd = await openWell(backend);
+  const saved = jest.fn(async () => { wd = await openWell(backend); });
+  render(<DepthShiftPanel wellData={wd} backend={backend} projectId="proj-1" depthUnit="ft" onSaved={saved} onStatus={() => {}} isOwn />);
+  fireEvent.click(screen.getByTestId('petro-shift-add'));
+  expect(screen.getByText('Ref (ft)')).toBeTruthy();
+  const cell = (col) => screen.getAllByTestId('petro-shift-pair')[0].querySelectorAll('input')[col];
+  setInput(cell(0), (2020 / 0.3048).toFixed(2)); setInput(cell(1), (2021 / 0.3048).toFixed(2));
+  expect(Number(cell(0).value)).toBeCloseTo(2020 / 0.3048, 1);
+  await act(async () => { fireEvent.click(screen.getByTestId('petro-shift-save')); });
+  await waitFor(() => expect(saved).toHaveBeenCalled());
+  const shift = shiftOfLog(shiftLogFor(wd.allLogs, 'GR'));
+  expect(shift.pairs[0][0]).toBeCloseTo(2020, 2);
+  expect(shift.pairs[0][1]).toBeCloseTo(2021, 2); // negative control: read as metres this would be 6630 m
 });

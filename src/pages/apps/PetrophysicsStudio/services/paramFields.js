@@ -17,6 +17,7 @@ export const RW_METHOD_LABELS = {
   arps: 'Arps temperature conversion',
   salinity: 'NaCl salinity through the Bateman-Konen Gen-9 fit',
   pickett: 'Pickett water-line fit',
+  hingle: 'Hingle water-line fit',
   entered: 'typed',
 };
 
