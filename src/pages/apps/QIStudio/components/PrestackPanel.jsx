@@ -70,6 +70,7 @@ export default function PrestackPanel() {
   const [velText, setVelText] = useState('0 1800\n2000 2600');
   const [ranges, setRanges] = useState(DEFAULT_RANGES);
   const [minFold, setMinFold] = useState(1);
+  const [trim, setTrim] = useState({ centre: '', window: 100, maxShift: 8 });
   const job = useJob();
   const list = backend?.listDatasets || qiService.listDatasets;
   const refresh = async () => { try { setDatasets(await list()); } catch (e) { setDatasets([]); addNotification(qiService.friendlyError(e), 'error'); } };
@@ -87,6 +88,7 @@ export default function PrestackPanel() {
     refresh();
   });
   const qc = (d) => job.run(`q:${d.id}`, 'prestack_qc', { dataset_id: d.id, ...(vel.error ? {} : { velocity: { t_ms: vel.t_ms, vrms: vel.vrms } }), name: `${d.name} QC` }, (row) => setPrestackQc(d.id, { name: d.name, at: row.finished_at || new Date().toISOString(), result: row.result_refs }));
+  const runTrim = (d) => job.run(`t:${d.id}`, 'trim_gathers', { dataset_id: d.id, centre_ms: Number(trim.centre), window_ms: Number(trim.window), max_shift_ms: Number(trim.maxShift), name: `${d.name} trimmed` }, () => refresh());
   const addQcIssues = (rec) => {
     for (const i of rec.result.issues || []) saveIssue({ ...i, status: 'open', owner: '' });
     addNotification(`${(rec.result.issues || []).length} prestack QC issue${(rec.result.issues || []).length === 1 ? '' : 's'} added to the register.`, 'success');
@@ -141,13 +143,20 @@ export default function PrestackPanel() {
             {rangeProblem && <span className="text-pl-warning-text">{rangeProblem}</span>}
           </div>
           <label className="flex items-center gap-1">Least fold for the usable angle<input className={`${input} w-14`} type="number" min="1" value={minFold} onChange={(e) => setMinFold(e.target.value)} /></label>
+          <div className="flex flex-col gap-1">
+            <span className="text-pl-muted">Trim statics</span>
+            <label className="flex items-center gap-1">event (ms)<input className={`${input} w-16`} type="number" value={trim.centre} onChange={(e) => setTrim((t) => ({ ...t, centre: e.target.value }))} data-testid="qi-pre-trim-centre" /></label>
+            <label className="flex items-center gap-1">window (ms)<input className={`${input} w-16`} type="number" value={trim.window} onChange={(e) => setTrim((t) => ({ ...t, window: e.target.value }))} /></label>
+            <label className="flex items-center gap-1">largest shift (ms)<input className={`${input} w-14`} type="number" value={trim.maxShift} onChange={(e) => setTrim((t) => ({ ...t, maxShift: e.target.value }))} /></label>
+          </div>
         </div>
         {stores.length ? (
           <table className="text-xs"><tbody>
             {stores.map((d) => (
               <tr key={d.id}>
                 <td className={td}>{d.name}</td>
-                <td className={td}>{`${d.meta?.traces ?? EMPTY_VALUE} traces, ${d.meta?.bins ?? EMPTY_VALUE} offset bins of ${d.meta?.bin_width_m ?? EMPTY_VALUE} m`}</td>
+                <td className={td}>{`${d.meta?.traces ?? EMPTY_VALUE} traces, ${d.meta?.bins ?? EMPTY_VALUE} offset bins of ${d.meta?.bin_width_m ?? EMPTY_VALUE} m${d.meta?.conditioning?.trim ? `; trimmed at ${d.meta.conditioning.trim.centre_ms} ms (gather correlation ${Number(d.meta.conditioning.corrBefore).toFixed(2)} to ${Number(d.meta.conditioning.corrAfter).toFixed(2)})` : ''}`}</td>
+                <td className={td}><button type="button" className={btn} onClick={() => runTrim(d)} disabled={!canWrite || !(Number(trim.centre) > 0) || job.busy(`t:${d.id}`)} data-testid={`qi-pre-trim-${d.id}`}>Trim statics</button> {job.status(`t:${d.id}`)}</td>
                 <td className={td}><button type="button" className={btn} onClick={() => qc(d)} disabled={!canWrite || job.busy(`q:${d.id}`)} data-testid={`qi-pre-qc-${d.id}`}>QC the gathers</button> {job.status(`q:${d.id}`)}</td>
                 <td className={td}><button type="button" className={btn} onClick={() => stack(d)} disabled={!canWrite || !!vel.error || !!rangeProblem || job.busy(`s:${d.id}`)} data-testid={`qi-pre-stack-${d.id}`}>Make angle stacks</button> {job.status(`s:${d.id}`)}</td>
               </tr>

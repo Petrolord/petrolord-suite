@@ -10,7 +10,7 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
 | Q0b Seismolord on the worker | DONE: merged #893; both migrations applied and verified 2026-10-06 |
 | Milestone A (Q1, Q2, Q4a, Q6a) | DONE: A1 to A6 merged 2026-10-06 (#894, #896 to #901, #903). Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
 | Milestone B (Q8a, Q9a, Q10, Q11) | DONE (#904 to #908); worker live. Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
-| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a DONE (#909), Q3b DONE (#910); worker live. Q7 AVO DONE (#911); worker live. Q7b DONE (#912); worker live. Q8b DONE (#913); worker live. Q9b DONE (#915); worker live. Q6b DONE (#916); worker live. Q4b prestack QC built (engines #337; Suite feat/qi-q4b-prestack-qc) |
+| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a DONE (#909), Q3b DONE (#910); worker live. Q7 AVO DONE (#911); worker live. Q7b DONE (#912); worker live. Q8b DONE (#913); worker live. Q9b DONE (#915); worker live. Q6b DONE (#916); worker live. Q4b DONE (#917); worker live. Q5 conditioning built (engines #338, #339; Suite feat/qi-q5-conditioning) |
 | Q12 Benchmark and tester waves | Not started |
 
 ## Key facts
@@ -620,5 +620,28 @@ The quota is pooled per organisation. Building that is the next item.
   - **Measured on NMO-corrected gathers:** the store's gathers are taken as NMO-corrected, so a flat event is the expected state. The residual is what a trim or velocity update must remove, and the QC states it per event time.
   - **The 4 ms threshold:** a quarter period of a 60 Hz event. Above it the far angles stack out of phase, and AVO gradients bias.
   - **Multiples, illumination and gather panels at wells:** left for Q5 (Radon) and the tester walks. Panels draw in Seismolord's gather viewer once that exists.
-- **Worker deploy:** needed after merge, for `prestack_qc`.
+- **Merged:** #917 (main c5f166039). The worker deploy followed.
 - **Remaining in the plan:** Q5 conditioning (trim statics, Radon, f-x, spectral balancing, stack matching), the stack family, and Q12.
+
+### C9 Q5 Conditioning (2026-10-07)
+- **Engines:**
+  - **#338 `qi/conditioning.js`:**
+    - trim statics (each trace onto its gather's stack, iterated, capped);
+    - stack matching (time shift and constant phase together, since the envelope of the cross-correlation does not move under a phase rotation; then least-squares amplitude);
+    - the quadrature and phase rotation from the analytic signal;
+    - spectral balancing to a target spectrum.
+    - Gates: random statics flattened (correlation over 0.98); a 6 ms, 35 degree, 0.5 scale mismatch recovered; a 20 Hz trace shaped to 35 Hz. Negative controls: the shift cap leaves an event change alone; the unbalanced trace fits worse.
+  - **#339:** the hot paths as plain typed-array loops, about 6 to 7 times faster, with the same results.
+- **Worker kinds:**
+  - **`trim_gathers`:** trim statics on every CDP of a store, in a window around an event, written as a new store with its before-and-after flatness. Gated: random statics come out flatter (over 0.97), and the source store is untouched.
+  - **`match_stacks`:** one survey operator per stack against a reference (the median shift and scale, the circular mean phase of about 300 per-trace matches), applied to all traces as a derived "matched stack" volume. Gated: a far stack 6 ms late, rotated 30 degrees and at half amplitude is measured as such. The matched traces follow the reference, and a trace twice as bright stays twice as bright (the AVO amplitudes kept).
+- **QI Studio:**
+  - Prestack tab: Trim statics (event, window, largest shift), with the trim shown on the store.
+  - AVO tab: Match the stacks (reference, then a table of each stack's operator), with matched stacks offered as study volumes.
+  - A report table and help.
+- **Decisions:**
+  - **One operator per stack, never per trace:** a per-trace match removes the amplitude differences between stacks that AVO measures.
+  - **Spectral balancing stays out of the AVO path:** the engine's balancing shapes each trace to an absolute target, which would equalise amplitudes. A survey-wide shaping filter per stack, which keeps relative amplitudes, is a follow-up if a study needs bandwidth matching.
+  - **Radon multiple attenuation, f-x deconvolution and structure-oriented filtering are not in this round.** Contractors deliver gathers with the multiple removal done, and the trim and matching above are what QI amplitude work needs from conditioning. They are recorded as follow-ups for Q12's review.
+- **Worker deploy:** needed after merge, for `trim_gathers` and `match_stacks`.
+- **Remaining in the plan:** the stack family (declared against measured angles across vintages), and Q12 (benchmark on the open datasets once licensed, tester walks, the user manual, the QI upgrade doc).

@@ -44,10 +44,11 @@ export function makeRegistryBackend() {
     },
     async listVolumes() {
       const { data, error } = await supabase.from('seismic_volumes')
-        .select('id, name, kind, status, user_id, created_at, storage_path, crs')
+        .select('id, name, kind, status, user_id, created_at, storage_path, crs, attribute_params')
         .order('created_at', { ascending: false });
       if (error) throw new Error(`Could not load seismic volumes: ${error.message}`);
-      return (data || []).filter((v) => (v.status || 'ready') === 'ready' && (!v.kind || v.kind === 'seismic'));
+      // seismic volumes, and stacks matched to a reference (Q5), which a study uses as stacks
+      return (data || []).filter((v) => (v.status || 'ready') === 'ready' && (!v.kind || v.kind === 'seismic' || (v.kind === 'attribute' && v.attribute_params?.name === 'qi_matched_stack')));
     },
     async loadVolumeFrame(volume) {
       return volumeFrame(await getManifest(volume));
@@ -61,6 +62,9 @@ export function makeRegistryBackend() {
     },
     async registerPrestackVolume({ volume, name, summary }) {
       return registerDerived(volume, name, { name: 'qi_prestack_inversion', params: summary });
+    },
+    async registerMatchedVolume({ volume, name, summary }) {
+      return registerDerived(volume, name, { name: 'qi_matched_stack', params: summary });
     },
     async registerAvoVolume({ volume, name, summary }) {
       return registerDerived(volume, name, { name: 'qi_avo', params: summary });

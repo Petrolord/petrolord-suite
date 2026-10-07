@@ -60,6 +60,7 @@ export function makeInMemoryBackend() {
     },
     async registerInversionVolume({ volume, name }) { return { id: `mem-inv-${volume.id}`, name, status: 'ingesting' }; },
     async registerPrestackVolume({ volume, name, summary }) { return { id: `mem-sim-${volume.id}-${summary.product}`, name, status: 'ingesting' }; },
+    async registerMatchedVolume({ volume, name }) { return { id: `mem-match-${volume.id}`, name, status: 'ingesting' }; },
     async registerAvoVolume({ volume, name, summary }) { return { id: `mem-avo-${volume.id}-${summary.product}`, name, status: 'ingesting' }; },
     async registerPropertyVolume({ aiVolumeId, name, summary }) { return { id: `mem-prop-${aiVolumeId}-${summary.product}`, name, status: 'ingesting' }; },
     async removeVolume() {},
@@ -111,6 +112,14 @@ function makeInMemoryJobs() {
     async enqueueJob(kind, params) {
       n += 1;
       const id = `mem-job-${n}`;
+      if (kind === 'match_stacks') {
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { reference_volume_id: params.reference_volume_id, stacks: params.stacks.map((sid, k) => ({ stack_id: sid, stack_name: `stack ${sid}`, volume_id: params.volume_ids[sid], shift_ms: -2.5 - k, phase_deg: -12 - 5 * k, scale: 1.1 + 0.2 * k, corr_before: 0.81, corr_after: 0.95 })) } });
+        return id;
+      }
+      if (kind === 'trim_gathers') {
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { dataset_id: 'mem-trimmed', cdps: 1400, corrBefore: 0.82, corrAfter: 0.95, shiftMedianMs: 1.8, shiftQ90Ms: 4.4 } });
+        return id;
+      }
       if (kind === 'prestack_qc') {
         const times = [{ t_ms: 900, rmoMedian: 2.1, rmoQ90: 5.6, rmoShareOver4: 0.22, stretchMuteM: 2450 }, { t_ms: 1650, rmoMedian: 1.2, rmoQ90: 2.9, rmoShareOver4: 0.04, stretchMuteM: 3900 }];
         results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { dataset_id: params.dataset_id, cdps: 1480, stride: 4, maxStretch: 0.3, fold: { median: 58, lowShare: 0.06, farMedianM: 3000 }, times, issues: [{ key: 'prestack-qc:mem:rmo:900', area: 'Prestack QC', severity: 'medium', title: 'Residual moveout at 900 ms', detail: 'up to 5.6 ms', remedy: 'Flatten the gathers.' }] } });

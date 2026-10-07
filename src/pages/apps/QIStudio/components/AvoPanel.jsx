@@ -48,6 +48,26 @@ export default function AvoPanel() {
   useEffect(() => () => { for (const s of stops.current) s(); }, []);
   const problem = avoProblem(stacks) || (!Object.values(products).some(Boolean) ? 'Choose at least one product.' : null);
   const runs = project.avo?.runs || [];
+  // stack matching (Q5): every stack onto a reference, one operator each
+  const [matchRef, setMatchRef] = useState('');
+  const [matchSt, setMatchSt] = useState(null);
+  const matchStacks = async () => {
+    const refVol = chosenVolumes.find((v) => v.id === matchRef);
+    const targets = stacks.filter((x) => x.volumeId && x.volumeId !== matchRef).map((x) => chosenVolumes.find((v) => v.id === x.volumeId)).filter(Boolean);
+    setMatchSt({ job: { status: 'queued' } });
+    const rows = [];
+    try {
+      for (const t of targets) rows.push({ t, row: await backend.registerMatchedVolume({ volume: t, name: `${t.name} matched to ${refVol.name}`, summary: { reference_volume_id: refVol.id } }) });
+      const jobId = await client.enqueueJob('match_stacks', { reference_volume_id: refVol.id, stacks: targets.map((t) => t.id), volume_ids: Object.fromEntries(rows.map((r) => [r.t.id, r.row.id])), name: `Stacks matched to ${refVol.name}` });
+      stops.current.push(client.watchJob(jobId, (row, err) => {
+        setMatchSt(err ? { error: qiService.friendlyError(err) } : { job: row });
+        if (row?.status === 'succeeded') setAvo({ matching: { at: row.finished_at || new Date().toISOString(), reference: refVol.name, stacks: row.result_refs.stacks } });
+      }));
+    } catch (e) {
+      for (const r of rows) { try { await backend.removeVolume(r.row); } catch { /* best effort */ } }
+      setMatchSt({ error: qiService.friendlyError(e) });
+    }
+  };
 
   const run = async () => {
     const live = stacks.filter((s) => s.volumeId);
@@ -144,6 +164,26 @@ export default function AvoPanel() {
           {st?.job?.status === 'failed' && <span className="text-pl-danger-text">{st.job.error_message || 'The AVO job failed.'}</span>}
           {st?.job && qiService.isActive(st.job) && <span className="text-pl-muted">{st.job.status}</span>}
         </div>
+      </div>
+      <div className="rounded border border-pl-border p-3 space-y-2 text-xs" data-testid="qi-avo-match">
+        <h3 className="text-xs font-semibold text-pl-text">Match the stacks</h3>
+        <p className={muted}>Before AVO, bring every stack chosen above onto a reference stack in time, phase and amplitude: one operator per stack, measured on about 300 traces across the survey, so the stacks compare like with like and their relative amplitudes stay as they are. The matched stacks join the study&apos;s volumes; choose them on Setup.</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1">Reference
+            <select className={input} value={matchRef} onChange={(e) => setMatchRef(e.target.value)} data-testid="qi-avo-match-ref"><option value="">choose</option>{chosenVolumes.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select>
+          </label>
+          <button type="button" className={btn} onClick={matchStacks} disabled={!canWrite || !matchRef || stacks.filter((x) => x.volumeId && x.volumeId !== matchRef).length < 1 || (matchSt?.job && qiService.isActive(matchSt.job))} data-testid="qi-avo-match-run">Match to the reference</button>
+          {matchSt?.error && <span className="text-pl-danger-text">{matchSt.error}</span>}
+          {matchSt?.job && qiService.isActive(matchSt.job) && <span className="text-pl-muted">{matchSt.job.status}</span>}
+        </div>
+        {project.avo?.matching && (
+          <table className="text-xs" data-testid="qi-avo-match-table">
+            <thead><tr><th className={th}>Stack</th><th className={th}>Shift (ms)</th><th className={th}>Phase (degrees)</th><th className={th}>Scale</th><th className={th}>Correlation, before and after</th></tr></thead>
+            <tbody className="font-mono tabular-nums">
+              {project.avo.matching.stacks.map((m) => <tr key={m.stack_id}><td className={`${td} font-sans`}>{m.stack_name}</td><td className={td}>{Number(m.shift_ms).toFixed(1)}</td><td className={td}>{Number(m.phase_deg).toFixed(0)}</td><td className={td}>{Number(m.scale).toFixed(3)}</td><td className={td}>{`${Number(m.corr_before).toFixed(2)} to ${Number(m.corr_after).toFixed(2)}`}</td></tr>)}
+            </tbody>
+          </table>
+        )}
       </div>
       {runAB && (
         <div className="rounded border border-pl-border p-3 space-y-2" data-testid="qi-avo-wells">

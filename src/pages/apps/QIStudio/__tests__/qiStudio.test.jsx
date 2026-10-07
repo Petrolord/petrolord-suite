@@ -269,6 +269,9 @@ test('prestack: build gathers, angle stacks with a velocity table, the usable an
   expect(params.velocity).toEqual({ t_ms: [0, 1500, 3000], vrms: [1700, 2300, 2900] });
   expect(params.ranges.map((r) => r.name)).toEqual(['near', 'mid', 'far']);
   // QC of the gathers: residual moveout, stretch mute, fold; its issues to the register
+  fireEvent.change(screen.getByTestId('qi-pre-trim-centre'), { target: { value: '900' } });
+  fireEvent.click(screen.getByTestId('qi-pre-trim-qi-d2'));
+  await waitFor(() => expect(enqueue).toHaveBeenCalledWith('trim_gathers', expect.objectContaining({ dataset_id: 'qi-d2', centre_ms: 900, window_ms: 100, max_shift_ms: 8 })));
   fireEvent.click(screen.getByTestId('qi-pre-qc-qi-d2'));
   const qcr = await screen.findByTestId('qi-pre-qc-result-qi-d2', {}, { timeout: 20000 });
   expect(qcr).toHaveTextContent(/1480 CDPs sampled \(every 4\); median fold 58, far covered offset 3000 m/);
@@ -291,6 +294,14 @@ test('AVO: three stacks with their angles, the products registered on the first,
     fireEvent.change(screen.getByTestId(`qi-avo-stack-${k}`), { target: { value: v } });
     fireEvent.change(screen.getByTestId(`qi-avo-angle-${k}`), { target: { value: String(a) } });
   });
+  // match the stacks onto the near one first
+  fireEvent.change(screen.getByTestId('qi-avo-match-ref'), { target: { value: 'qi-v1' } });
+  fireEvent.click(screen.getByTestId('qi-avo-match-run'));
+  const mt = await screen.findByTestId('qi-avo-match-table', {}, { timeout: 20000 });
+  expect(within(mt).getAllByRole('row')).toHaveLength(3);
+  const [, mp] = enqueue.mock.calls.find((c) => c[0] === 'match_stacks');
+  expect(mp).toMatchObject({ reference_volume_id: 'qi-v1', stacks: ['qi-v2', 'qi-v3'], volume_ids: { 'qi-v2': 'mem-match-qi-v2', 'qi-v3': 'mem-match-qi-v3' } });
+  enqueue.mockClear();
   fireEvent.click(screen.getByTestId('qi-avo-run'));
   const runs = await screen.findByTestId('qi-avo-runs', {}, { timeout: 20000 });
   await waitFor(() => expect(runs).toHaveTextContent(/Ready: open in Seismolord/));

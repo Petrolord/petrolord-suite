@@ -18,8 +18,10 @@ import { avoVolumes } from './avoVolumes.js';
 import { sampleVolumes } from './sampleVolumes.js';
 import { prestackInversion } from './prestackInversion.js';
 import { prestackQc } from './prestackQc.js';
+import { trimGathers } from './trimGathers.js';
+import { matchStacksJob } from './matchStacks.js';
 
-export const KINDS = Object.freeze(['noop', 'stack_to_v4', 'attribute_volume', 'ingest_url', 'scan_dataset', 'seismic_qc', 'poststack_inversion', 'property_prediction', 'export_segy', 'ingest_gathers', 'angle_stacks', 'avo_volumes', 'sample_volumes', 'prestack_inversion', 'prestack_qc']);
+export const KINDS = Object.freeze(['noop', 'stack_to_v4', 'attribute_volume', 'ingest_url', 'scan_dataset', 'seismic_qc', 'poststack_inversion', 'property_prediction', 'export_segy', 'ingest_gathers', 'angle_stacks', 'avo_volumes', 'sample_volumes', 'prestack_inversion', 'prestack_qc', 'trim_gathers', 'match_stacks']);
 
 export function createHandlers(deps = {}) {
   return Object.freeze({
@@ -38,5 +40,7 @@ export function createHandlers(deps = {}) {
     sample_volumes: (ctx) => sampleVolumes(ctx, deps),
     prestack_inversion: (ctx) => prestackInversion(ctx, deps),
     prestack_qc: (ctx) => prestackQc(ctx, deps),
+    trim_gathers: (ctx) => trimGathers(ctx, deps),
+    match_stacks: (ctx) => matchStacksJob(ctx, deps),
   });
 }
