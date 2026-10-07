@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 0555e54108378a725e9479c1c10c587d62cbe1bb
+# commit d60083a5ed655e5637d0dd1ce8b1d01bed15cb4c
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 80b08bf546799e96d5448d67c63c98f2ec1b9703 README.md
@@ -506,7 +506,7 @@ b7a2a85022f3df59f44051d5202dcf9746502326 engines/production/pumpingUnit.js
 02b493abc6f3f626d6f6ef49575e22cbc5f62f41 engines/production/surveillance.js
 2468504187c6f984b84f318939d55929be3e667a engines/prospect/valuation.js
 1fb38b8c99221903f5bfbb839e19e49ff8ff465f engines/qi/avo.js
-89216e8e9b276f4a67b65d0ecc46f0505753624f engines/qi/conditioning.js
+9f024a3222d069cb800211bee488d53b18a76d1e engines/qi/conditioning.js
 64558a3ec11060d42e891f44e242b2afdbafadf5 engines/qi/gatherStore.js
 9adb98740539dcefc0bbb0f555abaa5f0f35d37e engines/qi/inversion.js
 d00a00ca01a9fd9c18ad49ffbc686797120dc04f engines/qi/inversionSpread.js
