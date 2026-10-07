@@ -12,8 +12,9 @@ import { seismicQc } from './seismicQc.js';
 import { poststackInversion } from './poststackInversion.js';
 import { propertyPrediction } from './propertyPrediction.js';
 import { exportSegy } from './exportSegy.js';
+import { ingestGathers } from './ingestGathers.js';
 
-export const KINDS = Object.freeze(['noop', 'stack_to_v4', 'attribute_volume', 'ingest_url', 'scan_dataset', 'seismic_qc', 'poststack_inversion', 'property_prediction', 'export_segy']);
+export const KINDS = Object.freeze(['noop', 'stack_to_v4', 'attribute_volume', 'ingest_url', 'scan_dataset', 'seismic_qc', 'poststack_inversion', 'property_prediction', 'export_segy', 'ingest_gathers']);
 
 export function createHandlers(deps = {}) {
   return Object.freeze({
@@ -26,5 +27,6 @@ export function createHandlers(deps = {}) {
     poststack_inversion: (ctx) => poststackInversion(ctx, deps),
     property_prediction: (ctx) => propertyPrediction(ctx, deps),
     export_segy: (ctx) => exportSegy(ctx, deps),
+    ingest_gathers: (ctx) => ingestGathers(ctx, deps),
   });
 }

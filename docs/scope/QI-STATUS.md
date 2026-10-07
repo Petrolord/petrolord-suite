@@ -9,8 +9,8 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
 | Q0 Seismic worker foundations | DONE: merged #891 (main 728a53b7e), 2026-10-06 |
 | Q0b Seismolord on the worker | DONE: merged #893; both migrations applied and verified 2026-10-06 |
 | Milestone A (Q1, Q2, Q4a, Q6a) | DONE: A1 to A6 merged 2026-10-06 (#894, #896 to #901, #903). Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
-| Milestone B (Q8a, Q9a, Q10, Q11) | Q8a DONE (#904, #905); Q9a DONE (#906); Q10 DONE (#907); worker live. Q11 handover built (engines #328; Suite feat/qi-q11-handover) |
-| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Not started |
+| Milestone B (Q8a, Q9a, Q10, Q11) | DONE (#904 to #908); worker live. Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
+| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a gather ingest built (engines #329 to #332; Suite feat/qi-q3-gathers) |
 | Q12 Benchmark and tester waves | Not started |
 
 ## Key facts
@@ -457,5 +457,28 @@ The quota is pooled per organisation. Building that is the next item.
   - **Exports are temporary:** a 24-hour link and a 3-day file. A re-export is cheap. Long-term storage stays the client's.
   - **The fingerprint is not a security hash:** it tells inputs apart in an audit. The worker keeps the full params in the job row.
   - **Maps and sections:** the report pack stays tables and text. Maps and sections are exported from Seismolord and Mapping, which already draw them with the chart standard.
-- **Worker deploy:** needed after merge, for `export_segy` and the janitor step.
+- **Merged:** #908 (main d2864c4a2). The worker was redeployed as suite-d2864c4a2+engines-6a6b19877 and is healthy with `export_segy`.
 - **Next:** the Milestone B acceptance run (a full post-stack study on an open dataset) waits for the owner's Volve/F3 licence check. Milestone C (prestack) is next in build order: Q3 prestack data first.
+
+### C1 Q3a Prestack gathers: ingest and store (2026-10-07)
+- **Engines:**
+  - **#329 `qi/prestack.js`:**
+    - Dix interval velocities;
+    - the exact incidence angle by ray tracing flat layers;
+    - Walden's (1991) straight-ray angle;
+    - offset bins, angle gathers, angle partial stacks and the usable angle.
+    - Gates: Dix recovers a layered earth exactly; Walden is within 1.5 degrees of the exact ray up to an offset equal to the depth; a two-term AVO trend survives the angle gather. Negative controls: without the Vint / Vrms factor the angle misses by more than 3 times Walden's error; offset bins in place of angle bins scramble the trend.
+  - **#330 `qi/gatherStore.js`:** the worker-side store. CDP blocks of cb x cb, each with every bin's trace, plus a separate Uint16 fold. Single-gather reads and the dataset manifest.
+  - **#331:** the SEG-Y writer writes a prestack offset at byte 37.
+  - **#332:** the block builder sums in float32, and `builderBytes` states its memory.
+- **Worker kind `ingest_gathers`:**
+  - an uploaded prestack SEG-Y, read twice straight through: the headers (geometry, offset bins, survey affine from about 5,000 traces), then the samples into CDP blocks, one brick row of inlines at a time;
+  - blocks and fold in the work bucket under `gathers/{uid}/{id}/`, with a manifest;
+  - registered as a `qi_datasets` row (kind `gathers_offset`), counted in the worker storage allowance.
+  - Gated: a CDP's gather read back from its block is its traces in their bins; two traces in one bin are their mean, and the fold says so.
+- **Decisions:**
+  - **Inline-sorted only:** a file not sorted by inline is refused with what to do (sort by inline then crossline). Deliveries are usually sorted, and the sort lets both passes stream.
+  - **Gathers are taken as NMO-corrected** (the usual QI delivery), recorded in the manifest (`nmo_corrected: true`). Residual moveout comes with Q4b/Q5.
+  - **Memory:** one brick row of blocks is held while it fills (cb x crosslines x bins x samples, float32). A row over the worker's memory budget is refused with the block size or bin width that would fit. The default block is 4 CDPs.
+  - **Janitor:** the 30-day raw retention now touches only raw uploads (`kind segy_upload`). A gather store is kept (gated by a negative control).
+- **Next in Q3:** angle stacks from the store with an RMS velocity function (partial stacks as SEG-Y datasets the existing stack conversion turns into Seismolord volumes), fold and usable-angle maps, and the stack family with declared and measured angle ranges.

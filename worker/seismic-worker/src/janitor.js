@@ -4,7 +4,7 @@
 //   - An upload still unfinished 7 days after it started is abandoned: its
 //     parts are aborted in the store and the dataset row is marked deleted,
 //     so it stops holding the user's allowance.
-//   - A raw SEG-Y is kept 30 days after its upload completed (long enough to
+//   - A raw SEG-Y (kind segy_upload; a gather store is kept) is kept 30 days after its upload completed (long enough to
 //     convert it again with other settings), then the object is deleted and
 //     the row marked deleted. Converted volumes live in Supabase Storage and
 //     are not touched.
@@ -64,7 +64,7 @@ export async function runJanitor({ admin, sign, fetchImpl = fetch, now = Date.no
   // 2. raw SEG-Y past its retention
   const { data: old, error: e2 } = await admin.from('qi_datasets')
     .select('id,status,bucket,object_key,meta')
-    .eq('status', 'uploaded').lt('uploaded_at', iso(now() - RAW_RETENTION_DAYS * DAY))
+    .eq('status', 'uploaded').eq('kind', 'segy_upload').lt('uploaded_at', iso(now() - RAW_RETENTION_DAYS * DAY))
     .order('uploaded_at', { ascending: true }).limit(BATCH);
   if (e2) throw new Error(`janitor: ${e2.message}`);
   for (const row of old || []) {

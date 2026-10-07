@@ -37,7 +37,7 @@ function adminMock(rows) {
 }
 
 const sign = async (method, bucket, key, q = {}) => `https://store/${bucket}/${key}?m=${method}${q.uploadId ? `&uploadId=${q.uploadId}` : ''}`;
-const base = { bucket: 'seismic-raw', meta: {} };
+const base = { bucket: 'seismic-raw', meta: {}, kind: 'segy_upload' };
 
 test('abandons only uploads older than the limit and expires only raw files past retention', async () => {
   const rows = [
@@ -98,4 +98,12 @@ test('removes SEG-Y exports past their retention once, and keeps younger ones', 
   expect(rows[1].result_refs.url).toBe('https://y');
   // a second run leaves the removed one alone
   expect(await run()).toMatchObject({ exports: 0 });
+});
+
+test('a gather store is not a raw upload: retention leaves it alone (negative control)', async () => {
+  const rows = [{ ...base, id: 'old-gathers', kind: 'gathers_offset', status: 'uploaded', created_at: ago(60), uploaded_at: ago(RAW_RETENTION_DAYS + 5), object_key: 'gathers/u/g/manifest.json' }];
+  const admin = adminMock(rows);
+  const out = await runJanitor({ admin, sign, now: () => NOW, fetchImpl: async () => ({ ok: true, status: 204 }), log: { warn() {} } });
+  expect(out.expired).toBe(0);
+  expect(rows[0].status).toBe('uploaded');
 });
