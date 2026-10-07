@@ -10,7 +10,7 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
 | Q0b Seismolord on the worker | DONE: merged #893; both migrations applied and verified 2026-10-06 |
 | Milestone A (Q1, Q2, Q4a, Q6a) | DONE: A1 to A6 merged 2026-10-06 (#894, #896 to #901, #903). Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
 | Milestone B (Q8a, Q9a, Q10, Q11) | DONE (#904 to #908); worker live. Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
-| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a DONE (#909), Q3b DONE (#910); worker live. Q7 AVO built (engines #335; Suite feat/qi-q7-avo) |
+| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a DONE (#909), Q3b DONE (#910); worker live. Q7 AVO DONE (#911); worker live. Q7b AVO at the wells built (Suite feat/qi-q7b-avo-wells) |
 | Q12 Benchmark and tester waves | Not started |
 
 ## Key facts
@@ -524,5 +524,20 @@ The quota is pooled per organisation. Building that is the next item.
   - **Two terms from stacks:** the volume fit is the two-term Shuey. Partial stacks rarely reach the angles a three-term fit needs, and the engine gate shows the bias past 30 degrees; the help says to keep the stacks within about 30 degrees.
   - **Amplitude scale:** the stacks are taken as balanced against each other. A, B and the fluid factor carry their scale. Calibrating it to reflectivity at the wells comes with Q6b (angle-dependent wavelets and synthetic gathers).
   - **Labels:** A, B, the fluid factor and the chi projection are elastic estimates. Class maps and fluid probabilities (Q9b) carry the interpretation and fluid-hypothesis labels.
-- **Worker deploy:** needed after merge, for `avo_volumes`.
-- **Next:** I-G at the wells (modelled against observed, closing RP U2-008) and class maps at a horizon; then Q6b, Q4b, Q5, Q8b and Q9b.
+- **Merged:** #911 (main 867a71eba). The worker deploy followed.
+- **Next (then):** I-G at the wells (modelled against observed, closing RP U2-008) and class maps at a horizon; then Q6b, Q4b, Q5, Q8b and Q9b.
+
+### C4 Q7b AVO at the wells (2026-10-07; closes Rock Physics U2-008)
+- **Worker kind `sample_volumes`:** values of up to eight volumes on one lattice at up to 200 points. The first volume's event (largest absolute value within the window) sets the sample, and every volume is read there, so the values belong to one reflection. Gated: the event 8 ms away is found, and without a window it is missed (negative control); outside the survey and no live sample are said.
+- **QI Studio, AVO tab, At the wells:**
+  - for each study well, Rock Physics Studio's published gather (`rock-physics-gather` contract: the zone, in situ and fluid-substituted intercept and gradient);
+  - the zone top in time through the well's own tie (`prepareWell` now returns `topsTwt`);
+  - the intercept and gradient volumes sampled at the well's trace.
+  - One least-squares scale ties the volumes to reflectivity (A and B together). Each well's model beside its scaled seismic, the AVO class of each and the misfit, in a table and an I-G crossplot (white chart theme, ChartLogo).
+  - Issues: a class that differs (medium); a negative scale (high, a polarity problem).
+  - A report table.
+- **Decisions:**
+  - **One scale for all wells:** the stacks are balanced against each other (Q7), so one factor maps the volumes to reflectivity. A scale per well would hide a tie problem at one well. Its misfit and class show it instead.
+  - **The comparison lists every well:** a well with no published gather or no usable trace shows its reason.
+  - **The in-situ case is the comparison;** the substituted case is drawn beside it to show where the fluid moves the response.
+- **Worker deploy:** needed after merge, for `sample_volumes`.

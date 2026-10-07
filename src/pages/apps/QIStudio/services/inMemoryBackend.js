@@ -70,6 +70,11 @@ export function makeInMemoryBackend() {
         { id: 'qi-d3', name: 'Keta near', kind: 'segy_upload', status: 'uploaded', bytes: 2 * 1024 ** 3, meta: { partial_stack: { name: 'near', from: 0, to: 15 } } },
       ];
     },
+    // a published Rock Physics gather at every well with logs: Sand A top at 2000 m, a class III gas response in situ
+    async loadRockPhysicsGather(well) {
+      if (!/KETA/.test(well.name)) return { ok: false, reason: 'No Rock Physics gather published for this well.' };
+      return { ok: true, gather: { zone: { name: 'SAND A', top_md_m: 2000 }, cases: [{ key: 'in-situ', intercept: -0.05, gradient: -0.12 }, { key: 'substituted', intercept: -0.02, gradient: -0.03 }] } };
+    },
     async convertStack() { return { jobId: 'mem-convert', volumeId: 'mem-vol' }; },
     // a dome (Top Sand A) and an RMS amplitude map bright above a flat contact at 2100 m
     async listSurfaces() {
@@ -105,6 +110,11 @@ function makeInMemoryJobs() {
     async enqueueJob(kind, params) {
       n += 1;
       const id = `mem-job-${n}`;
+      if (kind === 'sample_volumes') {
+        // the seismic at twice the model's scale, as a calibration would find
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { points: params.points.map((q) => ({ name: q.name, t_ms: q.t_ms, values: [-0.1, -0.24] })) } });
+        return id;
+      }
       if (kind === 'avo_volumes') {
         results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { volume_ids: params.products, stacks: params.stacks, vs_vp: params.vs_vp } });
         return id;

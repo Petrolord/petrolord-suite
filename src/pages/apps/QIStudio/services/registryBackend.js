@@ -15,6 +15,7 @@ import { volumeFrame } from './inversionWells';
 import { listSurfaces, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
 import { readDepthSurface } from '@/lib/readDepthSurface';
 import { listDatasets } from '@/lib/qiService';
+import { loadGatherForWell } from '@/lib/rockPhysicsGather';
 import { scanRemoteFile, startRemoteConversion } from '@/pages/apps/Seismolord/services/serverImport';
 import { DEFAULT_MAPPING } from '../../../../../packages/engines/engines/seismolord/segyScan';
 
@@ -69,6 +70,7 @@ export function makeRegistryBackend() {
     removeVolume: deleteVolume,
     listSurfaces,
     listDatasets,
+    loadRockPhysicsGather: (well) => loadGatherForWell(supabase, well.id),
     /** An angle stack in the worker store into a Seismolord volume: the server import's own scan and conversion. */
     async convertStack(d) {
       const remote = { remote: true, datasetId: d.id, name: d.original_filename, size: Number(d.bytes), fingerprint: d.meta?.fingerprint };

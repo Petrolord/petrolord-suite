@@ -131,6 +131,10 @@ export function reportModel({ projectName = '', organizationName = '', project, 
       velocityRows: (r.velocity?.t_ms || []).length,
     })),
     avo: (project.avo?.runs || []).filter((r) => r.status === 'ready').map((r) => [r.name, r.stacks.map((s) => `${s.name} (${s.angle} degrees)`).join(', '), Object.keys(r.volumeIds).join(', '), String(r.vsVp)]),
+    avoWells: project.avo?.wells ? {
+      runName: project.avo.wells.runName, at: String(project.avo.wells.at || '').slice(0, 10), scale: project.avo.wells.scale, agree: project.avo.wells.agree, n: project.avo.wells.n,
+      rows: project.avo.wells.wells.map((w) => (w.error ? [w.name, w.error, '', '', ''] : [w.name, `${w.modelled.A.toFixed(3)}, ${w.modelled.B.toFixed(3)}`, `${w.scaled.A.toFixed(3)}, ${w.scaled.B.toFixed(3)}`, `${w.modelledClass} / ${w.observedClass}`, w.residual.toFixed(3)])),
+    } : null,
     executive: (() => {
       const out = [];
       const inv = Object.values(project.inversion || {}).map((r) => r?.blind?.result?.blind || r?.spread?.result?.blind).filter((b) => b?.length);
@@ -202,6 +206,10 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
     });
   }
   if ((model.avo || []).length) table('AVO volumes', ['Run', 'Stacks (mean angle)', 'Products', 'Vs/Vp'], model.avo, { note: 'Two-term Shuey least squares over the stacks at every sample; the fluid factor is Smith and Gidlow\'s, from A and B with Gardner\'s density and the stated Vs/Vp. The stacks are taken as balanced against each other, so A and B share their amplitude scale. Elastic estimates.' });
+  if (model.avoWells) {
+    const w = model.avoWells;
+    table(`AVO at the wells: ${w.runName}`, ['Well', 'Model A, B (in situ)', 'Seismic A, B (scaled)', 'Class, model / seismic', 'Misfit'], w.rows, { note: `The intercept and gradient Rock Physics Studio modelled at each zone top against the AVO volumes at the well, the event within 8 ms${w.at ? `, on ${w.at}` : ''}. One least-squares scale (${Number.isFinite(w.scale) ? w.scale.toPrecision(3) : 'none'}) ties the volumes to reflectivity over ${w.n} well${w.n === 1 ? '' : 's'}; the class agrees at ${w.agree}.` });
+  }
   for (const v of model.inversion || []) {
     table(`Impedance inversion: ${v.volume}`, ['Well', 'Blind correlation', 'Blind AI error (percent)', 'With the well: correlation', 'With the well: error (percent)'], v.rows, {
       note: `${v.method}, run on the seismic worker${v.at ? ` on ${v.at}` : ''}. Each well is left out of the low-frequency model in turn and compared with its own log after a high cut at ${INVERSION_DEFAULTS.truthHz} Hz${v.relative ? '; relative impedance has no level, so only the correlation is reported' : ''}. Products are elastic estimates.${v.volumes.length ? ` Impedance volumes: ${v.volumes.join(', ')}.` : ''}`,
