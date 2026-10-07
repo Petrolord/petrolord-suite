@@ -10,8 +10,9 @@ import { ingestUrl } from './ingestUrl.js';
 import { scanDataset } from './scanDataset.js';
 import { seismicQc } from './seismicQc.js';
 import { poststackInversion } from './poststackInversion.js';
+import { propertyPrediction } from './propertyPrediction.js';
 
-export const KINDS = Object.freeze(['noop', 'stack_to_v4', 'attribute_volume', 'ingest_url', 'scan_dataset', 'seismic_qc', 'poststack_inversion']);
+export const KINDS = Object.freeze(['noop', 'stack_to_v4', 'attribute_volume', 'ingest_url', 'scan_dataset', 'seismic_qc', 'poststack_inversion', 'property_prediction']);
 
 export function createHandlers(deps = {}) {
   return Object.freeze({
@@ -22,5 +23,6 @@ export function createHandlers(deps = {}) {
     scan_dataset: (ctx) => scanDataset(ctx, deps),
     seismic_qc: (ctx) => seismicQc(ctx, deps),
     poststack_inversion: (ctx) => poststackInversion(ctx, deps),
+    property_prediction: (ctx) => propertyPrediction(ctx, deps),
   });
 }

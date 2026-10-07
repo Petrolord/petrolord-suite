@@ -5,7 +5,7 @@
 // Copy rule: no em dashes, no "X, not Y" contrastives.
 // Guard: __tests__/helpGuide.test.jsx.
 import React from 'react';
-import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity, Layers } from 'lucide-react';
+import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity, Layers, Gauge } from 'lucide-react';
 import { HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Step, Table } from '@/components/helpguide/HelpGuideLayout';
 import SharingHelp from '@/components/recordSharing/SharingHelp';
 import { GROUPS, STATES } from './services/inventory';
@@ -21,6 +21,7 @@ export const HELP_SECTIONS = [
   { id: 'usability', icon: Grid3x3, title: 'Usability matrix' },
   { id: 'qc', icon: Activity, title: 'Seismic QC' },
   { id: 'inversion', icon: Layers, title: 'Impedance inversion' },
+  { id: 'properties', icon: Gauge, title: 'Property prediction' },
   { id: 'issues', icon: AlertTriangle, title: 'Issue register' },
   { id: 'feasibility', icon: Scale, title: 'Feasibility per target' },
   { id: 'report', icon: FileText, title: 'The report' },
@@ -121,6 +122,29 @@ function QIStudioHelpGuideContent() {
           90th percentile across the scenarios, and the mean error of each scenario, so you see which assumption the result
           depends on most. Inverted over the volume, it writes four volumes in one run: impedance at Q10, Q50 and Q90 (the
           10th, 50th and 90th percentiles per sample) and the relative spread (Q90 - Q10) / Q50.
+        </Para>
+      </GuideSection>
+
+      <GuideSection id="properties">
+        <SectionHeading icon={Gauge}>Property prediction</SectionHeading>
+        <Para>
+          The Properties tab predicts porosity or facies from a finished impedance volume. Read the wells: each gives its
+          impedance and its porosity curve, or the facies curve written back from Rock Physics Studio&apos;s Multi-well
+          crossplot, on the volume&apos;s time axis (facies codes go to the nearest sample, never interpolated). The logs are
+          taken to seismic scale and, optionally, to a time window around the target.
+        </Para>
+        <Para>
+          Porosity is a straight line in impedance fitted by least squares, with the 80 percent prediction interval of a new
+          value: the volumes are porosity at Q10, Q50 and Q90. Facies are classified the Bayesian way: a Gaussian or kernel
+          density of impedance per facies, priors from the wells&apos; proportions or equal, and the probability of each facies
+          with the most likely one. A facies named for a fluid (gas, oil, brine) is labelled a fluid hypothesis.
+        </Para>
+        <Para>
+          Calibrate and check before predicting the volume: each well is left out, the model is refitted on the others, and the
+          well is predicted from the inverted impedance at its trace. Porosity reports the RMS error, the correlation and how
+          much of the well falls inside Q10 to Q90 (about 80 percent is right); facies report the share predicted correctly. A
+          poor correlation, a poor facies score or an interval that covers under 60 or over 95 percent is offered to the
+          issue register.
         </Para>
       </GuideSection>
 

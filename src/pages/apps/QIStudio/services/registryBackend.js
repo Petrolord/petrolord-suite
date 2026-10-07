@@ -13,6 +13,22 @@ import { assertFloat32Parent, derivedStorageBytes } from '@/pages/apps/Seismolor
 import { volumeDir } from '../../../../../packages/engines/engines/seismolord/manifest';
 import { volumeFrame } from './inversionWells';
 
+/** A new derived row ('ingesting', kind 'attribute') on a parent volume, as Seismolord registers an attribute volume. */
+async function registerDerived(parent, name, attributeParams) {
+  const manifest = await getManifest(parent);
+  assertFloat32Parent(manifest);
+  await assertQuota(derivedStorageBytes(manifest));
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error('You must be signed in to compute a volume.');
+  const id = crypto.randomUUID();
+  const { data, error } = await supabase.from('seismic_volumes').insert({
+    id, user_id: user.id, name, storage_path: volumeDir(user.id, id), status: 'ingesting', kind: 'attribute',
+    parent_volume_id: parent.id, attribute_params: attributeParams, crs: parent.crs ?? null, survey_meta: {},
+  }).select().single();
+  if (error) throw new Error(`Could not register the volume: ${error.message}`);
+  return data;
+}
+
 export function makeRegistryBackend() {
   return {
     listWells,
@@ -35,18 +51,12 @@ export function makeRegistryBackend() {
     },
     downloadCurve,
     async registerInversionVolume({ volume, name, summary }) {
-      const manifest = await getManifest(volume);
-      assertFloat32Parent(manifest);
-      await assertQuota(derivedStorageBytes(manifest));
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) throw new Error('You must be signed in to run an inversion.');
-      const id = crypto.randomUUID();
-      const { data, error } = await supabase.from('seismic_volumes').insert({
-        id, user_id: user.id, name, storage_path: volumeDir(user.id, id), status: 'ingesting', kind: 'attribute',
-        parent_volume_id: volume.id, attribute_params: { name: 'qi_inversion', params: summary }, crs: volume.crs ?? null, survey_meta: {},
-      }).select().single();
-      if (error) throw new Error(`Could not register the inversion volume: ${error.message}`);
-      return data;
+      return registerDerived(volume, name, { name: 'qi_inversion', params: summary });
+    },
+    async registerPropertyVolume({ aiVolumeId, name, summary }) {
+      const { data: ai, error } = await supabase.from('seismic_volumes').select('id, storage_path, crs').eq('id', aiVolumeId).maybeSingle();
+      if (error || !ai) throw new Error('The impedance volume was not found.');
+      return registerDerived(ai, name, { name: 'qi_property', params: summary });
     },
     removeVolume: deleteVolume,
     async countSurfaces() {

@@ -53,9 +53,12 @@ export function makeInMemoryBackend() {
     async downloadCurve(l) {
       const n = Math.round((l.stop_md_m - l.start_md_m) / l.step_m) + 1;
       const dt = /^DT/.test(l.mnemonic);
+      if (/^PHI/.test(l.mnemonic)) return Float32Array.from({ length: n }, (_, i) => 0.2 + 0.05 * Math.sin(i / 55));
+      if (/FACIES/.test(l.mnemonic)) return Float32Array.from({ length: n }, (_, i) => (Math.sin(i / 55) > 0 ? 1 : 2));
       return Float32Array.from({ length: n }, (_, i) => (dt ? 330 - 0.03 * i * l.step_m + 15 * Math.sin(i / 40) : 2.3 + 0.0001 * i * l.step_m + 0.04 * Math.sin(i / 55)));
     },
     async registerInversionVolume({ volume, name }) { return { id: `mem-inv-${volume.id}`, name, status: 'ingesting' }; },
+    async registerPropertyVolume({ aiVolumeId, name, summary }) { return { id: `mem-prop-${aiVolumeId}-${summary.product}`, name, status: 'ingesting' }; },
     async removeVolume() {},
     jobs: makeInMemoryJobs(),
   };
@@ -79,6 +82,16 @@ function makeInMemoryJobs() {
     async enqueueJob(kind, params) {
       n += 1;
       const id = `mem-job-${n}`;
+      if (kind === 'property_prediction') {
+        // an illustrative result in the worker's shape (the maths is gated in the worker and engine tests)
+        const pr = params.property;
+        const rows = pr.wells.map((w, i) => (pr.kind === 'facies' ? { name: w.name, n: 150, accuracy: 0.86 - 0.05 * i } : { name: w.name, n: 150, rms: 0.021 + 0.004 * i, corr: 0.82 - 0.05 * i, coverage: 0.78 + 0.03 * i }));
+        const summary = pr.kind === 'facies'
+          ? { classes: Object.values(pr.names).map((n, i) => ({ name: n, n: 200 - 40 * i, prior: 0.5 - 0.1 * i, mean: 6200 + 900 * i, sd: 450 })), density: pr.density || 'gaussian' }
+          : { a: 0.41, b: -3.4e-5, r2: 0.74, n: 600, s: 0.018 };
+        results.set(id, { id, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, settings: { kind: pr.kind }, summary, rows, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}) } });
+        return id;
+      }
       if (kind === 'poststack_inversion') {
         // an illustrative result in the worker's shape (the maths is gated in the worker and engine tests)
         const blind = params.inversion.wells.map((w, i) => ({ name: w.name, blind: { corr: 0.9 - 0.04 * i, rmsPct: 4 + 2.5 * i, n: 120 }, withWell: { corr: 0.96, rmsPct: 2.5, n: 120 } }));

@@ -72,7 +72,7 @@ export function validateInversionParams(p) {
 export const halfWindowFor = (hz, dtMs) => Math.max(1, Math.round(1000 / (hz * dtMs) / 2));
 
 /** A copy of an array with its NaN runs left alone and its finite runs low-passed. */
-function lowPassFinite(values, half) {
+export function lowPassFinite(values, half) {
   const out = Float64Array.from(values, (v) => (fin(v) ? v : NaN));
   const lp = lowFrequencyModel(out, half);
   for (let i = 0; i < out.length; i++) out[i] = fin(out[i]) ? lp[i] : NaN;

@@ -39,3 +39,30 @@ test('blind-well issues: poor correlation, large error, a result that leans on t
   expect(issues.every((i) => /KETA-4/.test(i.title))).toBe(true);
   expect(inversionIssues([blind[0]], 'Keta 3D')).toEqual([]);
 });
+
+test('the report carries the property calibration and check', () => {
+  const p = {
+    ...blankProject(),
+    properties: {
+      ai1: {
+        porosity: { calibration: { at: '2026-10-07T01:00:00Z', volumeName: 'Keta AI', result: { settings: { kind: 'porosity' }, summary: { a: 0.41, b: -3.4e-5, r2: 0.74, n: 600, s: 0.018 }, rows: [{ name: 'KETA-1', n: 150, rms: 0.021, corr: 0.82, coverage: 0.78 }] } }, runs: [{ name: 'Keta AI: porosity', status: 'ready' }] },
+        facies: { calibration: { at: '2026-10-07T01:00:00Z', volumeName: 'Keta AI', result: { settings: { kind: 'facies' }, summary: { classes: [{ name: 'gas sand', n: 40, prior: 0.2, mean: 5900, sd: 300 }] }, rows: [{ name: 'KETA-1', n: 150, accuracy: 0.86 }] } } },
+      },
+    },
+  };
+  const model = reportModel({ project: p, inventory: [], matrix, issues: [], chosenVolumes: [], ready: [] });
+  expect(model.properties).toHaveLength(2);
+  const t = flat(readPdf(buildQIStudioPdf(model, { generatedAt: new Date('2026-10-07T12:00:00Z') }).doc).text);
+  expect(t).toMatch(/Porosity from Keta AI/);
+  expect(t).toMatch(/porosity = 0\.4100 - 3\.400e-5 x AI/);
+  expect(t).toMatch(/Facies check: Keta AI/);
+  expect(t).toMatch(/fluid hypothesis/);
+});
+
+test('property issues: poor fit, miscalibrated interval, poor facies', () => {
+  const { propertyIssues } = require('../services/propertyRun');
+  const por = propertyIssues({ settings: { kind: 'porosity' }, rows: [{ name: 'W1', corr: 0.3, coverage: 0.4 }, { name: 'W2', corr: 0.9, coverage: 0.8 }] }, 'AI');
+  expect(por.map((i) => i.severity)).toEqual(['high', 'medium']);
+  const fac = propertyIssues({ settings: { kind: 'facies' }, rows: [{ name: 'W1', accuracy: 0.5 }, { name: 'W2', accuracy: 0.9 }] }, 'AI');
+  expect(fac).toHaveLength(1);
+});

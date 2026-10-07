@@ -50,7 +50,7 @@ export function volumeFrame(manifest) {
  * @returns {Promise<{name, wellId, ok: boolean, reason?: string, il?, xl?, ln_ai?: number[],
  *   curves?: string, timeSource?: string, samples?: number}>}
  */
-export async function prepareWell(loaded, frame, downloadCurve) {
+export async function prepareWell(loaded, frame, downloadCurve, { extras = [] } = {}) {
   const { well, logs } = loaded;
   const base = { name: well.name, wellId: well.id };
   const no = (reason) => ({ ...base, ok: false, reason });
@@ -97,9 +97,64 @@ export async function prepareWell(loaded, frame, downloadCurve) {
   if (!(il >= 0 && il < frame.nIl && xl >= 0 && xl < frame.nXl)) return no('The well is outside the survey.');
 
   const named = (c) => `${c.log.mnemonic}${c.edit ? ` (${c.edit})` : ''}`;
+  const toTwt = (m) => conv.toTwtMs(positionAtMd(stations, path, m)?.tvdss ?? NaN);
+  const extra = {};
+  for (const kind of extras) {
+    const c = kind === 'facies' ? pickFaciesCurve(logs) : pickCurve(logs, 'porosity');
+    if (!c) { extra[kind] = { reason: kind === 'facies' ? 'No facies curve (draw facies in Rock Physics Studio, Multi-well, and write them back).' : 'No porosity curve.' }; continue; }
+    if (c.log.step_m == null) { extra[kind] = { reason: `${c.log.mnemonic} has an irregular depth grid.` }; continue; }
+    const raw = await downloadCurve(c.log);
+    const data = kind === 'facies' ? raw : porosityFraction(raw);
+    const mdC = Array.from({ length: data.length }, (_, i) => Number(c.log.start_md_m) + i * Number(c.log.step_m));
+    const twtC = mdC.map(toTwt);
+    const values = kind === 'facies'
+      ? nearestToDt(twtC, Array.from(data), frame.dtMs, frame.ns)
+      : Array.from(resampleToDt(Float64Array.from(twtC, (t) => (Number.isFinite(t) ? t : NaN)), Float64Array.from(data, (v) => (Number.isFinite(v) ? v : NaN)), frame.dtMs, frame.ns));
+    extra[kind] = {
+      curve: named(c), values: values.map((v) => (Number.isFinite(v) ? v : NaN)),
+      ...(kind === 'facies' ? { names: c.names } : {}),
+    };
+  }
   return {
     ...base, ok: true, il, xl, ln_ai: lnAi, samples: live,
     curves: `${named(sonic)} and ${named(density)}`,
     timeSource: cs.derived ? 'the committed well tie' : 'imported checkshots',
+    ...extra,
   };
+}
+
+/** Porosity as a fraction: vendor nulls (-999 and below) dropped; a curve in percent (median over 1.5) divided by 100. */
+export function porosityFraction(raw) {
+  const v = Array.from(raw, (x) => (Number.isFinite(x) && x > -900 ? x : NaN));
+  const live = v.filter(Number.isFinite).sort((a, b) => a - b);
+  const median = live.length ? live[Math.floor(live.length / 2)] : 0;
+  return median > 1.5 ? v.map((x) => x / 100) : v;
+}
+
+/** The facies-code curve of a well (Rock Physics Studio's RP_FACIES or another facies curve), with its code names. */
+export function pickFaciesCurve(logs) {
+  const cands = (logs || []).filter((l) => l.provenance?.kind === 'facies' || /^(RP_)?FACIES\b/i.test(String(l.mnemonic || '')));
+  if (!cands.length) return null;
+  const l = cands[cands.length - 1];
+  const names = {};
+  for (const c of l.provenance?.codes || []) if (Number(c.code) > 0) names[String(c.code)] = String(c.name);
+  return { log: l, edit: null, names };
+}
+
+/** Codes onto the time grid by the nearest sample in time (codes are never interpolated). */
+export function nearestToDt(twtMs, codes, dtMs, ns) {
+  const pts = [];
+  for (let i = 0; i < twtMs.length; i++) if (Number.isFinite(twtMs[i])) pts.push([twtMs[i], codes[i]]);
+  pts.sort((a, b) => a[0] - b[0]);
+  const out = new Array(ns).fill(NaN);
+  if (pts.length < 2) return out;
+  let j = 0;
+  for (let k = 0; k < ns; k++) {
+    const t = k * dtMs;
+    if (t < pts[0][0] || t > pts[pts.length - 1][0]) continue;
+    while (j < pts.length - 1 && pts[j + 1][0] <= t) j++;
+    const pick = j < pts.length - 1 && pts[j + 1][0] - t < t - pts[j][0] ? pts[j + 1] : pts[j];
+    out[k] = Number.isFinite(pick[1]) ? pick[1] : NaN;
+  }
+  return out;
 }

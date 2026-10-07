@@ -188,4 +188,23 @@ test('inversion: the wells read into impedance, the blind-well check and a volum
   const runs = await screen.findByTestId('qi-inv-runs', {}, { timeout: 20000 });
   await waitFor(() => expect(runs).toHaveTextContent(/Ready: open in Seismolord/));
   expect(enqueue.mock.calls[2][1]).toMatchObject({ mode: 'volume', volume_id: 'mem-inv-qi-v1' });
+
+  // property prediction from the finished impedance volume
+  fireEvent.click(screen.getByTestId('qi-tab-properties'));
+  expect(screen.getByTestId('qi-prop-ai')).toHaveTextContent(/Keta 3D full stack AI, Model-based/);
+  fireEvent.click(screen.getByTestId('qi-prop-read'));
+  const pw = await screen.findByTestId('qi-prop-wells', {}, { timeout: 20000 });
+  expect(pw).toHaveTextContent(/KETA-1DT and RHOBPHIE/);
+  fireEvent.click(screen.getByTestId('qi-prop-calibrate'));
+  expect(await screen.findByTestId('qi-prop-transform', {}, { timeout: 20000 })).toHaveTextContent(/porosity = 0\.4100 - 3\.400e-5 x AI/);
+  expect(within(screen.getByTestId('qi-prop-check')).getAllByRole('row')).toHaveLength(3);
+  const [pkind, pparams] = enqueue.mock.calls[3];
+  expect(pkind).toBe('property_prediction');
+  expect(pparams).toMatchObject({ mode: 'calibrate', ai_volume_id: 'mem-inv-qi-v1' });
+  expect(pparams.property.wells.map((w) => w.name)).toEqual(['KETA-1', 'KETA-4']);
+  expect(pparams.property.wells[0].target.filter(Number.isFinite).length).toBeGreaterThan(100);
+  fireEvent.click(screen.getByTestId('qi-prop-run'));
+  const pruns = await screen.findByTestId('qi-prop-runs', {}, { timeout: 20000 });
+  await waitFor(() => expect(pruns).toHaveTextContent(/Ready: open in Seismolord/));
+  expect(Object.keys(enqueue.mock.calls[4][1].volume_ids)).toEqual(['q10', 'q50', 'q90']);
 });

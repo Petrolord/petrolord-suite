@@ -20,7 +20,9 @@ QI Studio holds the first package of a quantitative interpretation study: the da
   The result is kept with the project, and its issues can be added to the register.
 - **Well ties** (A6): each well's committed Seismolord tie, the tie wavelets compared and averaged (the field wavelet), and tie issues to the register.
 - **Inversion** (Q8a): post-stack impedance on the seismic worker: wells read into impedance in time, the wavelet from the ties, horizons for the low-frequency model, model-based, blocky, sparse-spike or coloured; the blind-well check, the volume run (a new volume in Seismolord), issues to the register.
-- **Report:** the QI Data Audit and Feasibility Report on the shared Report Kit, including the QC, tie and inversion tables.
+- **Sensitivity** (Q8a): scenarios over the wavelet, the model cut and noise; the blind-error spread at the wells; AI at Q10, Q50 and Q90 and the relative spread as volumes.
+- **Properties** (Q9a): porosity (Q10, Q50, Q90) or Bayesian facies (probabilities and the most likely code) from an impedance volume, calibrated at the wells and checked by leaving each well out.
+- **Report:** the QI Data Audit and Feasibility Report on the shared Report Kit, including the QC, tie, inversion, sensitivity and property tables.
 
 ## Decisions
 
@@ -35,7 +37,7 @@ QI Studio holds the first package of a quantitative interpretation study: the da
 - `__tests__/qiStudio.test.jsx` (5): an end-to-end walk on the in-memory backend, a saved project round trip, the note before the migration, and the report read back from the PDF.
 - `__tests__/helpGuide.test.jsx` (2).
 - `__tests__/inversionRun.test.js` (17): the run module on a synthetic survey with dipping horizons; blind wells for each method; no horizons as the negative control.
-- `__tests__/inversionWells.test.js` (4), `__tests__/inversionReport.test.js` (2), and the Inversion walk in `qiStudio.test.jsx`.
+- `__tests__/inversionWells.test.js` (8), `__tests__/inversionReport.test.js` (4), `__tests__/propertyRun.test.js` (11), and the Inversion and Properties walk in `qiStudio.test.jsx`.
 
 ## Owner items
 
