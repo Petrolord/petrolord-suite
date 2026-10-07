@@ -3,7 +3,8 @@
 // on the Suite's shared records: the wells registry, Seismolord's volumes and
 // Rock Physics Studio's work. Setup, data inventory, usability matrix, issue
 // register, feasibility per target, and the report on the shared Report Kit.
-// It opens on a Seismolord or Rock Physics Studio licence (App.jsx); saved
+// It opens on its own licence, the qi-studio tile (App.jsx; included in the
+// Geoscience module); saved
 // projects need saved_qi_studio_projects (migration 20261006140000).
 import React, { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';

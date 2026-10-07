@@ -52,7 +52,7 @@ function QIStudioHelpGuideContent() {
           Manager, Seismolord&apos;s volumes) and never changes them. The rock physics evidence is built in Rock Physics
           Studio; QI Studio records the verdicts and produces the report.
         </Para>
-        <Para>QI Studio opens with a Seismolord or Rock Physics Studio licence.</Para>
+        <Para>QI Studio opens with a QI Studio licence, or with the Geoscience module, which includes it.</Para>
       </GuideSection>
 
       <GuideSection id="quickstart">

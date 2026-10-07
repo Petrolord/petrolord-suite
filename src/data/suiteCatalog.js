@@ -5,7 +5,8 @@
 // customer can open today, meaning a master_apps row with status 'Active',
 // is_built and is_functional, whose route is on main. Checked against the
 // database on 2026-10-05: 104 apps across 10 modules, every one routed in
-// src/App.jsx. The snapshot is src/data/__fixtures__/live-catalogue.json and
+// src/App.jsx; 105 from 2026-10-07 with the QI Studio tile (migration
+// 20261007130000). The snapshot is src/data/__fixtures__/live-catalogue.json and
 // the guard test compares these lists with it name by name. When an app goes
 // live or is retired, change its module's list here and refresh the snapshot
 // in the same PR; the counts on both pages are derived from these lists,
@@ -32,6 +33,7 @@ export const SUITE_MODULES = [
       'Mapping & Surface Studio',
       'Pore Pressure Studio',
       'Rock Physics Studio',
+      'QI Studio',
       'Earth Modeling',
       'Basin & Charge Modeling',
       'ReservoirCalc Pro',

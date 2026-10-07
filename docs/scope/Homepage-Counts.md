@@ -28,11 +28,11 @@ test failing.
 
 | Site | Figure | Source | Old | New |
 |---|---|---|---|---|
-| petrolord.com | engineering applications live today | `suiteStats()` over `src/data/suiteCatalog.js` | 104 | 104 (verified: 104 live rows, all routed) |
+| petrolord.com | engineering applications live today | `suiteStats()` over `src/data/suiteCatalog.js` | 104 | 104 (verified: 104 live rows, all routed); 105 from 2026-10-07 with the QI Studio tile (`20261007130000`) |
 | petrolord.com | modules | `suiteStats()` | 10, "modules across the energy value chain" | 10, labelled "Suite modules across the energy value chain" |
 | petrolord.com | NextGen Academy courses | `NEXTGEN_LIVE_COURSES` | 79, "taught on these apps" | 79, "72 of them built on these apps" |
 | petrolord.com | NextGen app courses | `NEXTGEN_APP_COURSES` (new) | none | 72 |
-| petrolord.com /solutions | live applications, modules | `suiteStats()` | 104, Ten | 104, Ten |
+| petrolord.com /solutions | live applications, modules | `suiteStats()` | 104, Ten | 104, Ten; 105, Ten from 2026-10-07 |
 | nextgen.petrolord.com | courses | `catalogStats()` over `homeCatalog.js` merged with live `academy_apps` | 79 once the live read returned; 68 on first paint and if the read failed | 79 always |
 | nextgen.petrolord.com | courses built on a Suite app | `catalogStats().appCourses` (new) | none ("each built around a real engineering app", untrue for 7) | 72 |
 | nextgen.petrolord.com | disciplines | `catalogStats()` | 12, "disciplines across the energy value chain" | 12, "academy disciplines, from geoscience to data and AI" |

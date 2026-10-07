@@ -8,8 +8,9 @@ format: the twelve practitioner checks (`docs/scope/AppUpgrade-BestPractices.md`
 run on the finished app, the persona walks, the advancement review and the
 backlog left for the next round.
 
-- Route: `/dashboard/apps/geoscience/qi-studio` (+ `/help`), opened on a
-  Seismolord or Rock Physics Studio licence (`ProtectedAppRoute`, App.jsx).
+- Route: `/dashboard/apps/geoscience/qi-studio` (+ `/help`), on its own
+  licence, the `qi-studio` tile (Geoscience, 1690 a month, included in the
+  Geoscience module; migration `20261007130000`).
 - Page `src/pages/apps/QIStudio/QIStudio.jsx`; fourteen tabs: Setup, Data
   inventory, Usability, Seismic QC, Well ties, Prestack, AVO, Inversion,
   Simultaneous, Properties, Prospects, Issues, Feasibility, Report.
@@ -119,7 +120,7 @@ qi_datasets, SEG-Y exports, the RRV prospect record and `.pld`.
 | Rank | ID | Item | Size |
 |---|---|---|---|
 | 1 | U2-002 | Benchmark the whole chain on Volve (prestack, wells with shear) and F3; record blind-well errors in QI-STATUS | L |
-| 2 | U2-003 | Owner tile and price for QI Studio; today it rides the Seismolord or Rock Physics licence | S |
+| 2 | U2-003 | ~~Owner tile and price for QI Studio~~ Done 2026-10-07: own tile, 1690 a month | S |
 | 3 | U2-004 | Gather viewer at a CDP and at wells, with the mute and the trimmed result beside it | M |
 | 4 | U2-001 | Radon, f-x and structure-oriented filtering on the worker (engines first) | L |
 | 5 | U2-005 | Per-stack shaping filter that keeps relative amplitudes | M |
@@ -130,6 +131,6 @@ qi_datasets, SEG-Y exports, the RRV prospect record and `.pld`.
 ### Owner items
 
 1. ~~Apply `20261006140000_saved_qi_studio_projects.sql`~~ Applied 2026-10-07.
-2. Decide the QI Studio tile and price (U2-003).
+2. ~~Decide the QI Studio tile and price~~ Done 2026-10-07 (U2-003); apply `20261007130000` before the next zip.
 3. The Volve and F3 licence check for the benchmark (U2-002).
 4. ~~Cut the Suite zip~~ Live 2026-10-07 (dc206c539).
