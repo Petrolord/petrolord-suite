@@ -19,3 +19,12 @@ test('the report lists the AVO volumes', () => {
   expect(t).toMatch(/near \(8 degrees\), far \(32 degrees\)/);
   expect(t).toMatch(/Smith and Gidlow/);
 });
+
+test('the report carries the AVO calibration at the wells', () => {
+  const p = { ...blankProject(), avo: { runs: [], wells: { runName: 'Keta AVO', at: '2026-10-07T07:00:00Z', scale: 2, n: 1, agree: 1, wells: [{ name: 'KETA-1', modelled: { A: -0.05, B: -0.12 }, scaled: { A: -0.05, B: -0.12 }, modelledClass: 'III', observedClass: 'III', residual: 0 }, { name: 'AKOMA-2', error: 'No Rock Physics gather published for this well.' }] } } };
+  const model = reportModel({ project: p, inventory: [], matrix: { targets: [], rows: [], count: { good: 0, limited: 0, missing: 0 } }, issues: [], chosenVolumes: [], ready: [] });
+  const t = flat(readPdf(buildQIStudioPdf(model, { generatedAt: new Date('2026-10-07T12:00:00Z') }).doc).text);
+  expect(t).toMatch(/AVO at the wells: Keta AVO/);
+  expect(t).toMatch(/One least-squares scale \(2\.00\)/);
+  expect(t).toMatch(/AKOMA-2/);
+});

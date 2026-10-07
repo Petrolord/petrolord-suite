@@ -273,6 +273,7 @@ test('prestack: build gathers, angle stacks with a velocity table, the usable an
 });
 
 test('AVO: three stacks with their angles, the products registered on the first, the run kept', async () => {
+  global.ResizeObserver = global.ResizeObserver || class { observe() {} unobserve() {} disconnect() {} };
   const backend = makeInMemoryBackend();
   const base = backend.listVolumes;
   backend.listVolumes = async () => [...(await base()), { id: 'qi-v2', name: 'Keta mid stack', kind: 'seismic', status: 'ready' }, { id: 'qi-v3', name: 'Keta far stack', kind: 'seismic', status: 'ready' }];
@@ -291,4 +292,19 @@ test('AVO: three stacks with their angles, the products registered on the first,
   expect(kind).toBe('avo_volumes');
   expect(params.stacks).toEqual([{ volume_id: 'qi-v1', angle: 8 }, { volume_id: 'qi-v2', angle: 20 }, { volume_id: 'qi-v3', angle: 32 }]);
   expect(params.products).toEqual({ A: 'mem-avo-qi-v1-A', B: 'mem-avo-qi-v1-B', FF: 'mem-avo-qi-v1-FF' });
+
+  // at the wells: KETA-1 has a published gather, AKOMA-2 has none
+  fireEvent.click(screen.getByTestId('qi-tab-setup'));
+  fireEvent.click(await screen.findByTestId('qi-well-qi-w1', {}, { timeout: 20000 }));
+  fireEvent.click(screen.getByTestId('qi-well-qi-w2'));
+  fireEvent.click(screen.getByTestId('qi-tab-avo'));
+  fireEvent.click(await screen.findByTestId('qi-avo-wells-run', {}, { timeout: 20000 }));
+  expect(await screen.findByTestId('qi-avo-wells-summary', {}, { timeout: 20000 })).toHaveTextContent('Scale 2.00 from 1 well; the AVO class agrees at 1 of them.');
+  const wt = screen.getByTestId('qi-avo-wells-table');
+  expect(wt).toHaveTextContent(/KETA-1\s*-0\.050, -0\.120\s*-0\.050, -0\.120\s*III \/ III/);
+  expect(wt).toHaveTextContent(/AKOMA-2No Rock Physics gather published/);
+  const [skind, sparams] = enqueue.mock.calls.find((c) => c[0] === 'sample_volumes');
+  expect(skind).toBe('sample_volumes');
+  expect(sparams.volume_ids).toEqual(['mem-avo-qi-v1-A', 'mem-avo-qi-v1-B']);
+  expect(sparams.points[0]).toMatchObject({ name: 'KETA-1', il: 5, xl: 8 });
 });

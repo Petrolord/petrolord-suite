@@ -50,7 +50,7 @@ export function volumeFrame(manifest) {
  * @returns {Promise<{name, wellId, ok: boolean, reason?: string, il?, xl?, ln_ai?: number[],
  *   curves?: string, timeSource?: string, samples?: number}>}
  */
-export async function prepareWell(loaded, frame, downloadCurve, { extras = [] } = {}) {
+export async function prepareWell(loaded, frame, downloadCurve, { extras = [], topsMd = [] } = {}) {
   const { well, logs } = loaded;
   const base = { name: well.name, wellId: well.id };
   const no = (reason) => ({ ...base, ok: false, reason });
@@ -115,8 +115,9 @@ export async function prepareWell(loaded, frame, downloadCurve, { extras = [] } 
       ...(kind === 'facies' ? { names: c.names } : {}),
     };
   }
+  const topsTwt = topsMd.map((m) => { const t = Number.isFinite(m) ? toTwt(m) : NaN; return Number.isFinite(t) ? t : null; });
   return {
-    ...base, ok: true, il, xl, ln_ai: lnAi, samples: live,
+    ...base, ok: true, il, xl, ln_ai: lnAi, samples: live, topsTwt,
     curves: `${named(sonic)} and ${named(density)}`,
     timeSource: cs.derived ? 'the committed well tie' : 'imported checkshots',
     ...extra,

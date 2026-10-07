@@ -219,3 +219,6 @@ depth frame (`makeWellFrame`); no KB arithmetic remains in the app.
 - **Provenance fix:** a well whose Vs came from the local shear trend now publishes vs_method local-trend and the trend. It used to say Greenberg-Castagna.
 - **Next:** density and histogram views.
 - **Tests:** `__tests__/qiWorkbench.test.jsx` (9).
+
+## U2-008 closed (QI programme Q7b, 2026-10-07)
+- Modelled against observed intercept and gradient at the wells now live in QI Studio (AVO tab, At the wells). It reads this app's published gather per well (the `rock-physics-gather` contract) and the AVO volumes at the well's trace and zone-top time, scales them with one least-squares factor, and compares classes and misfit. There is no change in Rock Physics Studio itself.

@@ -130,6 +130,13 @@ function QIStudioHelpGuideContent() {
           the engine.
         </Para>
         <Para>The stacks must be balanced against each other, since A, B and the fluid factor carry their amplitude scale. The products are elastic estimates and open in Seismolord.</Para>
+        <Para>
+          At the wells, Compare reads Rock Physics Studio&apos;s published gather of each study well (its zone, in situ and fluid
+          substituted), takes the zone top to time through the well&apos;s tie, and reads the intercept and gradient volumes at
+          the well&apos;s trace, at the event within 8 ms of that time. One least-squares scale over every well ties the volumes to
+          reflectivity. The table and the intercept-gradient crossplot show each well&apos;s model beside its scaled seismic, with the
+          AVO class of each. A class that differs, or a scale below zero (a polarity problem), is offered to the issue register.
+        </Para>
       </GuideSection>
 
       <GuideSection id="inversion">
