@@ -122,7 +122,7 @@ test('the report: summary, inventory, matrix reasons, issues and feasibility, re
   const built = buildQIStudioPdf(model, { generatedAt: new Date('2026-10-06T12:00:00Z') });
   const pdf = readPdf(built.doc);
   const t = flat(pdf.text);
-  expect(t).toMatch(/QI Data Audit and Feasibility Report/);
+  expect(t).toMatch(/Quantitative Interpretation Report/);
   expect(t).toMatch(/Keta QI audit/);
   expect(t).toMatch(/Usability matrix/);
   expect(t).toMatch(/BONSU-3/);
@@ -169,6 +169,12 @@ test('inversion: the wells read into impedance, the blind-well check and a volum
   expect(wells).toHaveTextContent(/KETA-1\s*5, 8\s*DT and RHOB/);
   expect(wells).toHaveTextContent(/KETA-4\s*12, 24/);
   expect(wells).toHaveTextContent(/AKOMA-2No time-depth relationship/);
+  // a cleared model cut holds the run (it would reach the job as 0 Hz)
+  fireEvent.change(screen.getByTestId('qi-inv-lfm'), { target: { value: '' } });
+  expect(screen.getByTestId('qi-inv-settings-problem')).toHaveTextContent('Give the low-frequency model cut, 2 to 20 Hz.');
+  expect(screen.getByTestId('qi-inv-blind')).toBeDisabled();
+  fireEvent.change(screen.getByTestId('qi-inv-lfm'), { target: { value: '8' } });
+  expect(screen.queryByTestId('qi-inv-settings-problem')).toBeNull();
   fireEvent.click(screen.getByTestId('qi-inv-blind'));
   const blind = await screen.findByTestId('qi-inv-blind-table', {}, { timeout: 20000 });
   expect(within(blind).getAllByRole('row')).toHaveLength(3);
@@ -302,6 +308,11 @@ test('AVO: three stacks with their angles, the products registered on the first,
   const [, mp] = enqueue.mock.calls.find((c) => c[0] === 'match_stacks');
   expect(mp).toMatchObject({ reference_volume_id: 'qi-v1', stacks: ['qi-v2', 'qi-v3'], volume_ids: { 'qi-v2': 'mem-match-qi-v2', 'qi-v3': 'mem-match-qi-v3' } });
   enqueue.mockClear();
+  // a cleared mean angle holds the run (it would reach the job as 0 degrees)
+  fireEvent.change(screen.getByTestId('qi-avo-angle-2'), { target: { value: '' } });
+  expect(screen.getByTestId('qi-avo-run')).toBeDisabled();
+  expect(screen.getByText('Give each stack its mean angle, 0 to 50 degrees.')).toBeInTheDocument();
+  fireEvent.change(screen.getByTestId('qi-avo-angle-2'), { target: { value: '32' } });
   fireEvent.click(screen.getByTestId('qi-avo-run'));
   const runs = await screen.findByTestId('qi-avo-runs', {}, { timeout: 20000 });
   await waitFor(() => expect(runs).toHaveTextContent(/Ready: open in Seismolord/));

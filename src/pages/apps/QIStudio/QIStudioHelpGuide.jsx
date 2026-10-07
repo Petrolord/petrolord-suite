@@ -37,7 +37,7 @@ function QIStudioHelpGuideContent() {
   return (
     <HelpGuideShell
       title="QI Studio Help Guide"
-      subtitle="The data audit and feasibility of a quantitative interpretation study"
+      subtitle="Quantitative interpretation, from the data audit to the prospect assessment"
       metaDescription="How to set up a QI study, audit the data, read the usability matrix, keep an issue register, record feasibility per target and produce the audit report in Petrolord QI Studio."
       backTo={APP_PATH}
       backLabel="Back to QI Studio"
@@ -289,7 +289,7 @@ function QIStudioHelpGuideContent() {
 
       <GuideSection id="report">
         <SectionHeading icon={FileText}>The report</SectionHeading>
-        <Para>The Report tab builds the QI data audit and feasibility report: a summary, the inventory, the usability matrix with the reasons for every limited or missing item, depletion notes, the issue register (dismissed issues left out), the feasibility of each target and the assumptions behind them.</Para>
+        <Para>The Report tab builds the quantitative interpretation report: an executive summary, the inventory, the usability matrix with the reasons for every limited or missing item, depletion notes, the well ties, the AVO volumes and angle wavelets, the prospect QI assessment, the handover list, the issue register (dismissed issues left out), the feasibility of each target and the assumptions behind them.</Para>
       </GuideSection>
 
       <GuideSection id="sharing">

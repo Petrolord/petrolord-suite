@@ -12,7 +12,7 @@ import { tieRows, waveletComparison } from './ties';
 import { INVERSION_METHODS, INVERSION_DEFAULTS } from './inversionRun';
 import { faciesClass } from './propertyRun';
 
-export const REPORT_TITLE = 'QI Data Audit and Feasibility Report';
+export const REPORT_TITLE = 'Quantitative Interpretation Report';
 export const APP_NAME = 'Petrolord QI Studio';
 const STATE_LABEL = Object.fromEntries(STATES.map((s) => [s.key, s.label]));
 const VERDICT_LABEL = Object.fromEntries(FEASIBILITY_VERDICTS.map((v) => [v.key, v.label]));

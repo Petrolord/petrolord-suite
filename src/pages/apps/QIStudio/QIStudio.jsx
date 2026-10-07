@@ -97,7 +97,7 @@ function ReportTab({ organizationName }) {
   };
   return (
     <section className="rounded-lg border border-pl-border bg-pl-surface p-4 space-y-3" data-testid="qi-report">
-      <h2 className="text-sm font-semibold text-pl-text">QI data audit and feasibility report</h2>
+      <h2 className="text-sm font-semibold text-pl-text">Quantitative interpretation report</h2>
       <p className="text-xs text-pl-muted">The Package 1 deliverable: the data inventory, the usability matrix and its reasons, the issue register and the feasibility verdict for each target, with the assumptions behind them.</p>
       <p className="text-xs text-pl-text" data-testid="qi-report-summary">{model.summary}</p>
       <Button size="sm" onClick={download} disabled={busy} data-testid="qi-report-download"><Download className="w-4 h-4 mr-2" />{busy ? 'Building' : 'Download the report (PDF)'}</Button>
@@ -127,14 +127,14 @@ function QIStudioContent({ organizationName }) {
     <>
       <Helmet>
         <title>QI Studio - Petrolord Suite</title>
-        <meta name="description" content="The data audit and feasibility of a quantitative interpretation study: inventory, usability matrix, issue register and feasibility per target." />
+        <meta name="description" content="A quantitative interpretation study from data audit to prospect: inventory, usability, seismic and prestack QC, ties, AVO, inversion, property prediction, prospects and the report." />
       </Helmet>
       <AppHeader
         backTo="/dashboard/geoscience"
         backLabel="Back to Geoscience"
         icon={ClipboardCheck}
         title="QI Studio"
-        subtitle="Data audit and feasibility for a quantitative interpretation study"
+        subtitle="Quantitative interpretation, from the data audit to the prospect assessment"
         actions={(
           <div className="flex flex-wrap items-center gap-2">
             <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />

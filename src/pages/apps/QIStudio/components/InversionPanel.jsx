@@ -226,7 +226,12 @@ export default function InversionPanel() {
     return null;
   };
   const busy = (mode) => !!job[mode]?.job && qiService.isActive(job[mode].job);
-  const canRun = canWrite && wavelet && usable.length >= 1;
+  // a cleared field would reach the job as 0: say so and hold the run
+  const blank = (v) => String(v ?? '').trim() === '';
+  const settingsProblem = (blank(s.lfmHz) || !(Number(s.lfmHz) >= 2 && Number(s.lfmHz) <= 20)) ? 'Give the low-frequency model cut, 2 to 20 Hz.'
+    : (s.method === 'sparse_spike' ? (blank(s.lambda) || !(Number(s.lambda) >= 0)) : (s.method !== 'coloured' && (blank(s.eps) || !(Number(s.eps) >= 0)))) ? 'Give the regularisation weight, zero or more.'
+      : null;
+  const canRun = canWrite && wavelet && usable.length >= 1 && !settingsProblem;
 
   return (
     <section className={card} data-testid="qi-inversion">
@@ -265,6 +270,7 @@ export default function InversionPanel() {
           </label>
         )}
       </div>
+      {settingsProblem && <p className="text-xs text-pl-warning-text" data-testid="qi-inv-settings-problem">{settingsProblem}</p>}
       {!choices.length && <p className="text-xs text-pl-warning-text">No well in the study has a stored tie wavelet. Commit a tie in Seismolord (Synthetics) first.</p>}
 
       {s.method !== 'coloured' && (

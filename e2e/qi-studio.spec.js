@@ -13,16 +13,20 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execFileSync } from 'child_process';
+import process from 'process';
 
+const SHOTS = process.env.QI_SHOTS || 'test-results';
 const VIEWPORT = { width: 1366, height: 768 };
+// the first page of a cold dev server compiles the whole app: give it room
+test.describe.configure({ timeout: 360000 });
 const TABS = ['setup', 'inventory', 'usability', 'qc', 'ties', 'prestack', 'avo', 'inversion', 'simultaneous', 'properties', 'prospects', 'issues', 'feasibility', 'report'];
 
 async function open(page) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.setViewportSize(VIEWPORT);
-  await page.goto('/dev/qi-studio');
-  await expect(page.getByTestId('qi-well-qi-w1')).toBeVisible({ timeout: 120000 });
+  await page.goto('/dev/qi-studio', { waitUntil: 'commit' });
+  await expect(page.getByTestId('qi-well-qi-w1')).toBeVisible({ timeout: 300000 });
   return errors;
 }
 
@@ -57,7 +61,7 @@ test('the Package 1 audit: usability reasons, suggested issues, a feasibility ve
   const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'qi-')), 'report.pdf');
   await download.saveAs(f);
   const text = execFileSync('pdftotext', ['-layout', f, '-'], { encoding: 'utf8' }).replace(/\s+/g, ' ');
-  expect(text).toContain('QI Data Audit and Feasibility Report');
+  expect(text).toContain('Quantitative Interpretation Report');
   expect(text).toContain('Usability matrix');
   expect(text).toContain('BONSU-3');
   expect(text).toContain('The well elevation is not set');
@@ -101,8 +105,9 @@ test('prestack: gathers built, angle stacks with a velocity table, trim statics 
 
 for (const theme of ['light', 'dark']) {
   test(`every tab at 1366x768, ${theme}: opens with no page errors and no sideways scroll`, async ({ page }) => {
-    await page.emulateMedia({ colorScheme: theme });
     const errors = await open(page);
+    if (theme === 'dark') await page.getByTestId('theme-toggle').click();
+    await expect(page.getByTestId('theme-toggle')).toHaveAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
     await setUp(page);
     await page.getByTestId('qi-volume-qi-v1').click();
     const wide = [];
@@ -111,18 +116,16 @@ for (const theme of ['light', 'dark']) {
       await expect(page.getByTestId(`qi-tab-${t}`)).toHaveAttribute('aria-selected', 'true');
       await page.waitForTimeout(300);
       if (await sideways(page)) wide.push(t);
+      await page.screenshot({ path: `${SHOTS}/qi-${theme}-${t}.png`, fullPage: true });
     }
     expect(wide).toEqual([]);
     expect(errors).toEqual([]);
   });
 }
 
-test('the help guide opens at 1366x768', async ({ page }) => {
-  const errors = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.setViewportSize(VIEWPORT);
+test('the help guide link from the harness, and the guide route gated like the app', async ({ page }) => {
+  await open(page);
+  await expect(page.getByRole('link', { name: 'Help guide' })).toHaveAttribute('href', '/dashboard/apps/geoscience/qi-studio/help');
   await page.goto('/dashboard/apps/geoscience/qi-studio/help');
-  await expect(page.getByTestId('qi-help-theme-scope')).toBeVisible({ timeout: 120000 });
-  expect(await sideways(page)).toBe(false);
-  expect(errors).toEqual([]);
+  await expect(page).toHaveURL(/\/login/, { timeout: 60000 });
 });
