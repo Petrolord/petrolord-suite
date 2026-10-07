@@ -333,10 +333,16 @@ test('simultaneous: five stacks, the wells with shear and density, the blind tab
   });
   fireEvent.click(await screen.findByTestId('qi-sim-read', {}, { timeout: 20000 }));
   expect(await screen.findByTestId('qi-sim-wells', {}, { timeout: 20000 })).toHaveTextContent(/KETA-1DT and RHOB, DTSM for Vs/);
+  // one wavelet per stack, extracted at the wells
+  fireEvent.click(screen.getByTestId('qi-sim-aw'));
+  const awt = await screen.findByTestId('qi-sim-aw-table', {}, { timeout: 20000 });
+  expect(within(awt).getAllByRole('row')).toHaveLength(6);
+  expect(await screen.findByTestId('qi-sim-use-aw', {}, { timeout: 20000 })).toBeChecked();
   fireEvent.click(screen.getByTestId('qi-sim-blind'));
   expect(await screen.findByTestId('qi-sim-blind-table', {}, { timeout: 20000 })).toHaveTextContent(/KETA-1\s*4\.1\s*5\.2\s*3\.3\s*0\.62/);
   const [, bp] = enqueue.mock.calls.find((c) => c[0] === 'prestack_inversion');
   expect(bp.inversion.stacks.map((s) => s.angle)).toEqual([4, 12, 20, 28, 36]);
+  expect(bp.inversion.wavelets).toHaveLength(5);
   expect(bp.inversion.wells[0].ln_si.filter(Number.isFinite).length).toBeGreaterThan(100);
   fireEvent.click(screen.getByTestId('qi-sim-run'));
   const runs = await screen.findByTestId('qi-sim-runs', {}, { timeout: 20000 });

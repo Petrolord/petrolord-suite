@@ -48,3 +48,12 @@ test('guards', async () => {
   expect(validateSampleParams({ volume_ids: V, points: [{ il: 1.5, xl: 1, t_ms: 0 }] })).toMatch(/inline and crossline/);
   await expect(sampleVolumes(ctx({ volume_ids: V, points: [{ il: 1, xl: 1, t_ms: 4 }] }), deps({ ...rows, [V[1]]: { ...rows[V[1]], user_id: 'x' } }))).rejects.toMatchObject({ stage: 'not_found' });
 });
+
+test('traces mode returns the whole trace of every volume at each point, nulls as null', async () => {
+  const out = await sampleVolumes(ctx({ volume_ids: V, points: [{ name: 'W1', il: 2, xl: 1 }, { name: 'DEAD', il: 3, xl: 0 }], traces: true }), deps());
+  expect(out.ns).toBe(NS); expect(out.dt_ms).toBe(4);
+  expect(out.points[0].traces[0][20]).toBeCloseTo(-0.3, 6);
+  expect(out.points[0].traces[1][5]).toBe(50);
+  expect(out.points[1].traces[0].every((v) => v === null)).toBe(true);
+  expect(validateSampleParams({ volume_ids: V, points: Array.from({ length: 21 }, () => ({ il: 0, xl: 0 })), traces: true })).toMatch(/20 points/);
+});

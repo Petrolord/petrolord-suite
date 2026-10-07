@@ -19,3 +19,12 @@ test('the report carries the simultaneous blind-well table', () => {
   expect(t).toMatch(/Density is the least resolved parameter/);
   expect(t).toMatch(/Volumes: Keta: AI, SI, density, Vp\/Vs/);
 });
+
+test('the report carries the angle wavelets', () => {
+  const p = { ...blankProject(), simultaneous: { angleWavelets: { dtMs: 4, items: [{ angle: 5, peakHz: 29.6, phaseDeg: 2, samples: [0, 1, 0], wells: [{ name: 'KETA-1', synthCorr: 0.91 }] }, { angle: 35, peakHz: 18.4, phaseDeg: -6, samples: [0, 1, 0], wells: [{ name: 'KETA-1', synthCorr: 0.84 }] }] } } };
+  const model = reportModel({ project: p, inventory: [], matrix: { targets: [], rows: [], count: { good: 0, limited: 0, missing: 0 } }, issues: [], chosenVolumes: [], ready: [] });
+  const t = flat(readPdf(buildQIStudioPdf(model, { generatedAt: new Date('2026-10-07T12:00:00Z') }).doc).text);
+  expect(t).toMatch(/Angle wavelets/);
+  expect(t).toMatch(/18\.4/);
+  expect(t).toMatch(/KETA-1 0\.84/);
+});

@@ -12,6 +12,9 @@ import { useQIStudio } from '../QIStudioContext';
 import { prepareWell } from '../services/inversionWells';
 import { waveletChoices } from './InversionPanel';
 import ExportControls from './ExportControls';
+import { extractAngleWavelets } from '../services/angleWavelets';
+import { meanVsVp } from '../services/prestackRun';
+import { describeWavelet, storedSamples } from '@/pages/apps/Seismolord/lib/wellWavelet';
 
 const card = 'rounded-lg border border-pl-border bg-pl-surface p-4 space-y-3';
 const muted = 'text-xs text-pl-muted';
@@ -57,6 +60,25 @@ export default function SimultaneousPanel() {
   const problem = simultaneousProblem(stacks) || (!wavelet ? 'No well in the study has a stored tie wavelet.' : null);
   const saved = project.simultaneous || {};
   const usable = (prep?.wells || []).filter((w) => w.ok && w.elastic?.ln_si);
+  const [useAngle, setUseAngle] = useState(true);
+  const aw = saved.angleWavelets;
+  const awMatches = aw && aw.items.length === live.length && aw.items.every((it, k) => it.angle === Number(live[k].angle) && it.samples);
+  const logsOf = (w) => ({ name: w.name, ln_ai: w.ln_ai, ln_si: w.elastic.ln_si, ln_rho: w.elastic.ln_rho });
+  const angleWavelets = async () => {
+    setSt((m) => ({ ...m, aw: { job: { status: 'queued' } } }));
+    try {
+      const jobId = await client.enqueueJob('sample_volumes', { volume_ids: live.map((x) => x.volumeId), points: usable.slice(0, 20).map((w) => ({ name: w.name, il: w.il, xl: w.xl })), traces: true, name: `${first.name} stack traces at the wells` });
+      watch('aw', jobId, (row) => {
+        const byName = new Map((row.result_refs.points || []).map((q) => [q.name, q]));
+        const wells = usable.filter((w) => byName.get(w.name)?.traces).map(logsOf);
+        const tracesByWell = wells.map((w) => byName.get(w.name).traces);
+        const thetaDeg = live.map((x) => Number(x.angle));
+        const res = extractAngleWavelets({ wells, tracesByWell, thetaDeg, vsVp: meanVsVp(wells) });
+        const dtMs = row.result_refs.dt_ms;
+        setSimultaneous({ angleWavelets: { at: row.finished_at || new Date().toISOString(), dtMs, items: res.map((r) => ({ angle: r.angle, samples: r.samples ? Array.from(storedSamples(r.samples)) : null, ...(r.samples ? describeWavelet(r.samples, dtMs) : {}), wells: r.wells })) } });
+      });
+    } catch (e) { setSt((m) => ({ ...m, aw: { error: qiService.friendlyError(e) } })); }
+  };
 
   const readWells = async () => {
     setPrep({ busy: true });
@@ -70,6 +92,7 @@ export default function SimultaneousPanel() {
   const block = () => ({
     stacks: live.map((s) => ({ volume_id: s.volumeId, angle: Number(s.angle) })),
     wavelet: { samples: wavelet.samples, dt_ms: wavelet.dtMs },
+    ...(useAngle && awMatches ? { wavelets: aw.items.map((it) => ({ samples: it.samples, dt_ms: aw.dtMs })) } : {}),
     wells: usable.map((w) => ({ name: w.name, il: w.il, xl: w.xl, ln_ai: w.ln_ai, ln_si: w.elastic.ln_si, ln_rho: w.elastic.ln_rho })),
     horizon_ids: hz,
   });
@@ -142,6 +165,23 @@ export default function SimultaneousPanel() {
             <tbody>
               {prep.wells.map((w) => (
                 <tr key={w.wellId}><td className={td}>{w.name}</td><td className={w.ok && w.elastic?.ln_si ? td : `${td} text-pl-warning-text`}>{!w.ok ? w.reason : w.elastic?.ln_si ? `${w.curves}, ${w.elastic.curves}` : w.elastic?.reason}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {prep?.wells && usable.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" className={btn} onClick={angleWavelets} disabled={busy('aw')} data-testid="qi-sim-aw">Angle wavelets from the wells</button>{status('aw')}
+            {awMatches && <label className="flex items-center gap-1"><input type="checkbox" checked={useAngle} onChange={() => setUseAngle((x) => !x)} data-testid="qi-sim-use-aw" />Use one wavelet per stack</label>}
+          </div>
+        )}
+        {aw && (
+          <table className="text-xs" data-testid="qi-sim-aw-table">
+            <thead><tr><th className={th}>Stack angle</th><th className={th}>Peak (Hz)</th><th className={th}>Phase (degrees)</th><th className={th}>Synthetic against the stack, by well</th></tr></thead>
+            <tbody>
+              {aw.items.map((it) => (
+                <tr key={it.angle}><td className={`${td} font-mono`}>{it.angle}</td><td className={`${td} font-mono`}>{f1(it.peakHz)}</td><td className={`${td} font-mono`}>{Number.isFinite(it.phaseDeg) ? it.phaseDeg.toFixed(0) : EMPTY_VALUE}</td>
+                  <td className={td}>{it.samples ? it.wells.map((w) => `${w.name} ${f2(w.synthCorr)}`).join(', ') : 'no wavelet: no well with logs and the stack'}</td></tr>
               ))}
             </tbody>
           </table>

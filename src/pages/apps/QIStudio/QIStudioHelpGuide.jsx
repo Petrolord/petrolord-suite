@@ -183,6 +183,13 @@ function QIStudioHelpGuideContent() {
           correlation. Invert the stacks to write AI, SI, density and Vp/Vs volumes; the AI one feeds Property prediction like
           a post-stack impedance.
         </Para>
+        <Para>
+          Angle wavelets from the wells extracts one wavelet per stack: at each well, by least squares against the Fatti
+          reflectivity of its logs at that stack&apos;s angle, then aligned and averaged across the wells. Far stacks usually come
+          out at a lower frequency (absorption and NMO stretch). The table gives each wavelet&apos;s peak frequency and phase, and
+          each well&apos;s synthetic against the stack: the synthetic-against-real check by angle. With Use one wavelet per stack,
+          the inversion takes them in place of the single tie wavelet.
+        </Para>
       </GuideSection>
 
       <GuideSection id="properties">

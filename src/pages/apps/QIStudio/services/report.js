@@ -140,6 +140,7 @@ export function reportModel({ projectName = '', organizationName = '', project, 
       rows: project.simultaneous.blind.result.blind.map((r) => [r.name, ...['ai', 'si', 'rho'].map((k) => (Number.isFinite(r.blind[k].rmsPct) ? r.blind[k].rmsPct.toFixed(1) : '')), Number.isFinite(r.blind.rho.corr) ? r.blind.rho.corr.toFixed(2) : '']),
       runs: (project.simultaneous.runs || []).filter((r) => r.status === 'ready').map((r) => r.name),
     } : null,
+    angleWavelets: project.simultaneous?.angleWavelets ? project.simultaneous.angleWavelets.items.map((it) => [String(it.angle), Number.isFinite(it.peakHz) ? it.peakHz.toFixed(1) : '', Number.isFinite(it.phaseDeg) ? it.phaseDeg.toFixed(0) : '', it.samples ? it.wells.map((w) => `${w.name} ${Number.isFinite(w.synthCorr) ? w.synthCorr.toFixed(2) : ''}`).join(', ') : 'none']) : null,
     executive: (() => {
       const out = [];
       const inv = Object.values(project.inversion || {}).map((r) => r?.blind?.result?.blind || r?.spread?.result?.blind).filter((b) => b?.length);
@@ -215,6 +216,7 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
     const w = model.avoWells;
     table(`AVO at the wells: ${w.runName}`, ['Well', 'Model A, B (in situ)', 'Seismic A, B (scaled)', 'Class, model / seismic', 'Misfit'], w.rows, { note: `The intercept and gradient Rock Physics Studio modelled at each zone top against the AVO volumes at the well, the event within 8 ms${w.at ? `, on ${w.at}` : ''}. One least-squares scale (${Number.isFinite(w.scale) ? w.scale.toPrecision(3) : 'none'}) ties the volumes to reflectivity over ${w.n} well${w.n === 1 ? '' : 's'}; the class agrees at ${w.agree}.` });
   }
+  if (model.angleWavelets) table('Angle wavelets', ['Stack angle', 'Peak (Hz)', 'Phase (degrees)', 'Synthetic against the stack, by well'], model.angleWavelets, { note: 'One wavelet per angle stack, extracted at each well by least squares against the Fatti reflectivity of its logs at that angle, then aligned and averaged across the wells. The correlation is each well\'s synthetic against the stack at the well.' });
   if (model.simultaneous) {
     const v = model.simultaneous;
     table(`Simultaneous inversion: ${v.volume}`, ['Well', 'Blind AI error (percent)', 'SI error', 'Density error', 'Density correlation'], v.rows, { note: `Fatti three-term inversion of the angle stacks${v.at ? ` on ${v.at}` : ''}, each parameter pulled to its own low-frequency model; each well left out of all three in turn. Density is the least resolved parameter and leans on the far angles.${v.runs.length ? ` Volumes: ${v.runs.join(', ')}.` : ''} Elastic estimates.` });

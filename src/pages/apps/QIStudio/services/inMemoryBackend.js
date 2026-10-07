@@ -116,6 +116,12 @@ function makeInMemoryJobs() {
         results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, settings: { method: 'Fatti three-term simultaneous inversion', vs_vp: 0.52, wavelet_scale: 1.1 }, blind, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}) } });
         return id;
       }
+      if (kind === 'sample_volumes' && params.traces) {
+        // stack traces at the wells: a band-limited wiggle per stack
+        const tr = (k) => Array.from({ length: 600 }, (_, i) => Number((0.05 * Math.sin(i / (3 + k)) * Math.cos(i / 17)).toPrecision(6)));
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { dt_ms: 4, ns: 600, points: params.points.map((q) => ({ name: q.name, traces: params.volume_ids.map((_, k) => tr(k)) })) } });
+        return id;
+      }
       if (kind === 'sample_volumes') {
         // the seismic at twice the model's scale, as a calibration would find
         results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { points: params.points.map((q) => ({ name: q.name, t_ms: q.t_ms, values: [-0.1, -0.24] })) } });
