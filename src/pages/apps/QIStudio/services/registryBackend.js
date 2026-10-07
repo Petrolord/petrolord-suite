@@ -12,6 +12,8 @@ import { assertQuota } from '@/pages/apps/Seismolord/services/seismicStorage';
 import { assertFloat32Parent, derivedStorageBytes } from '@/pages/apps/Seismolord/services/attributeSurveyMeta';
 import { volumeDir } from '../../../../../packages/engines/engines/seismolord/manifest';
 import { volumeFrame } from './inversionWells';
+import { listSurfaces, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
+import { readDepthSurface } from '@/lib/readDepthSurface';
 
 /** A new derived row ('ingesting', kind 'attribute') on a parent volume, as Seismolord registers an attribute volume. */
 async function registerDerived(parent, name, attributeParams) {
@@ -59,6 +61,12 @@ export function makeRegistryBackend() {
       return registerDerived(ai, name, { name: 'qi_property', params: summary });
     },
     removeVolume: deleteVolume,
+    listSurfaces,
+    /** A registry surface read through the one door: elevation in metres, or an attribute map (xy in metres). */
+    async loadSurface(row, { attribute = false } = {}) {
+      const grid = await downloadSurfaceGrid(row);
+      return readDepthSurface(row, grid, attribute ? { accept: ['attribute'], xy: 'm' } : { accept: ['elevation', 'depth'], as: 'elevation', xy: 'm' });
+    },
     async countSurfaces() {
       const { count, error } = await supabase.from('geo_surfaces').select('id', { count: 'exact', head: true });
       return error ? 0 : (count || 0);

@@ -9,7 +9,7 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
 | Q0 Seismic worker foundations | DONE: merged #891 (main 728a53b7e), 2026-10-06 |
 | Q0b Seismolord on the worker | DONE: merged #893; both migrations applied and verified 2026-10-06 |
 | Milestone A (Q1, Q2, Q4a, Q6a) | DONE: A1 to A6 merged 2026-10-06 (#894, #896 to #901, #903). Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
-| Milestone B (Q8a, Q9a, Q10, Q11) | Q8a DONE (#904, #905; worker live). Q9a property prediction built (engines #325; Suite feat/qi-q9a-properties) |
+| Milestone B (Q8a, Q9a, Q10, Q11) | Q8a DONE (#904, #905); Q9a DONE (#906); worker live. Q10 prospects built (engines #326, #327; Suite feat/qi-q10-prospects) |
 | Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Not started |
 | Q12 Benchmark and tester waves | Not started |
 
@@ -403,5 +403,33 @@ The quota is pooled per organisation. Building that is the next item.
   - **Speed:**
     - With one attribute the facies posterior is tabulated once per model (4001 points, plus or minus 6 SD beyond the outer classes; within 0.002 of the direct posterior, gated), so a volume costs one lookup per sample.
     - The porosity interval computes t x s once per model, gated equal to the engine call.
-- **Worker deploy:** needed after merge, for the new kind.
-- **Next:** Q10 prospect integration (closure and spill point on depth surfaces, the anomaly register, the per-prospect QI assessment, and the hand-off to the prospect engine).
+- **Merged:** #906 (main cd3cc8c3a). The worker was redeployed as suite-cd3cc8c3a+engines-73419b71d and is healthy with `property_prediction`.
+- **Next (then):** Q10 prospect integration (closure and spill point on depth surfaces, the anomaly register, the per-prospect QI assessment, and the hand-off to the prospect engine).
+
+### B4 Q10 Prospect integration (2026-10-07)
+- **Engines #326 `qi/prospectAssessment.js`**, on Mapping & Surface Studio's closure engine (`lib/gridding/closure.js`):
+  - **Conformance:** the DHI check that the anomaly's downdip edge follows one contour. The edge is read at the midpoints to its lower outside neighbours. Score = 1 - edge scatter / closure relief. Also reports the share inside the closure, the implied contact (never below spill) and the GRV at it and at spill.
+  - **Evidence independence:** evidence grouped by the response it comes from.
+  - **Assessment:** a decision table.
+- **Engines #327:** fixes the copy lint (item 17, no whole-number rounding inside a message). #326 had been merged with red CI by mistake; #327 restored green within minutes. Every merge since is gated on the checks' exit code.
+- **Validation:** an analytic paraboloid dome.
+  - A contact-bounded anomaly conforms (over 0.95), implies its contact within a cell, and its GRV matches pi a R^4 / 2 within 5 percent.
+  - Negative control: a patch across the flank does not conform.
+  - All eleven table cases are gated.
+- **Suite:**
+  - `QIStudio/services/prospects.js`:
+    - crest by steepest ascent from a point;
+    - the anomaly mask from an attribute map read on the depth grid through `readDepthSurface`;
+    - only the patches that reach into the closure kept;
+    - the analysis.
+  - The QI Studio Prospects tab: the per-prospect table, editor, issues, report table and help.
+  - **Contract `qi-prospect-1`** (`src/lib/qiProspectSource.js`): QI Studio saves a record per analysed prospect. Risked Reserves Valuation reads it by `?qiProject&qiProspect` and shows a read-only QI evidence card beside the prospects.
+- **Decisions:**
+  - **Decision table:**
+    - Mature needs conformance of at least 0.7, two independent supporting responses, no competing explanation open or likely, and a target whose feasibility verdict says the case is visible.
+    - Conformance under 0.3 means the anomaly cuts across the structure: investigate. A likely competing explanation plus a cutting anomaly is a downgrade.
+    - With no anomaly: downgrade only when the verdict is feasible, otherwise retain. This is the plan's absent-anomaly rule.
+  - **QI never sets Pg:** the record carries no chance of any kind (gated). The RRV card moves no number and says so. Volumetrics and risking stay in ReservoirCalc Pro and RRV.
+  - **No new table:** prospects and anomalies live in the QI Studio project (`saved_qi_studio_projects`, already pending owner apply). The plan's `qi_anomalies` table is not needed, so there is no extra migration.
+  - **Edge spill:** a spill on the map edge is flagged in the reasons and the record (`limited_by_edge`). GRV at spill is then a lower bound.
+- **Next:** Q11 reporting and handover: the SEG-Y writer (segyio read-back), LAS and wavelet export, the per-job reproducibility manifest, the report pack, and `.pld` portability for the QI records.

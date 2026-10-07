@@ -5,7 +5,7 @@
 // Copy rule: no em dashes, no "X, not Y" contrastives.
 // Guard: __tests__/helpGuide.test.jsx.
 import React from 'react';
-import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity, Layers, Gauge } from 'lucide-react';
+import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity, Layers, Gauge, MapPin } from 'lucide-react';
 import { HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Step, Table } from '@/components/helpguide/HelpGuideLayout';
 import SharingHelp from '@/components/recordSharing/SharingHelp';
 import { GROUPS, STATES } from './services/inventory';
@@ -22,6 +22,7 @@ export const HELP_SECTIONS = [
   { id: 'qc', icon: Activity, title: 'Seismic QC' },
   { id: 'inversion', icon: Layers, title: 'Impedance inversion' },
   { id: 'properties', icon: Gauge, title: 'Property prediction' },
+  { id: 'prospects', icon: MapPin, title: 'Prospects' },
   { id: 'issues', icon: AlertTriangle, title: 'Issue register' },
   { id: 'feasibility', icon: Scale, title: 'Feasibility per target' },
   { id: 'report', icon: FileText, title: 'The report' },
@@ -145,6 +146,30 @@ function QIStudioHelpGuideContent() {
           much of the well falls inside Q10 to Q90 (about 80 percent is right); facies report the share predicted correctly. A
           poor correlation, a poor facies score or an interval that covers under 60 or over 95 percent is offered to the
           issue register.
+        </Para>
+      </GuideSection>
+
+      <GuideSection id="prospects">
+        <SectionHeading icon={MapPin}>Prospects</SectionHeading>
+        <Para>
+          Add a prospect on a depth surface from the registry. The crest is found by climbing from a point you give, or
+          from the highest node, and the trap is flooded to its spill point with Mapping &amp; Surface Studio&apos;s closure
+          engine: crest and spill depths, column, closure area and GRV. A spill on the edge of the mapped area is flagged,
+          because the trap may go on off the map.
+        </Para>
+        <Para>
+          Choose an attribute map and a threshold to mark the anomaly; only the patches that reach into the closure are kept.
+          A hydrocarbon anomaly ends downdip at a contact, so its downdip edge should follow one depth contour: the fit is 1
+          minus the scatter of the edge depths over the closure relief, with the share of the anomaly inside the closure
+          and the contact the edge implies. List the evidence with the response each item comes from: two attributes of the
+          same full stack count as one. Mark each competing explanation open, ruled out or likely.
+        </Para>
+        <Para>
+          The recommendation follows a fixed table. Mature needs a fit of 0.7 or more, two independent supporting responses,
+          no competing explanation open or likely, and a target the feasibility study says is visible. With no anomaly, the
+          prospect is downgraded only where the feasibility study says the hydrocarbon case would be visible; otherwise it is
+          retained. QI does not set the chance of success: open the prospect in Risked Reserves Valuation from its row and the
+          QI evidence is shown there beside it, read only.
         </Para>
       </GuideSection>
 

@@ -25,6 +25,7 @@ import QcPanel from './components/QcPanel';
 import TiesPanel from './components/TiesPanel';
 import InversionPanel from './components/InversionPanel';
 import PropertiesPanel from './components/PropertiesPanel';
+import ProspectsPanel from './components/ProspectsPanel';
 
 const TABS = [
   { value: 'setup', label: 'Setup' },
@@ -34,6 +35,7 @@ const TABS = [
   { value: 'ties', label: 'Well ties' },
   { value: 'inversion', label: 'Inversion' },
   { value: 'properties', label: 'Properties' },
+  { value: 'prospects', label: 'Prospects' },
   { value: 'issues', label: 'Issues' },
   { value: 'feasibility', label: 'Feasibility' },
   { value: 'report', label: 'Report' },
@@ -154,6 +156,7 @@ function QIStudioContent({ organizationName }) {
         {tab === 'ties' && <TiesPanel />}
         {tab === 'inversion' && <InversionPanel />}
         {tab === 'properties' && <PropertiesPanel />}
+        {tab === 'prospects' && <ProspectsPanel />}
         {tab === 'issues' && <IssuesPanel />}
         {tab === 'feasibility' && <FeasibilityPanel />}
         {tab === 'report' && <ReportTab organizationName={organizationName} />}

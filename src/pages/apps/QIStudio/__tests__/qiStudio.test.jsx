@@ -208,3 +208,32 @@ test('inversion: the wells read into impedance, the blind-well check and a volum
   await waitFor(() => expect(pruns).toHaveTextContent(/Ready: open in Seismolord/));
   expect(Object.keys(enqueue.mock.calls[4][1].volume_ids)).toEqual(['q10', 'q50', 'q90']);
 });
+
+test('prospects: a trap on the dome, a conforming anomaly, the assessment table and the report', async () => {
+  let api;
+  const Probe = () => { api = useQIStudio(); return null; };
+  const backend = makeInMemoryBackend();
+  render(<MemoryRouter><QIStudioProvider backend={backend}><Probe /></QIStudioProvider><QIStudio backend={backend} sharingStore={null} /></MemoryRouter>);
+  fireEvent.click(await screen.findByTestId('qi-tab-prospects', {}, { timeout: 20000 }));
+  fireEvent.click(await screen.findByTestId('qi-pros-add', {}, { timeout: 20000 }));
+  fireEvent.change(screen.getByTestId('qi-pros-name'), { target: { value: 'Keta Dome' } });
+  fireEvent.change(screen.getByTestId('qi-pros-surface'), { target: { value: 'qi-s1' } });
+  fireEvent.change(screen.getByTestId('qi-pros-attr'), { target: { value: 'qi-s2' } });
+  fireEvent.change(screen.getByTestId('qi-pros-threshold'), { target: { value: '0.5' } });
+  fireEvent.change(screen.getByTestId('qi-pros-ev-name'), { target: { value: 'RMS amplitude' } });
+  fireEvent.click(screen.getByTestId('qi-pros-ev-add'));
+  fireEvent.change(screen.getByTestId('qi-pros-ev-name'), { target: { value: 'Class III AVO' } });
+  fireEvent.change(screen.getByTestId('qi-pros-ev-source'), { target: { value: 'avo' } });
+  fireEvent.click(screen.getByTestId('qi-pros-ev-add'));
+  for (const k of ['tuning', 'lithology', 'porosity', 'fizz', 'processing']) fireEvent.change(screen.getByTestId(`qi-pros-comp-${k}`), { target: { value: 'ruled-out' } });
+  fireEvent.click(screen.getByTestId('qi-pros-analyse'));
+  const table = await screen.findByTestId('qi-pros-table', {}, { timeout: 20000 });
+  expect(table).toHaveTextContent(/Keta Dome/);
+  expect(table).toHaveTextContent(/2000 \/ 2\d{3} \(edge\)/);
+  expect(table).toHaveTextContent(/0\.9\d, 100 percent inside, contact 2100 m/);
+  // no target feasibility recorded, so the case is not shown visible: investigate, with the reason
+  expect(table).toHaveTextContent(/Investigate/);
+  expect(screen.getAllByText(/does not say the case is visible/).length).toBeGreaterThan(0);
+  const model = reportModel({ ...api, project: { ...api.project, prospects: [] }, projectName: 'x' });
+  expect(model.prospects).toEqual([]);
+});

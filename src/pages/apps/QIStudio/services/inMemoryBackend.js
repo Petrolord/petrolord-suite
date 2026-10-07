@@ -4,6 +4,7 @@
 // job client that runs the real QC runner on a small synthetic volume (a
 // 30 Hz signal with a stripe every 4 crosslines) so the harness shows results.
 import { runSeismicQc, qcIssues } from './qcRun';
+import { readDepthSurface } from '@/lib/readDepthSurface';
 
 const log = (mnemonic, start, stop, extra = {}) => ({ id: `${mnemonic}-${start}`, mnemonic, start_md_m: start, stop_md_m: stop, step_m: 0.5, ...extra });
 const zones = (wellId) => [
@@ -60,6 +61,18 @@ export function makeInMemoryBackend() {
     async registerInversionVolume({ volume, name }) { return { id: `mem-inv-${volume.id}`, name, status: 'ingesting' }; },
     async registerPropertyVolume({ aiVolumeId, name, summary }) { return { id: `mem-prop-${aiVolumeId}-${summary.product}`, name, status: 'ingesting' }; },
     async removeVolume() {},
+    // a dome (Top Sand A) and an RMS amplitude map bright above a flat contact at 2100 m
+    async listSurfaces() {
+      return [
+        { id: 'qi-s1', name: 'Top Sand A depth', z_domain: 'elevation', z_unit: 'm', xy_unit: 'm', nx: 81, ny: 81, dx: 25, dy: 25, origin_x: 0, origin_y: 0 },
+        { id: 'qi-s2', name: 'Top Sand A RMS amplitude', z_domain: 'attribute', z_unit: null, xy_unit: 'm', nx: 81, ny: 81, dx: 25, dy: 25, origin_x: 0, origin_y: 0 },
+      ];
+    },
+    async loadSurface(row, { attribute = false } = {}) {
+      const elev = Float32Array.from({ length: 81 * 81 }, (_, i) => { const x = (i % 81) * 25 - 1000; const y = Math.floor(i / 81) * 25 - 1000; return -2000 - 0.0004 * (x * x + y * y); });
+      const grid = row.id === 'qi-s2' ? Float32Array.from(elev, (v) => (v >= -2100 ? 1 : 0.1)) : elev;
+      return readDepthSurface(row, grid, attribute ? { accept: ['attribute'], xy: 'm' } : { accept: ['elevation', 'depth'], as: 'elevation', xy: 'm' });
+    },
     jobs: makeInMemoryJobs(),
   };
 }
