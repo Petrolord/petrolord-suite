@@ -20,6 +20,7 @@ import { v4BrickFetcher } from '../../../../packages/engines/engines/seismolord/
 import { geomFromManifest, brickKey } from '../../../../packages/engines/engines/seismolord/sliceAssembly.js';
 import { surveyAffine, ilxlToWorld } from '../../../../packages/engines/engines/seismolord/surveyGeometry.js';
 import { PART_SIZE, MAX_FILE_BYTES, parseUploadId, completeXml } from '../../../../supabase/functions/qi-upload-url/logic.ts';
+import { multipartWriter } from '../s3.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const LINK_TTL_S = 24 * 3600;
@@ -92,31 +93,10 @@ export async function exportSegy(ctx, deps) {
 
   const fileName = exportFileName(vol.name);
   const key = `exports/${uid}/${ctx.job.id}/${fileName}`;
-  const init = await fetchImpl(await sign('POST', workBucket, key, { uploads: '' }), { method: 'POST' });
-  const uploadId = init.ok ? parseUploadId(await init.text()) : null;
-  if (!uploadId) throw new Error(`The store refused to start the export (${init.status}).`);
-  const abort = async () => { try { await fetchImpl(await sign('DELETE', workBucket, key, { uploadId }), { method: 'DELETE' }); } catch { /* best effort */ } };
-
-  const partSize = deps.partSize || PART_SIZE; // a smaller size only in tests (the store needs 5 MiB parts)
-  const parts = [];
-  let buf = new Uint8Array(partSize);
-  let used = 0;
+  const out = await multipartWriter({ sign, bucket: workBucket, key, fetchImpl, partSize: deps.partSize || PART_SIZE, parseUploadId, completeXml });
+  const write = (bytes) => out.write(bytes);
+  const abort = () => out.abort();
   let total = 0;
-  const putPart = async (bytes) => {
-    const n = parts.length + 1;
-    const r = await fetchImpl(await sign('PUT', workBucket, key, { partNumber: String(n), uploadId }), { method: 'PUT', body: bytes });
-    if (!r.ok) throw new Error(`Storing part ${n} of the export failed (${r.status}).`);
-    parts.push({ partNumber: n, etag: r.headers.get('etag') });
-  };
-  const write = async (bytes) => {
-    let at = 0;
-    while (at < bytes.length) {
-      const take = Math.min(bytes.length - at, partSize - used);
-      buf.set(bytes.subarray(at, at + take), used);
-      used += take; at += take; total += take;
-      if (used === partSize) { await putPart(buf); buf = new Uint8Array(partSize); used = 0; }
-    }
-  };
 
   let traces = 0;
   try {
@@ -149,9 +129,7 @@ export async function exportSegy(ctx, deps) {
       ctx.progress(0.98 * ((bi + 1) / ni), `Writing inlines, ${traces} traces`);
     }
     if (!traces) throw new JobFailure('validate_failed', 'The volume has no live traces to export.');
-    if (used > 0) await putPart(buf.subarray(0, used));
-    const done = await fetchImpl(await sign('POST', workBucket, key, { uploadId }), { method: 'POST', body: completeXml(parts) });
-    if (!done.ok) throw new Error(`The store could not assemble the export (${done.status}).`);
+    total = (await out.finish()).bytes;
   } catch (e) {
     await abort();
     throw e;

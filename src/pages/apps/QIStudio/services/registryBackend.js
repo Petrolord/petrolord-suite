@@ -14,6 +14,9 @@ import { volumeDir } from '../../../../../packages/engines/engines/seismolord/ma
 import { volumeFrame } from './inversionWells';
 import { listSurfaces, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
 import { readDepthSurface } from '@/lib/readDepthSurface';
+import { listDatasets } from '@/lib/qiService';
+import { scanRemoteFile, startRemoteConversion } from '@/pages/apps/Seismolord/services/serverImport';
+import { DEFAULT_MAPPING } from '../../../../../packages/engines/engines/seismolord/segyScan';
 
 /** A new derived row ('ingesting', kind 'attribute') on a parent volume, as Seismolord registers an attribute volume. */
 async function registerDerived(parent, name, attributeParams) {
@@ -62,6 +65,14 @@ export function makeRegistryBackend() {
     },
     removeVolume: deleteVolume,
     listSurfaces,
+    listDatasets,
+    /** An angle stack in the worker store into a Seismolord volume: the server import's own scan and conversion. */
+    async convertStack(d) {
+      const remote = { remote: true, datasetId: d.id, name: d.original_filename, size: Number(d.bytes), fingerprint: d.meta?.fingerprint };
+      const { scan } = await scanRemoteFile(remote, DEFAULT_MAPPING);
+      if (!scan) throw new Error('The stack could not be scanned.');
+      return startRemoteConversion({ remote, mapping: DEFAULT_MAPPING, scan, nativeCrs: null, name: d.name });
+    },
     /** A registry surface read through the one door: elevation in metres, or an attribute map (xy in metres). */
     async loadSurface(row, { attribute = false } = {}) {
       const grid = await downloadSurfaceGrid(row);

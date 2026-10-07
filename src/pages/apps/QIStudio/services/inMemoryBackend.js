@@ -61,6 +61,15 @@ export function makeInMemoryBackend() {
     async registerInversionVolume({ volume, name }) { return { id: `mem-inv-${volume.id}`, name, status: 'ingesting' }; },
     async registerPropertyVolume({ aiVolumeId, name, summary }) { return { id: `mem-prop-${aiVolumeId}-${summary.product}`, name, status: 'ingesting' }; },
     async removeVolume() {},
+    // worker files: one uploaded prestack file, one gather store, one angle stack
+    async listDatasets() {
+      return [
+        { id: 'qi-d1', name: 'Keta CDP gathers', kind: 'segy_upload', status: 'uploaded', bytes: 12 * 1024 ** 3, meta: {} },
+        { id: 'qi-d2', name: 'Keta CDP gathers gathers', kind: 'gathers_offset', status: 'uploaded', bytes: 9 * 1024 ** 3, meta: { traces: 2400000, bins: 60, bin_width_m: 50 } },
+        { id: 'qi-d3', name: 'Keta near', kind: 'segy_upload', status: 'uploaded', bytes: 2 * 1024 ** 3, meta: { partial_stack: { name: 'near', from: 0, to: 15 } } },
+      ];
+    },
+    async convertStack() { return { jobId: 'mem-convert', volumeId: 'mem-vol' }; },
     // a dome (Top Sand A) and an RMS amplitude map bright above a flat contact at 2100 m
     async listSurfaces() {
       return [
@@ -95,6 +104,14 @@ function makeInMemoryJobs() {
     async enqueueJob(kind, params) {
       n += 1;
       const id = `mem-job-${n}`;
+      if (kind === 'ingest_gathers') {
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { dataset_id: 'mem-gathers', traces: 2400000, blocks: 900, bins: { width: params.bin_width_m, count: 60 } } });
+        return id;
+      }
+      if (kind === 'angle_stacks') {
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { source_dataset_id: params.dataset_id, stacks: params.ranges.map((r, k) => ({ ...r, dataset_id: `mem-stack-${k}`, traces: 40000 })), usable_angle: { q10: 31.5, q50: 38.2, q90: 42.9, cdps: 40000 } } });
+        return id;
+      }
       if (kind === 'export_segy') {
         results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), engine_commit: 'suite-harness+engines-harness', result_refs: { volume_id: params.volume_id, file_name: 'export.sgy', bytes: 1024, traces: 512, url: 'https://storage.petrolord.com/harness/export.sgy', expires_at: new Date(Date.now() + 864e5).toISOString() } });
         return id;

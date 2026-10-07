@@ -252,3 +252,22 @@ test('prospects: a trap on the dome, a conforming anomaly, the assessment table 
   const model = reportModel({ ...api, project: { ...api.project, prospects: [] }, projectName: 'x' });
   expect(model.prospects).toEqual([]);
 });
+
+test('prestack: build gathers, angle stacks with a velocity table, the usable angle, and conversion to a volume', async () => {
+  const backend = makeInMemoryBackend();
+  const enqueue = jest.spyOn(backend.jobs, 'enqueueJob');
+  const convert = jest.spyOn(backend, 'convertStack');
+  render(<MemoryRouter><QIStudio backend={backend} sharingStore={null} /></MemoryRouter>);
+  fireEvent.click(await screen.findByTestId('qi-tab-prestack', {}, { timeout: 20000 }));
+  fireEvent.change(screen.getByTestId('qi-pre-bin'), { target: { value: '25' } });
+  fireEvent.click(await screen.findByTestId('qi-pre-build-qi-d1', {}, { timeout: 20000 }));
+  await waitFor(() => expect(enqueue).toHaveBeenCalledWith('ingest_gathers', expect.objectContaining({ dataset_id: 'qi-d1', bin_width_m: 25, mapping: { offsetByte: 37 } })));
+  fireEvent.change(screen.getByTestId('qi-pre-vel'), { target: { value: '0 1700\n1500 2300\n3000 2900' } });
+  fireEvent.click(screen.getByTestId('qi-pre-stack-qi-d2'));
+  expect(await screen.findByTestId('qi-pre-result-qi-d2', {}, { timeout: 20000 })).toHaveTextContent(/near 0 to 15 degrees \(40000 traces\).*Q50 38\.2/);
+  const [, params] = enqueue.mock.calls.find((c) => c[0] === 'angle_stacks');
+  expect(params.velocity).toEqual({ t_ms: [0, 1500, 3000], vrms: [1700, 2300, 2900] });
+  expect(params.ranges.map((r) => r.name)).toEqual(['near', 'mid', 'far']);
+  fireEvent.click(screen.getByTestId('qi-pre-convert-qi-d3'));
+  await waitFor(() => expect(convert).toHaveBeenCalledWith(expect.objectContaining({ id: 'qi-d3' })));
+});

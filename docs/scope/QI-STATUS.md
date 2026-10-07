@@ -10,7 +10,7 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
 | Q0b Seismolord on the worker | DONE: merged #893; both migrations applied and verified 2026-10-06 |
 | Milestone A (Q1, Q2, Q4a, Q6a) | DONE: A1 to A6 merged 2026-10-06 (#894, #896 to #901, #903). Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
 | Milestone B (Q8a, Q9a, Q10, Q11) | DONE (#904 to #908); worker live. Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
-| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a gather ingest built (engines #329 to #332; Suite feat/qi-q3-gathers) |
+| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a DONE (#909; worker live). Q3b angle stacks built (engines #333, #334; Suite feat/qi-q3b-angle-stacks) |
 | Q12 Benchmark and tester waves | Not started |
 
 ## Key facts
@@ -481,4 +481,28 @@ The quota is pooled per organisation. Building that is the next item.
   - **Gathers are taken as NMO-corrected** (the usual QI delivery), recorded in the manifest (`nmo_corrected: true`). Residual moveout comes with Q4b/Q5.
   - **Memory:** one brick row of blocks is held while it fills (cb x crosslines x bins x samples, float32). A row over the worker's memory budget is refused with the block size or bin width that would fit. The default block is 4 CDPs.
   - **Janitor:** the 30-day raw retention now touches only raw uploads (`kind segy_upload`). A gather store is kept (gated by a negative control).
-- **Next in Q3:** angle stacks from the store with an RMS velocity function (partial stacks as SEG-Y datasets the existing stack conversion turns into Seismolord volumes), fold and usable-angle maps, and the stack family with declared and measured angle ranges.
+- **Merged:** #909 (main 13b960a45). The worker was redeployed as suite-13b960a45+engines-ce75f43a1 with `ingest_gathers` (deployed from the new /root/wt-deploy worktree).
+
+### C2 Q3b Angle stacks (2026-10-07)
+- **Engines:**
+  - **#333 `velocityOnGrid`:** an RMS velocity table on the trace samples. Vrms is linear in time; Vint is the Dix velocity of the segment.
+  - **#334:** the trace index flags a gather file (two or more traces per cell on average) at import and points to QI Studio's Prestack tab, so a stack import never silently keeps only the first trace of each gather (the plan's traceIndex fix). A single repeated trace stays a plain duplicate (negative control).
+- **Worker:**
+  - **`angle_stacks`:**
+    - Each offset bin's Walden angle at each time is computed once. It depends only on the bin and the time, since there is one velocity function.
+    - A range's partial stack is, per CDP and sample, the fold-weighted mean of the bins in the range.
+    - Each range is written as SEG-Y into the work bucket and registered as a `segy_upload` server file with `meta.partial_stack`. Seismolord's own server import (`scan_dataset`, then `stack_to_v4`) converts it into a volume.
+    - A usable-angle map per CDP is written beside the stacks, with its Q10, Q50 and Q90.
+    - Gated: a known AVO event (A + B sin^2) gives near and far stacks within the trend's bounds for their ranges, with near brighter than far. The files read back with the engines' reader, and both are registered for conversion. Negative control: a velocity 60 percent too fast takes the far range from true angles of about 37 to 53 degrees, and the far stack falls outside its true bounds.
+  - **`multipartWriter`** (`worker/src/s3.js`): the streaming multipart upload shared by `export_segy` and `angle_stacks`. The export's own tests still pass, including many parts byte-identical and abort on cancel.
+- **QI Studio, Prestack tab:**
+  - build gathers from an uploaded SEG-Y (offset byte, bin width);
+  - make angle stacks (an RMS velocity table, up to four named ranges, a least fold for the usable angle);
+  - convert each stack into a Seismolord volume (the server import's scan and conversion, rev 1 byte mapping);
+  - an angle-stacks table in the report, with the usable angle.
+- **Decisions:**
+  - **Conversion reuses the server import:** partial stacks become Seismolord volumes through the same `stack_to_v4` path as any big SEG-Y, with no second converter. Being `segy_upload` files, they fall under the 30-day raw retention, and the converted volumes are kept.
+  - **The velocity is one RMS function for the survey** (a time table). A velocity volume per CDP and curved-ray angles come later in Q3 or Q4b if the study needs them; the straight ray is gated within 1.5 degrees of the exact ray up to an offset equal to the depth.
+  - **The usable angle is a parameter**, so it carries Q labels (Q10, Q50, Q90), never P labels.
+- **Worker deploy:** needed after merge, for `angle_stacks`.
+- **Next:** the stack family (declared against measured angle ranges, alignment, amplitude and phase consistency between stacks), then Q4b prestack QC.

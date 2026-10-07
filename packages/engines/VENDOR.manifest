@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit ce75f43a1ea2d984fb4dcc3d945c7e3bec548234
+# commit fdcd73b77a58ef705cf679849a96cc741048ad7c
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 80b08bf546799e96d5448d67c63c98f2ec1b9703 README.md
@@ -175,7 +175,7 @@ f25ba6e6e30355f8364a1af93656dd305c027ab1 __tests__/prospect.valuation.test.js
 e6d7f81fccfe0c1e8a640246a2210dbc8d473515 __tests__/qi.inversionBenchmark.test.js
 3dd96b2f13da86780abf303e80742c0cfd804442 __tests__/qi.inversionSpread.test.js
 0232580f706161ddee67e1a44b85c58377ab5d54 __tests__/qi.lfm.test.js
-234fc7b6e46d855ed23d111ccdb227bec578b3c1 __tests__/qi.prestack.test.js
+55583129f3a8d89b1ca9638ee3e5845cee75f673 __tests__/qi.prestack.test.js
 37012fc2ddd63d97350f26e6a790c899249c13e9 __tests__/qi.propertyPrediction.test.js
 b2e83fda11504d1b4e6d01bf93e3c0564088fb08 __tests__/qi.prospectAssessment.test.js
 7118d18a2558431d008a66c5806ada9fbae8752a __tests__/qi.seismicQc.test.js
@@ -210,7 +210,7 @@ f164d0a958b73fb28b1608a37b8a5c1cc9a0223e __tests__/seismolord.framework.test.js
 65d29290a18eab1e3c9d164faf9d71fab94efe00 __tests__/seismolord.importreaders.test.js
 e80da8efdd7cd8a39a69cfc427173837c5ebfeda __tests__/seismolord.latticeexport.test.js
 0f33cdf054912f7d9515a2bb5a87b463f2c65a0e __tests__/seismolord.line2d.test.js
-a2b2db7aea12cc3c1b17551047687a2497ad7397 __tests__/seismolord.localsource.test.js
+7eef634dc0af009ca1c368405280e01c30845519 __tests__/seismolord.localsource.test.js
 b0bae05701a81bdc60ed1f72bb230c19b099b073 __tests__/seismolord.manifestgate.test.js
 636459112a6ddc831edc8c35f26b83215593641f __tests__/seismolord.pickexport.test.js
 d439c4815386e9d7cc43601f8a74f1dd3a80a046 __tests__/seismolord.previewreads.test.js
@@ -505,7 +505,7 @@ b7a2a85022f3df59f44051d5202dcf9746502326 engines/production/pumpingUnit.js
 9adb98740539dcefc0bbb0f555abaa5f0f35d37e engines/qi/inversion.js
 d00a00ca01a9fd9c18ad49ffbc686797120dc04f engines/qi/inversionSpread.js
 b39570bb2e983fe831a07534130a5eeb7547b61f engines/qi/lfm.js
-e93067d7a778abe855e803bd9bd45ae428bdbb24 engines/qi/prestack.js
+a2fc41975f55e508e0e3076b36a34763706a1610 engines/qi/prestack.js
 51f0d1c791490b53bedcb9a2e7f46401ce7a5fec engines/qi/propertyPrediction.js
 349b54e6280e091dcbd2888fa96ff7db2ccabad6 engines/qi/prospectAssessment.js
 00816e027603e25d60cd84661a1d32aed42a931b engines/qi/seismicQc.js
@@ -568,7 +568,7 @@ c14b23221d26358ca577cb49b44c1f5f21b41e46 engines/seismolord/surveyGeometry.js
 55453e93a1ba6ec089d10b0a06f97e1c86dc0ee9 engines/seismolord/synthetics.js
 f89aee7ebf3ab9952f2c7835d5ad8fffe2e8a759 engines/seismolord/tieWarp.js
 31899a7eaa69badf0a8d88833c77da45c81fb9ed engines/seismolord/topsToEvents.js
-63bf539e5f9de5a749e662c1073fd41c6723a562 engines/seismolord/traceIndex.js
+94e6ce0db5d2c869fd9611ad4bd30b2d83d9877c engines/seismolord/traceIndex.js
 2889383861a23eedf936219c03dfd6a2475dacd4 engines/seismolord/traverse.js
 05596c6559b14c94b3dbba8668683273575bfcc7 engines/seismolord/velocityModel.js
 69b2afe5af321ee85ea367cbfc3f7a70dddb630f engines/seismolord/volumeJob.js
