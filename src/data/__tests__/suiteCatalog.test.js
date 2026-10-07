@@ -29,7 +29,7 @@ describe('the public app catalogue', () => {
     const listed = Object.fromEntries(SUITE_MODULES.map((m) => [m.slug, [...m.apps].sort()]));
     for (const k of Object.keys(live)) live[k].sort();
     expect(listed).toEqual(live);
-    expect(suiteStats()).toEqual({ apps: 104, modules: 10, modulesWord: 'Ten' });
+    expect(suiteStats()).toEqual({ apps: 105, modules: 10, modulesWord: 'Ten' });
     expect(suiteStats().apps).toBe(LIVE.suiteLiveApps.length);
   });
 
