@@ -11,7 +11,7 @@
 // Products: porosity at Q10, Q50 and Q90 (the 80 percent prediction
 // interval), labelled calibrated_prediction; for facies, one probability
 // volume per facies and the most likely facies code. A facies whose name
-// speaks of a fluid (gas, oil, hydrocarbon, brine) is labelled
+// speaks of a fluid (the words gas, oil, hydrocarbon, brine, fluid or water) is labelled
 // fluid_hypothesis, the rest calibrated_prediction (SOW section 10).
 
 import {
@@ -28,7 +28,8 @@ export const PROPERTY_DEFAULTS = { upscaleHz: 50, density: 'gaussian', priors: '
 const fin = Number.isFinite;
 const NULL_LIM = 1e29;
 const isNull = (v) => !(Math.abs(v) <= NULL_LIM);
-const FLUID = /gas|oil|hydrocarbon|brine|fluid|water/i;
+// whole words only ("soil" is no fluid); underscores and digits separate words here
+const FLUID = /(^|[^a-z])(gas|oil|hydrocarbons?|brine|fluids?|water)(?![a-z])/i;
 
 export const faciesClass = (name) => (FLUID.test(String(name)) ? 'fluid_hypothesis' : 'calibrated_prediction');
 

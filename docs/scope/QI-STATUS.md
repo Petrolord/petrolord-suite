@@ -561,8 +561,8 @@ The quota is pooled per organisation. Building that is the next item.
   - **Property prediction** now also takes the AI product of a simultaneous inversion.
 - **Decisions:**
   - **At least three stacks, one past 25 degrees:** three parameters need three or more angles, and density needs the far ones (Buland and Omre 2003). The engine's negative control shows the loss without them.
-  - **Equal pulls by default** (0.05 each, settable): density is regularised like the others. Its blind correlation is reported so a weak density shows.
-  - **Vs/Vp of the linearisation** is the wells' mean SI/AI (settable), not a fixed 0.5.
+  - **Equal pulls** (0.05 each; the job accepts others, but the Simultaneous tab does not offer them yet, see U2-007): density is regularised like the others. Its blind correlation is reported so a weak density shows.
+  - **Vs/Vp of the linearisation** is the wells' mean SI/AI (worked out from the wells; not offered on the tab), never a fixed 0.5.
 - **Merged:** #913 (main 94cf13f16), after a rerun of a ReservoirCalc Pro theme-test flake (its waits are raised in #914). The worker deploy followed.
 - **Next (then):** Q9b (facies and fluid probability in AI and Vp/Vs space: two attributes for the Bayesian classifier), then Q6b, Q4b, Q5, and Q12.
 
@@ -664,3 +664,19 @@ The quota is pooled per organisation. Building that is the next item.
   - set the tile and price;
   - run the Volve and F3 licence check;
   - cut the Suite zip.
+
+### Q12b Findings from the user manual (2026-10-07)
+The manual was written against the source, and it found the following.
+- **Fixed:**
+  - **The implied contact can sit below the spill.** It was shown at the raw edge depth while the GRV used the clamped contact. It is now held at the spill, and the assessment says by how much the anomaly runs past it.
+  - **A trap spilling at the map edge, with the anomaly filling it to that spill, could read Mature.** It now reads Investigate until the map covers the spill. An anomaly whose contact sits above the edge spill still matures, because its GRV is closed on the map.
+  - **The trim "window" is a half-width.** It is now labelled as one.
+  - **The handover table left out the AVO and Simultaneous products.** It now lists them.
+  - **Facies in AI and Vp/Vs dropped wells without shear and gave no reason.** The reason is now shown.
+  - **The inventory took any chosen volume as the full stack.** Derived volumes no longer count.
+  - **The fluid-name match was loose: "Soil" counted as a fluid.** It now matches whole words, with underscores and hyphens as separators.
+  - **The low signal-to-noise remedy named structure-oriented filtering, which is not built.** It now names what can be done.
+  - **Help and panel text** now match the code on QC sampling (12 inlines; footprint from every trace), the three angle ranges, the AVO and Simultaneous row counts, the usable angle (averaged down the trace) and save timing (10 s after the last change).
+- **Backlog:**
+  - U2-007: offer the Simultaneous pulls, Vs/Vp and model cut on the tab.
+  - U2-008: add the Simultaneous tab's blind-well results to the issue register.

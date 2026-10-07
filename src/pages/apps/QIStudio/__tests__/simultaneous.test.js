@@ -3,9 +3,9 @@ import { reportModel, buildQIStudioPdf } from '../services/report';
 import { blankProject } from '../services/model';
 import { readPdf, flat } from '@/lib/reportKit/testKit';
 
-test('three to six distinct stacks, one past 25 degrees', () => {
+test('three to five distinct stacks, one past 25 degrees', () => {
   const s = (v, a) => ({ volumeId: v, angle: a });
-  expect(simultaneousProblem([s('a', 5), s('b', 15)])).toMatch(/three to six/);
+  expect(simultaneousProblem([s('a', 5), s('b', 15)])).toMatch(/three to five/);
   expect(simultaneousProblem([s('a', 5), s('b', 12), s('c', 20)])).toMatch(/25 degrees/);
   expect(simultaneousProblem([s('a', 5), s('a', 15), s('c', 30)])).toMatch(/different volume/);
   expect(simultaneousProblem([s('a', 5), s('b', 15), s('c', 30)])).toBeNull();

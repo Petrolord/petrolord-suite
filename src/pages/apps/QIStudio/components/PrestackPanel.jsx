@@ -146,7 +146,7 @@ export default function PrestackPanel() {
           <div className="flex flex-col gap-1">
             <span className="text-pl-muted">Trim statics</span>
             <label className="flex items-center gap-1">event (ms)<input className={`${input} w-16`} type="number" value={trim.centre} onChange={(e) => setTrim((t) => ({ ...t, centre: e.target.value }))} data-testid="qi-pre-trim-centre" /></label>
-            <label className="flex items-center gap-1">window (ms)<input className={`${input} w-16`} type="number" value={trim.window} onChange={(e) => setTrim((t) => ({ ...t, window: e.target.value }))} /></label>
+            <label className="flex items-center gap-1" title="The correlation reaches this far either side of the event">half-window (ms)<input className={`${input} w-16`} type="number" value={trim.window} onChange={(e) => setTrim((t) => ({ ...t, window: e.target.value }))} /></label>
             <label className="flex items-center gap-1">largest shift (ms)<input className={`${input} w-14`} type="number" value={trim.maxShift} onChange={(e) => setTrim((t) => ({ ...t, maxShift: e.target.value }))} /></label>
           </div>
         </div>

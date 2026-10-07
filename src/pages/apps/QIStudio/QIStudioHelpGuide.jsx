@@ -87,11 +87,12 @@ function QIStudioHelpGuideContent() {
       <GuideSection id="qc">
         <SectionHeading icon={Activity}>Seismic QC</SectionHeading>
         <Para>
-          For each volume chosen on Setup, Run QC on the server reads the whole volume on the seismic worker and
-          measures, in three time windows: the average amplitude spectrum, its peak and the band within 6 dB of the
+          For each volume chosen on Setup, Run QC on the server works on the seismic worker. It samples 12 inlines
+          spread across the survey and measures, in three time windows: the average amplitude spectrum, its peak and the band within 6 dB of the
           peak; and the signal-to-noise ratio from how alike neighbouring traces are (Hatton and others, 1986: for a
-          correlation c between neighbours, signal-to-noise is c / (1 - c)). On RMS amplitude maps around three times
-          it looks for an acquisition footprint: a stripe that repeats every few lines.
+          correlation c between neighbours, signal-to-noise is c / (1 - c)), from 64 traces of each sampled inline for the
+          spectra and up to its first 200 crosslines for the signal-to-noise. On RMS amplitude maps of every trace around three
+          times it looks for an acquisition footprint: a stripe that repeats every few lines.
         </Para>
         <Para>
           A stripe is reported when one period and its harmonics hold over 30 percent of the map profile&apos;s
@@ -111,10 +112,10 @@ function QIStudioHelpGuideContent() {
           set, with its fold. The file must be sorted by inline, then crossline, and the gathers are taken as NMO-corrected.
         </Para>
         <Para>
-          Make angle stacks with an RMS velocity table (a time in ms and a velocity in m/s per row) and up to four named angle
-          ranges. Each offset bin&apos;s incidence angle at each time is Walden&apos;s straight-ray estimate, which stays within 1.5
+          Make angle stacks with an RMS velocity table (a time in ms and a velocity in m/s per row) and three named angle
+          ranges (near, mid and far by default; edit their limits). Each offset bin&apos;s incidence angle at each time is Walden&apos;s straight-ray estimate, which stays within 1.5
           degrees of an exact ray trace up to an offset equal to the depth. A stack is the fold-weighted mean of the bins whose
-          angle falls in its range. The usable angle of each CDP is the widest angle reached with the least fold you set, shown
+          angle falls in its range. The usable angle of each CDP is the widest angle reached with the least fold you set, averaged down the trace, shown
           across the survey as its 10th, 50th and 90th percentiles. Convert each stack into a Seismolord volume with one button:
           it goes through the same server import as any large SEG-Y.
         </Para>
@@ -136,7 +137,7 @@ function QIStudioHelpGuideContent() {
       <GuideSection id="avo">
         <SectionHeading icon={TrendingDown}>AVO</SectionHeading>
         <Para>
-          Choose two to four angle stacks on one lattice and give each its mean incidence angle. At every sample a two-term
+          Choose two or three angle stacks on one lattice and give each its mean incidence angle. At every sample a two-term
           Shuey fit, R = A + B sin squared of the angle, gives the intercept A and the gradient B. The Smith and Gidlow fluid
           factor comes from A and B with Gardner&apos;s density and the Vs/Vp you set: it is near zero along the mudrock line and
           negative for gas. The chi projection A cos(chi) + B sin(chi) is the reflectivity of an extended elastic impedance
@@ -191,7 +192,7 @@ function QIStudioHelpGuideContent() {
       <GuideSection id="simultaneous">
         <SectionHeading icon={Combine}>Simultaneous inversion</SectionHeading>
         <Para>
-          The Simultaneous tab inverts three to six angle stacks for acoustic impedance, shear impedance and density at once,
+          The Simultaneous tab inverts three to five angle stacks for acoustic impedance, shear impedance and density at once,
           with Fatti&apos;s three-term reflectivity. Read the wells: each needs a sonic, a density and a shear sonic, and the
           shear and density go to time through the same tie as the impedance. Each parameter is pulled to its own
           low-frequency model from the wells along your horizons. The tie wavelet is scaled to the stacks at the wells.
@@ -294,7 +295,7 @@ function QIStudioHelpGuideContent() {
 
       <GuideSection id="sharing">
         <SectionHeading icon={Share2}>Saving and sharing</SectionHeading>
-        <Para>A project saves every few seconds once it is created. Saving needs the QI Studio projects table on the database; until it is switched on the page says so and the work stays on screen.</Para>
+        <Para>A project saves 10 seconds after your last change once it is created. Saving needs the QI Studio projects table on the database; until it is switched on the page says so and the work stays on screen.</Para>
         <SharingHelp record="project" where="The sharing control is under the project box once the project is saved." />
       </GuideSection>
     </HelpGuideShell>

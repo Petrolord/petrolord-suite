@@ -125,6 +125,8 @@ qi_datasets, SEG-Y exports, the RRV prospect record and `.pld`.
 | 4 | U2-001 | Radon, f-x and structure-oriented filtering on the worker (engines first) | L |
 | 5 | U2-005 | Per-stack shaping filter that keeps relative amplitudes | M |
 | 6 | U2-006 | Vintage and processing-version linking | M |
+| 7 | U2-007 | Offer the Simultaneous pulls, Vs/Vp and model cut on the tab (the job already takes them) | S |
+| 8 | U2-008 | Simultaneous blind-well results to the issue register | S |
 
 ### Owner items
 

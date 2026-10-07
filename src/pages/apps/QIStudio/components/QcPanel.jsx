@@ -120,7 +120,7 @@ export default function QcPanel() {
   return (
     <section className={card} data-testid="qi-qc">
       <h2 className="text-sm font-semibold text-pl-text">Seismic QC</h2>
-      <p className={muted}>Runs on the seismic worker over the whole volume: amplitude spectra and the -6 dB band per time window, signal-to-noise from neighbouring traces, and acquisition footprint on RMS amplitude maps. Server QC runs on your own volumes.</p>
+      <p className={muted}>Runs on the seismic worker on 12 inlines sampled across the survey: amplitude spectra and the -6 dB band per time window, signal-to-noise from neighbouring traces, and acquisition footprint on RMS amplitude maps of every trace. Server QC runs on your own volumes.</p>
       {chosenVolumes.map((v) => {
         const st = running[v.id];
         const rec = project.qc[v.id];
