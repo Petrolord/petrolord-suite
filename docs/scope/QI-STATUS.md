@@ -11,7 +11,7 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
 | Milestone A (Q1, Q2, Q4a, Q6a) | DONE: A1 to A6 merged 2026-10-06 (#894, #896 to #901, #903). Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
 | Milestone B (Q8a, Q9a, Q10, Q11) | DONE (#904 to #908); worker live. Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
 | Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a DONE (#909), Q3b DONE (#910); worker live. Q7 AVO DONE (#911); worker live. Q7b DONE (#912); worker live. Q8b DONE (#913); worker live. Q9b DONE (#915); worker live. Q6b DONE (#916); worker live. Q4b DONE (#917); worker live. Q5 DONE (#918); worker live (suite-1c4681ed8+engines-d60083a5e, 2026-10-07). Acceptance on an open prestack dataset waits for the owner's Volve licence check |
-| QI Studio tile | Own tile `qi-studio`, Geoscience, 1690 a month (migration `20261007130000`, owner applies before the next zip) |
+| QI Studio tile | Own tile `qi-studio`, Geoscience, 1690 a month (migration `20261007130000`, APPLIED 2026-10-07 and verified; the route gate moves to `qi-studio` with the next zip) |
 | Q12 Benchmark and tester waves | Tester walk, fixes and close done (feat/qi-q12-close; `docs/upgrade/QI-UPGRADE.md`; `e2e/qi-studio.spec.js`). User manual delivered outside git. Open-dataset benchmark waits for the licence check |
 
 ## Key facts
@@ -690,4 +690,4 @@ The manual was written against the source, and it found the following.
   - A desktop QI package (for example the inversion and AVO modules of the leading vendors) sells for a multiple of this per seat each year.
   - The Geoscience module (3990) includes it, so a module buyer pays nothing extra.
 - **Decision: QI Studio has its own licence and no longer opens on a Seismolord or Rock Physics licence.** Otherwise the tile would sell what those licences already give. Module buyers keep it.
-- **Order:** the owner applies `20261007130000_seed_qi_studio_tile.sql`, then uploads the zip.
+- **Order:** the owner applies `20261007130000_seed_qi_studio_tile.sql`, then uploads the zip. **Done:** applied 2026-10-07 by the owner, row verified read-only.
