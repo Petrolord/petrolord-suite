@@ -83,7 +83,7 @@ export default function ExportDialog({
       testid: 'petro-export-zones',
       icon: FileSpreadsheet,
       label: 'Zone summary CSV',
-      note: 'Gross, net, N/G and net-weighted averages per zone at the current parameters.',
+      note: 'Gross, net, N/G and the zone averages (porosity and Vsh net-weighted, Sw pore-volume weighted) per zone at the current parameters.',
       build: () => saveAs(
         new Blob([zonesCsv(zones, summaries, { ...(depthOpts || {}), depthUnit: unit, probabilistic })], { type: 'text/csv;charset=utf-8;' }),
         `${base}_zones.csv`,

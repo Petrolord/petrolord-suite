@@ -27,6 +27,7 @@ import { trackPlotPng } from '@/components/wells/plotPng';
 import { makeDepthAxes, toDisplay, fromDisplay, DEPTH_TRACK_TITLE } from '@/components/wells/depthModes';
 import { planZoneFilter } from '../services/zoneFilter';
 import { computeWell } from '../engine/pipeline';
+import { tempAtDepth } from '../engine/temperature';
 import { depthDensityGrid, envelopeOutline, defaultDepthBinM } from '../viewer/depthDensity';
 import DepthDensityPlot from './DepthDensityPlot';
 import { useDraftInput, parseTypedNumber } from '@/hooks/useUnitDraft';
@@ -91,6 +92,25 @@ export default function CrossplotPanel({
   const [draft, setDraft] = useState([]);            // [[x, y]] in ND space
   const [faciesName, setFaciesName] = useState('');
   const [fitWin, setFitWin] = useState({ top: '', base: '' });
+  // PETRO-M-005: the water-zone boxes are typed in the session's depth unit
+  // and read here in metres MD, the pipeline's frame
+  const fitWinM = () => {
+    const t = fitWin.top === '' ? NaN : fromDisplay(Number(fitWin.top), depthUnit);
+    const b = fitWin.base === '' ? NaN : fromDisplay(Number(fitWin.base), depthUnit);
+    return { top: t, base: b };
+  };
+  // PETRO-M-004: a water-line Rw is read at the water zone's own temperature,
+  // so with the temperature model on its reference temperature is that
+  // zone's, never the previous tool's; and the label names the fit
+  const waterLineRw = (rw, method) => {
+    const { top, base } = fitWinM();
+    const patch = { rw, rwMethod: method };
+    if (params.tempMode === 'linear' && Number.isFinite(top) && Number.isFinite(base)) {
+      const t = tempAtDepth((top + base) / 2, params);
+      if (Number.isFinite(t)) patch.rwRefTempC = Number(t.toFixed(2));
+    }
+    return patch;
+  };
   const [fit, setFit] = useState(null);              // {m, aRw, nPoints}
   const [hFit, setHFit] = useState(null);            // {rw, slope, nPoints}
   const [colorBy, setColorBy] = useState(initialConfig?.colorBy || 'facies');
@@ -204,14 +224,13 @@ export default function CrossplotPanel({
   const pickettShown = useMemo(() => shownOf(pickettSamples), [pickettSamples, zoneFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pickettPoints = useMemo(() => {
-    const top = Number(fitWin.top);
-    const base = Number(fitWin.base);
+    const { top, base } = fitWinM();
     const winValid = Number.isFinite(top) && Number.isFinite(base) && base > top;
     return pickettShown.map((s) => {
       if (winValid && s.depthM >= top && s.depthM <= base) return withZ(s, WINDOW_COLOR);
       return withZ(s, zoneOrDefault(s));
     });
-  }, [pickettShown, fitWin, colorFor, selection, zoneFilter, zInfo]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pickettShown, fitWin, depthUnit, colorFor, selection, zoneFilter, zInfo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const bucklesShown = useMemo(() => shownOf(bucklesSamples), [bucklesSamples, zoneFilter]); // eslint-disable-line react-hooks/exhaustive-deps
   const bucklesPoints = useMemo(
@@ -259,10 +278,9 @@ export default function CrossplotPanel({
   }, [params, hFit]);
 
   const runHingleFit = () => {
-    const top = Number(fitWin.top);
-    const base = Number(fitWin.base);
+    const { top, base } = fitWinM();
     if (!Number.isFinite(top) || !Number.isFinite(base) || !(base > top)) {
-      onStatus('Enter the water-bearing interval as top/base metres MD.');
+      onStatus(`Enter the water-bearing interval as top and base in ${depthUnit} MD.`);
       return;
     }
     try {
@@ -306,10 +324,9 @@ export default function CrossplotPanel({
   };
 
   const runFit = () => {
-    const top = Number(fitWin.top);
-    const base = Number(fitWin.base);
+    const { top, base } = fitWinM();
     if (!Number.isFinite(top) || !Number.isFinite(base) || !(base > top)) {
-      onStatus('Enter the water-bearing interval as top/base metres MD.');
+      onStatus(`Enter the water-bearing interval as top and base in ${depthUnit} MD.`);
       return;
     }
     try {
@@ -326,7 +343,7 @@ export default function CrossplotPanel({
     // human-scale parameters — the panel edits these as text
     onApplyParams({
       m: Number(fit.m.toFixed(4)),
-      rw: Number((fit.aRw / params.a).toFixed(6)),
+      ...waterLineRw(Number((fit.aRw / params.a).toFixed(6)), 'pickett'),
     });
     onStatus(`Applied m = ${fit.m.toFixed(4)}, Rw = ${(fit.aRw / params.a).toFixed(6)} from the Pickett fit.`);
   };
@@ -611,7 +628,7 @@ export default function CrossplotPanel({
 
         {plot === 'hingle' && (
           <div className="ml-auto flex items-center gap-1.5">
-            <span className="text-pl-muted">Water zone (m MD)</span>
+            <span className="text-pl-muted">Water zone ({depthUnit} MD)</span>
             <input className={`${inputCls} w-16`} placeholder="top" value={fitWin.top}
               data-testid="petro-hingle-top"
               onChange={(e) => setFitWin((w) => ({ ...w, top: e.target.value }))} />
@@ -632,7 +649,7 @@ export default function CrossplotPanel({
                 <button type="button" data-testid="petro-hingle-apply"
                   className="px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
                   onClick={() => {
-                    onApplyParams({ rw: Number(hFit.rw.toFixed(6)) });
+                    onApplyParams(waterLineRw(Number(hFit.rw.toFixed(6)), 'hingle'));
                     onStatus(`Applied Rw = ${hFit.rw.toFixed(6)} from the Hingle fit.`);
                   }}
                 >
@@ -724,7 +741,7 @@ export default function CrossplotPanel({
 
         {plot === 'pickett' && (
           <div className="ml-auto flex items-center gap-1.5">
-            <span className="text-pl-muted">Water zone (m MD)</span>
+            <span className="text-pl-muted">Water zone ({depthUnit} MD)</span>
             <input className={`${inputCls} w-16`} placeholder="top" value={fitWin.top}
               data-testid="petro-pickett-top"
               onChange={(e) => setFitWin((w) => ({ ...w, top: e.target.value }))} />

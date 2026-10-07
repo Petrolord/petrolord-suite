@@ -22,7 +22,7 @@ const fmt = (v, d = 3) => (v === null || v === undefined || Number.isNaN(v) ? EM
 const COLS = [{ id: 'low', name: 'Low' }, { id: 'high', name: 'High' }];
 
 export default function ScenariosDialog({
-  open, onOpenChange, params, scenarios, curves, zoneParamList, zones = [], zoneParams = {}, depthUnit = 'm',
+  open, onOpenChange, params, scenarios, curves, zoneParamList, zones = [], zoneParams = {}, depthUnit = 'm', vth = null,
   wellName = 'Well', canPublish = false, onApply, onPublish, onStatus,
 }) {
   const [draft, setDraft] = useState({});
@@ -42,8 +42,8 @@ export default function ScenariosDialog({
     if (!curves || invalidCount || !draft.low) return null;
     try { return runScenarios(curves, params, zoneParamList || [], patches); } catch (e) { return null; }
   }, [curves, params, zoneParamList, patches, invalidCount, draft.low]);
-  const summaries = useMemo(() => (results ? scenarioSummaries(curves, results, params, zones, zoneParams, patches) : null),
-    [results, curves, params, zones, zoneParams, patches]);
+  const summaries = useMemo(() => (results ? scenarioSummaries(curves, results, params, zones, zoneParams, patches, { vth }) : null),
+    [results, curves, params, zones, zoneParams, patches, vth]);
   const F = depthUnit === 'ft' ? 1 / 0.3048 : 1;
   const nOver = (c) => Object.keys(patches[c] || {}).length;
 

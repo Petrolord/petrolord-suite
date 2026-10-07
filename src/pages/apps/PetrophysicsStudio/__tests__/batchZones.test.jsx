@@ -47,3 +47,15 @@ test('batch over every owned well publishes curves and zone summaries RCP can av
   const keta = withZones.find((w) => w.name === 'KETA TYPE-1').zones.find((z) => z.name === 'SAND A').properties;
   expect(keta.gross_tvt_m).toBeLessThan(keta.gross_m);
 }, 60000);
+
+test('PETRO-M-008: under porosity source mineral with no mineral model, each well says why instead of publishing without porosity', async () => {
+  const backend = makeInMemoryBackend({ extraWells: 1 });
+  render(<MemoryRouter><PetroWorkstation backend={backend} /></MemoryRouter>);
+  await screen.findAllByTestId('petro-well-row');
+  fireEvent.change(await screen.findByTestId('petro-param-phiSource'), { target: { value: 'mineral' } });
+  fireEvent.click(screen.getByTestId('petro-params-apply'));
+  fireEvent.click(screen.getByTestId('petro-batch'));
+  fireEvent.click(await screen.findByTestId('petro-batch-all'));
+  fireEvent.click(screen.getByTestId('petro-batch-run'));
+  await waitFor(() => expect(screen.getByTestId('petro-batch-result-KETA COPY-01')).toHaveTextContent(/no mineral model is set/), { timeout: 20000 });
+}, 60000);

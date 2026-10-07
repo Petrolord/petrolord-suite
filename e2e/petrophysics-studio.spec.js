@@ -3,7 +3,7 @@
 // numbers — the harness's seeded well IS the analytic type well the
 // goldens are generated from, and the default parameter set matches
 // its construction params. SAND A net pay must read 18.0 m and an
-// added SAND B 2.5 m, straight off the zone cards.
+// added SAND B 5.5 m (the goldens), straight off the zone cards.
 
 import { test, expect } from '@playwright/test';
 import fs from 'fs';

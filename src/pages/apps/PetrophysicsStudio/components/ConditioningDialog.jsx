@@ -6,7 +6,7 @@
 // conditioned curve silently; the user selects it in the explorer
 // (the dialog says so after saving).
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
@@ -18,6 +18,7 @@ import {
 import { applyNormalization } from '../engine/normalize';
 import { PIPELINE_VERSION } from '../engine/pipeline';
 import { derivedInputUnit } from '@/components/wells/curveUnits';
+import { fromDisplay } from '@/components/wells/depthModes';
 
 const inputCls = 'w-20 rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 const selCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
@@ -33,16 +34,30 @@ const OPS = [
 ];
 
 export default function ConditioningDialog({
-  open, onOpenChange, wellData, projectId, backend, onSaved, onStatus, lastNormFit,
+  open, onOpenChange, wellData, projectId, backend, onSaved, onStatus, lastNormFit, depthUnit = 'm',
 }) {
+  // PETRO-M-006: the histogram fit maps its target (overlay) well onto the
+  // reference; it is offered only when that target well is the one open
+  const fitHere = !!lastNormFit && (!lastNormFit.targetId || lastNormFit.targetId === wellData?.wellId);
+  const dU = depthUnit === 'ft' ? 'ft' : 'm';
   const [op, setOp] = useState('despike');
   const [srcKey, setSrcKey] = useState('GR');
   const [p, setP] = useState({
     halfWindow: '5', nSigma: '3', shiftM: '0.5',
     bitSize: '8.5', washoutOver: '2', drhoMax: '0.15', mode: 'null', maxGapSamples: '6',
-    shift: lastNormFit ? String(Number(lastNormFit.result.shift.toFixed(4))) : '0',
-    scale: lastNormFit ? String(Number(lastNormFit.result.scale.toFixed(6))) : '1',
+    shift: fitHere ? String(Number(lastNormFit.result.shift.toFixed(4))) : '0',
+    scale: fitHere ? String(Number(lastNormFit.result.scale.toFixed(6))) : '1',
   });
+  // refresh the prefill each time the dialog opens (the fit or the open well may have changed)
+  useEffect(() => {
+    if (!open) return;
+    setP((x) => ({
+      ...x,
+      shift: fitHere ? String(Number(lastNormFit.result.shift.toFixed(4))) : '0',
+      scale: fitHere ? String(Number(lastNormFit.result.scale.toFixed(6))) : '1',
+    }));
+    if (fitHere && lastNormFit.curveKey && wellData?.curves?.[lastNormFit.curveKey]) setSrcKey(lastNormFit.curveKey);
+  }, [open, lastNormFit, wellData?.wellId]); // eslint-disable-line react-hooks/exhaustive-deps
   const [busy, setBusy] = useState(false);
 
   const sources = useMemo(() => Object.keys(wellData?.curves || {})
@@ -54,7 +69,7 @@ export default function ConditioningDialog({
     switch (op) {
       case 'smooth-mean': return { data: smoothMean(srcData, num(p.halfWindow)) };
       case 'smooth-median': return { data: smoothMedian(srcData, num(p.halfWindow)) };
-      case 'depth-shift': return { data: depthShiftBlock(depth, srcData, num(p.shiftM)) };
+      case 'depth-shift': return { data: depthShiftBlock(depth, srcData, fromDisplay(num(p.shiftM), dU)) }; // PETRO-M-005: typed in the session unit
       case 'bad-hole': {
         const cali = wellData.curves.CAL || null;
         const drho = wellData.curves.DRHO || null;
@@ -191,7 +206,7 @@ export default function ConditioningDialog({
           <div className="flex items-center gap-2 flex-wrap">
             {(op === 'despike' || op === 'smooth-mean' || op === 'smooth-median') && field('halfWindow', 'Half window')}
             {op === 'despike' && field('nSigma', 'n sigma')}
-            {op === 'depth-shift' && field('shiftM', 'Shift (m)')}
+            {op === 'depth-shift' && field('shiftM', `Shift (${dU})`)}
             {op === 'bad-hole' && (
               <>
                 {field('bitSize', 'Bit size')}
@@ -210,8 +225,13 @@ export default function ConditioningDialog({
               <>
                 {field('shift', 'Shift')}
                 {field('scale', 'Scale')}
-                {lastNormFit && (
-                  <span className="text-pl-muted">prefilled from the histogram fit</span>
+                {fitHere && (
+                  <span className="text-pl-muted" data-testid="petro-cond-norm-note">prefilled from the histogram fit ({lastNormFit.curveKey})</span>
+                )}
+                {lastNormFit && !fitHere && (
+                  <span className="text-pl-warning-text" data-testid="petro-cond-norm-note">
+                    The histogram fit maps {lastNormFit.targetName || 'the overlay well'} onto this well; open {lastNormFit.targetName || 'that well'} to apply it.
+                  </span>
                 )}
               </>
             )}

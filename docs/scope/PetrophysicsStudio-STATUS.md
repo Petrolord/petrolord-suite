@@ -71,7 +71,7 @@ five legacy-route redirects are all live on petrolord.com.
 | G2.0 oracle + goldens | **DONE** | PR #59 — independent stdlib Python oracle, analytic 201-sample type well (exact Archie round-trip anchors), byte-identical goldens, README numeric contract |
 | G2.1 engines | **DONE** | PR #59 — engine/{vsh,porosity,rw,sw,netpay}.js ported from the proven legacy core + hardened; 32 jest tests vs goldens at 1e-12 |
 | G2.2 schema + pentest | **DONE** | migration 20260713220000 **applied live 2026-07-13**; pentest blocks 8–9 executed, 6/6 green |
-| G2.3 workstation core | **DONE** | this branch — workstation on the shared shell, canvas TrackViewer (zoom/pan/crosshair, zone bands, tops), draft-and-apply ParameterPanel, ZoneManager w/ live oracle-verified summaries, engine/pipeline.js, /dev/petrophysics-studio harness seeded with the analytic type well; e2e asserts the ORACLE numbers off the UI (SAND A net 18.0 m, SAND B 2.5 m) |
+| G2.3 workstation core | **DONE** | this branch — workstation on the shared shell, canvas TrackViewer (zoom/pan/crosshair, zone bands, tops), draft-and-apply ParameterPanel, ZoneManager w/ live oracle-verified summaries, engine/pipeline.js, /dev/petrophysics-studio harness seeded with the analytic type well; e2e asserts the ORACLE numbers off the UI (SAND A net 18.0 m, SAND B 5.5 m per the goldens; this row said 2.5 m until 2026-10-07) |
 | G2.4 crossplots + facies + Pickett | **DONE** | this branch — white-chartTheme ND + Pickett crossplot canvas (ChartLogo), polygon facies tagging + FACIES strip track, depth-windowed Pickett water-line fit writing m/Rw back; fixture v2 (clean sands + porosity trend, self-asserting anchors) after the fit exposed v1's vacuous clean-rock checks |
 | G2.5 write-back + batch | **DONE** | this branch — publish computed curves (overwrite-own provenance contract) + zone summaries to the registry, multi-well batch dialog, petro_projects params/facies persistence; live smoke: computed curve inserts under RLS with provenance intact |
 | G2.6 digitizer + close-out | **DONE** | this branch — raster digitizer wizard, 5 superseded apps + exclusive subtrees deleted (shared crossplot kept for subsurface-studio), routes redirect to the new app, tile Active (migration 20260713230000, **applied live**) + route in this PR |
@@ -843,3 +843,38 @@ The Depth bin box re-rendered the stored metres rounded on every key, so
 137. It uses the shared `src/hooks/useUnitDraft.js` now; text that is not
 a positive number yet stores nothing. Gate:
 `__tests__/depthBinTyping.test.jsx` (7 tests, all failed on the old code).
+
+## 2026-10-07: fixes from the user manual (PETRO-M-001 to 008)
+
+The user manual (`/root/PetrophysicsStudio-UserManual-20261007.docx`) was
+written against the code, and the type-well numbers in it came from running
+the app's own services. That work found the defects below; the owner asked
+for them fixed, along with any further upgrades found on the way.
+
+| ID | Severity | Defect | Fix | Gate |
+|---|---|---|---|---|
+| M-001 | S2 | Probabilistic zone outcomes ignored the zone's overrides (cutoffs, Sw model): SAND B with cutSw 0.7 read 10.5 m on the card, 5.5 m in the run | engines #340: the zone sums use the zone's merged set (vendored f5bfcfd) | engines gate 2b, with a negative control; gate 2 had encoded the bug |
+| M-002 | S2 | A zone override froze a varied parameter in that zone (Q10 = Q50 = Q90) | engines #340: the zone keeps its own value and moves with the draw (a ratio for scale parameters such as Rw, an offset for the rest) | engines gate 2c and its control; the u2011 reference updated |
+| M-003 | S2 | The default Low case raised GR clean, so it read less Vsh than Mid | The clean line now moves down in Low and up in High; comment corrected (a lighter matrix, fresher water) | `scenarios.test.js`: sample by sample, Low is never below Mid and High never above |
+| M-004 | S2 | Pickett and Hingle Apply kept the previous Rw tool's label. With the temperature model on, the zone's Rw (already at formation temperature) kept the old reference temperature, so it was corrected twice (Sw optimistic) | Apply records `pickett` or `hingle`, and sets `rwRefTempC` to the water zone's temperature | `waterLineApply.test.jsx` |
+| M-005 | S3 | Depth boxes read metres in a feet session: the Pickett and Hingle water zone, the depth-shift tie table and messages, and the block shift | Typed and shown in the session unit, stored in metres; a blur with no edit no longer moves a tie by the display rounding | `waterLineApply`, `depthShiftPanel`, `conditioningNormFit` tests, each with a metres-in-feet negative control |
+| M-006 | S2 | The histogram normalization fit (overlay mapped onto the open well) was prefilled on whichever well was open | Offered only on the fitted well; elsewhere the dialog names the well to open; the prefill refreshes each time the dialog opens | `conditioningNormFit.test.jsx` |
+| M-007 | S3 | Scenario zone summaries took no vertical thickness (TVT = MD on deviated wells) | `scenarioSummaries(..., { vth })` from the workstation | `scenarios.test.js` and its control |
+| M-008 | S3 | A batch run ignored the open well's explorer curve picks, and under porosity source 'mineral' ran without the mineral model | The picks apply to the open well. Each well runs the interpretation's mineral model, or reports why it cannot | `batchZones.test.jsx` |
+
+Help and copy now match the code:
+- PEF is read by the mineral model;
+- the full ribbon list, and the Depth shift view;
+- PNG export from Split as well;
+- four dock panels;
+- depth-track checkboxes (MD, TVD, TVDSS) in place of an MD/TVD toggle;
+- Sw averages are pore-volume weighted (help and export note);
+- Publish writes SWT, not BVW;
+- the k track is kept with a note;
+- interpretations belong to the user;
+- histogram markers at the 10th, 50th and 90th percentiles;
+- PHIT is in the histogram list;
+- stretch and squeeze lives in the Depth shift view;
+- split runs agree to rounding in the zone sums.
+
+The STATUS G2.3 row and the e2e header now read SAND B 5.5 m (the goldens).

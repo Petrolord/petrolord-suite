@@ -21,20 +21,22 @@ const round = (v, d = 4) => Number(v.toFixed(d));
 
 /**
  * Sensible starting patches around a mid set: the low case is the
- * hydrocarbon-pessimistic one (denser matrix so less porosity, saltier
- * water and higher m/n so more water, a fatter shale point, a higher
- * clean line so more Vsh); high mirrors it. Every value is shown and
- * editable in the dialog; nothing here is hidden.
+ * hydrocarbon-pessimistic one (a lighter matrix so less density porosity,
+ * fresher water (a higher Rw) and higher m and n so more water, a higher
+ * shale porosity so less effective porosity, a lower clean line so more
+ * Vsh); high mirrors it. Every value is shown and editable in the dialog;
+ * nothing here is hidden. PETRO-M-003: the clean line used to move the
+ * wrong way (the low case read less Vsh than mid).
  */
 export function defaultScenarios(params) {
   return {
     low: {
       rhoMa: round(params.rhoMa - 0.02), rw: round(params.rw * 1.25, 6), m: round(params.m + 0.1),
-      n: round(params.n + 0.1), phiShale: round(params.phiShale + 0.02), grClean: round(params.grClean + 5),
+      n: round(params.n + 0.1), phiShale: round(params.phiShale + 0.02), grClean: round(Math.max(0, params.grClean - 5)),
     },
     high: {
       rhoMa: round(params.rhoMa + 0.02), rw: round(params.rw * 0.8, 6), m: round(params.m - 0.1),
-      n: round(params.n - 0.1), phiShale: round(Math.max(0, params.phiShale - 0.02)), grClean: round(Math.max(0, params.grClean - 5)),
+      n: round(params.n - 0.1), phiShale: round(Math.max(0, params.phiShale - 0.02)), grClean: round(params.grClean + 5),
     },
   };
 }
@@ -69,14 +71,18 @@ export function scenarioOutputs(results) {
   return out;
 }
 
-/** Zone summaries per case: {zoneId: {low, mid, high}}. */
-export function scenarioSummaries(curves, results, params, zones, zoneParams, scenarios) {
+/**
+ * Zone summaries per case: {zoneId: {low, mid, high}}.
+ * @param {{vth?: ?Float64Array}} [opts] vertical sample thickness, so TVT on a
+ *   deviated well matches the zone card (PETRO-M-007; absent: vertical well)
+ */
+export function scenarioSummaries(curves, results, params, zones, zoneParams, scenarios, { vth = null } = {}) {
   const out = {};
   for (const z of zones) {
     out[z.id] = {};
     for (const c of CASES) {
       const merged = { ...caseParams(params, scenarios, c), ...(zoneParams?.[z.id] || {}), ...(c === 'mid' ? {} : (scenarios?.[c] || {})) };
-      out[z.id][c] = results?.[c] ? zoneReport(curves, results[c].outputs, merged, z) : null;
+      out[z.id][c] = results?.[c] ? zoneReport(curves, results[c].outputs, merged, z, { vth }) : null;
     }
   }
   return out;

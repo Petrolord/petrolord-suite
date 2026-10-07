@@ -58,7 +58,7 @@ const ALIAS_USE = {
   RT: 'Water saturation, Pickett and Hingle plots',
   CAL: 'Bad-hole flagging in Condition (never in the pipeline math)',
   DRHO: 'Bad-hole flagging in Condition',
-  PEF: 'Recognised for charting; not consumed by the pipeline',
+  PEF: 'Read by the mineral model; its porosity reaches PHIT when the porosity source is set to mineral',
 };
 
 // Design system rollout W1C: the guide shares the Studio's theme scope, so
@@ -95,11 +95,11 @@ const PetrophysicsHelpGuide = () => (
       <Table
         headers={['Area', 'What lives there']}
         rows={[
-          ['Ribbon (top)', 'The view switch (Tracks, Crossplots, Histograms, Split, Field), the interpretation picker, and the action buttons: Publish, Digitize, Condition, Rw tools, Export, Batch, Save. On the right, Help opens this guide and the Parameters & zones button shows or hides the dock.'],
+          ['Ribbon (top)', 'The view switch (Tracks, Crossplots, Histograms, Split, Depth shift, Field), the interpretation picker, and the action buttons: Publish, Facies, Rules, Low/High, Probabilistic, Mineral model, Core, Sat-height, Calc, Digitize, Condition, Rw tools, Export, PNG, Batch, Save. On the right, Help opens this guide and the Parameters & zones button shows or hides the dock.'],
           ['Explorer (left)', 'Registry wells with a private or organization badge. The selected well expands to show its curve inventory: which registry mnemonic feeds each pipeline input, and a picker where more than one curve could.'],
-          ['Center', 'Whichever view is selected in the ribbon. Tracks is the default and the only view that can export a PNG. Crossplots, Histograms and Split need a loaded well; Field does not.'],
-          ['Dock (right)', 'Three stacked panels: the parameter panel, the Track layout builder and the zone manager.'],
-          ['Status bar (bottom)', 'One line of feedback for the last action (curves loaded, parameters applied, fit results, publish counts, errors), an amber missing-inputs note, the zone overlap warning, the well name with its sample count, and the two axis toggles: axis: MD or TVD (only on surveyed wells) and depth: m or ft.'],
+          ['Center', 'Whichever view is selected in the ribbon. Tracks is the default; Tracks and Split can export a PNG. Crossplots, Histograms, Split and Depth shift need a loaded well; Field does not.'],
+          ['Dock (right)', 'Four stacked panels: the parameter panel, the Track layout builder, the zone manager and the tops panel.'],
+          ['Status bar (bottom)', 'One line of feedback for the last action (curves loaded, parameters applied, fit results, publish counts, errors), an amber missing-inputs note, the zone overlap warning, the well name with its sample count, the depth-track checkboxes (MD, TVD and TVDSS; without a deviation survey TVD and TVDSS treat the well as vertical) and the depth unit, m or ft.'],
         ]}
       />
       <Para>
@@ -152,7 +152,7 @@ const PetrophysicsHelpGuide = () => (
       </Step>
       <Step n={7} title="Add zones">
         In Zones, enter a name, top and base in metres MD and press Add. Each card reports net,
-        gross, NTG and the net-weighted averages at the current cutoffs. Drag a zone edge on the
+        gross, NTG and the averages at the current cutoffs (porosity and Vsh net-weighted, Sw pore-volume weighted). Drag a zone edge on the
         tracks to adjust it.
       </Step>
       <Step n={8} title="Refine per zone if needed">
@@ -164,7 +164,7 @@ const PetrophysicsHelpGuide = () => (
         zone overrides, layouts, facies and crossplot settings all travel with it.
       </Step>
       <Step n={10} title="Publish and export">
-        Publish writes VSH, PHIT, PHIE, SW, BVW, KPERM and PAY to the registry with full
+        Publish writes VSH, PHIT, PHIE, SW, SWT, KPERM and PAY to the registry with full
         provenance (KPERM only while a permeability model is selected; it is on by default). Export gives you curves CSV, zone CSV, LAS 2.0, the track PNG and a
         PDF summary report.
       </Step>
@@ -290,11 +290,11 @@ const PetrophysicsHelpGuide = () => (
         edges win in the middle of the plot; tops are picked up only on their tag, so a top sitting
         on a zone base never steals the drag.
       </Para>
-      <SubHeading>Axis toggles</SubHeading>
+      <SubHeading>Depth tracks and units</SubHeading>
       <Table
         headers={['Toggle', 'Effect']}
         rows={[
-          ['axis: MD / axis: TVD (status bar)', 'Shown only when the well carries a deviation survey with at least two stations. It changes the LABELS on the depth axis to true vertical depth through the minimum-curvature survey math; the spacing stays measured depth, and the axis title says so: TVD (m) on MD spacing. Depths outside the survey label as a dash.'],
+          ['depth tracks: MD, TVD, TVDSS (status bar)', 'Checkboxes that add a depth column for each frame beside the tracks. TVD and TVDSS go through the minimum-curvature survey and the well datum; on a well with no deviation survey they treat the well as vertical and say so in their tooltip. MD always stays as the spacing, and at least one column is kept.'],
           ['depth: m / depth: ft (status bar)', 'Display unit for the depth axis and the crosshair readout. The label adds SI internal as a reminder that storage stays metres; grid lines are chosen in the display unit so a feet grid looks like a feet grid. It starts from your Suite units (Units in the dashboard sidebar); a change here holds for this session.'],
         ]}
       />
@@ -335,8 +335,8 @@ const PetrophysicsHelpGuide = () => (
       />
       <Para>
         Layouts are saved with the interpretation, so a template you build for one study reopens
-        with it. The Standard triple combo drops the k track automatically while the permeability
-        model is none and brings it back when you select one.
+        with it. While the permeability model is none the Standard triple combo keeps the k track
+        with a note saying why it is empty, and fills it again when you select a model.
       </Para>
     </GuideSection>
 
@@ -609,9 +609,9 @@ const PetrophysicsHelpGuide = () => (
     <GuideSection id="interpretations">
       <SectionHeading icon={Save}>Interpretations</SectionHeading>
       <Para>
-        An interpretation is a named, saved state of the Studio for one well. The picker in the
-        ribbon shows the open interpretation&apos;s name (or <Code>Unsaved</Code>), lists every
-        interpretation on the current well with the open one marked, and offers
+        An interpretation is a named, saved state of the Studio. Interpretations belong to you,
+        not to one well: the picker in the ribbon shows the open interpretation&apos;s name (or
+        <Code>Unsaved</Code>), lists every interpretation you have saved with the open one marked, and offers
         <Code>Save as…</Code>, <Code>Rename</Code> and <Code>Delete</Code>. The ribbon
         <Code>Save</Code> button writes the open interpretation in place; on a well with no
         interpretation yet it creates one.
@@ -726,16 +726,16 @@ const PetrophysicsHelpGuide = () => (
       <SectionHeading icon={BarChart3}>Histograms and cutoffs</SectionHeading>
       <Para>
         The Histograms view plots any loaded input or computed curve for the whole well or one zone
-        interval, with a cumulative frequency curve on the right axis and P10, P50 and P90 markers.
+        interval, with a cumulative frequency curve on the right axis and markers at the 10th, 50th and 90th percentiles.
       </Para>
       <Table
         headers={['Control', 'What it does']}
         rows={[
-          ['Curve', 'Any of GR, RHOB, NPHI, DT, RT that is loaded, then any of PHIE, VSH, SW, KPERM, BVW, TEMP that is computed. RT and KPERM bin in log space.'],
+          ['Curve', 'Any of GR, RHOB, NPHI, DT, RT that is loaded, then any of PHIT, PHIE, VSH, SW, KPERM, BVW, TEMP that is computed. RT and KPERM bin in log space.'],
           ['Bins', 'Bin count, 5 to 200; default 40'],
           ['Interval', 'Whole well, or one zone by name'],
           ['passing cutoff', 'For PHIE, VSH and SW: the percentage of finite samples that pass that curve\'s cutoff at the current value'],
-          ['P10 · P50 · P90', 'Percentiles of the plotted samples, also drawn as dashed markers'],
+          ['10th · 50th · 90th', 'Percentiles of the plotted samples, also drawn as dashed markers'],
           ['Overlay wells', 'Checkboxes for the other registry wells; each overlay draws as a stepped outline in its own colour on the same bins'],
           ['normalize… / two-point P5/P95 / mean-std / Fit', 'GR normalization: pick a target well from the overlays, choose the fit, press Fit. The result reads shift and scale and a dashed preview shows the current well\'s curve after normalization.'],
         ]}
@@ -771,7 +771,7 @@ const PetrophysicsHelpGuide = () => (
           ['Despike (Hampel)', 'Half window 5, n sigma 3', 'Replaces a sample by the window median when it is more than n robust sigmas from it. A window with zero spread treats any deviation as a spike.'],
           ['Smooth (mean)', 'Half window 5', 'Centred moving average; a NaN centre stays NaN.'],
           ['Smooth (median)', 'Half window 5', 'Centred moving median; same NaN rule.'],
-          ['Depth shift (block)', 'Shift (m) 0.5', 'Moves the whole curve by a constant depth. This is a block shift only; stretch and squeeze correlation is out of scope.'],
+          ['Depth shift (block)', 'Shift 0.5 (in the session depth unit)', 'Moves the whole curve by a constant depth. For stretch and squeeze through tie points use the Depth shift view, which saves a separate _DS curve.'],
           ['Bad-hole repair', 'Bit size 8.5, Washout over 2, |DRHO| max 0.15, Repair null out or bridge short gaps, Max gap (samples) 6', 'Flags samples where caliper exceeds bit size plus the washout allowance or |DRHO| exceeds the limit. Null out blanks them; bridge short gaps interpolates across flagged runs no longer than the max gap and blanks longer ones. Also saves a BADHOLE flag curve.'],
           ['Apply normalization', 'Shift and Scale, prefilled from the histogram fit', 'Writes shift + scale × curve.'],
         ]}
@@ -967,7 +967,7 @@ const PetrophysicsHelpGuide = () => (
         normal or lognormal), pick the number of realisations and a seed, and run. The run happens in
         background workers with a progress bar: a long well is split by depth across up to four workers (the
         cores the machine has, less one), each running every realisation over its part, and the parts join into
-        one answer; the same seed always gives the same answer however it is split. Every
+        one answer; the same seed always gives the same curves however it is split, and zone figures that agree to rounding (the zone sums are added in a different order). Every
         realisation is the ordinary zoned pipeline with one drawn parameter set, so nothing new is
         assumed. The results are per-sample curves at the 10th, 50th and 90th percentile of PHIT,
         PHIE, Vsh, Sw, BVW and k, a pay probability curve (the fraction of realisations that flag a
@@ -1068,9 +1068,9 @@ const PetrophysicsHelpGuide = () => (
         headers={['Deliverable', 'Contents']}
         rows={[
           ['Curves CSV', 'The chosen depth columns, the mapped inputs and every computed output present: VSH, PHIT, PHIE, SW, BVW, KPERM and PAY; blank cells for nulls.'],
-          ['Zone summary CSV', 'Gross, net, N/G and net-weighted averages per zone at the current parameters.'],
+          ['Zone summary CSV', 'Gross, net, N/G and the zone averages (porosity and Vsh net-weighted, Sw pore-volume weighted) per zone at the current parameters.'],
           ['LAS 2.0', 'DEPT plus any extra depth columns as curves, inputs plus VSH, PHIT, PHIE, SW, BVW, KPERM and PAY, with the parameter set in the ~Parameter block (DEPTREF, EKB and DEPTHSRC record the depth choice). Feet write the unit F. The writer is round-trip gated: what it writes parses back bit for bit.'],
-          ['Track plot PNG', 'The track view exactly as rendered, with a branded title band. Open the Tracks view first; the other views have no track canvas to capture.'],
+          ['Track plot PNG', 'The track view exactly as rendered, with a branded title band. Open the Tracks or Split view first; the other views have no track canvas to capture.'],
           ['PDF summary report', 'Well and interpretation, the parameter table, the methods in use with their literature citations, the zone table (top, base, gross, net, N/G, φ avg, Vsh avg, Sw avg), the cutoff sensitivity table per zone, provenance, and a log plot (CPI) page per zone.'],
         ]}
       />
@@ -1253,10 +1253,10 @@ const PetrophysicsHelpGuide = () => (
         Pick it as the GR input in the explorer dropdown. Conditioned curves are never substituted
         for you.
       </Para>
-      <SubHeading>The TVD toggle is missing</SubHeading>
+      <SubHeading>The TVD column shows the same numbers as MD</SubHeading>
       <Para>
-        It appears only when the well carries a deviation survey. When it does, remember that only
-        the labels change; spacing stays MD and the axis title says so.
+        The well has no deviation survey, so TVD treats it as vertical (the checkbox tooltip says
+        so). Load a survey in Well Data Manager and the column follows it.
       </Para>
       <SubHeading>The Waxman-Smits result moved a lot when I switched from Archie</SubHeading>
       <Para>

@@ -130,8 +130,11 @@ export default function HistogramPanel({
     const tgt = overlayCurves[normTarget]?.[curveKey];
     if (!data || !tgt) { onStatus('Load the target well overlay first.'); return; }
     const result = fitNormalization(data, tgt, { method: normMethod });
+    // the fit maps the overlay (target) well onto the open (reference) well;
+    // its name travels with it so Condition can say which well to open (PETRO-M-006)
+    const targetName = wells.find((w) => w.id === normTarget)?.name || '';
     setFit({ targetId: normTarget, curveKey, result });
-    onFitResult?.({ targetId: normTarget, curveKey, result });
+    onFitResult?.({ targetId: normTarget, targetName, referenceId: currentWellId, curveKey, result });
     onStatus(`Normalization fit: shift ${result.shift.toFixed(3)}, scale ${result.scale.toFixed(4)}. Applying to a curve lands with conditioning (PS8).`);
   };
 
