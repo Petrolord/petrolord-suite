@@ -124,6 +124,12 @@ export function reportModel({ projectName = '', organizationName = '', project, 
         text: `${r.assessment.label}. ${r.assessment.reasons.join(' ')} GRV ${r.anomaly ? `${n(r.anomaly.grvImpliedM3 / 1e6, 1)} million m3 to the contact the anomaly implies (${n(r.anomaly.impliedContactDepthM, 0)} m) and ` : ''}${n(r.trap.grvSpillM3 / 1e6, 1)} million m3 to spill.`,
       };
     }),
+    prestack: Object.values(project.prestack || {}).filter((r) => r?.result?.stacks?.length).map((r) => ({
+      name: r.name, at: String(r.at || '').slice(0, 10),
+      rows: r.result.stacks.map((x) => [x.name, `${x.from} to ${x.to}`, String(x.traces ?? '')]),
+      usable: r.result.usable_angle,
+      velocityRows: (r.velocity?.t_ms || []).length,
+    })),
     executive: (() => {
       const out = [];
       const inv = Object.values(project.inversion || {}).map((r) => r?.blind?.result?.blind || r?.spread?.result?.blind).filter((b) => b?.length);
@@ -187,6 +193,13 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
     table(`Acquisition footprint: ${q.volume}`, ['Time (ms)', 'Along crosslines', 'Along inlines'], q.footprints, { note: 'RMS amplitude maps around each time; a stripe is a period holding over 30 percent of the profile variance, at least ten times the median power of the band and repeated at least five times across the slice.' });
   }
   if (model.ties.length) table('Well ties', ['Well', 'Mean correlation', 'Bulk shift (ms)', 'Wavelet', 'Fit to the field wavelet'], model.ties, { note: 'From the QC record committed with each tie in Seismolord. The field wavelet is the average of the stored tie wavelets, aligned and normalised.' });
+  for (const ps of model.prestack || []) {
+    const u = ps.usable || {};
+    const n = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '');
+    table(`Angle stacks: ${ps.name}`, ['Stack', 'Angles (degrees)', 'Traces'], ps.rows, {
+      note: `From the gather store on the seismic worker${ps.at ? ` on ${ps.at}` : ''}: Walden straight-ray angles from an RMS velocity table of ${ps.velocityRows} row${ps.velocityRows === 1 ? '' : 's'}, a fold-weighted mean of the offset bins in each range; gathers taken as NMO-corrected. Usable angle across the CDPs: Q10 ${n(u.q10)}, Q50 ${n(u.q50)}, Q90 ${n(u.q90)} degrees.`,
+    });
+  }
   for (const v of model.inversion || []) {
     table(`Impedance inversion: ${v.volume}`, ['Well', 'Blind correlation', 'Blind AI error (percent)', 'With the well: correlation', 'With the well: error (percent)'], v.rows, {
       note: `${v.method}, run on the seismic worker${v.at ? ` on ${v.at}` : ''}. Each well is left out of the low-frequency model in turn and compared with its own log after a high cut at ${INVERSION_DEFAULTS.truthHz} Hz${v.relative ? '; relative impedance has no level, so only the correlation is reported' : ''}. Products are elastic estimates.${v.volumes.length ? ` Impedance volumes: ${v.volumes.join(', ')}.` : ''}`,

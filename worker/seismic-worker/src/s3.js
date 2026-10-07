@@ -50,3 +50,45 @@ export function s3RangeReader({ sign, bucket, key, size, fetchImpl = fetch, retr
     },
   };
 }
+
+/**
+ * A streaming multipart upload: write() bytes in any sizes, finish() to
+ * assemble, abort() to drop the parts. The store needs parts of at least
+ * 5 MiB but the last; partSize below that is for tests only.
+ * @returns {{write: (bytes: Uint8Array) => Promise<void>, finish: () => Promise<{bytes: number, parts: number}>, abort: () => Promise<void>}}
+ */
+export async function multipartWriter({ sign, bucket, key, fetchImpl = fetch, partSize, parseUploadId, completeXml }) {
+  const init = await fetchImpl(await sign('POST', bucket, key, { uploads: '' }), { method: 'POST' });
+  const uploadId = init.ok ? parseUploadId(await init.text()) : null;
+  if (!uploadId) throw new Error(`The store refused to start the upload (${init.status}).`);
+  const parts = [];
+  let buf = new Uint8Array(partSize);
+  let used = 0;
+  let total = 0;
+  const putPart = async (bytes) => {
+    const n = parts.length + 1;
+    const r = await fetchImpl(await sign('PUT', bucket, key, { partNumber: String(n), uploadId }), { method: 'PUT', body: bytes });
+    if (!r.ok) throw new Error(`Storing part ${n} failed (${r.status}).`);
+    parts.push({ partNumber: n, etag: r.headers.get('etag') });
+  };
+  return {
+    async write(bytes) {
+      let at = 0;
+      while (at < bytes.length) {
+        const take = Math.min(bytes.length - at, partSize - used);
+        buf.set(bytes.subarray(at, at + take), used);
+        used += take; at += take; total += take;
+        if (used === partSize) { await putPart(buf); buf = new Uint8Array(partSize); used = 0; }
+      }
+    },
+    async finish() {
+      if (used > 0) await putPart(buf.subarray(0, used));
+      const done = await fetchImpl(await sign('POST', bucket, key, { uploadId }), { method: 'POST', body: completeXml(parts) });
+      if (!done.ok) throw new Error(`The store could not assemble the file (${done.status}).`);
+      return { bytes: total, parts: parts.length };
+    },
+    async abort() {
+      try { await fetchImpl(await sign('DELETE', bucket, key, { uploadId }), { method: 'DELETE' }); } catch { /* best effort */ }
+    },
+  };
+}
