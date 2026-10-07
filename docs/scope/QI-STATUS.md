@@ -9,7 +9,7 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
 | Q0 Seismic worker foundations | DONE: merged #891 (main 728a53b7e), 2026-10-06 |
 | Q0b Seismolord on the worker | DONE: merged #893; both migrations applied and verified 2026-10-06 |
 | Milestone A (Q1, Q2, Q4a, Q6a) | DONE: A1 to A6 merged 2026-10-06 (#894, #896 to #901, #903). Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
-| Milestone B (Q8a, Q9a, Q10, Q11) | Q8a DONE (#904, #905); Q9a DONE (#906); worker live. Q10 prospects built (engines #326, #327; Suite feat/qi-q10-prospects) |
+| Milestone B (Q8a, Q9a, Q10, Q11) | Q8a DONE (#904, #905); Q9a DONE (#906); Q10 DONE (#907); worker live. Q11 handover built (engines #328; Suite feat/qi-q11-handover) |
 | Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Not started |
 | Q12 Benchmark and tester waves | Not started |
 
@@ -432,4 +432,30 @@ The quota is pooled per organisation. Building that is the next item.
   - **QI never sets Pg:** the record carries no chance of any kind (gated). The RRV card moves no number and says so. Volumetrics and risking stay in ReservoirCalc Pro and RRV.
   - **No new table:** prospects and anomalies live in the QI Studio project (`saved_qi_studio_projects`, already pending owner apply). The plan's `qi_anomalies` table is not needed, so there is no extra migration.
   - **Edge spill:** a spill on the map edge is flagged in the reasons and the record (`limited_by_edge`). GRV at spill is then a lower bound.
-- **Next:** Q11 reporting and handover: the SEG-Y writer (segyio read-back), LAS and wavelet export, the per-job reproducibility manifest, the report pack, and `.pld` portability for the QI records.
+- **Merged:** #907 (main 6eb8632db). Q10 runs in the browser, so no worker deploy was needed.
+
+### B5 Q11 Reporting and handover (2026-10-07)
+- **Engines #328 `seismolord/segyWrite.js`:**
+  - SEG-Y rev 1, fixed trace length, IEEE float, big-endian, an EBCDIC textual header;
+  - inline 189, crossline 193, CDP X and Y 181 and 185 with the byte-71 scalar.
+  - **Validated by segyio:** the oracle writes the sample with the engine and reads it with segyio: geometry, format, revision, header words, and the samples bit for bit. The jest gate pins the file's SHA-256 and reads it back with our own reader.
+  - **Negative control:** little-endian samples change the bytes and read back wrong.
+- **Worker kind `export_segy`:**
+  - streams a volume as SEG-Y into a multipart upload in the work bucket, one brick row of inlines at a time;
+  - leaves out traces outside the survey and writes nulls as 0;
+  - returns a download link valid 24 hours (named file).
+  - The janitor deletes exports 3 days after the job. Each job row notes it (`result_refs.removed_at`), so no table is needed.
+  - Gated: the assembled file reads back with the engine reader; a file cut into many parts is byte-identical.
+- **QI Studio:**
+  - SEG-Y and Run record buttons on every finished inversion and property run;
+  - wavelet text downloads on the Well ties tab (each tie wavelet and the field wavelet);
+  - in the report: an executive summary, a handover table with each product's label, and the QI class definitions and limits under the assumptions.
+- **Run record (`qi-run-record-1`):** the job (id, kind, times, engine commit), its settings (numeric arrays over 64 values as a count and an FNV-1a fingerprint), inputs, outputs and checks.
+- **Portability:** `saved_qi_studio_projects` joins the generic saved-project family (55 tables). Ids of wells, volumes and surfaces inside a study resolve only when the package carries those records too.
+- **LAS:** already delivered. Edited, spliced and drift-corrected logs are ordinary registry curves, and Well Data Manager exports them as LAS (engines `welldata/lasWrite.js`).
+- **Decisions:**
+  - **Exports are temporary:** a 24-hour link and a 3-day file. A re-export is cheap. Long-term storage stays the client's.
+  - **The fingerprint is not a security hash:** it tells inputs apart in an audit. The worker keeps the full params in the job row.
+  - **Maps and sections:** the report pack stays tables and text. Maps and sections are exported from Seismolord and Mapping, which already draw them with the chart standard.
+- **Worker deploy:** needed after merge, for `export_segy` and the janitor step.
+- **Next:** the Milestone B acceptance run (a full post-stack study on an open dataset) waits for the owner's Volve/F3 licence check. Milestone C (prestack) is next in build order: Q3 prestack data first.

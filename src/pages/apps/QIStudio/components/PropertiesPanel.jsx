@@ -12,6 +12,7 @@ import { useQIStudio } from '../QIStudioContext';
 import { prepareWell } from '../services/inversionWells';
 import { INVERSION_METHODS } from '../services/inversionRun';
 import { PROPERTY_KINDS, PROPERTY_DEFAULTS, MAX_FACIES, propertyIssues, faciesClass } from '../services/propertyRun';
+import ExportControls from './ExportControls';
 
 const card = 'rounded-lg border border-pl-border bg-pl-surface p-4 space-y-3';
 const muted = 'text-xs text-pl-muted';
@@ -242,10 +243,15 @@ export default function PropertiesPanel() {
       )}
       {(saved[kind]?.runs || []).length > 0 && (
         <table className="text-xs" data-testid="qi-prop-runs">
-          <thead><tr><th className={th}>Volumes</th><th className={th}>Status</th><th className={th}>When</th></tr></thead>
+          <thead><tr><th className={th}>Volumes</th><th className={th}>Status</th><th className={th}>When</th><th className={th}>Handover</th></tr></thead>
           <tbody>
             {saved[kind].runs.map((r) => (
-              <tr key={r.jobId}><td className={td}>{r.name}</td><td className={td}>{r.status === 'ready' ? <Link className="underline" to="/dashboard/apps/geoscience/seismolord">Ready: open in Seismolord</Link> : r.status}</td><td className={td}>{String(r.at).slice(0, 16).replace('T', ' ')}</td></tr>
+              <tr key={r.jobId}>
+                <td className={td}>{r.name}</td>
+                <td className={td}>{r.status === 'ready' ? <Link className="underline" to="/dashboard/apps/geoscience/seismolord">Ready: open in Seismolord</Link> : r.status}</td>
+                <td className={td}>{String(r.at).slice(0, 16).replace('T', ' ')}</td>
+                <td className={td}>{r.status === 'ready' && <ExportControls name={r.name} jobId={r.jobId} volumes={Object.entries(r.volumeIds || {}).map(([k, id]) => ({ key: k.replace(':', '-'), label: k.startsWith('p:') ? `P(${names[k.slice(2)] || k.slice(2)})` : k.toUpperCase(), id }))} />}</td>
+              </tr>
             ))}
           </tbody>
         </table>

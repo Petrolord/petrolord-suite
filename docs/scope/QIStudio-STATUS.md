@@ -23,7 +23,8 @@ QI Studio holds the first package of a quantitative interpretation study: the da
 - **Sensitivity** (Q8a): scenarios over the wavelet, the model cut and noise; the blind-error spread at the wells; AI at Q10, Q50 and Q90 and the relative spread as volumes.
 - **Properties** (Q9a): porosity (Q10, Q50, Q90) or Bayesian facies (probabilities and the most likely code) from an impedance volume, calibrated at the wells and checked by leaving each well out.
 - **Prospects** (Q10): the trap on a depth surface, the anomaly's conformance to structure, evidence independence, competing explanations, the QI recommendation, and the qi-prospect-1 record read by Risked Reserves Valuation.
-- **Report:** the QI Data Audit and Feasibility Report on the shared Report Kit, including the QC, tie, inversion, sensitivity, property and prospect tables.
+- **Handover** (Q11): SEG-Y of every product from the seismic worker, run records, wavelet text files, and .pld portability of the study.
+- **Report:** the QI Data Audit and Feasibility Report on the shared Report Kit, with the executive summary, the QC, tie, inversion, sensitivity, property, prospect and handover tables, and the QI class definitions.
 
 ## Decisions
 

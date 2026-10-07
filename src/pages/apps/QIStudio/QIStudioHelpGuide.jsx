@@ -5,7 +5,7 @@
 // Copy rule: no em dashes, no "X, not Y" contrastives.
 // Guard: __tests__/helpGuide.test.jsx.
 import React from 'react';
-import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity, Layers, Gauge, MapPin } from 'lucide-react';
+import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity, Layers, Gauge, MapPin, PackageCheck } from 'lucide-react';
 import { HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Step, Table } from '@/components/helpguide/HelpGuideLayout';
 import SharingHelp from '@/components/recordSharing/SharingHelp';
 import { GROUPS, STATES } from './services/inventory';
@@ -25,6 +25,7 @@ export const HELP_SECTIONS = [
   { id: 'prospects', icon: MapPin, title: 'Prospects' },
   { id: 'issues', icon: AlertTriangle, title: 'Issue register' },
   { id: 'feasibility', icon: Scale, title: 'Feasibility per target' },
+  { id: 'handover', icon: PackageCheck, title: 'Handover' },
   { id: 'report', icon: FileText, title: 'The report' },
   { id: 'sharing', icon: Share2, title: 'Saving and sharing' },
 ];
@@ -170,6 +171,22 @@ function QIStudioHelpGuideContent() {
           prospect is downgraded only where the feasibility study says the hydrocarbon case would be visible; otherwise it is
           retained. QI does not set the chance of success: open the prospect in Risked Reserves Valuation from its row and the
           QI evidence is shown there beside it, read only.
+        </Para>
+      </GuideSection>
+
+      <GuideSection id="handover">
+        <SectionHeading icon={PackageCheck}>Handover</SectionHeading>
+        <Para>
+          Every finished inversion and property run has a SEG-Y button per volume: the seismic worker writes SEG-Y rev 1
+          (IEEE float, big-endian, inline at byte 189, crossline at 193, CDP X and Y at 181 and 185 with a scalar at 71),
+          leaves out the traces outside the survey and writes null samples as 0. The download link lasts 24 hours and the
+          file is removed after 3 days; export again when you need it.
+        </Para>
+        <Para>
+          The run record button saves what the run was: the job, its settings, the wells and horizons it used (long logs
+          as a count and a fingerprint), the engine version, the volumes it wrote and the checks it made. Wavelets download
+          as text from the Well ties tab, and the edited logs as LAS from Well Data Manager. A saved QI Studio project travels
+          in a Petrolord project package (.pld) like any other saved project.
         </Para>
       </GuideSection>
 
