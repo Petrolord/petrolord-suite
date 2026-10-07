@@ -10,7 +10,7 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
 | Q0b Seismolord on the worker | DONE: merged #893; both migrations applied and verified 2026-10-06 |
 | Milestone A (Q1, Q2, Q4a, Q6a) | DONE: A1 to A6 merged 2026-10-06 (#894, #896 to #901, #903). Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
 | Milestone B (Q8a, Q9a, Q10, Q11) | DONE (#904 to #908); worker live. Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
-| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a DONE (#909), Q3b DONE (#910); worker live. Q7 AVO DONE (#911); worker live. Q7b DONE (#912); worker live. Q8b simultaneous inversion built (engines #336; Suite feat/qi-q8b-simultaneous) |
+| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a DONE (#909), Q3b DONE (#910); worker live. Q7 AVO DONE (#911); worker live. Q7b DONE (#912); worker live. Q8b DONE (#913); worker live. Q9b facies in AI and Vp/Vs built (Suite feat/qi-q9b-facies-2d) |
 | Q12 Benchmark and tester waves | Not started |
 
 ## Key facts
@@ -563,5 +563,27 @@ The quota is pooled per organisation. Building that is the next item.
   - **At least three stacks, one past 25 degrees:** three parameters need three or more angles, and density needs the far ones (Buland and Omre 2003). The engine's negative control shows the loss without them.
   - **Equal pulls by default** (0.05 each, settable): density is regularised like the others. Its blind correlation is reported so a weak density shows.
   - **Vs/Vp of the linearisation** is the wells' mean SI/AI (settable), not a fixed 0.5.
-- **Worker deploy:** needed after merge, for `prestack_inversion`.
-- **Next:** Q9b (facies and fluid probability in AI and Vp/Vs space: two attributes for the Bayesian classifier), then Q6b, Q4b, Q5, and Q12.
+- **Merged:** #913 (main 94cf13f16), after a rerun of a ReservoirCalc Pro theme-test flake (its waits are raised in #914). The worker deploy followed.
+- **Next (then):** Q9b (facies and fluid probability in AI and Vp/Vs space: two attributes for the Bayesian classifier), then Q6b, Q4b, Q5, and Q12.
+
+### C6 Q9b Facies and fluids in AI and Vp/Vs (2026-10-07)
+- **What:** property prediction classifies facies in two attributes: AI and Vp/Vs from a simultaneous inversion. This is the prestack route that tells a gas sand from a shale of the same impedance.
+  - The engine's classifier already took one to three attributes (#325, gated on scipy in 2D).
+  - The Suite adds the second attribute end to end:
+    - the wells' Vp/Vs in time (SI from the shear sonic);
+    - upscaling and the facies samples in two attributes;
+    - a 201 x 201 posterior table for volumes (within 0.02 of the direct posterior, gated);
+    - the left-out check with both traces.
+  - The worker's `property_prediction` takes `second_volume_id`, which must be the Vp/Vs product of a simultaneous inversion on the same lattice.
+- **Validation:** in a synthetic study where gas sand and shale share one AI, AI and Vp/Vs classify every left-out well above 85 percent. Negative control: AI alone stays under 75 percent. The worker classifies a volume above 80 percent from the two volumes and refuses a second volume that is not Vp/Vs.
+- **QI Studio:** a simultaneous run's AI is offered as an impedance, with an Attributes choice (AI, or AI and Vp/Vs) for facies. The class table shows the Vp/Vs means. Help is updated.
+- **Decisions:**
+  - **Labels unchanged:** facies probabilities are calibrated predictions, and a facies named for a fluid is a fluid hypothesis (SOW section 10).
+  - **Porosity stays one-attribute (AI):** the transform is fitted in AI, the usual porosity driver. A second attribute would need a regression the wells rarely support.
+- **Worker deploy:** needed after merge (the second volume in `property_prediction`).
+- **Remaining in the plan:**
+  - Q6b angle-dependent wavelets and synthetic against real gathers;
+  - Q4b prestack QC (residual moveout, NMO stretch, fold maps);
+  - Q5 conditioning (trim statics, Radon, f-x, spectral balancing, stack matching);
+  - the stack family;
+  - Q12 (benchmark, tester walks, the manual, the QI upgrade doc).

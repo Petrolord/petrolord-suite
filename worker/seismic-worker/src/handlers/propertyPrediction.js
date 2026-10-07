@@ -28,6 +28,7 @@ import { storageBrickFetcher } from '../../../../packages/engines/engines/seismo
 import { v4BrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCodecV4.js';
 import { geomFromManifest, brickKey } from '../../../../packages/engines/engines/seismolord/sliceAssembly.js';
 import { runVolumeJob } from '../../../../packages/engines/engines/seismolord/volumeJob.js';
+import { sameLattice } from '../../../../packages/engines/engines/seismolord/surveyGeometry.js';
 import {
   buildDerivedManifest, brickRelPath, volumeDir, manifestPath, NULL_VALUE,
 } from '../../../../packages/engines/engines/seismolord/manifest.js';
@@ -48,6 +49,7 @@ export function validatePropertyJob(p) {
   if (!UUID.test(String(p.ai_volume_id))) return 'ai_volume_id is required.';
   const why = validatePropertyParams(p);
   if (why) return why;
+  if (p.property.attributes === 'ai_vpvs' && !UUID.test(String(p.second_volume_id))) return 'second_volume_id (the Vp/Vs volume) is required for AI and Vp/Vs.';
   if (p.mode === 'volume') {
     const keys = outputKeys(p.property);
     if (!keys.every((k) => UUID.test(String(p.volume_ids?.[k])))) return `volume_ids needs ${keys.join(', ')} for a volume run.`;
@@ -63,7 +65,8 @@ export async function propertyPrediction(ctx, deps) {
   const { admin } = deps;
   // JSON carries NaN gaps as null
   const num = (a) => a.map((v) => (Number.isFinite(v) ? v : NaN));
-  const pr = { ...p.property, wells: p.property.wells.map((w) => ({ ...w, ln_ai: num(w.ln_ai), target: num(w.target) })) };
+  const pr = { ...p.property, wells: p.property.wells.map((w) => ({ ...w, ln_ai: num(w.ln_ai), target: num(w.target), ...(w.vpvs ? { vpvs: num(w.vpvs) } : {}) })) };
+  const two = pr.attributes === 'ai_vpvs';
 
   const rowOf = async (id) => {
     const { data, error } = await admin.from('seismic_volumes')
@@ -110,6 +113,14 @@ export async function propertyPrediction(ctx, deps) {
   if (!postAi && !preAi) {
     return fail('validate_failed', 'Choose an absolute impedance volume from an inversion (not relative impedance or a spread).');
   }
+  let second = null; let secondManifest = null;
+  if (two) {
+    second = await rowOf(p.second_volume_id);
+    if (!second || second.user_id !== uid || second.status !== 'ready') return fail('not_found', 'The Vp/Vs volume was not found in your account, or it is not complete.');
+    secondManifest = await readManifest(`${second.storage_path}/manifest.json`);
+    if (secondManifest.attribute?.name !== 'qi_prestack_inversion' || secondManifest.attribute?.params?.product !== 'vpvs') return fail('validate_failed', 'The second volume must be the Vp/Vs of a simultaneous inversion.');
+    if (!sameLattice(manifest, secondManifest)) return fail('validate_failed', 'The AI and Vp/Vs volumes are not on one lattice.');
+  }
   const geom = geomFromManifest(manifest);
   const dtMs = Number(manifest.geometry.dt_us) / 1000;
   const { nIl, nXl, ns, brickSize: b } = geom;
@@ -126,26 +137,40 @@ export async function propertyPrediction(ctx, deps) {
   const fetcher = deps.makeFetcher
     ? deps.makeFetcher(manifest)
     : v4BrickFetcher(storageBrickFetcher({ supabaseUrl: deps.supabaseUrl, getToken: async () => deps.serviceRoleKey, bucket: 'seismic' }), manifest);
-  const fetchBrick = async (i, j, k) => new Float32Array(await fetcher(brickKey(source.storage_path, i, j, k)));
-  const readTrace = async (il, xl) => {
-    const bricks = await Promise.all(Array.from({ length: geom.grid[2] }, (_, k) => fetchBrick(Math.floor(il / b), Math.floor(xl / b), k)));
+  const fetchFirst = async (i, j, k) => new Float32Array(await fetcher(brickKey(source.storage_path, i, j, k)));
+  const fetcher2 = two ? (deps.makeFetcher ? deps.makeFetcher(secondManifest, 1) : v4BrickFetcher(storageBrickFetcher({ supabaseUrl: deps.supabaseUrl, getToken: async () => deps.serviceRoleKey, bucket: 'seismic' }), secondManifest)) : null;
+  const fetchSecond = two ? async (i, j, k) => new Float32Array(await fetcher2(brickKey(second.storage_path, i, j, k))) : null;
+  // the Vp/Vs bricks of the column runVolumeJob is on, beside the AI ones
+  let column = null; let secondCol = null;
+  const fetchBrick = async (i, j, k) => {
+    if (two) {
+      if (column !== `${i}-${j}`) { column = `${i}-${j}`; secondCol = new Map(); }
+      secondCol.set(k, await fetchSecond(i, j, k));
+    }
+    return fetchFirst(i, j, k);
+  };
+  const readTrace = async (il, xl, from = fetchFirst) => {
+    const bricks = await Promise.all(Array.from({ length: geom.grid[2] }, (_, k) => from(Math.floor(il / b), Math.floor(xl / b), k)));
     const base = ((il % b) * b + (xl % b)) * b;
     return Float32Array.from({ length: ns }, (_, s) => bricks[Math.floor(s / b)][base + (s % b)]);
   };
 
   ctx.progress(0.02, 'Calibrating at the wells');
-  const aiTraces = [];
-  for (const w of pr.wells) aiTraces.push(await readTrace(w.il, w.xl));
+  const aiTraces = []; const vpvsTraces = two ? [] : null;
+  for (const w of pr.wells) {
+    aiTraces.push(await readTrace(w.il, w.xl));
+    if (two) vpvsTraces.push(await readTrace(w.il, w.xl, fetchSecond));
+  }
   let cal;
   try {
-    cal = calibrateProperty({ pr, aiTraces, dtMs });
+    cal = calibrateProperty({ pr, aiTraces, vpvsTraces, dtMs });
   } catch (e) {
     return fail('compute_failed', e.message);
   }
   const settings = {
     kind: pr.kind, label: PROPERTY_KINDS[pr.kind].label, ai_volume_id: source.id, ai_volume_name: source.name,
     wells: pr.wells.map((w) => w.name), window_ms: pr.window_ms || null, upscale_hz: pr.upscaleHz ?? 50,
-    ...(pr.kind === 'facies' ? { names: pr.names, density: pr.density || 'gaussian', priors: pr.priors || 'wells' } : {}),
+    ...(pr.kind === 'facies' ? { names: pr.names, density: pr.density || 'gaussian', priors: pr.priors || 'wells', attributes: two ? 'ai_vpvs' : 'ai', ...(two ? { second_volume_id: second.id, second_volume_name: second.name } : {}) } : {}),
   };
   if (ctx.cancelled) { await cleanup(); return null; }
   if (p.mode === 'calibrate') {
@@ -169,8 +194,13 @@ export async function propertyPrediction(ctx, deps) {
     inflight.add(task);
     if (inflight.size >= UPLOADS_IN_FLIGHT) await Promise.race(inflight);
   };
-  const compute = (trace, outs) => {
-    predictTrace(cal.model, pr, trace).forEach((v, o) => {
+  const compute = (trace, outs, il, xl) => {
+    let vp = null;
+    if (two) {
+      const base = ((il % b) * b + (xl % b)) * b;
+      vp = Float32Array.from({ length: ns }, (_, s) => secondCol.get(Math.floor(s / b))[base + (s % b)]);
+    }
+    predictTrace(cal.model, pr, trace, vp).forEach((v, o) => {
       for (let k = 0; k < ns; k++) outs[o][k] = Number.isFinite(v[k]) ? v[k] : NULL_VALUE;
     });
   };

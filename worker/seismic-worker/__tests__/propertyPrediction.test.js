@@ -133,3 +133,46 @@ test('guards: an absolute impedance volume, ownership, output ids', async () => 
   await expect(propertyPrediction(ctxFor({ mode: 'calibrate', ai_volume_id: AIV, property: prop('porosity') }), depsFor({ [AIV]: { ...SRC, user_id: 'x' } }))).rejects.toMatchObject({ stage: 'not_found' });
   expect(await propertyPrediction(ctxFor({ mode: 'calibrate', ai_volume_id: AIV, property: prop('porosity') }, { cancelled: true }), depsFor({ [AIV]: SRC }))).toBeNull();
 });
+
+describe('facies in AI and Vp/Vs', () => {
+  const VPV = '25555555-5555-4555-8555-555555555555';
+  // facies by sample band: 1 gas (AI 6800, Vp/Vs 1.62), 2 brine (AI 7600, 1.92), 3 shale (AI 6800, 2.2)
+  const facAt = (il, xl, s) => [1, 2, 3][Math.floor((s + 7 * il + 3 * xl) / 16) % 3];
+  const aiOf = (f) => (f === 2 ? 7600 : 6800); const vOf = (f) => (f === 1 ? 1.62 : f === 2 ? 1.92 : 2.2);
+  const storeOf = (fn) => {
+    const m = new Map(); for (let k = 0; k < GRID[2]; k++) m.set(`0-0-${k}`, new Float32Array(B ** 3).fill(NULL_VALUE));
+    for (let il = 0; il < NIL; il++) for (let xl = 0; xl < NXL; xl++) for (let s = 0; s < NS; s++) m.get(`0-0-${Math.floor(s / B)}`)[((il % B) * B + (xl % B)) * B + (s % B)] = fn(facAt(il, xl, s));
+    return m;
+  };
+  const S2 = [storeOf(aiOf), storeOf(vOf)];
+  const W2 = [[0, 0], [2, 3], [4, 1], [5, 2]].map(([il, xl], k) => ({
+    name: `W${k + 1}`, il, xl,
+    ln_ai: Array.from({ length: NS }, (_, s) => Math.log(aiOf(facAt(il, xl, s)))),
+    vpvs: Array.from({ length: NS }, (_, s) => vOf(facAt(il, xl, s))),
+    target: Array.from({ length: NS }, (_, s) => facAt(il, xl, s)),
+  }));
+  const pr2 = { kind: 'facies', names: { 1: 'gas sand', 2: 'brine sand', 3: 'shale' }, attributes: 'ai_vpvs', upscaleHz: 50, wells: W2 };
+  const deps2 = (vpManifest = { output: 'VPVS', product: 'vpvs' }, extra = {}) => ({
+    admin: adminFor({ [AIV]: SRC, [VPV]: { ...SRC, id: VPV, storage_path: `${UID}/${VPV}` }, ...(extra.volumes || {}) }, extra.log),
+    makeFetcher: (m, k = 0) => async (path) => S2[k].get(path.match(/bricks\/(\d+-\d+-\d+)\.f32$/)[1]).slice().buffer,
+    readManifest: async (path) => (path.includes(VPV) ? { ...manifestFor({}), attribute: { name: 'qi_prestack_inversion', params: vpManifest } } : { ...manifestFor({}), attribute: { name: 'qi_prestack_inversion', params: { product: 'ai', output: 'AI' } } }),
+    ...extra,
+  });
+  test('calibrated in AI and Vp/Vs, each left-out well is classified well; a volume run writes the probabilities', async () => {
+    const out = await propertyPrediction(ctxFor({ mode: 'calibrate', ai_volume_id: AIV, second_volume_id: VPV, property: pr2 }), deps2());
+    expect(out.summary.attributes).toBe('ai_vpvs');
+    for (const r of out.rows) expect(r.accuracy).toBeGreaterThan(0.8);
+    const uploads = new Map();
+    const storage = { upload: async (path, bytes) => { uploads.set(path, bytes); return {}; } };
+    const ids = { 'p:1': OUT(1), 'p:2': OUT(2), 'p:3': OUT(3), best: OUT(4) };
+    const volumes = {}; for (const id of Object.values(ids)) volumes[id] = outRow(id);
+    const vout = await propertyPrediction(ctxFor({ mode: 'volume', ai_volume_id: AIV, second_volume_id: VPV, volume_ids: ids, property: pr2 }), deps2(undefined, { storage, volumes }));
+    const code = (s) => new Float32Array(uploads.get(`${UID}/${vout.volume_ids.best}/bricks/0-0-${Math.floor(s / B)}.f32`).buffer.slice(0))[((1 % B) * B + 2) * B + (s % B)];
+    let ok = 0; for (let s = 8; s < NS - 8; s++) if (code(s) === facAt(1, 2, s)) ok += 1;
+    expect(ok / (NS - 16)).toBeGreaterThan(0.8);
+  });
+  test('the second volume must be the Vp/Vs of a simultaneous inversion', async () => {
+    await expect(propertyPrediction(ctxFor({ mode: 'calibrate', ai_volume_id: AIV, second_volume_id: VPV, property: pr2 }), deps2({ product: 'si' }))).rejects.toMatchObject({ stage: 'validate_failed', message: expect.stringMatching(/Vp\/Vs of a simultaneous inversion/) });
+    expect(validatePropertyJob({ mode: 'calibrate', ai_volume_id: AIV, property: pr2 })).toMatch(/second_volume_id/);
+  });
+});

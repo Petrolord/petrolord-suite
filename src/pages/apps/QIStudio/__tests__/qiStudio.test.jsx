@@ -315,7 +315,9 @@ test('simultaneous: five stacks, the wells with shear and density, the blind tab
   const w4 = { ...base[0], id: 'qi-w4', name: 'KETA-4', surface_x: 600, surface_y: 300 };
   const listWells = backend.listWells; const loadWell = backend.loadWell;
   backend.listWells = async () => [...(await listWells()), w4];
-  backend.loadWell = async (w) => (w.id === 'qi-w4' ? { ...(await loadWell(base[0])), well: w4 } : loadWell(w));
+  const facies = { id: 'fac', mnemonic: 'RP_FACIES', start_md_m: 1500, stop_md_m: 2800, step_m: 0.5, provenance: { kind: 'facies', codes: [{ code: 1, name: 'gas sand' }, { code: 2, name: 'shale' }] } };
+  const withFacies = async (x) => ({ ...x, logs: [...x.logs, facies] });
+  backend.loadWell = async (w) => withFacies(w.id === 'qi-w4' ? { ...(await loadWell(base[0])), well: w4 } : await loadWell(w));
   const vols = ['qi-v1', 'qi-v2', 'qi-v3', 'qi-v4', 'qi-v5'];
   const baseV = backend.listVolumes;
   backend.listVolumes = async () => [...(await baseV()), ...vols.slice(1).map((id, k) => ({ id, name: `Keta stack ${k + 2}`, kind: 'seismic', status: 'ready' }))];
@@ -340,4 +342,18 @@ test('simultaneous: five stacks, the wells with shear and density, the blind tab
   const runs = await screen.findByTestId('qi-sim-runs', {}, { timeout: 20000 });
   await waitFor(() => expect(runs).toHaveTextContent(/Ready: open in Seismolord/));
   expect(enqueue.mock.calls.filter((c) => c[0] === 'prestack_inversion')[1][1].volume_ids).toEqual({ ai: 'mem-sim-qi-v1-ai', si: 'mem-sim-qi-v1-si', rho: 'mem-sim-qi-v1-rho', vpvs: 'mem-sim-qi-v1-vpvs' });
+
+  // facies in AI and Vp/Vs from the simultaneous inversion
+  fireEvent.click(screen.getByTestId('qi-tab-properties'));
+  fireEvent.change(await screen.findByTestId('qi-prop-ai', {}, { timeout: 20000 }), { target: { value: 'mem-sim-qi-v1-ai' } });
+  fireEvent.change(screen.getByTestId('qi-prop-kind'), { target: { value: 'facies' } });
+  fireEvent.change(await screen.findByTestId('qi-prop-attrs', {}, { timeout: 20000 }), { target: { value: 'ai_vpvs' } });
+  fireEvent.click(screen.getByTestId('qi-prop-read'));
+  await screen.findByTestId('qi-prop-wells', {}, { timeout: 20000 });
+  fireEvent.click(screen.getByTestId('qi-prop-calibrate'));
+  await waitFor(() => expect(enqueue.mock.calls.some((c) => c[0] === 'property_prediction')).toBe(true));
+  const [, pp] = enqueue.mock.calls.find((c) => c[0] === 'property_prediction');
+  expect(pp).toMatchObject({ mode: 'calibrate', ai_volume_id: 'mem-sim-qi-v1-ai', second_volume_id: 'mem-sim-qi-v1-vpvs' });
+  expect(pp.property.attributes).toBe('ai_vpvs');
+  expect(pp.property.wells[0].vpvs.filter(Number.isFinite).length).toBeGreaterThan(100);
 });

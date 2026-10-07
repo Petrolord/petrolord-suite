@@ -33,6 +33,11 @@ export function impedanceChoices(project, volumes) {
       out.push({ id: r.volumeIds?.q50 || r.volumeId, name: r.volumeIds ? `${r.name} (Q50)` : r.name, seismic });
     }
   }
+  // the AI of a simultaneous inversion, with its Vp/Vs for facies in two attributes
+  for (const r of project.simultaneous?.runs || []) {
+    if (r.status !== 'ready' || !r.volumeIds?.ai) continue;
+    out.push({ id: r.volumeIds.ai, name: `${r.name} (AI)`, seismic: volumes.find((v) => v.id === r.firstVolumeId), vpvsId: r.volumeIds.vpvs || null });
+  }
   return out.filter((c) => c.id && c.seismic);
 }
 
@@ -72,9 +77,9 @@ function Summary({ result }) {
   if (result.settings?.kind === 'facies') {
     return (
       <table className="text-xs" data-testid="qi-prop-classes">
-        <thead><tr><th className={th}>Facies</th><th className={th}>Samples</th><th className={th}>Prior</th><th className={th}>Mean AI</th><th className={th}>SD</th><th className={th}>Product label</th></tr></thead>
+        <thead><tr><th className={th}>Facies</th><th className={th}>Samples</th><th className={th}>Prior</th><th className={th}>Mean AI</th><th className={th}>SD</th>{s.attributes === 'ai_vpvs' && <><th className={th}>Mean Vp/Vs</th><th className={th}>SD</th></>}<th className={th}>Product label</th></tr></thead>
         <tbody>
-          {s.classes.map((c) => <tr key={c.name}><td className={td}>{c.name}</td><td className={`${td} font-mono`}>{c.n}</td><td className={`${td} font-mono`}>{f(c.prior)}</td><td className={`${td} font-mono`}>{f(c.mean, 0)}</td><td className={`${td} font-mono`}>{f(c.sd, 0)}</td><td className={td}>{faciesClass(c.name) === 'fluid_hypothesis' ? 'fluid hypothesis' : 'calibrated prediction'}</td></tr>)}
+          {s.classes.map((c) => <tr key={c.name}><td className={td}>{c.name}</td><td className={`${td} font-mono`}>{c.n}</td><td className={`${td} font-mono`}>{f(c.prior)}</td><td className={`${td} font-mono`}>{f(c.mean, 0)}</td><td className={`${td} font-mono`}>{f(c.sd, 0)}</td>{s.attributes === 'ai_vpvs' && <><td className={`${td} font-mono`}>{f(c.meanVpVs, 2)}</td><td className={`${td} font-mono`}>{f(c.sdVpVs, 2)}</td></>}<td className={td}>{faciesClass(c.name) === 'fluid_hypothesis' ? 'fluid hypothesis' : 'calibrated prediction'}</td></tr>)}
         </tbody>
       </table>
     );
@@ -93,24 +98,26 @@ export default function PropertiesPanel() {
   const [density, setDensity] = useState(PROPERTY_DEFAULTS.density);
   const [priors, setPriors] = useState(PROPERTY_DEFAULTS.priors);
   const [win, setWin] = useState({ t0: '', t1: '' });
+  const [attrs, setAttrs] = useState('ai');
+  const two = kind === 'facies' && attrs === 'ai_vpvs' && !!ai?.vpvsId;
   const [prep, setPrep] = useState(null);
   const [job, setJob] = useState({});
   const stops = useRef([]);
   useEffect(() => () => { for (const x of stops.current) x(); }, []);
-  useEffect(() => { setPrep(null); setJob({}); }, [ai?.id, kind]);
+  useEffect(() => { setPrep(null); setJob({}); }, [ai?.id, kind, attrs]);
 
   const readWells = async () => {
     setPrep({ busy: true });
     try {
       const frame = await backend.loadVolumeFrame(ai.seismic);
       const wells = [];
-      for (const r of ready) wells.push(await prepareWell(r, frame, backend.downloadCurve, { extras: [kind] }));
+      for (const r of ready) wells.push(await prepareWell(r, frame, backend.downloadCurve, { extras: two ? [kind, 'elastic'] : [kind] }));
       setPrep({ wells });
     } catch (e) {
       setPrep({ error: e.message });
     }
   };
-  const usable = (prep?.wells || []).filter((w) => w.ok && w[kind]?.values);
+  const usable = (prep?.wells || []).filter((w) => w.ok && w[kind]?.values && (!two || w.elastic?.ln_si));
   const names = (() => {
     const all = {};
     for (const w of usable) Object.assign(all, w.facies?.names || {});
@@ -118,7 +125,8 @@ export default function PropertiesPanel() {
   })();
   const block = () => ({
     kind,
-    wells: usable.map((w) => ({ name: w.name, il: w.il, xl: w.xl, ln_ai: w.ln_ai, target: w[kind].values })),
+    wells: usable.map((w) => ({ name: w.name, il: w.il, xl: w.xl, ln_ai: w.ln_ai, target: w[kind].values, ...(two ? { vpvs: w.ln_ai.map((v, i) => Math.exp(v - w.elastic.ln_si[i])) } : {}) })),
+    ...(two ? { attributes: 'ai_vpvs' } : {}),
     ...(win.t0 !== '' && win.t1 !== '' ? { window_ms: [Number(win.t0), Number(win.t1)] } : {}),
     ...(kind === 'facies' ? { names, density, priors } : {}),
   });
@@ -133,7 +141,7 @@ export default function PropertiesPanel() {
   const calibrate = async () => {
     setJob((j) => ({ ...j, calibrate: { job: { status: 'queued', progress: 0 } } }));
     try {
-      const jobId = await client.enqueueJob('property_prediction', { mode: 'calibrate', ai_volume_id: ai.id, name: `${ai.name} ${kind} calibration`, property: block() });
+      const jobId = await client.enqueueJob('property_prediction', { mode: 'calibrate', ai_volume_id: ai.id, ...(two ? { second_volume_id: ai.vpvsId } : {}), name: `${ai.name} ${kind} calibration`, property: block() });
       watch('calibrate', jobId, (row) => setProperty(ai.id, { [kind]: { ...(saved[kind] || {}), calibration: { jobId, at: row.finished_at || new Date().toISOString(), volumeName: ai.name, result: row.result_refs } } }));
     } catch (e) {
       setJob((j) => ({ ...j, calibrate: { error: qiService.friendlyError(e) } }));
@@ -146,7 +154,7 @@ export default function PropertiesPanel() {
     try {
       for (const [key, label] of keys) rows.push({ key, row: await backend.registerPropertyVolume({ aiVolumeId: ai.id, name: `${ai.name}, ${label}`, summary: { kind, product: key } }) });
       const volumeIds = Object.fromEntries(rows.map((r) => [r.key, r.row.id]));
-      const jobId = await client.enqueueJob('property_prediction', { mode: 'volume', ai_volume_id: ai.id, volume_ids: volumeIds, name: `${ai.name} ${kind}`, property: block() });
+      const jobId = await client.enqueueJob('property_prediction', { mode: 'volume', ai_volume_id: ai.id, ...(two ? { second_volume_id: ai.vpvsId } : {}), volume_ids: volumeIds, name: `${ai.name} ${kind}`, property: block() });
       setProperty(ai.id, (cur) => ({ [kind]: { ...(cur[kind] || {}), runs: [...(cur[kind]?.runs || []), { jobId, volumeIds, name: `${ai.name}: ${PROPERTY_KINDS[kind].label.toLowerCase()}`, at: new Date().toISOString(), status: 'queued' }] } }));
       watch('volume', jobId, (done) => setProperty(ai.id, (cur) => ({
         [kind]: { ...(cur[kind] || {}), runs: (cur[kind]?.runs || []).map((r) => (r.jobId === jobId ? { ...r, status: 'ready', at: done.finished_at || r.at } : r)) },
@@ -195,6 +203,11 @@ export default function PropertiesPanel() {
             <label className="flex items-center gap-1">Density
               <select className={input} value={density} onChange={(e) => setDensity(e.target.value)}><option value="gaussian">Gaussian</option><option value="kde">Kernel (KDE)</option></select>
             </label>
+            {ai?.vpvsId && (
+              <label className="flex items-center gap-1">Attributes
+                <select className={input} value={attrs} onChange={(e) => setAttrs(e.target.value)} data-testid="qi-prop-attrs"><option value="ai">AI</option><option value="ai_vpvs">AI and Vp/Vs</option></select>
+              </label>
+            )}
             <label className="flex items-center gap-1">Priors
               <select className={input} value={priors} onChange={(e) => setPriors(e.target.value)}><option value="wells">The wells&apos; proportions</option><option value="equal">Equal</option></select>
             </label>
