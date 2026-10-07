@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit f2664baedec1799610da88c1c3bed407a1d217a0
+# commit fdcd73b77a58ef705cf679849a96cc741048ad7c
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 80b08bf546799e96d5448d67c63c98f2ec1b9703 README.md
@@ -210,7 +210,7 @@ f164d0a958b73fb28b1608a37b8a5c1cc9a0223e __tests__/seismolord.framework.test.js
 65d29290a18eab1e3c9d164faf9d71fab94efe00 __tests__/seismolord.importreaders.test.js
 e80da8efdd7cd8a39a69cfc427173837c5ebfeda __tests__/seismolord.latticeexport.test.js
 0f33cdf054912f7d9515a2bb5a87b463f2c65a0e __tests__/seismolord.line2d.test.js
-a2b2db7aea12cc3c1b17551047687a2497ad7397 __tests__/seismolord.localsource.test.js
+7eef634dc0af009ca1c368405280e01c30845519 __tests__/seismolord.localsource.test.js
 b0bae05701a81bdc60ed1f72bb230c19b099b073 __tests__/seismolord.manifestgate.test.js
 636459112a6ddc831edc8c35f26b83215593641f __tests__/seismolord.pickexport.test.js
 d439c4815386e9d7cc43601f8a74f1dd3a80a046 __tests__/seismolord.previewreads.test.js
@@ -568,7 +568,7 @@ c14b23221d26358ca577cb49b44c1f5f21b41e46 engines/seismolord/surveyGeometry.js
 55453e93a1ba6ec089d10b0a06f97e1c86dc0ee9 engines/seismolord/synthetics.js
 f89aee7ebf3ab9952f2c7835d5ad8fffe2e8a759 engines/seismolord/tieWarp.js
 31899a7eaa69badf0a8d88833c77da45c81fb9ed engines/seismolord/topsToEvents.js
-63bf539e5f9de5a749e662c1073fd41c6723a562 engines/seismolord/traceIndex.js
+94e6ce0db5d2c869fd9611ad4bd30b2d83d9877c engines/seismolord/traceIndex.js
 2889383861a23eedf936219c03dfd6a2475dacd4 engines/seismolord/traverse.js
 05596c6559b14c94b3dbba8668683273575bfcc7 engines/seismolord/velocityModel.js
 69b2afe5af321ee85ea367cbfc3f7a70dddb630f engines/seismolord/volumeJob.js
