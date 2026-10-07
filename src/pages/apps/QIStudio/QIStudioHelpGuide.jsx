@@ -125,6 +125,12 @@ function QIStudioHelpGuideContent() {
           30 percent. Residual moveout over 4 ms at the 90th percentile, stretch inside the covered offsets, and low fold over a
           tenth of the survey are offered to the issue register.
         </Para>
+        <Para>
+          Trim statics flattens the gathers around an event you give: each trace of every gather is shifted onto that
+          gather&apos;s own stack in the window, with the shifts capped, and the result is a new gather store beside the first,
+          with how much flatter it came out. Judge the trim against the synthetic gathers at the wells, never only by how
+          clean the gathers look.
+        </Para>
       </GuideSection>
 
       <GuideSection id="avo">
@@ -138,6 +144,13 @@ function QIStudioHelpGuideContent() {
           the engine.
         </Para>
         <Para>The stacks must be balanced against each other, since A, B and the fluid factor carry their amplitude scale. The products are elastic estimates and open in Seismolord.</Para>
+        <Para>
+          Match the stacks first: each stack is brought onto a reference stack in time shift and constant phase together,
+          then in amplitude, with one operator per stack for the whole survey (the median shift and scale and the circular
+          mean phase of about 300 traces). A per-trace match would remove the very amplitude differences AVO reads, so the
+          survey operator is the one applied. The matched stacks join the study&apos;s volumes for AVO and the simultaneous
+          inversion.
+        </Para>
         <Para>
           At the wells, Compare reads Rock Physics Studio&apos;s published gather of each study well (its zone, in situ and fluid
           substituted), takes the zone top to time through the well&apos;s tie, and reads the intercept and gradient volumes at

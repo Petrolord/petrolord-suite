@@ -145,6 +145,7 @@ export function reportModel({ projectName = '', organizationName = '', project, 
       name: r.name, at: String(r.at || '').slice(0, 10), cdps: r.result.cdps, fold: r.result.fold,
       rows: r.result.times.map((t) => [String(t.t_ms), Number(t.rmoMedian).toFixed(1), Number(t.rmoQ90).toFixed(1), (100 * t.rmoShareOver4).toFixed(0), t.stretchMuteM ? String(Math.round(t.stretchMuteM)) : '']),
     })),
+    matching: project.avo?.matching ? { reference: project.avo.matching.reference, rows: project.avo.matching.stacks.map((m) => [m.stack_name, Number(m.shift_ms).toFixed(1), Number(m.phase_deg).toFixed(0), Number(m.scale).toFixed(3), `${Number(m.corr_before).toFixed(2)} to ${Number(m.corr_after).toFixed(2)}`]) } : null,
     executive: (() => {
       const out = [];
       const inv = Object.values(project.inversion || {}).map((r) => r?.blind?.result?.blind || r?.spread?.result?.blind).filter((b) => b?.length);
@@ -218,6 +219,7 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
       note: `From the gather store on the seismic worker${ps.at ? ` on ${ps.at}` : ''}: Walden straight-ray angles from an RMS velocity table of ${ps.velocityRows} row${ps.velocityRows === 1 ? '' : 's'}, a fold-weighted mean of the offset bins in each range; gathers taken as NMO-corrected. Usable angle across the CDPs: Q10 ${n(u.q10)}, Q50 ${n(u.q50)}, Q90 ${n(u.q90)} degrees.`,
     });
   }
+  if (model.matching) table(`Stacks matched to ${model.matching.reference}`, ['Stack', 'Shift (ms)', 'Phase (degrees)', 'Scale', 'Correlation, before and after'], model.matching.rows, { note: 'One operator per stack for the whole survey (the median shift and scale and the circular mean phase of about 300 per-trace matches), so the relative amplitudes AVO reads are kept.' });
   if ((model.avo || []).length) table('AVO volumes', ['Run', 'Stacks (mean angle)', 'Products', 'Vs/Vp'], model.avo, { note: 'Two-term Shuey least squares over the stacks at every sample; the fluid factor is Smith and Gidlow\'s, from A and B with Gardner\'s density and the stated Vs/Vp. The stacks are taken as balanced against each other, so A and B share their amplitude scale. Elastic estimates.' });
   if (model.avoWells) {
     const w = model.avoWells;

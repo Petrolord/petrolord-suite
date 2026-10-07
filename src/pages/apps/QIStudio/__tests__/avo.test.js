@@ -28,3 +28,11 @@ test('the report carries the AVO calibration at the wells', () => {
   expect(t).toMatch(/One least-squares scale \(2\.00\)/);
   expect(t).toMatch(/AKOMA-2/);
 });
+
+test('the report carries the stack matching', () => {
+  const p = { ...blankProject(), avo: { runs: [], matching: { reference: 'near', stacks: [{ stack_id: 'f', stack_name: 'far', shift_ms: -6, phase_deg: -30, scale: 2, corr_before: 0.6, corr_after: 0.98 }] } } };
+  const model = reportModel({ project: p, inventory: [], matrix: { targets: [], rows: [], count: { good: 0, limited: 0, missing: 0 } }, issues: [], chosenVolumes: [], ready: [] });
+  const t = flat(readPdf(buildQIStudioPdf(model, { generatedAt: new Date('2026-10-07T12:00:00Z') }).doc).text);
+  expect(t).toMatch(/Stacks matched to near/);
+  expect(t).toMatch(/0\.60 to 0\.98/);
+});
