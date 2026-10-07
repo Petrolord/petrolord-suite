@@ -10,7 +10,7 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
 | Q0b Seismolord on the worker | DONE: merged #893; both migrations applied and verified 2026-10-06 |
 | Milestone A (Q1, Q2, Q4a, Q6a) | DONE: A1 to A6 merged 2026-10-06 (#894, #896 to #901, #903). Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
 | Milestone B (Q8a, Q9a, Q10, Q11) | DONE (#904 to #908); worker live. Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
-| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a DONE (#909), Q3b DONE (#910); worker live. Q7 AVO DONE (#911); worker live. Q7b DONE (#912); worker live. Q8b DONE (#913); worker live. Q9b DONE (#915); worker live. Q6b angle wavelets built (Suite feat/qi-q6b-angle-wavelets) |
+| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a DONE (#909), Q3b DONE (#910); worker live. Q7 AVO DONE (#911); worker live. Q7b DONE (#912); worker live. Q8b DONE (#913); worker live. Q9b DONE (#915); worker live. Q6b DONE (#916); worker live. Q4b prestack QC built (engines #337; Suite feat/qi-q4b-prestack-qc) |
 | Q12 Benchmark and tester waves | Not started |
 
 ## Key facts
@@ -601,4 +601,24 @@ The quota is pooled per organisation. Building that is the next item.
 - **Decisions:**
   - **Fatti reflectivity, not Zoeppritz,** for the extraction: it is the operator the inversion uses, so the wavelet and the inversion agree by construction. Rock Physics Studio's Zoeppritz gathers stay its modelling view.
   - **Synthetic gathers against real gathers:** the check runs on angle stacks, which is where the inversion works. Gather-level comparison comes with Q4b prestack QC.
-- **Worker deploy:** needed after merge (the traces mode and per-stack wavelets).
+- **Merged:** #916 (main e012d2211). The worker deploy followed.
+
+### C8 Q4b Prestack QC (2026-10-07)
+- **Engines #337 `qi/prestackQc.js`:**
+  - the NMO stretch (t / t0 - 1) and the stretch-mute offset that inverts it;
+  - residual moveout of an NMO-corrected gather: each offset's shift against the near-trace reference, by windowed cross-correlation with a parabolic peak, fitted as dt = a x^2 to give the residual at the far offset;
+  - a fold summary.
+  - Gates: the analytic stretch and its exact inverse. A known 8 ms parabolic residual is recovered (curvature within 3 percent). Negative control: a flat gather measures under 0.3 ms.
+- **Worker kind `prestack_qc`:**
+  - about 1,500 CDPs sampled on a regular stride;
+  - at one to four event times, the far-offset residual's median, 90th percentile and share over 4 ms;
+  - the stretch-mute offset from a velocity table, and the median fold, low-fold share and far covered offset;
+  - sampled maps and issues: residual over 4 ms (over 8 is high), stretch inside the covered offsets (low), low fold over a tenth of the survey (medium).
+  - Gated on stores built by `ingest_gathers`: a known 8 ms residual is measured, and flat gathers raise no moveout issue (negative control).
+- **QI Studio, Prestack tab:** a "QC the gathers" action per store, with the per-time table, fold, issues to the register, a report table and help.
+- **Decisions:**
+  - **Measured on NMO-corrected gathers:** the store's gathers are taken as NMO-corrected, so a flat event is the expected state. The residual is what a trim or velocity update must remove, and the QC states it per event time.
+  - **The 4 ms threshold:** a quarter period of a 60 Hz event. Above it the far angles stack out of phase, and AVO gradients bias.
+  - **Multiples, illumination and gather panels at wells:** left for Q5 (Radon) and the tester walks. Panels draw in Seismolord's gather viewer once that exists.
+- **Worker deploy:** needed after merge, for `prestack_qc`.
+- **Remaining in the plan:** Q5 conditioning (trim statics, Radon, f-x, spectral balancing, stack matching), the stack family, and Q12.

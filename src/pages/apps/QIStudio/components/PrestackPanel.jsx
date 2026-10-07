@@ -64,7 +64,7 @@ function useJob() {
 }
 
 export default function PrestackPanel() {
-  const { backend, project, setPrestack, canWrite, addNotification } = useQIStudio();
+  const { backend, project, setPrestack, setPrestackQc, saveIssue, canWrite, addNotification } = useQIStudio();
   const [datasets, setDatasets] = useState(null);
   const [form, setForm] = useState({ offsetByte: 37, binWidth: 50 });
   const [velText, setVelText] = useState('0 1800\n2000 2600');
@@ -86,6 +86,11 @@ export default function PrestackPanel() {
     setPrestack(d.id, { name: d.name, at: row.finished_at || new Date().toISOString(), result: row.result_refs, velocity: { t_ms: vel.t_ms, vrms: vel.vrms } });
     refresh();
   });
+  const qc = (d) => job.run(`q:${d.id}`, 'prestack_qc', { dataset_id: d.id, ...(vel.error ? {} : { velocity: { t_ms: vel.t_ms, vrms: vel.vrms } }), name: `${d.name} QC` }, (row) => setPrestackQc(d.id, { name: d.name, at: row.finished_at || new Date().toISOString(), result: row.result_refs }));
+  const addQcIssues = (rec) => {
+    for (const i of rec.result.issues || []) saveIssue({ ...i, status: 'open', owner: '' });
+    addNotification(`${(rec.result.issues || []).length} prestack QC issue${(rec.result.issues || []).length === 1 ? '' : 's'} added to the register.`, 'success');
+  };
   const convert = async (d) => {
     try {
       await backend.convertStack(d);
@@ -143,11 +148,24 @@ export default function PrestackPanel() {
               <tr key={d.id}>
                 <td className={td}>{d.name}</td>
                 <td className={td}>{`${d.meta?.traces ?? EMPTY_VALUE} traces, ${d.meta?.bins ?? EMPTY_VALUE} offset bins of ${d.meta?.bin_width_m ?? EMPTY_VALUE} m`}</td>
+                <td className={td}><button type="button" className={btn} onClick={() => qc(d)} disabled={!canWrite || job.busy(`q:${d.id}`)} data-testid={`qi-pre-qc-${d.id}`}>QC the gathers</button> {job.status(`q:${d.id}`)}</td>
                 <td className={td}><button type="button" className={btn} onClick={() => stack(d)} disabled={!canWrite || !!vel.error || !!rangeProblem || job.busy(`s:${d.id}`)} data-testid={`qi-pre-stack-${d.id}`}>Make angle stacks</button> {job.status(`s:${d.id}`)}</td>
               </tr>
             ))}
           </tbody></table>
         ) : <p className={muted}>No gather store yet.</p>}
+        {Object.entries(project.prestackQc || {}).map(([id, rec]) => (
+          <div key={`qc-${id}`} className="space-y-1" data-testid={`qi-pre-qc-result-${id}`}>
+            <p className="text-xs text-pl-text">{`${rec.name}: ${rec.result.cdps} CDPs sampled (every ${rec.result.stride}); median fold ${rec.result.fold.median}, far covered offset ${Math.round(rec.result.fold.farMedianM)} m${rec.result.fold.lowShare > 0 ? `, ${(100 * rec.result.fold.lowShare).toFixed(0)} percent of CDPs under half the median fold` : ''}.`}</p>
+            <table className="text-xs">
+              <thead><tr><th className={th}>Event time (ms)</th><th className={th}>Residual moveout, median (ms)</th><th className={th}>90th percentile</th><th className={th}>Over 4 ms (percent)</th><th className={th}>Stretch mute (m)</th></tr></thead>
+              <tbody className="font-mono tabular-nums">
+                {rec.result.times.map((t) => <tr key={t.t_ms}><td className={td}>{t.t_ms}</td><td className={td}>{Number(t.rmoMedian).toFixed(1)}</td><td className={td}>{Number(t.rmoQ90).toFixed(1)}</td><td className={td}>{(100 * t.rmoShareOver4).toFixed(0)}</td><td className={td}>{t.stretchMuteM ? Math.round(t.stretchMuteM) : EMPTY_VALUE}</td></tr>)}
+              </tbody>
+            </table>
+            {(rec.result.issues || []).length > 0 && canWrite && <button type="button" className={btn} onClick={() => addQcIssues(rec)} data-testid={`qi-pre-qc-issues-${id}`}>{`Add ${rec.result.issues.length} prestack QC issue${rec.result.issues.length === 1 ? '' : 's'} to the register`}</button>}
+          </div>
+        ))}
         {Object.entries(project.prestack || {}).map(([id, rec]) => (
           <p key={id} className="text-xs text-pl-text" data-testid={`qi-pre-result-${id}`}>{`${rec.name}: ${rec.result.stacks.map((s) => `${s.name} ${s.from} to ${s.to} degrees (${s.traces} traces)`).join('; ')}. Usable angle across the CDPs: Q10 ${Number(rec.result.usable_angle.q10).toFixed(1)}, Q50 ${Number(rec.result.usable_angle.q50).toFixed(1)}, Q90 ${Number(rec.result.usable_angle.q90).toFixed(1)} degrees.`}</p>
         ))}

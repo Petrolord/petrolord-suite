@@ -18,3 +18,11 @@ test('the report carries the angle stacks and the usable angle', () => {
   expect(t).toMatch(/Walden straight-ray angles from an RMS velocity table of 2 rows/);
   expect(t).toMatch(/Q10 31\.5, Q50 38\.2, Q90 42\.9 degrees/);
 });
+
+test('the report carries the prestack QC', () => {
+  const p = { ...blankProject(), prestackQc: { d2: { name: 'Keta gathers', at: '2026-10-07T09:00:00Z', result: { cdps: 1480, fold: { median: 58, farMedianM: 3000 }, times: [{ t_ms: 900, rmoMedian: 2.1, rmoQ90: 5.6, rmoShareOver4: 0.22, stretchMuteM: 2450 }] } } } };
+  const model = reportModel({ project: p, inventory: [], matrix: { targets: [], rows: [], count: { good: 0, limited: 0, missing: 0 } }, issues: [], chosenVolumes: [], ready: [] });
+  const t = flat(readPdf(buildQIStudioPdf(model, { generatedAt: new Date('2026-10-07T12:00:00Z') }).doc).text);
+  expect(t).toMatch(/Prestack QC: Keta gathers/);
+  expect(t).toMatch(/Median fold 58; far covered offset 3000 m/);
+});

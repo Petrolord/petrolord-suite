@@ -118,6 +118,13 @@ function QIStudioHelpGuideContent() {
           across the survey as its 10th, 50th and 90th percentiles. Convert each stack into a Seismolord volume with one button:
           it goes through the same server import as any large SEG-Y.
         </Para>
+        <Para>
+          QC the gathers before stacking: on about 1,500 CDPs sampled across the store, the residual moveout at the far offset
+          at three event times (each offset&apos;s shift against the near traces, by cross-correlation, fitted with a parabola in
+          offset), the fold and the far covered offset, and, with the velocity table, the offset beyond which NMO stretch passes
+          30 percent. Residual moveout over 4 ms at the 90th percentile, stretch inside the covered offsets, and low fold over a
+          tenth of the survey are offered to the issue register.
+        </Para>
       </GuideSection>
 
       <GuideSection id="avo">
