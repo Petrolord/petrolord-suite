@@ -74,7 +74,9 @@ const renderApp = () => render(
   </AuthContext.Provider>,
 );
 // generous waits: the suite runs beside the heavy engine tests in CI
-const WAIT = { timeout: 5000 };
+// the results modal mounts after a recalculation; a loaded CI runner can take longer than 5 s
+const WAIT = { timeout: 15000 };
+jest.setTimeout(60000);
 const ready = () => screen.findByText('ReservoirCalc Pro', {}, WAIT);
 
 // Since batch 7A a /dashboard page has no scope of its own: every render
