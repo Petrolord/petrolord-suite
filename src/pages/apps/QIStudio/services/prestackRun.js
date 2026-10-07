@@ -35,8 +35,10 @@ export function validatePrestackParams(p) {
   if (st.some((s) => !(s.angle >= 0 && s.angle <= 50))) return 'Each stack needs its mean angle, 0 to 50 degrees.';
   const a = st.map((s) => s.angle);
   if (Math.max(...a) < 25) return 'The farthest stack should reach 25 degrees or more, or density is not resolved.';
-  const w = inv.wavelet;
-  if (!w || !Array.isArray(w.samples) || w.samples.length < 5 || w.samples.length % 2 === 0) return 'The wavelet needs an odd number of samples, at least five.';
+  const okWavelet = (w) => w && Array.isArray(w.samples) && w.samples.length >= 5 && w.samples.length % 2 === 1;
+  if (inv.wavelets != null) {
+    if (!Array.isArray(inv.wavelets) || inv.wavelets.length !== st.length || !inv.wavelets.every(okWavelet)) return 'Give one wavelet per stack, each with an odd number of samples, at least five.';
+  } else if (!okWavelet(inv.wavelet)) return 'The wavelet needs an odd number of samples, at least five.';
   const wells = inv.wells;
   if (!Array.isArray(wells) || !wells.length) return 'The inversion needs at least one well with AI, SI and density.';
   for (const x of wells) {
@@ -78,7 +80,8 @@ const holdFill = (values) => {
  */
 export function prestackWaveletScale(pairs, thetaDeg, wavelet, vsVp) {
   let sxy = 0; let sxx = 0; let n = 0;
-  const half = (wavelet.length - 1) / 2;
+  const perAngle = Array.isArray(wavelet[0]) || ArrayBuffer.isView(wavelet[0]);
+  const half = perAngle ? Math.max(...wavelet.map((w) => (w.length - 1) / 2)) : (wavelet.length - 1) / 2;
   for (const { traces, well } of pairs) {
     const m = { lnAi: holdFill(well.ln_ai), lnSi: holdFill(well.ln_si), lnRho: holdFill(well.ln_rho) };
     if (!m.lnAi || !m.lnSi || !m.lnRho) continue;

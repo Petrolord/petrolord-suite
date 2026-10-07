@@ -10,7 +10,7 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
 | Q0b Seismolord on the worker | DONE: merged #893; both migrations applied and verified 2026-10-06 |
 | Milestone A (Q1, Q2, Q4a, Q6a) | DONE: A1 to A6 merged 2026-10-06 (#894, #896 to #901, #903). Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
 | Milestone B (Q8a, Q9a, Q10, Q11) | DONE (#904 to #908); worker live. Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
-| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a DONE (#909), Q3b DONE (#910); worker live. Q7 AVO DONE (#911); worker live. Q7b DONE (#912); worker live. Q8b DONE (#913); worker live. Q9b facies in AI and Vp/Vs built (Suite feat/qi-q9b-facies-2d) |
+| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a DONE (#909), Q3b DONE (#910); worker live. Q7 AVO DONE (#911); worker live. Q7b DONE (#912); worker live. Q8b DONE (#913); worker live. Q9b DONE (#915); worker live. Q6b angle wavelets built (Suite feat/qi-q6b-angle-wavelets) |
 | Q12 Benchmark and tester waves | Not started |
 
 ## Key facts
@@ -580,10 +580,25 @@ The quota is pooled per organisation. Building that is the next item.
 - **Decisions:**
   - **Labels unchanged:** facies probabilities are calibrated predictions, and a facies named for a fluid is a fluid hypothesis (SOW section 10).
   - **Porosity stays one-attribute (AI):** the transform is fitted in AI, the usual porosity driver. A second attribute would need a regression the wells rarely support.
-- **Worker deploy:** needed after merge (the second volume in `property_prediction`).
+- **Merged:** #915 (main 6ab2eeb31). The worker deploy followed.
 - **Remaining in the plan:**
   - Q6b angle-dependent wavelets and synthetic against real gathers;
   - Q4b prestack QC (residual moveout, NMO stretch, fold maps);
   - Q5 conditioning (trim statics, Radon, f-x, spectral balancing, stack matching);
   - the stack family;
   - Q12 (benchmark, tester walks, the manual, the QI upgrade doc).
+
+### C7 Q6b Angle-dependent wavelets (2026-10-07)
+- **What:** one wavelet per angle stack, from the wells.
+  - At each well, it is extracted by least squares (Seismolord's well-wavelet extraction) against the reflectivity of the logs at the stack's angle, then aligned and averaged across wells (engines `qi/wavelets.js`).
+  - The reflectivity is the simultaneous inversion's own Fatti operator with a unit spike, so each wavelet carries the stack's amplitude scale for that operator.
+  - Beside each wavelet: its peak frequency and phase, and every well's synthetic against the stack (the synthetic-against-real check by angle).
+- **Worker:**
+  - `sample_volumes` has a traces mode: the whole trace of every volume at up to 20 points.
+  - `prestack_inversion` takes one wavelet per stack (`inversion.wavelets`) in place of the single tie wavelet, scaled together at the wells.
+- **QI Studio:** in the Simultaneous tab, the "Angle wavelets from the wells" table and a "Use one wavelet per stack" option (on when the wavelets match the stacks' angles), with a report table and help.
+- **Validation:** stacks made with a different Ricker per angle (30, 25 and 18 Hz) give each stack its own wavelet back (correlation over 0.98), and every synthetic matches its stack (over 0.97). Negative control: the near wavelet against the far one stays under 0.95. The worker's blind check holds with per-stack wavelets, and a count that does not match the stacks is refused.
+- **Decisions:**
+  - **Fatti reflectivity, not Zoeppritz,** for the extraction: it is the operator the inversion uses, so the wavelet and the inversion agree by construction. Rock Physics Studio's Zoeppritz gathers stay its modelling view.
+  - **Synthetic gathers against real gathers:** the check runs on angle stacks, which is where the inversion works. Gather-level comparison comes with Q4b prestack QC.
+- **Worker deploy:** needed after merge (the traces mode and per-stack wavelets).

@@ -104,3 +104,12 @@ test('guards', async () => {
   const r = rows(); r[S[2]].user_id = 'x';
   await expect(prestackInversion(ctxFor(P('blind')), depsFor(r).d)).rejects.toMatchObject({ stage: 'not_found' });
 });
+
+test('one wavelet per stack is taken (angle-dependent), and a count that does not match the stacks is refused', async () => {
+  const per = P('blind'); per.inversion.wavelets = THETA.map(() => ({ samples: ricker, dt_ms: DT }));
+  const out = await prestackInversion(ctxFor(per), depsFor().d);
+  expect(out.settings.wavelets).toBe('one per stack, from the wells');
+  for (const r of out.blind) expect(r.blind.ai.rmsPct).toBeLessThan(5);
+  const bad = P('blind'); bad.inversion.wavelets = [{ samples: ricker, dt_ms: DT }];
+  expect(validatePrestackJob(bad)).toMatch(/one wavelet per stack/);
+});

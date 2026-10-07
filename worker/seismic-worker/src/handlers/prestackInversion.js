@@ -133,8 +133,13 @@ export async function prestackInversion(ctx, deps) {
   const posOf = aff ? (il, xl) => ilxlToWorld(aff, il, xl) : (il, xl) => ({ x: il, y: xl });
   const horizonsAt = horizonsAtFrom(grids, nXl, dtMs);
   const thetaDeg = stacks.map((s) => s.angle);
-  let wavelet = Float64Array.from(inv.wavelet.samples);
-  if (Number(inv.wavelet.dt_ms) > 0 && Math.abs(inv.wavelet.dt_ms - dtMs) > 1e-9) wavelet = resampleWavelet(wavelet, inv.wavelet.dt_ms, dtMs);
+  const onGrid = (w) => {
+    const x = Float64Array.from(w.samples);
+    return Number(w.dt_ms) > 0 && Math.abs(w.dt_ms - dtMs) > 1e-9 ? resampleWavelet(x, w.dt_ms, dtMs) : x;
+  };
+  // one wavelet for every stack, or one per stack (angle-dependent, Q6b)
+  const wavelet = inv.wavelets ? inv.wavelets.map(onGrid) : onGrid(inv.wavelet);
+  const scaled = (k) => (Array.isArray(wavelet) ? wavelet.map((w) => w.map((v) => v * k)) : wavelet.map((v) => v * k));
   const vsVp = inv.vs_vp ?? meanVsVp(inv.wells);
 
   ctx.progress(0.01, 'Reading the well traces');
@@ -143,10 +148,10 @@ export async function prestackInversion(ctx, deps) {
   let scale;
   try { scale = prestackWaveletScale(inv.wells.map((w, k) => ({ well: w, traces: tracesByWell[k] })), thetaDeg, wavelet, vsVp).scale; } catch (e) { return fail('compute_failed', e.message); }
   const lfm = prestackLfm(inv.wells, { dtMs, lfmHz: inv.lfmHz, posOf, horizonsAt });
-  const invert = makeCdpInverter({ inv, thetaDeg, wavelet: wavelet.map((v) => v * scale), lfm, posOf, horizonsAt, ns, dtMs, vsVp });
+  const invert = makeCdpInverter({ inv, thetaDeg, wavelet: scaled(scale), lfm, posOf, horizonsAt, ns, dtMs, vsVp });
   ctx.progress(0.03, 'Blind wells');
   const blind = inv.wells.length >= 2 ? prestackBlindTable({ invert, wells: inv.wells, tracesByWell, dtMs, truthHz: inv.truthHz }) : [];
-  const settings = { qi_class: 'elastic_estimate', method: 'Fatti three-term simultaneous inversion', stacks: stacks.map((s) => ({ volume_id: s.row.id, name: s.row.name, angle: s.angle })), wells: inv.wells.map((w) => w.name), horizon_ids: inv.horizon_ids || [], lfm_hz: inv.lfmHz, eps: inv.eps, vs_vp: vsVp, wavelet_scale: scale };
+  const settings = { qi_class: 'elastic_estimate', method: 'Fatti three-term simultaneous inversion', wavelets: inv.wavelets ? 'one per stack, from the wells' : 'one for every stack', stacks: stacks.map((s) => ({ volume_id: s.row.id, name: s.row.name, angle: s.angle })), wells: inv.wells.map((w) => w.name), horizon_ids: inv.horizon_ids || [], lfm_hz: inv.lfmHz, eps: inv.eps, vs_vp: vsVp, wavelet_scale: scale };
   if (ctx.cancelled) { await cleanup(); return null; }
   if (p.mode === 'blind') { ctx.progress(1, 'Done'); return { mode: 'blind', settings, blind }; }
 

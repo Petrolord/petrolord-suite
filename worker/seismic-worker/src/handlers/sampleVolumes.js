@@ -5,7 +5,8 @@
 // largest absolute value (the event), and every volume is read at that same
 // sample, so the values belong to one reflection. Read only.
 //
-// params: { volume_ids: [] (1 to 8, one lattice), points: [{name, il, xl, t_ms}] (1 to 200), window_ms? (8) }
+// params: { volume_ids: [] (1 to 8, one lattice), points: [{name, il, xl, t_ms}] (1 to 200), window_ms? (8),
+//   traces? (true: the whole trace of every volume at each point instead, up to 20 points; t_ms not needed) }
 // il and xl are 0-based grid indices.
 import { JobFailure } from '../runJob.js';
 import { assertFloat32Parent } from '../../../../src/pages/apps/Seismolord/services/attributeSurveyMeta.js';
@@ -22,8 +23,8 @@ export function validateSampleParams(p) {
   const v = p.volume_ids;
   if (!Array.isArray(v) || v.length < 1 || v.length > 8 || v.some((x) => !UUID.test(String(x)))) return 'Give one to eight volumes.';
   const pts = p.points;
-  if (!Array.isArray(pts) || pts.length < 1 || pts.length > 200) return 'Give one to 200 points.';
-  for (const q of pts) if (!Number.isInteger(q?.il) || !Number.isInteger(q?.xl) || !(q.t_ms >= 0)) return 'Each point needs an inline and crossline index and a time.';
+  if (!Array.isArray(pts) || pts.length < 1 || pts.length > (p.traces ? 20 : 200)) return p.traces ? 'Give one to 20 points for whole traces.' : 'Give one to 200 points.';
+  for (const q of pts) if (!Number.isInteger(q?.il) || !Number.isInteger(q?.xl) || (!p.traces && !(q.t_ms >= 0))) return p.traces ? 'Each point needs an inline and crossline index.' : 'Each point needs an inline and crossline index and a time.';
   if (p.window_ms != null && !(p.window_ms >= 0 && p.window_ms <= 100)) return 'The window must be 0 to 100 ms.';
   return null;
 }
@@ -71,6 +72,10 @@ export async function sampleVolumes(ctx, deps) {
     if (ctx.cancelled) return null;
     if (q.il < 0 || q.il >= nIl || q.xl < 0 || q.xl >= nXl) { out.push({ name: q.name || null, error: 'outside the survey' }); continue; }
     const traces = await Promise.all(readers.map((r) => r(q.il, q.xl)));
+    if (p.traces) {
+      out.push({ name: q.name || null, traces: traces.map((t) => Array.from(t, (v) => (Math.abs(v) <= NULL_LIM ? Number(v.toPrecision(7)) : null))) });
+      continue;
+    }
     const s0 = Math.round(q.t_ms / dtMs);
     const h = Math.round(win / dtMs);
     let best = -1; let bv = -1;
@@ -81,5 +86,5 @@ export async function sampleVolumes(ctx, deps) {
     if (best < 0) { out.push({ name: q.name || null, error: 'no live sample in the window' }); continue; }
     out.push({ name: q.name || null, t_ms: best * dtMs, values: traces.map((t) => (Math.abs(t[best]) <= NULL_LIM ? t[best] : null)) });
   }
-  return { volume_ids: vols.map((v) => v.id), window_ms: win, points: out };
+  return { volume_ids: vols.map((v) => v.id), window_ms: win, dt_ms: dtMs, ns, points: out };
 }
