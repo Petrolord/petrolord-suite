@@ -5,7 +5,7 @@
 // Copy rule: no em dashes, no "X, not Y" contrastives.
 // Guard: __tests__/helpGuide.test.jsx.
 import React from 'react';
-import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity, Layers, Gauge, MapPin, PackageCheck } from 'lucide-react';
+import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity, Layers, Gauge, MapPin, PackageCheck, Rows3 } from 'lucide-react';
 import { HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Step, Table } from '@/components/helpguide/HelpGuideLayout';
 import SharingHelp from '@/components/recordSharing/SharingHelp';
 import { GROUPS, STATES } from './services/inventory';
@@ -20,6 +20,7 @@ export const HELP_SECTIONS = [
   { id: 'inventory', icon: ClipboardList, title: 'Data inventory' },
   { id: 'usability', icon: Grid3x3, title: 'Usability matrix' },
   { id: 'qc', icon: Activity, title: 'Seismic QC' },
+  { id: 'prestack', icon: Rows3, title: 'Prestack gathers and angle stacks' },
   { id: 'inversion', icon: Layers, title: 'Impedance inversion' },
   { id: 'properties', icon: Gauge, title: 'Property prediction' },
   { id: 'prospects', icon: MapPin, title: 'Prospects' },
@@ -96,6 +97,24 @@ function QIStudioHelpGuideContent() {
           the survey. Signal-to-noise below 1 is a high-severity issue and below 3 a medium one; a band narrower than
           10 Hz, a footprint, and a dominant frequency that falls by 40 percent with depth are flagged too. Add the QC
           issues to the register with one click; the results are kept with the project and printed in the report.
+        </Para>
+      </GuideSection>
+
+      <GuideSection id="prestack">
+        <SectionHeading icon={Rows3}>Prestack gathers and angle stacks</SectionHeading>
+        <Para>
+          Upload the CDP gather SEG-Y with Seismolord&apos;s import: a large file goes to the seismic worker&apos;s store. If you
+          try to import a gather file as a stack, Seismolord says it looks like gathers and points here. On the Prestack tab,
+          Build gathers reads the file twice, straight through, and keeps every CDP&apos;s gather in offset bins of the width you
+          set, with its fold. The file must be sorted by inline, then crossline, and the gathers are taken as NMO-corrected.
+        </Para>
+        <Para>
+          Make angle stacks with an RMS velocity table (a time in ms and a velocity in m/s per row) and up to four named angle
+          ranges. Each offset bin&apos;s incidence angle at each time is Walden&apos;s straight-ray estimate, which stays within 1.5
+          degrees of an exact ray trace up to an offset equal to the depth. A stack is the fold-weighted mean of the bins whose
+          angle falls in its range. The usable angle of each CDP is the widest angle reached with the least fold you set, shown
+          across the survey as its 10th, 50th and 90th percentiles. Convert each stack into a Seismolord volume with one button:
+          it goes through the same server import as any large SEG-Y.
         </Para>
       </GuideSection>
 
