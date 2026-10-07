@@ -20,6 +20,7 @@ import { colleagueValuationBody } from './rrvPortfolioFixtures';
 import { buildEpeUnitValue } from '@/pages/apps/epe/epeUnitValue';
 import { listEpeUnitValues, getEpeUnitValue } from '@/pages/apps/epe/epeUnitValueService';
 import { buildLabel } from '@/lib/platformBuild';
+import { readQiProspect } from '@/lib/qiProspectSource';
 
 export const RRV_TABLE = 'rrv_valuations';
 
@@ -105,6 +106,8 @@ export function makeRegistryRrvBackend({ prospects = makeRegistryProspectsBacken
     // (the sender lives with that app: epe/epeUnitValue.js)
     listEpeCases: () => listEpeUnitValues(supabase, { build: buildLabel() }),
     getEpeCase: (runId) => getEpeUnitValue(supabase, runId, { build: buildLabel() }),
+    /** A QI Studio prospect record (qi-prospect-1) by project and prospect id: read only, it sets nothing here. */
+    getQiProspect: (projectId, prospectId) => readQiProspect(supabase, projectId, prospectId),
     /** The signed-in user's organisation name, for the report's Company line (editable there). */
     async organisationName() {
       try {
@@ -130,6 +133,7 @@ export function makeRegistryRrvBackend({ prospects = makeRegistryProspectsBacken
 export function makeInMemoryRrvBackend(seed = [], { table = true, valuations = [], sharedValuations = false, organisation = 'Harness Energy', sharing = makeHarnessSharing(), sharedRows = false, epeRuns = [] } = {}) {
   // Petroleum Economics Studio runs as that app saves them: [{run, caseName, kpis, config, resultsAt}]
   let epe = epeRuns.map((r) => ({ ...r }));
+  const qi = new Map(); // QI Studio prospect records by project/prospect
   const epeSend = (r) => ({
     runId: r.run.id, runName: r.run.run_name ?? null, caseName: r.caseName ?? null, runSavedAt: r.run.created_at ?? null,
     ...buildEpeUnitValue({ run: r.run, caseName: r.caseName, kpis: r.kpis, config: r.config, resultsAt: r.resultsAt, build: 'harness' }),
@@ -185,6 +189,12 @@ export function makeInMemoryRrvBackend(seed = [], { table = true, valuations = [
     async organisationName() { return organisation; },
     async listEpeCases() { return epe.map(epeSend); },
     async getEpeCase(runId) { const r = epe.find((x) => x.run.id === runId); return r ? epeSend(r) : null; },
+    async getQiProspect(projectId, prospectId) {
+      const r = qi.get(`${projectId}/${prospectId}`);
+      return r ? { ok: true, record: r } : { ok: false, reason: 'The QI Studio project was not found, or it is not shared with you.' };
+    },
+    /** test seam: a QI Studio project holds this prospect record */
+    _setQiProspect(projectId, prospectId, record) { qi.set(`${projectId}/${prospectId}`, record); },
     /** test seams: Petroleum Economics Studio re-runs or deletes a run */
     _setEpeRun(runId, change) { epe = epe.map((r) => (r.run.id === runId ? change(r) : r)); },
     _removeEpeRun(runId) { epe = epe.filter((r) => r.run.id !== runId); },

@@ -28,6 +28,7 @@ export const blankProject = () => ({
   qc: {},
   inversion: {},
   properties: {},
+  prospects: [],
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -55,6 +56,8 @@ export function projectFromPayload(payload) {
     inversion: isObj(p.inversion) ? { ...p.inversion } : {},
     // property prediction per impedance volume id: { settings, calibration: {jobId, at, result}, runs: [...] }
     properties: isObj(p.properties) ? { ...p.properties } : {},
+    // prospects (Q10): { id, name, target, surfaceId, attributeId, crestX, crestY, anomaly, evidence, competing, result, record }
+    prospects: Array.isArray(p.prospects) ? p.prospects.filter(isObj).map((x) => ({ ...x })) : [],
   };
 }
 

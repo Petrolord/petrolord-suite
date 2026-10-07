@@ -109,6 +109,21 @@ export function reportModel({ projectName = '', organizationName = '', project, 
         volumes: (rec[k].runs || []).filter((x) => x.status === 'ready').map((x) => x.name),
       };
     })),
+    prospects: (project.prospects || []).filter((p) => p.result).map((p) => {
+      const r = p.result; const n = (v, d) => (Number.isFinite(v) ? v.toFixed(d) : '');
+      const open = (p.competing || []).filter((c) => c.status === 'open').map((c) => c.name);
+      const likely = (p.competing || []).filter((c) => c.status === 'likely').map((c) => c.name);
+      return {
+        name: p.name,
+        row: [
+          p.name, p.target || '', `${n(r.trap.crest.depthM, 0)} / ${n(r.trap.spill.depthM, 0)}${r.trap.limitedByEdge ? ' (edge)' : ''}`, n(r.trap.columnM, 0),
+          r.anomaly ? `${n(r.anomaly.conformance, 2)}; ${n(100 * r.anomaly.insideClosure, 0)} percent inside` : 'none', String(r.evidence.independent),
+          [open.length ? `open: ${open.join(', ')}` : '', likely.length ? `likely: ${likely.join(', ')}` : ''].filter(Boolean).join('; ') || 'none open',
+          VERDICT_LABEL[project.feasibility?.[p.target]?.verdict || ''] || 'Not assessed', r.assessment.seismicSupport, r.assessment.label.split(':')[0],
+        ],
+        text: `${r.assessment.label}. ${r.assessment.reasons.join(' ')} GRV ${r.anomaly ? `${n(r.anomaly.grvImpliedM3 / 1e6, 1)} million m3 to the contact the anomaly implies (${n(r.anomaly.impliedContactDepthM, 0)} m) and ` : ''}${n(r.trap.grvSpillM3 / 1e6, 1)} million m3 to spill.`,
+      };
+    }),
     assumptions: [
       'Curve coverage is judged on each curve\'s recorded depth extent against the zone; gaps inside the extent are checked in Well Data Manager and Rock Physics Studio.',
       'A target is matched by zone name on every well.',
@@ -154,6 +169,13 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
     } else {
       table(`Porosity from ${pp.volume}`, ['Well left out', 'Samples', 'RMS error', 'Correlation', 'Inside Q10 to Q90 (percent)'], pp.rows, { note: `${pp.summary} Calibrated on the wells' logs at seismic scale${pp.at ? ` on ${pp.at}` : ''}; each well is then left out and predicted from the inverted impedance at its trace. Q10 and Q90 bound the 80 percent prediction interval; about 80 percent of a well should fall inside.${vols}` });
     }
+  }
+  if ((model.prospects || []).length) {
+    table('Prospect QI assessment', ['Prospect', 'Target', 'Crest / spill (m)', 'Column (m)', 'Anomaly fit', 'Independent evidence', 'Competing explanations', 'Feasibility', 'Seismic support', 'Recommendation'], model.prospects.map((p) => p.row), {
+      fontSize: 6.5,
+      note: 'The trap from the closure engine on the depth surface; the anomaly fit is the conformance of its downdip edge to one contour (1 is a perfect fit) and its share inside the closure; evidence from one seismic response counts once. QI does not set the chance of success: it reports what the seismic supports for the risk team.',
+    });
+    for (const p of model.prospects) section(`Prospect: ${p.name}`, p.text);
   }
   if (model.issues.rows.length) table('Issue register', model.issues.head, model.issues.rows, { fontSize: 6.5 });
   else section('Issue register', 'No open or resolved issues.');

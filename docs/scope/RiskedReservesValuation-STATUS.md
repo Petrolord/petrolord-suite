@@ -119,3 +119,15 @@ app still works without it. No DDL in Step 2.
   (Ekene North as `valuation-1`, the colleague's Ada Deep as
   `valuation-shared`). No DDL.
 
+
+## QI evidence from QI Studio (QI programme Q10, 2026-10-07)
+
+- Opened with `?qiProject=<id>&qiProspect=<id>` (the "Risked Reserves" link on a
+  QI Studio prospect row), the page reads that prospect's `qi-prospect-1` record
+  (`src/lib/qiProspectSource.js`) from `saved_qi_studio_projects` and shows a read-only
+  QI evidence card:
+  - the recommendation and the seismic support, with the reasons;
+  - the GRV to the implied contact and to spill.
+- The card moves no number and sets no Pg. The page says the user weighs it when
+  setting Pg. A missing or unreadable record says why. No DDL.
+- Tests: `__tests__/rrvQiEvidence.test.jsx` (2).

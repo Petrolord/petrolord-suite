@@ -206,6 +206,20 @@ function RrvWorkstationContent({ backend, rcpHref = RCP_PATH, cpHref = CP_PATH }
     }).catch((e) => { if (live) setLinkNote(e.message); });
     return () => { live = false; };
   }, [backend, linkedRun]);
+  // a QI Studio prospect record sent by link (?qiProject=<id>&qiProspect=<id>): shown beside the prospects, read only
+  const qiProject = params.get('qiProject');
+  const qiProspect = params.get('qiProspect');
+  const [qiCard, setQiCard] = useState(null);
+  useEffect(() => {
+    if (!qiProject || !qiProspect || !backend.getQiProspect) return undefined;
+    let live = true;
+    backend.getQiProspect(qiProject, qiProspect).then((r) => { if (live) setQiCard(r); }).catch((e) => { if (live) setQiCard({ ok: false, reason: e.message }); });
+    return () => { live = false; };
+  }, [backend, qiProject, qiProspect]);
+  const dropQi = () => {
+    setQiCard(null);
+    const next = new URLSearchParams(params); next.delete('qiProject'); next.delete('qiProspect'); setParams(next, { replace: true });
+  };
   const dropOffer = () => {
     setOffer(null);
     setLinkNote(null);
@@ -497,6 +511,7 @@ function RrvWorkstationContent({ backend, rcpHref = RCP_PATH, cpHref = CP_PATH }
             {storage.error ? ` (${storage.error})` : ''}
           </p>
         )}
+        {qiCard && <QiEvidenceCard card={qiCard} onDismiss={dropQi} />}
         {linkNote && (
           <p className="rounded border border-pl-border bg-pl-surface px-3 py-2 text-xs text-pl-text" data-testid="rrv-link-note">
             {linkNote}{' '}
@@ -686,6 +701,34 @@ function RrvWorkstationContent({ backend, rcpHref = RCP_PATH, cpHref = CP_PATH }
 // Design system rollout batch 3E: the workstation opens light and follows
 // the user's theme choice from the toolbar toggle. The route page and the
 // /dev harness both mount this component, so they share the one scope.
+/**
+ * The QI evidence for a prospect from QI Studio (contract qi-prospect-1):
+ * what the seismic supports, the recommendation and its reasons, and the
+ * gross rock volume between the implied contact and the spill point. Read
+ * only: it moves no number here, and QI sets no Pg.
+ */
+function QiEvidenceCard({ card, onDismiss }) {
+  if (!card.ok) {
+    return (
+      <p className="rounded border border-pl-border bg-pl-surface px-3 py-2 text-xs text-pl-warning-text" data-testid="rrv-qi-card">
+        {`The QI Studio record in the link cannot be shown: ${card.reason}`}{' '}
+        <button type="button" className="underline text-pl-primary-text" onClick={onDismiss}>Dismiss</button>
+      </p>
+    );
+  }
+  const r = card.record;
+  const mm3 = (v) => (Number.isFinite(v) ? `${(v / 1e6).toFixed(1)} million m3` : null);
+  const grv = [r.anomaly?.present ? mm3(r.anomaly.grv_implied_m3) && `${mm3(r.anomaly.grv_implied_m3)} to the contact the anomaly implies` : null, mm3(r.trap?.grv_spill_m3) && `${mm3(r.trap.grv_spill_m3)} to spill${r.trap.limited_by_edge ? ' (a lower bound: the spill is on the map edge)' : ''}`].filter(Boolean).join('; ');
+  return (
+    <div className="rounded border border-pl-border bg-pl-surface px-3 py-2 text-xs text-pl-text space-y-1" data-testid="rrv-qi-card">
+      <p className="font-semibold">{`QI evidence for ${r.prospect?.name || 'the prospect'} (${r.project?.name || 'QI Studio'}): ${r.assessment.label}.`}</p>
+      <p>{`Seismic support: ${r.assessment.seismic_support}. ${r.assessment.reasons.join(' ')}`}</p>
+      {grv && <p>{`Gross rock volume: ${grv}.`}</p>}
+      <p className="text-pl-muted">QI Studio does not set the chance of success. Weigh this evidence when you set Pg; nothing here changes until you do. <button type="button" className="underline text-pl-primary-text" onClick={onDismiss}>Dismiss</button></p>
+    </div>
+  );
+}
+
 export default function RrvWorkstation(props) { // eslint-disable-line react/function-component-definition
   return (
     <div className="h-full" data-testid="rrv-theme-scope">

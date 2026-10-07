@@ -66,3 +66,22 @@ test('property issues: poor fit, miscalibrated interval, poor facies', () => {
   const fac = propertyIssues({ settings: { kind: 'facies' }, rows: [{ name: 'W1', accuracy: 0.5 }, { name: 'W2', accuracy: 0.9 }] }, 'AI');
   expect(fac).toHaveLength(1);
 });
+
+test('the report carries the prospect QI assessment and each prospect\'s reasons', async () => {
+  const { makeInMemoryBackend } = require('../services/inMemoryBackend');
+  const { analyseProspect } = require('../services/prospects');
+  const b = makeInMemoryBackend();
+  const [s1, s2] = await b.listSurfaces();
+  const depth = await b.loadSurface(s1); const attr = await b.loadSurface(s2, { attribute: true });
+  const prospect = { id: 'p1', name: 'Keta Dome', target: 'SAND A', anomaly: { threshold: 0.5, sense: 'high' }, evidence: [{ name: 'RMS', source: 'full_stack' }, { name: 'AVO', source: 'avo' }], competing: [{ name: 'Tuning', status: 'open' }] };
+  const result = analyseProspect({ depth, attr, prospect, feasibility: 'feasible' });
+  const p = { ...blankProject(), targets: ['SAND A'], feasibility: { 'SAND A': { verdict: 'feasible' } }, prospects: [{ ...prospect, result }] };
+  const model = reportModel({ project: p, inventory: [], matrix, issues: [], chosenVolumes: [], ready: [] });
+  const t = flat(readPdf(buildQIStudioPdf(model, { generatedAt: new Date('2026-10-07T12:00:00Z') }).doc).text);
+  expect(t).toMatch(/Prospect QI assessment/);
+  expect(t).toMatch(/Keta Dome/);
+  expect(t).toMatch(/open: Tuning/);
+  expect(t).toMatch(/Prospect: Keta Dome/);
+  expect(t).toMatch(/Competing explanations still open: Tuning/);
+  expect(t).toMatch(/million m3 to spill/);
+});
