@@ -27,6 +27,7 @@ import InversionPanel from './components/InversionPanel';
 import PropertiesPanel from './components/PropertiesPanel';
 import ProspectsPanel from './components/ProspectsPanel';
 import PrestackPanel from './components/PrestackPanel';
+import AvoPanel from './components/AvoPanel';
 
 const TABS = [
   { value: 'setup', label: 'Setup' },
@@ -35,6 +36,7 @@ const TABS = [
   { value: 'qc', label: 'Seismic QC' },
   { value: 'ties', label: 'Well ties' },
   { value: 'prestack', label: 'Prestack' },
+  { value: 'avo', label: 'AVO' },
   { value: 'inversion', label: 'Inversion' },
   { value: 'properties', label: 'Properties' },
   { value: 'prospects', label: 'Prospects' },
@@ -157,6 +159,7 @@ function QIStudioContent({ organizationName }) {
         {tab === 'qc' && <QcPanel />}
         {tab === 'ties' && <TiesPanel />}
         {tab === 'prestack' && <PrestackPanel />}
+        {tab === 'avo' && <AvoPanel />}
         {tab === 'inversion' && <InversionPanel />}
         {tab === 'properties' && <PropertiesPanel />}
         {tab === 'prospects' && <ProspectsPanel />}

@@ -30,6 +30,7 @@ export const blankProject = () => ({
   properties: {},
   prospects: [],
   prestack: {},
+  avo: {},
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -61,6 +62,8 @@ export function projectFromPayload(payload) {
     prospects: Array.isArray(p.prospects) ? p.prospects.filter(isObj).map((x) => ({ ...x })) : [],
     // prestack (Q3): angle stack runs per gather store id: { name, at, result: {stacks, usable_angle}, velocity }
     prestack: isObj(p.prestack) ? { ...p.prestack } : {},
+    // AVO (Q7): { runs: [{jobId, volumeIds, name, stacks: [{name, angle}], vsVp, chiDeg, at, status}] }
+    avo: isObj(p.avo) ? { ...p.avo } : {},
   };
 }
 

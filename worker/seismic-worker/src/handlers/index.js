@@ -14,8 +14,9 @@ import { propertyPrediction } from './propertyPrediction.js';
 import { exportSegy } from './exportSegy.js';
 import { ingestGathers } from './ingestGathers.js';
 import { angleStacks } from './angleStacks.js';
+import { avoVolumes } from './avoVolumes.js';
 
-export const KINDS = Object.freeze(['noop', 'stack_to_v4', 'attribute_volume', 'ingest_url', 'scan_dataset', 'seismic_qc', 'poststack_inversion', 'property_prediction', 'export_segy', 'ingest_gathers', 'angle_stacks']);
+export const KINDS = Object.freeze(['noop', 'stack_to_v4', 'attribute_volume', 'ingest_url', 'scan_dataset', 'seismic_qc', 'poststack_inversion', 'property_prediction', 'export_segy', 'ingest_gathers', 'angle_stacks', 'avo_volumes']);
 
 export function createHandlers(deps = {}) {
   return Object.freeze({
@@ -30,5 +31,6 @@ export function createHandlers(deps = {}) {
     export_segy: (ctx) => exportSegy(ctx, deps),
     ingest_gathers: (ctx) => ingestGathers(ctx, deps),
     angle_stacks: (ctx) => angleStacks(ctx, deps),
+    avo_volumes: (ctx) => avoVolumes(ctx, deps),
   });
 }

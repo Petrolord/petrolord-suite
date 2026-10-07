@@ -32,8 +32,8 @@
 import * as FC from '@/utils/dataAi/engine/forecast';
 
 /** The engine build the workbench runs: petrolord-engines at the VENDOR.json pin. */
-export const ENGINE_VERSION = 'petrolord-engines fdcd73b (engines/dataai/forecast.js, PR #255; PR #256 message wording, no numeric change; forecast.js unchanged since 1dfdd60)';
-export const ENGINE_COMMIT = 'fdcd73b77a58ef705cf679849a96cc741048ad7c';
+export const ENGINE_VERSION = 'petrolord-engines 766479d (engines/dataai/forecast.js, PR #255; PR #256 message wording, no numeric change; forecast.js unchanged since 1dfdd60)';
+export const ENGINE_COMMIT = '766479d89f69b6f53541463d817971a0d2356183';
 
 export const DEFAULT_SEED = 42;
 export const ENGINE_DEFAULTS = FC.DEFAULTS;

@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit fdcd73b77a58ef705cf679849a96cc741048ad7c
+# commit 766479d89f69b6f53541463d817971a0d2356183
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 80b08bf546799e96d5448d67c63c98f2ec1b9703 README.md
@@ -170,6 +170,7 @@ ef3cd90f6bdb44da56c3b690cc5010d39511f80b __tests__/production.nodal.test.js
 34a78a4bbea21f6795eb8b457cabf8849575c14d __tests__/production.surveillance.test.js
 f25ba6e6e30355f8364a1af93656dd305c027ab1 __tests__/prospect.valuation.test.js
 8234569920a263cea09a57f8f5a1583cf632b820 __tests__/prototypeChainLookups.test.js
+edb4bba372d3f54b6827865ef991bd6ee530e2f5 __tests__/qi.avo.test.js
 23abe33ffea75f3a8c917420d66b93614186b30e __tests__/qi.gatherStore.test.js
 519652967f7162c407e1918ca140a996b3c939a1 __tests__/qi.inversion.test.js
 e6d7f81fccfe0c1e8a640246a2210dbc8d473515 __tests__/qi.inversionBenchmark.test.js
@@ -501,6 +502,7 @@ b7a2a85022f3df59f44051d5202dcf9746502326 engines/production/pumpingUnit.js
 20e0cb3c3630577d2c4996495cc4f352850b86bc engines/production/rodString.js
 02b493abc6f3f626d6f6ef49575e22cbc5f62f41 engines/production/surveillance.js
 2468504187c6f984b84f318939d55929be3e667a engines/prospect/valuation.js
+1fb38b8c99221903f5bfbb839e19e49ff8ff465f engines/qi/avo.js
 64558a3ec11060d42e891f44e242b2afdbafadf5 engines/qi/gatherStore.js
 9adb98740539dcefc0bbb0f555abaa5f0f35d37e engines/qi/inversion.js
 d00a00ca01a9fd9c18ad49ffbc686797120dc04f engines/qi/inversionSpread.js

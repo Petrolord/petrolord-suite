@@ -109,6 +109,7 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
   const setFeasibility = useCallback((target, patch) => edit((p) => ({ ...p, feasibility: { ...p.feasibility, [target]: { ...(p.feasibility[target] || {}), ...patch } } })), [edit]);
   const setQcResult = useCallback((volumeId, record) => edit((p) => ({ ...p, qc: { ...p.qc, [volumeId]: record } })), [edit]);
   const setProperty = useCallback((aiVolumeId, patch) => edit((p) => ({ ...p, properties: { ...p.properties, [aiVolumeId]: { ...(p.properties?.[aiVolumeId] || {}), ...(typeof patch === 'function' ? patch(p.properties?.[aiVolumeId] || {}) : patch) } } })), [edit]);
+  const setAvo = useCallback((patch) => edit((p) => ({ ...p, avo: { ...(p.avo || {}), ...(typeof patch === 'function' ? patch(p.avo || {}) : patch) } })), [edit]);
   const setPrestack = useCallback((storeId, record) => edit((p) => ({ ...p, prestack: { ...(p.prestack || {}), [storeId]: record } })), [edit]);
   const saveProspect = useCallback((prospect) => edit((p) => {
     const list = (p.prospects || []).slice();
@@ -201,7 +202,7 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
 
   const value = {
     project, wells, volumes, chosenVolumes, loaded, ready, loading, matrix, inventory, issues, targetChoices,
-    toggleWell, toggleVolume, toggleTarget, setSeismicAcquired, setFirstProduction, setInventory, saveIssue, setFeasibility, setQcResult, setInversion, setProperty, saveProspect, removeProspect, setPrestack,
+    toggleWell, toggleVolume, toggleTarget, setSeismicAcquired, setFirstProduction, setInventory, saveIssue, setFeasibility, setQcResult, setInversion, setProperty, saveProspect, removeProspect, setPrestack, setAvo,
     jobs: backend.jobs || null, backend,
     projects, sharedProjects, currentProjectId, projectName, projectRow: shared.projectRow, sharing: shared.sharing,
     viewingShared: shared.viewingShared, canWrite, savingAvailable: saving.available, savingReason: saving.reason,

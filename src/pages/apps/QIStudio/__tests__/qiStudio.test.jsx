@@ -271,3 +271,24 @@ test('prestack: build gathers, angle stacks with a velocity table, the usable an
   fireEvent.click(screen.getByTestId('qi-pre-convert-qi-d3'));
   await waitFor(() => expect(convert).toHaveBeenCalledWith(expect.objectContaining({ id: 'qi-d3' })));
 });
+
+test('AVO: three stacks with their angles, the products registered on the first, the run kept', async () => {
+  const backend = makeInMemoryBackend();
+  const base = backend.listVolumes;
+  backend.listVolumes = async () => [...(await base()), { id: 'qi-v2', name: 'Keta mid stack', kind: 'seismic', status: 'ready' }, { id: 'qi-v3', name: 'Keta far stack', kind: 'seismic', status: 'ready' }];
+  const enqueue = jest.spyOn(backend.jobs, 'enqueueJob');
+  render(<MemoryRouter><QIStudio backend={backend} sharingStore={null} /></MemoryRouter>);
+  for (const v of ['qi-v1', 'qi-v2', 'qi-v3']) fireEvent.click(await screen.findByTestId(`qi-volume-${v}`, {}, { timeout: 20000 }));
+  fireEvent.click(screen.getByTestId('qi-tab-avo'));
+  [['qi-v1', 8], ['qi-v2', 20], ['qi-v3', 32]].forEach(([v, a], k) => {
+    fireEvent.change(screen.getByTestId(`qi-avo-stack-${k}`), { target: { value: v } });
+    fireEvent.change(screen.getByTestId(`qi-avo-angle-${k}`), { target: { value: String(a) } });
+  });
+  fireEvent.click(screen.getByTestId('qi-avo-run'));
+  const runs = await screen.findByTestId('qi-avo-runs', {}, { timeout: 20000 });
+  await waitFor(() => expect(runs).toHaveTextContent(/Ready: open in Seismolord/));
+  const [kind, params] = enqueue.mock.calls[0];
+  expect(kind).toBe('avo_volumes');
+  expect(params.stacks).toEqual([{ volume_id: 'qi-v1', angle: 8 }, { volume_id: 'qi-v2', angle: 20 }, { volume_id: 'qi-v3', angle: 32 }]);
+  expect(params.products).toEqual({ A: 'mem-avo-qi-v1-A', B: 'mem-avo-qi-v1-B', FF: 'mem-avo-qi-v1-FF' });
+});
