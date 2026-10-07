@@ -19,9 +19,8 @@ backlog left for the next round.
 - Heavy work runs on the seismic worker (`worker/seismic-worker`, 17 job kinds,
   live at suite-1c4681ed8+engines-d60083a5e since 2026-10-07).
 - Saved projects: `saved_qi_studio_projects`
-  (`20261006140000_saved_qi_studio_projects.sql`), not yet applied to
-  production. Until it is, the app says saving is not switched on and the
-  report is the way to keep a study.
+  (`20261006140000_saved_qi_studio_projects.sql`), applied to production
+  2026-10-07.
 
 ## Evidence kit
 
@@ -40,7 +39,7 @@ backlog left for the next round.
 | PL2 The hostile file set | Pass | | Vendor aliases (DTCO, RHOZ, PHIT), digitized curves and missing shear are graded on the usability matrix with reasons. Gathers arrive with the offset at byte 37 by default and the byte is editable. |
 | PL3 Units, datums and frames | Pass | | Wells without an elevation are refused for time work and say why (BONSU-3). Times are TWT ms throughout; depths on the prospect tab are TVDSS elevation as the surfaces registry stores them. |
 | PL4 No claim without the event | Pass | | Server results only show once the job has succeeded. QI never sets Pg: Prospects hands a record to Risked Reserves Valuation. An absent anomaly lowers confidence only where feasibility says the case is visible. |
-| PL5 Real saved state | Waits on the apply | | The saved-projects table is not applied in production yet. The app detects the missing table and says so (tested). `.pld` carries `saved_qi_studio_projects` (#908). |
+| PL5 Real saved state | Pass | | The saved-projects table is applied (2026-10-07). Before the apply the app detected the missing table and said so (tested). `.pld` carries `saved_qi_studio_projects` (#908). |
 | PL6 Real browser | Failed, fixed | QI-U1-002, 003 | Six browser tests green. The dark theme check had not switched the app to dark (it used the media query, which the Suite scope ignores); it now uses the theme toggle and asserts its state. |
 | PL7 The report a reviewer can sign | Failed, fixed | QI-U1-002 | The PDF was titled "QI Data Audit and Feasibility Report" while carrying the ties, AVO, angle wavelets, prospect assessment and handover. Retitled "Quantitative Interpretation Report"; the header, page description and help say the same. |
 | PL8 The practitioner's day | Pass, gaps recorded | | Persona walks below. |
@@ -130,8 +129,7 @@ qi_datasets, SEG-Y exports, the RRV prospect record and `.pld`.
 
 ### Owner items
 
-1. Apply `20261006140000_saved_qi_studio_projects.sql` to production, so QI
-   projects save (the app says saving is off until then).
+1. ~~Apply `20261006140000_saved_qi_studio_projects.sql`~~ Applied 2026-10-07.
 2. Decide the QI Studio tile and price (U2-003).
 3. The Volve and F3 licence check for the benchmark (U2-002).
-4. Cut the Suite zip from main once this round merges.
+4. ~~Cut the Suite zip~~ Live 2026-10-07 (dc206c539).
