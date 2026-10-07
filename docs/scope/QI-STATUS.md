@@ -660,10 +660,10 @@ The quota is pooled per organisation. Building that is the next item.
 - **Upgrade doc:** `docs/upgrade/QI-UPGRADE.md` (the twelve checks, persona walks, parity, ranked backlog).
 - **Decision:** QI Studio rides the Seismolord or Rock Physics Studio licence until the owner sets its own tile and price.
 - **Owner items:**
-  - apply `20261006140000_saved_qi_studio_projects.sql`;
+  - ~~apply `20261006140000_saved_qi_studio_projects.sql`~~ APPLIED 2026-10-07 and verified (RLS, 4 policies, triggers, registration; anon no SELECT);
   - set the tile and price;
   - run the Volve and F3 licence check;
-  - cut the Suite zip.
+  - ~~cut the Suite zip~~ LIVE 2026-10-07: Suite dc206c539 uploaded and purged; /version.json, all 868 chunks and the QI markers verified.
 
 ### Q12b Findings from the user manual (2026-10-07)
 The manual was written against the source, and it found the following.
