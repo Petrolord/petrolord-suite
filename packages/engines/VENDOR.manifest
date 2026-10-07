@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit cbddb651ec418215802053ecc41f2e5c67aff9c8
+# commit 6a6b19877d1de1fcd9578f12fbb46444df40c618
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 80b08bf546799e96d5448d67c63c98f2ec1b9703 README.md
@@ -212,6 +212,7 @@ a2b2db7aea12cc3c1b17551047687a2497ad7397 __tests__/seismolord.localsource.test.j
 b0bae05701a81bdc60ed1f72bb230c19b099b073 __tests__/seismolord.manifestgate.test.js
 636459112a6ddc831edc8c35f26b83215593641f __tests__/seismolord.pickexport.test.js
 d439c4815386e9d7cc43601f8a74f1dd3a80a046 __tests__/seismolord.previewreads.test.js
+b776241f4320375e7a0d471707a5d36e14f9b7f9 __tests__/seismolord.segyWrite.test.js
 57e279cc8db53c734fac234b3909b68b6a0230f3 __tests__/seismolord.segyformats.test.js
 bf7806d278a935fac4082f53a7fc2f2f5147e5fe __tests__/seismolord.stratal.test.js
 76069a1f31a767f3e9418accdfe5a6605e72974f __tests__/seismolord.structure.test.js
@@ -554,6 +555,7 @@ de3474443e760832527784db15aada29e62baeee engines/seismolord/reader.js
 8d241d76b57115e3b50bfd8297c5e3ffe0299cb2 engines/seismolord/segyDecode.js
 eeb7dd106e142166c4de428017a5e2a8fea28e5d engines/seismolord/segyScan.js
 ac0554cb6ad75998b8ca0045bf3b602b514cd4a8 engines/seismolord/segyTranscode.js
+c3be03502eef7ef73d2b0de06e6994235b45430c engines/seismolord/segyWrite.js
 39b0ebeea7d3f288c368aa273cbbfe096cb10f51 engines/seismolord/sliceAssembly.js
 05b9661fd623d38f677d9bfdb5d81f25e142b778 engines/seismolord/structureAttributes.js
 b25daf4269bfc3e92a7ece33e6f3e4510ab68cf3 engines/seismolord/surfaceOnLattice.js
@@ -873,6 +875,7 @@ bbb3dd5308c5faf1da1ee52789737d9f227ff406 test-data/seismolord/faults/charisma_fa
 044e3bcec73b925da5f844e4f667de86892a0778 test-data/seismolord/faults/generic_faultsticks.csv
 64054def04c5ceae69602bc5e23979cead5a43b9 test-data/seismolord/faults/generic_faultsticks_blankline.dat
 dda9676b747f1056436095ce64242d339745b6f1 test-data/seismolord/faults/iesx_faultsticks.txt
+08471339989c5c288aae3a9018618492790ac355 test-data/seismolord/goldens.segyWrite.json
 0eee932608f3a61960ec003790d0c5062d77b774 test-data/seismolord/isofrequency/isofrequency_golden.json
 3d6013978fac45e7317503686ae433b3bccc9ecb test-data/seismolord/picks/README.md
 69d4ed3b339d3646f1e183479c359816906549df test-data/seismolord/picks/charisma3d_bad_rows.txt
@@ -885,6 +888,7 @@ b0ed49b810132b17a0e1fa8a0c8dcf2f48bc9fdd test-data/seismolord/picks/earthvision_
 24afe52becfcd4b5faf6e1cee602c13a67eae0c4 test-data/seismolord/picks/iesx3d_opendtect_segment_excerpt.dat
 590d1afa1783b1740b965ef0fd8fc461aedebe1a test-data/seismolord/picks/iesx3d_petrel_two_horizons.txt
 0ef6b5ce06b2064a0ef077c25f1eefd1e7f22cd6 test-data/seismolord/picks/opendtect_multi_named_ilxl_excerpt.dat
+10105a6c0c89f5e7cccaf33ade2462a140c9f5db test-data/seismolord/segyWrite.sample.json
 bd97dba46fa2a1ade535da106d85ead5e1cc8b23 test-data/seismolord/segy_formats/fmt11_uint16_be.sgy
 d68546e8b08769e0f552b3e1a3d8354d45566124 test-data/seismolord/segy_formats/fmt16_uint8_be.sgy
 3e5ce110643187b805a41b4ac8de45e5e76bc3b6 test-data/seismolord/segy_formats/fmt1_ibm_le.sgy
@@ -1208,6 +1212,8 @@ e06406c36ff743cae42ef3b48b98161ddc9a964a tools/validation/rockphysics/oracle_ela
 ab78abe3ca4d45aa7ef017db0889db20189d3b14 tools/validation/rockphysics/oracle_inclusion.py
 480487e6085a46b00a5d0e21ab647904f5a8b321 tools/validation/rockphysics/oracle_u2.py
 cdb2d22d81a20c788992d724c5e4d97f47abab89 tools/validation/seismolord/gen_segy_formats.py
+7cc3bf86619ef843a0495e2d799f824fb67d52b6 tools/validation/seismolord/oracle_segy_write.py
+2684f84e96b4a1a63064a07b7feb2b7b7f62ced9 tools/validation/seismolord/segy_write_sample.mjs
 711f86582f9f59357245cd679b6e47be74396b3a tools/validation/supplychain/FINDINGS-inventory.md
 cd87d6280fe0a6b8d482a5daa555f99cd856139c tools/validation/supplychain/FINDINGS-marine.md
 f2bbd34d355401a76efa811b63d9aa49baa592b8 tools/validation/supplychain/FINDINGS-tender.md
