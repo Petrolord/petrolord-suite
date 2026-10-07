@@ -197,7 +197,9 @@ function QIStudioHelpGuideContent() {
           Porosity is a straight line in impedance fitted by least squares, with the 80 percent prediction interval of a new
           value: the volumes are porosity at Q10, Q50 and Q90. Facies are classified the Bayesian way: a Gaussian or kernel
           density of impedance per facies, priors from the wells&apos; proportions or equal, and the probability of each facies
-          with the most likely one. A facies named for a fluid (gas, oil, brine) is labelled a fluid hypothesis.
+          with the most likely one. A facies named for a fluid (gas, oil, brine) is labelled a fluid hypothesis. From a
+          simultaneous inversion, facies can be classified in AI and Vp/Vs together: that is what tells a gas sand from a shale
+          of the same impedance. The wells then need a shear sonic, and the Vp/Vs volume of the same run is used beside the AI.
         </Para>
         <Para>
           Calibrate and check before predicting the volume: each well is left out, the model is refitted on the others, and the

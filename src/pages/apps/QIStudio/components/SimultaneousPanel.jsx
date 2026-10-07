@@ -91,7 +91,7 @@ export default function SimultaneousPanel() {
       for (const [k, label] of [['ai', 'AI'], ['si', 'SI'], ['rho', 'density'], ['vpvs', 'Vp/Vs']]) rows.push({ k, row: await backend.registerPrestackVolume({ volume: first, name: `${first.name} ${label}, simultaneous`, summary: { product: k, qi_class: 'elastic_estimate' } }) });
       const ids = Object.fromEntries(rows.map((r) => [r.k, r.row.id]));
       const jobId = await client.enqueueJob('prestack_inversion', { mode: 'volume', volume_ids: ids, name: `${first.name} simultaneous inversion`, inversion: block() });
-      setSimultaneous((cur) => ({ runs: [...(cur.runs || []), { jobId, volumeIds: ids, name: `${first.name}: AI, SI, density, Vp/Vs`, at: new Date().toISOString(), status: 'queued' }] }));
+      setSimultaneous((cur) => ({ runs: [...(cur.runs || []), { jobId, volumeIds: ids, firstVolumeId: first.id, name: `${first.name}: AI, SI, density, Vp/Vs`, at: new Date().toISOString(), status: 'queued' }] }));
       watch('volume', jobId, (row) => setSimultaneous((cur) => ({ runs: (cur.runs || []).map((r) => (r.jobId === jobId ? { ...r, status: 'ready', at: row.finished_at || r.at } : r)) })));
     } catch (e) {
       for (const r of rows) { try { await backend.removeVolume(r.row); } catch { /* best effort */ } }
