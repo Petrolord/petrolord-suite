@@ -10,8 +10,8 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
 | Q0b Seismolord on the worker | DONE: merged #893; both migrations applied and verified 2026-10-06 |
 | Milestone A (Q1, Q2, Q4a, Q6a) | DONE: A1 to A6 merged 2026-10-06 (#894, #896 to #901, #903). Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
 | Milestone B (Q8a, Q9a, Q10, Q11) | DONE (#904 to #908); worker live. Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
-| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a DONE (#909), Q3b DONE (#910); worker live. Q7 AVO DONE (#911); worker live. Q7b DONE (#912); worker live. Q8b DONE (#913); worker live. Q9b DONE (#915); worker live. Q6b DONE (#916); worker live. Q4b DONE (#917); worker live. Q5 conditioning built (engines #338, #339; Suite feat/qi-q5-conditioning) |
-| Q12 Benchmark and tester waves | Not started |
+| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a DONE (#909), Q3b DONE (#910); worker live. Q7 AVO DONE (#911); worker live. Q7b DONE (#912); worker live. Q8b DONE (#913); worker live. Q9b DONE (#915); worker live. Q6b DONE (#916); worker live. Q4b DONE (#917); worker live. Q5 DONE (#918); worker live (suite-1c4681ed8+engines-d60083a5e, 2026-10-07). Acceptance on an open prestack dataset waits for the owner's Volve licence check |
+| Q12 Benchmark and tester waves | Tester walk, fixes and close done (feat/qi-q12-close; `docs/upgrade/QI-UPGRADE.md`; `e2e/qi-studio.spec.js`). User manual delivered outside git. Open-dataset benchmark waits for the licence check |
 
 ## Key facts
 
@@ -643,5 +643,24 @@ The quota is pooled per organisation. Building that is the next item.
   - **One operator per stack, never per trace:** a per-trace match removes the amplitude differences between stacks that AVO measures.
   - **Spectral balancing stays out of the AVO path:** the engine's balancing shapes each trace to an absolute target, which would equalise amplitudes. A survey-wide shaping filter per stack, which keeps relative amplitudes, is a follow-up if a study needs bandwidth matching.
   - **Radon multiple attenuation, f-x deconvolution and structure-oriented filtering are not in this round.** Contractors deliver gathers with the multiple removal done, and the trim and matching above are what QI amplitude work needs from conditioning. They are recorded as follow-ups for Q12's review.
-- **Worker deploy:** needed after merge, for `trim_gathers` and `match_stacks`.
+- **Merged:** #918 (main 1c4681ed8). Worker deployed 2026-10-07 with all 17 kinds (health checked).
 - **Remaining in the plan:** the stack family (declared against measured angles across vintages), and Q12 (benchmark on the open datasets once licensed, tester walks, the user manual, the QI upgrade doc).
+
+## Q12 Close (2026-10-07)
+- **Browser walk** (`e2e/qi-studio.spec.js`, 6 tests, green on the isolated dev server):
+  - the Package 1 audit through to the PDF, read back with pdftotext;
+  - seismic QC, with the footprint issue added to the register;
+  - the prestack chain (gathers, angle stacks, trim, gather QC);
+  - every tab at 1366x768 in light and dark, with no page errors and no sideways scroll;
+  - the help link, and the guide route gated like the app.
+- **Fixes:**
+  - QI-U1-001 (S2): a cleared number reached the job as 0. This hit the AVO and Simultaneous mean angles and the Inversion model cut and weight. The run is now held, with a message.
+  - QI-U1-002: the report and header named only the Package 1 audit. Both are retitled "Quantitative Interpretation Report".
+  - QI-U1-003: the e2e dark check now switches the theme with the toggle.
+- **Upgrade doc:** `docs/upgrade/QI-UPGRADE.md` (the twelve checks, persona walks, parity, ranked backlog).
+- **Decision:** QI Studio rides the Seismolord or Rock Physics Studio licence until the owner sets its own tile and price.
+- **Owner items:**
+  - apply `20261006140000_saved_qi_studio_projects.sql`;
+  - set the tile and price;
+  - run the Volve and F3 licence check;
+  - cut the Suite zip.
