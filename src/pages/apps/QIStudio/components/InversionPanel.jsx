@@ -13,6 +13,7 @@ import { useQIStudio } from '../QIStudioContext';
 import { tieRows, waveletComparison } from '../services/ties';
 import { prepareWell } from '../services/inversionWells';
 import { INVERSION_METHODS, INVERSION_DEFAULTS, inversionIssues, validateSensitivity, MAX_SCENARIOS } from '../services/inversionRun';
+import ExportControls from './ExportControls';
 
 const SPREAD_KEYS = [['q10', 'AI Q10'], ['q50', 'AI Q50'], ['q90', 'AI Q90'], ['spread', 'AI spread']];
 const LFM_FACTORS = [0.5, 1, 1.5];
@@ -352,7 +353,7 @@ export default function InversionPanel() {
       )}
       {(saved.runs || []).length > 0 && (
         <table className="text-xs" data-testid="qi-inv-runs">
-          <thead><tr><th className={th}>Impedance volume</th><th className={th}>Method</th><th className={th}>Status</th><th className={th}>When</th></tr></thead>
+          <thead><tr><th className={th}>Impedance volume</th><th className={th}>Method</th><th className={th}>Status</th><th className={th}>When</th><th className={th}>Handover</th></tr></thead>
           <tbody>
             {saved.runs.map((r) => (
               <tr key={r.jobId}>
@@ -360,6 +361,7 @@ export default function InversionPanel() {
                 <td className={td}>{INVERSION_METHODS[r.method]?.label || r.method}</td>
                 <td className={td}>{r.status === 'ready' ? <Link className="underline" to="/dashboard/apps/geoscience/seismolord">Ready: open in Seismolord</Link> : r.status}</td>
                 <td className={td}>{String(r.at).slice(0, 16).replace('T', ' ')}</td>
+                <td className={td}>{r.status === 'ready' && <ExportControls name={r.name} jobId={r.jobId} volumes={r.volumeIds ? Object.entries(r.volumeIds).map(([k, id]) => ({ key: k, label: k.toUpperCase(), id })) : [{ key: 'ai', label: 'AI', id: r.volumeId }]} />}</td>
               </tr>
             ))}
           </tbody>

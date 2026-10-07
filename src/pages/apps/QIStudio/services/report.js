@@ -124,11 +124,45 @@ export function reportModel({ projectName = '', organizationName = '', project, 
         text: `${r.assessment.label}. ${r.assessment.reasons.join(' ')} GRV ${r.anomaly ? `${n(r.anomaly.grvImpliedM3 / 1e6, 1)} million m3 to the contact the anomaly implies (${n(r.anomaly.impliedContactDepthM, 0)} m) and ` : ''}${n(r.trap.grvSpillM3 / 1e6, 1)} million m3 to spill.`,
       };
     }),
+    executive: (() => {
+      const out = [];
+      const inv = Object.values(project.inversion || {}).map((r) => r?.blind?.result?.blind || r?.spread?.result?.blind).filter((b) => b?.length);
+      const errs = inv.flat().map((w) => w.blind?.rmsPct).filter(Number.isFinite);
+      if (errs.length) out.push(`Impedance inversion was checked at ${errs.length} blind well${errs.length === 1 ? '' : 's'}: mean blind AI error ${(errs.reduce((a, v) => a + v, 0) / errs.length).toFixed(1)} percent (largest ${Math.max(...errs).toFixed(1)}).`);
+      const props = Object.values(project.properties || {}).flatMap((rec) => ['porosity', 'facies'].map((k) => rec?.[k]?.calibration?.result).filter(Boolean));
+      for (const pr of props) {
+        const rows = (pr.rows || []).filter((r) => !r.error);
+        if (pr.settings?.kind === 'facies') {
+          const acc = rows.map((r) => r.accuracy).filter(Number.isFinite);
+          if (acc.length) out.push(`Facies from impedance were predicted right at ${(100 * acc.reduce((a, v) => a + v, 0) / acc.length).toFixed(1)} percent of the samples of left-out wells.`);
+        } else {
+          const cov = rows.map((r) => r.coverage).filter(Number.isFinite);
+          if (cov.length) out.push(`Porosity from impedance: on average ${(100 * cov.reduce((a, v) => a + v, 0) / cov.length).toFixed(1)} percent of each left-out well falls inside Q10 to Q90 (80 percent is the aim).`);
+        }
+      }
+      const pros = (project.prospects || []).filter((p) => p.result);
+      if (pros.length) {
+        const by = {};
+        for (const p of pros) by[p.result.assessment.recommendation] = (by[p.result.assessment.recommendation] || 0) + 1;
+        out.push(`${pros.length} prospect${pros.length === 1 ? '' : 's'} assessed: ${['mature', 'retain', 'investigate', 'downgrade'].filter((k) => by[k]).map((k) => `${by[k]} ${k}`).join(', ')}.`);
+      }
+      const high = issues.filter((i) => i.status === 'open' && i.severity === 'high').length;
+      out.push(high ? `${high} high-severity issue${high === 1 ? '' : 's'} remain${high === 1 ? 's' : ''} open; see the issue register.` : 'No high-severity issue is open.');
+      return out.join(' ');
+    })(),
+    handover: [
+      ...Object.values(project.inversion || {}).flatMap((r) => (r.runs || []).filter((x) => x.status === 'ready').map((x) => [x.name, INVERSION_METHODS[x.method]?.label || x.method, 'elastic estimate', 'SEG-Y from the seismic worker; run record'])),
+      ...Object.values(project.properties || {}).flatMap((rec) => ['porosity', 'facies'].flatMap((k) => (rec?.[k]?.runs || []).filter((x) => x.status === 'ready').map((x) => [x.name, k === 'facies' ? 'Bayesian facies' : 'Porosity transform', k === 'facies' ? 'calibrated prediction (fluid facies: fluid hypothesis)' : 'calibrated prediction', 'SEG-Y from the seismic worker; run record']))),
+      ...(project.prospects || []).filter((p) => p.result).map((p) => [p.name, 'Prospect QI assessment', 'interpretation', 'qi-prospect-1 record, read by Risked Reserves Valuation']),
+    ],
     assumptions: [
       'Curve coverage is judged on each curve\'s recorded depth extent against the zone; gaps inside the extent are checked in Well Data Manager and Rock Physics Studio.',
       'A target is matched by zone name on every well.',
       'Inventory states suggested from the Suite registries were reviewed by the author; groups the Suite cannot see were entered by hand.',
       'The feasibility verdicts and reasoning are the author\'s, from the rock physics work in Rock Physics Studio.',
+      'Products are labelled by what they are: an elastic estimate is inverted from the seismic (impedance); a calibrated prediction is a property fitted at the wells and predicted from an estimate (porosity, facies probability); an interpretation is a judgement on the evidence (the prospect assessment); a fluid hypothesis is a fluid case the data can support but not prove.',
+      'Inversion and property results away from wells lean on the low-frequency model and on the wells used; the blind-well and left-out checks measure that at the wells only.',
+      'QI does not set the chance of success of a prospect; it reports what the seismic supports for the risk team.',
     ],
   };
 }
@@ -138,6 +172,7 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
   const report = createReport({ title: REPORT_TITLE, appName: APP_NAME, logo });
   const { table, section } = report;
   report.header({ identification: model.identification, generatedAt });
+  if (model.executive) section('Executive summary', model.executive);
   section('Summary', model.summary);
   table('Data inventory', model.inventory.head, model.inventory.rows, { fontSize: 6.5 });
   if (model.usability.rows.length) {
@@ -177,6 +212,7 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
     });
     for (const p of model.prospects) section(`Prospect: ${p.name}`, p.text);
   }
+  if ((model.handover || []).length) table('Handover', ['Product', 'Method', 'Label', 'Delivered as'], model.handover, { note: 'SEG-Y of each volume comes from the seismic worker (rev 1, IEEE float, inline 189, crossline 193); LAS of the logs from Well Data Manager; each run has a run record of its settings, inputs and engine.' });
   if (model.issues.rows.length) table('Issue register', model.issues.head, model.issues.rows, { fontSize: 6.5 });
   else section('Issue register', 'No open or resolved issues.');
   for (const f of model.feasibility) {

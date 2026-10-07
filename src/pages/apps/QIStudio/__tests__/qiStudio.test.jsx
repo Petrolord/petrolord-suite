@@ -189,6 +189,21 @@ test('inversion: the wells read into impedance, the blind-well check and a volum
   await waitFor(() => expect(runs).toHaveTextContent(/Ready: open in Seismolord/));
   expect(enqueue.mock.calls[2][1]).toMatchObject({ mode: 'volume', volume_id: 'mem-inv-qi-v1' });
 
+  // handover: SEG-Y of the impedance volume from the worker, and the run record
+  fireEvent.click(within(runs).getByTestId('qi-export-ai'));
+  expect(await within(runs).findByTestId('qi-export-link-ai', {}, { timeout: 20000 })).toHaveAttribute('href', 'https://storage.petrolord.com/harness/export.sgy');
+  expect(enqueue.mock.calls[3]).toEqual(['export_segy', { volume_id: 'mem-inv-qi-v1', name: expect.stringMatching(/AI SEG-Y$/) }]);
+  const blobs = [];
+  global.URL.createObjectURL = jest.fn((b) => { blobs.push(b); return 'blob:x'; });
+  global.URL.revokeObjectURL = jest.fn();
+  fireEvent.click(within(runs).getByTestId('qi-run-record'));
+  await waitFor(() => expect(blobs).toHaveLength(1));
+  // jsdom's Blob has no text(): read it with a FileReader
+  const rec = JSON.parse(await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsText(blobs[0]); }));
+  expect(rec.contract).toBe('qi-run-record-1');
+  expect(rec.job.kind).toBe('poststack_inversion');
+  expect(rec.settings.inversion.wells[0].ln_ai.values).toBe(600);
+
   // property prediction from the finished impedance volume
   fireEvent.click(screen.getByTestId('qi-tab-properties'));
   expect(screen.getByTestId('qi-prop-ai')).toHaveTextContent(/Keta 3D full stack AI, Model-based/);
@@ -198,7 +213,7 @@ test('inversion: the wells read into impedance, the blind-well check and a volum
   fireEvent.click(screen.getByTestId('qi-prop-calibrate'));
   expect(await screen.findByTestId('qi-prop-transform', {}, { timeout: 20000 })).toHaveTextContent(/porosity = 0\.4100 - 3\.400e-5 x AI/);
   expect(within(screen.getByTestId('qi-prop-check')).getAllByRole('row')).toHaveLength(3);
-  const [pkind, pparams] = enqueue.mock.calls[3];
+  const [pkind, pparams] = enqueue.mock.calls[4];
   expect(pkind).toBe('property_prediction');
   expect(pparams).toMatchObject({ mode: 'calibrate', ai_volume_id: 'mem-inv-qi-v1' });
   expect(pparams.property.wells.map((w) => w.name)).toEqual(['KETA-1', 'KETA-4']);
@@ -206,7 +221,7 @@ test('inversion: the wells read into impedance, the blind-well check and a volum
   fireEvent.click(screen.getByTestId('qi-prop-run'));
   const pruns = await screen.findByTestId('qi-prop-runs', {}, { timeout: 20000 });
   await waitFor(() => expect(pruns).toHaveTextContent(/Ready: open in Seismolord/));
-  expect(Object.keys(enqueue.mock.calls[4][1].volume_ids)).toEqual(['q10', 'q50', 'q90']);
+  expect(Object.keys(enqueue.mock.calls[5][1].volume_ids)).toEqual(['q10', 'q50', 'q90']);
 });
 
 test('prospects: a trap on the dome, a conforming anomaly, the assessment table and the report', async () => {

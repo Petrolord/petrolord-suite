@@ -10,6 +10,7 @@ import { CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYL
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { useQIStudio } from '../QIStudioContext';
 import { tieRows, waveletComparison, tieIssues } from '../services/ties';
+import { waveletText, downloadText } from '../services/handover';
 
 const card = 'rounded-lg border border-pl-border bg-pl-surface p-4 space-y-3';
 const muted = 'text-xs text-pl-muted';
@@ -49,7 +50,7 @@ export default function TiesPanel() {
         <Link className="underline" to="/dashboard/apps/geoscience/seismolord">Open Seismolord</Link>
       </p>
       <table className="text-xs" data-testid="qi-ties-table">
-        <thead><tr><th className={th}>Well</th><th className={th}>Mean correlation</th><th className={th}>Minimum</th><th className={th}>Bulk shift (ms)</th><th className={th}>Wavelet</th><th className={th}>Tied on</th></tr></thead>
+        <thead><tr><th className={th}>Well</th><th className={th}>Mean correlation</th><th className={th}>Minimum</th><th className={th}>Bulk shift (ms)</th><th className={th}>Wavelet</th><th className={th}>Tied on</th><th className={th} /></tr></thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.wellId}>
@@ -61,8 +62,9 @@ export default function TiesPanel() {
                   <td className={`${td} font-mono`}>{f(r.tie.shiftMs, 1)}</td>
                   <td className={td}>{r.tie.wavelet ? `${r.tie.wavelet.kind || 'tie'}, ${f(r.tie.wavelet.peakHz, 1)} Hz, ${f(r.tie.wavelet.phaseDeg, 0)} deg${r.tie.wavelet.samples ? '' : ' (wavelet not stored)'}` : EMPTY_VALUE}</td>
                   <td className={td}>{String(r.tie.measuredAt || '').slice(0, 10) || EMPTY_VALUE}</td>
+                  <td className={td}>{r.tie.wavelet?.samples && <button type="button" className={btn} onClick={() => downloadText(`${r.wellName.replace(/[^A-Za-z0-9._-]+/g, '_')}_wavelet.txt`, waveletText({ name: `${r.wellName} tie wavelet`, dtMs: r.tie.wavelet.dtMs, samples: r.tie.wavelet.samples, source: 'the wavelet stored with the Seismolord tie' }))}>Wavelet (text)</button>}</td>
                 </>
-              ) : <td className={`${td} text-pl-muted`} colSpan={5}>No tie committed in Seismolord</td>}
+              ) : <td className={`${td} text-pl-muted`} colSpan={6}>No tie committed in Seismolord</td>}
             </tr>
           ))}
         </tbody>
@@ -94,6 +96,7 @@ export default function TiesPanel() {
             </tbody>
           </table>
           <p className={muted}>{`Wavelets resampled to ${cmp.dtMs} ms, aligned to ${cmp.names[0]} by cross-correlation and normalised to unit energy before averaging.`}</p>
+          <button type="button" className={btn} onClick={() => downloadText('field_wavelet.txt', waveletText({ name: 'Field wavelet', dtMs: cmp.dtMs, samples: cmp.average, source: `average of the tie wavelets of ${cmp.names.join(', ')}` }))} data-testid="qi-ties-download-field">Download the field wavelet (text)</button>
         </div>
       ) : <p className={muted}>The wavelet comparison needs at least two wells whose ties stored their wavelet.</p>}
       {issues.length > 0 && canWrite && <button type="button" className={btn} onClick={addIssues} data-testid="qi-ties-issues">{`Add ${issues.length} tie issue${issues.length === 1 ? '' : 's'} to the register`}</button>}

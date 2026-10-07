@@ -31,6 +31,10 @@ export const SAVED_PROJECT_TABLES = [
   'saved_tank_projects', 'saved_terminal_projects', 'saved_valve_projects',
   'saved_voi_projects', 'saved_vrr_projects', 'saved_waterflood_design_projects',
   'saved_waterflood_projects', 'saved_well_spacing_projects', 'saved_well_test_projects',
+  // QI Studio (QI programme Q11): the study, its results and its prospect
+  // records. Wells, volumes and surfaces are referenced by id and come along
+  // only in a package that holds them too (Geoscience families).
+  'saved_qi_studio_projects',
   // Supply Chain planners: product-prefixed (scm_) tables on the same
   // saved-projects shape (no results_data): SC3 Materials & Spares Planner,
   // SC4 Marine Logistics Planner. Their payloads hold no ids of other rows.

@@ -95,6 +95,10 @@ function makeInMemoryJobs() {
     async enqueueJob(kind, params) {
       n += 1;
       const id = `mem-job-${n}`;
+      if (kind === 'export_segy') {
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), engine_commit: 'suite-harness+engines-harness', result_refs: { volume_id: params.volume_id, file_name: 'export.sgy', bytes: 1024, traces: 512, url: 'https://storage.petrolord.com/harness/export.sgy', expires_at: new Date(Date.now() + 864e5).toISOString() } });
+        return id;
+      }
       if (kind === 'property_prediction') {
         // an illustrative result in the worker's shape (the maths is gated in the worker and engine tests)
         const pr = params.property;
@@ -102,7 +106,7 @@ function makeInMemoryJobs() {
         const summary = pr.kind === 'facies'
           ? { classes: Object.values(pr.names).map((n, i) => ({ name: n, n: 200 - 40 * i, prior: 0.5 - 0.1 * i, mean: 6200 + 900 * i, sd: 450 })), density: pr.density || 'gaussian' }
           : { a: 0.41, b: -3.4e-5, r2: 0.74, n: 600, s: 0.018 };
-        results.set(id, { id, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, settings: { kind: pr.kind }, summary, rows, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}) } });
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, settings: { kind: pr.kind }, summary, rows, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}) } });
         return id;
       }
       if (kind === 'poststack_inversion') {
@@ -114,13 +118,14 @@ function makeInMemoryJobs() {
           rows: params.inversion.wells.map((w, i) => ({ name: w.name, q10: 3 + i, q50: 5 + i, q90: 8 + i })),
           byScenario: [{ label: 'scenario 1', meanRmsPct: 4.5 }, { label: 'scenario 2', meanRmsPct: 6.1 }, { label: 'scenario 3', meanRmsPct: 9.8 }],
         } : null;
-        results.set(id, { id, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, volume_id: params.volume_id, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}), settings: { method: params.inversion.method, qi_class: 'elastic_estimate', wavelet_scale: 1.2 }, blind, ...(sensitivity ? { sensitivity } : {}) } });
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, volume_id: params.volume_id, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}), settings: { method: params.inversion.method, qi_class: 'elastic_estimate', wavelet_scale: 1.2 }, blind, ...(sensitivity ? { sensitivity } : {}) } });
         return id;
       }
       const qc = await runSeismicQc({ getBrick, geom: { nIl, nXl, ns, brickSize: b, grid }, dtMs: 2, inlines: 6 });
-      results.set(id, { id, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { volume_id: params.volume_id, volume_name: 'Keta 3D full stack', qc, issues: qcIssues(qc, 'Keta 3D full stack') } });
+      results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { volume_id: params.volume_id, volume_name: 'Keta 3D full stack', qc, issues: qcIssues(qc, 'Keta 3D full stack') } });
       return id;
     },
     watchJob(id, onUpdate) { onUpdate(results.get(id), null); return () => {}; },
+    async getJob(id) { const r = results.get(id); return r ? { kind: r.kind || null, params: r.params || null, engine_commit: r.engine_commit || 'suite-harness+engines-harness', ...r } : null; },
   };
 }

@@ -42,6 +42,8 @@ async function main() {
     supabaseUrl: cfg.supabaseUrl,
     serviceRoleKey: cfg.serviceRoleKey,
     rawBucket: cfg.s3.rawBucket,
+    workBucket: cfg.s3.workBucket,
+    engineCommit: cfg.engineCommit,
   });
   const running = new Map();
   let lastJanitor = 0;

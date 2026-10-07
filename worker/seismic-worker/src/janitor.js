@@ -8,12 +8,16 @@
 //     convert it again with other settings), then the object is deleted and
 //     the row marked deleted. Converted volumes live in Supabase Storage and
 //     are not touched.
+//   - A SEG-Y export (export_segy, QI Q11) is kept 3 days after its job
+//     finished (its download link lasts 24 hours), then the object is
+//     deleted and the job's result notes it (result_refs.removed_at).
 //
 // Decisions recorded in docs/scope/QI-STATUS.md (Q0b). Every step is bounded
 // (BATCH rows a run) and idempotent: a store object already gone counts as
 // done.
 export const ABANDON_AFTER_DAYS = 7;
 export const RAW_RETENTION_DAYS = 30;
+export const EXPORT_RETENTION_DAYS = 3;
 export const BATCH = 50;
 const DAY = 86400e3;
 
@@ -27,7 +31,7 @@ const DAY = 86400e3;
  * @returns {Promise<{abandoned: number, expired: number, errors: number}>}
  */
 export async function runJanitor({ admin, sign, fetchImpl = fetch, now = Date.now, log = console }) {
-  const out = { abandoned: 0, expired: 0, errors: 0 };
+  const out = { abandoned: 0, expired: 0, exports: 0, errors: 0 };
   const iso = (ms) => new Date(ms).toISOString();
 
   const mark = async (row, note) => {
@@ -72,6 +76,30 @@ export async function runJanitor({ admin, sign, fetchImpl = fetch, now = Date.no
     } catch (e) {
       out.errors += 1;
       log.warn?.(`janitor: could not expire ${row.id}: ${e.message}`);
+    }
+  }
+  // 3. SEG-Y exports past their retention
+  const { data: ex, error: e3 } = await admin.from('qi_jobs')
+    .select('id,status,result_refs')
+    .eq('kind', 'export_segy').eq('status', 'succeeded').lt('finished_at', iso(now() - EXPORT_RETENTION_DAYS * DAY))
+    .is('result_refs->>removed_at', null)
+    .order('finished_at', { ascending: true }).limit(BATCH);
+  if (e3) throw new Error(`janitor: ${e3.message}`);
+  for (const job of ex || []) {
+    const ref = job.result_refs || {};
+    try {
+      if (ref.bucket && ref.key) {
+        const r = await fetchImpl(await sign('DELETE', ref.bucket, ref.key), { method: 'DELETE' });
+        if (!r.ok && r.status !== 404) throw new Error(`delete ${r.status}`);
+      }
+      const { error } = await admin.from('qi_jobs')
+        .update({ result_refs: { ...ref, url: null, removed_at: iso(now()) } })
+        .eq('id', job.id).eq('status', 'succeeded');
+      if (error) throw new Error(error.message);
+      out.exports += 1;
+    } catch (e) {
+      out.errors += 1;
+      log.warn?.(`janitor: could not remove export ${job.id}: ${e.message}`);
     }
   }
   return out;

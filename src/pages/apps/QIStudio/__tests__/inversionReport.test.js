@@ -85,3 +85,21 @@ test('the report carries the prospect QI assessment and each prospect\'s reasons
   expect(t).toMatch(/Competing explanations still open: Tuning/);
   expect(t).toMatch(/million m3 to spill/);
 });
+
+test('the report opens with the executive summary and lists the handover with labels', () => {
+  const p = {
+    ...blankProject(),
+    inversion: { v1: { blind: { at: 'T', volumeName: 'Keta', result: { settings: { method: 'model_based' }, blind } }, runs: [{ name: 'Keta AI', method: 'model_based', status: 'ready' }] } },
+    properties: { a1: { porosity: { calibration: { result: { settings: { kind: 'porosity' }, summary: { a: 0.4, b: -3e-5, r2: 0.7, n: 10, s: 0.01 }, rows: [{ name: 'KETA-1', n: 10, rms: 0.02, corr: 0.8, coverage: 0.78 }] } }, runs: [{ name: 'Keta AI: porosity', status: 'ready' }] } } },
+  };
+  const model = reportModel({ project: p, inventory: [], matrix, issues: [{ status: 'open', severity: 'high', title: 'x' }], chosenVolumes: [], ready: [] });
+  expect(model.executive).toMatch(/2 blind wells: mean blind AI error 8\.3 percent \(largest 12\.5\)/);
+  expect(model.executive).toMatch(/78\.0 percent of each left-out well falls inside Q10 to Q90/);
+  expect(model.executive).toMatch(/1 high-severity issue remains open/);
+  const t = flat(readPdf(buildQIStudioPdf(model, { generatedAt: new Date('2026-10-07T12:00:00Z') }).doc).text);
+  expect(t.indexOf('Executive summary')).toBeLessThan(t.indexOf('Data inventory'));
+  expect(t).toMatch(/Handover/);
+  expect(t).toMatch(/elastic estimate/);
+  expect(t).toMatch(/calibrated prediction/);
+  expect(t).toMatch(/QI does not set the chance of success/);
+});
