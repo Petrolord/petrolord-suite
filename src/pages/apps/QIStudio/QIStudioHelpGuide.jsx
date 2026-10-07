@@ -5,7 +5,7 @@
 // Copy rule: no em dashes, no "X, not Y" contrastives.
 // Guard: __tests__/helpGuide.test.jsx.
 import React from 'react';
-import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity, Layers, Gauge, MapPin, PackageCheck, Rows3 } from 'lucide-react';
+import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity, Layers, Gauge, MapPin, PackageCheck, Rows } from 'lucide-react';
 import { HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Step, Table } from '@/components/helpguide/HelpGuideLayout';
 import SharingHelp from '@/components/recordSharing/SharingHelp';
 import { GROUPS, STATES } from './services/inventory';
@@ -20,7 +20,7 @@ export const HELP_SECTIONS = [
   { id: 'inventory', icon: ClipboardList, title: 'Data inventory' },
   { id: 'usability', icon: Grid3x3, title: 'Usability matrix' },
   { id: 'qc', icon: Activity, title: 'Seismic QC' },
-  { id: 'prestack', icon: Rows3, title: 'Prestack gathers and angle stacks' },
+  { id: 'prestack', icon: Rows, title: 'Prestack gathers and angle stacks' },
   { id: 'inversion', icon: Layers, title: 'Impedance inversion' },
   { id: 'properties', icon: Gauge, title: 'Property prediction' },
   { id: 'prospects', icon: MapPin, title: 'Prospects' },
@@ -101,7 +101,7 @@ function QIStudioHelpGuideContent() {
       </GuideSection>
 
       <GuideSection id="prestack">
-        <SectionHeading icon={Rows3}>Prestack gathers and angle stacks</SectionHeading>
+        <SectionHeading icon={Rows}>Prestack gathers and angle stacks</SectionHeading>
         <Para>
           Upload the CDP gather SEG-Y with Seismolord&apos;s import: a large file goes to the seismic worker&apos;s store. If you
           try to import a gather file as a stack, Seismolord says it looks like gathers and points here. On the Prestack tab,
