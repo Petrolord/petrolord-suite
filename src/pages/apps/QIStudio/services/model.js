@@ -27,6 +27,7 @@ export const blankProject = () => ({
   feasibility: {},
   qc: {},
   inversion: {},
+  properties: {},
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -52,6 +53,8 @@ export function projectFromPayload(payload) {
     qc: isObj(p.qc) ? { ...p.qc } : {},
     // post-stack inversion per volume id: { settings, blind: {jobId, at, result}, runs: [{jobId, volumeId, name, at}] }
     inversion: isObj(p.inversion) ? { ...p.inversion } : {},
+    // property prediction per impedance volume id: { settings, calibration: {jobId, at, result}, runs: [...] }
+    properties: isObj(p.properties) ? { ...p.properties } : {},
   };
 }
 

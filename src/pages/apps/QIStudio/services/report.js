@@ -10,6 +10,7 @@ import { FEASIBILITY_VERDICTS } from './model';
 import { isStripe, snrText } from './qcRun';
 import { tieRows, waveletComparison } from './ties';
 import { INVERSION_METHODS, INVERSION_DEFAULTS } from './inversionRun';
+import { faciesClass } from './propertyRun';
 
 export const REPORT_TITLE = 'QI Data Audit and Feasibility Report';
 export const APP_NAME = 'Petrolord QI Studio';
@@ -95,6 +96,19 @@ export function reportModel({ projectName = '', organizationName = '', project, 
         } : null,
       };
     }),
+    properties: Object.values(project.properties || {}).flatMap((rec) => ['porosity', 'facies'].filter((k) => rec?.[k]?.calibration?.result?.rows).map((k) => {
+      const c = rec[k].calibration; const res = c.result;
+      const n = (v, d) => (Number.isFinite(v) ? v.toFixed(d) : '');
+      const p = (v) => (Number.isFinite(v) ? String(Math.round(100 * v)) : '');
+      return {
+        kind: k, volume: c.volumeName || '', at: String(c.at || '').slice(0, 10),
+        summary: k === 'facies'
+          ? res.summary.classes.map((x) => [x.name, String(x.n), n(x.prior, 2), n(x.mean, 0), n(x.sd, 0), faciesClass(x.name) === 'fluid_hypothesis' ? 'fluid hypothesis' : 'calibrated prediction'])
+          : `porosity = ${n(res.summary.a, 4)} ${res.summary.b < 0 ? '-' : '+'} ${Math.abs(res.summary.b).toExponential(3)} x AI (r squared ${n(res.summary.r2, 2)}, ${res.summary.n} samples, residual SD ${n(res.summary.s, 4)}).`,
+        rows: res.rows.map((r) => (r.error ? [r.name, r.error, '', '', ''] : k === 'facies' ? [r.name, String(r.n), p(r.accuracy)] : [r.name, String(r.n), n(r.rms, 3), n(r.corr, 2), p(r.coverage)])),
+        volumes: (rec[k].runs || []).filter((x) => x.status === 'ready').map((x) => x.name),
+      };
+    })),
     assumptions: [
       'Curve coverage is judged on each curve\'s recorded depth extent against the zone; gaps inside the extent are checked in Well Data Manager and Rock Physics Studio.',
       'A target is matched by zone name on every well.',
@@ -130,6 +144,15 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
     if (v.spread) {
       table(`Inversion sensitivity: ${v.volume}`, ['Well', 'Blind AI error Q10 (percent)', 'Q50', 'Q90'], v.spread.rows, { note: 'The blind-well check repeated under each scenario (wavelet, model cut, noise); Q10, Q50 and Q90 are the 10th, 50th and 90th percentiles across the scenarios.' });
       table(`Inversion scenarios: ${v.volume}`, ['Scenario', 'Mean blind AI error (percent)'], v.spread.scenarios, { note: 'The assumption whose scenarios raise the error most is the one the result depends on most.' });
+    }
+  }
+  for (const pp of model.properties || []) {
+    const vols = pp.volumes.length ? ` Volumes: ${pp.volumes.join(', ')}.` : '';
+    if (pp.kind === 'facies') {
+      table(`Facies from ${pp.volume}`, ['Facies', 'Samples', 'Prior', 'Mean AI', 'SD', 'Label'], pp.summary, { note: `Bayesian classification in impedance, calibrated on the wells' logs at seismic scale${pp.at ? ` on ${pp.at}` : ''}. Facies named for a fluid are fluid hypotheses.${vols}` });
+      table(`Facies check: ${pp.volume}`, ['Well left out', 'Samples', 'Facies right (percent)'], pp.rows, { note: 'Each well left out of the model and predicted from the inverted impedance at its trace.' });
+    } else {
+      table(`Porosity from ${pp.volume}`, ['Well left out', 'Samples', 'RMS error', 'Correlation', 'Inside Q10 to Q90 (percent)'], pp.rows, { note: `${pp.summary} Calibrated on the wells' logs at seismic scale${pp.at ? ` on ${pp.at}` : ''}; each well is then left out and predicted from the inverted impedance at its trace. Q10 and Q90 bound the 80 percent prediction interval; about 80 percent of a well should fall inside.${vols}` });
     }
   }
   if (model.issues.rows.length) table('Issue register', model.issues.head, model.issues.rows, { fontSize: 6.5 });

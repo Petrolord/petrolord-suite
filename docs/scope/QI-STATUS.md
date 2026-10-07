@@ -9,7 +9,7 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
 | Q0 Seismic worker foundations | DONE: merged #891 (main 728a53b7e), 2026-10-06 |
 | Q0b Seismolord on the worker | DONE: merged #893; both migrations applied and verified 2026-10-06 |
 | Milestone A (Q1, Q2, Q4a, Q6a) | DONE: A1 to A6 merged 2026-10-06 (#894, #896 to #901, #903). Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
-| Milestone B (Q8a, Q9a, Q10, Q11) | Q8a post-stack inversion built (engines #321, #322; Suite feat/qi-q8a-inversion) |
+| Milestone B (Q8a, Q9a, Q10, Q11) | Q8a DONE (#904, #905; worker live). Q9a property prediction built (engines #325; Suite feat/qi-q9a-properties) |
 | Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Not started |
 | Q12 Benchmark and tester waves | Not started |
 
@@ -382,4 +382,26 @@ The quota is pooled per organisation. Building that is the next item.
   - **Labels:** Q10, Q50 and Q90 (the 10th, 50th and 90th percentiles), following the PT10 owner decision that parameters never carry P labels. The plan's "P10/P50/P90 volumes" are these Q volumes.
   - **Ranking test:** with the true and a wrong wavelet, the wrong wavelet's scenarios carry the higher mean blind error (gated). With identical realisations the spread is zero (negative control).
   - **Reproducible noise:** each trace's noise seed comes from the scenario seed and the trace position. A rerun gives the same volumes in any trace order.
-- **Worker deploy:** needed after merge, for the sensitivity path.
+- **Merged:** #905 (main 11f4e4b2c). The worker was redeployed as suite-11f4e4b2c+engines-613a2a596 and is healthy.
+
+### B3 Q9a Property prediction (2026-10-07)
+- **Engines #325 `qi/propertyPrediction.js`:**
+  - a linear transform by least squares, with the prediction interval of a new observation (Student t, n - 2). The 80 percent interval gives Q10 and Q90.
+  - Bayesian facies in one to three attributes: Gaussian, or a KDE with Scott's bandwidth (scipy's `gaussian_kde`); priors; posterior; confusion matrix.
+  - Gated on a scipy oracle in 1D and 2D. Negative controls: a z interval; Vp/Vs dropped.
+- **Suite:**
+  - run module `QIStudio/services/propertyRun.js`;
+  - worker kind `property_prediction` (calibrate and volume modes);
+  - QI Studio Properties tab, with report tables, issues and help.
+  - Well prep now also reads a porosity curve (percent becomes a fraction; vendor nulls dropped) and the RP_FACIES curve with its code names.
+- **Decisions:**
+  - **Calibrate on logs, check on the inversion:** the model is fitted to the wells' logs taken to seismic scale (a 50 Hz moving average in time; a majority filter for facies codes). Each well is then left out and predicted from the inverted impedance at its trace, so the check includes the inversion's own error.
+  - **The interval is checked:** the check reports how much of each left-out well falls inside Q10 to Q90; about 80 percent is right. Under 60 or over 95 percent is a medium issue. A left-out correlation under 0.5, or a facies accuracy under 0.6, is high.
+  - **Input:** an absolute impedance volume from an inversion (not relative AI or a spread), checked on the worker from the manifest. The Q50 of an uncertainty run is offered too.
+  - **Labels:** porosity and facies probabilities are `calibrated_prediction`. A facies whose name speaks of a fluid (gas, oil, hydrocarbon, brine, water) is a `fluid_hypothesis` (SOW section 10).
+  - **Facies limit:** at most 5 facies. A facies named but absent at the wells gets no model class, and its registered output row is removed.
+  - **Speed:**
+    - With one attribute the facies posterior is tabulated once per model (4001 points, plus or minus 6 SD beyond the outer classes; within 0.002 of the direct posterior, gated), so a volume costs one lookup per sample.
+    - The porosity interval computes t x s once per model, gated equal to the engine call.
+- **Worker deploy:** needed after merge, for the new kind.
+- **Next:** Q10 prospect integration (closure and spill point on depth surfaces, the anomaly register, the per-prospect QI assessment, and the hand-off to the prospect engine).

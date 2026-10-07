@@ -42,3 +42,31 @@ describe('inversion wells', () => {
     expect(() => volumeFrame({})).toThrow(/geometry/);
   });
 });
+
+describe('property curves in time', () => {
+  const { nearestToDt, porosityFraction, pickFaciesCurve } = require('../services/inversionWells');
+  test('codes go to the nearest sample in time, never interpolated', () => {
+    expect(nearestToDt([0, 5, 9, 14], [1, 3, 3, 2], 4, 5)).toEqual([1, 3, 3, 2, NaN]);
+  });
+  test('porosity: nulls dropped and percent becomes a fraction', () => {
+    expect(porosityFraction([-999.25, 21, 19, 25])).toEqual([NaN, 0.21, 0.19, 0.25]);
+    expect(porosityFraction([0.2, 0.3, 0.25])).toEqual([0.2, 0.3, 0.25]);
+  });
+  test('the facies curve and its names from the write-back provenance', () => {
+    const f = pickFaciesCurve([{ mnemonic: 'GR' }, { mnemonic: 'RP_FACIES', provenance: { kind: 'facies', codes: [{ code: 1, name: 'gas sand' }, { code: 2, name: 'shale' }] } }]);
+    expect(f.names).toEqual({ 1: 'gas sand', 2: 'shale' });
+    expect(pickFaciesCurve([{ mnemonic: 'GR' }])).toBeNull();
+  });
+  test('a well read with porosity and facies', async () => {
+    const b = makeInMemoryBackend();
+    const [w1] = await b.listWells();
+    const loaded = await b.loadWell(w1);
+    loaded.logs = [...loaded.logs, { id: 'f1', mnemonic: 'RP_FACIES', start_md_m: 1500, stop_md_m: 2800, step_m: 0.5, provenance: { kind: 'facies', codes: [{ code: 1, name: 'sand' }, { code: 2, name: 'shale' }] } }];
+    const dl = async (l) => (l.mnemonic === 'RP_FACIES' ? Float32Array.from({ length: 2601 }, (_, i) => (i % 400 < 200 ? 1 : 2)) : b.downloadCurve(l));
+    const r = await prepareWell(loaded, await frameOf(), dl, { extras: ['porosity', 'facies'] });
+    expect(r.porosity.curve).toBe('PHIE');
+    expect(r.porosity.values).toHaveLength(600);
+    expect(new Set(r.facies.values.filter(Number.isFinite))).toEqual(new Set([1, 2]));
+    expect(r.facies.names).toEqual({ 1: 'sand', 2: 'shale' });
+  });
+});
