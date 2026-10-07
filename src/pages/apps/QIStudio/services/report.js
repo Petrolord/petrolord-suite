@@ -175,6 +175,8 @@ export function reportModel({ projectName = '', organizationName = '', project, 
     handover: [
       ...Object.values(project.inversion || {}).flatMap((r) => (r.runs || []).filter((x) => x.status === 'ready').map((x) => [x.name, INVERSION_METHODS[x.method]?.label || x.method, 'elastic estimate', 'SEG-Y from the seismic worker; run record'])),
       ...Object.values(project.properties || {}).flatMap((rec) => ['porosity', 'facies'].flatMap((k) => (rec?.[k]?.runs || []).filter((x) => x.status === 'ready').map((x) => [x.name, k === 'facies' ? 'Bayesian facies' : 'Porosity transform', k === 'facies' ? 'calibrated prediction (fluid facies: fluid hypothesis)' : 'calibrated prediction', 'SEG-Y from the seismic worker; run record']))),
+      ...(project.avo?.runs || []).filter((x) => x.status === 'ready').map((x) => [x.name, 'AVO volumes', 'elastic estimate', 'SEG-Y from the seismic worker; run record']),
+      ...(project.simultaneous?.runs || []).filter((x) => x.status === 'ready').map((x) => [x.name, 'Simultaneous inversion', 'elastic estimate', 'SEG-Y from the seismic worker; run record']),
       ...(project.prospects || []).filter((p) => p.result).map((p) => [p.name, 'Prospect QI assessment', 'interpretation', 'qi-prospect-1 record, read by Risked Reserves Valuation']),
     ],
     assumptions: [

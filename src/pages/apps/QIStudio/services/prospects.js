@@ -8,7 +8,7 @@
 
 import { spillAnalysis, closureAt } from '../../../../../packages/engines/lib/gridding/closure';
 import { isNull } from '../../../../../packages/engines/lib/gridding/gridmath';
-import { anomalyConformance, evidenceIndependence, assessProspect } from '../engine/prospectAssessment';
+import { anomalyConformance, evidenceIndependence, assessProspect, RECOMMENDATIONS } from '../engine/prospectAssessment';
 
 export const COMPETING = Object.freeze([
   { key: 'tuning', name: 'Tuning (thin-bed interference)' },
@@ -138,13 +138,16 @@ export function analyseProspect({ depth, attr, prospect, feasibility = '' }) {
     for (const v of mask) if (v) { any = true; break; }
     if (any) {
       const c = anomalyConformance({ z, spec, mask, spill });
+      // a contact cannot sit below the spill: the edge mean is held there, as the GRV is
+      const heldZ = Number.isFinite(c.impliedContactZ) ? Math.max(c.impliedContactZ, spill.spillZ) : NaN;
       anomaly = {
         nodes: c.anomalyNodes,
         areaKm2: (c.anomalyNodes * Math.abs(spec.dx * spec.dy)) / 1e6,
         conformance: c.conformance,
         edgeSdM: c.edgeSdM,
         insideClosure: c.insideClosure,
-        impliedContactDepthM: Number.isFinite(c.impliedContactZ) ? depthOf(c.impliedContactZ) : null,
+        impliedContactDepthM: Number.isFinite(heldZ) ? depthOf(heldZ) : null,
+        edgeBelowSpillM: Number.isFinite(c.impliedVsSpillM) && c.impliedVsSpillM < 0 ? -c.impliedVsSpillM : 0,
         impliedAboveSpillM: c.impliedVsSpillM,
         grvImpliedM3: c.grvAtImpliedM3,
       };
@@ -159,6 +162,17 @@ export function analyseProspect({ depth, attr, prospect, feasibility = '' }) {
     feasibility,
     competing: (prospect.competing || []).map((c) => ({ name: c.name, status: c.status })),
   });
-  if (trap.limitedByEdge) assessment.reasons.push('The spill point lies on the edge of the mapped area: the trap may continue off the map, so its GRV at spill is a lower bound.');
+  if (anomaly?.edgeBelowSpillM > 0) assessment.reasons.push(`The anomaly edge averages ${anomaly.edgeBelowSpillM.toFixed(0)} m below the spill point; the contact is held at the spill, so the anomaly runs past the closure there.`);
+  if (trap.limitedByEdge) {
+    assessment.reasons.push('The spill point lies on the edge of the mapped area: the trap may continue off the map, so its GRV at spill is a lower bound.');
+    // a contact the anomaly implies above the spill keeps its GRV closed on the map; an
+    // anomaly filled to the edge spill does not, so it waits for the map to cover the spill
+    const filledToSpill = !(anomaly && anomaly.impliedAboveSpillM > 0);
+    if (filledToSpill && assessment.recommendation === 'mature') {
+      assessment.recommendation = 'investigate';
+      assessment.label = RECOMMENDATIONS.investigate;
+      assessment.reasons.push('Held at investigate: the anomaly fills the trap to a spill on the map edge, so its volume is open until the map covers the spill point.');
+    }
+  }
   return { trap, anomaly, evidence, assessment };
 }

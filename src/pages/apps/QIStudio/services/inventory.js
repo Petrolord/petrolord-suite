@@ -62,8 +62,10 @@ export function suggestInventory({ wells = [], volumes = [], horizons = 0 }) {
   set('wells-checkshots', has((w) => Array.isArray(w.well?.checkshots) && w.well.checkshots.length >= 2), n, 'wells have checkshots');
   set('wells-tops', has((w) => (w.tops || []).length > 0 || (w.zones || []).length > 0), n, 'wells have tops or zones');
   set('wells-petro', has((w) => curvesOf(w, 'porosity') && curvesOf(w, 'sw')), n, 'wells have porosity and Sw');
-  if (volumes.length) {
-    out['seis-full'] = { state: 'received', evidence: `${volumes.length} seismic volume${volumes.length === 1 ? '' : 's'} in Seismolord` };
+  // derived products (attributes, inversions, matched stacks) are not delivered seismic
+  const delivered = volumes.filter((v) => v.kind !== 'attribute');
+  if (delivered.length) {
+    out['seis-full'] = { state: 'received', evidence: `${delivered.length} delivered seismic volume${delivered.length === 1 ? '' : 's'} in Seismolord; check that one is the full stack` };
   }
   if (horizons > 0) out['interp-horizons'] = { state: 'received', evidence: `${horizons} horizon${horizons === 1 ? '' : 's'} in the surfaces registry` };
   return out;

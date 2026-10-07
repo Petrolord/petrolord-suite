@@ -32,6 +32,9 @@ describe('property params', () => {
   test('labels: fluids are hypotheses', () => {
     expect(faciesClass('gas sand')).toBe('fluid_hypothesis');
     expect(faciesClass('shale')).toBe('calibrated_prediction');
+    // whole words: soil, toilet and gasket are no fluid; underscores and hyphens separate words
+    for (const name of ['Soil', 'toilet facies', 'gasket']) expect(faciesClass(name)).toBe('calibrated_prediction');
+    for (const name of ['BRINE_SAND', 'gas-bearing sand', 'Oil2', 'water leg', 'hydrocarbons']) expect(faciesClass(name)).toBe('fluid_hypothesis');
   });
   test('mode filter keeps the majority and skips code 0', () => {
     expect(modeFilter([1, 1, 2, 1, 1], 1)).toEqual([1, 1, 1, 1, 1]);

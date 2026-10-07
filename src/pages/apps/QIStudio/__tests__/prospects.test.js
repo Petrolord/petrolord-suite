@@ -55,6 +55,19 @@ describe('prospect analysis', () => {
     expect(r.trap.limitedByEdge).toBe(true);
     expect(r.assessment.reasons.join(' ')).toMatch(/edge of the mapped area/);
   });
+  test('an anomaly filled past the edge spill: the contact is held at spill and the prospect does not mature', () => {
+    const wide = readDepthSurface(row({ name: 'RMS amplitude', z_domain: 'attribute', z_unit: null }), Float32Array.from(elev, (v) => (v >= -2500 ? 1.0 : 0.1)), { accept: ['attribute'], xy: 'm' });
+    const r = analyseProspect({
+      depth, attr: wide, feasibility: 'feasible',
+      prospect: { anomaly: { threshold: 0.5 }, evidence: [{ name: 'RMS amplitude', source: 'full_stack' }, { name: 'Class III AVO', source: 'avo' }], competing: [{ name: 'Tuning', status: 'ruled-out' }] },
+    });
+    expect(r.trap.limitedByEdge).toBe(true);
+    expect(r.anomaly.impliedContactDepthM).toBeCloseTo(r.trap.spill.depthM, 6);
+    expect(r.anomaly.edgeBelowSpillM).toBeGreaterThan(50);
+    expect(r.assessment.recommendation).not.toBe('mature');
+    expect(r.assessment.reasons.join(' ')).toMatch(/spill on the map edge/);
+    expect(r.assessment.reasons.join(' ')).toMatch(/below the spill point; the contact is held at the spill/);
+  });
   test('helpers: nearest node, climb, mask, connected patches', () => {
     const n = nearestNode(depth, 500000 + 0, 6000000 + 0);
     expect(n).toBe(0);

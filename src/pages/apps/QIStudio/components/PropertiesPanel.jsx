@@ -228,7 +228,7 @@ export default function PropertiesPanel() {
               <tr key={w.wellId}>
                 <td className={td}>{w.name}</td>
                 {!w.ok ? <td className={`${td} text-pl-warning-text`} colSpan={2}>{w.reason}</td> : (
-                  <><td className={td}>{w.curves}</td><td className={w[kind]?.values ? td : `${td} text-pl-warning-text`}>{w[kind]?.curve || w[kind]?.reason}</td></>
+                  <><td className={td}>{w.curves}</td><td className={w[kind]?.values && (!two || w.elastic?.ln_si) ? td : `${td} text-pl-warning-text`}>{w[kind]?.values && two && !w.elastic?.ln_si ? `${w[kind]?.curve}; left out: AI and Vp/Vs need a shear log` : (w[kind]?.curve || w[kind]?.reason)}</td></>
                 )}
               </tr>
             ))}

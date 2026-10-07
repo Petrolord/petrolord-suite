@@ -118,7 +118,7 @@ export function qcIssues(result, volumeName = 'the volume') {
   for (const w of result.windows) {
     const label = `${Math.round(w.t0Ms)} to ${Math.round(w.t1Ms)} ms`;
     if (w.snr.median < 1) add(`snr-${w.t0Ms}`, 'high', `${volumeName}: signal weaker than noise, ${label}`, `Median signal-to-noise ${w.snr.median.toFixed(2)} (${w.snr.medianDb?.toFixed(1)} dB).`, 'Review the processing (noise attenuation, stacking fold); amplitudes in this window are unreliable for QI.');
-    else if (w.snr.median < 3) add(`snr-${w.t0Ms}`, 'medium', `${volumeName}: low signal-to-noise, ${label}`, `Median signal-to-noise ${w.snr.median.toFixed(2)} (${w.snr.medianDb?.toFixed(1)} dB).`, 'Consider structure-oriented filtering before amplitude work; carry the noise into the feasibility models.');
+    else if (w.snr.median < 3) add(`snr-${w.t0Ms}`, 'medium', `${volumeName}: low signal-to-noise, ${label}`, `Median signal-to-noise ${w.snr.median.toFixed(2)} (${w.snr.medianDb?.toFixed(1)} dB).`, 'Ask the processor for noise attenuation, or use a cleaner stack, before amplitude work; carry the noise into the feasibility models.');
     if (w.stats.bandwidth6Hz < 10) add(`band-${w.t0Ms}`, 'medium', `${volumeName}: narrow band, ${label}`, `The -6 dB band is ${w.stats.band6[0].toFixed(1)} to ${w.stats.band6[1].toFixed(1)} Hz (${w.stats.bandwidth6Hz.toFixed(1)} Hz wide).`, 'Expect poor vertical resolution: check tuning thickness against the targets in Rock Physics Studio (Wedge).');
   }
   if (result.windows.length > 1) {

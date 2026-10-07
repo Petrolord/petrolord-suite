@@ -28,7 +28,7 @@ const f2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : EMPTY_VALUE);
 /** Why the stacks cannot run, or null. */
 export function simultaneousProblem(stacks) {
   const live = stacks.filter((s) => s.volumeId);
-  if (live.length < 3) return 'Choose three to six angle stacks.';
+  if (live.length < 3) return 'Choose three to five angle stacks.';
   if (new Set(live.map((s) => s.volumeId)).size !== live.length) return 'Each stack must be a different volume.';
   if (live.some((s) => String(s.angle).trim() === '' || !(Number(s.angle) >= 0 && Number(s.angle) <= 50))) return 'Give each stack its mean angle, 0 to 50 degrees.';
   if (Math.max(...live.map((s) => Number(s.angle))) < 25) return 'The farthest stack should reach 25 degrees or more: density needs the far angles.';
@@ -135,7 +135,7 @@ export default function SimultaneousPanel() {
   return (
     <section className={card} data-testid="qi-sim">
       <h2 className="text-sm font-semibold text-pl-text">Simultaneous inversion</h2>
-      <p className={muted}>Acoustic impedance, shear impedance and density at once from three to six angle stacks (Fatti three-term), each pulled to its own low-frequency model from the wells along your horizons. Density needs the far angles: give at least one stack past 25 degrees. The wavelet is scaled to the stacks at the wells. Runs on the seismic worker.</p>
+      <p className={muted}>Acoustic impedance, shear impedance and density at once from three to five angle stacks (Fatti three-term), each pulled to its own low-frequency model from the wells along your horizons. Density needs the far angles: give at least one stack past 25 degrees. The wavelet is scaled to the stacks at the wells. Runs on the seismic worker.</p>
       <div className="space-y-1 text-xs">
         {stacks.map((s, k) => (
           <div key={k} className="flex flex-wrap items-center gap-2">

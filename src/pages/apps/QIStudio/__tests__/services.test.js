@@ -84,6 +84,10 @@ describe('inventory', () => {
     expect(s['wells-core']).toBeUndefined();
     expect(s['interp-horizons']).toBeUndefined();
   });
+  test('derived volumes (attributes, inversions, matched stacks) do not count as a delivered full stack', () => {
+    expect(suggestInventory({ wells: [goodWell], volumes: [{ name: 'AI', kind: 'attribute' }], horizons: 0 })['seis-full']).toBeUndefined();
+    expect(suggestInventory({ wells: [goodWell], volumes: [{ name: 'Full', kind: 'seismic' }, { name: 'AI', kind: 'attribute' }], horizons: 0 })['seis-full'].evidence).toMatch(/^1 delivered seismic volume in Seismolord/);
+  });
   test('saved rows win over suggestions; untouched groups take the suggestion or start requested', () => {
     const rows = inventoryRows({ 'wells-shear': { state: 'requested', note: 'asked on 1 Oct' } }, { 'wells-shear': { state: 'outstanding', evidence: 'x' }, 'seis-full': { state: 'received', evidence: 'y' } });
     expect(rows).toHaveLength(GROUPS.length);
