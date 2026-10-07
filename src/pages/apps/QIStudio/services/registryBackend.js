@@ -58,6 +58,9 @@ export function makeRegistryBackend() {
     async registerInversionVolume({ volume, name, summary }) {
       return registerDerived(volume, name, { name: 'qi_inversion', params: summary });
     },
+    async registerAvoVolume({ volume, name, summary }) {
+      return registerDerived(volume, name, { name: 'qi_avo', params: summary });
+    },
     async registerPropertyVolume({ aiVolumeId, name, summary }) {
       const { data: ai, error } = await supabase.from('seismic_volumes').select('id, storage_path, crs').eq('id', aiVolumeId).maybeSingle();
       if (error || !ai) throw new Error('The impedance volume was not found.');

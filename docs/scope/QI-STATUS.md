@@ -10,7 +10,7 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
 | Q0b Seismolord on the worker | DONE: merged #893; both migrations applied and verified 2026-10-06 |
 | Milestone A (Q1, Q2, Q4a, Q6a) | DONE: A1 to A6 merged 2026-10-06 (#894, #896 to #901, #903). Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
 | Milestone B (Q8a, Q9a, Q10, Q11) | DONE (#904 to #908); worker live. Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
-| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a DONE (#909; worker live). Q3b angle stacks built (engines #333, #334; Suite feat/qi-q3b-angle-stacks) |
+| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a DONE (#909), Q3b DONE (#910); worker live. Q7 AVO built (engines #335; Suite feat/qi-q7-avo) |
 | Q12 Benchmark and tester waves | Not started |
 
 ## Key facts
@@ -504,5 +504,25 @@ The quota is pooled per organisation. Building that is the next item.
   - **Conversion reuses the server import:** partial stacks become Seismolord volumes through the same `stack_to_v4` path as any big SEG-Y, with no second converter. Being `segy_upload` files, they fall under the 30-day raw retention, and the converted volumes are kept.
   - **The velocity is one RMS function for the survey** (a time table). A velocity volume per CDP and curved-ray angles come later in Q3 or Q4b if the study needs them; the straight ray is gated within 1.5 degrees of the exact ray up to an offset equal to the depth.
   - **The usable angle is a parameter**, so it carries Q labels (Q10, Q50, Q90), never P labels.
-- **Worker deploy:** needed after merge, for `angle_stacks`.
-- **Next:** the stack family (declared against measured angle ranges, alignment, amplitude and phase consistency between stacks), then Q4b prestack QC.
+- **Merged:** #910 (main f68396bfe), after a production-build fix: the `Rows3` icon is not in the installed lucide-react, so `Rows` is used. Check icon names against `node_modules/lucide-react`. The worker deploy followed.
+- **Next (then):** the stack family (declared against measured angle ranges, alignment, amplitude and phase consistency between stacks), then Q4b prestack QC.
+
+### C3 Q7 AVO (2026-10-07)
+- **Engines #335 `qi/avo.js`:**
+  - Aki-Richards reflectivity and Shuey's terms, with a least-squares Shuey fit (two or three terms);
+  - contrasts from A and B with Gardner's density, and the Smith-Gidlow fluid factor;
+  - the intercept-gradient background trend (orthogonal regression through the origin) and the distance off it;
+  - the chi projection, and the AVO classes I to IV with a stated class II band (0.02).
+  - Gates (known truth): the three-term fit recovers Shuey's terms exactly from Aki-Richards data, and the contrasts come back. The fluid factor is zero on the mudrock line and below -0.1 for gas. Negative control: two terms to 40 degrees bias the gradient by about 40 percent, against 13 percent to 25 degrees.
+- **Worker kind `avo_volumes`:**
+  - two to four angle stacks on one lattice, each with its mean angle;
+  - per sample, the two-term fit for A and B, the fluid factor and the chi projection;
+  - published as derived volumes on the first stack in one multi-output pass, with the other stacks' bricks loaded column by column beside the first.
+  - Gated: an exact two-term response gives back A and B to 1e-5 and the engine's fluid factor. Negative control: stacks given the wrong angles return a wrong gradient. Refuses stacks not on one lattice, angles less than 5 degrees apart, and output rows not registered on the first stack.
+- **QI Studio AVO tab:** stacks and angles, products, Vs/Vp and chi; runs with SEG-Y and run-record handover; a report table and help.
+- **Decisions:**
+  - **Two terms from stacks:** the volume fit is the two-term Shuey. Partial stacks rarely reach the angles a three-term fit needs, and the engine gate shows the bias past 30 degrees; the help says to keep the stacks within about 30 degrees.
+  - **Amplitude scale:** the stacks are taken as balanced against each other. A, B and the fluid factor carry their scale. Calibrating it to reflectivity at the wells comes with Q6b (angle-dependent wavelets and synthetic gathers).
+  - **Labels:** A, B, the fluid factor and the chi projection are elastic estimates. Class maps and fluid probabilities (Q9b) carry the interpretation and fluid-hypothesis labels.
+- **Worker deploy:** needed after merge, for `avo_volumes`.
+- **Next:** I-G at the wells (modelled against observed, closing RP U2-008) and class maps at a horizon; then Q6b, Q4b, Q5, Q8b and Q9b.

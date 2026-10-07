@@ -130,6 +130,7 @@ export function reportModel({ projectName = '', organizationName = '', project, 
       usable: r.result.usable_angle,
       velocityRows: (r.velocity?.t_ms || []).length,
     })),
+    avo: (project.avo?.runs || []).filter((r) => r.status === 'ready').map((r) => [r.name, r.stacks.map((s) => `${s.name} (${s.angle} degrees)`).join(', '), Object.keys(r.volumeIds).join(', '), String(r.vsVp)]),
     executive: (() => {
       const out = [];
       const inv = Object.values(project.inversion || {}).map((r) => r?.blind?.result?.blind || r?.spread?.result?.blind).filter((b) => b?.length);
@@ -200,6 +201,7 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
       note: `From the gather store on the seismic worker${ps.at ? ` on ${ps.at}` : ''}: Walden straight-ray angles from an RMS velocity table of ${ps.velocityRows} row${ps.velocityRows === 1 ? '' : 's'}, a fold-weighted mean of the offset bins in each range; gathers taken as NMO-corrected. Usable angle across the CDPs: Q10 ${n(u.q10)}, Q50 ${n(u.q50)}, Q90 ${n(u.q90)} degrees.`,
     });
   }
+  if ((model.avo || []).length) table('AVO volumes', ['Run', 'Stacks (mean angle)', 'Products', 'Vs/Vp'], model.avo, { note: 'Two-term Shuey least squares over the stacks at every sample; the fluid factor is Smith and Gidlow\'s, from A and B with Gardner\'s density and the stated Vs/Vp. The stacks are taken as balanced against each other, so A and B share their amplitude scale. Elastic estimates.' });
   for (const v of model.inversion || []) {
     table(`Impedance inversion: ${v.volume}`, ['Well', 'Blind correlation', 'Blind AI error (percent)', 'With the well: correlation', 'With the well: error (percent)'], v.rows, {
       note: `${v.method}, run on the seismic worker${v.at ? ` on ${v.at}` : ''}. Each well is left out of the low-frequency model in turn and compared with its own log after a high cut at ${INVERSION_DEFAULTS.truthHz} Hz${v.relative ? '; relative impedance has no level, so only the correlation is reported' : ''}. Products are elastic estimates.${v.volumes.length ? ` Impedance volumes: ${v.volumes.join(', ')}.` : ''}`,

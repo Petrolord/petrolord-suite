@@ -5,7 +5,7 @@
 // Copy rule: no em dashes, no "X, not Y" contrastives.
 // Guard: __tests__/helpGuide.test.jsx.
 import React from 'react';
-import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity, Layers, Gauge, MapPin, PackageCheck, Rows } from 'lucide-react';
+import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity, Layers, Gauge, MapPin, PackageCheck, Rows, TrendingDown } from 'lucide-react';
 import { HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Step, Table } from '@/components/helpguide/HelpGuideLayout';
 import SharingHelp from '@/components/recordSharing/SharingHelp';
 import { GROUPS, STATES } from './services/inventory';
@@ -21,6 +21,7 @@ export const HELP_SECTIONS = [
   { id: 'usability', icon: Grid3x3, title: 'Usability matrix' },
   { id: 'qc', icon: Activity, title: 'Seismic QC' },
   { id: 'prestack', icon: Rows, title: 'Prestack gathers and angle stacks' },
+  { id: 'avo', icon: TrendingDown, title: 'AVO' },
   { id: 'inversion', icon: Layers, title: 'Impedance inversion' },
   { id: 'properties', icon: Gauge, title: 'Property prediction' },
   { id: 'prospects', icon: MapPin, title: 'Prospects' },
@@ -116,6 +117,19 @@ function QIStudioHelpGuideContent() {
           across the survey as its 10th, 50th and 90th percentiles. Convert each stack into a Seismolord volume with one button:
           it goes through the same server import as any large SEG-Y.
         </Para>
+      </GuideSection>
+
+      <GuideSection id="avo">
+        <SectionHeading icon={TrendingDown}>AVO</SectionHeading>
+        <Para>
+          Choose two to four angle stacks on one lattice and give each its mean incidence angle. At every sample a two-term
+          Shuey fit, R = A + B sin squared of the angle, gives the intercept A and the gradient B. The Smith and Gidlow fluid
+          factor comes from A and B with Gardner&apos;s density and the Vs/Vp you set: it is near zero along the mudrock line and
+          negative for gas. The chi projection A cos(chi) + B sin(chi) is the reflectivity of an extended elastic impedance
+          at that chi. Keep the stacks within about 30 degrees: past that a two-term fit biases the gradient, which is gated in
+          the engine.
+        </Para>
+        <Para>The stacks must be balanced against each other, since A, B and the fluid factor carry their amplitude scale. The products are elastic estimates and open in Seismolord.</Para>
       </GuideSection>
 
       <GuideSection id="inversion">
