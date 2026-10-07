@@ -30,7 +30,7 @@ export function avoProblem(stacks) {
   const live = stacks.filter((s) => s.volumeId);
   if (live.length < 2) return 'Choose at least two angle stacks.';
   if (new Set(live.map((s) => s.volumeId)).size !== live.length) return 'Each stack must be a different volume.';
-  if (live.some((s) => !(Number(s.angle) >= 0 && Number(s.angle) <= 50))) return 'Give each stack its mean angle, 0 to 50 degrees.';
+  if (live.some((s) => String(s.angle).trim() === '' || !(Number(s.angle) >= 0 && Number(s.angle) <= 50))) return 'Give each stack its mean angle, 0 to 50 degrees.';
   const a = live.map((s) => Number(s.angle));
   if (Math.max(...a) - Math.min(...a) < 5) return 'The stacks need at least 5 degrees between the nearest and the farthest.';
   return null;
