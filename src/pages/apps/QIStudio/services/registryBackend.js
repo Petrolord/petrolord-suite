@@ -59,6 +59,9 @@ export function makeRegistryBackend() {
     async registerInversionVolume({ volume, name, summary }) {
       return registerDerived(volume, name, { name: 'qi_inversion', params: summary });
     },
+    async registerPrestackVolume({ volume, name, summary }) {
+      return registerDerived(volume, name, { name: 'qi_prestack_inversion', params: summary });
+    },
     async registerAvoVolume({ volume, name, summary }) {
       return registerDerived(volume, name, { name: 'qi_avo', params: summary });
     },

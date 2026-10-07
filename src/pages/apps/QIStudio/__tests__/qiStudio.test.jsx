@@ -308,3 +308,36 @@ test('AVO: three stacks with their angles, the products registered on the first,
   expect(sparams.volume_ids).toEqual(['mem-avo-qi-v1-A', 'mem-avo-qi-v1-B']);
   expect(sparams.points[0]).toMatchObject({ name: 'KETA-1', il: 5, xl: 8 });
 });
+
+test('simultaneous: five stacks, the wells with shear and density, the blind table and the four volumes', async () => {
+  const backend = makeInMemoryBackend();
+  const base = await backend.listWells();
+  const w4 = { ...base[0], id: 'qi-w4', name: 'KETA-4', surface_x: 600, surface_y: 300 };
+  const listWells = backend.listWells; const loadWell = backend.loadWell;
+  backend.listWells = async () => [...(await listWells()), w4];
+  backend.loadWell = async (w) => (w.id === 'qi-w4' ? { ...(await loadWell(base[0])), well: w4 } : loadWell(w));
+  const vols = ['qi-v1', 'qi-v2', 'qi-v3', 'qi-v4', 'qi-v5'];
+  const baseV = backend.listVolumes;
+  backend.listVolumes = async () => [...(await baseV()), ...vols.slice(1).map((id, k) => ({ id, name: `Keta stack ${k + 2}`, kind: 'seismic', status: 'ready' }))];
+  const enqueue = jest.spyOn(backend.jobs, 'enqueueJob');
+  render(<MemoryRouter><QIStudio backend={backend} sharingStore={null} /></MemoryRouter>);
+  fireEvent.click(await screen.findByTestId('qi-well-qi-w1', {}, { timeout: 20000 }));
+  fireEvent.click(screen.getByTestId('qi-well-qi-w4'));
+  for (const v of vols) fireEvent.click(await screen.findByTestId(`qi-volume-${v}`, {}, { timeout: 20000 }));
+  fireEvent.click(screen.getByTestId('qi-tab-simultaneous'));
+  [4, 12, 20, 28, 36].forEach((a, k) => {
+    fireEvent.change(screen.getByTestId(`qi-sim-stack-${k}`), { target: { value: vols[k] } });
+    fireEvent.change(screen.getByTestId(`qi-sim-angle-${k}`), { target: { value: String(a) } });
+  });
+  fireEvent.click(await screen.findByTestId('qi-sim-read', {}, { timeout: 20000 }));
+  expect(await screen.findByTestId('qi-sim-wells', {}, { timeout: 20000 })).toHaveTextContent(/KETA-1DT and RHOB, DTSM for Vs/);
+  fireEvent.click(screen.getByTestId('qi-sim-blind'));
+  expect(await screen.findByTestId('qi-sim-blind-table', {}, { timeout: 20000 })).toHaveTextContent(/KETA-1\s*4\.1\s*5\.2\s*3\.3\s*0\.62/);
+  const [, bp] = enqueue.mock.calls.find((c) => c[0] === 'prestack_inversion');
+  expect(bp.inversion.stacks.map((s) => s.angle)).toEqual([4, 12, 20, 28, 36]);
+  expect(bp.inversion.wells[0].ln_si.filter(Number.isFinite).length).toBeGreaterThan(100);
+  fireEvent.click(screen.getByTestId('qi-sim-run'));
+  const runs = await screen.findByTestId('qi-sim-runs', {}, { timeout: 20000 });
+  await waitFor(() => expect(runs).toHaveTextContent(/Ready: open in Seismolord/));
+  expect(enqueue.mock.calls.filter((c) => c[0] === 'prestack_inversion')[1][1].volume_ids).toEqual({ ai: 'mem-sim-qi-v1-ai', si: 'mem-sim-qi-v1-si', rho: 'mem-sim-qi-v1-rho', vpvs: 'mem-sim-qi-v1-vpvs' });
+});

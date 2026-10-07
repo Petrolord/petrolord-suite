@@ -31,6 +31,7 @@ export const blankProject = () => ({
   prospects: [],
   prestack: {},
   avo: {},
+  simultaneous: {},
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -64,6 +65,8 @@ export function projectFromPayload(payload) {
     prestack: isObj(p.prestack) ? { ...p.prestack } : {},
     // AVO (Q7): { runs: [{jobId, volumeIds, name, stacks: [{name, angle}], vsVp, chiDeg, at, status}] }
     avo: isObj(p.avo) ? { ...p.avo } : {},
+    // simultaneous inversion (Q8b): { blind: {at, volumeName, result}, runs: [...] }
+    simultaneous: isObj(p.simultaneous) ? { ...p.simultaneous } : {},
   };
 }
 

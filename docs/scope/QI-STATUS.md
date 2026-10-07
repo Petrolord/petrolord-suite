@@ -10,7 +10,7 @@ Plan of record: `docs/scope/QI-PLAN.md` (approved 2026-10-05).
 | Q0b Seismolord on the worker | DONE: merged #893; both migrations applied and verified 2026-10-06 |
 | Milestone A (Q1, Q2, Q4a, Q6a) | DONE: A1 to A6 merged 2026-10-06 (#894, #896 to #901, #903). Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
 | Milestone B (Q8a, Q9a, Q10, Q11) | DONE (#904 to #908); worker live. Acceptance on an open dataset waits for the owner's Volve/F3 licence check |
-| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a DONE (#909), Q3b DONE (#910); worker live. Q7 AVO DONE (#911); worker live. Q7b AVO at the wells built (Suite feat/qi-q7b-avo-wells) |
+| Milestone C (Q3, Q4b, Q5, Q6b, Q7, Q8b, Q9b) | Q3a DONE (#909), Q3b DONE (#910); worker live. Q7 AVO DONE (#911); worker live. Q7b DONE (#912); worker live. Q8b simultaneous inversion built (engines #336; Suite feat/qi-q8b-simultaneous) |
 | Q12 Benchmark and tester waves | Not started |
 
 ## Key facts
@@ -540,4 +540,28 @@ The quota is pooled per organisation. Building that is the next item.
   - **One scale for all wells:** the stacks are balanced against each other (Q7), so one factor maps the volumes to reflectivity. A scale per well would hide a tie problem at one well. Its misfit and class show it instead.
   - **The comparison lists every well:** a well with no published gather or no usable trace shows its reason.
   - **The in-situ case is the comparison;** the substituted case is drawn beside it to show where the fluid moves the response.
-- **Worker deploy:** needed after merge, for `sample_volumes`.
+- **Merged:** #912 (main 03b61b3cf). The worker deploy followed.
+
+### C5 Q8b Simultaneous inversion (2026-10-07)
+- **Engines #336 `qi/prestackInversion.js`:**
+  - Fatti et al.'s (1994) three-term linearisation for ln(AI), ln(SI) and ln(rho);
+  - the forward model and its adjoint, on the post-stack engine's centred derivative and convolution;
+  - CGLS model-based inversion, each parameter pulled to its own low-frequency model, null samples left out.
+  - Gated on pylops: the forward equals PrestackLinearModelling (explicit, fatti, centred) to 1e-10, and the adjoint passes the dot test. The inversion of a 5 percent noise gather matches pylops' regularised solution to 2e-4, and density detail correlates 0.76 with the truth. Negative control: with the near angles only (0 to 16 degrees) it drops to 0.49 (pylops agrees).
+- **Suite:**
+  - **`QIStudio/services/prestackRun.js`:**
+    - three horizon-guided low-frequency models;
+    - the background Vs/Vp from the wells;
+    - the wavelet scaled to the stacks at the wells through the Fatti model;
+    - the per-CDP inverter, the blind-well table for AI, SI and density, and the four products.
+    - Gated on a synthetic survey with dipping horizons and a gas-like layer: blind AI and SI errors under 4 percent and density under 5 at every well. Negative control: without horizons the blind AI error grows by more than 1.5 times.
+  - **Worker kind `prestack_inversion`:** blind and volume modes, three to six stacks on one lattice, four multi-output volumes on the first stack. Gated: its blind table equals the run module's on the same traces, and a volume run matches the truth at a well (AI within 4 percent, density within 6), with Vp/Vs equal to AI/SI.
+  - **Well prep:** an `elastic` extra gives ln(SI) (from the shear sonic) and ln(rho) in time through the same tie.
+  - **QI Studio Simultaneous tab:** stacks and angles, wavelet, horizons, the wells with their shear curve named, the blind table, the four-volume run with handover, a report table and help.
+  - **Property prediction** now also takes the AI product of a simultaneous inversion.
+- **Decisions:**
+  - **At least three stacks, one past 25 degrees:** three parameters need three or more angles, and density needs the far ones (Buland and Omre 2003). The engine's negative control shows the loss without them.
+  - **Equal pulls by default** (0.05 each, settable): density is regularised like the others. Its blind correlation is reported so a weak density shows.
+  - **Vs/Vp of the linearisation** is the wells' mean SI/AI (settable), not a fixed 0.5.
+- **Worker deploy:** needed after merge, for `prestack_inversion`.
+- **Next:** Q9b (facies and fluid probability in AI and Vp/Vs space: two attributes for the Bayesian classifier), then Q6b, Q4b, Q5, and Q12.

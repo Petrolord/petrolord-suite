@@ -28,6 +28,7 @@ import PropertiesPanel from './components/PropertiesPanel';
 import ProspectsPanel from './components/ProspectsPanel';
 import PrestackPanel from './components/PrestackPanel';
 import AvoPanel from './components/AvoPanel';
+import SimultaneousPanel from './components/SimultaneousPanel';
 
 const TABS = [
   { value: 'setup', label: 'Setup' },
@@ -38,6 +39,7 @@ const TABS = [
   { value: 'prestack', label: 'Prestack' },
   { value: 'avo', label: 'AVO' },
   { value: 'inversion', label: 'Inversion' },
+  { value: 'simultaneous', label: 'Simultaneous' },
   { value: 'properties', label: 'Properties' },
   { value: 'prospects', label: 'Prospects' },
   { value: 'issues', label: 'Issues' },
@@ -161,6 +163,7 @@ function QIStudioContent({ organizationName }) {
         {tab === 'prestack' && <PrestackPanel />}
         {tab === 'avo' && <AvoPanel />}
         {tab === 'inversion' && <InversionPanel />}
+        {tab === 'simultaneous' && <SimultaneousPanel />}
         {tab === 'properties' && <PropertiesPanel />}
         {tab === 'prospects' && <ProspectsPanel />}
         {tab === 'issues' && <IssuesPanel />}

@@ -99,7 +99,30 @@ export async function prepareWell(loaded, frame, downloadCurve, { extras = [], t
   const named = (c) => `${c.log.mnemonic}${c.edit ? ` (${c.edit})` : ''}`;
   const toTwt = (m) => conv.toTwtMs(positionAtMd(stations, path, m)?.tvdss ?? NaN);
   const extra = {};
-  for (const kind of extras) {
+  if (extras.includes('elastic')) {
+    // shear impedance and density in time, through the same tie (prestack inversion, Q8b)
+    const shear = pickCurve(logs, 'shear');
+    if (!shear) extra.elastic = { reason: 'No shear sonic (DTS): prestack inversion needs Vs at the wells.' };
+    else if (shear.log.step_m == null) extra.elastic = { reason: `${shear.log.mnemonic} has an irregular depth grid.` };
+    else {
+      const dtsRaw = await downloadCurve(shear.log);
+      const dts = normalizeInputCurve('DT', shear.log, dtsRaw).data;
+      const dtsOnDt = Float64Array.from(md, (z) => {
+        const j = Math.round((z - Number(shear.log.start_md_m)) / Number(shear.log.step_m));
+        return j >= 0 && j < dts.length && Number.isFinite(dts[j]) && dts[j] > 0 ? dts[j] : NaN;
+      });
+      const si = computeImpedance(slownessToVelocity(dtsOnDt), rhoOnDt);
+      const lnOf = (arr) => Array.from(arr, (v) => (Number.isFinite(v) && v > 0 ? Math.log(v) : NaN));
+      try {
+        extra.elastic = {
+          curves: `${named(shear)} for Vs`,
+          ln_si: lnOf(resampleToDt(twt, si, frame.dtMs, frame.ns)),
+          ln_rho: lnOf(resampleToDt(twt, rhoOnDt, frame.dtMs, frame.ns)),
+        };
+      } catch (e) { extra.elastic = { reason: e.message }; }
+    }
+  }
+  for (const kind of extras.filter((k) => k !== 'elastic')) {
     const c = kind === 'facies' ? pickFaciesCurve(logs) : pickCurve(logs, 'porosity');
     if (!c) { extra[kind] = { reason: kind === 'facies' ? 'No facies curve (draw facies in Rock Physics Studio, Multi-well, and write them back).' : 'No porosity curve.' }; continue; }
     if (c.log.step_m == null) { extra[kind] = { reason: `${c.log.mnemonic} has an irregular depth grid.` }; continue; }

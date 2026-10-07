@@ -5,7 +5,7 @@
 // Copy rule: no em dashes, no "X, not Y" contrastives.
 // Guard: __tests__/helpGuide.test.jsx.
 import React from 'react';
-import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity, Layers, Gauge, MapPin, PackageCheck, Rows, TrendingDown } from 'lucide-react';
+import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity, Layers, Gauge, MapPin, PackageCheck, Rows, TrendingDown, Combine } from 'lucide-react';
 import { HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Step, Table } from '@/components/helpguide/HelpGuideLayout';
 import SharingHelp from '@/components/recordSharing/SharingHelp';
 import { GROUPS, STATES } from './services/inventory';
@@ -23,6 +23,7 @@ export const HELP_SECTIONS = [
   { id: 'prestack', icon: Rows, title: 'Prestack gathers and angle stacks' },
   { id: 'avo', icon: TrendingDown, title: 'AVO' },
   { id: 'inversion', icon: Layers, title: 'Impedance inversion' },
+  { id: 'simultaneous', icon: Combine, title: 'Simultaneous inversion' },
   { id: 'properties', icon: Gauge, title: 'Property prediction' },
   { id: 'prospects', icon: MapPin, title: 'Prospects' },
   { id: 'issues', icon: AlertTriangle, title: 'Issue register' },
@@ -164,6 +165,23 @@ function QIStudioHelpGuideContent() {
           90th percentile across the scenarios, and the mean error of each scenario, so you see which assumption the result
           depends on most. Inverted over the volume, it writes four volumes in one run: impedance at Q10, Q50 and Q90 (the
           10th, 50th and 90th percentiles per sample) and the relative spread (Q90 - Q10) / Q50.
+        </Para>
+      </GuideSection>
+
+      <GuideSection id="simultaneous">
+        <SectionHeading icon={Combine}>Simultaneous inversion</SectionHeading>
+        <Para>
+          The Simultaneous tab inverts three to six angle stacks for acoustic impedance, shear impedance and density at once,
+          with Fatti&apos;s three-term reflectivity. Read the wells: each needs a sonic, a density and a shear sonic, and the
+          shear and density go to time through the same tie as the impedance. Each parameter is pulled to its own
+          low-frequency model from the wells along your horizons. The tie wavelet is scaled to the stacks at the wells.
+        </Para>
+        <Para>
+          Density is the least resolved: give at least one stack past 25 degrees. The engine is gated against pylops, and with
+          the near angles alone the density detail is lost, which is its negative control. Check at the wells first: each well
+          is left out of all three models in turn, and the table gives the blind AI, SI and density errors with the density
+          correlation. Invert the stacks to write AI, SI, density and Vp/Vs volumes; the AI one feeds Property prediction like
+          a post-stack impedance.
         </Para>
       </GuideSection>
 
