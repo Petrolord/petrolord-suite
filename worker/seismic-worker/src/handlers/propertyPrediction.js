@@ -105,7 +105,9 @@ export async function propertyPrediction(ctx, deps) {
   const manifest = await readManifest(`${source.storage_path}/manifest.json`);
   try { assertFloat32Parent(manifest); } catch (e) { return fail('validate_failed', e.message); }
   const ap = manifest.attribute?.params || {};
-  if (manifest.attribute?.name !== 'qi_inversion' || ap.output !== 'AI' || (ap.product && ap.product === 'spread')) {
+  const postAi = manifest.attribute?.name === 'qi_inversion' && ap.output === 'AI' && ap.product !== 'spread';
+  const preAi = manifest.attribute?.name === 'qi_prestack_inversion' && ap.product === 'ai';
+  if (!postAi && !preAi) {
     return fail('validate_failed', 'Choose an absolute impedance volume from an inversion (not relative impedance or a spread).');
   }
   const geom = geomFromManifest(manifest);

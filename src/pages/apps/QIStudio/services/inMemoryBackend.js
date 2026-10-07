@@ -59,6 +59,7 @@ export function makeInMemoryBackend() {
       return Float32Array.from({ length: n }, (_, i) => (dt ? 330 - 0.03 * i * l.step_m + 15 * Math.sin(i / 40) : 2.3 + 0.0001 * i * l.step_m + 0.04 * Math.sin(i / 55)));
     },
     async registerInversionVolume({ volume, name }) { return { id: `mem-inv-${volume.id}`, name, status: 'ingesting' }; },
+    async registerPrestackVolume({ volume, name, summary }) { return { id: `mem-sim-${volume.id}-${summary.product}`, name, status: 'ingesting' }; },
     async registerAvoVolume({ volume, name, summary }) { return { id: `mem-avo-${volume.id}-${summary.product}`, name, status: 'ingesting' }; },
     async registerPropertyVolume({ aiVolumeId, name, summary }) { return { id: `mem-prop-${aiVolumeId}-${summary.product}`, name, status: 'ingesting' }; },
     async removeVolume() {},
@@ -110,6 +111,11 @@ function makeInMemoryJobs() {
     async enqueueJob(kind, params) {
       n += 1;
       const id = `mem-job-${n}`;
+      if (kind === 'prestack_inversion') {
+        const blind = params.inversion.wells.map((w, i) => ({ name: w.name, blind: { ai: { rmsPct: 4.1 + i, corr: 0.9 }, si: { rmsPct: 5.2 + i, corr: 0.86 }, rho: { rmsPct: 3.3 + i, corr: 0.62 } }, withWell: { ai: { rmsPct: 2.5 }, si: { rmsPct: 3 }, rho: { rmsPct: 2 } } }));
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, settings: { method: 'Fatti three-term simultaneous inversion', vs_vp: 0.52, wavelet_scale: 1.1 }, blind, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}) } });
+        return id;
+      }
       if (kind === 'sample_volumes') {
         // the seismic at twice the model's scale, as a calibration would find
         results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { points: params.points.map((q) => ({ name: q.name, t_ms: q.t_ms, values: [-0.1, -0.24] })) } });

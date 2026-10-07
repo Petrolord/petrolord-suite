@@ -135,6 +135,11 @@ export function reportModel({ projectName = '', organizationName = '', project, 
       runName: project.avo.wells.runName, at: String(project.avo.wells.at || '').slice(0, 10), scale: project.avo.wells.scale, agree: project.avo.wells.agree, n: project.avo.wells.n,
       rows: project.avo.wells.wells.map((w) => (w.error ? [w.name, w.error, '', '', ''] : [w.name, `${w.modelled.A.toFixed(3)}, ${w.modelled.B.toFixed(3)}`, `${w.scaled.A.toFixed(3)}, ${w.scaled.B.toFixed(3)}`, `${w.modelledClass} / ${w.observedClass}`, w.residual.toFixed(3)])),
     } : null,
+    simultaneous: project.simultaneous?.blind?.result ? {
+      volume: project.simultaneous.blind.volumeName, at: String(project.simultaneous.blind.at || '').slice(0, 10),
+      rows: project.simultaneous.blind.result.blind.map((r) => [r.name, ...['ai', 'si', 'rho'].map((k) => (Number.isFinite(r.blind[k].rmsPct) ? r.blind[k].rmsPct.toFixed(1) : '')), Number.isFinite(r.blind.rho.corr) ? r.blind.rho.corr.toFixed(2) : '']),
+      runs: (project.simultaneous.runs || []).filter((r) => r.status === 'ready').map((r) => r.name),
+    } : null,
     executive: (() => {
       const out = [];
       const inv = Object.values(project.inversion || {}).map((r) => r?.blind?.result?.blind || r?.spread?.result?.blind).filter((b) => b?.length);
@@ -209,6 +214,10 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
   if (model.avoWells) {
     const w = model.avoWells;
     table(`AVO at the wells: ${w.runName}`, ['Well', 'Model A, B (in situ)', 'Seismic A, B (scaled)', 'Class, model / seismic', 'Misfit'], w.rows, { note: `The intercept and gradient Rock Physics Studio modelled at each zone top against the AVO volumes at the well, the event within 8 ms${w.at ? `, on ${w.at}` : ''}. One least-squares scale (${Number.isFinite(w.scale) ? w.scale.toPrecision(3) : 'none'}) ties the volumes to reflectivity over ${w.n} well${w.n === 1 ? '' : 's'}; the class agrees at ${w.agree}.` });
+  }
+  if (model.simultaneous) {
+    const v = model.simultaneous;
+    table(`Simultaneous inversion: ${v.volume}`, ['Well', 'Blind AI error (percent)', 'SI error', 'Density error', 'Density correlation'], v.rows, { note: `Fatti three-term inversion of the angle stacks${v.at ? ` on ${v.at}` : ''}, each parameter pulled to its own low-frequency model; each well left out of all three in turn. Density is the least resolved parameter and leans on the far angles.${v.runs.length ? ` Volumes: ${v.runs.join(', ')}.` : ''} Elastic estimates.` });
   }
   for (const v of model.inversion || []) {
     table(`Impedance inversion: ${v.volume}`, ['Well', 'Blind correlation', 'Blind AI error (percent)', 'With the well: correlation', 'With the well: error (percent)'], v.rows, {

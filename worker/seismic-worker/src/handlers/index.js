@@ -16,8 +16,9 @@ import { ingestGathers } from './ingestGathers.js';
 import { angleStacks } from './angleStacks.js';
 import { avoVolumes } from './avoVolumes.js';
 import { sampleVolumes } from './sampleVolumes.js';
+import { prestackInversion } from './prestackInversion.js';
 
-export const KINDS = Object.freeze(['noop', 'stack_to_v4', 'attribute_volume', 'ingest_url', 'scan_dataset', 'seismic_qc', 'poststack_inversion', 'property_prediction', 'export_segy', 'ingest_gathers', 'angle_stacks', 'avo_volumes', 'sample_volumes']);
+export const KINDS = Object.freeze(['noop', 'stack_to_v4', 'attribute_volume', 'ingest_url', 'scan_dataset', 'seismic_qc', 'poststack_inversion', 'property_prediction', 'export_segy', 'ingest_gathers', 'angle_stacks', 'avo_volumes', 'sample_volumes', 'prestack_inversion']);
 
 export function createHandlers(deps = {}) {
   return Object.freeze({
@@ -34,5 +35,6 @@ export function createHandlers(deps = {}) {
     angle_stacks: (ctx) => angleStacks(ctx, deps),
     avo_volumes: (ctx) => avoVolumes(ctx, deps),
     sample_volumes: (ctx) => sampleVolumes(ctx, deps),
+    prestack_inversion: (ctx) => prestackInversion(ctx, deps),
   });
 }
