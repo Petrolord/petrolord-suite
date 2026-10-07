@@ -268,6 +268,12 @@ test('prestack: build gathers, angle stacks with a velocity table, the usable an
   const [, params] = enqueue.mock.calls.find((c) => c[0] === 'angle_stacks');
   expect(params.velocity).toEqual({ t_ms: [0, 1500, 3000], vrms: [1700, 2300, 2900] });
   expect(params.ranges.map((r) => r.name)).toEqual(['near', 'mid', 'far']);
+  // QC of the gathers: residual moveout, stretch mute, fold; its issues to the register
+  fireEvent.click(screen.getByTestId('qi-pre-qc-qi-d2'));
+  const qcr = await screen.findByTestId('qi-pre-qc-result-qi-d2', {}, { timeout: 20000 });
+  expect(qcr).toHaveTextContent(/1480 CDPs sampled \(every 4\); median fold 58, far covered offset 3000 m/);
+  expect(qcr).toHaveTextContent(/900\s*2\.1\s*5\.6\s*22\s*2450/);
+  fireEvent.click(screen.getByTestId('qi-pre-qc-issues-qi-d2'));
   fireEvent.click(screen.getByTestId('qi-pre-convert-qi-d3'));
   await waitFor(() => expect(convert).toHaveBeenCalledWith(expect.objectContaining({ id: 'qi-d3' })));
 });

@@ -32,6 +32,7 @@ export const blankProject = () => ({
   prestack: {},
   avo: {},
   simultaneous: {},
+  prestackQc: {},
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -67,6 +68,8 @@ export function projectFromPayload(payload) {
     avo: isObj(p.avo) ? { ...p.avo } : {},
     // simultaneous inversion (Q8b): { blind: {at, volumeName, result}, runs: [...] }
     simultaneous: isObj(p.simultaneous) ? { ...p.simultaneous } : {},
+    // prestack QC (Q4b) per gather store id: { name, at, result }
+    prestackQc: isObj(p.prestackQc) ? { ...p.prestackQc } : {},
   };
 }
 

@@ -111,6 +111,11 @@ function makeInMemoryJobs() {
     async enqueueJob(kind, params) {
       n += 1;
       const id = `mem-job-${n}`;
+      if (kind === 'prestack_qc') {
+        const times = [{ t_ms: 900, rmoMedian: 2.1, rmoQ90: 5.6, rmoShareOver4: 0.22, stretchMuteM: 2450 }, { t_ms: 1650, rmoMedian: 1.2, rmoQ90: 2.9, rmoShareOver4: 0.04, stretchMuteM: 3900 }];
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { dataset_id: params.dataset_id, cdps: 1480, stride: 4, maxStretch: 0.3, fold: { median: 58, lowShare: 0.06, farMedianM: 3000 }, times, issues: [{ key: 'prestack-qc:mem:rmo:900', area: 'Prestack QC', severity: 'medium', title: 'Residual moveout at 900 ms', detail: 'up to 5.6 ms', remedy: 'Flatten the gathers.' }] } });
+        return id;
+      }
       if (kind === 'prestack_inversion') {
         const blind = params.inversion.wells.map((w, i) => ({ name: w.name, blind: { ai: { rmsPct: 4.1 + i, corr: 0.9 }, si: { rmsPct: 5.2 + i, corr: 0.86 }, rho: { rmsPct: 3.3 + i, corr: 0.62 } }, withWell: { ai: { rmsPct: 2.5 }, si: { rmsPct: 3 }, rho: { rmsPct: 2 } } }));
         results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, settings: { method: 'Fatti three-term simultaneous inversion', vs_vp: 0.52, wavelet_scale: 1.1 }, blind, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}) } });

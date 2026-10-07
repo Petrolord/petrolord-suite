@@ -141,6 +141,10 @@ export function reportModel({ projectName = '', organizationName = '', project, 
       runs: (project.simultaneous.runs || []).filter((r) => r.status === 'ready').map((r) => r.name),
     } : null,
     angleWavelets: project.simultaneous?.angleWavelets ? project.simultaneous.angleWavelets.items.map((it) => [String(it.angle), Number.isFinite(it.peakHz) ? it.peakHz.toFixed(1) : '', Number.isFinite(it.phaseDeg) ? it.phaseDeg.toFixed(0) : '', it.samples ? it.wells.map((w) => `${w.name} ${Number.isFinite(w.synthCorr) ? w.synthCorr.toFixed(2) : ''}`).join(', ') : 'none']) : null,
+    prestackQc: Object.values(project.prestackQc || {}).filter((r) => r?.result?.times).map((r) => ({
+      name: r.name, at: String(r.at || '').slice(0, 10), cdps: r.result.cdps, fold: r.result.fold,
+      rows: r.result.times.map((t) => [String(t.t_ms), Number(t.rmoMedian).toFixed(1), Number(t.rmoQ90).toFixed(1), (100 * t.rmoShareOver4).toFixed(0), t.stretchMuteM ? String(Math.round(t.stretchMuteM)) : '']),
+    })),
     executive: (() => {
       const out = [];
       const inv = Object.values(project.inversion || {}).map((r) => r?.blind?.result?.blind || r?.spread?.result?.blind).filter((b) => b?.length);
@@ -204,6 +208,9 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
     table(`Acquisition footprint: ${q.volume}`, ['Time (ms)', 'Along crosslines', 'Along inlines'], q.footprints, { note: 'RMS amplitude maps around each time; a stripe is a period holding over 30 percent of the profile variance, at least ten times the median power of the band and repeated at least five times across the slice.' });
   }
   if (model.ties.length) table('Well ties', ['Well', 'Mean correlation', 'Bulk shift (ms)', 'Wavelet', 'Fit to the field wavelet'], model.ties, { note: 'From the QC record committed with each tie in Seismolord. The field wavelet is the average of the stored tie wavelets, aligned and normalised.' });
+  for (const pq of model.prestackQc || []) {
+    table(`Prestack QC: ${pq.name}`, ['Event time (ms)', 'Residual moveout, median (ms)', '90th percentile', 'Over 4 ms (percent)', 'Stretch mute (m)'], pq.rows, { note: `${pq.cdps} CDPs sampled${pq.at ? ` on ${pq.at}` : ''}: the far-offset residual of each NMO-corrected gather against its near traces (cross-correlation, a parabola in offset), and the offset beyond which the NMO stretch passes the limit. Median fold ${pq.fold.median}; far covered offset ${Math.round(pq.fold.farMedianM)} m.` });
+  }
   for (const ps of model.prestack || []) {
     const u = ps.usable || {};
     const n = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '');
