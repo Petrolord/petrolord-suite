@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 766479d89f69b6f53541463d817971a0d2356183
+# commit 3c0d775d9440f815f6093e34da08425b355d0629
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 80b08bf546799e96d5448d67c63c98f2ec1b9703 README.md
@@ -177,6 +177,7 @@ e6d7f81fccfe0c1e8a640246a2210dbc8d473515 __tests__/qi.inversionBenchmark.test.js
 3dd96b2f13da86780abf303e80742c0cfd804442 __tests__/qi.inversionSpread.test.js
 0232580f706161ddee67e1a44b85c58377ab5d54 __tests__/qi.lfm.test.js
 55583129f3a8d89b1ca9638ee3e5845cee75f673 __tests__/qi.prestack.test.js
+6e6ff5d690fa3344077ae31e1e84205f5466644b __tests__/qi.prestackInversion.test.js
 37012fc2ddd63d97350f26e6a790c899249c13e9 __tests__/qi.propertyPrediction.test.js
 b2e83fda11504d1b4e6d01bf93e3c0564088fb08 __tests__/qi.prospectAssessment.test.js
 7118d18a2558431d008a66c5806ada9fbae8752a __tests__/qi.seismicQc.test.js
@@ -508,6 +509,7 @@ b7a2a85022f3df59f44051d5202dcf9746502326 engines/production/pumpingUnit.js
 d00a00ca01a9fd9c18ad49ffbc686797120dc04f engines/qi/inversionSpread.js
 b39570bb2e983fe831a07534130a5eeb7547b61f engines/qi/lfm.js
 a2fc41975f55e508e0e3076b36a34763706a1610 engines/qi/prestack.js
+ce6079ddef299f584e8312a190bdc331bf0662e1 engines/qi/prestackInversion.js
 51f0d1c791490b53bedcb9a2e7f46401ce7a5fec engines/qi/propertyPrediction.js
 349b54e6280e091dcbd2888fa96ff7db2ccabad6 engines/qi/prospectAssessment.js
 00816e027603e25d60cd84661a1d32aed42a931b engines/qi/seismicQc.js
@@ -864,6 +866,7 @@ d29918c15c11bc5454a88a4be7adcfdc7245062f test-data/qi/README.md
 de37713616a77b8706059cd0ba5553d5fa66cbef test-data/qi/goldens.inversion.json
 b7138e53eebfb3d5752bf507381630ca67fb41dd test-data/qi/goldens.inversionBenchmark.json
 03d74c8d5745c08802def1d69179aef9a48b46b0 test-data/qi/goldens.inversionSpread.json
+3a4b67f42f3b9e4f01491e6e7935fcf1256df1cc test-data/qi/goldens.prestackInversion.json
 ea91a5cf156286f21227b7705ec1723f4553d3c8 test-data/qi/goldens.propertyPrediction.json
 d4d7db86331d3553802186e61102e80978516d7b test-data/qi/goldens.seismicQc.json
 24fad5ff79c18941b580e070e62ba933d0e7f39f test-data/rockphysics/README.md
@@ -1205,6 +1208,7 @@ ef58410fe9addc47d2e49e1b6184a9da96e98185 tools/validation/production/oracle_inte
 c74357b65a15af1d61ede233bad189735ffac9fe tools/validation/qi/oracle_inversion.py
 994ac32e212f272f91c6f421a8000f92ed000dc0 tools/validation/qi/oracle_inversion_benchmark.py
 dc31e3d2c6a60aa161f41cdbfed14839d17db2aa tools/validation/qi/oracle_inversion_spread.py
+44e1362aaa70e939088e1f5e38d3a672d45baf34 tools/validation/qi/oracle_prestack_inversion.py
 dfc5176b3b5ca5805740e1b54d98cf77a8d53412 tools/validation/qi/oracle_property_prediction.py
 7c802ec4dc4f8e76e0e4d119c3a7c6024a4d0529 tools/validation/qi/oracle_seismic_qc.py
 1d9f0f316ae1c59d449b881071008684d281dcc8 tools/validation/rockphysics/crosscheck_elastic_scipy.py
