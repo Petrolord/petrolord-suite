@@ -51,3 +51,10 @@ test('a caption text with digits spans exactly the spoken clip', () => {
   expect(w.map((x) => x.text).join(' ')).toBe('The water leg runs from 5,118 to 5,184 ft.');
   for (let i = 1; i < w.length; i++) expect(w[i].start).toBeGreaterThanOrEqual(w[i - 1].end - 1e-9);
 });
+
+test('a long sentence is shared out evenly: no one-word tail cue', () => {
+  const text = 'We set the clean sand line at 18 API and the shale line at 125 API in this field today.';
+  const cues = buildCues([{ offset: 0, words: wordsFromAlignment(align(text)) }], { maxChars: 42, maxDur: 99 });
+  expect(cues.length).toBe(2);
+  for (const c of cues) expect(c.text.replace('\n', ' ').split(' ').length).toBeGreaterThan(3);
+});

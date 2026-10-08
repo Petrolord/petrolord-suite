@@ -51,29 +51,40 @@ function wrap2(text, maxChars) {
 }
 
 export function buildCues(steps, { maxChars = 42, maxDur = 6, minGap = 0.04 } = {}) {
+  // Each sentence is split into the fewest cues that keep to two lines and
+  // maxDur, and the words are shared out evenly between them, so a long
+  // sentence never leaves a one-word tail ("API.") on a cue of its own.
   const cues = [];
+  const textLen = (ws) => ws.map((w) => w.text).join(' ').length;
   for (const step of steps) {
+    const sentences = [];
     let cur = [];
-    const flush = () => {
-      if (!cur.length) return;
-      cues.push({ start: step.offset + cur[0].start, end: step.offset + cur[cur.length - 1].end, text: wrap2(cur.map((w) => w.text).join(' '), maxChars) });
-      cur = [];
-    };
-    for (const w of step.words) {
-      const next = [...cur, w];
-      const len = next.map((x) => x.text).join(' ').length;
-      const dur = w.end - (cur[0]?.start ?? w.start);
-      if (cur.length && (len > maxChars * 2 || dur > maxDur)) flush();
-      cur.push(w);
-      if (/[.!?]$/.test(w.text)) flush();
+    for (const w of step.words) { cur.push(w); if (/[.!?]$/.test(w.text)) { sentences.push(cur); cur = []; } }
+    if (cur.length) sentences.push(cur);
+    for (const sent of sentences) {
+      const dur = sent[sent.length - 1].end - sent[0].start;
+      const k = Math.min(sent.length, Math.max(1, Math.ceil(textLen(sent) / (maxChars * 2)), Math.ceil(dur / maxDur)));
+      const target = textLen(sent) / k;
+      let chunk = [];
+      let made = 0;
+      for (let i = 0; i < sent.length; i++) {
+        chunk.push(sent[i]);
+        const left = sent.length - i - 1;
+        const need = k - made - 1;
+        if (need > 0 && (textLen(chunk) >= target || left === need)) {
+          cues.push(chunk); chunk = []; made += 1;
+        }
+      }
+      if (chunk.length) cues.push(chunk);
     }
-    flush();
+    for (let i = cues.length - 1; i >= 0 && !cues[i].offset; i--) cues[i].offset = step.offset;
   }
-  cues.sort((a, b) => a.start - b.start);
-  for (let i = 0; i < cues.length - 1; i++) {
-    if (cues[i].end > cues[i + 1].start - minGap) cues[i].end = Math.max(cues[i].start + 0.2, cues[i + 1].start - minGap);
+  const out = cues.map((ws) => ({ start: ws.offset + ws[0].start, end: ws.offset + ws[ws.length - 1].end, text: wrap2(ws.map((w) => w.text).join(' '), maxChars) }));
+  out.sort((x, y) => x.start - y.start);
+  for (let i = 0; i < out.length - 1; i++) {
+    if (out[i].end > out[i + 1].start - minGap) out[i].end = Math.max(out[i].start + 0.2, out[i + 1].start - minGap);
   }
-  return cues;
+  return out;
 }
 
 function ts(sec, sep) {
