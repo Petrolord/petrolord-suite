@@ -967,3 +967,19 @@ porosity comes from sonic and the well's shales read slower than 100 µs/ft
 compaction factor of 1.45 by design. Tests: engine (default overreads by Bcp,
 Bcp recovers porosity, RHG unaffected, < 1 refused); paramQc (hint, no hint at
 the suggested value, RHG or density, error below 1).
+## 2026-10-08: Lessons, Module C (porosity) and the Lesson 7 correction
+
+Storyboards `lessons/petro-c8..c10.mjs`. Checks against the earth model now
+compare like with like: the zone card averages over pay, so lessons open the
+cutoffs (every sample) and, for total porosity, set phi_sh to 0. C8 density
+porosity (Ekene Sand quartz 0.190, matrix 2.67 0.200, truth 0.198); C9 total
+and effective (0.200 and 0.185 against 0.198 and 0.183; net pay 33.0, 27.0,
+24.5 ft for phi_sh 0, 0.075, 0.12); C10 sonic on Ekene-9 (Wyllie 0.383, hint
+Bcp 1.52 0.252, RHG 0.316, Bcp 1.9 calibrated on Ekene-1 0.201, truth 0.198).
+Lesson 7 re-cut: it had compared effective porosity with the true total
+porosity; now Oboro total porosity density 0.231, N-D rms 0.221, density with
+the flushed-zone fluid 0.6 g/cc 0.186, truth 0.195. Parameters are global
+across wells (one set serves every well), so each lesson's setup applies a full
+baseline (`baseParams`). New tools: `tools/demo-video/probe.mjs` (dry runs on
+display :98) and `tools/demo-video/truth.mjs` (zone, leg and net pay truth from
+the generator's truth rows; run with npx tsx).

@@ -132,3 +132,26 @@ export async function crossplotZone(d, name) {
   await d.click(d.page.getByRole('button', { name, exact: true }).first());
   await d.sleep(600);
 }
+
+// Every lesson starts from the Studio's default parameters (feet session),
+// plus its own overrides, because a well's parameters persist between takes.
+export const BASE_PARAMS = {
+  grClean: 20, grClay: 120, vshMethod: 'larionov-tertiary',
+  phiSource: 'density', phiShale: 0.06, rhoMa: 2.65, rhoFl: 1, sonicMethod: 'wyllie', ndMethod: 'avg',
+  swMethod: 'archie', a: 1, m: 2, n: 2, rw: 0.05,
+  permMethod: 'timur', cutPhi: 0.08, cutVsh: 0.5, cutSw: 0.6,
+};
+export async function baseParams(d, overrides = {}) {
+  const p = { ...BASE_PARAMS, ...overrides };
+  for (const [k, v] of Object.entries(p)) {
+    const el = d.page.getByTestId(`petro-param-${k}`);
+    if (!(await el.count())) continue; // shown only for some models
+    if ((await el.evaluate((e) => e.tagName)) === 'SELECT') await el.selectOption(String(v));
+    else await el.fill(String(v));
+  }
+  await d.page.getByTestId('petro-params-apply').click();
+  await d.sleep(1500);
+}
+// open cutoffs: the zone card then averages every sample in the zone, the
+// way the earth model's truth is averaged
+export const OPEN_CUTOFFS = { cutPhi: 0, cutVsh: 1, cutSw: 1 };
