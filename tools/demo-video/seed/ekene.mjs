@@ -12,7 +12,7 @@ import { loadEnv } from '../lib/env.mjs';
 import { login } from '../lib/session.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const KIT = process.env.EKENE_KIT || path.resolve(HERE, '../../../dist-demo/ekene-demo-v1');
+const KIT = process.env.EKENE_KIT || path.resolve(HERE, '../../../dist-demo/ekene-demo-v2');
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] : d; };
 const baseUrl = opt('base-url', 'http://127.0.0.1:4173');

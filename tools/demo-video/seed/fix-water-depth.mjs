@@ -11,7 +11,7 @@ import { loadEnv } from '../lib/env.mjs';
 import { login } from '../lib/session.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const KIT = process.env.EKENE_KIT || path.resolve(HERE, '../../../dist-demo/ekene-demo-v1');
+const KIT = process.env.EKENE_KIT || path.resolve(HERE, '../../../dist-demo/ekene-demo-v2');
 const baseUrl = process.argv[2] || 'http://127.0.0.1:4173';
 const wells = (process.argv[3] || 'Ekene-1,Ekene-3,Ekene-4').split(',');
 const [h, ...rows] = fs.readFileSync(path.join(KIT, '01-wells/well-headers.csv'), 'utf8').trim().split('\n').map((l) => l.split(','));

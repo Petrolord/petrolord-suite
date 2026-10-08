@@ -17,6 +17,7 @@ export const CURVE_META = {
   GR:   { unit: 'GAPI',  descr: 'Gamma Ray', dp: 3 },
   SP:   { unit: 'MV',    descr: 'Spontaneous Potential', dp: 3 },
   RHOB: { unit: 'G/C3',  descr: 'Bulk Density', dp: 4 },
+  DRHO: { unit: 'G/C3',  descr: 'Density Correction', dp: 4 },
   NPHI: { unit: 'V/V',   descr: 'Thermal Neutron Porosity (sandstone matrix)', dp: 4 },
   DT:   { unit: 'US/F',  descr: 'Compressional Transit Time', dp: 3 },
   RT:   { unit: 'OHMM',  descr: 'Deep Resistivity', dp: 4 },

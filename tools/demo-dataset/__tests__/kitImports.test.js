@@ -25,7 +25,7 @@ import {
   parseKrCsv, parsePcCsv, fitCoreyToKrTable, computeJTable,
 } from '../../../packages/engines/engines/scal/scal';
 
-const KIT = path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v1');
+const KIT = path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v2');
 const read = (rel) => {
   const p = path.join(KIT, rel);
   if (!fs.existsSync(p)) {
