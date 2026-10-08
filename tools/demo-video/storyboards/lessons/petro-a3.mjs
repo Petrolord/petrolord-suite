@@ -1,7 +1,7 @@
 // Lesson A3: Log quality control before you interpret (Ekene-1, kit v2).
 // The Ogbia Shale washout (4,565 to 4,756 ft): caliper to 16.9 in on a
 // 12.25 in bit, DRHO to 0.20 g/cc, density about 1.99 against 2.37 g/cc in
-// gauge hole. Bad-hole repair with |DRHO| > 0.05 flags 435 samples; despike
+// gauge hole. Bad-hole repair with |DRHO| > 0.05 flags 437 samples; despike
 // on GR (half window 5, 3 sigma) changes 356. Figures from the dry run.
 import { lessonMeta, login, openPetroWell, zoomTracksAt, expectText } from './common.mjs';
 
@@ -67,9 +67,9 @@ export default {
         await d.type('petro-cond-drhoMax', '0.05');
       } },
     { id: 'preview',
-      say: 'The preview counts what would change: four hundred and thirty five samples nulled. Saving would write a new curve, the conditioned density, and leave the raw density exactly as it was, with the operation and its settings recorded. Anyone can see what was done, and undo it. We will keep the raw curves for now.',
+      say: 'The preview counts what would change: four hundred and thirty seven samples nulled. Saving would write a new curve, the conditioned density, and leave the raw density exactly as it was, with the operation and its settings recorded. Anyone can see what was done, and undo it. We will keep the raw curves for now.',
       do: async (d) => {
-        await expectText(d, 'petro-cond-preview', /0 samples changed, 435 nulled/, 'bad-hole preview');
+        await expectText(d, 'petro-cond-preview', /0 samples changed, 437 nulled/, 'bad-hole preview');
         await d.highlight('petro-cond-preview');
       } },
     { id: 'spikes', chapter: 'Spikes',

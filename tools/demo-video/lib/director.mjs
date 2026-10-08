@@ -46,7 +46,15 @@ export function makeDirector(page) {
       await l.pressSequentially(String(text), { delay });
       await sleep(200);
     },
-    async select(target, value) { await d.click(target); await loc(target).first().selectOption(value); await sleep(300); },
+    // A real click opens Chrome's native option list, which stays drawn over
+    // the page on the recording; show the cursor and ripple, then set it.
+    async select(target, value) {
+      const p = await moveTo(target);
+      await sleep(180);
+      await page.evaluate(([x, y]) => window.__demo.ripple(x, y), [p.x, p.y]);
+      await loc(target).first().selectOption(value);
+      await sleep(400);
+    },
     async highlight(target, { pad = 8 } = {}) { const b = await box(target); await page.evaluate(([bb, p]) => window.__demo.ring(bb, p), [b, pad]); },
     async unhighlight() { await page.evaluate(() => window.__demo.ring(null)); },
     async callout(id, target, text, side = 'right') { const b = await box(target); await page.evaluate(([i, bb, t, s]) => window.__demo.callout(i, bb, t, s), [id, b, text, side]); },
