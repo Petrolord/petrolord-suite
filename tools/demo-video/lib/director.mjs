@@ -10,15 +10,23 @@ export function makeDirector(page) {
     await l.scrollIntoViewIfNeeded();
     return l.boundingBox();
   }
+  // Chrome shows a link's URL in a status bubble while the real pointer
+  // hovers it, which put the recording host on screen. Over a link only the
+  // drawn cursor moves, and the click is dispatched to the element.
+  const isLink = async (target) => {
+    if (!target || typeof target.x === 'number') return false;
+    return loc(target).first().evaluate((el) => !!el.closest('a[href]')).catch(() => false);
+  };
   async function moveTo(target, { ms = 750, dx = 0.5, dy = 0.5 } = {}) {
     let x; let y;
     if (target && typeof target.x === 'number' && typeof target.width !== 'number') ({ x, y } = target);
     else { const b = await box(target); x = b.x + b.width * dx; y = b.y + b.height * dy; }
+    const link = await isLink(target);
     await Promise.all([
       page.evaluate(([a, b, c]) => window.__demo.moveTo(a, b, c), [x, y, ms]),
-      page.mouse.move(x, y, { steps: Math.max(4, Math.round(ms / 40)) }),
+      link ? Promise.resolve() : page.mouse.move(x, y, { steps: Math.max(4, Math.round(ms / 40)) }),
     ]);
-    return { x, y };
+    return { x, y, link };
   }
   const d = {
     page, sleep, loc,
@@ -27,7 +35,8 @@ export function makeDirector(page) {
       const p = await moveTo(target, opts);
       await sleep(opts.settle ?? 180);
       await page.evaluate(([x, y]) => window.__demo.ripple(x, y), [p.x, p.y]);
-      await loc(target).first().click({ timeout: 30000 });
+      if (p.link) await loc(target).first().evaluate((el) => el.closest('a[href]').click());
+      else await loc(target).first().click({ timeout: 30000 });
       await sleep(opts.after ?? 250);
     },
     async type(target, text, { clear = true, delay = 70 } = {}) {

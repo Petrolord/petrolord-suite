@@ -10,7 +10,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { wordsFromAlignment, buildCues, toSrt, toVtt, chaptersText } from './captions.mjs';
+import { wordsFromAlignment, wordsFromText, buildCues, toSrt, toVtt, chaptersText } from './captions.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '../../..');
@@ -45,7 +45,7 @@ export async function assemble(sb, clips, rec, { outDir }) {
   await renderCard(path.join(work, 'outro.png'), { eyebrow: 'Petrolord Suite', title: sb.outroTitle || 'Try it on *your own wells*', sub: sb.outroSub || 'Book a demo or get an instant quote at petrolord.com', footL: sb.app });
 
   // 2. narration track: each clip at its recorded start, shifted by the intro
-  const said = rec.timeline.map((t, i) => ({ t, c: clips[i] })).filter((x) => x.c);
+  const said = rec.timeline.map((t, i) => ({ t, c: clips[i], s: sb.steps[i] })).filter((x) => x.c);
   const inputs = said.flatMap((x) => ['-i', x.c.mp3]);
   const delays = said.map((x, k) => `[${k}:a]adelay=${Math.round((x.t.sayAt + INTRO) * 1000)}:all=1[a${k}]`).join(';');
   const mix = `${delays};${said.map((_, k) => `[a${k}]`).join('')}amix=inputs=${said.length}:normalize=0:dropout_transition=0,apad,atrim=0:${(INTRO + rawDur + OUTRO).toFixed(3)},loudnorm=I=-14:TP=-1.5:LRA=11[out]`;
@@ -53,7 +53,12 @@ export async function assemble(sb, clips, rec, { outDir }) {
   ff([...inputs, '-filter_complex', mix, '-map', '[out]', '-ar', '48000', narration]);
 
   // 3. captions and chapters (times on the finished video)
-  const cues = buildCues(said.map((x) => ({ offset: x.t.sayAt, words: wordsFromAlignment(x.c.alignment) })));
+  const cues = buildCues(said.map((x) => {
+    const spoken = wordsFromAlignment(x.c.alignment);
+    // a step's `sub` replaces the spoken words on screen (digits for numbers)
+    const words = x.s?.sub && spoken.length ? wordsFromText(x.s.sub, spoken[0].start, spoken[spoken.length - 1].end) : spoken;
+    return { offset: x.t.sayAt, words };
+  }));
   const shifted = cues.map((c) => ({ ...c, start: c.start + INTRO, end: c.end + INTRO }));
   fs.writeFileSync(path.join(outDir, 'youtube.srt'), toSrt(shifted));
   fs.writeFileSync(path.join(outDir, 'youtube.vtt'), toVtt(shifted));

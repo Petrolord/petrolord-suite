@@ -2,42 +2,7 @@
 // Every number spoken was read off the screen in the 2026-10-08 dry run on
 // main 9d66e06 with the demo org on oilfield units (feet); `expect` steps
 // stop the take if the screen ever disagrees with the narration.
-import { login } from '../lib/session.mjs';
-
-const APP = '/dashboard/apps/geoscience/petrophysics-studio';
-const ZONE = 'Ekene Sand';
-
-async function clearZones(d) {
-  for (let i = 0; i < 20; i++) {
-    const del = d.page.locator('[data-testid^="petro-zone-delete-"]').first();
-    if (!(await del.count())) return;
-    await del.click();
-    await d.sleep(500);
-  }
-}
-
-// wheel-zoom the tracks about a depth (ft) by n notches (0.8x each). The
-// track canvas spans the whole well when unzoomed, so the depth's y is a
-// proportion of the canvas; zooming about the cursor keeps that depth under
-// it, so the returned y still marks the depth afterwards.
-const WELL_TOP_FT = 197; const WELL_BASE_FT = 7381.5;
-async function zoomTracks(d, depthFt, n) {
-  const canvas = d.page.getByTestId('petro-tracks-canvas');
-  const b = await canvas.boundingBox();
-  const y = b.y + ((depthFt - WELL_TOP_FT) / (WELL_BASE_FT - WELL_TOP_FT)) * b.height;
-  const x = b.x + b.width * 0.45;
-  await d.moveTo({ x, y }, { ms: 700 });
-  for (let i = 0; i < n; i++) { await d.page.mouse.wheel(0, -120); await d.sleep(220); }
-  return { x, y, b };
-}
-
-const zoneCard = (d) => d.page.locator('[data-testid="petro-zone-card"]').filter({ has: d.page.getByTestId(`petro-zone-net-${ZONE}`) });
-
-async function expectText(d, target, re, what) {
-  try { await d.waitText(target, re, { timeout: 20000 }); } catch (e) {
-    throw new Error(`Narration mismatch at "${what}": expected ${re}, screen shows "${await d.text(target).catch(() => '?')}"`);
-  }
-}
+import { login, APP, ZONE, clearZones, zoomTracks, zoneCard, expectText } from './petro-common.mjs';
 
 export default {
   id: 'petro-01',
@@ -71,12 +36,14 @@ export default {
       } },
     { id: 'well',
       say: 'On the left are the wells in the shared registry. They were loaded once, in Well Data Manager, so there is nothing to import here. We open Ekene one.',
+      sub: 'On the left are the wells in the shared registry. They were loaded once, in Well Data Manager, so there is nothing to import here. We open Ekene-1.',
       do: async (d) => { await d.highlight('petro-explorer'); await d.sleep(1200); await d.unhighlight(); await d.click(d.page.locator('[data-well-name="Ekene-1"]').first()); await d.waitFor('petro-curve-inventory'); } },
     { id: 'inventory',
       say: 'The inventory lists what the studio found: gamma ray, bulk density, neutron, sonic and deep resistivity, each with its unit. Everything the calculation needs is here.',
       do: async (d) => { await d.highlight('petro-curve-inventory'); await d.callout('inv', 'petro-curve-inventory', 'Curves found in the well, mapped to the inputs', 'right'); } },
     { id: 'zoom',
       say: 'Our target is the Ekene Sand, at about five thousand and eighty feet. We zoom the tracks onto it.',
+      sub: 'Our target is the Ekene Sand, at about 5,080 ft. We zoom the tracks onto it.',
       do: async (d) => { await d.clearCallouts(); await d.unhighlight(); await zoomTracks(d, 5130, 9); } },
 
     { id: 'hist', chapter: 'Shale volume', chapterSub: 'Gamma ray histogram',
@@ -84,6 +51,7 @@ export default {
       do: async (d) => { await d.click('petro-view-histogram'); await d.waitFor('petro-histogram'); } },
     { id: 'gr',
       say: 'We set the clean sand line at eighteen API and the shale line at one hundred and twenty five. In this field the gamma ray responds linearly to clay, so we choose the linear model.',
+      sub: 'We set the clean sand line at 18 API and the shale line at 125 API. In this field the gamma ray responds linearly to clay, so we choose the linear model.',
       do: async (d) => {
         await d.type('petro-param-grClean', '18');
         await d.type('petro-param-grClay', '125');
@@ -92,16 +60,20 @@ export default {
       } },
     { id: 'phi',
       say: 'Porosity comes from the density log, with a sandstone matrix of two point six five grams per cubic centimetre.',
+      sub: 'Porosity comes from the density log, with a sandstone matrix of 2.65 g/cc.',
       do: async (d) => { await d.highlight('petro-param-rhoMa'); await d.sleep(2500); await d.unhighlight(); } },
 
     { id: 'pickett', chapter: 'Water resistivity', chapterSub: 'Pickett plot on the water leg',
       say: 'Water saturation needs the formation water resistivity, R w. The best source is the well itself: the water leg below the oil water contact. We open the Pickett plot.',
+      sub: 'Water saturation needs the formation water resistivity, Rw. The best source is the well itself: the water leg below the oil-water contact. We open the Pickett plot.',
       do: async (d) => { await d.click('petro-view-crossplot'); await d.click('petro-plot-pickett'); } },
     { id: 'window',
       say: 'The water leg runs from five thousand one hundred and eighteen to five thousand one hundred and eighty four feet.',
+      sub: 'The water leg runs from 5,118 to 5,184 ft.',
       do: async (d) => { await d.type('petro-pickett-top', '5118.1'); await d.type('petro-pickett-base', '5183.7'); } },
     { id: 'fit',
       say: 'The fit leaves out the shaly samples, fifty five of them here, because shale beds would flatten the line. On the clean sand it returns a cementation exponent of one point eight four, and a times R w of point zero nine two.',
+      sub: 'The fit leaves out the shaly samples, 55 of them here, because shale beds would flatten the line. On the clean sand it returns a cementation exponent m of 1.84, and a·Rw of 0.092.',
       do: async (d) => {
         await d.highlight('petro-pickett-clean-vsh');
         await d.click('petro-pickett-fit');
@@ -118,12 +90,14 @@ export default {
       do: async (d, shared) => { await d.click('petro-view-tracks'); await d.sleep(600); shared.values.zoom = await zoomTracks(d, 5130, 9); await d.click('petro-zone-mode-tops'); await d.click('petro-zone-fill-between-tops'); await d.waitFor(`petro-zone-net-${ZONE}`); } },
     { id: 'archie',
       say: 'The Ekene Sand is one hundred and five feet gross. With Archie, only twelve feet pass the cutoffs.',
+      sub: 'The Ekene Sand is 105 ft gross. With Archie, only 12 ft pass the cutoffs.',
       do: async (d) => {
         await expectText(d, zoneCard(d), /net pay 12\.0 ft[\s\S]*gross 105\.0 ft/, 'Archie net pay');
         await d.highlight(zoneCard(d)); await d.callout('pay', zoneCard(d), 'Archie: 12 ft of net pay', 'left');
       } },
     { id: 'why',
       say: 'Twelve feet of pay in a thirty nine foot oil column is too little. The resistivity in the oil leg is only three to seven ohm metres, and Archie reads all of that conductivity as water. Part of it is the clay.',
+      sub: '12 ft of pay in a 39 ft oil column is too little. The resistivity in the oil leg is only 3 to 7 ohm·m, and Archie reads all of that conductivity as water. Part of it is the clay.',
       do: async (d, shared) => {
         await d.clearCallouts(); await d.unhighlight();
         const { y, b } = shared.values.zoom;
@@ -133,6 +107,7 @@ export default {
       } },
     { id: 'indonesia',
       say: 'So we switch to the Indonesia equation, which separates the clay conductivity from the water. It needs the shale resistivity, which we read in the Ogbia Shale just above: about two point one ohm metres.',
+      sub: 'So we switch to the Indonesia equation, which separates the clay conductivity from the water. It needs the shale resistivity, which we read in the Ogbia Shale just above: about 2.1 ohm·m.',
       do: async (d) => {
         await d.select('petro-param-swMethod', 'indonesia');
         await d.type('petro-param-rsh', '2.1');
@@ -140,6 +115,7 @@ export default {
       } },
     { id: 'result',
       say: 'Net pay is now thirty one and a half feet, which agrees with the oil column and the net to gross of this sand. The saturation model moved the answer by a factor of two and a half, and the studio shows exactly why.',
+      sub: 'Net pay is now 31.5 ft, which agrees with the oil column and the net-to-gross of this sand. The saturation model moved the answer by a factor of 2.5, and the studio shows exactly why.',
       do: async (d) => {
         await expectText(d, zoneCard(d), /net pay 31\.5 ft/, 'Indonesia net pay');
         await d.highlight(zoneCard(d)); await d.callout('pay2', zoneCard(d), 'Indonesia, Rsh 2.1: 31.5 ft', 'left');

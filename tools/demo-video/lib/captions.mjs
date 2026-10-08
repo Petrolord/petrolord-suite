@@ -21,6 +21,23 @@ export function wordsFromAlignment(al) {
   return words;
 }
 
+// Words of a caption text that differs from the spoken words (numbers as
+// digits, "Rw" for "R w"), spread over the clip by character position. The
+// clip's own timing still bounds the cue: it starts when the voice starts
+// and ends when it ends.
+export function wordsFromText(text, startSec, endSec) {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  const total = Math.max(1, words.reduce((a, w) => a + w.length, 0) + words.length - 1);
+  const span = Math.max(0.1, endSec - startSec);
+  let at = 0;
+  return words.map((w) => {
+    const s = startSec + (at / total) * span;
+    const e = startSec + ((at + w.length) / total) * span;
+    at += w.length + 1;
+    return { text: w, start: s, end: e };
+  });
+}
+
 function wrap2(text, maxChars) {
   if (text.length <= maxChars) return text;
   const words = text.split(' ');

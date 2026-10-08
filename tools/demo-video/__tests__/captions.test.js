@@ -1,4 +1,4 @@
-import { wordsFromAlignment, buildCues, toSrt, chaptersText } from '../lib/captions.mjs';
+import { wordsFromAlignment, wordsFromText, buildCues, toSrt, chaptersText } from '../lib/captions.mjs';
 
 // alignment for "Open the plot. Fit it." at 0.1 s per character
 function align(text) {
@@ -42,4 +42,12 @@ test('negative control: a cue never outlasts maxDur', () => {
 test('SRT timestamps and YouTube chapters', () => {
   expect(toSrt([{ start: 61.25, end: 62.5, text: 'Hi.' }])).toBe('1\n00:01:01,250 --> 00:01:02,500\nHi.\n');
   expect(chaptersText([{ title: 'Intro', start: 3 }, { title: 'Pickett plot', start: 75.9 }])).toBe('0:00 Intro\n1:15 Pickett plot');
+});
+
+test('a caption text with digits spans exactly the spoken clip', () => {
+  const w = wordsFromText('The water leg runs from 5,118 to 5,184 ft.', 2, 8);
+  expect(w[0].start).toBeCloseTo(2);
+  expect(w[w.length - 1].end).toBeCloseTo(8, 1);
+  expect(w.map((x) => x.text).join(' ')).toBe('The water leg runs from 5,118 to 5,184 ft.');
+  for (let i = 1; i < w.length; i++) expect(w[i].start).toBeGreaterThanOrEqual(w[i - 1].end - 1e-9);
 });
