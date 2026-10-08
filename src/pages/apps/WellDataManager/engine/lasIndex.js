@@ -130,8 +130,8 @@ export function prepareLasForRegistry(parsed, opts = {}) {
   return { prep, notes, suggestedHeader: { ...suggested, ...loc, datumProposal } };
 }
 
-const X_KEYS = ['XWELL', 'X', 'XCOORD', 'X_COORD', 'EAST', 'EASTING', 'XLOC', 'SURFX', 'XSURF'];
-const Y_KEYS = ['YWELL', 'Y', 'YCOORD', 'Y_COORD', 'NORT', 'NORTH', 'NORTHING', 'YLOC', 'SURFY', 'YSURF'];
+const X_KEYS = ['XWELL', 'X', 'XCOORD', 'XCOO', 'X_COORD', 'EAST', 'EASTING', 'XLOC', 'SURFX', 'XSURF'];
+const Y_KEYS = ['YWELL', 'Y', 'YCOORD', 'YCOO', 'Y_COORD', 'NORT', 'NORTH', 'NORTHING', 'YLOC', 'SURFY', 'YSURF'];
 const LAT_KEYS = ['LATI', 'LAT', 'LATITUDE'];
 const LON_KEYS = ['LONG', 'LON', 'LONGITUDE'];
 
