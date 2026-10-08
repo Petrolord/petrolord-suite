@@ -25,34 +25,48 @@ const fmt = (v, d = 6) => (Number.isFinite(v) ? String(Number(v.toFixed(d))) : E
 
 export default function RwToolsDialog({
   open, onOpenChange, onApplyParams, onStatus, onProvenance = null, currentRw = null, currentRwTempC = null,
-  surfaceTempC = 25,
+  surfaceTempC = 25, unitSystem = 'si', rwAtFormation = false,
 }) {
+  // 2026-10-08: temperatures are typed and shown in the session's unit
+  // system (degF in an oilfield session); the state keeps the typed text,
+  // the formulas get degC here and degF inside, and what is applied stays
+  // in degC (params.rwRefTempC).
+  const field = unitSystem === 'field';
+  const TU = field ? '°F' : '°C';
+  const toC = (t) => (field ? ((t - 32) * 5) / 9 : t);
+  const show = (c) => String(Number((field ? (c * 9) / 5 + 32 : c).toFixed(1)));
   // PT11a: Rmf carries the temperature it was measured at (default the
   // surface temperature parameter); formation T is where the chain runs
-  const [sp, setSp] = useState({ ssp: '-100', rmf: '0.5', rmfTempC: String(surfaceTempC), tempC: '65' });
-  const [arps, setArps] = useState({ rw1: '0.1', t1C: '25', t2C: '65' });
+  const [sp, setSp] = useState({ ssp: '-100', rmf: '0.5', rmfTempC: show(surfaceTempC), tempC: show(65) });
+  const [arps, setArps] = useState({ rw1: '0.1', t1C: show(25), t2C: show(65) });
   // PT9d: salinity route (Bateman-Konen fit to the Gen-9 chart)
-  const [sal, setSal] = useState({ ppm: '30000', tempC: '65' });
+  const [sal, setSal] = useState({ ppm: '30000', tempC: show(65) });
 
   const salOut = useMemo(() => {
     const ppm = num(sal.ppm);
-    const tC = num(sal.tempC);
+    const tC = toC(num(sal.tempC));
     if (!(ppm > 0) || !Number.isFinite(tC)) return null;
     return { rw: rwFromSalinity(ppm, cToF(tC)), tC, ppm };
   }, [sal]);
 
   // what the CURRENT Rw parameter implies, so the user sees where their
   // number sits on the salinity scale
+  // With no temperature model the Rw parameter is the Rw AT formation
+  // temperature (a Pickett or Hingle fit gives it there), so the salinity it
+  // implies is read at the formation temperature typed below, not at the
+  // stored reference temperature (which read 74,100 ppm for Ekene-1's
+  // 0.092 ohm·m at 25 degC; at 182 degF it is about 29,000 ppm).
+  const impliedT = rwAtFormation ? salOut?.tC : currentRwTempC;
   const impliedPpm = useMemo(() => {
-    if (!(currentRw > 0) || !Number.isFinite(currentRwTempC)) return NaN;
-    return salinityFromRw(currentRw, cToF(currentRwTempC));
-  }, [currentRw, currentRwTempC]);
+    if (!(currentRw > 0) || !Number.isFinite(impliedT)) return NaN;
+    return salinityFromRw(currentRw, cToF(impliedT));
+  }, [currentRw, impliedT]);
 
   const spOut = useMemo(() => {
     const ssp = num(sp.ssp);
     const rmf = num(sp.rmf);
-    const rmfTC = num(sp.rmfTempC);
-    const tC = num(sp.tempC);
+    const rmfTC = toC(num(sp.rmfTempC));
+    const tC = toC(num(sp.tempC));
     if (![ssp, rmf, rmfTC, tC].every(Number.isFinite) || rmf <= 0) return null;
     const tF = cToF(tC);
     const chain = rwFromSsp(ssp, rmf, cToF(rmfTC), tF);
@@ -67,8 +81,8 @@ export default function RwToolsDialog({
 
   const arpsOut = useMemo(() => {
     const rw1 = num(arps.rw1);
-    const t1 = num(arps.t1C);
-    const t2 = num(arps.t2C);
+    const t1 = toC(num(arps.t1C));
+    const t2 = toC(num(arps.t2C));
     if (![rw1, t1, t2].every(Number.isFinite) || rw1 <= 0) return null;
     return { rw2: rwArps(rw1, cToF(t1), cToF(t2)), t2 };
   }, [arps]);
@@ -84,10 +98,10 @@ export default function RwToolsDialog({
         rw: Number(rw.toFixed(6)),
         tempC: tC,
         ...detail,
-        note: `Rw = ${fmt(rw)} ohm·m at ${tC} °C applied from the ${label} (${RW_METHOD_LABELS[method]}).`,
+        note: `Rw = ${fmt(rw)} ohm·m at ${show(tC)} ${TU} applied from the ${label} (${RW_METHOD_LABELS[method]}).`,
       });
     }
-    onStatus(`Applied Rw = ${fmt(rw)} at ${tC} °C from the ${label}.`);
+    onStatus(`Applied Rw = ${fmt(rw)} at ${show(tC)} ${TU} from the ${label}.`);
     onOpenChange(false);
   };
 
@@ -97,7 +111,7 @@ export default function RwToolsDialog({
         <DialogHeader>
           <DialogTitle>Rw tools</DialogTitle>
           <DialogDescription className="text-pl-muted">
-            Temperatures in °C; the SP and Arps formulas run in °F internally.
+            Temperatures in {TU}; the SP and Arps formulas run in °F internally.
           </DialogDescription>
         </DialogHeader>
 
@@ -113,11 +127,11 @@ export default function RwToolsDialog({
                 <input className={inputCls} data-testid="petro-rw-rmf" value={sp.rmf}
                   onChange={(e) => setSp((s) => ({ ...s, rmf: e.target.value }))} />
               </label>
-              <label className="flex items-center gap-1">measured at (°C)
+              <label className="flex items-center gap-1">measured at ({TU})
                 <input className={inputCls} data-testid="petro-rw-rmf-tempc" value={sp.rmfTempC}
                   onChange={(e) => setSp((s) => ({ ...s, rmfTempC: e.target.value }))} />
               </label>
-              <label className="flex items-center gap-1">Formation T (°C)
+              <label className="flex items-center gap-1">Formation T ({TU})
                 <input className={inputCls} data-testid="petro-rw-tempc" value={sp.tempC}
                   onChange={(e) => setSp((s) => ({ ...s, tempC: e.target.value }))} />
               </label>
@@ -177,11 +191,11 @@ export default function RwToolsDialog({
                 <input className={inputCls} data-testid="petro-rw-arps-rw" value={arps.rw1}
                   onChange={(e) => setArps((s) => ({ ...s, rw1: e.target.value }))} />
               </label>
-              <label className="flex items-center gap-1">at T (°C)
+              <label className="flex items-center gap-1">at T ({TU})
                 <input className={inputCls} data-testid="petro-rw-arps-t1" value={arps.t1C}
                   onChange={(e) => setArps((s) => ({ ...s, t1C: e.target.value }))} />
               </label>
-              <label className="flex items-center gap-1">to T (°C)
+              <label className="flex items-center gap-1">to T ({TU})
                 <input className={inputCls} data-testid="petro-rw-arps-t2" value={arps.t2C}
                   onChange={(e) => setArps((s) => ({ ...s, t2C: e.target.value }))} />
               </label>
@@ -191,7 +205,7 @@ export default function RwToolsDialog({
                 <span className="text-pl-text" data-testid="petro-rw-arps-result">Rw = {fmt(arpsOut.rw2)}</span>
                 <button type="button" data-testid="petro-rw-arps-apply"
                   className="ml-auto px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
-                  onClick={() => applyRw(arpsOut.rw2, arpsOut.t2, 'Arps conversion', 'arps', { inputs: { rw1: num(arps.rw1), t1C: num(arps.t1C) } })}
+                  onClick={() => applyRw(arpsOut.rw2, arpsOut.t2, 'Arps conversion', 'arps', { inputs: { rw1: num(arps.rw1), t1C: toC(num(arps.t1C)) } })}
                 >
                   Apply as Rw
                 </button>
@@ -206,14 +220,14 @@ export default function RwToolsDialog({
                 <input className={inputCls} data-testid="petro-rw-sal-ppm" value={sal.ppm}
                   onChange={(e) => setSal((s) => ({ ...s, ppm: e.target.value }))} />
               </label>
-              <label className="flex items-center gap-1">Formation T (°C)
+              <label className="flex items-center gap-1">Formation T ({TU})
                 <input className={inputCls} data-testid="petro-rw-sal-tempc" value={sal.tempC}
                   onChange={(e) => setSal((s) => ({ ...s, tempC: e.target.value }))} />
               </label>
             </div>
             {salOut && Number.isFinite(salOut.rw) && (
               <div className="flex items-center gap-3">
-                <span className="text-pl-text" data-testid="petro-rw-sal-result">Rw = {fmt(salOut.rw)} at {salOut.tC} °C</span>
+                <span className="text-pl-text" data-testid="petro-rw-sal-result">Rw = {fmt(salOut.rw)} at {show(salOut.tC)} {TU}</span>
                 <button type="button" data-testid="petro-rw-sal-apply"
                   className="ml-auto px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
                   onClick={() => applyRw(salOut.rw, salOut.tC, `salinity of ${salOut.ppm} ppm NaCl`, 'salinity', { inputs: { ppm: salOut.ppm } })}
@@ -224,7 +238,7 @@ export default function RwToolsDialog({
             )}
             {Number.isFinite(impliedPpm) && (
               <p className="text-[10px] text-pl-muted" data-testid="petro-rw-sal-implied">
-                Your current Rw of {fmt(currentRw)} at {currentRwTempC} °C implies about {Math.round(impliedPpm / 100) * 100} ppm NaCl.
+                Your current Rw of {fmt(currentRw)} at {show(impliedT)} {TU}{rwAtFormation ? ' (formation temperature)' : ''} implies about {Math.round(impliedPpm / 100) * 100} ppm NaCl.
               </p>
             )}
             <p className="text-[10px] text-pl-muted leading-snug">

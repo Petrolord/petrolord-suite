@@ -899,3 +899,21 @@ low resistivity flattened the line.
   control with the shales in) and `pickettCleanFilter.test.jsx`.
 - Help guide: the step and the fitting paragraph describe the limit and use
   the session depth unit.
+
+## 2026-10-08: Rw tools and Low, mid, high in the session's units
+
+Found while preparing the demo videos (oilfield session, feet).
+
+- **Rw tools**: temperatures are typed and shown in °F in a field session
+  (°C in SI); the applied reference temperature stays in °C. With no
+  temperature model the current Rw is at formation temperature, so the
+  implied salinity is read at the formation temperature typed in the
+  salinity card. It used to read the stored 25 °C reference: Ekene-1's
+  Pickett Rw of 0.092 ohm·m showed "about 74,100 ppm"; at 182 °F it is
+  about 29,000 ppm.
+- **Low, mid, high**: slowness, temperatures and the BHT depth show in the
+  session's system (it showed °C, m and µs/m in an oilfield session); a value
+  typed in field units is applied in engine units. Same pattern as the zone
+  parameter table (PETRO-U2-002).
+- Tests: three new Rw tools cases (with an SI negative control) and
+  `scenariosFieldUnits.test.jsx`.
