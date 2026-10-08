@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
@@ -17,12 +17,21 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [unconfirmedEmail, setUnconfirmedEmail] = useState(null);
   
-  const { signIn } = useAuth();
+  const { signIn, user } = useAuth();
+  // Set once the password is accepted. The auth context publishes the user
+  // only after it has loaded the organisation and permissions, so navigating
+  // straight away reached /dashboard with no user yet and the route guard
+  // sent the person back here (2026-10-08). Navigate when the user arrives.
+  const [signedIn, setSignedIn] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
 
   const from = location.state?.from?.pathname || '/dashboard';
+
+  useEffect(() => {
+    if (signedIn && user) navigate(from, { replace: true });
+  }, [signedIn, user, from, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,7 +60,8 @@ const Login = () => {
         title: 'Login Successful!',
         description: "Welcome back! Redirecting you to the dashboard...",
       });
-      navigate(from, { replace: true });
+      setSignedIn(true); // the effect above navigates once the user is loaded
+      return; // keep the button busy until then
     }
     setLoading(false);
   };
