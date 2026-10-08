@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Title cards for the demo videos, in the homepage's dark-green and gold. Rendered at 1920x1080 CSS, device scale 2 (3840x2160). */
+:root{--ink:#0f2219;--ink2:#163024;--gold:#d4ac3a;--paper:#f4f2ea;--muted:#b9c4bb}
+html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:radial-gradient(1200px 700px at 78% 30%,#1d3a2b 0%,var(--ink) 62%);color:var(--paper);font-family:Inter,system-ui,sans-serif}
+.wrap{position:absolute;inset:0;padding:120px 150px;display:flex;flex-direction:column;justify-content:center;gap:28px}
+.mark{height:58px;align-self:flex-start}
+.eyebrow{font-size:26px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-top:40px}
+h1{font-family:"Cormorant Garamond",Georgia,serif;font-weight:600;font-size:118px;line-height:1.02;margin:0;max-width:1400px;text-wrap:balance}
+h1 em{color:var(--gold)}
+.sub{font-size:36px;color:var(--muted);max-width:1300px;line-height:1.35}
+.foot{position:absolute;left:150px;right:150px;bottom:90px;display:flex;justify-content:space-between;font-size:26px;color:var(--muted);border-top:1px solid #2c4a3a;padding-top:26px}
+.foot b{color:var(--paper);font-weight:600}
+</style></head>
+<body><div class="wrap">
+<img class="mark" id="mark" alt="Petrolord Suite">
+<div class="eyebrow" id="eyebrow"></div>
+<h1 id="title"></h1>
+<div class="sub" id="sub"></div>
+</div>
+<div class="foot"><span id="footL"></span><span id="footR"><b>petrolord.com</b></span></div>
+<script>
+const q = new URLSearchParams(location.hash.slice(1));
+for (const k of ['eyebrow','sub','footL']) document.getElementById(k).textContent = q.get(k) || '';
+document.getElementById('title').innerHTML = (q.get('title') || '').replace(/\*(.+?)\*/g, '<em>$1</em>');
+document.getElementById('mark').src = q.get('mark') || '';
+</script>
+</body></html>
