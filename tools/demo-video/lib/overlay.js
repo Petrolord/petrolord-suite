@@ -19,7 +19,8 @@
   #__demo .lt.on{opacity:1;transform:none}
   #__demo .lt b{display:block;font-size:30px;font-weight:650;letter-spacing:.01em}
   #__demo .lt span{display:block;font-size:19px;color:#c9d3cb;margin-top:4px}
-  #__demo .slide{position:absolute;inset:0;background:radial-gradient(1100px 650px at 75% 25%,#1d3a2b 0%,${INK} 65%);color:${PAPER};opacity:0;transition:opacity .5s ease;display:flex;flex-direction:column;justify-content:center;padding:90px 140px;gap:26px}
+  #__demo .slide{position:absolute;inset:0;background:radial-gradient(1100px 650px at 75% 25%,#1d3a2b 0%,${INK} 65%);color:${PAPER};opacity:0;transition:opacity .5s ease;overflow:hidden}
+  #__demo .slide .in{width:1920px;height:1080px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;padding:90px 140px;gap:26px;transform-origin:0 0}
   #__demo .slide.on{opacity:1}
   #__demo .slide .eb{font-size:22px;letter-spacing:.18em;text-transform:uppercase;color:${GOLD};font-weight:600}
   #__demo .slide h2{font-family:"Cormorant Garamond",Georgia,serif;font-weight:600;font-size:72px;line-height:1.05;margin:0;max-width:1500px}
@@ -96,14 +97,16 @@
       mount();
       let el = layer.querySelector('.slide');
       if (!el) { el = document.createElement('div'); el.className = 'slide'; layer.insertBefore(el, layer.firstChild); }
-      el.innerHTML = `<div class="eb"></div><h2></h2><div class="row"><div style="display:grid;gap:26px;flex:1;min-width:0"><div class="body"></div>${formula ? '<div class="fx"></div>' : ''}</div>${side ? `<div class="side">${side}</div>` : ''}</div>`;
+      // the slide is laid out on a 1920x1080 canvas and scaled to the window
+      el.innerHTML = `<div class="in" style="transform:scale(${innerWidth / 1920})"><div class="eb"></div><h2></h2><div class="row"><div style="display:grid;gap:26px;flex:1;min-width:0"><div class="body"></div>${formula ? '<div class="fx"></div>' : ''}</div>${side ? `<div class="side">${side}</div>` : ''}</div></div>`;
       el.querySelector('.eb').textContent = eyebrow;
       el.querySelector('h2').textContent = title;
       el.querySelector('.body').innerHTML = body;
       if (formula) el.querySelector('.fx').innerHTML = formula;
+      cur.style.opacity = '0'; // no cursor over a slide
       requestAnimationFrame(() => el.classList.add('on'));
     },
-    hideSlide() { const el = layer && layer.querySelector('.slide'); if (el) { el.classList.remove('on'); setTimeout(() => el.remove(), 600); } },
+    hideSlide() { const el = layer && layer.querySelector('.slide'); if (el) { el.classList.remove('on'); setTimeout(() => el.remove(), 600); } if (cur) cur.style.opacity = '1'; },
     get pos() { return pos; },
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount); else mount();

@@ -16,7 +16,10 @@ export async function startDisplay(display = ':99') {
   return { stop: () => x.kill() };
 }
 
-export async function openApp(url, { profileDir, overlayPath }) {
+// css: the page size in CSS pixels. Demos use 1920x1080; lessons use
+// 1440x810 so the interface reads about a third larger at the same capture.
+export async function openApp(url, { profileDir, overlayPath, css = CAPTURE.css }) {
+  const scale = CAPTURE.w / css.w;
   fs.rmSync(profileDir, { recursive: true, force: true });
   // no "Save password?" bubble over the app (it sat on the right dock)
   fs.mkdirSync(`${profileDir}/Default`, { recursive: true });
@@ -26,8 +29,8 @@ export async function openApp(url, { profileDir, overlayPath }) {
   }));
   const ctx = await chromium.launchPersistentContext(profileDir, {
     headless: false, viewport: null,
-    args: [`--app=${url}`, '--window-position=0,0', `--window-size=${CAPTURE.css.w},${CAPTURE.css.h}`,
-      `--force-device-scale-factor=${CAPTURE.scale}`, '--hide-scrollbars', '--disable-infobars', '--no-first-run',
+    args: [`--app=${url}`, '--window-position=0,0', `--window-size=${css.w},${css.h}`,
+      `--force-device-scale-factor=${scale}`, '--hide-scrollbars', '--disable-infobars', '--no-first-run',
       '--disable-features=Translate,PasswordLeakDetection,AutofillServerCommunication', '--password-store=basic', '--lang=en-GB'],
   });
   await ctx.addInitScript({ path: overlayPath });
