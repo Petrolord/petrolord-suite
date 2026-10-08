@@ -472,12 +472,12 @@ const kindFromText = (raw) => {
 
 /**
  * Datum fields a LAS header suggests (EKB, EGL, EDF, APD, EPD, LMF, DMF,
- * PDAT). A PROPOSAL: it fills the editor and the user confirms; nothing is
+ * PDAT, WD). A PROPOSAL: it fills the editor and the user confirms; nothing is
  * saved from it directly.
  *
  * @param {{well: Object, params: Object, depthUnit?: string, nullValue?: ?number}} parsed
  *   parseLas output: items are {unit, value, descr}
- * @returns {{fields: {refKind, refElevM, groundElevM, verticalDatum, environment, elevUnit},
+ * @returns {{fields: {refKind, refElevM, groundElevM, waterDepthM, verticalDatum, environment, elevUnit},
  *   found: Array<{mnemonic, text, metres: ?number}>, notes: string[], conflicts: string[], empty: boolean}}
  */
 export function proposeDatumFromLas(parsed) {
@@ -569,11 +569,29 @@ export function proposeDatumFromLas(parsed) {
     notes.push(`The file gives a ${refKind || 'reference'} elevation of 0. That is usually a blank header: the elevation is left for you to enter.`);
     refElevM = null;
   }
-  const environment = groundElevM !== null ? 'onshore' : null;
-  if (environment) notes.push('A ground level is given, so the well is proposed as onshore.');
+  // Offshore (2026-10-08, demo videos): a water depth line (WD, WDEP, WATD)
+  // or an EGL below sea level means the "ground" is the mudline under water.
+  // An offshore well keeps no ground level; its water depth is WD, or minus
+  // the negative EGL when only that is given.
+  const wd = elev('WD') || elev('WDEP') || elev('WATD');
+  let environment = null;
+  let waterDepthM = null;
+  if (wd || (egl && egl.metres < 0)) {
+    environment = 'offshore';
+    waterDepthM = wd ? Math.abs(wd.metres) : -egl.metres;
+    if (wd && egl && egl.metres < 0 && Math.abs(-egl.metres - Math.abs(wd.metres)) > 0.05) {
+      conflicts.push(`The water depth (${Math.abs(wd.metres).toFixed(2)} m) and the mudline elevation EGL (${egl.metres.toFixed(2)} m) disagree. The water depth is proposed; check it.`);
+    }
+    if (egl && egl.metres >= 0 && wd) notes.push('EGL is above sea level although a water depth is given; EGL was not used as a ground level.');
+    groundElevM = null;
+    notes.push(`${wd ? 'A water depth is given' : 'The mudline (EGL) is below sea level'}, so the well is proposed as offshore in ${waterDepthM.toFixed(2)} m of water.`);
+  } else if (groundElevM !== null) {
+    environment = 'onshore';
+    notes.push('A ground level is given, so the well is proposed as onshore.');
+  }
 
-  const fields = { refKind, refElevM, groundElevM, verticalDatum, environment, elevUnit: unitSeen };
-  const empty = refKind === null && refElevM === null && groundElevM === null && verticalDatum === null;
+  const fields = { refKind, refElevM, groundElevM, waterDepthM, verticalDatum, environment, elevUnit: unitSeen };
+  const empty = refKind === null && refElevM === null && groundElevM === null && waterDepthM === null && verticalDatum === null;
   return { fields, found, notes, conflicts, empty };
 }
 

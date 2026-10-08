@@ -97,6 +97,11 @@ describe('surface location offered from the file (WDM-U1-008)', () => {
     const { suggestedHeader } = prepareLasForRegistry(read(HOSTILE, 'las20_petrel_export.las'));
     expect(suggestedHeader).toMatchObject({ name: 'OKAN PX-4', kbM: 25.3, surfaceX: 512345.6 });
   });
+  test('XCOO/YCOO in ~Parameter (the Ekene demo wells, 2026-10-08)', () => {
+    const text = ['~Version', ' VERS. 2.0 :', ' WRAP. NO :', '~Well', ' STRT.M 100 :', ' STOP.M 101 :', ' STEP.M 1 :', ' NULL. -999.25 :', ' WELL. EKENE-1 :',
+      '~Parameter', ' XCOO.M 401000.00 : Surface easting', ' YCOO.M 521000.00 : Surface northing', '~Curve', ' DEPT.M :', ' GR.GAPI :', '~A', '100 50', '101 51', ''].join('\n');
+    expect(suggestSurfaceLocation(parseLas(text))).toEqual({ surfaceX: 401000, surfaceY: 521000, xyUnit: 'm' });
+  });
   test('files without coordinates offer none', () => {
     expect(suggestSurfaceLocation(read(GOLDEN, 'basic_20.las'))).toEqual({});
   });

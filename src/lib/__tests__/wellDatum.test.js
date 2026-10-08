@@ -365,6 +365,34 @@ describe('LAS header proposals', () => {
     expect(Number.isFinite(p.fields.refElevM)).toBe(true);
     expect(p.fields.refKind).toBe('KB');
   });
+  // 2026-10-08 (demo videos): the Ekene-1 header (EKB 25, EGL -35, WD 35 m)
+  // was proposed as an onshore well with a ground level of -35 m.
+  test('offshore: a negative EGL and a water depth propose offshore with the water depth, no ground level', () => {
+    const p = proposeDatumFromLas(las([' EKB.M 25.00 : KB', ' EGL.M -35.00 : Mudline relative to MSL', ' WD.M 35.00 : Water depth']));
+    expect(p.fields.environment).toBe('offshore');
+    expect(p.fields.waterDepthM).toBeCloseTo(35, 6);
+    expect(p.fields.groundElevM).toBeNull();
+    expect(p.fields.refElevM).toBeCloseTo(25, 6);
+    expect(p.conflicts).toEqual([]);
+    expect(p.notes.join(' ')).toContain('offshore in 35.00 m of water');
+  });
+  test('offshore from a negative EGL alone: water depth is minus the EGL', () => {
+    const p = proposeDatumFromLas(las([' EKB.F 98.4 :', ' EGL.F -328.1 :']));
+    expect(p.fields.environment).toBe('offshore');
+    expect(p.fields.waterDepthM).toBeCloseTo(100.005, 2);
+    expect(p.fields.groundElevM).toBeNull();
+  });
+  test('a water depth and a mudline that disagree are flagged, the water depth proposed', () => {
+    const p = proposeDatumFromLas(las([' EKB.M 25 :', ' EGL.M -40 :', ' WD.M 35 :']));
+    expect(p.fields.waterDepthM).toBeCloseTo(35, 6);
+    expect(p.conflicts.join(' ')).toContain('disagree');
+  });
+  test('negative control: a land well with a positive EGL and no water depth stays onshore', () => {
+    const p = proposeDatumFromLas(las([' EKB.M 312 :', ' EGL.M 305 :']));
+    expect(p.fields.environment).toBe('onshore');
+    expect(p.fields.groundElevM).toBeCloseTo(305, 6);
+    expect(p.fields.waterDepthM).toBeNull();
+  });
 });
 
 describe('correcting a datum', () => {

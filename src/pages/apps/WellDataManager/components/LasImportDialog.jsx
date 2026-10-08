@@ -180,7 +180,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
       });
       const prop = s.datumProposal?.fields;
       setDatumFields(prop
-        ? datumToEntry({ refKind: prop.refKind, refElevM: prop.refElevM, groundElevM: prop.groundElevM, environment: prop.environment, verticalDatum: prop.verticalDatum }, u, 3)
+        ? datumToEntry({ refKind: prop.refKind, refElevM: prop.refElevM, groundElevM: prop.groundElevM, waterDepthM: prop.waterDepthM, environment: prop.environment, verticalDatum: prop.verticalDatum }, u, 3)
         : { ...EMPTY_DATUM_FIELDS, refElev: s.kbM != null ? editCell(s.kbM, u, 3) : '', refKind: s.kbM != null ? 'KB' : '' });
     } catch (err) {
       setError(err.message);
