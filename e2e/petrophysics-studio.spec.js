@@ -544,7 +544,7 @@ test('PS4: track builder forks the built-in, layout persists, ft toggle and PNG 
   // removing a track from the built-in forks it (clone-on-edit)
   await page.getByTestId('petro-layout-remove-Pay').click();
   await expect(page.getByTestId('petro-layout-template')).toContainText('Standard triple combo (edited)');
-  await expect(page.getByTestId('petro-layout-template').locator('option')).toHaveCount(4); // 3 built-ins + the fork (PT6 added Lithology quicklook)
+  await expect(page.getByTestId('petro-layout-template').locator('option')).toHaveCount(5); // 4 built-ins + the fork (PT6 added Lithology quicklook, 2026-10-08 Borehole QC)
 
   // the fork survives save + reload with the interpretation
   await page.getByTestId('petro-save-project').click();
@@ -1077,7 +1077,7 @@ test('PT6: the lithology quicklook paints a GR ramp and a two-colour cut-off; ed
   await page.getByTestId('petro-layout-expand-GR (API)').click();
   await page.getByTestId('petro-layout-fill-color-0').fill('#ff0000');
   await expect(page.getByTestId('petro-layout-template')).toContainText('(edited)');
-  await expect(page.getByTestId('petro-layout-template').locator('option')).toHaveCount(4);
+  await expect(page.getByTestId('petro-layout-template').locator('option')).toHaveCount(5); // 4 built-ins + the fork
 });
 
 // Cross-app navigation (2026-09-03): ?well=<id> from Well Data Manager

@@ -120,7 +120,7 @@ test('topStyles ride in layouts without a migration: show-all, per-name colour a
 test('lithology quicklook resolves a two-colour cutoff and a GR ramp; t-dn keeps its leg order with the standard colours', () => {
   const layouts = buildDefaultLayouts();
   expect(layouts.version).toBe(2);
-  expect(layouts.templates.map((t) => t.id)).toEqual(['std-triple-combo', 'quicklook', 'lithology-quicklook']);
+  expect(layouts.templates.map((t) => t.id)).toEqual(['std-triple-combo', 'quicklook', 'borehole-qc', 'lithology-quicklook']);
   const litho = layouts.templates.find((t) => t.id === 'lithology-quicklook');
   const tracks = resolveTracks(litho, fullCtx);
   expect(tracks.map((t) => t.key)).toEqual(['l-gr', 'l-litho', 'l-rt', 'l-dn']);
@@ -152,7 +152,7 @@ test('migrateLayouts stamps version 2, keeps a v1 user fork byte-identical and a
   const fork = { id: 'mine', name: 'Mine', builtin: false, tracks: [{ id: 'a', title: 'a', type: 'curves', width: 1, scale: 'linear', min: 0, max: 1, curves: [{ source: 'input:GR', color: '#000' }], fills: [{ mode: 'threshold', a: 'input:GR', threshold: { param: 'grClean' }, side: 'above', color: '#a3a065', opacity: 0.22 }] }] };
   const m = migrateLayouts({ version: 1, activeTemplateId: 'mine', templates: [JSON.parse(JSON.stringify(fork))] });
   expect(m.version).toBe(2);
-  expect(m.templates.map((t) => t.id)).toEqual(['std-triple-combo', 'quicklook', 'lithology-quicklook', 'mine']);
+  expect(m.templates.map((t) => t.id)).toEqual(['std-triple-combo', 'quicklook', 'borehole-qc', 'lithology-quicklook', 'mine']);
   expect(m.templates.find((t) => t.id === 'mine')).toEqual(fork);
   expect(m.activeTemplateId).toBe('mine');
 });
@@ -238,4 +238,16 @@ describe('PT10a scale on pick', () => {
     expect(applySourceScale(fresh, 'log:A34H')).toBe(fresh);
     expect(applySourceScale({ ...fresh, type: 'strip' }, 'output:KPERM')).toMatchObject({ type: 'strip', max: 1 });
   });
+});
+
+// 2026-10-08 (log QC lesson): the Borehole QC built-in
+test('Borehole QC puts caliper and DRHO beside the density, shading |DRHO| above 0.05', () => {
+  const tpl = buildDefaultLayouts().templates.find((t) => t.id === 'borehole-qc');
+  const ctx = { ...fullCtx, curves: { ...fullCtx.curves, CAL: d, DRHO: d } };
+  const tracks = resolveTracks(tpl, ctx);
+  expect(tracks.map((t) => t.key)).toEqual(['b-gr', 'b-cal', 'b-drho', 'b-dn', 'b-rt']);
+  expect(tracks[2].fills[0]).toMatchObject({ mode: 'threshold', value: 0.05, side: 'above' });
+  // negative control: a well without CAL and DRHO simply drops those tracks
+  const bare = resolveTracks(tpl, fullCtx);
+  expect(bare.map((t) => t.key)).toEqual(['b-gr', 'b-dn', 'b-rt']);
 });
