@@ -72,11 +72,19 @@ export async function assemble(sb, clips, rec, { outDir }) {
     + `[1:v]fps=30,scale=3840:2160:flags=lanczos,format=yuv420p,setsar=1${sub}[s];`
     + `[2:v]loop=loop=-1:size=1:start=0,trim=duration=${OUTRO},fps=30,format=yuv420p,fade=t=in:st=0:d=0.6,setsar=1[o];[i][s][o]concat=n=3:v=1:a=0[v]`;
   const vin = ['-i', path.join(work, 'intro.png'), '-i', raw, '-i', path.join(work, 'outro.png')];
-  // one pass, two outputs, so the booth cut is not a second-generation encode
-  const graph = `${pic('')};[v]split[v1][v2];[v2]subtitles=${ass}:fontsdir=/usr/share/fonts[vn]`;
-  ff([...vin, '-i', narration, '-filter_complex', graph,
-    '-map', '[v1]', '-map', '3:a', ...enc, '-c:a', 'aac', '-b:a', '192k', '-shortest', path.join(outDir, 'youtube.mp4'),
-    '-map', '[vn]', '-an', ...enc, path.join(outDir, 'nape.mp4')]);
+  if (sb.captions === false) {
+    // lessons (owner, 2026-10-08): YouTube captions them, so no subtitle
+    // files and no burned-in booth cut
+    for (const f of ['youtube.srt', 'youtube.vtt']) fs.rmSync(path.join(outDir, f), { force: true });
+    ff([...vin, '-i', narration, '-filter_complex', pic(''),
+      '-map', '[v]', '-map', '3:a', ...enc, '-c:a', 'aac', '-b:a', '192k', '-shortest', path.join(outDir, 'youtube.mp4')]);
+  } else {
+    // one pass, two outputs, so the booth cut is not a second-generation encode
+    const graph = `${pic('')};[v]split[v1][v2];[v2]subtitles=${ass}:fontsdir=/usr/share/fonts[vn]`;
+    ff([...vin, '-i', narration, '-filter_complex', graph,
+      '-map', '[v1]', '-map', '3:a', ...enc, '-c:a', 'aac', '-b:a', '192k', '-shortest', path.join(outDir, 'youtube.mp4'),
+      '-map', '[vn]', '-an', ...enc, path.join(outDir, 'nape.mp4')]);
+  }
 
   return { duration: INTRO + rawDur + OUTRO, cues: cues.length, chapters };
 }

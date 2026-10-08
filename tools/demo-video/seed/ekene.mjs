@@ -3,7 +3,7 @@
 // import screens: LAS, surface location, CRS, offshore datum, then tops.
 // Idempotent: a well already in the registry is left as it is.
 //
-//   node tools/demo-video/seed/ekene.mjs [--base-url URL] [--wells Ekene-1,Ekene-2] [--headed]
+//   node tools/demo-video/seed/ekene.mjs [--base-url URL] [--wells Ekene-1,Ekene-2] [--no-tops] [--headed]
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,6 +37,10 @@ try {
   await page.goto(`${baseUrl}/dashboard/apps/geoscience/well-data-manager`, { waitUntil: 'domcontentloaded' });
   await t('wdm-open-las').waitFor({ timeout: 120000 });
   for (const name of wells) {
+    // fresh page per well (a closing dialog or toast can sit over the list)
+    await page.goto(`${baseUrl}/dashboard/apps/geoscience/well-data-manager`, { waitUntil: 'domcontentloaded' });
+    await t('wdm-open-las').waitFor({ timeout: 120000 });
+    await page.waitForTimeout(1500);
     const h = headers[name];
     const row = t('wdm-well-row').filter({ hasText: name });
     if (await row.count()) { console.log(`${name}: already in the registry`); continue; }
@@ -71,6 +75,7 @@ try {
     await row.first().waitFor({ timeout: 60000 });
     console.log(`${name}: imported`);
 
+    if (args.includes('--no-tops')) continue;   // a lesson pastes them on camera
     await row.first().click();
     await t('wdm-detail-tab-tops').click();
     await t('wdm-edit-tops').click();
