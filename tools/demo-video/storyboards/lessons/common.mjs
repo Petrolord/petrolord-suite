@@ -2,6 +2,8 @@
 // Lessons run on the Ekene demonstration field, kit v2, in feet, on the
 // demo account. No subtitles (YouTube captions them); captions: false.
 import path from 'node:path';
+import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { login } from '../../lib/session.mjs';
 import { deleteWells } from '../../seed/delete-wells.mjs';
@@ -59,3 +61,28 @@ export async function resetWell(d, shared, name) {
 }
 
 export { login };
+
+// Off-camera reseed through Well Data Manager (runs the seed script)
+
+export function seedWells(shared, wells, { tops = true } = {}) {
+  const seed = path.resolve(HERE, '../../seed/ekene.mjs');
+  execFileSync('node', [seed, '--base-url', shared.baseUrl, '--wells', wells.join(','), ...(tops ? [] : ['--no-tops'])],
+    { env: { ...process.env, EKENE_KIT: KIT }, stdio: 'inherit', timeout: 900000 });
+}
+
+export function kitCsv(rel) {
+  const [h, ...rows] = fs.readFileSync(path.join(KIT, rel), 'utf8').trim().split('\n').map((l) => l.split(','));
+  return rows.map((r) => Object.fromEntries(h.map((k, i) => [k, r[i]])));
+}
+
+// A deviated well path against the vertical: MD along the hole, TVD straight down
+export const MDTVD_SVG = `<svg width="560" height="560" viewBox="0 0 560 560" xmlns="http://www.w3.org/2000/svg">
+  <line x1="60" y1="50" x2="520" y2="50" stroke="#d4ac3a" stroke-width="2"/><text x="60" y="38" font-size="22">KB</text>
+  <line x1="60" y1="110" x2="520" y2="110" stroke="#9fd3f0" stroke-width="2"/><text x="60" y="100" font-size="20">Sea level</text>
+  <path d="M 120 50 L 120 200 Q 125 300 230 380 L 420 480" fill="none" stroke="#ff7a59" stroke-width="7"/>
+  <line x1="420" y1="50" x2="420" y2="480" stroke="#cfd8d2" stroke-width="3" stroke-dasharray="10 8"/>
+  <line x1="60" y1="480" x2="520" y2="480" stroke="#e8d5a9" stroke-width="2"/><text x="60" y="510" font-size="22">Ekene Sand top</text>
+  <text x="240" y="300" font-size="22" fill="#ff7a59">MD: along the hole</text>
+  <text x="430" y="270" font-size="22">TVD</text>
+  <text x="430" y="300" font-size="18">straight down</text>
+</svg>`;

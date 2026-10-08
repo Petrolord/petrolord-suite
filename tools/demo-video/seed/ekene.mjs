@@ -3,7 +3,7 @@
 // import screens: LAS, surface location, CRS, offshore datum, then tops.
 // Idempotent: a well already in the registry is left as it is.
 //
-//   node tools/demo-video/seed/ekene.mjs [--base-url URL] [--wells Ekene-1,Ekene-2] [--headed]
+//   node tools/demo-video/seed/ekene.mjs [--base-url URL] [--wells Ekene-1,Ekene-2] [--no-tops] [--headed]
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -75,6 +75,7 @@ try {
     await row.first().waitFor({ timeout: 60000 });
     console.log(`${name}: imported`);
 
+    if (args.includes('--no-tops')) continue;   // a lesson pastes them on camera
     await row.first().click();
     await t('wdm-detail-tab-tops').click();
     await t('wdm-edit-tops').click();
