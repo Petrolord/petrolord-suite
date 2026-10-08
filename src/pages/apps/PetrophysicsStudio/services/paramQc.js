@@ -52,7 +52,7 @@ export function paramQcHints({ curves = {}, outputs = {}, params = {} }) {
       for (let i = 0; i < curves.DT.length; i++) if (outputs.VSH[i] >= 0.7 && curves.DT[i] > 0) sh.push(curves.DT[i] / 3.28084);
       if (sh.length >= 20) {
         const dtSh = pct(sh, 0.5);
-        if (dtSh > 100 && Math.abs(cp - dtSh / 100) > 0.1) out.push({ key: 'sonicCp', level: 'warn', text: `Shales in this well read ${f(dtSh, 0)} µs/ft, slower than 100: the sands are likely uncompacted and Wyllie overreads. A compaction factor Bcp of about ${f(dtSh / 100, 2)} (shale Δt / 100) is the usual correction; RHG needs none.` });
+        if (dtSh > 100 && Math.abs(cp - dtSh / 100) > 0.1) out.push({ key: 'sonicCp', level: 'warn', text: `Shales in this well read ${f(dtSh, 0)} µs/ft, slower than 100: the sands are likely uncompacted and Wyllie overreads. A compaction factor Bcp of about ${f(dtSh / 100, 2)} (shale Δt / 100) is the usual correction. Better still, calibrate Bcp on a nearby well with a density log; RHG has no compaction term.` });
       }
     }
   }

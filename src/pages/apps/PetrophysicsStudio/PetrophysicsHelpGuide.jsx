@@ -387,7 +387,7 @@ const PetrophysicsHelpGuide = () => (
           ['Δt matrix (µs/m)', 'Matrix slowness for sonic porosity, in µs per metre', '182'],
           ['Δt fluid (µs/m)', 'Fluid slowness in µs per metre', '656'],
           ['Sonic model', 'wyllie (time average) or rhg (Raymer-Hunt-Gardner)', 'wyllie'],
-          ['Bcp (compaction)', 'Wyllie compaction factor for uncompacted sands: porosity is divided by it. Commonly the nearby shale Δt / 100 µs/ft (Hilchie 1978); the QC hint suggests it from the well. RHG needs none', '1 (none)'],
+          ['Bcp (compaction)', 'Wyllie compaction factor for uncompacted sands: porosity is divided by it. Commonly the nearby shale Δt / 100 µs/ft (Hilchie 1978); the QC hint suggests it from the well; calibrating on an offset well with a density log is better. RHG has no compaction term', '1 (none)'],
           ['N-D combine', 'avg (arithmetic mean of density and neutron porosity) or rms (the gas form, root-mean-square)', 'avg'],
         ]}
       />
