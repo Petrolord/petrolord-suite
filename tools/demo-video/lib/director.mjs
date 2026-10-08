@@ -1,0 +1,60 @@
+// What a storyboard step can do on screen. Every action moves the visible
+// cursor first and only then acts, at a human pace, and waits on the app's
+// own state (testids) rather than fixed sleeps.
+export function makeDirector(page) {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const loc = (t) => (typeof t === 'string' ? page.getByTestId(t) : t);
+  async function box(target) {
+    const l = loc(target).first();
+    await l.waitFor({ state: 'visible', timeout: 30000 });
+    await l.scrollIntoViewIfNeeded();
+    return l.boundingBox();
+  }
+  async function moveTo(target, { ms = 750, dx = 0.5, dy = 0.5 } = {}) {
+    let x; let y;
+    if (target && typeof target.x === 'number' && typeof target.width !== 'number') ({ x, y } = target);
+    else { const b = await box(target); x = b.x + b.width * dx; y = b.y + b.height * dy; }
+    await Promise.all([
+      page.evaluate(([a, b, c]) => window.__demo.moveTo(a, b, c), [x, y, ms]),
+      page.mouse.move(x, y, { steps: Math.max(4, Math.round(ms / 40)) }),
+    ]);
+    return { x, y };
+  }
+  const d = {
+    page, sleep, loc,
+    moveTo,
+    async click(target, opts = {}) {
+      const p = await moveTo(target, opts);
+      await sleep(opts.settle ?? 180);
+      await page.evaluate(([x, y]) => window.__demo.ripple(x, y), [p.x, p.y]);
+      await loc(target).first().click({ timeout: 30000 });
+      await sleep(opts.after ?? 250);
+    },
+    async type(target, text, { clear = true, delay = 70 } = {}) {
+      await d.click(target);
+      const l = loc(target).first();
+      if (clear) { await l.press('Control+A'); await l.press('Backspace'); }
+      await l.pressSequentially(String(text), { delay });
+      await sleep(200);
+    },
+    async select(target, value) { await d.click(target); await loc(target).first().selectOption(value); await sleep(300); },
+    async highlight(target, { pad = 8 } = {}) { const b = await box(target); await page.evaluate(([bb, p]) => window.__demo.ring(bb, p), [b, pad]); },
+    async unhighlight() { await page.evaluate(() => window.__demo.ring(null)); },
+    async callout(id, target, text, side = 'right') { const b = await box(target); await page.evaluate(([i, bb, t, s]) => window.__demo.callout(i, bb, t, s), [id, b, text, side]); },
+    async clearCallouts() { await page.evaluate(() => window.__demo.clearCallouts()); },
+    async lowerThird(title, sub = '') { await page.evaluate(([t, s]) => window.__demo.lowerThird(t, s), [title, sub]); },
+    async scroll(target, dy, { ms = 900 } = {}) {
+      await moveTo(target);
+      const n = Math.max(6, Math.round(ms / 50));
+      for (let i = 0; i < n; i++) { await page.mouse.wheel(0, dy / n); await sleep(ms / n); }
+    },
+    async waitFor(target, opts = {}) { await loc(target).first().waitFor({ state: 'visible', timeout: opts.timeout ?? 60000 }); },
+    async waitText(target, re, { timeout = 60000 } = {}) {
+      const l = loc(target).first(); const t0 = Date.now();
+      while (Date.now() - t0 < timeout) { const s = (await l.textContent().catch(() => '')) || ''; if (re.test(s)) return s; await sleep(150); }
+      throw new Error(`Timed out waiting for ${re} in ${typeof target === 'string' ? target : 'locator'}`);
+    },
+    async text(target) { return ((await loc(target).first().textContent()) || '').trim(); },
+  };
+  return d;
+}
