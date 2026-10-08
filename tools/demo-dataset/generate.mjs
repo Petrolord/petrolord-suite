@@ -223,8 +223,8 @@ for (const b of built) {
         MST:  { unit: 'DEGF', value: FRAME.seabed_temp_f.toFixed(1), descr: 'Mudline (seabed) temperature' },
         RMF:  { unit: 'OHMM', value: PETRO.rmf_ohm_m_at_75f.toFixed(3), descr: 'Mud filtrate resistivity at 75 degF' },
         RMFT: { unit: 'DEGF', value: '75.0', descr: 'Temperature of RMF measurement' },
-        XCOO: { unit: 'M', value: utmE(b.survey.surface.x).toFixed(2), descr: `Surface easting, ${FRAME.crs}` },
-        YCOO: { unit: 'M', value: utmN(b.survey.surface.y).toFixed(2), descr: `Surface northing, ${FRAME.crs}` },
+        XCOO: { unit: 'M', value: utmE(b.survey.surface.x).toFixed(2), descr: `Surface easting, ${FRAME.crs.replace(':', ' ')}` },  // no colon: LAS splits value and description at the last colon
+        YCOO: { unit: 'M', value: utmN(b.survey.surface.y).toFixed(2), descr: `Surface northing, ${FRAME.crs.replace(':', ' ')}` },
       },
     },
   }));
