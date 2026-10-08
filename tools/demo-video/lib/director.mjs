@@ -63,6 +63,8 @@ export function makeDirector(page) {
       while (Date.now() - t0 < timeout) { const s = (await l.textContent().catch(() => '')) || ''; if (re.test(s)) return s; await sleep(150); }
       throw new Error(`Timed out waiting for ${re} in ${typeof target === 'string' ? target : 'locator'}`);
     },
+    async slide(opts) { await page.evaluate((o) => window.__demo.slide(o), opts); await sleep(600); },
+    async hideSlide() { await page.evaluate(() => window.__demo.hideSlide()); await sleep(600); },
     async text(target) { return ((await loc(target).first().textContent()) || '').trim(); },
   };
   return d;
