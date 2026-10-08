@@ -22,6 +22,13 @@ const env = loadEnv();
 const csv = (f) => { const [h, ...rows] = fs.readFileSync(f, 'utf8').trim().split('\n').map((l) => l.split(',')); return rows.map((r) => Object.fromEntries(h.map((k, i) => [k, r[i]]))); };
 const headers = Object.fromEntries(csv(path.join(KIT, '01-wells/well-headers.csv')).map((r) => [r.well, r]));
 
+// The import form shows depths in the account's unit (the demo org is on the
+// oilfield preset, feet); the kit's values are metres.
+async function inDepthUnit(metres) {
+  const label = (await page.getByTestId('wdm-las-dialog').textContent()) || '';
+  return /\(ft\)|ft MD/.test(label) ? Number((metres / 0.3048).toFixed(3)) : metres;
+}
+
 const b = await chromium.launch({ headless: !args.includes('--headed') });
 const page = await b.newPage({ viewport: { width: 1920, height: 1080 } });
 const t = (id) => page.getByTestId(id);
@@ -39,15 +46,28 @@ try {
     await t('wdm-las-x').fill(String(Number(h.surface_easting_m)));
     await t('wdm-las-y').fill(String(Number(h.surface_northing_m)));
     const dlg = t('wdm-las-dialog');
-    await dlg.getByRole('button', { name: /coordinate reference system/i }).click();
-    await page.getByPlaceholder('Search name, EPSG code or region').fill(h.crs.replace('EPSG:', ''));
-    await t('crs-search-results').getByRole('button').first().click();
+    // the first import sets the project CRS; later imports open with it chosen
+    const chooseCrs = dlg.getByRole('button', { name: /choose a coordinate reference system/i });
+    if (await chooseCrs.count()) {
+      await chooseCrs.click();
+      await page.getByPlaceholder('Search name, EPSG code or region').fill(h.crs.replace('EPSG:', ''));
+      await t('crs-search-results').getByRole('button').first().click();
+    } else if (!/32632|UTM zone 32N/.test(await dlg.textContent())) {
+      throw new Error(`${name}: the import dialog has a CRS other than ${h.crs}`);
+    }
     // offshore: the 99da110 build proposes onshore from EGL (fixed in #926)
     if (await t('wdm-las-datum-ground').count()) await t('wdm-las-datum-ground').fill('');
     await t('wdm-las-datum-env').selectOption('offshore');
-    await t('wdm-las-datum-water').fill(String(Number(h.water_depth_m)));
+    await t('wdm-las-datum-water').fill(String(await inDepthUnit(Number(h.water_depth_m))));
     await t('wdm-las-import').click();
-    await dlg.waitFor({ state: 'hidden', timeout: 180000 });
+    const done = await Promise.race([
+      dlg.waitFor({ state: 'hidden', timeout: 180000 }).then(() => 'ok'),
+      t('wdm-las-error').waitFor({ timeout: 180000 }).then(() => 'error'),
+    ]);
+    if (done !== 'ok') {
+      await dlg.screenshot({ path: '/root/demo-videos/seed-error.png' });
+      throw new Error(`${name}: import refused: ${await t('wdm-las-error').textContent()}`);
+    }
     await row.first().waitFor({ timeout: 60000 });
     console.log(`${name}: imported`);
 
