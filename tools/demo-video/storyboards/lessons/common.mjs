@@ -78,11 +78,11 @@ export function kitCsv(rel) {
 // A deviated well path against the vertical: MD along the hole, TVD straight down
 export const MDTVD_SVG = `<svg width="560" height="560" viewBox="0 0 560 560" xmlns="http://www.w3.org/2000/svg">
   <line x1="60" y1="50" x2="520" y2="50" stroke="#d4ac3a" stroke-width="2"/><text x="60" y="38" font-size="22">KB</text>
-  <line x1="60" y1="110" x2="520" y2="110" stroke="#9fd3f0" stroke-width="2"/><text x="60" y="100" font-size="20">Sea level</text>
+  <line x1="60" y1="110" x2="520" y2="110" stroke="#9fd3f0" stroke-width="2"/><text x="138" y="100" font-size="20">Sea level</text>
   <path d="M 120 50 L 120 200 Q 125 300 230 380 L 420 480" fill="none" stroke="#ff7a59" stroke-width="7"/>
   <line x1="420" y1="50" x2="420" y2="480" stroke="#cfd8d2" stroke-width="3" stroke-dasharray="10 8"/>
   <line x1="60" y1="480" x2="520" y2="480" stroke="#e8d5a9" stroke-width="2"/><text x="60" y="510" font-size="22">Ekene Sand top</text>
-  <text x="150" y="400" font-size="22" fill="#ff7a59">MD: along the hole</text>
+  <text x="196" y="318" font-size="22" fill="#ff7a59">MD: along the hole</text>
   <text x="432" y="250" font-size="22">TVD:</text>
   <text x="432" y="278" font-size="18">straight down</text>
 </svg>`;
