@@ -270,6 +270,8 @@ test('PS1: z-color with colorbar, point identify tooltip, Buckles plot, zoom res
     ).data;
     return px[0] + px[1] + px[2];
   });
+  // crossplots colour by Vsh by default since 2026-10-08; start from no colour
+  await page.getByTestId('petro-colorby').selectOption('none');
   const before = await gutterPixel();
   expect(before).toBeGreaterThan(740); // white background
   await page.getByTestId('petro-colorby').selectOption('depth');
@@ -614,6 +616,9 @@ test('PS10: Hingle fit recovers Rw; split view brushes selection; depth columns;
   await expect(page.getByTestId('petro-tracks-canvas')).toBeVisible();
   const cp = page.getByTestId('petro-crossplot-canvas');
   await expect(cp).toBeVisible();
+  // the margins below are the no-colorbar layout (Vsh colouring is the
+  // default since 2026-10-08 and adds a colorbar gutter)
+  await page.getByTestId('petro-colorby').selectOption('none');
   await page.getByTestId('petro-select-start').click();
   const box = await cp.boundingBox();
   const M = { l: 52, r: 12, t: 12, b: 34 };
