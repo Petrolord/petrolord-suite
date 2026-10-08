@@ -41,6 +41,21 @@ export function paramQcHints({ curves = {}, outputs = {}, params = {} }) {
     const above = frac(curves.RHOB, (v) => v > params.rhoMa + 0.02);
     if (above > 0.05) out.push({ key: 'rhoMa', level: 'warn', text: `${Math.round(above * 100)} percent of RHOB samples are denser than the matrix density ${params.rhoMa} g/cc: density porosity goes negative there (99th percentile RHOB ${f(pct(curves.RHOB, 0.99))}). A heavier matrix (limestone 2.71, dolomite 2.87) or heavy minerals?` });
   }
+  // Wyllie in unconsolidated rock: the time average overreads unless divided
+  // by a compaction factor, commonly the nearby shale slowness / 100 us/ft
+  // (Hilchie 1978). DT is us/m in the registry (SI rule).
+  if (params.phiSource === 'sonic' && params.sonicMethod !== 'rhg') {
+    const cp = params.sonicCp ?? 1;
+    if (!(cp >= 1)) out.push({ key: 'sonicCp', level: 'error', text: `Bcp ${cp} must be 1 or more (1 means no compaction correction).` });
+    else if (curves.DT && outputs.VSH) {
+      const sh = [];
+      for (let i = 0; i < curves.DT.length; i++) if (outputs.VSH[i] >= 0.7 && curves.DT[i] > 0) sh.push(curves.DT[i] / 3.28084);
+      if (sh.length >= 20) {
+        const dtSh = pct(sh, 0.5);
+        if (dtSh > 100 && Math.abs(cp - dtSh / 100) > 0.1) out.push({ key: 'sonicCp', level: 'warn', text: `Shales in this well read ${f(dtSh, 0)} µs/ft, slower than 100: the sands are likely uncompacted and Wyllie overreads. A compaction factor Bcp of about ${f(dtSh / 100, 2)} (shale Δt / 100) is the usual correction; RHG needs none.` });
+      }
+    }
+  }
   const phi = outputs.PHIE || outputs.PHIT;
   if (phi && Number.isFinite(params.cutPhi)) {
     const pass = frac(phi, (v) => v >= params.cutPhi);

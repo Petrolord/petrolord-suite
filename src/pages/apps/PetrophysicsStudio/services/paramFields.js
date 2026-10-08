@@ -43,6 +43,7 @@ export const FIELDS = [
   { key: 'dtMa', label: 'Δt matrix (µs/m)' },
   { key: 'dtFl', label: 'Δt fluid (µs/m)' },
   { key: 'sonicMethod', label: 'Sonic model', options: ['wyllie', 'rhg'] },
+  { key: 'sonicCp', label: 'Bcp (compaction)', show: (d) => d.sonicMethod !== 'rhg' },
   { key: 'ndMethod', label: 'N-D combine', options: ['avg', 'rms'] },
   { section: 'Temperature' },
   { key: 'tempMode', label: 'Model', options: ['none', 'linear'] },
