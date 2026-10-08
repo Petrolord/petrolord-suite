@@ -46,3 +46,32 @@ test('the panel shows the hints', () => {
   render(<ParameterPanel params={params} onApply={() => {}} onApplyZone={() => {}} qcHints={hints({ grClean: 90 })} />);
   expect(screen.getByTestId('petro-param-qc-grClean').textContent).toMatch(/median GR/);
 });
+
+describe('Wyllie compaction hint (Bcp)', () => {
+  // 40 shale samples at 130 us/ft and 40 sands, DT in us/m as the registry holds it
+  const n = 80;
+  const synth = {
+    DEPT: Float64Array.from({ length: n }, (_, i) => 1000 + i),
+    GR: Float64Array.from({ length: n }, (_, i) => (i < 40 ? 120 : 25)),
+    DT: Float64Array.from({ length: n }, (_, i) => (i < 40 ? 130 : 110) * 3.28084),
+  };
+  const run = (patch) => {
+    const p = { ...DEFAULT_PARAMS, grClean: 20, grClay: 120, vshMethod: 'linear', phiSource: 'sonic', ...patch };
+    return paramQcHints({ curves: synth, outputs: computeWell(synth, p).outputs, params: p }).filter((h) => h.key === 'sonicCp');
+  };
+  test('slow shales with Bcp 1 suggest shale dt / 100', () => {
+    const h = run({});
+    expect(h).toHaveLength(1);
+    expect(h[0].text).toMatch(/130 µs\/ft/);
+    expect(h[0].text).toMatch(/Bcp of about 1\.3/);
+  });
+  test('no hint once Bcp is set near it, with RHG, or when porosity is not from sonic', () => {
+    expect(run({ sonicCp: 1.3 })).toEqual([]);
+    expect(run({ sonicMethod: 'rhg' })).toEqual([]);
+    expect(run({ phiSource: 'density' })).toEqual([]);
+  });
+  test('a factor below 1 is an error', () => {
+    const p = { ...DEFAULT_PARAMS, phiSource: 'sonic', sonicCp: 0.8 };
+    expect(paramQcHints({ curves: synth, outputs: {}, params: p })).toEqual(expect.arrayContaining([expect.objectContaining({ key: 'sonicCp', level: 'error' })]));
+  });
+});

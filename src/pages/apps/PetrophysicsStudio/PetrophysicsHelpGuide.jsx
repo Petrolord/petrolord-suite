@@ -387,6 +387,7 @@ const PetrophysicsHelpGuide = () => (
           ['Δt matrix (µs/m)', 'Matrix slowness for sonic porosity, in µs per metre', '182'],
           ['Δt fluid (µs/m)', 'Fluid slowness in µs per metre', '656'],
           ['Sonic model', 'wyllie (time average) or rhg (Raymer-Hunt-Gardner)', 'wyllie'],
+          ['Bcp (compaction)', 'Wyllie compaction factor for uncompacted sands: porosity is divided by it. Commonly the nearby shale Δt / 100 µs/ft (Hilchie 1978); the QC hint suggests it from the well. RHG needs none', '1 (none)'],
           ['N-D combine', 'avg (arithmetic mean of density and neutron porosity) or rms (the gas form, root-mean-square)', 'avg'],
         ]}
       />
@@ -1204,7 +1205,7 @@ const PetrophysicsHelpGuide = () => (
           ['Larionov tertiary and older', 'Larionov (1969)'],
           ['Clavier', 'Clavier, Hoyle and Meunier (1971)'],
           ['Steiber', 'Steiber (1970)'],
-          ['Sonic porosity', 'Wyllie, Gregory and Gardner (1956); Raymer, Hunt and Gardner (1980)'],
+          ['Sonic porosity', 'Wyllie, Gregory and Gardner (1956), with the Hilchie (1978) compaction factor; Raymer, Hunt and Gardner (1980)'],
           ['Archie', 'Archie (1942)'],
           ['Simandoux / modified Simandoux', 'Simandoux (1963); Bardon and Pied (1969)'],
           ['Indonesia', 'Poupon and Leveaux (1971)'],

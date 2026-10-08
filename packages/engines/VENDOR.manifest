@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 3e1f868507327a4367e93d66392a8196891bc7d9
+# commit 1367f9c4033b15b039c306efb4f22d4821978f57
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 80b08bf546799e96d5448d67c63c98f2ec1b9703 README.md
@@ -148,7 +148,7 @@ e02b5c49b895e595c76d48d1f4a76855913d71d0 __tests__/mbal.carterTracyPD.test.ts
 2c42cf594e3e98a5df4bbc5e1e4b5cb1c55f6380 __tests__/petrophysics.conditioning.test.js
 be6756cbfa3ceea3c6f61d32e9ffb219d6cd31ff __tests__/petrophysics.logEdit.test.js
 99a7f6a2d8dac3d210a23c0fdc66fe12bec49cd5 __tests__/petrophysics.mineral.test.js
-0d7c1d42f65d6d43bc4b1431cbbd65422217e0ca __tests__/petrophysics.pipeline.test.js
+5c0c42191882440e3fac51bba3d14c55863fdd11 __tests__/petrophysics.pipeline.test.js
 8c4823f85a58bdce13ee3119200845e957b9704c __tests__/petrophysics.probabilistic.test.js
 e379507dc024862018aa4254854affa5f3d40d5e __tests__/petrophysics.rw.test.js
 9c445e72524f9470274c685dc9b97aaa43fffae8 __tests__/petrophysics.scanTrace.test.js
@@ -457,7 +457,7 @@ f8ff2a15096dadf96f23322af6ef808134a46d71 engines/petrophysics/logEdit.js
 427c7409be667d434fc276cbdbc2cddd501d3754 engines/petrophysics/netpay.js
 594470a28b8ac5bf655f21a8a0d51b54273bb7b9 engines/petrophysics/normalize.js
 db942ebdb54658e508f6cf797f1d8dc97a8ab193 engines/petrophysics/perm.js
-1aed59a20600c4d8656c65eccf42c83ebe05f656 engines/petrophysics/pipeline.js
+02107c02c546779efccf8ec0a4d59835cfc1beae engines/petrophysics/pipeline.js
 e8655cb67464e0a29a87431b8f0b890c76b230d5 engines/petrophysics/porosity.js
 28253c97b9dca8674c7a74c9a26e8ee7c8e988c8 engines/petrophysics/probabilistic.js
 4a0e626f14dad8d987a78afe0052a36db4ec898a engines/petrophysics/rw.js

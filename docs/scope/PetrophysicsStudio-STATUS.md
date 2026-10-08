@@ -956,3 +956,14 @@ PEF, caliper and DRHO colour options came in #940), B7 gas effect (Oboro Sand
 φe density 0.221, neutron-density gas form 0.200, truth 0.195; the shaly
 Ekene oil sand reads 0.228 with the same form). Every spoken figure is
 asserted on screen with `expectText`. Rendered to /root/demo-videos/lesson-b5..b7.
+
+## 2026-10-08: Wyllie compaction factor (Bcp)
+
+Vendors engines 1367f9c (PR #342): `sonicCp` passes through computeWell to the
+time average (default 1, results unchanged). The parameter panel gains
+"Bcp (compaction)" under Wyllie, and a QC hint suggests shale Δt / 100 when
+porosity comes from sonic and the well's shales read slower than 100 µs/ft
+(Hilchie 1978). For the sonic porosity lesson on Ekene-9, whose sands carry a
+compaction factor of 1.45 by design. Tests: engine (default overreads by Bcp,
+Bcp recovers porosity, RHG unaffected, < 1 refused); paramQc (hint, no hint at
+the suggested value, RHG or density, error below 1).
