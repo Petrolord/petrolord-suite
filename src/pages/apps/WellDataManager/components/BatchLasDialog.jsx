@@ -151,7 +151,7 @@ export default function BatchLasDialog({ open, onOpenChange, backend, wells, onD
                         </td>
                         <td className={`${tdCls} text-pl-muted`} data-testid={`wdm-batch-datum-${r.i}`} title={(r.datumConflicts || []).join(' ')}>
                           {r.action !== 'new' ? '' : r.datum && Number.isFinite(r.datum.refElevM)
-                            ? `${r.datum.refKind || 'KB'} ${Number(r.datum.refElevM.toFixed(2))} m${r.datum.verticalDatum ? ` above ${r.datum.verticalDatum}` : ''}${Number.isFinite(r.datum.groundElevM) ? `, ground ${Number(r.datum.groundElevM.toFixed(2))} m` : ''}${(r.datumConflicts || []).length ? ' (check)' : ''}`
+                            ? `${r.datum.refKind || 'KB'} ${Number(r.datum.refElevM.toFixed(2))} m${r.datum.verticalDatum ? ` above ${r.datum.verticalDatum}` : ''}${Number.isFinite(r.datum.groundElevM) ? `, ground ${Number(r.datum.groundElevM.toFixed(2))} m` : ''}${Number.isFinite(r.datum.waterDepthM) ? `, water ${Number(r.datum.waterDepthM.toFixed(2))} m` : ''}${(r.datumConflicts || []).length ? ' (check)' : ''}`
                             : 'not in the file: left not set'}
                         </td>
                         <td className={`${tdCls} ${r.action === 'skip' ? 'text-pl-warning-text' : 'text-pl-muted'}`} data-testid={`wdm-batch-note-${r.i}`}>
