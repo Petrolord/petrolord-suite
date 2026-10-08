@@ -915,5 +915,9 @@ Found while preparing the demo videos (oilfield session, feet).
   session's system (it showed °C, m and µs/m in an oilfield session); a value
   typed in field units is applied in engine units. Same pattern as the zone
   parameter table (PETRO-U2-002).
-- Tests: three new Rw tools cases (with an SI negative control) and
-  `scenariosFieldUnits.test.jsx`.
+- **Probabilistic**: the parameter labels, the Current column and the
+  distribution values show in the session's system; the run and the saved
+  spec are SI (`specToDisplay` / `specFromDisplay`; a standard deviation
+  takes the scale only).
+- Tests: three new Rw tools cases (with an SI negative control),
+  `scenariosFieldUnits.test.jsx` and `probabilisticFieldUnits.test.js`.

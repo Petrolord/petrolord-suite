@@ -1759,6 +1759,7 @@ export default function PetroWorkstation({
         open={probOpen}
         onOpenChange={setProbOpen}
         params={params}
+        unitSystem={paramUnits}
         uncertainty={uncertainty}
         result={probResult && probResult.wellId === wellData.wellId ? probResult : null}
         running={probRunning}
