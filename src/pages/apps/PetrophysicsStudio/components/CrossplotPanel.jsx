@@ -64,11 +64,19 @@ const DEFAULT_DOMAINS = {
 };
 const DIMMED = '#d8dde4';
 
-const viridisFn = COLOR_MAPS.viridis.fn;
-const mapFn = (t) => {
-  const [r, g, b] = viridisFn(Math.min(1, Math.max(0, t)));
-  return `rgb(${r},${g},${b})`;
+// Colour maps offered for a property colouring (2026-10-08, owner review:
+// bright colours that carry information). Turbo by default: vivid and still
+// ordered, so low and high values read at a glance.
+const CROSSPLOT_MAPS = ['turbo', 'viridis', 'plasma', 'magma', 'jet'];
+const makeMapFn = (key) => {
+  const fn = (COLOR_MAPS[key] || COLOR_MAPS.turbo).fn;
+  return (t) => {
+    const [r, g, b] = fn(Math.min(1, Math.max(0, t)));
+    return `rgb(${r},${g},${b})`;
+  };
 };
+// a friendlier colour-by label than the curve key
+const Z_LABELS = { VSH: 'Vsh', PHIE: 'φe', PHIT: 'φt', SW: 'Sw', KPERM: 'k (mD)' };
 
 const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 
@@ -117,7 +125,12 @@ export default function CrossplotPanel({
   };
   const [fit, setFit] = useState(null);              // {m, aRw, nPoints}
   const [hFit, setHFit] = useState(null);            // {rw, slope, nPoints}
-  const [colorBy, setColorBy] = useState(initialConfig?.colorBy || 'facies');
+  // Without a saved choice, colour by shale volume when it is computed and no
+  // facies are drawn: on a Pickett plot that shows at once which points are
+  // clean sand and which are shale.
+  const [colorBy, setColorBy] = useState(initialConfig?.colorBy || (!facies.length && outputs?.VSH ? 'VSH' : 'facies'));
+  const [colorMap, setColorMap] = useState(initialConfig?.colorMap || 'turbo');
+  const mapFn = useMemo(() => makeMapFn(colorMap), [colorMap]);
   const [domains, setDomains] = useState({ nd: null, pickett: null, buckles: null, hingle: null });
   const [selecting, setSelecting] = useState(false); // PS10 brush polygon
   const [selDraft, setSelDraft] = useState([]);
@@ -130,8 +143,8 @@ export default function CrossplotPanel({
   // persisted crossplot config (petro_projects.crossplots)
   useEffect(() => {
     const { curve, ref, xBins, depthBinM, overlayId } = density;
-    onConfigChange?.({ plot, colorBy, zones: zoneIds, cleanVsh, density: { curve, ref, xBins, depthBinM, overlayId } });
-  }, [plot, colorBy, zoneIds, cleanVsh, density.curve, density.ref, density.xBins, density.depthBinM, density.overlayId]); // eslint-disable-line react-hooks/exhaustive-deps
+    onConfigChange?.({ plot, colorBy, colorMap, zones: zoneIds, cleanVsh, density: { curve, ref, xBins, depthBinM, overlayId } });
+  }, [plot, colorBy, colorMap, zoneIds, cleanVsh, density.curve, density.ref, density.xBins, density.depthBinM, density.overlayId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // drop ids of zones that no longer exist, so a deleted zone cannot
   // leave the plot filtered to nothing the user can see or clear
@@ -175,7 +188,11 @@ export default function CrossplotPanel({
 
   const zInfo = useMemo(() => {
     if (colorBy === 'facies' || colorBy === 'none') return null;
-    const data = colorBy === 'depth' ? curves.DEPT : zSources.find((s) => s.key === colorBy)?.data;
+    // depth colours in the session's unit (it read m in a feet session)
+    const ftF = depthUnit === 'ft' ? 1 / 0.3048 : 1;
+    const data = colorBy === 'depth'
+      ? (ftF === 1 ? curves.DEPT : Float64Array.from(curves.DEPT, (d) => d * ftF))
+      : zSources.find((s) => s.key === colorBy)?.data;
     if (!data) return null;
     let lo = Infinity;
     let hi = -Infinity;
@@ -186,9 +203,9 @@ export default function CrossplotPanel({
       if (v > hi) hi = v;
     }
     if (!(hi > lo)) return null;
-    const title = colorBy === 'depth' ? 'Depth (m MD)' : colorBy;
+    const title = colorBy === 'depth' ? `Depth (${depthUnit} MD)` : (Z_LABELS[colorBy] || colorBy);
     return { data, domain: [lo, hi], title };
-  }, [colorBy, curves, zSources]);
+  }, [colorBy, curves, zSources, depthUnit]);
 
   const colorFor = useMemo(() => (s) => {
     if (zInfo) {
@@ -200,7 +217,7 @@ export default function CrossplotPanel({
       return facies[ndTags[s.i]].color;
     }
     return POINT_COLOR;
-  }, [zInfo, colorBy, ndTags, facies]);
+  }, [zInfo, colorBy, ndTags, facies, mapFn]);
 
   const withZ = (s, color) => ({
     x: s.x,
@@ -529,7 +546,15 @@ export default function CrossplotPanel({
             <option value="facies">Facies</option>
             <option value="none">None</option>
             <option value="depth">Depth</option>
-            {zSources.map((s) => <option key={s.key} value={s.key}>{s.key}</option>)}
+            {zSources.map((s) => <option key={s.key} value={s.key}>{Z_LABELS[s.key] || s.key}</option>)}
+          </select>
+        </label>
+        )}
+        {plot !== 'density' && colorBy !== 'facies' && colorBy !== 'none' && (
+        <label className="flex items-center gap-1 text-pl-muted">
+          Colours
+          <select className={inputCls} data-testid="petro-colormap" value={colorMap} onChange={(e) => setColorMap(e.target.value)}>
+            {CROSSPLOT_MAPS.map((k) => <option key={k} value={k}>{COLOR_MAPS[k].name}</option>)}
           </select>
         </label>
         )}

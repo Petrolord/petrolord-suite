@@ -921,3 +921,19 @@ Found while preparing the demo videos (oilfield session, feet).
   takes the scale only).
 - Tests: three new Rw tools cases (with an SI negative control),
   `scenariosFieldUnits.test.jsx` and `probabilisticFieldUnits.test.js`.
+
+## 2026-10-08: crossplot colours that carry information
+
+Owner review of the demo videos: people respond to bright colours, and
+better still when the colour means something.
+
+- Crossplots colour by shale volume by default when it is computed and no
+  facies are drawn (a saved choice wins): on a Pickett plot the clean sand
+  and the shale separate at a glance.
+- A **Colours** picker (Turbo, Viridis, Plasma, Magma, Jet), Turbo by
+  default, saved with the crossplot config. Turbo added to the shared colour
+  maps (Mikhailov 2019 polynomial), so the mapping studio lists it too.
+- Depth colouring reads in the session's unit (it said "Depth (m MD)" in a
+  feet session); friendlier labels (Vsh, φe, Sw).
+- Test: `crossplotColour.test.jsx` (default, saved choice negative control,
+  map ordering).
