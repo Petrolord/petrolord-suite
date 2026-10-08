@@ -175,8 +175,8 @@ export const PLATFORM = { name: 'Ekene Alpha', x: 1700, y: 1600 };
 
 // Log suite. Mnemonics follow the Petrophysics Studio pipeline inputs.
 export const CURVES = {
-  full:            ['CALI', 'GR', 'SP', 'RHOB', 'NPHI', 'DT', 'RT', 'RXO', 'PEF'],
-  full_plus_litho: ['CALI', 'GR', 'SP', 'RHOB', 'NPHI', 'DT', 'RT', 'RXO', 'PEF', 'LITH'],
+  full:            ['CALI', 'GR', 'SP', 'RHOB', 'DRHO', 'NPHI', 'DT', 'RT', 'RXO', 'PEF'],
+  full_plus_litho: ['CALI', 'GR', 'SP', 'RHOB', 'DRHO', 'NPHI', 'DT', 'RT', 'RXO', 'PEF', 'LITH'],
   no_density:      ['CALI', 'GR', 'DT', 'RT'],
   none:            [],
 };
@@ -232,7 +232,7 @@ export const SEISMIC = {
 };
 
 export const KIT = {
-  version: 'v1',
+  version: 'v2',  // v2 (2026-10-08): LAS curves are tool measurements of the truth (measure.mjs)
   name: 'ekene-demo',
   out_dir: 'dist-demo',
 };

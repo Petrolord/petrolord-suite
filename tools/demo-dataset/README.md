@@ -3,7 +3,7 @@
 Builds the field dataset the YouTube tutorial series records against.
 
 ```
-npx tsx tools/demo-dataset/generate.mjs      # -> dist-demo/ekene-demo-v1/
+npx tsx tools/demo-dataset/generate.mjs      # -> dist-demo/ekene-demo-v2/
 npx jest tools/demo-dataset                  # the gates (kitImports reads the generated kit)
 ```
 
@@ -12,10 +12,10 @@ hand to anyone, the full volume travels on its own):
 
 ```
 cd dist-demo
-zip -qr ekene-demo-v1-kit.zip ekene-demo-v1 \
-    -x "ekene-demo-v1/04-seismic/EKENE3D-full.sgy"      # 5.5 MB
-zip -qj ekene-demo-v1-seismic-full.zip \
-    ekene-demo-v1/04-seismic/EKENE3D-full.sgy           # 35 MB
+zip -qr ekene-demo-v2-kit.zip ekene-demo-v2 \
+    -x "ekene-demo-v2/04-seismic/EKENE3D-full.sgy"      # 5.5 MB
+zip -qj ekene-demo-v2-seismic-full.zip \
+    ekene-demo-v2/04-seismic/EKENE3D-full.sgy           # 35 MB
 ```
 
 Deterministic: reruns are byte-identical. Plan of record:
@@ -82,3 +82,21 @@ and add an episode note if a script needs it. Wave D7 (production,
 material balance, decline, economics) is mostly a repackaging of
 `packages/engines/test-data/ekene-dynamic/`, which is already generated
 and already carries the goldens.
+
+## Kit v2 (2026-10-08): measured logs
+
+The generated rows are the truth: every gate and every locked number is
+computed from them. Since v2 the LAS files carry what logging tools would
+measure from that truth (`measure.mjs`): each tool's vertical resolution
+(PEF 0.2 m, density 0.45 m, GR, neutron and sonic 0.6 m, deep resistivity
+0.9 m on conductivity), seeded measurement noise at tool precision, a
+washed-out stretch in the Ogbia Shale where the density reads low and the new
+`DRHO` correction curve flags it, and lamina-scale porosity variation in the
+two reservoir sands. v1 logs were smooth functions of a few bed properties,
+so every crossplot showed thin streaks.
+
+What a presenter will read changes with it: on Ekene-1's water leg the clean
+samples (Vsh <= 0.12) give a least-squares Pickett line of m about 1.6 and
+a*Rw about 0.13, against the truth of m 2 and Rw 0.078. Noise in porosity
+biases a least-squares slope shallow, which is itself a lesson.
+

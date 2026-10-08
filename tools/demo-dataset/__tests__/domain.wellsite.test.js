@@ -45,7 +45,7 @@ import {
 } from '../geology.mjs';
 import { SILT_MAX } from '../domains/wellsite/design.mjs';
 
-const KIT = path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v1');
+const KIT = path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v2');
 const DIR = '15-wellsite';
 const read = (rel) => {
   const p = path.join(KIT, rel);
@@ -399,9 +399,9 @@ describe('Episode 37: shows, observations and tops', () => {
       const rec = buildRecord({ ...common, ...p, occurredAt: '2027-01-23T05:00:00Z' }).row;
       if (depthEntry) expect(rec.md_calc_m).toBeCloseTo(Number(r.depth_md_m), 9);
     }
-    expect(O.some((r) => r.type === 'Total gas' && r.value === '1.7' && r.depth_md_m === '1638.0')).toBe(true);
+    expect(O.some((r) => r.type === 'Total gas' && r.value === '1.9' && r.depth_md_m === '1638.0')).toBe(true);
     expect(O.some((r) => r.type === 'Geological note')).toBe(true);
-    expect(NOTE).toContain('Total gas 1.7 percent on sample No 15 (1638.0 m)');
+    expect(NOTE).toContain('Total gas 1.9 percent on sample No 15 (1638.0 m)');
   });
 
   test('the prognosis Load from registry gives, the approach panel, and the call', () => {

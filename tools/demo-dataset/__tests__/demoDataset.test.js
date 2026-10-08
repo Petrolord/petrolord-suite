@@ -256,3 +256,38 @@ describe('the dynamic field is repackaged, not recomputed', () => {
     expect(scal.capillary.lab_pc).toHaveLength(3);
   });
 });
+
+// Kit v2 (2026-10-08): the LAS curves are tool measurements of the truth.
+describe('the logs are measured the way tools measure', () => {
+  // eslint-disable-next-line global-require
+  const { measureLogs } = require('../measure.mjs');
+  const bitAt = (md) => PETRO.bit_sizes.find(([lo, hi]) => md >= lo && md < hi)?.[2] ?? 8.5;
+
+  test('density scatters about the truth at tool precision in gauge hole', () => {
+    const b = wellNamed('Ekene-1');
+    const m = measureLogs(b.rows, 'Ekene-1');
+    const d = b.rows.map((r, i) => ({ r, m: m[i] })).filter(({ r, m: x }) => r.layerKey === 'EKENE' && x.CALI - bitAt(r.md) < 0.5);
+    const res = d.map(({ r, m: x }) => x.RHOB - r.rhob);
+    const mean = res.reduce((a, v) => a + v, 0) / res.length;
+    const sd = Math.sqrt(res.reduce((a, v) => a + (v - mean) ** 2, 0) / res.length);
+    expect(Math.abs(mean)).toBeLessThan(0.01);
+    expect(sd).toBeGreaterThan(0.005);
+    expect(sd).toBeLessThan(0.05);
+  });
+
+  test('washouts read low density with a DRHO flag; negative control: gauge sand stays unflagged', () => {
+    const b = wellNamed('Ekene-1');
+    const m = measureLogs(b.rows, 'Ekene-1');
+    const washed = m.filter((x, i) => x.CALI - bitAt(b.rows[i].md) > 2);
+    expect(washed.length).toBeGreaterThan(20);
+    for (const x of washed) expect(x.DRHO).toBeGreaterThan(0.05);
+    const gauge = m.filter((x, i) => b.rows[i].layerKey === 'EKENE' && x.CALI - bitAt(b.rows[i].md) < 0.5);
+    expect(gauge.filter((x) => Math.abs(x.DRHO) > 0.03).length / gauge.length).toBeLessThan(0.01);
+  });
+
+  test('the same well measures the same way every run, and two wells differently', () => {
+    const b = wellNamed('Ekene-1');
+    expect(measureLogs(b.rows, 'Ekene-1')).toEqual(measureLogs(b.rows, 'Ekene-1'));
+    expect(measureLogs(b.rows, 'Ekene-1')[500].GR).not.toBeCloseTo(measureLogs(b.rows, 'Ekene-2')[500].GR, 6);
+  });
+});

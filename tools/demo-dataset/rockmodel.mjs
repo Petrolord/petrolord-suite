@@ -66,13 +66,13 @@ export const LAYERS = [
   { key: 'OGBIA', top: 'OGBIA', base: 'TOP_SAND', name: 'Ogbia Shale',
     seed: 41, beds: 12, shale: 0.78, amp: 0.17, phiTop: 0.22, phiBase: 0.18, phiAmp: 0.018, lith: 'SHALE' },
   { key: 'EKENE', top: 'TOP_SAND', base: 'BASE_SAND', name: 'Ekene Sand',
-    seed: 53, beds: 7,  shale: 0.08, amp: 0.10, phiTop: 0.205, phiBase: 0.195, phiAmp: 0.055, lith: 'SAND', reservoir: 'oil' },
+    seed: 53, beds: 7,  shale: 0.08, amp: 0.10, phiTop: 0.205, phiBase: 0.195, phiAmp: 0.055, phiFine: 0.065, lith: 'SAND', reservoir: 'oil' },
   { key: 'AGBADA_L', top: 'BASE_SAND', base: 'OBORO_U', name: 'Agbada lower',
     seed: 61, beds: 10, shale: 0.65, amp: 0.30, phiTop: 0.19, phiBase: 0.16, phiAmp: 0.030, lith: 'INTERBED' },
   { key: 'SUB_UNC', top: 'OBORO_U', base: 'OBORO', name: 'Sub-unconformity shale',
     seed: 71, beds: 5,  shale: 0.85, amp: 0.11, phiTop: 0.16, phiBase: 0.155, phiAmp: 0.015, lith: 'SHALE' },
   { key: 'OBORO', top: 'OBORO', base: 'OBORO_B', name: 'Oboro Sand',
-    seed: 83, beds: 8,  shale: 0.11, amp: 0.11, phiTop: 0.195, phiBase: 0.185, phiAmp: 0.050, lith: 'SAND', reservoir: 'gas' },
+    seed: 83, beds: 8,  shale: 0.11, amp: 0.11, phiTop: 0.195, phiBase: 0.185, phiAmp: 0.050, phiFine: 0.055, lith: 'SAND', reservoir: 'gas' },
   { key: 'AGBADA_B', top: 'OBORO_B', base: 'AKATA', name: 'Basal Agbada',
     seed: 97, beds: 9,  shale: 0.60, amp: 0.30, phiTop: 0.15, phiBase: 0.14, phiAmp: 0.028, lith: 'INTERBED' },
   { key: 'AKATA', top: 'AKATA', base: null, name: 'Akata Formation',
@@ -240,8 +240,13 @@ export function synthesiseWell({ well, tops, survey, tvdAtMd, geo, tuning }) {
     // AND more porous) and part independent. Without the spread a Pickett plot
     // has no leverage, which is also true of real rock with no spread.
     const phiNoise = fbm(layer.seed + 1777, u * layer.beds * 1.6, 3) - 0.5;
+    // v2 (2026-10-08): lamina-scale variation in the reservoir sands. Real
+    // sand varies from one 6 in sample to the next (sorting, cement, grain
+    // size); with bed-scale variation alone the clean water leg spanned only
+    // 0.168 to 0.203 and every crossplot showed thin streaks.
+    const phiFineNoise = layer.phiFine ? (fbm(layer.seed + 2333, u * layer.beds * 2, 2) - 0.5) * 2 * layer.phiFine : 0;
     const phiTrend = layer.phiTop + (layer.phiBase - layer.phiTop) * u
-      + (layer.phiAmp ?? 0.03) * 2 * (0.55 * phiNoise + 0.45 * (0.5 - s));
+      + (layer.phiAmp ?? 0.03) * 2 * (0.55 * phiNoise + 0.45 * (0.5 - s)) + phiFineNoise;
     const scale = layer.reservoir === 'oil' ? phiScale : 1;
     let phit = phiTrend * scale * (1 - 0.28 * vsh) + 0.055 * vsh;
     phit = Math.min(0.42, Math.max(0.02, phit));

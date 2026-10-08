@@ -238,3 +238,18 @@ release.
   images. A synthetic field has no core.
 - Not yet covered: midstream and HSE. Drilling, facilities and wellsite
   now have their D8 episodes.
+
+## 2026-10-08: kit v2, measured logs
+
+Owner review of the Petrophysics demo videos: the Pickett plot looked
+synthetic, every bed a thin streak. Kit v2 (`spine.mjs` KIT.version 'v2')
+keeps the truth rows and every gate, and writes tool measurements into the
+LAS (`tools/demo-dataset/measure.mjs`): vertical resolution per tool, seeded
+noise at tool precision, an Ogbia Shale washout with low density, high
+neutron and a new DRHO curve, and lamina-scale porosity variation in the
+Ekene and Oboro sands (`phiFine`, about a 2 m scale). Locked values hold:
+Ekene Sand NTG 0.8003, net porosity 0.20000. One pinned wellsite value moved
+with the porosity (Ekene-11 total gas at 1638.0 m, 1.7 to 1.9 percent).
+Gates: 170 pass, including three new ones for the measurement layer. The v2
+release on GitHub is still to be cut.
+

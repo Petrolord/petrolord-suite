@@ -1,7 +1,7 @@
 // Ekene demonstration dataset — generator.
 // ============================================================================
 // Run from the repo root:   npx tsx tools/demo-dataset/generate.mjs
-// Output:                   dist-demo/ekene-demo-v1/   (git-ignored)
+// Output:                   dist-demo/ekene-demo-v2/   (git-ignored)
 //
 // Everything is deterministic: reruns are byte-identical. The LOCKED values in
 // spine.mjs are asserted on the way through, so this refuses to write a kit
@@ -32,6 +32,7 @@ import {
   OIL_CONTACT_TVDSS, GAS_CONTACT_TVDSS, OIL_SH, GAS_SH,
 } from './rockmodel.mjs';
 import { writeLas } from './writers/las.mjs';
+import { measureLogs } from './measure.mjs';
 import { writeSegy } from './writers/segy.mjs';
 import { layerPropsFrom, makeGeometry, makeTraceBuilder, SEISMIC_NOTES } from './seismic.mjs';
 
@@ -203,10 +204,10 @@ for (const b of built) {
   // LAS
   const litho = { SAND: 1, INTERBED: 2, SHALE: 3, CLAYSAND: 4 };
   const curves = CURVES[w.curves];
-  const rows = b.rows.map((r) => ({
-    md: r.md, CALI: r.cali, GR: r.gr, SP: r.sp, RHOB: r.rhob, NPHI: r.nphi,
-    DT: r.dt, RT: r.rt, RXO: r.rxo, PEF: r.pef, LITH: litho[r.lith] ?? 0,
-  }));
+  // v2: the LAS carries what the tools measure (resolution, noise, borehole
+  // effects); every gate above ran on the truth rows
+  const measured = measureLogs(b.rows, w.name);
+  const rows = measured.map((m, i) => ({ ...m, LITH: litho[b.rows[i].lith] ?? 0 }));
   write(`01-wells/${w.name}.las`, writeLas({
     well: w.name, curves, rows,
     header: {
