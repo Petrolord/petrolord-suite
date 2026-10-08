@@ -143,8 +143,9 @@ const PetrophysicsHelpGuide = () => (
       </Step>
       <Step n={5} title="Get Rw from the water leg">
         Open Crossplots, select Pickett, enter the top and base of a water-bearing interval in
-        metres MD, and click Fit water line. Apply writes m and Rw back. Hingle does the same for
-        Rw alone. Rw tools converts a value you already know to formation temperature.
+        the session's depth unit (MD), and click Fit water line. Shaly samples (Vsh above the clean
+        limit, 0.10 unless you change it) are left out. Apply writes m and Rw back. Hingle does the
+        same for Rw alone. Rw tools converts a value you already know to formation temperature.
       </Step>
       <Step n={6} title="Apply and check">
         Every edit in the dock is a draft until you press Apply parameters. The tracks, zone
@@ -663,8 +664,11 @@ const PetrophysicsHelpGuide = () => (
       </Para>
       <SubHeading>Fitting the water line</SubHeading>
       <Para>
-        On Pickett or Hingle, type the <Code>Water zone (m MD)</Code> top and base of an interval
-        you believe is fully water bearing and press <Code>Fit water line</Code>. Points inside the
+        On Pickett or Hingle, type the <Code>Water zone (ft MD)</Code> or <Code>(m MD)</Code> top
+        and base of an interval you believe is fully water bearing and press <Code>Fit water line</Code>.
+        Shale beds inside the window would flatten the line (their porosity and resistivity are
+        both low), so samples with Vsh above <Code>Clean if Vsh ≤</Code> (0.10 by default) are left
+        out and the result says how many. Clear the box to fit every sample. Points inside the
         window recolour so you can see what the fit used. Pickett fits both the slope and the
         intercept, and <Code>Apply to parameters</Code> writes m and Rw into the parameter set
         (Rw is the fitted a·Rw divided by your a). Hingle fits a through-origin line at your current

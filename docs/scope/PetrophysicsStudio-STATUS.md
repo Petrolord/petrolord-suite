@@ -878,3 +878,24 @@ Help and copy now match the code:
 - split runs agree to rounding in the zone sums.
 
 The STATUS G2.3 row and the e2e header now read SAND B 5.5 m (the goldens).
+
+## 2026-10-08: water-line fits leave shaly samples out (demo videos)
+
+Found on the Ekene demo data while preparing the AI-narrated demo videos.
+Ekene-1's water leg (5118 to 5184 ft MD, truth m 2 and Rw 0.0775 ohm·m at
+182 degF) holds shale beds. The Pickett fit regressed every sample in the
+typed window and returned m 0.610, a·Rw 0.708; the shales' low porosity and
+low resistivity flattened the line.
+
+- Engines PR #341 (vendored at 3e1f868): `pickettFitDepthWindow` and
+  `hingleFitDepthWindow` take an optional Vsh curve and clean-sand limit,
+  leave samples above the limit out and count them (`nWindow`, `nShaly`).
+- Crossplots: a **Clean if Vsh ≤** box on Pickett and Hingle, default 0.10,
+  saved with the crossplot config; the result reads "· N shaly left out".
+  Blank fits every sample.
+- Ekene-1 with the default: m 1.843, a·Rw 0.0916 (high by clay
+  conductivity, as the demo kit documents).
+- Tests: engine gates (synthetic Archie sand with shale beds, negative
+  control with the shales in) and `pickettCleanFilter.test.jsx`.
+- Help guide: the step and the fitting paragraph describe the limit and use
+  the session depth unit.

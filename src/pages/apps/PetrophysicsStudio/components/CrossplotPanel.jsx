@@ -92,6 +92,10 @@ export default function CrossplotPanel({
   const [draft, setDraft] = useState([]);            // [[x, y]] in ND space
   const [faciesName, setFaciesName] = useState('');
   const [fitWin, setFitWin] = useState({ top: '', base: '' });
+  // Clean-sand limit for the water-line fits (2026-10-08): samples with Vsh
+  // above it are left out, so shale beds in the typed window cannot flatten
+  // the line. Text, so "0." survives typing; blank turns the filter off.
+  const [cleanVsh, setCleanVsh] = useState(initialConfig?.cleanVsh ?? '0.10');
   // PETRO-M-005: the water-zone boxes are typed in the session's depth unit
   // and read here in metres MD, the pipeline's frame
   const fitWinM = () => {
@@ -126,8 +130,8 @@ export default function CrossplotPanel({
   // persisted crossplot config (petro_projects.crossplots)
   useEffect(() => {
     const { curve, ref, xBins, depthBinM, overlayId } = density;
-    onConfigChange?.({ plot, colorBy, zones: zoneIds, density: { curve, ref, xBins, depthBinM, overlayId } });
-  }, [plot, colorBy, zoneIds, density.curve, density.ref, density.xBins, density.depthBinM, density.overlayId]); // eslint-disable-line react-hooks/exhaustive-deps
+    onConfigChange?.({ plot, colorBy, zones: zoneIds, cleanVsh, density: { curve, ref, xBins, depthBinM, overlayId } });
+  }, [plot, colorBy, zoneIds, cleanVsh, density.curve, density.ref, density.xBins, density.depthBinM, density.overlayId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // drop ids of zones that no longer exist, so a deleted zone cannot
   // leave the plot filtered to nothing the user can see or clear
@@ -277,6 +281,12 @@ export default function CrossplotPanel({
     return lines;
   }, [params, hFit]);
 
+  const cleanOpts = () => {
+    const v = Number(String(cleanVsh).trim());
+    return String(cleanVsh).trim() !== '' && Number.isFinite(v) && outputs?.VSH ? { vsh: outputs.VSH, vshMax: v } : {};
+  };
+  const leftOut = (r) => (r.nShaly ? ` (${r.nShaly} shaly left out)` : '');
+
   const runHingleFit = () => {
     const { top, base } = fitWinM();
     if (!Number.isFinite(top) || !Number.isFinite(base) || !(base > top)) {
@@ -284,9 +294,9 @@ export default function CrossplotPanel({
       return;
     }
     try {
-      const r = hingleFitDepthWindow(curves.DEPT, phiEff, curves.RT, top, base, { a: params.a, m: params.m });
+      const r = hingleFitDepthWindow(curves.DEPT, phiEff, curves.RT, top, base, { a: params.a, m: params.m, ...cleanOpts() });
       setHFit(r);
-      onStatus(`Hingle water line fit on ${r.nPoints} samples: Rw = ${r.rw.toFixed(6)} at m = ${params.m}.`);
+      onStatus(`Hingle water line fit on ${r.nPoints} samples${leftOut(r)}: Rw = ${r.rw.toFixed(6)} at m = ${params.m}.`);
     } catch (e) {
       setHFit(null);
       onStatus(e.message);
@@ -330,9 +340,9 @@ export default function CrossplotPanel({
       return;
     }
     try {
-      const r = pickettFitDepthWindow(curves.DEPT, phiEff, curves.RT, top, base);
+      const r = pickettFitDepthWindow(curves.DEPT, phiEff, curves.RT, top, base, cleanOpts());
       setFit(r);
-      onStatus(`Water line fit on ${r.nPoints} samples.`);
+      onStatus(`Water line fit on ${r.nPoints} samples${leftOut(r)}.`);
     } catch (e) {
       setFit(null);
       onStatus(e.message);
@@ -635,6 +645,10 @@ export default function CrossplotPanel({
             <input className={`${inputCls} w-16`} placeholder="base" value={fitWin.base}
               data-testid="petro-hingle-base"
               onChange={(e) => setFitWin((w) => ({ ...w, base: e.target.value }))} />
+            <span className="text-pl-muted" title="Samples with Vsh above this are left out of the fit, so shale beds in the window cannot flatten the water line. Leave it blank to fit every sample.">Clean if Vsh ≤</span>
+            <input className={`${inputCls} w-12`} value={cleanVsh} inputMode="decimal"
+              data-testid="petro-hingle-clean-vsh"
+              onChange={(e) => setCleanVsh(e.target.value)} />
             <button type="button" data-testid="petro-hingle-fit"
               className="px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
               onClick={runHingleFit}
@@ -644,7 +658,7 @@ export default function CrossplotPanel({
             {hFit && (
               <>
                 <span className="text-pl-text" data-testid="petro-hingle-result">
-                  Rw = {hFit.rw.toFixed(6)} at m = {params.m} · {hFit.nPoints} pts
+                  Rw = {hFit.rw.toFixed(6)} at m = {params.m} · {hFit.nPoints} pts{hFit.nShaly ? ` · ${hFit.nShaly} shaly left out` : ''}
                 </span>
                 <button type="button" data-testid="petro-hingle-apply"
                   className="px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
@@ -748,6 +762,10 @@ export default function CrossplotPanel({
             <input className={`${inputCls} w-16`} placeholder="base" value={fitWin.base}
               data-testid="petro-pickett-base"
               onChange={(e) => setFitWin((w) => ({ ...w, base: e.target.value }))} />
+            <span className="text-pl-muted" title="Samples with Vsh above this are left out of the fit, so shale beds in the window cannot flatten the water line. Leave it blank to fit every sample.">Clean if Vsh ≤</span>
+            <input className={`${inputCls} w-12`} value={cleanVsh} inputMode="decimal"
+              data-testid="petro-pickett-clean-vsh"
+              onChange={(e) => setCleanVsh(e.target.value)} />
             <button type="button" data-testid="petro-pickett-fit"
               className="px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
               onClick={runFit}
@@ -757,7 +775,7 @@ export default function CrossplotPanel({
             {fit && (
               <>
                 <span className="text-pl-text" data-testid="petro-pickett-result">
-                  m = {fit.m.toFixed(3)} · a·Rw = {fit.aRw.toFixed(4)} · {fit.nPoints} pts
+                  m = {fit.m.toFixed(3)} · a·Rw = {fit.aRw.toFixed(4)} · {fit.nPoints} pts{fit.nShaly ? ` · ${fit.nShaly} shaly left out` : ''}
                 </span>
                 <button type="button" data-testid="petro-pickett-apply"
                   className="px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
