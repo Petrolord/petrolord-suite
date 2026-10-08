@@ -72,6 +72,19 @@ export const COLOR_MAPS = {
         name: 'Hot Iron (Black-Red-Yellow-White)',
         fn: (v) => interpolate(v, [[0, [0, 0, 0]], [0.33, [255, 0, 0]], [0.66, [255, 255, 0]], [1, [255, 255, 255]]]),
     },
+    'turbo': {
+        // Google Turbo (Mikhailov 2019): a bright rainbow that stays smooth and
+        // perceptually ordered, unlike Jet. Polynomial fit to the published map.
+        name: 'Turbo',
+        fn: (v) => {
+            const t = Math.min(1, Math.max(0, v));
+            const r = 0.13572138 + t * (4.6153926 + t * (-42.66032258 + t * (132.13108234 + t * (-152.94239396 + t * 59.28637943))));
+            const g = 0.09140261 + t * (2.19418839 + t * (4.84296658 + t * (-14.18503333 + t * (4.27729857 + t * 2.82956604))));
+            const b = 0.1066733 + t * (12.64194608 + t * (-60.58204836 + t * (110.36276771 + t * (-89.90310912 + t * 27.34824973))));
+            const c = (x) => Math.round(255 * Math.min(1, Math.max(0, x)));
+            return [c(r), c(g), c(b)];
+        },
+    },
     'viridis': {
         name: 'Viridis',
         fn: (v) => interpolate(v, [
