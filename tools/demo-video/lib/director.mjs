@@ -4,11 +4,22 @@
 export function makeDirector(page) {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const loc = (t) => (typeof t === 'string' ? page.getByTestId(t) : t);
+  // The app can re-render an element between the wait and the measurement
+  // ("not attached to the DOM"); look it up again rather than fail the take.
   async function box(target) {
-    const l = loc(target).first();
-    await l.waitFor({ state: 'visible', timeout: 30000 });
-    await l.scrollIntoViewIfNeeded();
-    return l.boundingBox();
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const l = loc(target).first();
+        await l.waitFor({ state: 'visible', timeout: 30000 });
+        await l.scrollIntoViewIfNeeded();
+        const b = await l.boundingBox();
+        if (b) return b;
+        throw new Error('no bounding box');
+      } catch (e) {
+        if (attempt >= 3 || !/not attached|no bounding box|detached/i.test(e.message)) throw e;
+        await sleep(400);
+      }
+    }
   }
   // Chrome shows a link's URL in a status bubble while the real pointer
   // hovers it, which put the recording host on screen. Over a link only the
