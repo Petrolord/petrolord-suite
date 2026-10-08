@@ -110,3 +110,25 @@ export async function zoomTracksAt(d, depthFt, n, { top = 197, base = 7381.5, dx
   const yAt = (ft) => y + ((ft - depthFt) / span) * plotH;
   return { x, y, b, yAt };
 }
+
+export const ZONE_CARD = (d, zone) => d.page.locator('[data-testid="petro-zone-card"]').filter({ has: d.page.getByTestId(`petro-zone-net-${zone}`) });
+export async function ensureZonesOn(d) {
+  if (await d.page.getByTestId('petro-zone-net-Ekene Sand').count()) return;
+  await d.page.getByTestId('petro-zone-mode-tops').click();
+  await d.page.getByTestId('petro-zone-fill-between-tops').click();
+  await d.waitFor('petro-zone-net-Ekene Sand');
+}
+// pick a zone in the histogram filter by its name (option values are ids)
+export async function histFilter(d, name) {
+  const sel = d.page.getByTestId('petro-hist-filter');
+  const value = name === 'all' ? 'all' : await sel.locator('option', { hasText: name }).first().getAttribute('value');
+  await d.select(sel, value);
+  // park the cursor below the percentile line so it hides no figure
+  const b = await sel.boundingBox();
+  if (b) await d.moveTo({ x: b.x + b.width / 2, y: b.y + 160 }, { ms: 500 });
+}
+// toggle a crossplot zone filter button by its label ('All zones' resets)
+export async function crossplotZone(d, name) {
+  await d.click(d.page.getByRole('button', { name, exact: true }).first());
+  await d.sleep(600);
+}

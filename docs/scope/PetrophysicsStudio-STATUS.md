@@ -945,3 +945,14 @@ deep resistivity), so washouts and the readings they spoil sit side by side.
 Existing saved layouts gain it through the normal built-in migration. Tests:
 layout.test.js (tracks, the 0.05 threshold, a well without CAL/DRHO drops
 those tracks); the two e2e template counts are now 4 built-ins plus a fork.
+
+## 2026-10-08: Lessons, Module B (shale and lithology)
+
+Storyboards `tools/demo-video/storyboards/lessons/petro-b5..b7.mjs` on Ekene-1
+(kit v2, feet): B5 shale volume (histogram end points, calibrated 18/125, five
+Vsh models; Ekene Sand linear 0.205 against truth 0.203, Larionov Tertiary
+0.063), B6 lithology (density-neutron crossplot coloured by Vsh then PEF; the
+PEF, caliper and DRHO colour options came in #940), B7 gas effect (Oboro Sand
+φe density 0.221, neutron-density gas form 0.200, truth 0.195; the shaly
+Ekene oil sand reads 0.228 with the same form). Every spoken figure is
+asserted on screen with `expectText`. Rendered to /root/demo-videos/lesson-b5..b7.
