@@ -937,3 +937,11 @@ better still when the colour means something.
   feet session); friendlier labels (Vsh, φe, Sw).
 - Test: `crossplotColour.test.jsx` (default, saved choice negative control,
   map ordering).
+## 2026-10-08: Borehole QC layout
+
+For the log quality control lesson: a built-in **Borehole QC** track layout
+(GR, caliper, DRHO with |DRHO| above 0.05 g/cc shaded, density-neutron,
+deep resistivity), so washouts and the readings they spoil sit side by side.
+Existing saved layouts gain it through the normal built-in migration. Tests:
+layout.test.js (tracks, the 0.05 threshold, a well without CAL/DRHO drops
+those tracks); the two e2e template counts are now 4 built-ins plus a fork.

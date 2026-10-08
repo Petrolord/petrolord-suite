@@ -197,6 +197,42 @@ export function buildDefaultTemplates() {
       ],
     },
     {
+      // 2026-10-08 (log QC lesson): the borehole beside the measurements it
+      // spoils. A caliper opening past the bit and a large DRHO mark density
+      // (and neutron) readings not to interpret; the shading flags |DRHO|
+      // above 0.05 g/cc, a common limit for a trustworthy density.
+      id: 'borehole-qc',
+      name: 'Borehole QC',
+      builtin: true,
+      tracks: [
+        {
+          id: 'b-gr', title: 'GR (API)', type: 'curves', width: 1, scale: 'linear', min: 0, max: 150,
+          curves: [{ source: 'input:GR', label: 'GR', color: '#059669' }], fills: [],
+        },
+        {
+          id: 'b-cal', title: 'Caliper (in)', type: 'curves', width: 1, scale: 'linear', min: 6, max: 18,
+          curves: [{ source: 'input:CAL', label: 'CAL', color: '#0f766e', fillTo: 'left' }], fills: [],
+        },
+        {
+          id: 'b-drho', title: 'DRHO (g/cc)', type: 'curves', width: 0.8, scale: 'linear', min: -0.25, max: 0.25,
+          curves: [{ source: 'input:DRHO', label: 'DRHO', color: '#b45309' }],
+          fills: [{ mode: 'threshold', a: 'input:DRHO', threshold: { value: 0.05 }, side: 'above', color: '#ef4444', opacity: 0.35 }],
+        },
+        {
+          id: 'b-dn', title: 'Density–Neutron', type: 'curves', width: 1.2, scale: 'linear', min: 1.95, max: 2.95,
+          curves: [
+            { source: 'input:RHOB', label: 'RHOB', color: '#dc2626', min: 1.95, max: 2.95 },
+            { source: 'input:NPHI', label: 'NPHI', color: '#3b82f6', min: 0.45, max: -0.15, style: 'dash' },
+          ],
+          fills: [{ mode: 'crossover', a: 'input:NPHI', b: 'input:RHOB', positiveColor: '#facc15', negativeColor: '#9ca3af', opacity: 0.35 }],
+        },
+        {
+          id: 'b-rt', title: 'RT (ohm·m)', type: 'curves', width: 1, scale: 'log', min: 0.2, max: 2000,
+          curves: [{ source: 'input:RT', label: 'RT', color: '#dc2626' }], fills: [],
+        },
+      ],
+    },
+    {
       id: 'lithology-quicklook',
       name: 'Lithology quicklook',
       builtin: true,
