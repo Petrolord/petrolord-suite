@@ -50,3 +50,15 @@ test('Turbo runs from blue through green to deep red', () => {
   expect(g5).toBeGreaterThan(200);
   expect(r1).toBeGreaterThan(b1);
 });
+
+test('PEF, caliper and DRHO are offered for colouring when the well has them', () => {
+  const PEF = Float64Array.from(curves.DEPT, (_, i) => 1.8 + (i % 10) * 0.12);
+  const params = { ...DEFAULT_PARAMS };
+  const withPef = { ...curves, PEF };
+  const { outputs } = computeWell(withPef, params);
+  render(<CrossplotPanel curves={withPef} outputs={outputs} params={params} facies={[]} onFaciesChange={() => {}}
+    onApplyParams={() => {}} onStatus={() => {}} initialConfig={{ plot: 'nd' }} onConfigChange={() => {}} depthUnit="ft" />);
+  const labels = Array.from(screen.getByTestId('petro-colorby').querySelectorAll('option')).map((o) => o.textContent);
+  expect(labels).toContain('PEF (b/e)');
+  expect(labels).not.toContain('Caliper (in)');   // negative control: no CAL curve on this well
+});
