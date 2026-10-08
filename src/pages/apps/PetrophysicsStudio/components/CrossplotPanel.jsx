@@ -76,7 +76,7 @@ const makeMapFn = (key) => {
   };
 };
 // a friendlier colour-by label than the curve key
-const Z_LABELS = { VSH: 'Vsh', PHIE: 'φe', PHIT: 'φt', SW: 'Sw', KPERM: 'k (mD)' };
+const Z_LABELS = { VSH: 'Vsh', PHIE: 'φe', PHIT: 'φt', SW: 'Sw', KPERM: 'k (mD)', PEF: 'PEF (b/e)', CAL: 'Caliper (in)', DRHO: 'DRHO (g/cc)' };
 
 const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 
@@ -177,7 +177,9 @@ export default function CrossplotPanel({
   // z-color sources: any loaded input curve or computed output, or depth
   const zSources = useMemo(() => {
     const out = [];
-    for (const key of ['GR', 'RHOB', 'NPHI', 'DT', 'RT']) {
+    // PEF and the borehole curves too (2026-10-08, lithology lesson): PEF
+    // separates quartz (1.8) from clay (about 3) and calcite (5.1)
+    for (const key of ['GR', 'RHOB', 'NPHI', 'DT', 'RT', 'PEF', 'CAL', 'DRHO']) {
       if (curves[key]) out.push({ key, data: curves[key] });
     }
     for (const key of ['PHIE', 'PHIT', 'VSH', 'SW', 'KPERM']) {
