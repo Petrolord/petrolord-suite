@@ -165,6 +165,30 @@ describe('the auth handlers are unchanged', () => {
     await waitFor(() => expect(signIn).toHaveBeenCalledWith('a@b.com', 'secret-pw'));
   });
 
+  // 2026-10-08: signIn resolves before the auth context publishes the user.
+  // Navigating then reached /dashboard with no user, and the guard bounced the
+  // person back to /login. Login now waits for the user.
+  it('Login waits for the signed-in user before leaving for the dashboard', async () => {
+    const signIn = jest.fn().mockResolvedValue({ error: null });
+    const tree = (auth) => (
+      <AuthContext.Provider value={auth}>
+        <MemoryRouter initialEntries={['/login']}>
+          <Routes><Route path="/login" element={<Login />} /><Route path="/dashboard" element={<div>dashboard reached</div>} /></Routes>
+        </MemoryRouter>
+      </AuthContext.Provider>
+    );
+    const { rerender } = render(tree({ ...SIGNED_OUT, signIn }));
+    fireEvent.change(await screen.findByLabelText('Email'), { target: { value: 'a@b.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secret-pw' } });
+    fireEvent.click(screen.getByRole('button', { name: /Login/ }));
+    await waitFor(() => expect(signIn).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 50));
+    // negative control: no user yet, so still on the login page
+    expect(screen.queryByText('dashboard reached')).toBeNull();
+    rerender(tree({ ...SIGNED_IN, signIn }));
+    expect(await screen.findByText('dashboard reached')).toBeInTheDocument();
+  });
+
   it('Forgot password passes the typed email to resetPassword', async () => {
     const resetPassword = jest.fn().mockResolvedValue({});
     mount(ForgotPassword, '/forgot-password', { ...SIGNED_OUT, resetPassword });
