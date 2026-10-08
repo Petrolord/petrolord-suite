@@ -18,11 +18,17 @@ export async function startDisplay(display = ':99') {
 
 export async function openApp(url, { profileDir, overlayPath }) {
   fs.rmSync(profileDir, { recursive: true, force: true });
+  // no "Save password?" bubble over the app (it sat on the right dock)
+  fs.mkdirSync(`${profileDir}/Default`, { recursive: true });
+  fs.writeFileSync(`${profileDir}/Default/Preferences`, JSON.stringify({
+    credentials_enable_service: false, profile: { password_manager_enabled: false },
+    translate: { enabled: false }, autofill: { profile_enabled: false, credit_card_enabled: false },
+  }));
   const ctx = await chromium.launchPersistentContext(profileDir, {
     headless: false, viewport: null,
     args: [`--app=${url}`, '--window-position=0,0', `--window-size=${CAPTURE.css.w},${CAPTURE.css.h}`,
       `--force-device-scale-factor=${CAPTURE.scale}`, '--hide-scrollbars', '--disable-infobars', '--no-first-run',
-      '--disable-features=Translate', '--lang=en-GB'],
+      '--disable-features=Translate,PasswordLeakDetection,AutofillServerCommunication', '--password-store=basic', '--lang=en-GB'],
   });
   await ctx.addInitScript({ path: overlayPath });
   const page = ctx.pages()[0] || (await ctx.newPage());

@@ -12,7 +12,7 @@
   #__demo .cur{position:absolute;left:0;top:0;width:34px;height:34px;transform:translate(960px,540px);will-change:transform;filter:drop-shadow(0 2px 3px rgba(0,0,0,.45))}
   #__demo .rip{position:absolute;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;border:3px solid ${GOLD};opacity:.95;animation:__rip .6s ease-out forwards}
   @keyframes __rip{to{transform:scale(3.4);opacity:0}}
-  #__demo .ring{position:absolute;border:4px solid ${GOLD};border-radius:10px;box-shadow:0 0 0 9999px rgba(8,18,13,.28);transition:opacity .35s ease,left .45s ease,top .45s ease,width .45s ease,height .45s ease;opacity:0}
+  #__demo .ring{position:absolute;border:4px solid ${GOLD};border-radius:10px;box-shadow:0 0 0 9999px rgba(8,18,13,.16);transition:opacity .35s ease,left .45s ease,top .45s ease,width .45s ease,height .45s ease;opacity:0}
   #__demo .call{position:absolute;max-width:440px;background:${INK};color:${PAPER};padding:14px 18px;border-radius:10px;font-size:22px;line-height:1.3;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.35);border-left:5px solid ${GOLD};opacity:0;transform:translateY(6px);transition:opacity .35s ease,transform .35s ease}
   #__demo .call.on{opacity:1;transform:none}
   #__demo .lt{position:absolute;left:48px;top:84px;background:${INK};color:${PAPER};padding:16px 26px 16px 22px;border-radius:8px;border-left:6px solid ${GOLD};opacity:0;transform:translateX(-24px);transition:opacity .45s ease,transform .45s ease;box-shadow:0 10px 30px rgba(0,0,0,.35)}
