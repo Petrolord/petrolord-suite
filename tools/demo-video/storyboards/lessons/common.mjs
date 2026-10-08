@@ -82,7 +82,26 @@ export const MDTVD_SVG = `<svg width="560" height="560" viewBox="0 0 560 560" xm
   <path d="M 120 50 L 120 200 Q 125 300 230 380 L 420 480" fill="none" stroke="#ff7a59" stroke-width="7"/>
   <line x1="420" y1="50" x2="420" y2="480" stroke="#cfd8d2" stroke-width="3" stroke-dasharray="10 8"/>
   <line x1="60" y1="480" x2="520" y2="480" stroke="#e8d5a9" stroke-width="2"/><text x="60" y="510" font-size="22">Ekene Sand top</text>
-  <text x="240" y="300" font-size="22" fill="#ff7a59">MD: along the hole</text>
-  <text x="430" y="270" font-size="22">TVD</text>
-  <text x="430" y="300" font-size="18">straight down</text>
+  <text x="150" y="400" font-size="22" fill="#ff7a59">MD: along the hole</text>
+  <text x="432" y="250" font-size="22">TVD:</text>
+  <text x="432" y="278" font-size="18">straight down</text>
 </svg>`;
+
+export const PETRO = '/dashboard/apps/geoscience/petrophysics-studio';
+export async function openPetroWell(d, shared, well = 'Ekene-1') {
+  await d.page.goto(`${shared.baseUrl}${PETRO}`, { waitUntil: 'domcontentloaded' });
+  await d.page.locator(`[data-well-name="${well}"]`).first().click({ timeout: 120000 });
+  await d.waitFor('petro-curve-inventory');
+  await d.sleep(2000);
+}
+
+// wheel-zoom Petrophysics tracks about a depth (ft); Ekene-1 spans 197 to
+// 7381.5 ft unzoomed; zooming about the cursor keeps that depth under it
+export async function zoomTracksAt(d, depthFt, n, { top = 197, base = 7381.5, dx = 0.45 } = {}) {
+  const b = await d.page.getByTestId('petro-tracks-canvas').boundingBox();
+  const y = b.y + ((depthFt - top) / (base - top)) * b.height;
+  const x = b.x + b.width * dx;
+  await d.moveTo({ x, y }, { ms: 700 });
+  for (let i = 0; i < n; i++) { await d.page.mouse.wheel(0, -120); await d.sleep(220); }
+  return { x, y, b };
+}
