@@ -18,6 +18,7 @@ import {
   EXCEEDANCE_DEFINITION, OUTCOME_LABELS, OUTCOME_ORDER, PARAMETER_ORDER, CASES,
   parameterPercentileLabel, casePercentile, caseLabel,
 } from '@/lib/percentileConventions';
+import { toDisplayValue, fromDisplayValue, PARAM_UNIT_KIND } from './paramUnits';
 
 export const DIST_TYPES = ['triangular', 'uniform', 'normal', 'lognormal'];
 export const DRAW_CHOICES = [100, 200, 500, 1000];
@@ -357,3 +358,33 @@ export function runProbabilisticAsync(payload, { createWorker = null, onProgress
 /** The dialog's one-sentence explanation of the best case. */
 export const BEST_CASE_NOTE = 'Best case is the median of the realisations, not the deterministic mid curve.';
 export { CASES };
+
+
+// ---- display units (2026-10-08) -------------------------------------------
+// The dialog shows and takes the ranges in the session's unit system (the
+// sonic slownesses read us/m in an oilfield session); the stored spec and
+// the engine stay in SI. Values convert like the parameter itself; a
+// standard deviation is a spread, so it takes only the scale.
+const RANGE_FIELDS = ['q10', 'q50', 'q90', 'min', 'max', 'mean'];
+function convertSpec(uspec, conv, system) {
+  const out = {};
+  for (const [key, e] of Object.entries(uspec || {})) {
+    if (!e || !PARAM_UNIT_KIND[key] || system !== 'field') { out[key] = e; continue; }
+    const next = { ...e };
+    for (const f of RANGE_FIELDS) {
+      const v = Number(e[f]);
+      if (e[f] !== undefined && e[f] !== '' && Number.isFinite(v)) next[f] = conv(key, v, system);
+    }
+    const sd = Number(e.stdDev);
+    if (e.stdDev !== undefined && e.stdDev !== '' && Number.isFinite(sd)) {
+      const scale = conv(key, 1, system) - conv(key, 0, system);
+      next.stdDev = Number((sd * scale).toPrecision(12));
+    }
+    out[key] = next;
+  }
+  return out;
+}
+/** A stored (SI) uncertainty spec as the dialog shows it. */
+export const specToDisplay = (uspec, system = 'si') => convertSpec(uspec, toDisplayValue, system);
+/** A spec typed in the display system back to SI. */
+export const specFromDisplay = (uspec, system = 'si') => convertSpec(uspec, (k, v, sys) => Number(fromDisplayValue(k, v, sys).toPrecision(12)), system);

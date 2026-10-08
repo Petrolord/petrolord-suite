@@ -17,9 +17,11 @@ import { PARAM_FIELDS, visibleField, fieldLabel } from '../services/paramFields'
 import { UNCERTAIN_PARAMS } from '../engine/probabilistic';
 import {
   DIST_TYPES, DIST_FIELDS, DRAW_CHOICES, defaultUncertainty, entryProblem, specForEngine, probabilisticCsv, BEST_CASE_NOTE,
+  specToDisplay, specFromDisplay,
 } from '../services/probabilistic';
 import { OUTCOME_LABELS, EXCEEDANCE_DEFINITION, parameterPercentileLabel } from '@/lib/percentileConventions';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { toDisplayValue } from '../services/paramUnits';
 
 const fmt = (v, d = 3) => (v === null || v === undefined || Number.isNaN(v) ? EMPTY_VALUE : Number(v).toFixed(d));
 const cellCls = 'w-full min-w-[3.5rem] rounded bg-pl-surface border px-1 py-0.5 text-xs text-pl-text';
@@ -56,17 +58,18 @@ function Tornado({ zone, depthUnit }) {
 
 export default function ProbabilisticDialog({
   open, onOpenChange, params, uncertainty, result, running, progress, runMs, zones = [], depthUnit = 'm', wellName = 'Well',
-  canPublish = false, onRun, onCancel, onApply, onPublish, onStatus,
+  canPublish = false, onRun, onCancel, onApply, onPublish, onStatus, unitSystem = 'si',
 }) {
+  // the draft is in the session's unit system; runs and the saved spec are SI
   const [draft, setDraft] = useState({});
   const [n, setN] = useState(uncertainty?.n || 200);
   const [seed, setSeed] = useState(uncertainty?.seed ?? 1);
   useEffect(() => {
     if (!open) return;
-    setDraft(uncertainty?.spec || defaultUncertainty(params));
+    setDraft(specToDisplay(uncertainty?.spec || defaultUncertainty(params), unitSystem));
     setN(uncertainty?.n || 200);
     setSeed(uncertainty?.seed ?? 1);
-  }, [open, params, uncertainty]);
+  }, [open, params, uncertainty, unitSystem]);
 
   const problems = useMemo(() => {
     const out = {};
@@ -81,7 +84,8 @@ export default function ProbabilisticDialog({
 
   const run = () => {
     if (nProblems || !varying.length) return;
-    onRun({ spec: draft, engineSpec: specForEngine(draft), n: Number(n), seed: Number(seed) });
+    const si = specFromDisplay(draft, unitSystem);
+    onRun({ spec: si, engineSpec: specForEngine(si), n: Number(n), seed: Number(seed) });
   };
   const exportCsv = () => {
     if (!result) return;
@@ -121,8 +125,8 @@ export default function ProbabilisticDialog({
                   const bad = problems[key];
                   return (
                     <tr key={key} className={`border-t border-pl-border ${applies ? '' : 'opacity-50'}`} data-testid={`petro-prob-row-${key}`} title={applies ? undefined : 'Not used by the current models'}>
-                      <td className="px-2 py-0.5 text-pl-text whitespace-nowrap">{f ? fieldLabel(f, params) : key}<span className="text-pl-muted"> {key}</span></td>
-                      <td className="px-2 py-0.5 text-pl-muted">{fmt(params[key], 4)}</td>
+                      <td className="px-2 py-0.5 text-pl-text whitespace-nowrap">{f ? fieldLabel(f, params, unitSystem) : key}<span className="text-pl-muted"> {key}</span></td>
+                      <td className="px-2 py-0.5 text-pl-muted">{fmt(toDisplayValue(key, params[key], unitSystem), 4)}</td>
                       <td className="px-2 py-0.5"><input type="checkbox" data-testid={`petro-prob-vary-${key}`} checked={!!e.vary} onChange={(ev) => setEntry(key, { vary: ev.target.checked })} /></td>
                       <td className="px-2 py-0.5">
                         <select className={selCls} data-testid={`petro-prob-dist-${key}`} value={e.type} disabled={!e.vary} onChange={(ev) => setEntry(key, { type: ev.target.value })}>

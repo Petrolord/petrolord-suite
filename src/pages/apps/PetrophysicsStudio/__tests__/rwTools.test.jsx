@@ -3,6 +3,7 @@
  * with its rule, Rwe, Rw by Bateman-Konen), applies Rw with its method and
  * a provenance entry, and refuses outside the fit instead of extrapolating.
  */
+import '@testing-library/jest-dom';
 import React from 'react';
 import fs from 'fs';
 import path from 'path';
@@ -87,5 +88,37 @@ describe('PT11a Rw tools SP route', () => {
     expect(hint.hint({ rwMethod: 'sp-bateman-konen' })).toContain(RW_METHOD_LABELS['sp-bateman-konen']);
     expect(hint.show({ rwMethod: 'entered' })).toBe(false);
     expect(hint.show({})).toBe(false);
+  });
+});
+
+// 2026-10-08 (demo videos): an oilfield session types temperatures in degF;
+// applied values stay in degC. With no temperature model the current Rw is
+// at formation temperature, so its implied salinity is read there.
+describe('Rw tools in field units', () => {
+  test('the salinity route takes degF and applies the reference temperature in degC', () => {
+    const { onApplyParams } = mount({ unitSystem: 'field' });
+    expect(screen.getByTestId('petro-rw-salinity-card')).toHaveTextContent('Formation T (°F)');
+    type('petro-rw-sal-ppm', 35000);
+    type('petro-rw-sal-tempc', 182);
+    expect(screen.getByTestId('petro-rw-sal-result')).toHaveTextContent('Rw = 0.0776');
+    expect(screen.getByTestId('petro-rw-sal-result')).toHaveTextContent('at 182 °F');
+    fireEvent.click(screen.getByTestId('petro-rw-sal-apply'));
+    const patch = onApplyParams.mock.calls.at(-1)[0];
+    expect(patch.rwRefTempC).toBeCloseTo(fToC(182), 6);
+  });
+  test('negative control: the same 182 typed in an SI session is 182 degC, a different Rw', () => {
+    mount({ unitSystem: 'si' });
+    type('petro-rw-sal-ppm', 35000);
+    type('petro-rw-sal-tempc', 182);
+    expect(screen.getByTestId('petro-rw-sal-result')).not.toHaveTextContent('Rw = 0.0776');
+  });
+  test('with no temperature model the implied salinity is read at the formation temperature', () => {
+    mount({ unitSystem: 'field', currentRw: 0.091628, currentRwTempC: 25, rwAtFormation: true });
+    type('petro-rw-sal-tempc', 182);
+    const txt = screen.getByTestId('petro-rw-sal-implied').textContent;
+    expect(txt).toContain('at 182 °F (formation temperature)');
+    const ppm = Number(/about ([\d]+) ppm/.exec(txt.replace(/,/g, ''))[1]);
+    expect(ppm).toBeGreaterThan(25000);
+    expect(ppm).toBeLessThan(33000);
   });
 });

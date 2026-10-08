@@ -1746,6 +1746,7 @@ export default function PetroWorkstation({
         zoneParams={zoneParams}
         vth={sensitivityVth}
         depthUnit={depthUnit}
+        unitSystem={paramUnits}
         wellName={selected?.name}
         canPublish={!!selected?.is_own && !publishing}
         onApply={applyScenarios}
@@ -1758,6 +1759,7 @@ export default function PetroWorkstation({
         open={probOpen}
         onOpenChange={setProbOpen}
         params={params}
+        unitSystem={paramUnits}
         uncertainty={uncertainty}
         result={probResult && probResult.wellId === wellData.wellId ? probResult : null}
         running={probRunning}
@@ -1833,6 +1835,8 @@ export default function PetroWorkstation({
       currentRw={params.rw}
       currentRwTempC={params.rwRefTempC}
       surfaceTempC={params.surfaceTempC}
+      unitSystem={paramUnits}
+      rwAtFormation={params.tempMode !== 'linear'}
       onStatus={setStatus}
     />
     {wellData && (

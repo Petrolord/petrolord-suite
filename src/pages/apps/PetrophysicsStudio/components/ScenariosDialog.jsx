@@ -11,7 +11,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { saveAs } from 'file-saver';
 import { FIELDS } from '../services/paramFields';
-import { buildZoneTable, patchesFromDrafts } from '../services/zoneParamTable';
+import { buildZoneTable, patchesFromDrafts, draftToEngine } from '../services/zoneParamTable';
+import { toDisplayDraft } from '../services/paramUnits';
 import {
   CASES, CASE_LABEL, defaultScenarios, runScenarios, scenarioSummaries, scenariosCsv, caseParams,
 } from '../services/scenarios';
@@ -23,17 +24,26 @@ const COLS = [{ id: 'low', name: 'Low' }, { id: 'high', name: 'High' }];
 
 export default function ScenariosDialog({
   open, onOpenChange, params, scenarios, curves, zoneParamList, zones = [], zoneParams = {}, depthUnit = 'm', vth = null,
-  wellName = 'Well', canPublish = false, onApply, onPublish, onStatus,
+  wellName = 'Well', canPublish = false, onApply, onPublish, onStatus, unitSystem = 'si',
 }) {
+  // The cells show slowness, temperatures and the BHT depth in the session's
+  // unit system, as the parameter panel and the zone table do (2026-10-08:
+  // an oilfield session saw degC, m and us/m here). Patches stay in engine
+  // units.
+  const shown = useMemo(() => toDisplayDraft(params, unitSystem), [params, unitSystem]);
   const [draft, setDraft] = useState({});
   useEffect(() => {
     if (!open) return;
     const sc = scenarios || defaultScenarios(params);
-    setDraft({ low: { ...params, ...sc.low }, high: { ...params, ...sc.high } });
-  }, [open, params, scenarios]);
+    setDraft({ low: toDisplayDraft({ ...params, ...sc.low }, unitSystem), high: toDisplayDraft({ ...params, ...sc.high }, unitSystem) });
+  }, [open, params, scenarios, unitSystem]);
 
-  const rows = useMemo(() => buildZoneTable({ params, zones: COLS, zoneParams: scenarios || {}, sections: FIELDS }), [params, scenarios]);
-  const { patches, invalid } = useMemo(() => patchesFromDrafts(params, draft), [params, draft]);
+  const rows = useMemo(() => buildZoneTable({
+    params: shown, zones: COLS, sections: FIELDS, system: unitSystem,
+    zoneParams: Object.fromEntries(Object.entries(scenarios || {}).map(([k, v]) => [k, toDisplayDraft(v, unitSystem)])),
+  }), [shown, scenarios, unitSystem]);
+  const engineDrafts = useMemo(() => Object.fromEntries(Object.entries(draft).map(([c, d]) => [c, draftToEngine(d, { ...params, ...(scenarios?.[c] || {}) }, unitSystem, params)])), [draft, params, scenarios, unitSystem]);
+  const { patches, invalid } = useMemo(() => patchesFromDrafts(params, engineDrafts), [params, engineDrafts]);
   const invalidCount = Object.values(invalid).reduce((n, keys) => n + keys.length, 0);
   const setCell = (colId, key, value) => setDraft((d) => ({ ...d, [colId]: { ...d[colId], [key]: value } }));
 
@@ -76,7 +86,7 @@ export default function ScenariosDialog({
           <ParamGrid
             rows={rows}
             columns={COLS}
-            params={params}
+            params={shown}
             draft={draft}
             invalid={invalid}
             onCell={setCell}
