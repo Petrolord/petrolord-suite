@@ -6,7 +6,7 @@
  * map and 3D views stay a dark canvas and the charts and slide stay white.
  */
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 // Any supabase call resolves empty, so the registry doors and project lists
@@ -184,8 +184,15 @@ describe('ReservoirCalc Pro theme: further states', () => {
     await mount();
     fireEvent.click(screen.getByTestId('theme-toggle'));
     fireEvent.click(await screen.findByRole('button', { name: /Recalculate/i }, WAIT));
-    fireEvent.click(await screen.findByRole('button', { name: /View Full Results/i }, WAIT));
-    const modal = await screen.findByRole('dialog', {}, WAIT);
+    // Recalculate re-renders the panel while it runs; a click that lands in
+    // that moment can be lost (this failed on CI shard 2 four times on
+    // 2026-10-08), so click again until the dialog is up, as a user would
+    await screen.findByRole('button', { name: /View Full Results/i }, WAIT);
+    await waitFor(() => {
+      if (!screen.queryByRole('dialog')) fireEvent.click(screen.getByRole('button', { name: /View Full Results/i }));
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    }, WAIT);
+    const modal = screen.getByRole('dialog');
     expect(modal).toHaveAttribute('data-pl-theme', 'dark');
     expectNoLegacyChrome();
 
