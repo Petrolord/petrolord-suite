@@ -98,10 +98,15 @@ export async function openPetroWell(d, shared, well = 'Ekene-1') {
 // wheel-zoom Petrophysics tracks about a depth (ft); Ekene-1 spans 197 to
 // 7381.5 ft unzoomed; zooming about the cursor keeps that depth under it
 export async function zoomTracksAt(d, depthFt, n, { top = 197, base = 7381.5, dx = 0.45 } = {}) {
+  // TrackViewer: a 50 px header and 2 px above the plot, 4 px below it
   const b = await d.page.getByTestId('petro-tracks-canvas').boundingBox();
-  const y = b.y + ((depthFt - top) / (base - top)) * b.height;
+  const plotTop = b.y + 52; const plotH = b.height - 56;
+  const y = plotTop + ((depthFt - top) / (base - top)) * plotH;
   const x = b.x + b.width * dx;
   await d.moveTo({ x, y }, { ms: 700 });
   for (let i = 0; i < n; i++) { await d.page.mouse.wheel(0, -120); await d.sleep(220); }
-  return { x, y, b };
+  // zooming about the cursor keeps depthFt at y; each notch shows 0.8 of the span
+  const span = (base - top) * 0.8 ** n;
+  const yAt = (ft) => y + ((ft - depthFt) / span) * plotH;
+  return { x, y, b, yAt };
 }

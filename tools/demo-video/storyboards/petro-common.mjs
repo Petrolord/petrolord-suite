@@ -46,8 +46,9 @@ export async function video1State(d) {
 // canvas spans the whole well when unzoomed, so the depth's y is a
 // proportion of it, and zooming about the cursor keeps the depth under it
 export async function zoomTracks(d, depthFt, n) {
+  // TrackViewer: a 50 px header and 2 px above the plot, 4 px below it
   const b = await d.page.getByTestId('petro-tracks-canvas').boundingBox();
-  const y = b.y + ((depthFt - WELL_TOP_FT) / (WELL_BASE_FT - WELL_TOP_FT)) * b.height;
+  const y = b.y + 52 + ((depthFt - WELL_TOP_FT) / (WELL_BASE_FT - WELL_TOP_FT)) * (b.height - 56);
   const x = b.x + b.width * 0.45;
   await d.moveTo({ x, y }, { ms: 700 });
   for (let i = 0; i < n; i++) { await d.page.mouse.wheel(0, -120); await d.sleep(220); }

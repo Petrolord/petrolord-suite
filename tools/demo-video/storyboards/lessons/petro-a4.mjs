@@ -30,26 +30,26 @@ export default {
       do: async (d) => { await d.hideSlide(); await d.moveTo('petro-tracks-canvas', { dx: 0.1, dy: 0.2 }); await d.sleep(1500); await d.moveTo('petro-tracks-canvas', { dx: 0.1, dy: 0.75 }); } },
     { id: 'zoom', chapter: 'Shale and sand', chapterSub: 'The Ekene Sand top',
       say: 'We zoom onto the base of the Ogbia Shale and the Ekene Sand, around five thousand one hundred feet.',
-      do: async (d, shared) => { shared.values.z = await zoomTracksAt(d, 5110, 8); } },
+      do: async (d, shared) => { shared.values.z = await zoomTracksAt(d, 5110, 9); } },
     { id: 'gr',
       say: 'At five thousand and seventy nine feet the gamma ray falls from around one hundred A P I in the shale to under thirty in the sand. That is the formation top, picked where the curve crosses halfway between the two. On the density and neutron track, the shale shows the neutron well to the left of the density, shaded grey: shale holds water bound in the clay, which the neutron counts as porosity. In the clean sand the two curves come together.',
       do: async (d, shared) => {
-        const { y, b } = shared.values.z;
-        await d.moveTo({ x: b.x + b.width * 0.12, y: y - 40 }, { ms: 900 });
+        const { yAt, b } = shared.values.z;
+        await d.moveTo({ x: b.x + b.width * 0.12, y: yAt(5040) }, { ms: 900 });   // shale
         await d.sleep(1600);
-        await d.moveTo({ x: b.x + b.width * 0.12, y: y + 10 }, { ms: 900 });
+        await d.moveTo({ x: b.x + b.width * 0.12, y: yAt(5100) }, { ms: 900 });   // sand
         await d.sleep(1600);
-        await d.moveTo({ x: b.x + b.width * 0.55, y: y - 40 }, { ms: 900 });
+        await d.moveTo({ x: b.x + b.width * 0.55, y: yAt(5040) }, { ms: 900 });
         await d.sleep(1600);
-        await d.moveTo({ x: b.x + b.width * 0.55, y: y + 10 }, { ms: 900 });
+        await d.moveTo({ x: b.x + b.width * 0.55, y: yAt(5100) }, { ms: 900 });
       } },
     { id: 'rt', chapter: 'Oil and water', chapterSub: 'Resistivity',
       say: 'Now the resistivity. In the top of the sand it reads about five ohm metres. Forty feet lower it falls to under two, and stays there to the base of the sand. Same rock, same porosity, so the change is the fluid: oil above, brine below. That step is the oil water contact, at five thousand one hundred and eighteen feet. The field\'s known contact is one thousand five hundred and sixty metres, which is the same depth.',
       do: async (d, shared) => {
-        const { y, b } = shared.values.z;
-        await d.moveTo({ x: b.x + b.width * 0.33, y: y - 15 }, { ms: 900 });
+        const { yAt, b } = shared.values.z;
+        await d.moveTo({ x: b.x + b.width * 0.33, y: yAt(5095) }, { ms: 900 });   // oil leg
         await d.sleep(1800);
-        await d.moveTo({ x: b.x + b.width * 0.33, y: y + 25 }, { ms: 1400 });
+        await d.moveTo({ x: b.x + b.width * 0.33, y: yAt(5150) }, { ms: 1400 });  // water leg
       } },
     { id: 'gas-zoom', chapter: 'Gas', chapterSub: 'The Oboro Sand',
       say: 'Deeper, the Oboro Sand, around six thousand one hundred and fifty feet.',
@@ -60,7 +60,8 @@ export default {
     { id: 'gas',
       say: 'The resistivity is high here, about fifteen ohm metres, so there is hydrocarbon. Is it oil or gas? Look at the density and neutron. The density reads low, about two point two five, which on its own suggests twenty four percent porosity. The neutron reads only sixteen percent. Gas holds far less hydrogen than oil or water, so the neutron reads low, and gas is light, so the density reads low too. The curves cross over, shaded yellow. That crossover is the signature of gas.',
       do: async (d, shared) => {
-        const { y, b } = shared.values.g;
+        const { yAt, b } = shared.values.g;
+        const y = yAt(6150);
         await d.moveTo({ x: b.x + b.width * 0.33, y }, { ms: 900 });
         await d.sleep(1800);
         await d.moveTo({ x: b.x + b.width * 0.55, y }, { ms: 900 });
