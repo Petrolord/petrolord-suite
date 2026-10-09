@@ -330,3 +330,18 @@ byte-identical with four `scal-u2` deviation ledger rows.
   gas-oil table; the new summary page). The demo pair's numbers are unchanged.
 - Sample report: `/root/scal-report-sample.pdf`.
 
+
+## 2026-10-09: edits no longer lost when leaving within the autosave delay (SCAL-T1)
+
+A tester reported lost edits; reproduced while seeding the saturation-height
+lesson. The autosave fires 10 s after the last edit, and leaving SCAL Studio
+sooner cleared the timer, while the header still said "Saved" from the
+previous save. Now `useScalProjects` tracks unsaved edits (the payload that a
+save would write against the one last written, ignoring the modified stamp and
+the derived kr-1 block) and writes them when the studio unmounts, when the page
+is hidden and before another project opens or a new one is created; closing or
+reloading the tab with unsaved edits asks the browser to confirm; the autosave
+runs only when something changed. `StudioAutoSave` takes an optional `dirty`
+prop and then says "Unsaved changes" (other apps unchanged). Test:
+scalUnsavedEdits.test.jsx (negative control: without the unmount flush the
+leave-within-10-s test fails).

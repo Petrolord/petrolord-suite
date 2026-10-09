@@ -20,6 +20,16 @@ import { copyName, isRecordConflict } from '@/lib/recordSharing/rules';
 
 export const SCAL_TABLE = 'saved_scal_projects';
 
+/** What a save would write, without the fields that change on every call (the
+ *  modified stamp and the derived kr-1 contract block): equal prints mean
+ *  nothing is waiting to be saved. */
+export const payloadPrint = (p) => {
+  if (!p || typeof p !== 'object') return '';
+  const { modified: _m, ...rest } = p;
+  for (const k of Object.keys(rest)) if (/contract/i.test(k) && rest[k] && typeof rest[k] === 'object') delete rest[k];
+  return JSON.stringify(rest);
+};
+
 export const service = createSavedProjectsService(SCAL_TABLE, {
   signInMessage: 'Sign in to save SCAL projects.',
 });
@@ -37,6 +47,14 @@ export function useScalProjects({ serialize, hydrate, changeKey, addNotification
   const [saveError, setSaveError] = useState(null);
   const [lastSaveTime, setLastSaveTime] = useState(null);
   const [hydrated, setHydrated] = useState(false);
+  // SCAL-T1: edits made after the last save. The autosave fires 10 s after the
+  // last edit; leaving the page sooner used to cancel it and lose the edits
+  // while the header said "Saved". Now pending edits are written on the way
+  // out, and the header says "Unsaved changes" until they are.
+  const [dirty, setDirty] = useState(false);
+  const savedPrintRef = useRef('');
+  const baselinePendingRef = useRef(false);
+  const flushRef = useRef(null); // set below, once writePending exists
 
   const sharing = useRecordSharing({
     store: sharingStore,
@@ -72,9 +90,13 @@ export function useScalProjects({ serialize, hydrate, changeKey, addNotification
   }, [sharingStore]);
 
   const createProject = useCallback(async (name) => {
+    await flushRef.current?.();
     const id = uuidv4();
     try {
-      await service.save(id, serializeRef.current(id, name));
+      const first = serializeRef.current(id, name);
+      await service.save(id, first);
+      savedPrintRef.current = payloadPrint(first);
+      setDirty(false);
       setCurrentProjectId(id);
       setProjectName(name);
       setProjectRow(await readRow(id));
@@ -92,6 +114,7 @@ export function useScalProjects({ serialize, hydrate, changeKey, addNotification
   }, [addNotification, listProjects, readRow]);
 
   const openProject = useCallback(async (id) => {
+    await flushRef.current?.();
     try {
       let payload;
       let row = null;
@@ -110,6 +133,9 @@ export function useScalProjects({ serialize, hydrate, changeKey, addNotification
       setCurrentProjectId(id);
       setProjectName(payload.name || projects.find((p) => p.id === id)?.name || 'Untitled project');
       setProjectRow(row);
+      // the hydrated state is the saved state: take its print on the next render
+      baselinePendingRef.current = true;
+      setDirty(false);
       hydrate(payload);
       setHydrated(true);
       setSaveError(null);
@@ -166,12 +192,15 @@ export function useScalProjects({ serialize, hydrate, changeKey, addNotification
     }
     setIsSaving(true);
     try {
-      const res = await writeProject(serializeRef.current(currentProjectId, projectName));
+      const sent = serializeRef.current(currentProjectId, projectName);
+      const res = await writeProject(sent);
       if (!res.ok) {
         setSaveError(res.readOnly ? 'Read-only' : 'Save failed');
         addNotification(res.message, res.readOnly ? 'info' : 'error');
         return false;
       }
+      savedPrintRef.current = payloadPrint(sent);
+      setDirty(false);
       setLastSaveTime(new Date());
       setSaveError(null);
       return true;
@@ -189,20 +218,39 @@ export function useScalProjects({ serialize, hydrate, changeKey, addNotification
     return createProject(name);
   }, [projectName, projects, createProject]);
 
-  // Debounced autosave (10 s), only once a project is open and hydrated, and
-  // never while the record is open read-only.
+  // Debounced autosave (10 s), only once a project is open and hydrated, only
+  // when something changed since the last save, and never while the record is
+  // open read-only.
   const autosaveRef = useRef(null);
   autosaveRef.current = { payload: () => serializeRef.current(currentProjectId, projectName), write: writeProject };
+  const writePending = useCallback(async () => {
+    const sent = autosaveRef.current.payload();
+    const res = await autosaveRef.current.write(sent);
+    if (res.ok) {
+      savedPrintRef.current = payloadPrint(sent);
+      setDirty(false);
+      setLastSaveTime(new Date());
+      setSaveError(null);
+    }
+    return res;
+  }, []);
   useEffect(() => {
-    if (!currentProjectId || !hydrated || !canWrite) return undefined;
+    if (!currentProjectId || !hydrated) return undefined;
+    const print = payloadPrint(autosaveRef.current.payload());
+    if (baselinePendingRef.current) {
+      baselinePendingRef.current = false;
+      savedPrintRef.current = print;
+      setDirty(false);
+      return undefined;
+    }
+    const changed = print !== savedPrintRef.current;
+    setDirty(changed);
+    if (!changed || !canWrite) return undefined;
     const timer = setTimeout(async () => {
       setIsSaving(true);
       try {
-        const res = await autosaveRef.current.write(autosaveRef.current.payload());
-        if (res.ok) {
-          setLastSaveTime(new Date());
-          setSaveError(null);
-        } else if (!res.readOnly) {
+        const res = await writePending();
+        if (!res.ok && !res.readOnly) {
           setSaveError('Auto-save failed');
           addNotification(res.message, 'error');
         }
@@ -214,9 +262,40 @@ export function useScalProjects({ serialize, hydrate, changeKey, addNotification
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [changeKey, currentProjectId, hydrated, canWrite, addNotification]);
+  }, [changeKey, currentProjectId, hydrated, canWrite, addNotification, writePending]);
+
+  // Write pending edits now: before opening or creating another project, when
+  // the page is hidden, and when SCAL Studio unmounts (navigating elsewhere in
+  // the Suite keeps the page alive, so the request completes).
+  const pendingRef = useRef(false);
+  pendingRef.current = dirty && canWrite && !!currentProjectId && hydrated;
+  flushRef.current = async () => {
+    if (!pendingRef.current) return;
+    pendingRef.current = false;
+    try { await writePending(); } catch (e) { console.error(e); }
+  };
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === 'hidden') flushRef.current?.(); };
+    // closing or reloading the tab cannot wait for a save: start it and ask the
+    // browser to confirm leaving
+    const onUnload = (e) => {
+      if (!pendingRef.current) return undefined;
+      flushRef.current?.();
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('beforeunload', onUnload);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('beforeunload', onUnload);
+      flushRef.current?.();
+    };
+  }, []);
 
   return {
+    dirty,
     projects: sharingStore ? ownProjects : projects,
     sharedProjects,
     currentProjectId,
