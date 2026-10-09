@@ -1,7 +1,7 @@
 // Ekene demonstration dataset — generator.
 // ============================================================================
 // Run from the repo root:   npx tsx tools/demo-dataset/generate.mjs
-// Output:                   dist-demo/ekene-demo-v2/   (git-ignored)
+// Output:                   dist-demo/ekene-demo-v3/   (git-ignored)
 //
 // Everything is deterministic: reruns are byte-identical. The LOCKED values in
 // spine.mjs are asserted on the way through, so this refuses to write a kit
@@ -23,7 +23,7 @@ import { pickettFit } from '../../packages/engines/engines/petrophysics/rw.js';
 
 import {
   LOCKED, LOCKED_WELLS, LOCKED_E7, ADDED_WELLS, GRID, FRAME, HORIZONS, OBORO,
-  FAULT, PLATFORM, CURVES, PETRO, PRESSURE, SEISMIC, KIT, TEMP_GRAD_F_PER_M,
+  FAULT, PLATFORM, CURVES, PETRO, PRESSURE, SEISMIC, KIT, TEMP_GRAD_F_PER_M, ELASTIC,
 } from './spine.mjs';
 import { buildSurvey, topsForWell, tvdAtMd } from './geology.mjs';
 import { buildKit, lockedVolumetrics, volumetricsOf } from './build.mjs';
@@ -35,7 +35,14 @@ import { writeLas } from './writers/las.mjs';
 import { measureLogs } from './measure.mjs';
 import { CORED, cutPlugs, coreLasRows } from './core.mjs';
 import { writeSegy } from './writers/segy.mjs';
-import { layerPropsFrom, makeGeometry, makeTraceBuilder, SEISMIC_NOTES } from './seismic.mjs';
+import { mineralFor, insituFluid } from './elastic.mjs';
+import { substituteVels } from '../../packages/engines/engines/rockphysics/gassmann.js';
+import { fitInterceptGradient } from '../../packages/engines/engines/rockphysics/gather.js';
+import { avoClass } from '../../packages/engines/engines/rockphysics/avo.js';
+import {
+  makeGeometry, SEISMIC_NOTES, elasticPropsFrom, makeElasticModel, makeElasticTracer, stackRpp, rpp,
+  rmsVelocityTable, gatherAngles, traceRms,
+} from './seismic.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..', '..');
@@ -72,7 +79,7 @@ fs.rmSync(OUT, { recursive: true, force: true });
 mk(OUT);
 
 // 1-4. Structure, the locked volumetrics, the tuning solve and every well.
-const { geo, tuning: TUNING, stats: sFinal, built } = buildKit();
+const { geo, tuning: TUNING, stats: sFinal, built, fluids: kitFluids } = buildKit();
 {
   const v = lockedVolumetrics();
   if (v.oilCells !== LOCKED.oil_cells) throw new Error(`ASSERT oil cells: ${v.oilCells} vs ${LOCKED.oil_cells}`);
@@ -355,66 +362,119 @@ const crsLabel = `${FRAME.crs} (${FRAME.crs_name})`;
 }
 
 // ===========================================================================
-// 10. Seismic
+// 10. Seismic (v3: one elastic model behind every product)
 // ===========================================================================
+const QI_TRUTH = {};
 {
   const ref = built.find((b) => b.well.name === 'Ekene-1');
-  const props = layerPropsFrom(ref.rows);
+  const props = elasticPropsFrom(ref.rows);
+  const contacts = { EKENE: { depth: LOCKED.owc_m, upper: 'oil' }, OBORO: { depth: OBORO.gwc_m, upper: 'gas' } };
+  const model = makeElasticModel({ geo, props, contacts });
   const ns = Math.round(SEISMIC.t_max_ms / SEISMIC.dt_ms) + 1;
   const dtUs = SEISMIC.dt_ms * 1000;
+  const Q = SEISMIC.qi;
+  const fullRefl = (i) => stackRpp(i, Q.full_deg[0], Q.full_deg[1]);
+  const quiet = makeElasticTracer({ ns, dtMs: SEISMIC.dt_ms });
+  const noiseRef = traceRms(quiet(model(ref.well.x, ref.well.y), fullRefl, { x: ref.well.x, y: ref.well.y, seed: 0, noise: false }));
+  const tracer = makeElasticTracer({ ns, dtMs: SEISMIC.dt_ms, noiseRef });
+  const table = rmsVelocityTable({ geo, props, x: ref.well.x, y: ref.well.y });
+  Object.assign(QI_TRUTH, { props, model, table, ref });
 
-  for (const [label, cfg] of [['full', SEISMIC.full], ['small', SEISMIC.small]]) {
+  const coordsFull = makeGeometry(SEISMIC.full);
+  const ifsCache = new Map();
+  const ifsAt = (p) => {
+    const key = `${p.x.toFixed(3)}/${p.y.toFixed(3)}`;
+    if (!ifsCache.has(key)) ifsCache.set(key, model(p.x, p.y));
+    return ifsCache.get(key);
+  };
+  const header = (cfg, label, lines) => [
+    `CLIENT ${FRAME.operator}`,
+    `SURVEY EKENE 3D ${label} - SYNTHETIC DEMONSTRATION DATA`,
+    `AREA ${FRAME.licence}  ${FRAME.country}`,
+    `CRS ${FRAME.crs} ${FRAME.crs_name}`,
+    `BIN ${SEISMIC.bin_m} M X ${SEISMIC.bin_m} M   INLINE AZIMUTH ${SEISMIC.inline_azimuth_deg} DEG`,
+    `INLINE RANGE ${cfg.il0} TO ${cfg.il0 + cfg.nInline - 1}`,
+    `CROSSLINE RANGE ${cfg.xl0} TO ${cfg.xl0 + cfg.nXline - 1}`,
+    `SAMPLES ${cfg.ns ?? ns}  INTERVAL ${SEISMIC.dt_ms} MS  RECORD ${cfg.t_max_ms ?? SEISMIC.t_max_ms} MS`,
+    `FORMAT ${cfg.format === 1 ? 'IBM FLOAT' : 'IEEE FLOAT'}  4 BYTE`,
+    'BYTE POSITIONS INLINE 189  CROSSLINE 193  CDPX 181  CDPY 185  SCALAR 71',
+    'POLARITY SEG NORMAL - IMPEDANCE INCREASE IS A PEAK',
+    'DATUM MEAN SEA LEVEL  REPLACEMENT VELOCITY 1500 M/S',
+    ...lines,
+    '',
+    'THIS VOLUME IS SYNTHETIC. IT IS GENERATED FROM THE SAME EARTH MODEL',
+    'AS THE WELL LOGS IN THIS KIT, SO THE SYNTHETIC SEISMOGRAM TIES.',
+    'IT IS NOT DATA FROM ANY REAL FIELD.',
+  ];
+  const utm = (p) => ({ x: utmE(p.x), y: utmN(p.y) });
+
+  const products = [
+    ['full', SEISMIC.full, fullRefl, 17, `FULL STACK ${Q.full_deg[0]} TO ${Q.full_deg[1]} DEG`, 'PROCESSING POST STACK TIME MIGRATION'],
+    ['small', SEISMIC.small, fullRefl, 17, `FULL STACK ${Q.full_deg[0]} TO ${Q.full_deg[1]} DEG (SMALL)`, 'PROCESSING POST STACK TIME MIGRATION'],
+    ...Q.stacks.map(([name, a, b], k) => [name, { ...SEISMIC.full, format: 5 }, (i) => stackRpp(i, a, b), 23 + 6 * k,
+      `${name.toUpperCase()} ANGLE STACK ${a} TO ${b} DEG`, `ANGLE STACK ${a} TO ${b} DEG  MEAN ANGLE ${(a + b) / 2} DEG`]),
+  ];
+  for (const [label, cfg, reflAt, seed, title, note] of products) {
     const coordsLocal = makeGeometry(cfg);
-    const traceAt = makeTraceBuilder({ geo, props, ns, dtMs: SEISMIC.dt_ms });
-    const cache = new Map();
     const buf = writeSegy({
       nInline: cfg.nInline, nXline: cfg.nXline, ns, dtUs, formatCode: cfg.format,
       il0: cfg.il0, xl0: cfg.xl0,
-      coords: (il, xl) => {
-        const p = coordsLocal(il, xl);
-        return { x: utmE(p.x), y: utmN(p.y) };
-      },
+      coords: (il, xl) => utm(coordsLocal(il, xl)),
       trace: (il, xl) => {
-        const key = `${il}/${xl}`;
-        if (!cache.has(key)) {
-          const p = coordsLocal(il, xl);
-          cache.set(key, traceAt(p.x, p.y));
-        }
-        const t = cache.get(key);
-        cache.delete(key);
-        return t;
+        const p = coordsLocal(il, xl);
+        return tracer(ifsAt(p), reflAt, { x: p.x, y: p.y, seed });
       },
-      textLines: [
-        `CLIENT ${FRAME.operator}`,
-        `SURVEY EKENE 3D ${label.toUpperCase()} - SYNTHETIC DEMONSTRATION DATA`,
-        `AREA ${FRAME.licence}  ${FRAME.country}`,
-        `CRS ${FRAME.crs} ${FRAME.crs_name}`,
-        `BIN ${SEISMIC.bin_m} M X ${SEISMIC.bin_m} M   INLINE AZIMUTH ${SEISMIC.inline_azimuth_deg} DEG`,
-        `INLINE RANGE ${cfg.il0} TO ${cfg.il0 + cfg.nInline - 1}`,
-        `CROSSLINE RANGE ${cfg.xl0} TO ${cfg.xl0 + cfg.nXline - 1}`,
-        `SAMPLES ${ns}  INTERVAL ${SEISMIC.dt_ms} MS  RECORD ${SEISMIC.t_max_ms} MS`,
-        `FORMAT ${cfg.format === 1 ? 'IBM FLOAT' : 'IEEE FLOAT'}  4 BYTE`,
-        'BYTE POSITIONS INLINE 189  CROSSLINE 193  CDPX 181  CDPY 185  SCALAR 71',
-        'POLARITY SEG NORMAL - IMPEDANCE INCREASE IS A PEAK',
-        'DATUM MEAN SEA LEVEL  REPLACEMENT VELOCITY 1500 M/S',
-        'PROCESSING POST STACK TIME MIGRATION',
-        '',
-        'THIS VOLUME IS SYNTHETIC. IT IS GENERATED FROM THE SAME EARTH MODEL',
-        'AS THE WELL LOGS IN THIS KIT, SO THE SYNTHETIC SEISMOGRAM TIES.',
-        'IT IS NOT DATA FROM ANY REAL FIELD.',
-        '',
-        'THE TEXTUAL HEADER IS A NOTE SOMEBODY TYPED. THE TRACES ARE THE DATA.',
-      ],
+      textLines: header(cfg, title, [note]),
     });
     const name = `04-seismic/EKENE3D-${label}.sgy`;
     write(name, buf);
     say(`  seismic ${label}: ${cfg.nInline}x${cfg.nXline}x${ns}, `
       + `${(buf.length / 1048576).toFixed(1)} MB, ${cfg.format === 1 ? 'IBM' : 'IEEE'} float`);
   }
+
+  // NMO-corrected offset gathers over the wells' part of the survey. Each
+  // interface's angle is Walden's straight-ray angle from the RMS velocity
+  // table below, the computation QI Studio's angle stacks use, so stacking
+  // these gathers there over 5 to 15 degrees gives back the near stack.
+  {
+    const G = Q.gathers;
+    const nsG = Math.round(G.t_max_ms / SEISMIC.dt_ms) + 1;
+    const offsets = Array.from({ length: G.nOffset }, (_, k) => G.offset0_m + k * G.offsetStep_m);
+    const tracerG = makeElasticTracer({ ns: nsG, dtMs: SEISMIC.dt_ms, noiseRef });
+    const angleCache = new Map();
+    const buf = writeSegy({
+      nInline: G.nInline, nXline: G.nXline, ns: nsG, dtUs, formatCode: 5, il0: G.il0, xl0: G.xl0, offsets,
+      coords: (il, xl) => utm(coordsFull(il, xl)),
+      trace: (il, xl, k) => {
+        const p = coordsFull(il, xl);
+        const ifs = ifsAt(p);
+        const key = `${il}/${xl}`;
+        if (!angleCache.has(key)) {
+          angleCache.clear();
+          angleCache.set(key, offsets.map((o) => gatherAngles(ifs, o, table, SEISMIC.dt_ms, nsG)));
+        }
+        const ang = angleCache.get(key)[k];
+        return tracerG(ifs, (i) => rpp(i, ang[ifs.indexOf(i)], Q.mute_deg) ?? 0, { x: p.x, y: p.y, seed: 41 + 7 * k });
+      },
+      textLines: header({ ...G, ns: nsG, format: 5 }, 'NMO-CORRECTED OFFSET GATHERS', [
+        `OFFSETS ${offsets[0]} TO ${offsets[offsets.length - 1]} M EVERY ${G.offsetStep_m} M  BYTES 37-40`,
+        `${G.nOffset} TRACES PER CDP  SORTED BY INLINE CROSSLINE OFFSET`,
+        `NMO CORRECTED WITHOUT STRETCH  MUTE BEYOND ${Q.mute_deg} DEG`,
+      ]),
+    });
+    write('04-seismic/gathers/EKENE3D-gathers-nmo.sgy', buf);
+    write('04-seismic/gathers/ekene-rms-velocity.csv', csv(['twt_ms', 'vrms_m_s'], table.t_ms.map((t, k) => [t.toFixed(1), table.vrms[k].toFixed(1)])));
+    QI_TRUTH.gathers = { offsets, nsG, bytes: buf.length };
+    say(`  gathers: ${G.nInline}x${G.nXline} CDPs x ${G.nOffset} offsets x ${nsG}, ${(buf.length / 1048576).toFixed(1)} MB`);
+  }
+
+  const vt = table.t_ms.map((t, k) => `${Math.round(t)} ${Math.round(table.vrms[k])}`).join('/');
+  QI_TRUTH.velocityText = vt;
+  const topOil = model(ref.well.x, ref.well.y).find((i) => i.layerKey === 'EKENE');
   write('04-seismic/README-seismic.md', [
     '# Ekene 3D: synthetic volumes', '',
     `- **Polarity** ${SEISMIC_NOTES.polarity}`,
-    `- **Top Ekene Sand is a ${SEISMIC_NOTES.topSandEvent}.** ${SEISMIC_NOTES.reason}`,
+    `- **Top Ekene Sand is a peak.** The Ekene Sand is faster and denser than the overpressured Ogbia Shale above it; at Ekene-1, in the oil leg, the full-stack reflection coefficient is about ${fullRefl(topOil).toFixed(2)}.`,
     `- **Datum** ${SEISMIC_NOTES.datum}`,
     `- **Byte positions** inline 189, crossline 193, CDP X 181, CDP Y 185, scalar 71 (value -100).`,
     `- **CRS** ${crsLabel}.`, '',
@@ -427,9 +487,131 @@ const crsLabel = `${FRAME.crs} (${FRAME.crs_name})`;
     'Formation. The growth fault at inline-parallel strike is invisible at the Ekene',
     'level by design and clear at the Oboro and Akata levels, which is where a growth',
     'fault is pickable anyway.', '',
-    'The cube is built from the same earth model as the logs, so the synthetic',
-    'seismogram from any well\'s RHOB and DT ties it without stretching.',
+    '## Kit v3: elastic, with angles (for QI Studio)', '',
+    'Every volume is built from one elastic model: per layer P velocity, S velocity and',
+    'density from Ekene-1\'s logs, with the Ekene Sand split at the oil-water contact',
+    `(${LOCKED.owc_m} m) and the Oboro Sand at the gas-water contact (${OBORO.gwc_m} m), and exact`,
+    'Zoeppritz reflectivity at each angle. The oil leg dims the top of the Ekene Sand, the',
+    'oil-water contact is a flat event, and the Oboro gas sand changes polarity with angle.', '',
+    '| File | What it is |', '|---|---|',
+    `| \`EKENE3D-full.sgy\` | full stack, ${Q.full_deg[0]} to ${Q.full_deg[1]} degrees |`,
+    ...Q.stacks.map(([nm, a, b]) => `| \`EKENE3D-${nm}.sgy\` | ${nm} angle stack, ${a} to ${b} degrees (mean ${(a + b) / 2}), same lattice as the full stack |`),
+    `| \`gathers/EKENE3D-gathers-nmo.sgy\` | NMO-corrected offset gathers, inlines ${Q.gathers.il0} to ${Q.gathers.il0 + Q.gathers.nInline - 1}, crosslines ${Q.gathers.xl0} to ${Q.gathers.xl0 + Q.gathers.nXline - 1}, offsets ${QI_TRUTH.gathers.offsets[0]} to ${QI_TRUTH.gathers.offsets.at(-1)} m (bytes 37-40), muted beyond ${Q.mute_deg} degrees |`,
+    '| `gathers/ekene-rms-velocity.csv` | the RMS velocity function for the angle stacks |', '',
+    'In QI Studio\'s Prestack tab, set the offset bin to ' + `${Q.gathers.offsetStep_m}` + ' m and paste this velocity table:', '',
+    '```', vt, '```', '',
+    'The angle stacks and the gathers are the same rock: stacking the gathers over 5 to 15',
+    'degrees with that table gives the near stack back, up to the noise.',
   ].join('\n'));
+}
+
+// ===========================================================================
+// 10b. QI truth: what QI Studio and Rock Physics Studio should give back
+// ===========================================================================
+{
+  const { props, model, table, ref } = QI_TRUTH;
+  const fl = kitFluids;
+  const r4 = (v) => (Number.isFinite(v) ? v.toFixed(4) : '');
+  const r1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : '');
+  const mean = (rs, f) => rs.reduce((a, r) => a + f(r), 0) / rs.length;
+  const NET = 0.35;  // the kit's net-sand Vsh cut (build.mjs VSH_CUT)
+
+  // 1. zone averages over net sand, every well with a shear log
+  const zoneRows = [];
+  const zones = [['EKENE', 'oil', 'Ekene Sand oil leg'], ['EKENE', 'brine', 'Ekene Sand water leg'],
+    ['OBORO', 'gas', 'Oboro Sand gas leg'], ['OBORO', 'brine', 'Oboro Sand water leg']];
+  for (const b of built) {
+    if (!CURVES[b.well.curves].includes('DTS')) continue;
+    for (const [layer, fluid, label] of zones) {
+      const rs = b.rows.filter((r) => r.layerKey === layer && r.fluid === fluid && r.vsh <= NET);
+      if (rs.length < 4) continue;
+      zoneRows.push([b.well.name, label, rs.length, r4(rs[0].md), r4(rs[rs.length - 1].md),
+        r1(mean(rs, (r) => r.vp_m_s)), r1(mean(rs, (r) => r.vs_m_s)), r4(mean(rs, (r) => r.rhob)),
+        r1(mean(rs, (r) => r.ai) / 1000), r4(mean(rs, (r) => r.vpvs)), r4(mean(rs, (r) => r.phit)), r4(mean(rs, (r) => r.sw))]);
+    }
+  }
+  write('10-qi/ekene-qi-zone-averages.csv', csv(
+    ['well', 'zone', 'samples', 'top_md_m', 'base_md_m', 'vp_m_s', 'vs_m_s', 'rhob_g_cc', 'ai_x1000_kg_m2s', 'vp_vs', 'phit', 'sw'], zoneRows));
+
+  // 2. fluid substitution at Ekene-1, sample by sample, through the engine
+  const oil = ref.rows.filter((r) => r.layerKey === 'EKENE' && r.fluid === 'oil' && r.vsh <= NET);
+  const wet = ref.rows.filter((r) => r.layerKey === 'EKENE' && r.fluid === 'brine' && r.vsh <= NET);
+  const subbed = oil.map((r) => substituteVels(r.vp_m_s, r.vs_m_s, r.rhob * 1000, mineralFor(r.vsh).k, r.phit,
+    insituFluid(fl.EKENE, r.sw), { k: fl.EKENE.brine.k, rho: fl.EKENE.brine.rho }));
+  // averages of the sample curves (AI and Vp/Vs too), the way the apps average a zone
+  const stats = (xs) => ({
+    vp: mean(xs, (x) => x.vp), vs: mean(xs, (x) => x.vs), rho: mean(xs, (x) => x.rho),
+    ai: mean(xs, (x) => x.vp * x.rho), vpvs: mean(xs, (x) => x.vp / x.vs),
+  });
+  const asSample = (r) => ({ vp: r.vp_m_s, vs: r.vs_m_s, rho: r.rhob * 1000 });
+  const fs = { inSitu: stats(oil.map(asSample)), toBrine: stats(subbed), waterLeg: stats(wet.map(asSample)) };
+
+  // 3. interface AVO at Ekene-1 (exact Zoeppritz, intercept and gradient fitted 0 to 30 degrees)
+  const angles = Array.from({ length: 31 }, (_, k) => k);
+  const ifs = model(ref.well.x, ref.well.y);
+  const brineTop = { ...ifs.find((i) => i.layerKey === 'EKENE'), lower: { vp: props['EKENE:brine'].vp, vs: props['EKENE:brine'].vs, rho: props['EKENE:brine'].rho } };
+  const named = [
+    ['Top Ekene Sand, oil leg (at Ekene-1)', ifs.find((i) => i.layerKey === 'EKENE')],
+    ['Top Ekene Sand, if brine-filled', brineTop],
+    ['Ekene oil-water contact (flat spot)', ifs.find((i) => i.contact === 'EKENE')],
+    ['Base Ekene Sand', ifs.find((i) => i.layerKey === 'AGBADA_L')],
+    ['Top Oboro Sand, gas leg (at Ekene-1)', ifs.find((i) => i.layerKey === 'OBORO')],
+    ['Oboro gas-water contact (flat spot)', ifs.find((i) => i.contact === 'OBORO')],
+  ].filter(([, i]) => i);
+  const avoRows = named.map(([label, i]) => {
+    const amps = angles.map((a) => rpp(i, a));
+    const { a, b } = fitInterceptGradient(angles, amps, { maxAngle: 30 });
+    return { label, t: i.t, r0: amps[0], r30: amps[30], a, b, cls: avoClass(a, b),
+      near: stackRpp(i, 5, 15), mid: stackRpp(i, 15, 25), far: stackRpp(i, 25, 35) };
+  });
+  write('10-qi/ekene-qi-avo-truth.csv', csv(['interface', 'twt_ms_at_ekene1', 'r0', 'r30', 'intercept_A', 'gradient_B', 'avo_class', 'near_5_15', 'mid_15_25', 'far_25_35'],
+    avoRows.map((x) => [x.label, r1(x.t), r4(x.r0), r4(x.r30), r4(x.a), r4(x.b), x.cls, r4(x.near), r4(x.mid), r4(x.far)])));
+
+  // 4. the note a presenter reads from
+  const c = fl.EKENE.cond; const o = fl.OBORO.cond;
+  const f = (x) => `${(x.rho / 1000).toFixed(4)} g/cc, K ${(x.k / 1e9).toFixed(3)} GPa, Vp ${Math.sqrt(x.k / x.rho).toFixed(0)} m/s`;
+  const row = (k, v) => `| ${k} | ${v.vp.toFixed(0)} | ${v.vs.toFixed(0)} | ${(v.rho / 1000).toFixed(4)} | ${(v.ai / 1e6).toFixed(3)} | ${v.vpvs.toFixed(3)} |`;
+  const gc3 = 0.80416 * 3 - 0.85588; const lo3 = ELASTIC.trend.sand[0] * 3 + ELASTIC.trend.sand[1];
+  write('10-qi/ekene-qi-truth.md', [
+    '# Ekene QI truth (kit v3)', '',
+    'What QI Studio and Rock Physics Studio should give back on this kit, computed by the same',
+    'engine functions the apps run. Every log is a tool measurement of these truth rows, so a',
+    'value read from the measured logs lands near these, not on them.', '',
+    '## Reservoir conditions and fluids (Batzle-Wang)', '',
+    `- **Ekene Sand:** ${c.tF} degF, ${c.pPsia} psia, brine ${LOCKED.salinity_ppm} ppm NaCl, oil ${c.api} API, GOR ${c.gorScfStb} scf/stb (${c.gorLL.toFixed(1)} L/L), gas gravity ${c.gasSg}.`,
+    `  - brine: ${f(fl.EKENE.brine)}`,
+    `  - live oil: ${f(fl.EKENE.hc)}`,
+    `- **Oboro Sand:** ${o.tF} degF, ${o.pPsia} psia (read at the gas-water contact in Ekene-1), brine ${LOCKED.salinity_ppm} ppm, gas gravity ${o.gasSg}.`,
+    `  - brine: ${f(fl.OBORO.brine)}`,
+    `  - gas: ${f(fl.OBORO.hc)}`,
+    '- **Mixing:** brine and hydrocarbon by Wood (uniform saturation) at the deep Sw.', '',
+    '## Rock', '',
+    '- **Minerals:** quartz (K 36.6, mu 45.0 GPa) and clay (K 20.9, mu 6.9 GPa), Voigt-Reuss-Hill on Vsh.',
+    '- **Porosity for Gassmann:** PHIT. **Density:** the RHOB truth.',
+    `- **Brine-filled shear trend (local):** sand Vs = ${ELASTIC.trend.sand[0]} Vp ${ELASTIC.trend.sand[1]} km/s, shale Vs = ${ELASTIC.trend.shale[0]} Vp ${ELASTIC.trend.shale[1]} km/s, mixed on Vsh the Greenberg-Castagna way.`,
+    `  At Vp 3.0 km/s in clean sand the local trend gives ${lo3.toFixed(3)} km/s and Greenberg-Castagna sandstone ${gc3.toFixed(3)} km/s (${((lo3 / gc3 - 1) * 100).toFixed(1)}% higher):`,
+    '  calibrating on a measured DTS is worth it.',
+    '- **Hydrocarbon zones:** Vs is the fixed point of iterative Vs: taken to brine by Gassmann, the rock lands on the local trend.',
+    '  The compressional sonic is the kit v2 sonic, unchanged.', '',
+    `## Net sand averages (Vsh <= ${NET}), every well with DTS`, '',
+    'See `ekene-qi-zone-averages.csv`. Ekene-1:', '',
+    '| Zone | Vp m/s | Vs m/s | RHOB g/cc | AI x1000 | Vp/Vs |', '|---|---|---|---|---|---|',
+    ...zoneRows.filter((z) => z[0] === 'Ekene-1').map((z) => `| ${z[1]} | ${z[5]} | ${z[6]} | ${Number(z[7]).toFixed(3)} | ${z[8]} | ${Number(z[9]).toFixed(3)} |`), '',
+    '## Fluid substitution, Ekene-1 Ekene Sand oil leg to brine', '',
+    'Sample by sample with the inputs above, averaged over net sand:', '',
+    '| | Vp m/s | Vs m/s | RHOB g/cc | AI (10^6) | Vp/Vs |', '|---|---|---|---|---|---|',
+    row('In situ (oil)', fs.inSitu), row('Substituted to brine', fs.toBrine), row('Water leg, measured rock', fs.waterLeg), '',
+    `Substitution raises AI by ${((fs.toBrine.ai / fs.inSitu.ai - 1) * 100).toFixed(1)}% and Vp/Vs by ${((fs.toBrine.vpvs / fs.inSitu.vpvs - 1) * 100).toFixed(1)}%.`,
+    'The substituted rock and the water-leg rock differ because they are different rock (porosity and clay differ between the legs).', '',
+    '## AVO at Ekene-1 (exact Zoeppritz, layer averages)', '',
+    '| Interface | TWT ms | R(0) | R(30) | A | B | Class | Near | Mid | Far |', '|---|---|---|---|---|---|---|---|---|---|',
+    ...avoRows.map((x) => `| ${x.label} | ${x.t.toFixed(0)} | ${x.r0.toFixed(3)} | ${x.r30.toFixed(3)} | ${x.a.toFixed(3)} | ${x.b.toFixed(3)} | ${x.cls} | ${x.near.toFixed(3)} | ${x.mid.toFixed(3)} | ${x.far.toFixed(3)} |`), '',
+    'Class is the engine\'s avoClass (A above 0.02 is class I). Near, mid and far are the mean coefficients the angle stacks are built from.', '',
+    '## RMS velocity for the gathers', '',
+    '`04-seismic/gathers/ekene-rms-velocity.csv`, or paste into QI Studio:', '', '```', QI_TRUTH.velocityText, '```',
+  ].join('\n'));
+  say(`  QI truth: AI oil ${(fs.inSitu.ai / 1e6).toFixed(3)} -> brine ${(fs.toBrine.ai / 1e6).toFixed(3)}; `
+    + avoRows.map((x) => `${x.label.split(',')[0]} class ${x.cls}`).join('; '));
 }
 
 // ===========================================================================
@@ -1019,16 +1201,17 @@ write('00-START-HERE.md', [
   `| Structure | drape anticline over a growth fault that dies out below the reservoir |`, '',
   '## Folders', '',
   '| Folder | What is in it |', '|---|---|',
-  '| `01-wells` | LAS logs, deviation surveys, tops, checkshots, well headers |',
+  '| `01-wells` | LAS logs (with a dipole shear sonic, DTS, since v3), deviation surveys, tops, checkshots, well headers |',
   '| `02-surfaces` | gridded structure in ZMAP+, CPS-3 and XYZ |',
   '| `03-culture` | licence boundary and fault trace as GeoJSON |',
-  '| `04-seismic` | two SEG-Y volumes, small and full |',
+  '| `04-seismic` | SEG-Y: full stack (small and full), near, mid and far angle stacks, and NMO-corrected offset gathers with their RMS velocity |',
   '| `05-pressure` | MDT pressures, shoe tests, mud weights, the designed prognosis |',
   '| `06-stratigraphy` | dated column, biozones, cored intervals |',
   '| `01-wells/core` | routine core analysis (plug porosity and permeability) for the three cored wells, as LAS to import into each well and as CSV |',
   '| `07-well-design` | site card and targets |',
   '| `08-production` | six years of rates, the flood, the voidage ledger |',
   '| `09-reservoir` | pressure history, PVT, relative permeability, capillary curves |',
+  '| `10-qi` | the QI truth: fluids, shear trend, zone elastic averages, fluid substitution and AVO at Ekene-1 |',
   ...DOMAIN_FOLDERS.map(([f, d]) => `| \`${f}\` | ${d} |`),
   '| `episodes` | one note per episode naming exactly what to load |', '',
   '## The chain', '',
@@ -1049,10 +1232,20 @@ write('00-START-HERE.md', [
   `- The pore pressure prognosis lands on ${LOCKED.pi_psia} psia at the contact, which is the field's published`,
   `  initial reservoir pressure, ${PRESSURE_MODEL.emwAtDatum.toFixed(2)} ppg equivalent mud weight.`,
   '- The seismic is convolved from the same density and sonic the LAS files carry, so the synthetic ties.',
+  '- Since v3 every seismic volume, angle stack and gather comes from one elastic model built from the',
+  '  same logs and their shear sonic, so the AVO the rock physics predicts is the AVO in the data',
+  '  (`10-qi/ekene-qi-truth.md`).',
   '- Material balance on the pressure history returns the same OOIP the mapped structure gives,',
   '  to the stock tank barrel. A map and a pressure decline, agreeing.',
   `- Gridding the six development wells gives ${LOCKED.oil_cells} oil cells and a ${LOCKED.max_oil_column_m} m`,
   '  maximum oil column, which are the field\'s published numbers.', '',
+  '## What changed in v3', '',
+  '- Every well with a sonic now has a dipole shear sonic (DTS, us/ft). No other log value changed.',
+  '- The seismic is elastic: the oil leg dims the top of the Ekene Sand, the oil-water contact is a',
+  '  flat event, and the Oboro gas sand changes polarity with angle. The full stack is the 0 to 30',
+  '  degree stack of that model, so its amplitudes differ slightly from v2; timing and structure do not.',
+  '- New: near, mid and far angle stacks, NMO-corrected offset gathers with their RMS velocity, and',
+  '  `10-qi`, the numbers QI Studio and Rock Physics Studio should give back.', '',
   '## Heavy files', '',
   'The SEG-Y volumes are release assets. Everything else is text and travels with the kit.',
 ].join('\n'));

@@ -28,6 +28,8 @@ const TOOLS = {
   CALI: { fwhm: 0.15, noise: () => 0.03 },
   RT:   { fwhm: 0.9, logNoise: 0.022, conductive: true },   // deep induction
   RXO:  { fwhm: 0.25, logNoise: 0.03, conductive: true },    // micro-resistivity
+  // v3: dipole shear, appended last so every earlier curve keeps its noise
+  DTS:  { fwhm: 0.60, noise: () => 2.2 },
 };
 
 // deterministic standard normal from (seed, curve, index)
@@ -68,7 +70,7 @@ const MUD_DENSITY = 1.2; // g/cc, water-based mud in the 8.5 in and 12.25 in hol
 /**
  * @param {Array<object>} rows truth rows from synthesiseWell
  * @param {string} wellName seeds the noise, so each well is its own run
- * @returns {Array<object>} LAS rows: md, CALI, GR, SP, RHOB, DRHO, NPHI, DT, RT, RXO, PEF
+ * @returns {Array<object>} LAS rows: md, CALI, GR, SP, RHOB, DRHO, NPHI, DT, RT, RXO, PEF, DTS
  */
 export function measureLogs(rows, wellName) {
   const seed = Array.from(wellName).reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 7);
@@ -76,7 +78,7 @@ export function measureLogs(rows, wellName) {
   const col = (k) => Float64Array.from(rows, (r) => r[k]);
   const truth = {
     GR: col('gr'), RHOB: col('rhob'), NPHI: col('nphi'), DT: col('dt'), PEF: col('pef'),
-    SP: col('sp'), CALI: col('cali'), RT: col('rt'), RXO: col('rxo'),
+    SP: col('sp'), CALI: col('cali'), RT: col('rt'), RXO: col('rxo'), DTS: col('dts'),
   };
   const out = {};
   let k = 0;
@@ -122,6 +124,6 @@ export function measureLogs(rows, wellName) {
     md: r.md,
     CALI: out.CALI[i], GR: Math.max(0, out.GR[i]), SP: out.SP[i],
     RHOB: out.RHOB[i], DRHO: r3(DRHO[i]), NPHI: out.NPHI[i], DT: out.DT[i],
-    RT: out.RT[i], RXO: out.RXO[i], PEF: Math.max(0.5, out.PEF[i]),
+    RT: out.RT[i], RXO: out.RXO[i], PEF: Math.max(0.5, out.PEF[i]), DTS: out.DTS[i],
   }));
 }

@@ -8,6 +8,7 @@ import { isNull } from '../../packages/engines/lib/gridding/gridmath.js';
 import { LOCKED, LOCKED_WELLS, ADDED_WELLS, GRID } from './spine.mjs';
 import { makeGeology, buildSurvey, topsForWell, tvdAtMd } from './geology.mjs';
 import { synthesiseWell } from './rockmodel.mjs';
+import { reservoirFluids, addShear } from './elastic.mjs';
 
 export const VSH_CUT = 0.35;
 
@@ -106,5 +107,8 @@ export function buildKit() {
       : synthesiseWell({ well: w, tops, survey, tvdAtMd, geo, tuning });
     return { well: w, survey, tops, rows };
   });
-  return { geo, wells, tuning, stats, built };
+  // v3: shear on every well, from the fluids at each reservoir's conditions
+  const fluids = reservoirFluids(built.find((b) => b.well.name === 'Ekene-1').rows);
+  for (const b of built) addShear(b.rows, fluids);
+  return { geo, wells, tuning, stats, built, fluids };
 }

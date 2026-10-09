@@ -20,6 +20,7 @@ export const CURVE_META = {
   DRHO: { unit: 'G/C3',  descr: 'Density Correction', dp: 4 },
   NPHI: { unit: 'V/V',   descr: 'Thermal Neutron Porosity (sandstone matrix)', dp: 4 },
   DT:   { unit: 'US/F',  descr: 'Compressional Transit Time', dp: 3 },
+  DTS:  { unit: 'US/F',  descr: 'Shear Transit Time (dipole)', dp: 3 },
   RT:   { unit: 'OHMM',  descr: 'Deep Resistivity', dp: 4 },
   RXO:  { unit: 'OHMM',  descr: 'Flushed Zone Resistivity', dp: 4 },
   PEF:  { unit: 'B/E',   descr: 'Photoelectric Factor', dp: 3 },
