@@ -168,3 +168,14 @@ export async function baseParams(d, overrides = {}) {
 export const OPEN_CUTOFFS = { cutPhi: 0, cutVsh: 1, cutSw: 1 };
 // Module E onward: the Module D interpretation (Indonesia, Rsh 3.2, Rw 0.0786)
 export const MODULE_E_BASE = { grClean: 18, grClay: 125, vshMethod: 'linear', rhoMa: 2.67, phiShale: 0.075, rw: 0.0786, swMethod: 'indonesia', rsh: 3.2 };
+
+// wheel-zoom the Field view (multi-well tracks) about a displayed depth (ft):
+// [top, base] is the displayed range of the picked wells; the canvas has a 34 px
+// header and 2 px above the plot, 4 px below it
+export async function zoomFieldAt(d, depthFt, n, { top, base, dx = 0.45 }) {
+  const b = await d.page.getByTestId('petro-field-canvas').boundingBox();
+  const plotTop = b.y + 36; const plotH = b.height - 40;
+  const y = plotTop + ((depthFt - top) / (base - top)) * plotH;
+  await d.moveTo({ x: b.x + b.width * dx, y }, { ms: 700 });
+  for (let i = 0; i < n; i++) { await d.page.mouse.wheel(0, -120); await d.sleep(200); }
+}
