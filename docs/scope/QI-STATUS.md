@@ -700,3 +700,11 @@ The manual was written against the source, and it found the following.
 - The project autosave fired 10 s after the last edit. Leaving QI Studio sooner (to Rock Physics Studio, say) cancelled it, so the setup was lost while the header still said Saved, and reopening a project wrote it again for nothing (seen as "Save Failed"). It was the same defect SCAL Studio had (#949). Found recording the QI videos.
 - Pending edits are now written on unmount, on page hide, and before another project opens or is created. Closing the tab asks the browser to confirm. Opening a project is not an edit, and the header says "Unsaved changes" until the edits are stored.
 - **Tests:** `__tests__/qiUnsavedEdits.test.jsx` (3; all fail on the old provider).
+
+## QI studies could not save (fixed 2026-10-09; needs a Suite zip)
+- `saved_qi_studio_projects` was never added to the record-sharing rules (`src/lib/recordSharing/rules.js`). In production the sharing store threw "is not a shared record table" before sending any request. Since 2026-10-07, a QI project could be created, but none of its edits was ever stored, and the header said "Save Failed". Found while recording the QI videos.
+- The fix registers the table, matching its migration (visibility sharing, `project_name`).
+- New guards:
+  - `src/lib/recordSharing/__tests__/registryGuard.test.js` reads the source and fails if any table given to `useSharedSavedProjects` is unregistered;
+  - `__tests__/qiSharedSave.test.jsx` saves a QI study through the real sharing store on the in-memory database.
+  - Both fail without the entry.

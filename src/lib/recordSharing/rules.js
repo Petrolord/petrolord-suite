@@ -48,6 +48,11 @@ export const SHARING_TABLES = {
   saved_eor_screening_projects: { label: 'project', nameColumn: 'project_name', sharedWhen: 'visibility' },
   // Well Spacing Optimizer U1 (migration 20261005010000_saved_well_spacing_projects.sql, not applied yet)
   saved_well_spacing_projects: { label: 'project', nameColumn: 'project_name', sharedWhen: 'visibility' },
+  // QI Studio (migration 20261006140000_saved_qi_studio_projects.sql, applied 2026-10-07).
+  // Missing until 2026-10-09: every save after the first threw here, so no
+  // edit to a QI study was ever stored (registryGuard.test.js now checks every
+  // table the shared saved-projects hook is given).
+  saved_qi_studio_projects: { label: 'project', nameColumn: 'project_name', sharedWhen: 'visibility' },
 };
 
 /** The columns the sharing model adds (what `sharingOf` keeps). */
