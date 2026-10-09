@@ -1019,3 +1019,12 @@ well choice from #946; export dialog). Lessons that leave Petrophysics Studio
 and come back re-apply their baseline on return: parameters set just before
 navigating away may not have been saved yet. All 22 lessons rendered to
 /root/demo-videos/lesson-a1 .. lesson-f22.
+
+## 2026-10-09: crossplot line labels no longer stack
+
+On the Pickett plot the Sw 80 % label, the fitted water line's label and the
+Sw 60 % label sat on top of each other at the plot's top edge (seen in the
+re-cut sales demo). Overlay labels are now placed with the ones already drawn
+in view: a spot that would overlap slides the label down its own line.
+Test: crossplotLabels.test.js (negative control: without the placed rects the
+two labels overlap).
