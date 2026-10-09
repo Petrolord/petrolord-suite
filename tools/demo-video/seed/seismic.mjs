@@ -54,8 +54,13 @@ try {
     const started = Date.now();
     // the upload runs in this tab and the dialog closes; the server converts;
     // the volume then appears in the picker
+    // the dialog closes, or (a fast server upload) stays open saying it is uploaded
     try {
-      await dialog.waitFor({ state: 'hidden', timeout: 120000 });
+      await Promise.race([
+        dialog.waitFor({ state: 'hidden', timeout: 300000 }),
+        dialog.getByText(/Uploaded\. The server is converting it/).waitFor({ timeout: 300000 }),
+      ]);
+      if (await dialog.isVisible()) await page.keyboard.press('Escape');
     } catch {
       await dialog.screenshot({ path: '/root/demo-videos/seed-seismic-error.png' });
       throw new Error(`${name}: the import dialog did not close: ${(await dialog.innerText()).split('\n').filter((l) => /fail|error|limit|quota|cannot|refused|wait/i.test(l)).join(' / ')}`);
@@ -70,8 +75,17 @@ try {
       console.log(`${name}: upload tab held ${Math.round(holdMs / 60000)} min; check qi_datasets for status uploaded`);
       continue;
     }
+    let polls = 0;
     for (;;) {
       await page.waitForTimeout(15000);
+      // the picker does not refresh by itself: reload once a minute
+      polls += 1;
+      if (polls % 4 === 0) {
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await t('sl-start-toggle').waitFor({ timeout: 120000 });
+        await page.waitForTimeout(3000);
+        if (await t('sl-tour-skip').count()) await t('sl-tour-skip').click();
+      }
       const txt = await page.locator('body').innerText();
       const err = txt.split('\n').find((l) => /failed to upload|upload failed|conversion failed/i.test(l));
       if (err) throw new Error(`${name}: ${err}`);
