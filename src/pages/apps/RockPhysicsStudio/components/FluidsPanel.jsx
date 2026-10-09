@@ -56,6 +56,10 @@ function FluidRow({ id, label, fluid, error, units }) {
   );
 }
 
+/** Depth axis ticks: the zone's ends after a metre to foot conversion read
+ *  like 197.0000029236 on the axis; whole depths are enough. */
+export const depthTick = (v) => (Number.isFinite(v) ? v.toFixed(0) : v);
+
 export default function FluidsPanel({
   model, zones, scenario, rock, units = DEFAULT_UNITS, onPublish = null, publishing = false,
   zoneId: zoneIdProp, onZoneChange = null, well = null,
@@ -320,6 +324,7 @@ export default function FluidsPanel({
                   dataKey="depth"
                   type="number"
                   domain={['dataMin', 'dataMax']}
+                  tickFormatter={depthTick}
                   tick={AXIS_TICK}
                   axisLine={AXIS_LINE}
                   tickLine={AXIS_LINE}
