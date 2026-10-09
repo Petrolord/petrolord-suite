@@ -86,6 +86,20 @@ export const SEISMIC_NOTES = {
 // ============================================================================
 
 
+/**
+ * The checkshot drift (one-way ms) at a depth below KB: the kit's checkshots
+ * read earlier than the integrated sonic, by up to 7.5 ms one way, as real
+ * checkshots do (the sonic is dispersive and slower than seismic-band
+ * velocities). Since v3.1 (2026-10-09) the seismic follows the checkshots,
+ * as real seismic does, so a tie on the checkshot time-depth needs no bulk
+ * shift and a tie on the sonic alone shows the drift.
+ */
+export function checkshotDriftOwtMs(tvdBelowKb) {
+  const z = tvdBelowKb - FRAME.mudline_md;
+  return z > 0 ? -7.5 * (1 - Math.exp(-z / 850)) : 0;
+}
+const seisTwt = (tSonicMs, depth) => tSonicMs + 2 * checkshotDriftOwtMs(depth);
+
 const LAYER_ORDER = [
   ['SEABED', 'BENIN', 'SEABED_BENIN'],
   ['BENIN', 'AGBADA', 'BENIN'],
@@ -147,14 +161,17 @@ export function makeElasticModel({ geo, props, contacts }) {
       const c = contacts[layerKey];
       const tTop = t;
       const tBase = t + (2 * (zBase - zTop) * 1000) / p.v;
+      // sonic time, moved onto the checkshot time-depth at each boundary
+      const sTop = seisTwt(tTop, zTop);
+      const sBase = seisTwt(tBase, zBase);
       let top = elastic(layerKey, null);
       if (c) top = elastic(layerKey, zTop < c.depth ? c.upper : 'brine');
-      if (above) out.push({ t: tTop, upper: above, lower: top, layerKey, span: tBase - tTop });
+      if (above) out.push({ t: sTop, upper: above, lower: top, layerKey, span: sBase - sTop });
       else out[0].lower = top;
       let bottom = top;
       if (c && zTop < c.depth && c.depth < zBase) {
         bottom = elastic(layerKey, 'brine');
-        out.push({ t: tTop + (2 * (c.depth - zTop) * 1000) / p.v, upper: top, lower: bottom, contact: layerKey });
+        out.push({ t: seisTwt(tTop + (2 * (c.depth - zTop) * 1000) / p.v, c.depth), upper: top, lower: bottom, contact: layerKey });
       }
       above = bottom;
       t = tBase;
@@ -271,15 +288,20 @@ export function traceRms(tr) {
  */
 export function rmsVelocityTable({ geo, props, x, y }) {
   const waterTwtMs = (2 * FRAME.water_depth_m * 1000) / 1500;
+  // on the seismic (checkshot) time axis: each layer's interval velocity is
+  // its thickness over its seismic two-way time, so Dix gives it back
   const tMs = [waterTwtMs]; const vrms = [1500];
-  let t = waterTwtMs; let sum = 1500 * 1500 * waterTwtMs;
+  let tSonic = waterTwtMs; let t = waterTwtMs; let sum = 1500 * 1500 * waterTwtMs;
   for (const [topKey, baseKey, layerKey] of LAYER_ORDER) {
     if (!baseKey) break;
     const zTop = geo.horizonDepthAt(topKey, x, y);
     const zBase = geo.horizonDepthAt(baseKey, x, y);
     const p = props[layerKey];
-    const dt = (2 * (zBase - zTop) * 1000) / p.v;
-    sum += p.v * p.v * dt; t += dt;
+    tSonic += (2 * (zBase - zTop) * 1000) / p.v;
+    const tNext = seisTwt(tSonic, zBase);
+    const dt = tNext - t;
+    const v = (2 * (zBase - zTop) * 1000) / dt;
+    sum += v * v * dt; t = tNext;
     tMs.push(t); vrms.push(Math.sqrt(sum / t));
   }
   return { t_ms: tMs.map((v) => Math.round(v * 10) / 10), vrms: vrms.map((v) => Math.round(v * 10) / 10) };

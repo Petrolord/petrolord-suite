@@ -15,7 +15,7 @@ import {
 import { writeLas } from '../writers/las.mjs';
 import { writeSegy } from '../writers/segy.mjs';
 import {
-  makeGeometry, elasticPropsFrom, makeElasticModel, makeElasticTracer, stackRpp,
+  makeGeometry, elasticPropsFrom, makeElasticModel, makeElasticTracer, stackRpp, checkshotDriftOwtMs,
 } from '../seismic.mjs';
 
 const FT_PER_M = 3.280839895013123;
@@ -189,12 +189,13 @@ describe('the seismic is honest', () => {
     expect(scan.xl.min).toBe(cfg.xl0);
   });
 
-  test('the top of the Ekene Sand arrives where the well says it does', () => {
+  test('the top of the Ekene Sand arrives where the checkshots say it does', () => {
     const b = wellNamed('Ekene-1');
     const tr = fullStackAt(601)(b.well.x, b.well.y);
 
-    // Two way time to the top of the sand, integrated from this well's own
-    // sonic — which is the number the tie in Episode 6 has to reproduce.
+    // Two way time to the top of the sand: this well's own sonic, integrated,
+    // then the checkshot drift (since v3.1 the seismic follows the checkshots,
+    // the number the tie in Episode 6 reproduces with no bulk shift).
     const topMd = b.tops.find((t) => t.key === 'TOP_SAND').md;
     let owt = (FRAME.water_depth_m * 1000) / 1500;
     let prev = FRAME.mudline_md;
@@ -203,7 +204,8 @@ describe('the seismic is honest', () => {
       owt += ((r.tvd - prev) * 1000) / r.vp_m_s;
       prev = r.tvd;
     }
-    const twt = 2 * owt;
+    const topTvd = b.rows.find((r) => r.md >= topMd).tvd;
+    const twt = 2 * (owt + checkshotDriftOwtMs(topTvd));
 
     // The strongest peak within one wavelet of that time.
     const i0 = Math.round(twt / SEISMIC.dt_ms);
