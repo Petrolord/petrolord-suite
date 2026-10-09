@@ -41,7 +41,7 @@ import { fitInterceptGradient } from '../../packages/engines/engines/rockphysics
 import { avoClass } from '../../packages/engines/engines/rockphysics/avo.js';
 import {
   makeGeometry, SEISMIC_NOTES, elasticPropsFrom, makeElasticModel, makeElasticTracer, stackRpp, rpp,
-  rmsVelocityTable, gatherAngles, traceRms, muteTrace,
+  rmsVelocityTable, gatherAngles, traceRms, muteTrace, checkshotDriftOwtMs,
 } from './seismic.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -199,7 +199,7 @@ for (const b of built) {
       owt += ((r.tvd - prev) * 1000) / r.vp_m_s;
       prev = r.tvd;
       if (li < levels.length && r.md >= levels[li]) {
-        const drift = -7.5 * (1 - Math.exp(-(r.tvd - FRAME.mudline_md) / 850));
+        const drift = checkshotDriftOwtMs(r.tvd);
         csRows.push([n(r.md, 2), n(owt + drift, 3), n(r.tvd, 2), n(r.tvdss, 2)]);
         li += 1;
       }
@@ -403,7 +403,8 @@ const QI_TRUTH = {};
     ...lines,
     '',
     'THIS VOLUME IS SYNTHETIC. IT IS GENERATED FROM THE SAME EARTH MODEL',
-    'AS THE WELL LOGS IN THIS KIT, SO THE SYNTHETIC SEISMOGRAM TIES.',
+    'AS THE WELL LOGS IN THIS KIT, ON THE CHECKSHOT TIME-DEPTH, SO A',
+    'SYNTHETIC ON THE CHECKSHOTS TIES WITH NO BULK SHIFT.',
     'IT IS NOT DATA FROM ANY REAL FIELD.',
   ];
   const utm = (p) => ({ x: utmE(p.x), y: utmN(p.y) });
@@ -1233,7 +1234,9 @@ write('00-START-HERE.md', [
   '  Ekene-1\'s water leg recovers it.',
   `- The pore pressure prognosis lands on ${LOCKED.pi_psia} psia at the contact, which is the field's published`,
   `  initial reservoir pressure, ${PRESSURE_MODEL.emwAtDatum.toFixed(2)} ppg equivalent mud weight.`,
-  '- The seismic is convolved from the same density and sonic the LAS files carry, so the synthetic ties.',
+  '- The seismic is convolved from the same density and sonic the LAS files carry, timed by the checkshots,',
+  '  so a synthetic on the checkshot time-depth ties with no bulk shift. The sonic alone reads up to 15 ms',
+  '  late at the reservoir (the checkshot drift), as a real sonic does: calibrate it to the checkshots first.',
   '- Since v3 every seismic volume, angle stack and gather comes from one elastic model built from the',
   '  same logs and their shear sonic, so the AVO the rock physics predicts is the AVO in the data',
   '  (`10-qi/ekene-qi-truth.md`).',
@@ -1245,7 +1248,11 @@ write('00-START-HERE.md', [
   '- Every well with a sonic now has a dipole shear sonic (DTS, us/ft). No other log value changed.',
   '- The seismic is elastic: the oil leg dims the top of the Ekene Sand, the oil-water contact is a',
   '  flat event, and the Oboro gas sand changes polarity with angle. The full stack is the 0 to 30',
-  '  degree stack of that model, so its amplitudes differ slightly from v2; timing and structure do not.',
+  '  degree stack of that model, so its amplitudes differ slightly from v2.',
+  '- The seismic is timed by the checkshots: a synthetic on the checkshot time-depth ties with no bulk',
+  '  shift, and the sonic alone reads up to 15 ms late at the reservoir (the checkshot drift), as a real',
+  '  sonic does. v2 was timed by the sonic, so events at depth arrive up to 15 ms earlier than in v2;',
+  '  structure is unchanged.',
   '- New: near, mid and far angle stacks, NMO-corrected offset gathers with their RMS velocity, and',
   '  `10-qi`, the numbers QI Studio and Rock Physics Studio should give back.', '',
   '## Heavy files', '',

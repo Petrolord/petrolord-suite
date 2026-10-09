@@ -8,11 +8,12 @@ import { angleGather, partialStack, velocityOnGrid, waldenAngle } from '../../..
 import { scanGeometry } from '../../../packages/engines/engines/seismolord/segyScan';
 import { bufferReader } from '../../../src/pages/apps/Seismolord/engine/reader';
 
-import { LOCKED, OBORO, SEISMIC, CURVES } from '../spine.mjs';
+import { LOCKED, OBORO, SEISMIC, CURVES, FRAME } from '../spine.mjs';
 import { buildKit } from '../build.mjs';
 import { localBrineVs, mineralFor, insituFluid } from '../elastic.mjs';
 import {
   elasticPropsFrom, makeElasticModel, makeElasticTracer, stackRpp, rpp, rmsVelocityTable, gatherAngles, muteTrace,
+  checkshotDriftOwtMs,
 } from '../seismic.mjs';
 import { measureLogs } from '../measure.mjs';
 import { writeLas } from '../writers/las.mjs';
@@ -144,6 +145,45 @@ describe('the elastic seismic', () => {
     }
     expect(muted).toBeGreaterThan(50);   // the shallow part of the far trace
     expect(live).toBeGreaterThan(50);    // negative control: inside the mute the noise is still there
+  });
+
+  test('a synthetic on the checkshot time-depth ties with no bulk shift; negative control: on the sonic alone it needs one', () => {
+    const ns = 601; const dt = SEISMIC.dt_ms;
+    const [a, b] = SEISMIC.qi.full_deg;
+    const seis = makeElasticTracer({ ns, dtMs: dt })(model(e1.well.x, e1.well.y), (i) => stackRpp(i, a, b), { x: 0, y: 0, seed: 0, noise: false });
+    // a 25 Hz Ricker synthetic from the truth logs
+    const rows = e1.rows;
+    let owt = (FRAME.water_depth_m * 1000) / 1500; let prev = FRAME.mudline_md;
+    const sonicTwt = rows.map((r) => { owt += ((r.tvd - prev) * 1000) / r.vp_m_s; prev = r.tvd; return 2 * owt; });
+    const synth = (twt) => {
+      const refl = new Float64Array(ns);
+      for (let k = 1; k < rows.length; k++) {
+        const z1 = rows[k - 1].vp_m_s * rows[k - 1].rhob; const z2 = rows[k].vp_m_s * rows[k].rhob;
+        const i = Math.round(twt[k] / dt); if (i > 0 && i < ns) refl[i] += (z2 - z1) / (z2 + z1);
+      }
+      const out = new Float64Array(ns);
+      for (let i = 0; i < ns; i++) {
+        if (!refl[i]) continue;
+        for (let j = Math.max(0, i - 15); j <= Math.min(ns - 1, i + 15); j++) { const x = (Math.PI * 25 * (j - i) * dt / 1000) ** 2; out[j] += refl[i] * (1 - 2 * x) * Math.exp(-x); }
+      }
+      return out;
+    };
+    const bestShift = (s) => {
+      const i0 = Math.round(900 / dt); const i1 = Math.round(1800 / dt);
+      let best = { shift: 0, r: -2 };
+      for (let sh = -8; sh <= 8; sh++) {
+        let sxy = 0; let sxx = 0; let syy = 0;
+        for (let i = i0; i < i1; i++) { const x = s[i - sh] || 0; const y = seis[i]; sxy += x * y; sxx += x * x; syy += y * y; }
+        const r = sxy / Math.sqrt(sxx * syy);
+        if (r > best.r) best = { shift: sh * dt, r };
+      }
+      return best;
+    };
+    const onCheckshots = bestShift(synth(sonicTwt.map((t, k) => t + 2 * checkshotDriftOwtMs(rows[k].tvd))));
+    const onSonic = bestShift(synth(sonicTwt));
+    expect(Math.abs(onCheckshots.shift)).toBeLessThanOrEqual(dt);
+    expect(onCheckshots.r).toBeGreaterThan(0.6);
+    expect(Math.abs(onSonic.shift)).toBeGreaterThanOrEqual(8);
   });
 
   test('a gather file scans as one cell per CDP with the offsets in bytes 37-40', async () => {
