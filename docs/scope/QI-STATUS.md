@@ -691,3 +691,7 @@ The manual was written against the source, and it found the following.
   - The Geoscience module (3990) includes it, so a module buyer pays nothing extra.
 - **Decision: QI Studio has its own licence and no longer opens on a Seismolord or Rock Physics licence.** Otherwise the tile would sell what those licences already give. Module buyers keep it.
 - **Order:** the owner applies `20261007130000_seed_qi_studio_tile.sql`, then uploads the zip. **Done:** applied 2026-10-07 by the owner, row verified read-only.
+
+## Angle stacks skip muted samples (2026-10-09)
+- `angle_stacks` averaged the zeros of a mute zone into a range, which dims a far stack wherever the mute reaches into it (a false AVO effect), and counted the mute zone in the usable angle (Ekene v3 gathers, muted beyond 40 degrees, reported 58.5). A sample of exactly zero is now treated as muted. Found dry-running the QI videos on the Ekene kit v3 gathers. Needs a worker redeploy to take effect.
+- **Tests:** `worker/seismic-worker/__tests__/angleStacks.test.js` (a mute test that fails on the old handler, with a live-small-value negative control).
