@@ -60,6 +60,13 @@ function FluidRow({ id, label, fluid, error, units }) {
  *  like 197.0000029236 on the axis; whole depths are enough. */
 export const depthTick = (v) => (Number.isFinite(v) ? v.toFixed(0) : v);
 
+/** The reservoir conditions in the pore-fluids header, rounded: typed in degF
+ *  and psi they came back as 82.22222222222223 degC / 22.063223338138755 MPa. */
+export const conditionsLabel = (c) => {
+  const t = Number(c?.tC); const p = Number(c?.pMPa);
+  return `${Number.isFinite(t) ? t.toFixed(1) : EMPTY_VALUE} °C / ${Number.isFinite(p) ? p.toFixed(2) : EMPTY_VALUE} MPa`;
+};
+
 export default function FluidsPanel({
   model, zones, scenario, rock, units = DEFAULT_UNITS, onPublish = null, publishing = false,
   zoneId: zoneIdProp, onZoneChange = null, well = null,
@@ -138,7 +145,7 @@ export default function FluidsPanel({
 
       <div className="rounded border border-pl-border p-2">
         <div className="text-[11px] uppercase tracking-wider text-pl-muted mb-1">
-          Pore fluids (Batzle-Wang 1992 at {scenario.conditions.tC} °C / {scenario.conditions.pMPa} MPa{mixingOf(scenario) === 'voigt' ? '; patchy saturation, Voigt bound' : ''})
+          Pore fluids (Batzle-Wang 1992 at {conditionsLabel(scenario.conditions)}{mixingOf(scenario) === 'voigt' ? '; patchy saturation, Voigt bound' : ''})
         </div>
         <table className="w-full text-[12px] text-pl-text">
           <thead>
