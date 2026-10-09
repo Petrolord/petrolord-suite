@@ -4,7 +4,7 @@
 import { parseLas } from '../../../packages/engines/engines/welldata/lasParse';
 import { substituteVels } from '../../../packages/engines/engines/rockphysics/gassmann';
 import { gcSandShaleVs, iterativeVs } from '../../../packages/engines/engines/rockphysics/vsEstimate';
-import { angleGather, partialStack, velocityOnGrid } from '../../../packages/engines/engines/qi/prestack';
+import { angleGather, partialStack, velocityOnGrid, waldenAngle } from '../../../packages/engines/engines/qi/prestack';
 import { scanGeometry } from '../../../packages/engines/engines/seismolord/segyScan';
 import { bufferReader } from '../../../src/pages/apps/Seismolord/engine/reader';
 
@@ -12,7 +12,7 @@ import { LOCKED, OBORO, SEISMIC, CURVES } from '../spine.mjs';
 import { buildKit } from '../build.mjs';
 import { localBrineVs, mineralFor, insituFluid } from '../elastic.mjs';
 import {
-  elasticPropsFrom, makeElasticModel, makeElasticTracer, stackRpp, rpp, rmsVelocityTable, gatherAngles,
+  elasticPropsFrom, makeElasticModel, makeElasticTracer, stackRpp, rpp, rmsVelocityTable, gatherAngles, muteTrace,
 } from '../seismic.mjs';
 import { measureLogs } from '../measure.mjs';
 import { writeLas } from '../writers/las.mjs';
@@ -128,6 +128,22 @@ describe('the elastic seismic', () => {
     // negative control: the far range of the same gathers is clearly dimmer
     const far = partialStack(angleGather({ traces, offsets, vrms, vint, dtMs: SEISMIC.dt_ms, edges: [25, 35] }), 0, 1);
     expect(far[k]).toBeLessThan(0.6 * fromGathers[k]);
+  });
+
+  test('the far offsets are muted to exact zeros beyond the mute angle, noise and all', () => {
+    const G = SEISMIC.qi.gathers;
+    const nsG = Math.round(G.t_max_ms / SEISMIC.dt_ms) + 1;
+    const far = G.offset0_m + (G.nOffset - 1) * G.offsetStep_m;
+    const tracer = makeElasticTracer({ ns: nsG, dtMs: SEISMIC.dt_ms, noiseRef: 0.03 });
+    const tr = muteTrace(tracer(model(e1.well.x, e1.well.y), () => 0, { x: 1, y: 2, seed: 9 }), far, table, SEISMIC.dt_ms, SEISMIC.qi.mute_deg);
+    const { vrms, vint } = velocityOnGrid(table.t_ms, table.vrms, nsG, SEISMIC.dt_ms);
+    let muted = 0; let live = 0;
+    for (let k = 1; k < nsG; k += 1) {
+      const a = waldenAngle(far, (k * SEISMIC.dt_ms) / 1000, vrms[k], vint[k]);
+      if (a > SEISMIC.qi.mute_deg) { expect(tr[k]).toBe(0); muted += 1; } else if (tr[k] !== 0) live += 1;
+    }
+    expect(muted).toBeGreaterThan(50);   // the shallow part of the far trace
+    expect(live).toBeGreaterThan(50);    // negative control: inside the mute the noise is still there
   });
 
   test('a gather file scans as one cell per CDP with the offsets in bytes 37-40', async () => {

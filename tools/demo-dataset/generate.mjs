@@ -41,7 +41,7 @@ import { fitInterceptGradient } from '../../packages/engines/engines/rockphysics
 import { avoClass } from '../../packages/engines/engines/rockphysics/avo.js';
 import {
   makeGeometry, SEISMIC_NOTES, elasticPropsFrom, makeElasticModel, makeElasticTracer, stackRpp, rpp,
-  rmsVelocityTable, gatherAngles, traceRms,
+  rmsVelocityTable, gatherAngles, traceRms, muteTrace,
 } from './seismic.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -454,12 +454,13 @@ const QI_TRUTH = {};
           angleCache.set(key, offsets.map((o) => gatherAngles(ifs, o, table, SEISMIC.dt_ms, nsG)));
         }
         const ang = angleCache.get(key)[k];
-        return tracerG(ifs, (i) => rpp(i, ang[ifs.indexOf(i)], Q.mute_deg) ?? 0, { x: p.x, y: p.y, seed: 41 + 7 * k });
+        const tr = tracerG(ifs, (i) => rpp(i, ang[ifs.indexOf(i)], Q.mute_deg) ?? 0, { x: p.x, y: p.y, seed: 41 + 7 * k });
+        return muteTrace(tr, offsets[k], table, SEISMIC.dt_ms, Q.mute_deg);
       },
       textLines: header({ ...G, ns: nsG, format: 5 }, 'NMO-CORRECTED OFFSET GATHERS', [
         `OFFSETS ${offsets[0]} TO ${offsets[offsets.length - 1]} M EVERY ${G.offsetStep_m} M  BYTES 37-40`,
         `${G.nOffset} TRACES PER CDP  SORTED BY INLINE CROSSLINE OFFSET`,
-        `NMO CORRECTED WITHOUT STRETCH  MUTE BEYOND ${Q.mute_deg} DEG`,
+        `NMO CORRECTED WITHOUT STRETCH  MUTED (ZEROS) BEYOND ${Q.mute_deg} DEG`,
       ]),
     });
     write('04-seismic/gathers/EKENE3D-gathers-nmo.sgy', buf);
