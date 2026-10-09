@@ -2713,7 +2713,10 @@ drawing as they did. The engine and the display math are untouched.
 - Phrases about something other than the sample axis are now ignored. A bare "depth" beside time words (MS, TWT, time migration) gives the note without preselecting Depth. Strong depth words (PSDM, depth migrated, TVDSS, Z UNIT) preselect as before.
 - **Tests:** `__tests__/upgradeU1Door.test.js` (the new cases fail on the old heuristic; strong words are the negative control).
 
-## A tie needs two anchors to commit (2026-10-09)
-- A derived checkshot set has one level per anchor, and a well's time-depth only uses a set of two levels or more (`effectiveCheckshots`). A one-anchor tie committed, was stored, and was then ignored by Seismolord's displays and by QI Studio, which fell back to the imported checkshots without saying so.
-- **Commit to checkshots** is now enabled from two anchors. With one anchor, a hint beside the count says to add another.
-- **Tests:** `__tests__/tieCommitAnchors.test.js`.
+## A committed tie is the whole well's time-depth (2026-10-09)
+- Commit to checkshots stored the tie's anchors alone as the derived checkshot set:
+  - a two-anchor tie stored a two-level set, so every depth outside the anchors (the reservoir, when the anchors were shallow) was extrapolated from one straight line;
+  - a one-anchor tie stored a one-level set, which `effectiveCheckshots` (two or more) ignores, so the well silently kept its imported checkshots.
+  Found tying the Ekene wells for the QI videos.
+- The commit now samples the synthetic's time-depth over the whole well every 20 ms (plus the anchors) and carries it through the warp (`denseTieWarp`). Beyond the outermost anchors the warp holds its end shift, as the display does. A one-anchor tie (a bulk shift) is a valid commit.
+- **Tests:** `__tests__/tieCommitAnchors.test.js` (with the anchors-only negative control).
