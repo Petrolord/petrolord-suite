@@ -287,6 +287,25 @@ test('prestack: build gathers, angle stacks with a velocity table, the usable an
   await waitFor(() => expect(convert).toHaveBeenCalledWith(expect.objectContaining({ id: 'qi-d3' })));
 });
 
+test('prestack: a worker file is removed after a confirmation, and kept when it is declined', async () => {
+  const backend = makeInMemoryBackend();
+  const enqueue = jest.spyOn(backend.jobs, 'enqueueJob');
+  const confirm = jest.spyOn(window, 'confirm');
+  render(<MemoryRouter><QIStudio backend={backend} sharingStore={null} /></MemoryRouter>);
+  fireEvent.click(await screen.findByTestId('qi-tab-prestack', {}, { timeout: 20000 }));
+  // negative control: declined, nothing is queued and the file stays
+  confirm.mockReturnValueOnce(false);
+  fireEvent.click(await screen.findByTestId('qi-pre-remove-qi-d3', {}, { timeout: 20000 }));
+  expect(enqueue).not.toHaveBeenCalledWith('remove_dataset', expect.anything());
+  expect(screen.getByTestId('qi-pre-remove-qi-d3')).toBeInTheDocument();
+  confirm.mockReturnValueOnce(true);
+  fireEvent.click(screen.getByTestId('qi-pre-remove-qi-d3'));
+  await waitFor(() => expect(enqueue).toHaveBeenCalledWith('remove_dataset', { dataset_id: 'qi-d3' }));
+  await waitFor(() => expect(screen.queryByTestId('qi-pre-remove-qi-d3')).not.toBeInTheDocument());
+  expect(screen.getByTestId('qi-pre-remove-qi-d1')).toBeInTheDocument();
+  confirm.mockRestore();
+});
+
 test('AVO: three stacks with their angles, the products registered on the first, the run kept', async () => {
   global.ResizeObserver = global.ResizeObserver || class { observe() {} unobserve() {} disconnect() {} };
   const backend = makeInMemoryBackend();

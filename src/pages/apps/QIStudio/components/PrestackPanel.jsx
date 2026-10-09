@@ -93,6 +93,15 @@ export default function PrestackPanel() {
     for (const i of rec.result.issues || []) saveIssue({ ...i, status: 'open', owner: '' });
     addNotification(`${(rec.result.issues || []).length} prestack QC issue${(rec.result.issues || []).length === 1 ? '' : 's'} added to the register.`, 'success');
   };
+  // remove a file from the worker store (frees the allowance; Seismolord
+  // volumes converted from it are kept)
+  const remove = (d) => {
+    if (!window.confirm(`Remove "${d.name}" from your worker storage? Seismolord volumes made from it are kept. This cannot be undone.`)) return;
+    job.run(`r:${d.id}`, 'remove_dataset', { dataset_id: d.id }, () => refresh());
+  };
+  const removeBtn = (d) => (
+    <><button type="button" className={btn} onClick={() => remove(d)} disabled={!canWrite || job.busy(`r:${d.id}`)} data-testid={`qi-pre-remove-${d.id}`}>Remove</button> {job.status(`r:${d.id}`)}</>
+  );
   const convert = async (d) => {
     try {
       await backend.convertStack(d);
@@ -118,7 +127,8 @@ export default function PrestackPanel() {
           <table className="text-xs"><tbody>
             {raws.map((d) => (
               <tr key={d.id}><td className={td}>{d.name}</td><td className={`${td} font-mono`}>{`${(Number(d.bytes) / GiB).toFixed(2)} GiB`}</td>
-                <td className={td}><button type="button" className={btn} onClick={() => build(d)} disabled={!canWrite || job.busy(`g:${d.id}`)} data-testid={`qi-pre-build-${d.id}`}>Build gathers</button> {job.status(`g:${d.id}`)}</td></tr>
+                <td className={td}><button type="button" className={btn} onClick={() => build(d)} disabled={!canWrite || job.busy(`g:${d.id}`)} data-testid={`qi-pre-build-${d.id}`}>Build gathers</button> {job.status(`g:${d.id}`)}</td>
+                <td className={td}>{removeBtn(d)}</td></tr>
             ))}
           </tbody></table>
         ) : <p className={muted}>No uploaded SEG-Y in your worker store.</p>}
@@ -159,6 +169,7 @@ export default function PrestackPanel() {
                 <td className={td}><button type="button" className={btn} onClick={() => runTrim(d)} disabled={!canWrite || !(Number(trim.centre) > 0) || job.busy(`t:${d.id}`)} data-testid={`qi-pre-trim-${d.id}`}>Trim statics</button> {job.status(`t:${d.id}`)}</td>
                 <td className={td}><button type="button" className={btn} onClick={() => qc(d)} disabled={!canWrite || job.busy(`q:${d.id}`)} data-testid={`qi-pre-qc-${d.id}`}>QC the gathers</button> {job.status(`q:${d.id}`)}</td>
                 <td className={td}><button type="button" className={btn} onClick={() => stack(d)} disabled={!canWrite || !!vel.error || !!rangeProblem || job.busy(`s:${d.id}`)} data-testid={`qi-pre-stack-${d.id}`}>Make angle stacks</button> {job.status(`s:${d.id}`)}</td>
+                <td className={td}>{removeBtn(d)}</td>
               </tr>
             ))}
           </tbody></table>
@@ -188,7 +199,8 @@ export default function PrestackPanel() {
             <tbody>
               {stacks.map((d) => (
                 <tr key={d.id}><td className={td}>{d.name}</td><td className={td}>{`${d.meta.partial_stack.from} to ${d.meta.partial_stack.to} degrees`}</td>
-                  <td className={td}><button type="button" className={btn} onClick={() => convert(d)} disabled={!canWrite} data-testid={`qi-pre-convert-${d.id}`}>Convert to a Seismolord volume</button></td></tr>
+                  <td className={td}><button type="button" className={btn} onClick={() => convert(d)} disabled={!canWrite} data-testid={`qi-pre-convert-${d.id}`}>Convert to a Seismolord volume</button></td>
+                  <td className={td}>{removeBtn(d)}</td></tr>
               ))}
             </tbody>
           </table>
