@@ -127,3 +127,16 @@ test('settings, and the per-CDP stack weighting by fold', () => {
   expect(r.stacks[0][0]).toBe(2);
   expect(r.usable).toBe(10);
 });
+
+test('a muted sample (exactly zero) is left out of the stack and of the usable angle', () => {
+  // three bins at 10, 30 and 50 degrees; the 50 degree bin is muted (zeros)
+  const traces = [Float32Array.of(0.2), Float32Array.of(0.1), Float32Array.of(0)];
+  const angles = [Float32Array.of(10), Float32Array.of(30), Float32Array.of(50)];
+  const r = stackCdp({ traces, fold: [1, 1, 1] }, angles, [{ from: 25, to: 55 }], 1, 1);
+  expect(r.stacks[0][0]).toBeCloseTo(0.1, 6);      // was 0.05: the mute averaged in
+  expect(r.usable).toBe(30);                        // was 50: the mute zone counted
+  // negative control: a small live value at 50 degrees still counts
+  const live = stackCdp({ traces: [traces[0], traces[1], Float32Array.of(-0.02)], fold: [1, 1, 1] }, angles, [{ from: 25, to: 55 }], 1, 1);
+  expect(live.stacks[0][0]).toBeCloseTo(0.04, 6);
+  expect(live.usable).toBe(50);
+});

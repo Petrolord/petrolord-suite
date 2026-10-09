@@ -62,7 +62,10 @@ export function stackCdp({ traces, fold }, angles, ranges, minFold, ns) {
     for (let b = 0; b < traces.length; b++) {
       const f = fold[b];
       const v = traces[b][s];
-      if (!f || !(Math.abs(v) < 1e29)) continue;
+      // a sample of exactly zero is muted (SEG-Y writes a mute as zeros):
+      // averaging it in dimmed the far stacks and counted the mute zone in
+      // the usable angle
+      if (!f || !(Math.abs(v) < 1e29) || v === 0) continue;
       const a = angles[b][s];
       if (f >= minFold && a > widest) widest = a;
       for (let k = 0; k < ranges.length; k++) {
