@@ -12,8 +12,9 @@ until docker exec "$NAME" pg_isready -U postgres -q 2>/dev/null; do sleep 1; don
 docker cp stubs.sql "$NAME":/stubs.sql; docker cp behaviour.sql "$NAME":/b.sql
 # every qi_* queue and storage migration, in filename order. App saved-project
 # tables (saved_qi_*_projects) need the Suite record-sharing objects the stubs
-# do not have, and are not part of the worker's database, so they are left out.
-cat $(ls ../../../supabase/migrations/*_qi_*.sql | grep -v '_saved_qi_' | sort) > /tmp/qi-migs-$$.sql; docker cp /tmp/qi-migs-$$.sql "$NAME":/mig.sql; rm -f /tmp/qi-migs-$$.sql
+# do not have, and are not part of the worker's database, so they are left out;
+# so are app-catalogue seeds (seed_qi_studio_tile writes master_apps).
+cat $(ls ../../../supabase/migrations/*_qi_*.sql | grep -vE '_saved_qi_|_seed_qi_' | sort) > /tmp/qi-migs-$$.sql; docker cp /tmp/qi-migs-$$.sql "$NAME":/mig.sql; rm -f /tmp/qi-migs-$$.sql
 docker exec "$NAME" psql -q -v ON_ERROR_STOP=1 -U postgres -f /stubs.sql
 docker exec "$NAME" psql -q -v ON_ERROR_STOP=1 -U postgres -f /mig.sql 2>/dev/null
 docker exec "$NAME" psql -q -v ON_ERROR_STOP=1 -U postgres -f /mig.sql 2>/dev/null   # idempotent re-apply
