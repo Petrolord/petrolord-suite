@@ -175,7 +175,7 @@ export default function FieldViewPanel({
 
       <div className="flex-1 min-h-0">
         {tracksWells.length ? (
-          <MultiWellTracks topStyles={topStyles} wells={tracksWells} />
+          <MultiWellTracks topStyles={topStyles} wells={tracksWells} depthUnit={depthUnit} />
         ) : (
           <div className="h-full flex items-center justify-center text-pl-muted text-sm">
             Pick wells above to compare them side by side.
