@@ -222,3 +222,7 @@ depth frame (`makeWellFrame`); no KB arithmetic remains in the app.
 
 ## U2-008 closed (QI programme Q7b, 2026-10-07)
 - Modelled against observed intercept and gradient at the wells now live in QI Studio (AVO tab, At the wells). It reads this app's published gather per well (the `rock-physics-gather` contract) and the AVO volumes at the well's trace and zone-top time, scales them with one least-squares factor, and compares classes and misfit. There is no change in Rock Physics Studio itself.
+
+## Unit changes keep typed values (2026-10-09)
+- Changing any unit in Scenario & rock (temperature, pressure, salinity, GOR, depth) used to rebuild the draft from the last applied scenario, so a temperature typed but not yet applied went back to its old value when the salinity unit was changed. Found while recording the QI videos. A unit change now converts the typed values (`redisplayDraft`); a new scenario or rock still resets the draft.
+- **Tests:** `__tests__/unitChangeDraft.test.jsx` (3; the two behaviour tests fail on the old panel).

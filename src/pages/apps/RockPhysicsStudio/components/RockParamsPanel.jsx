@@ -14,7 +14,7 @@
 // - A blank field no longer silently takes a default: Apply says which
 //   fields it filled.
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
 import { convert, M_PER_FT } from '@/lib/units/registry';
 import { FLUID_MIXING } from '../services/scenario';
@@ -49,6 +49,36 @@ export const condFromDisplay = (d, u) => ({
 // GOR: the engine takes L/L, which is m3/m3
 export const gorToDisplay = (gorLL, unit) => tidy(convert('gor', Number(gorLL), 'm3/m3', unit), 3);
 export const gorFromDisplay = (v, unit) => convert('gor', parseFloat(v), unit, 'm3/m3');
+
+/**
+ * The draft's typed values re-expressed in new display units (conditions,
+ * GOR, free-water level); a blank or unparsable field stays as typed.
+ * Pure, exported for tests.
+ */
+export function redisplayDraft(dr, fromU, toU, fromZ, toZ) {
+  const keep = (text, next) => (Number.isFinite(parseFloat(text)) ? next : text);
+  const si = condFromDisplay(dr.conditions, fromU);
+  const shown = condToDisplay(si, toU);
+  const conditions = {
+    ...dr.conditions,
+    tC: keep(dr.conditions.tC, shown.tC),
+    pMPa: keep(dr.conditions.pMPa, shown.pMPa),
+    salinity: keep(dr.conditions.salinity, shown.salinity),
+  };
+  const side = (s) => {
+    if (!s) return s;
+    const out = { ...s };
+    if (s.hc?.kind === 'oil-live' && fromU.gor !== toU.gor) {
+      out.hc = { ...s.hc, gorDisplay: keep(s.hc.gorDisplay, gorToDisplay(gorFromDisplay(s.hc.gorDisplay, fromU.gor), toU.gor)) };
+    }
+    if (s.shm && fromZ !== toZ) {
+      const m = parseFloat(s.shm.fwlDisplay) * (fromZ === 'ft' ? M_PER_FT : 1);
+      out.shm = { ...s.shm, fwlDisplay: keep(s.shm.fwlDisplay, tidy(toZ === 'ft' ? m / M_PER_FT : m, 2)) };
+    }
+    return out;
+  };
+  return { ...dr, conditions, fluidA: side(dr.fluidA), fluidB: side(dr.fluidB) };
+}
 
 function Field({ id, label, value, onChange, step = 'any', unit = null, units = null, onUnit = null, title }) {
   return (
@@ -215,8 +245,19 @@ export default function RockParamsPanel({ scenario, rock, onApply, units = {}, o
   };
   const [draft, setDraft] = useState(toDraft);
   const [note, setNote] = useState('');
+  // A new scenario or rock (an Apply, a well, a loaded project) starts the
+  // draft again from it.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { setDraft(toDraft()); }, [scenario, rock, u, zU]);
+  useEffect(() => { setDraft(toDraft()); }, [scenario, rock]);
+  // A unit change converts what is typed instead of discarding it: changing
+  // the salinity unit used to put back a temperature typed but not applied.
+  const prevUnits = useRef({ u, zU });
+  useEffect(() => {
+    const { u: was, zU: wasZ } = prevUnits.current;
+    prevUnits.current = { u, zU };
+    if (was === u && wasZ === zU) return;
+    setDraft((dr) => redisplayDraft(dr, was, u, wasZ, zU));
+  }, [u, zU]);
 
   const patchCond = (p) => setDraft({ ...draft, conditions: { ...draft.conditions, ...p } });
   const patchRock = (p) => setDraft({ ...draft, rock: { ...draft.rock, ...p } });
