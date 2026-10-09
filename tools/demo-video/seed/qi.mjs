@@ -9,7 +9,7 @@
 // Idempotent: a well that already shows DTS keeps it unless --replace; the
 // checkshot paste replaces what is there either way.
 //
-//   node tools/demo-video/seed/qi.mjs [--base-url URL] [--wells Ekene-1,Ekene-2] [--replace] [--no-checkshots] [--no-survey] [--headed]
+//   node tools/demo-video/seed/qi.mjs [--base-url URL] [--wells Ekene-1,Ekene-2] [--replace] [--no-dts] [--no-checkshots] [--no-survey] [--headed]
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -71,7 +71,9 @@ try {
     await row.click(); await page.waitForTimeout(2000);
 
     const has = /\bDTS\b/.test(await page.locator('body').innerText());
-    if (has && !args.includes('--replace')) {
+    if (args.includes('--no-dts')) {
+      // checkshots and survey only
+    } else if (has && !args.includes('--replace')) {
       console.log(`${name}: DTS already loaded`);
     } else {
       await t('wdm-open-las').click();
