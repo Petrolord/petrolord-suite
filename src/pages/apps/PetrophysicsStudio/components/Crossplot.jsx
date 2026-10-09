@@ -41,20 +41,30 @@ export const BIG_CLOUD = 20000;
 /** Where an overlay's name goes: walking back from the line's end, the
  *  first point inside the plot where the text fits (right-aligned when the
  *  line runs to the right edge). Null when no stretch is visible. */
-export function overlayLabelAnchor(pts, X, Y, box, textW) {
+export function overlayLabelAnchor(pts, X, Y, box, textW, taken = null) {
   if (!pts || pts.length < 2) return null;
   const a = pts[pts.length - 2];
   const b = pts[pts.length - 1];
+  // PETRO-U2: labels already placed (rects in pixels); a spot whose text would
+  // overlap one is skipped, so the label slides down its own line (Sw 80 %,
+  // the fitted water line and Sw 60 % used to stack at the Pickett plot's top)
+  const clear = (x0, y) => !taken || taken.every((r) => x0 + textW + 2 < r.x0 || x0 - 2 > r.x1 || y + 3 < r.y0 || y - 11 > r.y1);
   for (let k = 0; k <= 40; k++) {
     const t = 1 - k / 40;
     const x = X(a.x + (b.x - a.x) * t);
     const y = Y(a.y + (b.y - a.y) * t) - 3;
     if (y < box.t + 10 || y > box.b - 2 || x < box.l + 2 || x > box.r - 2) continue;
-    if (x + 3 + textW <= box.r - 2) return { x: x + 3, y, align: 'left' };
-    if (x - 3 - textW >= box.l + 2) return { x: x - 3, y, align: 'right' };
+    if (x + 3 + textW <= box.r - 2 && clear(x + 3, y)) return { x: x + 3, y, align: 'left' };
+    if (x - 3 - textW >= box.l + 2 && clear(x - 3 - textW, y)) return { x: x - 3, y, align: 'right' };
   }
   return null;
 }
+
+/** The pixel rect a placed label covers (10 px type, baseline at y). */
+export const labelRect = (at, textW) => {
+  const x0 = at.align === 'left' ? at.x : at.x - textW;
+  return { x0, x1: x0 + textW, y0: at.y - 9, y1: at.y + 2 };
+};
 
 export default function Crossplot({
   points, xLabel, yLabel, xDomain, yDomain,
@@ -160,6 +170,7 @@ export default function Crossplot({
     ctx.clip();
 
     // overlays (lithology / iso-Sw / iso-BVW / fitted lines)
+    const placedLabels = [];
     for (const ov of overlays) {
       ctx.strokeStyle = ov.color || CHART_COLORS.axisLine;
       ctx.setLineDash(ov.dash || [5, 4]);
@@ -178,10 +189,12 @@ export default function Crossplot({
       // PETRO-U1-015: the label sits on the last stretch of the line that
       // is inside the plot with room for the text (the Sandstone and
       // Limestone labels used to fall off the top and right edges)
-      const at = overlayLabelAnchor(ov.pts, X, Y, { l: M.l, t: M.t, r: M.l + plotW, b: M.t + plotH }, ctx.measureText(ov.name).width);
+      const tw = ctx.measureText(ov.name).width;
+      const at = overlayLabelAnchor(ov.pts, X, Y, { l: M.l, t: M.t, r: M.l + plotW, b: M.t + plotH }, tw, placedLabels);
       if (at) {
         ctx.textAlign = at.align;
         ctx.fillText(ov.name, at.x, at.y);
+        placedLabels.push(labelRect(at, tw));
       }
     }
 
