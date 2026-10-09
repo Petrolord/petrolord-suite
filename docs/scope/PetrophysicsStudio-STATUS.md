@@ -1007,3 +1007,15 @@ and read metres in a feet session (flattened on the Ekene Sand, the seabed sat
 at -1488). MultiWellTracks now takes the session depth unit: the axis title, the
 tick labels (paintDepthAxis F = 1/0.3048) and the crosshair read in feet.
 Depths stay in metres inside. Test: fieldViewDepthUnit.test.jsx.
+## 2026-10-09: Lessons, Module F, series complete
+
+F19 low/mid/high (Ekene Sand 12.0 / 27.5 / 37.0 ft, truth 27.5), F20
+probabilistic (200 realisations, seed 1: P90 20.0, P50 28.0, P10 33.0 ft;
+tornado led by Rw), F21 multi-well (batch run on Ekene-1 to -4; Field view
+flattened and structural with `zoomFieldAt`; 27.5 / 0 / 51.5 / 0 ft against
+27.5 / wet / 50.5 / wet), F22 volumes and deliverables (ReservoirCalc Pro
+registry NTG 0.198 over four wells, 0.395 from the two oil wells, using the
+well choice from #946; export dialog). Lessons that leave Petrophysics Studio
+and come back re-apply their baseline on return: parameters set just before
+navigating away may not have been saved yet. All 22 lessons rendered to
+/root/demo-videos/lesson-a1 .. lesson-f22.
