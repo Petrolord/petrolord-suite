@@ -45,7 +45,7 @@ import {
 } from '../geology.mjs';
 import { SILT_MAX } from '../domains/wellsite/design.mjs';
 
-const KIT = path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v2');
+const KIT = path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v3');
 const DIR = '15-wellsite';
 const read = (rel) => {
   const p = path.join(KIT, rel);

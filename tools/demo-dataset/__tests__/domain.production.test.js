@@ -38,7 +38,7 @@ import { DESIGN, PRODUCERS, INJECTORS } from '../domains/production/engineering.
 import { FACILITY_DESIGN } from '../d8spine.mjs';
 
 const ROOT = path.join(__dirname, '..', '..', '..');
-const KIT = path.join(ROOT, 'dist-demo', 'ekene-demo-v2');
+const KIT = path.join(ROOT, 'dist-demo', 'ekene-demo-v3');
 const read = (rel) => {
   const p = path.join(KIT, rel);
   if (!fs.existsSync(p)) {

@@ -9,7 +9,7 @@ import { login } from '../../lib/session.mjs';
 import { deleteWells } from '../../seed/delete-wells.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-export const KIT = process.env.EKENE_KIT || path.resolve(HERE, '../../../../dist-demo/ekene-demo-v2');
+export const KIT = process.env.EKENE_KIT || path.resolve(HERE, '../../../../dist-demo/ekene-demo-v3');
 export const WDM = '/dashboard/apps/geoscience/well-data-manager';
 export const SERIES = 'Petrophysics with Petrolord';
 

@@ -33,7 +33,7 @@ import { caseDocFromFile } from '../../../src/pages/apps/WellCostTime/services/w
 import { runDeterministic, runMonteCarlo } from '../../../src/pages/apps/WellCostTime/services/wctRun';
 import { EKENE11 } from '../d8spine.mjs';
 
-const KIT = path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v2');
+const KIT = path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v3');
 const read = (rel) => {
   const p = path.join(KIT, rel);
   if (!fs.existsSync(p)) {

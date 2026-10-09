@@ -25,7 +25,7 @@ import {
   readCsv, applySheet,
 } from '../domains/processsafety/sheets.mjs';
 
-const KIT = path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v2');
+const KIT = path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v3');
 const read = (rel) => {
   const p = path.join(KIT, rel);
   if (!fs.existsSync(p)) {

@@ -30,7 +30,7 @@ import { epeIrrReason } from '../../../src/pages/apps/epe/epeIrrReason';
 import { CONSOLE_DEFAULTS, breakevenProcessProductionData } from '../domains/economics/model.mjs';
 
 const ROOT = path.join(__dirname, '..', '..', '..');
-const KIT = path.join(ROOT, 'dist-demo', 'ekene-demo-v2');
+const KIT = path.join(ROOT, 'dist-demo', 'ekene-demo-v3');
 const read = (rel) => {
   const p = path.join(KIT, rel);
   if (!fs.existsSync(p)) throw new Error(`${rel} is missing: run npx tsx tools/demo-dataset/generate.mjs first.`);

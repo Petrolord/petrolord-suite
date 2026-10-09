@@ -306,7 +306,7 @@ describe('the logs are measured the way tools measure', () => {
 test('no LAS header line carries a colon inside its description', () => {
   const fs = require('fs');
   const path = require('path');
-  const text = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v2', '01-wells', 'Ekene-1.las'), 'utf8');
+  const text = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v3', '01-wells', 'Ekene-1.las'), 'utf8');
   const header = text.split('~A')[0].split('\n').filter((l) => /^\s*[A-Z][A-Z0-9_]*\s*\./.test(l));
   for (const l of header) expect((l.match(/:/g) || []).length).toBe(1);
   const parsed = parseLas(text);
