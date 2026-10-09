@@ -718,3 +718,9 @@ The manual was written against the source, and it found the following.
 - No migration: `qi_jobs.kind` only checks the name's form.
 - Needs a worker redeploy.
 - **Tests:** `worker/seismic-worker/__tests__/removeDataset.test.js` (4, with negative controls) and a Prestack UI test (declined confirmation is a no-op).
+
+## 2026-10-09: angle ranges typed in Prestack are compared as numbers
+
+- Typing a range in Prestack (for example 5 to 15 degrees) disabled Make angle stacks with "Each range needs a name and from below to". The typed values are text, and as text "15" is not greater than "5".
+- `angleRangeProblem` in `PrestackPanel.jsx` now compares them as numbers and refuses empty, non-numeric, reversed or out-of-range entries.
+- **Tests:** a `qiStudio.test.jsx` case (typed 5 to 15 enables the button; reversed, empty, unnamed and 0 to 75 are refused). It fails on the old code.

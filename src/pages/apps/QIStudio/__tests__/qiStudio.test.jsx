@@ -287,6 +287,24 @@ test('prestack: build gathers, angle stacks with a velocity table, the usable an
   await waitFor(() => expect(convert).toHaveBeenCalledWith(expect.objectContaining({ id: 'qi-d3' })));
 });
 
+test('prestack: typed angle ranges are compared as numbers (a typed 5 to 15 used to be refused)', async () => {
+  const { angleRangeProblem } = await import('../components/PrestackPanel');
+  expect(angleRangeProblem([{ name: 'near', from: '5', to: '15' }, { name: 'far', from: '25', to: '35' }])).toBeNull();
+  expect(angleRangeProblem([{ name: 'near', from: '15', to: '5' }])).toMatch(/from below to/);
+  expect(angleRangeProblem([{ name: 'near', from: '', to: '15' }])).toMatch(/from below to/);
+  expect(angleRangeProblem([{ name: ' ', from: 0, to: 15 }])).toMatch(/name/);
+  expect(angleRangeProblem([{ name: 'wide', from: 0, to: 75 }])).toMatch(/0 to 60/);
+  // in the tab: type the ranges, and the stack button is enabled
+  const backend = makeInMemoryBackend();
+  render(<MemoryRouter><QIStudio backend={backend} sharingStore={null} /></MemoryRouter>);
+  fireEvent.click(await screen.findByTestId('qi-tab-prestack', {}, { timeout: 20000 }));
+  await screen.findByTestId('qi-pre-stack-qi-d2', {}, { timeout: 20000 });
+  fireEvent.change(screen.getByTestId('qi-pre-vel'), { target: { value: '0 1700\n1500 2300' } });
+  fireEvent.change(screen.getByLabelText('Range 1 from'), { target: { value: '5' } });
+  fireEvent.change(screen.getByLabelText('Range 1 to'), { target: { value: '15' } });
+  expect(screen.getByTestId('qi-pre-stack-qi-d2')).not.toBeDisabled();
+});
+
 test('prestack: a worker file is removed after a confirmation, and kept when it is declined', async () => {
   const backend = makeInMemoryBackend();
   const enqueue = jest.spyOn(backend.jobs, 'enqueueJob');

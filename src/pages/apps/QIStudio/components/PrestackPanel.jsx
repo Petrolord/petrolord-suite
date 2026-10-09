@@ -18,6 +18,20 @@ const input = 'rounded border border-pl-border bg-pl-surface px-2 py-0.5 text-xs
 const GiB = 1024 ** 3;
 const DEFAULT_RANGES = [{ name: 'near', from: 0, to: 15 }, { name: 'mid', from: 15, to: 30 }, { name: 'far', from: 30, to: 45 }];
 
+/**
+ * Why the angle ranges cannot run, or null. Typed values arrive as text: as
+ * text, "15" > "5" is false, so a typed 5 to 15 degree range was refused
+ * (found 2026-10-09); compare them as numbers.
+ */
+export function angleRangeProblem(ranges) {
+  const bad = ranges.some((r) => {
+    const from = Number(r.from); const to = Number(r.to);
+    return String(r.from).trim() === '' || String(r.to).trim() === '' || !(Number.isFinite(from) && Number.isFinite(to))
+      || !(to > from && from >= 0 && to <= 60) || !String(r.name || '').trim();
+  });
+  return bad ? 'Each range needs a name and from below to, within 0 to 60 degrees.' : null;
+}
+
 /** "time_ms vrms" rows to a table; a reason when a row does not read. */
 export function parseVelocityTable(text) {
   const t = []; const v = [];
@@ -80,7 +94,7 @@ export default function PrestackPanel() {
   const stores = (datasets || []).filter((d) => d.kind === 'gathers_offset' && d.status === 'uploaded');
   const stacks = (datasets || []).filter((d) => d.kind === 'segy_upload' && d.status === 'uploaded' && d.meta?.partial_stack);
   const vel = parseVelocityTable(velText);
-  const rangeProblem = ranges.some((r) => !(r.to > r.from && r.from >= 0 && r.to <= 60) || !r.name.trim()) ? 'Each range needs a name and from below to, within 0 to 60 degrees.' : null;
+  const rangeProblem = angleRangeProblem(ranges);
 
   const build = (d) => job.run(`g:${d.id}`, 'ingest_gathers', { dataset_id: d.id, mapping: { offsetByte: Number(form.offsetByte) }, bin_width_m: Number(form.binWidth), name: `${d.name} gathers` }, () => refresh());
   const stack = (d) => job.run(`s:${d.id}`, 'angle_stacks', { dataset_id: d.id, velocity: { t_ms: vel.t_ms, vrms: vel.vrms }, ranges: ranges.map((r) => ({ name: r.name.trim(), from: Number(r.from), to: Number(r.to) })), min_fold: Number(minFold) }, (row) => {
