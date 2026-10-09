@@ -201,3 +201,25 @@ describe('the elastic seismic', () => {
     expect(scan.xl.count).toBe(3);
   });
 });
+
+describe('the written SEG-Y headers read as time volumes in Seismolord', () => {
+  // v3.1's header said "CHECKSHOT TIME-DEPTH" and Seismolord preselected Depth,
+  // blocking the import (2026-10-09). Every volume's textual header goes
+  // through Seismolord's own depth check.
+  const fs = require('fs');
+  const path = require('path');
+  const { bufferReader } = require('../../../src/pages/apps/Seismolord/engine/reader');
+  const { readTextualHeader } = require('../../../src/pages/apps/Seismolord/engine/segyScan');
+  const { depthDomainHint } = require('../../../src/pages/apps/Seismolord/lib/segyDoor');
+  const dir = path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v3', '04-seismic');
+  const files = ['EKENE3D-small.sgy', 'EKENE3D-full.sgy', 'EKENE3D-near.sgy', 'EKENE3D-mid.sgy', 'EKENE3D-far.sgy', 'gathers/EKENE3D-gathers-nmo.sgy'];
+  test.each(files)('%s', async (f) => {
+    const fd = fs.openSync(path.join(dir, f), 'r');
+    const head = Buffer.alloc(3600);
+    fs.readSync(fd, head, 0, 3600, 0); fs.closeSync(fd);
+    const u8 = new Uint8Array(head);
+    const lines = await readTextualHeader(bufferReader(u8.buffer));
+    expect(lines.join('\n')).toMatch(/SYNTHETIC/);
+    expect(depthDomainHint(lines)).toBeNull();
+  });
+});
