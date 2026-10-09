@@ -253,3 +253,19 @@ with the porosity (Ekene-11 total gas at 1638.0 m, 1.7 to 1.9 percent).
 Gates: 170 pass, including three new ones for the measurement layer. The v2
 release on GitHub is still to be cut.
 
+
+## 2026-10-09: kit v2.1, routine core analysis
+
+`01-wells/core/<well>-core.las` and `-rca.csv` for the three cored wells the kit
+has always named (Ekene-1 1548-1566 m, Ekene-3 1541-1559.5 m, Ekene-5
+1552-1570 m): plugs cut from the truth rows one per foot in sand (Vsh < 0.5),
+helium porosity = phi_e + 0.006 noise, air permeability from
+log10 k = log10 250 + 9.2 (phi_e - 0.20) with 0.12 log-cycle scatter (anchored
+on the LOCKED 250 mD at 0.20 and the SCAL plugs). The core LAS sits on each
+well's own 0.5 ft grid, nulls between plugs, so Well Data Manager's "LAS into an
+existing well" keeps each plug at its depth. Gate `core.test.js`: the Studio's
+own fitPoroPerm recovers the transform (slope 7 to 11.5, 190 to 330 mD at 0.20,
+R2 > 0.5), shuffled permeability carries none, plug depths land on the grid.
+Every earlier kit file regenerates byte-identical. Ekene-1 (59 plugs): Core
+dialog fit log10 k = 0.455 + 9.72 phi, R2 0.818. Truth permeability over the
+Ekene Sand pay: 213.9 mD geometric mean.

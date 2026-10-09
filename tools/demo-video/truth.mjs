@@ -3,6 +3,7 @@
 // Studio's answer with the field's known value. Depths in feet.
 // npx tsx tools/demo-video/truth.mjs Ekene-1 [Ekene-9 ...]
 import { buildKit } from '../demo-dataset/build.mjs';
+import { CORED, cutPlugs, kTruth } from '../demo-dataset/core.mjs';
 
 const FT = 3.28084;
 const names = process.argv.slice(2);
@@ -28,7 +29,14 @@ for (const name of names.length ? names : ['Ekene-1']) {
   for (const [k, rs] of by) {
     const res = rs.filter((r) => r.phie >= 0.08 && r.vsh <= 0.5);
     const pay = res.filter((r) => r.sw <= 0.6);
-    if (pay.length) console.log(`${k} truth net res ${(res.length * dz).toFixed(1)} ft, net pay ${(pay.length * dz).toFixed(1)} ft; pay avg phie ${avg(pay, 'phie').toFixed(3)} sw ${avg(pay, 'sw').toFixed(3)} vsh ${avg(pay, 'vsh').toFixed(3)}`);
+    const gm = (xs) => 10 ** (xs.reduce((a, x) => a + Math.log10(x), 0) / xs.length);
+    if (pay.length) console.log(`${k} truth net res ${(res.length * dz).toFixed(1)} ft, net pay ${(pay.length * dz).toFixed(1)} ft; pay avg phie ${avg(pay, 'phie').toFixed(3)} sw ${avg(pay, 'sw').toFixed(3)} vsh ${avg(pay, 'vsh').toFixed(3)}; k gm pay ${gm(pay.map((r) => kTruth(r.phie))).toFixed(1)} mD, net res ${gm(res.map((r) => kTruth(r.phie))).toFixed(1)} mD`);
+  }
+  const cored = CORED.find((c) => c.well === name);
+  if (cored) {
+    const plugs = cutPlugs(b.rows, cored);
+    const gm = (xs) => 10 ** (xs.reduce((a, x) => a + Math.log10(x), 0) / xs.length);
+    console.log(`core: ${plugs.length} plugs ${(plugs[0].ft).toFixed(1)}-${plugs[plugs.length - 1].ft.toFixed(1)} ft; plug k gm ${gm(plugs.map((p) => p.ckh)).toFixed(1)} mD; avg cpor ${(plugs.reduce((a, p) => a + p.cpor, 0) / plugs.length).toFixed(3)}`);
   }
   // hydrocarbon legs: averages over the samples above the contact only
   for (const [k, rs] of by) {

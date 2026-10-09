@@ -983,3 +983,19 @@ across wells (one set serves every well), so each lesson's setup applies a full
 baseline (`baseParams`). New tools: `tools/demo-video/probe.mjs` (dry runs on
 display :98) and `tools/demo-video/truth.mjs` (zone, leg and net pay truth from
 the generator's truth rows; run with npx tsx).
+
+## 2026-10-09: Lessons, Modules D and E
+
+D11 Archie (Rw 0.0786 takes Ekene pay from 27.0 to 12.5 ft; m and n
+sensitivities), D12 Pickett (free fit m 1.68, a.Rw 0.128 against 2 and 0.0786:
+regression dilution), D13 Hingle (Rw 0.0772), salinity (0.0784), SP (static
+-59 mV, 0.091), Arps; D14 shaly sand (Archie 12.5, Simandoux 22.0, Indonesia
+27.5 = truth 27.5, modified Simandoux 29.5 ft). E15 log permeability (Timur 163,
+Coates 230, Tixier 88, Wyllie-Rose gas preset 8.8 mD; truth 214), E16 core
+calibration (kit v2.1 core, transform 0.455 + 9.72 phi, Timur tuned to Buckles
+0.033 = 240 mD), E17 cutoffs (sensitivity swings phi 0 %, Vsh 4 %, Sw 31 %),
+E18 saturation height (SCAL Studio J from three plugs a 0.249 b 1.01 Swirr
+0.250; Ekene Sand Sw logs 0.778, capillary pressure 0.835 = truth). Seeds:
+`seed/core.mjs` (core LAS into the existing well), `seed/scal.mjs` (SCAL
+project through its screens; SCAL autosaves 10 s after the last edit, and its
+delete asks window.confirm).

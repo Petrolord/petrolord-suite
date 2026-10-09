@@ -24,6 +24,8 @@ export const CURVE_META = {
   RXO:  { unit: 'OHMM',  descr: 'Flushed Zone Resistivity', dp: 4 },
   PEF:  { unit: 'B/E',   descr: 'Photoelectric Factor', dp: 3 },
   LITH: { unit: '',      descr: 'Lithology code (1 sand 2 interbedded 3 shale 4 clay-sand)', dp: 0 },
+  CPOR: { unit: '%',     descr: 'Core porosity (helium)', dp: 1 },
+  CKH:  { unit: 'MD',    descr: 'Core permeability horizontal (air)', dp: 1 },
 };
 
 /**
