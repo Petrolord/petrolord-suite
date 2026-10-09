@@ -5,6 +5,7 @@ import { parseLas } from '../../../packages/engines/engines/welldata/lasParse';
 import { substituteVels } from '../../../packages/engines/engines/rockphysics/gassmann';
 import { gcSandShaleVs, iterativeVs } from '../../../packages/engines/engines/rockphysics/vsEstimate';
 import { angleGather, partialStack, velocityOnGrid, waldenAngle } from '../../../packages/engines/engines/qi/prestack';
+import { akiRichards } from '../../../packages/engines/engines/rockphysics/avo';
 import { scanGeometry } from '../../../packages/engines/engines/seismolord/segyScan';
 import { bufferReader } from '../../../src/pages/apps/Seismolord/engine/reader';
 
@@ -12,7 +13,8 @@ import { LOCKED, OBORO, SEISMIC, CURVES, FRAME } from '../spine.mjs';
 import { buildKit } from '../build.mjs';
 import { localBrineVs, mineralFor, insituFluid } from '../elastic.mjs';
 import {
-  elasticPropsFrom, makeElasticModel, makeElasticTracer, stackRpp, rpp, rmsVelocityTable, gatherAngles, muteTrace,
+  elasticPropsFrom, makeElasticModel, makeElasticTracer, stackRpp, rpp, rmsVelocityTable, angleAtTime, muteTrace,
+  shueyABC,
   checkshotDriftOwtMs,
 } from '../seismic.mjs';
 import { measureLogs } from '../measure.mjs';
@@ -91,7 +93,8 @@ describe('the elastic seismic', () => {
     const ifs = model(e1.well.x, e1.well.y);
     const top = ifs.find((i) => i.layerKey === 'EKENE');
     const contact = ifs.find((i) => i.contact === 'EKENE');
-    const wetTop = { ...top, lower: props['EKENE:brine'] };
+    const sc = (k) => top.lower[k] * (props['EKENE:brine'][k] / props['EKENE:oil'][k]);
+    const wetTop = { ...top, abc: undefined, lower: { vp: sc('vp'), vs: sc('vs'), rho: sc('rho') } };
     expect(rpp(top, 0)).toBeLessThan(rpp(wetTop, 0));
     expect(contact.t).toBeGreaterThan(top.t);
     expect(rpp(contact, 0)).toBeGreaterThan(0);
@@ -116,8 +119,8 @@ describe('the elastic seismic', () => {
     const tracer = makeElasticTracer({ ns: nsG, dtMs: SEISMIC.dt_ms });
     const ifs = model(e1.well.x, e1.well.y);
     const traces = offsets.map((o) => {
-      const ang = gatherAngles(ifs, o, table, SEISMIC.dt_ms, nsG);
-      return tracer(ifs, (i) => rpp(i, ang[ifs.indexOf(i)], SEISMIC.qi.mute_deg) ?? 0, { x: 0, y: 0, seed: 0, noise: false });
+      const at = angleAtTime(o, table, SEISMIC.dt_ms, nsG);
+      return tracer(ifs, (i) => rpp(i, at(i.t), SEISMIC.qi.mute_deg) ?? 0, { x: 0, y: 0, seed: 0, noise: false });
     });
     const { vrms, vint } = velocityOnGrid(table.t_ms, table.vrms, nsG, SEISMIC.dt_ms);
     const ag = angleGather({ traces, offsets, vrms, vint, dtMs: SEISMIC.dt_ms, edges: [5, 15] });
@@ -184,6 +187,20 @@ describe('the elastic seismic', () => {
     expect(Math.abs(onCheckshots.shift)).toBeLessThanOrEqual(dt);
     expect(onCheckshots.r).toBeGreaterThan(0.6);
     expect(Math.abs(onSonic.shift)).toBeGreaterThanOrEqual(8);
+  });
+
+  test('the fine structure is Ekene-1\'s own logs: Shuey-form reflectivity matches the engine\'s Aki-Richards at small contrasts', () => {
+    const ifs = model(e1.well.x, e1.well.y);
+    const fine = ifs.filter((i) => i.fine);
+    expect(fine.length).toBeGreaterThan(800);              // about one block per 1.5 m
+    for (const i of fine.slice(200, 260)) {
+      for (const th of [0, 15, 30]) {
+        const { A, B, C } = shueyABC(i.upper, i.lower);
+        const s2 = Math.sin((th * Math.PI) / 180) ** 2; const t2 = Math.tan((th * Math.PI) / 180) ** 2;
+        const engine = akiRichards(i.upper.vp, i.upper.vs, i.upper.rho, i.lower.vp, i.lower.vs, i.lower.rho, th);
+        expect(A + B * s2 + C * (t2 - s2)).toBeCloseTo(engine, 3);
+      }
+    }
   });
 
   test('a gather file scans as one cell per CDP with the offsets in bytes 37-40', async () => {

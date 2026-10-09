@@ -117,7 +117,9 @@ the engine's `iterativeVs` at Batzle-Wang fluids for each reservoir.
 
 `seismic.mjs` now models every product from one elastic model (per-layer
 Vp, Vs and density from Ekene-1, split at the fluid contacts, exact
-Zoeppritz): the full stack (0 to 30 degrees), near, mid and far angle stacks
+Zoeppritz at the layer tops and contacts; inside each layer Ekene-1's own
+brine-equivalent logs in 1.5 m blocks, carried conformably, with Shuey
+three-term reflectivity; the whole timed by the checkshots): the full stack (0 to 30 degrees), near, mid and far angle stacks
 on the same lattice, and NMO-corrected offset gathers whose angles are
 Walden's straight-ray angles from the published RMS velocity, the way QI
 Studio computes them. `10-qi/` holds the truth the QI videos quote, and

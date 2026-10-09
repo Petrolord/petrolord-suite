@@ -113,6 +113,16 @@ export function addShear(rows, fluids) {
     if (!(vs > 0 && vs < vp / Math.SQRT2)) throw new Error(`ASSERT unphysical Vs ${vs} at ${r.md} m (Vp ${vp})`);
     r.vs_m_s = vs;
     r.vpBrine_m_s = vpBrine;
+    // the same rock with brine in the pores (shear modulus unchanged):
+    // the seismic's fine structure is built from these (v3.2)
+    if (res) {
+      const fl = insituFluid(res, r.sw);
+      r.rhoBrine = r.rhob * 1000 + r.phit * (res.brine.rho - fl.rho);
+      r.vsBrine_m_s = vs * Math.sqrt((r.rhob * 1000) / r.rhoBrine);
+    } else {
+      r.rhoBrine = r.rhob * 1000;
+      r.vsBrine_m_s = vs;
+    }
     r.dts = 1e6 / (vs * FT_PER_M);
     r.ai = vp * r.rhob * 1000;          // kg/m2/s
     r.si = vs * r.rhob * 1000;
