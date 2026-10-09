@@ -69,13 +69,20 @@ export default {
       say: 'Every input we chose has a range. The low, mid, high dialog moves them together: the clean sand line, shale porosity, matrix density, m and n, and R w.',
       sub: 'Every input we chose has a range. The Low, mid, high dialog moves them together: the clean sand line, shale porosity, matrix density, m and n, and Rw.',
       do: async (d) => { await d.clearCallouts(); await d.unhighlight(); await d.click('petro-scenarios'); await d.waitFor('petro-scenarios-dialog'); await d.highlight('petro-sc-Low-rw'); await d.sleep(1500); await d.unhighlight(); } },
-    { id: 'nets',
-      say: 'For the Ekene Sand, net pay runs from thirty and a half feet in the low case to ninety five in the high case, with thirty nine in the middle. A wide spread, because the high case stacks the lowest R w on the lowest m.',
-      sub: 'For the Ekene Sand, net pay runs from 30.5 ft in the low case to 95.0 ft in the high case, with 39.0 ft in the middle. A wide spread, because the high case stacks the lowest Rw on the lowest m.',
+    { id: 'narrow',
+      say: 'The starting ranges are generic. We have just pinned R w down with two independent checks, so we tighten it to ten percent either side of the brine value. And m from the Pickett fit gets five hundredths either side.',
+      sub: 'The starting ranges are generic. We have just pinned Rw down with two independent checks, so we tighten it to 10% either side of the brine value. And m from the Pickett fit gets 0.05 either side.',
       do: async (d) => {
-        await expectText(d, `petro-sc-net-${ZONE}-low`, /^30\.5$/, 'low case');
+        await d.type('petro-sc-Low-rw', '0.0854'); await d.type('petro-sc-High-rw', '0.0699');
+        await d.type('petro-sc-Low-m', '1.665'); await d.type('petro-sc-High-m', '1.565');
+      } },
+    { id: 'nets',
+      say: 'For the Ekene Sand, net pay runs from thirty two and a half feet in the low case to sixty five and a half in the high case, with thirty nine in the middle.',
+      sub: 'For the Ekene Sand, net pay runs from 32.5 ft in the low case to 65.5 ft in the high case, with 39.0 ft in the middle.',
+      do: async (d) => {
+        await expectText(d, `petro-sc-net-${ZONE}-low`, /^32\.5$/, 'low case');
         await expectText(d, `petro-sc-net-${ZONE}-mid`, /^39\.0$/, 'mid case');
-        await expectText(d, `petro-sc-net-${ZONE}-high`, /^95\.0$/, 'high case');
+        await expectText(d, `petro-sc-net-${ZONE}-high`, /^65\.5$/, 'high case');
         await d.highlight(d.page.getByTestId(`petro-sc-net-${ZONE}-mid`).locator('xpath=ancestor::tbody[1]'));
       } },
     { id: 'bands',

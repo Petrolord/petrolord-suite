@@ -36,9 +36,14 @@ export default {
       say: 'The low and high cases put every input at its pessimistic or optimistic end at the same time, which almost never happens. A probabilistic run samples all the uncertain inputs together, and counts how often each outcome occurs.',
       do: async (d) => { await expectText(d, zoneCard(d), /net pay 39\.0 ft/, 'starting net pay'); await d.highlight(zoneCard(d)); await d.sleep(2500); await d.unhighlight(); } },
     { id: 'dialog',
-      say: 'The dialog starts from the same ranges. Six inputs vary: the clean sand line, shale porosity, matrix density, m, n and R w. Each takes a triangular distribution, set by its tenth, fiftieth and ninetieth percentiles.',
-      sub: 'The dialog starts from the same ranges. Six inputs vary: the clean sand line, shale porosity, matrix density, m, n and Rw. Each takes a triangular distribution, set by its 10th, 50th and 90th percentiles.',
-      do: async (d) => { await d.click('petro-probabilistic'); await d.waitFor('petro-prob-dialog'); await d.highlight('petro-prob-row-rw'); } },
+      say: 'Six inputs vary: the clean sand line, shale porosity, matrix density, m, n and R w. Each takes a triangular distribution, set by its tenth, fiftieth and ninetieth percentiles. We use the same tightened ranges for R w and m as in the low and high cases.',
+      sub: 'Six inputs vary: the clean sand line, shale porosity, matrix density, m, n and Rw. Each takes a triangular distribution, set by its 10th, 50th and 90th percentiles. We use the same tightened ranges for Rw and m as in the low and high cases.',
+      do: async (d) => {
+        await d.click('petro-probabilistic'); await d.waitFor('petro-prob-dialog'); await d.highlight('petro-prob-row-rw');
+        await d.type('petro-prob-rw-q10', '0.0699'); await d.type('petro-prob-rw-q90', '0.0854');
+        await d.unhighlight(); await d.highlight('petro-prob-row-m');
+        await d.type('petro-prob-m-q10', '1.565'); await d.type('petro-prob-m-q90', '1.665');
+      } },
     { id: 'run',
       say: 'Two hundred realisations, with a fixed seed so anyone can repeat the run exactly. It takes about two seconds.',
       sub: '200 realisations, with a fixed seed so anyone can repeat the run exactly. It takes about 2 seconds.',
@@ -48,21 +53,21 @@ export default {
         await d.highlight('petro-prob-state');
       } },
     { id: 'pcases', chapter: 'P90, P50, P10', chapterSub: 'Net pay, Ekene Sand',
-      say: 'For the Ekene Sand, net pay is thirty three feet at P ninety, thirty nine point seven at P fifty, and sixty six point two at P ten. So there is a ninety percent chance of at least thirty three feet, above the low case of thirty and a half, and the high case of ninety five is far out in the tail.',
-      sub: 'For the Ekene Sand, net pay is 33.0 ft at P90, 39.7 ft at P50 and 66.2 ft at P10. So there is a 90% chance of at least 33.0 ft, above the low case of 30.5 ft, and the high case of 95.0 ft is far out in the tail.',
+      say: 'For the Ekene Sand, net pay is thirty four and a half feet at P ninety, thirty nine at P fifty, and fifty four point three at P ten. So there is a ninety percent chance of at least thirty four and a half feet, above the low case of thirty two and a half.',
+      sub: 'For the Ekene Sand, net pay is 34.5 ft at P90, 39.0 ft at P50 and 54.3 ft at P10. So there is a 90% chance of at least 34.5 ft, above the low case of 32.5 ft.',
       do: async (d) => {
-        await expectText(d, `petro-prob-net-${ZONE}-p90`, /^33\.0$/, 'P90');
-        await expectText(d, `petro-prob-net-${ZONE}-p50`, /^39\.7$/, 'P50');
-        await expectText(d, `petro-prob-net-${ZONE}-p10`, /^66\.2$/, 'P10');
+        await expectText(d, `petro-prob-net-${ZONE}-p90`, /^34\.5$/, 'P90');
+        await expectText(d, `petro-prob-net-${ZONE}-p50`, /^39\.0$/, 'P50');
+        await expectText(d, `petro-prob-net-${ZONE}-p10`, /^54\.3$/, 'P10');
         await d.unhighlight();
         await d.highlight(d.page.getByTestId(`petro-prob-net-${ZONE}-p50`).locator('xpath=ancestor::tr[1]'));
       } },
     { id: 'tornado', chapter: 'What drives the range', chapterSub: 'The tornado',
-      say: 'The tornado shows which input moves the answer most. R w comes first, from thirty three and a half to sixty six and a half feet, ahead of m and matrix density. That is why we checked R w twice.',
-      sub: 'The tornado shows which input moves the answer most. Rw comes first, from 33.5 to 66.5 ft, ahead of m and matrix density. That is why we checked Rw twice.',
+      say: 'The tornado shows which input moves the answer most. With R w pinned down, matrix density now comes first, from thirty six to fifty one point seven feet, ahead of R w. So the next measurement worth paying for is grain density from core.',
+      sub: 'The tornado shows which input moves the answer most. With Rw pinned down, matrix density now comes first, from 36.0 to 51.7 ft, ahead of Rw. So the next measurement worth paying for is grain density from core.',
       do: async (d) => {
         await d.unhighlight();
-        await expectText(d, `petro-prob-tornado-${ZONE}`, /rw\s*33\.5 to 66\.5/, 'tornado');
+        await expectText(d, `petro-prob-tornado-${ZONE}`, /rhoMa\s*36\.0 to 51\.7\s*rw\s*36\.2 to 47\.5/, 'tornado');
         await d.highlight(`petro-prob-tornado-${ZONE}`);
       } },
     { id: 'curves',
