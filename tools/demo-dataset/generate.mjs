@@ -192,12 +192,19 @@ for (const b of built) {
     let owt = (FRAME.water_depth_m * 1000) / 1500;     // ms, one way through the water
     let prev = FRAME.mudline_md;
     const levels = [];
-    const step = (b.rows[b.rows.length - 1].md - FRAME.mudline_md) / 16;
+    const lastMd = b.rows[b.rows.length - 1].md;
+    const step = (lastMd - FRAME.mudline_md) / 16;
     for (let i = 1; i <= 16; i += 1) levels.push(FRAME.mudline_md + i * step);
+    // v3.3: a level at every formation top as well, as a checkshot survey
+    // plans them: between regular levels 140 m apart, straight-line time
+    // through the velocity break at the top of the Ekene Sand was 5 ms early
+    for (const tp of b.tops) if (tp.md > FRAME.mudline_md && tp.md < lastMd) levels.push(tp.md);
+    levels.sort((x, y) => x - y);
     let li = 0;
     for (const r of b.rows) {
       owt += ((r.tvd - prev) * 1000) / r.vp_m_s;
       prev = r.tvd;
+      while (li < levels.length - 1 && levels[li + 1] <= r.md) li += 1;   // levels closer than one sample
       if (li < levels.length && r.md >= levels[li]) {
         const drift = checkshotDriftOwtMs(r.tvd);
         csRows.push([n(r.md, 2), n(owt + drift, 3), n(r.tvd, 2), n(r.tvdss, 2)]);
@@ -1258,6 +1265,8 @@ write('00-START-HERE.md', [
   '- Inside each layer the seismic carries Ekene-1\'s own logs (v3.2): its Vp, Vs and density in 1.5 m',
   '  blocks, following the stratigraphy across the cube, where v3.1 had a random texture. A synthetic on',
   '  the checkshots ties Ekene-1 at about r 0.87 and the other wells at 0.74 to 0.87.',
+  '- The checkshots have a level at every formation top as well as the 16 regular ones (v3.3), so the',
+  '  time of the top of the Ekene Sand is measured, not interpolated across a velocity break.',
   '- New: near, mid and far angle stacks, NMO-corrected offset gathers with their RMS velocity, and',
   '  `10-qi`, the numbers QI Studio and Rock Physics Studio should give back.', '',
   '## Heavy files', '',
