@@ -293,3 +293,17 @@ export function gatherAngles(interfaces, offsetM, table, dtMs, ns) {
     return waldenAngle(offsetM, i.t / 1000, vrms[k], vint[k]);
   });
 }
+
+/**
+ * Zero every sample of an NMO-corrected trace whose Walden angle is beyond the
+ * mute, after the noise is in: a processed gather's mute zone holds zeros, and
+ * QI Studio reads exact zeros as muted.
+ */
+export function muteTrace(trace, offsetM, table, dtMs, muteDeg) {
+  const { vrms, vint } = velocityOnGrid(table.t_ms, table.vrms, trace.length, dtMs);
+  for (let k = 0; k < trace.length; k += 1) {
+    const a = waldenAngle(offsetM, (k * dtMs) / 1000, vrms[k], vint[k]);
+    if (!(a <= muteDeg)) trace[k] = 0;
+  }
+  return trace;
+}
