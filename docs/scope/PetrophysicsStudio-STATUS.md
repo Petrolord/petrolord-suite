@@ -999,3 +999,11 @@ E18 saturation height (SCAL Studio J from three plugs a 0.249 b 1.01 Swirr
 `seed/core.mjs` (core LAS into the existing well), `seed/scal.mjs` (SCAL
 project through its screens; SCAL autosaves 10 s after the last edit, and its
 delete asks window.confirm).
+
+## 2026-10-09: Field view depth axis in the session unit
+
+The Field view (multi-well tracks) labelled its depth axis "Displayed depth (m)"
+and read metres in a feet session (flattened on the Ekene Sand, the seabed sat
+at -1488). MultiWellTracks now takes the session depth unit: the axis title, the
+tick labels (paintDepthAxis F = 1/0.3048) and the crosshair read in feet.
+Depths stay in metres inside. Test: fieldViewDepthUnit.test.jsx.

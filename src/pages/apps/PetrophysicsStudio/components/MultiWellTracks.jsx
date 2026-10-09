@@ -31,7 +31,9 @@ const PAD_TOP = 2;
  *   tracks = resolved TrackViewer-shape tracks per well; shift from
  *   computeFlattening (null draws unflattened)
  */
-export default function MultiWellTracks({ wells, view: viewProp, onViewChange, topStyles = null }) {
+export default function MultiWellTracks({ wells, view: viewProp, onViewChange, topStyles = null, depthUnit = 'm' }) {
+  // depths stay in metres inside; the axis and the crosshair read in the session unit
+  const F = depthUnit === 'ft' ? 1 / 0.3048 : 1;
   const wrapRef = useRef(null);
   const staticRef = useRef(null);
   const overlayRef = useRef(null);
@@ -95,7 +97,7 @@ export default function MultiWellTracks({ wells, view: viewProp, onViewChange, t
 
     // depth axis
     paintDepthAxis(ctx, {
-      axisW: AXIS_W, plotTop, plotH, plotRight: size.w, vTop, vBase, yOf, title: 'Displayed depth (m)',
+      axisW: AXIS_W, plotTop, plotH, plotRight: size.w, vTop, vBase, yOf, F, title: `Displayed depth (${depthUnit === 'ft' ? 'ft' : 'm'})`,
     });
 
     const colW = (size.w - AXIS_W) / wells.length;
@@ -162,7 +164,7 @@ export default function MultiWellTracks({ wells, view: viewProp, onViewChange, t
         ctx.fillText(t.name, cx0 + 3, y - 2, colW - 6);
       }
     });
-  }, [size, wells, vTop, vBase, yOf, plotTop, plotH, topStyles]);
+  }, [size, wells, vTop, vBase, yOf, plotTop, plotH, topStyles, F, depthUnit]);
 
   // OVERLAY layer: crosshair only — cheap on every pointer move
   const drawOverlay = useCallback((cursorY) => {
@@ -181,8 +183,8 @@ export default function MultiWellTracks({ wells, view: viewProp, onViewChange, t
     ctx.fillStyle = TEXT_STRONG;
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText(dOf(cursorY).toFixed(1), AXIS_W - 4, cursorY - 4);
-  }, [size, plotTop, plotH, vTop, vBase]); // eslint-disable-line react-hooks/exhaustive-deps
+    ctx.fillText((dOf(cursorY) * F).toFixed(1), AXIS_W - 4, cursorY - 4);
+  }, [size, plotTop, plotH, vTop, vBase, F]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onPointerMove = (e) => {
     const rect = overlayRef.current.getBoundingClientRect();
