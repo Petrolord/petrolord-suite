@@ -115,9 +115,15 @@ const LAYER_ORDER = [
 
 /**
  * Elastic layer properties from a well's rows (after addShear): timing
- * velocity per layer (the v2 rule), and Vp, Vs, rho per layer and per fluid.
- * Keys: 'EKENE', 'EKENE:oil', 'EKENE:brine', 'OBORO:gas', ...
+ * velocity per layer (the v2 rule), Vp, Vs, rho per layer and per fluid
+ * (keys 'EKENE', 'EKENE:oil', 'EKENE:brine', 'OBORO:gas', ...), and, since
+ * v3.2, each layer's fine structure: the well's brine-equivalent Vp, Vs and
+ * density in blocks of about BLOCK_M, as fractions about the layer's
+ * brine-equivalent mean, keyed by stratigraphic position u (0 at the top of
+ * the layer, 1 at its base). The cube carries this profile conformably, so a
+ * synthetic from a well's own logs ties it.
  */
+export const BLOCK_M = 1.5;
 export function elasticPropsFrom(rows) {
   const acc = new Map();
   const add = (key, r) => {
@@ -125,29 +131,51 @@ export function elasticPropsFrom(rows) {
     const a = acc.get(key);
     a.n += 1; a.dt += r.dt; a.vp += r.vp_m_s; a.vs += r.vs_m_s; a.rho += r.rhob * 1000;
   };
+  const byLayer = new Map();
   for (const r of rows) {
     add(r.layerKey, r);
     if (r.layerKey === 'EKENE' || r.layerKey === 'OBORO') add(`${r.layerKey}:${r.fluid}`, r);
+    if (!byLayer.has(r.layerKey)) byLayer.set(r.layerKey, []);
+    byLayer.get(r.layerKey).push(r);
   }
   const out = {};
   for (const [k, a] of acc) {
     out[k] = { v: 1e6 / (a.dt / a.n) / FT_PER_M, vp: a.vp / a.n, vs: a.vs / a.n, rho: a.rho / a.n };
   }
+  const profiles = {};
+  for (const [key, rs] of byLayer) {
+    rs.sort((p, q) => p.u - q.u);
+    const mean = (f) => rs.reduce((s2, r) => s2 + f(r), 0) / rs.length;
+    const mvp = mean((r) => r.vpBrine_m_s); const mvs = mean((r) => r.vsBrine_m_s); const mrho = mean((r) => r.rhoBrine);
+    const per = Math.max(1, Math.round(BLOCK_M / (rs.length > 1 ? Math.abs(rs[1].md - rs[0].md) || 0.1524 : 0.1524)));
+    const blocks = [];
+    for (let i = 0; i < rs.length; i += per) {
+      const b = rs.slice(i, i + per);
+      const m = (f) => b.reduce((s2, r) => s2 + f(r), 0) / b.length;
+      blocks.push({
+        u0: i === 0 ? 0 : b[0].u, dvp: m((r) => r.vpBrine_m_s) / mvp - 1, dvs: m((r) => r.vsBrine_m_s) / mvs - 1, drho: m((r) => r.rhoBrine) / mrho - 1,
+      });
+    }
+    profiles[key] = blocks;
+  }
+  Object.defineProperty(out, 'profiles', { value: profiles, enumerable: false });
   return out;
 }
 
 /**
- * The interfaces under one map location, in two-way time: the seabed, every
- * layer top, and the fluid contacts inside the two reservoirs.
+ * The interfaces under one map location, in two-way time. Major ones carry
+ * `layerKey` (a layer top) or `contact` (a fluid contact) and the seabed; the
+ * rest are `fine`: the boundaries between the blocks of the layers' fine
+ * structure. Each side of every interface is a cell: the layer's mean for its
+ * fluid at that depth, times (1 + the profile's fraction there).
  * contacts: { EKENE: {depth, upper:'oil'}, OBORO: {depth, upper:'gas'} }
  */
 export function makeElasticModel({ geo, props, contacts }) {
   const waterTwtMs = (2 * FRAME.water_depth_m * 1000) / 1500;
   const water = { vp: 1500, vs: 0, rho: 1030 };
-  const elastic = (key, fluid) => {
-    const p = props[fluid ? `${key}:${fluid}` : key] || props[key];
-    return { vp: p.vp, vs: p.vs, rho: p.rho };
-  };
+  const profiles = props.profiles || {};
+  const meanOf = (key, fluid) => props[fluid ? `${key}:${fluid}` : key] || props[key];
+  const cell = (m, b) => ({ vp: m.vp * (1 + (b?.dvp || 0)), vs: m.vs * (1 + (b?.dvs || 0)), rho: m.rho * (1 + (b?.drho || 0)) });
   return function interfacesAt(x, y) {
     const out = [{ t: waterTwtMs, upper: water, lower: null, seabed: true }];
     let t = waterTwtMs;
@@ -164,34 +192,84 @@ export function makeElasticModel({ geo, props, contacts }) {
       // sonic time, moved onto the checkshot time-depth at each boundary
       const sTop = seisTwt(tTop, zTop);
       const sBase = seisTwt(tBase, zBase);
-      let top = elastic(layerKey, null);
-      if (c) top = elastic(layerKey, zTop < c.depth ? c.upper : 'brine');
-      if (above) out.push({ t: sTop, upper: above, lower: top, layerKey, span: sBase - sTop });
-      else out[0].lower = top;
-      let bottom = top;
-      if (c && zTop < c.depth && c.depth < zBase) {
-        bottom = elastic(layerKey, 'brine');
-        out.push({ t: seisTwt(tTop + (2 * (c.depth - zTop) * 1000) / p.v, c.depth), upper: top, lower: bottom, contact: layerKey });
+      const tAt = (u) => sTop + u * (sBase - sTop);
+      // where the contact falls in the layer (u), if it does
+      const uc = c && zTop < c.depth && c.depth < zBase ? (c.depth - zTop) / (zBase - zTop) : null;
+      const fluidAt = (u) => (c ? ((uc !== null ? u < uc : zTop < c.depth) ? c.upper : 'brine') : null);
+      // the layer's cells: profile blocks, the one holding the contact split there
+      const blocks = profiles[layerKey] && profiles[layerKey].length ? profiles[layerKey] : [{ u0: 0, dvp: 0, dvs: 0, drho: 0 }];
+      const cuts = [];
+      for (const b of blocks) cuts.push({ u: b.u0, b });
+      if (uc !== null) {
+        let j = 0; while (j + 1 < cuts.length && cuts[j + 1].u <= uc) j++;
+        cuts.splice(j + 1, 0, { u: uc, b: cuts[j].b, contact: true });
       }
-      above = bottom;
+      for (let j = 0; j < cuts.length; j++) {
+        const { u, b, contact } = cuts[j];
+        const props1 = cell(meanOf(layerKey, fluidAt(u + 1e-9)), b);
+        if (j === 0) {
+          if (above) out.push({ t: tAt(0), upper: above, lower: props1, layerKey });
+          else out[0].lower = props1;
+        } else if (contact) {
+          out.push({ t: tAt(u), upper: above, lower: props1, contact: layerKey });
+        } else {
+          out.push({ t: tAt(u), upper: above, lower: props1, fine: true });
+        }
+        above = props1;
+      }
       t = tBase;
     }
     return out;
   };
 }
 
-/** Real part of the exact PP reflection coefficient; null past the critical angle or the mute. */
+/**
+ * Shuey's three-term form of Aki-Richards for one interface:
+ * R(theta) = A + B sin^2 + C (tan^2 - sin^2), from the averages and the
+ * jumps across it. Used for the fine interfaces (small contrasts); the
+ * major ones are exact Zoeppritz.
+ */
+export function shueyABC(a, b) {
+  const vp = (a.vp + b.vp) / 2; const vs = (a.vs + b.vs) / 2; const rho = (a.rho + b.rho) / 2;
+  const dvp = (b.vp - a.vp) / vp; const dvs = (b.vs - a.vs) / vs; const drho = (b.rho - a.rho) / rho;
+  const k = (vs / vp) ** 2;
+  return { A: 0.5 * (dvp + drho), B: 0.5 * dvp - 2 * k * (drho + 2 * dvs), C: 0.5 * dvp };
+}
+const abcOf = (i) => (i.abc || (i.abc = shueyABC(i.upper, i.lower)));
+
+/** The reflection coefficient at one angle; null past the critical angle or the mute. */
 export function rpp(i, thetaDeg, muteDeg = 40) {
   if (i.seabed) return 0.28;
   if (thetaDeg > muteDeg) return null;
+  if (i.fine) {
+    const { A, B, C } = abcOf(i);
+    const s2 = Math.sin(thetaDeg * DEG) ** 2; const t2 = Math.tan(thetaDeg * DEG) ** 2;
+    return A + B * s2 + C * (t2 - s2);
+  }
   const { upper: a, lower: b } = i;
   const r = zoeppritzRpp(a.vp, a.vs, a.rho, b.vp, b.vs, b.rho, thetaDeg);
   if (Math.abs(r.im) > 1e-9) return null;
   return r.re;
 }
 
+const rangeMeans = new Map();
+function meansOver(from, to) {
+  const key = `${from}/${to}`;
+  if (!rangeMeans.has(key)) {
+    let s2 = 0; let d = 0; let n = 0;
+    for (let a = from; a <= to + 1e-9; a += 1) { const x = Math.sin(a * DEG) ** 2; s2 += x; d += Math.tan(a * DEG) ** 2 - x; n += 1; }
+    rangeMeans.set(key, { s2: s2 / n, d: d / n });
+  }
+  return rangeMeans.get(key);
+}
+
 /** Mean reflection coefficient over [from, to] degrees in 1 degree steps (an angle stack). */
 export function stackRpp(i, from, to) {
+  if (i.fine) {
+    const { A, B, C } = abcOf(i);
+    const m = meansOver(from, to);
+    return A + B * m.s2 + C * m.d;
+  }
   let s = 0; let n = 0;
   for (let a = from; a <= to + 1e-9; a += 1) {
     const r = rpp(i, a);
@@ -221,26 +299,18 @@ export function makeElasticTracer({ ns, dtMs, noiseRef = 0 }) {
 
   return function trace(interfaces, reflAt, { x, y, seed, noise = true }) {
     const refl = new Float64Array(ns);
-    const put = (tMs, r) => {
-      const k = Math.round(tMs / dtMs);
-      if (k >= 0 && k < ns) refl[k] += r;
-    };
-    // the boundaries themselves are placed at their exact time (a wavelet
+    // the major boundaries are placed at their exact time (a wavelet
     // evaluated off the sample grid): snapping them to 4 ms put stair steps
     // into every amplitude and time map
     const exact = [];
     for (const i of interfaces) {
-      exact.push([i.t, reflAt(i)]);
-      // bedding texture inside the package, angle independent, tied to
-      // stratigraphic position as in v2
-      if (i.span && i.layerKey) {
-        const nInt = Math.max(2, Math.round(i.span / (dtMs * 3)));
-        const texture = i.layerKey === 'EKENE' || i.layerKey === 'OBORO' ? 0.012 : 0.035;
-        for (let k = 1; k < nInt; k += 1) {
-          const u = k / nInt;
-          put(i.t + u * i.span, (fbm(i.layerKey.length * 131 + 17, u * nInt * 0.8, 3) - 0.5) * texture);
-        }
-      }
+      const r = reflAt(i);
+      if (!r) continue;
+      if (!i.fine) { exact.push([i.t, r]); continue; }
+      // the fine structure: split between the two nearest samples
+      const x = i.t / dtMs; const k = Math.floor(x); const f = x - k;
+      if (k >= 0 && k < ns) refl[k] += r * (1 - f);
+      if (k + 1 >= 0 && k + 1 < ns) refl[k + 1] += r * f;
     }
     const out = new Float32Array(ns);
     for (let k = 0; k < ns; k += 1) {
@@ -307,13 +377,20 @@ export function rmsVelocityTable({ geo, props, x, y }) {
   return { t_ms: tMs.map((v) => Math.round(v * 10) / 10), vrms: vrms.map((v) => Math.round(v * 10) / 10) };
 }
 
-/** Incidence angle at each interface for one offset, the way QI's angle_stacks computes it. */
-export function gatherAngles(interfaces, offsetM, table, dtMs, ns) {
+/**
+ * The incidence angle at any time for one offset, the way QI's angle_stacks
+ * computes it (Walden's straight ray, the RMS table on the trace's samples).
+ */
+export function angleAtTime(offsetM, table, dtMs, ns) {
   const { vrms, vint } = velocityOnGrid(table.t_ms, table.vrms, ns, dtMs);
-  return interfaces.map((i) => {
-    const k = Math.min(ns - 1, Math.max(0, Math.round(i.t / dtMs)));
-    return waldenAngle(offsetM, i.t / 1000, vrms[k], vint[k]);
-  });
+  const ang = Float64Array.from({ length: ns }, (_, k) => waldenAngle(offsetM, (k * dtMs) / 1000, vrms[k], vint[k]));
+  return (tMs) => ang[Math.min(ns - 1, Math.max(0, Math.round(tMs / dtMs)))];
+}
+
+/** Incidence angle at each interface for one offset (angleAtTime, per interface). */
+export function gatherAngles(interfaces, offsetM, table, dtMs, ns) {
+  const at = angleAtTime(offsetM, table, dtMs, ns);
+  return interfaces.map((i) => at(i.t));
 }
 
 /**

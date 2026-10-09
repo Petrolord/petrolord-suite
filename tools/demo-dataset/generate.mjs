@@ -41,7 +41,7 @@ import { fitInterceptGradient } from '../../packages/engines/engines/rockphysics
 import { avoClass } from '../../packages/engines/engines/rockphysics/avo.js';
 import {
   makeGeometry, SEISMIC_NOTES, elasticPropsFrom, makeElasticModel, makeElasticTracer, stackRpp, rpp,
-  rmsVelocityTable, gatherAngles, traceRms, muteTrace, checkshotDriftOwtMs,
+  rmsVelocityTable, angleAtTime, traceRms, muteTrace, checkshotDriftOwtMs,
 } from './seismic.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -381,12 +381,15 @@ const QI_TRUTH = {};
   Object.assign(QI_TRUTH, { props, model, table, ref });
 
   const coordsFull = makeGeometry(SEISMIC.full);
-  const ifsCache = new Map();
+  // the last location's interfaces only: a gather's 13 offsets share one
+  // (a cache of every trace held about 1500 interfaces each, out of memory)
+  let last = { key: null, ifs: null };
   const ifsAt = (p) => {
     const key = `${p.x.toFixed(3)}/${p.y.toFixed(3)}`;
-    if (!ifsCache.has(key)) ifsCache.set(key, model(p.x, p.y));
-    return ifsCache.get(key);
+    if (last.key !== key) last = { key, ifs: model(p.x, p.y) };
+    return last.ifs;
   };
+
   const header = (cfg, label, lines) => [
     `CLIENT ${FRAME.operator}`,
     `SURVEY EKENE 3D ${label} - SYNTHETIC DEMONSTRATION DATA`,
@@ -442,20 +445,16 @@ const QI_TRUTH = {};
     const nsG = Math.round(G.t_max_ms / SEISMIC.dt_ms) + 1;
     const offsets = Array.from({ length: G.nOffset }, (_, k) => G.offset0_m + k * G.offsetStep_m);
     const tracerG = makeElasticTracer({ ns: nsG, dtMs: SEISMIC.dt_ms, noiseRef });
-    const angleCache = new Map();
+    // each offset's angle at every time, the way QI's angle_stacks computes it
+    const angleAt = offsets.map((o) => angleAtTime(o, table, SEISMIC.dt_ms, nsG));
     const buf = writeSegy({
       nInline: G.nInline, nXline: G.nXline, ns: nsG, dtUs, formatCode: 5, il0: G.il0, xl0: G.xl0, offsets,
       coords: (il, xl) => utm(coordsFull(il, xl)),
       trace: (il, xl, k) => {
         const p = coordsFull(il, xl);
         const ifs = ifsAt(p);
-        const key = `${il}/${xl}`;
-        if (!angleCache.has(key)) {
-          angleCache.clear();
-          angleCache.set(key, offsets.map((o) => gatherAngles(ifs, o, table, SEISMIC.dt_ms, nsG)));
-        }
-        const ang = angleCache.get(key)[k];
-        const tr = tracerG(ifs, (i) => rpp(i, ang[ifs.indexOf(i)], Q.mute_deg) ?? 0, { x: p.x, y: p.y, seed: 41 + 7 * k });
+        const at = angleAt[k];
+        const tr = tracerG(ifs, (i) => rpp(i, at(i.t), Q.mute_deg) ?? 0, { x: p.x, y: p.y, seed: 41 + 7 * k });
         return muteTrace(tr, offsets[k], table, SEISMIC.dt_ms, Q.mute_deg);
       },
       textLines: header({ ...G, ns: nsG, format: 5 }, 'NMO-CORRECTED OFFSET GATHERS', [
@@ -552,7 +551,10 @@ const QI_TRUTH = {};
   // 3. interface AVO at Ekene-1 (exact Zoeppritz, intercept and gradient fitted 0 to 30 degrees)
   const angles = Array.from({ length: 31 }, (_, k) => k);
   const ifs = model(ref.well.x, ref.well.y);
-  const brineTop = { ...ifs.find((i) => i.layerKey === 'EKENE'), lower: { vp: props['EKENE:brine'].vp, vs: props['EKENE:brine'].vs, rho: props['EKENE:brine'].rho } };
+  // the same top cell with brine in place of oil (same fine-structure fraction)
+  const oilTop = ifs.find((i) => i.layerKey === 'EKENE');
+  const scaleTo = (k) => oilTop.lower[k] * (props['EKENE:brine'][k] / props['EKENE:oil'][k]);
+  const brineTop = { ...oilTop, abc: undefined, lower: { vp: scaleTo('vp'), vs: scaleTo('vs'), rho: scaleTo('rho') } };
   const named = [
     ['Top Ekene Sand, oil leg (at Ekene-1)', ifs.find((i) => i.layerKey === 'EKENE')],
     ['Top Ekene Sand, if brine-filled', brineTop],
@@ -1253,6 +1255,9 @@ write('00-START-HERE.md', [
   '  shift, and the sonic alone reads up to 15 ms late at the reservoir (the checkshot drift), as a real',
   '  sonic does. v2 was timed by the sonic, so events at depth arrive up to 15 ms earlier than in v2;',
   '  structure is unchanged.',
+  '- Inside each layer the seismic carries Ekene-1\'s own logs (v3.2): its Vp, Vs and density in 1.5 m',
+  '  blocks, following the stratigraphy across the cube, where v3.1 had a random texture. A synthetic on',
+  '  the checkshots ties Ekene-1 at about r 0.87 and the other wells at 0.74 to 0.87.',
   '- New: near, mid and far angle stacks, NMO-corrected offset gathers with their RMS velocity, and',
   '  `10-qi`, the numbers QI Studio and Rock Physics Studio should give back.', '',
   '## Heavy files', '',
