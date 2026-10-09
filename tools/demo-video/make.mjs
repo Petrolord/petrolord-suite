@@ -7,6 +7,8 @@
 //   all       the three in order (default)
 //
 // Output: $DEMO_VIDEO_OUT (default /root/demo-videos)/<storyboard id>/
+// After assembling, the masters are copied to R2 when /root/.r2.env exists
+// (--no-upload skips it; see r2.mjs).
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -45,4 +47,11 @@ if (stage === 'assemble' || stage === 'all') {
   console.log(`[${sb.id}] assembling`);
   const r = await assemble(sb, clips, rec, { outDir });
   console.log(`[${sb.id}] done: ${r.duration.toFixed(1)} s, ${r.cues} subtitle cues -> ${outDir}`);
+  const { r2Config, uploadVideo } = await import('./lib/r2.mjs');
+  const cfg = r2Config(env);
+  if (cfg && !args.includes('--no-upload')) {
+    console.log(`[${sb.id}] copying masters to R2 (${cfg.bucket})`);
+    // a failed upload never loses the cut; r2.mjs upload can retry it
+    try { await uploadVideo(cfg, outDir); } catch (e) { console.warn(`[${sb.id}] R2 upload failed, retry with: node tools/demo-video/r2.mjs upload ${sb.id}\n  ${e.message}`); }
+  }
 }

@@ -7,8 +7,8 @@
 # Add --dry-run to list what would go without deleting anything.
 #
 # Never touches: git worktrees, the staging container or its volumes in use,
-# the database, live and recent upload zips, finished videos, the narration
-# cache (re-cuts would pay for TTS again).
+# the database, live and recent upload zips, the narration cache (re-cuts
+# would pay for TTS again), or a finished video the R2 bucket does not hold.
 set -uo pipefail
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH  # cron runs with a bare PATH
 
@@ -20,6 +20,8 @@ VIDEOS=${DEMO_VIDEO_OUT:-/root/demo-videos}
 ALERT_FILE=${HOUSEKEEPING_ALERT_FILE:-/root/DISK-ALERT.txt}
 LOG=${HOUSEKEEPING_LOG:-/var/log/petrolord-housekeeping.log}
 SCRATCH_ROOT=/tmp/claude-0
+R2_ENV=${R2_ENV_FILE:-/root/.r2.env}
+R2_KEEP_DAYS=${R2_KEEP_LOCAL_DAYS:-30}  # local copies of uploaded cuts kept this long
 
 log() { echo "$(date -u +%FT%TZ) [$MODE] $*" >> "$LOG"; { [ -t 1 ] || [ $DRY = 1 ]; } && echo "$*"; }
 used_pct() { df --output=pcent / | tail -1 | tr -dc '0-9'; }
@@ -30,6 +32,18 @@ gone() { # rm with a log line; honours --dry-run
     if [ $DRY = 1 ]; then log "would remove $p ($(du -sh "$p" 2>/dev/null | cut -f1))"
     else rm -rf -- "$p" && log "removed $p"; fi
   done
+}
+in_r2() { # in_r2 <dir> <file>: the bucket holds this exact file (size + MD5 ETag per r2.json)
+  [ -f "$R2_ENV" ] && [ -f "$1/r2.json" ] && [ -f "$1/$2" ] || return 1
+  local want size md5 hdr
+  want=$(python3 -c 'import json,sys; f=json.load(open(sys.argv[1]))["files"][sys.argv[2]]; print(f["key"], f["size"], f["md5"])' "$1/r2.json" "$2" 2>/dev/null) || return 1
+  read -r key size md5 <<<"$want"
+  [ "$(stat -c %s "$1/$2")" = "$size" ] && [ "$(md5sum "$1/$2" | cut -d' ' -f1)" = "$md5" ] || return 1
+  hdr=$( set -a; . "$R2_ENV"; set +a
+    curl -sfI --max-time 60 --aws-sigv4 "aws:amz:auto:s3" --user "$R2_ACCESS_KEY_ID:$R2_SECRET_ACCESS_KEY" \
+      -H 'Accept-Encoding: identity' -H "x-amz-content-sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" \
+      "https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com/$R2_BUCKET/$key") || return 1
+  grep -qi "^content-length: *$size" <<<"$hdr" && grep -qi "^etag: *\"$md5\"" <<<"$hdr"
 }
 keep_newest() { # keep_newest N glob...: remove all but the N newest matches
   local n=$1; shift
@@ -46,6 +60,13 @@ clean() {
     [ -f "$d/youtube.mp4" ] || continue
     [ -n "$(find "$d/youtube.mp4" -mtime +3)" ] || continue
     gone "$d/raw.mkv" "$d/work" "$d/profile"
+  done
+  # finished cuts: free the local copy R2_KEEP_DAYS after upload, only when
+  # the bucket still holds the identical file (node tools/demo-video/r2.mjs get
+  # <id> brings it back)
+  for d in "$VIDEOS"/*/; do
+    [ -f "$d/r2.json" ] && [ -n "$(find "$d/r2.json" -mtime +"$R2_KEEP_DAYS")" ] || continue
+    for f in youtube.mp4 nape.mp4; do in_r2 "${d%/}" "$f" && gone "$d$f"; done
   done
   find "$VIDEOS" -maxdepth 1 -type f \( -name 'probe-*.png' -o -name 'seed-*.png' -o -name 'merge-*.log' \) -mtime +7 2>/dev/null | while read -r f; do gone "$f"; done
   keep_newest 1 -d /root/demo-video-work/site-*
