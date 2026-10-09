@@ -7,14 +7,16 @@ import { scanGeometry, readFileHeaders } from '../../../packages/engines/engines
 import { bufferReader } from '../../../src/pages/apps/Seismolord/engine/reader';
 import { pickettFit } from '../../../packages/engines/engines/petrophysics/rw';
 
-import { LOCKED, PETRO, PRESSURE, FRAME, SEISMIC } from '../spine.mjs';
+import { LOCKED, PETRO, PRESSURE, FRAME, SEISMIC, OBORO } from '../spine.mjs';
 import { buildKit, lockedVolumetrics } from '../build.mjs';
 import {
   PRESSURE_MODEL, dtNormal, rwAt, tempF, OIL_SH, OIL_CONTACT_TVDSS,
 } from '../rockmodel.mjs';
 import { writeLas } from '../writers/las.mjs';
 import { writeSegy } from '../writers/segy.mjs';
-import { layerPropsFrom, makeGeometry, makeTraceBuilder } from '../seismic.mjs';
+import {
+  makeGeometry, elasticPropsFrom, makeElasticModel, makeElasticTracer, stackRpp,
+} from '../seismic.mjs';
 
 const FT_PER_M = 3.280839895013123;
 
@@ -140,15 +142,24 @@ describe('pore pressure lands on the reservoir', () => {
   });
 });
 
+// the v3 full stack, the way generate.mjs builds it (noise against the same reference)
+function fullStackAt(ns) {
+  const props = elasticPropsFrom(wellNamed('Ekene-1').rows);
+  const contacts = { EKENE: { depth: LOCKED.owc_m, upper: 'oil' }, OBORO: { depth: OBORO.gwc_m, upper: 'gas' } };
+  const model = makeElasticModel({ geo: kit.geo, props, contacts });
+  const [a, b] = SEISMIC.qi.full_deg;
+  const tracer = makeElasticTracer({ ns, dtMs: SEISMIC.dt_ms, noiseRef: 0.03 });
+  return (x, y) => tracer(model(x, y), (i) => stackRpp(i, a, b), { x, y, seed: 17 });
+}
+
 describe('the seismic is honest', () => {
   const cfg = { nInline: 4, nXline: 4, il0: 1000, xl0: 2000, format: 1 };
   let buf;
   let ns;
   beforeAll(() => {
-    const props = layerPropsFrom(wellNamed('Ekene-1').rows);
     ns = Math.round(SEISMIC.t_max_ms / SEISMIC.dt_ms) + 1;
     const coords = makeGeometry(cfg);
-    const traceAt = makeTraceBuilder({ geo: kit.geo, props, ns, dtMs: SEISMIC.dt_ms });
+    const traceAt = fullStackAt(ns);
     buf = writeSegy({
       nInline: cfg.nInline, nXline: cfg.nXline, il0: cfg.il0, xl0: cfg.xl0,
       formatCode: cfg.format, ns, dtUs: SEISMIC.dt_ms * 1000,
@@ -180,9 +191,7 @@ describe('the seismic is honest', () => {
 
   test('the top of the Ekene Sand arrives where the well says it does', () => {
     const b = wellNamed('Ekene-1');
-    const props = layerPropsFrom(b.rows);
-    const traceAt = makeTraceBuilder({ geo: kit.geo, props, ns: 601, dtMs: SEISMIC.dt_ms });
-    const tr = traceAt(b.well.x, b.well.y);
+    const tr = fullStackAt(601)(b.well.x, b.well.y);
 
     // Two way time to the top of the sand, integrated from this well's own
     // sonic — which is the number the tie in Episode 6 has to reproduce.
@@ -297,7 +306,7 @@ describe('the logs are measured the way tools measure', () => {
 test('no LAS header line carries a colon inside its description', () => {
   const fs = require('fs');
   const path = require('path');
-  const text = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v2', '01-wells', 'Ekene-1.las'), 'utf8');
+  const text = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v3', '01-wells', 'Ekene-1.las'), 'utf8');
   const header = text.split('~A')[0].split('\n').filter((l) => /^\s*[A-Z][A-Z0-9_]*\s*\./.test(l));
   for (const l of header) expect((l.match(/:/g) || []).length).toBe(1);
   const parsed = parseLas(text);

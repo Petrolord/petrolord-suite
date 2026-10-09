@@ -175,9 +175,10 @@ export const PLATFORM = { name: 'Ekene Alpha', x: 1700, y: 1600 };
 
 // Log suite. Mnemonics follow the Petrophysics Studio pipeline inputs.
 export const CURVES = {
-  full:            ['CALI', 'GR', 'SP', 'RHOB', 'DRHO', 'NPHI', 'DT', 'RT', 'RXO', 'PEF'],
-  full_plus_litho: ['CALI', 'GR', 'SP', 'RHOB', 'DRHO', 'NPHI', 'DT', 'RT', 'RXO', 'PEF', 'LITH'],
-  no_density:      ['CALI', 'GR', 'DT', 'RT'],
+  // v3: DTS (dipole shear) after DT wherever there is a sonic
+  full:            ['CALI', 'GR', 'SP', 'RHOB', 'DRHO', 'NPHI', 'DT', 'DTS', 'RT', 'RXO', 'PEF'],
+  full_plus_litho: ['CALI', 'GR', 'SP', 'RHOB', 'DRHO', 'NPHI', 'DT', 'DTS', 'RT', 'RXO', 'PEF', 'LITH'],
+  no_density:      ['CALI', 'GR', 'DT', 'DTS', 'RT'],
   none:            [],
 };
 
@@ -229,10 +230,28 @@ export const SEISMIC = {
   wavelet: { type: 'ricker', f_dom_hz: 30, f_dom_deep_hz: 18 },
   noise_db: 14,                      // signal-to-noise; 'real character', not clean
   replacement_velocity_m_s: 1600,
+  // v3: elastic products. Angles in degrees; every stack is the mean exact
+  // Zoeppritz coefficient over its range in 1 degree steps.
+  qi: {
+    full_deg: [0, 30],
+    stacks: [['near', 5, 15], ['mid', 15, 25], ['far', 25, 35]],
+    mute_deg: 40,
+    // NMO-corrected offset gathers over the wells' part of the survey
+    gathers: { il0: 1020, xl0: 2030, nInline: 64, nXline: 64, offset0_m: 100, offsetStep_m: 200, nOffset: 13, t_max_ms: 1900 },
+  },
+};
+
+// Elastic design (v3, QI). The brine-filled shear trend of the Ekene field:
+// Vs = a*Vp + b in km/s per end member, mixed on Vsh the Greenberg-Castagna
+// way. The shale line is the published GC shale line; the sand line sits
+// above GC sandstone (0.80416, -0.85588) by about 4.5% at 3 km/s, the
+// difference a local calibration on a measured DTS finds.
+export const ELASTIC = {
+  trend: { sand: [0.835, -0.880], shale: [0.76969, -0.86735] },
 };
 
 export const KIT = {
-  version: 'v2',  // v2 (2026-10-08): LAS curves are tool measurements of the truth (measure.mjs)
+  version: 'v3',  // v3 (2026-10-09): DTS, elastic seismic, angle stacks and gathers for QI; v2 (2026-10-08): LAS curves are tool measurements of the truth (measure.mjs)
   name: 'ekene-demo',
   out_dir: 'dist-demo',
 };

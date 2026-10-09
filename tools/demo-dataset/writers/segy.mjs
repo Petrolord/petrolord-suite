@@ -61,27 +61,31 @@ export function toIbm(value) {
  * @param {number} o.il0 @param {number} o.xl0
  * @param {Array<string>} o.textLines
  * @param {number} [o.coordScalar] negative divides; -100 keeps centimetres
+ * @param {Array<number>} [o.offsets] v3: write a prestack file, one trace per
+ *   offset in each cell (CDP-sorted, offset in bytes 37-40);
+ *   trace(il, xl, k) then returns offset k's samples
  */
 export function writeSegy(o) {
   const {
     nInline, nXline, ns, dtUs, formatCode, trace, coords, il0, xl0,
-    textLines, coordScalar = -100,
+    textLines, coordScalar = -100, offsets = null,
   } = o;
   const traceBytes = 240 + ns * 4;
-  const total = 3600 + nInline * nXline * traceBytes;
+  const perCell = offsets ? offsets.length : 1;
+  const total = 3600 + nInline * nXline * perCell * traceBytes;
   const buf = Buffer.alloc(total);
   textualHeader(textLines).copy(buf, 0);
 
   // Binary header
   const bh = buf.subarray(3200, 3600);
   bh.writeInt32BE(1, 4);            // 3205-3208 line number
-  bh.writeInt16BE(1, 12);           // 3213-3214 traces per ensemble
+  bh.writeInt16BE(perCell, 12);     // 3213-3214 traces per ensemble
   bh.writeInt16BE(dtUs, 16);        // 3217-3218 sample interval
   bh.writeInt16BE(dtUs, 18);        // 3219-3220 field sample interval
   bh.writeInt16BE(ns, 20);          // 3221-3222 samples per trace
   bh.writeInt16BE(ns, 22);          // 3223-3224 field samples per trace
   bh.writeInt16BE(formatCode, 24);  // 3225-3226 format code
-  bh.writeInt16BE(4, 28);           // 3229-3230 trace sorting: 4 = horizontally stacked
+  bh.writeInt16BE(offsets ? 2 : 4, 28); // 3229-3230 trace sorting: 2 = CDP ensemble, 4 = horizontally stacked
   bh.writeInt16BE(1, 54);           // 3255-3256 measurement system: 1 = metres
   bh.writeInt16BE(0x0100, 300);     // 3501-3502 SEG-Y rev 1.0
   bh.writeInt16BE(1, 302);          // 3503-3504 fixed length trace flag
@@ -89,38 +93,46 @@ export function writeSegy(o) {
 
   let off = 3600;
   let seq = 1;
+  let cdp = 0;
   for (let i = 0; i < nInline; i += 1) {
     for (let x = 0; x < nXline; x += 1) {
-      const il = il0 + i;
-      const xl = xl0 + x;
-      const { x: cx, y: cy } = coords(il, xl);
-      const th = buf.subarray(off, off + 240);
-      th.writeInt32BE(seq, 0);                       // 1-4   sequence in line
-      th.writeInt32BE(seq, 4);                       // 5-8   sequence in file
-      th.writeInt32BE(il, 8);                        // 9-12  field record
-      th.writeInt32BE(seq, 20);                      // 21-24 ensemble (CDP)
-      th.writeInt16BE(1, 28);                        // 29-30 trace id: 1 = live
-      th.writeInt16BE(coordScalar, 70);              // 71-72 coordinate scalar
-      th.writeInt32BE(Math.round(cx * 100), 72);     // 73-76 source X
-      th.writeInt32BE(Math.round(cy * 100), 76);     // 77-80 source Y
-      th.writeInt32BE(Math.round(cx * 100), 80);     // 81-84 group X
-      th.writeInt32BE(Math.round(cy * 100), 84);     // 85-88 group Y
-      th.writeInt16BE(1, 88);                        // 89-90 coordinate units: length
-      th.writeInt16BE(ns, 114);                      // 115-116 samples
-      th.writeInt16BE(dtUs, 116);                    // 117-118 sample interval
-      th.writeInt32BE(Math.round(cx * 100), 180);    // 181-184 CDP X
-      th.writeInt32BE(Math.round(cy * 100), 184);    // 185-188 CDP Y
-      th.writeInt32BE(il, 188);                      // 189-192 inline
-      th.writeInt32BE(xl, 192);                      // 193-196 crossline
-      const samples = trace(il, xl);
-      let p = off + 240;
-      for (let s = 0; s < ns; s += 1) {
-        if (formatCode === 1) buf.writeUInt32BE(toIbm(samples[s]), p);
-        else buf.writeFloatBE(samples[s], p);
-        p += 4;
+      cdp += 1;
+      for (let k = 0; k < perCell; k += 1) {
+        const il = il0 + i;
+        const xl = xl0 + x;
+        const { x: cx, y: cy } = coords(il, xl);
+        const th = buf.subarray(off, off + 240);
+        th.writeInt32BE(seq, 0);                       // 1-4   sequence in line
+        th.writeInt32BE(seq, 4);                       // 5-8   sequence in file
+        th.writeInt32BE(il, 8);                        // 9-12  field record
+        th.writeInt32BE(offsets ? cdp : seq, 20);      // 21-24 ensemble (CDP)
+        if (offsets) {
+          th.writeInt32BE(k + 1, 24);                  // 25-28 trace number within the ensemble
+          th.writeInt32BE(Math.round(offsets[k]), 36); // 37-40 source-receiver offset
+        }
+        th.writeInt16BE(1, 28);                        // 29-30 trace id: 1 = live
+        th.writeInt16BE(coordScalar, 70);              // 71-72 coordinate scalar
+        th.writeInt32BE(Math.round(cx * 100), 72);     // 73-76 source X
+        th.writeInt32BE(Math.round(cy * 100), 76);     // 77-80 source Y
+        th.writeInt32BE(Math.round(cx * 100), 80);     // 81-84 group X
+        th.writeInt32BE(Math.round(cy * 100), 84);     // 85-88 group Y
+        th.writeInt16BE(1, 88);                        // 89-90 coordinate units: length
+        th.writeInt16BE(ns, 114);                      // 115-116 samples
+        th.writeInt16BE(dtUs, 116);                    // 117-118 sample interval
+        th.writeInt32BE(Math.round(cx * 100), 180);    // 181-184 CDP X
+        th.writeInt32BE(Math.round(cy * 100), 184);    // 185-188 CDP Y
+        th.writeInt32BE(il, 188);                      // 189-192 inline
+        th.writeInt32BE(xl, 192);                      // 193-196 crossline
+        const samples = offsets ? trace(il, xl, k) : trace(il, xl);
+        let p = off + 240;
+        for (let s = 0; s < ns; s += 1) {
+          if (formatCode === 1) buf.writeUInt32BE(toIbm(samples[s]), p);
+          else buf.writeFloatBE(samples[s], p);
+          p += 4;
+        }
+        off += traceBytes;
+        seq += 1;
       }
-      off += traceBytes;
-      seq += 1;
     }
   }
   return buf;

@@ -3,19 +3,24 @@
 Builds the field dataset the YouTube tutorial series records against.
 
 ```
-npx tsx tools/demo-dataset/generate.mjs      # -> dist-demo/ekene-demo-v2/
+npx tsx tools/demo-dataset/generate.mjs      # -> dist-demo/ekene-demo-v3/
 npx jest tools/demo-dataset                  # the gates (kitImports reads the generated kit)
 ```
 
-To package for the release (two assets: the kit stays small enough to
-hand to anyone, the full volume travels on its own):
+To package for the release (the kit stays small enough to hand to anyone;
+the heavy seismic travels as separate assets):
 
 ```
 cd dist-demo
-zip -qr ekene-demo-v2-kit.zip ekene-demo-v2 \
-    -x "ekene-demo-v2/04-seismic/EKENE3D-full.sgy"      # 5.5 MB
-zip -qj ekene-demo-v2-seismic-full.zip \
-    ekene-demo-v2/04-seismic/EKENE3D-full.sgy           # 35 MB
+zip -qr ekene-demo-v3-kit.zip ekene-demo-v3 \
+    -x "ekene-demo-v3/04-seismic/EKENE3D-full.sgy" \
+       "ekene-demo-v3/04-seismic/EKENE3D-near.sgy" \
+       "ekene-demo-v3/04-seismic/EKENE3D-mid.sgy" \
+       "ekene-demo-v3/04-seismic/EKENE3D-far.sgy" \
+       "ekene-demo-v3/04-seismic/gathers/*"
+zip -qj ekene-demo-v3-seismic-full.zip ekene-demo-v3/04-seismic/EKENE3D-full.sgy
+zip -qj ekene-demo-v3-angle-stacks.zip ekene-demo-v3/04-seismic/EKENE3D-{near,mid,far}.sgy
+zip -qj ekene-demo-v3-gathers.zip ekene-demo-v3/04-seismic/gathers/*
 ```
 
 Deterministic: reruns are byte-identical. Plan of record:
@@ -100,3 +105,20 @@ samples (Vsh <= 0.12) give a least-squares Pickett line of m about 1.6 and
 a*Rw about 0.13, against the truth of m 2 and Rw 0.078. Noise in porosity
 biases a least-squares slope shallow, which is itself a lesson.
 
+
+## Kit v3 (2026-10-09): the QI pack
+
+`elastic.mjs` adds a dipole shear sonic (DTS) to every well with a sonic,
+without changing any v2 log value (DTS is appended last in `measure.mjs`, so
+every earlier curve keeps its noise). Brine-filled rock lies on a local
+shear trend (`ELASTIC` in `spine.mjs`, a few per cent above
+Greenberg-Castagna in sand); hydrocarbon-bearing rock is the fixed point of
+the engine's `iterativeVs` at Batzle-Wang fluids for each reservoir.
+
+`seismic.mjs` now models every product from one elastic model (per-layer
+Vp, Vs and density from Ekene-1, split at the fluid contacts, exact
+Zoeppritz): the full stack (0 to 30 degrees), near, mid and far angle stacks
+on the same lattice, and NMO-corrected offset gathers whose angles are
+Walden's straight-ray angles from the published RMS velocity, the way QI
+Studio computes them. `10-qi/` holds the truth the QI videos quote, and
+`__tests__/qi.test.js` gates it through the engines.
