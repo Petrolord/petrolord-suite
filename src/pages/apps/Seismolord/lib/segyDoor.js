@@ -75,17 +75,30 @@ import {
 /** Formats the readers take as they are (classic layout, 4-byte samples). */
 const NATIVE_FORMATS = new Set([1, 5]);
 const DEPTH_WORDS = /\b(DEPTH|PSDM|PRE-?STACK DEPTH|DEPTH[- ]MIGRAT\w*|Z UNIT|TVDSS)\b/i;
+// words that name a depth-domain volume outright; a bare "DEPTH" may not
+const STRONG_DEPTH = /\b(PSDM|PRE-?STACK DEPTH|DEPTH[- ]MIGRAT\w*|Z UNIT|TVDSS)\b/i;
+// phrases a time volume's header uses that mention depth without being about
+// the sample axis (a header saying it is timed by the checkshot time-depth
+// preselected Depth, 2026-10-09)
+const NOT_THE_AXIS = /\b(TIME[- ]DEPTH|WATER[- ]DEPTH|DEPTH OF|DEPTH CONVERSION|DEPTH CONVERTED LATER)\b/gi;
 const TIME_WORDS = /\b(PSTM|TIME[- ]MIGRAT\w*|TWT|TWO[- ]WAY TIME|MILLISECONDS?|\bMS\b)\b/i;
 
 const i16 = (dv, pos, le = false) => dv.getInt16(pos, le);
 const i32 = (dv, pos, le) => dv.getInt32(pos, le);
 
-/** Does the textual header say the volume is in depth? A HINT, never a decision. */
+/**
+ * Does the textual header say the volume is in depth? A HINT, never a
+ * decision. `preselect` is true when Depth should be chosen for the user: a
+ * strong depth word (PSDM, depth migrated, TVDSS), or "depth" in a header
+ * with nothing about time in it.
+ */
 export function depthDomainHint(textLines) {
-  const text = (textLines || []).join('\n');
+  const text = (textLines || []).join('\n').replace(NOT_THE_AXIS, ' ');
   if (!DEPTH_WORDS.test(text)) return null;
   const m = text.match(DEPTH_WORDS);
-  return { word: m[0].trim(), alsoTime: TIME_WORDS.test(text) };
+  const alsoTime = TIME_WORDS.test(text);
+  const strong = STRONG_DEPTH.test(text);
+  return { word: m[0].trim(), alsoTime, strong, preselect: strong || !alsoTime };
 }
 
 const isEbcdicText = (b) => b === 0x40 || (b >= 0x4b && b <= 0x7f) || (b >= 0x81 && b <= 0xa9)

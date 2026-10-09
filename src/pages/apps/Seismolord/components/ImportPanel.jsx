@@ -383,7 +383,7 @@ export default function ImportPanel({
   useEffect(() => {
     if (!scan || domainPrefilledRef.current) return;
     domainPrefilledRef.current = true;
-    if (scan.depthHint) setDomain('depth');
+    if (scan.depthHint?.preselect) setDomain('depth');
   }, [scan]);
 
   // Plausibility of the scanned coordinates under the declared CRS.
@@ -792,7 +792,9 @@ export default function ImportPanel({
               </div>
               {scan.depthHint && (
                 <div className="text-xs text-pl-muted">
-                  The textual header mentions &quot;{scan.depthHint.word}&quot;, so Depth was preselected. The header may be wrong: check it below.
+                  {scan.depthHint.preselect
+                    ? <>The textual header mentions &quot;{scan.depthHint.word}&quot;, so Depth was preselected. The header may be wrong: check it below.</>
+                    : <>The textual header mentions &quot;{scan.depthHint.word}&quot; and also time, so Two-way time stays chosen. Check the header below if the volume is in depth.</>}
                 </div>
               )}
             </div>

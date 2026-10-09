@@ -166,6 +166,19 @@ describe('SEIS-U1-005 a depth volume is declared, never read as time silently', 
     expect(psdm.depthHint).toEqual(expect.objectContaining({ word: expect.stringMatching(/PSDM|DEPTH/) }));
     const clean = await doorScan('rev1_ieee_clean.sgy');
     expect(clean.depthHint).toBeNull();
+    expect(psdm.depthHint.preselect).toBe(true);
+  });
+
+  test('a time header that mentions depth for another reason does not preselect Depth (2026-10-09)', () => {
+    // the Ekene v3.1 header: timed by the checkshot time-depth, 4 ms samples
+    expect(depthDomainHint(['SAMPLES 601  INTERVAL 4 MS', 'AS THE WELL LOGS, ON THE CHECKSHOT TIME-DEPTH, SO A'])).toBeNull();
+    expect(depthDomainHint(['WATER DEPTH 35 M', 'POST STACK TIME MIGRATION'])).toBeNull();
+    // a bare DEPTH beside time words: a hint, not a preselection
+    const bare = depthDomainHint(['DEPTH 1500 TO 2500', 'SAMPLE INTERVAL 4 MS']);
+    expect(bare).toEqual(expect.objectContaining({ word: 'DEPTH', alsoTime: true, preselect: false }));
+    // negative control: strong words still preselect, time words or not
+    expect(depthDomainHint(['PSDM VOLUME', 'SAMPLE INTERVAL 4 MS']).preselect).toBe(true);
+    expect(depthDomainHint(['DEPTH VOLUME, SAMPLE 10 M']).preselect).toBe(true);
   });
 });
 
