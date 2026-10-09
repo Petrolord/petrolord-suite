@@ -2712,3 +2712,8 @@ drawing as they did. The engine and the display math are untouched.
 - The import dialog preselected Depth, and so blocked Start import until the user switched back, whenever a textual header contained the word DEPTH. That included time volumes whose headers say "time-depth" or "water depth". Found importing the Ekene kit v3.1, whose header said the volume follows the checkshot time-depth.
 - Phrases about something other than the sample axis are now ignored. A bare "depth" beside time words (MS, TWT, time migration) gives the note without preselecting Depth. Strong depth words (PSDM, depth migrated, TVDSS, Z UNIT) preselect as before.
 - **Tests:** `__tests__/upgradeU1Door.test.js` (the new cases fail on the old heuristic; strong words are the negative control).
+
+## A tie needs two anchors to commit (2026-10-09)
+- A derived checkshot set has one level per anchor, and a well's time-depth only uses a set of two levels or more (`effectiveCheckshots`). A one-anchor tie committed, was stored, and was then ignored by Seismolord's displays and by QI Studio, which fell back to the imported checkshots without saying so.
+- **Commit to checkshots** is now enabled from two anchors. With one anchor, a hint beside the count says to add another.
+- **Tests:** `__tests__/tieCommitAnchors.test.js`.

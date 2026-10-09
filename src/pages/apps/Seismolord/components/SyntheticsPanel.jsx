@@ -368,6 +368,14 @@ function drawTracks(canvas, view) {
  * @param {?(wellId: string) => Promise<{ok: boolean, gather?: Object, reason?: string}>} p.loadRockPhysicsGather
  *   U2-020: the angle gather Rock Physics Studio published for the well (src/lib/rockPhysicsGather.js)
  */
+/**
+ * A derived checkshot set is made from the anchors, one level each, and
+ * the wells' time-depth only uses a set of two levels or more
+ * (effectiveCheckshots). A one-anchor commit used to be stored and then
+ * silently ignored everywhere (found 2026-10-09), so it needs two.
+ */
+export const canCommitTie = (anchors) => Array.isArray(anchors) && anchors.length >= 2;
+
 export default function SyntheticsPanel({
   wells, listLogs, downloadCurve, synthesize, getTraces,
   horizons, loadGrid, affine, geom, dtUs, velocity, boundaries,
@@ -1133,6 +1141,9 @@ export default function SyntheticsPanel({
             <span className="text-pl-muted" title="Double-click on the synthetic/seismic tracks to add an anchor; drag its diamond to stretch; double-click an anchor to remove it">
               {`Anchors: ${anchors.length}`}
             </span>
+            {anchors.length === 1 && (
+              <span className="text-pl-muted" data-testid="synth-anchor-hint">add a second anchor to commit the tie</span>
+            )}
             {anchors.length > 0 && (
               <Button variant="link" size="sm" className="text-pl-muted h-auto p-0"
                 onClick={() => { setAnchors([]); setPhase(null); setPhiApplied(false); }}
@@ -1173,9 +1184,11 @@ export default function SyntheticsPanel({
               <>
                 <Button size="sm" variant="outline" className="border-pl-success text-pl-success-text"
                   onClick={commitCheckshots}
-                  disabled={commitBusy || !onCommitCheckshots}
+                  disabled={commitBusy || !onCommitCheckshots || !canCommitTie(anchors)}
                   data-testid="synth-commit-checkshots"
-                  title="Store the warp as a DERIVED checkshot set on the well (imported checkshots are never overwritten); synthetics and well displays use it from then on"
+                  title={canCommitTie(anchors)
+                    ? 'Store the warp as a DERIVED checkshot set on the well (imported checkshots are never overwritten); synthetics and well displays use it from then on'
+                    : 'Add a second anchor (double-click the tie tracks): a derived checkshot set needs two levels or it is not used'}
                 >
                   {commitBusy ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : null}
                   Commit to checkshots
