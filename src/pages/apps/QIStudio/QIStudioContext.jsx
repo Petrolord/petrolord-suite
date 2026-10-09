@@ -23,6 +23,9 @@ export const isMissingTable = (error) => {
     || new RegExp(`relation[^\\n]*${TABLE}[^\\n]*does not exist|Could not find the table[^\\n]*${TABLE}`, 'i').test(msg);
 };
 export const NOT_SWITCHED_ON = 'Saving is not switched on yet for QI Studio on this database (the table is waiting to be applied). The audit stays on this page; download the report to keep a copy.';
+/** What a save would write, without the modified stamp: equal prints mean
+ *  nothing is waiting to be saved. */
+export const payloadPrint = (project) => JSON.stringify(projectFromPayload(project));
 const friendlyError = (e) => (isMissingTable(e) ? NOT_SWITCHED_ON : (e?.message || 'Unexpected error.'));
 
 const QIStudioContext = createContext(null);
@@ -42,6 +45,15 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
   const [saveError, setSaveError] = useState(null);
   const [lastSaveTime, setLastSaveTime] = useState(null);
   const [saving, setSavingAvailable] = useState({ available: true, reason: null });
+  // Edits made after the last save. The autosave fires 10 s after the last
+  // edit; leaving QI Studio sooner used to cancel it and lose the edits while
+  // the header said "Saved" (found recording the QI videos, as SCAL-T1 was in
+  // SCAL Studio). Pending edits are now written on the way out, and opening a
+  // project no longer counts as an edit.
+  const [dirty, setDirty] = useState(false);
+  const savedPrintRef = useRef('');
+  const baselinePendingRef = useRef(false);
+  const flushRef = useRef(null);
   const shared = useSharedSavedProjects({ table: TABLE, service, sharingStore });
   const [projectRows, setProjectRows] = useState([]);
   const canWrite = shared.canWrite;
@@ -140,9 +152,12 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
   const sharedProjects = useMemo(() => (sharingStore && myId ? projectRows.filter((p) => p.userId && p.userId !== myId) : []), [projectRows, sharingStore, myId]);
 
   const createProject = useCallback(async (name) => {
+    await flushRef.current?.();
     const id = uuidv4();
     try {
       await service.save(id, projectPayload(project, { id, name }));
+      savedPrintRef.current = payloadPrint(project);
+      setDirty(false);
       await shared.adoptRow(id);
       setCurrentProjectId(id); setProjectName(name); setHydrated(true); setLastSaveTime(new Date()); setSaveError(null);
       await refresh();
@@ -153,11 +168,15 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
     }
   }, [project, shared, refresh, addNotification]);
   const openProject = useCallback(async (id) => {
+    await flushRef.current?.();
     try {
       const payload = await shared.loadForOpen(id);
       if (!payload) { addNotification('Project not found', 'error'); return; }
       setCurrentProjectId(id);
       setProjectName(payload.name || projectRows.find((p) => p.id === id)?.name || 'Untitled project');
+      // the opened state is the saved state: take its print on the next render
+      baselinePendingRef.current = true;
+      setDirty(false);
       setProject(projectFromPayload(payload));
       setHydrated(true); setSaveError(null);
     } catch (e) { addNotification(friendlyError(e), 'error'); }
@@ -165,14 +184,15 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
   const deleteProject = useCallback(async (id) => {
     try {
       await service.remove(id);
-      if (id === currentProjectId) { setCurrentProjectId(null); setProjectName(''); setHydrated(false); setLastSaveTime(null); shared.close(); }
+      if (id === currentProjectId) { setDirty(false); setCurrentProjectId(null); setProjectName(''); setHydrated(false); setLastSaveTime(null); shared.close(); }
       await refresh();
       addNotification('Project deleted', 'info');
     } catch (e) { addNotification(friendlyError(e), 'error'); }
   }, [currentProjectId, shared, refresh, addNotification]);
   const writeNow = useCallback(async () => {
-    const res = await shared.write(currentProjectId, projectPayload(project, { id: currentProjectId, name: projectName }));
-    if (res.ok) { setLastSaveTime(new Date()); setSaveError(null); } else if (!res.readOnly) { setSaveError('Save failed'); addNotification(res.message || 'Save failed', 'error'); }
+    const sent = project;
+    const res = await shared.write(currentProjectId, projectPayload(sent, { id: currentProjectId, name: projectName }));
+    if (res.ok) { savedPrintRef.current = payloadPrint(sent); setDirty(false); setLastSaveTime(new Date()); setSaveError(null); } else if (!res.readOnly) { setSaveError('Save failed'); addNotification(res.message || 'Save failed', 'error'); }
     return res;
   }, [shared, currentProjectId, project, projectName, addNotification]);
   const manualSave = useCallback(async () => {
@@ -194,7 +214,17 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
   const autosaveRef = useRef(null);
   autosaveRef.current = writeNow;
   useEffect(() => {
-    if (!currentProjectId || !hydrated || !canWrite) return undefined;
+    if (!currentProjectId || !hydrated) return undefined;
+    const print = payloadPrint(project);
+    if (baselinePendingRef.current) {
+      baselinePendingRef.current = false;
+      savedPrintRef.current = print;
+      setDirty(false);
+      return undefined;
+    }
+    const changed = print !== savedPrintRef.current;
+    setDirty(changed);
+    if (!changed || !canWrite) return undefined;
     const timer = setTimeout(async () => {
       setIsSaving(true);
       try { await autosaveRef.current(); } catch { setSaveError('Auto-save failed'); } finally { setIsSaving(false); }
@@ -202,13 +232,43 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
     return () => clearTimeout(timer);
   }, [project, currentProjectId, hydrated, canWrite]);
 
+  // Write pending edits now: before opening or creating another project, when
+  // the page is hidden, and when QI Studio unmounts (moving to another app in
+  // the Suite keeps the page alive, so the request completes).
+  const pendingRef = useRef(false);
+  pendingRef.current = dirty && canWrite && !!currentProjectId && hydrated;
+  flushRef.current = async () => {
+    if (!pendingRef.current) return;
+    pendingRef.current = false;
+    try { await autosaveRef.current(); } catch (e) { console.error(e); }
+  };
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === 'hidden') flushRef.current?.(); };
+    // closing or reloading the tab cannot wait for a save: start it and ask
+    // the browser to confirm leaving
+    const onUnload = (e) => {
+      if (!pendingRef.current) return undefined;
+      flushRef.current?.();
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('beforeunload', onUnload);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('beforeunload', onUnload);
+      flushRef.current?.();
+    };
+  }, []);
+
   const value = {
     project, wells, volumes, chosenVolumes, loaded, ready, loading, matrix, inventory, issues, targetChoices,
     toggleWell, toggleVolume, toggleTarget, setSeismicAcquired, setFirstProduction, setInventory, saveIssue, setFeasibility, setQcResult, setInversion, setProperty, saveProspect, removeProspect, setPrestack, setPrestackQc, setAvo, setSimultaneous,
     jobs: backend.jobs || null, backend,
     projects, sharedProjects, currentProjectId, projectName, projectRow: shared.projectRow, sharing: shared.sharing,
     viewingShared: shared.viewingShared, canWrite, savingAvailable: saving.available, savingReason: saving.reason,
-    createProject, openProject, deleteProject, manualSave, saveCopy, isSaving, saveError, lastSaveTime,
+    createProject, openProject, deleteProject, manualSave, saveCopy, isSaving, saveError, lastSaveTime, dirty,
     notifications, addNotification, removeNotification,
   };
   return <QIStudioContext.Provider value={value}>{children}</QIStudioContext.Provider>;
