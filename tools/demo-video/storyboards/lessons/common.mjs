@@ -139,9 +139,17 @@ export const BASE_PARAMS = {
   grClean: 20, grClay: 120, vshMethod: 'larionov-tertiary',
   phiSource: 'density', phiShale: 0.06, rhoMa: 2.65, rhoFl: 1, sonicMethod: 'wyllie', ndMethod: 'avg',
   swMethod: 'archie', a: 1, m: 2, n: 2, rw: 0.05,
-  permMethod: 'timur', cutPhi: 0.08, cutVsh: 0.5, cutSw: 0.6,
+  permMethod: 'timur', swirrSource: 'buckles', bucklesConst: 0.04, cutPhi: 0.08, cutVsh: 0.5, cutSw: 0.6,
+  sonicCp: 1, tempMode: 'none', rsh: 2,
 };
+export async function standardLayout(d) {
+  const sel = d.page.getByTestId('petro-layout').locator('select').first();
+  if (!(await sel.count())) return;
+  const v = await sel.locator('option', { hasText: 'Standard triple combo' }).first().getAttribute('value');
+  if (v && (await sel.inputValue()) !== v) { await sel.selectOption(v); await d.sleep(800); }
+}
 export async function baseParams(d, overrides = {}) {
+  await standardLayout(d);
   const p = { ...BASE_PARAMS, ...overrides };
   for (const [k, v] of Object.entries(p)) {
     const el = d.page.getByTestId(`petro-param-${k}`);
@@ -149,9 +157,14 @@ export async function baseParams(d, overrides = {}) {
     if ((await el.evaluate((e) => e.tagName)) === 'SELECT') await el.selectOption(String(v));
     else await el.fill(String(v));
   }
-  await d.page.getByTestId('petro-params-apply').click();
+  // Apply is disabled when nothing changed
+  const apply = d.page.getByTestId('petro-params-apply');
+  await d.sleep(300);
+  if (await apply.isEnabled()) await apply.click();
   await d.sleep(1500);
 }
 // open cutoffs: the zone card then averages every sample in the zone, the
 // way the earth model's truth is averaged
 export const OPEN_CUTOFFS = { cutPhi: 0, cutVsh: 1, cutSw: 1 };
+// Module E onward: the Module D interpretation (Indonesia, Rsh 3.2, Rw 0.0786)
+export const MODULE_E_BASE = { grClean: 18, grClay: 125, vshMethod: 'linear', rhoMa: 2.67, phiShale: 0.075, rw: 0.0786, swMethod: 'indonesia', rsh: 3.2 };

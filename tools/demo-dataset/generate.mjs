@@ -33,6 +33,7 @@ import {
 } from './rockmodel.mjs';
 import { writeLas } from './writers/las.mjs';
 import { measureLogs } from './measure.mjs';
+import { CORED, cutPlugs, coreLasRows } from './core.mjs';
 import { writeSegy } from './writers/segy.mjs';
 import { layerPropsFrom, makeGeometry, makeTraceBuilder, SEISMIC_NOTES } from './seismic.mjs';
 
@@ -229,6 +230,26 @@ for (const b of built) {
     },
   }));
 }
+// v2.1: routine core analysis over the cored intervals the kit has always
+// named (06-stratigraphy), plugs cut from the truth rows (core.mjs)
+for (const c of CORED) {
+  const b = built.find((x) => x.well.name === c.well);
+  const plugs = cutPlugs(b.rows, c);
+  write(`01-wells/core/${c.well}-core.las`, writeLas({
+    well: c.well, curves: ['CPOR', 'CKH'], rows: coreLasRows(b.rows, plugs),
+    header: {
+      company: FRAME.operator, field: LOCKED.field, location: FRAME.licence,
+      country: FRAME.country, service: 'Petrolord Synthetic Core Laboratory',
+      date: logDate, uwi: uwiOf(c.well), params: {},
+    },
+  }));
+  write(`01-wells/core/${c.well}-rca.csv`, csv(
+    ['plug', 'depth_m', 'depth_ft', 'helium_porosity_pct', 'air_permeability_md'],
+    plugs.map((pl, j) => [`${c.well.replace('Ekene-', 'EK')}-${String(j + 1).padStart(2, '0')}`, n(pl.md, 3), n(pl.ft, 1), n(pl.cpor * 100, 1), n(pl.ckh, 1)]),
+  ));
+  say(`  core: ${c.well} ${plugs.length} plugs over ${c.topM}-${c.baseM} m (sand only, one per foot)`);
+}
+
 say(`  wells written: headers, ${built.length} surveys and top sets, `
   + `${built.filter((b) => b.rows.length).length} LAS files and checkshot tables`);
 
@@ -1004,6 +1025,7 @@ write('00-START-HERE.md', [
   '| `04-seismic` | two SEG-Y volumes, small and full |',
   '| `05-pressure` | MDT pressures, shoe tests, mud weights, the designed prognosis |',
   '| `06-stratigraphy` | dated column, biozones, cored intervals |',
+  '| `01-wells/core` | routine core analysis (plug porosity and permeability) for the three cored wells, as LAS to import into each well and as CSV |',
   '| `07-well-design` | site card and targets |',
   '| `08-production` | six years of rates, the flood, the voidage ledger |',
   '| `09-reservoir` | pressure history, PVT, relative permeability, capillary curves |',
