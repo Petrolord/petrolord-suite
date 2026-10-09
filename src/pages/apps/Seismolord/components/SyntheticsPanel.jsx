@@ -368,6 +368,24 @@ function drawTracks(canvas, view) {
  * @param {?(wellId: string) => Promise<{ok: boolean, gather?: Object, reason?: string}>} p.loadRockPhysicsGather
  *   U2-020: the angle gather Rock Physics Studio published for the well (src/lib/rockPhysicsGather.js)
  */
+/**
+ * The warp sampled along the whole of the well's time-depth (every stepMs,
+ * plus the anchors themselves), so the derived checkshot set is the well's
+ * T(z) carried through the tie. From the anchors alone, a two-anchor tie made
+ * a two-level set and every depth outside them was extrapolated from one
+ * straight line (2026-10-09). Beyond the outermost anchors the warp holds its
+ * end shift, as the display does.
+ */
+export function denseTieWarp(warp, range, stepMs = 20) {
+  if (!range) return warp;
+  const [t0, t1] = range;
+  const syn = new Set(warp.anchors.map((a) => a.synTwtMs).filter((t) => t >= t0 && t <= t1));
+  for (let t = t0; t < t1; t += stepMs) syn.add(t);
+  syn.add(t1);
+  const anchors = [...syn].sort((a, b) => a - b).map((t) => ({ synTwtMs: t, seisTwtMs: warp.toSeismicMs(t) }));
+  return { ...warp, anchors };
+}
+
 export default function SyntheticsPanel({
   wells, listLogs, downloadCurve, synthesize, getTraces,
   horizons, loadGrid, affine, geom, dtUs, velocity, boundaries,
@@ -848,7 +866,7 @@ export default function SyntheticsPanel({
       mds.push(r.mdArray[i]);
       twts.push(r.twtMs[i]);
     }
-    return (twtMs) => {
+    const fn = (twtMs) => {
       if (twts.length < 2 || twtMs < twts[0] || twtMs > twts[twts.length - 1]) return null;
       let i = 1;
       while (i < twts.length - 1 && twts[i] < twtMs) i++;
@@ -857,6 +875,8 @@ export default function SyntheticsPanel({
       const pos = positionAtMd(stations, path, md);
       return pos ? pos.tvdss : null;
     };
+    fn.range = twts.length ? [twts[0], twts[twts.length - 1]] : null;
+    return fn;
   };
 
   const commitCheckshots = async () => {
@@ -864,7 +884,8 @@ export default function SyntheticsPanel({
     setCommitBusy(true);
     setError(null);
     try {
-      const rows = warpToCheckshots(tie.warp, buildTwtToTvdss())
+      const toTvdss = buildTwtToTvdss();
+      const rows = warpToCheckshots(denseTieWarp(tie.warp, toTvdss.range), toTvdss)
         .map((r) => ({ tvdss_m: r.tvdssM, twt_ms: r.twtMs }));
       await onCommitCheckshots(view.well, {
         rows,
@@ -1133,6 +1154,7 @@ export default function SyntheticsPanel({
             <span className="text-pl-muted" title="Double-click on the synthetic/seismic tracks to add an anchor; drag its diamond to stretch; double-click an anchor to remove it">
               {`Anchors: ${anchors.length}`}
             </span>
+
             {anchors.length > 0 && (
               <Button variant="link" size="sm" className="text-pl-muted h-auto p-0"
                 onClick={() => { setAnchors([]); setPhase(null); setPhiApplied(false); }}
@@ -1175,7 +1197,7 @@ export default function SyntheticsPanel({
                   onClick={commitCheckshots}
                   disabled={commitBusy || !onCommitCheckshots}
                   data-testid="synth-commit-checkshots"
-                  title="Store the warp as a DERIVED checkshot set on the well (imported checkshots are never overwritten); synthetics and well displays use it from then on"
+                  title="Store the well's time-depth carried through the tie as a DERIVED checkshot set (imported checkshots are never overwritten); synthetics, well displays and QI Studio use it from then on"
                 >
                   {commitBusy ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : null}
                   Commit to checkshots
