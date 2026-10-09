@@ -18,6 +18,7 @@ export function loadEnv() {
   return {
     ...readEnvFile(process.env.DEMO_ENV_FILE || '/root/.demo-video.env'),
     ...readEnvFile(process.env.ELEVENLABS_ENV_FILE || '/root/.elevenlabs.env'),
+    ...readEnvFile(process.env.R2_ENV_FILE || '/root/.r2.env'),
     ...process.env,
   };
 }

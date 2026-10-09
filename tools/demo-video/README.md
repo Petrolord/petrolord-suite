@@ -18,6 +18,24 @@ Output goes to `/root/demo-videos/<storyboard id>/` (outside git):
 | `chapters.txt` | chapter list for the YouTube description |
 | `nape.mp4` | 3840x2160, silent, large burned-in subtitles, ends on a card so it loops |
 | `raw.mkv`, `timeline.json` | the screen capture and when each step ran |
+| `r2.json` | what was copied to R2, with sizes and MD5s |
+
+## Masters in R2
+
+After assembling, `make.mjs` copies `youtube.mp4`, `nape.mp4`, the captions,
+`chapters.txt` and `timeline.json` to the private Cloudflare R2 bucket under
+`<id>/`, checks each copy by size and ETag, and writes `r2.json` (skip with
+`--no-upload`). `raw.mkv` stays local; the storyboard can re-record it.
+
+```
+node tools/demo-video/r2.mjs upload <id...> | --all   # copy (unchanged files are skipped)
+node tools/demo-video/r2.mjs verify <id...> | --all   # r2.json, local files and bucket agree
+node tools/demo-video/r2.mjs get <id> [file...]       # bring masters back
+node tools/demo-video/r2.mjs ls [prefix]
+```
+
+`tools/ops/housekeeping.sh` frees the local `youtube.mp4` and `nape.mp4` 30
+days after upload, and only when the bucket still holds the identical file.
 
 ## How it works
 
@@ -58,7 +76,9 @@ is the number on screen.
 Never in git. `/root/.elevenlabs.env` holds `ELEVENLABS_API_KEY`;
 `/root/.demo-video.env` holds `DEMO_EMAIL`, `DEMO_PASSWORD` and `DEMO_ORG` for
 the "Petrolord Demo" org (licences: migration
-`20261008090000_demo_org_module_access.sql`).
+`20261008090000_demo_org_module_access.sql`). `/root/.r2.env` holds
+`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and `R2_BUCKET`
+(an Object Read & Write token on that one bucket only).
 
 ## Host needs
 
