@@ -1,8 +1,10 @@
 // Petrophysics Studio, video 1: from raw logs to defensible net pay (Ekene-1).
-// Every number spoken was read off the screen in the 2026-10-08 dry run on
-// main 9d66e06 with the demo org on oilfield units (feet); `expect` steps
-// stop the take if the screen ever disagrees with the narration.
+// Re-cut 2026-10-09 on kit v2 (tool-measured logs): every number spoken was
+// read off the screen in a dry run on main 5cefa22 with the demo org on
+// oilfield units (feet); `expect` steps stop the take if the screen ever
+// disagrees with the narration.
 import { login, APP, ZONE, clearZones, zoomTracks, zoneCard, expectText } from './petro-common.mjs';
+import { baseParams } from './lessons/common.mjs';
 
 export default {
   id: 'petro-01',
@@ -20,6 +22,8 @@ export default {
     await d.waitFor('petro-curve-inventory');
     await d.sleep(2000);
     await clearZones(d);
+    // parameters are global across wells: start from the Studio defaults
+    await baseParams(d);
     await d.page.goto(`${shared.baseUrl}/dashboard`, { waitUntil: 'networkidle' });
     await d.sleep(1500);
   },
@@ -39,7 +43,7 @@ export default {
       sub: 'On the left are the wells in the shared registry. They were loaded once, in Well Data Manager, so there is nothing to import here. We open Ekene-1.',
       do: async (d) => { await d.highlight('petro-explorer'); await d.sleep(1200); await d.unhighlight(); await d.click(d.page.locator('[data-well-name="Ekene-1"]').first()); await d.waitFor('petro-curve-inventory'); } },
     { id: 'inventory',
-      say: 'The inventory lists what the studio found: gamma ray, bulk density, neutron, sonic and deep resistivity, each with its unit. Everything the calculation needs is here.',
+      say: 'The inventory lists what the studio found: gamma ray, bulk density, neutron, sonic, resistivity, caliper and more, each with its unit. Everything the calculation needs is here.',
       do: async (d) => { await d.highlight('petro-curve-inventory'); await d.callout('inv', 'petro-curve-inventory', 'Curves found in the well, mapped to the inputs', 'right'); } },
     { id: 'zoom',
       say: 'Our target is the Ekene Sand, at about five thousand and eighty feet. We zoom the tracks onto it.',
@@ -68,16 +72,16 @@ export default {
       sub: 'Water saturation needs the formation water resistivity, Rw. The best source is the well itself: the water leg below the oil-water contact. We open the Pickett plot.',
       do: async (d) => { await d.click('petro-view-crossplot'); await d.click('petro-plot-pickett'); } },
     { id: 'window',
-      say: 'The water leg runs from five thousand one hundred and eighteen to five thousand one hundred and eighty four feet.',
-      sub: 'The water leg runs from 5,118 to 5,184 ft.',
+      say: 'Every sample in the well, coloured by shale volume: clean sand in blue, shale in red. The water leg runs from five thousand one hundred and eighteen to five thousand one hundred and eighty four feet.',
+      sub: 'Every sample in the well, coloured by shale volume: clean sand in blue, shale in red. The water leg runs from 5,118 to 5,184 ft.',
       do: async (d) => { await d.type('petro-pickett-top', '5118.1'); await d.type('petro-pickett-base', '5183.7'); } },
     { id: 'fit',
-      say: 'The fit leaves out the shaly samples, fifty five of them here, because shale beds would flatten the line. On the clean sand it returns a cementation exponent of one point eight four, and a times R w of point zero nine two.',
-      sub: 'The fit leaves out the shaly samples, 55 of them here, because shale beds would flatten the line. On the clean sand it returns a cementation exponent m of 1.84, and a·Rw of 0.092.',
+      say: 'The fit leaves out the shaly samples, sixty one of them here, the red and orange points, because clay conducts and would bend the line. On seventy clean samples it returns a cementation exponent of one point six two, and a times R w of zero point one three three. Samples holding oil or gas sit to the right of the line, at higher resistivity.',
+      sub: 'The fit leaves out the shaly samples, 61 of them here, the red and orange points, because clay conducts and would bend the line. On 70 clean samples it returns a cementation exponent m of 1.62, and a·Rw of 0.133. Samples holding oil or gas sit to the right of the line, at higher resistivity.',
       do: async (d) => {
         await d.highlight('petro-pickett-clean-vsh');
         await d.click('petro-pickett-fit');
-        await expectText(d, 'petro-pickett-result', /m = 1\.843 · a·Rw = 0\.0916 · 76 pts · 55 shaly left out/, 'Pickett fit');
+        await expectText(d, 'petro-pickett-result', /m = 1\.615 · a·Rw = 0\.1329 · 70 pts · 61 shaly left out/, 'Pickett fit');
         await d.unhighlight();
         await d.highlight('petro-pickett-result');
       } },
@@ -89,15 +93,15 @@ export default {
       say: 'Back on the tracks, we build the zones straight from the formation tops.',
       do: async (d, shared) => { await d.click('petro-view-tracks'); await d.sleep(600); shared.values.zoom = await zoomTracks(d, 5130, 9); await d.click('petro-zone-mode-tops'); await d.click('petro-zone-fill-between-tops'); await d.waitFor(`petro-zone-net-${ZONE}`); } },
     { id: 'archie',
-      say: 'The Ekene Sand is one hundred and five feet gross. With Archie, only twelve feet pass the cutoffs.',
-      sub: 'The Ekene Sand is 105 ft gross. With Archie, only 12 ft pass the cutoffs.',
+      say: 'The Ekene Sand is one hundred and five feet gross. With Archie, only fourteen feet pass the cutoffs.',
+      sub: 'The Ekene Sand is 105 ft gross. With Archie, only 14 ft pass the cutoffs.',
       do: async (d) => {
-        await expectText(d, zoneCard(d), /net pay 12\.0 ft[\s\S]*gross 105\.0 ft/, 'Archie net pay');
-        await d.highlight(zoneCard(d)); await d.callout('pay', zoneCard(d), 'Archie: 12 ft of net pay', 'left');
+        await expectText(d, zoneCard(d), /net pay 14\.0 ft[\s\S]*gross 105\.0 ft/, 'Archie net pay');
+        await d.highlight(zoneCard(d)); await d.callout('pay', zoneCard(d), 'Archie: 14 ft of net pay', 'left');
       } },
     { id: 'why',
-      say: 'Twelve feet of pay in a thirty nine foot oil column is too little. The resistivity in the oil leg is only three to seven ohm metres, and Archie reads all of that conductivity as water. Part of it is the clay.',
-      sub: '12 ft of pay in a 39 ft oil column is too little. The resistivity in the oil leg is only 3 to 7 ohm·m, and Archie reads all of that conductivity as water. Part of it is the clay.',
+      say: 'Fourteen feet of pay in a thirty nine foot oil column is too little. The resistivity in the oil leg is only four to six ohm metres, and Archie reads all of that conductivity as water. Part of it is the clay.',
+      sub: '14 ft of pay in a 39 ft oil column is too little. The resistivity in the oil leg is only 4 to 6 ohm·m, and Archie reads all of that conductivity as water. Part of it is the clay.',
       do: async (d, shared) => {
         await d.clearCallouts(); await d.unhighlight();
         const { y, b } = shared.values.zoom;
@@ -106,19 +110,19 @@ export default {
         await d.moveTo({ x: b.x + b.width * 0.17, y: y + 10 }, { ms: 1400 });
       } },
     { id: 'indonesia',
-      say: 'So we switch to the Indonesia equation, which separates the clay conductivity from the water. It needs the shale resistivity, which we read in the Ogbia Shale just above: about two point one ohm metres.',
-      sub: 'So we switch to the Indonesia equation, which separates the clay conductivity from the water. It needs the shale resistivity, which we read in the Ogbia Shale just above: about 2.1 ohm·m.',
+      say: 'So we switch to the Indonesia equation, which separates the clay conductivity from the water. It needs the shale resistivity, which we read in the Ogbia Shale just above: about two point two ohm metres.',
+      sub: 'So we switch to the Indonesia equation, which separates the clay conductivity from the water. It needs the shale resistivity, which we read in the Ogbia Shale just above: about 2.2 ohm·m.',
       do: async (d) => {
         await d.select('petro-param-swMethod', 'indonesia');
-        await d.type('petro-param-rsh', '2.1');
+        await d.type('petro-param-rsh', '2.2');
         await d.click('petro-params-apply');
       } },
     { id: 'result',
-      say: 'Net pay is now thirty one and a half feet, which agrees with the oil column and the net to gross of this sand. The saturation model moved the answer by a factor of two and a half, and the studio shows exactly why.',
-      sub: 'Net pay is now 31.5 ft, which agrees with the oil column and the net-to-gross of this sand. The saturation model moved the answer by a factor of 2.5, and the studio shows exactly why.',
+      say: 'Net pay is now thirty one feet, which agrees with the oil column and the net to gross of this sand. The saturation model more than doubled the answer, and the studio shows exactly why.',
+      sub: 'Net pay is now 31 ft, which agrees with the oil column and the net-to-gross of this sand. The saturation model more than doubled the answer, and the studio shows exactly why.',
       do: async (d) => {
-        await expectText(d, zoneCard(d), /net pay 31\.5 ft/, 'Indonesia net pay');
-        await d.highlight(zoneCard(d)); await d.callout('pay2', zoneCard(d), 'Indonesia, Rsh 2.1: 31.5 ft', 'left');
+        await expectText(d, zoneCard(d), /net pay 31\.0 ft/, 'Indonesia net pay');
+        await d.highlight(zoneCard(d)); await d.callout('pay2', zoneCard(d), 'Indonesia, Rsh 2.2: 31.0 ft', 'left');
       } },
 
     { id: 'publish', chapter: 'Publish', chapterSub: 'For the rest of the Suite',
