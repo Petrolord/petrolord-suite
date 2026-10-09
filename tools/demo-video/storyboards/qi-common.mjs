@@ -36,6 +36,11 @@ export const volumeBox = (d, name) => d.page.locator(`label:has([data-testid^="q
 
 export async function openRpsWell(d, shared, well = 'Ekene-1') {
   await d.page.goto(`${shared.baseUrl}${RPS}`, { waitUntil: 'domcontentloaded' });
+  await selectRpsWell(d, well);
+}
+
+/** Rock Physics Studio is already open (reached through an in-app link): pick the well. */
+export async function selectRpsWell(d, well = 'Ekene-1') {
   const row = d.page.locator(`[data-testid="rp-well-row"][data-well-name="${well}"]`);
   await row.waitFor({ timeout: 120000 });
   await d.sleep(1500);

@@ -4,8 +4,8 @@
 // the kit's 10-qi/ekene-qi-truth.md (oil-to-brine AI +7.5% over the oil leg;
 // top Ekene class I, brighter with brine).
 import {
-  login, expectText, openQi, clearQiProject, openRpsWell, wellBox, volumeBox,
-  PROJECT, ZONE_LABEL, VOLUMES, QI,
+  login, expectText, openQi, clearQiProject, selectRpsWell, wellBox, volumeBox,
+  PROJECT, ZONE_LABEL, VOLUMES,
 } from './qi-common.mjs';
 
 const WELLS = ['Ekene-1', 'Ekene-2', 'Ekene-3', 'Ekene-4', 'Ekene-9'];
@@ -71,11 +71,13 @@ export default {
         await d.highlight('qi-cell-detail');
       } },
     { id: 'rps', chapter: 'Does the seismic see the oil?', chapterSub: 'Rock Physics Studio · Ekene-1',
-      say: 'The second question goes to Rock Physics Studio. Ekene one carries its measured logs, the new dipole shear, and the porosity, shale volume and water saturation published from Petrophysics Studio.',
-      sub: 'The second question goes to Rock Physics Studio. Ekene-1 carries its measured logs, the new dipole shear, and the porosity, shale volume and water saturation published from Petrophysics Studio.',
-      do: async (d, shared) => {
+      say: 'The second question goes to Rock Physics Studio, straight from the feasibility page. Ekene one carries its measured logs, the new dipole shear, and the porosity, shale volume and water saturation published from Petrophysics Studio.',
+      sub: 'The second question goes to Rock Physics Studio, straight from the feasibility page. Ekene-1 carries its measured logs, the new dipole shear, and the porosity, shale volume and water saturation published from Petrophysics Studio.',
+      do: async (d) => {
         await d.unhighlight();
-        await openRpsWell(d, shared, 'Ekene-1');
+        await d.click('qi-tab-feasibility');
+        await d.click(d.page.getByRole('link', { name: 'Open Rock Physics Studio' }));
+        await selectRpsWell(d, 'Ekene-1');
         await d.highlight('rp-curve-inventory');
       } },
     { id: 'conditions',
@@ -141,9 +143,9 @@ export default {
     { id: 'verdict', chapter: 'The verdict', chapterSub: 'Recorded in the study',
       say: 'Back in QI Studio, the study we saved reopens, and we record the verdict for the Ekene Sand: feasible, with conditions. The oil is visible in the rock physics, but the column is thin, so the route is A V O on the angle stacks, then inversion.',
       sub: 'Back in QI Studio, the study we saved reopens, and we record the verdict for the Ekene Sand: feasible, with conditions. The oil is visible in the rock physics, but the column is thin, so the route is AVO on the angle stacks, then inversion.',
-      do: async (d, shared) => {
+      do: async (d) => {
         await d.unhighlight();
-        await d.page.goto(`${shared.baseUrl}${QI}`, { waitUntil: 'domcontentloaded' });
+        await d.click('rp-qi-studio');
         await d.waitFor('qi-tab-setup', { timeout: 120000 }); await d.sleep(2000);
         await d.click(d.page.getByRole('combobox', { name: 'Project' }));
         await d.click(d.page.getByRole('option', { name: PROJECT, exact: true }));
