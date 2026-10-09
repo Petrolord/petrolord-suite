@@ -122,7 +122,7 @@ function Notifications() {
 }
 
 function QIStudioContent({ organizationName }) {
-  const { isSaving, saveError, lastSaveTime, manualSave } = useQIStudio();
+  const { isSaving, saveError, lastSaveTime, manualSave, dirty } = useQIStudio();
   const [tab, setTab] = useState('setup');
   return (
     <>
@@ -138,7 +138,7 @@ function QIStudioContent({ organizationName }) {
         subtitle="Quantitative interpretation, from the data audit to the prospect assessment"
         actions={(
           <div className="flex flex-wrap items-center gap-2">
-            <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />
+            <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} dirty={dirty} />
             <Button asChild variant="outline" size="sm">
               <Link to="/dashboard/apps/geoscience/qi-studio/help"><HelpCircle className="w-4 h-4 mr-2" /> Help guide</Link>
             </Button>

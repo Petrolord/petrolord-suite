@@ -695,3 +695,8 @@ The manual was written against the source, and it found the following.
 ## Angle stacks skip muted samples (2026-10-09)
 - `angle_stacks` averaged the zeros of a mute zone into a range, which dims a far stack wherever the mute reaches into it (a false AVO effect), and counted the mute zone in the usable angle (Ekene v3 gathers, muted beyond 40 degrees, reported 58.5). A sample of exactly zero is now treated as muted. Found dry-running the QI videos on the Ekene kit v3 gathers. Needs a worker redeploy to take effect.
 - **Tests:** `worker/seismic-worker/__tests__/angleStacks.test.js` (a mute test that fails on the old handler, with a live-small-value negative control).
+
+## Edits are saved when you leave (2026-10-09)
+- The project autosave fired 10 s after the last edit. Leaving QI Studio sooner (to Rock Physics Studio, say) cancelled it, so the setup was lost while the header still said Saved, and reopening a project wrote it again for nothing (seen as "Save Failed"). It was the same defect SCAL Studio had (#949). Found recording the QI videos.
+- Pending edits are now written on unmount, on page hide, and before another project opens or is created. Closing the tab asks the browser to confirm. Opening a project is not an edit, and the header says "Unsaved changes" until the edits are stored.
+- **Tests:** `__tests__/qiUnsavedEdits.test.jsx` (3; all fail on the old provider).
