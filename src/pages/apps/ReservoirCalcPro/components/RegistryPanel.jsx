@@ -31,6 +31,10 @@ export default function RegistryPanel() {
   const [boundaryId, setBoundaryId] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  // wells left out of the zone average (ids); every carrying well counts by default
+  const [leftOut, setLeftOut] = useState(() => new Set());
+  useEffect(() => { setLeftOut(new Set()); }, [zone]);
+  const toggleWell = (id) => setLeftOut((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
 
   useEffect(() => {
     let live = true;
@@ -50,15 +54,25 @@ export default function RegistryPanel() {
   }, [backend]);
 
   const catalog = useMemo(() => zoneCatalog(wells || []), [wells]);
+  const carrying = useMemo(() => (zone && wells ? wells.filter((w) => (w.zones || []).some((z) => z.name === zone)) : []), [zone, wells]);
   const preview = useMemo(() => {
     if (!zone || !wells) return null;
-    try { return registryPatchForZone(wells, zone, state.unitSystem); } catch (e) { return { error: e.message }; }
-  }, [zone, wells, state.unitSystem]);
+    const used = wells.filter((w) => !leftOut.has(w.id));
+    if (carrying.length && carrying.every((w) => leftOut.has(w.id))) return { error: 'Include at least one well in the average.' };
+    try {
+      const r = registryPatchForZone(used, zone, state.unitSystem);
+      const left = carrying.filter((w) => leftOut.has(w.id)).map((w) => w.name);
+      return left.length ? { ...r, leftOut: left, provenance: { ...r.provenance, left_out: left } } : r;
+    } catch (e) { return { error: e.message }; }
+  }, [zone, wells, carrying, leftOut, state.unitSystem]);
+  // a well whose published zone has no net pay (wet or tight): usually outside the accumulation
+  const noPay = (w) => (w.zones || []).some((z) => z.name === zone && Number.isFinite(z.properties?.net_m) && z.properties.net_m === 0);
 
   const applyZone = () => {
     if (!preview || preview.error) { setNote(preview?.error || 'Choose a zone first.'); return; }
     updateInputs({ ...preview.patch, registryProvenance: { ...(state.inputs?.registryProvenance || {}), zone: preview.provenance } });
-    logEvent('Registry inputs applied', `zone ${zone}: ${describePatch(preview.patch, state.unitSystem)} from ${preview.wellNames.join(', ')}`);
+    const leftNote = preview.leftOut?.length ? `; left out ${preview.leftOut.join(', ')}` : '';
+    logEvent('Registry inputs applied', `zone ${zone}: ${describePatch(preview.patch, state.unitSystem)} from ${preview.wellNames.join(', ')}${leftNote}`);
     setNote(`Applied ${describePatch(preview.patch, state.unitSystem)} from ${preview.fromWells} well${preview.fromWells === 1 ? '' : 's'} (${preview.wellNames.join(', ')}).`);
   };
 
@@ -117,14 +131,22 @@ export default function RegistryPanel() {
         {preview?.notes?.length > 0 && (
           <div className="text-[10px] text-pl-warning-text" data-testid="rcp-reg-phit">{preview.notes.join(' ')}</div>
         )}
-        {zone && wells && (
-          <div className="flex flex-wrap gap-1">
-            {wells.filter((w) => (w.zones || []).some((z) => z.name === zone)).map((w) => (
-              <Link key={w.id} to={wellDataManagerHref(w.id, 'tops', appPath(WELL_DATA_MANAGER_ID, appPaths))} data-testid={`rcp-reg-well-${w.name}`} title={`Open ${w.name} in Well Data Manager`}
-                className="inline-flex items-center gap-0.5 rounded border border-pl-border px-1 py-0.5 text-[10px] text-pl-text hover:bg-pl-sunken">
-                <ExternalLink className="w-2.5 h-2.5" /> {w.name}
-              </Link>
-            ))}
+        {zone && wells && carrying.length > 0 && (
+          <div className="space-y-1">
+            <div className="text-[10px] text-pl-muted">Wells in the average (untick a well that lies outside the accumulation):</div>
+            <div className="flex flex-wrap gap-1">
+              {carrying.map((w) => (
+                <span key={w.id} className="inline-flex items-center gap-1 rounded border border-pl-border px-1 py-0.5 text-[10px] text-pl-text">
+                  <input type="checkbox" className="h-3 w-3" checked={!leftOut.has(w.id)} onChange={() => toggleWell(w.id)}
+                    data-testid={`rcp-reg-use-${w.name}`} aria-label={`Use ${w.name} in the zone average`} />
+                  <Link to={wellDataManagerHref(w.id, 'tops', appPath(WELL_DATA_MANAGER_ID, appPaths))} data-testid={`rcp-reg-well-${w.name}`} title={`Open ${w.name} in Well Data Manager`}
+                    className="inline-flex items-center gap-0.5 hover:underline">
+                    <ExternalLink className="w-2.5 h-2.5" /> {w.name}
+                  </Link>
+                  {noPay(w) && <span className="text-pl-warning-text" title="No net pay in this zone (wet or tight). Leave it out if it lies outside the accumulation." data-testid={`rcp-reg-nopay-${w.name}`}>no net pay</span>}
+                </span>
+              ))}
+            </div>
           </div>
         )}
         {preview?.error && <div className="text-pl-warning-text">{preview.error}</div>}

@@ -327,3 +327,14 @@ company, licence, well control and input sources behind a disclosure.
 Open: histogram and tornado are still screen captures; sources are per group
 of inputs; the reports are not on the Report Kit (what a move would change is
 listed in the upgrade doc). Tests: `__tests__/rlRecheckReport.test.js`.
+
+## 2026-10-09: choose the wells in a registry zone average
+
+The registry door averaged a zone over every well that published it, so a
+well whose sand sits below the contact (zero net pay) diluted net-to-gross:
+on Ekene, four wells gave NTG 0.198 where the two oil wells give 0.395. Each
+carrying well now has a checkbox (all ticked by default, so nothing changes
+until you untick one), a wet well is marked "no net pay", leaving every well
+out is refused, and the applied provenance and the audit-trail entry name the
+wells left out. Test: registryWellChoice.test.jsx (negative control: with the
+checkboxes ignored the two-well NTG fails).
