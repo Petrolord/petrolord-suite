@@ -1,5 +1,8 @@
 // Studio shell autosave widget — saving spinner / "Saved Ns ago" / save-failed
 // states with a manual-save click. Props-driven (generalized from DCAAutoSave).
+// `dirty` (optional): edits made since the last save; the widget then says
+// "Unsaved changes" instead of the last save time. Apps that do not pass it
+// keep the old behaviour.
 import React, { useState, useEffect } from 'react';
 import { Save, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,7 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 // Design system: theme roles.
 
-const StudioAutoSave = ({ isSaving, saveError, lastSaveTime, onSave, disabled = false }) => {
+const StudioAutoSave = ({ isSaving, saveError, lastSaveTime, onSave, disabled = false, dirty = false }) => {
   const [timeAgo, setTimeAgo] = useState('Just now');
 
   useEffect(() => {
@@ -43,6 +46,11 @@ const StudioAutoSave = ({ isSaving, saveError, lastSaveTime, onSave, disabled = 
                   <AlertCircle size={14} className="text-pl-danger-text" />
                   <span className="text-pl-danger-text">Save Failed</span>
                 </>
+              ) : dirty ? (
+                <>
+                  <Save size={14} className="text-pl-warning-text" />
+                  <span className="text-pl-warning-text" data-testid="studio-unsaved">Unsaved changes</span>
+                </>
               ) : lastSaveTime ? (
                 <>
                   <CheckCircle2 size={14} className="text-pl-success-text" />
@@ -57,7 +65,7 @@ const StudioAutoSave = ({ isSaving, saveError, lastSaveTime, onSave, disabled = 
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            {saveError ? saveError : `Last saved: ${lastSaveTime ? lastSaveTime.toLocaleTimeString() : 'Never'}`}
+            {saveError ? saveError : dirty ? 'Changes since the last save are saved automatically shortly, or click to save now.' : `Last saved: ${lastSaveTime ? lastSaveTime.toLocaleTimeString() : 'Never'}`}
             <div className="text-[10px] opacity-80 pt-1">Click to save manually</div>
           </TooltipContent>
         </Tooltip>
