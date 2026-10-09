@@ -468,7 +468,8 @@ const QI_TRUTH = {};
     say(`  gathers: ${G.nInline}x${G.nXline} CDPs x ${G.nOffset} offsets x ${nsG}, ${(buf.length / 1048576).toFixed(1)} MB`);
   }
 
-  const vt = table.t_ms.map((t, k) => `${Math.round(t)} ${Math.round(table.vrms[k])}`).join('/');
+  // one "time velocity" row per line, the form QI Studio's Prestack box reads
+  const vt = table.t_ms.map((t, k) => `${Math.round(t)} ${Math.round(table.vrms[k])}`).join('\n');
   QI_TRUTH.velocityText = vt;
   const topOil = model(ref.well.x, ref.well.y).find((i) => i.layerKey === 'EKENE');
   write('04-seismic/README-seismic.md', [
@@ -498,7 +499,7 @@ const QI_TRUTH = {};
     ...Q.stacks.map(([nm, a, b]) => `| \`EKENE3D-${nm}.sgy\` | ${nm} angle stack, ${a} to ${b} degrees (mean ${(a + b) / 2}), same lattice as the full stack |`),
     `| \`gathers/EKENE3D-gathers-nmo.sgy\` | NMO-corrected offset gathers, inlines ${Q.gathers.il0} to ${Q.gathers.il0 + Q.gathers.nInline - 1}, crosslines ${Q.gathers.xl0} to ${Q.gathers.xl0 + Q.gathers.nXline - 1}, offsets ${QI_TRUTH.gathers.offsets[0]} to ${QI_TRUTH.gathers.offsets.at(-1)} m (bytes 37-40), muted beyond ${Q.mute_deg} degrees |`,
     '| `gathers/ekene-rms-velocity.csv` | the RMS velocity function for the angle stacks |', '',
-    'In QI Studio\'s Prestack tab, set the offset bin to ' + `${Q.gathers.offsetStep_m}` + ' m and paste this velocity table:', '',
+    'In QI Studio\'s Prestack tab, set the offset bin to ' + `${Q.gathers.offsetStep_m}` + ' m and paste this velocity table (one time and RMS velocity per line):', '',
     '```', vt, '```', '',
     'The angle stacks and the gathers are the same rock: stacking the gathers over 5 to 15',
     'degrees with that table gives the near stack back, up to the noise.',

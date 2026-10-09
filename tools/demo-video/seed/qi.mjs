@@ -3,11 +3,13 @@
 // registry, through Well Data Manager's own screens:
 //   1. the dipole shear sonic (DTS), as a LAS into the existing well (only the
 //      DEPT and DTS columns of the kit LAS, so no other curve is touched);
-//   2. the checkshots (MD in metres, one-way time), pasted on the Checkshots tab.
+//   2. the checkshots (MD in metres, one-way time), pasted on the Checkshots tab;
+//   3. the deviation survey (MD in metres, inclination, azimuth), pasted on the
+//      Deviation tab (QI Studio grades a well with no survey as limited).
 // Idempotent: a well that already shows DTS keeps it unless --replace; the
 // checkshot paste replaces what is there either way.
 //
-//   node tools/demo-video/seed/qi.mjs [--base-url URL] [--wells Ekene-1,Ekene-2] [--replace] [--no-checkshots] [--headed]
+//   node tools/demo-video/seed/qi.mjs [--base-url URL] [--wells Ekene-1,Ekene-2] [--replace] [--no-checkshots] [--no-survey] [--headed]
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -94,6 +96,22 @@ try {
       }
       console.log(`${name}: DTS loaded`);
       await row.click(); await page.waitForTimeout(1500);
+    }
+
+    if (!args.includes('--no-survey')) {
+      await t('wdm-detail-tab-deviation').click();
+      await t('wdm-edit-deviation').click();
+      await t('wdm-deviation-paste-toggle').click();
+      const md = t('wdm-deviation-mdunit');
+      if (await md.count()) await md.selectOption('m');
+      const sv = csvRows(path.join(KIT, `01-wells/surveys/${name}-survey.csv`));
+      await t('wdm-deviation-paste-text').fill(['MD\tInc\tAzi', ...sv.map((r) => `${r.md_m}\t${r.inclination_deg}\t${r.azimuth_deg_grid}`)].join('\n'));
+      await page.waitForTimeout(800);
+      await t('wdm-deviation-save').click();
+      await page.waitForTimeout(2500);
+      const derr = t('wdm-deviation-error');
+      if (await derr.count()) throw new Error(`${name}: survey refused: ${await derr.textContent()}`);
+      console.log(`${name}: ${sv.length} survey stations pasted`);
     }
 
     if (args.includes('--no-checkshots')) continue;
