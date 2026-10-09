@@ -1,5 +1,6 @@
 // Shared by the Petrophysics Studio storyboards (Ekene-1, oilfield units).
 import { login } from '../lib/session.mjs';
+import { baseParams } from './lessons/common.mjs';
 
 export const APP = '/dashboard/apps/geoscience/petrophysics-studio';
 export const ZONE = 'Ekene Sand';
@@ -29,15 +30,17 @@ export async function ensureZones(d) {
 }
 
 // The state video 1 ends in: linear Vsh 18/125, Pickett m and Rw on the
-// water leg (shaly samples left out), Indonesia with Rsh 2.1. Off camera.
+// water leg (shaly samples left out), Indonesia with Rsh 2.2. Off camera.
+// Parameters persist between takes and lessons, so it starts from defaults.
 export async function video1State(d) {
   const t = (id) => d.page.getByTestId(id);
+  await baseParams(d);
   await t('petro-param-grClean').fill('18'); await t('petro-param-grClay').fill('125');
   await t('petro-param-vshMethod').selectOption('linear'); await t('petro-params-apply').click(); await d.sleep(800);
   await t('petro-view-crossplot').click(); await t('petro-plot-pickett').click();
   await t('petro-pickett-top').fill('5118.1'); await t('petro-pickett-base').fill('5183.7');
   await t('petro-pickett-fit').click(); await t('petro-pickett-apply').click(); await d.sleep(800);
-  await t('petro-param-swMethod').selectOption('indonesia'); await t('petro-param-rsh').fill('2.1');
+  await t('petro-param-swMethod').selectOption('indonesia'); await t('petro-param-rsh').fill('2.2');
   await t('petro-params-apply').click(); await d.sleep(1000);
   await t('petro-view-tracks').click(); await d.sleep(800);
 }
