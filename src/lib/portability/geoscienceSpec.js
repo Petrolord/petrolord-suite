@@ -166,6 +166,8 @@ export const GEOSCIENCE_SPEC = {
       wellIdsColumn: 'well_ids',
       softRefs: [
         { path: 'well_ids[]', table: 'geo_wells', optional: false },
+        // the published gathers, one per well (keyed by geo_wells id, 2026-10-09)
+        { path: 'avo.published_gathers{keys}', table: 'geo_wells', optional: true },
         // avo.topId is a geo_wells_tops id ('any' rewrites every packaged uuid under avo)
         { path: 'avo.*', table: 'geo_wells_tops', optional: true },
         // RP-U1-013: the zone the substitution ran over

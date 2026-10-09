@@ -41,7 +41,9 @@ export function projectRowFromState({ scenario, rock, avo, wedge, wellId = null,
     rock: { ...(rock || {}), zoneId: zoneId || null },
     avo: avo || {},
     wedge: wedge || {},
-    well_ids: wellId ? [wellId] : [],
+    // every well with a published gather stays findable (loadGatherForWell
+    // looks the project up by well), as well as the well on screen
+    well_ids: [...new Set([wellId, ...Object.keys((avo && avo.published_gathers) || {})].filter(Boolean))],
   };
 }
 
