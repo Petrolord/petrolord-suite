@@ -240,3 +240,24 @@ describe('the written SEG-Y headers read as time volumes in Seismolord', () => {
     expect(depthDomainHint(lines)).toBeNull();
   });
 });
+
+describe('the checkshots time the reservoir where the seismic has it', () => {
+  // v3.3: levels at every top. With regular levels alone, straight-line time
+  // through the velocity break at the top of the sand put Ekene-1's top 5 ms
+  // early, outside QI Studio's 8 ms event window at the wells.
+  const fs = require('fs');
+  const path = require('path');
+  const dir = path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v3', '01-wells', 'checkshots');
+  test.each([['Ekene-1', 1], ['Ekene-2', 4], ['Ekene-3', 4], ['Ekene-4', 4]])('%s within %d ms', (name, tol) => {
+    const b = kit.built.find((x) => x.well.name === name);
+    const props = elasticPropsFrom(e1.rows);
+    const model = makeElasticModel({ geo: kit.geo, props, contacts: { EKENE: { depth: LOCKED.owc_m, upper: 'oil' }, OBORO: { depth: OBORO.gwc_m, upper: 'gas' } } });
+    const top = model(b.well.x, b.well.y).find((i) => i.layerKey === 'EKENE');
+    const rows = fs.readFileSync(path.join(dir, `${name}-checkshots.csv`), 'utf8').trim().split('\n').slice(1).map((l) => l.split(',').map(Number));
+    const md = b.tops.find((t) => t.key === 'TOP_SAND').md;
+    let i = 1; while (i < rows.length - 1 && rows[i][0] < md) i++;
+    const f = (md - rows[i - 1][0]) / (rows[i][0] - rows[i - 1][0]);
+    const twt = 2 * (rows[i - 1][1] + f * (rows[i][1] - rows[i - 1][1]));
+    expect(Math.abs(twt - top.t)).toBeLessThanOrEqual(tol);
+  });
+});
