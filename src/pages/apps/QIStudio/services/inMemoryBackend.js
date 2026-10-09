@@ -26,6 +26,7 @@ function tieRecord(meanCorr, phaseDeg, peakHz) {
 }
 
 export function makeInMemoryBackend() {
+  const removedDatasets = new Set(); // remove_dataset jobs take files off the list
   const wells = [
     {
       well: { id: 'qi-w1', name: 'KETA-1', checkshots_derived: tieRecord(0.82, 0, 30), kb_m: 30, depth_ref_elev_m: 30, depth_ref_kind: 'KB', checkshots: [{ tvdss_m: 1500, twt_ms: 1300 }, { tvdss_m: 2400, twt_ms: 1950 }], deviation: [{ md: 0, inc: 0, azi: 0 }, { md: 3000, inc: 0, azi: 0 }], surface_x: 200, surface_y: 125, is_own: true },
@@ -70,7 +71,7 @@ export function makeInMemoryBackend() {
         { id: 'qi-d1', name: 'Keta CDP gathers', kind: 'segy_upload', status: 'uploaded', bytes: 12 * 1024 ** 3, meta: {} },
         { id: 'qi-d2', name: 'Keta CDP gathers gathers', kind: 'gathers_offset', status: 'uploaded', bytes: 9 * 1024 ** 3, meta: { traces: 2400000, bins: 60, bin_width_m: 50 } },
         { id: 'qi-d3', name: 'Keta near', kind: 'segy_upload', status: 'uploaded', bytes: 2 * 1024 ** 3, meta: { partial_stack: { name: 'near', from: 0, to: 15 } } },
-      ];
+      ].filter((d) => !removedDatasets.has(d.id));
     },
     // a published Rock Physics gather at every well with logs: Sand A top at 2000 m, a class III gas response in situ
     async loadRockPhysicsGather(well) {
@@ -90,11 +91,11 @@ export function makeInMemoryBackend() {
       const grid = row.id === 'qi-s2' ? Float32Array.from(elev, (v) => (v >= -2100 ? 1 : 0.1)) : elev;
       return readDepthSurface(row, grid, attribute ? { accept: ['attribute'], xy: 'm' } : { accept: ['elevation', 'depth'], as: 'elevation', xy: 'm' });
     },
-    jobs: makeInMemoryJobs(),
+    jobs: makeInMemoryJobs({ removedDatasets }),
   };
 }
 
-function makeInMemoryJobs() {
+function makeInMemoryJobs({ removedDatasets = new Set() } = {}) {
   const nIl = 16; const nXl = 32; const ns = 192; const b = 16;
   const grid = [1, 2, 12];
   const value = (il, xl, s) => Math.sin(s * 0.37 + il * 0.2) * Math.cos(s * 0.11) * (xl % 4 === 0 ? 1.5 : 1) + 0.2 * Math.sin(il * 13.1 + xl * 7.7 + s * 3.3);
@@ -112,6 +113,11 @@ function makeInMemoryJobs() {
     async enqueueJob(kind, params) {
       n += 1;
       const id = `mem-job-${n}`;
+      if (kind === 'remove_dataset') {
+        removedDatasets.add(params.dataset_id);
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { dataset_id: params.dataset_id, removed_objects: 1 } });
+        return id;
+      }
       if (kind === 'match_stacks') {
         results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { reference_volume_id: params.reference_volume_id, stacks: params.stacks.map((sid, k) => ({ stack_id: sid, stack_name: `stack ${sid}`, volume_id: params.volume_ids[sid], shift_ms: -2.5 - k, phase_deg: -12 - 5 * k, scale: 1.1 + 0.2 * k, corr_before: 0.81, corr_after: 0.95 })) } });
         return id;

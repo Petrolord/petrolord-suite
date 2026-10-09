@@ -708,3 +708,13 @@ The manual was written against the source, and it found the following.
   - `src/lib/recordSharing/__tests__/registryGuard.test.js` reads the source and fails if any table given to `useSharedSavedProjects` is unregistered;
   - `__tests__/qiSharedSave.test.jsx` saves a QI study through the real sharing store on the in-memory database.
   - Both fail without the entry.
+## Remove a worker file (2026-10-09)
+- Until now, only the janitor removed files from the worker store (a raw SEG-Y 30 days after upload; gather stores never). A wrong upload or an old gather store held the user's 150 GiB allowance with no way out.
+- New worker kind `remove_dataset`, and a **Remove** button (with a confirmation) on every row of the Prestack tab's uploads, gather stores and angle stacks:
+  - it removes a gather store's manifest and every block the manifest lists, or the single object of a raw file or stack;
+  - it marks the row deleted, which frees the allowance;
+  - it refuses a file that a queued or running job reads, another user's file, and an unfinished upload;
+  - Seismolord volumes converted from the file are kept.
+- No migration: `qi_jobs.kind` only checks the name's form.
+- Needs a worker redeploy.
+- **Tests:** `worker/seismic-worker/__tests__/removeDataset.test.js` (4, with negative controls) and a Prestack UI test (declined confirmation is a no-op).
