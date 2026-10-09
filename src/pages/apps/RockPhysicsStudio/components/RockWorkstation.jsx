@@ -307,7 +307,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
     setSaving(true);
     try {
       const saved = await backend.saveProject(projectRowFromState({
-        scenario, rock, avo: { ...avo, published_gather: undefined }, wedge, wellId: wellData?.wellId || null, zoneId: zoneId || null,
+        scenario, rock, avo: { ...avo, published_gather: undefined, published_gathers: undefined }, wedge, wellId: wellData?.wellId || null, zoneId: zoneId || null,
       }), { note: `Copied from a colleague's project "${projectRow?.name || ''}"` });
       if (saved?.id) { setProjectId(saved.id); setProjectRow(saved); backend.sharing?.trackOpened('rp_projects', saved); }
       setStatus('Saved as your own project.');
@@ -359,7 +359,10 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
     setGatherNote('');
     try {
       const payload = packGather({ well: selected, zone, gather, substitutedLabel, model, pipelineVersion: PIPELINE_VERSION });
-      const nextAvo = { ...avo, published_gather: payload };
+      // one gather per well: this app keeps one project per user, and publishing
+      // for a second well used to replace the first, so QI Studio's AVO at the
+      // wells found a gather for the last well only (found 2026-10-09)
+      const nextAvo = { ...avo, published_gather: payload, published_gathers: { ...(avo.published_gathers || {}), [wellData.wellId]: payload } };
       const saved = await persistProject(projectRowFromState({
         scenario, rock, avo: nextAvo, wedge, wellId: wellData.wellId, zoneId: zoneId || null,
       }), 'Gather published to Seismolord');

@@ -146,3 +146,62 @@ test('a .pld import carries the gather with its project and points it at the imp
   expect(row.avo.published_gather.well_id).toBe(newWell);
   expect(readGather(row.avo.published_gather).ok).toBe(true);
 });
+
+// 2026-10-09: Rock Physics keeps one project per user, so publishing a
+// second well's gather replaced the first, and QI Studio's AVO at the wells
+// found a gather for the last well only. Gathers are now kept per well.
+describe('one published gather per well', () => {
+  const W1 = '11111111-1111-4111-8111-111111111111';
+  const W2 = '22222222-2222-4222-8222-222222222222';
+  async function two() {
+    const { model, zone, gather } = await rpGather();
+    const p1 = JSON.parse(JSON.stringify(packGather({ well: { id: W1, name: 'W1' }, zone, gather, model })));
+    const p2 = JSON.parse(JSON.stringify(packGather({ well: { id: W2, name: 'W2' }, zone, gather, model })));
+    return { p1, p2 };
+  }
+  // supabase stand-in: rp_projects rows filtered by well_ids containment, newest first
+  const fakeSupabase = (rows) => ({
+    from: () => {
+      let wid = null;
+      const api = { select: () => api, contains: (_c, v) => { [wid] = v; return api; }, order: () => api, limit: async () => ({ data: rows.filter((r) => r.well_ids.includes(wid)), error: null }) };
+      return api;
+    },
+  });
+
+  test('the project row lists every well with a gather, and each well reads its own', async () => {
+    const { p1, p2 } = await two();
+    const row = projectRowFromState({ scenario: DEFAULT_SCENARIO, rock: DEFAULT_ROCK, avo: { published_gather: p2, published_gathers: { [W1]: p1, [W2]: p2 } }, wedge: {}, wellId: W2 });
+    expect([...row.well_ids].sort()).toEqual([W1, W2]);
+    const sb = fakeSupabase([{ id: 'p', ...row }]);
+    expect((await loadGatherForWell(sb, W1)).ok).toBe(true);
+    expect((await loadGatherForWell(sb, W2)).ok).toBe(true);
+  });
+
+  test('negative control: a project with only the single latest gather (the old shape) serves only that well', async () => {
+    const { p2 } = await two();
+    const row = { id: 'p', avo: { published_gather: p2 }, well_ids: [W1, W2] };
+    const sb = fakeSupabase([row]);
+    expect((await loadGatherForWell(sb, W1)).ok).toBe(false);
+    expect((await loadGatherForWell(sb, W2)).ok).toBe(true);
+  });
+
+  test('a .pld import points every per-well gather at its imported well', async () => {
+    const { p1, p2 } = await two();
+    const SRC = '44444444-4444-4444-8444-444444444444';
+    const state = { scenario: DEFAULT_SCENARIO, rock: DEFAULT_ROCK, avo: { published_gather: p2, published_gathers: { [W1]: p1, [W2]: p2 } }, wedge: {}, wellId: W2, zoneId: null };
+    const pkg = {
+      manifest: { package_id: '66666666-6666-4666-8666-666666666666', name: 't', source: { user_id: SRC }, created_at: '2026-10-01T00:00:00Z', notes: [] },
+      tables: {
+        geo_wells: [{ id: W1, user_id: SRC, organization_id: null, name: 'W1' }, { id: W2, user_id: SRC, organization_id: null, name: 'W2' }],
+        rp_projects: [{ id: '55555555-5555-4555-8555-555555555555', user_id: SRC, name: 'Default project', ...projectRowFromState(state) }],
+      },
+      blobs: new Map(),
+    };
+    const plan = planImport(pkg, { userId: '77777777-7777-4777-8777-777777777777', organizationId: null });
+    const row = plan.planned.rp_projects[0];
+    const ids = plan.planned.geo_wells.map((w) => w.id);
+    expect(Object.keys(row.avo.published_gathers).sort()).toEqual([...ids].sort());
+    for (const [k, payload] of Object.entries(row.avo.published_gathers)) expect(payload.well_id).toBe(k);
+    expect([...row.well_ids].sort()).toEqual([...ids].sort());
+  });
+});

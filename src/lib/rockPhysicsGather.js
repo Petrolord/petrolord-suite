@@ -1,9 +1,10 @@
 // The angle gather Rock Physics Studio publishes for other apps to show
 // (AppUpgrade RP-U2-012, 2026-10-01; the second half of Seismolord U2-020).
 //
-// CONTRACT `rock-physics-gather`, version 1. Rock Physics writes one
-// payload into its own project row, rp_projects.avo.published_gather (an
-// existing jsonb column, owner-only RLS, no schema change). A reader finds
+// CONTRACT `rock-physics-gather`, version 1. Rock Physics writes the
+// payload into its own project row: rp_projects.avo.published_gathers[well_id]
+// (one per well, since 2026-10-09) and avo.published_gather (the latest, as
+// before), in an existing jsonb column (owner-only RLS, no schema change). A reader finds
 // the newest project of the signed-in user whose well_ids holds the well
 // and reads the payload through readGather, which refuses anything it does
 // not understand. The payload is self-contained: a reader draws it without
@@ -170,7 +171,9 @@ export async function loadGatherForWell(supabase, wellId) {
     .limit(5);
   if (error) return { ok: false, reason: `Could not read Rock Physics projects: ${error.message}` };
   for (const row of data || []) {
-    const p = row?.avo?.published_gather;
+    // this well's own gather first (one per well since 2026-10-09), then the
+    // single gather older projects carry
+    const p = row?.avo?.published_gathers?.[wellId] || row?.avo?.published_gather;
     if (p && (!p.well_id || p.well_id === wellId)) return readGather(p);
   }
   return { ok: false, reason: 'No gather has been published for this well.' };

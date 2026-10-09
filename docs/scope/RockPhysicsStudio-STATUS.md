@@ -226,3 +226,9 @@ depth frame (`makeWellFrame`); no KB arithmetic remains in the app.
 ## Unit changes keep typed values (2026-10-09)
 - Changing any unit in Scenario & rock (temperature, pressure, salinity, GOR, depth) used to rebuild the draft from the last applied scenario, so a temperature typed but not yet applied went back to its old value when the salinity unit was changed. Found while recording the QI videos. A unit change now converts the typed values (`redisplayDraft`); a new scenario or rock still resets the draft.
 - **Tests:** `__tests__/unitChangeDraft.test.jsx` (3; the two behaviour tests fail on the old panel).
+
+## One published gather per well (2026-10-09)
+- Rock Physics Studio keeps one project per user. Publishing a zone gather for a second well replaced the first (`avo.published_gather`, and `well_ids` held only the well on screen). QI Studio's AVO at the wells, and Seismolord's synthetics window, therefore found a gather for the last well published only. Found preparing the QI videos (Ekene-1 to Ekene-4).
+- The project now keeps `avo.published_gathers[well_id]` beside the latest `published_gather`, and its `well_ids` lists every well with a gather. `loadGatherForWell` reads the well's own entry first; older projects still read as before.
+- A .pld import remaps the map's keys (geoscienceSpec `avo.published_gathers{keys}`). Save a copy of a colleague's project leaves their gathers behind, as it already did.
+- **Tests:** `src/lib/__tests__/rockPhysicsGather.test.js` (3 new; 2 fail on the old code, plus an old-shape negative control).
