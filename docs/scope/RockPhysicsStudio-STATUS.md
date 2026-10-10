@@ -239,3 +239,9 @@ depth frame (`makeWellFrame`); no KB arithmetic remains in the app.
 - `fluidTable` (FluidsPanel) now shows two rows in that case: "A (in situ), water" (brine) and "A (in situ), hydrocarbon" (the end member the log mixes), each labelled "mixed per sample by the SW log". Without an SW curve, or with the box unticked, the table keeps the typed Sw.
 - Hydrocarbon labels read "live oil" and "dead oil" in place of the codes `oil-live` and `oil-dead`.
 - **Tests:** `fluidsDepthTicks.test.js` (both end members shown; no SW curve and the box unticked as negative controls).
+
+## 2026-10-10: the Gather view's "Published" label reads this well's gather
+
+- Since #966 gathers are kept per well (`avo.published_gathers`), but the label still read the single `published_gather`, the last one published for any well. Ekene-1 showed "Published 2026-10-09 for Ekene-4".
+- `publishedFor(avo, wellId)` (GatherPanel) reads this well's entry. The single copy counts only when it belongs to this well, which covers projects saved before per-well gathers.
+- **Tests:** `gatherPublishedLabel.test.js` (another well's gather is not shown; the legacy single copy counts for its own well only).

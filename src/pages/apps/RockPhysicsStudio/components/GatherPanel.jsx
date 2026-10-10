@@ -29,11 +29,26 @@ const AXIS_LINE = { stroke: CHART_COLORS.axisLine, strokeWidth: 1 };
 const INPUT = 'bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-right text-pl-text';
 const same = (v) => v;
 
+/**
+ * The gather published for this well. Gathers are kept per well
+ * (avo.published_gathers, #966); the single published_gather is the last one
+ * published for any well, so reading it labelled Ekene-1 with Ekene-4's
+ * gather (found scripting the QI lessons). The single copy counts only when
+ * it is this well's.
+ */
+export function publishedFor(avo, wellId) {
+  if (!wellId) return null;
+  const byWell = avo?.published_gathers?.[wellId];
+  if (byWell) return byWell;
+  return avo?.published_gather?.well_id === wellId ? avo.published_gather : null;
+}
+
 export default function GatherPanel({
   model, zones, scenario, rock, avo, onAvoChange, units = DEFAULT_UNITS, zoneId, onZoneChange, well = null,
   onPublishGather = null, publishingGather = false, publishNote = '',
 }) {
   const zone = zones.find((z) => z.id === zoneId) || zones[0] || null;
+  const published = publishedFor(avo, well?.id);
   const cfg = gatherConfig(avo.gather);
   const patch = (p) => onAvoChange({ ...avo, gather: { ...DEFAULT_GATHER, ...(avo.gather || {}), ...p } });
   const zU = units.depth;
@@ -196,9 +211,9 @@ export default function GatherPanel({
                     {publishingGather ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                     Publish gather to Seismolord
                   </button>
-                  {(publishNote || avo.published_gather) && (
+                  {(publishNote || published) && (
                     <span className="text-[11px] text-pl-success-text" data-testid="rp-gather-published">
-                      {publishNote || `Published ${String(avo.published_gather.published_at || '').slice(0, 10)} for ${avo.published_gather.well_name || 'a well'}, ${avo.published_gather.zone?.name || ''}.`}
+                      {publishNote || `Published ${String(published.published_at || '').slice(0, 10)} for ${published.well_name || 'this well'}, ${published.zone?.name || ''}.`}
                     </span>
                   )}
                 </div>
