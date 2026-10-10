@@ -57,13 +57,14 @@ describe('inversion job params', () => {
 });
 
 describe('horizons at a trace', () => {
-  test('times in ms, and null when a pick is missing or the order is wrong', () => {
+  test('times in ms, null when a pick is missing, and ordered top down', () => {
     const at = horizonsAtFrom(grids, nXl, dtMs);
     expect(at(2, 3)).toEqual([topAt(2), baseAt(2)]);
     const holed = [Float32Array.from(grids[0]), grids[1]];
     holed[0][2 * nXl + 3] = NULL;
     expect(horizonsAtFrom(holed, nXl, dtMs)(2, 3)).toBeNull();
-    expect(horizonsAtFrom([grids[1], grids[0]], nXl, dtMs)(2, 3)).toBeNull();
+    // grids given bottom first are ordered top down (they used to be refused at every CDP)
+    expect(horizonsAtFrom([grids[1], grids[0]], nXl, dtMs)(2, 3)).toEqual(horizonsAtFrom(grids, nXl, dtMs)(2, 3));
     expect(horizonsAtFrom([], nXl, dtMs)(2, 3)).toBeNull();
   });
 });
@@ -173,4 +174,15 @@ describe('sensitivity', () => {
     const same = spreadProducts([a[0], a[0], a[0]])[3];
     expect(Math.max(...Array.from(same).map(Math.abs))).toBe(0);
   });
+});
+
+test('horizons ticked deepest first are still used, ordered top to bottom (they used to be dropped at every CDP)', () => {
+  const nXl = 3; const n = 2 * nXl; const dtMs = 4;
+  const shallow = new Float32Array(n).fill(100); const deep = new Float32Array(n).fill(300);
+  const at = horizonsAtFrom([deep, shallow], nXl, dtMs);
+  expect(at(1, 2)).toEqual([400, 1200]);
+  // crossing horizons are still refused at that CDP
+  const crossing = Float32Array.from(shallow); crossing[4] = 500;
+  expect(horizonsAtFrom([crossing, deep], nXl, dtMs)(1, 1)).toBeNull();
+  expect(horizonsAtFrom([crossing, deep], nXl, dtMs)(0, 0)).toEqual([400, 1200]);
 });

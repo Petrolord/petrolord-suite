@@ -101,11 +101,29 @@ export function lfmWells(wells, { dtMs, lfmHz, posOf, horizonsAt }) {
  * trace then interpolates at constant time).
  * @param {Float32Array[]} grids sample-index picks, nIl x nXl, 1e30 nulls
  */
+/**
+ * Horizon grids ordered top to bottom by their median time. The picker passes
+ * them in the order they were ticked; taken as given, a deeper horizon ticked
+ * first made every CDP fail the increasing-time check below, and the
+ * low-frequency model fell back to constant time without a word (found
+ * 2026-10-10).
+ */
+export function orderTopDown(grids) {
+  const median = (g) => {
+    const v = [];
+    for (let i = 0; i < g.length; i += Math.max(1, Math.floor(g.length / 2000))) if (!isNull(g[i]) && fin(g[i])) v.push(g[i]);
+    v.sort((a, b) => a - b);
+    return v.length ? v[Math.floor(v.length / 2)] : Infinity;
+  };
+  return grids.map((g) => [median(g), g]).sort((a, b) => a[0] - b[0]).map(([, g]) => g);
+}
+
 export function horizonsAtFrom(grids, nXl, dtMs) {
+  const ordered = orderTopDown(grids);
   return (il, xl) => {
-    if (!grids.length) return null;
+    if (!ordered.length) return null;
     const out = [];
-    for (const g of grids) {
+    for (const g of ordered) {
       const s = g[il * nXl + xl];
       if (isNull(s) || !fin(s)) return null;
       out.push(s * dtMs);
