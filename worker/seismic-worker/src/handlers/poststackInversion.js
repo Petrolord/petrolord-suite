@@ -39,6 +39,7 @@ import { resampleWavelet } from '../../../../packages/engines/engines/qi/wavelet
 import {
   buildDerivedManifest, brickRelPath, volumeDir, manifestPath, NULL_VALUE,
 } from '../../../../packages/engines/engines/seismolord/manifest.js';
+import { withUnpackedLogs } from '../../../../src/pages/apps/QIStudio/services/logPacking.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const UPLOADS_IN_FLIGHT = 4;
@@ -85,13 +86,14 @@ export function inversionSummary(inv, extra = {}) {
 }
 
 export async function poststackInversion(ctx, deps) {
-  const p = ctx.params;
+  let p;
+  try { p = withUnpackedLogs(ctx.params || {}, 'inversion', ['ln_ai']); } catch (e) { throw new JobFailure('validate_failed', e.message); }
   const problem = validatePoststackParams(p);
   if (problem) throw new JobFailure('validate_failed', problem);
   const uid = ctx.job.user_id;
   const { admin } = deps;
   // JSON carries the logs' NaN gaps as null
-  const inv = { ...p.inversion, wells: p.inversion.wells.map((w) => ({ ...w, ln_ai: w.ln_ai.map((v) => (Number.isFinite(v) ? v : NaN)) })) };
+  const inv = p.inversion;
   const absolute = INVERSION_METHODS[inv.method].absolute;
 
   const rowOf = async (id) => {

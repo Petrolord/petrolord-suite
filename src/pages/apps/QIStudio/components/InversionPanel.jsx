@@ -14,6 +14,7 @@ import { tieRows, waveletComparison } from '../services/ties';
 import { prepareWell } from '../services/inversionWells';
 import { INVERSION_METHODS, INVERSION_DEFAULTS, inversionIssues, validateSensitivity, MAX_SCENARIOS } from '../services/inversionRun';
 import ExportControls from './ExportControls';
+import { packLog } from '../services/logPacking';
 
 const SPREAD_KEYS = [['q10', 'AI Q10'], ['q50', 'AI Q50'], ['q90', 'AI Q90'], ['spread', 'AI spread']];
 const LFM_FACTORS = [0.5, 1, 1.5];
@@ -140,7 +141,7 @@ export default function InversionPanel() {
   const inversionBlock = () => ({
     method: s.method,
     wavelet: { samples: wavelet.samples, dt_ms: wavelet.dtMs },
-    wells: usable.map((w) => ({ name: w.name, il: w.il, xl: w.xl, ln_ai: w.ln_ai })),
+    wells: usable.map((w) => ({ name: w.name, il: w.il, xl: w.xl, ln_ai: packLog(w.ln_ai) })),
     horizon_ids: s.horizonIds,
     lfmHz: Number(s.lfmHz),
     ...(s.method === 'sparse_spike' ? { lambda: Number(s.lambda) } : { eps: Number(s.eps) }),

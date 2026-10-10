@@ -26,6 +26,7 @@ import { sameLattice, surveyAffine, ilxlToWorld } from '../../../../packages/eng
 import { runVolumeJob } from '../../../../packages/engines/engines/seismolord/volumeJob.js';
 import { resampleWavelet } from '../../../../packages/engines/engines/qi/wavelets.js';
 import { buildDerivedManifest, brickRelPath, volumeDir, manifestPath, NULL_VALUE } from '../../../../packages/engines/engines/seismolord/manifest.js';
+import { withUnpackedLogs } from '../../../../src/pages/apps/QIStudio/services/logPacking.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const KEYS = ['ai', 'si', 'rho', 'vpvs'];
@@ -44,13 +45,13 @@ export function validatePrestackJob(p) {
 }
 
 export async function prestackInversion(ctx, deps) {
-  const p = ctx.params || {};
+  let p;
+  try { p = withUnpackedLogs(ctx.params || {}, 'inversion', ['ln_ai', 'ln_si', 'ln_rho']); } catch (e) { throw new JobFailure('validate_failed', e.message); }
   const problem = validatePrestackJob(p);
   if (problem) throw new JobFailure('validate_failed', problem);
   const uid = ctx.job.user_id;
   const { admin } = deps;
-  const num = (a) => a.map((v) => (Number.isFinite(v) ? v : NaN));
-  const inv = { ...PRESTACK_DEFAULTS, ...p.inversion, wells: p.inversion.wells.map((w) => ({ ...w, ln_ai: num(w.ln_ai), ln_si: num(w.ln_si), ln_rho: num(w.ln_rho) })) };
+  const inv = { ...PRESTACK_DEFAULTS, ...p.inversion };
 
   const rowOf = async (id) => {
     const { data, error } = await admin.from('seismic_volumes').select('id,user_id,status,name,kind,parent_volume_id,storage_path,crs').eq('id', id).maybeSingle();

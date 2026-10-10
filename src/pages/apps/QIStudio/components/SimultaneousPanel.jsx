@@ -15,6 +15,7 @@ import ExportControls from './ExportControls';
 import { extractAngleWavelets } from '../services/angleWavelets';
 import { meanVsVp } from '../services/prestackRun';
 import { describeWavelet, storedSamples } from '@/pages/apps/Seismolord/lib/wellWavelet';
+import { packLog } from '../services/logPacking';
 
 const card = 'rounded-lg border border-pl-border bg-pl-surface p-4 space-y-3';
 const muted = 'text-xs text-pl-muted';
@@ -93,7 +94,7 @@ export default function SimultaneousPanel() {
     stacks: live.map((s) => ({ volume_id: s.volumeId, angle: Number(s.angle) })),
     wavelet: { samples: wavelet.samples, dt_ms: wavelet.dtMs },
     ...(useAngle && awMatches ? { wavelets: aw.items.map((it) => ({ samples: it.samples, dt_ms: aw.dtMs })) } : {}),
-    wells: usable.map((w) => ({ name: w.name, il: w.il, xl: w.xl, ln_ai: w.ln_ai, ln_si: w.elastic.ln_si, ln_rho: w.elastic.ln_rho })),
+    wells: usable.map((w) => ({ name: w.name, il: w.il, xl: w.xl, ln_ai: packLog(w.ln_ai), ln_si: packLog(w.elastic.ln_si), ln_rho: packLog(w.elastic.ln_rho) })),
     horizon_ids: hz,
   });
   const watch = (mode, jobId, onDone) => stops.current.push(client.watchJob(jobId, (row, err) => {

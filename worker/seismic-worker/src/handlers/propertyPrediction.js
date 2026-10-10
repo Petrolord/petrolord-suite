@@ -32,6 +32,7 @@ import { sameLattice } from '../../../../packages/engines/engines/seismolord/sur
 import {
   buildDerivedManifest, brickRelPath, volumeDir, manifestPath, NULL_VALUE,
 } from '../../../../packages/engines/engines/seismolord/manifest.js';
+import { withUnpackedLogs } from '../../../../src/pages/apps/QIStudio/services/logPacking.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const UPLOADS_IN_FLIGHT = 4;
@@ -58,14 +59,14 @@ export function validatePropertyJob(p) {
 }
 
 export async function propertyPrediction(ctx, deps) {
-  const p = ctx.params;
+  let p;
+  try { p = withUnpackedLogs(ctx.params || {}, 'property', ['ln_ai', 'target', 'vpvs']); } catch (e) { throw new JobFailure('validate_failed', e.message); }
   const problem = validatePropertyJob(p);
   if (problem) throw new JobFailure('validate_failed', problem);
   const uid = ctx.job.user_id;
   const { admin } = deps;
   // JSON carries NaN gaps as null
-  const num = (a) => a.map((v) => (Number.isFinite(v) ? v : NaN));
-  const pr = { ...p.property, wells: p.property.wells.map((w) => ({ ...w, ln_ai: num(w.ln_ai), target: num(w.target), ...(w.vpvs ? { vpvs: num(w.vpvs) } : {}) })) };
+  const pr = p.property;
   const two = pr.attributes === 'ai_vpvs';
 
   const rowOf = async (id) => {
