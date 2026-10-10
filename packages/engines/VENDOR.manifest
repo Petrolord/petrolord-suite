@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit f7a0b500538612ee6877cf4dee002388d8040a4f
+# commit 56eb439c2b16aabfbc12a9d898a275fa0c4957bd
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 80b08bf546799e96d5448d67c63c98f2ec1b9703 README.md
@@ -138,6 +138,7 @@ d3b4c56d74031a4ab9d2900ee6a2327dc83c45d3 __tests__/hse.exposure.test.js
 2c560f57bd18957f6ef9c50f4c763fb0a74216fc __tests__/lp.simplex.golden.test.js
 618469aae8ebde4aee700986fc5b07bb126f78a8 __tests__/lp.simplex.test.js
 8060f28b96f2d488db64da2e0adcfdaf2c092c55 __tests__/mapping.cultureimport.test.js
+36e64d462896b8bba6f5fc9e2eaeac18e5a8fc49 __tests__/mapping.gridding.gate.test.js
 18ecef5c10e9fef95943227c3b9a1e936e9cde02 __tests__/mapping.kriging.test.js
 a46150ed760bc35823154ef53bc33dbcd725db96 __tests__/mapping.structurepoints.test.js
 b49f1bf2a40b079b94284e7867cf4567224898ad __tests__/mapping.t1.test.js
@@ -666,15 +667,15 @@ a9f4aed1007adab6744e55b6a476843715dcf375 lib/crs/gridReproject.js
 8aa52bc3b2876860fde0803c26d963f6523d52cc lib/fft.js
 f64c4fc41f49a4d53c3de345d024cb40ad939f63 lib/gridding/blockedGridding.js
 9935981abb59d0999ea820820cedc09edd89db54 lib/gridding/closure.js
-2cf7a6f8630b86ed596a4b8b06e9692b1e524c17 lib/gridding/gridding.js
+b311ad25b19d37418a1e2d58060bed93863616bf lib/gridding/gridding.js
 b826a59d23b93344fc6a72f5ffaffc5d38ad9e82 lib/gridding/gridmath.js
 3bdcbb9345b4f6a9b6313d366c9ee6b92114abc4 lib/gridding/isopach.js
-69e38e02f2b9e9f9f3f30e6a68f415def7f257ca lib/gridding/kriging.js
+79d380a51e97d265b61ecf2b397c9d115e0f2c64 lib/gridding/kriging.js
 ae6ab0759e28f7f6ee62af4a46224b567eda2bd6 lib/gridding/mapContours.js
 6781b836e8c152989ca9f84af0d8360acd0c8bcc lib/gridding/numeric.js
 732bc74ae164f70c092d5fe09a20f21b2e85ae43 lib/gridding/surfaceExport.js
 257ace2d4a1a25624830610689c5c2f6cd5219a6 lib/gridding/surfaceImport.js
-239f287ce6a3553604e551cdcf4c1469abb54ea6 lib/gridding/tensionSpline.js
+79ea9c8e76b06df52332f85ac6deef3f84a6d312 lib/gridding/tensionSpline.js
 33e4c427eb4e2398cbf1fc7f7c2faf09282027e6 lib/linalg/solveDense.js
 d0e10f21a7c6cc8d6f2167bd6244e5dd32c63d35 lib/lp/simplex.js
 92985b59a8f78fb16d3d132a13fcbadb1a7ec4ee lib/stats/stats.js

@@ -2734,3 +2734,12 @@ drawing as they did. The engine and the display math are untouched.
 - **Oracle:** `gen_synthetics.py` case (c) uses the same placement. It now asserts that the MD 600 reflection coefficient sits on the sample nearest the step (the midpoint of the bracketing log samples), with the old recipe's late sample as the negative control. Only `las_pipeline.json` changed.
 - **Existing ties:** ties committed before this fix carry the half-sample error (often a -4 ms shift at 4 ms sampling). Re-tie a well to remove it.
 - **Tests:** `packages/engines/__tests__/seismolord.synthetic.placement.test.js` (with the old recipe as the negative control) and `synthetics.test.js` against the regenerated golden.
+
+## 2026-10-10: gridded surfaces keep every node next to a pick (engines 56eb439)
+
+- **Defect:** a surface gridded from a fully picked horizon (Make surface, or Export, Surface or Amplitude map, Save as surface) came back with holes. On the Ekene full stack, 5,692 live nodes against 16,129 traces picked. The gridders fit a decimated set of about 700 control points (493 here). The two-cell extrapolation gate then tested distance to those kept points only, which sit about 160 m apart, so nodes between them were nulled although picks lay right beside them.
+- **Effect:** QI Studio Prospects found no trap on the surface ("crest / spill 1517 / 1517 (edge), column 0"). The crest climb stops at the first null neighbour.
+- **Fix (engines `lib/gridding`):** `nearControl`, a spatial hash over every control point, is now the gate in `gridSurface`, `gridSurfaceBlocked`, `gridTensionSpline` and `krigeSurface`. The fit and the hull still use the decimated points, so nothing is extrapolated beyond the fitted control.
+- Mapping & Surface Studio, ReservoirCalc Pro and the Digitizer share these gridders and gain the same coverage.
+- **Existing surfaces** gridded before this fix keep their holes. Grid them again.
+- **Tests:** `packages/engines/__tests__/mapping.gridding.gate.test.js`. A 128 x 128 dome is fully live inside for all four gridders. With the old gate only 55.6 percent of the interior is live (the negative control). The gate still nulls nodes far from every pick. `griddingExport.test.js` is unchanged (1,344 nodes compared, 95.5 percent within 1 ft, as before).
