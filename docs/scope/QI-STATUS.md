@@ -765,3 +765,10 @@ The manual was written against the source, and it found the following.
 - A systematic 8 ms residual (the worker test fixture) is now high severity, where it was medium.
 - Needs a worker redeploy.
 - **Tests:** `prestackQc.test.js` (the flat Ekene numbers give a low scatter note only; systematic moveout is medium or high; a no-event window raises nothing).
+
+## 2026-10-10: well logs are timed only where the checkshots have control
+
+- On the Ekene demo, post-stack inversion's blind-well check read Ekene-1 0.65 / 11.5 percent and Ekene-2 to 4 about 0.48 / 20 percent. Horizons and including the well made no difference.
+- Running the same engine offline on the kit gave 0.74 to 0.84 / 7 percent at every well. The app's logs matched the kit's (aligned, residual sd under 0.015 in ln AI), but each started about 100 ms earlier, at 52 ms where the kit's started at 152 ms. `makeTvdssToTwt` extrapolates linearly above the first checkshot (162 m MD on the Ekene wells), so the mudline-to-first-checkshot interval was timed by a guess: the mudline at about 51 ms against the true 47 ms. Scored against the seismic, that window doubled the error. Cutting it gave 7.0, 7.0, 6.8 and 7.5 percent. A committed tie's derived rows span that extrapolated interval too.
+- `prepareWell` (`services/inversionWells.js`) now times the impedance, elastic and property logs only within `controlRange`: the imported checkshots' TVDSS range, or the rows in use when none were imported. It reports `timeControl`. This applies to Inversion, Simultaneous, Properties and AVO at the wells.
+- **Tests:** `inversionWells.test.js` (the log starts at the first checkshot; derived rows do not widen the range; property curves clipped). All three fail on the old code.

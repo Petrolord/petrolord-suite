@@ -81,7 +81,15 @@ export async function prepareWell(loaded, frame, downloadCurve, { extras = [], t
     return j >= 0 && j < rho.length && Number.isFinite(rho[j]) && rho[j] > 0 ? rho[j] : NaN;
   });
   const imp = computeImpedance(slownessToVelocity(dt), rhoOnDt);
-  const twt = mdSeriesToTwt(md, (m) => positionAtMd(stations, path, m)?.tvdss ?? null, (z) => conv.toTwtMs(z));
+  // logs are timed only where the time-depth has control: the conversion
+  // extrapolates linearly past the first and last checkshot, and above the
+  // first one (mudline to about 160 m on the Ekene wells) that put 100 ms of
+  // log at guessed times; scored against the seismic it doubled the blind AI
+  // error at Ekene-2 to 4 (found 2026-10-10)
+  const control = controlRange(well, cs.rows);
+  const inControl = (z) => Number.isFinite(z) && z >= control[0] - 0.01 && z <= control[1] + 0.01;
+  const toTwtInControl = (z) => (inControl(z) ? conv.toTwtMs(z) : null);
+  const twt = mdSeriesToTwt(md, (m) => positionAtMd(stations, path, m)?.tvdss ?? null, toTwtInControl);
   let ai;
   try { ai = resampleToDt(twt, imp, frame.dtMs, frame.ns); } catch (e) { return no(e.message); }
   const lnAi = Array.from(ai, (v) => (Number.isFinite(v) && v > 0 ? Math.log(v) : NaN));
@@ -98,6 +106,7 @@ export async function prepareWell(loaded, frame, downloadCurve, { extras = [], t
 
   const named = (c) => `${c.log.mnemonic}${c.edit ? ` (${c.edit})` : ''}`;
   const toTwt = (m) => conv.toTwtMs(positionAtMd(stations, path, m)?.tvdss ?? NaN);
+  const toTwtLog = (m) => { const v = toTwtInControl(positionAtMd(stations, path, m)?.tvdss ?? NaN); return v == null ? NaN : v; };
   const extra = {};
   if (extras.includes('elastic')) {
     // shear impedance and density in time, through the same tie (prestack inversion, Q8b)
@@ -129,7 +138,7 @@ export async function prepareWell(loaded, frame, downloadCurve, { extras = [], t
     const raw = await downloadCurve(c.log);
     const data = kind === 'facies' ? raw : porosityFraction(raw);
     const mdC = Array.from({ length: data.length }, (_, i) => Number(c.log.start_md_m) + i * Number(c.log.step_m));
-    const twtC = mdC.map(toTwt);
+    const twtC = mdC.map(toTwtLog);
     const values = kind === 'facies'
       ? nearestToDt(twtC, Array.from(data), frame.dtMs, frame.ns)
       : Array.from(resampleToDt(Float64Array.from(twtC, (t) => (Number.isFinite(t) ? t : NaN)), Float64Array.from(data, (v) => (Number.isFinite(v) ? v : NaN)), frame.dtMs, frame.ns));
@@ -143,8 +152,20 @@ export async function prepareWell(loaded, frame, downloadCurve, { extras = [], t
     ...base, ok: true, il, xl, ln_ai: lnAi, samples: live, topsTwt,
     curves: `${named(sonic)} and ${named(density)}`,
     timeSource: cs.derived ? 'the committed well tie' : 'imported checkshots',
+    timeControl: { fromTvdssM: control[0], toTvdssM: control[1] },
     ...extra,
   };
+}
+
+/**
+ * The TVDSS range (m) the well's time-depth actually measures: the imported
+ * checkshots when there are any (a committed tie's derived rows are generated
+ * over the whole synthetic, extrapolated ends included), else the rows in use.
+ */
+export function controlRange(well, rows) {
+  const measured = Array.isArray(well?.checkshots) && well.checkshots.length >= 2 ? well.checkshots : rows;
+  const z = (measured || []).map((r) => Number(r.tvdss_m)).filter(Number.isFinite);
+  return z.length >= 2 ? [Math.min(...z), Math.max(...z)] : [-Infinity, Infinity];
 }
 
 /** Porosity as a fraction: vendor nulls (-999 and below) dropped; a curve in percent (median over 1.5) divided by 100. */
