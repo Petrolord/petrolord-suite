@@ -24,8 +24,13 @@ Cases (all self-asserted here before any golden is written):
                 grid down a deviated path -> MD -> TVDSS (minimum curvature)
                 -> TWT (piecewise-linear checkshots, end-extrapolating, the
                 makeTvdssToTwt convention) -> impedance resampled onto the
-                uniform TWT grid (linear, gap-preserving) -> reflectivity ->
-                Ricker convolution with validity mask.
+                uniform TWT grid (linear, gap-preserving; the display and
+                inversion log) -> reflectivity from the impedance sampled half
+                a sample either side of every grid time, so each interface
+                sits on its NEAREST sample (2026-10-10; before, adjacent grid
+                samples were differenced, which put an interface on the NEXT
+                sample, half a sample late on average) -> Ricker convolution
+                with validity mask.
 (d) wavelet_extract  statistical wavelet extraction reference. Exact recipe:
                 per trace zero-fill gaps + demean over valid samples; biased
                 autocorrelation to lag nlag = round(lenMs/2/dt), averaged over
@@ -111,7 +116,7 @@ def checkshot_to_twt(cs: list, z: float) -> float:
     return a['twt_ms'] + f * (b['twt_ms'] - a['twt_ms'])
 
 
-def resample_to_dt(twt_ms: np.ndarray, values: np.ndarray, dt_ms: float, ns: int) -> np.ndarray:
+def resample_to_dt(twt_ms: np.ndarray, values: np.ndarray, dt_ms: float, ns: int, t0_ms: float = 0.0) -> np.ndarray:
     """Linear interpolation onto the uniform TWT grid, gap-preserving.
 
     Samples whose TWT is a gap are dropped first; the remaining TWTs must be
@@ -128,7 +133,7 @@ def resample_to_dt(twt_ms: np.ndarray, values: np.ndarray, dt_ms: float, ns: int
         raise ValueError('time-depth relationship is not strictly increasing')
     j = 0
     for i in range(ns):
-        ti = i * dt_ms
+        ti = t0_ms + i * dt_ms
         if ti < t[0] or ti > t[-1]:
             continue
         while j < len(t) - 2 and t[j + 1] < ti:
@@ -257,6 +262,23 @@ def case_ricker():
 
 
 # ---------------------------------------------------------------------------
+def centred_reflectivity(twt_ms: np.ndarray, imp: np.ndarray, dt_ms: float, ns: int) -> np.ndarray:
+    """rc[i] between the impedance at (i - 1/2) dt and (i + 1/2) dt.
+
+    An interface at TWT T therefore lands on sample round(T / dt), the
+    nearest one (the wedge case's placement); a gap where either
+    half-sample impedance is a gap.
+    """
+    half = resample_to_dt(twt_ms, imp, dt_ms, ns + 1, -dt_ms / 2.0)
+    rc = np.full(ns, np.nan)
+    for i in range(ns):
+        a, b = half[i], half[i + 1]
+        if is_gap(a) or is_gap(b) or (a + b) == 0:
+            continue
+        rc[i] = (b - a) / (b + a)
+    return rc
+
+
 # (b) 3-layer wedge, hand-checked RCs, spikes placed in TWT
 # ---------------------------------------------------------------------------
 
@@ -406,15 +428,25 @@ def case_las_pipeline():
     k_in_gap = int(math.ceil(gap_t0 / dt_ms)) + 1
     assert k_in_gap * dt_ms < gap_t1 and math.isnan(imp_time[k_in_gap])
 
-    rc = reflectivity(imp_time)
+    rc = centred_reflectivity(twt, imp, dt_ms, ns)
     wav = ricker(25.0, dt_ms, 60.0)
     syn, valid = convolve_same(rc, wav)
     # the interface at MD 600 (a dt AND rho step) must be the strongest
-    # positive reflector: find its TWT
-    t_if = checkshot_to_twt(checkshots, md_to_tvdss(600.0))
+    # positive reflector near its TWT; its RC is on the NEAREST sample.
+    # In the sampled log the step lies between MD 599 (last sample above)
+    # and MD 600 (first below), so the interface is at their midpoint.
+    t_if = checkshot_to_twt(checkshots, md_to_tvdss(599.5))
     k_if = round(t_if / dt_ms)
     k_max = int(np.nanargmax(np.where(valid == 1, syn, -np.inf)))
-    assert abs(k_max - k_if) <= 1, (k_max, k_if)
+    assert abs(k_max - k_if) <= 1, (k_max, k_if, t_if)  # neighbouring trend reflectivity can move the peak
+    # its reflection coefficient is the largest, on that same sample
+    k_rc = int(np.nanargmax(np.where(np.isnan(rc), -np.inf, rc)))
+    assert k_rc == k_if, (k_rc, k_if)
+    # negative control: differencing the grid impedance puts it on the
+    # first sample at or after t_if (ceil)
+    rc_grid = reflectivity(imp_time)
+    k_grid = int(np.nanargmax(np.where(np.isnan(rc_grid), -np.inf, rc_grid)))
+    assert k_grid == math.ceil(t_if / dt_ms), (k_grid, t_if)
 
     return {
         'description': 'full LAS pipeline: DT+RHOB down a deviated path, gaps, checkshots',

@@ -2720,3 +2720,17 @@ drawing as they did. The engine and the display math are untouched.
   Found tying the Ekene wells for the QI videos.
 - The commit now samples the synthetic's time-depth over the whole well every 20 ms (plus the anchors) and carries it through the warp (`denseTieWarp`). Beyond the outermost anchors the warp holds its end shift, as the display does. A one-anchor tie (a bulk shift) is a valid commit.
 - **Tests:** `__tests__/tieCommitAnchors.test.js` (with the anchors-only negative control).
+
+## 2026-10-10: synthetic reflectivity puts each interface on its nearest sample (engines d1e3d83)
+
+- **Finding:** the synthetic sampled impedance on the seismic grid and took the reflection between adjacent samples. An interface at TWT T then landed on the first sample at or after T: up to one sample late, half a sample late on average.
+  - A well tie absorbed that lag as a bulk shift, and Commit stored it in the well's time-depth.
+  - On the Ekene demo, Suggest gave -4 ms where the kit ties at 0 ms.
+  - QI Studio's angle wavelets read about 35 degrees of phase on a zero-phase kit, and Tops to Horizons showed Ekene Sand events 7.7 ms after prediction on the shifted wells.
+- **Fix (engines PR #343, vendored here):** `centredReflectivity` samples the impedance half a sample either side of every grid time, so an interface lands on its nearest sample. `buildSynthetic` uses it. The grid impedance (display, QI inversion logs) and `reflectivity()` are unchanged, and `resampleToDt` gains an optional grid offset.
+- **Single interface, 30 Hz Ricker, 4 ms, interface time across one sample:**
+  - before: error +0.25 to +3.75 ms, mean +1.94 ms;
+  - after: error -1.75 to +1.75 ms, mean -0.06 ms.
+- **Oracle:** `gen_synthetics.py` case (c) uses the same placement. It now asserts that the MD 600 reflection coefficient sits on the sample nearest the step (the midpoint of the bracketing log samples), with the old recipe's late sample as the negative control. Only `las_pipeline.json` changed.
+- **Existing ties:** ties committed before this fix carry the half-sample error (often a -4 ms shift at 4 ms sampling). Re-tie a well to remove it.
+- **Tests:** `packages/engines/__tests__/seismolord.synthetic.placement.test.js` (with the old recipe as the negative control) and `synthetics.test.js` against the regenerated golden.
