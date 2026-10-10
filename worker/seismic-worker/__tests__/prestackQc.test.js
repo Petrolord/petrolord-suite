@@ -63,7 +63,8 @@ test('a known residual moveout is measured, with the stretch mute, the fold and 
   expect(r.times[0].stretchMuteM).toBeCloseTo(stretchMuteOffset(0.3, 2500, 0.3), 6);
   expect(r.fold.median).toBe(OFFS.length);
   expect(r.issues.map((i) => i.title)).toEqual(expect.arrayContaining(['Residual moveout at 300 ms', 'NMO stretch at 300 ms']));
-  expect(r.issues.find((i) => /Residual/.test(i.title)).severity).toBe('medium');
+  // a systematic 8 ms residual at the far offset is serious for AVO
+  expect(r.issues.find((i) => /Residual moveout at/.test(i.title)).severity).toBe('high');
 });
 
 test('negative control: flat gathers raise no moveout issue', async () => {
@@ -96,6 +97,22 @@ test('coherentEvent: the reference offsets do not count; noise fails, a real eve
   // an AVO event: the nearer half stays similar, the far offsets change shape
   expect(coherentEvent({ corr: [1, 1, 1, 0.95, 0.9, 0.85, 0.8, 0.7, 0.4, 0.2, -0.3, -0.6, -0.8] })).toBe(true);
   expect(coherentEvent({ corr: [] })).toBe(false);
+});
+
+test('issues follow the median: a flat median with a noisy tail is a low scatter note, not a flatten', async () => {
+  const { prestackQcIssues } = await import('../src/handlers/prestackQc.js');
+  const base = { maxStretch: 0.3, fold: { median: 13, lowShare: 0, farMedianM: 2500 } };
+  const at = (t) => prestackQcIssues({ ...base, times: [t] }, 'g');
+  // the flat Ekene gathers after #980/#981
+  const flat = at({ t_ms: 1520, rmoMedian: 0.8, rmoQ90: 8.5, rmoShareOver4: 0.23, stretchMuteM: null });
+  expect(flat.map((i) => i.title)).toEqual(['Residual moveout scatter at 1520 ms']);
+  expect(flat[0].severity).toBe('low');
+  expect(at({ t_ms: 1045, rmoMedian: 2.3, rmoQ90: 6.6, rmoShareOver4: 0.21, stretchMuteM: null })).toEqual([]);
+  // systematic moveout
+  expect(at({ t_ms: 900, rmoMedian: 4.5, rmoQ90: 7, rmoShareOver4: 0.6, stretchMuteM: null })[0]).toMatchObject({ title: 'Residual moveout at 900 ms', severity: 'medium' });
+  expect(at({ t_ms: 900, rmoMedian: 8, rmoQ90: 9, rmoShareOver4: 0.9, stretchMuteM: null })[0].severity).toBe('high');
+  // no event: nothing
+  expect(at({ t_ms: 570, noEvent: true, rmoMedian: NaN, rmoQ90: NaN, rmoShareOver4: NaN, stretchMuteM: null })).toEqual([]);
 });
 
 test('settings', () => {

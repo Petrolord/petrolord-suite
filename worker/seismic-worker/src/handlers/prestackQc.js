@@ -41,6 +41,10 @@ export function coherentEvent(m, { nearCount = 3, minCorr = 0.5, share = 0.6 } =
   return live.filter((v) => Math.abs(v) >= minCorr).length >= share * live.length;
 }
 
+/** Median far-offset residuals (ms) that flag moveout, and that make it high. */
+export const RMO_MEDIAN_FLAG = 3;
+export const RMO_MEDIAN_HIGH = 6;
+
 /** Below this share of coherent CDPs a time has no event to measure. */
 export const MIN_COHERENT_SHARE = 0.2;
 
@@ -51,8 +55,13 @@ export function prestackQcIssues(r, name) {
   const out = [];
   const add = (key, severity, title, detail, remedy) => out.push({ key: `prestack-qc:${name}:${key}`, area: 'Prestack QC', severity, title, detail, remedy });
   for (const t of r.times) {
-    if (fin(t.rmoQ90) && t.rmoQ90 > 4) {
-      add(`rmo:${t.t_ms}`, t.rmoQ90 > 8 ? 'high' : 'medium', `Residual moveout at ${t.t_ms} ms`, `At 90 percent of the sampled CDPs the far-offset residual is up to ${t.rmoQ90.toFixed(1)} ms (median ${t.rmoMedian.toFixed(1)}); ${(100 * t.rmoShareOver4).toFixed(0)} percent of them exceed 4 ms.`, 'Flatten the gathers (trim statics or a velocity update) before AVO or inversion.');
+    // systematic moveout shows in the median; the 90th percentile alone is
+    // the noisiest CDPs (on the flat Ekene gathers it read 6.6 and 8.5 ms with
+    // medians of 2.3 and 0.8), so it raises a low note to look, not a flatten
+    if (fin(t.rmoMedian) && t.rmoMedian > RMO_MEDIAN_FLAG && fin(t.rmoQ90) && t.rmoQ90 > 4) {
+      add(`rmo:${t.t_ms}`, t.rmoMedian > RMO_MEDIAN_HIGH ? 'high' : 'medium', `Residual moveout at ${t.t_ms} ms`, `The median far-offset residual is ${t.rmoMedian.toFixed(1)} ms (90th percentile ${t.rmoQ90.toFixed(1)}); ${(100 * t.rmoShareOver4).toFixed(0)} percent of the sampled CDPs exceed 4 ms.`, 'Flatten the gathers (trim statics or a velocity update) before AVO or inversion.');
+    } else if (fin(t.rmoQ90) && t.rmoQ90 > 8) {
+      add(`rmo-scatter:${t.t_ms}`, 'low', `Residual moveout scatter at ${t.t_ms} ms`, `The median far-offset residual is ${fin(t.rmoMedian) ? t.rmoMedian.toFixed(1) : 'n/a'} ms, but 10 percent of the sampled CDPs read more than ${t.rmoQ90.toFixed(1)} ms.`, 'Look at the residual map: scattered CDPs are usually noise or local statics; a cluster calls for trim statics there.');
     }
     if (fin(t.stretchMuteM) && fin(r.fold.farMedianM) && t.stretchMuteM < r.fold.farMedianM) {
       add(`stretch:${t.t_ms}`, 'low', `NMO stretch at ${t.t_ms} ms`, `Beyond ${Math.round(t.stretchMuteM)} m the stretch passes ${(100 * r.maxStretch).toFixed(0)} percent, inside the ${Math.round(r.fold.farMedianM)} m of covered offset.`, 'Mute the stretched far offsets before angle stacks, or keep the far angle range to where the stretch holds.');

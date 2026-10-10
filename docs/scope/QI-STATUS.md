@@ -757,3 +757,11 @@ The manual was written against the source, and it found the following.
 - Each time window reports the share of coherent CDPs. Below 20 percent it shows "no coherent event to measure" and raises no moveout issue. The Prestack panel and the report have a "Coherent CDPs (percent)" column.
 - Needs a worker redeploy.
 - **Tests:** worker `prestackQc.test.js` (a noise-only window reads no event and raises no issue, while the event window is coherent and flat; `coherentEvent` ignores the reference offsets); the QI walk shows the no-event row.
+
+## 2026-10-10: prestack QC moveout issues follow the median
+
+- With #980 and #981 on the flat Ekene gathers, the medians read 2.3 ms (1045 ms) and 0.8 ms (1520 ms). The 90th percentiles of 6.6 and 8.5 ms still raised medium and high "flatten the gathers" issues. Those percentiles are the noisiest CDPs, so on real data they would fire almost everywhere.
+- A moveout issue now needs a median far-offset residual above 3 ms: medium, or high above 6 ms. A flat median with a 90th percentile over 8 ms raises a low "Residual moveout scatter" note that points to the residual map.
+- A systematic 8 ms residual (the worker test fixture) is now high severity, where it was medium.
+- Needs a worker redeploy.
+- **Tests:** `prestackQc.test.js` (the flat Ekene numbers give a low scatter note only; systematic moveout is medium or high; a no-event window raises nothing).
