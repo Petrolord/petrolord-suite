@@ -78,7 +78,7 @@ function useJob() {
 }
 
 export default function PrestackPanel() {
-  const { backend, project, setPrestack, setPrestackQc, saveIssue, canWrite, addNotification } = useQIStudio();
+  const { backend, project, setPrestack, setPrestackQc, dropPrestackStore, saveIssue, canWrite, addNotification } = useQIStudio();
   const [datasets, setDatasets] = useState(null);
   const [form, setForm] = useState({ offsetByte: 37, binWidth: 50 });
   const [velText, setVelText] = useState('0 1800\n2000 2600');
@@ -111,7 +111,10 @@ export default function PrestackPanel() {
   // volumes converted from it are kept)
   const remove = (d) => {
     if (!window.confirm(`Remove "${d.name}" from your worker storage? Seismolord volumes made from it are kept. This cannot be undone.`)) return;
-    job.run(`r:${d.id}`, 'remove_dataset', { dataset_id: d.id }, () => refresh());
+    job.run(`r:${d.id}`, 'remove_dataset', { dataset_id: d.id }, () => {
+      if (d.kind === 'gathers_offset') dropPrestackStore(d.id);
+      refresh();
+    });
   };
   const removeBtn = (d) => (
     <><button type="button" className={btn} onClick={() => remove(d)} disabled={!canWrite || job.busy(`r:${d.id}`)} data-testid={`qi-pre-remove-${d.id}`}>Remove</button> {job.status(`r:${d.id}`)}</>

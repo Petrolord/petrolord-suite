@@ -125,6 +125,13 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
   const setAvo = useCallback((patch) => edit((p) => ({ ...p, avo: { ...(p.avo || {}), ...(typeof patch === 'function' ? patch(p.avo || {}) : patch) } })), [edit]);
   const setPrestackQc = useCallback((storeId, record) => edit((p) => ({ ...p, prestackQc: { ...(p.prestackQc || {}), [storeId]: record } })), [edit]);
   const setPrestack = useCallback((storeId, record) => edit((p) => ({ ...p, prestack: { ...(p.prestack || {}), [storeId]: record } })), [edit]);
+  // a removed gather store takes its stack and QC records with it, so the tab
+  // and the report do not keep a run whose store is gone
+  const dropPrestackStore = useCallback((storeId) => edit((p) => {
+    const { [storeId]: _s, ...prestack } = p.prestack || {};
+    const { [storeId]: _q, ...prestackQc } = p.prestackQc || {};
+    return { ...p, prestack, prestackQc };
+  }), [edit]);
   const saveProspect = useCallback((prospect) => edit((p) => {
     const list = (p.prospects || []).slice();
     const at = list.findIndex((x) => x.id === prospect.id);
@@ -264,7 +271,7 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
 
   const value = {
     project, wells, volumes, chosenVolumes, loaded, ready, loading, matrix, inventory, issues, targetChoices,
-    toggleWell, toggleVolume, toggleTarget, setSeismicAcquired, setFirstProduction, setInventory, saveIssue, setFeasibility, setQcResult, setInversion, setProperty, saveProspect, removeProspect, setPrestack, setPrestackQc, setAvo, setSimultaneous,
+    toggleWell, toggleVolume, toggleTarget, setSeismicAcquired, setFirstProduction, setInventory, saveIssue, setFeasibility, setQcResult, setInversion, setProperty, saveProspect, removeProspect, setPrestack, setPrestackQc, dropPrestackStore, setAvo, setSimultaneous,
     jobs: backend.jobs || null, backend,
     projects, sharedProjects, currentProjectId, projectName, projectRow: shared.projectRow, sharing: shared.sharing,
     viewingShared: shared.viewingShared, canWrite, savingAvailable: saving.available, savingReason: saving.reason,
