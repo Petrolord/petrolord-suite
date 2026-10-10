@@ -10,6 +10,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { cutTime, cutFilter, cutTotal } from './cuts.mjs';
 import { wordsFromAlignment, wordsFromText, buildCues, toSrt, toVtt, chaptersText } from './captions.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -36,7 +37,10 @@ function assStyle(cues, offset) {
 
 export async function assemble(sb, clips, rec, { outDir }) {
   const raw = path.join(outDir, 'raw.mkv');
-  const rawDur = probeDur(raw);
+  // a step's `wait` was logged as a cut: times move to the cut picture's clock
+  const cuts = rec.cuts || [];
+  const rawDur = probeDur(raw) - cutTotal(cuts);
+  const ct = (t) => cutTime(t, cuts);
   const INTRO = sb.introSeconds ?? 4.5; const OUTRO = sb.outroSeconds ?? 5;
   const work = path.join(outDir, 'work'); fs.mkdirSync(work, { recursive: true });
 
@@ -47,7 +51,7 @@ export async function assemble(sb, clips, rec, { outDir }) {
   // 2. narration track: each clip at its recorded start, shifted by the intro
   const said = rec.timeline.map((t, i) => ({ t, c: clips[i], s: sb.steps[i] })).filter((x) => x.c);
   const inputs = said.flatMap((x) => ['-i', x.c.mp3]);
-  const delays = said.map((x, k) => `[${k}:a]adelay=${Math.round((x.t.sayAt + INTRO) * 1000)}:all=1[a${k}]`).join(';');
+  const delays = said.map((x, k) => `[${k}:a]adelay=${Math.round((ct(x.t.sayAt) + INTRO) * 1000)}:all=1[a${k}]`).join(';');
   const mix = `${delays};${said.map((_, k) => `[a${k}]`).join('')}amix=inputs=${said.length}:normalize=0:dropout_transition=0,apad,atrim=0:${(INTRO + rawDur + OUTRO).toFixed(3)},loudnorm=I=-14:TP=-1.5:LRA=11[out]`;
   const narration = path.join(work, 'narration.wav');
   ff([...inputs, '-filter_complex', mix, '-map', '[out]', '-ar', '48000', narration]);
@@ -57,19 +61,19 @@ export async function assemble(sb, clips, rec, { outDir }) {
     const spoken = wordsFromAlignment(x.c.alignment);
     // a step's `sub` replaces the spoken words on screen (digits for numbers)
     const words = x.s?.sub && spoken.length ? wordsFromText(x.s.sub, spoken[0].start, spoken[spoken.length - 1].end) : spoken;
-    return { offset: x.t.sayAt, words };
+    return { offset: ct(x.t.sayAt), words };
   }));
   const shifted = cues.map((c) => ({ ...c, start: c.start + INTRO, end: c.end + INTRO }));
   fs.writeFileSync(path.join(outDir, 'youtube.srt'), toSrt(shifted));
   fs.writeFileSync(path.join(outDir, 'youtube.vtt'), toVtt(shifted));
-  const chapters = [{ title: 'Introduction', start: 0 }, ...rec.timeline.filter((t) => t.chapter).map((t) => ({ title: t.chapter, start: t.start + INTRO }))];
+  const chapters = [{ title: 'Introduction', start: 0 }, ...rec.timeline.filter((t) => t.chapter).map((t) => ({ title: t.chapter, start: ct(t.start) + INTRO }))];
   fs.writeFileSync(path.join(outDir, 'chapters.txt'), `${chaptersText(chapters)}\n`);
   const ass = path.join(work, 'booth.ass'); fs.writeFileSync(ass, assStyle(cues, INTRO));
 
   // 4. picture: intro card, upscaled screen, outro card
   const enc = ['-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-profile:v', 'high', '-level', '5.1', '-pix_fmt', 'yuv420p', '-r', '30', '-movflags', '+faststart'];
   const pic = (sub) => `[0:v]loop=loop=-1:size=1:start=0,trim=duration=${INTRO},fps=30,format=yuv420p,fade=t=in:st=0:d=0.6,fade=t=out:st=${INTRO - 0.5}:d=0.5,setsar=1[i];`
-    + `[1:v]fps=30,scale=3840:2160:flags=lanczos,format=yuv420p,setsar=1${sub}[s];`
+    + `[1:v]fps=30${cutFilter(cuts)},scale=3840:2160:flags=lanczos,format=yuv420p,setsar=1${sub}[s];`
     + `[2:v]loop=loop=-1:size=1:start=0,trim=duration=${OUTRO},fps=30,format=yuv420p,fade=t=in:st=0:d=0.6,setsar=1[o];[i][s][o]concat=n=3:v=1:a=0[v]`;
   const vin = ['-i', path.join(work, 'intro.png'), '-i', raw, '-i', path.join(work, 'outro.png')];
   if (sb.captions === false) {

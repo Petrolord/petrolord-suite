@@ -3,6 +3,9 @@
 // `lead` seconds later, and the next step waits until the narration (plus a
 // short tail) has finished. The timeline records when each step's narration
 // starts, and the assembler drops each clip at exactly that time.
+// A step's `wait` runs after its narration (a worker job, for example); the
+// stretch it takes is logged as a cut and dropped from the finished video,
+// and a short 'Minutes later' chip marks the join.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,6 +28,7 @@ export async function recordStoryboard(sb, clips, { baseUrl, env, outDir }) {
     const now = () => (Date.now() - t0) / 1000;
     await d.sleep((sb.leadIn ?? 1.0) * 1000);
     const timeline = [];
+    const cuts = [];
     for (let i = 0; i < sb.steps.length; i++) {
       const s = sb.steps[i]; const clip = clips[i];
       const start = now(); const sayAt = start + (s.lead ?? 0.25);
@@ -33,14 +37,23 @@ export async function recordStoryboard(sb, clips, { baseUrl, env, outDir }) {
       if (s.do) await s.do(d, shared);
       const end = Math.max(now(), sayAt + (clip?.duration ?? 0) + (s.tail ?? 0.4)) + (s.hold ?? 0);
       await d.sleep(Math.max(0, (end - now()) * 1000));
+      if (s.wait) {
+        const from = now() + 0.3;
+        await s.wait(d, shared);
+        const to = now() - 0.3;
+        if (to > from) cuts.push({ from, to });
+        await d.lowerThird(s.waitLabel || 'Minutes later', '');
+        await d.sleep(2200);
+        await d.lowerThird(null);
+      }
       timeline.push({ id: s.id, chapter: s.chapter || null, start, sayAt, end: now() });
       process.stdout.write(`  step ${s.id} ${start.toFixed(1)}s -> ${now().toFixed(1)}s\n`);
     }
     await d.sleep((sb.leadOut ?? 1.2) * 1000);
     await cap.stop();
     cap = null;
-    fs.writeFileSync(path.join(outDir, 'timeline.json'), JSON.stringify({ storyboard: sb.id, timeline, values: shared.values }, null, 2));
-    return { timeline, values: shared.values };
+    fs.writeFileSync(path.join(outDir, 'timeline.json'), JSON.stringify({ storyboard: sb.id, timeline, cuts, values: shared.values }, null, 2));
+    return { timeline, cuts, values: shared.values };
   } finally {
     if (cap) await cap.stop().catch(() => {});
     await ctx.close().catch(() => {});

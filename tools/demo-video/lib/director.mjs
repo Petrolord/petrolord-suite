@@ -53,6 +53,8 @@ export function makeDirector(page) {
     async type(target, text, { clear = true, delay = 70 } = {}) {
       await d.click(target);
       const l = loc(target).first();
+      // no spell-check squiggles under field names on camera (Vp/Vs, Ekene, AVO)
+      await l.evaluate((el) => { el.spellcheck = false; }).catch(() => {});
       if (clear) { await l.press('Control+A'); await l.press('Backspace'); }
       await l.pressSequentially(String(text), { delay });
       await sleep(200);
