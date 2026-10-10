@@ -64,6 +64,8 @@ export function hcProps(cond, hc) {
   return deadOil(cond.tC, cond.pMPa, rho0);
 }
 
+const HC_LABEL = { gas: 'gas', 'oil-live': 'live oil', 'oil-dead': 'dead oil' };
+
 /** One side's effective pore fluid {rho, k, vp?, label}. */
 export function sideFluid(cond, side, mixing = 'wood') {
   const sw = side.sw;
@@ -71,7 +73,7 @@ export function sideFluid(cond, side, mixing = 'wood') {
   const br = brine(cond.tC, cond.pMPa, cond.salinity);
   if (sw === 1) return { ...br, label: 'brine' };
   const hc = hcProps(cond, side.hc);
-  const hcLabel = side.hc.kind === 'gas' ? 'gas' : side.hc.kind;
+  const hcLabel = HC_LABEL[side.hc.kind] || side.hc.kind;
   if (sw === 0) return { ...hc, label: hcLabel };
   const mixed = mixer(mixing)([
     { ...br, sat: sw },

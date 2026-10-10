@@ -232,3 +232,10 @@ depth frame (`makeWellFrame`); no KB arithmetic remains in the app.
 - The project now keeps `avo.published_gathers[well_id]` beside the latest `published_gather`, and its `well_ids` lists every well with a gather. `loadGatherForWell` reads the well's own entry first; older projects still read as before.
 - A .pld import remaps the map's keys (geoscienceSpec `avo.published_gathers{keys}`). Save a copy of a colleague's project leaves their gathers behind, as it already did.
 - **Tests:** `src/lib/__tests__/rockPhysicsGather.test.js` (3 new; 2 fail on the old code, plus an old-shape negative control).
+
+## 2026-10-10: the pore-fluids table with Sw from the SW log
+
+- With "Sw from the SW log" on, the table computed fluid A at the typed Sw (default 1), so it read "A (in situ) brine" beside "B (substitute) brine", although the substitution mixed live oil per sample. Found while scripting the QI lessons.
+- `fluidTable` (FluidsPanel) now shows two rows in that case: "A (in situ), water" (brine) and "A (in situ), hydrocarbon" (the end member the log mixes), each labelled "mixed per sample by the SW log". Without an SW curve, or with the box unticked, the table keeps the typed Sw.
+- Hydrocarbon labels read "live oil" and "dead oil" in place of the codes `oil-live` and `oil-dead`.
+- **Tests:** `fluidsDepthTicks.test.js` (both end members shown; no SW curve and the box unticked as negative controls).
