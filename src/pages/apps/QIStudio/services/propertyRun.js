@@ -128,11 +128,16 @@ export function predictTrace(model, pr, ai, vpvs = null) {
     // t x s once per model from the engine, at the mean (its interval there is t s sqrt(1 + 1/n)); then the same formula per sample
     const atMean = predictWithInterval(model, model.xMean, 0.8);
     const ts = (atMean.hi - atMean.y) / Math.sqrt(1 + 1 / model.n);
+    // the fit's scatter is log against log; the error of the inverted
+    // impedance adds sExtra (from the wells left out, calibrateProperty), so
+    // the band is t x sqrt(s^2 (1 + 1/n + leverage) + sExtra^2)
+    const t = model.s > 0 ? ts / model.s : 0;
+    const extra2 = fin(model.sExtra) && model.sExtra > 0 ? (t * model.sExtra) ** 2 : 0;
     const out = [new Float64Array(n), new Float64Array(n), new Float64Array(n)];
     for (let k = 0; k < n; k++) {
       if (isNull(ai[k]) || !fin(ai[k])) { out[0][k] = NaN; out[1][k] = NaN; out[2][k] = NaN; continue; }
       const y = model.a + model.b * ai[k];
-      const h = ts * Math.sqrt(1 + 1 / model.n + (ai[k] - model.xMean) ** 2 / model.sxx);
+      const h = Math.sqrt(ts ** 2 * (1 + 1 / model.n + (ai[k] - model.xMean) ** 2 / model.sxx) + extra2);
       out[0][k] = y - h; out[1][k] = y; out[2][k] = y + h;
     }
     return out;
@@ -218,32 +223,56 @@ export function posteriorTable2D(model) {
 export function calibrateProperty({ pr, aiTraces, vpvsTraces = null, dtMs }) {
   const up = upscaleWells(pr, dtMs);
   const all = fitProperty(up, pr, dtMs);
-  const rows = up.map((w, k) => {
+  // pass 1: each well left out and predicted from the inverted impedance at it
+  const left = up.map((w, k) => {
     let m;
-    try { m = fitProperty(up, pr, dtMs, w.name); } catch (e) { return { name: w.name, error: e.message }; }
+    try { m = fitProperty(up, pr, dtMs, w.name); } catch (e) { return { w, error: e.message }; }
     const pred = predictTrace(m, pr, aiTraces[k], vpvsTraces ? vpvsTraces[k] : null);
     const idx = [];
     for (let i = 0; i < w.target.length; i++) if (inWindow(i, dtMs, pr.window_ms) && fin(w.target[i]) && fin(pred[pred.length - 1][i])) idx.push(i);
-    if (pr.kind === 'facies') {
+    return { w, k, m, pred, idx };
+  });
+  if (pr.kind === 'facies') {
+    const rows = left.map(({ w, error, pred, idx }) => {
+      if (error) return { name: w.name, error };
       const known = idx.filter((i) => pr.names[String(w.target[i])] != null);
       const ok = known.filter((i) => pred[pred.length - 1][i] === w.target[i]).length;
       return { name: w.name, n: known.length, accuracy: known.length ? ok / known.length : NaN };
-    }
-    let se = 0; let inside = 0; let sx = 0; let sy = 0; let sxx = 0; let syy = 0; let sxy = 0;
-    for (const i of idx) {
-      const y = w.target[i]; const q = pred[1][i];
-      se += (q - y) ** 2;
+    });
+    const summary = { classes: all.classes.map((c) => ({ name: c.name, n: c.n, prior: c.prior, mean: c.mean[0], sd: Math.sqrt(c.cov[0][0]), ...(all.dims === 2 ? { meanVpVs: c.mean[1], sdVpVs: Math.sqrt(c.cov[1][1]) } : {}) })), density: all.kind, attributes: all.dims === 2 ? 'ai_vpvs' : 'ai' };
+    return { model: all, summary, rows };
+  }
+  // porosity: the left-out residuals carry the inversion's error, which the
+  // log-against-log fit cannot see (on the Ekene demo the 80 percent band held
+  // the log 13 to 47 percent of the time, found 2026-10-10). Their pooled
+  // RMS widens the band. Each well's check uses the other wells' residuals
+  // only, so the reported coverage stays a test the well did not set.
+  const resid = left.map((L) => (L.error ? [] : L.idx.map((i) => L.pred[1][i] - L.w.target[i])));
+  const pooledRms = (skip) => {
+    let se = 0; let n = 0;
+    resid.forEach((r, j) => { if (j === skip) return; for (const v of r) { se += v * v; n += 1; } });
+    return n >= 5 ? Math.sqrt(se / n) : NaN;
+  };
+  const extraFor = (rms, s) => (fin(rms) && fin(s) && rms > s ? Math.sqrt(rms * rms - s * s) : 0);
+  const rows = left.map((L, j) => {
+    if (L.error) return { name: L.w.name, error: L.error };
+    const m = { ...L.m, sExtra: extraFor(pooledRms(j), L.m.s) };
+    const pred = predictTrace(m, pr, aiTraces[L.k], vpvsTraces ? vpvsTraces[L.k] : null);
+    let se = 0; let sr = 0; let inside = 0; let sx = 0; let sy = 0; let sxx = 0; let syy = 0; let sxy = 0;
+    for (const i of L.idx) {
+      const y = L.w.target[i]; const q = pred[1][i];
+      se += (q - y) ** 2; sr += q - y;
       if (y >= pred[0][i] && y <= pred[2][i]) inside += 1;
       sx += q; sy += y; sxx += q * q; syy += y * y; sxy += q * y;
     }
-    const n = idx.length;
+    const n = L.idx.length;
     const cov = sxy / n - (sx / n) * (sy / n); const vx = sxx / n - (sx / n) ** 2; const vy = syy / n - (sy / n) ** 2;
-    return { name: w.name, n, rms: n ? Math.sqrt(se / n) : NaN, corr: vx > 0 && vy > 0 ? cov / Math.sqrt(vx * vy) : NaN, coverage: n ? inside / n : NaN };
+    return { name: L.w.name, n, rms: n ? Math.sqrt(se / n) : NaN, bias: n ? sr / n : NaN, corr: vx > 0 && vy > 0 ? cov / Math.sqrt(vx * vy) : NaN, coverage: n ? inside / n : NaN };
   });
-  const summary = pr.kind === 'facies'
-    ? { classes: all.classes.map((c) => ({ name: c.name, n: c.n, prior: c.prior, mean: c.mean[0], sd: Math.sqrt(c.cov[0][0]), ...(all.dims === 2 ? { meanVpVs: c.mean[1], sdVpVs: Math.sqrt(c.cov[1][1]) } : {}) })), density: all.kind, attributes: all.dims === 2 ? 'ai_vpvs' : 'ai' }
-    : { a: all.a, b: all.b, r2: all.r2, n: all.n, s: all.s };
-  return { model: all, summary, rows };
+  const sLoo = pooledRms(-1);
+  const model = { ...all, sExtra: extraFor(sLoo, all.s) };
+  const summary = { a: all.a, b: all.b, r2: all.r2, n: all.n, s: all.s, sLoo, sExtra: model.sExtra };
+  return { model, summary, rows };
 }
 
 /**
@@ -262,6 +291,7 @@ export function propertyIssues(result, volumeName = 'the impedance volume') {
       if (Number.isFinite(r.accuracy) && r.accuracy < 0.6) add(`${r.name}:acc`, 'high', `${r.name}: facies predicted poorly when left out`, `Accuracy ${(100 * r.accuracy).toFixed(0)} percent from ${volumeName}.`, 'Check that impedance separates these facies (Rock Physics Studio feasibility), merge facies it cannot separate, or add an attribute.');
     } else {
       if (Number.isFinite(r.corr) && r.corr < 0.5) add(`${r.name}:corr`, 'high', `${r.name}: porosity follows the well poorly when left out`, `Correlation ${r.corr.toFixed(2)} from ${volumeName}.`, 'Check the inversion at this well (blind-well table) and the transform window.');
+      if (Number.isFinite(r.bias) && Number.isFinite(r.rms) && r.rms > 0 && Math.abs(r.bias) > 0.7 * r.rms) add(`${r.name}:bias`, 'medium', `${r.name}: porosity is ${r.bias > 0 ? 'over' : 'under'}-predicted when left out`, `Mean error ${r.bias.toFixed(3)} against an RMS error of ${r.rms.toFixed(3)}: most of the error is a shift.`, 'Check the inversion\'s low-frequency model and the wavelet scale at this well.');
       if (Number.isFinite(r.coverage) && (r.coverage < 0.6 || r.coverage > 0.95)) add(`${r.name}:cov`, 'medium', `${r.name}: the 80 percent interval covers ${(100 * r.coverage).toFixed(0)} percent of the well`, r.coverage < 0.6 ? 'The interval is too narrow for the error of the inversion at this well.' : 'The interval is wider than the error at this well needs.', 'Read Q10 and Q90 with care here; recalibrate with more wells or a narrower window.');
     }
   }

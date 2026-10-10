@@ -85,7 +85,7 @@ function Summary({ result }) {
       </table>
     );
   }
-  return <p className="text-xs text-pl-text font-mono" data-testid="qi-prop-transform">{`porosity = ${f(s.a, 4)} ${s.b < 0 ? '-' : '+'} ${Math.abs(s.b).toExponential(3)} x AI   (r squared ${f(s.r2)}, ${s.n} samples, residual SD ${f(s.s, 4)})`}</p>;
+  return <p className="text-xs text-pl-text font-mono" data-testid="qi-prop-transform">{`porosity = ${f(s.a, 4)} ${s.b < 0 ? '-' : '+'} ${Math.abs(s.b).toExponential(3)} x AI   (r squared ${f(s.r2)}, ${s.n} samples, residual SD ${f(s.s, 4)})${Number.isFinite(s.sLoo) && s.sExtra > 0 ? `; the Q10 to Q90 band adds ${f(s.sExtra, 4)} for the inversion's error, from the wells left out (their RMS error ${f(s.sLoo, 4)})` : ''}`}</p>;
 }
 
 export default function PropertiesPanel() {

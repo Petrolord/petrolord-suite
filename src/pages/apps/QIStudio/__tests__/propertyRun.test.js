@@ -54,10 +54,31 @@ describe('porosity from impedance', () => {
       expect(r.coverage).toBeLessThan(0.97);
     }
   });
-  test('negative control: a biased impedance (10 percent high) breaks the check', () => {
+  test('a noisy inverted impedance: the band widens by the left-out error and covers about 80 percent (it covered far less before)', () => {
+    const up = upscaleWells(pr, dtMs);
+    let sd = 11; const g = () => { sd = (sd * 1103515245 + 12345) % 2147483648; return sd / 2147483648 - 0.5; };
+    // an inversion with about 6 percent random error at each sample
+    const noisy = up.map((w) => w.ai.map((v) => v * (1 + 0.2 * g())));
+    const res = calibrateProperty({ pr, aiTraces: noisy, dtMs });
+    expect(res.summary.sExtra).toBeGreaterThan(res.summary.s);
+    for (const r of res.rows) { expect(r.coverage).toBeGreaterThan(0.6); expect(r.coverage).toBeLessThan(0.97); }
+    // negative control: the same band from the fit's scatter alone (the old rule) covers far less
+    const m = fitProperty(up, pr, dtMs, up[0].name);
+    const [lo, , hi] = predictTrace(m, pr, noisy[0]);
+    let inside = 0; let n = 0;
+    up[0].target.forEach((y, i) => { if (Number.isFinite(y) && Number.isFinite(lo[i])) { n += 1; if (y >= lo[i] && y <= hi[i]) inside += 1; } });
+    expect(inside / n).toBeLessThan(0.5);
+    // the volume run uses the widened model
+    const [lo2, , hi2] = predictTrace(res.model, pr, [7000]);
+    const [lo1, , hi1] = predictTrace({ ...res.model, sExtra: 0 }, pr, [7000]);
+    expect(hi2[0] - lo2[0]).toBeGreaterThan(2 * (hi1[0] - lo1[0]));
+  });
+  test('a biased impedance (10 percent high) is reported as a shift at every well', async () => {
+    const { propertyIssues } = await import('../services/propertyRun');
     const up = upscaleWells(pr, dtMs);
     const res = calibrateProperty({ pr, aiTraces: up.map((w) => w.ai.map((v) => 1.1 * v)), dtMs });
-    for (const r of res.rows) expect(r.coverage).toBeLessThan(0.3);
+    for (const r of res.rows) expect(Math.abs(r.bias)).toBeGreaterThan(0.7 * r.rms);
+    expect(propertyIssues(res).filter((i) => /predicted when left out/.test(i.title))).toHaveLength(res.rows.length);
   });
   test('predictTrace gives ordered quantiles and leaves nulls', () => {
     const up = upscaleWells(pr, dtMs);

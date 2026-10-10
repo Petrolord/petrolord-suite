@@ -778,3 +778,18 @@ The manual was written against the source, and it found the following.
 - `horizonsAtFrom` took the horizon grids in the order they were ticked in the picker, and refused every CDP where the times did not increase in that order. A user who ticked a deeper horizon first got a low-frequency model at constant time with no message. The picker's list is not sorted by depth: on the Ekene full stack, Oboro Sand Base comes first.
 - `orderTopDown` sorts the grids by median time once, so the order of ticking no longer matters. Crossing horizons are still refused at the CDPs where they cross. This affects post-stack and prestack inversion, which share the function.
 - **Tests:** `inversionRun.test.js` (grids given deepest first give the same times as top-down; a crossing CDP is still refused). The old test that expected reversed grids to be refused is updated, because that expectation was the defect.
+
+## 2026-10-10: the porosity Q10 to Q90 band includes the inversion's error
+
+- The band came from the scatter of the log-against-log fit only, so it left out the error of the inverted impedance. On the Ekene demo the 80 percent band held the log 13 to 47 percent of the time.
+- `calibrateProperty` now pools the residuals of the wells left out, which are predicted from the inverted impedance, and adds the part of their RMS above the fit's scatter (`sExtra`) to the band: t x sqrt(s^2 (1 + 1/n + leverage) + sExtra^2). The model the volume run uses carries `sExtra`.
+- Each well's coverage check uses the other wells' residuals only, so the coverage figure stays out of sample.
+- Each well also reports its mean error (`bias`). A shift larger than 70 percent of the RMS error raises a medium issue that points to the low-frequency model and the wavelet scale.
+- The Properties panel and the report state how much the band was widened.
+- Needs a worker redeploy (calibration and the volume run happen on the worker).
+- **Tests:** `propertyRun.test.js`.
+  - A noisy inversion now covers 60 to 97 percent.
+  - The band from the fit's scatter alone covers under 50 percent (negative control).
+  - The widened model is used by the volume run.
+  - A 10 percent biased impedance is reported as a shift at every well.
+  - Both new tests fail on the old code.
