@@ -119,7 +119,7 @@ export async function clearProductVolumes(d, shared) {
   await d.page.goto(`${shared.baseUrl}${SEISMOLORD}`, { waitUntil: 'domcontentloaded' });
   await t('sl-start-toggle').waitFor({ timeout: 120000 }); await d.sleep(5000);
   if (await t('sl-tour-skip').count()) await t('sl-tour-skip').click();
-  const products = /^EKENE3D-[a-z]+\.sgy (Intercept|Gradient|Fluid factor|Chi|AI, simultaneous|SI, simultaneous|density, simultaneous|Vp\/Vs, simultaneous|matched to ).*$/;
+  const products = /^EKENE3D-[a-z]+\.sgy (Intercept|Gradient|Fluid factor|Chi|AI, simultaneous|SI, simultaneous|density, simultaneous|Vp\/Vs, simultaneous|matched to |AI, Model-based|AI, Sparse-spike|AI, Coloured).*$/;
   for (let n = 0; n < 40; n++) {
     const items = d.page.locator('text=/^EKENE3D-/ >> visible=true');
     const names = await items.allInnerTexts();
