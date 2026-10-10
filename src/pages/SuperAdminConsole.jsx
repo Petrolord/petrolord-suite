@@ -500,9 +500,14 @@ const SuperAdminConsoleContent = () => {
         backTo="/dashboard"
         backLabel="Back to Dashboard"
         actions={(
-          <Button variant="outline" onClick={() => navigate('/admin/promo-codes')}>
-            Promo Codes
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => navigate('/admin/event-leads')}>
+              Event leads
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/admin/promo-codes')}>
+              Promo Codes
+            </Button>
+          </div>
         )}
       />
 
