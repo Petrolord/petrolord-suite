@@ -357,6 +357,8 @@ const AppAnalyticsDashboard = lazy(() => import('@/pages/admin/AppAnalyticsDashb
 const AdminSeedApps = lazy(() => import('@/pages/admin/AdminSeedApps')); 
 const MasterAppsViewer = lazy(() => import('@/pages/admin/MasterAppsViewer'));
 const PromoCodes = lazy(() => import('@/pages/admin/PromoCodes'));
+const EventLeads = lazy(() => import('@/pages/admin/EventLeads'));
+const NapeLeads = lazy(() => import('@/pages/events/NapeLeads'));
 
 // Loading fallback: the themed loader in the theme the page will open in
 // (src/design/coldLoad.jsx); light where no scope follows (the homepage).
@@ -459,6 +461,12 @@ function App() {
                                   <PromoCodes />
                                 </SuperAdminRoute>
                               } />
+                              <Route path="/admin/event-leads" element={
+                                <SuperAdminRoute>
+                                  <EventLeads />
+                                </SuperAdminRoute>
+                              } />
+                              <Route path="/nape" element={<NapeLeads />} />
                               
                               {/* Old promo share links (/get-quote?promo=CODE) land on the working quote flow. */}
                               <Route path="/get-quote" element={<GetQuoteRedirect />} />
