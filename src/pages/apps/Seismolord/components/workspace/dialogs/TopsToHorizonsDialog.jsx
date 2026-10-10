@@ -55,6 +55,7 @@ const STEPS = [
 ];
 const selectCls = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-1 text-xs';
 
+const wellsWord = (n) => `${n} ${n === 1 ? 'well' : 'wells'}`;
 const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? '·' : v.toFixed(d));
 const scoreColour = (s) => (s >= 0.6 ? 'text-pl-success-text' : s >= 0.3 ? 'text-pl-warning-text' : 'text-pl-danger-text');
 
@@ -320,7 +321,7 @@ export default function TopsToHorizonsDialog({
                 {match && (
                   <p className="text-xs text-pl-muted" data-testid="t2h-convention">
                     {`Field convention: ${match.convention.polarity} polarity, ${fmt(match.convention.phaseDeg, 0)}° phase`
-                      + `${match.convention.voters ? ` from ${match.convention.voters} tied wells` : ' (assumed; no well was tied)'}`}
+                      + `${match.convention.voters ? ` from ${match.convention.voters} tied ${match.convention.voters === 1 ? 'well' : 'wells'}` : ' (assumed; no well was tied)'}`}
                     {match.convention.outliers?.length ? `. Disagreeing: ${match.convention.outliers.map((o) => `${o.name} (${o.reason})`).join(', ')}` : ''}
                     {`. Tuning thickness about ${fmt(match.match.tuningMs)} ms at ${fmt(match.match.peakHz, 0)} Hz.`}
                   </p>
@@ -465,6 +466,7 @@ export default function TopsToHorizonsDialog({
                   <AutoFaultPicker
                     geom={geom}
                     dtMs={dtMs}
+                    affine={affine}
                     volume={volume}
                     faults={faults}
                     inputs={faultInputs}
@@ -518,7 +520,7 @@ export default function TopsToHorizonsDialog({
                           return (
                             <tr key={h.name} className="border-t border-pl-border">
                               <td className="py-1 text-pl-text">{h.name}</td>
-                              <td>{h.role === 'conformable' ? `on ${h.representative} + isochron` : `${KIND_LABEL[h.kind]}, ${h.seeds.length} wells`}</td>
+                              <td>{h.role === 'conformable' ? `on ${h.representative} + isochron` : `${KIND_LABEL[h.kind]}, ${wellsWord(h.seeds.length)}`}</td>
                               <td>{`${n} (${fmt((100 * n) / (geom.nIl * geom.nXl), 0)} %)`}</td>
                               <td>{h.stats.tuned ?? '·'}</td>
                               <td>{h.stats.jumped ? `${h.stats.jumped} (throw ${h.jumps.filter((j) => !j.skipped).map((j) => fmt(j.throwSamples * dtMs)).join(', ')} ms)` : '·'}</td>
