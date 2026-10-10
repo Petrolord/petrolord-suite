@@ -20,8 +20,10 @@ export async function openSeismolord(d, shared) {
   if (await t('sl-tour-skip').count()) await t('sl-tour-skip').click();
 }
 
-/** An item in the Seismic Explorer list, by its exact name. */
-export const explorerItem = (d, name) => d.page.locator(`text=/^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$/ >> visible=true`).first();
+/** An item in the Seismic Explorer list, by its exact name (the section's
+ *  own overlays can carry the same text, so the search stays in the explorer). */
+export const explorerItem = (d, name) => d.page.locator('div:has(> div > span:text-is("Seismic Explorer"))')
+  .locator(`text=/^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$/ >> visible=true`).first();
 
 /** Off camera: delete a volume left by an earlier take. */
 export async function deleteVolume(d, name) {
