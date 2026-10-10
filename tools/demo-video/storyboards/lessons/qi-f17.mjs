@@ -2,7 +2,8 @@
 // a property volume. Figures from the 2026-10-10 probes on the F15 impedance
 // volume: whole well porosity = 0.2148 + 7.559e-6 AI, r² 0.00 over 1397 samples;
 // window 1270-1330 ms porosity = 0.0984 + 1.521e-5 AI, r² 0.73, 60 samples,
-// residual SD 0.0055; blind RMS 0.010 to 0.030, inside Q10-Q90 13 to 47 percent.
+// residual SD 0.0055; blind RMS 0.010 to 0.030; after #987 the band adds 0.0181
+// (left-out RMS 0.0189) and holds the log 93 / 67 / 100 / 100 percent.
 import { login, expectText } from './common.mjs';
 import { qiLessonMeta, lessonProject } from './qi-common.mjs';
 import { clearProductVolumes } from '../qi-common.mjs';
@@ -63,8 +64,8 @@ export default {
       sub: 'Inside this window the Ogbia Shale sits on top of the Ekene Sand. Here the sand is harder than the shale, with an impedance of 20,700 against 15,500 ft/s·g/cc, and it is also the more porous rock. So the line is separating shale from sand. It is a lithology transform. Within the sand alone, porosity and impedance would run the other way.',
       do: async (d) => { await d.unhighlight(); await d.slide({ eyebrow: 'Why the sign is wrong', title: 'A lithology transform', body: '<ul><li>Shale: AI 15,500, lower porosity</li><li>Sand: AI 20,700, porosity near 20 percent</li><li>The line separates rock types</li><li>Porosity within a facies needs facies first</li></ul>' }); } },
     { id: 'check', chapter: 'The leave-one-out check', chapterSub: 'Each well predicted blind',
-      say: 'Calibrating also ran the leave-one-out test: each well is predicted from the inverted impedance at its trace, with the transform fitted on the others. The errors look small, one to three porosity units. But the last column says how often the truth falls inside the predicted Q10 to Q90 band: it should be about eighty percent, and it is only thirteen to forty seven.',
-      sub: 'Calibrating also ran the leave-one-out test: each well is predicted from the inverted impedance at its trace, with the transform fitted on the others. The errors look small, one to three porosity units. But the last column says how often the truth falls inside the predicted Q10 to Q90 band: it should be about 80 percent, and it is only 13 to 47 percent.',
+      say: 'Calibrating also ran the leave-one-out test: each well is predicted from the inverted impedance at its trace, with the transform fitted on the others. The errors are one to three porosity units. The last column says how often the truth falls inside the predicted Q10 to Q90 band; for an honest eighty percent band it should be near eighty.',
+      sub: 'Calibrating also ran the leave-one-out test: each well is predicted from the inverted impedance at its trace, with the transform fitted on the others. The errors are one to three porosity units. The last column says how often the truth falls inside the predicted Q10 to Q90 band; for an honest 80 percent band it should be near 80.',
       do: async (d) => {
         await d.hideSlide();
         await t(d, 'qi-prop-result').waitFor({ timeout: 900000 }); await d.sleep(1500);
@@ -73,8 +74,13 @@ export default {
         await d.highlight('qi-prop-result');
       } },
     { id: 'meaning',
-      say: 'That is the most important number on the page. The band was built from the scatter of the fit at the wells, which is tiny. It leaves out the error of the impedance itself, seven or eight percent from lesson fifteen. A porosity volume shipped with these bands would claim several times more certainty than it has.',
-      do: async (d) => { await d.unhighlight(); await d.slide({ eyebrow: 'Coverage', title: 'The band must hold the truth', body: '<ul><li>Q10 to Q90 should hold about 80 percent</li><li>Here: 13 to 47 percent</li><li>The fit\'s scatter is not the prediction error</li><li>Fix the model before you ship the volume</li></ul>' }); } },
+      say: 'The fit\'s own scatter, half a porosity unit, is only the error of logs against logs. The wells left out show the real error, nearly two porosity units, because the inverted impedance has its own error. QI Studio adds that difference to the band, and each well\'s check uses only the other wells\' errors. The band now holds the truth sixty seven to a hundred percent of the time. Ekene two, the weakest tie, sits lowest; where the fit is best the band is a little generous, because one band serves the whole field.',
+      sub: 'The fit\'s own scatter, half a porosity unit, is only the error of logs against logs. The wells left out show the real error, nearly two porosity units, because the inverted impedance has its own error. QI Studio adds that difference to the band, and each well\'s check uses only the other wells\' errors. The band now holds the truth 67 to 100 percent of the time. Ekene-2, the weakest tie, sits lowest; where the fit is best the band is a little generous, because one band serves the whole field.',
+      do: async (d) => {
+        await d.unhighlight();
+        await expectText(d, 'qi-prop-transform', /the Q10 to Q90 band adds 0\.0\d{3} for the inversion's error/, 'band widening');
+        await d.highlight('qi-prop-transform');
+      } },
     { id: 'issues',
       say: 'QI Studio offers these findings as issues for the register, so the decision not to ship the volume, or to rebuild it on facies, is recorded with the study.',
       do: async (d) => { await d.hideSlide(); await d.highlight(d.page.getByRole('button', { name: /property issues to the register/ })); } },
