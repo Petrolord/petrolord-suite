@@ -724,3 +724,9 @@ The manual was written against the source, and it found the following.
 - Typing a range in Prestack (for example 5 to 15 degrees) disabled Make angle stacks with "Each range needs a name and from below to". The typed values are text, and as text "15" is not greater than "5".
 - `angleRangeProblem` in `PrestackPanel.jsx` now compares them as numbers and refuses empty, non-numeric, reversed or out-of-range entries.
 - **Tests:** a `qiStudio.test.jsx` case (typed 5 to 15 enables the button; reversed, empty, unnamed and 0 to 75 are refused). It fails on the old code.
+
+## 2026-10-10: removing a gather store drops its stack and QC lines
+
+- The project kept each store's angle-stack and QC records after the store was removed. A rebuilt store then showed two result lines in Prestack, and the report listed both runs.
+- `dropPrestackStore` (QIStudioContext) runs when a `gathers_offset` file is removed. Removing a raw upload leaves the records alone.
+- **Tests:** a `qiStudio.test.jsx` case with a raw-upload removal as the negative control. It fails on the old code.

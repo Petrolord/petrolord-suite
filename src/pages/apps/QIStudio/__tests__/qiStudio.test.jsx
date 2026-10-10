@@ -324,6 +324,27 @@ test('prestack: a worker file is removed after a confirmation, and kept when it 
   confirm.mockRestore();
 });
 
+test('prestack: removing a gather store drops its stack and QC lines (they would sit in the tab and the report)', async () => {
+  const backend = makeInMemoryBackend();
+  const confirm = jest.spyOn(window, 'confirm').mockReturnValue(true);
+  render(<MemoryRouter><QIStudio backend={backend} sharingStore={null} /></MemoryRouter>);
+  fireEvent.click(await screen.findByTestId('qi-tab-prestack', {}, { timeout: 20000 }));
+  await screen.findByTestId('qi-pre-stack-qi-d2', {}, { timeout: 20000 });
+  fireEvent.change(screen.getByTestId('qi-pre-vel'), { target: { value: '0 1700\n1500 2300' } });
+  fireEvent.click(screen.getByTestId('qi-pre-stack-qi-d2'));
+  fireEvent.click(screen.getByTestId('qi-pre-qc-qi-d2'));
+  await screen.findByTestId('qi-pre-result-qi-d2', {}, { timeout: 20000 });
+  await screen.findByTestId('qi-pre-qc-result-qi-d2', {}, { timeout: 20000 });
+  // negative control: removing a raw upload leaves the store's lines alone
+  fireEvent.click(screen.getByTestId('qi-pre-remove-qi-d1'));
+  await waitFor(() => expect(screen.queryByTestId('qi-pre-remove-qi-d1')).not.toBeInTheDocument());
+  expect(screen.getByTestId('qi-pre-result-qi-d2')).toBeInTheDocument();
+  fireEvent.click(screen.getByTestId('qi-pre-remove-qi-d2'));
+  await waitFor(() => expect(screen.queryByTestId('qi-pre-result-qi-d2')).not.toBeInTheDocument());
+  expect(screen.queryByTestId('qi-pre-qc-result-qi-d2')).not.toBeInTheDocument();
+  confirm.mockRestore();
+});
+
 test('AVO: three stacks with their angles, the products registered on the first, the run kept', async () => {
   global.ResizeObserver = global.ResizeObserver || class { observe() {} unobserve() {} disconnect() {} };
   const backend = makeInMemoryBackend();
