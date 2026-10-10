@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { ThemedApp } from '@/design/ThemeProvider';
-import { WORDMARK } from '@/components/public/PublicPage';
+import { PublicPage, WORDMARK } from '@/components/public/PublicPage';
 import {
   QUIZ_TITLE, QUIZ_START, QUIZ_QR_SRC, QUIZ_PUBLIC_URL, DAYS, TV_VIDEO_URLS, OPTION_LETTERS,
   dayForDate, questionPhase,
@@ -157,16 +156,16 @@ export default function NapeQuizTv() {
   else screen = <QuestionScreen game={game} state={state} offset={offset} />;
 
   return (
-    <ThemedApp userId={null} className="h-screen w-screen overflow-hidden">
+    <PublicPage header={null} className="h-screen w-screen overflow-hidden" mainClassName="min-h-0">
       <Helmet>
         <title>{`${QUIZ_TITLE}: TV`}</title>
         <meta name="robots" content="noindex" />
       </Helmet>
-      <div ref={root} data-pl-theme="dark" className="relative h-full w-full bg-pl-bg text-pl-text" data-testid="nape-quiz-tv">
+      <div ref={root} data-pl-theme="dark" className="relative min-h-0 w-full flex-1 bg-pl-bg text-pl-text" data-testid="nape-quiz-tv">
         {screen}
         {game && <img src={WORDMARK} alt="Petrolord Suite" className="absolute bottom-6 right-8 h-8 w-auto opacity-80" />}
         <button type="button" onClick={fullscreen} className="absolute right-3 top-3 rounded px-2 py-1 text-xs text-white/30 hover:text-white/80">Full screen</button>
       </div>
-    </ThemedApp>
+    </PublicPage>
   );
 }
