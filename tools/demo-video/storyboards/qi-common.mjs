@@ -24,7 +24,7 @@ export async function clearQiProject(d, name = PROJECT) {
     const item = d.page.getByRole('option', { name, exact: true });
     if (!(await item.count())) { await d.page.keyboard.press('Escape'); return; }
     await item.first().click(); await d.sleep(2500);
-    d.page.once('dialog', (dg) => dg.accept());
+    d.page.once('dialog', (dg) => dg.accept().catch(() => {}));
     await d.page.getByRole('button', { name: 'Delete current project' }).click();
     await d.sleep(2500);
   }
@@ -119,7 +119,7 @@ export async function clearProductVolumes(d, shared) {
   await d.page.goto(`${shared.baseUrl}${SEISMOLORD}`, { waitUntil: 'domcontentloaded' });
   await t('sl-start-toggle').waitFor({ timeout: 120000 }); await d.sleep(5000);
   if (await t('sl-tour-skip').count()) await t('sl-tour-skip').click();
-  const products = /^EKENE3D-[a-z]+\.sgy (Intercept|Gradient|Fluid factor|Chi|AI, simultaneous|SI, simultaneous|density, simultaneous|Vp\/Vs, simultaneous).*$/;
+  const products = /^EKENE3D-[a-z]+\.sgy (Intercept|Gradient|Fluid factor|Chi|AI, simultaneous|SI, simultaneous|density, simultaneous|Vp\/Vs, simultaneous|matched to ).*$/;
   for (let n = 0; n < 40; n++) {
     const items = d.page.locator('text=/^EKENE3D-/ >> visible=true');
     const names = await items.allInnerTexts();
@@ -148,4 +148,18 @@ export async function createQiProject(d, shared, name, wells, volumes) {
   await d.page.getByTestId('qi-target-Ekene Sand').click();
   for (const v of volumes) { await volumeBox(d, v).check(); await d.sleep(150); }
   await d.sleep(1500);
+}
+
+/** Off camera: remove the angle stacks an earlier take made (the gather store stays). */
+export async function clearAngleStacks(d) {
+  const t = (id) => d.page.getByTestId(id);
+  d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
+  await t('qi-tab-prestack').click(); await d.sleep(5000);
+  for (let round = 0; round < 6; round++) {
+    const ids = await d.page.locator('[data-testid="qi-pre-stacks"] [data-testid^="qi-pre-remove-"]').evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')));
+    if (!ids.length) return;
+    for (const id of ids) { await t(id).click(); await d.sleep(1500); }
+    await d.sleep(10000);
+    await t('qi-tab-setup').click(); await d.sleep(1000); await t('qi-tab-prestack').click(); await d.sleep(4000);
+  }
 }
