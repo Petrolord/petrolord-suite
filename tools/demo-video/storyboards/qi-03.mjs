@@ -1,6 +1,8 @@
 // QI Studio, video 3: AVO and the simultaneous inversion (Ekene kit v3).
-// Figures marked TBD are filled from the dry run after the Seismolord
-// synthetic placement fix; `expectText` stops the take if the screen differs.
+// Figures from the 2026-10-10 dry run on the ties re-committed after the
+// Seismolord synthetic placement fix (#977): AVO at the wells scale 1.72e3,
+// class agrees at 4 of 4, misfit 0.009 to 0.051; blind wells AI 7.3 to 11.2
+// percent, SI 10.2 to 13.8, density 5.9 to 7.6 with correlation 0.45 to 0.50.
 import {
   login, expectText, clearProductVolumes, createQiProject,
 } from './qi-common.mjs';
@@ -50,17 +52,24 @@ export default {
       say: 'The three volumes are ready, and open in Seismolord beside the stacks.',
       do: async (d) => { await d.highlight('qi-avo-runs'); } },
     { id: 'wells', chapter: 'Checked at the wells', chapterSub: 'Model against seismic',
-      say: 'TBD: at the wells. Rock Physics Studio published the modelled gather for each well; QI Studio reads the AVO volumes at each well\'s zone top and fits one scale over all of them.',
+      say: 'Before trusting the volumes, check them at the wells. Rock Physics Studio published a modelled gather for each well. QI Studio reads the AVO volumes at each well\'s zone top, fits one scale over all of them, and compares. The AVO class agrees at all four wells.',
       do: async (d) => {
         await d.unhighlight();
         await d.click('qi-avo-wells-run');
         await t(d, 'qi-avo-wells-table').waitFor({ timeout: 900000 });
         await expectText(d, 'qi-avo-wells-summary', /the AVO class agrees at 4 of them/, 'AVO class at the wells');
+        await t(d, 'qi-avo-wells-summary').scrollIntoViewIfNeeded(); await d.sleep(800);
         await d.highlight('qi-avo-wells-summary');
       } },
     { id: 'wells-table',
-      say: 'TBD: the table, model and seismic intercept and gradient, class and misfit per well.',
-      do: async (d) => { await d.unhighlight(); await d.highlight('qi-avo-wells-table'); } },
+      say: 'Well by well, the seismic intercept and gradient land within about point zero five of the model, with misfits from point zero one to point zero five. Ekene nine has no published gather: without density there is no rock physics model to compare.',
+      sub: 'Well by well, the seismic intercept and gradient land within about 0.05 of the model, with misfits from 0.01 to 0.05. Ekene-9 has no published gather: without density there is no rock physics model to compare.',
+      do: async (d) => {
+        await d.unhighlight();
+        await expectText(d, 'qi-avo-wells-table', /Ekene-3[\s\S]*0\.009[\s\S]*Ekene-9\s*No gather has been published/, 'wells table');
+        await t(d, 'qi-avo-wells-table').scrollIntoViewIfNeeded(); await d.sleep(800);
+        await d.highlight('qi-avo-wells-table');
+      } },
     { id: 'sim', chapter: 'Simultaneous inversion', chapterSub: 'QI Studio · Simultaneous',
       say: 'The same three stacks go into a simultaneous inversion: acoustic impedance, shear impedance and density at once. The field wavelet from the ties is scaled to the stacks at the wells.',
       do: async (d) => {
@@ -78,6 +87,7 @@ export default {
         await d.click('qi-sim-read');
         await t(d, 'qi-sim-wells').waitFor({ timeout: 300000 });
         await expectText(d, 'qi-sim-wells', /Ekene-9\s*No density curve/, 'Ekene-9 sits out');
+        await t(d, 'qi-sim-wells').scrollIntoViewIfNeeded(); await d.sleep(800);
         await d.highlight('qi-sim-wells');
       } },
     { id: 'blind',
@@ -86,8 +96,13 @@ export default {
       wait: async (d) => { await t(d, 'qi-sim-blind-table').waitFor({ timeout: 1800000 }); },
       waitLabel: 'Minutes later' },
     { id: 'blind-table',
-      say: 'TBD: blind-well errors.',
-      do: async (d) => { await d.highlight('qi-sim-blind-table'); } },
+      say: 'Left out in turn, each well\'s acoustic impedance is predicted within seven to eleven percent, and shear impedance within ten to fourteen. Density errors look small, six to eight percent, but its correlation with the log is only about point five: density is the least resolved, as it always is from stacks that end near thirty degrees.',
+      sub: 'Left out in turn, each well\'s acoustic impedance is predicted within 7 to 11 percent, and shear impedance within 10 to 14 percent. Density errors look small, 6 to 8 percent, but its correlation with the log is only about 0.5: density is the least resolved, as it always is from stacks that end near 30 degrees.',
+      do: async (d) => {
+        await expectText(d, 'qi-sim-blind-table', /Ekene-1\s*7\.\d[\s\S]*Ekene-4\s*1[01]\.\d/, 'blind table');
+        await t(d, 'qi-sim-blind-table').scrollIntoViewIfNeeded(); await d.sleep(800);
+        await d.highlight('qi-sim-blind-table');
+      } },
     { id: 'invert',
       say: 'With the blind check on record, we invert the stacks. Acoustic impedance, shear impedance, density and Vp over Vs come back as Seismolord volumes.',
       sub: 'With the blind check on record, we invert the stacks. Acoustic impedance, shear impedance, density and Vp/Vs come back as Seismolord volumes.',
