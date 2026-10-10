@@ -738,3 +738,14 @@ The manual was written against the source, and it found the following.
 - The Simultaneous, Inversion and Properties panels pack their logs. The worker unpacks them before validation (`withUnpackedLogs`) and still accepts plain arrays from older clients. The run record keeps a packed log as its length and fingerprint, as it does for arrays.
 - **Deploy order:** worker first (deploy.sh), then the Suite zip.
 - **Tests:** `logPacking.test.js` (round trip within half a step, gaps, exact codes, damaged input refused, and the four-well block over 64 KB as plain numbers as the negative control) and a worker test (the packed blind table matches the plain one).
+## 2026-10-10: prestack QC residual moveout no longer reads AVO as moveout
+
+- On the Ekene demo gathers, which are flat by construction, prestack QC reported a median residual moveout of 17.3 ms at 570 ms and 4.7 ms at 1045 ms, and suggested "flatten the gathers" issues.
+- **Cause:** each offset was cross-correlated against a near-offset pilot on the signed correlation peak. Where AVO dims, flips or changes the waveform across offset, the peak jumped cycles. Flat synthetic gathers read -5.3 ms (polarity flip), +33.3 ms (two events, opposite AVO) and -25.6 ms (tuned thin bed).
+- **Fix** (engines PR #344, vendored at 82b5366, `qi/prestackQc.js` `residualMoveout`):
+  - the |correlation| peak, with only offsets that still resemble the pilot (|corr| 0.7 or more) in a fit weighted by corr²;
+  - when the lags scatter about the parabola by more than a sample, AB semblance (Sarkar, Castagna and Lamb 2002) with a linear amplitude trend.
+  - Flat cases now read 0.00 ms; true residuals of +8 and -12 ms are recovered within 0.35 ms; with noise at a fifth of the peak, flat gathers read under 3 ms.
+- The worker handler is unchanged (same return shape, plus `fitted` and `method`). **The worker needs a redeploy for the fix to reach prestack QC.**
+- **Tests:** engines `qi.prestackQc.test.js`, with the old estimator as the negative control.
+
