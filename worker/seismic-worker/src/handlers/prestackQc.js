@@ -26,6 +26,24 @@ export function validatePrestackQcParams(p) {
   return null;
 }
 
+/**
+ * Whether a CDP's residual-moveout reading rests on a real event. The near
+ * offsets build the reference, so they correlate with it even in noise; past
+ * them, a real event (AVO change included) stays similar across the nearer
+ * half of the spread, and noise does not. A window with no reflector (the
+ * Benin sands of the Ekene kit at 570 ms) otherwise reads its noise as tens
+ * of milliseconds of moveout and asks for the gathers to be flattened.
+ */
+export function coherentEvent(m, { nearCount = 3, minCorr = 0.5, share = 0.6 } = {}) {
+  const c = (m?.corr || []).slice(nearCount, nearCount + Math.ceil(((m?.corr || []).length - nearCount) / 2));
+  const live = c.filter(fin);
+  if (live.length < 2) return false;
+  return live.filter((v) => Math.abs(v) >= minCorr).length >= share * live.length;
+}
+
+/** Below this share of coherent CDPs a time has no event to measure. */
+export const MIN_COHERENT_SHARE = 0.2;
+
 const q = (sorted, f) => (sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(f * sorted.length))] : NaN);
 
 /** Issues from the QC result. */
@@ -72,7 +90,7 @@ export async function prestackQc(ctx, deps) {
   const vel = p.velocity ? velocityOnGrid(p.velocity.t_ms, p.velocity.vrms, ns, dtMs) : null;
   const stride = Math.max(1, Math.round(Math.sqrt((g.il.count * g.xl.count) / TARGET_CDPS)));
 
-  const rmo = times.map(() => []); const foldTotals = []; const farOffsets = []; const sampled = [];
+  const rmo = times.map(() => []); const coherent = times.map(() => 0); const foldTotals = []; const farOffsets = []; const sampled = [];
   const cache = new Map();
   const block = async (bi, bj) => {
     const k = `${bi}-${bj}`;
@@ -93,7 +111,10 @@ export async function prestackQc(ctx, deps) {
       const fs = foldSummary(gather.fold, centres, minFold);
       foldTotals.push(fs.total); farOffsets.push(fs.farOffset);
       const traces = gather.traces.map((t, b) => (gather.fold[b] ? t : new Float32Array(ns).fill(NaN)));
-      times.forEach((t, k) => { rmo[k].push(residualMoveout({ traces, offsets: centres, dtMs, centreMs: t }).rmoFarMs); });
+      times.forEach((t, k) => {
+        const m = residualMoveout({ traces, offsets: centres, dtMs, centreMs: t });
+        if (coherentEvent(m)) { coherent[k] += 1; rmo[k].push(m.rmoFarMs); } else rmo[k].push(NaN);
+      });
       sampled.push([il, xl]);
     }
     ctx.progress(0.95 * (il / g.il.count), 'Measuring the gathers');
@@ -106,10 +127,12 @@ export async function prestackQc(ctx, deps) {
     dataset_id: ds.id, name: ds.name, stride, cdps: sampled.length, maxStretch,
     fold: { median: medFold, lowShare: foldTotals.filter((f) => f < 0.5 * medFold).length / foldTotals.length, farMedianM: q(farSorted, 0.5) },
     times: times.map((t, k) => {
-      const abs = rmo[k].filter(fin).map(Math.abs).sort((a, b) => a - b);
+      const coherentShare = coherent[k] / sampled.length;
+      const noEvent = coherentShare < MIN_COHERENT_SHARE;
+      const abs = noEvent ? [] : rmo[k].filter(fin).map(Math.abs).sort((a, b) => a - b);
       const i = Math.round(t / dtMs);
       return {
-        t_ms: t,
+        t_ms: t, coherentShare, noEvent,
         rmoMedian: q(abs, 0.5), rmoQ90: q(abs, 0.9), rmoShareOver4: abs.length ? abs.filter((v) => v > 4).length / abs.length : NaN,
         stretchMuteM: vel ? stretchMuteOffset(t / 1000, vel.vrms[Math.min(ns - 1, i)], maxStretch) : null,
       };

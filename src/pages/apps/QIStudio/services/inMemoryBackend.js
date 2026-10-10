@@ -127,7 +127,7 @@ function makeInMemoryJobs({ removedDatasets = new Set() } = {}) {
         return id;
       }
       if (kind === 'prestack_qc') {
-        const times = [{ t_ms: 900, rmoMedian: 2.1, rmoQ90: 5.6, rmoShareOver4: 0.22, stretchMuteM: 2450 }, { t_ms: 1650, rmoMedian: 1.2, rmoQ90: 2.9, rmoShareOver4: 0.04, stretchMuteM: 3900 }];
+        const times = [{ t_ms: 900, coherentShare: 0.94, noEvent: false, rmoMedian: 2.1, rmoQ90: 5.6, rmoShareOver4: 0.22, stretchMuteM: 2450 }, { t_ms: 1650, coherentShare: 0.12, noEvent: true, rmoMedian: NaN, rmoQ90: NaN, rmoShareOver4: NaN, stretchMuteM: 3900 }];
         results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { dataset_id: params.dataset_id, cdps: 1480, stride: 4, maxStretch: 0.3, fold: { median: 58, lowShare: 0.06, farMedianM: 3000 }, times, issues: [{ key: 'prestack-qc:mem:rmo:900', area: 'Prestack QC', severity: 'medium', title: 'Residual moveout at 900 ms', detail: 'up to 5.6 ms', remedy: 'Flatten the gathers.' }] } });
         return id;
       }
