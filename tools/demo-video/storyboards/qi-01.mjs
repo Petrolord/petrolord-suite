@@ -99,7 +99,8 @@ export default {
       sub: 'The substitute is 35,000 ppm brine. The clay comes from the shale volume log, sample by sample.',
       do: async (d) => {
         await d.type('rp-param-fluidB-sw', '1');
-        await d.click('rp-param-clayFromVsh');
+        // the rock settings persist in the RPS project: tick only when unticked
+        if (!(await d.page.getByTestId('rp-param-clayFromVsh').isChecked())) await d.click('rp-param-clayFromVsh');
         await d.click('rp-apply-params');
         await d.sleep(2500);
       } },
