@@ -749,3 +749,11 @@ The manual was written against the source, and it found the following.
 - The worker handler is unchanged (same return shape, plus `fitted` and `method`). **The worker needs a redeploy for the fix to reach prestack QC.**
 - **Tests:** engines `qi.prestackQc.test.js`, with the old estimator as the negative control.
 
+
+## 2026-10-10: prestack QC measures residual moveout only where there is an event
+
+- After #980, the Ekene demo gathers read 2.3 ms at 1045 ms and 0.8 ms at 1520 ms (flat, as built). The 570 ms window still read a 21.9 ms median: it sits in the Benin sands, with no reflector, so the estimator measured noise and raised "flatten the gathers" issues.
+- `coherentEvent` (worker handler): a CDP's reading counts only when the event stays similar across the nearer half of the spread past the reference offsets (|r| of 0.5 or more on 60 percent of them). An AVO change at far offsets still passes; noise does not.
+- Each time window reports the share of coherent CDPs. Below 20 percent it shows "no coherent event to measure" and raises no moveout issue. The Prestack panel and the report have a "Coherent CDPs (percent)" column.
+- Needs a worker redeploy.
+- **Tests:** worker `prestackQc.test.js` (a noise-only window reads no event and raises no issue, while the event window is coherent and flat; `coherentEvent` ignores the reference offsets); the QI walk shows the no-event row.
