@@ -108,3 +108,44 @@ export async function openQiProject(d, shared, name = PROJECT) {
 
 // the kit's 10-qi/ekene-qi-truth.md table (v3.2), one time and RMS velocity per line
 export const RMS_VELOCITY = ['47 1500', '331 1975', '926 2458', '1041 2456', '1289 2388', '1311 2397', '1517 2352', '1572 2341', '1625 2347', '1782 2329'].join('\n');
+
+/**
+ * Off camera: delete the AVO and simultaneous-inversion product volumes an
+ * earlier take left in Seismolord (children first, so parents stay put).
+ */
+export async function clearProductVolumes(d, shared) {
+  const t = (id) => d.page.getByTestId(id);
+  d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
+  await d.page.goto(`${shared.baseUrl}${SEISMOLORD}`, { waitUntil: 'domcontentloaded' });
+  await t('sl-start-toggle').waitFor({ timeout: 120000 }); await d.sleep(5000);
+  if (await t('sl-tour-skip').count()) await t('sl-tour-skip').click();
+  const products = /^EKENE3D-[a-z]+\.sgy (Intercept|Gradient|Fluid factor|Chi|AI, simultaneous|SI, simultaneous|density, simultaneous|Vp\/Vs, simultaneous).*$/;
+  for (let n = 0; n < 40; n++) {
+    const items = d.page.locator('text=/^EKENE3D-/ >> visible=true');
+    const names = await items.allInnerTexts();
+    const k = names.map((x) => x.trim()).findLastIndex((x) => products.test(x));
+    if (k < 0) break;
+    const name = names[k].trim();
+    await items.nth(k).click({ button: 'right' }); await d.sleep(600);
+    const del = d.page.getByText('Delete volume…');
+    if (!(await del.count())) { await d.page.keyboard.press('Escape'); break; }
+    await del.click();
+    for (let i = 0; i < 24; i++) { await d.sleep(5000); if (!(await d.page.getByText(name, { exact: true }).count())) break; }
+  }
+}
+
+/** Off camera: a fresh QI project with the wells, the Ekene Sand target and the volumes ticked. */
+export async function createQiProject(d, shared, name, wells, volumes) {
+  await openQi(d, shared);
+  await clearQiProject(d, name);
+  await openQi(d, shared);
+  await d.page.getByRole('button', { name: 'Create new project' }).click();
+  await d.page.getByRole('textbox', { name: 'Project name' }).fill(name);
+  await d.page.getByRole('button', { name: 'Create project' }).click();
+  await d.sleep(2500);
+  for (const w of wells) { await wellBox(d, w).check(); await d.sleep(150); }
+  await d.sleep(1500);
+  await d.page.getByTestId('qi-target-Ekene Sand').click();
+  for (const v of volumes) { await volumeBox(d, v).check(); await d.sleep(150); }
+  await d.sleep(1500);
+}
