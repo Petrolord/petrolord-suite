@@ -41,6 +41,20 @@ export const TERMINATION_KINDS = [
   { key: 'truncation', label: 'Truncation', colour: '#f87171' },
 ];
 
+/** The seed as the interpreter reads it: line numbers and two-way time from
+ *  the survey geometry, in place of the internal lattice indices (volumes
+ *  import in time only, see importBlockReason). */
+export function describeSeed(seed, geometry) {
+  if (!seed) return '';
+  if (!geometry?.il || !geometry?.xl || !geometry?.dt_us) {
+    return `Seed: IL idx ${seed.ilIdx}, XL idx ${seed.xlIdx}, s ${seed.sample.toFixed(2)}`;
+  }
+  const il = geometry.il.min + seed.ilIdx * geometry.il.step;
+  const xl = geometry.xl.min + seed.xlIdx * geometry.xl.step;
+  const ms = (seed.sample * geometry.dt_us) / 1000;
+  return `Seed: IL ${il}, XL ${xl}, ${ms.toFixed(1)} ms`;
+}
+
 export default function InterpretationTab({
   manifest, orientation, slice,
   pickMode, setPickMode, seedPick, snapMode, setSnapMode, snapWindow, setSnapWindow,
@@ -141,9 +155,8 @@ export default function InterpretationTab({
           </>
         )}
         {seedPick && !tracking && (
-          <span className="text-[10px] text-pl-muted max-w-[110px] leading-tight">
-            Seed: IL idx {seedPick.ilIdx}, XL idx {seedPick.xlIdx},
-            s {seedPick.sample.toFixed(2)}
+          <span className="text-[10px] text-pl-muted max-w-[110px] leading-tight" data-testid="sl-seed-readout">
+            {describeSeed(seedPick, manifest?.geometry)}
           </span>
         )}
       </RibbonGroup>

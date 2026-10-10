@@ -2326,7 +2326,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
         vol: volume,
         dtUs: manifest.geometry.dt_us,
       });
-      toast({ title: 'Rejected and repicked', description: `${h.name}: ${f.rejected.length} picks below ${confThreshold.toFixed(2)} rejected, ${back} repicked at or above it, ${f.rejected.length - back} left empty; ${row.stats.tracked} traces.` });
+      toast({ title: 'Rejected and repicked', description: `${h.name}: ${f.rejected.length} picks below ${confThreshold.toFixed(2)} rejected, ${back} repicked at or above it, ${f.rejected.length - back} left empty; ${Number(row.stats.tracked).toLocaleString('en-US')} traces.` });
     } catch (e) {
       if (!/cancelled/i.test(e.message)) {
         toast({ title: 'Confidence filter failed', description: e.message, variant: 'destructive' });
@@ -2639,7 +2639,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
       pushNewHorizonUndo({
         label: `track horizon "${name}"`, row, picks, vol: volume, dtUs, save, confidence,
       });
-      toast({ title: 'Horizon tracked', description: `${name}: ${row.stats.tracked} traces.` });
+      toast({ title: 'Horizon tracked', description: `${name}: ${Number(row.stats.tracked).toLocaleString('en-US')} traces.` });
     } catch (e) {
       if (!/cancelled/i.test(e.message)) {
         toast({ title: 'Tracking failed', description: e.message, variant: 'destructive' });
@@ -2690,7 +2690,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
         vol: volume,
         dtUs: manifest.geometry.dt_us,
       });
-      toast({ title: 'Horizon grown', description: `${h.name}: ${row.stats.tracked} traces.` });
+      toast({ title: 'Horizon grown', description: `${h.name}: ${Number(row.stats.tracked).toLocaleString('en-US')} traces.` });
     } catch (e) {
       if (!/cancelled/i.test(e.message)) {
         toast({ title: 'Growing failed', description: e.message, variant: 'destructive' });
