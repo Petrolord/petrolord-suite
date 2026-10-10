@@ -730,3 +730,11 @@ The manual was written against the source, and it found the following.
 - The project kept each store's angle-stack and QC records after the store was removed. A rebuilt store then showed two result lines in Prestack, and the report listed both runs.
 - `dropPrestackStore` (QIStudioContext) runs when a `gathers_offset` file is removed. Removing a raw upload leaves the records alone.
 - **Tests:** a `qiStudio.test.jsx` case with a raw-upload removal as the negative control. It fails on the old code.
+
+## 2026-10-10: well logs packed in worker job settings (64 KB limit)
+
+- Simultaneous inversion on the Ekene demo (four wells, near/mid/far) failed with "Job settings are too large (64 KB limit)". Each well's AI, SI and density went into the job as JSON numbers, one per sample of the trace. Post-stack inversion and property prediction send logs the same way.
+- `services/logPacking.js`: `packLog` keeps the logged interval only, as 16-bit steps between the least and greatest value (base64). For ln(impedance) a step is about 3e-5, which is 0.003 percent; whole-number logs (facies codes) stay exact. Four wells of three logs now take under a third of the limit.
+- The Simultaneous, Inversion and Properties panels pack their logs. The worker unpacks them before validation (`withUnpackedLogs`) and still accepts plain arrays from older clients. The run record keeps a packed log as its length and fingerprint, as it does for arrays.
+- **Deploy order:** worker first (deploy.sh), then the Suite zip.
+- **Tests:** `logPacking.test.js` (round trip within half a step, gaps, exact codes, damaged input refused, and the four-well block over 64 KB as plain numbers as the negative control) and a worker test (the packed blind table matches the plain one).

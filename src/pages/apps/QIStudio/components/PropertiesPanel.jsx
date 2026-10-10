@@ -13,6 +13,7 @@ import { prepareWell } from '../services/inversionWells';
 import { INVERSION_METHODS } from '../services/inversionRun';
 import { PROPERTY_KINDS, PROPERTY_DEFAULTS, MAX_FACIES, propertyIssues, faciesClass } from '../services/propertyRun';
 import ExportControls from './ExportControls';
+import { packLog } from '../services/logPacking';
 
 const card = 'rounded-lg border border-pl-border bg-pl-surface p-4 space-y-3';
 const muted = 'text-xs text-pl-muted';
@@ -125,7 +126,7 @@ export default function PropertiesPanel() {
   })();
   const block = () => ({
     kind,
-    wells: usable.map((w) => ({ name: w.name, il: w.il, xl: w.xl, ln_ai: w.ln_ai, target: w[kind].values, ...(two ? { vpvs: w.ln_ai.map((v, i) => Math.exp(v - w.elastic.ln_si[i])) } : {}) })),
+    wells: usable.map((w) => ({ name: w.name, il: w.il, xl: w.xl, ln_ai: packLog(w.ln_ai), target: packLog(w[kind].values), ...(two ? { vpvs: packLog(w.ln_ai.map((v, i) => Math.exp(v - w.elastic.ln_si[i]))) } : {}) })),
     ...(two ? { attributes: 'ai_vpvs' } : {}),
     ...(win.t0 !== '' && win.t1 !== '' ? { window_ms: [Number(win.t0), Number(win.t1)] } : {}),
     ...(kind === 'facies' ? { names, density, priors } : {}),

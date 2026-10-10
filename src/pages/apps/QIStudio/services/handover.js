@@ -36,6 +36,8 @@ export function compactParams(value) {
     }
     return value.map(compactParams);
   }
+  // a packed well log (logPacking.js) is recorded the same way
+  if (value && value.packed === 1 && typeof value.q === 'string') return { values: value.ns, fingerprint: fingerprint(value.q) };
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, compactParams(v)]));
   return value;
 }

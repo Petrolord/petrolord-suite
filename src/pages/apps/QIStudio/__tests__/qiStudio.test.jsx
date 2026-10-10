@@ -35,6 +35,7 @@ import { QIStudioProvider, useQIStudio } from '../QIStudioContext';
 import { reportModel, buildQIStudioPdf } from '../services/report';
 // eslint-disable-next-line import/first
 import { readPdf, flat } from '@/lib/reportKit/testKit';
+import { unpackLog } from '../services/logPacking';
 
 // the app renders the whole studio per test; the default 5 s is short on a cold run
 jest.setTimeout(60000);
@@ -223,7 +224,7 @@ test('inversion: the wells read into impedance, the blind-well check and a volum
   expect(pkind).toBe('property_prediction');
   expect(pparams).toMatchObject({ mode: 'calibrate', ai_volume_id: 'mem-inv-qi-v1' });
   expect(pparams.property.wells.map((w) => w.name)).toEqual(['KETA-1', 'KETA-4']);
-  expect(pparams.property.wells[0].target.filter(Number.isFinite).length).toBeGreaterThan(100);
+  expect(unpackLog(pparams.property.wells[0].target).filter(Number.isFinite).length).toBeGreaterThan(100);
   fireEvent.click(screen.getByTestId('qi-prop-run'));
   const pruns = await screen.findByTestId('qi-prop-runs', {}, { timeout: 20000 });
   await waitFor(() => expect(pruns).toHaveTextContent(/Ready: open in Seismolord/));
@@ -429,7 +430,7 @@ test('simultaneous: five stacks, the wells with shear and density, the blind tab
   const [, bp] = enqueue.mock.calls.find((c) => c[0] === 'prestack_inversion');
   expect(bp.inversion.stacks.map((s) => s.angle)).toEqual([4, 12, 20, 28, 36]);
   expect(bp.inversion.wavelets).toHaveLength(5);
-  expect(bp.inversion.wells[0].ln_si.filter(Number.isFinite).length).toBeGreaterThan(100);
+  expect(unpackLog(bp.inversion.wells[0].ln_si).filter(Number.isFinite).length).toBeGreaterThan(100);
   fireEvent.click(screen.getByTestId('qi-sim-run'));
   const runs = await screen.findByTestId('qi-sim-runs', {}, { timeout: 20000 });
   await waitFor(() => expect(runs).toHaveTextContent(/Ready: open in Seismolord/));
@@ -447,5 +448,5 @@ test('simultaneous: five stacks, the wells with shear and density, the blind tab
   const [, pp] = enqueue.mock.calls.find((c) => c[0] === 'property_prediction');
   expect(pp).toMatchObject({ mode: 'calibrate', ai_volume_id: 'mem-sim-qi-v1-ai', second_volume_id: 'mem-sim-qi-v1-vpvs' });
   expect(pp.property.attributes).toBe('ai_vpvs');
-  expect(pp.property.wells[0].vpvs.filter(Number.isFinite).length).toBeGreaterThan(100);
+  expect(unpackLog(pp.property.wells[0].vpvs).filter(Number.isFinite).length).toBeGreaterThan(100);
 });

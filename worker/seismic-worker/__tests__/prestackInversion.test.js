@@ -5,6 +5,7 @@
 // Fatti model from known AI, SI and density; the blind table equals the run
 // module's on the same traces, and a volume run writes AI, SI, density and
 // Vp/Vs that match the truth at a well. Then the guards.
+import { packLog } from '../../../src/pages/apps/QIStudio/services/logPacking.js';
 import { prestackInversion, validatePrestackJob } from '../src/handlers/prestackInversion.js';
 import { meanVsVp, prestackLfm, prestackWaveletScale, makeCdpInverter, prestackBlindTable, PRESTACK_DEFAULTS } from '../../../src/pages/apps/QIStudio/services/prestackRun';
 import { horizonsAtFrom } from '../../../src/pages/apps/QIStudio/services/inversionRun';
@@ -76,6 +77,15 @@ test('blind mode equals the run module on the same traces', async () => {
   const ref = prestackBlindTable({ invert, wells, tracesByWell: traces, dtMs: DT, truthHz: 50 });
   expect(out.blind).toEqual(ref);
   for (const r of out.blind) expect(r.blind.ai.rmsPct).toBeLessThan(5);
+});
+
+test('packed logs (the client form since 2026-10-10) give the same blind table as plain arrays, within the packing step', async () => {
+  const plain = await prestackInversion(ctxFor(P('blind')), depsFor().d);
+  const packedWells = WELLS.map((w) => ({ ...w, ln_ai: packLog(w.ln_ai), ln_si: packLog(w.ln_si), ln_rho: packLog(w.ln_rho) }));
+  const params = P('blind'); params.inversion.wells = packedWells;
+  const packed = await prestackInversion(ctxFor(params), depsFor().d);
+  expect(packed.blind.map((r) => r.name)).toEqual(plain.blind.map((r) => r.name));
+  packed.blind.forEach((r, k) => expect(Math.abs(r.blind.ai.rmsPct - plain.blind[k].blind.ai.rmsPct)).toBeLessThan(0.05));
 });
 
 test('a volume run writes AI, SI, density and Vp/Vs that match the truth at a well', async () => {
