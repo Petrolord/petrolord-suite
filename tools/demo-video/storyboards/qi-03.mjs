@@ -1,8 +1,9 @@
 // QI Studio, video 3: AVO and the simultaneous inversion (Ekene kit v3).
 // Figures from the 2026-10-10 dry run on the ties re-committed after the
 // Seismolord synthetic placement fix (#977): AVO at the wells scale 1.72e3,
-// class agrees at 4 of 4, misfit 0.009 to 0.051; blind wells AI 7.3 to 11.2
-// percent, SI 10.2 to 13.8, density 5.9 to 7.6 with correlation 0.45 to 0.50.
+// class agrees at 4 of 4, misfit 0.009 to 0.051; blind wells (after #983, logs
+// timed within the checkshots) AI 6.5 to 7.4 percent, SI 10.0 to 14.4, density
+// 5.6 to 6.8 with correlation 0.47 to 0.51.
 import {
   login, expectText, clearProductVolumes, createQiProject,
 } from './qi-common.mjs';
@@ -96,10 +97,10 @@ export default {
       wait: async (d) => { await t(d, 'qi-sim-blind-table').waitFor({ timeout: 1800000 }); },
       waitLabel: 'Minutes later' },
     { id: 'blind-table',
-      say: 'Left out in turn, each well\'s acoustic impedance is predicted within seven to eleven percent, and shear impedance within ten to fourteen. Density errors look small, six to eight percent, but its correlation with the log is only about point five: density is the least resolved, as it always is from stacks that end near thirty degrees.',
-      sub: 'Left out in turn, each well\'s acoustic impedance is predicted within 7 to 11 percent, and shear impedance within 10 to 14 percent. Density errors look small, 6 to 8 percent, but its correlation with the log is only about 0.5: density is the least resolved, as it always is from stacks that end near 30 degrees.',
+      say: 'Left out in turn, each well\'s acoustic impedance is predicted within about seven percent, and shear impedance within ten to fourteen. Density errors look small, about six percent, but its correlation with the log is only about point five: density is the least resolved, as it always is from stacks that end near thirty degrees.',
+      sub: 'Left out in turn, each well\'s acoustic impedance is predicted within about 7 percent, and shear impedance within 10 to 14 percent. Density errors look small, about 6 percent, but its correlation with the log is only about 0.5: density is the least resolved, as it always is from stacks that end near 30 degrees.',
       do: async (d) => {
-        await expectText(d, 'qi-sim-blind-table', /Ekene-1\s*7\.\d[\s\S]*Ekene-4\s*1[01]\.\d/, 'blind table');
+        await expectText(d, 'qi-sim-blind-table', /Ekene-1\s*[67]\.\d[\s\S]*Ekene-4\s*[67]\.\d/, 'blind table');
         await t(d, 'qi-sim-blind-table').scrollIntoViewIfNeeded(); await d.sleep(800);
         await d.highlight('qi-sim-blind-table');
       } },

@@ -2,7 +2,9 @@
 // prestack QC (fold, residual moveout, stretch mute). Kit v3 gathers are
 // NMO-corrected and flat by construction. Needs the RMO estimator of engines
 // #344 (Suite #980) on the worker. Figures: store 53248 traces in 13 bins of
-// 200 m; QC numbers from the dry run (QC below).
+// 200 m; QC (2026-10-10, after #980, #981, #982): 1024 CDPs, median fold 13,
+// far offset 2500 m; 570 ms no coherent event; 1045 ms 100 percent coherent,
+// median 2.3 ms, Q90 6.6; 1520 ms 100 percent, median 0.8, Q90 8.5; 3 low issues.
 import { login, expectText } from './common.mjs';
 import { qiLessonMeta, lessonProject } from './qi-common.mjs';
 import { clearPrestackProducts, RMS_VELOCITY } from '../qi-common.mjs';
@@ -59,15 +61,18 @@ export default {
       wait: async (d) => { await qcResult(d).waitFor({ timeout: 900000 }); await d.sleep(1000); },
       waitLabel: 'Minutes later' },
     { id: 'fold',
-      say: 'QCFOLD',
+      say: 'A thousand and twenty four CDPs were sampled, every second one. The median fold is thirteen, so every offset bin is live, and the far covered offset is twenty five hundred metres: the full spread reaches the whole survey.',
+      sub: 'A thousand and twenty four CDPs were sampled, every second one. The median fold is 13, so every offset bin is live, and the far covered offset is 2,500 m: the full spread reaches the whole survey.',
       do: async (d) => {
         await expectText(d, qcResult(d), /1024 CDPs sampled \(every 2\); median fold 13, far covered offset 2500 m/, 'fold');
         await d.highlight(qcResult(d).locator('p').first());
       } },
     { id: 'rmo',
-      say: 'QCRMO',
+      say: 'Residual moveout, time by time. At five hundred and seventy milliseconds no CDP holds a coherent event: that window sits in the Benin sands, with no reflector to measure, and QC says so. At ten forty five and fifteen twenty every sampled CDP has a coherent event, and the median far-offset residual is two point three and point eight milliseconds. These gathers are flat. The ninetieth percentiles, about seven and eight and a half milliseconds, are the noisiest CDPs; QC records that scatter as a low note and points to the residual map.',
+      sub: 'Residual moveout, time by time. At 570 ms no CDP holds a coherent event: that window sits in the Benin sands, with no reflector to measure, and QC says so. At 1045 and 1520 ms every sampled CDP has a coherent event, and the median far-offset residual is 2.3 and 0.8 ms. These gathers are flat. The 90th percentiles, about 7 and 8.5 ms, are the noisiest CDPs; QC records that scatter as a low note and points to the residual map.',
       do: async (d) => {
         await d.unhighlight();
+        await expectText(d, qcResult(d), /570\s*0\s*no coherent event to measure[\s\S]*1045\s*100\s*2\.3[\s\S]*1520\s*100\s*0\.8/, 'residual moveout');
         await d.highlight(qcResult(d).locator('table').first());
       } },
     { id: 'stretch',
