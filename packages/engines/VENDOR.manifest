@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit d1e3d83f757e45bd00120185fffaadad0aa004e5
+# commit f7a0b500538612ee6877cf4dee002388d8040a4f
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 80b08bf546799e96d5448d67c63c98f2ec1b9703 README.md
@@ -179,7 +179,7 @@ e6d7f81fccfe0c1e8a640246a2210dbc8d473515 __tests__/qi.inversionBenchmark.test.js
 0232580f706161ddee67e1a44b85c58377ab5d54 __tests__/qi.lfm.test.js
 55583129f3a8d89b1ca9638ee3e5845cee75f673 __tests__/qi.prestack.test.js
 6e6ff5d690fa3344077ae31e1e84205f5466644b __tests__/qi.prestackInversion.test.js
-0ee50d7a3117a919264ce660f4d441829e655d6b __tests__/qi.prestackQc.test.js
+afeec6d831ca197fb935f75305422674d368bdef __tests__/qi.prestackQc.test.js
 37012fc2ddd63d97350f26e6a790c899249c13e9 __tests__/qi.propertyPrediction.test.js
 b2e83fda11504d1b4e6d01bf93e3c0564088fb08 __tests__/qi.prospectAssessment.test.js
 7118d18a2558431d008a66c5806ada9fbae8752a __tests__/qi.seismicQc.test.js
@@ -514,7 +514,7 @@ d00a00ca01a9fd9c18ad49ffbc686797120dc04f engines/qi/inversionSpread.js
 b39570bb2e983fe831a07534130a5eeb7547b61f engines/qi/lfm.js
 a2fc41975f55e508e0e3076b36a34763706a1610 engines/qi/prestack.js
 ce6079ddef299f584e8312a190bdc331bf0662e1 engines/qi/prestackInversion.js
-5422967b1477845f2b47782916966ebf8b5c0bf5 engines/qi/prestackQc.js
+13464fda205d29c4bd22e24d30f65e4f1bd5f097 engines/qi/prestackQc.js
 51f0d1c791490b53bedcb9a2e7f46401ce7a5fec engines/qi/propertyPrediction.js
 349b54e6280e091dcbd2888fa96ff7db2ccabad6 engines/qi/prospectAssessment.js
 00816e027603e25d60cd84661a1d32aed42a931b engines/qi/seismicQc.js
