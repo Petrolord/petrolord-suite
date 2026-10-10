@@ -14,8 +14,8 @@ export const INTERESTS = Object.freeze([
   { key: 'other', label: 'Something else' },
 ]);
 export const CONSENT_TEXT = 'Petrolord and Lordsway Energy may contact me by phone, WhatsApp or email about the products I chose. I can ask for my details to be deleted at any time.';
-// The booth quiz (planned for NAPE): set to its URL to show "Join the quiz".
-export const QUIZ_URL = null;
+// The booth quiz (the Petrolord Upstream Challenge, src/pages/events/NapeQuiz.jsx).
+export const QUIZ_URL = '/nape/quiz';
 export const QUEUE_KEY = 'pl.eventLeads.queue';
 export const LIMITS = Object.freeze({ name: 120, company: 160, role: 120, email: 200, note: 1000 });
 

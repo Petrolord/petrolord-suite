@@ -18,7 +18,7 @@
   - `?src=tablet` stays on the page with "Next visitor" for a booth tablet.
   - If the save fails (offline, or before the migration), the lead is kept on the phone and sent the next time the page opens. WhatsApp still works.
 - **Logic** (`src/lib/eventLeads.js`): validation, phone normalisation, the wa.me link, the offline queue and the CSV.
-  - `QUIZ_URL` (null for now) shows a "Join the quiz" button when the booth quiz exists.
+  - `QUIZ_URL` is `/nape/quiz`: the done screen links to the booth quiz, the Petrolord Upstream Challenge (see NAPE-QUIZ-STATUS.md).
 - **Storage:** `supabase/migrations/20261010150000_event_leads.sql`, a new table `event_leads`.
   - Visitors may insert only, with consent and length checks enforced in the database.
   - Platform super admins (`public.is_super_admin()`) read and delete.

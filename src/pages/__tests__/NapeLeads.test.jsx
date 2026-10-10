@@ -46,7 +46,9 @@ test('a tablet lead is saved and the visitor gets the WhatsApp button with their
   expect(mockInserted[0]).toMatchObject({ name: 'Ada Obi', phone: '2348031234567', interests: ['suite'], source: 'tablet', consent: true });
   expect(decodeURIComponent(wa.getAttribute('href'))).toMatch(/^https:\/\/wa\.me\/2349015566981\?text=Hello Petrolord, this is Ada Obi\. .*Petrolord Suite\.$/);
   expect(screen.getByText(/Your details are saved/)).toBeInTheDocument();
-  expect(screen.queryByTestId('nape-quiz')).not.toBeInTheDocument(); // the quiz link stays hidden until it exists
+  // the booth quiz link (QUIZ_URL) leads to the Petrolord Upstream Challenge
+  expect(screen.getByTestId('nape-quiz')).toHaveAttribute('href', '/nape/quiz');
+  expect(screen.getByTestId('nape-quiz')).toHaveTextContent('Play the Petrolord Upstream Challenge');
   fireEvent.click(screen.getByTestId('nape-next'));
   expect(screen.getByLabelText('Your name')).toHaveValue('');
 });
