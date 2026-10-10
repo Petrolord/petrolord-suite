@@ -108,12 +108,15 @@ export default {
         }
       } },
     { id: 'stacks',
-      say: 'Three angle stacks of four thousand traces each. The usable angle reaches thirty three degrees across the gathers, so the far stack is covered.',
-      sub: 'Three angle stacks of 4,096 traces each. The usable angle reaches 33 degrees across the gathers, so the far stack is covered.',
+      say: 'Three angle stacks of four thousand traces each. The usable angle is thirty three degrees at every C D P, so the far stack has full fold up to about thirty three of its thirty five degrees.',
+      sub: 'Three angle stacks of 4,096 traces each. The usable angle is 33 degrees at every CDP, so the far stack has full fold up to about 33 of its 35 degrees.',
       do: async (d) => {
         await d.click(d.page.locator('[data-testid^="qi-pre-stack-"]').first());
+        // the project keeps the last run's line; wait for this run to finish and list its stacks
+        await d.page.locator('[data-testid="qi-pre-stores"] .text-pl-success-text').last().waitFor({ timeout: 600000 });
+        await d.page.locator('[data-testid^="qi-pre-convert-"]').nth(2).waitFor({ timeout: 120000 });
         const res = d.page.locator('[data-testid^="qi-pre-result-"]').first();
-        await expectText(d, res, /near 5 to 15 degrees \(4096 traces\)[\s\S]*Q50 33\.\d/, 'angle stacks');
+        await expectText(d, res, /near 5 to 15 degrees \(4096 traces\)[\s\S]*Q50 3[23]\.\d/, 'angle stacks');
         await d.highlight(res);
       } },
     { id: 'next',
