@@ -104,7 +104,7 @@ export function reportModel({ projectName = '', organizationName = '', project, 
         kind: k, volume: c.volumeName || '', at: String(c.at || '').slice(0, 10),
         summary: k === 'facies'
           ? res.summary.classes.map((x) => [x.name, String(x.n), n(x.prior, 2), n(x.mean, 0), n(x.sd, 0), faciesClass(x.name) === 'fluid_hypothesis' ? 'fluid hypothesis' : 'calibrated prediction'])
-          : `porosity = ${n(res.summary.a, 4)} ${res.summary.b < 0 ? '-' : '+'} ${Math.abs(res.summary.b).toExponential(3)} x AI (r squared ${n(res.summary.r2, 2)}, ${res.summary.n} samples, residual SD ${n(res.summary.s, 4)}).`,
+          : `porosity = ${n(res.summary.a, 4)} ${res.summary.b < 0 ? '-' : '+'} ${Math.abs(res.summary.b).toExponential(3)} x AI (r squared ${n(res.summary.r2, 2)}, ${res.summary.n} samples, residual SD ${n(res.summary.s, 4)}).${Number.isFinite(res.summary.sLoo) && res.summary.sExtra > 0 ? ` The Q10 to Q90 band adds ${n(res.summary.sExtra, 4)} for the inversion's error, from the wells left out (their RMS error ${n(res.summary.sLoo, 4)}).` : ''}`,
         rows: res.rows.map((r) => (r.error ? [r.name, r.error, '', '', ''] : k === 'facies' ? [r.name, String(r.n), p(r.accuracy)] : [r.name, String(r.n), n(r.rms, 3), n(r.corr, 2), p(r.coverage)])),
         volumes: (rec[k].runs || []).filter((x) => x.status === 'ready').map((x) => x.name),
       };
