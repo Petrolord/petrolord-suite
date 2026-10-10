@@ -49,16 +49,16 @@ export default {
         await d.sleep(4000);
       } },
     { id: 'suggest',
-      say: 'Suggest searches for the best bulk shift: four milliseconds, at a correlation of about point seven. For real data, that is a good tie.',
-      sub: 'Suggest searches for the best bulk shift: 4 ms, at a correlation of about 0.7. For real data, that is a good tie.',
+      say: 'Suggest searches for the best bulk shift. The answer is zero: the checkshots already place the synthetic on the seismic, at a correlation of about point seven six. For real data, that is a good tie.',
+      sub: 'Suggest searches for the best bulk shift. The answer is zero: the checkshots already place the synthetic on the seismic, at a correlation of about 0.76. For real data, that is a good tie.',
       do: async (d) => {
         await d.click('synth-suggest');
-        await expectText(d, d.page.getByTestId('synth-suggest-result').first(), /best -4 ms \(r = 0\.(6[89]|70)\)/, 'suggested shift');
+        await expectText(d, d.page.getByTestId('synth-suggest-result').first(), /best 0 ms \(r = 0\.7[4-8]\)/, 'suggested shift');
         await d.highlight(d.page.getByTestId('synth-suggest-result').first());
       } },
     { id: 'commit',
-      say: 'We apply it, pin it with two anchors, and commit. The well\'s whole time-depth now carries the tie, for every application that reads the well.',
-      sub: 'We apply it, pin it with two anchors, and commit. The well\'s whole time-depth now carries the tie, for every application that reads the well.',
+      say: 'We keep it, pin it with two anchors, and commit. The well\'s whole time-depth now carries the tie, for every application that reads the well.',
+      sub: 'We keep it, pin it with two anchors, and commit. The well\'s whole time-depth now carries the tie, for every application that reads the well.',
       do: async (d) => {
         await d.unhighlight();
         const apply = d.page.getByTestId('synth-apply-shift');
@@ -75,12 +75,12 @@ export default {
         await d.sleep(3000);
       } },
     { id: 'ties', chapter: 'Every well tied', chapterSub: 'QI Studio · Well ties',
-      say: 'QI Studio gathers the ties. The four wells correlate at about point six to point seven, and their extracted wavelets agree, so their average becomes the field wavelet for the inversion.',
-      sub: 'QI Studio gathers the ties. The four wells correlate at about 0.6 to 0.7, and their extracted wavelets agree, so their average becomes the field wavelet for the inversion.',
+      say: 'QI Studio gathers the ties. All four wells tie with no bulk shift, with windowed correlations of about point five to point six down the whole well, and their extracted wavelets agree, so their average becomes the field wavelet for the inversion.',
+      sub: 'QI Studio gathers the ties. All four wells tie with no bulk shift, with windowed correlations of about 0.5 to 0.6 down the whole well, and their extracted wavelets agree, so their average becomes the field wavelet for the inversion.',
       do: async (d, shared) => {
         await openQiProject(d, shared);
         await d.click('qi-tab-ties');
-        await expectText(d, 'qi-ties', /Ekene-1\s*0\.\d\d[\s\S]*Ekene-4\s*0\.\d\d[\s\S]*Average \(field wavelet\)/, 'tie table');
+        await expectText(d, 'qi-ties', /Ekene-1\s*0\.[56]\d\s*-?0\.\d\d\s*0\.0[\s\S]*Ekene-4\s*0\.[56]\d\s*-?0\.\d\d\s*0\.0[\s\S]*Average \(field wavelet\)/, 'tie table');
         await d.highlight('qi-ties-table');
       } },
     { id: 'gathers', chapter: 'From gathers to angle stacks', chapterSub: 'QI Studio · Prestack',
