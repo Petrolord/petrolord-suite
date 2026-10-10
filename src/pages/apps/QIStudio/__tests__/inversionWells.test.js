@@ -18,10 +18,28 @@ describe('inversion wells', () => {
     const live = r.ln_ai.filter(Number.isFinite).map(Math.exp);
     expect(Math.min(...live)).toBeGreaterThan(6000);
     expect(Math.max(...live)).toBeLessThan(10000);
-    // the log starts near 1300 ms (checkshot at 1500 m TVDSS; the log from 1470 m TVDSS)
+    // the log runs from 1470 m TVDSS but the first checkshot is at 1500 m (1300 ms):
+    // above it the time-depth is extrapolated, so the log starts at the checkshot
+    // (before 2026-10-10 it started near 1276 ms on the extrapolated times)
     const first = r.ln_ai.findIndex(Number.isFinite);
-    expect(first * 4).toBeGreaterThan(1250);
-    expect(first * 4).toBeLessThan(1320);
+    expect(first * 4).toBeGreaterThanOrEqual(1300);
+    expect(first * 4).toBeLessThan(1310);
+    expect(r.timeControl).toEqual({ fromTvdssM: 1500, toTvdssM: 2400 });
+  });
+  test('the control range is the imported checkshots, even when a derived tie set reaches shallower', async () => {
+    const { controlRange } = await import('../services/inversionWells');
+    const imported = [{ tvdss_m: 137.6, twt_ms: 152 }, { tvdss_m: 1600, twt_ms: 1400 }];
+    const derived = [{ tvdss_m: 35, twt_ms: 51 }, { tvdss_m: 1700, twt_ms: 1460 }];
+    expect(controlRange({ checkshots: imported }, derived)).toEqual([137.6, 1600]);
+    expect(controlRange({ checkshots: [] }, derived)).toEqual([35, 1700]);
+    expect(controlRange({}, [])).toEqual([-Infinity, Infinity]);
+  });
+  test('property curves are clipped to the control range too', async () => {
+    const b = makeInMemoryBackend();
+    const [w1] = await b.listWells();
+    const r = await prepareWell(await b.loadWell(w1), await frameOf(), b.downloadCurve, { extras: ['porosity'] });
+    const first = r.porosity.values.findIndex(Number.isFinite);
+    expect(first * 4).toBeGreaterThanOrEqual(1300);
   });
   test('wells that cannot be used say why', async () => {
     const b = makeInMemoryBackend();
