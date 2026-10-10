@@ -67,6 +67,28 @@ export const conditionsLabel = (c) => {
   return `${Number.isFinite(t) ? t.toFixed(1) : EMPTY_VALUE} °C / ${Number.isFinite(p) ? p.toFixed(2) : EMPTY_VALUE} MPa`;
 };
 
+/**
+ * The pore-fluids table rows. With Sw from the SW log, fluid A is mixed per
+ * sample and the typed Sw does not apply, so the rows are the brine and the
+ * hydrocarbon the log mixes: a lone "brine" row beside a brine substitute
+ * read as no substitution at all (found recording the QI lessons).
+ */
+export function fluidTable(scenario, hasSwLog) {
+  const out = { a: null, b: null, aError: null, bError: null, perSample: !!scenario.fluidA?.swFromLog && hasSwLog };
+  const mix = mixingOf(scenario);
+  const fluidA = out.perSample ? { ...scenario.fluidA, sw: 1 } : scenario.fluidA;
+  try { out.a = sideFluid(scenario.conditions, fluidA, mix); } catch (e) { out.aError = e.message; }
+  if (out.perSample && out.a) out.a = { ...out.a, label: 'brine, mixed per sample by the SW log' };
+  try { out.b = sideFluid(scenario.conditions, scenario.fluidB, mix); } catch (e) { out.bError = e.message; }
+  if (out.perSample) {
+    try {
+      const hc = sideFluid(scenario.conditions, { ...scenario.fluidA, sw: 0 }, mix);
+      out.aHc = { ...hc, label: `${hc.label}, mixed per sample by the SW log` };
+    } catch (e) { out.aHcError = e.message; }
+  }
+  return out;
+}
+
 export default function FluidsPanel({
   model, zones, scenario, rock, units = DEFAULT_UNITS, onPublish = null, publishing = false,
   zoneId: zoneIdProp, onZoneChange = null, well = null,
@@ -91,12 +113,7 @@ export default function FluidsPanel({
   const dU = units.density;
   const zU = units.depth;
 
-  const fluids = useMemo(() => {
-    const out = { a: null, b: null, aError: null, bError: null };
-    try { out.a = sideFluid(scenario.conditions, scenario.fluidA, mixingOf(scenario)); } catch (e) { out.aError = e.message; }
-    try { out.b = sideFluid(scenario.conditions, scenario.fluidB, mixingOf(scenario)); } catch (e) { out.bError = e.message; }
-    return out;
-  }, [scenario]);
+  const fluids = useMemo(() => fluidTable(scenario, !!model?.sw), [scenario, model?.sw]);
 
   const result = useMemo(() => {
     if (!model || !zone || !fluids.a || !fluids.b) return null;
@@ -158,7 +175,8 @@ export default function FluidsPanel({
             </tr>
           </thead>
           <tbody>
-            <FluidRow id="a" label="A (in situ)" fluid={fluids.a} error={fluids.aError} units={units} />
+            <FluidRow id="a" label={fluids.perSample ? 'A (in situ), water' : 'A (in situ)'} fluid={fluids.a} error={fluids.aError} units={units} />
+            {fluids.perSample && <FluidRow id="a-hc" label="A (in situ), hydrocarbon" fluid={fluids.aHc} error={fluids.aHcError} units={units} />}
             <FluidRow id="b" label="B (substitute)" fluid={fluids.b} error={fluids.bError} units={units} />
           </tbody>
         </table>
