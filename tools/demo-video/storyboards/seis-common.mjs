@@ -5,7 +5,14 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { login } from '../lib/session.mjs';
-import { expectText } from './petro-common.mjs';
+import { expectText as strictExpectText } from './petro-common.mjs';
+
+/** expectText; with LENIENT=1 (dry runs while writing narration) a
+ *  mismatch is logged instead of stopping the run. */
+export async function expectText(d, target, re, what) {
+  if (!process.env.LENIENT) return strictExpectText(d, target, re, what);
+  try { await strictExpectText(d, target, re, what); } catch (e) { console.log(`MISMATCH ${e.message}`); }
+}
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const KIT = process.env.EKENE_KIT || path.resolve(HERE, '../../../dist-demo/ekene-demo-v4');
@@ -77,7 +84,7 @@ export async function clickAt(d, p) {
   await d.sleep(300);
 }
 
-export { login, expectText };
+export { login };
 
 /** An explorer row (role=button) by its exact label. */
 export const explorerRow = (d, name) => d.page.locator('div:has(> div > span:text-is("Seismic Explorer"))')
