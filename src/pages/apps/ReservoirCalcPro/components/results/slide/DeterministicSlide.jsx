@@ -10,7 +10,7 @@ import {
     fmtInt, fmtDec, scaleMM, scaleB, OIL, GAS, SLATE,
 } from './slideParts';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
-import { reviewerLines } from '../../../services/reportInfo';
+import { reviewerLines, formatContact } from '../../../services/reportInfo';
 
 // The volumetric chain: each stage as a fraction of Gross Rock Volume. These are
 // all reservoir-volume fractions (GRV·NTG·φ·(1−Sw)) so they share one honest axis.
@@ -91,8 +91,8 @@ const DeterministicSlide = () => {
     // contacts with their unit and datum; the Simple method does not use them
     const lenU = isField ? 'ft' : 'm';
     const contactParts = [
-        showOil && inp.owc != null && inp.owc !== '' ? `OWC ${inp.owc} ${lenU}` : null,
-        showGas && inp.goc != null && inp.goc !== '' ? `${ft === 'gas' ? 'GWC' : 'GOC'} ${inp.goc} ${lenU}` : null,
+        showOil && formatContact(inp.owc) != null ? `OWC ${formatContact(inp.owc)} ${lenU}` : null,
+        showGas && formatContact(inp.goc) != null ? `${ft === 'gas' ? 'GWC' : 'GOC'} ${formatContact(inp.goc)} ${lenU}` : null,
     ].filter(Boolean);
     const contactStr = (r.inputMethod || state.inputMethod) === 'simple' ? 'not used (Simple method)'
         : (contactParts.length ? `${contactParts.join('  ·  ')} TVDSS` : EMPTY_VALUE);

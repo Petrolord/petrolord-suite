@@ -39,11 +39,22 @@ export function describeGridding(results) {
   return `Gridded on ${g.nx} x ${g.ny} cells of ${round(g.dx)} x ${round(g.dy)} ${unit} by ${INTERP_LABEL[g.interpolation] || g.interpolation || 'inverse distance'} (Tools > Settings); a different grid or method can change the volume slightly.`;
 }
 
+/**
+ * A contact as printed in results and reports: whole feet or metres with
+ * thousands separators ("-5,003"), the precision the rest of the report
+ * uses. A contact held to full float precision (a converted unit, a contact
+ * taken at the spill) used to print as -5003.155085025509.
+ */
+export function formatContact(v) {
+  if (v === null || v === undefined || v === '' || !Number.isFinite(Number(v))) return null;
+  return Math.round(Number(v)).toLocaleString('en-US');
+}
+
 /** The contacts as used, with their unit and datum. */
 export function describeContacts({ inputMethod, fluidType, inputs = {}, unitSystem }) {
   if (inputMethod === 'simple') return 'Contacts: not used by the Simple method (no structure)';
   const u = unitSystem === 'metric' ? 'm' : 'ft';
-  const v = (x) => (x === null || x === undefined || x === '' || !Number.isFinite(Number(x)) ? 'not set' : `${Number(x).toLocaleString('en-US')} ${u}`);
+  const v = (x) => (formatContact(x) == null ? 'not set' : `${formatContact(x)} ${u}`);
   const parts = [];
   if (fluidType === 'gas') parts.push(`GWC ${v(inputs.goc ?? inputs.owc)}`);
   else {
@@ -190,12 +201,12 @@ export function deterministicInputRows({ inputs = {}, fluidType = 'oil', unitSys
   rows.push(swRow);
   if (showOil) {
     rows.push(row('fvf', 'Oil FVF (Bo)', num(inputs.fvf, 3)));
-    rows.push(row('owc', 'Oil-water contact (OWC), TVDSS', num(inputs.owc, 1)));
+    rows.push(row('owc', 'Oil-water contact (OWC), TVDSS', formatContact(inputs.owc) ?? EMPTY_VALUE));
     rows.push(row('recovery', 'Oil recovery factor', num(inputs.recovery, 2)));
   }
   if (showGas) {
     rows.push(row('bg', 'Gas FVF (Bg)', num(inputs.bg, 5)));
-    rows.push(row('goc', fluidType === 'gas' ? 'Gas-water contact (GWC), TVDSS' : 'Gas-oil contact (GOC), TVDSS', num(inputs.goc, 1)));
+    rows.push(row('goc', fluidType === 'gas' ? 'Gas-water contact (GWC), TVDSS' : 'Gas-oil contact (GOC), TVDSS', formatContact(inputs.goc) ?? EMPTY_VALUE));
     rows.push(row('recoveryGas', 'Gas recovery factor', num(inputs.recoveryGas, 2)));
   }
   return rows.map((r) => r.map(latin1));

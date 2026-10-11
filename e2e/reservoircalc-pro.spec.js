@@ -64,7 +64,7 @@ test('RC1: the Wells tab pulls zone averages, a surface footprint and a Mapping 
   await expect(page.getByTestId('rcp-aoi-row-Demo license block')).toBeVisible();
 });
 
-test('RC2: contacts are TVDSS elevations in a chosen unit and the viewers label a metre surface in metres', async ({ page }) => {
+test('RC2: contacts are TVDSS elevations in a chosen unit and the viewers show depths in the project unit', async ({ page }) => {
   await page.goto('/dev/reservoircalc-pro');
   await page.getByTestId('rcp-tab-surfaces').click();
   await page.getByTestId('rcp-import-open').click();
@@ -76,8 +76,9 @@ test('RC2: contacts are TVDSS elevations in a chosen unit and the viewers label 
     page.locator('[role="dialog"]').waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {}),
   ]);
   await expect(page.locator('[role="dialog"]')).toHaveCount(0, { timeout: 15000 });
-  // the 3D viewer labels the metre surface in metres although the workspace is field
-  await expect(page.getByText(/Depth \(m\)/i).first()).toBeVisible({ timeout: 15000 });
+  // the viewers show the metre surface in the project's unit: a field workspace reads feet
+  await expect(page.getByText(/Depth \(ft\)/i).first()).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText(/Depth \(m\)/i)).toHaveCount(0);
 
   await page.getByTestId('rcp-tab-geometry').click();
   await page.locator('label[for="im-hybrid"]').click();
