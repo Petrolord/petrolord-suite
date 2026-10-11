@@ -229,7 +229,9 @@ describe('the section correlates', () => {
     }
   });
 
-  test('the growth fault splits the wells four west to three east at the Ekene level', () => {
+  // v4: the Ekene East Fault (a buried synthetic fault in the growth fault's
+  // hanging wall) carries the split and the throw v3's fault did
+  test('the Ekene East Fault splits the wells four west to three east', () => {
     const dev = kit.built.filter((b) => /^Ekene-[1-7]$/.test(b.well.name));
     const west = dev.filter((b) => kit.geo.faultSide(b.well.x, b.well.y) === 'west');
     const east = dev.filter((b) => kit.geo.faultSide(b.well.x, b.well.y) === 'east');
@@ -237,9 +239,9 @@ describe('the section correlates', () => {
     expect(east.map((b) => b.well.name)).toEqual(['Ekene-2', 'Ekene-4', 'Ekene-6']);
   });
 
-  test('the fault has no throw at the Ekene Sand and real throw at the Oboro Sand', () => {
-    expect(kit.geo.throwAt(LOCKED.owc_m)).toBe(0);
-    expect(kit.geo.throwAt(1845)).toBeGreaterThan(30);
+  test('the Ekene East Fault has no throw at the Ekene Sand and real throw at the Oboro Sand', () => {
+    expect(kit.geo.f2Throw('TOP_SAND', 0)).toBe(0);
+    expect(kit.geo.f2Throw('OBORO', 0)).toBeGreaterThan(30);
   });
 });
 
@@ -308,7 +310,7 @@ describe('the logs are measured the way tools measure', () => {
 test('no LAS header line carries a colon inside its description', () => {
   const fs = require('fs');
   const path = require('path');
-  const text = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v3', '01-wells', 'Ekene-1.las'), 'utf8');
+  const text = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v4', '01-wells', 'Ekene-1.las'), 'utf8');
   const header = text.split('~A')[0].split('\n').filter((l) => /^\s*[A-Z][A-Z0-9_]*\s*\./.test(l));
   for (const l of header) expect((l.match(/:/g) || []).length).toBe(1);
   const parsed = parseLas(text);

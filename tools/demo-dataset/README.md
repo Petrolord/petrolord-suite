@@ -3,25 +3,28 @@
 Builds the field dataset the YouTube tutorial series records against.
 
 ```
-npx tsx tools/demo-dataset/generate.mjs      # -> dist-demo/ekene-demo-v3/
-npx jest tools/demo-dataset                  # the gates (kitImports reads the generated kit)
+npx tsx tools/demo-dataset/generate.mjs      # -> dist-demo/ekene-demo-v4/
+npx jest tools/demo-dataset                  # the gates (several read the generated kit)
 ```
 
-To package for the release (the kit stays small enough to hand to anyone;
-the heavy seismic travels as separate assets):
+To package for a release (the kit stays small enough to hand to anyone;
+the heavy seismic travels as separate assets). Since v4 the volumes are
+named `EKENE3D-v4-*.sgy`, so they load beside the v3 ones in one project:
 
 ```
 cd dist-demo
-zip -qr ekene-demo-v3-kit.zip ekene-demo-v3 \
-    -x "ekene-demo-v3/04-seismic/EKENE3D-full.sgy" \
-       "ekene-demo-v3/04-seismic/EKENE3D-near.sgy" \
-       "ekene-demo-v3/04-seismic/EKENE3D-mid.sgy" \
-       "ekene-demo-v3/04-seismic/EKENE3D-far.sgy" \
-       "ekene-demo-v3/04-seismic/gathers/*"
-zip -qj ekene-demo-v3-seismic-full.zip ekene-demo-v3/04-seismic/EKENE3D-full.sgy
-zip -qj ekene-demo-v3-angle-stacks.zip ekene-demo-v3/04-seismic/EKENE3D-{near,mid,far}.sgy
-zip -qj ekene-demo-v3-gathers.zip ekene-demo-v3/04-seismic/gathers/*
+zip -qr ekene-demo-v4-kit.zip ekene-demo-v4 \
+    -x "ekene-demo-v4/04-seismic/EKENE3D-v4-full.sgy" \
+       "ekene-demo-v4/04-seismic/EKENE3D-v4-near.sgy" \
+       "ekene-demo-v4/04-seismic/EKENE3D-v4-mid.sgy" \
+       "ekene-demo-v4/04-seismic/EKENE3D-v4-far.sgy" \
+       "ekene-demo-v4/04-seismic/gathers/*"
+zip -qj ekene-demo-v4-seismic-full.zip ekene-demo-v4/04-seismic/EKENE3D-v4-full.sgy
+zip -qj ekene-demo-v4-angle-stacks.zip ekene-demo-v4/04-seismic/EKENE3D-v4-{near,mid,far}.sgy
+zip -qj ekene-demo-v4-gathers.zip ekene-demo-v4/04-seismic/gathers/*
 ```
+
+The v3 release (`ekene-demo-v3`) stays as it is: the QI videos link to it.
 
 Deterministic: reruns are byte-identical. Plan of record:
 `docs/scope/DemoDataset-PLAN.md`.
@@ -50,7 +53,9 @@ What is asserted, every run:
 | File | What it holds |
 |---|---|
 | `spine.mjs` | every constant, split into LOCKED and DESIGN |
-| `geology.mjs` | the structural model, the growth fault, trajectories, tops |
+| `geology.mjs` | the v3 well control (every well's survey and tops), trajectories, tops |
+| `structure.mjs` | the v4 structure: the listric growth fault, rollover, secondary faults, fault blocks |
+| `structureTruth.mjs` | the structure measured: fault dip by depth, throw by horizon, the Ekene Sand closure |
 | `rbf.mjs` | the smooth exact interpolant the seismic and logs are built on |
 | `rockmodel.mjs` | facies, porosity, saturation, pressure and every curve |
 | `seismic.mjs` | reflectivity, wavelet, noise, survey geometry |
@@ -124,3 +129,40 @@ on the same lattice, and NMO-corrected offset gathers whose angles are
 Walden's straight-ray angles from the published RMS velocity, the way QI
 Studio computes them. `10-qi/` holds the truth the QI videos quote, and
 `__tests__/qi.test.js` gates it through the engines.
+
+
+## Kit v4 (2026-10-11): a Niger Delta growth fault
+
+v3's growth fault was a vertical step on a straight trace that appeared only in
+the lower part of the section. v4 (`structure.mjs`) models it the way the delta
+is drawn: a basinward-dipping listric normal fault, about 78 degrees near its
+tip at roughly 100 ms, flattening into an Akata detachment at 2750 m (about
+2.45 s); an asymmetric rollover anticline in its hanging wall (vertical-shear
+kinematics plus syn-depositional thickening), growth packages that thicken
+toward it with throw growing with the age of the horizon; a buried synthetic
+fault (Ekene East, the deep east-side throw the wells always had) and crestal
+synthetic and antithetic faults that die out above the reservoir.
+
+Every column is cut into fault blocks, each with its own horizons, and the
+seismic carries every layer's fine structure inside each block, so reflectors
+end at a fault and resume offset across it, tapered over about two traces with
+a narrow, dimmed damage zone. Each column is timed on a laterally smoothed
+time-depth (no fault-shadow seams). Reflectors brighten, fade and pinch out,
+thin sand lenses tune, the detachment is weak and patchy over chaotic mobile
+shale, and band-limited noise sits 17 dB under the signal. All the lateral
+variation fades to nothing within about two traces of each logged well, so the
+ties and the QI truth stand. The record is 3500 ms, and the survey reaches 40
+crosslines further landward (1960-2127) on the v3 lattice so the footwall
+shows.
+
+**The wells did not move.** `makeWellControl()` is the v3 model, unchanged,
+and builds every survey and top; `structure.mjs` is fitted to those picks with
+a residual that is exact at each pick and fades away from the wells. The
+gates (`__tests__/structure.test.js`) check that 01-wells is byte-identical to
+the v3 release by SHA-256 (`__tests__/fixtures/ekene-v3-wells.sha256.json`),
+that no well path crosses a fault, that the structure honours every top, that
+the fault is listric and soles out inside the record, that throw grows with
+age and the hanging-wall isopachs thicken toward the fault, and that the Ekene
+Sand closes inside the survey with its spill below the contact.
+`04-seismic/truth/` holds the answer key: the structure measured and the
+fault sticks.
