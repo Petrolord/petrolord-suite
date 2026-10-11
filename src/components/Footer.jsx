@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { WORDMARK } from '@/components/public/PublicPage';
+import { YouTubeLink } from '@/components/public/YouTubeLink';
 
 const platformLinks = [{
   name: 'Solutions',
@@ -76,6 +77,9 @@ const Footer = () => {
                                             {link.name}
                                         </Link>
                                     </li>)}
+                                <li>
+                                    <YouTubeLink className="rounded-sm hover:text-pl-text transition-colors" />
+                                </li>
                             </ul>
                         </div>
 
