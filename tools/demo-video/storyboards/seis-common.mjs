@@ -101,3 +101,21 @@ export async function deleteFault(d, name) {
     for (let i = 0; i < 12; i++) { await d.sleep(1500); if (!(await explorerRow(d, name).count())) break; }
   }
 }
+
+/** Off camera: delete every registry surface of that exact name from the explorer. */
+export async function deleteSurface(d, name) {
+  for (let n = 0; n < 4; n++) {
+    const row = explorerRow(d, name);
+    if (!(await row.count())) return;
+    await row.click({ button: 'right' }); await d.sleep(600);
+    await d.page.getByText('Delete surface…').click();
+    for (let i = 0; i < 12; i++) { await d.sleep(1500); if (!(await explorerRow(d, name).count())) break; }
+  }
+}
+
+/** Off camera: delete every volume whose name starts with the prefix. */
+export async function deleteVolumesStarting(d, prefix) {
+  const ex = d.page.locator('div:has(> div > span:text-is("Seismic Explorer"))');
+  const names = (await ex.locator('div[role=button] span.truncate').allInnerTexts()).filter((n) => n.startsWith(prefix));
+  for (const n of names) await deleteVolume(d, n);
+}
