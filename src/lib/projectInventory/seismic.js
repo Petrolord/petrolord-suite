@@ -118,10 +118,10 @@ export function volumeRow(v) {
 }
 
 /** Worker files a study reads that are not (yet) Seismolord volumes: gather stores, and SEG-Y uploads no volume or store came from. */
-export function datasetRows(datasets = [], volumes = []) {
+export function datasetRows(datasets = [], volumes = [], allNames = null) {
   const live = (datasets || []).filter((d) => !['deleted', 'failed', 'aborted'].includes(d.status));
   const usedSources = new Set(live.map((d) => d.meta?.source_dataset).filter(Boolean));
-  const volumeNames = new Set((volumes || []).map((v) => String(v.name || '').toLowerCase()));
+  const volumeNames = new Set((allNames || (volumes || []).map((v) => v.name)).map((n) => String(n || '').toLowerCase()));
   const rows = [];
   for (const d of live) {
     if (d.kind === 'gathers_offset' || /gather/.test(d.kind || '')) {
@@ -154,9 +154,9 @@ export function fmtBytes(b) {
  * The seismic section: rows plus what the rules need (counts by kind,
  * geometry mismatches between the stacks, CRS gaps).
  */
-export function seismicSummary(volumes = [], datasets = []) {
+export function seismicSummary(volumes = [], datasets = [], { allVolumeNames = null } = {}) {
   const vols = (volumes || []).filter((v) => (v.status || 'ready') === 'ready').map(volumeRow);
-  const files = datasetRows(datasets, volumes);
+  const files = datasetRows(datasets, volumes, allVolumeNames);
   const delivered = vols.filter((v) => !v.derived || v.role === 'stack');
   const stacks = delivered.filter((v) => v.role === 'stack');
   const full = stacks.filter((v) => v.stack === 'full' || v.stack === 'unknown');

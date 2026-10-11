@@ -55,7 +55,7 @@ export function buildInventory({
     const r = wellRow(b, { interval, samples, overrides: s.cells[b.well.id] || {}, unit });
     return { ...r, well: b.well };
   });
-  const seismic = seismicSummary(seismicData.volumes || [], seismicData.datasets || []);
+  const seismic = seismicSummary(seismicData.volumes || [], seismicData.datasets || [], { allVolumeNames: seismicData.allVolumeNames || null });
   const interpList = interpretationRows({ wells, horizons: seismicData.horizons, faults: seismicData.faults, surfaces: seismicData.surfaces, extras });
   const interp = Object.fromEntries(interpList.map((r) => [r.key, r]));
   for (const r of rows) {

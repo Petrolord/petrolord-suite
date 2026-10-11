@@ -59,7 +59,8 @@ export function makeRegistryInventorySource() {
       const keep = volumeIds && volumeIds.length
         ? volumes.filter((v) => volumeIds.includes(v.id) || volumeIds.includes(v.parent_volume_id))
         : volumes;
-      return { volumes: keep, datasets, horizons, faults, surfaces };
+      // every volume name, so an upload that became a volume outside the study is not listed as unconverted
+      return { volumes: keep, datasets, horizons, faults, surfaces, allVolumeNames: volumes.map((v) => v.name) };
     },
     downloadCurve,
   };

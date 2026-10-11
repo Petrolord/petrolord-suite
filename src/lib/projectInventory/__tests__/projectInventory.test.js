@@ -131,6 +131,15 @@ describe('hole condition', () => {
     expect(h.badShare).toBeGreaterThan(0.19);
     expect(h.badShare).toBeLessThan(0.21);
   });
+  test('a hole stepping down from 12.25 in to 8.5 in inside the zone is not a washout', () => {
+    const h = holeCondition({ cal: cal((d) => (d < 2071 ? 12.2 : 8.5)) }, iv);
+    expect(h.badShare).toBeLessThan(0.02);
+    expect(h.sources[0].bitIn).toEqual([8.5, 12.25]);
+    // and a washout below the step is still seen against the smaller bit
+    const w = holeCondition({ cal: cal((d) => (d < 2071 ? 12.2 : d > 2085 && d < 2095 ? 10.8 : 8.5)) }, iv);
+    expect(w.badShare).toBeGreaterThan(0.09);
+    expect(w.badShare).toBeLessThan(0.11);
+  });
   test('density correction above 0.15 g/cc flags too, and the union is reported', () => {
     const l = log('DRHO', 1800, 2600);
     const drho = { log: l, values: values(l.n_samples, (i) => { const d = 1800 + i * STEP; return d >= 2060 && d < 2070 ? 0.2 : 0.01; }) };

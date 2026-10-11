@@ -173,7 +173,7 @@ export function inferBitSize(calInches) {
  * interval flagged; the bad-hole share is the union.
  * @param {{cal?: {log, values}, bs?: {log, values}, drho?: {log, values}}} curves samples on each log's own grid
  */
-export function holeCondition(curves, interval, { washoutIn = 1, drhoLimit = 0.15, blockM = 30 } = {}) {
+export function holeCondition(curves, interval, { washoutIn = 1, drhoLimit = 0.15, blockM = 3 } = {}) {
   if (!interval || !(interval.base > interval.top)) return null;
   const sources = [];
   const flagged = new Map(); // depth key -> true, on a 0.1 m lattice
@@ -213,13 +213,33 @@ export function holeCondition(curves, interval, { washoutIn = 1, drhoLimit = 0.1
       }
     }
     if (!bitAt && Math.abs(step) > 0) {
-      // the hole changes size down the well: infer the bit block by block
-      // (blockM of hole each) so a 26 in surface section does not read as
-      // a washout of the 12.25 in section below it
+      // No bit-size curve: infer the hole sections from the caliper. Each
+      // short block takes the nominal bit under its low readings; the hole
+      // only gets smaller with depth, so a block never takes a bit larger
+      // than the one above it (a washout cannot open a new section); and a
+      // reading in the block where the hole steps down keeps the bit above
+      // it, so the last metres of a 12.25 in hole above an 8.5 in section
+      // do not read as washout.
       const per = Math.max(1, Math.round(blockM / Math.abs(step)));
-      const bits = [];
-      for (let b0 = 0; b0 < calIn.length; b0 += per) bits.push(inferBitSize(calIn.slice(b0, b0 + per)));
-      bitAt = (i) => bits[Math.floor(i / per)] ?? NaN;
+      const nominalUnder = (v) => { let bb = null; for (const n of NOMINAL_BITS) if (n <= v + 0.25) bb = n; return bb; };
+      const order = step > 0 ? null : 'reverse';
+      const bitBySample = new Float64Array(calIn.length).fill(NaN);
+      let cap = Infinity;
+      const blocks = [];
+      for (let b0 = 0; b0 < calIn.length; b0 += per) blocks.push(b0);
+      if (order) blocks.reverse();
+      for (const b0 of blocks) {
+        const own = inferBitSize(calIn.slice(b0, b0 + per));
+        if (own === null) continue;
+        const blockBit = Math.min(cap, own);
+        for (let i = b0; i < Math.min(calIn.length, b0 + per); i++) {
+          const v = calIn[i];
+          if (!Number.isFinite(v)) continue;
+          bitBySample[i] = Math.min(cap, Math.max(blockBit, nominalUnder(v) ?? blockBit));
+        }
+        cap = blockBit;
+      }
+      bitAt = (i) => bitBySample[i];
       bitFrom = 'inferred from the caliper';
     }
     if (bitAt) {
