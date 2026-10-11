@@ -3,7 +3,7 @@
 // growth fault below the reservoir, the velocity model from the stacking
 // velocities calibrated to the six wells, the depth surfaces published to the
 // registry, and ReservoirCalc Pro: the volume inside the area the six
-// development wells prove, down to the 1,535 m TVDSS contact (5,036 ft).
+// development wells prove, down to the 5,036 ft TVDSS contact.
 // The structure keeps rising to the west edge of the survey, so the full trap
 // does not close inside this 3D; the narration says so, and "Trap only" stays
 // unticked. Figures from the 2026-10-11 dry run; `expectText` steps stop the
@@ -61,6 +61,33 @@ async function mapToScreen(d) {
   return ([x, y]) => ({ x: b.x + a.vw / 2 + (x - a.cx) * a.scale, y: b.y + a.vh / 2 - (y - a.cy) * a.scale });
 }
 
+/** Make surface for one horizon in depth (ft), fault-aware, then Publish. */
+async function publishSurface(d, hz, nm, { onCamera }) {
+  const click = (l) => (onCamera ? d.click(l) : l.click());
+  const pick = (l, v) => (onCamera ? d.select(l, v) : l.selectOption(v));
+  await click(d.page.getByRole('button', { name: 'Make surface' }));
+  await dialog(d).waitFor();
+  const sels = dialog(d).locator('select');
+  await pick(sels.nth(0), { label: hz });
+  await pick(sels.nth(1), { label: 'Depth (ft)' });
+  await d.sleep(400);
+  await expectText(d, dialog(d), /Fault-aware \(1 fault\)/, 'fault-aware gridding');
+  await click(dialog(d).getByRole('button', { name: /Publish to the registry/ }));
+}
+
+/** ReservoirCalc Pro: import one registry surface through the Import dialog. */
+async function importRcpSurface(d, nm, onCamera) {
+  const click = (l) => (onCamera ? d.click(l) : l.click());
+  await click(t(d, 'rcp-import-open'));
+  await dialog(d).waitFor();
+  const use = dialog(d).getByText(nm, { exact: true }).first().locator('xpath=ancestor::*[.//button[normalize-space()="Use"]][1]').getByRole('button', { name: 'Use' });
+  await click(use);
+  await d.sleep(600);
+  await click(dialog(d).getByRole('button', { name: 'Import Surface' }));
+  await dialog(d).waitFor({ state: 'hidden', timeout: 60000 });
+  await d.sleep(600);
+}
+
 const rcpCard = (d, nm) => d.page.getByText(nm, { exact: true }).first().locator('xpath=ancestor::*[.//button[contains(normalize-space(),"Set Top")]][1]');
 
 export default {
@@ -110,8 +137,8 @@ export default {
   },
   steps: [
     { id: 'intro', chapter: 'Horizons to volumes', chapterSub: 'Maps, depth and a volume from the framework',
-      say: 'The framework from the last video becomes maps and a volume. This is the top of the Ekene Sand in the Map window, in two way time. The structure is shallowest in the blue, and it keeps rising toward the west edge of the survey.',
-      sub: 'The framework from the last video becomes maps and a volume. This is the top of the Ekene Sand in the Map window, in two-way time. The structure is shallowest in the blue, and it keeps rising toward the west edge of the survey.',
+      say: 'The framework becomes maps and a volume. This is the top of the Ekene Sand in two way time: shallowest in the blue, and still rising toward the west edge of the survey.',
+      sub: 'The framework becomes maps and a volume. This is the top of the Ekene Sand in two-way time: shallowest in the blue, and still rising toward the west edge of the survey.',
       do: async (d) => {
         await expectText(d, mapSel(d, 0).locator('option:checked'), /Ekene Sand \(2\)/, 'mapped horizon');
         const c = d.page.locator('[data-testid="window-map"] canvas').first();
@@ -122,7 +149,7 @@ export default {
         await d.sleep(1500);
       } },
     { id: 'amplitude', chapter: 'The amplitude map', chapterSub: 'The oil leg dims the top of the sand',
-      say: 'Switching the map to amplitude at the pick, the reflection is dimmer over the crest, in a closed ring that follows the structure. That is the oil leg: oil softens the sand, so the top of the Ekene Sand reflects less where it holds oil.',
+      say: 'At the pick, the amplitude is dimmer over the crest, in a ring that follows the structure: the oil leg softens the sand.',
       do: async (d) => {
         await d.select(mapSel(d, 2), { label: 'Amplitude' });
         await d.sleep(3500);
@@ -132,7 +159,7 @@ export default {
         await d.sleep(2000);
       } },
     { id: 'variance', chapter: 'A variance volume', chapterSub: 'Edges in the seismic, computed in the browser',
-      say: 'Next, a variance volume: it measures how much each trace differs from its neighbours, so faults and edges light up. It is computed from the full stack, here in the browser, and saved beside it. The stored amplitudes are never changed.',
+      say: 'A variance volume, computed in the browser, lights up faults and edges.',
       do: async (d) => {
         await d.select(mapSel(d, 2), { label: 'Structure' });
         await d.click('sl-ribbon-tab-interpretation');
@@ -154,14 +181,14 @@ export default {
       },
       waitLabel: 'A minute later' },
     { id: 'fault',
-      say: 'On a time slice through the variance at seventeen hundred milliseconds, the growth fault is a sharp line across the survey. At the Ekene Sand, twelve hundred and ninety two milliseconds, there is nothing: the fault dies out below the reservoir, so the Ekene tank is one block.',
-      sub: 'On a time slice through the variance at 1700 ms, the growth fault is a sharp line across the survey. At the Ekene Sand, 1292 ms, there is nothing: the fault dies out below the reservoir, so the Ekene tank is one block.',
+      say: 'At seventeen hundred milliseconds the growth fault is a sharp line. At the Ekene Sand, twelve hundred and ninety two milliseconds, there is none: the reservoir is one block.',
+      sub: 'At 1700 ms the growth fault is a sharp line. At the Ekene Sand, 1292 ms, there is none: the reservoir is one block.',
       do: async (d) => {
         await d.click(d.page.getByText('Home', { exact: true }).first());
         await d.sleep(600);
         const v = (await ex(d).locator('div[role=button] span.truncate').allInnerTexts()).find((n) => n.startsWith(`${FULL} [Variance`));
         await d.select(combo(d, 'Active volume'), { label: v });
-        await d.sleep(4000);
+        await d.sleep(2500);
         await d.click(d.page.locator('button[title="Show Section"]'));
         await d.sleep(800);
         await d.select(combo(d, 'Orientation'), { label: 'Time slice' });
@@ -169,16 +196,16 @@ export default {
         await d.sleep(1500);
         await goTo(d, 1700);
         await expectText(d, d.page.locator('text=/^Time slice \\d+ ms$/ >> visible=true'), /^Time slice 1700 ms$/, 'time slice 1700 ms');
-        await d.sleep(3000);
+        await d.sleep(2200);
         await goTo(d, 1292);
         await expectText(d, d.page.locator('text=/^Time slice \\d+ ms$/ >> visible=true'), /^Time slice 1292 ms$/, 'time slice 1292 ms');
         await d.sleep(2000);
       } },
     { id: 'velocity', chapter: 'Time to depth', chapterSub: 'A velocity model from the stacking velocities',
-      say: 'To map in depth we need a velocity model. We paste the stacking velocities, Seismolord turns them into interval velocities with the Dix equation, and Fill layer velocities puts them into a layer cake on nine framework horizons.',
+      say: 'For depth, the stacking velocities become interval velocities with the Dix equation, filled into a layer cake on nine framework horizons.',
       do: async (d) => {
         await d.select(combo(d, 'Active volume'), { label: FULL });
-        await d.sleep(4000);
+        await d.sleep(2500);
         await d.click('sl-ribbon-tab-interpretation');
         await d.sleep(600);
         await d.click(d.page.getByRole('button', { name: /Velocity model/ }));
@@ -191,7 +218,7 @@ export default {
         await dialog(d).getByTestId('sl-dix-table').waitFor();
         await expectText(d, dialog(d).getByTestId('sl-dix-table'), /Depth at base \(ft\)/, 'Dix depths in feet');
         await d.highlight(dialog(d).getByTestId('sl-dix-table'));
-        await d.sleep(2000);
+        await d.sleep(1200);
         await d.unhighlight();
         await d.click(dialog(d).getByTestId('sl-dix-use-layers'));
         await d.sleep(800);
@@ -199,7 +226,7 @@ export default {
         await d.sleep(2500);
       } },
     { id: 'calibrate',
-      say: 'Then we calibrate it to the six wells. Each top pairs itself with the horizon made from it. The seabed pick sits on a zero crossing a few milliseconds below the sea floor, so we leave it out.',
+      say: 'We calibrate it to the six wells, leaving out the seabed pick, which sits on a zero crossing below the sea floor.',
       do: async (d) => {
         await d.click(dialog(d).getByRole('button', { name: /Calibrate from wells/ }));
         await dialog(d).getByTestId('welltie').waitFor();
@@ -213,14 +240,15 @@ export default {
         await d.sleep(800);
       } },
     { id: 'fit',
-      say: 'The fit adjusts each layer so the converted horizons meet the tops. The miss at the wells falls from thirteen point six feet to two point six feet, over forty ties. We apply it to the volume.',
+      say: 'The miss at the wells falls from thirteen point six feet to two point six feet, over forty ties, and we apply it.',
+      sub: 'The miss at the wells falls from 13.6 ft to 2.6 ft, over 40 ties, and we apply it.',
       do: async (d) => {
         await d.click(dialog(d).getByTestId('welltie-fit'));
         await dialog(d).getByTestId('welltie-result').waitFor({ timeout: 120000 });
         await d.sleep(800);
         await expectText(d, dialog(d).getByTestId('welltie-rms'), /RMS 13\.6 ft → 2\.6 ft \(40 ties\)/, 'calibration RMS');
         await d.highlight(dialog(d).getByTestId('welltie-rms'));
-        await d.sleep(2500);
+        await d.sleep(1800);
         await d.unhighlight();
         await d.click(dialog(d).getByTestId('welltie-apply'));
         await d.sleep(3000);
@@ -228,7 +256,8 @@ export default {
         await d.sleep(1000);
       } },
     { id: 'depthmap', chapter: 'Depth surfaces', chapterSub: 'Gridded fault-aware and published',
-      say: 'The map can now show depth in feet. The top of the Ekene Sand closes around the crest at five thousand feet, and the west edge of the survey is as shallow, so the structure is still rising where the data stop.',
+      say: 'In depth, the top of the sand closes around the crest at five thousand feet, and the west edge of the survey is as shallow: the structure is still rising where the data stop.',
+      sub: 'In depth, the top of the sand closes around the crest at 5,000 ft, and the west edge of the survey is as shallow: the structure is still rising where the data stop.',
       do: async (d) => {
         await d.click(d.page.locator('button[title="Show Map"]'));
         await d.sleep(800);
@@ -244,51 +273,49 @@ export default {
         await d.sleep(1500);
       } },
     { id: 'publish',
-      say: 'Make surface grids the horizon in depth, fault aware, and publishes it to the shared registry, where ReservoirCalc Pro reads it. We publish the top of the sand, then its base.',
-      sub: 'Make surface grids the horizon in depth, fault-aware, and publishes it to the shared registry, where ReservoirCalc Pro reads it. We publish the top of the sand, then its base.',
+      say: 'Make surface grids the top and base of the sand in depth, fault aware, and publishes them to the registry.',
+      sub: 'Make surface grids the top and base of the sand in depth, fault-aware, and publishes them to the registry.',
       do: async (d) => {
         await d.click('sl-ribbon-tab-interpretation');
+        await d.sleep(500);
+        await publishSurface(d, 'Ekene Sand (2)', TOP, { onCamera: true });
+      },
+      wait: async (d) => {
+        await explorerRow(d, TOP).waitFor({ timeout: 120000 });
+        await d.page.keyboard.press('Escape');
         await d.sleep(600);
-        for (const [hz, nm] of [['Ekene Sand (2)', TOP], ['Ekene Sand Base (2)', BASE]]) {
-          await d.click(d.page.getByRole('button', { name: 'Make surface' }));
-          await dialog(d).waitFor();
-          const sels = dialog(d).locator('select');
-          await d.select(sels.nth(0), { label: hz });
-          await d.select(sels.nth(1), { label: 'Depth (ft)' });
-          await d.sleep(600);
-          await expectText(d, dialog(d), /Fault-aware \(1 fault\)/, 'fault-aware gridding');
-          await d.click(dialog(d).getByRole('button', { name: /Publish to the registry/ }));
-          await explorerRow(d, nm).waitFor({ timeout: 120000 });
-          await d.sleep(1200);
-          await d.page.keyboard.press('Escape');
-          await d.sleep(800);
-        }
-      } },
+        await publishSurface(d, 'Ekene Sand Base (2)', BASE, { onCamera: false });
+        await explorerRow(d, BASE).waitFor({ timeout: 120000 });
+        await d.page.keyboard.press('Escape');
+        await d.sleep(600);
+      },
+      waitLabel: 'Seconds later' },
     { id: 'rcp', chapter: 'In ReservoirCalc Pro', chapterSub: 'The volume the wells prove',
-      say: 'In ReservoirCalc Pro, the Surfaces method takes the two published surfaces straight from the registry: the top of the Ekene Sand and its base.',
+      say: 'ReservoirCalc Pro takes both surfaces straight from the registry, as the top and the base.',
       do: async (d, shared) => {
         await d.page.goto(`${shared.baseUrl}${RCP}`, { waitUntil: 'domcontentloaded' });
         await d.page.locator('label[for="im-surfaces"]').waitFor({ timeout: 60000 });
-        await d.sleep(3000);
+        await d.sleep(2500);
         await d.click(d.page.locator('label[for="im-surfaces"]'));
+        // then fold Project Settings away so the input tabs and results sit side by side
+        const fold = d.page.getByText('Project Settings', { exact: true }).first().locator('xpath=ancestor::*[.//button][1]').getByRole('button').first();
+        await fold.click().catch(() => {});
+        await d.sleep(500);
         await d.click('rcp-tab-surfaces');
-        for (const nm of [TOP, BASE]) {
-          await d.click('rcp-import-open');
-          await dialog(d).waitFor();
-          const use = dialog(d).getByText(nm, { exact: true }).first().locator('xpath=ancestor::*[.//button[normalize-space()="Use"]][1]').getByRole('button', { name: 'Use' });
-          await d.click(use);
-          await d.sleep(800);
-          await d.click(dialog(d).getByRole('button', { name: 'Import Surface' }));
-          await dialog(d).waitFor({ state: 'hidden', timeout: 60000 });
-          await d.sleep(800);
-        }
-        await d.click(rcpCard(d, TOP).getByRole('button', { name: /Set Top/ }));
-        await d.click(rcpCard(d, BASE).getByRole('button', { name: /Set Base/ }));
-        await d.sleep(1200);
-      } },
+        await importRcpSurface(d, TOP, true);
+      },
+      wait: async (d) => {
+        await importRcpSurface(d, BASE, false);
+        await rcpCard(d, TOP).getByRole('button', { name: /Set Top/ }).click();
+        await rcpCard(d, BASE).getByRole('button', { name: /Set Base/ }).click();
+        await d.sleep(1000);
+        await d.page.getByText('Processing Data...').waitFor({ state: 'hidden', timeout: 120000 }).catch(() => {});
+        await d.sleep(800);
+      },
+      waitLabel: 'Seconds later' },
     { id: 'contact',
-      say: 'The contact is at fifteen hundred and thirty five metres below sea level: minus five thousand and thirty six feet. Trap only stays unticked. It would fill just the closure at the edge of the survey, and the field is not that.',
-      sub: 'The contact is at 1,535 m below sea level: -5,036 ft. Trap only stays unticked. It would fill just the closure at the edge of the survey, and the field is not that.',
+      say: 'The contact is at five thousand and thirty six feet T V D S S. Trap only stays unticked: it would fill just a closure at the survey edge.',
+      sub: 'The contact is at 5,036 ft TVDSS. Trap only stays unticked: it would fill just a closure at the survey edge.',
       do: async (d) => {
         await expectText(d, t(d, `rcp-surface-minz-${TOP}`), / ft$/, 'surface depths in feet');
         await d.click('rcp-tab-geometry');
@@ -306,7 +333,8 @@ export default {
         await d.unhighlight();
       } },
     { id: 'aoi', chapter: 'The area the wells prove', chapterSub: 'Six development wells',
-      say: 'Because the structure keeps rising to the edge of the survey, the full trap is not closed inside this 3D. So we draw the area the wells prove, round the six development wells, and count only the rock inside it.',
+      say: 'Because the structure keeps rising to the edge of the survey, the full trap is not closed inside this 3D. So we count only the area the wells prove, drawn round the six development wells.',
+      sub: 'Because the structure keeps rising to the edge of the survey, the full trap is not closed inside this 3D. So we count only the area the wells prove, drawn round the six development wells.',
       do: async (d) => {
         await d.click('rcp-tab-aoi');
         await d.sleep(800);
@@ -342,8 +370,8 @@ export default {
         await d.sleep(1500);
       } },
     { id: 'zone',
-      say: 'Porosity, water saturation and net to gross come from the Ekene Sand zone that Petrophysics Studio published. Ekene two and Ekene four are left out of the averages: they have no net pay, because the sand there is below the contact.',
-      sub: 'Porosity, water saturation and net-to-gross come from the Ekene Sand zone that Petrophysics Studio published. Ekene-2 and Ekene-4 are left out of the averages: they have no net pay, because the sand there is below the contact.',
+      say: 'The averages come from the published Ekene Sand zone. Ekene two and Ekene four are left out: they have no net pay, because the sand there is below the contact.',
+      sub: 'The averages come from the published Ekene Sand zone. Ekene-2 and Ekene-4 are left out: they have no net pay, because the sand there is below the contact.',
       do: async (d) => {
         await d.click('rcp-tab-registry');
         await d.sleep(1500);
@@ -363,8 +391,8 @@ export default {
         await d.sleep(1200);
       } },
     { id: 'volume', chapter: 'The volume', chapterSub: 'Inside the area the wells prove',
-      say: 'Recalculated, the gross rock volume inside the area is fourteen thousand six hundred and thirty acre feet, over four hundred and fourteen acres above the contact, and the stock tank oil initially in place is four point five six million barrels. That is the oil in the area the wells prove, from a seismic map tied to every well.',
-      sub: 'Recalculated, the gross rock volume inside the area is 14,630 acre-feet, over 414 acres above the contact, and the stock tank oil initially in place is 4.56 million barrels. That is the oil in the area the wells prove, from a seismic map tied to every well.',
+      say: 'Inside the area, the gross rock volume is fourteen thousand six hundred and thirty acre feet, over four hundred and fourteen acres, and the stock tank oil initially in place is four point five six million barrels: the oil in the area the wells prove.',
+      sub: 'Inside the area, the gross rock volume is 14,630 acre-feet, over 414 acres, and the stock tank oil initially in place is 4.56 million barrels: the oil in the area the wells prove.',
       do: async (d) => {
         // the zone panel scrolled the page: bring the result card back into view
         await d.page.evaluate(() => { window.scrollTo(0, 0); for (const el of document.querySelectorAll('*')) if (el.scrollTop > 0 && el.scrollHeight > el.clientHeight) el.scrollTop = 0; });
@@ -378,8 +406,8 @@ export default {
         await d.unhighlight();
       } },
     { id: 'report',
-      say: 'The full result keeps the chain from rock to oil, and the contact as entered, minus five thousand and thirty six feet below sea level.',
-      sub: 'The full result keeps the chain from rock to oil, and the contact as entered, -5,036 ft below sea level.',
+      say: 'The report keeps the chain from rock to oil, with the contact at five thousand and thirty six feet T V D S S.',
+      sub: 'The report keeps the chain from rock to oil, with the contact at 5,036 ft TVDSS.',
       do: async (d) => {
         await d.click(d.page.getByRole('button', { name: /View Full Results/ }));
         await d.sleep(2500);
@@ -387,7 +415,7 @@ export default {
         await d.sleep(3000);
       } },
     { id: 'next', chapter: 'From SEG-Y to volume', chapterSub: 'Three videos, one workflow',
-      say: 'From a SEG-Y file to a framework, to maps, depth and a volume, every step ties back to the wells. That is seismic interpretation with Petrolord.',
+      say: 'From SEG-Y to a framework, maps, depth and a volume, every step ties back to the wells. That is seismic interpretation with Petrolord.',
       do: async (d) => { await d.sleep(2500); } },
   ],
 };
