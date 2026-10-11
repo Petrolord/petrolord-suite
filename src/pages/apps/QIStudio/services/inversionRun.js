@@ -12,12 +12,20 @@
 // where the log has no value. Output samples where the input trace is null
 // stay null. Absolute methods write AI (the exp of ln(AI)); the coloured
 // method writes relative impedance.
+//
+// The wavelet scale, the high cut and the blind-well table live in the
+// engines (engines/qi/inversionQc.js, QI course gate E2, 2026-10-11; goldens
+// and an independent oracle there) and are re-exported here.
+
+export { halfWindowFor, lowPassFinite, waveletScale };
 
 import {
   modelBased, sparseSpike, colouredOperator, applyColoured, impedanceSpectrumSlope,
-  forwardPoststack, lowFrequencyModel,
 } from '../engine/inversion';
 import { lfmTrace, blindWellScore } from '../engine/lfm';
+import {
+  halfWindowFor, lowPassFinite, waveletScale, blindWellTable as engineBlindWellTable,
+} from '../engine/inversionQc';
 import { fft, nextPow2 } from '../../../../../packages/engines/lib/fft';
 import { quantilesAcross, quantileSorted, relativeSpread, addNoise } from '../engine/inversionSpread';
 
@@ -66,17 +74,6 @@ export function validateInversionParams(p) {
   const h = inv.horizon_ids || [];
   if (!Array.isArray(h) || h.length > MAX_HORIZONS) return `Use at most ${MAX_HORIZONS} horizons.`;
   return validateSensitivity(inv.sensitivity, inv.method);
-}
-
-/** Moving-average half window in samples for a cut frequency. */
-export const halfWindowFor = (hz, dtMs) => Math.max(1, Math.round(1000 / (hz * dtMs) / 2));
-
-/** A copy of an array with its NaN runs left alone and its finite runs low-passed. */
-export function lowPassFinite(values, half) {
-  const out = Float64Array.from(values, (v) => (fin(v) ? v : NaN));
-  const lp = lowFrequencyModel(out, half);
-  for (let i = 0; i < out.length; i++) out[i] = fin(out[i]) ? lp[i] : NaN;
-  return out;
 }
 
 /**
@@ -132,43 +129,6 @@ export function horizonsAtFrom(grids, nXl, dtMs) {
     return out;
   };
 }
-
-/**
- * The least-squares scale s that makes s * forward(ln AI) match the seismic
- * at the wells, pooled over every well sample where both are defined.
- * @param {Array<{trace: ArrayLike<number>, lnAi: ArrayLike<number>}>} pairs
- */
-export function waveletScale(pairs, wavelet) {
-  let sxy = 0; let sxx = 0; let n = 0;
-  for (const { trace, lnAi } of pairs) {
-    // fill the log's gaps with its own edge values so the forward model has no step at a gap
-    const filled = holdFill(lnAi);
-    if (!filled) continue;
-    const syn = forwardPoststack(filled, wavelet);
-    const half = (wavelet.length - 1) / 2;
-    for (let i = 0; i < trace.length; i++) {
-      if (isNull(trace[i]) || !coveredWithin(lnAi, i, half)) continue;
-      sxy += syn[i] * trace[i]; sxx += syn[i] * syn[i]; n += 1;
-    }
-  }
-  if (n < 10 || !(sxx > 0)) throw new Error('The wells overlap too little seismic to scale the wavelet.');
-  return { scale: sxy / sxx, samples: n };
-}
-
-function holdFill(values) {
-  let first = -1;
-  for (let i = 0; i < values.length; i++) if (fin(values[i])) { first = i; break; }
-  if (first < 0) return null;
-  const out = Float64Array.from(values, (v) => (fin(v) ? v : NaN)); // JSON carries NaN as null
-  for (let i = 0; i < first; i++) out[i] = out[first];
-  for (let i = first + 1; i < out.length; i++) if (!fin(out[i])) out[i] = out[i - 1];
-  return out;
-}
-
-const coveredWithin = (values, i, half) => {
-  for (let j = i - half - 1; j <= i + half + 1; j++) if (!(j >= 0 && j < values.length && fin(values[j]))) return false;
-  return true;
-};
 
 /** The seismic amplitude spectrum averaged over traces, smoothed, as a function of frequency. */
 export function averageAmplitude(traces, dtMs) {
@@ -263,36 +223,8 @@ function longestFiniteRun(values) {
  * band-passed between lowCutHz and truthHz and only the correlation counts.
  * @returns {Array<{name, blind: {corr, rmsPct, n}, withWell: {corr, rmsPct, n}}>}
  */
-export function blindWellTable({ invert, wells, traces, dtMs, truthHz, absolute, lowCutHz = INVERSION_DEFAULTS.band[0] }) {
-  const half = halfWindowFor(truthHz, dtMs);
-  return wells.map((w, k) => {
-    let truth = lowPassFinite(w.ln_ai, half);
-    if (!absolute) {
-      const low = lowPassFinite(w.ln_ai, halfWindowFor(lowCutHz, dtMs));
-      truth = truth.map((v, i) => v - low[i]);
-    }
-    const score = (est) => {
-      if (absolute) return blindWellScore(est, truth);
-      // relative impedance has no level or scale: compare the shapes only
-      return correlationOnly(est, truth);
-    };
-    return {
-      name: w.name,
-      blind: score(invert(traces[k], w.il, w.xl, w.name)),
-      withWell: score(invert(traces[k], w.il, w.xl)),
-    };
-  });
-}
-
-function correlationOnly(a, b) {
-  const x = []; const y = [];
-  for (let i = 0; i < Math.min(a.length, b.length); i++) if (fin(a[i]) && fin(b[i])) { x.push(a[i]); y.push(b[i]); }
-  const n = x.length;
-  if (n < 3) return { corr: NaN, rmsPct: null, n };
-  const mx = x.reduce((s, v) => s + v, 0) / n; const my = y.reduce((s, v) => s + v, 0) / n;
-  let sxy = 0; let sxx = 0; let syy = 0;
-  for (let i = 0; i < n; i++) { sxy += (x[i] - mx) * (y[i] - my); sxx += (x[i] - mx) ** 2; syy += (y[i] - my) ** 2; }
-  return { corr: sxx > 0 && syy > 0 ? sxy / Math.sqrt(sxx * syy) : NaN, rmsPct: null, n };
+export function blindWellTable(p) {
+  return engineBlindWellTable({ lowCutHz: INVERSION_DEFAULTS.band[0], ...p });
 }
 
 /**
