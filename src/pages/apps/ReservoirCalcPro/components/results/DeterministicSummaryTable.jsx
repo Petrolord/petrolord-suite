@@ -1,6 +1,7 @@
 import React from 'react';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
+import { formatContact } from '../../services/reportInfo';
 
 const DeterministicSummaryTable = () => {
     const { state } = useReservoirCalc();
@@ -57,9 +58,9 @@ const DeterministicSummaryTable = () => {
                             <TableCell className="py-1">{fmt(inputs.ntg, 3)}</TableCell>
                             <TableCell className="py-1">{fmt(inputs.porosity, 3)}</TableCell>
                             <TableCell className="py-1">
-                                {showOil && `OWC: ${inputs.owc || '-'}`}
+                                {showOil && `OWC: ${formatContact(inputs.owc) ?? '-'}`}
                                 {showOil && showGas && ' | '}
-                                {showGas && `GOC: ${inputs.goc || '-'}`}
+                                {showGas && `GOC: ${formatContact(inputs.goc) ?? '-'}`}
                             </TableCell>
                         </TableRow>
 

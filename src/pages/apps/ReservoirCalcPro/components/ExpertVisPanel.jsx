@@ -13,6 +13,7 @@ import {
 import { useReservoirCalc } from '../contexts/ReservoirCalcContext';
 import RcpMapView from './RcpMapView';
 import { kitForSurface, kitFromRcpGrid } from '../services/mapKitGrid';
+import { projectDepthUnit, depthFactor, scaleRcpGrid } from '../services/depthDisplay';
 import Surface3DViewer from './tools/Surface3DViewer';
 import MapGallery from './gallery/MapGallery';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -68,9 +69,10 @@ const ExpertVisPanel = () => {
     // Robust Data Extraction
     const activeSurface = getActiveSurface ? getActiveSurface() : null;
     const unitSystem = state.unitSystem || 'field';
-    // RC2: the surface's own depth unit labels the viewers (a metre grid
-    // imported into a field workspace stays labelled in metres)
-    const depthUnit = activeSurface?.depthUnit || (unitSystem === 'field' ? 'ft' : 'm');
+    // the viewers show depths in the project's unit (ft in Field), whatever
+    // unit the surface is held in; the grid is converted for display only
+    const depthUnit = projectDepthUnit(unitSystem);
+    const surfaceToDisplay = depthFactor(activeSurface?.depthUnit || depthUnit, depthUnit);
 
     const surfaceGrid = useMemo(() => {
         if (!activeSurface) return null;
@@ -101,7 +103,7 @@ const ExpertVisPanel = () => {
         const list = [{
             id: SURFACE_LAYER_ID,
             name: activeSurface ? activeSurface.name : 'Structure Surface',
-            grid: surfaceGrid,
+            grid: scaleRcpGrid(surfaceGrid, surfaceToDisplay),
             colorscale: settings.defaultColorscale || 'Earth',
             unit: depthUnit,
             isSurface: true,
@@ -115,7 +117,7 @@ const ExpertVisPanel = () => {
             isSurface: false,
         }));
         return list;
-    }, [activeSurface, surfaceGrid, maps, depthUnit, settings.defaultColorscale]);
+    }, [activeSurface, surfaceGrid, maps, depthUnit, surfaceToDisplay, settings.defaultColorscale]);
 
     const activeLayer = layers.find(l => l.id === activeLayerId) || layers[0];
     const gridData = activeLayer.grid;
@@ -123,7 +125,7 @@ const ExpertVisPanel = () => {
 
     // U2-009: the 2D view is the shared Mapping map kit; the structure layer
     // shows a registry surface's own lattice when it kept one
-    const kit = useMemo(() => (isSurfaceLayer ? kitForSurface(activeSurface, gridData) : kitFromRcpGrid(gridData)), [isSurfaceLayer, activeSurface, gridData]);
+    const kit = useMemo(() => (isSurfaceLayer ? kitForSurface(activeSurface, surfaceGrid, depthUnit) : kitFromRcpGrid(gridData)), [isSurfaceLayer, activeSurface, surfaceGrid, gridData, depthUnit]);
     // AOI props threaded to the 2D viewer
     const aoiProps = {
         kit,
@@ -138,15 +140,12 @@ const ExpertVisPanel = () => {
         onAddPoint: addDrawingPoint,
     };
 
-    // Contacts are workspace TVDSS elevations (ft field, m metric); the 3D
-    // scene is in the surface's own unit and sign, so convert (RCP-T1-011).
+    // Contacts are workspace TVDSS elevations (ft field, m metric), the unit
+    // the 3D scene is now shown in; only the surface's sign convention
+    // applies (RCP-T1-011).
     const contactToSurface = (c) => {
         if (c === null || c === undefined || c === '' || !isFinite(parseFloat(c))) return c;
-        const FT_PER_M = 3.280839895;
-        const field = (unitSystem || 'field') === 'field';
-        const du = activeSurface?.depthUnit || (field ? 'ft' : 'm');
-        const f = du === 'm' ? (field ? FT_PER_M : 1) : (field ? 1 : 1 / FT_PER_M);
-        const elev = parseFloat(c) / f;
+        const elev = parseFloat(c);
         return (activeSurface?.zConvention || 'elevation') === 'elevation' ? elev : -elev;
     };
 
