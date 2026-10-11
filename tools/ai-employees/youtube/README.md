@@ -1,0 +1,95 @@
+# YouTube channel manager (AI employee, shadow mode)
+
+Petrolord's first AI employee. It prepares YouTube listings for finished
+videos and, once a person has approved them, uploads them. Register entry:
+`docs/ai-employees/REGISTER.md`. Brand voice: `docs/ai-employees/brand-voice.md`.
+
+## The shadow-mode rule
+
+**Nothing goes to YouTube without an approved task.**
+
+1. `propose.mjs` writes proposals (`status = proposed`) to `ai_employee_tasks`.
+2. A super admin reviews each one at `/admin/ai-employees`: edits the title
+   and description if needed, then approves or rejects with an optional note.
+3. `execute.mjs` acts only on tasks that are `approved`, have a reviewer on
+   record, are on the public allowlist, and only while the employee's status
+   is `active`. Pausing it in the admin page is the off switch; a running
+   `execute.mjs` re-reads the status before every task and stops.
+
+Every step is logged to `ai_employee_actions` (append-only).
+
+## What may go public
+
+`config/public-allowlist.json` is the only list of video keys that may ever
+be proposed. Everything else is members-only (NextGen Academy and the Suite)
+and is refused by `propose.mjs` and `execute.mjs`. Changing it is a reviewed
+PR; `__tests__/listing.test.js` pins the current list.
+
+Public as of 2026-10-11: Petrophysics with Petrolord Module A (`lesson-a1`
+to `lesson-a4`), QI with Petrolord Module A (`lesson-qi-a1` to
+`lesson-qi-a3`), the Petrophysics Studio demos (`petro-01` to `petro-03`),
+the QI Studio demos (`qi-01` to `qi-03`) and the Seismolord demos (`seis-01`
+to `seis-03`). Well Data Manager is approved but has no finished video yet.
+
+## Copy rules
+
+- Descriptions end with `Petrolord Suite: https://petrolord.com`.
+- Lesson videos carry `Continue in NextGen Academy: https://nextgen.petrolord.com`
+  just above it.
+- British English, plain and expert, no em dashes. Any dash or angle bracket
+  in the source text is flagged in the proposal's `copy_warnings` for the
+  reviewer.
+- Default privacy is `private`: Google keeps uploads from an unaudited API
+  project private anyway. `scheduled_at` is the proposed publish time; until
+  the API project passes its audit, a person publishes at that time in
+  YouTube Studio.
+
+## Setup (once, on the studio box, as root)
+
+1. **OAuth client.** In Google Cloud Console, enable the YouTube Data API v3,
+   create an OAuth client of type *Desktop app*, download its JSON and save it
+   as `/root/.youtube-oauth-client.json` (`chmod 600`).
+2. **Consent.** Run
+
+   ```
+   node tools/ai-employees/youtube/auth.mjs
+   ```
+
+   Open the printed URL in a browser signed in as the channel owner and allow
+   access. The browser then lands on `http://127.0.0.1:8765/?code=...` and
+   shows an error page; that is expected. Copy the whole address from the
+   browser bar and paste it into the terminal. The refresh token is saved to
+   `/root/.youtube-oauth-token.json` (mode 600) and the authorised channel's
+   title and id are printed. Tokens are never printed. Use `--port` to change
+   the loopback port.
+3. **Database access.** Create `/root/.ai-employees.env` (`chmod 600`; the
+   scripts refuse a file readable by others):
+
+   ```
+   SUPABASE_URL=https://ssyckywijlrkgcwvkwlr.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=...
+   ```
+
+   The key is never printed or committed. Without this file, `propose.mjs`
+   writes proposals to `/root/ai-employees/youtube-proposals.json` instead,
+   and `execute.mjs` will not run.
+4. The `ai_employees` migration must be applied (owner-run).
+
+## Running
+
+```
+node tools/ai-employees/youtube/propose.mjs                  # local JSON, for a look
+node tools/ai-employees/youtube/propose.mjs --db             # queue for review
+node tools/ai-employees/youtube/propose.mjs --db --keys qi-01,qi-02 --start 2026-10-20 --every-days 2
+node tools/ai-employees/youtube/execute.mjs --dry-run        # what would run, no upload, no writes
+node tools/ai-employees/youtube/execute.mjs                  # upload approved tasks
+```
+
+`propose.mjs` only reads `/root/demo-videos/<key>/` (`youtube.mp4`,
+`youtube-description.txt`, `chapters.txt`, `youtube.srt`) and skips keys that
+already have a proposed, approved or done listing. If an upload starts and
+the process dies, `execute.mjs` will not retry that task until a person has
+checked YouTube Studio and reruns with `--force`.
+
+No npm dependencies: Node 18+ `fetch` only. Tests run in the repo's jest:
+`npx jest tools/ai-employees`.

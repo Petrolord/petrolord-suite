@@ -1,0 +1,170 @@
+{
+  "rule": "Only the video keys listed under series[].keys may ever be proposed for the public YouTube channel. Everything else is members-only (NextGen Academy and the Suite) and is never proposed. To add a video, add its key here in a reviewed PR.",
+  "recordedOn": "2026-10-11",
+  "sources": "Keys found under /root/demo-videos/<key>/ on the studio box (folders holding youtube.mp4) and matched to tools/demo-video/storyboards on origin/main (petro-01..03, qi-01..03, lessons/petro-a1..a4). The seis-01..03 storyboards were on a feature branch, not yet on main, on that date; the finished videos exist. QI Module A (lesson-qi-a1..a3) was added by owner decision on 2026-10-11; the module boundary comes from tools/demo-video/storyboards/lessons/QI-LESSON-PLAN.md.",
+  "links": {
+    "suite": "https://petrolord.com",
+    "nextgen": "https://nextgen.petrolord.com"
+  },
+  "series": [
+    {
+      "id": "well-data-manager",
+      "label": "Well Data Manager",
+      "kind": "demo",
+      "playlist": "Well Data Manager",
+      "categoryId": "28",
+      "keys": [],
+      "note": "Approved for public. No finished Well Data Manager video was found under /root/demo-videos on 2026-10-11 (the tutorial script docs/tutorials/scripts/episode-01-well-data-manager-script.html exists, unrecorded). Add the key here once it is recorded."
+    },
+    {
+      "id": "petrophysics-lessons-module-a",
+      "label": "Petrophysics with Petrolord, Module A (lessons 1 to 4)",
+      "kind": "lesson",
+      "playlist": "Petrophysics with Petrolord",
+      "categoryId": "27",
+      "keys": [
+        "lesson-a1",
+        "lesson-a2",
+        "lesson-a3",
+        "lesson-a4"
+      ]
+    },
+    {
+      "id": "petrophysics-demos",
+      "label": "Petrophysics Studio sales demos",
+      "kind": "demo",
+      "playlist": "Petrophysics Studio",
+      "categoryId": "28",
+      "keys": [
+        "petro-01",
+        "petro-02",
+        "petro-03"
+      ]
+    },
+    {
+      "id": "qi-lessons-module-a",
+      "label": "QI with Petrolord, Module A (lessons 1 to 3)",
+      "kind": "lesson",
+      "playlist": "QI with Petrolord",
+      "categoryId": "27",
+      "keys": [
+        "lesson-qi-a1",
+        "lesson-qi-a2",
+        "lesson-qi-a3"
+      ],
+      "note": "Owner decision 2026-10-11. Module A is lessons 1 to 3 (tools/demo-video/storyboards/lessons/QI-LESSON-PLAN.md); Module B starts at lesson 4 (lesson-qi-b4). Modules B onwards go to a NextGen QI course and stay members-only."
+    },
+    {
+      "id": "qi-demos",
+      "label": "QI Studio sales demos",
+      "kind": "demo",
+      "playlist": "QI Studio",
+      "categoryId": "28",
+      "keys": [
+        "qi-01",
+        "qi-02",
+        "qi-03"
+      ]
+    },
+    {
+      "id": "seismolord-demos",
+      "label": "Seismolord sales demos",
+      "kind": "demo",
+      "playlist": "Seismolord",
+      "categoryId": "28",
+      "keys": [
+        "seis-01",
+        "seis-02",
+        "seis-03"
+      ]
+    }
+  ],
+  "fallbackListings": {
+    "petro-01": {
+      "title": "From Raw Logs to Net Pay You Can Defend: Petrophysics Studio on Ekene-1 | Petrolord Suite",
+      "summary": "The first of three Petrophysics Studio demos. One well, Ekene-1: shale volume, porosity, water resistivity from the well itself, and the saturation model that changes the answer, through to zones, net pay and a published result.\n\nThe Ekene field is synthetic, built from a single earth model, so every answer can be checked against the truth.",
+      "tags": [
+        "petrophysics",
+        "net pay",
+        "shale volume",
+        "water resistivity",
+        "water saturation",
+        "log analysis",
+        "Petrolord Suite"
+      ]
+    },
+    "petro-02": {
+      "title": "Is Our Rw Right? Two Independent Checks in Petrophysics Studio | Petrolord Suite",
+      "summary": "The second of three Petrophysics Studio demos. Two independent checks on the water resistivity, then low, mid and high cases for Ekene-1.\n\nThe Ekene field is synthetic, built from a single earth model, so every answer can be checked against the truth.",
+      "tags": [
+        "petrophysics",
+        "Rw",
+        "water resistivity",
+        "Pickett plot",
+        "water saturation",
+        "log analysis",
+        "Petrolord Suite"
+      ]
+    },
+    "petro-03": {
+      "title": "How Sure Are We? P90, P50 and P10 Net Pay in Petrophysics Studio | Petrolord Suite",
+      "summary": "The third of three Petrophysics Studio demos. A probabilistic run on Ekene-1, what drives the range, and the hand-over to ReservoirCalc Pro.\n\nThe Ekene field is synthetic, built from a single earth model, so every answer can be checked against the truth.",
+      "tags": [
+        "petrophysics",
+        "probabilistic petrophysics",
+        "P90 P50 P10",
+        "net pay",
+        "uncertainty",
+        "ReservoirCalc Pro",
+        "Petrolord Suite"
+      ]
+    }
+  },
+  "membersOnly": {
+    "note": "Never proposed for YouTube. Recorded 2026-10-11 for reference; anything not in series[].keys is members-only whether listed here or not.",
+    "keys": [
+      "lesson-b5",
+      "lesson-b6",
+      "lesson-b7",
+      "lesson-c8",
+      "lesson-c9",
+      "lesson-c10",
+      "lesson-d11",
+      "lesson-d12",
+      "lesson-d13",
+      "lesson-d14",
+      "lesson-e15",
+      "lesson-e16",
+      "lesson-e17",
+      "lesson-e18",
+      "lesson-f19",
+      "lesson-f20",
+      "lesson-f21",
+      "lesson-f22",
+      "lesson-qi-b4",
+      "lesson-qi-b5",
+      "lesson-qi-b6",
+      "lesson-qi-b7",
+      "lesson-qi-c8",
+      "lesson-qi-c9",
+      "lesson-qi-c10",
+      "lesson-qi-d11",
+      "lesson-qi-d12",
+      "lesson-qi-e13",
+      "lesson-qi-e14",
+      "lesson-qi-f15",
+      "lesson-qi-f16",
+      "lesson-qi-f17",
+      "lesson-qi-f18"
+    ],
+    "ignored": [
+      "petro-01-v1",
+      "petro-02-v1",
+      "petro-03-v1",
+      "qi-smoke",
+      "smoke-home",
+      "review",
+      "voice-samples"
+    ]
+  }
+}
