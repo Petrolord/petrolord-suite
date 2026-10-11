@@ -12,7 +12,7 @@
 // `expectText` steps stop the take if the screen disagrees with the narration.
 import {
   login, expectText, openSeismolord, explorerRow, setVisible, deleteSurface, deleteVolumesStarting, closeWindow,
-  fullscreenBtn, sectionPoint, xlFrac, RECORD_MS, FULL,
+  fullscreenBtn, sectionPoint, sectionCanvas, xlFrac, RECORD_MS, FULL,
 } from './seis-common.mjs';
 
 const RMS_TABLE = '47 1500\n331 1975\n926 2458\n1041 2456\n1289 2388\n1311 2397\n1517 2352\n1572 2341\n1625 2347\n1782 2329\n2467 2239';
@@ -176,39 +176,59 @@ export default {
         await d.sleep(1500);
         await d.page.keyboard.press('Escape');
         await d.sleep(1000);
+        // still inside the cut: the variance on a time slice, ready to show
+        await d.page.getByText('Home', { exact: true }).first().click();
+        await d.sleep(600);
+        const v = (await ex(d).locator('div[role=button] span.truncate').allInnerTexts()).find((n) => n.startsWith(`${FULL} [Variance`));
+        await combo(d, 'Active volume').selectOption({ label: v });
+        await d.sleep(2500);
+        await d.page.locator('button[title="Show Section"]').click();
+        await d.sleep(800);
+        await combo(d, 'Orientation').selectOption({ label: 'Time slice' });
+        await combo(d, 'Colormap').selectOption({ label: 'Grayscale' });
+        await d.sleep(800);
+        await t(d, 'sl-goto').fill('900'); await t(d, 'sl-goto-btn').click();
+        await d.sleep(2500);
       },
       waitLabel: 'A minute later' },
     { id: 'graben', chapter: 'Faults in plan', chapterSub: 'The variance on time slices, in full view',
       say: 'On a time slice at nine hundred milliseconds, in full view, the growth fault curves across the survey, and the crestal grabens show at both ends of the crest: small faults in pairs, in the beds above the reservoir.',
       sub: 'On a time slice at 900 ms, in full view, the growth fault curves across the survey, and the crestal grabens show at both ends of the crest: small faults in pairs, in the beds above the reservoir.',
       do: async (d) => {
-        await d.click(d.page.getByText('Home', { exact: true }).first());
-        await d.sleep(600);
-        const v = (await ex(d).locator('div[role=button] span.truncate').allInnerTexts()).find((n) => n.startsWith(`${FULL} [Variance`));
-        await d.select(combo(d, 'Active volume'), { label: v });
-        await d.sleep(2500);
-        await d.click(d.page.locator('button[title="Show Section"]'));
-        await d.sleep(800);
-        await d.select(combo(d, 'Orientation'), { label: 'Time slice' });
-        await d.select(combo(d, 'Colormap'), { label: 'Grayscale' });
-        await d.sleep(1000);
-        await goTo(d, Number(process.env.TS1 || 900));
-        await expectText(d, d.page.locator('text=/^Time slice \\d+ ms$/ >> visible=true'), new RegExp(`^Time slice ${process.env.TS1 || 900} ms$`), 'shallow time slice');
+        await expectText(d, d.page.locator('text=/^Time slice \\d+ ms$/ >> visible=true'), /^Time slice 900 ms$/, 'shallow time slice');
         await d.click(fullscreenBtn(d, 'section'));
-        await d.sleep(2500);
+        await d.sleep(1500);
+        const c = sectionCanvas(d);
+        const b = await c.boundingBox();
+        const pt = (il, xl) => ({ x: b.x + b.width * ((xl - 1960 + 0.5) / 168), y: b.y + b.height * ((il - 1000 + 0.5) / 128) });
+        await d.moveTo(pt(1010, 2024), { ms: 900 });
+        await d.moveTo(pt(1064, 2010), { ms: 1300 });
+        await d.moveTo(pt(1118, 2022), { ms: 1300 });
+        await d.sleep(500);
+        await d.moveTo(pt(1105, 2041), { ms: 900 });
+        await d.sleep(1200);
+        await d.moveTo(pt(1008, 2037), { ms: 1400 });
+        await d.sleep(1000);
       } },
     { id: 'deepslice',
       say: 'At seventeen hundred milliseconds the growth fault has moved basinward as it flattens, and Ekene East, the buried fault, is a straight line beside it.',
       sub: 'At 1700 ms the growth fault has moved basinward as it flattens, and Ekene East, the buried fault, is a straight line beside it.',
       do: async (d) => {
         await d.click(fullscreenBtn(d, 'section'));
-        await d.sleep(1000);
-        await goTo(d, Number(process.env.TS2 || 1700));
-        await expectText(d, d.page.locator('text=/^Time slice \\d+ ms$/ >> visible=true'), new RegExp(`^Time slice ${process.env.TS2 || 1700} ms$`), 'deep time slice');
+        await d.sleep(800);
+        await goTo(d, 1700);
+        await expectText(d, d.page.locator('text=/^Time slice \\d+ ms$/ >> visible=true'), /^Time slice 1700 ms$/, 'deep time slice');
         await d.click(fullscreenBtn(d, 'section'));
-        await d.sleep(3500);
+        await d.sleep(1200);
+        const b = await sectionCanvas(d).boundingBox();
+        const pt = (il, xl) => ({ x: b.x + b.width * ((xl - 1960 + 0.5) / 168), y: b.y + b.height * ((il - 1000 + 0.5) / 128) });
+        await d.moveTo(pt(1064, 2028), { ms: 1000 });
+        await d.sleep(1200);
+        await d.moveTo(pt(1030, 2066), { ms: 900 });
+        await d.moveTo(pt(1100, 2070), { ms: 1400 });
+        await d.sleep(1200);
         await d.click(fullscreenBtn(d, 'section'));
-        await d.sleep(1000);
+        await d.sleep(800);
       } },
     { id: 'velocity', chapter: 'Time to depth', chapterSub: 'A velocity model from the stacking velocities',
       say: 'For depth, the stacking velocities become interval velocities with the Dix equation, filled into a layer cake on nine framework horizons.',
@@ -265,6 +285,7 @@ export default {
         await d.sleep(1000);
       } },
     { id: 'depthmap', chapter: 'Depth surfaces', chapterSub: 'Gridded fault-aware and published',
+      lead: 5, // the map is shown and switched to depth first
       say: 'In depth, the five thousand foot contour closes around the crest, against the growth fault.',
       sub: 'In depth, the 5,000 ft contour closes around the crest, against the growth fault.',
       do: async (d) => {

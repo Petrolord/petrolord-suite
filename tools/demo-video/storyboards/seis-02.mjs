@@ -11,7 +11,7 @@
 // and "Ekene Sand Base". `expectText` steps stop the take if the screen
 // disagrees with the narration.
 import {
-  login, expectText, openSeismolord, explorerRow, setVisible, deleteHorizonsMatching, deleteFault, closeWindow,
+  login, expectText, openSeismolord, explorerRow, setVisible, deleteHorizonsMatching, deleteFault, deleteSurface, closeWindow,
   fullscreenBtn, FULL, RECORD_MS, xlFrac, sectionPoint,
 } from './seis-common.mjs';
 
@@ -69,6 +69,9 @@ export default {
     await deleteHorizonsMatching(d, tops);
     const autos = (await ex(d).locator('div[role=button] span.truncate').allInnerTexts()).filter((n) => /^Auto-\d+$/.test(n));
     for (const n of autos) await deleteFault(d, n);
+    // demo 3's depth surfaces, published from this framework in an earlier take
+    await deleteSurface(d, 'Ekene Sand (depth ft)');
+    await deleteSurface(d, 'Ekene Sand Base (depth ft)');
     await closeWindow(d, '3D');
     await closeWindow(d, 'Map');
     // start with nothing drawn over the seismic
@@ -118,8 +121,8 @@ export default {
         await d.highlight('t2h-convention');
       } },
     { id: 'board', chapter: 'Every top on its event', chapterSub: 'Explained, and open to change',
-      say: 'The review board shows the event each top was matched to at each well, how far it sits from the prediction, and a score. The top of the Ekene Sand is a peak at all six wells, within six milliseconds. The Oboro tops reach only three wells, and the Akata only Ekene one. Any choice can be changed here.',
-      sub: 'The review board shows the event each top was matched to at each well, how far it sits from the prediction, and a score. The top of the Ekene Sand is a peak at all six wells, within 6 ms. The Oboro tops reach only three wells, and the Akata only Ekene-1. Any choice can be changed here.',
+      say: 'The review board shows the event each top was matched to at each well, how far it sits from the prediction, and a score. The top of the Ekene Sand is a peak at all six wells, within six milliseconds. The Oboro tops reach only three wells, and the Akata only Ekene one.',
+      sub: 'The review board shows the event each top was matched to at each well, how far it sits from the prediction, and a score. The top of the Ekene Sand is a peak at all six wells, within 6 ms. The Oboro tops reach only three wells, and the Akata only Ekene-1.',
       do: async (d) => {
         await d.unhighlight();
         await d.click('t2h-step-review');
@@ -127,7 +130,7 @@ export default {
         const row = t(d, 't2h-board').locator('tr:has(input[aria-label="Use Ekene Sand"])').first();
         await expectText(d, row, /Peak[\s\S]*-0\.7 ms[\s\S]*1\.4 ms[\s\S]*5\.2 ms[\s\S]*-2\.0 ms[\s\S]*5\.5 ms[\s\S]*1\.8 ms/, 'Ekene Sand row');
         await d.highlight(row);
-        await d.sleep(3500);
+        await d.sleep(3000);
         const akata = t(d, 't2h-board').locator('tr:has(input[aria-label="Use Akata Formation"])').first();
         await akata.scrollIntoViewIfNeeded();
         await d.highlight(akata);
@@ -226,6 +229,10 @@ export default {
         await d.sleep(1200);
         await d.page.keyboard.press('Escape');
         await d.sleep(1200);
+        // off camera (this wait is cut): a saved framework is drawn whole,
+        // so keep a readable set, and only the faults over the seismic
+        for (const w of WELLS) await setVisible(d, w, false);
+        for (const n of TOPS) if (!SHOWN.includes(n)) await setVisible(d, n, false);
       },
       waitLabel: 'Seconds later' },
     { id: 'section', chapter: 'At the fault', chapterSub: 'A dip line in full view',
@@ -233,10 +240,7 @@ export default {
       sub: 'On inline 1080, in grey: the growth fault is steep near the top and flattens with depth, and the hanging wall rolls over into it. The Ekene Sand steps down across the fault. Ekene East, on the right, cuts only the beds below the reservoir.',
       do: async (d) => {
         await d.click(d.page.getByText('Home', { exact: true }).first());
-        await d.sleep(800);
-        for (const w of WELLS) await setVisible(d, w, false);
-        // a saved framework is drawn whole: keep a readable set
-        for (const n of TOPS) if (!SHOWN.includes(n)) await setVisible(d, n, false);
+        await d.sleep(600);
         await setVisible(d, 'Auto-1', true, { onCamera: true });
         await setVisible(d, 'Auto-2', true, { onCamera: true });
         await goTo(d, 1080);
@@ -269,20 +273,18 @@ export default {
         await d.click(d.page.getByRole('button', { name: /Windows/ }));
         await d.sleep(800);
         await d.click(d.page.getByText('3D', { exact: true }).last());
-        await d.sleep(1500);
+        await d.sleep(500);
         await d.page.keyboard.press('Escape');
         await d.page.locator('[data-testid="window-3d"] canvas').first().waitFor();
         await d.sleep(2500);
         await d.click(fullscreenBtn(d, '3d'));
-        await d.sleep(1500);
+        await d.sleep(1200);
       } },
     { id: 'rotate',
       say: 'Turned toward the fault, the growth fault curves down under the rollover, and the deep horizons end against it.',
       do: async (d) => {
-        await drag3d(d, 120, 0, 16);
-        await d.sleep(400);
-        await drag3d(d, 120, 0, 16);
-        await d.sleep(1500);
+        await drag3d(d, 240, 0, 24);
+        await d.sleep(1200);
       } },
     { id: 'next', chapter: 'Ready for volumes', chapterSub: 'Variance, depth and the trap volume come next',
       say: 'That is the framework: every horizon tied to the wells, stopped at the faults and carried across them, with its error measured. Next, from horizons to volumes.',
