@@ -218,13 +218,17 @@ export async function runFrameworkTrack({
   const tracked = new Map();
   const meta = new Map();
   const doLowo = lowo ?? geom.nIl * geom.nXl <= LOWO_MAX_TRACES;
-  const faultList = (faults || []).filter((f) => f.sticks && f.sticks.length);
-  // the throw prior for a jump: the same fault's throw measured on every
-  // horizon already picked on both sides of it (a well in each block, or
-  // carried across earlier), as a straight line against depth (a growth
+  const faultList = (faults || []).filter((f) => f.sticks && f.sticks.length)
+    .map((f, k) => ({ ...f, name: f.name || `fault ${k + 1}` }));
+  // the throw prior for a jump, per fault: that fault's throw measured on
+  // every horizon already picked on both sides of it (a well in each block,
+  // or carried across earlier), as a straight line against depth (a growth
   // fault's throw grows downward), read at the horizon being carried. One
   // measurement is used as it is. On a near-vertical fault this is also
-  // what tells the jump which block is down.
+  // what tells the jump which block is down. Each fault keeps its own: on
+  // Ekene v4 the buried Ekene East fault measures about zero at the Ekene
+  // Sand, and as the growth fault's prior it skipped every jump into the
+  // growth fault's footwall.
   const dipDirs = faultList.map((f) => faultDipDirection(f)).filter(Boolean);
   let dipDir = null;
   if (dipDirs.length) {
@@ -235,28 +239,35 @@ export async function runFrameworkTrack({
   }
   const levelOf = (seeds) => (seeds && seeds.length ? seeds.reduce((sum, q) => sum + (q.sample ?? 0), 0) / seeds.length : null);
   const priorThrowsFor = (name, seeds, from) => {
-    if (!dipDir || !faultList.length) return new Map();
+    const out = new Map();
+    if (!dipDir || !faultList.length) return out;
     const at = levelOf(seeds);
-    const pts = [];
-    for (const [k, picks] of from) {
-      if (k === name || !meta.get(k)?.barriers) continue;
-      const v = measuredThrow({
-        picks, barriers: meta.get(k).barriers, geom, dipDir,
-      });
-      const lv = levelOf(meta.get(k).seeds);
-      if (v != null && lv != null) pts.push({ x: lv, y: v });
+    if (at == null) return out;
+    for (const f of faultList) {
+      const dir = faultDipDirection(f) || dipDir;
+      const pts = [];
+      for (const [k, picks] of from) {
+        const bars = meta.get(k)?.faultBarriers?.get(f.name);
+        if (k === name || !bars) continue;
+        const v = measuredThrow({
+          picks, barriers: bars, geom, dipDir: dir,
+        });
+        const lv = levelOf(meta.get(k).seeds);
+        if (v != null && lv != null) pts.push({ x: lv, y: v });
+      }
+      if (!pts.length) continue;
+      let prior = pts[0].y;
+      if (pts.length >= 2) {
+        const mx = pts.reduce((sum, q) => sum + q.x, 0) / pts.length;
+        const my = pts.reduce((sum, q) => sum + q.y, 0) / pts.length;
+        let sxy = 0;
+        let sxx = 0;
+        for (const q of pts) { sxy += (q.x - mx) * (q.y - my); sxx += (q.x - mx) ** 2; }
+        prior = sxx > 1e-9 ? my + (sxy / sxx) * (at - mx) : my;
+      }
+      out.set(f.name, prior);
     }
-    if (!pts.length || at == null) return new Map();
-    let prior = pts[0].y;
-    if (pts.length >= 2) {
-      const mx = pts.reduce((sum, q) => sum + q.x, 0) / pts.length;
-      const my = pts.reduce((sum, q) => sum + q.y, 0) / pts.length;
-      let sxy = 0;
-      let sxx = 0;
-      for (const q of pts) { sxy += (q.x - mx) * (q.y - my); sxx += (q.x - mx) ** 2; }
-      prior = sxx > 1e-9 ? my + (sxy / sxx) * (at - mx) : my;
-    }
-    return new Map([[faultList[0].name || 'fault', prior]]);
+    return out;
   };
 
   const deferred = [];
@@ -265,7 +276,10 @@ export async function runFrameworkTrack({
     i += 1;
     if (shouldCancel()) throw new Error('Tracking cancelled');
     onProgress(`track:${t.name}`, i, plan.length);
-    const barriers = faultList.length ? faultBarriersForTop(faultList, approxLevelGrid(t.seeds, geom), geom) : null;
+    const level = faultList.length ? approxLevelGrid(t.seeds, geom) : null;
+    const barriers = faultList.length ? faultBarriersForTop(faultList, level, geom) : null;
+    const faultBarriers = faultList.length
+      ? new Map(faultList.map((f) => [f.name, faultBarriersForTop([f], level, geom)])) : null;
     const r = await trackTop({
       getTrace, geom, seeds: t.seeds, kind: t.kind, name: t.name, order, tracked, barriers,
       opts: { shouldCancel },
@@ -275,9 +289,11 @@ export async function runFrameworkTrack({
     let jumps = [];
     if (barriers && jump) {
       const priorThrows = priorThrowsFor(t.name, t.seeds, tracked);
-      if (priorThrows.size) {
+      // jump now only with a prior for every fault; otherwise once every
+      // horizon is tracked (below)
+      if (priorThrows.size === faultList.length) {
         const j = await jumpAcrossFaults({
-          getTrace, geom, picks, barriers, faults: faultList, kind: t.kind, priorThrows,
+          getTrace, geom, picks, barriers, faults: faultList, kind: t.kind, priorThrows, faultBarriers,
         });
         picks = j.picks;
         jumped = j.jumped;
@@ -288,19 +304,23 @@ export async function runFrameworkTrack({
     }
     tracked.set(t.name, picks);
     meta.set(t.name, {
-      kind: t.kind, seeds: t.seeds, jumped, jumps, barriers, meanScore: t.meanScore,
+      kind: t.kind, seeds: t.seeds, jumped, jumps, barriers, faultBarriers, meanScore: t.meanScore,
     });
   }
   // a top with no throw to lean on yet jumps once every horizon is tracked,
   // so a single-well deep horizon (Akata on Ekene) uses the throw the
   // horizons with a well in each block measure, whatever order it was
-  // tracked in; with none anywhere it jumps on the correlation alone
+  // tracked in; with none anywhere it jumps on the correlation alone.
+  // Shallowest first: each carried horizon is a measurement for the next,
+  // so with no well across a fault (every Ekene v4 well is in the growth
+  // fault's hanging wall) the throw prior is built down the column.
+  deferred.sort((a, b) => (levelOf(a.seeds) ?? 0) - (levelOf(b.seeds) ?? 0));
   for (const t of deferred) {
     if (shouldCancel()) throw new Error('Tracking cancelled');
     const m = meta.get(t.name);
     const j = await jumpAcrossFaults({
       getTrace, geom, picks: tracked.get(t.name), barriers: m.barriers, faults: faultList, kind: t.kind,
-      priorThrows: priorThrowsFor(t.name, t.seeds, tracked),
+      priorThrows: priorThrowsFor(t.name, t.seeds, tracked), faultBarriers: m.faultBarriers,
     });
     tracked.set(t.name, j.picks);
     meta.set(t.name, { ...m, jumped: j.jumped, jumps: j.jumps });
@@ -397,7 +417,7 @@ export async function runFrameworkTrack({
           if (!(m.barriers && jump)) return r.picks;
           return (await jumpAcrossFaults({
             getTrace, geom, picks: r.picks, barriers: m.barriers, faults: faultList, kind: m.kind,
-            priorThrows: priorThrowsFor(h.name, m.seeds, others),
+            priorThrows: priorThrowsFor(h.name, m.seeds, others), faultBarriers: m.faultBarriers,
           })).picks;
         },
       });
