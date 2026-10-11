@@ -358,6 +358,7 @@ const AdminSeedApps = lazy(() => import('@/pages/admin/AdminSeedApps'));
 const MasterAppsViewer = lazy(() => import('@/pages/admin/MasterAppsViewer'));
 const PromoCodes = lazy(() => import('@/pages/admin/PromoCodes'));
 const EventLeads = lazy(() => import('@/pages/admin/EventLeads'));
+const AiEmployees = lazy(() => import('@/pages/admin/AiEmployees'));
 const NapeLeads = lazy(() => import('@/pages/events/NapeLeads'));
 const NapeQuiz = lazy(() => import('@/pages/events/NapeQuiz'));
 const NapeQuizTv = lazy(() => import('@/pages/events/NapeQuizTv'));
@@ -467,6 +468,11 @@ function App() {
                               <Route path="/admin/event-leads" element={
                                 <SuperAdminRoute>
                                   <EventLeads />
+                                </SuperAdminRoute>
+                              } />
+                              <Route path="/admin/ai-employees" element={
+                                <SuperAdminRoute>
+                                  <AiEmployees />
                                 </SuperAdminRoute>
                               } />
                               <Route path="/nape" element={<NapeLeads />} />
