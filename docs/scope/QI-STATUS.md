@@ -793,3 +793,9 @@ The manual was written against the source, and it found the following.
   - The widened model is used by the volume run.
   - A 10 percent biased impedance is reported as a shift at every well.
   - Both new tests fail on the old code.
+
+## 2026-10-11: the NextGen QI course extraction gate (E1a, E1b, E1c, E2)
+
+Plan: `docs/scope/NextGen-QI-Course-PLAN.md` section 3. One line per merge, saying what a capstone can now grade.
+
+- **E1b merged** (engines #352, `2931248`): `qi/avo` and `qi/wavelets` behind independent oracles (exact Zoeppritz, Householder QR, DFT correlation). Gradable now: the Shuey intercept and gradient fitted at a sample (two and three terms), the contrasts and fluid factor from A and B, the background trend and the off-trend distance, the chi projection, wavelet alignment lag, similarity and misfit to the field wavelet. Not gradable: an AVO class on a class boundary (QI and Rock Physics put the boundary in different classes).
