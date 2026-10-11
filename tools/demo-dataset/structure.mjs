@@ -247,6 +247,16 @@ export function makeStructure({ wellPicks }) {
   const sAtDepth = (z) => { let lo = -500; let hi = 20000; for (let i = 0; i < 60; i += 1) { const m = (lo + hi) / 2; if (fault.Z(m) < z) lo = m; else hi = m; } return (lo + hi) / 2; };
   for (const key of KEYS) cutS[key] = sAtDepth(MF.cutoff_ref_md[key] ?? 2000);
   const growth = (key, s) => (MF.growth_m[key] ?? 0) * Math.exp(-Math.max(0, s - cutS[key]) / MF.growth_decay_m);
+  // the footwall's own regional: the fitted plane at the hinge (where the
+  // fault cuts the field's horizons), and from there a gentle common dip
+  // both ways, with only the along-strike plunge of the shared shape, so the
+  // footwall packages are flat and parallel, landward and under the hanging
+  // wall alike. The hanging wall keeps the fitted plane (hwDesign).
+  const RF = S.footwall_regional;
+  const fwRegional = (key, a, b) => {
+    const { D, G } = regional[key];
+    return D + G * RF.b_hinge + RF.dip * (b - RF.b_hinge) + alphaOf(key) * shape(a, Math.min(b, SH.b_c));
+  };
   const hwDesign = (key, a, b, f2East) => {
     const { D, G } = regional[key];
     const h = heave(key, a);
@@ -263,7 +273,7 @@ export function makeStructure({ wellPicks }) {
     let n = 0; let sb = 0; let sbb = 0; let sr = 0; let sbr = 0;
     for (const w of wellPicks) {
       for (const p of w.picks) {
-        if (p.key !== key) continue;
+        if (p.key !== key || p.belowTd) continue;
         const { a, b } = frame.toAB(p.x, p.y);
         regional[key] = { D: 0, G: 0 };
         const rest = hwDesign(key, a, b, f2EastAt(a, b, p.tvd));
@@ -287,12 +297,23 @@ export function makeStructure({ wellPicks }) {
     const pts = [];
     for (const w of wellPicks) {
       for (const p of w.picks) {
-        if (p.key !== key) continue;
+        if (p.key !== key || p.belowTd) continue;
         const { a, b } = frame.toAB(p.x, p.y);
         pts.push({ x: p.x, y: p.y, r: p.tvd - hwDesign(key, a, b, f2EastAt(a, b, p.tvd)), well: w.name });
       }
     }
     residual[key] = makeGauss(pts, S.residual_sigma_m);
+    // floors under the TDs, added only where the horizon would rise above one
+    let added = false;
+    for (const w of wellPicks) {
+      for (const p of w.picks) {
+        if (p.key !== key || !p.belowTd) continue;
+        const { a, b } = frame.toAB(p.x, p.y);
+        const d = hwDesign(key, a, b, f2EastAt(a, b, p.tvd));
+        if (d + residual[key](p.x, p.y) < p.tvd) { pts.push({ x: p.x, y: p.y, r: p.tvd - d, well: `${w.name} (floor)` }); added = true; }
+      }
+    }
+    if (added) residual[key] = makeGauss(pts, S.residual_sigma_m);
     residualStats[key] = pts.map((p) => ({ well: p.well, r: p.r }));
   }
 
@@ -305,10 +326,7 @@ export function makeStructure({ wellPicks }) {
       // that only ever goes down (the plane never cuts it)
       return MF.sole_md + 6 + 18 * (0.5 + 0.5 * fbm2(77, x, y, 1400, 2));
     }
-    if (!block.hw) {
-      const { D, G } = regional[key];
-      return D + G * b + alphaOf(key) * shape(a, b);
-    }
+    if (!block.hw) return fwRegional(key, a, b);
     let z = hwDesign(key, a, b, block.f2East) + residual[key](x, y);
     for (const { c, hw } of block.crestal) z += crestalDisp(c, a, b, z, hw);
     return z;
@@ -356,7 +374,28 @@ export function makeStructure({ wellPicks }) {
       for (const key of [...KEYS, 'DETACH']) { if (z[key] < prev) z[key] = prev; prev = z[key]; }
       bl.z = z;
     }
-    return { a, b, zf, blocks };
+    // the fault planes crossing this column, with their local dip (as a
+    // tangent), for the seismic's tapered cut-offs and damage zones
+    const planes = [];
+    if (zf > 0) {
+      const s0 = b - traceB(a);
+      // zMin/zMax: the depths the plane spans in this neighbourhood (its tip
+      // above, its tip line below); nothing is cut outside them
+      planes.push({ z: zf, tan: Math.max(1e-3, (fault.Z(s0 + 1) - fault.Z(s0 - 1)) / 2), kind: 'main', zMin: MF.tip_md, zMax: Infinity });
+      const zp2 = f2Z(a, b);
+      if (zp2 !== null && zp2 < zf) {
+        const d = b - f2B(a);
+        planes.push({ z: zp2, tan: Math.tan(F2.dip_deg * DEG) / (1 + d / F2.listric_m) ** 2, kind: 'f2', zMin: F2.tip_md, zMax: zf });
+      }
+      for (const c of CR) {
+        const zc = crestalZ(c, a, b);
+        if (zc !== null && zc < zf) {
+          const u = (a - c.a_mid) / c.half_length_m; const hh = c.half_height_m * Math.sqrt(Math.max(0, 1 - u * u));
+          planes.push({ z: zc, tan: c.tan, kind: 'crestal', zMin: c.z_mid - hh, zMax: c.z_mid + hh });
+        }
+      }
+    }
+    return { a, b, zf, blocks, planes };
   }
 
   /** Depth of a horizon where it exists in the column under (x, y), or null (cut out by a fault). */

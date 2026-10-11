@@ -225,8 +225,13 @@ export const PRESSURE = {
 export const SEISMIC = {
   bin_m: 25,
   inline_azimuth_deg: 20,            // parallel to the fault strike
-  full:  { nInline: 128, nXline: 128, il0: 1000, xl0: 2000, format: 1 },  // IBM float
-  small: { nInline: 32,  nXline: 32,  il0: 1048, xl0: 2048, format: 5 },  // IEEE float
+  // v4: the survey reaches 40 crosslines further landward (1960-1999), so the
+  // growth fault's footwall is a third of every dip line; every line number
+  // still sits where it did in v3 (the anchor below fixes the lattice)
+  anchor: { il: 1000, xl: 2000, half_m: 1587.5 },
+  full:  { nInline: 128, nXline: 168, il0: 1000, xl0: 1960, format: 1 },  // IBM float
+  // the on-camera subset: the fault, its footwall and the crest
+  small: { nInline: 32,  nXline: 64,  il0: 1038, xl0: 1992, format: 5 },  // IEEE float
   // v4: 3.5 s, so the main fault visibly soles into the Akata detachment
   // (about 2.4 s) inside the record; v3 was 2400 ms
   t_max_ms: 3500,
@@ -237,7 +242,9 @@ export const SEISMIC = {
   // v4 file names carry the version, so v3 and v4 volumes can sit side by
   // side in one Seismolord project (an import skips a name already listed)
   file_prefix: 'EKENE3D-v4',
-  noise_db: 14,                      // signal-to-noise; 'real character', not clean
+  // v4: band-limited random noise at this S/N (15 dB) against the signal rms over
+  // the 800-2000 ms window at Ekene-1 (v3: 14 dB against the whole trace)
+  noise_db: 15,
   replacement_velocity_m_s: 1600,
   // v3: elastic products. Angles in degrees; every stack is the mean exact
   // Zoeppritz coefficient over its range in 1 degree steps.
@@ -295,23 +302,28 @@ export const STRUCTURE = {
     tip_md: 1590, dip_deg: 75,
     throw_m: { OBORO_U: 28, OBORO: 38, OBORO_B: 47, AKATA: 72 },
   },
-  // smaller faults around the rollover crest, placed between the wells: the
+  // smaller faults around the rollover crest, placed between the wells (a
+  // keystone graben NE of Ekene-3, A and B, and a second one SW of Ekene-1,
+  // C and D): the
   // crestal collapse of the overburden, dying out downward above the Ogbia
   // Shale, so the Ekene Sand stays one unbroken tank (as the courses teach)
   crestal: [
     { name: 'Crestal Fault A', dips: 'west', a_mid: 1080, b_mid: -330, z_mid: 920, half_length_m: 430, half_height_m: 500, dip_deg: 62, max_throw_m: 40, drag_m: 240 },
     { name: 'Crestal Fault B', dips: 'east', a_mid: 1050, b_mid: -800, z_mid: 900, half_length_m: 380, half_height_m: 470, dip_deg: 64, max_throw_m: 30, drag_m: 220 },
     { name: 'Crestal Fault C', dips: 'west', a_mid: -1330, b_mid: -420, z_mid: 880, half_length_m: 330, half_height_m: 480, dip_deg: 60, max_throw_m: 30, drag_m: 220 },
-    { name: 'Crestal Fault D', dips: 'east', a_mid: -560, b_mid: -700, z_mid: 820, half_length_m: 220, half_height_m: 380, dip_deg: 65, max_throw_m: 20, drag_m: 180 },
+    { name: 'Crestal Fault D', dips: 'east', a_mid: -1300, b_mid: -850, z_mid: 820, half_length_m: 300, half_height_m: 380, dip_deg: 64, max_throw_m: 22, drag_m: 200 },
   ],
   // relief every horizon shares, scaled by its alpha: a rounded plunge away
   // from the crest (elliptical distance R from (a_c, b_c), each direction
   // with its own stretch; nothing landward, where the rollover's back limb
   // does the work): q (R - r0)^2 beyond r0, plus gentle undulation
   shape: { a_c: -100, b_c: -300, r0: 700, q: 1.2e-4, stretch_sw: 1.1, stretch_ne: 1.19, stretch_sea: 1.4, undulation_m: 6, undulation_scale_m: 1100 },
+  // landward of the fault zone the regional flattens into a gentle common
+  // footwall dip (m/m, basinward), so footwall packages stay parallel
+  footwall_regional: { b_hinge: -1350, width_m: 150, dip: 0.012 },
   residual_sigma_m: 450,
   // the seismic-only detachment layer under the main fault
-  detachment: { name: 'Akata detachment', vp_factor: 0.92, vs_factor: 0.88, rho_factor: 0.975 },
+  detachment: { name: 'Akata detachment', vp_factor: 0.97, vs_factor: 0.95, rho_factor: 0.99 },
 };
 
 export const KIT = {

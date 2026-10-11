@@ -41,9 +41,9 @@ import { fitInterceptGradient } from '../../packages/engines/engines/rockphysics
 import { avoClass } from '../../packages/engines/engines/rockphysics/avo.js';
 import {
   makeGeometry, SEISMIC_NOTES, elasticPropsFrom, makeElasticModel, makeElasticTracer, stackRpp, rpp,
-  rmsVelocityTable, angleAtTime, traceRms, muteTrace, checkshotDriftOwtMs, makeTimeDepth,
+  rmsVelocityTable, angleAtTime, windowRms, muteTrace, checkshotDriftOwtMs, makeTimeDepth,
 } from './seismic.mjs';
-import { structureTruth, ekeneClosure, inlineAtA, xlineAtB, SURVEY_HALF_M } from './structureTruth.mjs';
+import { structureTruth, ekeneClosure, aOfInline, SURVEY } from './structureTruth.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..', '..');
@@ -414,9 +414,9 @@ const crsLabel = `${FRAME.crs} (${FRAME.crs_name})`;
   // hanging-wall cutoffs, closed into the gap between them
   {
     const fwLine = []; const hwLine = [];
-    for (let a = -SURVEY_HALF_M; a <= SURVEY_HALF_M + 1e-9; a += 50) {
+    for (let a = SURVEY.aMin; a <= SURVEY.aMax + 1e-9; a += 50) {
       let fw = null; let hw = null;
-      for (let b = -SURVEY_HALF_M - 600; b <= SURVEY_HALF_M; b += 2) {
+      for (let b = SURVEY.bMin; b <= SURVEY.bMax; b += 2) {
         const { x, y } = toXY(a, b);
         const z = geo.horizonDepthAt('TOP_SAND', x, y);
         const isHw = z !== null && geo.blockAt(x, y, z + 1e-6).hw;
@@ -442,13 +442,15 @@ const QI_TRUTH = {};
   const ref = built.find((b) => b.well.name === 'Ekene-1');
   const props = elasticPropsFrom(ref.rows);
   const contacts = { EKENE: { depth: LOCKED.owc_m, upper: 'oil' }, OBORO: { depth: OBORO.gwc_m, upper: 'gas' } };
-  const model = makeElasticModel({ geo, props, contacts });
+  // the tie neighbourhoods: every logged well where it crosses the Ekene Sand
+  const refs = built.filter((b) => b.rows.length).map((b) => b.tops.find((t) => t.key === 'TOP_SAND')).filter(Boolean).map((t) => ({ x: t.x, y: t.y }));
+  const model = makeElasticModel({ geo, props, contacts, refs });
   const ns = Math.round(SEISMIC.t_max_ms / SEISMIC.dt_ms) + 1;
   const dtUs = SEISMIC.dt_ms * 1000;
   const Q = SEISMIC.qi;
   const fullRefl = (i) => stackRpp(i, Q.full_deg[0], Q.full_deg[1]);
   const quiet = makeElasticTracer({ ns, dtMs: SEISMIC.dt_ms });
-  const noiseRef = traceRms(quiet(model(ref.well.x, ref.well.y), fullRefl, { x: ref.well.x, y: ref.well.y, seed: 0, noise: false }));
+  const noiseRef = windowRms(quiet(model(ref.well.x, ref.well.y), fullRefl, { x: ref.well.x, y: ref.well.y, seed: 0, noise: false }), SEISMIC.dt_ms);
   const tracer = makeElasticTracer({ ns, dtMs: SEISMIC.dt_ms, noiseRef });
   const table = rmsVelocityTable({ geo, props, x: ref.well.x, y: ref.well.y });
   Object.assign(QI_TRUTH, { props, model, table, ref });
@@ -548,7 +550,7 @@ const QI_TRUTH = {};
   const CL = ekeneClosure(geo);
   const twtAt = makeTimeDepth({ geo, props });
   const { toXY } = geo.frame;
-  const SOLE_TWT = (() => { const p = toXY(0, SURVEY_HALF_M); return twtAt(p.x, p.y, STRUCTURE.main_fault.sole_md); })();
+  const SOLE_TWT = (() => { const p = toXY(0, SURVEY.bMax); return twtAt(p.x, p.y, STRUCTURE.main_fault.sole_md); })();
   {
     // sticks: each fault plane along every 8th inline, a node every 50 m of depth
     const rows = [];
@@ -560,15 +562,15 @@ const QI_TRUTH = {};
     for (const [name, zAt] of faults) {
       let stick = 0;
       for (let il = SEISMIC.full.il0; il < SEISMIC.full.il0 + SEISMIC.full.nInline; il += 8) {
-        const a = (il - SEISMIC.full.il0) * SEISMIC.bin_m - SURVEY_HALF_M;
+        const a = aOfInline(il);
         const nodes = [];
         let lastZ = -Infinity;
-        for (let b = -SURVEY_HALF_M; b <= SURVEY_HALF_M; b += 1) {
+        for (let b = SURVEY.bMin; b <= SURVEY.bMax; b += 1) {
           const z = zAt(a, b);
           if (z === null || !Number.isFinite(z) || z <= 0) continue;
-          if (z - lastZ >= 50 || (nodes.length && b === SURVEY_HALF_M)) {
+          if (z - lastZ >= 50 || (nodes.length && b === SURVEY.bMax)) {
             const p = toXY(a, b);
-            nodes.push([name, 0, il, (b + SURVEY_HALF_M) / SEISMIC.bin_m + SEISMIC.full.xl0, utmE(p.x), utmN(p.y), z - FRAME.kb_m, twtAt(p.x, p.y, z)]);
+            nodes.push([name, 0, il, (b + SEISMIC.anchor.half_m) / SEISMIC.bin_m + SEISMIC.anchor.xl, utmE(p.x), utmN(p.y), z - FRAME.kb_m, twtAt(p.x, p.y, z)]);
             lastZ = z;
           }
         }
@@ -1415,7 +1417,11 @@ write('00-START-HERE.md', [
   '  (`04-seismic/README-seismic.md`, `04-seismic/truth/`).',
   '- The Ekene Sand closes inside the 3D survey, with its spill below the contact, so a volumetric run on a',
   '  surface picked from the seismic finds a closed trap.',
-  `- The record is ${SEISMIC.t_max_ms} ms (v3: 2400 ms), same 4 ms sampling, same survey geometry and byte positions.`,
+  `- The record is ${SEISMIC.t_max_ms} ms (v3: 2400 ms) at the same 4 ms. The survey reaches 40 crosslines further landward`,
+  `  (${SEISMIC.full.xl0} to ${SEISMIC.full.xl0 + SEISMIC.full.nXline - 1}, so the footwall shows), on the v3 lattice: every v3 line number is where it was,`,
+  '  with the same bin, azimuth, CRS and byte positions. The small volume now holds the fault, its footwall and the crest.',
+  '- The seismic has field character: reflectors brighten, fade and pinch out laterally, thin sand lenses tune,',
+  '  faults have tapered cut-offs and a narrow damage zone, and there is band-limited random noise (about 17 dB).',
   `- The volumes are named \`${SEISMIC.file_prefix}-*.sgy\`, so they load beside the v3 volumes.`,
   '- The wells did not change: every LAS, top, survey and checkshot is byte-identical to v3, and the new',
   '  structure honours every pick.', '',

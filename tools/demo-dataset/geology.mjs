@@ -126,10 +126,18 @@ export function makeWellControl() {
  * built: [{ well, survey, tops }] from build.mjs.
  */
 export function makeGeology(control, built) {
-  const wellPicks = built.map((b) => ({
-    name: b.well.name,
-    picks: b.tops.filter((t) => t.key !== 'SEABED').map((t) => ({ key: t.key, x: t.x, y: t.y, tvd: t.tvd })),
-  }));
+  // every pick, and, under each well's TD, a floor for every horizon the
+  // well did not reach: the new structure must stay below the bit there (a
+  // floor only bites where the structure would otherwise rise above it)
+  const wellPicks = built.map((b) => {
+    const picks = b.tops.filter((t) => t.key !== 'SEABED').map((t) => ({ key: t.key, x: t.x, y: t.y, tvd: t.tvd }));
+    const bot = b.survey.stations[b.survey.stations.length - 1];
+    for (const h of HORIZONS) {
+      if (h.key === 'SEABED' || picks.some((p) => p.key === h.key)) continue;
+      picks.push({ key: h.key, x: bot.x, y: bot.y, tvd: bot.tvd + 25, belowTd: true });
+    }
+    return { name: b.well.name, picks };
+  });
   const st = makeStructure({ wellPicks });
   // the Ekene East Fault splits the wells as v3's fault did: by where each
   // well's bottom-hole target sits against it at the Oboro Sand

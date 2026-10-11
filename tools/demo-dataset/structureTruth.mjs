@@ -7,12 +7,18 @@ import { spillAnalysis, closureAt } from '../../packages/engines/lib/gridding/cl
 import { FRAME, LOCKED, STRUCTURE, SEISMIC } from './spine.mjs';
 
 const DEG = Math.PI / 180;
-export const SURVEY_HALF_M = ((SEISMIC.full.nInline - 1) * SEISMIC.bin_m) / 2;
-
+const A = SEISMIC.anchor;
 /** Inline number whose line passes through a given along-strike position a. */
-export const inlineAtA = (a) => SEISMIC.full.il0 + Math.round((a + SURVEY_HALF_M) / SEISMIC.bin_m);
-export const xlineAtB = (b) => SEISMIC.full.xl0 + Math.round((b + SURVEY_HALF_M) / SEISMIC.bin_m);
-export const aOfInline = (il) => (il - SEISMIC.full.il0) * SEISMIC.bin_m - SURVEY_HALF_M;
+export const inlineAtA = (a) => A.il + Math.round((a + A.half_m) / SEISMIC.bin_m);
+export const xlineAtB = (b) => A.xl + Math.round((b + A.half_m) / SEISMIC.bin_m);
+export const aOfInline = (il) => (il - A.il) * SEISMIC.bin_m - A.half_m;
+export const bOfXline = (xl) => (xl - A.xl) * SEISMIC.bin_m - A.half_m;
+/** The full survey's extent in the field frame (a along strike, b down dip). */
+export const SURVEY = {
+  aMin: aOfInline(SEISMIC.full.il0), aMax: aOfInline(SEISMIC.full.il0 + SEISMIC.full.nInline - 1),
+  bMin: bOfXline(SEISMIC.full.xl0), bMax: bOfXline(SEISMIC.full.xl0 + SEISMIC.full.nXline - 1),
+};
+export const inSurvey = (a, b, margin = 0) => a >= SURVEY.aMin + margin && a <= SURVEY.aMax - margin && b >= SURVEY.bMin + margin && b <= SURVEY.bMax - margin;
 
 /**
  * Walk down dip along one line of constant a and find where a horizon is
@@ -23,7 +29,7 @@ export const aOfInline = (il) => (il - SEISMIC.full.il0) * SEISMIC.bin_m - SURVE
 export function cutoffsOnLine(geo, key, a, { step = 2 } = {}) {
   const { toXY } = geo.frame;
   let fw = null; let hw = null; let inGap = false;
-  for (let b = -SURVEY_HALF_M - 600; b <= SURVEY_HALF_M; b += step) {
+  for (let b = SURVEY.bMin; b <= SURVEY.bMax; b += step) {
     const { x, y } = toXY(a, b);
     const z = geo.horizonDepthAt(key, x, y);
     const isHw = z !== null && geo.blockAt(x, y, z + 1e-6).hw;
@@ -46,8 +52,8 @@ export function mainFaultDipAt(geo, z) {
 
 /** The Ekene Sand truth grid over the survey (elevation, TVDSS negative) and its closure. */
 export function ekeneClosure(geo, { cell = 12.5 } = {}) {
-  const x0 = -500; const y0 = -100;
-  const nx = Math.round(4200 / cell) + 1; const ny = Math.round(4000 / cell) + 1;
+  const x0 = -1500; const y0 = -400;
+  const nx = Math.round(5200 / cell) + 1; const ny = Math.round(4700 / cell) + 1;
   const spec = { nx, ny, dx: cell, dy: cell, x0, y0 };
   const z = new Float64Array(nx * ny);
   let seed = -1; let best = -Infinity;
@@ -56,7 +62,7 @@ export function ekeneClosure(geo, { cell = 12.5 } = {}) {
       const x = x0 + c * cell; const y = y0 + r * cell; const i = r * nx + c;
       z[i] = 1e30;
       const { a, b } = geo.frame.toAB(x, y);
-      if (Math.abs(a) > SURVEY_HALF_M || Math.abs(b) > SURVEY_HALF_M) continue;
+      if (!inSurvey(a, b)) continue;
       const d = geo.horizonDepthAt('TOP_SAND', x, y);
       if (d === null) continue;
       z[i] = -(d - FRAME.kb_m);
