@@ -4793,6 +4793,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
             loadGridById={loadGridById}
             applyCalibratedModel={applyCalibratedModel}
             layerTimesMs={layerTimesMs}
+            depthUnit={depthUnit}
             publishBoundaries={volume?.local ? null : publishVelocityBoundaries}
             boundariesBusy={boundariesBusy}
           />
