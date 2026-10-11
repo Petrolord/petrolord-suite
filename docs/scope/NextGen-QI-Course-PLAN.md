@@ -1,9 +1,16 @@
-# NextGen Academy: the Quantitative Interpretation course (plan of record, draft)
+# NextGen Academy: the Quantitative Interpretation course (plan of record)
 
-Plan for one new NextGen Academy course on QI Studio, approved in principle
-by the owner on 2026-10-11. This is the first pass: scope, gate, outline,
-waves and the decisions the owner takes before any content is written.
-Nothing in it has been built.
+Plan for one new NextGen Academy course on QI Studio. **APPROVED by the owner
+on 2026-10-11, with every decision as recommended** (D1 `welldata` only; D2
+teach on Ekene v3, capstones graded on held-out synthetic cases; D3 build the
+`{{video}}` block and registry now, private host chosen later with Bunny
+recommended, A1 to A3 from YouTube at launch; D4 the engines move goes ahead;
+D5 `qi`, Quantitative Interpretation, Geoscience, path_order 80). One change
+from section 6 at approval: a members-only video with no host configured shows
+a "coming soon" placeholder in the lesson instead of rendering nothing.
+Migrations carry real creation-date timestamps in place of the `20261119`
+placeholder below. Merge-on-green is authorised for the build; migrations are
+written and applied by the owner.
 
 Written 2026-10-11. Authority once approved: this document, for the QI
 course only. Standing rules come from NextGen-Academy-PLAN.md (doctrine),
@@ -381,7 +388,7 @@ gate is open except G6.
 - **Held go-lives stack up** behind the next NextGen production upload, as
   in every wave so far.
 
-### Decisions for the owner
+### Decisions for the owner (all approved as recommended, 2026-10-11)
 
 | # | decision | recommendation |
 |---|---|---|
