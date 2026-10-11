@@ -359,6 +359,9 @@ const MasterAppsViewer = lazy(() => import('@/pages/admin/MasterAppsViewer'));
 const PromoCodes = lazy(() => import('@/pages/admin/PromoCodes'));
 const EventLeads = lazy(() => import('@/pages/admin/EventLeads'));
 const NapeLeads = lazy(() => import('@/pages/events/NapeLeads'));
+const NapeQuiz = lazy(() => import('@/pages/events/NapeQuiz'));
+const NapeQuizTv = lazy(() => import('@/pages/events/NapeQuizTv'));
+const NapeQuizHost = lazy(() => import('@/pages/events/NapeQuizHost'));
 
 // Loading fallback: the themed loader in the theme the page will open in
 // (src/design/coldLoad.jsx); light where no scope follows (the homepage).
@@ -467,6 +470,13 @@ function App() {
                                 </SuperAdminRoute>
                               } />
                               <Route path="/nape" element={<NapeLeads />} />
+                              <Route path="/nape/quiz" element={<NapeQuiz />} />
+                              <Route path="/nape/quiz/tv" element={<NapeQuizTv />} />
+                              <Route path="/nape/quiz/host" element={
+                                <ProtectedRoute>
+                                  <NapeQuizHost />
+                                </ProtectedRoute>
+                              } />
                               
                               {/* Old promo share links (/get-quote?promo=CODE) land on the working quote flow. */}
                               <Route path="/get-quote" element={<GetQuoteRedirect />} />

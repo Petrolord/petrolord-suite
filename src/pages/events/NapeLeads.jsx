@@ -6,6 +6,7 @@ import { PublicPage, PublicBrandBar } from '@/components/public/PublicPage';
 import {
   EVENT, INTERESTS, CONSENT_TEXT, QUIZ_URL, validateLead, toRow, whatsappUrl, saveLead, flushQueue,
 } from '@/lib/eventLeads';
+import { QUIZ_TITLE } from '@/lib/eventQuiz';
 
 // NAPE booth lead form (2026-10): a visitor scans the booth QR code, leaves
 // a few details, and is handed over to the Petrolord WhatsApp Business line
@@ -84,7 +85,7 @@ export default function NapeLeads() {
             </a>
             {QUIZ_URL && (
               <a href={QUIZ_URL} className="flex w-full items-center justify-center rounded-lg border border-pl-border px-4 py-3 text-base font-medium text-pl-text" data-testid="nape-quiz">
-                Join the quiz
+                {`Play the ${QUIZ_TITLE}`}
               </a>
             )}
             {source === 'tablet' && (
