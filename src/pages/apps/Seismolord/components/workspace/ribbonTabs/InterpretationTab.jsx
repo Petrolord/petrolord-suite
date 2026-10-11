@@ -155,7 +155,7 @@ export default function InterpretationTab({
           </>
         )}
         {seedPick && !tracking && (
-          <span className="text-[10px] text-pl-muted max-w-[110px] leading-tight" data-testid="sl-seed-readout">
+          <span className="row-span-2 self-center text-[10px] text-pl-muted max-w-[110px] leading-tight" data-testid="sl-seed-readout">
             {describeSeed(seedPick, manifest?.geometry)}
           </span>
         )}
@@ -406,7 +406,7 @@ export default function InterpretationTab({
             disabled={noSection}
             title="Click the section to place a termination marker; Alt+click removes the nearest one. Markers save with the session."
           />
-          <span className="text-[11px] text-pl-muted self-center" data-testid="sl-term-count">{terminations.length}</span>
+          <span className="text-[11px] leading-none text-pl-muted self-center" data-testid="sl-term-count">{terminations.length}</span>
           {terminations.length > 0 && clearTerminations && (
             <RibbonButton icon={Ban} label="Clear" onClick={clearTerminations} title="Remove every termination marker" />
           )}

@@ -4,6 +4,7 @@
 // corridor of 1.5 bins.
 
 import React, { useEffect, useState } from 'react';
+import { RIBBON_FIELD } from './Ribbon';
 
 /**
  * @param {Object} p
@@ -17,10 +18,10 @@ export default function WellProjectionInput({ distanceM, onChange, disabled = fa
   const commit = () => onChange(text.trim());
   return (
     <label
-      className="flex flex-col gap-0.5 text-[10px] text-pl-muted"
+      className="inline-flex items-center gap-1 text-[10px] leading-none text-pl-muted whitespace-nowrap"
       title="Wells and their tops draw on a section where the path passes within this distance of it. Leave empty for the default of 1.5 bins."
     >
-      Well projection distance (m)
+      <span>Well projection distance (m)</span>
       <input
         type="number"
         min="0"
@@ -32,7 +33,7 @@ export default function WellProjectionInput({ distanceM, onChange, disabled = fa
         onChange={(e) => setText(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') { commit(); e.currentTarget.blur(); } }}
-        className="rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs w-24 disabled:opacity-40"
+        className={`${RIBBON_FIELD} w-24`}
       />
     </label>
   );

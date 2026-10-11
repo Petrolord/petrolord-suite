@@ -5,7 +5,7 @@
 import React from 'react';
 import { Undo2, Redo2, BookMarked } from 'lucide-react';
 import {
-  RibbonGroup, RibbonButton, RibbonSelect, RibbonSlider,
+  RibbonGroup, RibbonButton, RibbonSelect, RibbonSlider, RibbonToggle, RibbonField, RIBBON_FIELD,
 } from '../Ribbon';
 import { SEISMIC_COLORMAPS } from '../../../viewer/SliceRenderer';
 import SlicePlayerControls from '../SlicePlayerControls';
@@ -63,7 +63,7 @@ export default function HomeTab({
           label="Active volume"
           value={volume?.id || ''}
           onChange={(e) => selectVolume(e.target.value)}
-          className="w-48"
+          className="w-40"
         >
           <option value="">Select a volume…</option>
           {volumes.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
@@ -136,58 +136,48 @@ export default function HomeTab({
           <option value="m">m</option>
           <option value="ft">ft</option>
         </RibbonSelect>
-        {unitNote}
+        {unitNote && <div className="row-span-3 flex items-center leading-tight">{unitNote}</div>}
       </RibbonGroup>
 
       <RibbonGroup label="Display">
-        <div className="flex flex-col gap-0.5">
-          <RibbonSelect
-            label="Colormap"
-            value={colormap}
-            onChange={(e) => setColormap(e.target.value)}
-            disabled={!manifest}
-          >
-            {SEISMIC_COLORMAPS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-          </RibbonSelect>
-          <button
-            type="button"
-            className={`px-2 py-0.5 text-xs rounded border disabled:opacity-40 ${reverseCmap
-              ? 'border-pl-primary text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
-            onClick={() => setReverseCmap((r) => !r)}
-            disabled={!manifest}
-            title="Reverse the colormap end for end"
-          >
-            Reverse colors
-          </button>
-        </div>
+        <RibbonSelect
+          label="Colormap"
+          value={colormap}
+          onChange={(e) => setColormap(e.target.value)}
+          disabled={!manifest}
+        >
+          {SEISMIC_COLORMAPS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+        </RibbonSelect>
+        <RibbonToggle
+          on={reverseCmap}
+          onClick={() => setReverseCmap((r) => !r)}
+          disabled={!manifest}
+          title="Reverse the colormap end for end"
+        >
+          Reverse colors
+        </RibbonToggle>
         <RibbonSlider
           label={`Gain ×${gain.toFixed(1)}`}
           min={0.1} max={10} step={0.1}
           value={gain}
           onChange={(e) => setGain(Number(e.target.value))}
           disabled={!manifest}
-          className="w-28"
+          className="w-36"
         />
-        <div className="flex flex-col gap-1">
-          <button
-            type="button"
-            className={`px-2 py-0.5 text-xs rounded border disabled:opacity-40 ${polarity === 1
-              ? 'border-pl-primary text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
-            onClick={() => setPolarity((p) => -p)}
-            disabled={!manifest}
-          >
-            {polarity === 1 ? 'SEG normal' : 'Reversed'}
-          </button>
-          <button
-            type="button"
-            className={`px-2 py-0.5 text-xs rounded border disabled:opacity-40 ${traceBalance
-              ? 'border-pl-primary text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
-            onClick={() => setTraceBalance((t) => !t)}
-            disabled={!manifest}
-          >
-            Trace balance
-          </button>
-        </div>
+        <RibbonToggle
+          on={polarity === 1}
+          onClick={() => setPolarity((p) => -p)}
+          disabled={!manifest}
+        >
+          {polarity === 1 ? 'SEG normal' : 'Reversed'}
+        </RibbonToggle>
+        <RibbonToggle
+          on={traceBalance}
+          onClick={() => setTraceBalance((t) => !t)}
+          disabled={!manifest}
+        >
+          Trace balance
+        </RibbonToggle>
       </RibbonGroup>
 
       <RibbonGroup label="Scaling">
@@ -209,7 +199,7 @@ export default function HomeTab({
             value={clipRms}
             onChange={(e) => setClipRms(Number(e.target.value))}
             disabled={!manifest}
-            className="w-28"
+            className="w-40"
           />
         )}
         {scaleMode === 'pct' && (
@@ -219,12 +209,11 @@ export default function HomeTab({
             value={clipPct}
             onChange={(e) => setClipPct(Number(e.target.value))}
             disabled={!manifest}
-            className="w-28"
+            className="w-40"
           />
         )}
         {scaleMode === 'manual' && (
-          <label className="flex flex-col gap-0.5 text-[10px] text-pl-muted">
-            Clip amplitude
+          <RibbonField label="Clip amplitude">
             <input
               type="number"
               min="0"
@@ -233,22 +222,20 @@ export default function HomeTab({
               placeholder="absolute"
               onChange={(e) => setManualClip(Number(e.target.value) || 0)}
               disabled={!manifest}
-              className="rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs w-24 disabled:opacity-40"
+              className={`${RIBBON_FIELD} w-24`}
             />
-          </label>
+          </RibbonField>
         )}
-        <div className="flex flex-col gap-0.5">
-          <button
-            type="button"
-            className={`px-2 py-0.5 text-xs rounded border disabled:opacity-40 ${agcOn
-              ? 'border-pl-primary text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
+        <span className="flex items-center gap-1">
+          <RibbonToggle
+            on={agcOn}
             onClick={() => setAgcOn((a) => !a)}
             disabled={!manifest || isTimeSlice}
             title={isTimeSlice ? 'AGC applies to sections and traverses'
               : 'Windowed automatic gain control (display only)'}
           >
             AGC
-          </button>
+          </RibbonToggle>
           <RibbonSelect
             label="Window"
             value={String(agcWindowMs)}
@@ -259,7 +246,7 @@ export default function HomeTab({
               <option key={ms} value={String(ms)}>{`${ms} ms`}</option>
             ))}
           </RibbonSelect>
-        </div>
+        </span>
         <RibbonSelect
           label="Trace style"
           value={wiggleMode}
@@ -267,6 +254,7 @@ export default function HomeTab({
           disabled={!manifest || isTimeSlice}
           title={isTimeSlice ? 'Wiggle display applies to sections and traverses'
             : 'Density image, wiggle overlay, or wiggle only'}
+          className="w-28"
         >
           <option value="off">Density</option>
           <option value="overlay">Wiggle + VA over density</option>
@@ -283,7 +271,7 @@ export default function HomeTab({
           title={overlayCandidates?.length
             ? 'Blend a second volume on the same lattice over the section (attributes of this volume list first)'
             : 'Compute an attribute volume of this volume to co-render it'}
-          className="w-40"
+          className="w-32"
         >
           <option value="">None</option>
           {(overlayCandidates || []).map((v) => (
@@ -313,7 +301,7 @@ export default function HomeTab({
               min={0.05} max={1} step={0.05}
               value={overlayOpacity}
               onChange={(e) => setOverlayOpacity(Number(e.target.value))}
-              className="w-24"
+              className="w-36"
             />
           </>
         )}
