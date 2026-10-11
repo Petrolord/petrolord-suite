@@ -1028,3 +1028,11 @@ re-cut sales demo). Overlay labels are now placed with the ones already drawn
 in view: a spot that would overlap slides the label down its own line.
 Test: crossplotLabels.test.js (negative control: without the placed rects the
 two labels overlap).
+
+## 2026-10-11: Project Data Inventory (Inventory view)
+
+The owner asked for an auto-populated, presentation-ready project data inventory in both QI Studio and Petrophysics Studio.
+- **Placement:** a new **Inventory** view button after Field in the ribbon (`petro-view-inventory`). Tracks stays the default view. At 1366, 1440 and 1920 the ribbon controls keep their positions (measured with and without the button), so the recorded Petrophysics demos and lessons are untouched.
+- **What it shows:** every registry well against 26 data columns, with coverage of the interval of interest (the logged interval, or a chosen zone) read from the curve samples. Hole condition comes from caliper against bit size and from DRHO. It also shows the seismic and interpretation registries, rule-based notes (impact, workaround, uncertainty, mitigation), readiness for seven workflows and items held outside Petrolord. Presentation view, PNG, PDF and CSV.
+- **Saving:** hand-set states, remarks, items outside Petrolord and note comments are saved with the interpretation as `facies._dataInventory`, the `_rules`/`_scenarios` sibling pattern, so no migration. It is excluded from the per-well facies on open.
+- **Code:** shared core `src/lib/projectInventory` (pure, 57 jest tests), board `src/components/projectInventory`. Tests: `__tests__/dataInventoryView.test.jsx` and `e2e/project-data-inventory.spec.js`.

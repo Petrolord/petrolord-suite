@@ -48,6 +48,22 @@ export function makeInMemoryBackend() {
       return { well: w.well, logs: w.logs, zones: zones(w.well.id), tops: [] };
     },
     async listVolumes() { return [{ id: 'qi-v1', name: 'Keta 3D full stack', kind: 'seismic', status: 'ready' }]; },
+    // the Project Data Inventory's seismic read: the full stack with its
+    // survey metadata (16 x 32 bins of 25 m, 4 ms, 2.4 s, 16-bit integer so
+    // the bit-depth note shows), its horizons and the mapped surfaces
+    async inventorySeismic() {
+      const meta = {
+        il: { min: 100, max: 115, step: 1, count: 16 }, xl: { min: 200, max: 231, step: 1, count: 32 }, ns: 601, dt_us: 4000, sample_format: 3,
+        affine: { origin: { x: 0, y: 0 }, il_vec: { x: 0, y: 25 }, xl_vec: { x: 25, y: 0 } }, storage_bytes: 1232896,
+      };
+      return {
+        volumes: [{ id: 'qi-v1', name: 'Keta 3D full stack', kind: 'seismic', status: 'ready', crs: 'EPSG:32630', survey_meta: meta }],
+        datasets: [],
+        horizons: [{ id: 'qi-h1', name: 'Top Sand A', domain: 'twt_ms' }, { id: 'qi-h2', name: 'Base Sand B', domain: 'twt_ms' }],
+        faults: [],
+        surfaces: [{ id: 'qi-s1', name: 'Top Sand A (depth ft)', kind: 'structure', z_domain: 'depth' }, { id: 'qi-s2', name: 'Top Sand A amplitude', kind: 'attribute', z_domain: 'attribute' }],
+      };
+    },
     async countSurfaces() { return 2; },
     // the inversion inputs: a 16 x 32 survey at 4 ms on a 25 m grid, two horizons, synthetic curves
     async loadVolumeFrame() { return { dtMs: 4, nIl: 16, nXl: 32, ns: 600, affine: { origin: { x: 0, y: 0 }, ilVec: { x: 0, y: 25 }, xlVec: { x: 25, y: 0 } } }; },
