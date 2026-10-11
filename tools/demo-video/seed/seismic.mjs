@@ -6,7 +6,7 @@
 //
 // The server upload goes to storage.petrolord.com, whose CORS allows the real
 // sites only, so run this against https://petrolord.com (it is not filmed):
-//   node tools/demo-video/seed/seismic.mjs --base-url https://petrolord.com [--volumes full,near] [--headed]
+//   node tools/demo-video/seed/seismic.mjs --base-url https://petrolord.com [--kit v3|v4] [--volumes full,near] [--headed]
 // --volumes gathers uploads the NMO-corrected gathers the same way: QI
 // Studio's Prestack tab builds its gather store from that upload. The tab is
 // held open for --hold minutes (default 8) while the 109 MB upload runs.
@@ -17,9 +17,12 @@ import { loadEnv } from '../lib/env.mjs';
 import { login } from '../lib/session.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const KIT = process.env.EKENE_KIT || path.resolve(HERE, '../../../dist-demo/ekene-demo-v3');
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] : d; };
+// --kit v4: the kit v4 volumes, named EKENE3D-v4-*.sgy so they sit beside v3's
+const kitVersion = opt('kit', 'v3');
+const KIT = process.env.EKENE_KIT || path.resolve(HERE, `../../../dist-demo/ekene-demo-${kitVersion}`);
+const PREFIX = kitVersion === 'v3' ? 'EKENE3D' : `EKENE3D-${kitVersion}`;
 const baseUrl = opt('base-url', 'https://petrolord.com');
 const volumes = opt('volumes', 'full,near,mid,far').split(',');
 const env = loadEnv();
@@ -40,7 +43,7 @@ try {
   await page.waitForTimeout(5000);
   if (await t('sl-tour-skip').count()) await t('sl-tour-skip').click();
   for (const v of volumes) {
-    const name = v === 'gathers' ? 'EKENE3D-gathers-nmo' : `EKENE3D-${v}`;
+    const name = v === 'gathers' ? `${PREFIX}-gathers-nmo` : `${PREFIX}-${v}`;
     const file = v === 'gathers' ? `04-seismic/gathers/${name}.sgy` : `04-seismic/${name}.sgy`;
     if (v !== 'gathers' && await ready(name)) { console.log(`${name}: already imported`); continue; }
     if (!(await t('sl-start-go-import').isVisible())) await t('sl-start-toggle').click();

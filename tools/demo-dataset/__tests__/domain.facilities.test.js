@@ -57,7 +57,7 @@ jest.mock('@/lib/customSupabaseClient', () => ({
 }));
 
 const REPO = path.join(__dirname, '..', '..', '..');
-const KIT = path.join(REPO, 'dist-demo', 'ekene-demo-v3');
+const KIT = path.join(REPO, 'dist-demo', 'ekene-demo-v4');
 const read = (rel) => {
   const p = path.join(KIT, rel);
   if (!fs.existsSync(p)) {
