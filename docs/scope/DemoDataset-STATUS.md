@@ -269,3 +269,50 @@ R2 > 0.5), shuffled permeability carries none, plug depths land on the grid.
 Every earlier kit file regenerates byte-identical. Ekene-1 (59 plugs): Core
 dialog fit log10 k = 0.455 + 9.72 phi, R2 0.818. Truth permeability over the
 Ekene Sand pay: 213.9 mD geometric mean.
+
+
+## 2026-10-11: kit v4, a Niger Delta growth fault
+
+Owner review of the Seismolord demo videos: v3's growth fault was a vertical
+step that appeared only low in the section, and the Ekene Sand structure rose
+off the survey edge, which broke the volumetrics demo. Kit v4 (`KIT.version
+'v4'`, `structure.mjs`, `structureTruth.mjs`):
+
+- **Main fault (Ekene Growth Fault)**: listric, basinward-dipping (ESE),
+  arcuate and concave to the basin. 78 deg near its tip at 105 m (about
+  100 ms), 71 deg at the Ekene Sand, 52 deg at 2000 m, 26 deg at 2400 m,
+  soling into an Akata detachment at 2750 m (about 2.44 s). Hanging wall by
+  vertical shear plus syn-depositional thickening: an asymmetric rollover,
+  reverse drag into the fault, growth wedges. Throw at the survey centre grows
+  with age: Benin 15, Agbada 44, Ogbia 68, Ekene 92, Oboro 175, Akata 220 m.
+- **Secondary faults**: Ekene East, a buried synthetic growth fault (tip
+  1590 m, Oboro 38 m, Akata 72 m: the east-side deep throw the wells always
+  carried); crestal keystone grabens NE of Ekene-3 and SW of Ekene-1 that die
+  out above the Ogbia, so the Ekene tank stays unbroken.
+- **Trap**: the Ekene Sand closes four-way inside the survey: crest 1511.8 m
+  TVDSS, spill 1559.1 m TVDSS (24 m below the 1535 m contact), 3.35 km2 and
+  GRV 39.7 million m3 above the contact (Mapping engine spill analysis, 12.5 m
+  grid). That is larger than the locked six-well map, which only sees the
+  drilled part.
+- **Wells**: unchanged. `makeWellControl()` is the v3 model and builds every
+  survey and top; the v4 structure is fitted to the picks (exact residual,
+  plus floors under each TD). `01-wells` is byte-identical to the v3 release,
+  gated by SHA-256. No well path crosses a fault (Ekene-1 is the closest, 146 m
+  above the main fault).
+- **Seismic**: 3500 ms record (876 samples at 4 ms); the survey reaches 40
+  crosslines landward (1960-2127, 128 x 168) on the v3 lattice; small volume
+  inlines 1038-1069, crosslines 1992-2055. Volumes are named
+  `EKENE3D-v4-*.sgy` so they load beside v3's. Fault blocks per column,
+  tapered cut-offs with a damage zone, laterally smoothed timing, lateral
+  amplitude, net-to-gross and thin-lens variation, a weak patchy detachment
+  over chaotic mobile shale, band-limited noise at 15 dB. All lateral
+  variation fades to zero within about 50 m of each logged well. Ties
+  (checkshot-timed, 900-1800 ms, noise-free): Ekene-1 0.960 (v3 0.960),
+  others within 0.01 of v3.
+- **Truth files**: `04-seismic/truth/ekene-structure-truth.json`,
+  `ekene-fault-sticks.csv`, `02-surfaces/EkeneSand-top-truth*.zmap`,
+  `03-culture/ekene-east-fault.geojson`,
+  `ekene-fault-polygons-ekene-sand.geojson`.
+- Gates: 226 pass (`structure.test.js` new). The v3 release stays untouched
+  (the QI videos link to it). The v4 release is not cut yet; the three
+  Seismolord demos are re-recorded on it.

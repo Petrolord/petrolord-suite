@@ -311,6 +311,23 @@ export class SliceRenderer {
   }
 
   /**
+   * Drop the slice: the panel draws nothing until the next setSlice. A
+   * volume switch empties the slice while the new manifest loads; the old
+   * texture redrawn under the new volume's display scale showed as a
+   * saturated flash of the previous section.
+   */
+  clear() {
+    this.lastSlice = null;
+    this.lastSliceB = null;
+    this.agcMap = null;
+    if (this.contextLost) return;
+    const { gl } = this;
+    gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+
+  /**
    * W1.1 windowed AGC: upload the gain map (engine agcGainMap, SAME dims
    * and layout as the current slice) or pass null to turn AGC off. The
    * shader multiplies it per texel; referenceRender mirrors it, so the
@@ -415,7 +432,7 @@ export class SliceRenderer {
   }
 
   render() {
-    if (this.contextLost) return;
+    if (this.contextLost || !this.lastSlice) return;
     const { gl } = this;
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.drawArrays(gl.TRIANGLES, 0, 3);

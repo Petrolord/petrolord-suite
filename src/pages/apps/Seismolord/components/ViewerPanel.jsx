@@ -2326,7 +2326,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
         vol: volume,
         dtUs: manifest.geometry.dt_us,
       });
-      toast({ title: 'Rejected and repicked', description: `${h.name}: ${f.rejected.length} picks below ${confThreshold.toFixed(2)} rejected, ${back} repicked at or above it, ${f.rejected.length - back} left empty; ${row.stats.tracked} traces.` });
+      toast({ title: 'Rejected and repicked', description: `${h.name}: ${f.rejected.length} picks below ${confThreshold.toFixed(2)} rejected, ${back} repicked at or above it, ${f.rejected.length - back} left empty; ${Number(row.stats.tracked).toLocaleString('en-US')} traces.` });
     } catch (e) {
       if (!/cancelled/i.test(e.message)) {
         toast({ title: 'Confidence filter failed', description: e.message, variant: 'destructive' });
@@ -2639,7 +2639,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
       pushNewHorizonUndo({
         label: `track horizon "${name}"`, row, picks, vol: volume, dtUs, save, confidence,
       });
-      toast({ title: 'Horizon tracked', description: `${name}: ${row.stats.tracked} traces.` });
+      toast({ title: 'Horizon tracked', description: `${name}: ${Number(row.stats.tracked).toLocaleString('en-US')} traces.` });
     } catch (e) {
       if (!/cancelled/i.test(e.message)) {
         toast({ title: 'Tracking failed', description: e.message, variant: 'destructive' });
@@ -2690,7 +2690,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
         vol: volume,
         dtUs: manifest.geometry.dt_us,
       });
-      toast({ title: 'Horizon grown', description: `${h.name}: ${row.stats.tracked} traces.` });
+      toast({ title: 'Horizon grown', description: `${h.name}: ${Number(row.stats.tracked).toLocaleString('en-US')} traces.` });
     } catch (e) {
       if (!/cancelled/i.test(e.message)) {
         toast({ title: 'Growing failed', description: e.message, variant: 'destructive' });
@@ -3858,7 +3858,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
   const ribbon = (
     <Ribbon
       corner={(
-        <span className="flex items-center gap-2 mr-3 pb-0.5">
+        <span className="self-center flex items-center gap-2 mr-3">
           <ModuleHomeLink module="geoscience" testId="sl-home" />
           <span className="text-sm font-bold text-pl-text">Seismolord</span>
         </span>
@@ -3870,7 +3870,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
           data-testid="sl-help"
           data-tour="help"
           title="Open the Seismolord help guide"
-          className="flex items-center gap-1 px-1.5 py-1 text-xs rounded text-pl-muted hover:text-pl-text hover:bg-pl-sunken"
+          className="flex items-center gap-1 px-1.5 py-0.5 text-xs rounded text-pl-muted hover:text-pl-text hover:bg-pl-sunken"
         >
           <HelpIcon className="w-4 h-4" /> Help
         </RouterLink>
@@ -3880,7 +3880,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
           data-testid="sl-start-toggle"
           data-tour="start-here"
           onClick={() => openDockPanel('start')}
-          className={`flex items-center gap-1 px-1.5 py-1 text-xs rounded ${dockOpen && dockPanel === 'start'
+          className={`flex items-center gap-1 px-1.5 py-0.5 text-xs rounded ${dockOpen && dockPanel === 'start'
             ? 'text-pl-primary-text bg-pl-primary/10' : 'text-pl-muted hover:text-pl-text'}`}
         >
           <Compass className="w-4 h-4" /> Start here
@@ -3891,7 +3891,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
           data-testid="sl-toolbox-toggle"
           data-tour="toolbox"
           onClick={() => openDockPanel('toolbox')}
-          className={`p-1 rounded ${dockOpen && dockPanel === 'toolbox'
+          className={`p-0.5 rounded ${dockOpen && dockPanel === 'toolbox'
             ? 'text-pl-primary-text bg-pl-primary/10' : 'text-pl-muted hover:text-pl-text'}`}
         >
           <Wrench className="w-4 h-4" />
@@ -3900,7 +3900,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
           type="button"
           title="Toggle the interpretation copilot dock"
           onClick={() => openDockPanel('copilot')}
-          className={`p-1 rounded ${dockOpen && dockPanel === 'copilot'
+          className={`p-0.5 rounded ${dockOpen && dockPanel === 'copilot'
             ? 'text-pl-primary-text bg-pl-primary/10' : 'text-pl-muted hover:text-pl-text'}`}
         >
           <Bot className="w-4 h-4" />
@@ -3910,12 +3910,12 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
           title="Server jobs: imports and other work the Petrolord server does for you"
           data-testid="sl-jobs-toggle"
           onClick={() => openDockPanel('jobs')}
-          className={`p-1 rounded ${dockOpen && dockPanel === 'jobs'
+          className={`p-0.5 rounded ${dockOpen && dockPanel === 'jobs'
             ? 'text-pl-primary-text bg-pl-primary/10' : 'text-pl-muted hover:text-pl-text'}`}
         >
           <Server className="w-4 h-4" />
         </button>
-        <ThemeToggle className="h-7 w-7 ml-1" />
+        <ThemeToggle className="h-5 w-5 ml-1" />
         </>
       )}
       tabs={[
@@ -3936,7 +3936,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
               flattenInfo={flatten}
               depthUnit={depthUnit}
               setDepthUnit={setDepthUnit}
-              unitNote={<UnitProfileNote u={unitsHook} className="max-w-[16rem]" />}
+              unitNote={<UnitProfileNote u={unitsHook} className="max-w-[12rem] text-[10px] leading-tight" />}
               depthReady={Boolean(depthConv)}
               orientation={orientation}
               setOrientation={setOrientation}
@@ -4793,6 +4793,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
             loadGridById={loadGridById}
             applyCalibratedModel={applyCalibratedModel}
             layerTimesMs={layerTimesMs}
+            depthUnit={depthUnit}
             publishBoundaries={volume?.local ? null : publishVelocityBoundaries}
             boundariesBusy={boundariesBusy}
           />

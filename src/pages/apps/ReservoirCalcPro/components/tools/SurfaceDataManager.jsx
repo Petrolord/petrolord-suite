@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Layers, Trash2, UploadCloud, Check } from 'lucide-react';
 import SurfaceImportDialog from './SurfaceImportDialog';
+import { surfaceZRange } from '../../services/depthDisplay';
 import { useToast } from '@/components/ui/use-toast';
 
 const SurfaceDataManager = ({ preselectSurfaceId = null }) => {
@@ -99,8 +100,16 @@ const SurfaceDataManager = ({ preselectSurfaceId = null }) => {
 
                                 <div className="grid grid-cols-2 gap-2 mt-3">
                                     <div className="text-[10px] text-pl-muted">
-                                        <div>Min Z: <span className="text-pl-text">{surface.minZ?.toFixed(1) || '-'}{surface.depthUnit ? ` ${surface.depthUnit}` : ''}</span></div>
-                                        <div>Max Z: <span className="text-pl-text">{surface.maxZ?.toFixed(1) || '-'}{surface.depthUnit ? ` ${surface.depthUnit}` : ''}</span></div>
+                                        {(() => {
+                                            const zr = surfaceZRange(surface, state.unitSystem);
+                                            const fmtZ = (v) => (v == null ? '-' : `${v.toFixed(1)} ${zr.unit}`);
+                                            return (
+                                                <>
+                                                    <div>Min Z: <span className="text-pl-text" data-testid={`rcp-surface-minz-${surface.name}`}>{fmtZ(zr.min)}</span></div>
+                                                    <div>Max Z: <span className="text-pl-text" data-testid={`rcp-surface-maxz-${surface.name}`}>{fmtZ(zr.max)}</span></div>
+                                                </>
+                                            );
+                                        })()}
                                     </div>
                                     <div className="flex justify-end items-end gap-1">
                                          <Button 

@@ -1,0 +1,2810 @@
+[
+ {
+  "id": "D1-001",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Geoscience",
+  "prompt": "Seismic energy reflects at a boundary where which property changes?",
+  "options": [
+   "Bed thickness",
+   "Rock colour",
+   "Acoustic impedance",
+   "Rock age"
+  ],
+  "answer_index": 2,
+  "explanation": "A reflection needs a contrast in acoustic impedance, the product of velocity and density.",
+  "source": "nextgen",
+  "origin": "nextgen:seismolord/beginner/m04-reflection-coefficients/1"
+ },
+ {
+  "id": "D1-002",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Geoscience",
+  "prompt": "On a seismic section, the vertical axis is usually what?",
+  "options": [
+   "One-way travel time",
+   "Two-way travel time",
+   "Distance along the line",
+   "Measured depth"
+  ],
+  "answer_index": 1,
+  "explanation": "Seismic is recorded in two-way time: down to the reflector and back up.",
+  "source": "nextgen",
+  "origin": "nextgen:seismolord/beginner/m01-seismic-and-the-well-tie/1"
+ },
+ {
+  "id": "D1-003",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Geoscience",
+  "prompt": "Going down a well, which log response most often marks the top of a clean sand?",
+  "options": [
+   "A jump in the caliper",
+   "A sharp drop in gamma ray",
+   "A sharp rise in gamma ray",
+   "A flat resistivity curve"
+  ],
+  "answer_index": 1,
+  "explanation": "Clean sands carry little radioactive clay, so the gamma ray drops on entering them.",
+  "source": "nextgen",
+  "origin": "nextgen:wellcorrelation/beginner/m02-formation-tops/5"
+ },
+ {
+  "id": "D1-004",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Geoscience",
+  "prompt": "Which three things must a petroleum trap have?",
+  "options": [
+   "Fault, fold and salt",
+   "Porosity, water and gas",
+   "Source, well and pipeline",
+   "Reservoir, seal and a trapping shape"
+  ],
+  "answer_index": 3,
+  "explanation": "A trap is a reservoir rock under a seal, in a geometry that stops hydrocarbons escaping.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-005",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Geoscience",
+  "prompt": "Where was oil first found in commercial quantity in Nigeria, in 1956?",
+  "options": [
+   "Escravos",
+   "Oloibiri",
+   "Forcados",
+   "Bonny"
+  ],
+  "answer_index": 1,
+  "explanation": "Shell-BP found oil at Oloibiri, in present-day Bayelsa State, in 1956.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-006",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Geoscience",
+  "prompt": "What does a caliper log measure?",
+  "options": [
+   "Formation resistivity",
+   "Natural radioactivity",
+   "The borehole diameter",
+   "Rock density"
+  ],
+  "answer_index": 2,
+  "explanation": "The caliper measures hole size, which shows washouts and mudcake.",
+  "source": "nextgen",
+  "origin": "nextgen:petrophysics/beginner/m01-logs-and-the-typewell/8"
+ },
+ {
+  "id": "D1-007",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Economics",
+  "prompt": "In exploration, what is a dry hole?",
+  "options": [
+   "A well with no casing",
+   "A well drilled without mud",
+   "A well that finds no commercial hydrocarbons",
+   "A well that makes only gas"
+  ],
+  "answer_index": 2,
+  "explanation": "A dry hole is a well that does not find hydrocarbons worth producing.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-008",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Geoscience",
+  "prompt": "Which rock is the classic seal above many oil fields?",
+  "options": [
+   "Reef limestone",
+   "Shale",
+   "Clean sandstone",
+   "Conglomerate"
+  ],
+  "answer_index": 1,
+  "explanation": "Fine-grained shale has very low permeability, so it holds hydrocarbons in.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-009",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Geoscience",
+  "prompt": "In the Niger Delta, which formation holds most of the oil and gas reservoirs?",
+  "options": [
+   "Benin Formation",
+   "Agbada Formation",
+   "Akata Formation",
+   "Bima Formation"
+  ],
+  "answer_index": 1,
+  "explanation": "The paralic sands of the Agbada Formation are the main reservoirs; Akata shales lie below and Benin sands above.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-010",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Geoscience",
+  "prompt": "What makes a good marker bed for well correlation?",
+  "options": [
+   "Shallow, flat and unfaulted",
+   "Subtle, local and precisely dated",
+   "Distinctive, widespread and easy to recognise",
+   "Thick, porous and oil bearing"
+  ],
+  "answer_index": 2,
+  "explanation": "A marker has to be picked with confidence in every well, so it must be distinctive and widespread.",
+  "source": "nextgen",
+  "origin": "nextgen:wellcorrelation/beginner/m02-formation-tops/6"
+ },
+ {
+  "id": "D1-011",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Geoscience",
+  "prompt": "Matrix density 2.65 g/cc, fluid 1.0 g/cc, log reading 2.32 g/cc. What is the density porosity?",
+  "options": [
+   "20%",
+   "33%",
+   "25%",
+   "10%"
+  ],
+  "answer_index": 0,
+  "explanation": "(2.65 - 2.32) / (2.65 - 1.0) = 0.33 / 1.65 = 0.20.",
+  "source": "nextgen",
+  "origin": "nextgen:petrophysics/beginner/m03-porosity/4"
+ },
+ {
+  "id": "D1-012",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Geoscience",
+  "prompt": "A reflector is 1500 m deep with an average velocity of 2000 m/s. What is its two-way time?",
+  "options": [
+   "1500 ms",
+   "3000 ms",
+   "0.75 ms",
+   "750 ms"
+  ],
+  "answer_index": 0,
+  "explanation": "Two-way time = 2 x 1500 / 2000 = 1.5 s.",
+  "source": "nextgen",
+  "origin": "nextgen:seismolord/beginner/m03-depth-to-time/4"
+ },
+ {
+  "id": "D1-013",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Drilling",
+  "prompt": "What is a kick?",
+  "options": [
+   "Formation fluid flowing into the well unplanned",
+   "A sudden rise in drilling speed",
+   "A planned bit change",
+   "A stuck drill string"
+  ],
+  "answer_index": 0,
+  "explanation": "A kick happens when formation pressure exceeds the mud pressure and fluid enters the well.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-014",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Economics",
+  "prompt": "How is the chance of geological success for a prospect usually found?",
+  "options": [
+   "Take the lowest element alone",
+   "Multiply the chances of each play element",
+   "Average the elements",
+   "Add the chances of each element"
+  ],
+  "answer_index": 1,
+  "explanation": "Source, reservoir, trap and seal must all work, so their chances multiply.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-015",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Economics",
+  "prompt": "Under SPE-PRMS, oil that is discovered but not yet commercial is classed as what?",
+  "options": [
+   "Proved Reserves",
+   "Contingent Resources",
+   "Unrecoverable volumes",
+   "Prospective Resources"
+  ],
+  "answer_index": 1,
+  "explanation": "Discovered, sub-commercial volumes are Contingent Resources; undiscovered ones are Prospective.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-016",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Geoscience",
+  "prompt": "Gamma ray clean line 20 API, shale line 120 API, reading 70 API. What is the gamma ray index?",
+  "options": [
+   "0.70",
+   "0.58",
+   "0.35",
+   "0.50"
+  ],
+  "answer_index": 3,
+  "explanation": "(70 - 20) / (120 - 20) = 0.50.",
+  "source": "nextgen",
+  "origin": "nextgen:petrophysics/beginner/m02-shale-volume/6"
+ },
+ {
+  "id": "D1-017",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Geoscience",
+  "prompt": "What does a seismic bright spot often indicate?",
+  "options": [
+   "A volcanic dyke",
+   "A dry well",
+   "A salt dome",
+   "Gas in a porous sand"
+  ],
+  "answer_index": 3,
+  "explanation": "Gas lowers a sand's impedance, which can give a strong amplitude. Wet sands and coals can mimic it.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-018",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Assurance",
+  "prompt": "Under the Petroleum Industry Act 2021, which body regulates upstream oil and gas?",
+  "options": [
+   "NNPC Limited",
+   "NUPRC",
+   "NCDMB",
+   "NMDPRA"
+  ],
+  "answer_index": 1,
+  "explanation": "The Nigerian Upstream Petroleum Regulatory Commission regulates the upstream.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-019",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Geoscience",
+  "prompt": "Why do oil and gas migrate upwards through rock?",
+  "options": [
+   "They are less dense than formation water",
+   "They are hotter than the rock",
+   "The drill bit pushes them",
+   "Faults attract them"
+  ],
+  "answer_index": 0,
+  "explanation": "Buoyancy drives migration: hydrocarbons are lighter than the water in the pores.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-020",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Geoscience",
+  "prompt": "Shale of impedance 7000 overlies a tight carbonate of 11000. What is the reflection?",
+  "options": [
+   "+0.44, a hard event",
+   "-0.22, a soft event",
+   "+0.22, a hard event",
+   "+4000, a hard event"
+  ],
+  "answer_index": 2,
+  "explanation": "(11000 - 7000) / (11000 + 7000) = +0.22, an increase in impedance.",
+  "source": "nextgen",
+  "origin": "nextgen:seismolord/beginner/m04-reflection-coefficients/11"
+ },
+ {
+  "id": "D1-021",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Geoscience",
+  "prompt": "Oil generation usually begins at a vitrinite reflectance of about what?",
+  "options": [
+   "4 to 5%",
+   "2.0 to 2.5%",
+   "0.5 to 0.6%",
+   "0.1 to 0.2%"
+  ],
+  "answer_index": 2,
+  "explanation": "The oil window is usually taken to start around 0.5 to 0.6% Ro.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-022",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Geoscience",
+  "prompt": "Archie: porosity 0.20, Rt 20 ohm.m, Rw 0.05, a 1, m 2, n 2. What is Sw?",
+  "options": [
+   "50%",
+   "12.5%",
+   "6%",
+   "25%"
+  ],
+  "answer_index": 3,
+  "explanation": "Sw = sqrt(0.05 / (0.04 x 20)) = sqrt(0.0625) = 0.25.",
+  "source": "nextgen",
+  "origin": "nextgen:petrophysics/beginner/m04-resistivity-and-saturation/9"
+ },
+ {
+  "id": "D1-023",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Economics",
+  "prompt": "A prospect has a 30% chance of +$100M and a 70% chance of -$20M. What is its EMV?",
+  "options": [
+   "+$30M",
+   "+$80M",
+   "-$14M",
+   "+$16M"
+  ],
+  "answer_index": 3,
+  "explanation": "0.3 x 100 - 0.7 x 20 = 30 - 14 = +$16M.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-024",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Geoscience",
+  "prompt": "Which kerogen type, from woody land plants, is mainly gas prone?",
+  "options": [
+   "Type I",
+   "Type II",
+   "Type III",
+   "Type IV"
+  ],
+  "answer_index": 2,
+  "explanation": "Type III is terrestrial and gas prone; Types I and II are oil prone; Type IV is inert.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-025",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Drilling",
+  "prompt": "What is the normal hydrostatic gradient of fresh water?",
+  "options": [
+   "0.1 psi/ft",
+   "1.0 psi/ft",
+   "0.433 psi/ft",
+   "0.052 psi/ft"
+  ],
+  "answer_index": 2,
+  "explanation": "Fresh water exerts 0.433 psi per foot; salty formation water is a little more.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-026",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Geoscience",
+  "prompt": "Flattening a correlation section on a datum changes what?",
+  "options": [
+   "The structural relief",
+   "The zone thicknesses",
+   "The measured depths of the picks",
+   "Only the displayed depths"
+  ],
+  "answer_index": 3,
+  "explanation": "Flattening is a display choice: it shifts each well on screen and changes no measurement.",
+  "source": "nextgen",
+  "origin": "nextgen:wellcorrelation/intermediate/m03-displayed-depth/12"
+ },
+ {
+  "id": "D1-027",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Geoscience",
+  "prompt": "The deep Akata shales of the Niger Delta are known for being what?",
+  "options": [
+   "Overpressured",
+   "Volcanic",
+   "Evaporites",
+   "Fractured granite"
+  ],
+  "answer_index": 0,
+  "explanation": "The marine Akata shales are undercompacted and overpressured, which matters for drilling.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-028",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Economics",
+  "prompt": "In the exceedance convention, what is a prospect's P90 volume?",
+  "options": [
+   "A volume with a 90% chance of being met or exceeded",
+   "The volume 90% of wells find",
+   "90% of the mean volume",
+   "The largest likely volume"
+  ],
+  "answer_index": 0,
+  "explanation": "P90 is the low case: there is a 90% chance the outcome is at least this large.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-029",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Geoscience",
+  "prompt": "On a structure map, what is the vertical closure of a trap?",
+  "options": [
+   "The area of the licence",
+   "The height from the crest to the spill point",
+   "The depth of the oil-water contact",
+   "The reservoir thickness"
+  ],
+  "answer_index": 1,
+  "explanation": "Closure is the relief between the highest point and the spill point.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-030",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Geoscience",
+  "prompt": "Why use leave-one-well-out testing on a depth map?",
+  "options": [
+   "To save computing time",
+   "To see how well the map predicts a well it has not seen",
+   "To delete bad wells for good",
+   "To smooth the map"
+  ],
+  "answer_index": 1,
+  "explanation": "Removing one well, regridding and comparing gives an honest error at that well.",
+  "source": "nextgen",
+  "origin": "nextgen:mapping/advanced/m02-leave-one-out/8"
+ },
+ {
+  "id": "D1-031",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Geoscience",
+  "prompt": "What does a Class III AVO gas sand typically show?",
+  "options": [
+   "A positive amplitude that dims with offset",
+   "No change with offset",
+   "A strong negative amplitude that grows with offset",
+   "A phase reversal near zero amplitude"
+  ],
+  "answer_index": 2,
+  "explanation": "Class III sands have lower impedance than the shale above, with a negative intercept and gradient.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-032",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Geoscience",
+  "prompt": "In Gassmann fluid substitution, replacing brine with gas mainly changes what?",
+  "options": [
+   "The bulk modulus",
+   "The grain size",
+   "The shear modulus",
+   "The mineral density"
+  ],
+  "answer_index": 0,
+  "explanation": "Fluids carry no shear, so the shear modulus is unchanged; the bulk modulus drops.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-033",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Geoscience",
+  "prompt": "Tuning thickness for a thin bed is about what fraction of the dominant wavelength?",
+  "options": [
+   "The full wavelength",
+   "One half",
+   "One quarter",
+   "One tenth"
+  ],
+  "answer_index": 2,
+  "explanation": "Top and base reflections interfere most at a quarter of a wavelength.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-034",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Drilling",
+  "prompt": "Eaton's method estimates pore pressure from what?",
+  "options": [
+   "Log departure from the normal compaction trend",
+   "Mud weight alone",
+   "Gas readings only",
+   "Bit size"
+  ],
+  "answer_index": 0,
+  "explanation": "Eaton compares sonic or resistivity with the normal compaction trend.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-035",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Economics",
+  "prompt": "When is new information worth buying before a drilling decision?",
+  "options": [
+   "Whenever it is seismic",
+   "When it is cheaper than a well",
+   "When the chance of success is above 50%",
+   "When it could change the decision"
+  ],
+  "answer_index": 3,
+  "explanation": "Information has value only if some result would lead you to act differently.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-036",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Geoscience",
+  "prompt": "Larionov (tertiary rocks): Vsh = 0.083 (2^(3.7 IGR) - 1). What is Vsh at IGR = 0.50?",
+  "options": [
+   "0.30",
+   "0.22",
+   "0.50",
+   "0.08"
+  ],
+  "answer_index": 1,
+  "explanation": "2^1.85 = 3.61, so Vsh = 0.083 x 2.61 = 0.22.",
+  "source": "nextgen",
+  "origin": "nextgen:petrophysics/beginner/m02-shale-volume/12"
+ },
+ {
+  "id": "D1-037",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Geoscience",
+  "prompt": "Kinetic maturity models such as Easy%Ro show that maturity depends on what?",
+  "options": [
+   "Depth only",
+   "Temperature only",
+   "Temperature and time together",
+   "Pressure only"
+  ],
+  "answer_index": 2,
+  "explanation": "A slow burial reaches the same maturity at a lower temperature than a fast one.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-038",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Geoscience",
+  "prompt": "On a structure map, a gap in the horizon along a fault suggests what kind of fault?",
+  "options": [
+   "A strike-slip fault",
+   "A normal fault",
+   "A reverse fault",
+   "An unconformity"
+  ],
+  "answer_index": 1,
+  "explanation": "Extension pulls the blocks apart, leaving a gap (heave); reverse faults make an overlap.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-039",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Geoscience",
+  "prompt": "On a Pickett plot of log Rt against log porosity, the water line has what slope?",
+  "options": [
+   "+a, the tortuosity factor",
+   "Rw",
+   "-n, the saturation exponent",
+   "-m, the cementation exponent"
+  ],
+  "answer_index": 3,
+  "explanation": "For Sw = 1, log Rt = log(a Rw) - m log(porosity), so the slope is -m.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-040",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Geoscience",
+  "prompt": "Shuey: R = A + B sin^2(theta). A = -0.10 and B = -0.20. What is R at 30 degrees?",
+  "options": [
+   "-0.30",
+   "-0.20",
+   "-0.05",
+   "-0.15"
+  ],
+  "answer_index": 3,
+  "explanation": "sin^2(30) = 0.25, so R = -0.10 - 0.05 = -0.15.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-041",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Geoscience",
+  "prompt": "Area 2 km2, gross thickness 30 m, net to gross 0.5. What is the net rock volume?",
+  "options": [
+   "60 million m3",
+   "30 million m3",
+   "15 million m3",
+   "3 million m3"
+  ],
+  "answer_index": 1,
+  "explanation": "2,000,000 x 30 = 60 million m3 gross, x 0.5 = 30 million m3 net.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-042",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Reservoir",
+  "prompt": "STOIIP = 7758 Ah porosity (1 - Sw) / Bo. Ah 1000 acre-ft, porosity 0.2, Sw 0.25, Bo 1.2?",
+  "options": [
+   "About 0.97 million stb",
+   "1.40 million stb",
+   "1.16 million stb",
+   "0.32 million stb"
+  ],
+  "answer_index": 0,
+  "explanation": "7758 x 1000 x 0.2 x 0.75 / 1.2 = 969,750 stb.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-043",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Economics",
+  "prompt": "Prior chance of success 0.35. A survey right 80% of the time reads success. New chance?",
+  "options": [
+   "About 0.68",
+   "0.41",
+   "0.80",
+   "0.35"
+  ],
+  "answer_index": 0,
+  "explanation": "0.35 x 0.8 / (0.35 x 0.8 + 0.65 x 0.2) = 0.28 / 0.41 = 0.68.",
+  "source": "nextgen",
+  "origin": "nextgen:decision/intermediate/m04-accuracy-and-value/2"
+ },
+ {
+  "id": "D1-044",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Drilling",
+  "prompt": "Pore pressure 4,680 psi at 9,000 ft TVD. What is the equivalent mud weight?",
+  "options": [
+   "8.6 ppg",
+   "10.0 ppg",
+   "11.0 ppg",
+   "9.0 ppg"
+  ],
+  "answer_index": 1,
+  "explanation": "4680 / (0.052 x 9000) = 4680 / 468 = 10.0 ppg.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-045",
+  "day_no": 1,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Geoscience",
+  "prompt": "A 25 Hz wavelet travels at 3000 m/s. What is the approximate tuning thickness?",
+  "options": [
+   "15 m",
+   "30 m",
+   "60 m",
+   "120 m"
+  ],
+  "answer_index": 1,
+  "explanation": "Wavelength = 3000 / 25 = 120 m; a quarter of that is 30 m.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-TB1",
+  "day_no": 1,
+  "kind": "tiebreak",
+  "difficulty": 3,
+  "module": "Geoscience",
+  "prompt": "Archie: porosity 0.25, Rt 8 ohm.m, Rw 0.08, a 1, m 2, n 2. What is Sw?",
+  "options": [
+   "40%",
+   "20%",
+   "64%",
+   "16%"
+  ],
+  "answer_index": 0,
+  "explanation": "Sw = sqrt(0.08 / (0.0625 x 8)) = sqrt(0.16) = 0.40.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-TB2",
+  "day_no": 1,
+  "kind": "tiebreak",
+  "difficulty": 3,
+  "module": "Geoscience",
+  "prompt": "Two-way time 2400 ms, average velocity 2000 m/s. What depth is that?",
+  "options": [
+   "4800 m",
+   "1200 m",
+   "2400 m",
+   "4000 m"
+  ],
+  "answer_index": 2,
+  "explanation": "Depth = 2000 x 2.4 / 2 = 2400 m.",
+  "source": "nextgen",
+  "origin": "nextgen:seismolord/beginner/m03-depth-to-time/6"
+ },
+ {
+  "id": "D1-TB3",
+  "day_no": 1,
+  "kind": "tiebreak",
+  "difficulty": 4,
+  "module": "Economics",
+  "prompt": "Drill: 25% chance of +$200M, else -$40M. Farm out: 25% chance of +$60M, else 0. Which wins?",
+  "options": [
+   "Drill, by $5M",
+   "Farm out, by $5M",
+   "Drill, by $20M",
+   "They are equal"
+  ],
+  "answer_index": 0,
+  "explanation": "Drill EMV = 50 - 30 = $20M; farm out EMV = $15M.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-TB4",
+  "day_no": 1,
+  "kind": "tiebreak",
+  "difficulty": 4,
+  "module": "Geoscience",
+  "prompt": "A sand of impedance 6000 lies under shale of 8000. What is the reflection coefficient?",
+  "options": [
+   "-0.25",
+   "-0.14",
+   "+0.14",
+   "-2000"
+  ],
+  "answer_index": 1,
+  "explanation": "(6000 - 8000) / (6000 + 8000) = -0.14.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-TB5",
+  "day_no": 1,
+  "kind": "tiebreak",
+  "difficulty": 5,
+  "module": "Drilling",
+  "prompt": "Eaton: overburden 1.0 psi/ft, pore 0.465 psi/ft, Poisson's ratio 0.25. Fracture gradient?",
+  "options": [
+   "0.64 psi/ft",
+   "0.47 psi/ft",
+   "0.82 psi/ft",
+   "1.00 psi/ft"
+  ],
+  "answer_index": 0,
+  "explanation": "K = 0.25 / 0.75 = 0.333; FG = 0.333 x 0.535 + 0.465 = 0.64 psi/ft.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D1-TB6",
+  "day_no": 1,
+  "kind": "tiebreak",
+  "difficulty": 5,
+  "module": "Reservoir",
+  "prompt": "640 acres, net pay 50 ft, porosity 0.25, Sw 0.2, Bo 1.25. What is the STOIIP?",
+  "options": [
+   "62 million stb",
+   "32 million stb",
+   "About 40 million stb",
+   "50 million stb"
+  ],
+  "answer_index": 2,
+  "explanation": "7758 x 640 x 50 x 0.25 x 0.8 / 1.25 = 39.7 million stb.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-001",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Production",
+  "prompt": "In artificial lift, what does ESP stand for?",
+  "options": [
+   "Electrical submersible pump",
+   "Electric steam process",
+   "External sucker pump",
+   "Enhanced surface pressure"
+  ],
+  "answer_index": 0,
+  "explanation": "An ESP is a multistage centrifugal pump driven by a downhole electric motor.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-002",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Production",
+  "prompt": "What is water cut?",
+  "options": [
+   "The water in the gas",
+   "The water injected each day",
+   "The fraction of water in the produced liquid",
+   "The water left in the reservoir"
+  ],
+  "answer_index": 2,
+  "explanation": "Water cut = water rate / (oil rate + water rate).",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-003",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Production",
+  "prompt": "What does GOR stand for?",
+  "options": [
+   "Gross oil recovery",
+   "Gas-oil ratio",
+   "Gas over reservoir",
+   "Gas output rate"
+  ],
+  "answer_index": 1,
+  "explanation": "GOR is the produced gas per barrel of stock tank oil, usually in scf/stb.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-004",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Facilities",
+  "prompt": "What is a production separator's main job?",
+  "options": [
+   "Measure reservoir pressure",
+   "Raise the well pressure",
+   "Split the well stream into oil, gas and water",
+   "Heat crude for refining"
+  ],
+  "answer_index": 2,
+  "explanation": "Separators use gravity and residence time to split the phases.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-005",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Production",
+  "prompt": "How does gas lift help a well flow?",
+  "options": [
+   "It raises reservoir pressure",
+   "It lightens the fluid column in the tubing",
+   "It heats the reservoir",
+   "It plugs water zones"
+  ],
+  "answer_index": 1,
+  "explanation": "Injected gas lowers the density of the column, so the reservoir can lift it.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-006",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Drilling",
+  "prompt": "What is casing for?",
+  "options": [
+   "Holding the hole open and isolating formations",
+   "Carrying the drill bit",
+   "Making the well flow faster",
+   "Measuring depth"
+  ],
+  "answer_index": 0,
+  "explanation": "Cemented casing supports the hole and isolates zones from each other.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-007",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Production",
+  "prompt": "What does a wellhead choke control?",
+  "options": [
+   "The water salinity",
+   "The oil gravity",
+   "The flow rate",
+   "The reservoir temperature"
+  ],
+  "answer_index": 2,
+  "explanation": "A choke is a restriction that sets the rate and the back pressure on the well.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-008",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Facilities",
+  "prompt": "What is flaring?",
+  "options": [
+   "Burning gas at a controlled stack",
+   "Venting crude to sea",
+   "Cooling gas into a liquid",
+   "Pumping gas into the reservoir"
+  ],
+  "answer_index": 0,
+  "explanation": "Flaring burns gas that cannot be used or exported, and safely relieves pressure.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-009",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Production",
+  "prompt": "A pump is installed and the oil rate jumps. What happened in the reservoir?",
+  "options": [
+   "The pump added energy to the reservoir",
+   "The drive mechanism changed",
+   "Pressure rose above the bubble point",
+   "No new energy; the drawdown increased"
+  ],
+  "answer_index": 3,
+  "explanation": "Lift lowers the flowing pressure at the sandface; reservoir pressure is unchanged.",
+  "source": "nextgen",
+  "origin": "nextgen:dca/beginner/m01-declines-and-the-field/2"
+ },
+ {
+  "id": "D2-010",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Production",
+  "prompt": "What is special about an exponential decline?",
+  "options": [
+   "The rate loses the same fraction in equal times",
+   "The rate stays flat, then stops",
+   "The rate falls by the same barrels each day",
+   "The rate rises before it falls"
+  ],
+  "answer_index": 0,
+  "explanation": "Exponential decline has a constant decline rate D, so q = qi exp(-Dt).",
+  "source": "nextgen",
+  "origin": "nextgen:dca/beginner/m02-the-three-models/1"
+ },
+ {
+  "id": "D2-011",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Production",
+  "prompt": "What is a well's productivity index (PI)?",
+  "options": [
+   "Water per unit of oil",
+   "Rate per unit of time",
+   "Pressure per unit of depth",
+   "Rate per unit of drawdown"
+  ],
+  "answer_index": 3,
+  "explanation": "PI = q / (Pr - Pwf), for example in stb/d/psi.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-012",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Production",
+  "prompt": "In nodal analysis, where is the operating point?",
+  "options": [
+   "Where the choke is fully open",
+   "Where pressure is zero",
+   "Where the inflow and outflow curves cross",
+   "Where the rate is highest"
+  ],
+  "answer_index": 2,
+  "explanation": "At the crossing, the reservoir delivers exactly what the tubing can carry.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-013",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Drilling",
+  "prompt": "Mud of 10 ppg at 10,000 ft TVD. What is the hydrostatic pressure?",
+  "options": [
+   "4,330 psi",
+   "52,000 psi",
+   "5,200 psi",
+   "520 psi"
+  ],
+  "answer_index": 2,
+  "explanation": "0.052 x 10 x 10,000 = 5,200 psi.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-014",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Production",
+  "prompt": "What sign does the skin factor of a damaged well have?",
+  "options": [
+   "Negative",
+   "Always zero",
+   "Positive",
+   "It has no sign"
+  ],
+  "answer_index": 2,
+  "explanation": "Damage adds pressure drop near the well, which is a positive skin.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-015",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Production",
+  "prompt": "Which lift method uses a beam and horsehead at surface?",
+  "options": [
+   "Gas lift",
+   "Plunger lift",
+   "Electrical submersible pump",
+   "Rod pumping"
+  ],
+  "answer_index": 3,
+  "explanation": "A beam pumping unit strokes sucker rods that drive a downhole pump.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-016",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Facilities",
+  "prompt": "When do gas hydrates form in a pipeline?",
+  "options": [
+   "Whenever the oil is waxy",
+   "Only in completely dry gas",
+   "At low temperature and high pressure with water present",
+   "At high temperature and low pressure"
+  ],
+  "answer_index": 2,
+  "explanation": "Hydrates are ice-like solids of water and light gas that form cold and under pressure.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-017",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Production",
+  "prompt": "Why does a gas well load up with liquid?",
+  "options": [
+   "The gas rate is above the critical rate",
+   "The choke is fully open",
+   "The reservoir is above the dew point",
+   "The gas is too slow to carry liquid to surface"
+  ],
+  "answer_index": 3,
+  "explanation": "Below the critical velocity, droplets fall back and build a liquid column.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-018",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Production",
+  "prompt": "PI 2 stb/d/psi, reservoir 3,000 psi, flowing pressure 2,000 psi. What is the rate?",
+  "options": [
+   "2,000 stb/d",
+   "1,000 stb/d",
+   "6,000 stb/d",
+   "4,000 stb/d"
+  ],
+  "answer_index": 0,
+  "explanation": "q = PI x drawdown = 2 x 1,000 = 2,000 stb/d.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-019",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Production",
+  "prompt": "When is the Vogel inflow relationship used?",
+  "options": [
+   "When flowing pressure is below the bubble point",
+   "For a gas injector",
+   "When the well makes only water",
+   "Above the dew point"
+  ],
+  "answer_index": 0,
+  "explanation": "Below the bubble point free gas forms and the inflow curve bends; Vogel describes that.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-020",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Production",
+  "prompt": "Harmonic decline is the Arps case with b equal to what?",
+  "options": [
+   "0.5",
+   "2",
+   "1",
+   "0"
+  ],
+  "answer_index": 2,
+  "explanation": "b = 0 is exponential, 0 < b < 1 hyperbolic, and b = 1 harmonic.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-021",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Production",
+  "prompt": "Exponential decline from 1,000 stb/d at 0.5 per year. What is the rate after 2 years?",
+  "options": [
+   "500 stb/d",
+   "135 stb/d",
+   "250 stb/d",
+   "About 368 stb/d"
+  ],
+  "answer_index": 3,
+  "explanation": "q = 1000 x exp(-0.5 x 2) = 1000 x exp(-1) = 368 stb/d.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-022",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Facilities",
+  "prompt": "Which gas makes production fluids sour?",
+  "options": [
+   "Hydrogen sulphide",
+   "Carbon dioxide",
+   "Methane",
+   "Nitrogen"
+  ],
+  "answer_index": 0,
+  "explanation": "H2S makes fluids sour; CO2 makes them sweet-corrosive.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-023",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Production",
+  "prompt": "What does a subsurface safety valve do?",
+  "options": [
+   "Raises tubing pressure",
+   "Shuts the well in if surface control is lost",
+   "Injects chemicals",
+   "Measures the flow rate"
+  ],
+  "answer_index": 1,
+  "explanation": "The SCSSV is held open by control line pressure and closes when it is lost.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-024",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Drilling",
+  "prompt": "How many independent well barrier envelopes are normally required?",
+  "options": [
+   "Three",
+   "Two",
+   "Four",
+   "One"
+  ],
+  "answer_index": 1,
+  "explanation": "The two-barrier principle keeps a primary and a secondary envelope in place.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-025",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Production",
+  "prompt": "A well test gives a skin of -3. What does that suggest?",
+  "options": [
+   "A stimulated well, such as fractured or acidised",
+   "A well that cannot flow",
+   "Severe damage",
+   "A sealing fault"
+  ],
+  "answer_index": 0,
+  "explanation": "Negative skin means less pressure drop near the well than an ideal open hole.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-026",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Facilities",
+  "prompt": "Why is crude oil stabilised before export?",
+  "options": [
+   "To raise its sulphur content",
+   "To cool it for storage only",
+   "To remove light ends so vapour pressure meets the spec",
+   "To add water for pumping"
+  ],
+  "answer_index": 2,
+  "explanation": "Stabilisation strips light components so the crude is safe to store and ship.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-027",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Production",
+  "prompt": "In a gas lift design, what fixes the depth of the top unloading valve?",
+  "options": [
+   "Where the surface decrement runs out",
+   "Where injection pressure balances the kill fluid column and wellhead pressure",
+   "Where the gas rate peaks",
+   "The packer depth"
+  ],
+  "answer_index": 1,
+  "explanation": "The top valve sits where the available injection pressure can just unload the kill fluid.",
+  "source": "nextgen",
+  "origin": "nextgen:gaslift/beginner/m04-the-top-valve/1"
+ },
+ {
+  "id": "D2-028",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Production",
+  "prompt": "Every decline curve forecast assumes what?",
+  "options": [
+   "Operating conditions and drive mechanism stay the same",
+   "Pressure stays above the bubble point",
+   "Water cut stays at zero",
+   "Rates have no scatter"
+  ],
+  "answer_index": 0,
+  "explanation": "A workover, new lift or a change in drive makes the old curve describe a different well.",
+  "source": "nextgen",
+  "origin": "nextgen:dca/beginner/m01-declines-and-the-field/4"
+ },
+ {
+  "id": "D2-029",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Drilling",
+  "prompt": "A perforating gun fires 6 shots per foot. How far apart are the shots?",
+  "options": [
+   "6 inches",
+   "1 inch",
+   "2 inches",
+   "Half an inch"
+  ],
+  "answer_index": 2,
+  "explanation": "12 inches / 6 shots = 2 inches, a little over 5 cm.",
+  "source": "nextgen",
+  "origin": "nextgen:perfsand/beginner/m03-the-geometry-the-charge-leaves/4"
+ },
+ {
+  "id": "D2-030",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Production",
+  "prompt": "For an ESP, what most directly raises the head each stage delivers?",
+  "options": [
+   "A lower intake pressure",
+   "Running the pump faster",
+   "A higher water cut",
+   "Adding a gas separator"
+  ],
+  "answer_index": 1,
+  "explanation": "By the affinity laws, head rises with the square of speed.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-031",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Production",
+  "prompt": "By the pump affinity laws, doubling the speed multiplies the power by about what?",
+  "options": [
+   "16",
+   "8",
+   "2",
+   "4"
+  ],
+  "answer_index": 1,
+  "explanation": "Flow goes with speed, head with speed squared and power with speed cubed.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-032",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Facilities",
+  "prompt": "By Stokes' law, halving the droplet size changes its settling speed by what factor?",
+  "options": [
+   "One quarter",
+   "Double",
+   "No change",
+   "One half"
+  ],
+  "answer_index": 0,
+  "explanation": "Settling velocity is proportional to the droplet diameter squared.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-033",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Production",
+  "prompt": "In hyperbolic decline with 0 < b < 1, what does the decline rate do?",
+  "options": [
+   "Stays at zero",
+   "Stays constant",
+   "Falls as the rate falls",
+   "Rises over time"
+  ],
+  "answer_index": 2,
+  "explanation": "The instantaneous decline rate is D = Di / (1 + b Di t), which falls with time.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-034",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Facilities",
+  "prompt": "Paraffin crystallising below the wax appearance temperature causes what?",
+  "options": [
+   "Hydrates",
+   "Wax deposition",
+   "Scale",
+   "Erosion"
+  ],
+  "answer_index": 1,
+  "explanation": "Below the WAT, wax comes out of the oil and sticks to cold pipe walls.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-035",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Production",
+  "prompt": "Barium sulphate scale often forms when what happens?",
+  "options": [
+   "A well is shut in",
+   "Seawater mixes with barium-rich formation water",
+   "Oil is heated",
+   "Gas expands in the tubing"
+  ],
+  "answer_index": 1,
+  "explanation": "Sulphate in injected seawater meets barium in formation water and precipitates.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-036",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Production",
+  "prompt": "In a pressure buildup, the straight-line slope on a semilog plot gives what?",
+  "options": [
+   "Reservoir size",
+   "Permeability-thickness, kh",
+   "Bubble point pressure",
+   "Skin only"
+  ],
+  "answer_index": 1,
+  "explanation": "The radial flow slope m = 162.6 q B mu / kh gives kh.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-037",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Production",
+  "prompt": "The field meter reads 9,000 stb/d; well tests add up to 10,000 stb/d. What is the allocation factor?",
+  "options": [
+   "1.11",
+   "0.90",
+   "0.10",
+   "1.00"
+  ],
+  "answer_index": 1,
+  "explanation": "Allocation factor = measured / theoretical = 9,000 / 10,000 = 0.90.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-038",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Facilities",
+  "prompt": "Why is export gas dried with glycol (TEG)?",
+  "options": [
+   "To add odour",
+   "To lower its water dew point against hydrates and corrosion",
+   "To remove H2S",
+   "To raise its heating value"
+  ],
+  "answer_index": 1,
+  "explanation": "TEG absorbs water vapour so free water cannot drop out in the pipeline.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-039",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Production",
+  "prompt": "Exponential decline took a well from 800 to 400 stb/d in 2 years. What is the nominal decline?",
+  "options": [
+   "0.50 per year",
+   "0.69 per year",
+   "0.25 per year",
+   "About 0.35 per year"
+  ],
+  "answer_index": 3,
+  "explanation": "D = ln(800 / 400) / 2 = 0.693 / 2 = 0.35 per year.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-040",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Production",
+  "prompt": "Exponential: qi 1,000 stb/d, limit 100 stb/d, D = 0.001 per day. What are the reserves?",
+  "options": [
+   "900,000 stb",
+   "9,000,000 stb",
+   "90,000 stb",
+   "1,000,000 stb"
+  ],
+  "answer_index": 0,
+  "explanation": "EUR = (qi - q limit) / D = 900 / 0.001 = 900,000 stb.",
+  "source": "nextgen",
+  "origin": "nextgen:dca/beginner/m05-eur-and-the-limit/4"
+ },
+ {
+  "id": "D2-041",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Production",
+  "prompt": "Which formula gives cumulative oil for a harmonic decline?",
+  "options": [
+   "Np = (qi/Di)(1 - exp(-Di t))",
+   "Np = (qi/Di) ln(Di t)",
+   "Np = qi t",
+   "Np = (qi/Di) ln(1 + Di t)"
+  ],
+  "answer_index": 3,
+  "explanation": "Integrating q = qi / (1 + Di t) gives (qi/Di) ln(1 + Di t).",
+  "source": "nextgen",
+  "origin": "nextgen:dca/beginner/m03-cumulative-volumes/1"
+ },
+ {
+  "id": "D2-042",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Production",
+  "prompt": "Vogel: maximum rate 3,000 stb/d. What is the rate at half the reservoir pressure?",
+  "options": [
+   "1,500 stb/d",
+   "1,800 stb/d",
+   "2,100 stb/d",
+   "2,250 stb/d"
+  ],
+  "answer_index": 2,
+  "explanation": "1 - 0.2 x 0.5 - 0.8 x 0.25 = 0.7, and 0.7 x 3,000 = 2,100.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-043",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Drilling",
+  "prompt": "Mud 10 ppg, annular friction 260 psi at 10,000 ft TVD. What is the ECD?",
+  "options": [
+   "10.5 ppg",
+   "10.26 ppg",
+   "12.6 ppg",
+   "10.05 ppg"
+  ],
+  "answer_index": 0,
+  "explanation": "ECD = 10 + 260 / (0.052 x 10,000) = 10 + 0.5 = 10.5 ppg.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-044",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Facilities",
+  "prompt": "Souders-Brown: doubling the K factor changes the allowable gas velocity how?",
+  "options": [
+   "No change",
+   "It halves",
+   "It quadruples",
+   "It doubles"
+  ],
+  "answer_index": 3,
+  "explanation": "V = K sqrt((rho L - rho G) / rho G), so the velocity is proportional to K.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-045",
+  "day_no": 2,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Production",
+  "prompt": "A well makes 1,200 bbl/d of liquid at 75% water cut and GOR 500 scf/stb. Gas rate?",
+  "options": [
+   "150 Mscf/d",
+   "37.5 Mscf/d",
+   "600 Mscf/d",
+   "450 Mscf/d"
+  ],
+  "answer_index": 0,
+  "explanation": "Oil = 300 stb/d, and 300 x 500 = 150,000 scf/d.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-TB1",
+  "day_no": 2,
+  "kind": "tiebreak",
+  "difficulty": 3,
+  "module": "Drilling",
+  "prompt": "Mud of 12 ppg at 8,000 ft TVD. What is the hydrostatic pressure?",
+  "options": [
+   "5,760 psi",
+   "499 psi",
+   "4,992 psi",
+   "4,160 psi"
+  ],
+  "answer_index": 2,
+  "explanation": "0.052 x 12 x 8,000 = 4,992 psi.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-TB2",
+  "day_no": 2,
+  "kind": "tiebreak",
+  "difficulty": 3,
+  "module": "Production",
+  "prompt": "PI 1.5 stb/d/psi, reservoir 2,800 psi, rate 1,200 stb/d. What is the flowing pressure?",
+  "options": [
+   "1,600 psi",
+   "2,400 psi",
+   "800 psi",
+   "2,000 psi"
+  ],
+  "answer_index": 3,
+  "explanation": "Drawdown = 1,200 / 1.5 = 800 psi, so Pwf = 2,800 - 800 = 2,000 psi.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-TB3",
+  "day_no": 2,
+  "kind": "tiebreak",
+  "difficulty": 4,
+  "module": "Production",
+  "prompt": "Liquid 2,000 bbl/d at 60% water cut, GOR 800 scf/stb. What is the gas rate?",
+  "options": [
+   "960 Mscf/d",
+   "1,280 Mscf/d",
+   "640 Mscf/d",
+   "1,600 Mscf/d"
+  ],
+  "answer_index": 2,
+  "explanation": "Oil = 800 stb/d, and 800 x 800 = 640,000 scf/d.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-TB4",
+  "day_no": 2,
+  "kind": "tiebreak",
+  "difficulty": 4,
+  "module": "Production",
+  "prompt": "Exponential decline at 0.2 per year. What share of the rate is left after 5 years?",
+  "options": [
+   "None",
+   "About 37%",
+   "20%",
+   "50%"
+  ],
+  "answer_index": 1,
+  "explanation": "exp(-0.2 x 5) = exp(-1) = 0.37.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-TB5",
+  "day_no": 2,
+  "kind": "tiebreak",
+  "difficulty": 5,
+  "module": "Production",
+  "prompt": "Vogel: maximum rate 2,000 stb/d. What is the rate at a quarter of reservoir pressure?",
+  "options": [
+   "1,650 stb/d",
+   "1,875 stb/d",
+   "1,500 stb/d",
+   "1,800 stb/d"
+  ],
+  "answer_index": 3,
+  "explanation": "1 - 0.2 x 0.25 - 0.8 x 0.0625 = 0.90, and 0.90 x 2,000 = 1,800.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D2-TB6",
+  "day_no": 2,
+  "kind": "tiebreak",
+  "difficulty": 5,
+  "module": "Facilities",
+  "prompt": "A 100 micron droplet settles at 0.2 ft/min. How fast does a 50 micron droplet settle?",
+  "options": [
+   "0.05 ft/min",
+   "0.1 ft/min",
+   "0.025 ft/min",
+   "0.4 ft/min"
+  ],
+  "answer_index": 0,
+  "explanation": "Stokes: velocity goes with diameter squared, so 0.2 x 0.25 = 0.05 ft/min.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-001",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Reservoir",
+  "prompt": "What does STOIIP stand for?",
+  "options": [
+   "Standard total oil in production",
+   "Stock tank oil in pipelines",
+   "Static oil in place",
+   "Stock tank oil initially in place"
+  ],
+  "answer_index": 3,
+  "explanation": "STOIIP is the oil in the reservoir at discovery, expressed at stock tank conditions.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-002",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Reservoir",
+  "prompt": "What is the recovery factor?",
+  "options": [
+   "The porosity cutoff",
+   "The water cut at abandonment",
+   "The rate per well",
+   "The share of the in-place volume that is produced"
+  ],
+  "answer_index": 3,
+  "explanation": "Recovery factor = recoverable volume / volume in place.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-003",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Reservoir",
+  "prompt": "What is waterflooding?",
+  "options": [
+   "Flooding a well to kill it",
+   "Producing only water",
+   "Injecting water to push oil and hold up pressure",
+   "Washing out a separator"
+  ],
+  "answer_index": 2,
+  "explanation": "Water injection maintains pressure and sweeps oil towards producers.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-004",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Economics",
+  "prompt": "What does NPV stand for?",
+  "options": [
+   "Net present value",
+   "Net petroleum value",
+   "Nominal price variance",
+   "New production volume"
+  ],
+  "answer_index": 0,
+  "explanation": "NPV is the sum of future cash flows discounted to today.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-005",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Reservoir",
+  "prompt": "Which drive mechanism comes from a large connected body of water?",
+  "options": [
+   "Water drive",
+   "Gas cap drive",
+   "Solution gas drive",
+   "Gravity drainage"
+  ],
+  "answer_index": 0,
+  "explanation": "As pressure falls, the aquifer expands and pushes water into the oil zone.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-006",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Reservoir",
+  "prompt": "What is porosity?",
+  "options": [
+   "The share of rock volume that is pore space",
+   "The rock's density",
+   "The water share of the pores",
+   "How easily fluid flows"
+  ],
+  "answer_index": 0,
+  "explanation": "Porosity is pore volume divided by bulk volume.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-007",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Economics",
+  "prompt": "In field development, what does FDP stand for?",
+  "options": [
+   "Final drilling permit",
+   "Flow design procedure",
+   "Field development plan",
+   "Facility demand projection"
+  ],
+  "answer_index": 2,
+  "explanation": "The FDP sets out how a discovery will be developed and produced.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-008",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 1,
+  "module": "Reservoir",
+  "prompt": "Which unit is permeability usually measured in?",
+  "options": [
+   "Pascals",
+   "Millidarcies",
+   "Barrels",
+   "API degrees"
+  ],
+  "answer_index": 1,
+  "explanation": "Permeability is quoted in darcies or, more often, millidarcies.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-009",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Reservoir",
+  "prompt": "What value does the oil formation volume factor Bo usually have?",
+  "options": [
+   "More than 1 rb/stb",
+   "Below zero",
+   "Exactly 1 rb/stb",
+   "Less than 1 rb/stb"
+  ],
+  "answer_index": 0,
+  "explanation": "Reservoir oil carries dissolved gas and shrinks at surface, so Bo is above 1.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-010",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Reservoir",
+  "prompt": "Above its bubble point, what state is reservoir oil in?",
+  "options": [
+   "Undersaturated, with all its gas dissolved",
+   "Below its dew point",
+   "Producing free gas",
+   "A gas condensate"
+  ],
+  "answer_index": 0,
+  "explanation": "No free gas forms until pressure drops to the bubble point.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-011",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Economics",
+  "prompt": "A higher discount rate does what to the NPV of a typical oil project?",
+  "options": [
+   "Always makes it negative",
+   "Raises it",
+   "Leaves it unchanged",
+   "Lowers it"
+  ],
+  "answer_index": 3,
+  "explanation": "Later cash inflows are worth less today when the discount rate rises.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-012",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Reservoir",
+  "prompt": "Which question can material balance NOT answer?",
+  "options": [
+   "How much volume production has vacated",
+   "What next year's production rate will be",
+   "How much the oil has expanded",
+   "How much oil was originally in place"
+  ],
+  "answer_index": 1,
+  "explanation": "Material balance is a volume balance with no time or rate in it; rates need a flow model.",
+  "source": "nextgen",
+  "origin": "nextgen:mbal/beginner/m01-the-tank-idea/3"
+ },
+ {
+  "id": "D3-013",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Reservoir",
+  "prompt": "What does relative permeability describe?",
+  "options": [
+   "Permeability change with depth",
+   "How easily each fluid flows when several share the pores",
+   "One rock's permeability against another",
+   "Fracture spacing"
+  ],
+  "answer_index": 1,
+  "explanation": "Each phase flows less freely when other phases occupy part of the pore space.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-014",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Reservoir",
+  "prompt": "In a waterflood, what does the mobility ratio compare?",
+  "options": [
+   "Oil and gas densities",
+   "Water mobility behind the front with oil mobility ahead",
+   "The PI of two wells",
+   "Injection and production rates"
+  ],
+  "answer_index": 1,
+  "explanation": "M = (krw / muw) / (kro / muo); M at or below 1 is favourable.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-015",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Economics",
+  "prompt": "What is the payback period?",
+  "options": [
+   "The life of the field",
+   "The time to first oil",
+   "The time until cumulative cash flow turns positive",
+   "The loan term"
+  ],
+  "answer_index": 2,
+  "explanation": "Payback is when the project has earned back what was spent.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-016",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Reservoir",
+  "prompt": "What is history matching in reservoir simulation?",
+  "options": [
+   "Tuning the model until it reproduces past production and pressure",
+   "Copying another field's model",
+   "Forecasting with no data",
+   "Matching the oil price history"
+  ],
+  "answer_index": 0,
+  "explanation": "A model that matches the past is more credible for forecasting.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-017",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Reservoir",
+  "prompt": "For a water-wet rock, what is drainage?",
+  "options": [
+   "Water saturation increasing",
+   "Any oil production from the rock",
+   "Flow driven by gravity alone",
+   "Water saturation decreasing"
+  ],
+  "answer_index": 3,
+  "explanation": "Drainage is the non-wetting phase displacing the wetting phase; imbibition is the reverse.",
+  "source": "nextgen",
+  "origin": "nextgen:scal/beginner/m01-two-phases-one-rock/6"
+ },
+ {
+  "id": "D3-018",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Assurance",
+  "prompt": "Under the Petroleum Industry Act 2021, which body regulates midstream and downstream?",
+  "options": [
+   "NUPRC",
+   "NCDMB",
+   "NMDPRA",
+   "NNPC Limited"
+  ],
+  "answer_index": 2,
+  "explanation": "The Nigerian Midstream and Downstream Petroleum Regulatory Authority.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-019",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Reservoir",
+  "prompt": "Ah 5,000 acre-ft, porosity 0.2, Sw 0.3, Bo 1.4. What is the STOIIP?",
+  "options": [
+   "7.6 million stb",
+   "About 3.9 million stb",
+   "5.4 million stb",
+   "1.7 million stb"
+  ],
+  "answer_index": 1,
+  "explanation": "7758 x 5,000 x 0.2 x 0.7 / 1.4 = 3.88 million stb.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-020",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Reservoir",
+  "prompt": "Which drive mechanism usually gives the lowest primary oil recovery?",
+  "options": [
+   "Gravity drainage",
+   "Strong water drive",
+   "Solution gas drive",
+   "Gas cap drive"
+  ],
+  "answer_index": 2,
+  "explanation": "Solution gas drive often recovers only 5 to 30%; strong water drive can exceed 50%.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-021",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Reservoir",
+  "prompt": "On a fractional flow curve, what does the Welge tangent give?",
+  "options": [
+   "The residual oil saturation",
+   "The critical gas saturation",
+   "The water saturation at the flood front",
+   "The initial water saturation"
+  ],
+  "answer_index": 2,
+  "explanation": "The tangent from the initial saturation touches the curve at the front saturation.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-022",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Economics",
+  "prompt": "What is a project's internal rate of return (IRR)?",
+  "options": [
+   "The rate at payback",
+   "The discount rate at which NPV is zero",
+   "The rate at which NPV is highest",
+   "The rate capex is spent"
+  ],
+  "answer_index": 1,
+  "explanation": "IRR is the discount rate that makes the NPV exactly zero.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-023",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Reservoir",
+  "prompt": "An early unit slope on a log-log well test plot indicates what?",
+  "options": [
+   "Linear flow",
+   "A sealing fault",
+   "Wellbore storage",
+   "Infinite-acting radial flow"
+  ],
+  "answer_index": 2,
+  "explanation": "At early time the wellbore fills or empties, giving pressure proportional to time.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-024",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Reservoir",
+  "prompt": "On a pressure derivative plot, how does infinite-acting radial flow appear?",
+  "options": [
+   "A flat line",
+   "A half slope",
+   "A downward spike",
+   "A unit slope"
+  ],
+  "answer_index": 0,
+  "explanation": "Radial flow gives a constant derivative, the plateau used to read kh.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-025",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Economics",
+  "prompt": "Nominal discount rate 10% with 3% inflation. What is the real rate?",
+  "options": [
+   "13%",
+   "3%",
+   "7.7%",
+   "About 6.8%"
+  ],
+  "answer_index": 3,
+  "explanation": "1.10 / 1.03 - 1 = 0.068.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-026",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Reservoir",
+  "prompt": "What explains the water saturation transition zone above the free water level?",
+  "options": [
+   "Capillary pressure",
+   "Oil viscosity",
+   "Gas compressibility",
+   "Water coning"
+  ],
+  "answer_index": 0,
+  "explanation": "Capillary forces hold water up in small pores, so saturation changes gradually with height.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-027",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Reservoir",
+  "prompt": "The Efw term in the material balance equation bundles which two effects?",
+  "options": [
+   "Oil and dissolved water expansion",
+   "Aquifer influx and water expansion",
+   "Grain shrinkage and clay swelling",
+   "Pore compaction and connate water expansion"
+  ],
+  "answer_index": 3,
+  "explanation": "Efw covers the rock and connate water expansion as pressure falls.",
+  "source": "nextgen",
+  "origin": "nextgen:mbal/beginner/m02-the-terms/8"
+ },
+ {
+  "id": "D3-028",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Economics",
+  "prompt": "What does a tornado chart show?",
+  "options": [
+   "Well locations",
+   "Which inputs swing the result most",
+   "Wind loads on platforms",
+   "Cash flow by year"
+  ],
+  "answer_index": 1,
+  "explanation": "Each bar shows how far the result moves when one input goes from low to high.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-029",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Reservoir",
+  "prompt": "What is upscaling in reservoir modelling?",
+  "options": [
+   "Raising the price deck",
+   "Drilling deeper",
+   "Averaging fine-scale properties onto a coarser simulation grid",
+   "Adding more wells"
+  ],
+  "answer_index": 2,
+  "explanation": "Geological models are too fine to simulate, so properties are averaged onto coarser cells.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-030",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Reservoir",
+  "prompt": "A waterflood with a mobility ratio well above 1 tends to cause what?",
+  "options": [
+   "Better sweep",
+   "A piston-like front",
+   "Viscous fingering and early breakthrough",
+   "A lower water cut"
+  ],
+  "answer_index": 2,
+  "explanation": "Water moves more easily than the oil and fingers through it.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-031",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Reservoir",
+  "prompt": "In the industry exceedance convention, what is P10?",
+  "options": [
+   "The low case",
+   "The high case, exceeded only 10% of the time",
+   "The mean",
+   "The most likely case"
+  ],
+  "answer_index": 1,
+  "explanation": "P90 is the low case and P10 the high case.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-032",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Reservoir",
+  "prompt": "A straight p/z against cumulative gas line is expected for what?",
+  "options": [
+   "Any gas well",
+   "A volumetric gas reservoir with no water influx",
+   "A strong water drive gas reservoir",
+   "An oil reservoir"
+  ],
+  "answer_index": 1,
+  "explanation": "With no influx, p/z falls linearly; aquifer support bends the line upwards.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-033",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Reservoir",
+  "prompt": "In the STOIIP formula, what does the 7758 convert?",
+  "options": [
+   "Barrels to cubic feet",
+   "Acre-feet to barrels",
+   "Feet to metres",
+   "psi to bar"
+  ],
+  "answer_index": 1,
+  "explanation": "One acre-foot holds about 7,758 barrels.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-034",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Economics",
+  "prompt": "In a production sharing contract, what is cost oil?",
+  "options": [
+   "Oil the contractor takes to recover its costs",
+   "Oil lost in pipelines",
+   "Oil burned as fuel",
+   "Oil sold at cost price"
+  ],
+  "answer_index": 0,
+  "explanation": "Cost oil repays allowed costs; the remainder is profit oil, shared with the state.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-035",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Reservoir",
+  "prompt": "The Leverett J-function scales capillary pressure using what?",
+  "options": [
+   "Depth alone",
+   "Oil density",
+   "Porosity alone",
+   "The square root of permeability over porosity"
+  ],
+  "answer_index": 3,
+  "explanation": "J = Pc sqrt(k / porosity) / (sigma cos theta) lets one curve serve many rocks.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-036",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Reservoir",
+  "prompt": "What does the Dykstra-Parsons coefficient measure?",
+  "options": [
+   "Water salinity",
+   "How variable permeability is between layers",
+   "Well spacing",
+   "Oil viscosity"
+  ],
+  "answer_index": 1,
+  "explanation": "It ranges from 0 (uniform) towards 1 (very heterogeneous).",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-037",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Reservoir",
+  "prompt": "Why does the basic Buckley-Leverett solution give a sharp flood front?",
+  "options": [
+   "Water is treated as compressible",
+   "It neglects capillary pressure",
+   "It includes gravity along dip",
+   "The sand is layered"
+  ],
+  "answer_index": 1,
+  "explanation": "Capillary pressure would smear the front over a transition zone.",
+  "source": "nextgen",
+  "origin": "nextgen:scal/beginner/m06-the-associate-reading/5"
+ },
+ {
+  "id": "D3-038",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Reservoir",
+  "prompt": "What is a gas well's absolute open flow (AOF)?",
+  "options": [
+   "The rate with the choke fully open",
+   "The highest rate actually tested",
+   "The rate if flowing pressure were brought to atmospheric",
+   "The highest safe rate for the completion"
+  ],
+  "answer_index": 2,
+  "explanation": "AOF is a theoretical maximum used to compare wells.",
+  "source": "nextgen",
+  "origin": "nextgen:welltest/advanced/m04-gas/14"
+ },
+ {
+  "id": "D3-039",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Reservoir",
+  "prompt": "Volumetric gas: p/z falls from 5,000 to 4,000 psia after 20 Bscf. What is the GIIP?",
+  "options": [
+   "120 Bscf",
+   "100 Bscf",
+   "25 Bscf",
+   "80 Bscf"
+  ],
+  "answer_index": 1,
+  "explanation": "20% of p/z is gone, so 20 Bscf is 20% of the gas: GIIP = 100 Bscf.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-040",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Economics",
+  "prompt": "At 10%: -$100M now, +$60M in year 1 and +$60M in year 2. What is the NPV?",
+  "options": [
+   "-$4M",
+   "About +$4M",
+   "+$9M",
+   "+$20M"
+  ],
+  "answer_index": 1,
+  "explanation": "60 / 1.1 + 60 / 1.21 - 100 = 54.5 + 49.6 - 100 = +$4.1M.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-041",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Reservoir",
+  "prompt": "In radial flow, re/rw rises from 1,000 to 2,000. How does the rate change?",
+  "options": [
+   "It falls by about 9%",
+   "It halves",
+   "No change",
+   "It doubles"
+  ],
+  "answer_index": 0,
+  "explanation": "Rate goes with 1 / ln(re/rw): ln 1000 = 6.91, ln 2000 = 7.60, a ratio of 0.91.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-042",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Reservoir",
+  "prompt": "Undersaturated oil: Np 1 MMstb, Boi 1.30, Bo 1.32, rock and water ignored. What is N?",
+  "options": [
+   "132 million stb",
+   "66 million stb",
+   "50 million stb",
+   "76 million stb"
+  ],
+  "answer_index": 1,
+  "explanation": "N = Np Bo / (Bo - Boi) = 1 x 1.32 / 0.02 = 66 MMstb.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-043",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Economics",
+  "prompt": "Capex $300M, opex $10/bbl, 30 MMbbl recovered, no tax or discounting. Breakeven price?",
+  "options": [
+   "$20/bbl",
+   "$10/bbl",
+   "$15/bbl",
+   "$30/bbl"
+  ],
+  "answer_index": 0,
+  "explanation": "300 / 30 = $10/bbl of capex plus $10/bbl opex.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-044",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Reservoir",
+  "prompt": "Areal sweep 0.7, vertical sweep 0.8, displacement efficiency 0.6. Overall recovery efficiency?",
+  "options": [
+   "56%",
+   "About 34%",
+   "60%",
+   "70%"
+  ],
+  "answer_index": 1,
+  "explanation": "0.7 x 0.8 x 0.6 = 0.336.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-045",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 5,
+  "module": "Reservoir",
+  "prompt": "What is material-balance time in rate transient analysis?",
+  "options": [
+   "Cumulative production divided by the current rate",
+   "Cumulative production divided by the initial rate",
+   "Time to abandonment",
+   "Elapsed time weighted by rate"
+  ],
+  "answer_index": 0,
+  "explanation": "tMB = Np / q turns a variable-rate history into an equivalent constant-rate one.",
+  "source": "nextgen",
+  "origin": "nextgen:welltest/advanced/m05-rate-transient-analysis/3"
+ },
+ {
+  "id": "D3-046",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 2,
+  "module": "Facilities",
+  "prompt": "In offshore field development, what does FPSO stand for?",
+  "options": [
+   "Fixed platform for subsea operations",
+   "Floating production, storage and offloading",
+   "Floating pipeline service operation",
+   "Field production system offshore"
+  ],
+  "answer_index": 1,
+  "explanation": "An FPSO processes and stores oil on a ship-shaped hull and offloads it to tankers.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-047",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 3,
+  "module": "Facilities",
+  "prompt": "Why is a field's plant often sized for a plateau below the wells' combined peak?",
+  "options": [
+   "Pipelines cannot carry more oil",
+   "Wells can never exceed the plateau",
+   "Regulators forbid peak rates",
+   "A smaller plant run full for longer usually gives more value"
+  ],
+  "answer_index": 3,
+  "explanation": "Sizing for the brief early peak buys capacity that sits idle for most of the field life.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-048",
+  "day_no": 3,
+  "kind": "main",
+  "difficulty": 4,
+  "module": "Facilities",
+  "prompt": "What does tying a new field back to an existing host platform mainly save?",
+  "options": [
+   "Reservoir pressure",
+   "The need for any pipeline",
+   "The cost of a new processing facility",
+   "The number of wells"
+  ],
+  "answer_index": 2,
+  "explanation": "A subsea tieback uses the host's spare processing capacity instead of building a new plant.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-TB1",
+  "day_no": 3,
+  "kind": "tiebreak",
+  "difficulty": 3,
+  "module": "Economics",
+  "prompt": "What is the discount factor for a cash flow 3 years away at 10%?",
+  "options": [
+   "0.700",
+   "0.751",
+   "0.769",
+   "0.909"
+  ],
+  "answer_index": 1,
+  "explanation": "1 / 1.1^3 = 1 / 1.331 = 0.751.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-TB2",
+  "day_no": 3,
+  "kind": "tiebreak",
+  "difficulty": 3,
+  "module": "Reservoir",
+  "prompt": "Ah 2,000 acre-ft, porosity 0.25, Sw 0.2, Bo 1.0. What is the STOIIP?",
+  "options": [
+   "3.1 million stb",
+   "3.9 million stb",
+   "1.55 million stb",
+   "0.78 million stb"
+  ],
+  "answer_index": 0,
+  "explanation": "7758 x 2,000 x 0.25 x 0.8 = 3.10 million stb.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-TB3",
+  "day_no": 3,
+  "kind": "tiebreak",
+  "difficulty": 4,
+  "module": "Reservoir",
+  "prompt": "Volumetric gas: p/z falls from 4,500 to 3,600 psia after 15 Bscf. What is the GIIP?",
+  "options": [
+   "75 Bscf",
+   "60 Bscf",
+   "18.75 Bscf",
+   "90 Bscf"
+  ],
+  "answer_index": 0,
+  "explanation": "p/z fell 20%, so 15 Bscf is 20% of the gas: 75 Bscf.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-TB4",
+  "day_no": 3,
+  "kind": "tiebreak",
+  "difficulty": 4,
+  "module": "Economics",
+  "prompt": "At 10%: -$50M now, +$30M in each of years 1 and 2. What is the NPV?",
+  "options": [
+   "+$10M",
+   "About +$2M",
+   "+$6M",
+   "-$2M"
+  ],
+  "answer_index": 1,
+  "explanation": "27.3 + 24.8 - 50 = +$2.1M.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-TB5",
+  "day_no": 3,
+  "kind": "tiebreak",
+  "difficulty": 5,
+  "module": "Reservoir",
+  "prompt": "Undersaturated oil: Np 2 MMstb, Boi 1.25, Bo 1.27, rock and water ignored. What is N?",
+  "options": [
+   "127 million stb",
+   "100 million stb",
+   "254 million stb",
+   "125 million stb"
+  ],
+  "answer_index": 0,
+  "explanation": "N = 2 x 1.27 / 0.02 = 127 MMstb.",
+  "source": "petrolord",
+  "origin": null
+ },
+ {
+  "id": "D3-TB6",
+  "day_no": 3,
+  "kind": "tiebreak",
+  "difficulty": 5,
+  "module": "Reservoir",
+  "prompt": "Areal sweep 0.75, vertical sweep 0.6, displacement efficiency 0.7. Overall efficiency?",
+  "options": [
+   "53%",
+   "42%",
+   "45%",
+   "About 32%"
+  ],
+  "answer_index": 3,
+  "explanation": "0.75 x 0.6 x 0.7 = 0.315.",
+  "source": "petrolord",
+  "origin": null
+ }
+]

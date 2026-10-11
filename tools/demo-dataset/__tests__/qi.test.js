@@ -1,4 +1,4 @@
-// Gates for the kit v3 QI pack: the shear sonic, the elastic seismic and the
+// Gates for the kit v3 QI pack (carried into v4 unchanged at the wells): the shear sonic, the elastic seismic and the
 // truth the QI videos quote. Each one calls the engine the apps run.
 
 import { parseLas } from '../../../packages/engines/engines/welldata/lasParse';
@@ -228,8 +228,9 @@ describe('the written SEG-Y headers read as time volumes in Seismolord', () => {
   const { bufferReader } = require('../../../src/pages/apps/Seismolord/engine/reader');
   const { readTextualHeader } = require('../../../src/pages/apps/Seismolord/engine/segyScan');
   const { depthDomainHint } = require('../../../src/pages/apps/Seismolord/lib/segyDoor');
-  const dir = path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v3', '04-seismic');
-  const files = ['EKENE3D-small.sgy', 'EKENE3D-full.sgy', 'EKENE3D-near.sgy', 'EKENE3D-mid.sgy', 'EKENE3D-far.sgy', 'gathers/EKENE3D-gathers-nmo.sgy'];
+  const dir = path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v4', '04-seismic');
+  const P = SEISMIC.file_prefix;
+  const files = [`${P}-small.sgy`, `${P}-full.sgy`, `${P}-near.sgy`, `${P}-mid.sgy`, `${P}-far.sgy`, `gathers/${P}-gathers-nmo.sgy`];
   test.each(files)('%s', async (f) => {
     const fd = fs.openSync(path.join(dir, f), 'r');
     const head = Buffer.alloc(3600);
@@ -247,7 +248,7 @@ describe('the checkshots time the reservoir where the seismic has it', () => {
   // early, outside QI Studio's 8 ms event window at the wells.
   const fs = require('fs');
   const path = require('path');
-  const dir = path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v3', '01-wells', 'checkshots');
+  const dir = path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v4', '01-wells', 'checkshots');
   test.each([['Ekene-1', 1], ['Ekene-2', 4], ['Ekene-3', 4], ['Ekene-4', 4]])('%s within %d ms', (name, tol) => {
     const b = kit.built.find((x) => x.well.name === name);
     const props = elasticPropsFrom(e1.rows);

@@ -1005,9 +1005,12 @@ function SliceView({
     }
   }, []);
 
-  // upload the slice + camera world when the slice changes
+  // upload the slice + camera world when the slice changes; no slice (a
+  // volume switch while the new manifest loads) clears the panel so the
+  // previous volume's section is never redrawn under the new display scale
   useEffect(() => {
-    if (!slice || !geom || !glCanvasRef.current) return;
+    if (!slice) { rendererRef.current?.clear(); return; }
+    if (!geom || !glCanvasRef.current) return;
     try {
       if (!rendererRef.current) {
         rendererRef.current = new SliceRenderer(glCanvasRef.current);

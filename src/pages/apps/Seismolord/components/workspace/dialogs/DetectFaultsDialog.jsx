@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import AutoFaultPicker from '../AutoFaultPicker';
+import { surveyAffine } from '../../../engine/surveyGeometry';
 import { aoiAround, defaultAoi } from '../../../services/topsToHorizonsPipeline';
 
 /**
@@ -22,6 +23,7 @@ export default function DetectFaultsDialog({
 }) {
   const { toast } = useToast();
   const dtMs = manifest?.geometry?.dt_us ? manifest.geometry.dt_us / 1000 : null;
+  const affine = useMemo(() => (manifest ? surveyAffine(manifest.geometry) : null), [manifest]);
   const [busy, setBusy] = useState(null);
   const [progress, setProgress] = useState(null);
   const [error, setError] = useState(null);
@@ -95,6 +97,7 @@ export default function DetectFaultsDialog({
             <AutoFaultPicker
               geom={geom}
               dtMs={dtMs}
+              affine={affine}
               volume={volume}
               faults={faults}
               inputs={faultInputs}

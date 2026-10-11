@@ -25,11 +25,16 @@ const inputCls = 'rounded-md bg-pl-surface border border-pl-border-strong text-p
  * @param {?Object} p.affine resolved survey affine
  * @param {(horizonId: string) => Promise<Float32Array>} p.loadGrid
  * @param {(manifestModel: Object) => Promise<void>} p.onApply
+ * @param {'m'|'ft'} [p.depthUnit] the organisation's depth unit for the
+ *   residuals and the RMS (the fit itself runs in metres)
  */
 export default function WellTiePanel({
   wells, horizons, velocityModel, boundaries, dtUs, geom, affine,
-  loadGrid, onApply,
+  loadGrid, onApply, depthUnit = 'm',
 }) {
+  const ft = depthUnit === 'ft';
+  const dz = (m) => (ft ? m / 0.3048 : m);
+  const du = ft ? 'ft' : 'm';
   const [pairs, setPairs] = useState({});     // topName -> horizonId
   const [fitK, setFitK] = useState(false);
   const [result, setResult] = useState(null);
@@ -162,7 +167,7 @@ export default function WellTiePanel({
           <div className="text-xs text-pl-text">
             Proposed: <span data-testid="welltie-model">{describeVelocity(result.model)}</span>
             <span className="text-pl-muted" data-testid="welltie-rms">
-              {`, RMS ${result.rmsBeforeM.toFixed(1)} m → ${result.rmsAfterM.toFixed(1)} m`}
+              {`, RMS ${dz(result.rmsBeforeM).toFixed(1)} ${du} → ${dz(result.rmsAfterM).toFixed(1)} ${du}`}
               {` (${result.residuals.length} ties)`}
             </span>
             {result.fittedLayers.some((f) => !f) && (
@@ -180,9 +185,9 @@ export default function WellTiePanel({
                   <th className="pr-4 text-left">well</th>
                   <th className="pr-4 text-left">top</th>
                   <th className="pr-4 text-right">TWT ms</th>
-                  <th className="pr-4 text-right">top m</th>
-                  <th className="pr-4 text-right">before m</th>
-                  <th className="pr-4 text-right">after m</th>
+                  <th className="pr-4 text-right">{`top ${du}`}</th>
+                  <th className="pr-4 text-right">{`before ${du}`}</th>
+                  <th className="pr-4 text-right">{`after ${du}`}</th>
                 </tr>
               </thead>
               <tbody data-testid="welltie-residuals">
@@ -191,10 +196,10 @@ export default function WellTiePanel({
                     <td className="pr-4">{r.wellName}</td>
                     <td className="pr-4">{r.topName}</td>
                     <td className="pr-4 text-right">{r.twtMs.toFixed(1)}</td>
-                    <td className="pr-4 text-right">{r.zTopM.toFixed(1)}</td>
-                    <td className="pr-4 text-right">{r.beforeM.toFixed(1)}</td>
+                    <td className="pr-4 text-right">{dz(r.zTopM).toFixed(1)}</td>
+                    <td className="pr-4 text-right">{dz(r.beforeM).toFixed(1)}</td>
                     <td className={`pr-4 text-right ${Math.abs(r.afterM) > 10 ? 'text-pl-warning-text' : ''}`}>
-                      {r.afterM.toFixed(1)}
+                      {dz(r.afterM).toFixed(1)}
                     </td>
                   </tr>
                 ))}

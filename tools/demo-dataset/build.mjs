@@ -6,7 +6,7 @@ import { gridSurface } from '../../packages/engines/lib/gridding/gridding.js';
 import { isNull } from '../../packages/engines/lib/gridding/gridmath.js';
 
 import { LOCKED, LOCKED_WELLS, ADDED_WELLS, GRID } from './spine.mjs';
-import { makeGeology, buildSurvey, topsForWell, tvdAtMd } from './geology.mjs';
+import { makeWellControl, makeGeology, buildSurvey, topsForWell, tvdAtMd } from './geology.mjs';
 import { synthesiseWell } from './rockmodel.mjs';
 import { reservoirFluids, addShear } from './elastic.mjs';
 
@@ -94,19 +94,24 @@ export function solveTuning(geo, wells) {
   return { tuning, stats: ekeneStats(geo, wells, tuning) };
 }
 
-/** Everything downstream needs: geology, tuning, and every well synthesised. */
+/**
+ * Everything downstream needs: geology, tuning, and every well synthesised.
+ * The wells are built on the v3 well control (byte-identical to v3); the v4
+ * structure is then fitted to their picks.
+ */
 export function buildKit() {
-  const geo = makeGeology();
-  const wells = wellList(geo);
-  const { tuning, stats } = solveTuning(geo, wells);
+  const control = makeWellControl();
+  const wells = wellList(control);
+  const { tuning, stats } = solveTuning(control, wells);
   const built = wells.map((w) => {
-    const survey = buildSurvey(w, geo);
-    const tops = topsForWell(w, survey, geo);
+    const survey = buildSurvey(w, control);
+    const tops = topsForWell(w, survey, control);
     const rows = w.curves === 'none'
       ? []
-      : synthesiseWell({ well: w, tops, survey, tvdAtMd, geo, tuning });
+      : synthesiseWell({ well: w, tops, survey, tvdAtMd, geo: control, tuning });
     return { well: w, survey, tops, rows };
   });
+  const geo = makeGeology(control, built);
   // v3: shear on every well, from the fluids at each reservoir's conditions
   const fluids = reservoirFluids(built.find((b) => b.well.name === 'Ekene-1').rows);
   for (const b of built) addShear(b.rows, fluids);

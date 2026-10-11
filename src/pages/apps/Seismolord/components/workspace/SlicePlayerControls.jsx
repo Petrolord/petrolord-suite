@@ -8,11 +8,13 @@ import {
   Play, Pause, ChevronLeft, ChevronRight, CornerDownLeft,
 } from 'lucide-react';
 import { PLAY_SPEEDS, surveyUnitLabel } from '../../lib/sliceNav';
+import { RIBBON_FIELD as inputCls } from './Ribbon';
 
-const inputCls = `rounded-md bg-pl-surface border border-pl-border-strong text-pl-text
-  px-1.5 py-1 text-xs disabled:opacity-40`;
-const iconBtn = `p-1 rounded border border-pl-border text-pl-text hover:bg-pl-sunken
-  disabled:opacity-40 disabled:cursor-not-allowed`;
+// Compact ribbon layout: the wrapper is display:contents, so Step, Go to
+// and Player each take their own cell of the Line group's two-row grid.
+const iconBtn = `inline-flex items-center justify-center h-[18px] w-[18px] rounded border border-pl-border
+  text-pl-text hover:bg-pl-sunken disabled:opacity-40 disabled:cursor-not-allowed`;
+const labelCls = 'inline-flex items-center gap-1 text-[10px] leading-none text-pl-muted whitespace-nowrap';
 
 /**
  * @param {Object} p
@@ -48,12 +50,12 @@ export default function SlicePlayerControls({
   const stepWord = orientation === 'time' ? 'samples' : 'lines';
 
   return (
-    <div className="flex items-end gap-1.5" data-testid="sl-player">
+    <div className="contents" data-testid="sl-player">
       <label
-        className="flex flex-col gap-0.5 text-[10px] text-pl-muted"
+        className={labelCls}
         title={`Step size: move every Nth ${orientation === 'time' ? 'sample' : 'line'} with the arrows, Shift+wheel, the step buttons and the player`}
       >
-        {`Step (${stepWord})`}
+        <span>{`Step (${stepWord})`}</span>
         <input
           type="number"
           min="1"
@@ -68,12 +70,12 @@ export default function SlicePlayerControls({
         />
       </label>
       <label
-        className="flex flex-col gap-0.5 text-[10px] text-pl-muted"
+        className={labelCls}
         title={orientation === 'time'
           ? 'Type a time in ms and press Enter to jump to that time slice'
           : `Type an ${unit} number and press Enter to jump straight to it`}
       >
-        {`Go to ${unit}`}
+        <span>{`Go to ${unit}`}</span>
         <span className="flex items-center gap-0.5">
           <input
             type="text"
@@ -99,8 +101,8 @@ export default function SlicePlayerControls({
           </button>
         </span>
       </label>
-      <div className="flex flex-col gap-0.5 text-[10px] text-pl-muted">
-        Player
+      <div className={labelCls}>
+        <span>Player</span>
         <span className="flex items-center gap-0.5">
           <button
             type="button"

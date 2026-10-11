@@ -117,10 +117,10 @@ export default function StatusBar({
         {sliceMs != null && (
           <span
             className="tabular-nums"
-            title="Slice assembly time: amplitudes render from stored float32;
+            title="How long the last section took to draw. Amplitudes render from stored float32;
               colormap, gain, polarity and balance are shader-only"
           >
-            slice {sliceMs.toFixed(0)} ms
+            drawn in {sliceMs.toFixed(0)} ms
           </span>
         )}
         <button

@@ -18,7 +18,7 @@ export default function VelocityModelEditor({
   readOnly = false,
   calOpen, setCalOpen, horizons, wells, manifest, geom,
   loadGridById, applyCalibratedModel,
-  layerTimesMs = [], publishBoundaries = null, boundariesBusy = false,
+  layerTimesMs = [], publishBoundaries = null, boundariesBusy = false, depthUnit = 'm',
 }) {
   return (
     <div className="space-y-1.5">
@@ -163,6 +163,7 @@ export default function VelocityModelEditor({
         velMode={velMode}
         velLayers={velLayers}
         layerTimesMs={layerTimesMs}
+        depthUnit={depthUnit}
         onUseLinear={(fit) => {
           setVelMode('linear');
           setVelDraft({ v0: String(Math.round(fit.v0)), k: String(Math.round(fit.k * 1000) / 1000) });
@@ -209,6 +210,7 @@ export default function VelocityModelEditor({
             affine={surveyAffine(manifest.geometry)}
             loadGrid={loadGridById}
             onApply={applyCalibratedModel}
+            depthUnit={depthUnit}
           />
         </div>
       )}

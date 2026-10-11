@@ -2743,3 +2743,16 @@ drawing as they did. The engine and the display math are untouched.
 - Mapping & Surface Studio, ReservoirCalc Pro and the Digitizer share these gridders and gain the same coverage.
 - **Existing surfaces** gridded before this fix keep their holes. Grid them again.
 - **Tests:** `packages/engines/__tests__/mapping.gridding.gate.test.js`. A 128 x 128 dome is fully live inside for all four gridders. With the old gate only 55.6 percent of the interior is live (the negative control). The gate still nulls nodes far from every pick. `griddingExport.test.js` is unchanged (1,344 nodes compared, 95.5 percent within 1 ft, as before).
+
+## 2026-10-11: compact ribbon (owner review of the demo videos)
+- The ribbon took 181 px of a 1920x1080 window on Home (225 px at 1366x768),
+  more in the 1440x810 demo recordings. It is now 95 px on every tab and at
+  every width, from the top of the tab strip to the bottom of the body.
+- Every RibbonGroup is a three-row grid (20 px rows, column flow) with a slim
+  9 px caption. Buttons have 16 px icons with the label beside them; selects,
+  number inputs and sliders are 18 px tall with the label to the left.
+- Nothing moved into a menu. A tab wider than the window scrolls sideways
+  behind overflow chevrons (`sl-ribbon-more-left` / `sl-ribbon-more-right`):
+  Home at 1366 and 1440 wide, Interpretation below about 1540 px.
+- All testids, titles, aria-labels, label texts and group captions are kept.
+  Test: `__tests__/compactRibbon.test.jsx`.

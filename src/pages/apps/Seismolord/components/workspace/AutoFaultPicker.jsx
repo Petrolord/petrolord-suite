@@ -27,6 +27,32 @@ export function describeQuality(q) {
   return `Reflector coherence ${q.coherence.toFixed(2)} (${kind}); ${thr}.`;
 }
 
+/**
+ * A fault's strike clockwise from grid north, degrees in [0, 180), from its
+ * lattice strike (atan2(dXl, dIl), the engine's convention) and the survey
+ * affine; null when the survey orientation is unknown or legacy.
+ */
+export function gridStrikeDeg(latticeDeg, affine) {
+  if (latticeDeg == null || !Number.isFinite(latticeDeg) || !affine?.ilVec || !affine?.xlVec || affine.legacyAxisAligned) return null;
+  const r = (latticeDeg * Math.PI) / 180;
+  const dIl = Math.cos(r);
+  const dXl = Math.sin(r);
+  const x = affine.ilVec.x * dIl + affine.xlVec.x * dXl;
+  const y = affine.ilVec.y * dIl + affine.xlVec.y * dXl;
+  if (!(Math.hypot(x, y) > 0)) return null;
+  let az = (Math.atan2(x, y) * 180) / Math.PI;
+  az = ((az % 180) + 180) % 180;
+  return az;
+}
+
+/** The strike as a reader expects it: from grid north when the survey's
+ *  orientation is known, otherwise plainly labelled as a lattice angle. */
+export function strikeLabel(latticeDeg, affine) {
+  const g = gridStrikeDeg(latticeDeg, affine);
+  if (g != null) return `strike ${Math.round(g) % 180}° from grid north`;
+  return `strike ${fmt(latticeDeg, 0)}° (lattice)`;
+}
+
 export const aoiSampleCount = (a) => (a
   ? (a.il1 - a.il0 + 1) * (a.xl1 - a.xl0 + 1) * (a.s1 - a.s0 + 1) : 0);
 
@@ -34,6 +60,7 @@ export const aoiSampleCount = (a) => (a
  * @param {Object} p
  * @param {Object} p.geom lattice geometry
  * @param {number} p.dtMs sample interval
+ * @param {?Object} [p.affine] survey affine (engine form), for strikes from grid north
  * @param {Object} p.volume the open volume row
  * @param {Array<Object>} p.faults existing faults (their names are taken)
  * @param {Object|null} p.initialAoi starting area of interest
@@ -46,7 +73,7 @@ export const aoiSampleCount = (a) => (a
  * @param {(msg: string) => void} [p.onError]
  */
 export default function AutoFaultPicker({
-  geom, dtMs, volume, faults = [], initialAoi, presets = [], inputs = [], run, busy = null, onSaved, onError,
+  geom, dtMs, affine = null, volume, faults = [], initialAoi, presets = [], inputs = [], run, busy = null, onSaved, onError,
 }) {
   const { toast } = useToast();
   const [aoi, setAoi] = useState(initialAoi || null);
@@ -209,7 +236,7 @@ export default function AutoFaultPicker({
                   return n;
                 })}
               />
-              {`${f.name}: confidence ${fmt(f.confidence, 2)}, ${f.sticks.length} sticks, strike ${fmt(f.stats?.strikeDeg, 0)}°`}
+              {`${f.name}: confidence ${fmt(f.confidence, 2)}, ${f.sticks.length} sticks, ${strikeLabel(f.stats?.strikeDeg, affine)}`}
             </label>
           ))}
           {detected.faults.length > 0 && (

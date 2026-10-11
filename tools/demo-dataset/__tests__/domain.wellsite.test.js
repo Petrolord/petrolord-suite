@@ -41,11 +41,11 @@ import { ATTRIBUTES } from '../../../src/lib/wellsite/descriptionVocabulary';
 import { wellList, VSH_CUT } from '../build.mjs';
 import { synthesiseWell } from '../rockmodel.mjs';
 import {
-  makeGeology, buildSurvey, topsForWell, tvdAtMd,
+  makeWellControl, buildSurvey, topsForWell, tvdAtMd,
 } from '../geology.mjs';
 import { SILT_MAX } from '../domains/wellsite/design.mjs';
 
-const KIT = path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v3');
+const KIT = path.join(__dirname, '..', '..', '..', 'dist-demo', 'ekene-demo-v4');
 const DIR = '15-wellsite';
 const read = (rel) => {
   const p = path.join(KIT, rel);
@@ -296,7 +296,7 @@ describe('Episode 37: the events, samples and sample schedule', () => {
   test('the lithology in every sample is the kit rock model at Ekene-11', () => {
     // Ekene-11 exactly as buildKit builds it, with the facies tuning the kit recorded in its manifest
     const { tuning } = JSON.parse(read('MANIFEST.json'));
-    const geo = makeGeology();
+    const geo = makeWellControl();   // the wells are built on the v3 well control
     const well = wellList(geo).find((w) => w.name === 'Ekene-11');
     const survey = buildSurvey(well, geo);
     const rock = synthesiseWell({ well, tops: topsForWell(well, survey, geo), survey, tvdAtMd, geo, tuning });

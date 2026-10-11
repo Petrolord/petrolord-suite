@@ -6,6 +6,7 @@
 // scale bar in metres, north arrow, titled PNG. Pure.
 
 import { latticeOf } from './lattice';
+import { depthFactor, scaleFlatZ } from './depthDisplay';
 
 export const NULL_Z = 1e30;
 
@@ -30,12 +31,18 @@ export function kitFromRcpGrid(g) {
 /**
  * The structure layer of a surface: its registry lattice when it kept one
  * (U2-005, metres elevation, its own frame and rotation), else RCP's grid.
+ * With displayUnit, Z is shown in that unit (the project's: ft in Field).
  */
-export function kitForSurface(surface, rcpGrid) {
+export function kitForSurface(surface, rcpGrid, displayUnit = null) {
   const L = latticeOf(surface);
-  if (L) return { spec: L.spec, grid: L.z, unit: 'm', source: 'lattice' };
-  const k = kitFromRcpGrid(rcpGrid);
-  return k ? { ...k, unit: surface?.depthUnit || null, source: 'gridded' } : null;
+  let k = null;
+  if (L) k = { spec: L.spec, grid: L.z, unit: 'm', source: 'lattice' };
+  else {
+    const g = kitFromRcpGrid(rcpGrid);
+    k = g ? { ...g, unit: surface?.depthUnit || null, source: 'gridded' } : null;
+  }
+  if (!k || !displayUnit || !k.unit || k.unit === displayUnit) return k;
+  return { ...k, grid: scaleFlatZ(k.grid, depthFactor(k.unit, displayUnit)), unit: displayUnit };
 }
 
 /** AOIs as the kit's polygons (world vertices), the active one marked. */

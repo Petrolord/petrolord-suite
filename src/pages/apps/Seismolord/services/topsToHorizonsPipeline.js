@@ -28,7 +28,7 @@ import {
   trackingOrder, trackTop, approxLevelGrid, faultBarriersForTop, tuningMask, conformableHorizon,
   mistieTable, mistieStats, leaveOneWellOut,
 } from '../engine/framework';
-import { jumpAcrossFaults } from '../engine/faultJump';
+import { jumpAcrossFaults, measuredThrow, faultDipDirection } from '../engine/faultJump';
 import { detectFaults } from '../engine/faultDetect';
 import { NULL_VALUE } from '../engine/manifest';
 
@@ -219,7 +219,47 @@ export async function runFrameworkTrack({
   const meta = new Map();
   const doLowo = lowo ?? geom.nIl * geom.nXl <= LOWO_MAX_TRACES;
   const faultList = (faults || []).filter((f) => f.sticks && f.sticks.length);
+  // the throw prior for a jump: the same fault's throw measured on every
+  // horizon already picked on both sides of it (a well in each block, or
+  // carried across earlier), as a straight line against depth (a growth
+  // fault's throw grows downward), read at the horizon being carried. One
+  // measurement is used as it is. On a near-vertical fault this is also
+  // what tells the jump which block is down.
+  const dipDirs = faultList.map((f) => faultDipDirection(f)).filter(Boolean);
+  let dipDir = null;
+  if (dipDirs.length) {
+    const a = dipDirs.reduce((sum, d) => sum + d.il, 0);
+    const b = dipDirs.reduce((sum, d) => sum + d.xl, 0);
+    const n = Math.hypot(a, b);
+    dipDir = n > 1e-9 ? { il: a / n, xl: b / n } : null;
+  }
+  const levelOf = (seeds) => (seeds && seeds.length ? seeds.reduce((sum, q) => sum + (q.sample ?? 0), 0) / seeds.length : null);
+  const priorThrowsFor = (name, seeds, from) => {
+    if (!dipDir || !faultList.length) return new Map();
+    const at = levelOf(seeds);
+    const pts = [];
+    for (const [k, picks] of from) {
+      if (k === name || !meta.get(k)?.barriers) continue;
+      const v = measuredThrow({
+        picks, barriers: meta.get(k).barriers, geom, dipDir,
+      });
+      const lv = levelOf(meta.get(k).seeds);
+      if (v != null && lv != null) pts.push({ x: lv, y: v });
+    }
+    if (!pts.length || at == null) return new Map();
+    let prior = pts[0].y;
+    if (pts.length >= 2) {
+      const mx = pts.reduce((sum, q) => sum + q.x, 0) / pts.length;
+      const my = pts.reduce((sum, q) => sum + q.y, 0) / pts.length;
+      let sxy = 0;
+      let sxx = 0;
+      for (const q of pts) { sxy += (q.x - mx) * (q.y - my); sxx += (q.x - mx) ** 2; }
+      prior = sxx > 1e-9 ? my + (sxy / sxx) * (at - mx) : my;
+    }
+    return new Map([[faultList[0].name || 'fault', prior]]);
+  };
 
+  const deferred = [];
   let i = 0;
   for (const t of plan) {
     i += 1;
@@ -234,17 +274,36 @@ export async function runFrameworkTrack({
     let jumped = null;
     let jumps = [];
     if (barriers && jump) {
-      const j = await jumpAcrossFaults({
-        getTrace, geom, picks, barriers, faults: faultList, kind: t.kind,
-      });
-      picks = j.picks;
-      jumped = j.jumped;
-      jumps = j.jumps;
+      const priorThrows = priorThrowsFor(t.name, t.seeds, tracked);
+      if (priorThrows.size) {
+        const j = await jumpAcrossFaults({
+          getTrace, geom, picks, barriers, faults: faultList, kind: t.kind, priorThrows,
+        });
+        picks = j.picks;
+        jumped = j.jumped;
+        jumps = j.jumps;
+      } else {
+        deferred.push(t);
+      }
     }
     tracked.set(t.name, picks);
     meta.set(t.name, {
       kind: t.kind, seeds: t.seeds, jumped, jumps, barriers, meanScore: t.meanScore,
     });
+  }
+  // a top with no throw to lean on yet jumps once every horizon is tracked,
+  // so a single-well deep horizon (Akata on Ekene) uses the throw the
+  // horizons with a well in each block measure, whatever order it was
+  // tracked in; with none anywhere it jumps on the correlation alone
+  for (const t of deferred) {
+    if (shouldCancel()) throw new Error('Tracking cancelled');
+    const m = meta.get(t.name);
+    const j = await jumpAcrossFaults({
+      getTrace, geom, picks: tracked.get(t.name), barriers: m.barriers, faults: faultList, kind: t.kind,
+      priorThrows: priorThrowsFor(t.name, t.seeds, tracked),
+    });
+    tracked.set(t.name, j.picks);
+    meta.set(t.name, { ...m, jumped: j.jumped, jumps: j.jumps });
   }
 
   // confidence per horizon: 1 where well-seeded tracking reached, the
@@ -327,10 +386,20 @@ export async function runFrameworkTrack({
         seeds: m.seeds,
         geom,
         dtMs,
-        track: async (s) => (await trackTop({
-          getTrace, geom, seeds: s, kind: m.kind, name: h.name, order, tracked: others, barriers: m.barriers,
-          opts: { shouldCancel },
-        })).picks,
+        // the same steps as the main run, so the error measures the
+        // framework that is delivered: a well alone in its fault block is
+        // predicted by the jump across the fault, as it would be without it
+        track: async (s) => {
+          const r = await trackTop({
+            getTrace, geom, seeds: s, kind: m.kind, name: h.name, order, tracked: others, barriers: m.barriers,
+            opts: { shouldCancel },
+          });
+          if (!(m.barriers && jump)) return r.picks;
+          return (await jumpAcrossFaults({
+            getTrace, geom, picks: r.picks, barriers: m.barriers, faults: faultList, kind: m.kind,
+            priorThrows: priorThrowsFor(h.name, m.seeds, others),
+          })).picks;
+        },
       });
     }
   }
