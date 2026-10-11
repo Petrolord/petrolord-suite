@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 56eb439c2b16aabfbc12a9d898a275fa0c4957bd
+# commit 708f3041ca3d8710c8e734498afb3645903fcf6a
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 80b08bf546799e96d5448d67c63c98f2ec1b9703 README.md
@@ -203,6 +203,7 @@ a12035dde9b0cb78294a0d7776e1f54dd13e0e8f __tests__/seismolord.attributes.test.js
 c3d7755c518a4a2848947bf4277d5af53b19e86e __tests__/seismolord.depthconvert.test.js
 32d67a753ffe10ca116915e0fa0fe01afa75ed64 __tests__/seismolord.discontinuity.test.js
 30886163965ec68cb5ca1e7bfa9106a3a4d0b786 __tests__/seismolord.displayenhance.test.js
+be69bf09ddd1701606fe36d1b0053b8949f4add5 __tests__/seismolord.faultbarrieredges.test.js
 f314f56ca2f116acf51968e5cdba732d069a6122 __tests__/seismolord.faultdetect.test.js
 7720fabb31649dd477bfc2d7d3474d802ccae679 __tests__/seismolord.faultimport.test.js
 971691c9cdbc65f4e420b5738eb72afd659d1e75 __tests__/seismolord.faultjump.test.js
@@ -547,13 +548,13 @@ c3ca63fe26f9af3f1abab5533ad9cdd5f769d10c engines/seismolord/brickTranscode.js
 3d6d4d6b9e5c66c0d73bf06f8d817ced2953ea9e engines/seismolord/discontinuity.js
 640f8653af9ca53111d08b8f35c31b378ea6561e engines/seismolord/discontinuityJobs.js
 f292fff97619044ea545a1dd641f554e1e4374ea engines/seismolord/displayEnhance.js
-64fe172bc700bd011590b4f1fd2f27a88be1d895 engines/seismolord/faultBarriers.js
+451a7c69f2a3506ea9e242e9c533af5b7b45213e engines/seismolord/faultBarriers.js
 879e0fe15007e83900f96a7b2a2efa90bef4f6a0 engines/seismolord/faultDetect.js
 5d935b9a8e54a5f6c70707d3cd7d6b3f73d8e7d3 engines/seismolord/faultImport.js
-41a729d475e2fb45e952f87ce411cede569cb976 engines/seismolord/faultJump.js
+5d67ccb85353f8b8f44ea46ab7f1829fbee72391 engines/seismolord/faultJump.js
 d1d210c7717cd7c038c3dbb03666e50afc5634ea engines/seismolord/faultObjects.js
 34a2b154c04b3160ea5f39cd887853f8580c91da engines/seismolord/flatten.js
-67102c29149d25e51ca8f7910121395dd49bce1b engines/seismolord/framework.js
+6936e35532490c4697ea930b2b54b41c338abf0b engines/seismolord/framework.js
 e0898e97a6379d78d75703b30fe838326a5f80e5 engines/seismolord/horizonAmplitude.js
 134e066e2f2606e733f4888f31c1c1d7d5657068 engines/seismolord/horizonImport.js
 2ba7627689d7ec348ef29d6f72eda0ccf8eeb769 engines/seismolord/horizonTrack.js
