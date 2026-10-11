@@ -109,6 +109,7 @@ import SyntheticsPanel from './SyntheticsPanel';
 import { loadGatherForWell } from '@/lib/rockPhysicsGather';
 import CubeView from './CubeView';
 import MapView from './MapView';
+import { trackerOptions, trackedSummary } from '../lib/trackerOptions';
 import ViewerWindows from './ViewerWindows';
 import AiPanel from './AiPanel';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
@@ -2160,24 +2161,13 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
 
   // ---- horizon editing actions ------------------------------------------
 
-  /** Tracker gates: zero crossings sit at ~0 amplitude, so the RMS-based
-   *  amplitude floor only applies to extrema modes. In ncc mode the
-   *  snap window doubles as the correlation lag search and the
-   *  threshold replaces the amplitude floor. */
-  const trackerOpts = useCallback(() => (snapMode === 'ncc'
-    ? {
-      mode: 'ncc',
-      corrHalf: 8,
-      corrSearch: snapWindow,
-      corrThreshold,
-      maxJump: 4,
-    }
-    : {
-      mode: snapMode,
-      window: snapWindow,
-      maxJump: 4,
-      minAbsAmp: snapMode.startsWith('zero') ? 0 : (manifest?.stats?.rms || 0) * 0.3,
-    }), [snapMode, snapWindow, corrThreshold, manifest]);
+  /** Tracker gates (lib/trackerOptions): an RMS floor and an amplitude
+   *  memory in extrema modes, so growth stops at an uninterpreted fault;
+   *  in ncc mode the snap window doubles as the correlation lag search and
+   *  the threshold replaces the amplitude gates. */
+  const trackerOpts = useCallback(() => trackerOptions({
+    snapMode, snapWindow, corrThreshold, rms: manifest?.stats?.rms,
+  }), [snapMode, snapWindow, corrThreshold, manifest]);
 
   const toggleEditTool = async (tool) => {
     if (pickMode === tool) { setPickMode(null); return; }
@@ -2639,7 +2629,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
       pushNewHorizonUndo({
         label: `track horizon "${name}"`, row, picks, vol: volume, dtUs, save, confidence,
       });
-      toast({ title: 'Horizon tracked', description: `${name}: ${Number(row.stats.tracked).toLocaleString('en-US')} traces.` });
+      toast({ title: 'Horizon tracked', description: trackedSummary(name, row.stats.tracked, geom.nIl * geom.nXl) });
     } catch (e) {
       if (!/cancelled/i.test(e.message)) {
         toast({ title: 'Tracking failed', description: e.message, variant: 'destructive' });
