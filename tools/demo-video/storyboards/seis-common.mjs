@@ -70,3 +70,34 @@ export async function clickAt(d, p) {
 }
 
 export { login, expectText };
+
+/** An explorer row (role=button) by its exact label. */
+export const explorerRow = (d, name) => d.page.locator('div:has(> div > span:text-is("Seismic Explorer"))')
+  .locator(`div[role=button]:has(span:text-is("${name.replace(/"/g, '\\"')}"))`).first();
+
+/** Show or hide an explorer item with its eye button; returns true when it clicked. */
+export async function setVisible(d, name, visible, { onCamera = false } = {}) {
+  const eye = explorerRow(d, name).locator(`button[title="${visible ? 'Show' : 'Hide'}"]`);
+  if (!(await eye.count())) return false;
+  if (onCamera) await d.click(eye); else await eye.click();
+  await d.sleep(onCamera ? 900 : 600);
+  return true;
+}
+
+/** Off camera: delete every horizon of the active volume whose name matches. */
+export async function deleteHorizonsMatching(d, re) {
+  const ex = d.page.locator('div:has(> div > span:text-is("Seismic Explorer"))');
+  const names = (await ex.locator('div[role=button] span.truncate').allInnerTexts()).filter((n) => re.test(n));
+  for (const n of names) await deleteHorizon(d, n);
+}
+
+/** Off camera: delete a fault of the active volume, every copy of that name. */
+export async function deleteFault(d, name) {
+  for (let n = 0; n < 4; n++) {
+    const row = explorerRow(d, name);
+    if (!(await row.count())) return;
+    await row.click({ button: 'right' }); await d.sleep(600);
+    await d.page.getByText('Delete fault…').click();
+    for (let i = 0; i < 12; i++) { await d.sleep(1500); if (!(await explorerRow(d, name).count())) break; }
+  }
+}
