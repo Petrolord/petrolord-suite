@@ -1,16 +1,24 @@
-// Shared by the Seismolord storyboards (Ekene kit v3). The demo account holds
-// the full stack and the angle stacks (seed/seismic.mjs) and the ten horizons
-// Tops to Horizons made from the wells.
+// Shared by the Seismolord storyboards (Ekene kit v4, the listric growth
+// fault). The demo account holds kit v3's volumes, which QI Studio depends on
+// and which stay, and kit v4's full stack, EKENE3D-v4-full.sgy
+// (seed/seismic.mjs --kit v4 --volumes full). The demos work on v4 only.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { login } from '../lib/session.mjs';
 import { expectText } from './petro-common.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-export const KIT = process.env.EKENE_KIT || path.resolve(HERE, '../../../dist-demo/ekene-demo-v3');
+export const KIT = process.env.EKENE_KIT || path.resolve(HERE, '../../../dist-demo/ekene-demo-v4');
 export const SEISMOLORD = '/dashboard/apps/geoscience/seismolord';
-export const FULL = 'EKENE3D-full.sgy';
-export const SMALL = 'EKENE3D-small.sgy';
+export const FULL = 'EKENE3D-v4-full.sgy';
+export const SMALL = 'EKENE3D-v4-small.sgy';
+// v4 survey: inlines 1000-1127, crosslines 1960-2127, 876 samples at 4 ms
+export const IL0 = 1000; export const XL0 = 1960; export const NXL = 168;
+export const RECORD_MS = 3500;
+/** The section's horizontal fraction for a crossline on an inline (centre of the trace). */
+export const xlFrac = (xl) => (xl - XL0 + 0.5) / NXL;
+/** The section's horizontal fraction for an inline on a crossline. */
+export const ilFrac = (il) => (il - IL0 + 0.5) / 128;
 
 /** Seismolord open on the Home tab, the tour skipped. */
 export async function openSeismolord(d, shared) {
@@ -118,4 +126,23 @@ export async function deleteVolumesStarting(d, prefix) {
   const ex = d.page.locator('div:has(> div > span:text-is("Seismic Explorer"))');
   const names = (await ex.locator('div[role=button] span.truncate').allInnerTexts()).filter((n) => n.startsWith(prefix));
   for (const n of names) await deleteVolume(d, n);
+}
+
+/** The Fullscreen button of a viewer window ('section' or '3d'); the same
+ *  button restores it. */
+export const fullscreenBtn = (d, win) => d.page.locator(`[data-testid="window-${win}"] button[title="Fullscreen"]`);
+
+/** Off camera: every slice plane shown (explorer eyes), so the 3D window
+ *  draws the inline, the crossline and the time slice. */
+export async function showSlicePlanes(d) {
+  const ex = d.page.locator('div:has(> div > span:text-is("Seismic Explorer"))');
+  const names = (await ex.locator('div[role=button] span.truncate').allInnerTexts())
+    .filter((n) => /^(Inline \d+|Crossline \d+|Time slice \d+ ms)$/.test(n));
+  for (const n of names) await setVisible(d, n, true);
+}
+
+/** Off camera: close the 3D (or Map) window if it is open. */
+export async function closeWindow(d, title) {
+  const b = d.page.locator(`button[title="Close ${title}"]`);
+  if (await b.count()) { await b.first().click(); await d.sleep(800); }
 }

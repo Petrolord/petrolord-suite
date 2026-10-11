@@ -45,6 +45,12 @@
     cur = layer.querySelector('.cur'); ring = layer.querySelector('.ring'); lt = layer.querySelector('.lt');
     cur.style.transform = `translate(${pos.x}px,${pos.y}px)`;
   }
+  // element fullscreen (the Section and 3D windows' Fullscreen button) shows
+  // only the fullscreen element: carry the cursor and captions into it
+  document.addEventListener('fullscreenchange', () => {
+    mount();
+    (document.fullscreenElement || document.documentElement).appendChild(layer);
+  });
   const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
   window.__demo = {
     moveTo(x, y, ms = 700) {
