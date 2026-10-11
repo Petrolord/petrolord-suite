@@ -521,7 +521,7 @@ export default function TopsToHorizonsDialog({
                               <td>{h.role === 'conformable' ? `on ${h.representative} + isochron` : `${KIND_LABEL[h.kind]}, ${h.seeds.length} wells`}</td>
                               <td>{`${n} (${fmt((100 * n) / (geom.nIl * geom.nXl), 0)} %)`}</td>
                               <td>{h.stats.tuned ?? '·'}</td>
-                              <td>{h.stats.jumped ? `${h.stats.jumped} (throw ${h.jumps.filter((j) => !j.skipped).map((j) => fmt(j.throwSamples * dtMs)).join(', ')} ms)` : '·'}</td>
+                              <td>{h.stats.jumped ? `${h.stats.jumped} (throw ${h.jumps.filter((j) => !j.skipped).map((j) => fmt(Math.abs(j.throwSamples) * dtMs)).join(', ')} ms)` : '·'}</td>
                               <td>{h.lowo ? `${fmt(h.lowo.rmsMs)} ms over ${h.lowo.reached}/${h.lowo.n} wells` : '·'}</td>
                               <td>{rms == null ? '·' : `${fmt(rms)} ms`}</td>
                             </tr>
