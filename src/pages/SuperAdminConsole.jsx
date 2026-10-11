@@ -504,6 +504,9 @@ const SuperAdminConsoleContent = () => {
             <Button variant="outline" onClick={() => navigate('/admin/event-leads')}>
               Event leads
             </Button>
+            <Button variant="outline" onClick={() => navigate('/admin/ai-employees')}>
+              AI employees
+            </Button>
             <Button variant="outline" onClick={() => navigate('/admin/promo-codes')}>
               Promo Codes
             </Button>
