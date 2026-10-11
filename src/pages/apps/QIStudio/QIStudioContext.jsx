@@ -139,6 +139,7 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
     return { ...p, prospects: list };
   }), [edit]);
   const removeProspect = useCallback((id) => edit((p) => ({ ...p, prospects: (p.prospects || []).filter((x) => x.id !== id) })), [edit]);
+  const setDataInventory = useCallback((next) => edit((p) => ({ ...p, dataInventory: next })), [edit]);
   const setInversion = useCallback((volumeId, patch) => edit((p) => ({ ...p, inversion: { ...p.inversion, [volumeId]: { ...(p.inversion?.[volumeId] || {}), ...(typeof patch === 'function' ? patch(p.inversion?.[volumeId] || {}) : patch) } } })), [edit]);
 
   // --- project lifecycle with record sharing (the Well Spacing pattern)
@@ -271,7 +272,7 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
 
   const value = {
     project, wells, volumes, chosenVolumes, loaded, ready, loading, matrix, inventory, issues, targetChoices,
-    toggleWell, toggleVolume, toggleTarget, setSeismicAcquired, setFirstProduction, setInventory, saveIssue, setFeasibility, setQcResult, setInversion, setProperty, saveProspect, removeProspect, setPrestack, setPrestackQc, dropPrestackStore, setAvo, setSimultaneous,
+    toggleWell, toggleVolume, toggleTarget, setSeismicAcquired, setFirstProduction, setInventory, saveIssue, setFeasibility, setQcResult, setInversion, setProperty, saveProspect, removeProspect, setPrestack, setPrestackQc, dropPrestackStore, setAvo, setSimultaneous, setDataInventory,
     jobs: backend.jobs || null, backend,
     projects, sharedProjects, currentProjectId, projectName, projectRow: shared.projectRow, sharing: shared.sharing,
     viewingShared: shared.viewingShared, canWrite, savingAvailable: saving.available, savingReason: saving.reason,

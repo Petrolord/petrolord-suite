@@ -11,6 +11,7 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { readScan as readScanViaFunction } from './scanRead';
 import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
+import { makeRegistryInventorySource } from '@/lib/projectInventory/registrySource';
 import { PETRO_PROJECT_KIND, petroProjectKindSpec } from './projectState';
 import {
   listWells, listLogs, downloadCurve, listTops, saveTop, updateTop, deleteTop,
@@ -175,5 +176,7 @@ export function makeRegistryBackend() {
     async updateLogUnit(log, unit) { return updateLogUnit(log, unit, { byApp: 'petrophysics-studio' }); },
     /** PT11a: the signed-in user id for provenance `by`; null when signed out. */
     async whoAmI() { try { return await currentUserId(); } catch { return null; } },
+    /** Project Data Inventory (2026-10-11): the bulk registry reads (wells, logs, zones, tops, seismic). */
+    inventorySource: () => makeRegistryInventorySource(),
   };
 }

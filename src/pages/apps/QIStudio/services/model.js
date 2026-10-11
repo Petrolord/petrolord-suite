@@ -33,6 +33,7 @@ export const blankProject = () => ({
   avo: {},
   simultaneous: {},
   prestackQc: {},
+  dataInventory: {},
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -70,6 +71,10 @@ export function projectFromPayload(payload) {
     simultaneous: isObj(p.simultaneous) ? { ...p.simultaneous } : {},
     // prestack QC (Q4b) per gather store id: { name, at, result }
     prestackQc: isObj(p.prestackQc) ? { ...p.prestackQc } : {},
+    // Project Data Inventory (2026-10-11): what the user recorded on the
+    // inventory tab (cell overrides, remarks, items outside Petrolord, note
+    // comments); the inventory itself is rebuilt from the registries
+    dataInventory: isObj(p.dataInventory) ? { ...p.dataInventory } : {},
   };
 }
 

@@ -30,6 +30,7 @@ import ProspectsPanel from './components/ProspectsPanel';
 import PrestackPanel from './components/PrestackPanel';
 import AvoPanel from './components/AvoPanel';
 import SimultaneousPanel from './components/SimultaneousPanel';
+import ProjectInventoryTab from './components/ProjectInventoryTab';
 
 const TABS = [
   { value: 'setup', label: 'Setup' },
@@ -46,6 +47,9 @@ const TABS = [
   { value: 'issues', label: 'Issues' },
   { value: 'feasibility', label: 'Feasibility' },
   { value: 'report', label: 'Report' },
+  // Project Data Inventory (2026-10-11): appended last so the tabs the
+  // recorded videos open keep their names, order and positions
+  { value: 'datainventory', label: 'Data matrix' },
 ];
 const SHARING_STORE = supabaseSharingStore();
 const REGISTRY = makeRegistryBackend();
@@ -170,6 +174,7 @@ function QIStudioContent({ organizationName }) {
         {tab === 'issues' && <IssuesPanel />}
         {tab === 'feasibility' && <FeasibilityPanel />}
         {tab === 'report' && <ReportTab organizationName={organizationName} />}
+        {tab === 'datainventory' && <ProjectInventoryTab />}
       </div>
       <Notifications />
     </>

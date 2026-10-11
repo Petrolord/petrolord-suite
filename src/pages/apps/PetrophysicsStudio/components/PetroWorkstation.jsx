@@ -82,6 +82,9 @@ import { cpiImages } from '../services/cpiPages';
 import { swSystemOf, labelSaturation } from '../services/swSystem';
 import { depthLabel, DEPTH_TRACK_KEYS, DEPTH_TRACK_TITLE } from '../viewer/depthModes';
 import { readWellDatum } from '@/lib/wellDatum';
+import ProjectDataInventory from '@/components/projectInventory/ProjectDataInventory';
+import { sourceFromBackend } from '@/lib/projectInventory/backendSource';
+import { isBlankInventoryState } from '@/lib/projectInventory/state';
 
 /** @param {string} [p.wellDataManagerPath] route of the Well Data Manager
  *  the explorer's "Edit well data" link opens (the harness points at its
@@ -144,6 +147,9 @@ export default function PetroWorkstation({
   // (facies._shm); the curve is recomputed from them
   const [shmOpen, setShmOpen] = useState(false);
   const [shmSettings, setShmSettings] = useState(null);
+  // Project Data Inventory (2026-10-11): what the user recorded on the
+  // Inventory view, saved as facies._dataInventory with the interpretation
+  const [dataInventory, setDataInventory] = useState({});
   const [shmRun, setShmRun] = useState(null);    // {shm, rock, fwlTvdssM, projectId, projectName}
   const [noDepthWell, setNoDepthWell] = useState(null); // {inventory} — C2 empty state
   const [layouts, setLayouts] = useState(buildDefaultLayouts); // PS4 templates
@@ -199,7 +205,8 @@ export default function PetroWorkstation({
         setProjectName(project.name || null);
         if (project.params) setParams((p) => ({ ...p, ...project.params }));
         if (project.facies) {
-          const { _rules, _scenarios, _provenance, _uncertainty, _mineral, _units, _shm, ...byWell } = project.facies;
+          const { _rules, _scenarios, _provenance, _uncertainty, _mineral, _units, _shm, _dataInventory, ...byWell } = project.facies;
+          setDataInventory(_dataInventory && typeof _dataInventory === 'object' ? _dataInventory : {});
           setShmSettings(_shm?.projectId ? _shm : null);
           setMineralModel(_mineral?.minerals ? _mineral : null);
           if (_units && typeof _units === 'object') { unitOverridesRef.current = _units; setUnitOverrides(_units); }
@@ -223,6 +230,9 @@ export default function PetroWorkstation({
   }, [backend]);
 
   const selected = (wells || []).find((w) => w.id === selectedId) || null;
+  // the inventory reads in bulk through the registry where the backend
+  // offers it, else well by well (the dev harness)
+  const inventorySource = useMemo(() => (backend.inventorySource ? backend.inventorySource() : sourceFromBackend(backend)), [backend]);
 
   const refreshZones = useCallback(async (wellId) => {
     setZonesBusy(true);
@@ -839,6 +849,7 @@ export default function PetroWorkstation({
       ...(mineralModel ? { _mineral: mineralModel } : {}),
       ...(Object.keys(unitOverrides).length ? { _units: unitOverrides } : {}),
       ...(shmSettings ? { _shm: shmSettings } : {}),
+      ...(!isBlankInventoryState(dataInventory) ? { _dataInventory: dataInventory } : {}),
       ...(provenance.length ? { _provenance: provenance } : {}),
     },
     zone_params: zoneParams,
@@ -955,7 +966,8 @@ export default function PetroWorkstation({
     setProjectName(project.name || null);
     setParams({ ...DEFAULT_PARAMS, ...(project.params || {}) });
     {
-      const { _rules, _scenarios, _provenance, _uncertainty, _mineral, _units, _shm, ...byWell } = project.facies || {};
+      const { _rules, _scenarios, _provenance, _uncertainty, _mineral, _units, _shm, _dataInventory, ...byWell } = project.facies || {};
+      setDataInventory(_dataInventory && typeof _dataInventory === 'object' ? _dataInventory : {});
       setShmSettings(_shm?.projectId ? _shm : null);
       setShmRun(null);
       setMineralModel(_mineral?.minerals ? _mineral : null);
@@ -1147,6 +1159,16 @@ export default function PetroWorkstation({
           onClick={() => setView('field')}
         >
           Field
+        </button>
+        <button
+          type="button"
+          data-testid="petro-view-inventory"
+          title="Project data inventory: every well against its data, the seismic and interpretations, with notes on each gap"
+          className={`px-2 py-1 text-xs rounded border
+            ${view === 'inventory' ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
+          onClick={() => setView('inventory')}
+        >
+          Inventory
         </button>
       </div>
       <div className="ml-4 flex flex-wrap items-center gap-1">
@@ -1427,6 +1449,20 @@ export default function PetroWorkstation({
   const center = !wells ? (
     <div className="h-full flex items-center justify-center text-pl-muted text-sm">
       <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading registry wells…
+    </div>
+  ) : view === 'inventory' ? (
+    <div className="h-full overflow-auto p-3" data-testid="petro-inventory">
+      <ProjectDataInventory
+        source={inventorySource}
+        state={dataInventory}
+        onStateChange={setDataInventory}
+        canWrite
+        audience="petro"
+        unit={depthUnit}
+        projectName={projectName || 'Petrophysical interpretation'}
+        appLabel="Petrophysics Studio"
+        saveHint="Built from the registries each time it opens. What you set by hand is kept with the interpretation when you Save."
+      />
     </div>
   ) : view === 'field' ? (
     <FieldViewPanel

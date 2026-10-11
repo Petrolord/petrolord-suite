@@ -24,6 +24,13 @@ QI Studio holds the first package of a quantitative interpretation study: the da
 - **Properties** (Q9a): porosity (Q10, Q50, Q90) or Bayesian facies (probabilities and the most likely code) from an impedance volume, calibrated at the wells and checked by leaving each well out.
 - **Prospects** (Q10): the trap on a depth surface, the anomaly's conformance to structure, evidence independence, competing explanations, the QI recommendation, and the qi-prospect-1 record read by Risked Reserves Valuation.
 - **Handover** (Q11): SEG-Y of every product from the seismic worker, run records, wavelet text files, and .pld portability of the study.
+- **Data matrix** (Project Data Inventory, 2026-10-11): the start-of-project data grid, built from the registries with no typing.
+  - The study's wells against 26 data columns, with coverage of the target interval read from the curve samples. Hole condition comes from caliper and DRHO.
+  - The study's volumes (type, format and bits, IL/XL, area, sample rate, record length, CRS, size, domain), plus horizons, faults, maps, velocity, ties and wavelets.
+  - Rule-based notes, each with impact, workaround, uncertainty and mitigation; readiness for seven workflows; items held outside Petrolord.
+  - Presentation view, PNG, PDF and CSV.
+  - Hand-set states and items are saved in the project payload (`dataInventory`), so no migration. The shared core is `src/lib/projectInventory`, the board is `src/components/projectInventory`.
+  - The tab is appended after Report, so the recorded tabs (Setup to Report, including the Data inventory register) keep their names, order and positions.
 - **Report:** the QI Data Audit and Feasibility Report on the shared Report Kit, with the executive summary, the QC, tie, inversion, sensitivity, property, prospect and handover tables, and the QI class definitions.
 
 ## Decisions
