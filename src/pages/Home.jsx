@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Check, Menu, Search, X } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import BookDemoModal from '@/components/BookDemoModal';
+import { YouTubeLink } from '@/components/public/YouTubeLink';
 import { SUITE_MODULES, suiteStats, NEXTGEN_LIVE_COURSES, NEXTGEN_APP_COURSES } from '@/data/suiteCatalog';
 import './Home.css';
 
@@ -447,6 +448,7 @@ function Home() {
             <Link to="/careers">Careers</Link>
             <Link to="/legal/support">Contact &amp; Support</Link>
             <a href="mailto:info@petrolord.com">info@petrolord.com</a>
+            <YouTubeLink />
           </FooterCol>
           <FooterCol title="Legal">
             <Link to="/legal/terms-of-service">Terms of Service</Link>
