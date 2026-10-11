@@ -1,5 +1,16 @@
-// Ekene demonstration dataset — structure, faulting and well geometry.
+// Ekene demonstration dataset — well control, trajectories and tops.
 // ============================================================================
+// Since kit v4 there are two structural models, on purpose:
+//
+//   makeWellControl()  the v3 model, unchanged. Every well's survey and tops
+//                      come from it, so the logs, tops, surveys and
+//                      checkshots stay byte-identical to v3 (the lesson
+//                      videos are recorded on them).
+//   makeGeology()      the v4 structure (structure.mjs): the listric growth
+//                      fault, its rollover and the crestal faults. It honours
+//                      every pick the wells above carry, and the seismic, the
+//                      truth surfaces and the fault files are built from it.
+//
 // The Ekene Sand surface is NOT invented here. It is the surface the central
 // gridding engine produces from the six locked well picks, which is what makes
 // the NG5 volumetrics (169 oil cells, 20.2818603515625 m maximum oil column)
@@ -15,6 +26,7 @@ import {
   LOCKED, LOCKED_WELLS, LOCKED_E7, GRID, FRAME, HORIZONS, horizonByKey, FAULT, PLATFORM,
 } from './spine.mjs';
 import { makeRbf } from './rbf.mjs';
+import { makeStructure } from './structure.mjs';
 
 const DEG = Math.PI / 180;
 
@@ -32,7 +44,7 @@ function wellsForEngine() {
   }));
 }
 
-export function makeGeology() {
+export function makeWellControl() {
   const engineWells = wellsForEngine();
   const topPts = topsToPoints(engineWells, 'TOP_SAND');
   const spec = specForPoints(topPts, GRID.cell_m, GRID.pad_cells);
@@ -105,6 +117,32 @@ export function makeGeology() {
     spec, topGrid: top, baseGrid: base,
     topSandAt, baseSandAt, topSandGridAt, baseSandGridAt, topSandAtE1,
     faultXAt, faultSide, throwAt, horizonDepthAt,
+    horizonKeys: HORIZONS.map((h) => h.key),
+  };
+}
+
+/**
+ * The v4 structure, honouring every pick of the wells built on the control.
+ * built: [{ well, survey, tops }] from build.mjs.
+ */
+export function makeGeology(control, built) {
+  const wellPicks = built.map((b) => ({
+    name: b.well.name,
+    picks: b.tops.filter((t) => t.key !== 'SEABED').map((t) => ({ key: t.key, x: t.x, y: t.y, tvd: t.tvd })),
+  }));
+  const st = makeStructure({ wellPicks });
+  // the Ekene East Fault splits the wells as v3's fault did: by where each
+  // well's bottom-hole target sits against it at the Oboro Sand
+  const faultSide = (x, y) => {
+    const z = control.horizonDepthAt('OBORO', x, y);
+    const zp = st.f2Z(st.frame.toAB(x, y).a, st.frame.toAB(x, y).b);
+    return zp !== null && z < zp ? 'east' : 'west';
+  };
+  return {
+    ...st,
+    control,
+    topSandAt: (x, y) => st.horizonDepthAt('TOP_SAND', x, y),
+    faultSide,
     horizonKeys: HORIZONS.map((h) => h.key),
   };
 }

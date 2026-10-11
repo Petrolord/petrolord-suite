@@ -1,7 +1,7 @@
 // Ekene demonstration dataset — generator.
 // ============================================================================
 // Run from the repo root:   npx tsx tools/demo-dataset/generate.mjs
-// Output:                   dist-demo/ekene-demo-v3/   (git-ignored)
+// Output:                   dist-demo/ekene-demo-v4/   (git-ignored)
 //
 // Everything is deterministic: reruns are byte-identical. The LOCKED values in
 // spine.mjs are asserted on the way through, so this refuses to write a kit
@@ -23,7 +23,7 @@ import { pickettFit } from '../../packages/engines/engines/petrophysics/rw.js';
 
 import {
   LOCKED, LOCKED_WELLS, LOCKED_E7, ADDED_WELLS, GRID, FRAME, HORIZONS, OBORO,
-  FAULT, PLATFORM, CURVES, PETRO, PRESSURE, SEISMIC, KIT, TEMP_GRAD_F_PER_M, ELASTIC,
+  STRUCTURE, PLATFORM, CURVES, PETRO, PRESSURE, SEISMIC, KIT, TEMP_GRAD_F_PER_M, ELASTIC,
 } from './spine.mjs';
 import { buildSurvey, topsForWell, tvdAtMd } from './geology.mjs';
 import { buildKit, lockedVolumetrics, volumetricsOf } from './build.mjs';
@@ -41,8 +41,9 @@ import { fitInterceptGradient } from '../../packages/engines/engines/rockphysics
 import { avoClass } from '../../packages/engines/engines/rockphysics/avo.js';
 import {
   makeGeometry, SEISMIC_NOTES, elasticPropsFrom, makeElasticModel, makeElasticTracer, stackRpp, rpp,
-  rmsVelocityTable, angleAtTime, traceRms, muteTrace, checkshotDriftOwtMs,
+  rmsVelocityTable, angleAtTime, traceRms, muteTrace, checkshotDriftOwtMs, makeTimeDepth,
 } from './seismic.mjs';
+import { structureTruth, ekeneClosure, inlineAtA, xlineAtB, SURVEY_HALF_M } from './structureTruth.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..', '..');
@@ -318,17 +319,31 @@ const crsLabel = `${FRAME.crs} (${FRAME.crs_name})`;
   const cell = 50;
   const nx = 72; const ny = 66;
   const x0 = 0; const y0 = 400;
-  const zO = new Float64Array(nx * ny);
-  for (let r = 0; r < ny; r += 1) {
-    for (let c = 0; c < nx; c += 1) {
-      zO[r * nx + c] = -geo.horizonDepthAt('OBORO', x0 + c * cell, y0 + r * cell);
+  // v4: the truth carries the faults, so a node inside a fault's gap (the
+  // horizon cut out) is a null, as on any faulted map
+  const truthGrid = (key, f = (d) => -d) => {
+    const z = new Float64Array(nx * ny);
+    for (let r = 0; r < ny; r += 1) {
+      for (let c = 0; c < nx; c += 1) {
+        const d = geo.horizonDepthAt(key, x0 + c * cell, y0 + r * cell);
+        z[r * nx + c] = d === null ? 1e30 : f(d, x0 + c * cell, y0 + r * cell);   // 1.0E+30, the export null
+      }
     }
-  }
-  const gOb = gridObject({ nx, ny, dx: cell, dy: cell, x0, y0 }, zO, 'OBORO_SAND_TOP', crsLabel);
+    return z;
+  };
+  const gOb = gridObject({ nx, ny, dx: cell, dy: cell, x0, y0 }, truthGrid('OBORO'), 'OBORO_SAND_TOP', crsLabel);
   write('02-surfaces/OboroSand-top.zmap', writeZMAP(gOb));
   write('02-surfaces/OboroSand-top.cps3', writeCPS3(gOb));
+  // v4: the Ekene Sand structural truth the seismic is built from, in depth
+  // and in two-way time (the answer key for a seismic interpretation)
+  const gEk = gridObject({ nx, ny, dx: cell, dy: cell, x0, y0 }, truthGrid('TOP_SAND'), 'EKENE_SAND_TOP_TRUTH', crsLabel);
+  write('02-surfaces/EkeneSand-top-truth.zmap', writeZMAP(gEk));
+  write('02-surfaces/EkeneSand-top-truth.cps3', writeCPS3(gEk));
+  const twtAt = makeTimeDepth({ geo, props: elasticPropsFrom(built.find((b) => b.well.name === 'Ekene-1').rows) });
+  const gEkT = gridObject({ nx, ny, dx: cell, dy: cell, x0, y0 }, truthGrid('TOP_SAND', (d, x, y) => twtAt(x, y, d)), 'EKENE_SAND_TOP_TRUTH_TWT_MS', crsLabel);
+  write('02-surfaces/EkeneSand-top-truth-twt.zmap', writeZMAP(gEkT));
   say(`  surfaces: Ekene Sand top and base (${spec.nx}x${spec.ny} at ${GRID.cell_m} m), `
-    + `Oboro Sand top (${nx}x${ny} at ${cell} m)`);
+    + `Oboro Sand top and Ekene Sand truth in depth and time (${nx}x${ny} at ${cell} m)`);
 }
 
 // Culture: the licence boundary and the fault trace, in the project CRS.
@@ -346,26 +361,77 @@ const crsLabel = `${FRAME.crs} (${FRAME.crs_name})`;
     }],
   }, null, 2)}\n`);
 
-  const trace = [];
-  for (let y = 300; y <= 3300; y += 150) {
-    trace.push([Number(utmE(geo.faultXAt(y)).toFixed(2)), Number(utmN(y).toFixed(2))]);
-  }
-  write('03-culture/ekene-growth-fault.geojson', `${JSON.stringify({
-    type: 'FeatureCollection',
-    name: 'Ekene Growth Fault',
+  // v4: the main fault's trace where it reaches nearest the seabed (its tip,
+  // about 100 ms), as a line, the way v3 carried its fault
+  const { toXY } = geo.frame;
+  const utmPt = ({ x, y }) => [Number(utmE(x).toFixed(2)), Number(utmN(y).toFixed(2))];
+  const fc = (name, features) => `${JSON.stringify({
+    type: 'FeatureCollection', name,
     crs: { type: 'name', properties: { name: `urn:ogc:def:crs:EPSG::${FRAME.crs.split(':')[1]}` } },
-    features: [{
+    features,
+  }, null, 2)}\n`;
+  const alongStrike = [];
+  for (let a = -1700; a <= 1700; a += 100) alongStrike.push(a);
+  const T = structureTruth(geo);
+  const throwAt = (k) => T.main_fault.throw_by_horizon_at_survey_centre.find((t) => t.horizon === k)?.throw_m;
+  write('03-culture/ekene-growth-fault.geojson', fc(STRUCTURE.main_fault.name, [{
+    type: 'Feature',
+    properties: {
+      name: STRUCTURE.main_fault.name, type: 'listric normal growth fault', downthrown: 'east-southeast (basinward)',
+      strike_deg: STRUCTURE.frame.strike_deg, dip_deg_near_top: Number(T.main_fault.dip_by_depth[0].dip_deg.toFixed(1)),
+      dip_deg_at_ekene_sand: Number(T.main_fault.dip_by_depth[3].dip_deg.toFixed(1)),
+      detachment_md: STRUCTURE.main_fault.sole_md, trace_level: `tip, ${T.main_fault.tip_md} m below KB (about 100 ms)`,
+      throw_m_at_benin: Number(throwAt('BENIN').toFixed(0)), throw_m_at_ekene_sand: Number(throwAt('TOP_SAND').toFixed(0)),
+      throw_m_at_oboro_sand: Number(throwAt('OBORO').toFixed(0)), throw_m_at_akata: Number(throwAt('AKATA').toFixed(0)),
+      note: 'Kit v4: every well is in the hanging wall, on the rollover; the Ekene Sand is one unbroken tank. The fault polygons at the Ekene Sand are in ekene-fault-polygons-ekene-sand.geojson.',
+    },
+    geometry: { type: 'LineString', coordinates: alongStrike.map((a) => utmPt(toXY(a, geo.traceB(a)))) },
+  }]));
+  // The Ekene East Fault where it cuts the Oboro Sand: the line that splits
+  // the wells four west to three east, as v3's fault trace did
+  const eastTrace = [];
+  for (const a of alongStrike) {
+    if (geo.f2Throw('OBORO', a) <= 0) continue;
+    let b = geo.f2B(a);
+    for (; b < geo.f2B(a) + 800; b += 2) {
+      const { x, y } = toXY(a, b);
+      const zp = geo.f2Z(a, b);
+      if (zp !== null && geo.hangingWallDepthAt('OBORO', x, y) < zp) break;
+    }
+    eastTrace.push(utmPt(toXY(a, b)));
+  }
+  write('03-culture/ekene-east-fault.geojson', fc(STRUCTURE.ekene_east.name, [{
+    type: 'Feature',
+    properties: {
+      name: STRUCTURE.ekene_east.name, type: 'buried synthetic growth fault', downthrown: 'east-southeast',
+      trace_level: 'Oboro Sand', tip_md: STRUCTURE.ekene_east.tip_md,
+      throw_m_at_ekene_sand: 0, throw_m_at_oboro_sand: STRUCTURE.ekene_east.throw_m.OBORO, throw_m_at_akata: STRUCTURE.ekene_east.throw_m.AKATA,
+      note: 'Dies out below the Ekene Sand base. Splits the wells four west (Ekene-1, -3, -5, -7) to three east (Ekene-2, -4, -6) at the Oboro Sand.',
+    },
+    geometry: { type: 'LineString', coordinates: eastTrace },
+  }]));
+  // fault polygons at the Ekene Sand: the main fault's footwall and
+  // hanging-wall cutoffs, closed into the gap between them
+  {
+    const fwLine = []; const hwLine = [];
+    for (let a = -SURVEY_HALF_M; a <= SURVEY_HALF_M + 1e-9; a += 50) {
+      let fw = null; let hw = null;
+      for (let b = -SURVEY_HALF_M - 600; b <= SURVEY_HALF_M; b += 2) {
+        const { x, y } = toXY(a, b);
+        const z = geo.horizonDepthAt('TOP_SAND', x, y);
+        const isHw = z !== null && geo.blockAt(x, y, z + 1e-6).hw;
+        if (z !== null && !isHw) fw = { x, y };
+        else if (isHw && fw) { hw = { x, y }; break; }
+      }
+      if (fw && hw) { fwLine.push(utmPt(fw)); hwLine.push(utmPt(hw)); }
+    }
+    write('03-culture/ekene-fault-polygons-ekene-sand.geojson', fc('Ekene Sand fault polygons', [{
       type: 'Feature',
-      properties: {
-        name: FAULT.name, type: 'normal growth fault', downthrown: 'east',
-        dip_deg: FAULT.dip_deg, strike_deg: FAULT.strike_deg,
-        throw_m_at_ekene_sand: 0, throw_m_at_oboro_sand: 38, throw_m_at_akata: 72,
-        note: 'Dies out below the Ekene Sand base, which is why the Ekene tank is unfaulted in the base case.',
-      },
-      geometry: { type: 'LineString', coordinates: trace },
-    }],
-  }, null, 2)}\n`);
-  say('  culture: licence boundary polygon and the growth fault trace');
+      properties: { name: `${STRUCTURE.main_fault.name} at the Ekene Sand`, horizon: 'Ekene Sand', note: 'The gap between the footwall and hanging-wall cutoffs: the sand is cut out inside it.' },
+      geometry: { type: 'Polygon', coordinates: [[...fwLine, ...hwLine.slice().reverse(), fwLine[0]]] },
+    }]));
+  }
+  say('  culture: licence boundary, the growth fault and Ekene East traces, Ekene Sand fault polygons');
 }
 
 // ===========================================================================
@@ -399,7 +465,7 @@ const QI_TRUTH = {};
 
   const header = (cfg, label, lines) => [
     `CLIENT ${FRAME.operator}`,
-    `SURVEY EKENE 3D ${label} - SYNTHETIC DEMONSTRATION DATA`,
+    `SURVEY EKENE 3D V4 ${label} - SYNTHETIC DEMO DATA`,
     `AREA ${FRAME.licence}  ${FRAME.country}`,
     `CRS ${FRAME.crs} ${FRAME.crs_name}`,
     `BIN ${SEISMIC.bin_m} M X ${SEISMIC.bin_m} M   INLINE AZIMUTH ${SEISMIC.inline_azimuth_deg} DEG`,
@@ -437,7 +503,7 @@ const QI_TRUTH = {};
       },
       textLines: header(cfg, title, [note]),
     });
-    const name = `04-seismic/EKENE3D-${label}.sgy`;
+    const name = `04-seismic/${SEISMIC.file_prefix}-${label}.sgy`;
     write(name, buf);
     say(`  seismic ${label}: ${cfg.nInline}x${cfg.nXline}x${ns}, `
       + `${(buf.length / 1048576).toFixed(1)} MB, ${cfg.format === 1 ? 'IBM' : 'IEEE'} float`);
@@ -470,10 +536,80 @@ const QI_TRUTH = {};
         `NMO CORRECTED WITHOUT STRETCH  MUTED (ZEROS) BEYOND ${Q.mute_deg} DEG`,
       ]),
     });
-    write('04-seismic/gathers/EKENE3D-gathers-nmo.sgy', buf);
+    write(`04-seismic/gathers/${SEISMIC.file_prefix}-gathers-nmo.sgy`, buf);
     write('04-seismic/gathers/ekene-rms-velocity.csv', csv(['twt_ms', 'vrms_m_s'], table.t_ms.map((t, k) => [t.toFixed(1), table.vrms[k].toFixed(1)])));
     QI_TRUTH.gathers = { offsets, nsG, bytes: buf.length };
     say(`  gathers: ${G.nInline}x${G.nXline} CDPs x ${G.nOffset} offsets x ${nsG}, ${(buf.length / 1048576).toFixed(1)} MB`);
+  }
+
+  // v4 truth: the structure measured, the fault sticks and the closure
+  const PFX = SEISMIC.file_prefix;
+  const ST = structureTruth(geo);
+  const CL = ekeneClosure(geo);
+  const twtAt = makeTimeDepth({ geo, props });
+  const { toXY } = geo.frame;
+  const SOLE_TWT = (() => { const p = toXY(0, SURVEY_HALF_M); return twtAt(p.x, p.y, STRUCTURE.main_fault.sole_md); })();
+  {
+    // sticks: each fault plane along every 8th inline, a node every 50 m of depth
+    const rows = [];
+    const faults = [
+      [STRUCTURE.main_fault.name, (a, b) => geo.mainFaultZ(a, b)],
+      [STRUCTURE.ekene_east.name, (a, b) => geo.faultDepthsAt(toXY(a, b).x, toXY(a, b).y)[STRUCTURE.ekene_east.name]],
+      ...STRUCTURE.crestal.map((c) => [c.name, (a, b) => geo.faultDepthsAt(toXY(a, b).x, toXY(a, b).y)[c.name]]),
+    ];
+    for (const [name, zAt] of faults) {
+      let stick = 0;
+      for (let il = SEISMIC.full.il0; il < SEISMIC.full.il0 + SEISMIC.full.nInline; il += 8) {
+        const a = (il - SEISMIC.full.il0) * SEISMIC.bin_m - SURVEY_HALF_M;
+        const nodes = [];
+        let lastZ = -Infinity;
+        for (let b = -SURVEY_HALF_M; b <= SURVEY_HALF_M; b += 1) {
+          const z = zAt(a, b);
+          if (z === null || !Number.isFinite(z) || z <= 0) continue;
+          if (z - lastZ >= 50 || (nodes.length && b === SURVEY_HALF_M)) {
+            const p = toXY(a, b);
+            nodes.push([name, 0, il, (b + SURVEY_HALF_M) / SEISMIC.bin_m + SEISMIC.full.xl0, utmE(p.x), utmN(p.y), z - FRAME.kb_m, twtAt(p.x, p.y, z)]);
+            lastZ = z;
+          }
+        }
+        if (nodes.length < 2) continue;
+        stick += 1;
+        for (const nd of nodes) rows.push([nd[0], stick, nd[2], n(nd[3], 2), n(nd[4], 2), n(nd[5], 2), n(nd[6], 1), n(nd[7], 1)]);
+      }
+    }
+    write('04-seismic/truth/ekene-fault-sticks.csv', csv(['fault', 'stick', 'inline', 'crossline', 'easting_m', 'northing_m', 'tvdss_m', 'twt_ms'], rows));
+    const r1 = (v) => Math.round(v * 10) / 10;
+    write('04-seismic/truth/ekene-structure-truth.json', `${JSON.stringify({
+      kit: `${KIT.name}-${KIT.version}`,
+      note: 'The structure the v4 seismic is built from, measured on the model. Depths are metres below KB (KB 25 m above MSL) unless TVDSS.',
+      main_fault: {
+        ...ST.main_fault,
+        tip_twt_ms: r1(twtAt(toXY(0, geo.traceB(0) + 0.5).x, toXY(0, geo.traceB(0) + 0.5).y, ST.main_fault.tip_md)),
+        sole_twt_ms: r1(SOLE_TWT),
+        dip_by_depth: ST.main_fault.dip_by_depth.map((d) => ({ depth_md: d.depth_md, dip_deg: r1(d.dip_deg) })),
+        throw_by_horizon_at_survey_centre: ST.main_fault.throw_by_horizon_at_survey_centre.map((t) => ({
+          horizon: t.horizon, throw_m: r1(t.throw_m), heave_m: r1(t.heave_m), footwall_cutoff_md: r1(t.footwall_cutoff_md), hangingwall_cutoff_md: r1(t.hangingwall_cutoff_md),
+        })),
+      },
+      ekene_east: ST.ekene_east,
+      crestal: ST.crestal,
+      ekene_sand_closure: {
+        crest: { ...CL.crest, tvdss_m: r1(CL.crest.tvdss_m), easting_m: n(utmE(CL.crest.x), 1), northing_m: n(utmN(CL.crest.y), 1) },
+        spill_point: { ...CL.spillPoint, tvdss_m: r1(CL.spillPoint.tvdss_m), easting_m: n(utmE(CL.spillPoint.x), 1), northing_m: n(utmN(CL.spillPoint.y), 1) },
+        closure_m: r1(CL.closure_m),
+        contact_tvdss_m: CL.contact_tvdss_m,
+        area_above_contact_km2: Math.round(CL.area_km2 * 1000) / 1000,
+        grv_to_contact_m3: Math.round(CL.grv_m3),
+        grv_to_contact_mmbbl: Math.round((CL.grv_m3 * 6.28981) / 1e4) / 100,
+        method: 'the Mapping engine\'s spill analysis (closure.js) on a 12.5 m grid of the truth surface, flooded from the hanging-wall crest',
+      },
+      record_ms: SEISMIC.t_max_ms,
+    }, null, 2)}\n`);
+    say(`  structure: main fault ${ST.main_fault.dip_by_depth[0].dip_deg.toFixed(0)} deg at the tip to ${ST.main_fault.dip_by_depth.at(-1).dip_deg.toFixed(0)} deg at the sole (${Math.round(SOLE_TWT)} ms); `
+      + `throw ${ST.main_fault.throw_by_horizon_at_survey_centre.map((t) => `${t.horizon} ${t.throw_m.toFixed(0)}`).join(', ')} m`);
+    say(`  Ekene Sand closure: crest ${CL.crest.tvdss_m.toFixed(1)}, spill ${CL.spillPoint.tvdss_m.toFixed(1)} m TVDSS, `
+      + `${CL.area_km2.toFixed(3)} km2 and GRV ${(CL.grv_m3 / 1e6).toFixed(2)} million m3 above the ${CL.contact_tvdss_m} m TVDSS contact`);
+    if (!(CL.spillPoint.tvdss_m > CL.contact_tvdss_m)) throw new Error('ASSERT the Ekene Sand rollover spills above the contact');
   }
 
   // one "time velocity" row per line, the form QI Studio's Prestack box reads
@@ -487,15 +623,31 @@ const QI_TRUTH = {};
     `- **Datum** ${SEISMIC_NOTES.datum}`,
     `- **Byte positions** inline 189, crossline 193, CDP X 181, CDP Y 185, scalar 71 (value -100).`,
     `- **CRS** ${crsLabel}.`, '',
-    '`EKENE3D-small.sgy` is the one to import on camera: it decodes inside a take.',
-    '`EKENE3D-full.sgy` is the one to have imported already for everything after that.', '',
-    '## What is in it',
+    `- **Record** ${SEISMIC.t_max_ms} ms at ${SEISMIC.dt_ms} ms (${ns} samples), long enough to see the growth fault sole out.`, '',
+    `\`${PFX}-small.sgy\` is the one to import on camera: it decodes inside a take.`,
+    `\`${PFX}-full.sgy\` is the one to have imported already for everything after that.`,
+    'The v4 names carry the version, so they sit beside the v3 volumes in one project.', '',
+    '## What is in it (kit v4)',
     '',
     'The seabed, the Benin and Agbada boundaries, the Ogbia Shale, the top and base',
-    'of the Ekene Sand, the Oboro Unconformity, the Oboro Sand and the Akata',
-    'Formation. The growth fault at inline-parallel strike is invisible at the Ekene',
-    'level by design and clear at the Oboro and Akata levels, which is where a growth',
-    'fault is pickable anyway.', '',
+    'of the Ekene Sand, the Oboro Unconformity, the Oboro Sand, the Akata Formation and',
+    'the Akata detachment.', '',
+    `The structure is a Niger Delta growth fault. The ${STRUCTURE.main_fault.name} dips basinward`,
+    `(east-southeast) and is listric: about ${ST.main_fault.dip_by_depth[0].dip_deg.toFixed(0)} degrees near its tip, which reaches up to about`,
+    `100 ms, ${ST.main_fault.dip_by_depth[3].dip_deg.toFixed(0)} degrees at the Ekene Sand, ${ST.main_fault.dip_by_depth[6].dip_deg.toFixed(0)} degrees at 2200 m, and flat where it soles into`,
+    `the overpressured Akata shale at about ${STRUCTURE.main_fault.sole_md} m (${Math.round(SOLE_TWT)} ms). Its hanging wall is an`,
+    'asymmetric rollover anticline, the Ekene trap: beds bend back toward the fault, and the',
+    'growth packages thicken toward it, older ones more. Throw grows with the age of the horizon:',
+    ...ST.main_fault.throw_by_horizon_at_survey_centre.map((t) => `- ${t.horizon.replace('_', ' ')}: ${t.throw_m.toFixed(0)} m throw, ${t.heave_m.toFixed(0)} m heave`),
+    '',
+    `Around the crest: the ${STRUCTURE.ekene_east.name} (a buried synthetic fault, dead since Ekene Sand time,`,
+    `${STRUCTURE.ekene_east.throw_m.OBORO} m at the Oboro Sand), and a crestal graben of a synthetic and an antithetic`,
+    'fault in the overburden above the reservoir, with a second pair beyond Ekene-1.', '',
+    `The Ekene Sand closes inside the survey: crest ${CL.crest.tvdss_m.toFixed(1)} m TVDSS (inline ${CL.crest.inline}, crossline ${CL.crest.xline}),`,
+    `spill ${CL.spillPoint.tvdss_m.toFixed(1)} m TVDSS (inline ${CL.spillPoint.inline}, crossline ${CL.spillPoint.xline}), ${CL.area_km2.toFixed(2)} km2 above the`,
+    `${CL.contact_tvdss_m.toFixed(0)} m TVDSS contact. Every well is on the rollover, in the hanging wall; no well crosses a fault.`, '',
+    'The answer key: `truth/ekene-structure-truth.json`, `truth/ekene-fault-sticks.csv`, and',
+    '`02-surfaces/EkeneSand-top-truth*.zmap`.', '',
     '## Kit v3: elastic, with angles (for QI Studio)', '',
     'Every volume is built from one elastic model: per layer P velocity, S velocity and',
     'density from Ekene-1\'s logs, with the Ekene Sand split at the oil-water contact',
@@ -503,9 +655,10 @@ const QI_TRUTH = {};
     'Zoeppritz reflectivity at each angle. The oil leg dims the top of the Ekene Sand, the',
     'oil-water contact is a flat event, and the Oboro gas sand changes polarity with angle.', '',
     '| File | What it is |', '|---|---|',
-    `| \`EKENE3D-full.sgy\` | full stack, ${Q.full_deg[0]} to ${Q.full_deg[1]} degrees |`,
-    ...Q.stacks.map(([nm, a, b]) => `| \`EKENE3D-${nm}.sgy\` | ${nm} angle stack, ${a} to ${b} degrees (mean ${(a + b) / 2}), same lattice as the full stack |`),
-    `| \`gathers/EKENE3D-gathers-nmo.sgy\` | NMO-corrected offset gathers, inlines ${Q.gathers.il0} to ${Q.gathers.il0 + Q.gathers.nInline - 1}, crosslines ${Q.gathers.xl0} to ${Q.gathers.xl0 + Q.gathers.nXline - 1}, offsets ${QI_TRUTH.gathers.offsets[0]} to ${QI_TRUTH.gathers.offsets.at(-1)} m (bytes 37-40), muted beyond ${Q.mute_deg} degrees |`,
+    `| \`${PFX}-full.sgy\` | full stack, ${Q.full_deg[0]} to ${Q.full_deg[1]} degrees |`,
+    `| \`${PFX}-small.sgy\` | the same full stack over ${SEISMIC.small.nInline} x ${SEISMIC.small.nXline} traces, for an import on camera |`,
+    ...Q.stacks.map(([nm, a, b]) => `| \`${PFX}-${nm}.sgy\` | ${nm} angle stack, ${a} to ${b} degrees (mean ${(a + b) / 2}), same lattice as the full stack |`),
+    `| \`gathers/${PFX}-gathers-nmo.sgy\` | NMO-corrected offset gathers, inlines ${Q.gathers.il0} to ${Q.gathers.il0 + Q.gathers.nInline - 1}, crosslines ${Q.gathers.xl0} to ${Q.gathers.xl0 + Q.gathers.nXline - 1}, offsets ${QI_TRUTH.gathers.offsets[0]} to ${QI_TRUTH.gathers.offsets.at(-1)} m (bytes 37-40), muted beyond ${Q.mute_deg} degrees |`,
     '| `gathers/ekene-rms-velocity.csv` | the RMS velocity function for the angle stacks |', '',
     'In QI Studio\'s Prestack tab, set the offset bin to ' + `${Q.gathers.offsetStep_m}` + ' m and paste this velocity table (one time and RMS velocity per line):', '',
     '```', vt, '```', '',
@@ -778,7 +931,8 @@ const QI_TRUTH = {};
 // ===========================================================================
 {
   const target = built.find((b) => b.well.name === 'Ekene-11');
-  const tvdT = geo.horizonDepthAt('OBORO', target.well.x, target.well.y);
+  // the prognosis is the well control's, the model Ekene-11's tops come from
+  const tvdT = geo.control.horizonDepthAt('OBORO', target.well.x, target.well.y);
   write('07-well-design/ekene-11-targets.csv', csv(
     ['target', 'easting_m', 'northing_m', 'tvd_m', 'tvdss_m', 'radius_m', 'shape', 'note'],
     [
@@ -1032,20 +1186,21 @@ const EPISODES = [
     + 'because the oil column is only 20.3 m at the crest. The deterministic answer on the published map '
     + 'is 12.14 MMstb, which is the number the Academy teaches and the reservoir fixture carries.' },
   { n: 6, app: 'Seismolord', files: [
-    ['04-seismic/EKENE3D-small.sgy', 'import this one on camera; it decodes inside a take'],
-    ['04-seismic/EKENE3D-full.sgy', 'have this one imported already'],
+    [`04-seismic/${SEISMIC.file_prefix}-small.sgy`, 'import this one on camera; it decodes inside a take'],
+    [`04-seismic/${SEISMIC.file_prefix}-full.sgy`, 'have this one imported already'],
     ['04-seismic/README-seismic.md', 'polarity, byte positions, datum'],
   ], note: 'Top Ekene Sand is a PEAK under SEG normal polarity: the reservoir is faster and denser than the '
     + 'overpressured shale above it. Set the snap event to peak before you place a seed. '
     + 'Tie on Ekene-1, which carries sonic, density and an imported checkshot set. '
-    + 'Pick the growth fault at the Oboro or Akata level, where it has real throw; it dies out above the reservoir, '
-    + 'which is exactly why the Ekene tank is unfaulted.' },
+    + 'The growth fault is the listric plane on the west side of every inline: steep near the top, it reaches up to about '
+    + '100 ms and flattens into the Akata detachment at about 2.4 s. Pick it on a few inlines; every well is in its hanging wall, '
+    + 'on the rollover, so the Ekene tank itself is unfaulted.' },
   { n: 7, app: 'Earth Modeling', files: [
     ['the Ekene Sand surface from Episode 4 and the horizon surface from Episode 6', 'two surfaces from two applications'],
     ['02-surfaces/OboroSand-top.zmap', 'a third surface for a second zone'],
-    ['03-culture/ekene-growth-fault.geojson', 'the fault polygon'],
+    ['03-culture/ekene-east-fault.geojson', 'the fault line that splits the wells (the Ekene East Fault at the Oboro Sand)'],
     ['03-culture/ek11-licence-boundary.geojson', 'the boundary'],
-  ], note: 'The fault splits the wells four west (Ekene-1, -3, -5, -7) to three east (Ekene-2, -4, -6). '
+  ], note: 'The Ekene East Fault splits the wells four west (Ekene-1, -3, -5, -7) to three east (Ekene-2, -4, -6). '
     + 'At the Ekene Sand only Ekene-6 and Ekene-10 carry a pay zone in the eastern block, because Ekene-2 and '
     + 'Ekene-4 found the sand wet. So the western block krigs and the eastern one falls back, with the reason '
     + 'written down. That is the beat worth filming.' },
@@ -1115,17 +1270,17 @@ const EPISODES = [
     + 'values all three fall on one Leverett J curve, and it is the curve the logs\' water saturation came from in '
     + 'Episode 2. The Corey fit returns Swc 0.35, Sor 0.25, nw 2.5 and no 2.0.' },
   { n: 16, app: 'Seismolord Tops to Horizons', files: [
-    ['04-seismic/EKENE3D-full.sgy', 'imported already (Episode 6); every step below runs on it'],
+    [`04-seismic/${SEISMIC.file_prefix}-full.sgy`, 'imported already (Episode 6); every step below runs on it'],
     ['01-wells/tops/*-tops.csv', 'the nine surfaces in every well, already in the registry from Episodes 1 and 3'],
     ['01-wells/checkshots/*-checkshots.csv', 'the time-depth relation in every logged well'],
   ], note: 'Show the wells with tops in the explorer, then Interpretation, Tops to horizons. Every well has checkshots, '
     + 'so each one ties on its own relation. Top Ekene Sand is a PEAK (SEG normal polarity), and the auto tie '
-    + 'should agree. In the faults step, run Detect faults at the Oboro or Akata level: the growth fault has real '
-    + 'throw there and none at the Ekene Sand, so it is found below the reservoir, which is where the '
-    + 'geology puts it. Track the framework, Accept, and the horizons come out named after their tops. For the prognosis beat, '
+    + 'should agree. In the faults step, run Detect faults: the growth fault is found on the west '
+    + 'side, cutting every level from about 100 ms down, and the Ekene East Fault below the reservoir. '
+    + 'No well crosses either. Track the framework, Accept, and the horizons come out named after their tops. For the prognosis beat, '
     + 'pick Ekene-11, the planned well with no logs. '
-    + 'Then Compute attribute volume on the same cube: Fault likelihood (the growth fault lights up below '
-    + '1790 m), Most positive curvature (the drape anticline crest reads positive), Dip azimuth (grid north) '
+    + 'Then Compute attribute volume on the same cube: Fault likelihood (the growth fault lights up '
+    + 'from the shallow section down to the detachment), Most positive curvature (the rollover crest reads positive), Dip azimuth (grid north) '
     + '(the flanks point away from the crest), Chaos, and Relative acoustic impedance (the Ekene Sand, faster and '
     + 'denser than the Ogbia Shale above it, becomes a block).' },
   ...DOMAIN_EPISODES,
@@ -1210,12 +1365,12 @@ write('00-START-HERE.md', [
   `| STOIIP | ${(LOCKED.stoiip_stb / 1e6).toFixed(3)} MMstb |`,
   `| Reservoir | ${LOCKED.pi_psia} psia at the contact, bubble point ${LOCKED.pb_psia} psia, ${LOCKED.temp_f} degF, ${LOCKED.api} API |`,
   `| Wells | ${built.length} (six development, one appraisal, four from the platform, one planned) |`,
-  `| Structure | drape anticline over a growth fault that dies out below the reservoir |`, '',
+  `| Structure | rollover anticline in the hanging wall of a listric growth fault; the Ekene Sand closes inside the 3D |`, '',
   '## Folders', '',
   '| Folder | What is in it |', '|---|---|',
   '| `01-wells` | LAS logs (with a dipole shear sonic, DTS, since v3), deviation surveys, tops, checkshots, well headers |',
   '| `02-surfaces` | gridded structure in ZMAP+, CPS-3 and XYZ |',
-  '| `03-culture` | licence boundary and fault trace as GeoJSON |',
+  '| `03-culture` | licence boundary, fault traces and the Ekene Sand fault polygons as GeoJSON |',
   '| `04-seismic` | SEG-Y: full stack (small and full), near, mid and far angle stacks, and NMO-corrected offset gathers with their RMS velocity |',
   '| `05-pressure` | MDT pressures, shoe tests, mud weights, the designed prognosis |',
   '| `06-stratigraphy` | dated column, biozones, cored intervals |',
@@ -1253,6 +1408,17 @@ write('00-START-HERE.md', [
   '  to the stock tank barrel. A map and a pressure decline, agreeing.',
   `- Gridding the six development wells gives ${LOCKED.oil_cells} oil cells and a ${LOCKED.max_oil_column_m} m`,
   '  maximum oil column, which are the field\'s published numbers.', '',
+  '## What changed in v4', '',
+  '- The structure is a Niger Delta growth fault: a listric, basinward-dipping normal fault that reaches up to',
+  '  about 100 ms and soles into the Akata detachment, with an asymmetric rollover anticline in its hanging wall,',
+  '  growth packages thickening toward it, and smaller synthetic and antithetic faults around the crest',
+  '  (`04-seismic/README-seismic.md`, `04-seismic/truth/`).',
+  '- The Ekene Sand closes inside the 3D survey, with its spill below the contact, so a volumetric run on a',
+  '  surface picked from the seismic finds a closed trap.',
+  `- The record is ${SEISMIC.t_max_ms} ms (v3: 2400 ms), same 4 ms sampling, same survey geometry and byte positions.`,
+  `- The volumes are named \`${SEISMIC.file_prefix}-*.sgy\`, so they load beside the v3 volumes.`,
+  '- The wells did not change: every LAS, top, survey and checkshot is byte-identical to v3, and the new',
+  '  structure honours every pick.', '',
   '## What changed in v3', '',
   '- Every well with a sonic now has a dipole shear sonic (DTS, us/ft). No other log value changed.',
   '- The seismic is elastic: the oil leg dims the top of the Ekene Sand, the oil-water contact is a',

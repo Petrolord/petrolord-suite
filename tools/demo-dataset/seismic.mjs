@@ -8,7 +8,8 @@
 // like seismic.
 // ============================================================================
 
-import { FRAME, SEISMIC, LOCKED } from './spine.mjs';
+import { FRAME, SEISMIC, LOCKED, LOCKED_WELLS, STRUCTURE } from './spine.mjs';
+import { fbm2 } from './structure.mjs';
 import { zoeppritzRpp } from '../../packages/engines/engines/rockphysics/avo.js';
 import { waldenAngle, velocityOnGrid } from '../../packages/engines/engines/qi/prestack.js';
 
@@ -110,8 +111,12 @@ const LAYER_ORDER = [
   ['OBORO_U', 'OBORO', 'SUB_UNC'],
   ['OBORO', 'OBORO_B', 'OBORO'],
   ['OBORO_B', 'AKATA', 'AGBADA_B'],
-  ['AKATA', null, 'AKATA'],
+  // v4: the Akata runs down to the detachment the growth fault soles into;
+  // under it the overpressured, mobile Akata shale (seismic only, no well)
+  ['AKATA', 'DETACH', 'AKATA'],
+  ['DETACH', null, 'AKATA_D'],
 ];
+export { LAYER_ORDER };
 
 /**
  * Elastic layer properties from a well's rows (after addShear): timing
@@ -124,6 +129,9 @@ const LAYER_ORDER = [
  * synthetic from a well's own logs ties it.
  */
 export const BLOCK_M = 1.5;
+// Layers whose position is counted in metres below their top over a fixed
+// span (the log convention for the Akata, whose base no well reaches)
+const SPAN_LAYERS = { AKATA: 400, AKATA_D: 400 };
 export function elasticPropsFrom(rows) {
   const acc = new Map();
   const add = (key, r) => {
@@ -158,66 +166,168 @@ export function elasticPropsFrom(rows) {
     }
     profiles[key] = blocks;
   }
+  // v4: below the deepest log (Ekene-1 reaches 170 m into the Akata) the
+  // Akata keeps a quiet bedding texture instead of going blank, and the
+  // mobile shale under the detachment is slower, lighter and quieter still
+  if (out.AKATA) {
+    const D = STRUCTURE.detachment;
+    out.AKATA_D = {
+      v: out.AKATA.v * D.vp_factor, vp: out.AKATA.vp * D.vp_factor, vs: out.AKATA.vs * D.vs_factor, rho: out.AKATA.rho * D.rho_factor,
+    };
+    // marker beds: thin silty turbidite units in the Akata, the reflectors
+    // that show the growth fault flattening (hanging wall rotated, footwall flat)
+    const markers = [0.62, 0.86, 1.08, 1.33, 1.52, 1.71];
+    const tex = (seed, u0, u1, amp, withMarkers) => {
+      const blocks = [];
+      for (let u = u0; u < u1; u += BLOCK_M / SPAN_LAYERS.AKATA) {
+        const n1 = fbm(seed, u * 140, 4) - 0.5; const n2 = fbm(seed + 31, u * 260, 3) - 0.5;
+        let m = 0;
+        if (withMarkers) for (const um of markers) { const d = (u - um) / 0.012; if (Math.abs(d) < 1) m += 0.07 * (1 - d * d) * (0.8 + 0.4 * fbm(seed + 77, um * 50, 1)); }
+        blocks.push({ u0: u, dvp: amp * 2 * n1 + m, dvs: amp * 2.2 * n1 + 1.3 * m, drho: amp * (n1 + 0.6 * n2) + 0.4 * m });
+      }
+      return blocks;
+    };
+    const ak = profiles.AKATA || [{ u0: 0, dvp: 0, dvs: 0, drho: 0 }];
+    const last = ak[ak.length - 1].u0;
+    profiles.AKATA = [...ak, ...tex(907, last + BLOCK_M / SPAN_LAYERS.AKATA, 3, 0.03, true)];
+    profiles.AKATA_D = tex(1913, 0, 6, 0.015, false);
+  }
   Object.defineProperty(out, 'profiles', { value: profiles, enumerable: false });
   return out;
 }
 
+// v4: lateral variation. Real reflectors brighten and dim along a line
+// (sorting, cement, sand-body thickness), and the bedding inside a package
+// does not keep one contrast for kilometres. Both vary smoothly here, and
+// both are exactly 1 at Ekene-1, so the ties and the QI truth there stand.
+const LATERAL = {
+  // fine-structure contrast: 1 + amp * noise, part shared by the whole
+  // package and part bed by bed, so reflectors brighten and dim on their own
+  fine: { amp: 0.45, scale_m: 650, bed_amp: 0.5, bed_scale_m: 380, amp_by_layer: { SEABED_BENIN: 0.7, BENIN: 0.75 } },
+  // layer mean impedance, per layer: fractional amplitude
+  mean: { SEABED_BENIN: 0.02, BENIN: 0.025, AGBADA_U: 0.02, OGBIA: 0.012, EKENE: 0.03, AGBADA_L: 0.02, SUB_UNC: 0.012, OBORO: 0.03, AGBADA_B: 0.02, AKATA: 0.01, AKATA_D: 0.008 },
+  mean_scale_m: 900,
+  // stratigraphic drift inside a layer, as a fraction of its thickness
+  jitter: 0.06, jitter_scale_m: 700,
+  e1_radius_m: 220,
+};
+const LAYER_SEED = Object.fromEntries(LAYER_ORDER.map(([, , k], i) => [k, 101 + 17 * i]));
+
+/** The column's segments under (x, y), top down: each layer's stretch inside one fault block. */
+export function columnSegments(geo, x, y, zMax = FRAME.td_md + 2600) {
+  const col = geo.blocksAt(x, y);
+  const segs = [];
+  for (const bl of col.blocks) {
+    for (const [topKey, baseKey, layerKey] of LAYER_ORDER) {
+      const zT = topKey === 'SEABED' ? FRAME.mudline_md : bl.z[topKey];
+      const zB = baseKey ? bl.z[baseKey] : zMax;
+      const z0 = Math.max(zT, bl.zTop); const z1 = Math.min(zB, bl.zBot, zMax);
+      if (!(z1 - z0 > 1e-6)) continue;
+      segs.push({ layerKey, z0, z1, zT, zB, atTop: zT >= bl.zTop, hw: bl.block.hw });
+    }
+  }
+  return segs.sort((p, q) => p.z0 - q.z0);
+}
+
+/**
+ * Seismic two-way time (ms, on the checkshot time-depth the cube is built
+ * on) of a depth below KB under (x, y): for the fault sticks and the time
+ * truth surfaces.
+ */
+export function makeTimeDepth({ geo, props }) {
+  const waterTwtMs = (2 * FRAME.water_depth_m * 1000) / 1500;
+  return function twtAt(x, y, z) {
+    if (z <= FRAME.mudline_md) return (2 * (z - FRAME.kb_m) * 1000) / 1500;
+    let t = waterTwtMs;
+    for (const sg of columnSegments(geo, x, y)) {
+      const v = props[sg.layerKey]?.v;
+      if (!v) continue;
+      if (z <= sg.z1) return seisTwt(t + (2 * (z - sg.z0) * 1000) / v, z);
+      t += (2 * (sg.z1 - sg.z0) * 1000) / v;
+    }
+    return seisTwt(t, z);
+  };
+}
+
 /**
  * The interfaces under one map location, in two-way time. Major ones carry
- * `layerKey` (a layer top) or `contact` (a fluid contact) and the seabed; the
- * rest are `fine`: the boundaries between the blocks of the layers' fine
- * structure. Each side of every interface is a cell: the layer's mean for its
- * fluid at that depth, times (1 + the profile's fraction there).
- * contacts: { EKENE: {depth, upper:'oil'}, OBORO: {depth, upper:'gas'} }
+ * `layerKey` (a layer top), `contact` (a fluid contact) or `fault` (a fault
+ * plane: whatever sits across it) and the seabed; the rest are `fine`: the
+ * boundaries between the blocks of the layers' fine structure. Each side of
+ * every interface is a cell: the layer's mean for its fluid at that depth,
+ * times (1 + the profile's fraction there).
+ * v4: the column is cut into fault blocks (geo.blocksAt) and each block
+ * carries its own horizons, so every reflector, the bedding inside the
+ * layers included, ends at a fault and resumes offset across it.
+ * contacts: { EKENE: {depth, upper:'oil'}, OBORO: {depth, upper:'gas'} },
+ * filled in the main fault's hanging wall (the trap) only.
  */
-export function makeElasticModel({ geo, props, contacts }) {
+export function makeElasticModel({ geo, props, contacts, ref = LOCKED_WELLS[0] }) {
   const waterTwtMs = (2 * FRAME.water_depth_m * 1000) / 1500;
   const water = { vp: 1500, vs: 0, rho: 1030 };
   const profiles = props.profiles || {};
-  const meanOf = (key, fluid) => props[fluid ? `${key}:${fluid}` : key] || props[key];
-  const cell = (m, b) => ({ vp: m.vp * (1 + (b?.dvp || 0)), vs: m.vs * (1 + (b?.dvs || 0)), rho: m.rho * (1 + (b?.drho || 0)) });
+  const zMax = FRAME.td_md + 2600;
   return function interfacesAt(x, y) {
+    // lateral factors, exactly 1 at the reference well
+    const d2 = ref ? (x - ref.x) ** 2 + (y - ref.y) ** 2 : Infinity;
+    const near = d2 === Infinity ? 1 : 1 - Math.exp(-d2 / (LATERAL.e1_radius_m ** 2));
+    const F = LATERAL.fine;
+    const fineMod = (k) => near * (F.amp_by_layer[k] ?? F.amp) * fbm2(LAYER_SEED[k], x, y, F.scale_m, 3);
+    const bedMod = (k, j) => near * F.bed_amp * fbm2(LAYER_SEED[k] * 1009 + j, x, y, F.bed_scale_m, 2);
+    const meanMod = (k) => 1 + near * (LATERAL.mean[k] || 0) * fbm2(LAYER_SEED[k] + 5, x, y, LATERAL.mean_scale_m, 2);
+    const meanOf = (key, fluid) => props[fluid ? `${key}:${fluid}` : key] || props[key];
+
+    const segs = columnSegments(geo, x, y, zMax);
+
     const out = [{ t: waterTwtMs, upper: water, lower: null, seabed: true }];
-    let t = waterTwtMs;
+    let tSonic = waterTwtMs;
     let above = null;
-    for (const [topKey, baseKey, layerKey] of LAYER_ORDER) {
-      const zTop = geo.horizonDepthAt(topKey, x, y);
-      const zBase = baseKey ? geo.horizonDepthAt(baseKey, x, y) : FRAME.td_md + 400;
-      if (zTop === null || zBase === null) continue;
+    for (const sg of segs) {
+      const { layerKey, z0, z1, zT, zB } = sg;
       const p = props[layerKey];
       if (!p) continue;
-      const c = contacts[layerKey];
-      const tTop = t;
-      const tBase = t + (2 * (zBase - zTop) * 1000) / p.v;
-      // sonic time, moved onto the checkshot time-depth at each boundary
-      const sTop = seisTwt(tTop, zTop);
-      const sBase = seisTwt(tBase, zBase);
-      const tAt = (u) => sTop + u * (sBase - sTop);
-      // where the contact falls in the layer (u), if it does
-      const uc = c && zTop < c.depth && c.depth < zBase ? (c.depth - zTop) / (zBase - zTop) : null;
-      const fluidAt = (u) => (c ? ((uc !== null ? u < uc : zTop < c.depth) ? c.upper : 'brine') : null);
-      // the layer's cells: profile blocks, the one holding the contact split there
+      const span = SPAN_LAYERS[layerKey] || (zB - zT);
+      // bedding that is not quite parallel: the stratigraphic position drifts
+      // a little across the survey (none at Ekene-1)
+      const jit = near * LATERAL.jitter * fbm2(LAYER_SEED[layerKey] + 9, x, y, LATERAL.jitter_scale_m, 2);
+      const uOf = (z) => (z - zT) / span;
+      const u0 = uOf(z0); const u1 = uOf(z1);
+      const t1Sonic = tSonic + (2 * (z1 - z0) * 1000) / p.v;
+      const s0 = seisTwt(tSonic, z0); const s1 = seisTwt(t1Sonic, z1);
+      const tAtU = (u) => s0 + ((u - u0) / (u1 - u0)) * (s1 - s0);
+      const c = sg.hw ? contacts[layerKey] : null;
+      const zc = c && z0 < c.depth && c.depth < z1 ? c.depth : null;
+      const uc = zc !== null ? uOf(zc) : null;
+      const fluidAt = (u) => (c ? ((uc !== null ? u < uc : z0 < c.depth) ? c.upper : 'brine') : null);
       const blocks = profiles[layerKey] && profiles[layerKey].length ? profiles[layerKey] : [{ u0: 0, dvp: 0, dvs: 0, drho: 0 }];
-      const cuts = [];
-      for (const b of blocks) cuts.push({ u: b.u0, b });
+      // the block holding u0, then every block boundary inside (u0, u1)
+      // (each boundary's fractional depth, moved by the drift; never past 0 or 1)
+      const uB = (j) => blocks[j].u0 - jit * Math.sin(Math.PI * Math.min(1, Math.max(0, blocks[j].u0)));
+      let j0 = 0; while (j0 + 1 < blocks.length && uB(j0 + 1) <= u0) j0 += 1;
+      const cuts = [{ u: u0, b: blocks[j0], j: j0, first: true }];
+      for (let j = j0 + 1; j < blocks.length && uB(j) < u1; j += 1) cuts.push({ u: uB(j), b: blocks[j], j });
       if (uc !== null) {
-        let j = 0; while (j + 1 < cuts.length && cuts[j + 1].u <= uc) j++;
-        cuts.splice(j + 1, 0, { u: uc, b: cuts[j].b, contact: true });
+        let j = 0; while (j + 1 < cuts.length && cuts[j + 1].u <= uc) j += 1;
+        cuts.splice(j + 1, 0, { u: uc, b: cuts[j].b, j: cuts[j].j, contact: true });
       }
-      for (let j = 0; j < cuts.length; j++) {
-        const { u, b, contact } = cuts[j];
-        const props1 = cell(meanOf(layerKey, fluidAt(u + 1e-9)), b);
-        if (j === 0) {
-          if (above) out.push({ t: tAt(0), upper: above, lower: props1, layerKey });
+      const fm0 = fineMod(layerKey); const mm = meanMod(layerKey);
+      for (const { u, b, j, first, contact } of cuts) {
+        const m = meanOf(layerKey, fluidAt(u + 1e-9));
+        const fm = 1 + fm0 + (near ? bedMod(layerKey, j) : 0);
+        const props1 = {
+          vp: m.vp * mm * (1 + fm * (b?.dvp || 0)), vs: m.vs * (1 + fm * (b?.dvs || 0)), rho: m.rho * mm * (1 + fm * (b?.drho || 0)),
+        };
+        if (first) {
+          if (above) out.push(sg.atTop ? { t: tAtU(u), upper: above, lower: props1, layerKey } : { t: tAtU(u), upper: above, lower: props1, fault: true, layerBelow: layerKey });
           else out[0].lower = props1;
         } else if (contact) {
-          out.push({ t: tAt(u), upper: above, lower: props1, contact: layerKey });
+          out.push({ t: tAtU(u), upper: above, lower: props1, contact: layerKey });
         } else {
-          out.push({ t: tAt(u), upper: above, lower: props1, fine: true });
+          out.push({ t: tAtU(u), upper: above, lower: props1, fine: true });
         }
         above = props1;
       }
-      t = tBase;
+      tSonic = t1Sonic;
     }
     return out;
   };
@@ -286,14 +396,14 @@ export function makeElasticTracer({ ns, dtMs, noiseRef = 0 }) {
   const dtS = dtMs / 1000;
   const bands = [];
   for (let t0 = 0; t0 < ns * dtMs; t0 += 200) {
-    const frac = t0 / (SEISMIC.t_max_ms || 2400);
+    const frac = t0 / SEISMIC.wavelet.ramp_ms;
     const f = SEISMIC.wavelet.f_dom_hz + (SEISMIC.wavelet.f_dom_deep_hz - SEISMIC.wavelet.f_dom_hz) * Math.min(1, frac);
     bands.push({ t0, w: ricker(f, dtS, 40) });
   }
   const waveletAt = (tMs) => bands[Math.min(bands.length - 1, Math.floor(tMs / 200))].w;
   const freqAt = (tMs) => {
     const t0 = Math.min(bands.length - 1, Math.floor(tMs / 200)) * 200;
-    return SEISMIC.wavelet.f_dom_hz + (SEISMIC.wavelet.f_dom_deep_hz - SEISMIC.wavelet.f_dom_hz) * Math.min(1, t0 / (SEISMIC.t_max_ms || 2400));
+    return SEISMIC.wavelet.f_dom_hz + (SEISMIC.wavelet.f_dom_deep_hz - SEISMIC.wavelet.f_dom_hz) * Math.min(1, t0 / SEISMIC.wavelet.ramp_ms);
   };
   const waterTwtMs = (2 * FRAME.water_depth_m * 1000) / 1500;
 
