@@ -7,6 +7,9 @@ import React from 'react';
     import { Button } from '@/components/ui/button';
     import { ArrowLeft } from 'lucide-react';
 
+    // A fixed date: change it whenever the policy text changes.
+    export const LAST_UPDATED = 'October 11, 2026';
+
     const PrivacyPolicy = () => {
       return (
         <>
@@ -27,7 +30,7 @@ import React from 'react';
               <Card>
                 <CardHeader className="text-center">
                   <CardTitle className="font-pl-display text-4xl font-semibold leading-tight text-pl-text">Privacy Policy</CardTitle>
-                  <p className="text-pl-muted mt-2">Last Updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  <p className="text-pl-muted mt-2">Last Updated: {LAST_UPDATED}</p>
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[60vh] pr-6">
@@ -87,36 +90,52 @@ import React from 'react';
                         </ul>
                       </section>
 
+                      <section data-testid="privacy-youtube-api">
+                        <h2 className="text-xl font-semibold text-pl-text">5. YouTube API Services</h2>
+                        <p>
+                          We use YouTube API Services to publish and manage videos on our own YouTube channel, Petrolord Suite. Through these services we upload our own videos, set their titles, descriptions, captions, playlists and thumbnails, and read our channel&apos;s own analytics, such as views and watch time, for internal reports. A member of our staff approves each upload and each change before it is made.
+                        </p>
+                        <p className="mt-3">
+                          We do not use YouTube API Services to access, collect or store personal information about you or any other YouTube viewer, and we do not access any channel other than our own.
+                        </p>
+                        <p className="mt-3">
+                          When you watch our videos on YouTube, the <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer" className="text-pl-primary-text hover:text-pl-primary-text-hover hover:underline">YouTube Terms of Service</a> and the <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-pl-primary-text hover:text-pl-primary-text-hover hover:underline">Google Privacy Policy</a> also apply.
+                        </p>
+                        <p className="mt-3">
+                          The authorisation that lets our tool act on our channel is stored securely on our own server and can be withdrawn at any time from the <a href="https://security.google.com/settings/security/permissions" target="_blank" rel="noopener noreferrer" className="text-pl-primary-text hover:text-pl-primary-text-hover hover:underline">Google security settings page</a>.
+                        </p>
+                      </section>
+
                       <section>
-                        <h2 className="text-xl font-semibold text-pl-text">5. Security of Your Information</h2>
+                        <h2 className="text-xl font-semibold text-pl-text">6. Security of Your Information</h2>
                         <p>
                           We use administrative, technical, and physical security measures to help protect your personal information and project data. While we have taken reasonable steps to secure the information you provide to us, please be aware that no security measures are perfect or impenetrable, and no method of data transmission can be guaranteed against any interception or other type of misuse.
                         </p>
                       </section>
 
                       <section>
-                        <h2 className="text-xl font-semibold text-pl-text">6. Your Data Rights</h2>
+                        <h2 className="text-xl font-semibold text-pl-text">7. Your Data Rights</h2>
                         <p>
                           You have the right to access, correct, or delete your personal data. You can review and change your account information at any time from your profile. Organization administrators can download a complete copy of their organization&apos;s data at any time from the Data Export page in the dashboard, and can schedule account closure from the same page, with a 30 day grace period and a verifiable Certificate of Data Deletion on completion. Full details are in our <Link to="/legal/data-retention" className="text-pl-primary-text hover:text-pl-primary-text-hover hover:underline">Data Retention and Offboarding policy</Link>. To close a personal account or request deletion of your personal data, contact support@petrolord.com and we will action the request and confirm completion in writing.
                         </p>
                       </section>
                       
                       <section>
-                        <h2 className="text-xl font-semibold text-pl-text">7. Policy for Children</h2>
+                        <h2 className="text-xl font-semibold text-pl-text">8. Policy for Children</h2>
                         <p>
                           We do not knowingly solicit information from or market to children under the age of 13. If you become aware of any data we have collected from children under age 13, please contact us using the contact information provided below.
                         </p>
                       </section>
 
                       <section>
-                        <h2 className="text-xl font-semibold text-pl-text">8. Changes to This Privacy Policy</h2>
+                        <h2 className="text-xl font-semibold text-pl-text">9. Changes to This Privacy Policy</h2>
                         <p>
                           We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page. You are advised to review this Privacy Policy periodically for any changes.
                         </p>
                       </section>
 
                       <section>
-                        <h2 className="text-xl font-semibold text-pl-text">9. Contact Us</h2>
+                        <h2 className="text-xl font-semibold text-pl-text">10. Contact Us</h2>
                         <p>
                           If you have any questions about this Privacy Policy, please contact us at <a href="mailto:privacy@petrolord.com" className="text-pl-primary-text hover:text-pl-primary-text-hover hover:underline">privacy@petrolord.com</a>.
                         </p>
