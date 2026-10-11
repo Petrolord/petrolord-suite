@@ -794,6 +794,14 @@ The manual was written against the source, and it found the following.
   - A 10 percent biased impedance is reported as a shift at every well.
   - Both new tests fail on the old code.
 
+## 2026-10-11: QI Studio maths in the engines (QI course gate E2, Suite side)
+
+- **What moved:** the maths of `services/avoWells.js` (`compareAtWells`, `wellPoints`), `services/inversionRun.js` (`waveletScale`, `blindWellTable`, `halfWindowFor`, `lowPassFinite`), `services/angleWavelets.js`, `services/propertyRun.js` (upscale, fit, predict, posterior tables, `calibrateProperty` with the widened band) and `services/prospects.js` (`nearestNode`, `climbToCrest`, `anomalyMaskOn`, `keepTouching`, `analyseProspect`), and Seismolord's `extractWellWavelet`. They now live in `engines/qi/{avoWells,inversionQc,angleWavelets,propertyCalibration,prospectTrap}.js` and `engines/seismolord/wellWavelet.js` (engines #355), vendored at `0f4ac4a`, each with goldens and an independent oracle.
+- **The services are thin re-exports** under the same names, through new engine shims in `QIStudio/engine/` and `Seismolord/engine/wellWavelet.js`. The job checks, issue-register copy, fluid labels and competing-explanation lists stay in the Suite. `blindWellTable` keeps `INVERSION_DEFAULTS.band[0]` as its low cut.
+- **Parity:** `__tests__/qiEngineParity.test.js` replays the services on Ekene kit cases recorded before the move (`tools/qi-parity/captureEkeneParity.js` on Suite `5df9d9410`, engines `cc4c62d`: Ekene-1 to -4 and -8 logs in time, synthetic full and angle traces at the wells, the Ekene top-sand structure and an amplitude map bright above the contact). Every output comes back byte for byte. No number QI Studio displays changes, so the QI videos stay valid.
+- **Worker:** `inversionRun`, `prestackRun` and `propertyRun` still import the same service paths; esbuild follows the shims into `packages/engines` (checked with `build.mjs` locally). **Needs a worker redeploy** so the image carries the vendored engines (no behaviour change): `cd /root/wt-deploy && git fetch origin && git checkout --detach origin/main && worker/seismic-worker/deploy.sh` (owner-run; check its exit code and the `/healthz` engine commit `suite-<sha>+engines-0f4ac4a31`).
+- **Findings held for the owner (behaviour kept for parity):** a well with a live observed A and a null B pulls the AVO scale toward zero (only A is checked; the A and B volumes share their null mask in practice); a well flagged with an error still enters the pooled scale if it carries values.
+
 ## 2026-10-11: the NextGen QI course extraction gate (E1a, E1b, E1c, E2)
 
 Plan: `docs/scope/NextGen-QI-Course-PLAN.md` section 3. One line per merge, saying what a capstone can now grade.
