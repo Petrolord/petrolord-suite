@@ -1,6 +1,6 @@
 # NAPE booth quiz (Petrolord Upstream Challenge): status
 
-2026-10-10. Built on branch `feat/nape-quiz`; the PR is open for the owner to review.
+2026-10-10. Built on branch `feat/nape-quiz`. Merged as #992 on 2026-10-11; both migrations applied 2026-10-11; question bank reviewed by the owner (all 156 kept as written).
 
 ## Owner decisions
 | Decision | Answer |
@@ -77,7 +77,7 @@ The certificate wording is "Winner, Day N: Theme", followed by the place, for ex
 
 **QR code:** `tools/nape/nape-quiz.svg` and `.png` open https://petrolord.com/nape/quiz (decoded to check). A copy is at `public/event/nape-quiz-qr.svg` for the TV and the lobby. The lead page's "Play the Petrolord Upstream Challenge" button (`QUIZ_URL`) now links to the quiz.
 
-## Database (migrations pending; the owner applies them)
+## Database (both migrations applied 2026-10-11)
 1. **`supabase/migrations/20261011090000_event_quiz.sql`**
    - **Tables:** seven new `event_quiz_*` tables: questions, games, game_questions, players, answers, winners and hosts.
    - **Lead source:** `event_leads.source` now accepts `quiz`. No shared table is touched.
@@ -142,18 +142,12 @@ Every calculation answer was checked by computing it. The copy-style test bans e
 - `src/pages/__tests__/NapeLeads.test.jsx`: updated for the quiz link.
 
 ## Owner items before 9 November
-1. **Review and merge the PR.**
-2. **Apply both migrations**, in order:
-   - `supabase db query --linked -f supabase/migrations/20261011090000_event_quiz.sql`
-   - `supabase db query --linked -f supabase/migrations/20261011090100_event_quiz_bank.sql`
-
-   Copies are in `/root/pending-migrations/`.
-3. **Ship the Suite zip**, so that `/nape/quiz`, `/nape/quiz/tv` and `/nape/quiz/host` are live.
-4. **Add booth staff as hosts** on the host page (they need Petrolord accounts first).
-5. **Run a practice game end to end:** a few phones, the tablet as host, and the laptop on the TV.
-6. **Set up the booth laptop:** copy `/root/nape-tv-videos/` to it, open `petrolord.com/nape/quiz/tv` in Chrome, choose the videos and press Full screen.
-7. **Print the quiz QR code** (`tools/nape/nape-quiz.svg`; sizes in `tools/nape/README.md`).
-8. **Optional:** review the question bank. Staff can see the questions on the host page in the lobby, before they start. A practice game shows real questions.
+1. **Done 2026-10-11:** PR #992 merged, both migrations applied, question bank reviewed.
+2. **Ship the Suite zip**, so that `/nape/quiz`, `/nape/quiz/tv` and `/nape/quiz/host` are live.
+3. **Add booth staff as hosts** on the host page (they need Petrolord accounts first).
+4. **Run a practice game end to end:** a few phones, the tablet as host, and the laptop on the TV.
+5. **Set up the booth laptop:** copy `/root/nape-tv-videos/` to it, open `petrolord.com/nape/quiz/tv` in Chrome, choose the videos and press Full screen.
+6. **Print the quiz QR code** (`tools/nape/nape-quiz.svg`; sizes in `tools/nape/README.md`).
 
 ## Limits and notes
 - **Fixed by the owner's decisions:** prizes are text only, with no granting logic.
