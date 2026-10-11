@@ -16,8 +16,12 @@ const inp = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-tex
 const f0 = (v) => (Number.isFinite(v) ? Math.round(v).toLocaleString('en-US') : EMPTY_VALUE);
 
 export default function StackingVelocityPanel({
-  velMode, velLayers, layerTimesMs = [], onUseLinear, onUseLayers,
+  velMode, velLayers, layerTimesMs = [], onUseLinear, onUseLayers, depthUnit = 'm',
 }) {
+  // depths in the organisation's unit (velocities stay in m/s, as entered)
+  const ft = depthUnit === 'ft';
+  const dz = (m) => (ft ? m / 0.3048 : m);
+  const du = ft ? 'ft' : 'm';
   const [text, setText] = useState('');
   const [timeUnit, setTimeUnit] = useState('ms');
   const [velocityUnit, setVelocityUnit] = useState('m/s');
@@ -70,7 +74,7 @@ export default function StackingVelocityPanel({
               <tr className="text-pl-muted text-left">
                 <th className="pr-2">TWT (ms)</th>
                 <th className="pr-2">Interval velocity (m/s)</th>
-                <th>Depth at base (m)</th>
+                <th>{`Depth at base (${du})`}</th>
               </tr>
             </thead>
             <tbody>
@@ -78,7 +82,7 @@ export default function StackingVelocityPanel({
                 <tr key={iv.t1} className="text-pl-text font-mono">
                   <td className="pr-2">{`${f0(iv.t0)} to ${f0(iv.t1)}`}</td>
                   <td className="pr-2">{f0(iv.vint)}</td>
-                  <td>{f0(iv.z1)}</td>
+                  <td>{f0(dz(iv.z1))}</td>
                 </tr>
               ))}
             </tbody>
@@ -88,7 +92,7 @@ export default function StackingVelocityPanel({
               Use as V0 + kZ
             </Button>
             <span className="text-[11px] text-pl-muted" data-testid="sl-dix-fit">
-              {`V(z) = ${f0(res.fit.v0)} + ${res.fit.k.toFixed(3)} z, RMS misfit ${res.fit.rmsM.toFixed(1)} m against the Dix depths`}
+              {`V(z) = ${f0(res.fit.v0)} + ${res.fit.k.toFixed(3)} z, RMS misfit ${dz(res.fit.rmsM).toFixed(1)} ${du} against the Dix depths`}
             </span>
             {velMode === 'layercake' && (
               <Button
