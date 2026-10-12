@@ -2772,3 +2772,6 @@ drawing as they did. The engine and the display math are untouched.
 - The viewer now fills interior holes in each boundary grid (the Fill holes membrane interpolation) before conversion. The uninterpreted exterior, such as a horizon that stops at a fault, stays null and keeps the convention. Depth sections, depth maps, the calibration fit and depth exports all read the filled grids.
 - Depth surfaces already published keep their values until republished.
 - Test: `__tests__/velocityBoundaries.test.js` (a hole converts like its neighbours; the unfilled grid jumps, as the negative control; the exterior stays null).
+
+## 2026-10-12: Make surface reads the cell to 0.1 m
+- The result line of Make surface showed the measured bin with its float noise ("cell 25.000000062239003 m"). It now reads to 0.1 m without trailing zeros. Found while scripting Seismolord lesson E14. Test: `__tests__/makeSurface.test.jsx`.

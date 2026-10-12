@@ -135,7 +135,23 @@ describe('MakeSurfaceDialog', () => {
     expect(saveHorizonAsSurface.mock.calls[0][0].horizon).toBe(HORIZONS[1]);
     expect(gridHorizonSurface.mock.calls[0][0].faults).toEqual(FAULTS);
     expect(h.onSurfaceSaved).toHaveBeenCalled();
-    expect(screen.getByTestId('sl-make-surface-result')).toHaveTextContent('Base Reservoir (TWT ms): 4 live nodes');
+    expect(screen.getByTestId('sl-make-surface-result')).toHaveTextContent('Base Reservoir (TWT ms): 4 live nodes, cell 12.5 m');
+  });
+
+  test('the cell reads to 0.1 m when the measured bin carries float noise (2026-10-12)', async () => {
+    gridHorizonSurface.mockResolvedValue({
+      g: { z: new Float32Array(4) },
+      spec: { x0: 0, y0: 0, dx: 25.000000062239003, dy: 25.000000062239003, nx: 2, ny: 2 },
+      gridded: { live: 4, controlCount: 12, zMin: -1520, zMax: -1500 },
+      faultInfo: { blocks: 2, traces: ['Fault_A'] },
+      maxExtrapolationM: 25,
+    });
+    renderDialog();
+    await screen.findByText('Fault-aware (1 fault)');
+    fireEvent.click(screen.getByTestId('sl-make-surface-grid'));
+    const result = await screen.findByTestId('sl-make-surface-result');
+    expect(result).toHaveTextContent('cell 25 m,');
+    expect(result.textContent).not.toMatch(/25\.0000/);
   });
 
   test('Publish to the registry saves, leaves the view, and links to Mapping & Surface Studio', async () => {

@@ -25,6 +25,10 @@ import { loadLineControl } from '../../../services/linesService';
 import { makeSurfaceFromHorizon, MAPPING_STUDIO_PATH } from '../../../services/makeSurface';
 import { normalizeVelocity, describeVelocity } from '../../../engine/velocityModel';
 
+
+// The cell comes from the survey's measured bin, so it can carry float noise
+// (25.000000062239003): show it to 0.1 m, without trailing zeros.
+export const fmtCellM = (m) => (Number.isFinite(m) ? String(Math.round(m * 10) / 10) : '·');
 export default function MakeSurfaceDialog({
   open, onOpenChange, volume, manifest, horizons = [], initialHorizonId = null,
   onSurfaceSaved, showSurface,
@@ -237,7 +241,7 @@ export default function MakeSurfaceDialog({
 
             {result && (
               <div className="rounded-lg border border-pl-border bg-pl-sunken/60 p-3 text-sm text-pl-text" data-testid="sl-make-surface-result">
-                {`${result.surface?.name || 'Surface'}: ${result.live.toLocaleString()} live nodes, cell ${result.cellM} m, `
+                {`${result.surface?.name || 'Surface'}: ${result.live.toLocaleString()} live nodes, cell ${fmtCellM(result.cellM)} m, `
                   + `z ${result.zMin?.toFixed(1)} to ${result.zMax?.toFixed(1)}.`
                   + (result.lineInfo ? ` ${result.lineInfo.used.toLocaleString('en-US')} 2D control points (${result.lineInfo.outside.toLocaleString('en-US')} outside the 3D survey${result.lineInfo.skipped ? `, ${result.lineInfo.skipped} skipped: the layer-cake model has no column there` : ''}).` : '')}
                 {result.action === 'publish' && (
