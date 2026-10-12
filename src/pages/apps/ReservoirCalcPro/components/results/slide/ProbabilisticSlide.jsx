@@ -200,7 +200,8 @@ const ProbabilisticSlide = () => {
                         </div>
                     </Panel>
 
-                    <div className="flex flex-1 flex-col gap-4">
+                    {/* min-h-0 down the column so the tornado scales into the slide instead of running off its foot */}
+                    <div className="flex min-h-0 flex-1 flex-col gap-4">
                         <Panel title="Statistics" icon={<BarChart3 className="h-4 w-4 text-blue-500" />}>
                             <div className="grid grid-cols-2 gap-2">
                                 <StatCell label="Mean" value={fmtDec(stats.mean / denom, 2)} unit={unit} />
@@ -210,7 +211,7 @@ const ProbabilisticSlide = () => {
                             </div>
                         </Panel>
 
-                        <Panel title="Sensitivity Tornado" icon={<Activity className="h-4 w-4 text-purple-500" />} className="flex-1" right={<span className="text-[11px] font-medium text-slate-400">P50 swing per parameter</span>}>
+                        <Panel title="Sensitivity Tornado" icon={<Activity className="h-4 w-4 text-purple-500" />} className="min-h-0 flex-1 overflow-hidden" right={<span className="text-[11px] font-medium text-slate-400">P50 swing per parameter</span>}>
                             {swings.length ? (
                                 <div className="min-h-0 flex-1">
                                     <TornadoChart
