@@ -2761,3 +2761,8 @@ drawing as they did. The engine and the display math are untouched.
 - Found while scripting the Seismolord lessons: the prognosis table always read MD, TVDSS and band in metres, whatever the units profile said (the Ekene field and the NAPE demos run in feet).
 - The dialog now takes the viewer's depth unit and shows all three columns in it, headings included. The framework still computes in metres.
 - Test: `__tests__/topsToHorizonsDialog.test.jsx` (feet values are the metre values over 0.3048; fails on the old dialog).
+
+## 2026-10-12: Stop at faults no longer leaks round a fault that runs off the survey
+- Found while scripting Seismolord lesson C9: a correlation track from a footwall seed on the Ekene growth fault, with Stop at faults on, picked 21,161 of 21,504 traces, hanging wall included. The automatic sticks stop a few lines short of the survey edge, and the tracking barrier (the fault surface traced at the seed's level) stopped with them, so the tracker walked round the end.
+- The tracking barrier is now carried on to the survey edge where it ends within a stick spacing of it, as the gridding barriers already were (`extendTraceToEdges`). A fault tip well inside the survey is left where it ends.
+- Tests: `__tests__/faultObjects.test.js` (two blocks with the fix, one without it as the negative control; an inside tip untouched).

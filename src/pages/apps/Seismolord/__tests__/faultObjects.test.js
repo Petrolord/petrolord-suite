@@ -158,11 +158,44 @@ describe('barriersFromFaults (W3.2 fault-aware tracking)', () => {
         if (!barriers[i * NXL + j]) continue;
         count += 1;
         expect(Math.abs(j - 29)).toBeLessThanOrEqual(1);
-        expect(i).toBeGreaterThanOrEqual(8);
-        expect(i).toBeLessThanOrEqual(56);
       }
     }
     expect(count).toBeGreaterThan(40); // a continuous chain along the sticks
+    // the end sticks are 8 lines from the edges, inside one stick spacing
+    // (16): the fault runs off the survey, so the barrier reaches both edges
+    expect(barriers[0 * NXL + 29]).toBe(1);
+    expect(barriers[(NIL - 1) * NXL + 29]).toBe(1);
+  });
+
+  test('the tracker cannot walk round the end of a fault that runs off the survey (2026-10-12)', () => {
+    // footwall seed tracking on the Ekene growth fault leaked into the
+    // hanging wall: the automatic sticks stop short of the survey edge
+    const { labelBlocks } = require('@/pages/apps/Seismolord/engine/faultBarriers');
+    const barriers = barriersFromFaults([makeFault()], 44, geom);
+    expect(labelBlocks(barriers, NIL, NXL).count).toBe(2);
+    // negative control: the level trace as it was, not carried to the edges
+    const { rasterizeTraces } = require('@/pages/apps/Seismolord/engine/faultBarriers');
+    const { surfaceLevelTrace } = require('@/pages/apps/Seismolord/engine/faultObjects');
+    const { faultSurfaceOf } = require('@/pages/apps/Seismolord/lib/faultObjectsExport');
+    const raw = rasterizeTraces([surfaceLevelTrace(faultSurfaceOf(makeFault()), 44)], NIL, NXL);
+    expect(labelBlocks(raw, NIL, NXL).count).toBe(1);
+  });
+
+  test('a fault tip well inside the survey is left where it ends', () => {
+    const tip = {
+      name: 'tip',
+      sticks: [24, 32, 40].map((il) => ({
+        points: Array.from({ length: 13 }, (_, n) => {
+          const s = 20 + n * 5;
+          return { il, xl: 32 + BETA * (s - 50), s };
+        }),
+      })),
+    };
+    const barriers = barriersFromFaults([tip], 44, geom);
+    for (let j = 0; j < NXL; j++) {
+      expect(barriers[0 * NXL + j]).toBe(0);
+      expect(barriers[(NIL - 1) * NXL + j]).toBe(0);
+    }
   });
 
   test('level beyond every stick -> null (nothing to block)', () => {
