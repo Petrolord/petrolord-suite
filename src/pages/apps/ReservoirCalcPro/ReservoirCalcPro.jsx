@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { RCP_ROOT_CLASS } from './services/canvasSizing';
 import { useNavigate } from 'react-router-dom';
 import { ReservoirCalcProvider, useReservoirCalc } from './contexts/ReservoirCalcContext';
 import { useReservoirSettings } from './hooks/useReservoirSettings';
@@ -282,6 +283,8 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
     );
 };
 
+export { RCP_ROOT_CLASS };
+
 export const ReservoirCalcProContent = () => {
     const [isDocsOpen, setIsDocsOpen] = useState(false);
     // the Tools sheet, opened by the header or on Prospect Risking by the re-run bar
@@ -324,7 +327,7 @@ export const ReservoirCalcProContent = () => {
             />
             <RerunProspectBar onOpenRisking={() => { setToolsTab('risking'); setToolsOpen(true); }} />
 
-            <div className="flex-1 overflow-hidden flex p-2 gap-2">
+            <div className="flex-1 min-h-0 overflow-hidden flex p-2 gap-2">
                 {/* Left Panel: Inputs */}
                 <div
                     className={`flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden flex flex-col rounded-lg border border-pl-border bg-pl-surface ${showLeft ? 'w-80 opacity-100 ml-0' : 'w-0 opacity-0 -ml-2 border-0'}`}
@@ -333,7 +336,7 @@ export const ReservoirCalcProContent = () => {
                 </div>
 
                 {/* Center Panel: Visualization */}
-                <div className="flex-1 h-full overflow-hidden rounded-lg border border-pl-border bg-pl-surface relative shadow-pl-sm flex flex-col">
+                <div className="flex-1 min-w-0 h-full overflow-hidden rounded-lg border border-pl-border bg-pl-surface relative shadow-pl-sm flex flex-col">
                     <PanelErrorBoundary label="Visualization"><ExpertVisPanel /></PanelErrorBoundary>
                 </div>
 
@@ -352,7 +355,7 @@ export const ReservoirCalcProContent = () => {
 
 const ReservoirCalcPro = () => {
     return (
-        <div data-testid="rcp-theme-scope" className="h-full">
+        <div data-testid="rcp-theme-scope" className={RCP_ROOT_CLASS}>
             <ReservoirCalcProvider>
                 <TooltipProvider>
                     <ReservoirCalcProContent />

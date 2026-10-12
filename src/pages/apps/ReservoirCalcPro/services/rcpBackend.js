@@ -62,6 +62,33 @@ function seedDome(mapping) {
 }
 
 /**
+ * A top and base pair for the top/base surfaces check (RCP preview sizing,
+ * 2026-10-12): the harness dome as "Ekene Sand Top" and the same dome 30 m
+ * deeper as "Ekene Sand Base", both elevation metres on the dome's frame.
+ * With a contact at -1560 m the gross rock between them is two paraboloid
+ * caps, pi * h^2 / (2a) with a = 0.00012 per m: the top's 60 m cap less the
+ * base's 30 m cap, 3.534e7 m3 (28,650 acre-ft).
+ */
+function seedTopBase(mapping) {
+  const spec = { x0: 500600, y0: 6699200, nx: 16, ny: 11, dx: 200, dy: 200 };
+  const surface = (name, shift) => {
+    const z = new Float32Array(spec.nx * spec.ny);
+    for (let r = 0; r < spec.ny; r++) {
+      for (let c = 0; c < spec.nx; c++) {
+        const x = spec.x0 + c * spec.dx - 502100;
+        const y = spec.y0 + r * spec.dy - 6700200;
+        z[r * spec.nx + c] = -(1500 + shift + 0.00012 * (x * x + y * y));
+      }
+    }
+    return mapping.saveSurface({
+      name, kind: 'structure', spec, grid: z, zDomain: 'depth', zUnit: 'm', crs: null,
+      provenance: { engine: 'reservoircalc-harness', z_convention: 'elevation' },
+    });
+  };
+  return Promise.all([surface('Ekene Sand Top', 0), surface('Ekene Sand Base', 30)]);
+}
+
+/**
  * In-memory backend for the harness and jest: projects kept in a list
  * with the same row shape the registry returns, surfaces and wells from
  * the Mapping harness backend plus a seeded depth dome, no Seismolord
@@ -112,11 +139,11 @@ async function sourceChangedRow(mapping) {
   };
 }
 
-export function makeInMemoryRcpBackend({ savedRows = [], prospects = [], sharedRows = false, sharing: sharingOpts = {}, sourceChanged = false, sourceEdits = SOURCE_CHANGED_EDITS } = {}) {
+export function makeInMemoryRcpBackend({ savedRows = [], prospects = [], sharedRows = false, sharing: sharingOpts = {}, sourceChanged = false, sourceEdits = SOURCE_CHANGED_EDITS, topBase = false } = {}) {
   const mapping = makeMappingInMemoryBackend();
   // sourceEdits null: the project is seeded, the registry left as it was (the negative control)
   const zoneEdits = sourceChanged ? sourceEdits : null;
-  const ready = seedDome(mapping);
+  const ready = topBase ? seedDome(mapping).then(() => seedTopBase(mapping)) : seedDome(mapping);
   // U2-014: projects and prospects live in the in-memory mirror of the
   // sharing rules, so the harness shows the same control and refusals
   const sharing = makeHarnessSharing(sharingOpts);
