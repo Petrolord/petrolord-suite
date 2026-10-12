@@ -33,7 +33,8 @@ export default function SaturationHeightPanel() {
       if (!shm.ok) { setError(shm.errors[0]); return; }
       // SCAL saves the FWL as a TVDSS depth in ft; RCP contacts are elevations
       const fwlFt = Number.isFinite(shm.fwlTvdssM) ? shm.fwlTvdssM * FT_PER_M : null;
-      const fwl = fwlFt === null ? (sh?.fwl ?? null) : -(state.unitSystem === 'metric' ? fwlFt / FT_PER_M : fwlFt);
+      // to 0.1 of the unit: the ft-to-m round trip left -5046.399999979815
+      const fwl = fwlFt === null ? (sh?.fwl ?? null) : Math.round(-(state.unitSystem === 'metric' ? fwlFt / FT_PER_M : fwlFt) * 10) / 10;
       updateInputs({ saturationHeight: { projectId: id, name: shm.name, jSpec: shm.jSpec, reservoir: shm.reservoir, fluids: shm.fluids, fwl, sourceText: shm.sourceText } });
     } catch (e) { setError(e.message); }
   };
@@ -64,7 +65,7 @@ export default function SaturationHeightPanel() {
           {error && <p className="text-[10px] text-pl-danger-text">{error}</p>}
           {r && (
             <p className="text-[10px] text-pl-text" data-testid="rcp-shm-result">
-              Sw used: oil leg {Number.isFinite(r.swOil) ? r.swOil.toFixed(3) : EMPTY_VALUE}{Number.isFinite(r.swGas) ? `, gas cap ${r.swGas.toFixed(3)}` : ''} ({r.project || 'SCAL project'}, FWL {r.fwlElevation} {r.unit})
+              Sw used: oil leg {Number.isFinite(r.swOil) ? r.swOil.toFixed(3) : EMPTY_VALUE}{Number.isFinite(r.swGas) ? `, gas cap ${r.swGas.toFixed(3)}` : ''} ({r.project || 'SCAL project'}, FWL {Number.isFinite(Number(r.fwlElevation)) ? Number(r.fwlElevation).toFixed(1) : EMPTY_VALUE} {r.unit})
             </p>
           )}
         </div>
