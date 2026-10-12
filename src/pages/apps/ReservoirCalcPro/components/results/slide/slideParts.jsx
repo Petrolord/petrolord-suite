@@ -39,12 +39,12 @@ export const Chip = ({ children, tone = 'slate' }) => {
 };
 
 // One labelled figure in the input / statistics grids.
-export const StatCell = ({ label, value, unit, accent }) => (
-    <div className={`rounded-lg border px-3 py-2.5 ${accent ? 'border-slate-300 bg-slate-50' : 'border-slate-200 bg-white'}`}>
-        <div className="text-[12px] font-medium uppercase tracking-wide text-slate-400">{label}</div>
+export const StatCell = ({ label, value, unit, accent, compact = false }) => (
+    <div className={`rounded-lg border ${compact ? 'px-2 py-1.5' : 'px-3 py-2.5'} ${accent ? 'border-slate-300 bg-slate-50' : 'border-slate-200 bg-white'}`}>
+        <div className={`${compact ? 'text-[10.5px]' : 'text-[12px]'} font-medium uppercase tracking-wide text-slate-400 whitespace-nowrap`}>{label}</div>
         <div className="mt-0.5 flex items-baseline gap-1">
-            <span className="text-[19px] font-bold text-slate-800 tabular-nums">{value}</span>
-            {unit && <span className="text-[12px] font-medium text-slate-400">{unit}</span>}
+            <span className={`${compact ? 'text-[16px]' : 'text-[19px]'} font-bold text-slate-800 tabular-nums`}>{value}</span>
+            {unit && <span className={`${compact ? 'text-[10px]' : 'text-[12px]'} font-medium text-slate-400`}>{unit}</span>}
         </div>
     </div>
 );

@@ -202,12 +202,13 @@ const ProbabilisticSlide = () => {
 
                     {/* min-h-0 down the column so the tornado scales into the slide instead of running off its foot */}
                     <div className="flex min-h-0 flex-1 flex-col gap-4">
-                        <Panel title="Statistics" icon={<BarChart3 className="h-4 w-4 text-blue-500" />}>
-                            <div className="grid grid-cols-2 gap-2">
-                                <StatCell label="Mean" value={fmtDec(stats.mean / denom, 2)} unit={unit} />
-                                <StatCell label="Std. Dev" value={fmtDec(stats.stdDev / denom, 2)} unit={unit} />
-                                <StatCell label="P10 / P90" value={ratio} accent />
-                                <StatCell label="Iterations" value={iterations.toLocaleString()} />
+                        <Panel title="Statistics" icon={<BarChart3 className="h-4 w-4 text-blue-500" />} className="shrink-0">
+                            {/* one compact row, so the tornado below gets the height */}
+                            <div className="grid grid-cols-4 gap-2">
+                                <StatCell compact label="Mean" value={fmtDec(stats.mean / denom, 2)} unit={unit} />
+                                <StatCell compact label="Std. Dev" value={fmtDec(stats.stdDev / denom, 2)} unit={unit} />
+                                <StatCell compact label="P10 / P90" value={ratio} accent />
+                                <StatCell compact label="Runs" value={iterations.toLocaleString()} />
                             </div>
                         </Panel>
 
