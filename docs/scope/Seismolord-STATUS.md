@@ -2766,3 +2766,9 @@ drawing as they did. The engine and the display math are untouched.
 - Found while scripting Seismolord lesson C9: a correlation track from a footwall seed on the Ekene growth fault, with Stop at faults on, picked 21,161 of 21,504 traces, hanging wall included. The automatic sticks stop a few lines short of the survey edge, and the tracking barrier (the fault surface traced at the seed's level) stopped with them, so the tracker walked round the end.
 - The tracking barrier is now carried on to the survey edge where it ends within a stick spacing of it, as the gridding barriers already were (`extendTraceToEdges`). A fault tip well inside the survey is left where it ends.
 - Tests: `__tests__/faultObjects.test.js` (two blocks with the fix, one without it as the negative control; an inside tip untouched).
+
+## 2026-10-12: layer-cake depth conversion fills interior holes in boundary horizons
+- Found while scripting Seismolord lesson D11: depth maps of the Ekene Sand showed specks and bullseyes, and depth sections showed vertical streaks, wherever one of the layer cake's boundary horizons had a small interior hole (tuned or rejected cells). The engine convention extends the layer above to the next boundary at a null cell, so the hole switched that column to another velocity.
+- The viewer now fills interior holes in each boundary grid (the Fill holes membrane interpolation) before conversion. The uninterpreted exterior, such as a horizon that stops at a fault, stays null and keeps the convention. Depth sections, depth maps, the calibration fit and depth exports all read the filled grids.
+- Depth surfaces already published keep their values until republished.
+- Test: `__tests__/velocityBoundaries.test.js` (a hole converts like its neighbours; the unfilled grid jumps, as the negative control; the exterior stays null).
