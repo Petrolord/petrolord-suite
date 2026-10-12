@@ -37,6 +37,7 @@ import { NULL_VALUE } from '../engine/manifest';
 import { lineLabelSlug } from '../lib/sectionCaption';
 import { sectionDrawn } from '../lib/plotTemplates';
 import { latticeNumber } from '../lib/cursorLabel';
+import { traverseCell } from '../lib/traverseCell';
 
 /** The picture with a caption band above it (SEIS-U1-013): dark like the
  *  seismic canvas (owner rule), light text, lines fitted to the width. */
@@ -414,9 +415,9 @@ function SliceView({
         for (let tr = t0; tr <= t1; tr++) {
           const cell = ori === 'inline' ? idx * gm.nXl + tr
             : ori === 'xline' ? tr * gm.nXl + idx
-              : posn[tr].il * gm.nXl + posn[tr].xl;
-          const z = grid[cell];
-          if (z === NULL_F32) { pen = false; continue; }
+              : traverseCell(posn[tr], gm.nIl, gm.nXl);
+          const z = cell < 0 ? NULL_F32 : grid[cell];
+          if (z === NULL_F32 || z === undefined) { pen = false; continue; }
           const s = t.worldToScreen(tr + 0.5, sh(z, tr) + 0.5);
           if (pen) ctx.lineTo(s.x, s.y);
           else { ctx.moveTo(s.x, s.y); pen = true; }
@@ -689,7 +690,7 @@ function SliceView({
         let tr = -1;
         if (ori === 'inline') { if (m.il !== idx) continue; tr = m.xl; }
         else if (ori === 'xline') { if (m.xl !== idx) continue; tr = m.il; }
-        else if (posn) { tr = posn.findIndex((q) => q.il === m.il && q.xl === m.xl); if (tr < 0) continue; }
+        else if (posn) { tr = posn.findIndex((q) => q && q.il === m.il && q.xl === m.xl); if (tr < 0) continue; }
         else continue;
         const s = t.worldToScreen(tr + 0.5, sh(m.sample, tr) + 0.5);
         const r = 7 * dpr;
@@ -1184,6 +1185,7 @@ function SliceView({
       const nsV = p.slice?.width ?? gm.ns;
       const inData = trace >= 0 && trace < posn.length && sample >= 0 && sample < nsV;
       const cl = Math.min(Math.max(trace, 0), posn.length - 1);
+      if (!posn[cl]) return null; // a 2D line trace outside the survey
       return {
         ilIdx: posn[cl].il,
         xlIdx: posn[cl].xl,
