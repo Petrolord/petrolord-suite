@@ -11,7 +11,7 @@
 import {
   loftFaultSurface, faultHorizonIntersection, polygonMask, surfaceLevelTrace,
 } from '../engine/faultObjects';
-import { rasterizeTraces } from '../engine/faultBarriers';
+import { rasterizeTraces, extendTraceToEdges } from '../engine/faultBarriers';
 import { ilxlToWorld, worldToIlxl } from '../engine/surveyGeometry';
 
 const fmt = (v) => (Number.isFinite(v) ? v.toFixed(2) : '');
@@ -103,7 +103,8 @@ export function faultIntersections(faults, picks, geom, opts = {}) {
  * the seed's time level, rasterized onto the lattice. Works BEFORE any
  * horizon exists — the surface knows where the fault lives at that
  * level. Faults whose surface does not reach the level contribute
- * nothing (they cannot block a horizon they do not cut).
+ * nothing (they cannot block a horizon they do not cut). A trace that
+ * stops within a stick spacing of the survey edge is carried on to it.
  *
  * @param {Array<{sticks, surface?}>} faults
  * @param {number} sampleLevel seed sample (float)
@@ -115,7 +116,10 @@ export function barriersFromFaults(faults, sampleLevel, geom) {
   for (const f of faults || []) {
     const surf = faultSurfaceOf(f);
     const trace = surf && surfaceLevelTrace(surf, sampleLevel);
-    if (trace) traces.push(trace);
+    // carried on to the survey edge where it stops within a stick spacing
+    // of it, as the gridding barriers are: otherwise the tracker walks
+    // round the end of a fault that runs off the survey
+    if (trace) traces.push(extendTraceToEdges(trace, geom));
   }
   if (!traces.length) return null;
   return rasterizeTraces(traces, geom.nIl, geom.nXl);
