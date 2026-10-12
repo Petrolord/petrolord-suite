@@ -128,15 +128,15 @@ export default {
         await d.unhighlight();
       } },
     { id: 'volume', chapter: 'The trap', chapterSub: 'Between top and base, inside the closure',
-      say: 'Recalculate. Between the top and the base, inside the closure, the gross rock volume is fifteen thousand three hundred and five acre feet over eight hundred and ninety five acres: well under the quick readout, because the sand has a base and the trap a spill point. The oil in place needs the rock properties, which the sales demo takes from the published Petrophysics zone.',
-      sub: 'Recalculate. Between the top and the base, inside the closure, the gross rock volume is 15,305 acre-feet over 895 acres: well under the quick readout, because the sand has a base and the trap a spill point. The oil in place needs the rock properties, which the sales demo takes from the published Petrophysics zone.',
+      say: 'Recalculate. Between the top and the base, inside the closure, the gross rock volume is fifteen thousand three hundred and five acre feet over eight hundred and ninety five acres: well under the quick readout, because the sand has a base and the trap a spill point. The thirteen point eight five million barrels above it still use the default rock properties; the sales demo takes real ones from the published Petrophysics zone.',
+      sub: 'Recalculate. Between the top and the base, inside the closure, the gross rock volume is 15,305 acre-feet over 895 acres: well under the quick readout, because the sand has a base and the trap a spill point. The 13.85 million barrels above it still use the default rock properties; the sales demo takes real ones from the published Petrophysics zone.',
       do: async (d) => {
         await d.page.evaluate(() => { window.scrollTo(0, 0); for (const el of document.querySelectorAll('*')) if (el.scrollTop > 0 && el.scrollHeight > el.clientHeight) el.scrollTop = 0; });
         await d.sleep(600);
         await d.click(d.page.getByRole('button', { name: /Recalculate/ }));
         await d.sleep(5000);
         const body = d.page.locator('text=/^STOOIP$/').locator('xpath=ancestor::*[contains(., "HC Area")][1]');
-        await expectText(d, body, /Bulk Vol:\s*15,305 Ac-ft[\s\S]*HC Area:\s*895 acres/, 'trap volume');
+        await expectText(d, body, /13\.85 MM[\s\S]*Bulk Vol:\s*15,305 Ac-ft[\s\S]*HC Area:\s*895 acres/, 'trap volume');
         await d.highlight(body);
       } },
     { id: 'next',

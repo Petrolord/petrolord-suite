@@ -108,12 +108,13 @@ export default {
     { id: 'colour', chapter: 'Colour and contours', chapterSub: 'For the eye and for the report',
       say: 'The colour map can be changed for the audience: a spectrum for interpreters, a single hue ramp for a printed report. Contours are drawn automatically at twelve levels; Settings sets a round interval instead, and they label themselves.',
       do: async (d) => {
-        const cm = d.page.locator('select[title="Map colormap"]');
+        const cm = d.page.locator('[data-testid="window-map"] select').filter({ has: d.page.locator('option', { hasText: 'Viridis' }) }).first();
         const opts = await cm.locator('option').allInnerTexts();
         const alt = opts.find((o) => /Viridis/.test(o)) || opts[1];
         await d.select(cm, { label: alt });
         await d.sleep(2500);
-        await d.select(cm, { label: opts[0] });
+        if (!/Viridis/.test(await cm.locator('option:checked').innerText())) throw new Error('colormap not changed');
+        await d.select(cm, { label: opts.find((o) => /Spectrum/.test(o)) || opts[0] });
         await d.sleep(1500);
       } },
     { id: 'registry', chapter: 'In the registry', chapterSub: 'Shared with the other apps',

@@ -79,3 +79,4 @@ repeating them.
 - Module D: D10 3:12, D11 3:16. Module E: E12 2:40, E13 2:26, E14 recorded after #1028. Module F: F15 2:24, F16 onward.
 - Fixes found while scripting Modules D to F: layer-cake depth conversion across holes in boundary horizons (#1026), the Make surface cell display (#1027), and a dialog opened from a right-click menu locking the page (#1028).
 - Lessons that save something use names no demo uses ("Lesson ...", "Ekene Sand (Interval RMS)", "Ekene Sand (TWT ms)") and remove them in setup. D11 runs the calibration fit but never applies it; F16 uses an unsaved ReservoirCalc Pro workspace.
+- All 18 recorded 2026-10-12. E14 2:27, F15 2:24, F16 2:32, F17 2:23, F18 3:09. F17 shows Move to project without moving (attribute volumes nest under their parent). F18 uses EKENE-2D-L1.sgy, a crooked 2D line cut from the v4 full stack by seed/seis_lesson_assets.py; it needs #1030 for the 3D horizons to draw on the line.
