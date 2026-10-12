@@ -45,7 +45,7 @@ describe('the public app catalogue', () => {
     const available = LIVE.nextgenCourses.filter((c) => c.status === 'available');
     expect(NEXTGEN_LIVE_COURSES).toBe(available.length);
     expect(NEXTGEN_APP_COURSES).toBe(available.filter((c) => c.courseType === 'app').length);
-    expect([NEXTGEN_LIVE_COURSES, NEXTGEN_APP_COURSES]).toEqual([79, 72]);
+    expect([NEXTGEN_LIVE_COURSES, NEXTGEN_APP_COURSES]).toEqual([80, 73]);
   });
 
   it('follows the owner copy rule: no em or en dashes', () => {

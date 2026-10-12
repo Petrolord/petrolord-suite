@@ -1,5 +1,5 @@
 {
- "_about": "Read-only snapshot of the live catalogues the two homepages count, taken 2026-10-05. Suite: public.master_apps where status = 'Active' and is_built and is_functional, joined to public.modules for the slug (project ssyckywijlrkgcwvkwlr). NextGen: public.academy_apps (project txcsbtvcdaqmkjjbhbeg). See docs/scope/Homepage-Counts.md for the queries and the definitions. Refresh it with those queries when an app or a course goes live, together with suiteCatalog.js.",
+ "_about": "Read-only snapshot of the live catalogues the two homepages count, taken 2026-10-05; the NextGen list adds qi as its go-live migration sets it on 2026-10-12. Suite: public.master_apps where status = 'Active' and is_built and is_functional, joined to public.modules for the slug (project ssyckywijlrkgcwvkwlr). NextGen: public.academy_apps (project txcsbtvcdaqmkjjbhbeg). See docs/scope/Homepage-Counts.md for the queries and the definitions. Refresh it with those queries when an app or a course goes live, together with suiteCatalog.js.",
  "taken": "2026-10-05",
  "suiteLiveApps": [
   {
@@ -850,6 +850,12 @@
   {
    "slug": "producedwater",
    "module": "facilities",
+   "status": "available",
+   "courseType": "app"
+  },
+  {
+   "slug": "qi",
+   "module": "geoscience",
    "status": "available",
    "courseType": "app"
   },
