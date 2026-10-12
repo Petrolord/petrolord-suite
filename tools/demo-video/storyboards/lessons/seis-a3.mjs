@@ -49,6 +49,8 @@ export default {
   async setup(d, shared) {
     await login(d.page, shared.baseUrl, shared.env);
     await openSeismolord(d, shared);
+    await d.page.getByText('Home', { exact: true }).first().click(); // the ribbon remembers its tab
+    await d.sleep(600);
     await combo(d, 'Active volume').selectOption({ label: FULL });
     await d.sleep(5000);
     await closeWindow(d, '3D');
@@ -127,7 +129,7 @@ export default {
         await d.click(d.page.getByRole('button', { name: 'Reversed' }));
         await d.sleep(600);
       } },
-    { id: 'gain', chapter: 'Gain and clip', chapterSub: 'Brightness, not amplitude',
+    { id: 'gain', chapter: 'Gain and clip', chapterSub: 'Brightness for the eye',
       say: 'Gain brightens the whole display, so weak deep reflections become easier to follow. At three times, the top of the sand saturates, but the readout is unchanged. The clip sets the amplitude at the ends of the colour bar, here three times the R M S.',
       sub: 'Gain brightens the whole display, so weak deep reflections become easier to follow. At three times, the top of the sand saturates, but the readout is unchanged. The clip sets the amplitude at the ends of the colour bar, here three times the RMS.',
       do: async (d) => {
