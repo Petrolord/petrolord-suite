@@ -76,3 +76,6 @@ repeating them.
 - Module C: C7 2:49, C8 3:24, C9 2:31. C7 places its sticks at the kit's answer key; C8 runs Detect faults without saving (the demos keep Auto-1 and Auto-2); C9 tracks the footwall with Stop at faults.
 - Fix found while scripting Module C: Stop at faults leaked round a fault that runs off the survey (#1023).
 - Recording note: kill the old site server by its exact PID, and clear a take's profile service worker after a site rebuild, or the take can run on the old bundle.
+- Module D: D10 3:12, D11 3:16. Module E: E12 2:40, E13 2:26, E14 recorded after #1028. Module F: F15 2:24, F16 onward.
+- Fixes found while scripting Modules D to F: layer-cake depth conversion across holes in boundary horizons (#1026), the Make surface cell display (#1027), and a dialog opened from a right-click menu locking the page (#1028).
+- Lessons that save something use names no demo uses ("Lesson ...", "Ekene Sand (Interval RMS)", "Ekene Sand (TWT ms)") and remove them in setup. D11 runs the calibration fit but never applies it; F16 uses an unsaved ReservoirCalc Pro workspace.
