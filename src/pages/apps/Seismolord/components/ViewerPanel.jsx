@@ -71,6 +71,7 @@ import {
 } from '../engine/horizonAmplitude';
 import { flattenOffsets, datumForHorizon } from '../engine/flatten';
 import { buildWellSections, corridorCells } from '../lib/wellDisplay';
+import { boundaryGridForDepth } from '../lib/velocityBoundaries';
 import { suggestedColormap } from '../lib/attributeDisplay';
 import { makeTvdssToTwt } from '../engine/wellSection';
 import {
@@ -765,7 +766,8 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
   };
 
   // load the layer cake's boundary pick grids (deleted horizons yield a
-  // null entry — the layer above then extends, per the engine convention);
+  // null entry — the layer above then extends, per the engine convention;
+  // interior holes in a boundary are filled first);
   // depth displays stay gated until the grids are in
   useEffect(() => {
     const m = velocityModel;
@@ -785,12 +787,14 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
             g = null;
           }
         }
-        grids.push(g || null);
+        // interior holes filled (lib/velocityBoundaries): a hole must not
+        // switch the column to the next layer's velocity
+        grids.push(g ? boundaryGridForDepth(g, geom) : null);
       }
       if (!cancelled) setVelBoundaries(grids);
     })();
     return () => { cancelled = true; };
-  }, [velocityModel, horizons]);
+  }, [velocityModel, horizons, geom]);
 
   // what depth displays consume: a layer cake is only usable once its
   // boundary grids are loaded — never convert with half a model
