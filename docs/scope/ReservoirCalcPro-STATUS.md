@@ -370,3 +370,12 @@ until you untick one), a wet well is marked "no net pay", leaving every well
 out is refused, and the applied provenance and the audit-trail entry name the
 wells left out. Test: registryWellChoice.test.jsx (negative control: with the
 checkboxes ignored the two-well NTG fails).
+
+## 2026-10-12: detailed results table names the surfaces
+
+The Detailed view's input table printed the placeholders "Input_Top" and
+"Input_Base" for every run, and a contact taken at the spill printed only
+the spill elevation. It now names the top and base surfaces (Hybrid: top
+plus gross thickness; Simple and Area-depth: none) and prints
+"OWC: -4,972 (entered -5,036, filled to spill)" when Trap only took the
+contact at the spill. Test: `__tests__/summaryTableNames.test.jsx`.
