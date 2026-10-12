@@ -160,6 +160,12 @@ function ManualEditor({ inv, wells, canWrite, onChange }) {
   );
 }
 
+// html2canvas 1.4 finds each font's baseline with a 1px probe <img> in the
+// live page; Tailwind's preflight makes images display:block, which drops
+// every exported text line by a few pixels. Keep the probe inline while
+// capturing; the selector matches only that probe image.
+const PROBE_FIX = 'img[src^="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP"] { display: inline !important; }';
+
 function PresentationOverlay({ children, onClose, onPng, onPdf, busy }) {
   const wrapRef = useRef(null);
   const [scale, setScale] = useState(1);
@@ -257,10 +263,14 @@ export default function ProjectDataInventory({
     const scaled = node.closest('[data-pdi-scale]');
     const prev = scaled ? scaled.style.transform : null;
     if (scaled) scaled.style.transform = 'none';
+    const probeFix = document.createElement('style');
+    probeFix.textContent = PROBE_FIX;
+    document.head.appendChild(probeFix);
     try {
       return await html2canvas(node, { scale: 2, backgroundColor: '#ffffff', width: PRESENT_W, windowWidth: PRESENT_W, useCORS: true, logging: false });
     } finally {
       if (scaled) scaled.style.transform = prev;
+      probeFix.remove();
     }
   }, []);
   const doPng = useCallback(async () => {
