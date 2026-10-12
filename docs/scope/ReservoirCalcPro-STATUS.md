@@ -424,3 +424,14 @@ The 2026-10-09 well checkboxes stay (useful for a well outside the
 accumulation) but a wet well no longer needs leaving out of a structural
 run. Test: `__tests__/registryNtgBasis.test.jsx` (negative control: the pay
 basis gives 0.4525).
+
+## 2026-10-12: probabilistic layout (Simulation Setup folds, slide tornado fits)
+
+Found while scripting the ReservoirCalc Pro videos. At 1440 x 810 the
+probabilistic input panel left the distribution list about a quarter of its
+height; the Simulation Setup card now folds away like Project Settings
+(`rcp-sim-setup-toggle`). On the 16:9 probabilistic slide the tornado ran
+off the slide's foot over the footer: the statistics are one compact row,
+the tornado panel scales inside the slide and shows the top four drivers
+("top 4 of N"); the PDF still draws every bar from an off-screen copy.
+Test: `__tests__/simSetupFold.test.jsx`.
