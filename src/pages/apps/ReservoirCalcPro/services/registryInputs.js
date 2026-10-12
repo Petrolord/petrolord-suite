@@ -53,7 +53,7 @@ export function zoneGrossAndNtg(p) {
  * @returns {{porosity?: number, sw?: number, ntg?: number, thickness?: number,
  *            thicknessBasis?: string, fromWells: number}}
  */
-export function zoneAveragesToInputs(zones) {
+export function zoneAveragesToInputs(zones, { basis = 'pay' } = {}) {
   const pub = (zones || []).map((z) => z.properties || {}).filter((p) => Number.isFinite(p.phi_avg) || Number.isFinite(p.net_m));
   const out = { fromWells: pub.length };
   // RCP-U1-018 (PL1): the averages RCP multiplies together must
@@ -89,6 +89,27 @@ export function zoneAveragesToInputs(zones) {
     out.thicknessBasis = pub.some((p) => Number.isFinite(p.gross_tvt_m)) ? 'gross, true vertical' : 'gross, along hole';
   }
   if (ntg !== null) out.ntg = ntg;
+  out.ntgBasis = 'net pay';
+  // A structural run (Surfaces, Hybrid) cuts the rock at the contact itself.
+  // Net pay already stops at the contact (its Sw cutoff removes the water
+  // leg), so NTG as net pay over gross applied the contact twice: on Ekene
+  // the oil wells' pay NTG is 0.45 where their sand is 0.95 net. NTG is
+  // then net reservoir (porosity and Vsh cutoffs only) over gross, from
+  // every well that published it, a wet well's sand included.
+  if (basis === 'reservoir') {
+    const res = pub.map((p) => {
+      const tvt = Number.isFinite(p.gross_tvt_m) && p.gross_tvt_m > 0 && Number.isFinite(p.net_res_tvt_m);
+      const g = tvt ? p.gross_tvt_m : p.gross_m;
+      const n = tvt ? p.net_res_tvt_m : p.net_res_m;
+      return Number.isFinite(g) && g > 0 && Number.isFinite(n) ? { g, n } : null;
+    });
+    if (res.length && res.every(Boolean)) {
+      out.ntg = res.reduce((a, r) => a + r.n, 0) / res.reduce((a, r) => a + r.g, 0);
+      out.ntgBasis = 'net reservoir';
+    } else {
+      out.ntgNote = 'Some wells published no net reservoir thickness (zone summaries before 2026-09-28), so NTG is net pay over gross, which already stops at the contact. Publish the zones again from Petrophysics Studio.';
+    }
+  }
   out.weighting = anyNet ? 'net-thickness weighted porosity, pore-thickness weighted Sw, NTG as total net over total gross' : 'equal weights (no thickness published)';
   return out;
 }
