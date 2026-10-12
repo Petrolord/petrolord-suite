@@ -411,7 +411,7 @@ export default function MappingHelpGuide() {
           set from the surface's recorded source, the row is marked re-gridding, and Publish becomes Replace
           surface. The replaced surface keeps its id, so Earth Modeling stacks and ReservoirCalc Pro imports keep
           pointing at it; the previous frame is kept in its history, and the grid it replaced is kept too:
-          right-click and Restore the previous grid to put it back. Delete asks first and waits ten seconds with an
+          right-click and Restore the previous grid to put it back. Replace grid from a file does the same with a grid made elsewhere (a map re-made after a new well, say): the surface keeps its name and id, the file must hold the same kind of values (depth for a depth surface), and the old grid is kept for Restore. Delete asks first and waits ten seconds with an
           Undo before the surface leaves the registry. Undo in the ribbon steps back through grid, arithmetic and
           conversion previews.
         </Para>

@@ -250,6 +250,15 @@ const ExpertInputPanel = () => {
                                         <div className="w-2 h-2 bg-pl-danger rounded-full"></div> No Top Surface
                                     </div>
                                 )}
+                                {state.inputMethod === 'surfaces' && (state.inputs.baseSurfaceId && state.surfaces?.[state.inputs.baseSurfaceId] ? (
+                                    <div className="text-xs text-pl-success-text font-medium flex items-center gap-2" data-testid="rcp-base-status">
+                                        <div className="w-2 h-2 bg-pl-success rounded-full"></div> Base Surface Selected: {state.surfaces[state.inputs.baseSurfaceId].name}
+                                    </div>
+                                ) : (
+                                    <div className="text-xs text-pl-danger-text font-medium flex items-center gap-2" data-testid="rcp-base-status">
+                                        <div className="w-2 h-2 bg-pl-danger rounded-full"></div> No Base Surface (set one in the Surfaces tab)
+                                    </div>
+                                ))}
                             </div>
                         )}
 

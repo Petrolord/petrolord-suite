@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { RotateCcw, Mountain, Waves, Grid3x3, Layers, Droplets } from 'lucide-react';
+import { RotateCcw, Mountain, Waves, Grid3x3, Layers, Layers2, Droplets } from 'lucide-react';
 import { generateContours } from '../../services/ContourGenerator';
+import { canvasBackingSize } from '../../services/canvasSizing';
 
 // Colour scales offered in the 3D view (aliased onto the built-in maps below).
 const SCALE_OPTIONS = ['Earth', 'Viridis', 'Turbo', 'RdYlBu', 'YlGnBu', 'Blues', 'Hot'];
@@ -76,6 +77,8 @@ const Surface3DViewer = ({
     contacts = null,
     title,
     compact = false,
+    baseGridData = null,
+    baseName = '',
 }) => {
     const canvasRef = useRef(null);
     const cameraRef = useRef({ az: -0.6, el: 0.5, dist: 3.2 });
@@ -88,6 +91,7 @@ const Surface3DViewer = ({
     const [wire, setWire] = useState(false);         // wireframe mesh
     const [drape, setDrape] = useState(true);        // contour lines draped on surface
     const [showContacts, setShowContacts] = useState(true);
+    const [showBase, setShowBase] = useState(true);
     useEffect(() => { setScale(colorscale); }, [colorscale]);
 
     // Precompute normalised model geometry (unit cube-ish, centred at origin).
@@ -118,8 +122,28 @@ const Surface3DViewer = ({
                 pts[j][i] = { valid: true, mx: (X[i] - xc) / H, my: (Y[j] - yc) / H, zUp, val: v };
             }
         }
-        return { pts, nx, ny, zmin, zmax, zc, H, sign, xmin, xmax, ymin, ymax, xc, yc, minZUp };
-    }, [gridData, zConvention]);
+        // the base surface, in the same model frame as the top (same centre,
+        // scale and sign), so the gap between them is the true gross interval
+        let base = null;
+        if (baseGridData && baseGridData.z && baseGridData.x && baseGridData.y
+            && baseGridData.x.length >= 2 && baseGridData.y.length >= 2) {
+            const BX = baseGridData.x, BY = baseGridData.y, BZ = baseGridData.z;
+            const bnx = BX.length, bny = BY.length;
+            const bpts = new Array(bny);
+            for (let j = 0; j < bny; j++) {
+                bpts[j] = new Array(bnx);
+                for (let i = 0; i < bnx; i++) {
+                    const v = BZ[j] ? BZ[j][i] : null;
+                    if (v == null || isNaN(v)) { bpts[j][i] = { valid: false }; continue; }
+                    const zUp = sign * (v - zc) / H;
+                    if (zUp < minZUp) minZUp = zUp;
+                    bpts[j][i] = { valid: true, mx: (BX[i] - xc) / H, my: (BY[j] - yc) / H, zUp, val: v };
+                }
+            }
+            base = { pts: bpts, nx: bnx, ny: bny };
+        }
+        return { pts, nx, ny, zmin, zmax, zc, H, sign, xmin, xmax, ymin, ymax, xc, yc, minZUp, base };
+    }, [gridData, zConvention, baseGridData]);
 
     // Auto vertical exaggeration so subtle structural relief is visible.
     const defaultVE = useMemo(() => {
@@ -163,9 +187,9 @@ const Surface3DViewer = ({
 
         const resize = () => {
             const r = canvas.getBoundingClientRect();
-            const dpr = Math.min(window.devicePixelRatio || 1, 2);
-            canvas.width = Math.max(1, r.width * dpr);
-            canvas.height = Math.max(1, r.height * dpr);
+            const { width, height, dpr } = canvasBackingSize(r.width, r.height, window.devicePixelRatio);
+            canvas.width = width;
+            canvas.height = height;
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             W = r.width; Hh = r.height;
         };
@@ -237,6 +261,26 @@ const Surface3DViewer = ({
                     const col = cmap(t);
                     const fill = `rgb(${(col[0] * sh) | 0},${(col[1] * sh) | 0},${(col[2] * sh) | 0})`;
                     quads.push({ pts: [pa, pb, pc, pd], fill, stroke: fill, vz: (pa.vz + pb.vz + pc.vz + pd.vz) / 4 });
+                }
+            }
+
+            // base surface: one muted slate tone, shaded, so it reads as the
+            // floor of the interval under the coloured top
+            if (geom.base && showBase) {
+                const B = geom.base;
+                const BP = B.pts.map((row) => row.map((p) => (p.valid ? project(p.mx, p.my, p.zUp * v) : null)));
+                for (let j = 0; j < B.ny - 1; j++) {
+                    for (let i = 0; i < B.nx - 1; i++) {
+                        const a = B.pts[j][i], b = B.pts[j][i + 1], c = B.pts[j + 1][i + 1], d = B.pts[j + 1][i];
+                        if (!(a.valid && b.valid && c.valid && d.valid)) continue;
+                        const pa = BP[j][i], pb = BP[j][i + 1], pc = BP[j + 1][i + 1], pd = BP[j + 1][i];
+                        if (!(pa && pb && pc && pd)) continue;
+                        const A = [a.mx, a.my, a.zUp * v], Bv = [b.mx, b.my, b.zUp * v], D = [d.mx, d.my, d.zUp * v];
+                        const n = norm(cross(sub(Bv, A), sub(D, A)));
+                        const sh = Math.min(1, 0.35 + 0.65 * Math.max(0, Math.abs(dot(n, light))));
+                        const fill = `rgb(${(124 * sh) | 0},${(138 * sh) | 0},${(166 * sh) | 0})`;
+                        quads.push({ pts: [pa, pb, pc, pd], fill, stroke: fill, vz: (pa.vz + pb.vz + pc.vz + pd.vz) / 4 });
+                    }
                 }
             }
 
@@ -347,7 +391,7 @@ const Surface3DViewer = ({
             canvas.removeEventListener('dblclick', onDbl);
             redrawRef.current = () => {};
         };
-    }, [geom, scale, contactsKey, wire, drape, showContacts, drapeGeom]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [geom, scale, contactsKey, wire, drape, showContacts, showBase, drapeGeom]); // eslint-disable-line react-hooks/exhaustive-deps
 
     if (!geom) {
         return <div className="w-full h-full flex items-center justify-center text-pl-muted text-sm">No surface data to render in 3D.</div>;
@@ -373,6 +417,9 @@ const Surface3DViewer = ({
                     {contacts && (
                         <TB active={showContacts} onClick={() => setShowContacts((v) => !v)} title="Fluid-contact planes"><Droplets className="w-3 h-3" /></TB>
                     )}
+                    {geom.base && (
+                        <TB active={showBase} onClick={() => setShowBase((v) => !v)} title={`Base surface${baseName ? `: ${baseName}` : ''}`}><Layers2 className="w-3 h-3" /></TB>
+                    )}
                     <div className="w-px h-4 bg-pl-border mx-0.5" />
                     <select
                         value={scale}
@@ -393,6 +440,12 @@ const Surface3DViewer = ({
                     <span>{Math.round(geom.zmin)}</span>
                     <span>{Math.round(geom.zmax)}</span>
                 </div>
+                {geom.base && showBase && (
+                    <div className="flex items-center gap-1 mt-1.5 text-[9px] text-pl-muted" data-testid="rcp-3d-base-key">
+                        <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: 'rgb(124,138,166)' }} />
+                        <span className="truncate">Base{baseName ? `: ${baseName}` : ''}</span>
+                    </div>
+                )}
             </div>
 
             {/* Controls */}
