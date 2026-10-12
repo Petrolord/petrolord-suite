@@ -6,7 +6,12 @@ import { cn } from "@/lib/utils"
 import { usePortalThemeProps } from "@/design/themeContext";
 
 
-const ContextMenu = ContextMenuPrimitive.Root
+// Non-modal by default: a modal context menu sets pointer-events: none on the
+// body, and when one of its items opens a Dialog the lock is never released,
+// so after the dialog closes the whole page stops taking clicks (2026-10-12,
+// Seismolord explorer: Settings…, Make surface…). Outside clicks still close
+// the menu. Pass modal explicitly to opt back in.
+const ContextMenu = ({ modal = false, ...props }) => <ContextMenuPrimitive.Root modal={modal} {...props} />
 
 const ContextMenuTrigger = ContextMenuPrimitive.Trigger
 

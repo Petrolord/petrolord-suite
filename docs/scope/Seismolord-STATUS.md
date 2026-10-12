@@ -2775,3 +2775,7 @@ drawing as they did. The engine and the display math are untouched.
 
 ## 2026-10-12: Make surface reads the cell to 0.1 m
 - The result line of Make surface showed the measured bin with its float noise ("cell 25.000000062239003 m"). It now reads to 0.1 m without trailing zeros. Found while scripting Seismolord lesson E14. Test: `__tests__/makeSurface.test.jsx`.
+## 2026-10-12: a dialog opened from the explorer's right-click menu no longer locks the page
+- Found while scripting Seismolord lesson E14: after Settings… or Make surface… from the Seismic Explorer's right-click menu, closing the dialog left `pointer-events: none` on the page body, so nothing on the page took a click until a reload. The modal context menu set the lock and the dialog it opened took over before it was released.
+- The shared `ContextMenu` (`src/components/ui/context-menu.jsx`) is now non-modal by default; outside clicks still close the menu, and `modal` can be passed to opt back in. This covers every app that uses it (Seismolord explorer and Map window, Well Data Manager wells tree, Mapping & Surface Studio, Open in).
+- Test: `src/components/ui/__tests__/contextMenuDialog.test.jsx` (the modal root locks the body, the negative control).
