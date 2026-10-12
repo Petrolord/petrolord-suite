@@ -21,6 +21,7 @@
 // tagged with the target.
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { gridDownloadPath, GRID_CACHE_CONTROL } from '@/lib/surfacesRegistry';
 import { normalizeTag, isTransformableTag } from '@/lib/crs/tags';
 import {
   getTransformer, reprojectSurveyAffine, reprojectSurfaceGrid,
@@ -127,7 +128,7 @@ export async function reprojectProjectData({ toTag, onProgress = () => {} }) {
       continue;
     }
     const { data: blob, error: dlError } = await supabase.storage.from('surfaces')
-      .download(s.storage_path);
+      .download(gridDownloadPath(s));
     if (dlError) throw new Error(`Could not download surface ${s.name}: ${dlError.message}`);
     const z = new Float32Array(await blob.arrayBuffer());
     const r = reprojectSurfaceGrid({
@@ -140,7 +141,7 @@ export async function reprojectProjectData({ toTag, onProgress = () => {} }) {
     });
     const { error: upError } = await supabase.storage.from('surfaces')
       .update(s.storage_path, new Blob([r.z.buffer], { type: 'application/octet-stream' }), {
-        contentType: 'application/octet-stream',
+        contentType: 'application/octet-stream', cacheControl: GRID_CACHE_CONTROL,
       });
     if (upError) throw new Error(`Could not store reprojected grid for ${s.name}: ${upError.message}`);
     const provenance = {

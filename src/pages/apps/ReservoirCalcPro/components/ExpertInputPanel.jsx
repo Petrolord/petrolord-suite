@@ -116,9 +116,13 @@ const ExpertInputPanel = () => {
             <div className="h-full flex flex-col space-y-2 p-2 overflow-hidden">
                 <RcpSourceNotice />
                 <Card className="p-3 space-y-3 flex-shrink-0">
-                    <div className="flex justify-between items-center">
-                        <Label className="text-xs font-bold text-pl-text">Simulation Setup</Label>
-                    </div>
+                    {/* folds away like Project Settings, so the distributions get the height */}
+                    <button type="button" className="flex w-full justify-between items-center" data-testid="rcp-sim-setup-toggle"
+                        aria-expanded={isSettingsOpen} onClick={() => setSettingsOpen(!isSettingsOpen)}>
+                        <span className="text-xs font-bold text-pl-text">Simulation Setup</span>
+                        {isSettingsOpen ? <ChevronUp className="h-3 w-3 text-pl-muted" /> : <ChevronDown className="h-3 w-3 text-pl-muted" />}
+                    </button>
+                    {isSettingsOpen && (<>
                     <ProjectUnitSystemNote system={state.unitSystem || 'field'} profileSystem={profileUnitSystem} />
                     <div className="grid grid-cols-2 gap-2">
                         <div>
@@ -144,6 +148,7 @@ const ExpertInputPanel = () => {
                     </div>
                     <FluidTypeSelector value={fluidType} onChange={handleFluidChange} />
                     <ReportDetails />
+                    </>)}
                 </Card>
                 <div className="flex-1 overflow-hidden rounded-lg border border-pl-border">
                     <ProbabilisticPanel />

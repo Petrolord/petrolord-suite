@@ -451,3 +451,15 @@ surface), scattered points, and a surface shared read-only are refused.
 Service `services/replaceInPlace.js` (Re-grid in place now builds its
 history entry there too); test `__tests__/replaceFromFile.test.jsx`.
 Found while scripting the ReservoirCalc Pro videos (demo 3: Ekene-7).
+
+## 2026-10-12: replaced grids are never read from a stale browser copy
+
+Storage served surface grids "public, max-age=3600". A grid overwritten in
+place (Re-grid in place, Replace grid from a file, Restore, a project
+reprojection) kept the same path, so a browser that had read it kept the
+old grid for up to an hour: on the Ekene demo, ReservoirCalc Pro's Refresh
+from source re-read the stale grid and the volume did not move.
+`downloadSurfaceGrid` now names the row's version (`?v=<updated_at>`) so
+every change is a new URL, objects uploaded before the fix included, and
+uploads ask for max-age 0 (`GRID_CACHE_CONTROL`). The reprojection uses the
+same read and upload. Test: `src/lib/__tests__/surfaceGridCache.test.js`.

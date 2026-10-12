@@ -23,6 +23,23 @@ export {
 const BUCKET = 'surfaces';
 
 /**
+ * A grid object is overwritten in place by a re-grid, Replace grid from a
+ * file, a restore and a project reprojection, at the same storage path.
+ * Storage served it with "public, max-age=3600", so a browser that had read
+ * the grid kept the old one for up to an hour: ReservoirCalc Pro's Refresh
+ * from source read the stale grid and the volume did not move (found
+ * 2026-10-12 on the Ekene demo). Uploads now say max-age 0, and every read
+ * names the row's version (updated_at) so a cached copy of an older grid is
+ * never used, objects uploaded before this fix included.
+ */
+export const GRID_CACHE_CONTROL = '0';
+export function gridDownloadPath(surface) {
+  const v = surface?.updated_at || surface?.created_at;
+  return v ? `${surface.storage_path}?v=${encodeURIComponent(v)}` : surface.storage_path;
+}
+
+
+/**
  * Bridge a geo_surfaces grid to XYZ text — the format ReservoirCalc
  * Pro's SurfaceParser reads reliably. Reuses the byte-golden writeXYZ.
  * This is the in-DB handoff: Mapping Studio publishes a surface, RCP
@@ -76,7 +93,7 @@ export async function saveSurface(s) {
 
   const { error: upError } = await supabase.storage.from(BUCKET)
     .upload(path, new Blob([s.grid.buffer], { type: 'application/octet-stream' }), {
-      contentType: 'application/octet-stream', upsert: false,
+      contentType: 'application/octet-stream', upsert: false, cacheControl: GRID_CACHE_CONTROL,
     });
   if (upError) throw new Error(`Could not upload surface grid: ${upError.message}`);
 
@@ -113,7 +130,7 @@ export async function saveSurface(s) {
 /** Fetch a surface's grid. Works for org-shared surfaces too — the
  *  storage read policy resolves the owning surface from the path. */
 export async function downloadSurfaceGrid(surface) {
-  const { data, error } = await supabase.storage.from(BUCKET).download(surface.storage_path);
+  const { data, error } = await supabase.storage.from(BUCKET).download(gridDownloadPath(surface));
   if (error) throw new Error(`Could not download surface ${surface.name}: ${error.message}`);
   const buf = await data.arrayBuffer();
   if (buf.byteLength !== surface.nx * surface.ny * 4) {
@@ -153,7 +170,7 @@ export async function replaceSurfaceGrid(surface, s) {
   }
   const { error: upError } = await supabase.storage.from(BUCKET)
     .upload(surface.storage_path, new Blob([s.grid.buffer], { type: 'application/octet-stream' }), {
-      contentType: 'application/octet-stream', upsert: true,
+      contentType: 'application/octet-stream', upsert: true, cacheControl: GRID_CACHE_CONTROL,
     });
   if (upError) throw new Error(`Could not replace the surface grid: ${upError.message}`);
   return updateSurface(surface.id, {

@@ -34,12 +34,16 @@ export async function replaceFromFilePlan(backend, target, plan, { fileName = nu
   if (plan.zDomain !== was) {
     throw new Error(`${target.name} holds ${DOMAIN_WORD[was] || was}, and this file was read as ${DOMAIN_WORD[plan.zDomain] || plan.zDomain}. Replace it with a file of the same kind, or import the file as a new surface.`);
   }
+  // a file read with no CRS declared keeps the surface's placement (its CRS,
+  // XY unit and CRS provenance), rather than blanking it
+  const keepCrs = !plan.crs && !!target.crs;
   const history = replacementHistory(target, { replaced_by: 'file', file_name: fileName });
   return backend.replaceSurfaceGrid(target, {
     name: target.name,
     // an isochore stays an isochore
     kind: target.kind || plan.kind, spec: plan.spec, grid: plan.grid,
-    zDomain: plan.zDomain, zUnit: plan.zUnit, crs: plan.crs, xyUnit: plan.xyUnit, crsProvenance: plan.crsProvenance,
+    zDomain: plan.zDomain, zUnit: plan.zUnit,
+    ...(keepCrs ? {} : { crs: plan.crs, xyUnit: plan.xyUnit, crsProvenance: plan.crsProvenance }),
     provenance: { ...(target.provenance?.display ? { display: target.provenance.display } : {}), ...plan.provenance, history },
   });
 }
