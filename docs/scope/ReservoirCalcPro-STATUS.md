@@ -3,6 +3,41 @@
 App: `src/pages/apps/ReservoirCalcPro/` (Geoscience module). Contact-based
 volumetrics flagship; deterministic + Monte Carlo STOIIP/GIIP.
 
+## 2026-10-12: preview sizing fix and top/base surfaces in the previews
+
+Owner report before the demo videos: the map and 3D previews rendered as a
+small canvas in a large empty middle panel.
+
+- Root cause: the page root was `h-full`, but under /dashboard the app sits
+  in DashboardScope, which is only `min-h-full`, so the percentage height
+  resolved to auto. The page took its content's height, the preview pane had
+  no height to fill, the map kit measured a near-zero box and the 2D canvas
+  fell back to 150 px (measured: map 588 x 150 in a 1182 wide panel at
+  1920x1080). The /dev harness wraps the app in `h-screen`, which is why
+  the e2e runs never saw it.
+- Fix: the root is `h-screen w-full overflow-hidden` (`RCP_ROOT_CLASS` in
+  `services/canvasSizing.js`, the pattern most studios use), with
+  `min-h-0`/`min-w-0` on the flex chain. The split view now stacks the map
+  above the 3D view when the pane is not at least 1.5 times wider than tall
+  (ResizeObserver on the pane), so neither becomes a tall sliver; the map
+  keeps true X/Y aspect (map kit fit, centred). The 3D canvas and the
+  gallery heatmap size their backing store with `canvasBackingSize` (whole
+  device pixels, DPR capped at 2), so both are sharp at DPR 2.
+- Harness: `/dev/reservoircalc-pro?frame=dashboard` mounts the app in the
+  live dashboard frame; `?topBase=1` adds Ekene Sand Top and Ekene Sand
+  Base (the harness dome and the same dome 30 m deeper).
+- Top/base check (no engine change): Surfaces method, Ekene Sand Top and
+  Base, OWC -5118.1 ft (-1560 m) gives 28,950 acre-ft gross rock against the
+  closed form 28,650 (two paraboloid caps), 1.0 percent on the 200 m
+  lattice. The previews only drew the top before; now the base is its own
+  map layer ("Base: ...") and is drawn under the top in the 3D view (slate,
+  toggle and key), with the contact plane between; the Geometry tab says
+  which base surface is selected.
+- Gates: jest `services/__tests__/canvasSizing.test.js` (root height, DPR
+  backing size, split direction, each with a negative control); e2e
+  `e2e/reservoircalc-pro-preview.spec.js` (fill at 1920x1080, 1366x768 and
+  1180x800 in the dashboard frame; top/base volume within 3 percent of the
+  closed form and both surfaces drawn).
 ## 2026-10-12: Source changed notice (source freshness)
 
 Owner-approved improvement (NAPE data governance paper). Shared model and

@@ -9,14 +9,20 @@
 //   ?sourceChanged=1   source freshness: the project "Keta source check"
 //   averaged a zone a colleague has since published again, and imported a
 //   surface that has left the registry (2026-10-12)
+//   ?topBase=1   seeds a top and base surface pair (Ekene Sand Top/Base)
+//   ?frame=dashboard   mounts the app inside the /dashboard frame (an
+//   h-screen row, a scrolling main and the min-h-full DashboardScope), the
+//   frame the live route renders in, so the previews are sized as users see
+//   them (RCP preview sizing, 2026-10-12)
 
 import React, { useMemo } from 'react';
 import { ReservoirCalcProvider } from './contexts/ReservoirCalcContext';
-import { ReservoirCalcProContent } from './ReservoirCalcPro';
+import { ReservoirCalcProContent, RCP_ROOT_CLASS } from './ReservoirCalcPro';
 import { makeInMemoryRcpBackend } from './services/rcpBackend';
 import { SAVED_PROJECT_ROWS, SAVED_PROSPECT_ROWS, RERUN_PROJECT_ROW } from './services/savedFixtures';
 import { RRV_SEED_PROSPECTS } from '../riskedreserves/services/rrvFixtures';
 import { DEV_APP_PATHS } from '@/components/wells/appLinks';
+import { DashboardScope } from '@/design/DashboardScope';
 
 export default function ReservoirCalcProHarness() {
   // U1 (PL5): ?saved=1 seeds one saved project and one prospect per release
@@ -31,18 +37,36 @@ export default function ReservoirCalcProHarness() {
   // prospect-2) and the project their source names, so the link opens here
   const rerun = !!q.get('rerunProspect');
   const sourceChanged = q.get('sourceChanged') === '1';
+  // ?topBase=1 adds "Ekene Sand Top" and "Ekene Sand Base" to the surface
+  // registry (the same dome 30 m apart) for the top, base and contact check
+  const topBase = q.get('topBase') === '1';
   const backend = useMemo(() => makeInMemoryRcpBackend({
     ...(saved ? { savedRows: SAVED_PROJECT_ROWS.map((r) => r.row), prospects: SAVED_PROSPECT_ROWS.map((r) => r.row) } : {}),
     ...(rerun ? { savedRows: [RERUN_PROJECT_ROW], prospects: RRV_SEED_PROSPECTS } : {}),
     sharedRows: shared,
     sharing: { applied: !beforeApply },
     sourceChanged,
-  }), [saved, shared, beforeApply, rerun, sourceChanged]);
+    topBase,
+  }), [saved, shared, beforeApply, rerun, sourceChanged, topBase]);
+  const app = (
+    <ReservoirCalcProvider backend={backend} appPaths={DEV_APP_PATHS}>
+      <ReservoirCalcProContent />
+    </ReservoirCalcProvider>
+  );
+  if (q.get('frame') === 'dashboard') {
+    return (
+      <div className="flex h-screen" data-testid="rcp-harness">
+        <main className="flex-1 overflow-y-auto w-full">
+          <DashboardScope>
+            <div className={RCP_ROOT_CLASS} data-testid="rcp-theme-scope">{app}</div>
+          </DashboardScope>
+        </main>
+      </div>
+    );
+  }
   return (
     <div className="h-screen w-screen" data-testid="rcp-harness">
-      <ReservoirCalcProvider backend={backend} appPaths={DEV_APP_PATHS}>
-        <ReservoirCalcProContent />
-      </ReservoirCalcProvider>
+      {app}
     </div>
   );
 }

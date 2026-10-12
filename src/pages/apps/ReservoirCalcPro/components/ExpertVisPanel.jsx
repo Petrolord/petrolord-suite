@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useLayoutEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { 
     Maximize2, 
@@ -23,8 +23,10 @@ import { useToast } from '@/components/ui/use-toast';
 import { gridSurface } from '../services/GriddingEngine';
 import { useReservoirSettings } from '../hooks/useReservoirSettings';
 import { effectiveGridding } from '../services/griddingSettings';
+import { splitDirection } from '../services/canvasSizing';
 
 const SURFACE_LAYER_ID = '__surface__';
+const BASE_LAYER_ID = '__base__';
 
 class ErrorBoundary extends React.Component {
     constructor(props) {
@@ -65,6 +67,21 @@ const ExpertVisPanel = () => {
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [activeLayerId, setActiveLayerId] = useState(SURFACE_LAYER_ID);
+    // split view: side by side in a wide pane, stacked in a tall one, from
+    // the pane's own measured size (it follows window, panel and fullscreen
+    // changes)
+    const canvasAreaRef = useRef(null);
+    const [splitDir, setSplitDir] = useState('row');
+    useLayoutEffect(() => {
+        const el = canvasAreaRef.current;
+        if (!el) return undefined;
+        const measure = () => setSplitDir(splitDirection(el.clientWidth, el.clientHeight));
+        measure();
+        if (typeof ResizeObserver === 'undefined') return undefined;
+        const ro = new ResizeObserver(measure);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
 
     // Robust Data Extraction
     const activeSurface = getActiveSurface ? getActiveSurface() : null;
@@ -74,26 +91,32 @@ const ExpertVisPanel = () => {
     const depthUnit = projectDepthUnit(unitSystem);
     const surfaceToDisplay = depthFactor(activeSurface?.depthUnit || depthUnit, depthUnit);
 
-    const surfaceGrid = useMemo(() => {
-        if (!activeSurface) return null;
-
-        // Check for valid grid if it already exists
-        if (activeSurface.grid && activeSurface.grid.z && activeSurface.grid.z.length > 0) {
-            return activeSurface.grid;
-        }
-
-        // No stored grid → grid the points with the chosen method (cached per surface).
-        if (activeSurface.points && activeSurface.points.length > 0) {
+    // A surface's display grid: its stored grid, else its points gridded with
+    // the chosen method.
+    const gridOf = (surface) => {
+        if (!surface) return null;
+        if (surface.grid && surface.grid.z && surface.grid.z.length > 0) return surface.grid;
+        if (surface.points && surface.points.length > 0) {
             try {
-                return gridSurface(activeSurface, settings.interpolationMethod, 80);
+                return gridSurface(surface, settings.interpolationMethod, 80);
             } catch (err) {
                 console.error("On-the-fly grid generation failed:", err);
                 return null;
             }
         }
-
         return null;
-    }, [activeSurface, settings.interpolationMethod]);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const surfaceGrid = useMemo(() => gridOf(activeSurface), [activeSurface, settings.interpolationMethod]);
+
+    // The base surface the Surfaces method computes against: drawn as its own
+    // map layer and under the top in the 3D view, with the contact between.
+    const baseSurface = state.inputMethod === 'surfaces' && state.inputs.baseSurfaceId && state.inputs.baseSurfaceId !== state.inputs.topSurfaceId
+        ? (state.surfaces || {})[state.inputs.baseSurfaceId] || null
+        : null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const baseGrid = useMemo(() => gridOf(baseSurface), [baseSurface, settings.interpolationMethod]);
+    const baseToDisplay = depthFactor(baseSurface?.depthUnit || depthUnit, depthUnit);
 
     // Selectable display layers: the base structure surface plus any generated
     // property maps. AOIs are drawn in surface (world) coordinates, so polygon
@@ -108,6 +131,15 @@ const ExpertVisPanel = () => {
             unit: depthUnit,
             isSurface: true,
         }];
+        if (baseSurface && baseGrid) list.push({
+            id: BASE_LAYER_ID,
+            name: baseSurface.name,
+            grid: scaleRcpGrid(baseGrid, baseToDisplay),
+            colorscale: settings.defaultColorscale || 'Earth',
+            unit: depthUnit,
+            isSurface: false,
+            isBase: true,
+        });
         maps.forEach(m => list.push({
             id: m.id,
             name: m.name,
@@ -117,7 +149,7 @@ const ExpertVisPanel = () => {
             isSurface: false,
         }));
         return list;
-    }, [activeSurface, surfaceGrid, maps, depthUnit, surfaceToDisplay, settings.defaultColorscale]);
+    }, [activeSurface, surfaceGrid, baseSurface, baseGrid, baseToDisplay, maps, depthUnit, surfaceToDisplay, settings.defaultColorscale]);
 
     const activeLayer = layers.find(l => l.id === activeLayerId) || layers[0];
     const gridData = activeLayer.grid;
@@ -125,14 +157,20 @@ const ExpertVisPanel = () => {
 
     // U2-009: the 2D view is the shared Mapping map kit; the structure layer
     // shows a registry surface's own lattice when it kept one
-    const kit = useMemo(() => (isSurfaceLayer ? kitForSurface(activeSurface, surfaceGrid, depthUnit) : kitFromRcpGrid(gridData)), [isSurfaceLayer, activeSurface, surfaceGrid, gridData, depthUnit]);
+    const isBaseLayer = !!activeLayer.isBase;
+    const isStructureLayer = isSurfaceLayer || isBaseLayer;
+    const kit = useMemo(() => (
+        isSurfaceLayer ? kitForSurface(activeSurface, surfaceGrid, depthUnit)
+            : isBaseLayer ? kitForSurface(baseSurface, baseGrid, depthUnit)
+                : kitFromRcpGrid(gridData)
+    ), [isSurfaceLayer, isBaseLayer, activeSurface, surfaceGrid, baseSurface, baseGrid, gridData, depthUnit]);
     // AOI props threaded to the 2D viewer
     const aoiProps = {
         kit,
         label: activeLayer.name,
         xyToM: Number.isFinite(activeSurface?.xyToM) ? activeSurface.xyToM : 1,
-        colormap: isSurfaceLayer ? 'structure' : 'viridis',
-        unit: isSurfaceLayer && kit?.unit ? kit.unit : activeLayer.unit,
+        colormap: isStructureLayer ? 'structure' : 'viridis',
+        unit: isStructureLayer && kit?.unit ? kit.unit : activeLayer.unit,
         aois: state.aois || [],
         activeAoiId: state.activeAoiId,
         drawing: state.drawing || { isActive: false, currentPoints: [] },
@@ -149,6 +187,12 @@ const ExpertVisPanel = () => {
         return (activeSurface?.zConvention || 'elevation') === 'elevation' ? elev : -elev;
     };
 
+    const baseSign = (baseSurface?.zConvention || 'elevation') === (activeSurface?.zConvention || 'elevation') ? 1 : -1;
+    const baseGrid3d = useMemo(
+        () => (baseSurface && baseGrid ? scaleRcpGrid(baseGrid, baseToDisplay * baseSign) : null),
+        [baseSurface, baseGrid, baseToDisplay, baseSign],
+    );
+
     // Props for the 3D viewer. Contacts + depth convention are only meaningful for
     // the structure surface, so property-map layers render as a plain height field.
     const viewer3dProps = {
@@ -162,6 +206,9 @@ const ExpertVisPanel = () => {
             ? { owc: contactToSurface(state.inputs.owc), goc: contactToSurface(state.inputs.goc), fluidType: state.inputs.fluidType || 'oil' }
             : null,
         title: isSurfaceLayer ? `${activeLayer.name} (3D)` : activeLayer.name,
+        // the base under the top, in the top's unit and sign convention
+        baseGridData: isSurfaceLayer ? baseGrid3d : null,
+        baseName: baseSurface?.name || '',
     };
 
     const handleSaveView = async () => {
@@ -273,7 +320,7 @@ const ExpertVisPanel = () => {
                             <SelectContent>
                                 {layers.map(l => (
                                     <SelectItem key={l.id} value={l.id} className="text-xs">
-                                        {l.isSurface ? '◱ ' : '▦ '}{l.name}
+                                        {l.isSurface ? 'Top: ' : l.isBase ? 'Base: ' : ''}{l.name}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -298,7 +345,7 @@ const ExpertVisPanel = () => {
             </div>
 
             {/* Main Canvas */}
-            <div className="flex-1 relative w-full h-full bg-pl-bg overflow-hidden" data-canvas="dark">
+            <div ref={canvasAreaRef} className="flex-1 min-h-0 relative w-full bg-pl-bg overflow-hidden" data-canvas="dark" data-testid="rcp-vis-canvas">
                 <ErrorBoundary>
                     {!activeSurface && maps.length === 0 ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-pl-muted">
@@ -331,12 +378,12 @@ const ExpertVisPanel = () => {
                             )}
 
                             {viewMode === 'split' && (
-                                <div className="w-full h-full flex flex-col md:flex-row">
-                                    <div className="flex-1 min-w-0 h-1/2 md:h-full border-b md:border-b-0 md:border-r border-pl-border relative overflow-hidden">
-                                        <div className="absolute bottom-3 left-3 z-10 max-w-[40%] truncate pointer-events-none bg-pl-surface/80 px-2 py-0.5 rounded text-[10px] text-pl-text font-medium border border-pl-border">{activeLayer.name}{isSurfaceLayer ? ' (draw AOIs here)' : ''}</div>
+                                <div className={`w-full h-full flex ${splitDir === 'row' ? 'flex-row' : 'flex-col'}`} data-testid="rcp-split" data-split={splitDir}>
+                                    <div className={`flex-1 min-w-0 min-h-0 border-pl-border relative overflow-hidden ${splitDir === 'row' ? 'border-r' : 'border-b'}`}>
+                                        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 max-w-[50%] truncate pointer-events-none bg-pl-surface/80 px-2 py-0.5 rounded text-[10px] text-pl-text font-medium border border-pl-border">{activeLayer.name}{isSurfaceLayer ? ' (draw AOIs here)' : ''}</div>
                                         <RcpMapView {...aoiProps} />
                                     </div>
-                                    <div className="flex-1 min-w-0 h-1/2 md:h-full relative overflow-hidden">
+                                    <div className="flex-1 min-w-0 min-h-0 relative overflow-hidden">
                                         <Surface3DViewer {...viewer3dProps} compact />
                                     </div>
                                 </div>
