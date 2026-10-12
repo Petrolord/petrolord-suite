@@ -4719,6 +4719,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
         runJob={runFrameworkJob}
         onHorizonsSaved={onFrameworkSaved}
         onFaultsSaved={onAutoFaultsSaved}
+        depthUnit={depthUnit}
       />
 
       <DetectFaultsDialog

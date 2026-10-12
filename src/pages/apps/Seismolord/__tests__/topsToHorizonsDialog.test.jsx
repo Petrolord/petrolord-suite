@@ -128,4 +128,16 @@ test('from well tops to saved, named horizons with automatic faults', async () =
   const prog = screen.getByTestId('t2h-prognosis');
   expect(prog.textContent).toContain('TOP_A');
   expect(prog.textContent).toMatch(/±/);
+  expect(prog.textContent).toContain('MD (m)');
+  const firstMd = (el) => Number(el.querySelector('tbody tr td:nth-child(2)').textContent);
+  const mdM = firstMd(prog);
+
+  // the same prognosis in feet when the user's depth unit is feet (it was
+  // always shown in metres, whatever the units profile said)
+  rerender(<TopsToHorizonsDialog {...props} faults={onFaultsSaved.mock.calls[0][0]} depthUnit="ft" />);
+  const progFt = screen.getByTestId('t2h-prognosis');
+  expect(progFt.textContent).toContain('MD (ft)');
+  expect(progFt.textContent).toContain('TVDSS (ft)');
+  expect(progFt.textContent).toContain('Band (ft)');
+  expect(firstMd(progFt)).toBeCloseTo(mdM / 0.3048, 0);
 }, 300000);

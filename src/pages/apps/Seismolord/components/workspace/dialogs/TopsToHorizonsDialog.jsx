@@ -57,6 +57,9 @@ const selectCls = 'rounded-md bg-pl-surface border border-pl-border-strong text-
 
 const wellsWord = (n) => `${n} ${n === 1 ? 'well' : 'wells'}`;
 const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? '·' : v.toFixed(d));
+// prognosis depths are computed in metres; shown in the user's depth unit
+const M_PER_FT = 0.3048;
+const inUnit = (m, unit) => (m == null || !Number.isFinite(m) ? m : unit === 'ft' ? m / M_PER_FT : m);
 const scoreColour = (s) => (s >= 0.6 ? 'text-pl-success-text' : s >= 0.3 ? 'text-pl-warning-text' : 'text-pl-danger-text');
 
 /** A trace thumbnail: amplitude across, time down, the prediction dashed
@@ -82,7 +85,7 @@ function Thumb({ thumb, predSample, chosenSample }) {
 
 export default function TopsToHorizonsDialog({
   open, onOpenChange, volume, manifest, geom, affine, wells = [], velocity = null, boundaries = null,
-  horizons = [], faults = [], runJob, onHorizonsSaved, onFaultsSaved, faultInputs = [],
+  horizons = [], faults = [], runJob, onHorizonsSaved, onFaultsSaved, faultInputs = [], depthUnit = 'm',
 }) {
   const { toast } = useToast();
   const dtUs = manifest?.geometry?.dt_us;
@@ -566,14 +569,14 @@ export default function TopsToHorizonsDialog({
                     {prognosis?.error && <p className="text-sm text-pl-warning-text">{prognosis.error}</p>}
                     {prognosis?.rows && (
                       <table className="w-full text-xs text-pl-text" data-testid="t2h-prognosis">
-                        <thead><tr className="text-pl-muted text-left"><th>Horizon</th><th>MD (m)</th><th>TVDSS (m)</th><th>Band (m)</th></tr></thead>
+                        <thead><tr className="text-pl-muted text-left"><th>Horizon</th><th>{`MD (${depthUnit === 'ft' ? 'ft' : 'm'})`}</th><th>{`TVDSS (${depthUnit === 'ft' ? 'ft' : 'm'})`}</th><th>{`Band (${depthUnit === 'ft' ? 'ft' : 'm'})`}</th></tr></thead>
                         <tbody>
                           {prognosis.rows.map((r) => (
                             <tr key={r.name} className="border-t border-pl-border">
                               <td className="py-1">{r.name}</td>
-                              <td>{fmt(r.md)}</td>
-                              <td>{fmt(r.tvdss)}</td>
-                              <td>{r.bandM == null ? '·' : `± ${fmt(r.bandM)}`}</td>
+                              <td>{fmt(inUnit(r.md, depthUnit))}</td>
+                              <td>{fmt(inUnit(r.tvdss, depthUnit))}</td>
+                              <td>{r.bandM == null ? '·' : `± ${fmt(inUnit(r.bandM, depthUnit))}`}</td>
                             </tr>
                           ))}
                         </tbody>
