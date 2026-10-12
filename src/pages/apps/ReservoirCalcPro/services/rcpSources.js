@@ -132,7 +132,7 @@ export async function rcpRefreshPlan(result, { state, backend }) {
     const wells = await wellsWithZones(backend);
     const carrying = wells.filter((w) => (w.zones || []).some((z) => z.name === zoneName));
     const used = carrying.filter((w) => !leftOut.has(w.name));
-    const r = registryPatchForZone(used, zoneName, unitSystem);
+    const r = registryPatchForZone(used, zoneName, unitSystem, { inputMethod: state.inputMethod });
     const left = carrying.filter((w) => leftOut.has(w.name)).map((w) => w.name);
     const provenance = left.length ? { ...r.provenance, left_out: left } : r.provenance;
     return {

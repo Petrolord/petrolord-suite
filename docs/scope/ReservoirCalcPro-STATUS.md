@@ -370,3 +370,22 @@ until you untick one), a wet well is marked "no net pay", leaving every well
 out is refused, and the applied provenance and the audit-trail entry name the
 wells left out. Test: registryWellChoice.test.jsx (negative control: with the
 checkboxes ignored the two-well NTG fails).
+
+## 2026-10-12: registry NTG in a structural run is net reservoir
+
+Found while scripting the ReservoirCalc Pro videos. Surfaces and Hybrid cut
+the rock at the contact, and the registry zone's NTG was net pay over
+gross, which already stops at the contact (the Sw cutoff removes the water
+leg): the contact was applied twice. On the Ekene demo account the oil
+wells' pay NTG is 0.4525 where their sand is 0.948 net reservoir, and the
+booked six-well volume came out at less than half. Structural runs now take
+NTG as total net reservoir over total gross (true vertical where published)
+from every carrying well, a wet well's sand included; porosity and Sw stay
+the pay averages of the wells with pay. Simple and Area-depth keep the net
+pay basis. A zone published before net reservoir existed falls back to net
+pay with a note. The preview says "(net reservoir)" and why; provenance
+records `ntg_basis` and the method; Refresh from source uses the same basis.
+The 2026-10-09 well checkboxes stay (useful for a well outside the
+accumulation) but a wet well no longer needs leaving out of a structural
+run. Test: `__tests__/registryNtgBasis.test.jsx` (negative control: the pay
+basis gives 0.4525).
