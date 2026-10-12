@@ -22,6 +22,21 @@ const DeterministicSummaryTable = () => {
     // Columns visibility
     const showOil = ft === 'oil' || ft === 'oil_gas';
     const showGas = ft === 'gas' || ft === 'oil_gas';
+    // the surfaces behind the run by name (the table printed the placeholders
+    // Input_Top and Input_Base); Simple and Area-depth have none
+    const method = r.inputMethod || state.inputMethod;
+    const surfaceName = (id) => {
+        const s = id ? state.surfaces?.[id] : null;
+        return s ? (s.registryName || s.name) : '-';
+    };
+    const structural = method === 'surfaces' || method === 'hybrid';
+    const topName = structural ? surfaceName(state.inputs?.topSurfaceId) : '-';
+    const baseName = method === 'surfaces' ? surfaceName(state.inputs?.baseSurfaceId) : (method === 'hybrid' ? 'top + gross thickness' : '-');
+    // a contact below the spill is taken at the spill: say both
+    const entered = state.inputs?.owc;
+    const used = inputs.owc;
+    const owcText = (formatContact(used) ?? '-')
+        + (r.trap?.filledToSpill && formatContact(entered) && formatContact(entered) !== formatContact(used) ? ` (entered ${formatContact(entered)}, filled to spill)` : '');
 
     return (
         <div className="bg-pl-surface text-pl-text rounded-lg overflow-hidden border border-pl-border text-xs shadow-sm">
@@ -53,12 +68,12 @@ const DeterministicSummaryTable = () => {
                         </TableRow>
                         <TableRow>
                             <TableCell className="py-1">{reservoirName}</TableCell>
-                            <TableCell className="py-1">Input_Top</TableCell>
-                            <TableCell className="py-1">Input_Base</TableCell>
+                            <TableCell className="py-1" data-testid="rcp-summary-top">{topName}</TableCell>
+                            <TableCell className="py-1" data-testid="rcp-summary-base">{baseName}</TableCell>
                             <TableCell className="py-1">{fmt(inputs.ntg, 3)}</TableCell>
                             <TableCell className="py-1">{fmt(inputs.porosity, 3)}</TableCell>
                             <TableCell className="py-1">
-                                {showOil && `OWC: ${formatContact(inputs.owc) ?? '-'}`}
+                                {showOil && `OWC: ${owcText}`}
                                 {showOil && showGas && ' | '}
                                 {showGas && `GOC: ${formatContact(inputs.goc) ?? '-'}`}
                             </TableCell>

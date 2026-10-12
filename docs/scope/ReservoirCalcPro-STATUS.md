@@ -435,3 +435,11 @@ off the slide's foot over the footer: the statistics are one compact row,
 the tornado panel scales inside the slide and shows the top four drivers
 ("top 4 of N"); the PDF still draws every bar from an off-screen copy.
 Test: `__tests__/simSetupFold.test.jsx`.
+## 2026-10-12: detailed results table names the surfaces
+
+The Detailed view's input table printed the placeholders "Input_Top" and
+"Input_Base" for every run, and a contact taken at the spill printed only
+the spill elevation. It now names the top and base surfaces (Hybrid: top
+plus gross thickness; Simple and Area-depth: none) and prints
+"OWC: -4,972 (entered -5,036, filled to spill)" when Trap only took the
+contact at the spill. Test: `__tests__/summaryTableNames.test.jsx`.
