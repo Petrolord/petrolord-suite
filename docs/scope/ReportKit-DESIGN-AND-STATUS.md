@@ -263,3 +263,48 @@ For the Geoscience reports, should they move later:
 | 2026-10-02 | ReservoirCalc Pro RL re-check | `drawPlot` used on a report that is not on the kit (its own jsPDF document and layout), with the kit test side reading it back: a way to give an older report a vector figure without changing its look. |
 | 2026-10-02 | Material Balance Studio U1 | `plot.js`: a series of `type: 'bar'` draws vertical bars stacked at each X in series order (drive indices against time), with `barWidth`; `xDate` puts a calendar on the X axis (`dateTicks`, `dateTickText`); `notesAt` moves the annotation box to a top corner; `markerSize` sizes a marker. These bars sit on a numeric or calendar X axis among lines and markers; `bars.js` above is the chart of named categories. Both draw a filled and stroked rectangle, so the test kit counts both as `bars`. Self-test `__tests__/reportKitStackedBars.test.js` (12). The limits block and the completeness guard were taken as written from the Fluid Systems round. Well Test goldens byte-identical. |
 | 2026-10-02 | Material Balance Studio U1 | Known limit, left as it is because changing it would move the Well Test goldens: `tickText` prints one significant figure from 1e5 up, so two neighbouring ticks of a large axis can print the same text ("2e7", "2e7"). An app scales the axis to a multiple (MMRB, 10^6 sm3) and names it in the axis title, as the Material Balance figures do. |
+
+## 9. Source freshness: `src/lib/sourceFreshness` (2026-10-12)
+
+Owner-approved 2026-10-12 for the NAPE data governance paper: changes to
+decision objects must tell you which downstream outputs need refreshing.
+Input provenance (section 4) says where a value came from; source
+freshness says whether that source has changed since.
+
+- `model.js` (pure). A source reference is what an app keeps with its
+  project when it pulls a shared input: `{ key, kind, id, name, used_at,
+  updated_at, version, fingerprint, snapshot, affects_results }`.
+  `sourceRef({ key, kind, row })` builds one at the pull. Each registry kind
+  (`geo_wells_zones`, `geo_surfaces`, `geo_culture`, `geo_wells_tops`,
+  `geo_wells`) has a small snapshot of its content; the fingerprint is an
+  FNV-1a hash of that snapshot in stable JSON.
+- `compareSource(ref, row, kept)`: row gone (null) is `deleted`; both sides
+  with a fingerprint compare content, so a share, a rename or a re-save of
+  the same values is not a change; otherwise version, then `updated_at`,
+  then (references saved before stamps) the row's `updated_at` against the
+  time the input was used; nothing to compare is `unknown` and shows no
+  notice. "Keep current values" records a token for the row as it is now
+  (`keepSource`); a later change shows the notice again.
+- `useSourceFreshness({ refs, resolve, kept, names, whoChanged })`: checks
+  when the references change (a project opened, an input pulled again) and
+  on `check()`. `resolve` is the app's own registry read. Who changed it:
+  `updated_by` through the sharing store's names, or the app's lookup (the
+  well change log for a zone or a top).
+- `SourceChangedNotice` (one entry per changed or deleted source: name and
+  type, when used, when changed and by whom, what moved, "Refresh from
+  source" and "Keep current values"; a quiet "checked, no change" line with
+  "Check sources" otherwise) and `StaleResultsMark` (results computed from a
+  changed source, until refreshed or kept).
+- Adopted by ReservoirCalc Pro (zone averages, footprint area, registry
+  surfaces, boundary AOIs) and Well Design Studio (targets from a top or a
+  surface). The app-to-app intakes (pvt-1, kr-1, rf-1, mbal-1, wta-1,
+  eor-screen-1) keep their own content checks ("source changed since") in
+  the intake cards; they compare the contract block itself and need no
+  registry stamp.
+- Tests: `src/lib/sourceFreshness/__tests__/model.test.js` (12),
+  `ReservoirCalcPro/__tests__/sourceFreshness.test.jsx` (5),
+  `well-planning/__tests__/targetSourceFreshness.test.jsx` (4), e2e
+  `e2e/source-freshness.spec.js` on `/dev/reservoircalc-pro?sourceChanged=1`.
+  Negative controls: unchanged registry gives no notice and no mark; with
+  the content comparison forced to "changed" 7 of the jest tests fail.
+
