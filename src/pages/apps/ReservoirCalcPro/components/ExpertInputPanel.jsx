@@ -17,6 +17,7 @@ import AOIPanel from './AOIPanel';
 import EarthModelProspectNote from './EarthModelProspectNote'; // Earth Modeling U2-009 handoff
 import MbalCrossCheckNote from './MbalCrossCheckNote'; // Material Balance U2-004 cross-check (mbal-1)
 import RfIntakeNote from './RfIntakeNote'; // Recovery Factor U2-001 intake (rf-1)
+import RcpSourceNotice from './RcpSourceNotice'; // source freshness (2026-10-12)
 import RegistryPanel from './RegistryPanel';
 import AreaDepthPanel from './AreaDepthPanel';
 import SaturationHeightPanel from './SaturationHeightPanel';
@@ -113,6 +114,7 @@ const ExpertInputPanel = () => {
     if (state.calcMethod === 'probabilistic') {
         return (
             <div className="h-full flex flex-col space-y-2 p-2 overflow-hidden">
+                <RcpSourceNotice />
                 <Card className="p-3 space-y-3 flex-shrink-0">
                     <div className="flex justify-between items-center">
                         <Label className="text-xs font-bold text-pl-text">Simulation Setup</Label>
@@ -155,6 +157,7 @@ const ExpertInputPanel = () => {
             <EarthModelProspectNote />
             <MbalCrossCheckNote />
             <RfIntakeNote />
+            <RcpSourceNotice />
             <Collapsible open={isSettingsOpen} onOpenChange={setSettingsOpen} className="space-y-2 flex-shrink-0">
                 <Card className="overflow-hidden">
                     <div className="flex items-center justify-between p-3 bg-pl-surface cursor-pointer hover:bg-pl-sunken transition-colors" onClick={() => setSettingsOpen(!isSettingsOpen)}>

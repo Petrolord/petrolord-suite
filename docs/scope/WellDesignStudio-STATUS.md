@@ -742,3 +742,26 @@ a per-user choice from the header toggle (beside Help).
   publish message says when the two differ.
 - Anti-collision leaves out a registry well with no reference elevation and
   names it; a target from a registry top is refused for such a well.
+
+## 2026-10-12: Source changed notice on the Targets tab
+
+- Targets picked "From top" or "From surface" record source references
+  (the top and its well, or the surface) with a content fingerprint
+  (`services/targetSources.js`; the two picks moved there from the dialog so
+  the dialog and the refresh run the same code). Shared model and notice:
+  `src/lib/sourceFreshness` (ReportKit-DESIGN-AND-STATUS.md section 9).
+- On open and with "Check again" the Targets tab compares them with the
+  registry: a moved top (also when Well Correlation wrote the tops again
+  with new ids: same name, same well), a changed well location, datum or
+  survey, a re-gridded surface, or a deleted row. The notice says what,
+  when it was used, when and by whom it changed and what moved; the row
+  carries a "source changed" badge. "Refresh from source" runs the pick
+  again and writes the target (name kept); "Keep current values" records
+  the decision in the target's provenance (`kept`). Only the site owner
+  sees the buttons.
+- Older targets: a top target compares the MD it recorded; a surface
+  target compares the surface's `updated_at` with the target's
+  `created_at`; the well of an older top target is not checked.
+- No migration (provenance is the existing jsonb column). Tests:
+  `__tests__/targetSourceFreshness.test.jsx` (4, negative control first).
+

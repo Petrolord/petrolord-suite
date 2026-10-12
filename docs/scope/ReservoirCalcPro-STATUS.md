@@ -3,6 +3,38 @@
 App: `src/pages/apps/ReservoirCalcPro/` (Geoscience module). Contact-based
 volumetrics flagship; deterministic + Monte Carlo STOIIP/GIIP.
 
+## 2026-10-12: Source changed notice (source freshness)
+
+Owner-approved improvement (NAPE data governance paper). Shared model and
+notice in `src/lib/sourceFreshness` (docs/scope/ReportKit-DESIGN-AND-STATUS.md
+section 9); RCP side in `services/rcpSources.js`, `hooks/useRcpSourceFreshness.js`,
+`components/RcpSourceNotice.jsx`. No migration.
+
+- What is checked, on open and with "Check again": zone averages
+  (`registryProvenance.zone.sources`, one reference per well zone, content of
+  the published properties and interval), the footprint area
+  (`registryProvenance.area.source_ref`, the surface's frame and re-grid
+  history), registry surfaces (`surfaces[].registrySource`) and boundary AOIs
+  (`aois[].source.ref`, the culture layer). The pulls record these from
+  2026-10-12.
+- Older projects: an area, a surface or an AOI compares the registry row's
+  `updated_at` with the time it was taken (`pulled_at`, the surface's or the
+  AOI's `createdAt`). A zone average saved before 2026-10-12 kept well names
+  and no zone ids, so it has no notice until it is pulled again. A row that
+  is gone is said whatever the age of the project.
+- Notice above the inputs (both modes): name and type, when used, when and
+  by whom it changed (the well change log names the person for a zone),
+  what moved, "Refresh from source" (the Wells tab pull or the surface
+  import, run again; a surface keeps its id so Top and Base still point at
+  it; AOIs from the layer are replaced and the active one stays the same
+  part) and "Keep current values" (saved in `inputs.sourceKept`). The
+  results panel carries "Source changed" while a source the results use
+  needs attention (zone always; area in Simple; a surface in use as Top or
+  Base; an AOI that is active).
+- Harness: `/dev/reservoircalc-pro?sourceChanged=1` seeds "Keta source
+  check": KETA-2's Top Dome zone republished by Ada Colleague after the
+  average, and an imported surface that left the registry.
+
 ## 2026-10-01: App upgrade U2 (Step 2 batches A, B, C)
 
 Doc: docs/upgrade/ReservoirCalcPro-UPGRADE.md (branch feat/rcp-u2). 12 items

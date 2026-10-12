@@ -3,7 +3,7 @@
 // the geo-registry pickers arrive with WD2. Coordinates are site-CRS
 // metres at TVDSS.
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -15,6 +15,17 @@ import { saveTarget, updateTarget, deleteTarget } from '../services/wpApi';
 import TargetDialog from '../components/TargetDialog';
 import TargetFromRegistryDialog from '../components/TargetFromRegistryDialog';
 import TargetsMap from '../components/TargetsMap';
+import { listWellsWithTops } from '@/lib/wellsRegistry';
+import { listSurfaces, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
+import { supabaseSharingStore } from '@/lib/recordSharing';
+import { useSourceFreshness } from '@/lib/sourceFreshness/useSourceFreshness';
+import SourceChangedNotice from '@/lib/sourceFreshness/SourceChangedNotice';
+import { targetSourceRefs, targetKept, readTargetSources, refreshTargetPatch } from '../services/targetSources';
+
+// Source freshness (2026-10-12): the registry readers the pickers use
+const REGISTRY_READERS = { listWellsWithTops, listSurfaces, downloadSurfaceGrid };
+let sharingStore = null;
+const names = (ids) => { sharingStore = sharingStore || supabaseSharingStore(); return sharingStore.names(ids); };
 
 const TargetsTab = () => {
   const { site, wellbores, targets, refreshTargets, user } = useWellPlanningStore();
@@ -34,6 +45,33 @@ const TargetsTab = () => {
     y: t.center_y,
     target_data: { tolerance_radius: t.geometry?.radius_m || 0 },
   })), [filtered]);
+
+  // Source freshness: targets picked from a top or a surface, checked on open and on demand
+  const sourceRefs = useMemo(() => targetSourceRefs(targets), [targets]);
+  const kept = useMemo(() => targetKept(targets), [targets]);
+  const resolveSources = useCallback((refs) => readTargetSources(refs, REGISTRY_READERS), []);
+  const sources = useSourceFreshness({ refs: sourceRefs, resolve: resolveSources, kept, names });
+  const changedTargets = useMemo(() => new Set(sources.items.map((i) => i.ref?.target_id)), [sources.items]);
+
+  const refreshFromSource = async (item) => {
+    const t = (targets || []).find((x) => x.id === item.ref.target_id);
+    if (!t) return;
+    const patch = await refreshTargetPatch(item, t, REGISTRY_READERS);
+    await updateTarget(t.id, patch);
+    await refreshTargets(site.id);
+    toast({ title: 'Target refreshed', description: `${t.name} read again from the registry.` });
+  };
+  const keepCurrent = async (item) => {
+    const t = (targets || []).find((x) => x.id === item.ref.target_id);
+    if (!t || !item.token) return;
+    try {
+      const prov = t.provenance || {};
+      await updateTarget(t.id, { provenance: { ...prov, kept: { ...(prov.kept || {}), [item.ref.part]: item.token } } });
+      await refreshTargets(site.id);
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Save failed', description: e.message });
+    }
+  };
 
   const wellLocation = useMemo(() => {
     const w = wellbores.find((x) => Number.isFinite(x.head_x));
@@ -120,6 +158,23 @@ const TargetsTab = () => {
         </div>
       </div>
 
+      {sourceRefs.length > 0 && (
+        <SourceChangedNotice
+          items={sources.items.map((i) => ({ ...i, ref: { ...i.ref, name: `${i.ref.name || i.ref.id}, under target ${i.ref.target_name}` } }))}
+          checking={sources.checking}
+          checkedAt={sources.checkedAt}
+          error={sources.error}
+          onCheck={sources.check}
+          onRefresh={refreshFromSource}
+          onKeep={keepCurrent}
+          canEdit={own}
+          readOnlyText="Only the owner of this site can refresh its targets or keep their values."
+          title="Registry source changed"
+          testId="wd-source-changed"
+          usedBy="the target"
+        />
+      )}
+
       {view === 'table' ? (
         <div className="rounded-lg border border-pl-border bg-pl-surface">
           <Table>
@@ -149,7 +204,12 @@ const TargetsTab = () => {
                   <TableCell className="text-right font-mono text-pl-text">{t.center_y?.toFixed(1)}</TableCell>
                   <TableCell className="text-right font-mono text-pl-text">{t.tvdss_m?.toFixed(1)}</TableCell>
                   <TableCell className="text-right font-mono text-pl-muted">{t.geometry?.radius_m ?? ''}</TableCell>
-                  <TableCell className="text-xs text-pl-muted">{t.provenance?.source || 'manual'}</TableCell>
+                  <TableCell className="text-xs text-pl-muted">
+                    {t.provenance?.source || 'manual'}
+                    {changedTargets.has(t.id) && (
+                      <span className="ml-1 rounded-full border border-pl-warning/40 bg-pl-warning-bg px-1.5 py-0.5 text-[10px] text-pl-warning-text" data-testid={`wd-target-stale-${t.id}`} title="The registry source of this target changed after it was picked. Refresh it or keep its values.">source changed</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">
                     {own && (
                       <div className="flex justify-end gap-1">
