@@ -232,11 +232,11 @@ export const suiteStats = (modules = SUITE_MODULES) => {
 };
 
 // NextGen Academy courses (academy_apps on the NextGen project, checked
-// 2026-10-05 into the same snapshot). NEXTGEN_LIVE_COURSES counts status
+// 2026-10-05 into the same snapshot, plus qi at its 2026-10-12 go-live). NEXTGEN_LIVE_COURSES counts status
 // 'available', which is what nextgen.petrolord.com shows as its course count;
 // NEXTGEN_APP_COURSES counts those of course_type 'app', the ones built on a
 // Suite app (the rest are engine and practice courses). The academy homepage
 // reads these live; here they are static, so update both with the snapshot
 // when a course goes live.
-export const NEXTGEN_LIVE_COURSES = 79;
-export const NEXTGEN_APP_COURSES = 72;
+export const NEXTGEN_LIVE_COURSES = 80;
+export const NEXTGEN_APP_COURSES = 73;

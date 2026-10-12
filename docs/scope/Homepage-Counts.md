@@ -78,3 +78,7 @@ select slug, module, status, course_type from public.academy_apps;
 
 Open point: Risk Heatmap is a live tile whose route redirects to the Risk
 Register's heatmap tab. It opens a working screen, so it is counted.
+
+## 2026-10-12: the QI course
+
+NextGen's Quantitative Interpretation course (qi, Geoscience, app) goes live on 2026-10-12. `NEXTGEN_LIVE_COURSES` becomes 80 and `NEXTGEN_APP_COURSES` 73, and the fixture's NextGen list carries the qi row. NextGen's own homepage lists qi in the same change (petrolord-nextgen fix/home-catalog-qi).
