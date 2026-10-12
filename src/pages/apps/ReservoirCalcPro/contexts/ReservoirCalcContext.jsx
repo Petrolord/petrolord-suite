@@ -11,6 +11,7 @@ import { defaultInputUnits, convertInputsOnSystemChange } from '../services/unit
 import { useProfileSystem } from '@/lib/units/useProfileSystem';
 import { runSignature } from '../services/volumeDisplay';
 import { checkAreaDepthRows, areaDepthHypsometry } from '../services/areaDepth';
+import { useRcpSourceFreshness } from '../hooks/useRcpSourceFreshness';
 
 // Families that decide RCP's system from the Suite unit profile
 const RCP_PROFILE_FAMILIES = ['area', 'rockVolume', 'depth'];
@@ -821,8 +822,15 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
         }
     };
 
+    // Source freshness (2026-10-12): registry inputs that changed since they were pulled
+    const sources = useRcpSourceFreshness({
+        state, backend: be, updateInputs, addAOI, deleteAOI, setActiveAOI, logEvent,
+        replaceSurface: (surface) => dispatch({ type: ACTIONS.ADD_SURFACE, payload: surface }),
+    });
+
     const value = useMemo(() => ({
         backend: be,
+        sources,
         // RC3: route overrides for the launchers out (the harness points
         // them at the /dev/* apps so e2e stays in the authless world)
         appPaths,
@@ -872,7 +880,7 @@ export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} 
         // Audit
         logEvent,
         clearAudit
-    }), [state, profileUnitSystem, mcProgress, rerun]); // eslint-disable-line react-hooks/exhaustive-deps
+    }), [state, profileUnitSystem, mcProgress, rerun, sources]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <ReservoirCalcContext.Provider value={value}>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Play, Maximize2, AlertTriangle, BarChart3, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import ResultsModal from './results/ResultsModal';
+import { RcpStaleResultsMark } from './RcpSourceNotice';
 import { inPlaceScale, headlineStream, runContext } from '../services/volumeDisplay';
 
 const ExpertResultsPanel = () => {
@@ -59,6 +60,7 @@ const ExpertResultsPanel = () => {
                 )}
                 
                 <div className="flex-1 overflow-y-auto space-y-3 scrollbar-thin scrollbar-thumb-slate-800 px-1">
+                    <RcpStaleResultsMark />
                     {stats ? (
                         <>
                              <Card className="p-4 text-center relative overflow-hidden shadow-lg">
@@ -113,7 +115,7 @@ const ExpertResultsPanel = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-3 scrollbar-thin scrollbar-thumb-slate-800 px-1">
-                
+                <RcpStaleResultsMark />
                 {error && (
                     <div className="bg-pl-danger-bg border border-pl-danger/40 p-3 rounded-md text-xs text-pl-danger-text flex items-start gap-2">
                         <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />

@@ -32,6 +32,7 @@ import { readDepthSurface } from '@/lib/readDepthSurface';
 import { gridXY, isNull } from '@/lib/gridding/gridmath';
 import { readSurfaceFile } from '@/pages/apps/MappingSurfaceStudio/services/surfaceFileDoor';
 import { makeLattice } from './lattice';
+import { sourceRef } from '@/lib/sourceFreshness/model';
 
 export const MAX_POINTS = 5000;
 const M_PER_FT = 0.3048;
@@ -83,6 +84,8 @@ export function buildImportedSurface(points, meta = {}) {
     crs: (meta.crs || '').trim() || null,
     registryId: meta.registryId || null,
     registryName: meta.registryName || null,
+    // source freshness (2026-10-12): the registry row as it was at the import
+    ...(meta.registrySource ? { registrySource: meta.registrySource } : {}),
     depthRef: meta.depthRef || null,
     importNotes: meta.notes?.length ? meta.notes : undefined,
     // U2-005: the registry grid itself (frame, rotation, metres elevation);
@@ -133,6 +136,7 @@ export function surfaceFromRegistryRow(row, grid) {
     crs: r.crs || '',
     registryId: row.id,
     registryName: row.name,
+    registrySource: sourceRef({ key: `surface:${row.id}`, kind: 'geo_surfaces', row }),
     depthRef: r.depthRef,
     notes,
     lattice,

@@ -6,6 +6,9 @@
 // auth or DB.
 //   ?rerunProspect=prospect-1&returnTo=/dev/risked-reserves   the "Re-run
 //   prospect" link from Risked Reserves Valuation (U2-006)
+//   ?sourceChanged=1   source freshness: the project "Keta source check"
+//   averaged a zone a colleague has since published again, and imported a
+//   surface that has left the registry (2026-10-12)
 
 import React, { useMemo } from 'react';
 import { ReservoirCalcProvider } from './contexts/ReservoirCalcContext';
@@ -27,12 +30,14 @@ export default function ReservoirCalcProHarness() {
   // valuation) seeds the Risked Reserves harness prospects (prospect-1 and
   // prospect-2) and the project their source names, so the link opens here
   const rerun = !!q.get('rerunProspect');
+  const sourceChanged = q.get('sourceChanged') === '1';
   const backend = useMemo(() => makeInMemoryRcpBackend({
     ...(saved ? { savedRows: SAVED_PROJECT_ROWS.map((r) => r.row), prospects: SAVED_PROSPECT_ROWS.map((r) => r.row) } : {}),
     ...(rerun ? { savedRows: [RERUN_PROJECT_ROW], prospects: RRV_SEED_PROSPECTS } : {}),
     sharedRows: shared,
     sharing: { applied: !beforeApply },
-  }), [saved, shared, beforeApply, rerun]);
+    sourceChanged,
+  }), [saved, shared, beforeApply, rerun, sourceChanged]);
   return (
     <div className="h-screen w-screen" data-testid="rcp-harness">
       <ReservoirCalcProvider backend={backend} appPaths={DEV_APP_PATHS}>

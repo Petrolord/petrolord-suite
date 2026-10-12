@@ -11,6 +11,7 @@ import { canonicalUnitFor } from './unitsCatalog';
 import { AOIManager } from './AOIManager';
 import { isPrePt9aZone, PRE_PT9A_ZONE_NOTE } from '@/lib/petroProvenance';
 import { polygonRingsOf } from '@/lib/culturePolygonFiles';
+import { sourceRef } from '@/lib/sourceFreshness/model';
 
 export const BOUNDARY_KINDS = Object.freeze(['boundary', 'license_block', 'lease', 'aoi', 'prospect']);
 const M_PER_FT = 0.3048;
@@ -56,12 +57,18 @@ export function registryPatchForZone(wells, zoneName, unitSystem = 'field') {
   // (PETRO-U2-013); every reader names such wells
   const phitWells = carrying.filter((w) => (w.zones || []).some((z) => z.name === zoneName && isPrePt9aZone(z.properties))).map((w) => w.name);
   const notes = phitWells.length ? [`${phitWells.join(', ')}: ${PRE_PT9A_ZONE_NOTE}`] : [];
+  // Source freshness (2026-10-12): one reference per well zone averaged, so
+  // a later publish from Petrophysics Studio is noticed on open
+  const pulledAt = new Date().toISOString();
+  const sources = carrying.flatMap((w) => (w.zones || [])
+    .filter((z) => z.name === zoneName && z.id && wellNames.includes(w.name))
+    .map((z) => sourceRef({ key: `zone:${z.id}`, kind: 'geo_wells_zones', row: z, name: `${zoneName} in ${w.name}`, usedAt: pulledAt, extra: { well_id: w.id, well: w.name, zone: zoneName } })));
   return {
     patch,
     fromWells,
     wellNames,
     notes,
-    provenance: { source: 'shared-registry', zone: zoneName, wells: wellNames, fields: Object.keys(patch), thickness_basis: thicknessBasis, weighting, total_porosity_wells: phitWells, pulled_at: new Date().toISOString() },
+    provenance: { source: 'shared-registry', zone: zoneName, wells: wellNames, fields: Object.keys(patch), thickness_basis: thicknessBasis, weighting, total_porosity_wells: phitWells, pulled_at: pulledAt, sources },
   };
 }
 
@@ -70,7 +77,15 @@ export function areaPatchForSurface(surface, grid, unitSystem = 'field') {
   const unit = canonicalUnitFor('area', unitSystem) === 'acre' ? 'acres' : 'km2';
   const area = surfaceArea(surface, grid, unit);
   if (!(area > 0)) throw new Error(`${surface.name} has no live nodes to measure.`);
-  return { patch: { area }, provenance: { source: 'shared-registry', surface: surface.name, surface_id: surface.id, area_unit: unit, pulled_at: new Date().toISOString() } };
+  const pulledAt = new Date().toISOString();
+  return {
+    patch: { area },
+    provenance: {
+      source: 'shared-registry', surface: surface.name, surface_id: surface.id, area_unit: unit, pulled_at: pulledAt,
+      // source freshness: the surface as it was when its footprint was measured
+      source_ref: sourceRef({ key: `area:${surface.id}`, kind: 'geo_surfaces', row: surface, usedAt: pulledAt }),
+    },
+  };
 }
 
 /** Culture rows the door offers as boundaries. */
@@ -83,9 +98,10 @@ export function aoiFromBoundary(row, features) {
   // parts lost one without a word); the largest comes first
   const rings = polygonRingsOfFeatures(features);
   if (!rings.length) throw new Error(`${row.name} has no polygon to use as an AOI.`);
+  const ref = sourceRef({ key: `aoi:${row.id}`, kind: 'geo_culture', row });
   return rings.map((ring, i) => {
     const aoi = AOIManager.createAOI(rings.length > 1 ? `${row.name} (part ${i + 1} of ${rings.length})` : row.name, ring.map(([x, y]) => ({ x, y })), '#22d3ee');
-    aoi.source = { kind: 'geo_culture', id: row.id, name: row.name, layerKind: row.kind, part: i + 1, parts: rings.length, crs: row.crs || null };
+    aoi.source = { kind: 'geo_culture', id: row.id, name: row.name, layerKind: row.kind, part: i + 1, parts: rings.length, crs: row.crs || null, ref };
     return aoi;
   });
 }

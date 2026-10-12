@@ -15,7 +15,8 @@ import { makeRegistryProspectsBackend, makeInMemoryProspectsBackend } from './pr
 import { getDepthUnit } from '@/lib/crs/settingsService';
 import { makeInMemoryBackend as makeMappingInMemoryBackend } from '@/pages/apps/MappingSurfaceStudio/services/inMemoryBackend';
 import { createSavedProjectsService } from '@/utils/savedProjects';
-import { supabaseSharingStore, makeHarnessSharing, colleagueShared } from '@/lib/recordSharing';
+import { supabaseSharingStore, makeHarnessSharing, colleagueShared, HARNESS_COLLEAGUE } from '@/lib/recordSharing';
+import { registryPatchForZone } from './registryDoor';
 
 // U2-007: SCAL Studio projects for Sw from saturation height (read only)
 const scalProjects = createSavedProjectsService('saved_scal_projects');
@@ -66,8 +67,55 @@ function seedDome(mapping) {
  * the Mapping harness backend plus a seeded depth dome, no Seismolord
  * exports, in-memory prospects, and a dev user so Save works.
  */
-export function makeInMemoryRcpBackend({ savedRows = [], prospects = [], sharedRows = false, sharing: sharingOpts = {} } = {}) {
+/** Harness zone rows: ids and a publish time, as listZones returns them. */
+const HARNESS_ZONE_PUBLISHED = '2026-09-06T09:00:00.000Z';
+function harnessZones(w, edits) {
+  const edit = edits?.[w.id] || null;
+  return (w.zones || []).map((z, i) => ({
+    id: `${w.id}-z${i}`, well_id: w.id, updated_at: HARNESS_ZONE_PUBLISHED, ...z,
+    ...(edit && edit.zone === z.name ? { properties: { ...z.properties, ...edit.properties }, updated_at: edit.updated_at, updated_by: edit.updated_by } : {}),
+  }));
+}
+
+/**
+ * Source freshness harness (?sourceChanged=1, 2026-10-12): KETA-2's Top
+ * Dome zone is published again by a colleague after the project "Keta
+ * source check" averaged it, and the project's imported surface has left
+ * the registry. The project row is built from the registry as it was, so
+ * the notice shows one change and one deletion.
+ */
+export const SOURCE_CHANGED_EDITS = Object.freeze({
+  'map-w2': { zone: 'Top Dome', properties: { phi_avg: 0.23, ntg: 0.61 }, updated_at: '2026-10-08T14:20:00.000Z', updated_by: HARNESS_COLLEAGUE },
+});
+export const SOURCE_CHANGED_PROJECT = 'Keta source check';
+async function sourceChangedRow(mapping) {
+  const wells = (await mapping.listWells()).map((w) => ({ ...w, zones: harnessZones(w, null) }));
+  const used = '2026-10-01T09:30:00.000Z';
+  const r = registryPatchForZone(wells, 'Top Dome', 'field');
+  const sources = r.provenance.sources.map((s) => ({ ...s, used_at: used }));
+  const deterministic = {
+    fluidType: 'oil', area: 1200, thickness: 150, ntg: 0.7, porosity: 0.22, sw: 0.3, fvf: 1.2, bg: 0.005, recovery: 25, recoveryGas: 70,
+    pressure: 3500, temperature: 180, permeability: 100, api: 35, gasGrav: 0.7, owc: -8000, goc: -7000, fillToSpill: true,
+    ...r.patch,
+    registryProvenance: { zone: { ...r.provenance, pulled_at: used, sources } },
+  };
+  const pts = [];
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) pts.push({ x: 501000 + 500 * i, y: 6699500 + 500 * j, z: -1500 - 20 * (i + j) });
+  const surface = {
+    id: 'surf-retired', name: 'Top Dome v1', format: 'registry', points: pts, minZ: -1580, maxZ: -1500, avgZ: -1540, pointCount: 9,
+    xyUnit: 'm', depthUnit: 'm', zConvention: 'elevation', crs: null, registryId: 'geo-retired', registryName: 'Top Dome v1', createdAt: used,
+  };
+  return {
+    id: 'saved-source-check', user_id: 'user-dev', project_name: SOURCE_CHANGED_PROJECT, mode: 'deterministic', created_at: used,
+    inputs_data: toBlob({ name: SOURCE_CHANGED_PROJECT, description: 'Zone averages from the registry (source freshness harness).', calcMethod: 'deterministic', inputMethod: 'simple', unitSystem: 'field', reservoirName: 'Top Dome', inputs: { deterministic, surfaces: [surface], polygons: [] } }, 1),
+    results_data: null,
+  };
+}
+
+export function makeInMemoryRcpBackend({ savedRows = [], prospects = [], sharedRows = false, sharing: sharingOpts = {}, sourceChanged = false, sourceEdits = SOURCE_CHANGED_EDITS } = {}) {
   const mapping = makeMappingInMemoryBackend();
+  // sourceEdits null: the project is seeded, the registry left as it was (the negative control)
+  const zoneEdits = sourceChanged ? sourceEdits : null;
   const ready = seedDome(mapping);
   // U2-014: projects and prospects live in the in-memory mirror of the
   // sharing rules, so the harness shows the same control and refusals
@@ -86,8 +134,12 @@ export function makeInMemoryRcpBackend({ savedRows = [], prospects = [], sharedR
     ]);
   }
   let seq = 0;
+  let sourceSeeded = !sourceChanged;
   const projects = {
-    async getProjects() { return (sharing.db.select(T, ME).data || []).map(fromRow); },
+    async getProjects() {
+      if (!sourceSeeded) { sourceSeeded = true; sharing.db.seed(T, [await sourceChangedRow(mapping)], { owner: ME }); }
+      return (sharing.db.select(T, ME).data || []).map(fromRow);
+    },
     async saveProject(projectData, isNew = false) {
       if (!projectData.user_id) throw new Error('Sign in to save projects.');
       if (isNew || !projectData.id) {
@@ -130,8 +182,8 @@ export function makeInMemoryRcpBackend({ savedRows = [], prospects = [], sharedR
       async downloadExportedSurface() { throw new Error('No Seismolord exports in the harness.'); },
     },
     wells: {
-      listWellsWithTops: () => mapping.listWells(),
-      async listZones(wellId) { const w = (await mapping.listWells()).find((x) => x.id === wellId); return (w?.zones || []).map((z, i) => ({ id: `${wellId}-z${i}`, well_id: wellId, ...z })); },
+      async listWellsWithTops() { return (await mapping.listWells()).map((w) => ({ ...w, zones: harnessZones(w, zoneEdits) })); },
+      async listZones(wellId) { const w = (await mapping.listWells()).find((x) => x.id === wellId); return w ? harnessZones(w, zoneEdits) : []; },
     },
     culture: { listCulture: () => mapping.listCulture(), downloadCultureFeatures: (row) => mapping.downloadCultureFeatures(row) },
     prospects: makeInMemoryProspectsBackend(prospects, { sharing, sharedRows }),
