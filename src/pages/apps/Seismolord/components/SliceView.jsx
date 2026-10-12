@@ -36,6 +36,7 @@ import {
 import { NULL_VALUE } from '../engine/manifest';
 import { lineLabelSlug } from '../lib/sectionCaption';
 import { sectionDrawn } from '../lib/plotTemplates';
+import { latticeNumber } from '../lib/cursorLabel';
 
 /** The picture with a caption band above it (SEIS-U1-013): dark like the
  *  seismic canvas (owner rule), light text, lines fitted to the width. */
@@ -1258,8 +1259,8 @@ function SliceView({
       // depth section: rows are metres on the shared axis; time varies
       // per column and is not reported (readout-only mode, plan W3.4)
       setCursorReadout({
-        il: geo.il.min + hit.ilIdx * geo.il.step,
-        xl: geo.xl.min + hit.xlIdx * geo.xl.step,
+        il: latticeNumber(geo.il.min, hit.ilIdx, geo.il.step),
+        xl: latticeNumber(geo.xl.min, hit.xlIdx, geo.xl.step),
         ms: null,
         z: p.depthAxisInfo.z0 + hit.sample * p.depthAxisInfo.dz,
         amp: amp === NULL_F32 ? null : amp,
@@ -1277,8 +1278,8 @@ function SliceView({
       if (d != null && Number.isFinite(d)) z = d;
     }
     setCursorReadout({
-      il: geo.il.min + hit.ilIdx * geo.il.step,
-      xl: geo.xl.min + hit.xlIdx * geo.xl.step,
+      il: latticeNumber(geo.il.min, hit.ilIdx, geo.il.step),
+      xl: latticeNumber(geo.xl.min, hit.xlIdx, geo.xl.step),
       ms,
       z,
       amp: amp === NULL_F32 ? null : amp,
