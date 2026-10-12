@@ -65,3 +65,9 @@ repeating them.
 1. Demo 1, then demos 2 and 3.
 2. Modules A to F in order, each dry-run on the demo account before it is recorded.
 3. App defects found on the way are fixed with tests and merged on green, as in the QI series.
+
+## Recording notes (lessons, from 2026-10-12)
+- The lessons run on kit v4 (`EKENE3D-v4-full.sgy`, the listric growth fault), like the re-recorded demos.
+- Storyboards: `lessons/seis-<module><n>.mjs`, shared helpers in `lessons/seis-common.mjs`. A lesson creates and removes only items named "Lesson ...", so the demos' horizons, faults and surfaces stay as they are.
+- Lessons A1 and A2 use a lesson file that is not in the kit, `EKENE3D-v4-vendor.sgy` (the small cube under a wrong textual header), made by `seed/seis_lesson_assets.py`. Neither lesson imports anything.
+- Module A: A1 4:28, A2 3:31, A3 4:03. Module A is the public YouTube module.
