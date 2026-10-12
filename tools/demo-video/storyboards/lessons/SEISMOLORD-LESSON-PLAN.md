@@ -71,3 +71,5 @@ repeating them.
 - Storyboards: `lessons/seis-<module><n>.mjs`, shared helpers in `lessons/seis-common.mjs`. A lesson creates and removes only items named "Lesson ...", so the demos' horizons, faults and surfaces stay as they are.
 - Lessons A1 and A2 use a lesson file that is not in the kit, `EKENE3D-v4-vendor.sgy` (the small cube under a wrong textual header), made by `seed/seis_lesson_assets.py`. Neither lesson imports anything.
 - Module A: A1 4:28, A2 3:31, A3 4:03. Module A is the public YouTube module.
+- Module B: B4 3:25, B5 3:15, B6 4:37. B5 teaches QC on a real tracking failure: correlation tracking from Ekene-1 crosses the growth fault onto a deeper footwall event. B6 runs Tops to Horizons without accepting (the demos' framework stays).
+- Fixes found while scripting Module B: the Tops to Horizons prognosis in the user's depth unit (#1022).
