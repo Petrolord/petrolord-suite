@@ -7,8 +7,16 @@
  * BEFORE the move (fixtures/qiEngineParity.ekene.json, written by
  * tools/qi-parity/captureEkeneParity.js on Suite 5df9d9410 / engines cc4c62d)
  * must come back unchanged: exactly equal, with 1e-9 as the outer bound.
+ *
+ * One deliberate change (owner decision 2026-10-12): compareAtWells keeps a
+ * well flagged with an error, and a well without finite A and B, out of the
+ * AVO scale. The fixture plants such a well (Ekene-9, an error carrying
+ * values, a row QI Studio itself never builds because an error well gets no
+ * sample point). compareAtWells was re-recorded for it, and the clean wells
+ * are pinned below to the numbers the engine gave before the decision.
  */
 import fixture from './fixtures/qiEngineParity.ekene.json';
+import preMove from './fixtures/qiEngineParity.avoCleanRows.pre-move.json';
 import { runParityCases, hydrate } from '../../../../../tools/qi-parity/parityCases';
 
 const TOL = 1e-9;
@@ -49,6 +57,28 @@ describe('QI Studio outputs on the Ekene cases are unchanged by the move into th
     }
     expect(fixture.outputs.blindAbsolute.length).toBe(5);
     expect(fixture.outputs.prospect.trap.columnM).toBeGreaterThan(0);
+  });
+  test('decision 2026-10-12: the full rows give the pre-decision numbers of the clean wells exactly', () => {
+    const { excluded, ...rest } = now.compareAtWells;
+    const planted = rest.wells.find((w) => w.name === 'Ekene-9');
+    expect(planted.error).toBe('no density log');
+    expect(planted.scaled).toBeUndefined();
+    const clean = { ...rest, wells: rest.wells.filter((w) => w.name !== 'Ekene-9') };
+    expect(JSON.stringify(clean)).toBe(JSON.stringify(preMove.output));
+    expect(excluded).toEqual([{ name: 'Ekene-8', reason: 'no observed value' }, { name: 'Ekene-9', reason: 'no density log' }]);
+    expect(preMove.rows).toEqual(['Ekene-1', 'Ekene-2', 'Ekene-3', 'Ekene-4', 'Ekene-8']);
+  });
+  test('negative control: the planted error well did move the scale under the earlier rule', () => {
+    const earlier = (rows) => {
+      let so = 0; let sm = 0;
+      for (const r of rows) {
+        if (!r.observed || !Number.isFinite(r.observed.A) || !Number.isFinite(r.modelled?.A)) continue;
+        for (const k of ['A', 'B']) { so += r.observed[k] * r.modelled[k]; sm += r.modelled[k] * r.modelled[k]; }
+      }
+      return so / sm;
+    };
+    expect(earlier(fixture.inputs.avoRows)).not.toBe(preMove.output.scale);
+    expect(earlier(fixture.inputs.avoRows.filter((r) => !r.error))).toBe(preMove.output.scale);
   });
   test('negative control: the comparison sees a change in the ninth figure', () => {
     const moved = JSON.parse(JSON.stringify(fixture.outputs.waveletScale));
