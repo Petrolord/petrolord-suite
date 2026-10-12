@@ -437,3 +437,17 @@ APPLIED (owner: `supabase db query --linked -f supabase/migrations/2026100209100
 - Top maps (WDM U2-007): a TVDSS top map leaves out a well with no depth
   reference elevation and says why; MD and TVD maps keep it
   (`services/topControlPoints.js`).
+
+## 2026-10-12: Replace grid from a file
+
+Right-click an own surface, Replace grid from a file: a grid made
+elsewhere (a map re-made after a new well) takes the place of the surface
+through the same in-place path as Re-grid in place. The row keeps its name
+and id, so ReservoirCalc Pro's "Registry source changed" notice and Earth
+Modeling stacks follow it; the frame it replaced goes on
+`provenance.history` (`replaced_by: 'file'`, the file name) and the old
+grid is archived for Restore. A file of another domain (TWT for a depth
+surface), scattered points, and a surface shared read-only are refused.
+Service `services/replaceInPlace.js` (Re-grid in place now builds its
+history entry there too); test `__tests__/replaceFromFile.test.jsx`.
+Found while scripting the ReservoirCalc Pro videos (demo 3: Ekene-7).
