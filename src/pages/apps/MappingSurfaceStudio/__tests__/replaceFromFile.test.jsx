@@ -75,3 +75,18 @@ test('the import dialog in replace mode replaces the chosen surface in place', a
   expect(row.id).toBe(saved.id);
   expect((await b.listSurfaces()).filter((s) => s.name === 'Ekene Sand top (6-well map)')).toHaveLength(1);
 });
+
+test('a file read with no CRS declared keeps the surface CRS and XY unit (negative control: a declared CRS replaces it)', async () => {
+  const b = makeInMemoryBackend();
+  const p0 = planFor(zmap(0));
+  const saved = await b.saveSurface({ name: 'Top', kind: p0.kind, spec: p0.spec, grid: p0.grid, zDomain: 'depth', zUnit: 'm', crs: 'EPSG:32632', xyUnit: 'm', provenance: p0.provenance });
+  const row = (await b.listSurfaces()).find((s) => s.id === saved.id);
+  const plain = planFor(zmap(1));
+  expect(plain.crs).toBeNull();
+  const out = await replaceFromFilePlan(b, row, plain);
+  expect(out.crs).toBe('EPSG:32632');
+  expect(out.xy_unit).toBe('m');
+  const declared = { ...planFor(zmap(2)), crs: 'EPSG:32631', xyUnit: 'm' };
+  const out2 = await replaceFromFilePlan(b, out, declared);
+  expect(out2.crs).toBe('EPSG:32631');
+});

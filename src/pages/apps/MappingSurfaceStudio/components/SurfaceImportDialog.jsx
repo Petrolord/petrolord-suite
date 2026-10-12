@@ -48,6 +48,8 @@ export default function SurfaceImportDialog({
     if (!replaceTarget) return;
     setDomain(replaceTarget.z_domain === 'time' ? 'time' : replaceTarget.z_domain === 'attribute' ? 'attribute' : 'depth');
     if (replaceTarget.z_unit === 'm' || replaceTarget.z_unit === 'ft') setZUnit(replaceTarget.z_unit);
+    // the surface's own CRS is the default declaration for its replacement
+    if (replaceTarget.crs) setFileCrs(replaceTarget.crs);
   }, [replaceTarget]);
 
   const reset = () => {
