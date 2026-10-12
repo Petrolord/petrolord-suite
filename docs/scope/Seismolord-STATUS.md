@@ -2756,3 +2756,8 @@ drawing as they did. The engine and the display math are untouched.
   Home at 1366 and 1440 wide, Interpretation below about 1540 px.
 - All testids, titles, aria-labels, label texts and group captions are kept.
   Test: `__tests__/compactRibbon.test.jsx`.
+
+## 2026-10-12: the Tops to Horizons prognosis in the user's depth unit
+- Found while scripting the Seismolord lessons: the prognosis table always read MD, TVDSS and band in metres, whatever the units profile said (the Ekene field and the NAPE demos run in feet).
+- The dialog now takes the viewer's depth unit and shows all three columns in it, headings included. The framework still computes in metres.
+- Test: `__tests__/topsToHorizonsDialog.test.jsx` (feet values are the metre values over 0.3048; fails on the old dialog).
