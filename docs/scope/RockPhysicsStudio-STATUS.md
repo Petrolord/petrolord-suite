@@ -245,3 +245,10 @@ depth frame (`makeWellFrame`); no KB arithmetic remains in the app.
 - Since #966 gathers are kept per well (`avo.published_gathers`), but the label still read the single `published_gather`, the last one published for any well. Ekene-1 showed "Published 2026-10-09 for Ekene-4".
 - `publishedFor(avo, wellId)` (GatherPanel) reads this well's entry. The single copy counts only when it belongs to this well, which covers projects saved before per-well gathers.
 - **Tests:** `gatherPublishedLabel.test.js` (another well's gather is not shown; the legacy single copy counts for its own well only).
+
+## 2026-10-12: one AVO classifier shared with QI Studio
+
+- `avoClass` (`engines/rockphysics/avo.js`, engines #356, vendored at `d54092f`) is now the one classifier for Rock Physics Studio and QI Studio; `engines/qi/avo.js` re-exports it. Owner decision on the finding held at the NextGen QI course gate: the two apps put a value lying exactly on a class border in different classes.
+- The Rock Physics rule is the one kept, now documented in the code with its sources (Rutherford and Williams 1989; Castagna and Swan 1997): class I above +0.02, class II for |A| at or below 0.02, class III below with B at or below zero, class IV below with B above zero.
+- One change for Rock Physics: an A or B that is not a finite number returns null (before, it fell through to class III). The AVO panel and the report check the halfspaces are finite before the call, so nothing displayed changes. The band can be passed as a number, as before, or as `{ band }`.
+- **Tests:** `rockGoldens.test.js` and the vendored rock physics goldens unchanged and passing; `packages/engines/__tests__/avoClass.shared.test.js` pins that both apps call the same function, the border table and a negative control against QI's earlier rule.

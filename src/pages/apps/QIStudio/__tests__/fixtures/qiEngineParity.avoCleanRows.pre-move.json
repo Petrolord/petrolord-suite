@@ -1,0 +1,122 @@
+{
+ "$comment": "compareAtWells on the parity rows without the planted error well (Ekene-9), computed by the engine BEFORE the 2026-10-12 owner decision (engines 0f4ac4a, whose outputs equal the recording made on engines cc4c62d). Since the decision an error well stays out of the scale, so the full rows must give exactly these numbers; the only addition is the excluded list. Checked by qiEngineParity.test.js.",
+ "rows": [
+  "Ekene-1",
+  "Ekene-2",
+  "Ekene-3",
+  "Ekene-4",
+  "Ekene-8"
+ ],
+ "output": {
+  "scale": 0.01251069412567539,
+  "wells": [
+   {
+    "name": "Ekene-1",
+    "modelled": {
+     "A": 0.1143616938,
+     "B": -0.4734269632
+    },
+    "substituted": {
+     "A": 0.1372340326,
+     "B": -0.4260842669
+    },
+    "observed": {
+     "A": 0.00130082743,
+     "B": -0.005638369619
+    },
+    "scaled": {
+     "A": 0.1039772387473165,
+     "B": -0.450683995816708
+    },
+    "residual": 0.025001589392250407,
+    "modelledClass": "I",
+    "observedClass": "I",
+    "agree": true
+   },
+   {
+    "name": "Ekene-2",
+    "modelled": {
+     "A": 0.1375976513,
+     "B": -0.3035645785
+    },
+    "substituted": {
+     "A": 0.1651171816,
+     "B": -0.2732081207
+    },
+    "observed": {
+     "A": 0.002010693865,
+     "B": -0.003909795125
+    },
+    "scaled": {
+     "A": 0.160718010112125,
+     "B": -0.31251624296177327
+    },
+    "residual": 0.024792807187520735,
+    "modelledClass": "I",
+    "observedClass": "I",
+    "agree": true
+   },
+   {
+    "name": "Ekene-3",
+    "modelled": {
+     "A": 0.1074477116,
+     "B": -0.4711359557
+    },
+    "substituted": {
+     "A": 0.1289372539,
+     "B": -0.4240223601
+    },
+    "observed": {
+     "A": 0.001352877057,
+     "B": -0.006068846953
+    },
+    "scaled": {
+     "A": 0.10813764955083696,
+     "B": -0.4850927448178159
+    },
+    "residual": 0.01397383186013018,
+    "modelledClass": "I",
+    "observedClass": "I",
+    "agree": true
+   },
+   {
+    "name": "Ekene-4",
+    "modelled": {
+     "A": 0.1563374409,
+     "B": -0.365071869
+    },
+    "substituted": {
+     "A": 0.1876049291,
+     "B": -0.3285646821
+    },
+    "observed": {
+     "A": 0.001991275403,
+     "B": -0.004531804371
+    },
+    "scaled": {
+     "A": 0.15916586106228547,
+     "B": -0.3622344472237947
+    },
+    "residual": 0.004006360312117071,
+    "modelledClass": "I",
+    "observedClass": "I",
+    "agree": true
+   },
+   {
+    "name": "Ekene-8",
+    "modelled": {
+     "A": 0.1192909777,
+     "B": -0.476466878
+    },
+    "substituted": {
+     "A": 0.1431491733,
+     "B": -0.4288201902
+    },
+    "observed": null,
+    "error": "no observed value"
+   }
+  ],
+  "n": 4,
+  "agree": 4
+ }
+}

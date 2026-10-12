@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 0f4ac4a311a33955b842b4a4b203a7f7c05b3b0a
+# commit d54092f59282c05dede304167f17d763c5b6150e
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 d8bd133c5a081611291cb72e0efd5909a2e23b77 README.md
@@ -17,6 +17,7 @@ c074a5a41b74124809e04ac48348c196664873ff __tests__/assurance.moc.test.js
 c91937938e3031f16b175ed9dc3b69713a406be6 __tests__/assurance.peerReview.test.js
 08cf37a2403c072de69c04d5523c0d05489b97c5 __tests__/assurance.quality.test.js
 a8c2c7336a4a7636ecdf56915fde5530f3d8d8e4 __tests__/assurance.risk.test.js
+b809a10102bc1602e30553ec33588ce56396c59e __tests__/avoClass.shared.test.js
 64c78bc711e48200210995a0b4be3ffd1b38bf1f __tests__/basin.test.js
 285bfe65097236a1c319bd7af962515d5db8f183 __tests__/basin.u2.test.js
 17552372b2f1ad85fd1cd0b6b33ab0e0b50f95fe __tests__/conventions.percentile.test.js
@@ -175,7 +176,7 @@ f25ba6e6e30355f8364a1af93656dd305c027ab1 __tests__/prospect.valuation.test.js
 fd7e8b4f37ccdb760cc40800fbe43c2c739b6466 __tests__/qi.angleWavelets.test.js
 30dfb1bafbc5c86b12851eaded8037265a71e7cc __tests__/qi.avo.golden.test.js
 edb4bba372d3f54b6827865ef991bd6ee530e2f5 __tests__/qi.avo.test.js
-ef5a486add33270b4c4d742712ef40248763410a __tests__/qi.avoWells.golden.test.js
+520d51efb30505be1fc44c5d4b5bc677b3e42f57 __tests__/qi.avoWells.golden.test.js
 1cf6c7e83d7e70f1c48561d18bfddc81dcafa47f __tests__/qi.avoWells.test.js
 e1333d257cb20c4d6050f3c2cd7253b9cfdcf1c5 __tests__/qi.conditioning.test.js
 23abe33ffea75f3a8c917420d66b93614186b30e __tests__/qi.gatherStore.test.js
@@ -529,8 +530,8 @@ b7a2a85022f3df59f44051d5202dcf9746502326 engines/production/pumpingUnit.js
 02b493abc6f3f626d6f6ef49575e22cbc5f62f41 engines/production/surveillance.js
 2468504187c6f984b84f318939d55929be3e667a engines/prospect/valuation.js
 67d5c09347a4fde9bd043c3d9c617b4ac1f29810 engines/qi/angleWavelets.js
-1fb38b8c99221903f5bfbb839e19e49ff8ff465f engines/qi/avo.js
-2dd47eb1b6c266c9a94bf36c315daafba187a6f8 engines/qi/avoWells.js
+89fc8a8198ce8bee736b3201b98d4d156e4f70f5 engines/qi/avo.js
+fa4a7ffb32ec8e0695c2fced6bf3c113194ebb5c engines/qi/avoWells.js
 9f024a3222d069cb800211bee488d53b18a76d1e engines/qi/conditioning.js
 64558a3ec11060d42e891f44e242b2afdbafadf5 engines/qi/gatherStore.js
 9adb98740539dcefc0bbb0f555abaa5f0f35d37e engines/qi/inversion.js
@@ -546,7 +547,7 @@ ce6079ddef299f584e8312a190bdc331bf0662e1 engines/qi/prestackInversion.js
 5f159f8215b0bcc5018d0d319f0c50d9b95aaad9 engines/qi/prospectTrap.js
 00816e027603e25d60cd84661a1d32aed42a931b engines/qi/seismicQc.js
 a3e064649c8418634140bd1bb0e006628d8ed728 engines/qi/wavelets.js
-dda8d721705bfd6f3ffddcdda092c828f5949fcf engines/rockphysics/avo.js
+d8c8b2643cb0882aa7dec057c3e5640299037dce engines/rockphysics/avo.js
 ac672eb24b8e3fe0796b8469a90030348fa4014b engines/rockphysics/avoTrend.js
 481b5ed27afe98bc0c4fa2dc836be48cdda97e8c engines/rockphysics/elasticSet.js
 e3873d2941f10b6891337155b8f08320bc11db0f engines/rockphysics/fluids.js
@@ -897,7 +898,7 @@ e49131ca6ca53dc99ec608859868a449e7383765 test-data/production/goldens/surveillan
 e81bc71967d6f64a5929130ed0f870ea4a741b23 test-data/prospect/goldens/valuation_cases.json
 554fc4f6c94012de59b849b8778f4a6766209d09 test-data/qi/README.md
 d39743087b58df2a1760179ab9829f12b1bd8e9a test-data/qi/goldens.angleWavelets.json
-fe65a1784fbe660377ec8610612c9456edff5b1d test-data/qi/goldens.avoWells.json
+e35f57493ccf661fe2ae6e9c74a3c44aec8115e4 test-data/qi/goldens.avoWells.json
 de37713616a77b8706059cd0ba5553d5fa66cbef test-data/qi/goldens.inversion.json
 b7138e53eebfb3d5752bf507381630ca67fb41dd test-data/qi/goldens.inversionBenchmark.json
 636ed5355892a6df5bb8cac58ee4316f9c395f1e test-data/qi/goldens.inversionQc.json
@@ -910,7 +911,7 @@ d88bb8b83822bdc6569636418102774a0bd5494a test-data/qi/goldens.lfm.json
 ea91a5cf156286f21227b7705ec1723f4553d3c8 test-data/qi/goldens.propertyPrediction.json
 a3394629f03571d772ab4524515bf7f8255279d5 test-data/qi/goldens.prospectAssessment.json
 5dc7a2accc7d484c450a4122f42cf60df32fbda9 test-data/qi/goldens.prospectTrap.json
-493a6cc35e68d889e10bd3998cdc67c1e85b57d9 test-data/qi/goldens.qiAvo.json
+56f01603a97400a4f3494bd2150fb923782010c5 test-data/qi/goldens.qiAvo.json
 3e5f2967957b233c3ad5e643bb43c8622c41d632 test-data/qi/goldens.qiWavelets.json
 d4d7db86331d3553802186e61102e80978516d7b test-data/qi/goldens.seismicQc.json
 ea5bd4e4b84b284b589d9b228122c7ddf16b33cd test-data/qi/goldens.seismicQc2.json
@@ -1252,12 +1253,12 @@ ef58410fe9addc47d2e49e1b6184a9da96e98185 tools/validation/production/oracle_inte
 942d467db9a3407c1f0f7aed17736b07cee4b530 tools/validation/prospect/oracle_valuation.py
 7f311ab7d6628fa89536c563828fecae795a8778 tools/validation/qi/FINDINGS-E1a.md
 d128f8eefc3cce851add49f6339469fdcf160e78 tools/validation/qi/FINDINGS-E1c.md
-cac9ebca619069f5ebb4869828d41b91a2821552 tools/validation/qi/FINDINGS-E2a.md
+b2274e676e2cdd7ec2152e45b710981086dff8d0 tools/validation/qi/FINDINGS-E2a.md
 48f51cc8c75859346db1cb9f79ba424f9cc90a15 tools/validation/qi/FINDINGS-E2b.md
 22327ab645322fe9ea30d8ae037e312d8291a05e tools/validation/qi/negcontrol_e1a.sh
-ee90ee4e29a1d13fe6fdedf3f17af0885196c557 tools/validation/qi/negcontrol_e1b.sh
+a033b00c55dda8f506b44001dfd302e21f7d29a3 tools/validation/qi/negcontrol_e1b.sh
 8f29e278ada7037291b2ee6addcbd4c8243e34d7 tools/validation/qi/negcontrol_e1c.sh
-39485dae595e6ee5040bb88a70c1f51938cd6241 tools/validation/qi/negcontrol_e2a.sh
+79d88ac0ba6565102e1759eac2f5e5cf6e5b6cc4 tools/validation/qi/negcontrol_e2a.sh
 70356470ee3d5ef07a83952bb594bdcb81ee4636 tools/validation/qi/negcontrol_e2b.sh
 c74357b65a15af1d61ede233bad189735ffac9fe tools/validation/qi/oracle_inversion.py
 994ac32e212f272f91c6f421a8000f92ed000dc0 tools/validation/qi/oracle_inversion_benchmark.py
@@ -1265,8 +1266,8 @@ dc31e3d2c6a60aa161f41cdbfed14839d17db2aa tools/validation/qi/oracle_inversion_sp
 44e1362aaa70e939088e1f5e38d3a672d45baf34 tools/validation/qi/oracle_prestack_inversion.py
 dfc5176b3b5ca5805740e1b54d98cf77a8d53412 tools/validation/qi/oracle_property_prediction.py
 5f49bf50e852af34ccb4ee42f1bd97589a1422d5 tools/validation/qi/oracle_qi_angle_wavelets.py
-42cb0e03921bf49278a82d713df55e0b27585d69 tools/validation/qi/oracle_qi_avo.py
-44524f198f0abdc0cd00f82b567bc6fdf40f949f tools/validation/qi/oracle_qi_avo_wells.py
+4e515fedb716e05b00907b2e19b93b7644ffdfa0 tools/validation/qi/oracle_qi_avo.py
+f98e8220ec2b501eda0b8c2361e070d565178d93 tools/validation/qi/oracle_qi_avo_wells.py
 385e0eefc90e2a2d47dc6885c3cca4abe5a900c1 tools/validation/qi/oracle_qi_inversion_qc.py
 82fabd615f563017db332d1508c80b65fcf1c33e tools/validation/qi/oracle_qi_lfm.py
 656d94ab1f18a2b357a7e71da0faa64fad562047 tools/validation/qi/oracle_qi_prestack.py
