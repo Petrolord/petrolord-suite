@@ -435,3 +435,13 @@ off the slide's foot over the footer: the statistics are one compact row,
 the tornado panel scales inside the slide and shows the top four drivers
 ("top 4 of N"); the PDF still draws every bar from an off-screen copy.
 Test: `__tests__/simSetupFold.test.jsx`.
+
+## 2026-10-12: the deterministic case follows AOIs and refreshed surfaces
+
+Selecting or clearing an area of interest, editing the AOIs, or a surface
+read again by Refresh from source (#1032) left the previous deterministic
+volume on screen until Recalculate was pressed: an AOI over half the Ekene
+crest still showed the full 12.14 MM stb. The auto-calculation now also
+follows the active AOI, the AOIs and the surfaces. Found scripting the
+ReservoirCalc Pro lessons. Test: `__tests__/recalcOnAoiSurface.test.jsx`
+(negative control: fails without the new dependencies).
