@@ -37,7 +37,7 @@ export function volumeType(v) {
   if (/ultra.?far/.test(n)) return { type: 'Ultra-far angle stack', role: 'stack', stack: 'angle', angle: 'ultrafar' };
   if (/\bfar\b|far[-_ .]|_far/.test(n)) return { type: 'Far angle stack', role: 'stack', stack: 'angle', angle: 'far' };
   if (/full|stack|fstk|pstm|psdm|migrat|final/.test(n)) return { type: 'Full stack', role: 'stack', stack: 'full' };
-  return { type: 'Stack (type not stated in the name)', role: 'stack', stack: 'unknown' };
+  return { type: 'Stack', role: 'stack', stack: 'unknown' };
 }
 
 /** Time or depth: Seismolord stores time volumes unless the row says depth. */
