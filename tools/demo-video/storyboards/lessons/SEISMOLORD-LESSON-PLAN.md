@@ -73,3 +73,6 @@ repeating them.
 - Module A: A1 4:28, A2 3:31, A3 4:03. Module A is the public YouTube module.
 - Module B: B4 3:25, B5 3:15, B6 4:37. B5 teaches QC on a real tracking failure: correlation tracking from Ekene-1 crosses the growth fault onto a deeper footwall event. B6 runs Tops to Horizons without accepting (the demos' framework stays).
 - Fixes found while scripting Module B: the Tops to Horizons prognosis in the user's depth unit (#1022).
+- Module C: C7 2:49, C8 3:24, C9 2:31. C7 places its sticks at the kit's answer key; C8 runs Detect faults without saving (the demos keep Auto-1 and Auto-2); C9 tracks the footwall with Stop at faults.
+- Fix found while scripting Module C: Stop at faults leaked round a fault that runs off the survey (#1023).
+- Recording note: kill the old site server by its exact PID, and clear a take's profile service worker after a site rebuild, or the take can run on the old bundle.
