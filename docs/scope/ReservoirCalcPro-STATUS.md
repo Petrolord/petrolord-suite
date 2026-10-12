@@ -435,3 +435,14 @@ off the slide's foot over the footer: the statistics are one compact row,
 the tornado panel scales inside the slide and shows the top four drivers
 ("top 4 of N"); the PDF still draws every bar from an off-screen copy.
 Test: `__tests__/simSetupFold.test.jsx`.
+
+## 2026-10-12: Area-depth "From the top surface" uses the base surface
+
+The Area-depth method's "From the top surface" measured the base areas from
+the gross thickness even when a base surface was chosen in the Surf tab,
+so the table held other rock than the Surfaces method on the same maps. It
+now measures the base areas from the chosen base surface (the message says
+which), and the table's volume matches the Surfaces volume; without a base
+surface it keeps the gross thickness. Test:
+`__tests__/areaDepthBaseSurface.test.jsx` (negative control: the thickness
+table misses by more than 10 percent on a thickening sand).
