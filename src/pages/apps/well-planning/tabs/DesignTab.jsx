@@ -923,15 +923,15 @@ const DesignTab = () => {
                 )}
 
                 <div className="flex-1 bg-pl-surface rounded-lg border border-pl-border flex flex-col overflow-hidden relative">
-                    <div className="flex items-center justify-between gap-2 overflow-x-auto p-2 border-b border-pl-border bg-pl-surface z-10 absolute top-0 left-0 right-0">
-                        <div className="flex shrink-0 bg-pl-sunken rounded p-1">
+                    <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 p-2 border-b border-pl-border bg-pl-surface z-10" data-testid="design-view-toolbar">
+                        <div className="flex max-w-full overflow-x-auto bg-pl-sunken rounded p-1 [&>button]:shrink-0">
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('section')} className={`h-7 px-3 text-xs ${viewMode === 'section' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`}><Activity className="w-3 h-3 mr-1" /> Section</Button>
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('plots')} className={`h-7 px-3 text-xs ${viewMode === 'plots' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`}><LayoutGrid className="w-3 h-3 mr-1" /> Plots</Button>
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('plan')} className={`h-7 px-3 text-xs ${viewMode === 'plan' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`} data-testid="view-plan" title="Plan editor: one row per section, edit the defining values in place"><TableProperties className="w-3 h-3 mr-1" /> Plan</Button>
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('table')} className={`h-7 px-3 text-xs ${viewMode === 'table' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`}><TableIcon className="w-3 h-3 mr-1" /> Survey</Button>
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('3d')} className={`h-7 px-3 text-xs ${viewMode === '3d' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`} data-testid="view-3d"><Box className="w-3 h-3 mr-1" /> 3D</Button>
                         </div>
-                        <div className="flex shrink-0 items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             {(viewMode === 'section' || viewMode === 'plots') && (
                                 <Button size="sm" variant="ghost" onClick={() => setShowTargets((v) => !v)}
                                     className={`h-7 px-2 text-xs ${showTargets ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-muted'}`}
@@ -987,7 +987,7 @@ const DesignTab = () => {
                         </div>
                     </div>
 
-                    <div className="flex-1 pt-12 relative">
+                    <div className="flex-1 min-h-0 relative">
                         {viewMode === 'section' && planRows && (
                             <div className="flex h-full w-full bg-white" data-canvas="chart">
                                 <div className="min-w-0 flex-1">
@@ -1053,7 +1053,7 @@ const DesignTab = () => {
                         )}
 
                         {viewMode === 'plan' && (
-                            <div className="absolute inset-0 top-12 bg-pl-surface">
+                            <div className="absolute inset-0 bg-pl-surface">
                                 <PlanEditorTable
                                     rows={planTableRows}
                                     readOnly={readOnly}
@@ -1072,7 +1072,7 @@ const DesignTab = () => {
                         )}
 
                         {viewMode === 'table' && planRows && (
-                            <div className="absolute inset-0 top-12 overflow-auto bg-pl-surface" data-testid="design-survey-table">
+                            <div className="absolute inset-0 overflow-auto bg-pl-surface" data-testid="design-survey-table">
                                 <Table>
                                     <TableHeader className="bg-pl-sunken sticky top-0">
                                         <TableRow className="border-pl-border">
