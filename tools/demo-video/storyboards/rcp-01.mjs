@@ -60,10 +60,10 @@ export default {
       },
       waitLabel: 'Seconds later' },
     { id: 'crest',
-      say: 'The base comes in the same way, and each is set as the top or the base. The crest of the sand is at four thousand nine hundred and seventy feet below sea level.',
-      sub: 'The base comes in the same way, and each is set as the top or the base. The crest of the sand is at 4,970 ft below sea level.',
+      say: 'The base comes in the same way, and each is set as the top or the base. The crest of the sand is at four thousand nine hundred and sixty nine and a half feet below sea level.',
+      sub: 'The base comes in the same way, and each is set as the top or the base. The crest of the sand is at 4,969.5 ft below sea level.',
       do: async (d) => {
-        await expectText(d, t(d, `rcp-surface-maxz-${TOP}`), /^-4970\.0 ft$/, 'crest of the top surface');
+        await expectText(d, t(d, `rcp-surface-maxz-${TOP}`), /^-4969\.5 ft$/, 'crest of the top surface');
         await d.highlight(surfaceCard(d, TOP));
         await d.sleep(2000);
         await d.unhighlight();
@@ -78,8 +78,8 @@ export default {
         await d.sleep(3000);
       } },
     { id: 'contact', chapter: 'The contact', chapterSub: 'Oil down to 5,036 ft TVDSS',
-      say: 'The oil water contact is at five thousand and thirty six feet true vertical depth sub sea, where Ekene one logs the water at five thousand one hundred and eighteen feet measured from the rig floor.',
-      sub: 'The oil-water contact is at 5,036 ft TVDSS, where Ekene-1 logs the water at 5,118 ft measured from the rig floor.',
+      say: 'The oil water contact is at five thousand and thirty six feet true vertical depth sub sea, picked on the Ekene one logs and confirmed by the pressure gradients in Ekene one and Ekene three.',
+      sub: 'The oil-water contact is at 5,036 ft TVDSS, picked on the Ekene-1 logs and confirmed by the pressure gradients in Ekene-1 and Ekene-3.',
       do: async (d) => {
         await d.click('rcp-tab-geometry');
         await d.sleep(600);
@@ -115,10 +115,10 @@ export default {
         await settled(d);
       } },
     { id: 'logvolume',
-      say: 'On those averages the Ekene Sand holds VOLA million stock tank barrels.',
-      sub: 'On those averages the Ekene Sand holds VOLA million stock tank barrels.',
+      say: 'On those averages the Ekene Sand holds eleven point seven eight million stock tank barrels.',
+      sub: 'On those averages the Ekene Sand holds 11.78 million stock tank barrels.',
       do: async (d) => {
-        await expectText(d, t(d, 'rcp-stooip'), /VOLA MM/, 'volume on the registry averages');
+        await expectText(d, t(d, 'rcp-stooip'), /11\.78 MM/, 'volume on the registry averages');
         await d.highlight(t(d, 'rcp-stooip'));
         await d.sleep(2000);
         await d.unhighlight();
@@ -152,8 +152,17 @@ export default {
         await d.sleep(2500);
         await d.click(dialog(d).getByText('Detailed', { exact: true }));
         await d.sleep(1500);
-        await expectText(d, dialog(d), /Ekene Sand top \(6-well map\)/, 'surface named in the report');
-        await d.sleep(3000);
+        const warn = dialog(d).getByText(/^Open closure: the hydrocarbon column reaches the edge/).first();
+        await d.highlight(warn);
+        await d.sleep(2500);
+        await d.unhighlight();
+        const top = dialog(d).getByTestId('rcp-summary-top');
+        await expectText(d, top, /Ekene Sand top \(6-well map\)/, 'surface named in the report');
+        await top.evaluate((e) => e.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+        await d.sleep(1200);
+        await d.highlight(top.locator('xpath=ancestor::tr[1]'));
+        await d.sleep(2500);
+        await d.unhighlight();
       } },
     { id: 'next', chapter: 'Interpretation to volume', chapterSub: 'One registry, no files in between',
       say: 'Maps from Mapping, zones from Petrophysics, and a volume a reviewer can trace. That is volumetrics with Petrolord.',
