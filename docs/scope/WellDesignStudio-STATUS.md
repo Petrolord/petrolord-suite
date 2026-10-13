@@ -791,3 +791,23 @@ a per-user choice from the header toggle (beside Help).
   0.1 MPa and fails; sampling by MD in the shipped function fails 4 gates), a
   KB difference, ppg curves converted at the offset TVD, the no-datum refusal,
   seats on this MD, candidate rules. Help guides (WDS, Pore Pressure) updated.
+## 2026-10-13: depths in the unit profile's unit (targets, datum, settings)
+
+- Targets tab: the TVDSS and radius columns, and the target dialog's TVDSS,
+  radius and semi-axis fields, follow the user's unit profile depth unit
+  (`useAppUnits('well-planning')`, feet on the oilfield preset). Eastings and
+  northings stay in the site CRS unit (metres). Everything is still stored in
+  metres; the CSV export keeps its metre columns and adds `TVDSS_ft` and
+  `Radius_ft` when the view is in feet.
+- Design method target list names the target depth in the wellbore's unit
+  ("T1 Oboro Sand (6186 ft TVDSS)").
+- Wellbore dialog: KB, ground elevation and water depth show and take the
+  depth unit chosen in the dialog (flipping the unit converts the fields); a
+  new wellbore starts in the profile's depth unit.
+- Design settings "Vertical tol" and the separation rule's sigma pa and Sm
+  are shown in the wellbore unit (stored metres; a field left as shown keeps
+  its stored metres exactly).
+- Shared pieces: `services/depthUnits.js`, `components/UnitNumberInput.jsx`.
+  Tests: `__tests__/depthUnits.test.jsx` (feet round trips to the
+  centimetre, with the metre path as negative control).
+- Not changed: the report pack PDFs still print metres.
