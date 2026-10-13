@@ -47,17 +47,40 @@ export function registryOffsetsWithoutDatum({ geoWells = [], wellbore = null, si
   return (geoWells || []).filter((g) => isRegistryOffset(g, wellbore, siteCrs) && refElevOrNull(g) === null).map((g) => g.name);
 }
 
+const offsetMdLabel = (mdM, unit) => (unit === 'ft'
+  ? `${Math.round(mdM * M_TO_FT).toLocaleString('en-US')} ft MD`
+  : `${Math.round(mdM).toLocaleString('en-US')} m MD`);
+
 /**
  * Offset candidates for a reference wellbore: the site's other
- * wellbores (their picked design) and registry wells with a deviation
+ * wellbores and registry wells with a deviation
  * in the site CRS (never this wellbore's own bridged registry well).
- * @returns {Array<{id, name, label, kind:'wp-plan'|'geo', stations, headX, headY, kbElevM}>}
+ * A site wellbore with a definitive actual-survey composite (2+ stations)
+ * is scanned on that survey, the industry rule for a drilled well; one
+ * without is scanned on its picked design. The id stays `wp:<wellbore id>`
+ * either way, so saved selections and runs still resolve.
+ * @returns {Array<{id, name, label, kind:'wp-plan'|'wp-actual'|'geo', stations, headX, headY, kbElevM}>}
  */
 export function assembleOffsetCandidates({
-  wellbores = [], designsByWellbore = {}, geoWells = [], wellbore = null, siteCrs = null,
+  wellbores = [], designsByWellbore = {}, actualsByWellbore = {}, geoWells = [], wellbore = null, siteCrs = null,
 }) {
   const out = [];
+  const unit = wellbore?.depth_unit === 'ft' ? 'ft' : 'm';
   for (const w of wellbores.filter((x) => x.id !== wellbore?.id)) {
+    const actual = actualsByWellbore[w.id];
+    if (Array.isArray(actual) && actual.length >= 2 && Number.isFinite(w.head_x) && Number.isFinite(w.head_y)) {
+      out.push({
+        id: `wp:${w.id}`,
+        name: w.name,
+        label: `${w.name} (actual survey to ${offsetMdLabel(actual[actual.length - 1].md, unit)})`,
+        kind: 'wp-actual',
+        stations: actual,
+        headX: w.head_x,
+        headY: w.head_y,
+        kbElevM: w.kb_elev_m || 0,
+      });
+      continue;
+    }
     const d = designsByWellbore[w.id];
     if (!d || !Number.isFinite(w.head_x) || !Number.isFinite(w.head_y)) continue;
     out.push({
@@ -121,7 +144,7 @@ export function chooseDisplayOffsets(candidates, {
   const dist = (c) => (wellhead ? Math.hypot(c.headX - wellhead.x, c.headY - wellhead.y) : Infinity);
   const within = (radiusM || 0) + (Number.isFinite(reachM) ? reachM : 0);
   const list = (candidates || [])
-    .filter((c) => c.kind === 'wp-plan' || dist(c) <= within)
+    .filter((c) => c.kind === 'wp-plan' || c.kind === 'wp-actual' || dist(c) <= within)
     .map((c) => ({ c, d: dist(c) }))
     .sort((a, b) => a.d - b.d)
     .slice(0, limit)

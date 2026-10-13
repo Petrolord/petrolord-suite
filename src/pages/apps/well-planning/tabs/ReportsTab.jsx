@@ -108,6 +108,7 @@ const ReportsTab = () => {
       wellName: wellbore?.name || '',
       designLabel: `${design?.name} r${design?.revision}`,
       generatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      depthUnit: wellbore?.depth_unit === 'ft' ? 'ft' : 'm',
     });
   });
 
