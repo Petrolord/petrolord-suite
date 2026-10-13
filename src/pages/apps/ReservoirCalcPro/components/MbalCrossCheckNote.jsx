@@ -86,7 +86,7 @@ export default function MbalCrossCheckNote({ client = defaultClient }) {
           ? `. ${projectNote === 'missing' ? 'The project the case names is not readable from this account. ' : ''}This workspace is not a saved project, so it is not compared: open the saved project of this reservoir (Projects) to see the two side by side.`
           : null}
         {loading || !saved ? null : check.volumetric != null && check.sameFluid
-          ? `; this project's deterministic volumetric ${gas ? 'GIIP' : 'STOIIP'} ${scaled(check.volumetric, check.unit)}; material balance ${check.differencePct >= 0 ? 'above' : 'below'} it by ${fmt(Math.abs(check.differencePct), 1)} percent.`
+          ? `; this project's deterministic volumetric ${gas ? 'GIIP' : 'STOIIP'} ${scaled(check.volumetric, check.unit)}; ${Math.abs(check.differencePct) < 0.05 ? 'the two agree to within 0.1 percent' : `material balance ${check.differencePct >= 0 ? 'above' : 'below'} it by ${fmt(Math.abs(check.differencePct), 1)} percent`}.`
           : (check.sameFluid ? '. Run the deterministic case here to compare.' : `. This project is a ${fluid} case, so the volumes are not compared.`)}
         {saved && !loading && check.sameFluid && check.volumetric != null ? ` Project: "${state.project.name}".` : null}
       </p>

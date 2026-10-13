@@ -130,6 +130,10 @@ describe('ReservoirCalc Pro prints the cross-check, read by id', () => {
     await waitFor(() => expect(screen.getByTestId('rcp-mbal-check-values')).toHaveTextContent('Project: "Ekene booked volumetric".'), { timeout: 10000 });
     expect(screen.getByTestId('rcp-mbal-check-values')).toHaveTextContent("this project's deterministic volumetric STOIIP 270.60 MMSTB");
     expect(mockRcp.updateInputs).toHaveBeenCalledWith({ mbalCheck: expect.objectContaining({ case_id: SAMPLE_CASE_IDS.ahmed }) });
+    // the same volume on both sides reads as agreement, not as 0.0 percent below
+    mockRcp.state = { ...mockRcp.state, results: { fluidType: 'oil', stooip: ahmed.result.estimated_ooip_stb } };
+    view.rerender(<MemoryRouter initialEntries={[`/rcp?mbalCase=${SAMPLE_CASE_IDS.ahmed}&rcpProject=rcp-77`]}><MbalCrossCheckNote client={clientOver(ahmed.db)} /></MemoryRouter>);
+    expect(screen.getByTestId('rcp-mbal-check-values')).toHaveTextContent('the two agree to within 0.1 percent.');
     delete mockRcp.loadProjects; delete mockRcp.loadProject;
   });
 });
