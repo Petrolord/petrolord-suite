@@ -342,7 +342,7 @@ const SurveysTab = () => {
                     <SelectTrigger className="h-9" data-testid="project-target"><SelectValue placeholder="Select target..." /></SelectTrigger>
                     <SelectContent>
                       {(siteTargets || []).map((t) => (
-                        <SelectItem key={t.id} value={t.id}>{t.name} ({t.tvdss_m?.toFixed(0)} m TVDSS)</SelectItem>
+                        <SelectItem key={t.id} value={t.id}>{t.name} ({Number.isFinite(t.tvdss_m) ? mu(t.tvdss_m).toFixed(0) : '?'} {mdUnit} TVDSS)</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

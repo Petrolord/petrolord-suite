@@ -112,7 +112,7 @@ const TargetFromRegistryDialog = ({ open, onOpenChange, mode, onPick, depthUnit 
                   <Select value={topId} onValueChange={setTopId} disabled={!well}>
                     <SelectTrigger className="h-9" data-testid="wd-pick-top"><SelectValue placeholder="Select top..." /></SelectTrigger>
                     <SelectContent>
-                      {(well?.tops || []).map((t) => <SelectItem key={t.id} value={t.id}>{t.name} ({t.md_m.toFixed(0)} m MD)</SelectItem>)}
+                      {(well?.tops || []).map((t) => <SelectItem key={t.id} value={t.id}>{t.name} ({(du === 'ft' ? t.md_m / 0.3048 : t.md_m).toFixed(0)} {du} MD)</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>

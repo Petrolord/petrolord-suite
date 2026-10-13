@@ -826,3 +826,11 @@ a per-user choice from the header toggle (beside Help).
   402250 E 521750 N; 8 m below is T1 Oboro Sand, 1885.36 m.
 - Tests: `__tests__/targetStandoff.test.jsx` (5; refresh negative control:
   the pick without the stand-off lands 8 m shallow).
+
+## 2026-10-13: the last metre labels on a feet wellbore
+
+Found in the video dry run: the project-ahead target list ("T1 (1885 m TVDSS)"),
+the From top picker's tops ("Oboro Sand (2039 m MD)") and the Publish dialog's
+TD and KB still printed metres on a feet wellbore or profile. They now follow
+the wellbore depth unit (the From top list follows the profile unit, as the
+rest of that dialog does).
