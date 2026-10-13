@@ -444,6 +444,27 @@ plus gross thickness; Simple and Area-depth: none) and prints
 "OWC: -4,972 (entered -5,036, filled to spill)" when Trap only took the
 contact at the spill. Test: `__tests__/summaryTableNames.test.jsx`.
 
+## 2026-10-12: Trap only no longer clamps a GOC an oil case does not use
+
+With Trap only on, an oil case was reported "Filled to spill: the contact
+is below the spill point" while its OWC sat above the spill, because a GOC
+left in the inputs (a fresh workspace carries goc -7000 from the sample
+values) was clamped too; the report and the Detailed table then said the
+contact was taken at the spill, and on an edge-limited trap the open
+closure note was the wrong one. Only the contacts the fluid system uses are
+clamped now (oil: OWC; oil with a gas cap and gas: both). Found on the Ekene
+seismic map while scripting the ReservoirCalc Pro lessons. Test:
+`__tests__/spillOilGoc.test.js` (negative control: the old clamp fails it).
+
+## 2026-10-12: the deterministic case follows AOIs and refreshed surfaces
+
+Selecting or clearing an area of interest, editing the AOIs, or a surface
+read again by Refresh from source (#1032) left the previous deterministic
+volume on screen until Recalculate was pressed: an AOI over half the Ekene
+crest still showed the full 12.14 MM stb. The auto-calculation now also
+follows the active AOI, the AOIs and the surfaces. Found scripting the
+ReservoirCalc Pro lessons. Test: `__tests__/recalcOnAoiSurface.test.jsx`
+(negative control: fails without the new dependencies).
 ## 2026-10-12: Area-depth "From the top surface" uses the base surface
 
 The Area-depth method's "From the top surface" measured the base areas from
