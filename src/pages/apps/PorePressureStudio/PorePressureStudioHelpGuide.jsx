@@ -74,7 +74,7 @@ export default function PorePressureStudioHelpGuide() {
       <GuideSection id="quickstart">
         <SectionHeading icon={Zap}>Quick start (10 min)</SectionHeading>
         <Step n={1} title="Pick a well">Click a registry well on the left. It needs a depth and a sonic curve; a density curve improves the overburden, otherwise Gardner densities stand in and the status bar says so.</Step>
-        <Step n={2} title="Set the water column">In the dock type the water depth, the seawater and pore fluid densities and, for an equivalent mud weight referenced to the rotary table, the mudline MD. Press Apply.</Step>
+        <Step n={2} title="Set the water column">A new project takes the water depth and the mudline MD from the well's datum in the well registry (offshore: the water depth, and the mudline at the air gap plus the water depth; onshore: no water, the mudline at the ground) and says so under the ribbon. Check them in the dock with the seawater and pore fluid densities, change them if your well differs, and press Apply.</Step>
         <Step n={3} title="Fit the trend">In NCT add shale picks at depths in the normally pressured section and press Fit NCT: the mudline transit time and the compaction constant are written into the dock.</Step>
         <Step n={4} title="Read the prognosis">Back in Prognosis, type a depth in the ribbon and read OBG, hydrostatic, PP and FG in the chosen unit; the chart shows the whole profile with your calibration points and the drilling window between PP and FG shaded. Above the chart, the narrowest window in ppg EMW and its depth, below the top 300 m (the conductor section, where PP and FG meet the seawater gradient by construction); under 0.5 ppg is flagged as a casing point or managed pressure case.</Step>
         <Step n={5} title="Deliver">Prognosis CSV downloads the table in your units with EMW columns; Publish writes PP, FP and OBG to the well; Save keeps the parameters and picks.</Step>
@@ -111,7 +111,9 @@ export default function PorePressureStudioHelpGuide() {
           the TVD minus the mudline. A well with a deviation survey is computed at its TVD from the survey; without
           one it is vertical. Offshore, set the mudline MD to the air gap plus the water depth: with the mudline MD
           shallower than the water depth the log MD would be read as depth below mudline, so the app says so under the
-          ribbon and holds Publish until it is set.
+          ribbon and holds Publish until it is set. A project with no water column of its own takes it from the well's
+          datum in the well registry (Well Data Manager, Header, Depth reference), and Publish is held for an offshore
+          well whose datum states water while the water depth in the dock is 0.
         </Para>
         <SubHeading>What the prognosis rests on</SubHeading>
         <Para>

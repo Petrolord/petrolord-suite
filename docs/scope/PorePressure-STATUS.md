@@ -244,3 +244,19 @@ evaluates them in the shales.
   leg at 1,560 m negative. With the GR midpoint default (68.8 API) the shale
   path reads shaly sands (RMS 1.45 ppg, 9.75 ppg at 1,560 m): set the cutoff
   near the shale line.
+## 2026-10-13: the water column from the well's datum
+
+Found in the Well Design Studio video dry run: Ekene-8 (offshore, 35 m of
+water, KB 25 m above sea level, mudline 60 m MD) opened with Water depth 0 and
+Mudline MD 0, so a user who did not type them got a land-well prognosis (the
+pore fluid column from the rotary table, depths below the rotary table), and
+Publish let it through. A project with no water column of its own (both 0 or
+empty) now takes it from the registry well's datum through src/lib/wellDatum.js:
+offshore, the stated water depth and the mudline at the air gap plus the water
+depth; onshore, no water and the mudline at the ground. The notes line says
+"Water column from the well datum: 35 m of water, mudline 60 m MD." while those
+values stand; saved or typed values are kept; values a previous well's datum
+supplied follow the next well. Publish is held for an offshore well whose datum
+states water while the water depth is 0. `services/datumWaterColumn.js`;
+tests `__tests__/datumWaterColumn.test.js` (the old 0/0 default as the negative
+control).
