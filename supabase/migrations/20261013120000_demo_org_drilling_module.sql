@@ -1,7 +1,7 @@
 -- Demo org licences: the Drilling module (2026-10-13; owner-approved, for
 -- the Well Design Studio demo videos and lessons).
 --
--- NOT APPLIED. File only; the owner applies it.
+-- APPLIED 2026-10-13 (owner-run).
 --
 -- The "Petrolord Demo" org holds Geoscience and Reservoir
 -- (20261008090000, 20261008120000, 20261008140000). The NAPE test rehearsal
