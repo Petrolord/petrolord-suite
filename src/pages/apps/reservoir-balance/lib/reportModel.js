@@ -878,6 +878,8 @@ export function limitsBlock(a) {
     if (coverage) flags.unshift(`${coverage} (Checked by the app: the engine build of this run did not record where it left the table.)`);
     hasTable = pvtTableCoverage(a.caseData, runConfig) != null;
   }
+  // the fit itself can be undetermined (a pot aquifer above the bubble point): first flag
+  if (series.identifiability && !series.identifiability.ok) flags.unshift(series.identifiability.message);
   return { assumptions, ranges, flags, noFlagsText: `The engine flagged no input outside the published range of a correlation in use${hasTable ? ', and the PVT table covers every pressure of the case' : ''}.` };
 }
 
@@ -924,7 +926,7 @@ export function summaryBlock(m) {
   const inj = injectionState(series);
   rows.push(['Injection', inj.onRows ? (inj.legacy ? 'On the data table and left out by this earlier run' : 'In the balance (net withdrawal)') : 'None on the data table']);
   const flagCount = m.limits.flags.length;
-  rows.push(['Flags', `${flagCount} input${flagCount === 1 ? '' : 's'} outside a published range or the PVT table; ${m.warnings.length} other engine warning${m.warnings.length === 1 ? '' : 's'}`]);
+  rows.push(['Flags', `${flagCount} flag${flagCount === 1 ? '' : 's'} on the fit, a published range or the PVT table; ${m.warnings.length} other engine warning${m.warnings.length === 1 ? '' : 's'}`]);
   if (flagCount) rows.push(['First flag', m.limits.flags[0].length > 300 ? `${m.limits.flags[0].slice(0, 297)}...` : m.limits.flags[0]]);
   return {
     rows,
