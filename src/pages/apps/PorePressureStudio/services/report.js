@@ -6,6 +6,7 @@
 // with EMW in ppg against the stated datum; the CSV header carries the
 // same block. Every line is Latin-1 so jsPDF's standard fonts print it.
 
+import { prognosisModeText } from './shalePressure';
 import { buildLabel } from '@/lib/platformBuild';
 import { drawBrandHeader } from '@/lib/pdfBrand';
 import {
@@ -52,6 +53,8 @@ export function reviewerLines(p) {
       : `Method: Bowers ${params.bowers?.U != null ? `unloading, U = ${params.bowers.U}` : 'loading'}, A = ${params.bowers?.A}, B = ${params.bowers?.B} (ft/s, psi); fracture: ${fracMethodText(params)}`,
     `NCT: dt = dt_ma + (dt_ml - dt_ma) exp(-c z), dt_ml ${r1(params.nct.dtMlUsPerM, 2)} us/m, dt_ma ${r1(params.nct.dtMaUsPerM, 2)} us/m, c ${Number(params.nct.cPerM).toExponential(3)} 1/m${(params.nctSegments || []).length ? `; segments: ${params.nctSegments.map((g) => `from ${r1(g.zTopM, 0)} m dt_ml ${r1(g.dtMlUsPerM, 2)} us/m, c ${Number(g.cPerM).toExponential(3)} 1/m`).join('; ')}` : ''}; ${nctFitted ? 'fitted on this source' : 'NOT fitted on this source (project or default values)'}`,
   ];
+  // 2026-10-13: where the pore pressure was read (shale samples or every sample)
+  if (source === 'well') lines.push(`Pressures: ${prognosisModeText(result, params, { fmtZ: z })}`);
   // U2-004: the frame the table and the plot are read in
   if (mapper && mapper.key !== 'bml') lines.push(`Depths read as ${refLabel(mapper.key)} (converted from depth below mudline through the ${input?.tvdFrom === 'survey' ? 'deviation survey' : 'vertical well'} and the datum)`);
   if (Array.isArray(result?.rhoSource) && result.rhoSource.length) {

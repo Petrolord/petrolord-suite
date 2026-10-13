@@ -38,7 +38,7 @@ import CrossplotPanel from './CrossplotPanel';
 import {
   mapLogs, buildProfileInput, normalizePpCurves, wellDepthFrame, normalizeResistivity,
 } from '../services/prep';
-import { computeProfile } from '../engine/profile';
+import { computePrognosis, prognosisModeText } from '../services/shalePressure';
 import { pseudoSonicFromLinearVelocity } from '../engine/velocitySource';
 import { layerCakeProfile } from '@/lib/velocityModels';
 import { preparePublishLogs, publishBlocker } from '../services/publish';
@@ -58,6 +58,7 @@ import {
   DEPTH_REF_KEY, VIEW_REFS, depthReferences, refMapper, refShort, refLabel,
 } from '../services/depthRef';
 import { refElevOrNull } from '@/lib/wellDatum';
+import { applyDatumWaterColumn } from '../services/datumWaterColumn';
 
 const storage = () => { try { return window.localStorage; } catch { return null; } };
 
@@ -76,6 +77,12 @@ export const DEFAULT_PARAMS = {
   // U2-001: resistivity Eaton, Eaton's published exponent 1.2
   resNct: { r0OhmM: 0.6, bPerM: 2e-4 },
   eatonNRes: 1.2,
+  // 2026-10-13: a new project evaluates the method in the shales (with a VSH
+  // or GR curve on the source) and carries the pressure across the sands; the
+  // cutoff is the NCT view's (null = its default); no sonic median
+  ppFromShale: true,
+  shaleCutoff: null,
+  sonicMedianM: 0,
 };
 
 const PP_ID = 'pore-pressure-studio';
@@ -100,6 +107,9 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   const [saving, setSaving] = useState(false);
   // PP-U1-010: the NCT was fitted on the open well (or comes from the project/default)
   const [nctFittedFor, setNctFittedFor] = useState(null);
+  // 2026-10-13: the water column the open well's datum supplied (null when typed or saved)
+  const [waterFromDatum, setWaterFromDatum] = useState(null); // {wellId, waterDepthM, mudlineMdM, text}
+  const waterPrevRef = React.useRef(null);
   // U2-001: the resistivity trend was fitted on the open well
   const [resNctFittedFor, setResNctFittedFor] = useState(null);
   // Suite unit profile: depth and pressure start from the profile; the
@@ -135,7 +145,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         const project = await backend.loadProject();
         if (!live || !project) return;
         setProjectId(project.id || null);
-        if (project.params) setParams((p) => ({ ...p, ...project.params }));
+        // a project saved before the shale-pressure option keeps every-sample pressures
+        if (project.params) setParams((p) => ({ ...p, ...project.params, ppFromShale: project.params.ppFromShale ?? false }));
         if (project.picks) setPicks(project.picks);
         if (project.source?.nctFittedFor) setNctFittedFor(project.source.nctFittedFor);
         if (project.source?.resNctFittedFor) setResNctFittedFor(project.source.resNctFittedFor);
@@ -152,6 +163,10 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   }, [backend]);
 
   const selected = (wells || []).find((w) => w.id === selectedId) || null;
+  const wellsRef = React.useRef(null);
+  wellsRef.current = wells;
+  const paramsRef = React.useRef(params);
+  paramsRef.current = params;
   const [reopenId, setReopenId] = useState(null);
 
   const select = useCallback(async (wellId, { keepPicks = false } = {}) => {
@@ -196,6 +211,12 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       });
       setNctFittedFor((prev) => (prev === wellId ? prev : null));
       setResNctFittedFor((prev) => (prev === wellId ? prev : null));
+      // 2026-10-13: no water column typed or saved: take the well's datum
+      const row = (wellsRef.current || []).find((w) => w.id === wellId) || null;
+      const r = applyDatumWaterColumn(paramsRef.current, row, { previous: waterPrevRef.current });
+      waterPrevRef.current = r.applied ? { waterDepthM: r.applied.waterDepthM, mudlineMdM: r.applied.mudlineMdM } : null;
+      setWaterFromDatum(r.applied ? { wellId, ...r.applied } : null);
+      if (r.applied) setParams(r.params);
       setStatus(`Loaded ${depth.length} samples${rho ? '' : '. No density log, so the overburden uses Gardner'}.${norm.notes.length ? ` ${norm.notes.join(' ')}` : ''}`);
     } catch (e) {
       setStatus(e.message);
@@ -288,9 +309,10 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       }
       if (!curves) return null;
       // PP-U1-002: a deviated well is computed at TVD through its survey
-      return buildProfileInput(curves, curves.units, {
+      const built = buildProfileInput(curves, curves.units, {
         mudlineMdM: params.mudlineMdM, frame: wellDepthFrame(selected), needs: byRes ? 'res' : 'dt',
       });
+      return built.shale ? { ...built, shaleKind: curves.shaleKind } : built;
     } catch (e) {
       return { error: e.message };
     }
@@ -299,7 +321,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   const profile = useMemo(() => {
     if (!input || input.error) return null;
     try {
-      return { result: computeProfile({ ...input, params }) };
+      return { result: computePrognosis(input, params) };
     } catch (e) {
       return { error: e.message };
     }
@@ -320,6 +342,21 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   const zRef = (zBml) => `${fmtDepth(mapper.fromBml(zBml), units.depth)} ${units.depth} ${refShort(mapper.key)}`;
   const computeError = input?.error || profile?.error || null;
 
+  // 2026-10-13: say where the water column came from while it is still the datum's
+  const waterNote = useMemo(() => {
+    const w = waterFromDatum;
+    if (!w || w.wellId !== selectedId || seismicModel) return null;
+    if (Number(params.waterDepthM) !== w.waterDepthM || Number(params.mudlineMdM) !== w.mudlineMdM) return null;
+    const z = (m) => `${fmtDepth(m, units.depth)} ${units.depth}`;
+    return {
+      key: 'water',
+      tone: 'info',
+      text: w.environment === 'offshore'
+        ? `Water column from the well datum: ${z(w.waterDepthM)} of water, mudline ${z(w.mudlineMdM)} MD.`
+        : `Water column from the well datum: onshore, mudline (ground) ${z(w.mudlineMdM)} MD.`,
+    };
+  }, [waterFromDatum, selectedId, seismicModel, params.waterDepthM, params.mudlineMdM, units.depth]);
+
   // PL4: what the prognosis rests on (datum, TVD, gaps, density, NCT, calibration)
   const notes = useMemo(() => inputNotes({
     input,
@@ -334,7 +371,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     fmtZ: (m) => `${fmtDepth(m, units.depth)} ${units.depth}`,
     fmtP: (mpa) => (units.pressure === 'psi' ? `${fmtPressure(mpa * 1e6, 'psi')} psi` : `${mpa.toFixed(2)} MPa`),
     seismicNote: seismicModel ? [datum.note, layerCakeAt?.note].filter(Boolean).join(' ') : null,
-  }), [input, result, params, seismicModel, nctFittedFor, resNctFittedFor, byRes, selectedId, calibration, units, datum.note, layerCakeAt]);
+  }).concat(waterNote ? [waterNote] : []), [input, result, params, seismicModel, nctFittedFor, resNctFittedFor, byRes, selectedId, calibration, units, datum.note, layerCakeAt, waterNote]);
 
   const readout = useMemo(() => {
     if (!result || !input) return null;
@@ -527,7 +564,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     }
   };
 
-  const blocker = selectedId ? publishBlocker(params, { fmt: (m) => `${fmtDepth(m, units.depth)} ${units.depth}` }) : null;
+  const blocker = selectedId ? publishBlocker(params, { fmt: (m) => `${fmtDepth(m, units.depth)} ${units.depth}`, well: selected }) : null;
   const publish = async () => {
     if (!result || !input || !selectedId) return;
     if (blocker) { setStatus(blocker); return; }
@@ -776,6 +813,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       shaleName={curves?.shaleName || null}
       shaleKind={curves?.shaleKind || null}
       byRes={byRes}
+      onCutoffChange={(c) => setParams((p) => ({ ...p, shaleCutoff: c, shaleCutoffKind: c == null ? null : (curves?.shaleKind || null) }))}
       depthUnit={units.depth}
     />
   ) : (

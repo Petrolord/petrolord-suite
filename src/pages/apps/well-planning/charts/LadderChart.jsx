@@ -20,6 +20,20 @@ const axisProps = {
 };
 
 /**
+ * One offset's ladder rows in the display unit. 2026-10-13: the scan's MDs
+ * are metres like its distances, and the axis says the wellbore unit, so
+ * they convert too (a feet wellbore drew its kickoff at "400 ft").
+ */
+export function ladderRows(clearance, metersToUser = (v) => v) {
+  return clearance.md.map((md, j) => ({
+    md: metersToUser(md),
+    sf: clearance.sf[j],
+    distance: metersToUser(clearance.distanceCC[j]),
+    masd: metersToUser(clearance.masd[j]),
+  }));
+}
+
+/**
  * results: [{id, label, clearance}] from the scan. mode 'distance'
  * plots C-C distance (solid) + MASD (dashed, same hue); mode 'sf'
  * plots SF with the threshold lines.
@@ -33,7 +47,7 @@ const LadderChart = ({
     : `Separation ladder (centre-to-centre and MASD vs reference MD, ${unit})`;
   return (
     <div className="bg-white relative flex flex-col min-h-0 min-w-0 h-full w-full" data-canvas="chart">
-      <div className="text-[11px] font-semibold text-slate-700 px-3 pt-2">{title}</div>
+      <div className="text-[11px] font-semibold text-slate-700 pl-3 pr-32 pt-2">{title}</div>
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart margin={CHART_MARGINS.compact}>
@@ -49,23 +63,18 @@ const LadderChart = ({
             <Tooltip contentStyle={TOOLTIP_STYLE}
               formatter={(v) => (Number.isFinite(v) ? v.toFixed(2) : v)}
               labelFormatter={(v) => `MD ${Number(v).toFixed(0)} ${unit}`} />
-            <Legend wrapperStyle={{ fontSize: 10 }} />
+            <Legend verticalAlign="top" wrapperStyle={{ fontSize: 10, paddingBottom: 4 }} />
             {mode === 'sf' && (
               <>
                 <ReferenceLine y={thresholds.noGo} stroke="#b91c1c" strokeDasharray="4 3"
-                  label={{ value: `no-go ${thresholds.noGo}`, fontSize: 9, fill: '#b91c1c', position: 'insideBottomRight' }} />
+                  label={{ value: `no-go ${thresholds.noGo}`, fontSize: 9, fill: '#b91c1c', position: 'insideTopRight' }} />
                 <ReferenceLine y={thresholds.review} stroke="#d97706" strokeDasharray="4 3"
-                  label={{ value: `review ${thresholds.review}`, fontSize: 9, fill: '#d97706', position: 'insideTopRight' }} />
+                  label={{ value: `review ${thresholds.review}`, fontSize: 9, fill: '#d97706', position: 'insideBottomRight' }} />
               </>
             )}
             {results.map((r, i) => {
               const color = SERIES_COLORS[i % SERIES_COLORS.length];
-              const rows = r.clearance.md.map((md, j) => ({
-                md,
-                sf: r.clearance.sf[j],
-                distance: metersToUser(r.clearance.distanceCC[j]),
-                masd: metersToUser(r.clearance.masd[j]),
-              }));
+              const rows = ladderRows(r.clearance, metersToUser);
               if (mode === 'sf') {
                 return (
                   <Line key={r.id} data={rows} dataKey="sf" name={r.label}

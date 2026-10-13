@@ -826,6 +826,103 @@ a per-user choice from the header toggle (beside Help).
   402250 E 521750 N; 8 m below is T1 Oboro Sand, 1885.36 m.
 - Tests: `__tests__/targetStandoff.test.jsx` (5; refresh negative control:
   the pick without the stand-off lands 8 m shallow).
+## 2026-10-13: 3D view in the wellbore's depth unit
+
+- The Design tab 3D view labelled the TD in metres ("TD 2003m") and ticked the
+  TVDSS axis in metres on a feet wellbore. `services/wpMesh.js` `buildScene`
+  now takes `depthUnit` (DesignTab passes the wellbore's): the TD label reads
+  "TD 6,573 ft MD" and the TVDSS ticks are round feet at their true depth; a
+  "TVDSS ft" (or "TVDSS m") caption sits under the axis. Easting and northing
+  ticks stay in site-CRS metres. The metre scene is unchanged.
+- A TD label that sat on its target's label (a well drilled to its target)
+  is moved 12 px below it.
+- Tests: `__tests__/wpMeshDepthUnit.test.js` (feet labels and ticks, metre
+  negative control, label clash), `wpMesh.test.js` axis set.
+## 2026-10-13: Design toolbar fits, bottom hole labelled
+
+- The Design view toolbar (views, Targets/Offsets/DLS colour/PPFG,
+  Export, Publish) was an absolutely placed strip that scrolled sideways,
+  so at a 1440 px or 1280 px laptop width Export and Publish sat off the
+  right edge. It is now in the flow and wraps to a second row when it
+  needs to; the view switcher scrolls inside itself only at phone width
+  (no page sideways scroll at 390 px). The views below no longer reserve
+  a fixed 48 px for it.
+- The Bottom hole KPI reads "4.7198° N, 8.1186° E" (hemisphere letters,
+  S and W handled) instead of a bare "4.7198, 8.1186"; "Set well CRS" is
+  unchanged. Tests: `__tests__/trajectoryKpis.test.jsx` (formatter, KPI,
+  negative control) and a toolbar case in `WellDesignStudio.theme.test.jsx`
+  (fails on the old toolbar).
+## 2026-10-13: the report pack in the wellbore's depth unit
+
+- The wall plot, survey listing and anti-collision report PDFs printed metres
+  for a feet wellbore while the app showed feet. They now follow the
+  wellbore's depth unit: MD, TVD, TVDSS, N/E offsets, VS, closure, KB, target
+  TVDSS and radius, AC distances, the projection-ahead sigma, the surface
+  margin and the hole radii, with the unit in every heading; DLS prints per
+  100 ft. Wellhead coordinates stay in site CRS metres (a "Depth unit" row
+  says so in a feet header block). Charts are drawn from the same metre
+  geometry, so a true-scale plot is unchanged; their titles carry the unit.
+- The PDF titles lost their em dashes ("Wall plot: Ekene-11").
+- Tests: `__tests__/reportPack.test.js` +4 (1885.36 m target prints 6185.6 ft,
+  2.5 deg/30 m prints 2.54 deg/100ft, 400 m kickoff 1312.34 ft, AC distances
+  and rule lengths in feet); the metre tests are the negative control, and
+  turning the conversion off fails 3 of the new tests.
+## 2026-10-13: drilled neighbours scanned on their actual survey
+
+- A site wellbore with a definitive actual-survey composite (two or more
+  stations) is now an anti-collision, plot and 3D offset on that survey,
+  labelled "Ekene-10 (actual survey to 7,382 ft MD)" in the reference
+  wellbore's depth unit. Before, site offsets came only from designs, so a
+  drilled neighbour was scanned on its plan, and a wellbore with only an
+  imported survey (no design) was not offered at all. A wellbore without a
+  composite still contributes its picked design. The candidate id stays
+  `wp:<wellbore id>`, so ticked selections and saved runs resolve as before.
+  The AC report's Kind column prints registry, plan or actual survey.
+- The first survey run saved on a wellbore joins the definitive composite
+  by default; later runs are added unflagged, as before.
+- One composite helper (`surveyUtils.definitiveComposite`, with
+  `surveyGridStations` and `newRunDefaults`) replaces the copies in the
+  Surveys, Anti-collision and Design tabs and the downstream trajectory
+  resolver.
+- Tests: offsetFrame (+3: actual-only wellbore is a candidate with a ft
+  label, actual wins over plan and a one-station composite falls back to the
+  plan, drilled neighbours are always drawn), offsetLoader (+1: surveys read,
+  failures become notes), surveyUtils (+2). Negative control: disabling the
+  actual-survey preference fails 4 of them.
+
+## 2026-10-13: target source words and what a refresh does
+
+Found in the video dry run. The Source column showed the raw provenance code
+(`geo_surface`); it now reads "Surface: WDS demo: Oboro Sand top, 26.2 ft
+below", "Top: Oboro Sand in Ekene-8" or "Typed" (CSV too). The "Registry source
+changed" notice now says what Refresh from source would do, read with the same
+pick the refresh runs: "Refreshing moves T3 from 4,987.2 to 5,004.4 ft TVDSS
+(17.2 ft deeper)" (the shared notice takes an optional `effect` line per item).
+Settings and datum fields shown in feet round to 2 decimals (0.5 m showed as
+1.6404 ft); the stored metres change only when the user types. Tests:
+`__tests__/targetSourceDetail.test.jsx`.
+## 2026-10-13: anti-collision ladder MD in the wellbore unit
+
+Found in the video dry run: on a feet wellbore the separation-factor and
+distance ladders plotted reference MD in metres under an axis labelled ft
+(the 1,312 ft kickoff sat at 400). The rows now convert MD with the
+distances (`ladderRows`). The no-go and review threshold labels sit on their
+own sides of their lines, the legend moved above the plot (it overlapped the
+axis title), and both chart titles leave room for the SF/Distance and
+Highside/North buttons. Test: `__tests__/ladderChart.test.js`.
+## 2026-10-13: a design's unsaved draft stays with that design (fix)
+
+Found in the video dry run: a new design under Ekene-11 opened showing the
+previous design's S-profile, and Design methods then refused to curve to the
+target ("directly above the tie-on"), because the design end was the other
+design's TD. The draft context (keyed on the selected design) reset its
+draft in an effect, which runs after the Design tab's own load effect, so
+the tab had already loaded the new design with the old draft and does not
+load twice. Switching between two saved designs had the same leak, and a
+Save would have written one design's unsaved segments into the other. The
+draft now switches in the same render as the selection (`readDraft`), so
+the tab sees the new design's own draft or none. Test:
+`__tests__/designDraftSwitch.test.jsx` (fails on the effect-based reset).
 
 ## 2026-10-13: the last metre labels on a feet wellbore
 

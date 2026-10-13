@@ -180,6 +180,17 @@ describe('Well Design Studio theme: every tab, view and dialog', () => {
     }
   }, 60000);
 
+  it('the design view toolbar wraps in the flow, so Export and Publish are never scrolled off (2026-10-13)', async () => {
+    await openDesign();
+    const bar = screen.getByTestId('design-view-toolbar');
+    expect(bar.className).toMatch(/\bflex-wrap\b/);
+    // it used to be an absolutely placed, sideways-scrolling strip
+    expect(bar.className).not.toMatch(/\babsolute\b/);
+    expect(bar.className).not.toMatch(/overflow-x-auto/);
+    expect(bar).toContainElement(screen.getByTestId('export-menu'));
+    expect(bar).toContainElement(screen.getByTestId('open-publish'));
+  }, 60000);
+
   it('the targets, surveys, anti-collision, reports and apps tabs carry no legacy colour', async () => {
     await openDesign();
     pressTab(/Targets/);

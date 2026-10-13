@@ -30,7 +30,7 @@ import {
   resolveMagReference, buildAcWell, runAntiCollisionScan, serializeAcRun,
   deserializeAcRun, DEFAULT_AC_PARAMS,
 } from '../services/acUtils';
-import { compositeStations } from '../services/surveyUtils';
+import { definitiveComposite } from '../services/surveyUtils';
 import { assembleOffsetCandidates, registryOffsetsWithoutDatum } from '../services/offsetFrame';
 import { loadSiteOffsetDesigns } from '../services/offsetLoader';
 import * as wpApi from '../services/wpApi';
@@ -57,6 +57,7 @@ const AntiCollisionTab = () => {
   const [reference, setReference] = useState('plan'); // plan | composite
   const [surveys, setSurveys] = useState([]);
   const [designsByWellbore, setDesignsByWellbore] = useState({});
+  const [actualsByWellbore, setActualsByWellbore] = useState({});
   const [geoWells, setGeoWells] = useState(null);
   // Ticked offsets live in the store per design (shared with the
   // Design plots' Offsets overlay and kept across tab switches).
@@ -88,7 +89,9 @@ const AntiCollisionTab = () => {
     // candidates). Sequential fetch is fine at pad scale.
     let live = true;
     loadSiteOffsetDesigns(wellbores, wellbore?.id, { isCancelled: () => !live })
-      .then(({ map, cancelled }) => { if (live && !cancelled) setDesignsByWellbore(map); });
+      .then(({ map, actuals, cancelled }) => {
+        if (live && !cancelled) { setDesignsByWellbore(map); setActualsByWellbore(actuals || {}); }
+      });
     return () => { live = false; };
   }, [wellbores, wellbore?.id]);
 
@@ -105,10 +108,7 @@ const AntiCollisionTab = () => {
 
   const magRef = useMemo(() => resolveMagReference(site, wellbore), [site, wellbore]);
 
-  const gridStationsOf = (s) => (Array.isArray(s.computed) && s.computed.length >= 2 ? s.computed : s.stations);
-  const composite = useMemo(() => compositeStations(
-    surveys.filter((s) => s.is_in_definitive).map((s) => ({ stations: gridStationsOf(s) })),
-  ), [surveys]);
+  const composite = useMemo(() => definitiveComposite(surveys), [surveys]);
 
   const refStations = useMemo(() => {
     if (reference === 'composite') return composite.length >= 2 ? composite : null;
@@ -116,8 +116,8 @@ const AntiCollisionTab = () => {
   }, [reference, design, composite]);
 
   const offsetCandidates = useMemo(() => assembleOffsetCandidates({
-    wellbores, designsByWellbore, geoWells, wellbore, siteCrs: site?.crs,
-  }), [wellbores, designsByWellbore, geoWells, wellbore, site?.crs]);
+    wellbores, designsByWellbore, actualsByWellbore, geoWells, wellbore, siteCrs: site?.crs,
+  }), [wellbores, designsByWellbore, actualsByWellbore, geoWells, wellbore, site?.crs]);
 
   const offsetsNoDatum = useMemo(() => registryOffsetsWithoutDatum({ geoWells, wellbore, siteCrs: site?.crs }), [geoWells, wellbore, site?.crs]);
 
@@ -277,7 +277,7 @@ const AntiCollisionTab = () => {
                       onCheckedChange={(v) => setCheckedOffsets((prev) => ({ ...prev, [c.id]: !!v }))}
                     />
                     <span className="truncate">{c.label}</span>
-                    <span className="ml-auto text-[9px] uppercase text-pl-muted">{c.kind === 'geo' ? 'registry' : 'plan'}</span>
+                    <span className="ml-auto text-[9px] uppercase text-pl-muted">{c.kind === 'geo' ? 'registry' : c.kind === 'wp-actual' ? 'actual' : 'plan'}</span>
                   </label>
                 ))}
               </div>
