@@ -3,14 +3,15 @@
 // captions, the thumbnail and the playlist, then mark the task done or
 // failed with the result and log every step.
 //   node tools/ai-employees/youtube/execute.mjs --dry-run       # plan only, no upload, no writes
-//   node tools/ai-employees/youtube/execute.mjs                 # upload every approved task
+//   node tools/ai-employees/youtube/execute.mjs                 # upload approved tasks whose slot is due (cron, daily)
+//   node tools/ai-employees/youtube/execute.mjs --max 2 --lead-hours 0
 //   node tools/ai-employees/youtube/execute.mjs --task <uuid>   # one task
 // Shadow-mode rule: only tasks a person approved in /admin/ai-employees run,
 // only while the employee is active, and only for allowlisted videos.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { executeBlocker, videoResource } from './lib/listing.mjs';
+import { executeBlocker, videoResource, dueTasks, DAILY_UPLOAD_CAP } from './lib/listing.mjs';
 import { loadServiceEnv, createDb } from './lib/supabase.mjs';
 import { tokenProvider } from './lib/oauth.mjs';
 import { createYouTubeClient } from './lib/youtube.mjs';
@@ -111,7 +112,12 @@ async function main() {
   }
   let tasks = await db.tasks(employee.id, { status: 'approved' });
   if (arg('task')) tasks = tasks.filter((t) => t.id === arg('task'));
-  if (!tasks.length) { console.log('No approved tasks.'); return; }
+  else {
+    const approved = tasks.length;
+    tasks = dueTasks(tasks, { leadHours: Number(arg('lead-hours', 24)), max: Number(arg('max', DAILY_UPLOAD_CAP)) });
+    console.log(`${approved} approved, ${tasks.length} due now.`);
+  }
+  if (!tasks.length) { console.log('No approved tasks due.'); return; }
 
   const yt = dryRun ? null : createYouTubeClient({ getToken: tokenProvider() });
   const playlists = new Map();
