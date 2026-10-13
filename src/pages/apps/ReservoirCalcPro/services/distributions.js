@@ -108,6 +108,28 @@ export function recentreDist(d, base, key) {
 }
 
 /** Add the keys a run needs (defaults around the base) and keep the ones the user edited. */
+/**
+ * The panel's distributions from what a run recorded it sampled
+ * (`meta.inputs`, engine form: triangular min/mode/max), so the ranges
+ * come back when the panel mounts again: after a reservoir case switch, a
+ * save and reload, or a mode change they reset to the defaults while the
+ * results on screen were made from other ranges (2026-10-12). Only a run in
+ * the same unit system is read; constants are left to the defaults.
+ */
+export function distParamsFromRun(meta, unitSystem = 'field') {
+  const rec = meta?.inputs;
+  if (!rec || typeof rec !== 'object' || (meta.unitSystem && meta.unitSystem !== unitSystem)) return {};
+  const out = {};
+  const f = (v) => (Number.isFinite(Number(v)) ? Number(v) : undefined);
+  for (const [k, d] of Object.entries(rec)) {
+    if (!d || !d.variable) continue;
+    if (d.type === 'triangular') out[k] = { type: 'triangular', p90: f(d.min), p50: f(d.mode), p10: f(d.max) };
+    else if (d.type === 'normal' || d.type === 'lognormal') out[k] = { type: d.type, mean: f(d.mean), stdDev: f(d.stdDev) };
+    else if (d.type === 'uniform') out[k] = { type: 'uniform', min: f(d.min), max: f(d.max) };
+  }
+  return out;
+}
+
 export function syncDistParams(prev = {}, keys, base = {}, unitSystem = 'field') {
   const next = {};
   for (const k of keys) next[k] = prev[k] || defaultDist(k, base[k], unitSystem);
