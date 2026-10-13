@@ -12,8 +12,6 @@ import { EMPTY_VALUE, orEmpty } from '@/lib/emptyValue';
 const SRC = path.join(__dirname, '..');
 
 const ALLOW = {
-  // Separator between the report date and its status in the saved-report list.
-  'pages/apps/well-planning/tabs/ReportsTab.jsx': 1,
   // Unit column of the drive-index rows: the indices are dimensionless.
   // Input placeholder that marks a required PVT cell ('optional' otherwise).
   // Latin-1 map key for the PDF: an em dash in user text prints as '-'.

@@ -943,3 +943,16 @@ under the select ("Read from the column header: m"); a header with no unit
 keeps the wellbore unit and asks the user to check it; a unit picked by hand
 wins. Manual paste and registry imports are unchanged. Tests:
 `__tests__/surveyDialog.test.jsx` (+5, the metres case fails on the old dialog).
+## 2026-10-13: report text the PDF fonts can draw
+
+Found in the video dry run (Lesson D12 PDFs). jsPDF's standard fonts have no
+Greek sigma, so the wall plot footer printed "uncertainty (2Ã)" and the
+anti-collision rule table "Ã projection-ahead"; they now read "2 sigma" and
+"sigma pa (projection ahead)". The wall plot header rounds convergence and
+declination to 4 decimals (it printed 0.07291183644136559). The
+anti-collision ladder's legend moved below the plot (it was drawn over the
+curves). The Reports tab saved-run label drops its em dash and shows the
+minimum SF to 2 decimals, as does the Anti-Collision run history
+(`fmtSf`, `runOptionLabel` in services/acUtils.js). Test:
+`__tests__/reportText.test.js` scans every string the three generators write
+for characters outside Latin-1 (fails on the sigma it replaced).
