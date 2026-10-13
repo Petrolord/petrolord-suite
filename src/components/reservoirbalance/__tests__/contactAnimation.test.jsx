@@ -17,6 +17,7 @@ test('it opens on the last timestep with the computed contacts, and the slider w
   expect(screen.getByTestId('mbal-contacts-anim-goc')).toHaveTextContent('GOC 4,962.0 ft');
   expect(screen.getByTestId('mbal-contacts-anim-rise')).toHaveTextContent('20.0 ft');
   expect(screen.getByTestId('mbal-contacts-anim-drop')).toHaveTextContent('12.0 ft');
+  expect(screen.getByTestId('mbal-contacts-anim-column')).toHaveTextContent('78.0 ft');
   expect(screen.getByTestId('mbal-contacts-anim-date')).toHaveTextContent('2018-01');
   fireEvent.change(screen.getByTestId('mbal-contacts-anim-slider'), { target: { value: '0.5' } });
   expect(screen.getByTestId('mbal-contacts-anim-owc')).toHaveTextContent('OWC 5,055.0 ft');
@@ -31,5 +32,6 @@ test('no gas cap: no GOC line, no gas legend, and a swept-by-water band once the
   render(<ContactAnimation series={s} initialOwcFt={5060} initialGocFt={null} units={units} />);
   expect(screen.queryByTestId('mbal-contacts-anim-goc')).toBeNull();
   expect(screen.queryByTestId('mbal-contacts-anim-drop')).toBeNull();
+  expect(screen.queryByTestId('mbal-contacts-anim-column')).toBeNull();
   expect(screen.getByTestId('mbal-contacts-anim-swept-water')).toBeInTheDocument();
 });

@@ -144,11 +144,12 @@ export default function ContactAnimation({ series, initialOwcFt, initialGocFt = 
             onChange={(e) => { setPlaying(false); setT(Number(e.target.value)); }}
             className="flex-1 min-w-[200px] accent-pl-primary" data-testid="mbal-contacts-anim-slider" />
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs" data-testid="mbal-contacts-anim-readout">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs" data-testid="mbal-contacts-anim-readout">
           <div><p className="text-pl-muted">Date</p><p className="font-pl-mono tabular-nums text-pl-text text-sm" data-testid="mbal-contacts-anim-date">{fmtDate(fr.dateMs) || `Timestep ${fr.step}`}{fr.onStep ? '' : ' (between surveys)'}</p></div>
           <div><p className="text-pl-muted">Pressure</p><p className="font-pl-mono tabular-nums text-pl-text text-sm">{Number.isFinite(fr.pressure) ? `${group(units.to('pressure', fr.pressure), 0)} ${units.label('pressure')}` : ''}</p></div>
           <div><p className="text-pl-muted">{waterLabel} risen by</p><p className="font-pl-mono tabular-nums text-pl-text text-sm" data-testid="mbal-contacts-anim-rise">{group(units.to('depth', rise))} {dl}</p></div>
           {drop != null && <div><p className="text-pl-muted">GOC lowered by</p><p className="font-pl-mono tabular-nums text-pl-text text-sm" data-testid="mbal-contacts-anim-drop">{group(units.to('depth', drop))} {dl}</p></div>}
+          {gocNow != null && <div><p className="text-pl-muted">Oil column</p><p className="font-pl-mono tabular-nums text-pl-text text-sm" data-testid="mbal-contacts-anim-column">{group(units.to('depth', Math.max(0, owcNow - gocNow)))} {dl}</p></div>}
         </div>
       </CardContent>
     </Card>
