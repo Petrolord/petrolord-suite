@@ -14,6 +14,8 @@
 // the survey or vertical, mudline MD, water depth); readers accept any
 // pp-1.x curve.
 
+import { datumWaterBlocker } from './datumWaterColumn';
+
 export const PIPELINE_VERSION = 'pp-1.1.0';
 /** Readers accept every curve of this pipeline major version. */
 export const PIPELINE_MAJOR = /^pp-1\./;
@@ -37,15 +39,39 @@ function median(xs) {
  * typical sample spacing; a node takes the sample within a hundredth of a
  * step of it, so a regular log with gaps keeps every value exactly at its
  * own MD and the gaps become nulls.
+ *
+ * 2026-10-13: registry depths arrive as float32, so consecutive MD
+ * differences jitter in the last digits and their median can miss the
+ * true step by a few micrometres. That error accumulates down the log: on
+ * a 0.1524 m log it passed the hundredth-of-a-step tolerance after about
+ * 300 samples, and every deeper value was written as a null (a published
+ * Ekene-8 prognosis kept 318 of 14,370 samples, the top 48 m). The median
+ * now only seeds the step, which is refined by least squares on the
+ * sample positions over stretches ten times longer each pass, each short
+ * enough that the previous estimate cannot mis-index a sample.
  * @param {number[]} mdM MD of each computed sample, increasing
  */
 export function mdGrid(mdM) {
   const n = mdM.length;
   if (n === 1) return { startMdM: mdM[0], stepM: null, index: [0] };
+  // seed from the shallow samples, where float32 depths are most precise
   const diffs = [];
-  for (let i = 1; i < n; i++) { const d = mdM[i] - mdM[i - 1]; if (d > 0) diffs.push(d); }
-  const step = median(diffs);
+  for (let i = 1; i < Math.min(n, 201); i++) { const d = mdM[i] - mdM[i - 1]; if (d > 0) diffs.push(d); }
   const start = mdM[0];
+  let step = median(diffs);
+  // least-squares step through the origin of (k, md - start) pairs
+  const refine = (upto, s) => {
+    let num = 0; let den = 0;
+    for (let i = 1; i < upto; i++) {
+      const k = Math.round((mdM[i] - start) / s);
+      if (k > 0) { num += k * (mdM[i] - start); den += k * k; }
+    }
+    return den > 0 ? num / den : s;
+  };
+  for (let upto = 200; ; upto *= 10) {
+    step = refine(Math.min(n, upto), step);
+    if (upto >= n) break;
+  }
   const count = Math.round((mdM[n - 1] - start) / step) + 1;
   const index = new Array(count).fill(-1);
   const tol = 0.01 * step;
@@ -96,6 +122,11 @@ export function preparePublishLogs(input, result, params, meta) {
         project_id: meta.projectId,
         params: { ...params },
         input_log_ids: meta.inputLogIds || [],
+        // 2026-10-13: pore pressure read in the shales (cutoff, sample count) or on every sample
+        pressure_samples: result.shaleMode?.applied
+          ? { mode: 'shale', indicator: result.shaleMode.kind, cutoff: result.shaleMode.cutoff, shale_samples: result.shaleMode.nShale, samples: result.shaleMode.n }
+          : { mode: 'every sample' },
+        ...(result.sonicMedianM > 0 ? { sonic_median_m: result.sonicMedianM } : {}),
         depth_reference: {
           index: 'MD below RKB',
           tvd_from: input.tvdFrom || 'vertical',
@@ -125,8 +156,11 @@ export function staleOwnCurves(existingLogs, preparedLogs, projectId) {
  * mudline, the water column is added on top, and the published curves
  * would land shallower than the depths they were computed for.
  */
-export function publishBlocker(params, { source = 'well', fmt = (m) => `${m} m` } = {}) {
+export function publishBlocker(params, { source = 'well', fmt = (m) => `${m} m`, well = null } = {}) {
   if (source !== 'well') return 'Only a well prognosis can be published (a velocity trend has no well to publish to).';
+  // 2026-10-13: an offshore well (by its registry datum) with no water column set
+  const fromDatum = datumWaterBlocker(params, well, { fmt });
+  if (fromDatum) return fromDatum;
   const wd = Number(params?.waterDepthM) || 0;
   const ml = Number(params?.mudlineMdM) || 0;
   if (wd > 0 && ml < wd) {

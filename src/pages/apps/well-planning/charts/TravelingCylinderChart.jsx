@@ -78,7 +78,7 @@ const TravelingCylinderChart = ({
 
   return (
     <div ref={holder} className="relative h-full w-full bg-white" data-testid="traveling-cylinder-chart" data-canvas="chart">
-      <div className="px-3 pt-2 text-[11px] font-semibold text-slate-700">
+      <div className="pl-3 pr-32 pt-2 text-[11px] font-semibold text-slate-700">
         Traveling cylinder ({referenceFrame === 'north' ? 'north' : 'highside'} reference, rings {ringStep} {unit})
       </div>
       <svg width={size.w} height={size.h} className="absolute inset-0">

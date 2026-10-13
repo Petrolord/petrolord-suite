@@ -5,27 +5,40 @@
 // fetching as soon as it returns true.
 
 import { listWells } from '@/lib/wellsRegistry';
-import { listDesigns, listAcRuns } from './wpApi';
+import { listDesigns, listAcRuns, listSurveys } from './wpApi';
 import { pickOffsetDesign, assembleOffsetCandidates } from './offsetFrame';
+import { definitiveComposite } from './surveyUtils';
 
 /**
- * Picked design (definitive, else latest with stations) for each of
- * the site's other wellbores. Sequential fetch is fine at pad scale.
- * @returns {Promise<{map: Object<string, object|null>, failed: string[], cancelled: boolean}>}
+ * Picked design (definitive, else latest with stations) and the definitive
+ * actual-survey composite for each of the site's other wellbores. A drilled
+ * neighbour is scanned on its actual survey (offsetFrame). Sequential fetch
+ * is fine at pad scale.
+ * @returns {Promise<{map: Object<string, object|null>, actuals: Object<string, Array>,
+ *   failed: string[], surveyFailed: string[], cancelled: boolean}>}
  */
 export async function loadSiteOffsetDesigns(wellbores, excludeId, { isCancelled = () => false } = {}) {
   const map = {};
+  const actuals = {};
   const failed = [];
+  const surveyFailed = [];
   for (const w of (wellbores || []).filter((x) => x.id !== excludeId)) {
-    if (isCancelled()) return { map, failed, cancelled: true };
+    if (isCancelled()) return { map, actuals, failed, surveyFailed, cancelled: true };
     try {
       map[w.id] = pickOffsetDesign(await listDesigns(w.id));
     } catch (e) {
       map[w.id] = null;
       failed.push(w.name || w.id);
     }
+    if (isCancelled()) return { map, actuals, failed, surveyFailed, cancelled: true };
+    try {
+      const comp = definitiveComposite(await listSurveys(w.id));
+      if (comp.length >= 2) actuals[w.id] = comp;
+    } catch (e) {
+      surveyFailed.push(w.name || w.id);
+    }
   }
-  return { map, failed, cancelled: isCancelled() };
+  return { map, actuals, failed, surveyFailed, cancelled: isCancelled() };
 }
 
 /**
@@ -38,9 +51,12 @@ export async function loadOffsetCandidates({
   wellbore, wellbores, siteCrs = null, designId = null, isCancelled = () => false,
 }) {
   const notes = [];
-  const { map, failed, cancelled } = await loadSiteOffsetDesigns(wellbores, wellbore?.id, { isCancelled });
+  const {
+    map, actuals, failed, surveyFailed, cancelled,
+  } = await loadSiteOffsetDesigns(wellbores, wellbore?.id, { isCancelled });
   if (cancelled) return { candidates: [], savedRunIds: null, notes, cancelled: true };
   if (failed.length) notes.push(`Could not read the designs of ${failed.join(', ')}.`);
+  if (surveyFailed.length) notes.push(`Could not read the actual surveys of ${surveyFailed.join(', ')}.`);
   let geoWells = [];
   try {
     geoWells = await listWells();
@@ -57,7 +73,7 @@ export async function loadOffsetCandidates({
     } catch (e) { /* no saved runs is a normal state */ }
   }
   const candidates = assembleOffsetCandidates({
-    wellbores, designsByWellbore: map, geoWells, wellbore, siteCrs,
+    wellbores, designsByWellbore: map, actualsByWellbore: actuals, geoWells, wellbore, siteCrs,
   });
   return { candidates, savedRunIds, notes, cancelled: isCancelled() };
 }

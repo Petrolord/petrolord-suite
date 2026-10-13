@@ -63,6 +63,31 @@ export function compositeStations(runs) {
   return out;
 }
 
+/** Grid stations of a survey run: the computed (grid) cache, else the raw stations. */
+export const surveyGridStations = (run) => (Array.isArray(run?.computed) && run.computed.length >= 2
+  ? run.computed : (run?.stations || []));
+
+/**
+ * A wellbore's definitive composite in grid metres, from its wp_surveys
+ * rows: the runs flagged is_in_definitive, each read through its grid cache.
+ * @param {Array} surveys wp_surveys rows
+ * @returns {Array<{md, inc, azi}>}
+ */
+export function definitiveComposite(surveys) {
+  return compositeStations((surveys || []).filter((s) => s.is_in_definitive)
+    .map((s) => ({ stations: surveyGridStations(s) })));
+}
+
+/**
+ * Flags for a new survey run: the first run saved on a wellbore joins the
+ * definitive composite, so a single imported survey is the wellbore's
+ * definitive survey without a second step. Later runs are added unflagged.
+ * @param {Array} existingRuns the wellbore's runs before this one
+ */
+export function newRunDefaults(existingRuns) {
+  return { is_in_definitive: !(existingRuns || []).length };
+}
+
 /** Survey listing for a set of grid-metre stations, wellhead-relative
  *  (surface at 0,0), in metres. */
 export function computeActualTable(stations, { kbM = 0, vsAzimuthDeg = null } = {}) {

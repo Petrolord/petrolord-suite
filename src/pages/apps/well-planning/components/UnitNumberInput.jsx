@@ -7,18 +7,20 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { fieldFromM, unitToM } from '../services/depthUnits';
 
-const UnitNumberInput = ({ valueM, unit, onChangeM, onBlurM, ...rest }) => {
-  const [text, setText] = useState(() => fieldFromM(valueM, unit));
+// `digits` rounds what is shown for a value set from outside (the stored
+// metres are unchanged until the user types).
+const UnitNumberInput = ({ valueM, unit, onChangeM, onBlurM, digits = null, ...rest }) => {
+  const [text, setText] = useState(() => fieldFromM(valueM, unit, digits));
   const lastM = useRef(valueM);
   const lastUnit = useRef(unit);
   useEffect(() => {
     const same = (a, b) => (a == null && b == null) || (Number.isFinite(Number(a)) && Math.abs(Number(a) - Number(b)) < 1e-9);
     if (!same(valueM, lastM.current) || unit !== lastUnit.current) {
-      setText(fieldFromM(valueM, unit));
+      setText(fieldFromM(valueM, unit, digits));
       lastM.current = valueM;
       lastUnit.current = unit;
     }
-  }, [valueM, unit]);
+  }, [valueM, unit, digits]);
   return (
     <Input
       type="number"
