@@ -906,3 +906,11 @@ Doc: `docs/upgrade/MaterialBalanceStudio-UPGRADE.md` (the twenty-four checks,
   Campbell on Dake).
 - **Gate:** `lib/__tests__/mbalLevelAxis.test.js` (a real engine run of
   Ahmed 11-3; negative control on the Ekene numbers without the band).
+
+## 2026-10-13: the PVT tab says when the data rows carry their own PVT (MBAL video programme)
+
+- With PVT source "Correlated" the tab said "Engine computes PVT from the
+  selected correlations" and previewed a Standing table (Rs 468 scf/STB at
+  2,000 psia on Ekene) while the engine used the Bo and Rs on every data row
+  (Rs 400). The note `mbal-pvt-rows-first` now says the rows come first and
+  the preview is not the PVT of the run. Tests in `mbalInputsU1.test.jsx`.
