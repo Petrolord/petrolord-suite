@@ -901,3 +901,12 @@ pick the refresh runs: "Refreshing moves T3 from 4,987.2 to 5,004.4 ft TVDSS
 Settings and datum fields shown in feet round to 2 decimals (0.5 m showed as
 1.6404 ft); the stored metres change only when the user types. Tests:
 `__tests__/targetSourceDetail.test.jsx`.
+## 2026-10-13: anti-collision ladder MD in the wellbore unit
+
+Found in the video dry run: on a feet wellbore the separation-factor and
+distance ladders plotted reference MD in metres under an axis labelled ft
+(the 1,312 ft kickoff sat at 400). The rows now convert MD with the
+distances (`ladderRows`). The no-go and review threshold labels sit on their
+own sides of their lines, the legend moved above the plot (it overlapped the
+axis title), and both chart titles leave room for the SF/Distance and
+Highside/North buttons. Test: `__tests__/ladderChart.test.js`.
