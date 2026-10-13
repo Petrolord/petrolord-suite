@@ -811,3 +811,17 @@ a per-user choice from the header toggle (beside Help).
   Tests: `__tests__/depthUnits.test.jsx` (feet round trips to the
   centimetre, with the metre path as negative control).
 - Not changed: the report pack PDFs still print metres.
+
+## 2026-10-13: a design's unsaved draft stays with that design (fix)
+
+Found in the video dry run: a new design under Ekene-11 opened showing the
+previous design's S-profile, and Design methods then refused to curve to the
+target ("directly above the tie-on"), because the design end was the other
+design's TD. The draft context (keyed on the selected design) reset its
+draft in an effect, which runs after the Design tab's own load effect, so
+the tab had already loaded the new design with the old draft and does not
+load twice. Switching between two saved designs had the same leak, and a
+Save would have written one design's unsaved segments into the other. The
+draft now switches in the same render as the selection (`readDraft`), so
+the tab sees the new design's own draft or none. Test:
+`__tests__/designDraftSwitch.test.jsx` (fails on the effect-based reset).
