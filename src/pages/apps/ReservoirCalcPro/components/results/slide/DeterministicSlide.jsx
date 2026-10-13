@@ -24,7 +24,7 @@ const ChainRow = ({ stage }) => (
                 {stage.value} <span className="text-[11px] font-medium text-slate-400">{stage.unit}</span>
             </span>
         </div>
-        <div className="mt-1 h-3 w-full overflow-hidden rounded-full bg-slate-100">
+        <div className="mt-1 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
             <div className="h-full rounded-full" style={{ width: `${Math.max(stage.pct, 1.5)}%`, background: stage.color }} />
         </div>
         <div className="mt-0.5 flex items-center justify-between text-[11px] font-medium text-slate-400">
@@ -141,12 +141,13 @@ const DeterministicSlide = () => {
                         title="Volumetric Chain"
                         icon={<Layers className="h-4 w-4 text-blue-500" />}
                         right={<span className="text-[11px] font-medium text-slate-400">rock → hydrocarbons</span>}
-                        className="flex-[1.35] justify-between"
+                        className="min-h-0 flex-[1.35] justify-between"
                     >
-                        <div className="flex flex-col justify-between gap-2.5">
+                        {/* tighter rows, so the formula line stays above the slide footer */}
+                        <div className="flex flex-col justify-between gap-1.5">
                             {chain.map((s) => <ChainRow key={s.label} stage={s} />)}
                         </div>
-                        <div className="mt-3 flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2">
+                        <div className="mt-2 flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-1.5">
                             <Droplets className="h-4 w-4 shrink-0 text-emerald-600" />
                             <span className="text-[12px] font-medium text-slate-500">
                                 {showOil && <>STOOIP = HCPV × {isField ? '7758' : '1'} / Bo ({fmtDec(inp.fvf, 2)})</>}
@@ -156,21 +157,21 @@ const DeterministicSlide = () => {
                         </div>
                     </Panel>
 
-                    <div className="flex flex-1 flex-col gap-4">
+                    <div className="flex min-h-0 flex-1 flex-col gap-3">
                         <Panel title="Input Parameters" icon={<span className="text-[15px]">⚙︎</span>} className="flex-1">
                             <div className="grid grid-cols-2 gap-2">
-                                <StatCell label="Net-to-Gross" value={fmtDec(ntg, 3)} />
-                                <StatCell label="Porosity φ" value={fmtDec(phi, 3)} />
-                                <StatCell label="Water Sat. Sw" value={fmtDec(sw, 3)} />
+                                <StatCell compact label="Net-to-Gross" value={fmtDec(ntg, 3)} />
+                                <StatCell compact label="Porosity φ" value={fmtDec(phi, 3)} />
+                                <StatCell compact label="Water Sat. Sw" value={fmtDec(sw, 3)} />
                                 {showOil
-                                    ? <StatCell label="Oil FVF Bo" value={fmtDec(inp.fvf, 3)} unit={isField ? 'RB/STB' : 'rm³/sm³'} />
-                                    : <StatCell label="Gas FVF Bg" value={fmtDec(inp.bg, 4)} />}
-                                <StatCell label="Fluid Contacts" value={contactStr} />
-                                <StatCell label="Recovery" value={showOil ? `${fmtDec(inp.recovery, 0)}%` : `${fmtDec(inp.recoveryGas, 0)}%`} />
+                                    ? <StatCell compact label="Oil FVF Bo" value={fmtDec(inp.fvf, 3)} unit={isField ? 'RB/STB' : 'rm³/sm³'} />
+                                    : <StatCell compact label="Gas FVF Bg" value={fmtDec(inp.bg, 4)} />}
+                                <StatCell compact label="Fluid Contacts" value={contactStr} />
+                                <StatCell compact label="Recovery" value={showOil ? `${fmtDec(inp.recovery, 0)}%` : `${fmtDec(inp.recoveryGas, 0)}%`} />
                             </div>
                         </Panel>
 
-                        <div className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${qTone.b}`}>
+                        <div className={`flex shrink-0 items-center justify-between rounded-2xl border px-4 py-2 ${qTone.b}`}>
                             <div className="flex items-center gap-2.5">
                                 <ShieldCheck className="h-6 w-6" style={{ color: qTone.c }} />
                                 <div>
