@@ -811,3 +811,13 @@ a per-user choice from the header toggle (beside Help).
   Tests: `__tests__/depthUnits.test.jsx` (feet round trips to the
   centimetre, with the metre path as negative control).
 - Not changed: the report pack PDFs still print metres.
+
+## 2026-10-13: anti-collision ladder MD in the wellbore unit
+
+Found in the video dry run: on a feet wellbore the separation-factor and
+distance ladders plotted reference MD in metres under an axis labelled ft
+(the 1,312 ft kickoff sat at 400). The rows now convert MD with the
+distances (`ladderRows`). The no-go and review threshold labels sit on their
+own sides of their lines, the legend moved above the plot (it overlapped the
+axis title), and both chart titles leave room for the SF/Distance and
+Highside/North buttons. Test: `__tests__/ladderChart.test.js`.
