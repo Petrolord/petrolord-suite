@@ -253,6 +253,7 @@ const TargetsTab = () => {
         <TargetFromRegistryDialog
           open
           mode={pickerMode}
+          depthUnit={du}
           onOpenChange={(o) => { if (!o) setPickerMode(null); }}
           onPick={async (payload) => {
             try {
