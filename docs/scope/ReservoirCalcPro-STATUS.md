@@ -435,6 +435,26 @@ off the slide's foot over the footer: the statistics are one compact row,
 the tornado panel scales inside the slide and shows the top four drivers
 ("top 4 of N"); the PDF still draws every bar from an off-screen copy.
 Test: `__tests__/simSetupFold.test.jsx`.
+## 2026-10-12: detailed results table names the surfaces
+
+The Detailed view's input table printed the placeholders "Input_Top" and
+"Input_Base" for every run, and a contact taken at the spill printed only
+the spill elevation. It now names the top and base surfaces (Hybrid: top
+plus gross thickness; Simple and Area-depth: none) and prints
+"OWC: -4,972 (entered -5,036, filled to spill)" when Trap only took the
+contact at the spill. Test: `__tests__/summaryTableNames.test.jsx`.
+
+## 2026-10-12: Trap only no longer clamps a GOC an oil case does not use
+
+With Trap only on, an oil case was reported "Filled to spill: the contact
+is below the spill point" while its OWC sat above the spill, because a GOC
+left in the inputs (a fresh workspace carries goc -7000 from the sample
+values) was clamped too; the report and the Detailed table then said the
+contact was taken at the spill, and on an edge-limited trap the open
+closure note was the wrong one. Only the contacts the fluid system uses are
+clamped now (oil: OWC; oil with a gas cap and gas: both). Found on the Ekene
+seismic map while scripting the ReservoirCalc Pro lessons. Test:
+`__tests__/spillOilGoc.test.js` (negative control: the old clamp fails it).
 
 ## 2026-10-12: the deterministic case follows AOIs and refreshed surfaces
 
