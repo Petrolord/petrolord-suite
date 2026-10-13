@@ -10,6 +10,19 @@
 import { computeWellPath, positionAtMd } from '../engine/surveyMath';
 import { horizontalEllipse } from '../engine/errorModel';
 
+const FT_PER_M = 1 / 0.3048;
+/** Depth in the display unit, as the TD label prints it. */
+export function tdLabel(mdM, depthUnit = 'm') {
+  if (depthUnit === 'ft') {
+    return `TD ${Math.round(mdM * FT_PER_M).toLocaleString('en-US')} ft MD`;
+  }
+  return `TD ${mdM.toFixed(0)}m`;
+}
+// a TD label within this model distance of a target label is moved below it
+const LABEL_CLASH = 0.03;
+// screen pixels the TD label moves down when it would sit on a target label
+export const TD_LABEL_DY = 12;
+
 const RING_SEGS = 36;
 const CIRCLE_SEGS = 48;
 
@@ -29,7 +42,9 @@ function pushPolyline(out, pts) {
  *   with stations enables EOU rings.
  * targets: wp_targets rows (site coords + tvdss_m + kind/geometry).
  * tops: [{wellId, name, mdM, color?}] — markers on that well's path.
- * options: {vexag, eouK, eouEvery, padFrac}.
+ * options: {vexag, eouK, eouEvery, padFrac, depthUnit}. depthUnit ('m' or
+ *   'ft', the wellbore's) sets the TD labels and the TVDSS ticks; E/N ticks
+ *   stay in site-CRS metres.
  *
  * Returns {ext: {X, D, Z}, world: {minE, minN, minT, scale, vexag},
  *   wells: [{id, label, color, kind, positions: Float32Array}],
@@ -43,8 +58,9 @@ function pushPolyline(out, pts) {
 export function buildScene({
   wells = [], targets = [], tops = [],
 } = {}, {
-  vexag = 1, eouK = 2, eouEvery = 6, padFrac = 0.06,
+  vexag = 1, eouK = 2, eouEvery = 6, padFrac = 0.06, depthUnit = 'm',
 } = {}) {
+  const dz = depthUnit === 'ft' ? FT_PER_M : 1;
   // ---- world paths + bounds ----------------------------------------------
   const paths = new Map(); // wellId -> {stations, path (world e/n/tvdss)}
   let minE = Infinity; let maxE = -Infinity;
@@ -114,7 +130,7 @@ export function buildScene({
     });
     labels.push({
       pos: pts[pts.length - 1],
-      text: `TD ${entry.stations[entry.stations.length - 1].md.toFixed(0)}m`,
+      text: tdLabel(entry.stations[entry.stations.length - 1].md, depthUnit),
       color: w.color,
       kind: 'td',
     });
@@ -207,6 +223,12 @@ export function buildScene({
     labels.push({ pos: center, text: t.name, color: t.color || '#d97706', kind: 'target' });
   }
 
+  // a TD label on top of a target label (a well drilled to its target) moves below it
+  const near = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) < LABEL_CLASH;
+  for (const l of labels) {
+    if (l.kind === 'td' && labels.some((o) => o.kind === 'target' && near(o.pos, l.pos))) l.dy = TD_LABEL_DY;
+  }
+
   // ---- axes box + ticks ----------------------------------------------------
   const { X, D, Z } = ext;
   const corners = [
@@ -229,9 +251,10 @@ export function buildScene({
   for (const n of niceTicksLocal(minN, maxN)) {
     ticks.push({ pos: toModel(minE, n, minT), text: n.toFixed(0), axis: 'N' });
   }
-  for (const t of niceTicksLocal(minT, maxT)) {
-    ticks.push({ pos: toModel(minE, minN, t), text: t.toFixed(0), axis: 'TVDSS' });
+  for (const t of niceTicksLocal(minT * dz, maxT * dz)) {
+    ticks.push({ pos: toModel(minE, minN, t / dz), text: t.toFixed(0), axis: 'TVDSS' });
   }
+  ticks.push({ pos: toModel(minE, minN, maxT), text: `TVDSS ${depthUnit === 'ft' ? 'ft' : 'm'}`, axis: 'TVDSS-unit' });
 
   // ---- north arrow (top face, near the +N/+E corner) -----------------------
   const naBase = [X * 0.94, 0.02, Z * 0.86];

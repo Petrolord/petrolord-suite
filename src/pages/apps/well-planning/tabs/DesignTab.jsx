@@ -42,7 +42,10 @@ import {
     SEGMENT_TYPES, SEGMENT_TYPE_LABELS,
 } from '../services/planEditor';
 import { buildTrajectoryContract, exportFormats } from '../services/trajectoryContract';
-import { loadPpfgCurves, buildMudWindow, mudWindowSummary, ppfgSourceLine } from '../services/ppfg';
+import {
+    loadPpfgCurves, buildMudWindow, mudWindowSummary, ppfgSourceLine,
+    loadPpfgSourceCandidates, curvesByTvdss, buildMudWindowByTvdss,
+} from '../services/ppfg';
 import { compositeStations } from '../services/surveyUtils';
 import { listSurveys } from '../services/wpApi';
 import {
@@ -51,6 +54,7 @@ import {
 import { loadSiteOffsetDesigns, loadOffsetCandidates } from '../services/offsetLoader';
 import { listTops } from '@/lib/wellsRegistry';
 import PlanViewChart from '../charts/PlanViewChart';
+import UnitNumberInput from '../components/UnitNumberInput';
 import { DEFAULT_EXAGGERATION } from '../services/sectionScale';
 import {
   SectionViewPanel, InclinationPanel, DlsPanel,
@@ -105,6 +109,12 @@ const DesignTab = () => {
     const [offsetLoad, setOffsetLoad] = useState(null); // {key, candidates, savedRunIds, notes} | {key, loading:true}
     const [ppfgNote, setPpfgNote] = useState(null); // why curves were not read
     const [ppfg, setPpfg] = useState(null);          // {rows, summary} | 'loading' | 'none' | null
+    // Where the prognosis comes from (2026-10-13): the bridged registry
+    // well, or an offset registry well applied by TVDSS. Candidates load
+    // lazily when PPFG is first turned on; the choice is kept per design
+    // for this session (component state, not saved with the design).
+    const [ppfgSources, setPpfgSources] = useState(null); // {key, list, error} | {key, loading:true}
+    const [ppfgChoice, setPpfgChoice] = useState({});     // designId -> geo well id
     const [scene3d, setScene3d] = useState(null);    // {composite, offsets, tops} lazy-loaded
     const loadedFor = useRef(null);
     const offsetCovCache = useRef(new Map());
@@ -275,26 +285,61 @@ const DesignTab = () => {
         .map((t) => ({ ...t, wellId: 'plan' })), [scene3d]);
 
     // PPFG mud window (WD5): the pore-pressure prognosis published to
-    // the bridged registry well, hung on this design's trajectory.
+    // the bridged registry well, or (2026-10-13) the prognosis of an
+    // offset registry well applied at equal TVDSS, hung on this design's
+    // trajectory.
+    const ppfgSourceKey = `${wellbore?.id || ''}:${wellbore?.geo_well_id || ''}:${site?.crs || ''}`;
+    useEffect(() => {
+        if (!showPpfg || !wellbore) return;
+        if (ppfgSources && ppfgSources.key === ppfgSourceKey) return;
+        let live = true;
+        setPpfgSources({ key: ppfgSourceKey, loading: true });
+        loadPpfgSourceCandidates({ bridgedId: wellbore.geo_well_id || null, siteCrs: site?.crs || null, wellhead })
+            .then((list) => { if (live) setPpfgSources({ key: ppfgSourceKey, list }); })
+            .catch((e) => { if (live) setPpfgSources({ key: ppfgSourceKey, list: [], error: e.message }); });
+        return () => { live = false; };
+    }, [showPpfg, ppfgSourceKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const ppfgList = ppfgSources && !ppfgSources.loading && ppfgSources.key === ppfgSourceKey ? ppfgSources.list : null;
+    const ppfgSource = useMemo(() => {
+        if (!ppfgList || !ppfgList.length) return null;
+        const chosen = ppfgChoice[design?.id];
+        return ppfgList.find((c) => c.id === chosen) || ppfgList[0];
+    }, [ppfgList, ppfgChoice, design?.id]);
+
     useEffect(() => {
         if (!showPpfg || !gridMeterStations) return;
-        if (!wellbore?.geo_well_id) { setPpfg('none'); return; }
+        if (!ppfgList) { setPpfg('loading'); return; }
+        if (!ppfgSource) { setPpfg('none'); setPpfgNote(ppfgSources?.error ? `The registry could not be read: ${ppfgSources.error}` : null); return; }
         let live = true;
         setPpfg('loading');
         setPpfgNote(null);
         // PP-U1-005: curves read by their declared unit; a curve that could
         // not be read, or a failed load, is said instead of showing "none"
         const skipped = [];
-        loadPpfgCurves(wellbore.geo_well_id, { skipped })
+        loadPpfgCurves(ppfgSource.id, { skipped })
             .then((curves) => {
                 if (!live) return;
-                const rows = buildMudWindow(curves, gridMeterStations, { kbElevM: wellbore.kb_elev_m || 0 });
-                setPpfgNote(skipped.length ? skipped.join(' ') : null);
-                setPpfg(rows.length ? { rows, summary: mudWindowSummary(rows), source: ppfgSourceLine(curves) } : 'none');
+                const kbElevM = wellbore.kb_elev_m || 0;
+                let rows;
+                const notes = [...skipped];
+                if (ppfgSource.bridged) {
+                    rows = buildMudWindow(curves, gridMeterStations, { kbElevM });
+                } else {
+                    const byTvdss = curvesByTvdss(curves, ppfgSource.well);
+                    if (byTvdss.error) notes.push(byTvdss.error);
+                    rows = buildMudWindowByTvdss(byTvdss.curves, gridMeterStations, { kbElevM });
+                }
+                setPpfgNote(notes.length ? notes.join(' ') : null);
+                setPpfg(rows.length ? {
+                    rows,
+                    summary: mudWindowSummary(rows),
+                    source: ppfgSourceLine(curves, { offsetName: ppfgSource.bridged ? null : ppfgSource.name }),
+                } : 'none');
             })
             .catch((e) => { if (live) { setPpfgNote(`The PPFG curves could not be loaded: ${e.message}`); setPpfg('none'); } });
         return () => { live = false; };
-    }, [showPpfg, wellbore?.geo_well_id, gridMeterStations, wellbore?.kb_elev_m]);
+    }, [showPpfg, ppfgList, ppfgSource, gridMeterStations, wellbore?.kb_elev_m]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleExport = (format) => {
         if (!gridMeterStations) return;
@@ -732,7 +777,7 @@ const DesignTab = () => {
                             <div className="grid grid-cols-3 gap-2 mt-2">
                                 <div><Label className="text-[10px]">Station every ({mdUnit})</Label><Input type="number" min="1" step="1" value={constraints.stationInterval ?? defaultStationInterval} data-testid="design-station-interval" title="Survey listing interval: a station is emitted every this many depth units along holds and curves (the trajectory itself does not change)" onChange={e => { setConstraints({ ...constraints, stationInterval: e.target.value }); updateTrajectoryDraft({ constraints: { ...constraints, stationInterval: e.target.value } }); }} className="h-7 text-xs" disabled={readOnly} /></div>
                                 <div><Label className="text-[10px]">Max DLS (/{mdUnit === 'ft' ? '100ft' : '30m'})</Label><Input type="number" value={constraints.maxDLS} onChange={e => { setConstraints({ ...constraints, maxDLS: e.target.value }); updateTrajectoryDraft({ constraints: { ...constraints, maxDLS: e.target.value } }); }} className="h-7 text-xs" disabled={readOnly} /></div>
-                                <div><Label className="text-[10px]">Vertical tol (m)</Label><Input type="number" min="0" max={MAX_VERTICAL_TOLERANCE_M} step="0.1" value={constraints.verticalTolM ?? DEFAULT_VERTICAL_TOLERANCE_M} data-testid="design-vertical-tolerance" title="A target within this horizontal distance of straight below the design end is designed as a vertical hold, with every design method" onChange={e => { setConstraints({ ...constraints, verticalTolM: e.target.value }); updateTrajectoryDraft({ constraints: { ...constraints, verticalTolM: e.target.value } }); }} className="h-7 text-xs" disabled={readOnly} /></div>
+                                <div><Label className="text-[10px]">Vertical tol ({mdUnit})</Label><UnitNumberInput unit={mdUnit} min="0" step="0.1" valueM={constraints.verticalTolM ?? DEFAULT_VERTICAL_TOLERANCE_M} data-testid="design-vertical-tolerance" title="A target within this horizontal distance of straight below the design end is designed as a vertical hold, with every design method" onChangeM={(m, raw) => { const v = raw === '' ? '' : (m == null ? raw : String(m)); setConstraints({ ...constraints, verticalTolM: v }); updateTrajectoryDraft({ constraints: { ...constraints, verticalTolM: v } }); }} className="h-7 text-xs" disabled={readOnly} /></div>
                                 <div><Label className="text-[10px]">KO Azi (deg {aziRef})</Label><Input type="number" value={kickoffAzi} onChange={e => { setKickoffAzi(e.target.value); updateTrajectoryDraft({ kickoffAzi: parseFloat(e.target.value) || 0 }); }} className="h-7 text-xs" disabled={readOnly} /></div>
                                 <div className="flex items-end">
                                     {!readOnly && (
@@ -878,15 +923,15 @@ const DesignTab = () => {
                 )}
 
                 <div className="flex-1 bg-pl-surface rounded-lg border border-pl-border flex flex-col overflow-hidden relative">
-                    <div className="flex items-center justify-between gap-2 overflow-x-auto p-2 border-b border-pl-border bg-pl-surface z-10 absolute top-0 left-0 right-0">
-                        <div className="flex shrink-0 bg-pl-sunken rounded p-1">
+                    <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 p-2 border-b border-pl-border bg-pl-surface z-10" data-testid="design-view-toolbar">
+                        <div className="flex max-w-full overflow-x-auto bg-pl-sunken rounded p-1 [&>button]:shrink-0">
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('section')} className={`h-7 px-3 text-xs ${viewMode === 'section' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`}><Activity className="w-3 h-3 mr-1" /> Section</Button>
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('plots')} className={`h-7 px-3 text-xs ${viewMode === 'plots' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`}><LayoutGrid className="w-3 h-3 mr-1" /> Plots</Button>
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('plan')} className={`h-7 px-3 text-xs ${viewMode === 'plan' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`} data-testid="view-plan" title="Plan editor: one row per section, edit the defining values in place"><TableProperties className="w-3 h-3 mr-1" /> Plan</Button>
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('table')} className={`h-7 px-3 text-xs ${viewMode === 'table' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`}><TableIcon className="w-3 h-3 mr-1" /> Survey</Button>
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('3d')} className={`h-7 px-3 text-xs ${viewMode === '3d' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`} data-testid="view-3d"><Box className="w-3 h-3 mr-1" /> 3D</Button>
                         </div>
-                        <div className="flex shrink-0 items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             {(viewMode === 'section' || viewMode === 'plots') && (
                                 <Button size="sm" variant="ghost" onClick={() => setShowTargets((v) => !v)}
                                     className={`h-7 px-2 text-xs ${showTargets ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-muted'}`}
@@ -915,7 +960,7 @@ const DesignTab = () => {
                             {viewMode === 'section' && (
                                 <Button size="sm" variant="ghost" onClick={() => setShowPpfg((v) => !v)}
                                     className={`h-7 px-2 text-xs ${showPpfg ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-muted'}`}
-                                    title={wellbore?.geo_well_id ? 'Pore/frac mud window from the bridged registry well' : 'Needs a bridged registry well with a published PPFG prognosis (publish this design, then run Pore Pressure Studio on it).'}>
+                                    title="Pore and fracture mud window with casing seats, from the prognosis Pore Pressure Studio published on this well or on an offset registry well (applied at equal TVDSS)">
                                     PPFG
                                 </Button>
                             )}
@@ -942,14 +987,30 @@ const DesignTab = () => {
                         </div>
                     </div>
 
-                    <div className="flex-1 pt-12 relative">
+                    <div className="flex-1 min-h-0 relative">
                         {viewMode === 'section' && planRows && (
                             <div className="flex h-full w-full bg-white" data-canvas="chart">
                                 <div className="min-w-0 flex-1">
                                     <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={sectionOverlays} targets={showTargets ? sectionTargets : []} exaggeration={sectionEx} onExaggerationChange={setSectionEx} dlsScale={dlsScale} />
                                 </div>
                                 {showPpfg && (
-                                    <div className="w-[340px] shrink-0 border-l border-slate-200">
+                                    <div className="flex w-[340px] shrink-0 flex-col border-l border-slate-200">
+                                        {ppfgList && ppfgList.length > 0 && (
+                                            <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-1.5 text-[11px] text-slate-600">
+                                                <label htmlFor="wd-ppfg-source">Prognosis from</label>
+                                                <select id="wd-ppfg-source" data-testid="wd-ppfg-source"
+                                                    value={ppfgSource?.id || ''}
+                                                    onChange={(e) => setPpfgChoice((m) => ({ ...m, [design?.id]: e.target.value }))}
+                                                    className="min-w-0 flex-1 rounded border border-slate-300 bg-white px-1 py-0.5 text-[11px] text-slate-800">
+                                                    {ppfgList.map((c) => (
+                                                        <option key={c.id} value={c.id}>
+                                                            {c.bridged ? `${c.name} (this well)` : `${c.name} (offset${c.distanceM != null ? `, ${Math.round(metersToUser(c.distanceM)).toLocaleString()} ${depthUnitLabel} away` : ''}, by TVDSS)`}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        )}
+                                        <div className="min-h-0 flex-1">
                                         {ppfg === 'loading' && (
                                             <div className="flex h-full items-center justify-center text-xs text-pl-muted">
                                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading PPFG curves…
@@ -957,15 +1018,16 @@ const DesignTab = () => {
                                         )}
                                         {ppfg === 'none' && (
                                             <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center text-xs text-pl-muted" data-testid="mud-window-none">
-                                                {wellbore?.geo_well_id
-                                                    ? 'No PPFG prognosis on the bridged registry well. Run Pore Pressure Studio on it and publish the PP/FP curves.'
-                                                    : 'No bridged registry well. Publish this design first, then run Pore Pressure Studio on the published well.'}
+                                                {ppfgSource
+                                                    ? `The prognosis on ${ppfgSource.name} does not reach this trajectory's depths.`
+                                                    : 'No registry well in this site\'s coordinate system carries a PPFG prognosis. Run Pore Pressure Studio on this well or a nearby registry well and publish the PP and FP curves.'}
                                                 {ppfgNote && <span className="text-pl-warning-text" data-testid="mud-window-note">{ppfgNote}</span>}
                                             </div>
                                         )}
                                         {ppfg && typeof ppfg === 'object' && (
                                             <MudWindowPanel rows={ppfg.rows} summary={ppfg.summary} sourceLabel={ppfg.source || 'registry PPFG'} note={ppfgNote} depthUnit={depthUnitLabel === 'ft' ? 'ft' : 'm'} />
                                         )}
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -977,6 +1039,7 @@ const DesignTab = () => {
                                 targets={siteTargets || []}
                                 tops={cubeTops}
                                 background="light"
+                                depthUnit={mdUnit}
                             />
                         )}
 
@@ -990,7 +1053,7 @@ const DesignTab = () => {
                         )}
 
                         {viewMode === 'plan' && (
-                            <div className="absolute inset-0 top-12 bg-pl-surface">
+                            <div className="absolute inset-0 bg-pl-surface">
                                 <PlanEditorTable
                                     rows={planTableRows}
                                     readOnly={readOnly}
@@ -1009,7 +1072,7 @@ const DesignTab = () => {
                         )}
 
                         {viewMode === 'table' && planRows && (
-                            <div className="absolute inset-0 top-12 overflow-auto bg-pl-surface" data-testid="design-survey-table">
+                            <div className="absolute inset-0 overflow-auto bg-pl-surface" data-testid="design-survey-table">
                                 <Table>
                                     <TableHeader className="bg-pl-sunken sticky top-0">
                                         <TableRow className="border-pl-border">
