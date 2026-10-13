@@ -765,3 +765,29 @@ a per-user choice from the header toggle (beside Help).
 - No migration (provenance is the existing jsonb column). Tests:
   `__tests__/targetSourceFreshness.test.jsx` (4, negative control first).
 
+
+## 2026-10-13: the mud window from an offset well's prognosis
+
+- A planned well has no logs, so Pore Pressure Studio cannot run on it and the
+  PPFG mud window (with its bottom-up casing seats) stayed empty for exactly
+  the wells being planned. The PPFG view now has **Prognosis from**
+  (`data-testid="wd-ppfg-source"`): this design's bridged registry well when it
+  carries PP or FP curves, and every registry well in the site CRS that does,
+  nearest wellhead first. The first entry is used until another is picked; the
+  choice is kept per design for the session (component state, not saved).
+- An offset applies **by TVDSS**: its curves go MD to TVDSS through its own
+  deviation and depth reference (`readWellDatum`; a well with no reference
+  elevation is refused with the reason), a mud weight or gradient converts to
+  MPa at the offset's own TVD, each pressure applies at the same TVDSS on this
+  trajectory, and EMW/ppg are taken at this trajectory's TVD below its KB.
+  Casing seats come out on this trajectory's MD. The source line ends
+  "from <well> (offset, by TVDSS)".
+- Pure functions in `services/ppfg.js`: `offsetPathFor`, `curvesByTvdss`,
+  `buildMudWindowByTvdss`, `ppfgSourceCandidates` (two registry reads in
+  `loadPpfgSourceCandidates`, never one per well); `buildMudWindow` now shares
+  its row builder. Tests `__tests__/ppfgOffset.test.js` (8): identity to 1e-9
+  against the bridged reader, a vertical offset on a deviated plan, a deviated
+  offset at equal TVDSS (negative control sampling by MD misses by more than
+  0.1 MPa and fails; sampling by MD in the shipped function fails 4 gates), a
+  KB difference, ppg curves converted at the offset TVD, the no-datum refusal,
+  seats on this MD, candidate rules. Help guides (WDS, Pore Pressure) updated.
