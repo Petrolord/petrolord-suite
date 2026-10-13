@@ -132,3 +132,43 @@ describe('candidates (shared with the Anti-collision picker)', () => {
     expect(chooseDisplayOffsets(all, { wellhead: HEAD, reachM: 1e7, limit: 2 }).list).toHaveLength(2);
   });
 });
+
+describe('drilled neighbours are scanned on their actual survey', () => {
+  const ref = { id: 'me', name: 'ME', head_x: HEAD.x, head_y: HEAD.y, depth_unit: 'ft' };
+  const drilled = { id: 'w4', name: 'Ekene-10', head_x: HEAD.x - 2.5, head_y: HEAD.y, kb_elev_m: 25 };
+  const planned = { id: 'w5', name: 'W-5', head_x: HEAD.x + 5, head_y: HEAD.y, kb_elev_m: 25 };
+  const plan = { id: 'p', name: 'Plan', revision: 1, status: 'definitive', stations: vertical(1500) };
+  const actual = [{ md: 0, inc: 0, azi: 0 }, { md: 1200, inc: 10, azi: 90 }, { md: 2250, inc: 18, azi: 174 }];
+
+  test('a wellbore with only an actual survey becomes a candidate, labelled in the reference unit', () => {
+    const out = assembleOffsetCandidates({
+      wellbores: [ref, drilled], designsByWellbore: { w4: null }, actualsByWellbore: { w4: actual }, wellbore: ref,
+    });
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ id: 'wp:w4', kind: 'wp-actual', stations: actual, headX: HEAD.x - 2.5, kbElevM: 25 });
+    expect(out[0].label).toBe('Ekene-10 (actual survey to 7,382 ft MD)');
+  });
+
+  test('the actual survey wins over the plan; no composite falls back to the plan', () => {
+    const out = assembleOffsetCandidates({
+      wellbores: [ref, drilled, planned],
+      designsByWellbore: { w4: plan, w5: plan },
+      actualsByWellbore: { w4: actual, w5: [actual[0]] }, // one station is not a survey
+      wellbore: { ...ref, depth_unit: 'm' },
+    });
+    const byId = Object.fromEntries(out.map((c) => [c.id, c]));
+    expect(byId['wp:w4'].kind).toBe('wp-actual');
+    expect(byId['wp:w4'].stations).toBe(actual);
+    expect(byId['wp:w4'].label).toBe('Ekene-10 (actual survey to 2,250 m MD)');
+    expect(byId['wp:w5'].kind).toBe('wp-plan');
+    expect(byId['wp:w5'].stations).toBe(plan.stations);
+  });
+
+  test('a drilled neighbour is always shown on the plots, like a planned one', () => {
+    const out = assembleOffsetCandidates({
+      wellbores: [ref, drilled], actualsByWellbore: { w4: actual }, wellbore: ref,
+    });
+    const shown = chooseDisplayOffsets(out, { wellhead: { x: HEAD.x, y: HEAD.y }, radiusM: 0, reachM: 0 });
+    expect(shown.list.map((c) => c.id)).toEqual(['wp:w4']);
+  });
+});
