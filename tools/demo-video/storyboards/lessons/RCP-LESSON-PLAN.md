@@ -36,13 +36,24 @@ Lesson and demo takes only create items named "Lesson ..." or
 "RCP demo ..." and clean them up in setup. Demo 3 replaces the
 (6-well map) grids in place and its setup puts the six-well grids back.
 
-## App fixes found while scripting
+## App fixes found while scripting (all merged)
 
-- #1033 Mapping: Replace grid from a file, in place (demo 3 needs the
-  registry row to keep its id so RCP's source-changed notice fires).
-- #1035 RCP: registry NTG in a Surfaces or Hybrid run is net reservoir (the
-  contact was applied twice).
-- Waits on #1034 (preview sizing, another agent) before any take.
+- #1033 Mapping: Replace grid from a file, in place (demo 3); #1038 it keeps the surface's CRS.
+- #1035 RCP (S1): registry NTG in a Surfaces or Hybrid run is net reservoir (the contact was applied twice).
+- #1036 Detailed table names the surfaces and a contact filled to spill.
+- #1037 Simulation Setup folds; the probabilistic slide tornado fits.
+- #1039 Surfaces: a grid replaced in place is never read from a stale browser copy (Refresh did not move the volume).
+- #1040 Trap only clamps only the contacts the fluid system uses.
+- #1041 Area-depth table uses the chosen base surface.
+- #1042 The deterministic case follows AOI selection and refreshed surfaces.
+- #1043 Saturation-height FWL rounding.
+- #1044 The PDF reports name the surfaces.
+- #1045 The result-unit selector can be clicked.
+- #1046 The Monte Carlo panel reopens on the run's ranges.
+- #1047 The deterministic slide fits its frame.
+
+Demo 3 types the contact as -5036.09 ft (1535 m): at -5036.1 the seven-well
+volume reads 10.43 against the study's 10,422,438 stb.
 
 ## Demos
 

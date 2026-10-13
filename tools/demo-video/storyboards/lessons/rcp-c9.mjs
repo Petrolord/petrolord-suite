@@ -105,7 +105,7 @@ export default {
         await d.sleep(800);
         await d.click('rcp-fit-run');
         await t(d, 'rcp-fit-result').waitFor();
-        await expectText(d, 'rcp-fit-result', /179 values[\s\S]*Lognormal\s*mean 0\.185, sd 0\.02511/, 'fit result');
+        await expectText(d, 'rcp-fit-result', /179 values[\s\S]*lognormal\s*mean 0\.185, sd 0\.02511/i, 'fit result');
         await d.highlight('rcp-fit-result');
         await d.sleep(3500);
         await d.unhighlight();

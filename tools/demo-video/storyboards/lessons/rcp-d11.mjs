@@ -61,6 +61,7 @@ export default {
       say: 'Full P D F writes the report. It carries the field, the analyst, the build of the app, the units, the method, the contacts with their datum, how the surfaces were integrated, the open closure note, and every input with its source.',
       sub: 'Full PDF writes the report. It carries the field, the analyst, the build of the app, the units, the method, the contacts with their datum, how the surfaces were integrated, the open closure note, and every input with its source.',
       do: async (d) => {
+        const t0 = Date.now();
         fs.mkdirSync(OUT, { recursive: true });
         const [dl] = await Promise.all([
           d.page.waitForEvent('download', { timeout: 60000 }),
@@ -76,8 +77,10 @@ export default {
         execFileSync('pdftoppm', ['-png', '-r', '110', '-f', '1', '-l', '1', f, `${OUT}/page`]);
         const png = fs.readdirSync(OUT).find((n) => n.startsWith('page') && n.endsWith('.png'));
         const b64 = fs.readFileSync(`${OUT}/${png}`).toString('base64');
+        // after the chapter title has gone, and held while the narration lists the contents
+        await d.sleep(Math.max(0, 5000 - (Date.now() - t0)));
         await d.slide({ eyebrow: 'Full PDF · page 1', title: 'The report, as downloaded', body: '<ul><li>Field, analyst, company, licence</li><li>Method, units, contacts with datum</li><li>Inputs with their sources</li><li>Open closure stated</li></ul>', side: `<img src="data:image/png;base64,${b64}" style="height:860px;border-radius:6px;box-shadow:0 10px 40px rgba(0,0,0,.5)"/>` });
-        await d.sleep(6000);
+        await d.sleep(11000);
         await d.hideSlide();
       } },
     { id: 'units', chapter: 'Units on the page', chapterSub: 'Display units for the result',

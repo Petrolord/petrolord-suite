@@ -37,7 +37,9 @@ export default {
     // the booked project, saved fresh on those grids
     await openRcp(d, shared);
     await deleteProjects(d, DEMO_PROJECT);
-    await bookedCase(d);
+    // 1535 m TVDSS is 5,036.09 ft: the extra decimal keeps the seven-well
+    // volume on the NAPE study's 10.42 MM stb (at -5036.1 it reads 10.43)
+    await bookedCase(d, { owc: '-5036.09' });
     await stoiip(d);
     await saveProject(d, DEMO_PROJECT);
     await d.page.evaluate(() => window.__demo.moveTo(900, 500, 10));
@@ -65,13 +67,13 @@ export default {
       wait: async (d) => { await replaceFromFile(d, BASE, SEVEN.base); },
       waitLabel: 'Seconds later' },
     { id: 'replaced',
-      say: 'Both surfaces are replaced in place. The crest of the top is now at four thousand nine hundred and seventy one point six feet.',
-      sub: 'Both surfaces are replaced in place. The crest of the top is now at 4,971.6 ft.',
+      say: 'Both surfaces are replaced in place. The crest of the top is now at four thousand nine hundred and seventy two point eight feet, deeper than on the six well map.',
+      sub: 'Both surfaces are replaced in place. The crest of the top is now at 4,972.8 ft, deeper than on the six-well map.',
       do: async (d) => {
         await d.click(mapRow(d, TOP).first());
         await d.sleep(2500);
         const st = d.page.getByText(/^Ekene Sand top \(6-well map\) · z /).first();
-        await expectText(d, st, /to -4971\.6 ft/, 'new crest in the status line');
+        await expectText(d, st, /to -4972\.8 ft/, 'new crest in the status line');
         await d.highlight(st);
         await d.sleep(2000);
         await d.unhighlight();

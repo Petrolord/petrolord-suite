@@ -66,7 +66,7 @@ export async function setTrapOnly(d, on, { onCamera = false } = {}) {
 }
 
 /** Off camera unless asked: the booked surfaces as top and base, contact, petrophysics and Bo. */
-export async function bookedCase(d, { onCamera = false, petro = true } = {}) {
+export async function bookedCase(d, { onCamera = false, petro = true, owc = OWC_FT } = {}) {
   const m = maybe(d, onCamera);
   await m.click(d.page.locator('label[for="im-surfaces"]'));
   await m.click(t(d, 'rcp-tab-surfaces'));
@@ -78,7 +78,7 @@ export async function bookedCase(d, { onCamera = false, petro = true } = {}) {
   await d.sleep(1500);
   await m.click(t(d, 'rcp-tab-geometry'));
   await d.sleep(500);
-  await setContact(d, OWC_FT, { onCamera });
+  await setContact(d, owc, { onCamera });
   await setTrapOnly(d, false, { onCamera });
   if (petro) {
     await m.type(fieldByLabel(d, 'Net-to-Gross'), BOOKED.ntg);

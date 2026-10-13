@@ -64,10 +64,10 @@ export default {
         await d.unhighlight();
       } },
     { id: 'volume',
-      say: 'The contact cuts the table just as it cuts the maps: VOLA million barrels, within a few tenths of a percent of the map volume, from forty rows. Export CSV writes the table for anyone who carries structures that way.',
+      say: 'The contact cuts the table just as it cuts the maps: twelve point one nine million barrels, within half a percent of the map volume, from forty rows. Export CSV writes the table for anyone who carries structures that way.',
       do: async (d) => {
         await stoiip(d);
-        await expectText(d, t(d, 'rcp-stooip'), /VOLA MM/, 'table volume');
+        await expectText(d, t(d, 'rcp-stooip'), /12\.19 MM/, 'table volume');
         await d.highlight(card(d));
         await d.sleep(2500);
         await d.unhighlight();
@@ -108,18 +108,16 @@ export default {
         await d.sleep(800);
       } },
     { id: 'clip',
-      say: 'Select it, and only the rock inside counts: VOLB million barrels over VOLB_AREA acres. Select it again to clear it. Lesson five turns to the rock properties.',
+      say: 'Once it is active, only the rock inside counts: six point four seven million barrels over two hundred and four acres. Press Active to clear it. Lesson five turns to the rock properties.',
       do: async (d) => {
         const row = t(d, `rcp-aoi-row-${AOI}`).locator('xpath=ancestor::div[contains(@class,"rounded")][1]');
-        console.log('before recalc', await t(d, 'rcp-stooip').textContent());
-        await d.page.getByRole('button', { name: /Recalculate/ }).click();
         await stoiip(d);
-        console.log('after recalc', (await card(d).innerText()).replace(/\n/g, ' '));
-        await expectText(d, card(d), /VOLB MM[\s\S]*HC Area:\s*VOLB_AREA acres/, 'clipped volume');
+        await expectText(d, card(d), /6\.47 MM[\s\S]*HC Area:\s*204 acres/, 'clipped volume');
         await d.highlight(card(d));
         await d.sleep(3000);
         await d.unhighlight();
         await d.click(row.getByRole('button', { name: 'Active' }));
+        await stoiip(d);
         await stoiip(d);
       } },
   ],
