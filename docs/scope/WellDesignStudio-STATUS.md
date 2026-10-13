@@ -766,6 +766,66 @@ a per-user choice from the header toggle (beside Help).
   `__tests__/targetSourceFreshness.test.jsx` (4, negative control first).
 
 
+## 2026-10-13: the mud window from an offset well's prognosis
+
+- A planned well has no logs, so Pore Pressure Studio cannot run on it and the
+  PPFG mud window (with its bottom-up casing seats) stayed empty for exactly
+  the wells being planned. The PPFG view now has **Prognosis from**
+  (`data-testid="wd-ppfg-source"`): this design's bridged registry well when it
+  carries PP or FP curves, and every registry well in the site CRS that does,
+  nearest wellhead first. The first entry is used until another is picked; the
+  choice is kept per design for the session (component state, not saved).
+- An offset applies **by TVDSS**: its curves go MD to TVDSS through its own
+  deviation and depth reference (`readWellDatum`; a well with no reference
+  elevation is refused with the reason), a mud weight or gradient converts to
+  MPa at the offset's own TVD, each pressure applies at the same TVDSS on this
+  trajectory, and EMW/ppg are taken at this trajectory's TVD below its KB.
+  Casing seats come out on this trajectory's MD. The source line ends
+  "from <well> (offset, by TVDSS)".
+- Pure functions in `services/ppfg.js`: `offsetPathFor`, `curvesByTvdss`,
+  `buildMudWindowByTvdss`, `ppfgSourceCandidates` (two registry reads in
+  `loadPpfgSourceCandidates`, never one per well); `buildMudWindow` now shares
+  its row builder. Tests `__tests__/ppfgOffset.test.js` (8): identity to 1e-9
+  against the bridged reader, a vertical offset on a deviated plan, a deviated
+  offset at equal TVDSS (negative control sampling by MD misses by more than
+  0.1 MPa and fails; sampling by MD in the shipped function fails 4 gates), a
+  KB difference, ppg curves converted at the offset TVD, the no-datum refusal,
+  seats on this MD, candidate rules. Help guides (WDS, Pore Pressure) updated.
+## 2026-10-13: depths in the unit profile's unit (targets, datum, settings)
+
+- Targets tab: the TVDSS and radius columns, and the target dialog's TVDSS,
+  radius and semi-axis fields, follow the user's unit profile depth unit
+  (`useAppUnits('well-planning')`, feet on the oilfield preset). Eastings and
+  northings stay in the site CRS unit (metres). Everything is still stored in
+  metres; the CSV export keeps its metre columns and adds `TVDSS_ft` and
+  `Radius_ft` when the view is in feet.
+- Design method target list names the target depth in the wellbore's unit
+  ("T1 Oboro Sand (6186 ft TVDSS)").
+- Wellbore dialog: KB, ground elevation and water depth show and take the
+  depth unit chosen in the dialog (flipping the unit converts the fields); a
+  new wellbore starts in the profile's depth unit.
+- Design settings "Vertical tol" and the separation rule's sigma pa and Sm
+  are shown in the wellbore unit (stored metres; a field left as shown keeps
+  its stored metres exactly).
+- Shared pieces: `services/depthUnits.js`, `components/UnitNumberInput.jsx`.
+  Tests: `__tests__/depthUnits.test.jsx` (feet round trips to the
+  centimetre, with the metre path as negative control).
+- Not changed: the report pack PDFs still print metres.
+
+## 2026-10-13: depth below the pick (registry targets)
+
+- "From top" and "From surface" take a **Depth below the pick** in the
+  profile depth unit (default 0, negative is above). The target TVDSS is the
+  picked TVDSS plus the stand-off; the provenance keeps `below_pick_m` and
+  `picked_tvdss_m`, and "Refresh from source" re-runs the pick and applies the
+  same stand-off (`refreshTargetPatch`).
+- Test ids for storyboards and e2e: wd-pick-well, wd-pick-top,
+  wd-pick-surface, wd-pick-x, wd-pick-y, wd-pick-below, wd-pick-name,
+  wd-pick-create.
+- Kit check: the Ekene Oboro Sand top map reads 1877.36 m TVDSS at
+  402250 E 521750 N; 8 m below is T1 Oboro Sand, 1885.36 m.
+- Tests: `__tests__/targetStandoff.test.jsx` (5; refresh negative control:
+  the pick without the stand-off lands 8 m shallow).
 ## 2026-10-13: 3D view in the wellbore's depth unit
 
 - The Design tab 3D view labelled the TD in metres ("TD 2003m") and ticked the

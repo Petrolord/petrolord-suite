@@ -203,6 +203,9 @@ const AntiCollisionTab = () => {
 
   const setP = (field, value) => setParams((p) => ({ ...p, [field]: value }));
   const numP = (field, user = false) => (e) => {
+    // a field left as shown keeps the stored metres exactly (a feet value
+    // rounded for display would otherwise drift on blur)
+    if (e.target.value === e.target.defaultValue) return;
     const v = parseFloat(e.target.value);
     setP(field, Number.isFinite(v) ? (user ? userToMeters(v) : v) : DEFAULT_AC_PARAMS[field]);
   };
@@ -284,8 +287,8 @@ const AntiCollisionTab = () => {
               <Label className="text-[10px] uppercase font-bold text-pl-muted">Separation rule (SPE-187073)</Label>
               <div className="grid grid-cols-3 gap-2">
                 <div><Label className="text-[10px]">k</Label><Input type="number" step="0.1" defaultValue={params.k} onBlur={numP('k')} className="h-7 text-xs" /></div>
-                <div><Label className="text-[10px]">σpa (m)</Label><Input type="number" step="0.1" defaultValue={params.sigmaPa} onBlur={numP('sigmaPa')} className="h-7 text-xs" /></div>
-                <div><Label className="text-[10px]">Sm (m)</Label><Input type="number" step="0.1" defaultValue={params.Sm} onBlur={numP('Sm')} className="h-7 text-xs" /></div>
+                <div><Label className="text-[10px]">σpa ({mdUnit})</Label><Input type="number" step="0.1" defaultValue={+metersToUser(params.sigmaPa).toFixed(3)} onBlur={numP('sigmaPa', true)} className="h-7 text-xs" data-testid="ac-sigma-pa" /></div>
+                <div><Label className="text-[10px]">Sm ({mdUnit})</Label><Input type="number" step="0.1" defaultValue={+metersToUser(params.Sm).toFixed(3)} onBlur={numP('Sm', true)} className="h-7 text-xs" data-testid="ac-sm" /></div>
                 <div><Label className="text-[10px]">Ref radius ({mdUnit})</Label><Input type="number" step="0.01" defaultValue={+metersToUser(params.refRadius).toFixed(3)} onBlur={numP('refRadius', true)} className="h-7 text-xs" /></div>
                 <div><Label className="text-[10px]">Off radius ({mdUnit})</Label><Input type="number" step="0.01" defaultValue={+metersToUser(params.offRadius).toFixed(3)} onBlur={numP('offRadius', true)} className="h-7 text-xs" /></div>
               </div>

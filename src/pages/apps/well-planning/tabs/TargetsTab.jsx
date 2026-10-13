@@ -20,6 +20,7 @@ import { listSurfaces, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
 import { supabaseSharingStore } from '@/lib/recordSharing';
 import { useSourceFreshness } from '@/lib/sourceFreshness/useSourceFreshness';
 import SourceChangedNotice from '@/lib/sourceFreshness/SourceChangedNotice';
+import { useTargetDepthUnit, mToUnit, showDepth } from '../services/depthUnits';
 import { targetSourceRefs, targetKept, readTargetSources, refreshTargetPatch } from '../services/targetSources';
 
 // Source freshness (2026-10-12): the registry readers the pickers use
@@ -34,6 +35,8 @@ const TargetsTab = () => {
   const [view, setView] = useState('table');
   const [dialogTarget, setDialogTarget] = useState(undefined); // undefined closed, null new, object edit
   const [pickerMode, setPickerMode] = useState(null); // 'tops' | 'surface' | null
+  // 2026-10-13: TVDSS and radius in the unit profile's depth unit (stored metres)
+  const du = useTargetDepthUnit();
 
   const filtered = useMemo(() => (targets || []).filter(
     (t) => !search || t.name.toLowerCase().includes(search.toLowerCase()),
@@ -112,6 +115,10 @@ const TargetsTab = () => {
       Northing_m: t.center_y,
       TVDSS_m: t.tvdss_m,
       Radius_m: t.geometry?.radius_m ?? '',
+      ...(du === 'ft' ? {
+        TVDSS_ft: mToUnit(t.tvdss_m, 'ft')?.toFixed(2) ?? '',
+        Radius_ft: t.geometry?.radius_m != null ? mToUnit(t.geometry.radius_m, 'ft').toFixed(2) : '',
+      } : {}),
       Dip_deg: t.dip_deg ?? '',
       DipAzimuth_deg: t.dip_azimuth_deg ?? '',
       Source: t.provenance?.source || 'manual',
@@ -185,8 +192,8 @@ const TargetsTab = () => {
                 <TableHead className="text-pl-text">Category</TableHead>
                 <TableHead className="text-pl-text text-right">Easting (m)</TableHead>
                 <TableHead className="text-pl-text text-right">Northing (m)</TableHead>
-                <TableHead className="text-pl-text text-right">TVDSS (m)</TableHead>
-                <TableHead className="text-pl-text text-right">Radius (m)</TableHead>
+                <TableHead className="text-pl-text text-right">TVDSS ({du})</TableHead>
+                <TableHead className="text-pl-text text-right">Radius ({du})</TableHead>
                 <TableHead className="text-pl-text">Source</TableHead>
                 <TableHead />
               </TableRow>
@@ -202,8 +209,8 @@ const TargetsTab = () => {
                   <TableCell className="capitalize text-pl-muted">{t.category}</TableCell>
                   <TableCell className="text-right font-mono text-pl-text">{t.center_x?.toFixed(1)}</TableCell>
                   <TableCell className="text-right font-mono text-pl-text">{t.center_y?.toFixed(1)}</TableCell>
-                  <TableCell className="text-right font-mono text-pl-text">{t.tvdss_m?.toFixed(1)}</TableCell>
-                  <TableCell className="text-right font-mono text-pl-muted">{t.geometry?.radius_m ?? ''}</TableCell>
+                  <TableCell className="text-right font-mono text-pl-text">{showDepth(t.tvdss_m, du, 1)}</TableCell>
+                  <TableCell className="text-right font-mono text-pl-muted">{showDepth(t.geometry?.radius_m, du, du === 'ft' ? 0 : 1)}</TableCell>
                   <TableCell className="text-xs text-pl-muted">
                     {t.provenance?.source || 'manual'}
                     {changedTargets.has(t.id) && (
@@ -238,6 +245,7 @@ const TargetsTab = () => {
           onOpenChange={(o) => { if (!o) setDialogTarget(undefined); }}
           target={dialogTarget}
           onSave={handleSave}
+          depthUnit={du}
         />
       )}
 
@@ -245,6 +253,7 @@ const TargetsTab = () => {
         <TargetFromRegistryDialog
           open
           mode={pickerMode}
+          depthUnit={du}
           onOpenChange={(o) => { if (!o) setPickerMode(null); }}
           onPick={async (payload) => {
             try {
