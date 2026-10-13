@@ -475,3 +475,10 @@ which), and the table's volume matches the Surfaces volume; without a base
 surface it keeps the gross thickness. Test:
 `__tests__/areaDepthBaseSurface.test.jsx` (negative control: the thickness
 table misses by more than 10 percent on a thickening sand).
+## 2026-10-12: the reports name the surfaces
+
+The PDF reviewer block (deterministic and probabilistic) and the Tools
+review said "Method: Surfaces (top and base surfaces, cut by the contacts)"
+without naming them. A "Surfaces: top ..., base ..." line follows the
+method now (Hybrid: the top with a constant gross thickness), from
+`surfaceNamesOf(state)`. Test: `__tests__/reportSurfaceLine.test.js`.
