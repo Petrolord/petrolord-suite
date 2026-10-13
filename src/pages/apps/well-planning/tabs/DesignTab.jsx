@@ -43,7 +43,7 @@ import {
 } from '../services/planEditor';
 import { buildTrajectoryContract, exportFormats } from '../services/trajectoryContract';
 import { loadPpfgCurves, buildMudWindow, mudWindowSummary, ppfgSourceLine } from '../services/ppfg';
-import { compositeStations } from '../services/surveyUtils';
+import { definitiveComposite } from '../services/surveyUtils';
 import { listSurveys } from '../services/wpApi';
 import {
     assembleOffsetCandidates, chooseDisplayOffsets, offsetToChart, projectToSection, OFFSET_COLORS,
@@ -190,16 +190,15 @@ const DesignTab = () => {
             const out = { composite: null, offsets: [], tops: [] };
             try {
                 const surveys = await listSurveys(wellbore.id);
-                const gridOf = (s) => (Array.isArray(s.computed) && s.computed.length >= 2 ? s.computed : s.stations);
-                const comp = compositeStations(
-                    surveys.filter((s) => s.is_in_definitive).map((s) => ({ stations: gridOf(s) })),
-                );
+                const comp = definitiveComposite(surveys);
                 if (comp.length >= 2) out.composite = comp;
             } catch (e) { /* composite is optional */ }
             // Same offset loader as the Anti-collision tab (unreadable
             // wellbores are skipped).
-            const { map } = await loadSiteOffsetDesigns(wellbores, wellbore.id, { isCancelled: () => !live });
-            out.offsets = assembleOffsetCandidates({ wellbores: wellbores || [], designsByWellbore: map, wellbore })
+            const { map, actuals } = await loadSiteOffsetDesigns(wellbores, wellbore.id, { isCancelled: () => !live });
+            out.offsets = assembleOffsetCandidates({
+                wellbores: wellbores || [], designsByWellbore: map, actualsByWellbore: actuals, wellbore,
+            })
                 .map((c) => ({
                     id: c.id, label: c.name, stations: c.stations,
                     headX: c.headX, headY: c.headY, kbElevM: c.kbElevM,

@@ -21,7 +21,7 @@ import {
 import { useWellPlanningStore } from '../state/WellPlanningStore';
 import * as wpApi from '../services/wpApi';
 import {
-  compositeStations, computeActualTable, planVsActual, projectAhead,
+  definitiveComposite, surveyGridStations, newRunDefaults, computeActualTable, planVsActual, projectAhead,
 } from '../services/surveyUtils';
 import { M_TO_FT, defaultVsAzimuth, computeWellPath } from '../engine/surveyMath';
 import SurveyDialog from '../components/SurveyDialog';
@@ -64,13 +64,11 @@ const SurveysTab = () => {
 
   // Grid stations per survey: the cached grid conversion, or the raw
   // stations for pre-cache rows (raw is grid when no reference stored).
-  const gridStationsOf = (s) => (Array.isArray(s.computed) && s.computed.length >= 2 ? s.computed : s.stations);
+  const gridStationsOf = surveyGridStations;
 
   const selected = surveys.find((s) => s.id === selectedId) || null;
 
-  const composite = useMemo(() => compositeStations(
-    surveys.filter((s) => s.is_in_definitive).map((s) => ({ stations: gridStationsOf(s) })),
-  ), [surveys]);
+  const composite = useMemo(() => definitiveComposite(surveys), [surveys]);
 
   // The plan to compare against: the definitive design, else the
   // latest design with saved stations.
@@ -139,7 +137,7 @@ const SurveysTab = () => {
     if (dialog?.survey?.id) {
       await wpApi.updateSurvey(dialog.survey.id, payload);
     } else {
-      await wpApi.saveSurvey({ ...payload, wellbore_id: wellbore.id }, user.id);
+      await wpApi.saveSurvey({ ...newRunDefaults(surveys), ...payload, wellbore_id: wellbore.id }, user.id);
     }
     await refreshSurveys(wellbore.id);
     toast({ title: 'Survey saved' });

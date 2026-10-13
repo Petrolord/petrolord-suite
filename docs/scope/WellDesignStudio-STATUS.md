@@ -765,3 +765,26 @@ a per-user choice from the header toggle (beside Help).
 - No migration (provenance is the existing jsonb column). Tests:
   `__tests__/targetSourceFreshness.test.jsx` (4, negative control first).
 
+
+## 2026-10-13: drilled neighbours scanned on their actual survey
+
+- A site wellbore with a definitive actual-survey composite (two or more
+  stations) is now an anti-collision, plot and 3D offset on that survey,
+  labelled "Ekene-10 (actual survey to 7,382 ft MD)" in the reference
+  wellbore's depth unit. Before, site offsets came only from designs, so a
+  drilled neighbour was scanned on its plan, and a wellbore with only an
+  imported survey (no design) was not offered at all. A wellbore without a
+  composite still contributes its picked design. The candidate id stays
+  `wp:<wellbore id>`, so ticked selections and saved runs resolve as before.
+  The AC report's Kind column prints registry, plan or actual survey.
+- The first survey run saved on a wellbore joins the definitive composite
+  by default; later runs are added unflagged, as before.
+- One composite helper (`surveyUtils.definitiveComposite`, with
+  `surveyGridStations` and `newRunDefaults`) replaces the copies in the
+  Surveys, Anti-collision and Design tabs and the downstream trajectory
+  resolver.
+- Tests: offsetFrame (+3: actual-only wellbore is a candidate with a ft
+  label, actual wins over plan and a one-station composite falls back to the
+  plan, drilled neighbours are always drawn), offsetLoader (+1: surveys read,
+  failures become notes), surveyUtils (+2). Negative control: disabling the
+  actual-survey preference fails 4 of them.
