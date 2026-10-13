@@ -10,7 +10,7 @@ import {
     fmtInt, fmtDec, scaleMM, scaleB, OIL, GAS, SLATE,
 } from './slideParts';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
-import { reviewerLines, formatContact } from '../../../services/reportInfo';
+import { reviewerLines, formatContact, surfaceNamesOf } from '../../../services/reportInfo';
 
 // The volumetric chain: each stage as a fraction of Gross Rock Volume. These are
 // all reservoir-volume fractions (GRV·NTG·φ·(1−Sw)) so they share one honest axis.
@@ -102,7 +102,7 @@ const DeterministicSlide = () => {
         try {
             await ReportGenerator.generateDeterministicReport(project, r, r.unitSystem || state.unitSystem, {
                 fluidType: ft, inputs: inp, reservoirName: reservoir, report: state.inputs?.report, inputMethod: r.inputMethod || state.inputMethod,
-                reviewer: reviewerLines({ report: state.inputs?.report, unitSystem: r.unitSystem || state.unitSystem, inputMethod: r.inputMethod || state.inputMethod, fluidType: ft, inputs: inp, results: r }),
+                reviewer: reviewerLines({ surfaceNames: surfaceNamesOf(state), report: state.inputs?.report, unitSystem: r.unitSystem || state.unitSystem, inputMethod: r.inputMethod || state.inputMethod, fluidType: ft, inputs: inp, results: r }),
             });
             toast({ title: 'Report downloaded', description: 'The full branded PDF was saved.' });
         } catch (e) {

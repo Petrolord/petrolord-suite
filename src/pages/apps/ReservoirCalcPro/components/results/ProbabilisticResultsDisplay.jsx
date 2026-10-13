@@ -19,7 +19,7 @@ import SpiderChart from './SpiderChart';
 import { tornadoSwings } from '@/lib/monteCarlo';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { inPlaceScale, headlineStream, runContext, runSignature } from '../../services/volumeDisplay';
-import { reviewerLines } from '../../services/reportInfo';
+import { reviewerLines, surfaceNamesOf } from '../../services/reportInfo';
 
 const PARAM_LABELS = { area: 'Area', thickness: 'Thickness', ntg: 'NTG', phi: 'Porosity', sw: 'Water Sat.', fvf: 'Bo', bg: 'Bg', owc: 'OWC', goc: 'GOC', grvFactor: 'GRV Factor', gasCapFraction: 'Gas cap fraction', recovery: 'Oil RF', recoveryGas: 'Gas RF' };
 // Per-variable formatting + short labels for the realization tracker (handles both
@@ -178,7 +178,7 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                 chartImages,
                 {
                     template: reportTemplate, fluidType: ft, reservoirName: state.reservoirName || 'Reservoir 1', report: inputs.report, inputMethod: state.inputMethod,
-                    reviewer: reviewerLines({ report: inputs.report, unitSystem: run.unitSystem, inputMethod: state.inputMethod, fluidType: ft, inputs, probResults }),
+                    reviewer: reviewerLines({ surfaceNames: surfaceNamesOf(state), report: inputs.report, unitSystem: run.unitSystem, inputMethod: state.inputMethod, fluidType: ft, inputs, probResults }),
                 },
             );
 

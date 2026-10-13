@@ -8,7 +8,7 @@ import ProspectRiskingPanel from './ProspectRiskingPanel';
 import { makeRegistryProspectsBackend } from '../../services/prospectsService';
 import { unriskedFromRun, runVolumeUnit } from '../../services/prospectVolumes';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
-import { reviewerLines } from '../../services/reportInfo';
+import { reviewerLines, surfaceNamesOf } from '../../services/reportInfo';
 import { prospectSourceFromState } from '../../services/prospectSource';
 
 // Prospect Risking wraps the shared panel with the real rcp_prospects
@@ -21,6 +21,7 @@ const ProspectRiskingTool = () => {
     const unrisked = useMemo(() => unriskedFromRun(state?.probResults, fluidType, state?.unitSystem), [state?.probResults, fluidType, state?.unitSystem]);
     // U2-011: the one-page summary carries the workspace's reviewer block
     const reviewer = useMemo(() => reviewerLines({
+        surfaceNames: surfaceNamesOf(state),
         report: state?.inputs?.report, unitSystem: state?.probResults?.meta?.unitSystem || state?.unitSystem, inputMethod: state?.inputMethod,
         fluidType, inputs: state?.inputs, results: state?.results, probResults: state?.probResults,
     }), [state, fluidType]);
