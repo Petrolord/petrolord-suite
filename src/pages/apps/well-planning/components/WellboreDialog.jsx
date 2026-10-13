@@ -174,15 +174,15 @@ const WellboreDialog = ({ open, onOpenChange, site, wellbore, siblings = [], onS
           <div className="grid grid-cols-3 gap-3">
             <div>
               <Label className="text-xs">KB elev ({form.depth_unit === 'ft' ? 'ft' : 'm'} MSL)</Label>
-              <UnitNumberInput unit={form.depth_unit === 'ft' ? 'ft' : 'm'} valueM={form.kb_elev_m} onChangeM={(m) => set('kb_elev_m', m ?? '')} className="h-9" data-testid="wellbore-kb-elev" />
+              <UnitNumberInput digits={2} unit={form.depth_unit === 'ft' ? 'ft' : 'm'} valueM={form.kb_elev_m} onChangeM={(m) => set('kb_elev_m', m ?? '')} className="h-9" data-testid="wellbore-kb-elev" />
             </div>
             <div>
               <Label className="text-xs">Ground elev ({form.depth_unit === 'ft' ? 'ft' : 'm'} MSL)</Label>
-              <UnitNumberInput unit={form.depth_unit === 'ft' ? 'ft' : 'm'} valueM={form.ground_elev_m} onChangeM={(m) => set('ground_elev_m', m ?? '')} className="h-9" data-testid="wellbore-ground-elev" />
+              <UnitNumberInput digits={2} unit={form.depth_unit === 'ft' ? 'ft' : 'm'} valueM={form.ground_elev_m} onChangeM={(m) => set('ground_elev_m', m ?? '')} className="h-9" data-testid="wellbore-ground-elev" />
             </div>
             <div>
               <Label className="text-xs">Water depth ({form.depth_unit === 'ft' ? 'ft' : 'm'})</Label>
-              <UnitNumberInput unit={form.depth_unit === 'ft' ? 'ft' : 'm'} valueM={form.water_depth_m} onChangeM={(m) => set('water_depth_m', m ?? '')} className="h-9" data-testid="wellbore-water-depth" />
+              <UnitNumberInput digits={2} unit={form.depth_unit === 'ft' ? 'ft' : 'm'} valueM={form.water_depth_m} onChangeM={(m) => set('water_depth_m', m ?? '')} className="h-9" data-testid="wellbore-water-depth" />
             </div>
           </div>
 
