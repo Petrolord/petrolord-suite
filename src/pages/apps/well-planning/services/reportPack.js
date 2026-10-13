@@ -178,6 +178,9 @@ function polyline(doc, pts) {
   }
 }
 
+// how an offset was scanned, as the AC report prints it
+const OFFSET_KIND_LABEL = { geo: 'registry', 'wp-plan': 'plan', 'wp-actual': 'actual survey' };
+
 /** Plan view: N vs E path + targets + EOU ellipses (all metres). */
 export function drawPlanView(doc, rect, { stations, targets = [], ellipses = [], unit = 'm' }) {
   frameRect(doc, rect, `Plan view (N vs E, ${unit})`);
@@ -450,7 +453,7 @@ export async function generateAcReport({
     startY: (doc.lastAutoTable?.finalY ?? 60) + 4,
     head: [['Offset well', 'Kind', 'Status', 'Min SF', `At ref MD (${U})`, `Min C-C (${U})`]],
     body: (run.results || []).map((r) => [
-      r.label, r.kind, (r.status || '').toUpperCase(), fmtNum(r.minSf, 2),
+      r.label, OFFSET_KIND_LABEL[r.kind] || r.kind || '', (r.status || '').toUpperCase(), fmtNum(r.minSf, 2),
       L(r.minSfMd, 0), L(minOf(r.distanceCC), 1),
     ]),
     styles: { fontSize: 7, cellPadding: 1 },
