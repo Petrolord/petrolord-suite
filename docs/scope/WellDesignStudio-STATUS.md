@@ -852,3 +852,18 @@ a per-user choice from the header toggle (beside Help).
   unchanged. Tests: `__tests__/trajectoryKpis.test.jsx` (formatter, KPI,
   negative control) and a toolbar case in `WellDesignStudio.theme.test.jsx`
   (fails on the old toolbar).
+## 2026-10-13: the report pack in the wellbore's depth unit
+
+- The wall plot, survey listing and anti-collision report PDFs printed metres
+  for a feet wellbore while the app showed feet. They now follow the
+  wellbore's depth unit: MD, TVD, TVDSS, N/E offsets, VS, closure, KB, target
+  TVDSS and radius, AC distances, the projection-ahead sigma, the surface
+  margin and the hole radii, with the unit in every heading; DLS prints per
+  100 ft. Wellhead coordinates stay in site CRS metres (a "Depth unit" row
+  says so in a feet header block). Charts are drawn from the same metre
+  geometry, so a true-scale plot is unchanged; their titles carry the unit.
+- The PDF titles lost their em dashes ("Wall plot: Ekene-11").
+- Tests: `__tests__/reportPack.test.js` +4 (1885.36 m target prints 6185.6 ft,
+  2.5 deg/30 m prints 2.54 deg/100ft, 400 m kickoff 1312.34 ft, AC distances
+  and rule lengths in feet); the metre tests are the negative control, and
+  turning the conversion off fails 3 of the new tests.
