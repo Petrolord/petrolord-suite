@@ -893,3 +893,16 @@ Doc: `docs/upgrade/MaterialBalanceStudio-UPGRADE.md` (the twenty-four checks,
   on their six-place Bo), r2 0.9999999995; without the injection column the
   tank comes out more than 5 percent larger (negative control).
 - No engine change, no migration, no function deploy.
+## 2026-10-13: a level plot looks level (MBAL video programme)
+
+- **Defect:** the Campbell and Cole axes were fitted to their points alone.
+  On a closed tank the points lie within a few barrels of one another (Ekene:
+  12.1395 to 12.1396 MMSTB), so they filled the plot, every tick read 12.14
+  and the level line that proves depletion drive read as scatter.
+- **Fix:** `levelAxis` in `lib/plotModels.js`: both axes always span 5
+  percent either side of the run's level (`LEVEL_BAND`); a real rise still
+  stands out. Screen and report draw the same model; the three report
+  goldens were regenerated on purpose for the new axis (Cole on Pletcher,
+  Campbell on Dake).
+- **Gate:** `lib/__tests__/mbalLevelAxis.test.js` (a real engine run of
+  Ahmed 11-3; negative control on the Ekene numbers without the band).
