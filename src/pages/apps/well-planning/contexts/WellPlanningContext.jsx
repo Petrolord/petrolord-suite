@@ -4,48 +4,49 @@ import { debounce } from 'lodash';
 
 const WellPlanningContext = createContext(null);
 
+/** The localStorage draft of one design, or null. */
+export function readDraft(wellId) {
+  if (!wellId) return null;
+  try {
+    const raw = localStorage.getItem(`well_planning_draft_${wellId}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 export const WellPlanningProvider = ({ wellId, children }) => {
   const { toast } = useToast();
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
 
-  // Initial State for Drafts
-  const [targetsDraft, setTargetsDraft] = useState(null);
-  const [trajectoryDraft, setTrajectoryDraft] = useState(null);
-  
+  // Drafts belong to one design (wellId is the selected design id). They
+  // switch in the same render as the selection (2026-10-13): an effect ran
+  // after the Design tab's own load effect, so a newly selected design was
+  // loaded with the previous design's unsaved segments, and a new design
+  // opened showing the last one's well.
+  const [draftKey, setDraftKey] = useState(wellId);
+  const [targetsDraft, setTargetsDraft] = useState(() => readDraft(wellId)?.targets ?? null);
+  const [trajectoryDraft, setTrajectoryDraft] = useState(() => readDraft(wellId)?.trajectory ?? null);
+
   // Undo/Redo History Stacks for Trajectory
-  const [trajectoryHistory, setTrajectoryHistory] = useState([]);
+  const [trajectoryHistory, setTrajectoryHistory] = useState(() => {
+    const t = readDraft(wellId)?.trajectory;
+    return t ? [t] : [];
+  });
   const [trajectoryFuture, setTrajectoryFuture] = useState([]);
 
-  // Load draft from local storage on mount or wellId change
-  useEffect(() => {
-    if (!wellId) return;
-    
-    const savedDraft = localStorage.getItem(`well_planning_draft_${wellId}`);
-    if (savedDraft) {
-      try {
-        const parsed = JSON.parse(savedDraft);
-        if (parsed.targets) setTargetsDraft(parsed.targets);
-        if (parsed.trajectory) {
-          setTrajectoryDraft(parsed.trajectory);
-          setTrajectoryHistory([parsed.trajectory]); // Initialize history
-        }
-        if (parsed.timestamp) {
-            setLastSaved(new Date(parsed.timestamp));
-        }
-      } catch (e) {
-        console.error("Failed to parse draft", e);
-      }
-    } else {
-      // Reset if no draft
-      setTargetsDraft(null);
-      setTrajectoryDraft(null);
-      setTrajectoryHistory([]);
-      setTrajectoryFuture([]);
-      setHasUnsavedChanges(false);
-    }
-  }, [wellId]);
+  if (draftKey !== wellId) {
+    const parsed = readDraft(wellId);
+    setDraftKey(wellId);
+    setTargetsDraft(parsed?.targets ?? null);
+    setTrajectoryDraft(parsed?.trajectory ?? null);
+    setTrajectoryHistory(parsed?.trajectory ? [parsed.trajectory] : []);
+    setTrajectoryFuture([]);
+    setHasUnsavedChanges(false);
+    if (parsed?.timestamp) setLastSaved(new Date(parsed.timestamp));
+  }
 
   // Persist to local storage
   const persistDraft = useCallback((data) => {

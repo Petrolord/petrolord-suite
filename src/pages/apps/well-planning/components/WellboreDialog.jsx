@@ -17,6 +17,9 @@ import { siteCrsOpts } from '../services/siteCrs';
 import { isTransformableTag } from '@/lib/crs/tags';
 import { declinationAt, decimalYearOf } from '../engine/magnetics';
 
+import UnitNumberInput from './UnitNumberInput';
+import { useTargetDepthUnit } from '../services/depthUnits';
+
 const num = (v) => {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : null;
@@ -25,6 +28,8 @@ const NONE = '__none__';
 
 const WellboreDialog = ({ open, onOpenChange, site, wellbore, siblings = [], onSave }) => {
   const editing = Boolean(wellbore?.id);
+  // a new wellbore starts in the unit profile's depth unit (2026-10-13)
+  const profileDepthUnit = useTargetDepthUnit();
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
 
@@ -39,12 +44,12 @@ const WellboreDialog = ({ open, onOpenChange, site, wellbore, siblings = [], onS
       kb_elev_m: wellbore?.kb_elev_m ?? '',
       ground_elev_m: wellbore?.ground_elev_m ?? site?.default_ground_elev_m ?? '',
       water_depth_m: wellbore?.water_depth_m ?? '',
-      depth_unit: wellbore?.depth_unit || 'm',
+      depth_unit: wellbore?.depth_unit || profileDepthUnit,
       azimuth_reference: wellbore?.azimuth_reference || site?.north_reference || 'grid',
       parent_wellbore_id: wellbore?.parent_wellbore_id || NONE,
       status: wellbore?.status || 'planning',
     });
-  }, [open, wellbore, site]);
+  }, [open, wellbore, site]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -168,16 +173,16 @@ const WellboreDialog = ({ open, onOpenChange, site, wellbore, siblings = [], onS
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <Label className="text-xs">KB elev (m MSL)</Label>
-              <Input type="number" value={form.kb_elev_m} onChange={(e) => set('kb_elev_m', e.target.value)} className="h-9" />
+              <Label className="text-xs">KB elev ({form.depth_unit === 'ft' ? 'ft' : 'm'} MSL)</Label>
+              <UnitNumberInput digits={2} unit={form.depth_unit === 'ft' ? 'ft' : 'm'} valueM={form.kb_elev_m} onChangeM={(m) => set('kb_elev_m', m ?? '')} className="h-9" data-testid="wellbore-kb-elev" />
             </div>
             <div>
-              <Label className="text-xs">Ground elev (m MSL)</Label>
-              <Input type="number" value={form.ground_elev_m} onChange={(e) => set('ground_elev_m', e.target.value)} className="h-9" />
+              <Label className="text-xs">Ground elev ({form.depth_unit === 'ft' ? 'ft' : 'm'} MSL)</Label>
+              <UnitNumberInput digits={2} unit={form.depth_unit === 'ft' ? 'ft' : 'm'} valueM={form.ground_elev_m} onChangeM={(m) => set('ground_elev_m', m ?? '')} className="h-9" data-testid="wellbore-ground-elev" />
             </div>
             <div>
-              <Label className="text-xs">Water depth (m)</Label>
-              <Input type="number" value={form.water_depth_m} onChange={(e) => set('water_depth_m', e.target.value)} className="h-9" />
+              <Label className="text-xs">Water depth ({form.depth_unit === 'ft' ? 'ft' : 'm'})</Label>
+              <UnitNumberInput digits={2} unit={form.depth_unit === 'ft' ? 'ft' : 'm'} valueM={form.water_depth_m} onChangeM={(m) => set('water_depth_m', m ?? '')} className="h-9" data-testid="wellbore-water-depth" />
             </div>
           </div>
 

@@ -765,3 +765,194 @@ a per-user choice from the header toggle (beside Help).
 - No migration (provenance is the existing jsonb column). Tests:
   `__tests__/targetSourceFreshness.test.jsx` (4, negative control first).
 
+
+## 2026-10-13: the mud window from an offset well's prognosis
+
+- A planned well has no logs, so Pore Pressure Studio cannot run on it and the
+  PPFG mud window (with its bottom-up casing seats) stayed empty for exactly
+  the wells being planned. The PPFG view now has **Prognosis from**
+  (`data-testid="wd-ppfg-source"`): this design's bridged registry well when it
+  carries PP or FP curves, and every registry well in the site CRS that does,
+  nearest wellhead first. The first entry is used until another is picked; the
+  choice is kept per design for the session (component state, not saved).
+- An offset applies **by TVDSS**: its curves go MD to TVDSS through its own
+  deviation and depth reference (`readWellDatum`; a well with no reference
+  elevation is refused with the reason), a mud weight or gradient converts to
+  MPa at the offset's own TVD, each pressure applies at the same TVDSS on this
+  trajectory, and EMW/ppg are taken at this trajectory's TVD below its KB.
+  Casing seats come out on this trajectory's MD. The source line ends
+  "from <well> (offset, by TVDSS)".
+- Pure functions in `services/ppfg.js`: `offsetPathFor`, `curvesByTvdss`,
+  `buildMudWindowByTvdss`, `ppfgSourceCandidates` (two registry reads in
+  `loadPpfgSourceCandidates`, never one per well); `buildMudWindow` now shares
+  its row builder. Tests `__tests__/ppfgOffset.test.js` (8): identity to 1e-9
+  against the bridged reader, a vertical offset on a deviated plan, a deviated
+  offset at equal TVDSS (negative control sampling by MD misses by more than
+  0.1 MPa and fails; sampling by MD in the shipped function fails 4 gates), a
+  KB difference, ppg curves converted at the offset TVD, the no-datum refusal,
+  seats on this MD, candidate rules. Help guides (WDS, Pore Pressure) updated.
+## 2026-10-13: depths in the unit profile's unit (targets, datum, settings)
+
+- Targets tab: the TVDSS and radius columns, and the target dialog's TVDSS,
+  radius and semi-axis fields, follow the user's unit profile depth unit
+  (`useAppUnits('well-planning')`, feet on the oilfield preset). Eastings and
+  northings stay in the site CRS unit (metres). Everything is still stored in
+  metres; the CSV export keeps its metre columns and adds `TVDSS_ft` and
+  `Radius_ft` when the view is in feet.
+- Design method target list names the target depth in the wellbore's unit
+  ("T1 Oboro Sand (6186 ft TVDSS)").
+- Wellbore dialog: KB, ground elevation and water depth show and take the
+  depth unit chosen in the dialog (flipping the unit converts the fields); a
+  new wellbore starts in the profile's depth unit.
+- Design settings "Vertical tol" and the separation rule's sigma pa and Sm
+  are shown in the wellbore unit (stored metres; a field left as shown keeps
+  its stored metres exactly).
+- Shared pieces: `services/depthUnits.js`, `components/UnitNumberInput.jsx`.
+  Tests: `__tests__/depthUnits.test.jsx` (feet round trips to the
+  centimetre, with the metre path as negative control).
+- Not changed: the report pack PDFs still print metres.
+
+## 2026-10-13: depth below the pick (registry targets)
+
+- "From top" and "From surface" take a **Depth below the pick** in the
+  profile depth unit (default 0, negative is above). The target TVDSS is the
+  picked TVDSS plus the stand-off; the provenance keeps `below_pick_m` and
+  `picked_tvdss_m`, and "Refresh from source" re-runs the pick and applies the
+  same stand-off (`refreshTargetPatch`).
+- Test ids for storyboards and e2e: wd-pick-well, wd-pick-top,
+  wd-pick-surface, wd-pick-x, wd-pick-y, wd-pick-below, wd-pick-name,
+  wd-pick-create.
+- Kit check: the Ekene Oboro Sand top map reads 1877.36 m TVDSS at
+  402250 E 521750 N; 8 m below is T1 Oboro Sand, 1885.36 m.
+- Tests: `__tests__/targetStandoff.test.jsx` (5; refresh negative control:
+  the pick without the stand-off lands 8 m shallow).
+## 2026-10-13: 3D view in the wellbore's depth unit
+
+- The Design tab 3D view labelled the TD in metres ("TD 2003m") and ticked the
+  TVDSS axis in metres on a feet wellbore. `services/wpMesh.js` `buildScene`
+  now takes `depthUnit` (DesignTab passes the wellbore's): the TD label reads
+  "TD 6,573 ft MD" and the TVDSS ticks are round feet at their true depth; a
+  "TVDSS ft" (or "TVDSS m") caption sits under the axis. Easting and northing
+  ticks stay in site-CRS metres. The metre scene is unchanged.
+- A TD label that sat on its target's label (a well drilled to its target)
+  is moved 12 px below it.
+- Tests: `__tests__/wpMeshDepthUnit.test.js` (feet labels and ticks, metre
+  negative control, label clash), `wpMesh.test.js` axis set.
+## 2026-10-13: Design toolbar fits, bottom hole labelled
+
+- The Design view toolbar (views, Targets/Offsets/DLS colour/PPFG,
+  Export, Publish) was an absolutely placed strip that scrolled sideways,
+  so at a 1440 px or 1280 px laptop width Export and Publish sat off the
+  right edge. It is now in the flow and wraps to a second row when it
+  needs to; the view switcher scrolls inside itself only at phone width
+  (no page sideways scroll at 390 px). The views below no longer reserve
+  a fixed 48 px for it.
+- The Bottom hole KPI reads "4.7198° N, 8.1186° E" (hemisphere letters,
+  S and W handled) instead of a bare "4.7198, 8.1186"; "Set well CRS" is
+  unchanged. Tests: `__tests__/trajectoryKpis.test.jsx` (formatter, KPI,
+  negative control) and a toolbar case in `WellDesignStudio.theme.test.jsx`
+  (fails on the old toolbar).
+## 2026-10-13: the report pack in the wellbore's depth unit
+
+- The wall plot, survey listing and anti-collision report PDFs printed metres
+  for a feet wellbore while the app showed feet. They now follow the
+  wellbore's depth unit: MD, TVD, TVDSS, N/E offsets, VS, closure, KB, target
+  TVDSS and radius, AC distances, the projection-ahead sigma, the surface
+  margin and the hole radii, with the unit in every heading; DLS prints per
+  100 ft. Wellhead coordinates stay in site CRS metres (a "Depth unit" row
+  says so in a feet header block). Charts are drawn from the same metre
+  geometry, so a true-scale plot is unchanged; their titles carry the unit.
+- The PDF titles lost their em dashes ("Wall plot: Ekene-11").
+- Tests: `__tests__/reportPack.test.js` +4 (1885.36 m target prints 6185.6 ft,
+  2.5 deg/30 m prints 2.54 deg/100ft, 400 m kickoff 1312.34 ft, AC distances
+  and rule lengths in feet); the metre tests are the negative control, and
+  turning the conversion off fails 3 of the new tests.
+## 2026-10-13: drilled neighbours scanned on their actual survey
+
+- A site wellbore with a definitive actual-survey composite (two or more
+  stations) is now an anti-collision, plot and 3D offset on that survey,
+  labelled "Ekene-10 (actual survey to 7,382 ft MD)" in the reference
+  wellbore's depth unit. Before, site offsets came only from designs, so a
+  drilled neighbour was scanned on its plan, and a wellbore with only an
+  imported survey (no design) was not offered at all. A wellbore without a
+  composite still contributes its picked design. The candidate id stays
+  `wp:<wellbore id>`, so ticked selections and saved runs resolve as before.
+  The AC report's Kind column prints registry, plan or actual survey.
+- The first survey run saved on a wellbore joins the definitive composite
+  by default; later runs are added unflagged, as before.
+- One composite helper (`surveyUtils.definitiveComposite`, with
+  `surveyGridStations` and `newRunDefaults`) replaces the copies in the
+  Surveys, Anti-collision and Design tabs and the downstream trajectory
+  resolver.
+- Tests: offsetFrame (+3: actual-only wellbore is a candidate with a ft
+  label, actual wins over plan and a one-station composite falls back to the
+  plan, drilled neighbours are always drawn), offsetLoader (+1: surveys read,
+  failures become notes), surveyUtils (+2). Negative control: disabling the
+  actual-survey preference fails 4 of them.
+
+## 2026-10-13: target source words and what a refresh does
+
+Found in the video dry run. The Source column showed the raw provenance code
+(`geo_surface`); it now reads "Surface: WDS demo: Oboro Sand top, 26.2 ft
+below", "Top: Oboro Sand in Ekene-8" or "Typed" (CSV too). The "Registry source
+changed" notice now says what Refresh from source would do, read with the same
+pick the refresh runs: "Refreshing moves T3 from 4,987.2 to 5,004.4 ft TVDSS
+(17.2 ft deeper)" (the shared notice takes an optional `effect` line per item).
+Settings and datum fields shown in feet round to 2 decimals (0.5 m showed as
+1.6404 ft); the stored metres change only when the user types. Tests:
+`__tests__/targetSourceDetail.test.jsx`.
+## 2026-10-13: anti-collision ladder MD in the wellbore unit
+
+Found in the video dry run: on a feet wellbore the separation-factor and
+distance ladders plotted reference MD in metres under an axis labelled ft
+(the 1,312 ft kickoff sat at 400). The rows now convert MD with the
+distances (`ladderRows`). The no-go and review threshold labels sit on their
+own sides of their lines, the legend moved above the plot (it overlapped the
+axis title), and both chart titles leave room for the SF/Distance and
+Highside/North buttons. Test: `__tests__/ladderChart.test.js`.
+## 2026-10-13: a design's unsaved draft stays with that design (fix)
+
+Found in the video dry run: a new design under Ekene-11 opened showing the
+previous design's S-profile, and Design methods then refused to curve to the
+target ("directly above the tie-on"), because the design end was the other
+design's TD. The draft context (keyed on the selected design) reset its
+draft in an effect, which runs after the Design tab's own load effect, so
+the tab had already loaded the new design with the old draft and does not
+load twice. Switching between two saved designs had the same leak, and a
+Save would have written one design's unsaved segments into the other. The
+draft now switches in the same render as the selection (`readDraft`), so
+the tab sees the new design's own draft or none. Test:
+`__tests__/designDraftSwitch.test.jsx` (fails on the effect-based reset).
+
+## 2026-10-13: the last metre labels on a feet wellbore
+
+Found in the video dry run: the project-ahead target list ("T1 (1885 m TVDSS)"),
+the From top picker's tops ("Oboro Sand (2039 m MD)") and the Publish dialog's
+TD and KB still printed metres on a feet wellbore or profile. They now follow
+the wellbore depth unit (the From top list follows the profile unit, as the
+rest of that dialog does).
+## 2026-10-13: survey MD unit read from the column header
+
+Found in the video dry run: on a feet wellbore the New survey run dialog
+defaulted MD unit to Feet, so the kit's Ekene-10 workbook ("MD (m)", 78
+stations to 2,250 m) would have been saved as a 2,250 ft well with nothing
+said. The dialog now reads the unit stated by the mapped MD column header
+(`mdUnitFromHeader`: bracketed units through the shared `headerUnit`, or a
+unit token as in md_m, MD_FT, m MD) and sets MD unit to it, with a note
+under the select ("Read from the column header: m"); a header with no unit
+keeps the wellbore unit and asks the user to check it; a unit picked by hand
+wins. Manual paste and registry imports are unchanged. Tests:
+`__tests__/surveyDialog.test.jsx` (+5, the metres case fails on the old dialog).
+## 2026-10-13: report text the PDF fonts can draw
+
+Found in the video dry run (Lesson D12 PDFs). jsPDF's standard fonts have no
+Greek sigma, so the wall plot footer printed "uncertainty (2Ã)" and the
+anti-collision rule table "Ã projection-ahead"; they now read "2 sigma" and
+"sigma pa (projection ahead)". The wall plot header rounds convergence and
+declination to 4 decimals (it printed 0.07291183644136559). The
+anti-collision ladder's legend moved below the plot (it was drawn over the
+curves). The Reports tab saved-run label drops its em dash and shows the
+minimum SF to 2 decimals, as does the Anti-Collision run history
+(`fmtSf`, `runOptionLabel` in services/acUtils.js). Test:
+`__tests__/reportText.test.js` scans every string the three generators write
+for characters outside Latin-1 (fails on the sigma it replaced).

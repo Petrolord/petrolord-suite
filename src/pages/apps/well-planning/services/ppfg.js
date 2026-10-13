@@ -12,7 +12,8 @@
 // the trajectory's TVD below the rotary table, and a curve that is not a
 // pressure is named with its reason.
 
-import { listLogs, downloadCurve } from '@/lib/wellsRegistry';
+import { listLogs, downloadCurve, listWells, listAllLogMeta } from '@/lib/wellsRegistry';
+import { readWellDatum } from '@/lib/wellDatum';
 import { ppfgUnit, unreadableUnitReason, KG_M3_PER_PPG } from '@/lib/ppfgUnits';
 import { computeWellPath, positionAtMd } from '../engine/surveyMath';
 import { casingSeatsBottomUp, lineAt } from '../../PorePressureStudio/engine/casingSeats';
@@ -83,6 +84,19 @@ export function sampleCurve(md, values, target) {
  */
 export function buildMudWindow(curves, stations, { kbElevM = 0, stepM = 25 } = {}) {
   if (!curves || (!curves.PP && !curves.FP)) return [];
+  return mudWindowRows(stations, { kbElevM, stepM }, (key, md, pos) => {
+    const c = curves[key];
+    if (!c) return null;
+    const v = sampleCurve(c.md, c.values, md);
+    if (v == null || !c.toMpa) return v;
+    const mpa = c.toMpa(v, pos.tvd);
+    return Number.isFinite(mpa) ? mpa : null;
+  });
+}
+
+/** The rows both readers share: walk the trajectory at `stepM`, ask
+ *  `at(key, md, pos)` for each curve in MPa, keep rows with any data. */
+function mudWindowRows(stations, { kbElevM = 0, stepM = 25 } = {}, at) {
   if (!Array.isArray(stations) || stations.length < 2) return [];
   const path = computeWellPath(stations, { surfaceX: 0, surfaceY: 0, kb: kbElevM });
   const mdMin = stations[0].md;
@@ -91,17 +105,9 @@ export function buildMudWindow(curves, stations, { kbElevM = 0, stepM = 25 } = {
   for (let md = Math.ceil(mdMin / stepM) * stepM; md <= mdMax + 1e-9; md += stepM) {
     const pos = positionAtMd(stations, path, md);
     if (!pos || !(pos.tvd > 0)) continue;
-    const at = (key) => {
-      const c = curves[key];
-      if (!c) return null;
-      const v = sampleCurve(c.md, c.values, md);
-      if (v == null || !c.toMpa) return v;
-      const mpa = c.toMpa(v, pos.tvd);
-      return Number.isFinite(mpa) ? mpa : null;
-    };
-    const pp = at('PP');
-    const fp = at('FP');
-    const obg = at('OBG');
+    const pp = at('PP', md, pos);
+    const fp = at('FP', md, pos);
+    const obg = at('OBG', md, pos);
     if (pp == null && fp == null && obg == null) continue;
     const emw = (mpa) => (mpa == null ? null : (mpa * 1e6) / (G * pos.tvd) / 1000);
     const ppg = (mpa) => (mpa == null ? null : (mpa * 1e6) / (G * pos.tvd) / KG_M3_PER_PPG);
@@ -122,6 +128,110 @@ export function buildMudWindow(curves, stations, { kbElevM = 0, stepM = 25 } = {
     });
   }
   return rows;
+}
+
+// ---- 2026-10-13: the prognosis of an offset well, by TVDSS ----------------
+// A planned well has no logs, so Pore Pressure Studio cannot run on it. The
+// mud window can take the prognosis another registry well carries and apply
+// it at equal subsea depth: pressure is a property of the depth in the
+// rock, so the offset's PP at a TVDSS is this well's PP at that TVDSS (the
+// usual pre-drill assumption; laterally the offset is the nearest evidence).
+// The offset's curves go MD -> TVDSS through its own deviation and depth
+// reference, a mud weight or gradient converts to MPa at the offset's own
+// TVD, and this trajectory's EMW is then taken at its own TVD below KB, so a
+// KB difference between the wells is honoured.
+
+/**
+ * The offset well's path for its curves: its deviation (or a vertical hole
+ * to its TD or the deepest curve sample) from its own datum.
+ * @returns {{stations, path, datum}|{error: string}}
+ */
+export function offsetPathFor(well, { mdMax = 0 } = {}) {
+  const datum = readWellDatum(well);
+  if (!datum.tvdssOk) return { error: datum.tvdssReason };
+  const dev = Array.isArray(well?.deviation) && well.deviation.length >= 2
+    ? well.deviation.map((s) => ({ md: Number(s.md), inc: Number(s.inc), azi: Number(s.azi) }))
+    : [{ md: 0, inc: 0, azi: 0 }, { md: Math.max(Number(well?.td_md_m) || 0, mdMax, 1), inc: 0, azi: 0 }];
+  const path = computeWellPath(dev, { surfaceX: 0, surfaceY: 0, kb: datum.refElevM });
+  return { stations: dev, path, datum };
+}
+
+/**
+ * Curves (readyCurve shape, on the offset's MD) re-indexed on the offset's
+ * TVDSS, values in MPa. Samples outside the surveyed MD, non-finite, or
+ * not deeper than the last kept sample (a hole going up) are dropped.
+ * @returns {{curves: Object<string, {tvdss: number[], mpa: number[], log, unit}>, error?: string}}
+ */
+export function curvesByTvdss(curves, well) {
+  const mdMax = Math.max(0, ...Object.values(curves || {}).map((c) => c.md[c.md.length - 1] || 0));
+  const op = offsetPathFor(well, { mdMax });
+  if (op.error) return { curves: {}, error: op.error };
+  const out = {};
+  for (const [key, c] of Object.entries(curves || {})) {
+    const tvdss = [];
+    const mpa = [];
+    for (let i = 0; i < c.md.length; i++) {
+      const v = c.values[i];
+      if (!Number.isFinite(v)) continue;
+      const pos = positionAtMd(op.stations, op.path, c.md[i]);
+      if (!pos) continue;
+      const p = c.toMpa ? c.toMpa(v, pos.tvd) : v;
+      if (!Number.isFinite(p)) continue;
+      if (tvdss.length && pos.tvdss <= tvdss[tvdss.length - 1]) continue;
+      tvdss.push(pos.tvdss);
+      mpa.push(p);
+    }
+    if (tvdss.length >= 2) out[key] = { tvdss, mpa, log: c.log, unit: c.unit };
+  }
+  return { curves: out };
+}
+
+/**
+ * Mud-window rows on this trajectory from an offset's curves by TVDSS
+ * (curvesByTvdss output). Same row shape as buildMudWindow; EMW at this
+ * trajectory's TVD below its KB.
+ */
+export function buildMudWindowByTvdss(tvdssCurves, stations, { kbElevM = 0, stepM = 25 } = {}) {
+  if (!tvdssCurves || (!tvdssCurves.PP && !tvdssCurves.FP)) return [];
+  return mudWindowRows(stations, { kbElevM, stepM }, (key, md, pos) => {
+    const c = tvdssCurves[key];
+    return c ? sampleCurve(c.tvdss, c.mpa, pos.tvdss) : null;
+  });
+}
+
+/**
+ * Registry wells that carry readable PP or FP curves, as choices for the
+ * mud window: the bridged well first, then the others nearest first.
+ * @param {object[]} wells geo_wells rows
+ * @param {object[]} logMeta geo_wells_logs metadata (no samples)
+ * @param {{bridgedId?: string, siteCrs?: string, wellhead?: {x:number,y:number}}} opts
+ * @returns {Array<{id, name, bridged: boolean, distanceM: ?number, curves: string[]}>}
+ */
+export function ppfgSourceCandidates(wells, logMeta, { bridgedId = null, siteCrs = null, wellhead = null } = {}) {
+  const byWell = new Map();
+  for (const l of logMeta || []) {
+    const m = String(l.mnemonic || '').toUpperCase();
+    if (!PPFG_MNEMONICS.includes(m) || !ppfgUnit(l.unit)) continue;
+    if (!byWell.has(l.well_id)) byWell.set(l.well_id, new Set());
+    byWell.get(l.well_id).add(m);
+  }
+  const out = [];
+  for (const w of wells || []) {
+    const set = byWell.get(w.id);
+    if (!set || !(set.has('PP') || set.has('FP'))) continue;
+    const bridged = w.id === bridgedId;
+    if (!bridged && siteCrs && (w.crs || null) !== siteCrs) continue;
+    const distanceM = wellhead && Number.isFinite(w.surface_x) && Number.isFinite(w.surface_y)
+      ? Math.hypot(w.surface_x - wellhead.x, w.surface_y - wellhead.y) : null;
+    out.push({ id: w.id, name: w.name, bridged, distanceM, curves: PPFG_MNEMONICS.filter((m) => set.has(m)), well: w });
+  }
+  return out.sort((a, b) => (b.bridged - a.bridged) || ((a.distanceM ?? Infinity) - (b.distanceM ?? Infinity)) || String(a.name).localeCompare(String(b.name)));
+}
+
+/** Registry reads for ppfgSourceCandidates (two queries, never one per well). */
+export async function loadPpfgSourceCandidates(opts) {
+  const [wells, meta] = await Promise.all([listWells(), listAllLogMeta()]);
+  return ppfgSourceCandidates(wells, meta, opts);
 }
 
 /** Summary for the panel header: depth extent + tightest window. */
@@ -155,14 +265,15 @@ export async function loadPpfgCurves(geoWellId, { skipped = null } = {}) {
 }
 
 /** One line for the panel: where the curves came from and in what unit. */
-export function ppfgSourceLine(curves) {
+export function ppfgSourceLine(curves, { offsetName = null } = {}) {
   const parts = PPFG_MNEMONICS.filter((m) => curves?.[m]).map((m) => {
     const c = curves[m];
     const prov = c.log?.provenance || {};
     const who = prov.engine === 'pore-pressure-studio' ? `Pore Pressure Studio ${prov.pipeline_version || ''}`.trim() : (c.log?.source_file || 'imported');
     return `${m} ${c.unit} (${who})`;
   });
-  return parts.join(', ');
+  const line = parts.join(', ');
+  return offsetName && line ? `${line} from ${offsetName} (offset, by TVDSS)` : line;
 }
 
 // ---- U2-003 (Pore Pressure Studio): kick and trip margins, casing seats ----

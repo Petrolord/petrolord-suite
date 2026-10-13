@@ -19,6 +19,7 @@ import { listWellsWithTops } from '@/lib/wellsRegistry';
 import { listSurfaces, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
 import { surfaceDomainOf } from '@/lib/readDepthSurface';
 import { targetFromTop, targetFromSurfacePick } from '../services/targetSources';
+import { unitToM } from '../services/depthUnits';
 
 const num = (v) => {
   const n = parseFloat(v);
@@ -29,7 +30,8 @@ const num = (v) => {
 // live in services/targetSources.js; re-exported for the existing tests.
 export { sampleGrid, targetDepthFromSurface } from '../services/targetSources';
 
-const TargetFromRegistryDialog = ({ open, onOpenChange, mode, onPick }) => {
+const TargetFromRegistryDialog = ({ open, onOpenChange, mode, onPick, depthUnit = 'm' }) => {
+  const du = depthUnit === 'ft' ? 'ft' : 'm';
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [wells, setWells] = useState([]);
@@ -40,6 +42,7 @@ const TargetFromRegistryDialog = ({ open, onOpenChange, mode, onPick }) => {
   const [sx, setSx] = useState('');
   const [sy, setSy] = useState('');
   const [name, setName] = useState('');
+  const [below, setBelow] = useState('0'); // stand-off below the pick, in `du`
 
   useEffect(() => {
     if (!open) return;
@@ -58,16 +61,18 @@ const TargetFromRegistryDialog = ({ open, onOpenChange, mode, onPick }) => {
 
   const handlePick = async () => {
     try {
+      const belowM = below.trim() === '' ? 0 : unitToM(below, du);
+      if (belowM === null) throw new Error(`Enter the depth below the pick in ${du} (0 for on the pick, negative for above).`);
       if (mode === 'tops') {
         if (!well || !top) throw new Error('Pick a well and a top.');
-        onPick(targetFromTop(well, top, name));
+        onPick(targetFromTop(well, top, name, { belowM }));
       } else {
         if (!surface) throw new Error('Pick a surface.');
         const x = num(sx);
         const y = num(sy);
         if (x == null || y == null) throw new Error('Enter the target E/N location to sample.');
         const grid = await downloadSurfaceGrid(surface);
-        onPick(targetFromSurfacePick(surface, grid, x, y, name));
+        onPick(targetFromSurfacePick(surface, grid, x, y, name, { belowM }));
       }
       onOpenChange(false);
     } catch (e) {
@@ -96,7 +101,7 @@ const TargetFromRegistryDialog = ({ open, onOpenChange, mode, onPick }) => {
                 <div>
                   <Label className="text-xs">Well</Label>
                   <Select value={wellId} onValueChange={(v) => { setWellId(v); setTopId(''); }}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Select well..." /></SelectTrigger>
+                    <SelectTrigger className="h-9" data-testid="wd-pick-well"><SelectValue placeholder="Select well..." /></SelectTrigger>
                     <SelectContent>
                       {wells.map((w) => <SelectItem key={w.id} value={w.id}>{w.name} ({w.tops.length} tops)</SelectItem>)}
                     </SelectContent>
@@ -105,9 +110,9 @@ const TargetFromRegistryDialog = ({ open, onOpenChange, mode, onPick }) => {
                 <div>
                   <Label className="text-xs">Top</Label>
                   <Select value={topId} onValueChange={setTopId} disabled={!well}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Select top..." /></SelectTrigger>
+                    <SelectTrigger className="h-9" data-testid="wd-pick-top"><SelectValue placeholder="Select top..." /></SelectTrigger>
                     <SelectContent>
-                      {(well?.tops || []).map((t) => <SelectItem key={t.id} value={t.id}>{t.name} ({t.md_m.toFixed(0)} m MD)</SelectItem>)}
+                      {(well?.tops || []).map((t) => <SelectItem key={t.id} value={t.id}>{t.name} ({(du === 'ft' ? t.md_m / 0.3048 : t.md_m).toFixed(0)} {du} MD)</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -117,28 +122,35 @@ const TargetFromRegistryDialog = ({ open, onOpenChange, mode, onPick }) => {
                 <div>
                   <Label className="text-xs">Surface</Label>
                   <Select value={surfaceId} onValueChange={setSurfaceId}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Select surface..." /></SelectTrigger>
+                    <SelectTrigger className="h-9" data-testid="wd-pick-surface"><SelectValue placeholder="Select surface..." /></SelectTrigger>
                     <SelectContent>
                       {surfaces.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><Label className="text-xs">Easting ({surface?.xy_unit || 'm'})</Label><Input type="number" value={sx} onChange={(e) => setSx(e.target.value)} className="h-9" /></div>
-                  <div><Label className="text-xs">Northing ({surface?.xy_unit || 'm'})</Label><Input type="number" value={sy} onChange={(e) => setSy(e.target.value)} className="h-9" /></div>
+                  <div><Label className="text-xs">Easting ({surface?.xy_unit || 'm'})</Label><Input type="number" value={sx} onChange={(e) => setSx(e.target.value)} className="h-9" data-testid="wd-pick-x" /></div>
+                  <div><Label className="text-xs">Northing ({surface?.xy_unit || 'm'})</Label><Input type="number" value={sy} onChange={(e) => setSy(e.target.value)} className="h-9" data-testid="wd-pick-y" /></div>
                 </div>
               </>
             )}
-            <div>
-              <Label className="text-xs">Target name (optional)</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} className="h-9" />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Depth below the pick ({du})</Label>
+                <Input type="number" value={below} onChange={(e) => setBelow(e.target.value)} className="h-9" data-testid="wd-pick-below" />
+                <p className="mt-1 text-[10px] text-pl-muted">Added to the picked TVDSS; negative is above. Kept when the target is refreshed from its source.</p>
+              </div>
+              <div>
+                <Label className="text-xs">Target name (optional)</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} className="h-9" data-testid="wd-pick-name" />
+              </div>
             </div>
           </div>
         )}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handlePick} disabled={loading}>Create target</Button>
+          <Button onClick={handlePick} disabled={loading} data-testid="wd-pick-create">Create target</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -9,6 +9,7 @@ import {
   wrapDeltaDeg,
 } from '../engine/surveyMath';
 import { solveContinuousBuild } from '../engine/profileDesign';
+import { headerUnit } from '../../../../lib/tabularParse.js';
 
 /**
  * Degrees to ADD to an azimuth expressed in `reference` to obtain a
@@ -61,6 +62,31 @@ export function compositeStations(runs) {
     out = out.concat(run.stations.map((s) => ({ md: s.md, inc: s.inc, azi: s.azi })));
   }
   return out;
+}
+
+/** Grid stations of a survey run: the computed (grid) cache, else the raw stations. */
+export const surveyGridStations = (run) => (Array.isArray(run?.computed) && run.computed.length >= 2
+  ? run.computed : (run?.stations || []));
+
+/**
+ * A wellbore's definitive composite in grid metres, from its wp_surveys
+ * rows: the runs flagged is_in_definitive, each read through its grid cache.
+ * @param {Array} surveys wp_surveys rows
+ * @returns {Array<{md, inc, azi}>}
+ */
+export function definitiveComposite(surveys) {
+  return compositeStations((surveys || []).filter((s) => s.is_in_definitive)
+    .map((s) => ({ stations: surveyGridStations(s) })));
+}
+
+/**
+ * Flags for a new survey run: the first run saved on a wellbore joins the
+ * definitive composite, so a single imported survey is the wellbore's
+ * definitive survey without a second step. Later runs are added unflagged.
+ * @param {Array} existingRuns the wellbore's runs before this one
+ */
+export function newRunDefaults(existingRuns) {
+  return { is_in_definitive: !(existingRuns || []).length };
 }
 
 /** Survey listing for a set of grid-metre stations, wellhead-relative
@@ -160,4 +186,31 @@ export function parseManualStations(text) {
   }
   if (out.length < 2) throw new Error('A survey needs at least 2 stations.');
   return out;
+}
+
+/**
+ * The MD unit a survey column header states, or null (2026-10-13). Reads a
+ * bracketed unit ("MD (m)", "MD [ft]") through the shared headerUnit, and
+ * otherwise a unit word among the header's tokens ("md_m", "MD_FT",
+ * "Depth feet", "m MD"). A header with no unit returns null, so the
+ * dialog keeps its default and asks the user to confirm.
+ * @param {string} header
+ * @returns {'m'|'ft'|null}
+ */
+export function mdUnitFromHeader(header) {
+  const word = (w) => {
+    const s = String(w || '').trim().toLowerCase().replace(/\.$/, '');
+    if (['m', 'metre', 'metres', 'meter', 'meters', 'mtr', 'mtrs'].includes(s)) return 'm';
+    if (['ft', 'feet', 'foot', "'", 'fts', 'usft', 'us ft'].includes(s)) return 'ft';
+    return null;
+  };
+  const { unit } = headerUnit(header);
+  if (unit) return word(unit);
+  const tokens = String(header || '').split(/[\s_\-./:,]+/).filter(Boolean);
+  if (tokens.length < 2) return null;
+  for (const t of tokens) {
+    const u = word(t);
+    if (u) return u;
+  }
+  return null;
 }

@@ -21,7 +21,7 @@ const KIND_ALPHA = { plan: 1, actual: 1, offset: 0.75 };
 
 const WellpathCubeView = ({
   wells = [], targets = [], tops = [], background = 'light', height = null,
-  onSnapshot = null,
+  onSnapshot = null, depthUnit = 'm',
 }) => {
   const holderRef = useRef(null);
   const canvasRef = useRef(null);
@@ -37,7 +37,7 @@ const WellpathCubeView = ({
     wells: layers.offsets ? wells : wells.filter((w) => w.kind !== 'offset'),
     targets: layers.targets ? targets : [],
     tops: layers.tops ? tops : [],
-  }, { vexag }), [wells, targets, tops, layers, vexag]);
+  }, { vexag, depthUnit }), [wells, targets, tops, layers, vexag, depthUnit]);
 
   // ---- renderer lifecycle -------------------------------------------------
   useEffect(() => {
@@ -217,7 +217,7 @@ const WellpathCubeView = ({
             key={`${l.kind}-${l.text}-${i}`}
             data-testid={`wp-cube-label-${l.kind}`}
             className="absolute whitespace-nowrap text-[9px] font-medium"
-            style={{ left: l.screen.x + 5, top: l.screen.y - 6, color: l.color || '#94a3b8' }}
+            style={{ left: l.screen.x + 5, top: l.screen.y - 6 + (l.dy || 0), color: l.color || '#94a3b8' }}
           >
             {l.text}
           </span>

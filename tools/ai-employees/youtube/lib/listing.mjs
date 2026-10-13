@@ -162,6 +162,22 @@ export function scheduleSlots(count, { start, everyDays = 2, hourUtc = 9 } = {})
 }
 
 /** The videos.insert resource for an approved listing payload. */
+// YouTube's default API quota is 10,000 units a day and one upload with
+// captions and a playlist costs about 2,100, so a daily run takes only the
+// tasks whose slot has come (or comes within leadHours), oldest slot first.
+export const DAILY_UPLOAD_CAP = 3;
+export function slotOf(task) {
+  const t = Date.parse(task?.payload?.scheduled_at ?? task?.scheduled_at ?? '');
+  return Number.isFinite(t) ? t : null;
+}
+export function dueTasks(tasks, { now = Date.now(), leadHours = 24, max = DAILY_UPLOAD_CAP } = {}) {
+  const until = now + leadHours * 3600e3;
+  return tasks
+    .filter((t) => slotOf(t) != null && slotOf(t) <= until)
+    .sort((a, b) => slotOf(a) - slotOf(b))
+    .slice(0, max);
+}
+
 export function videoResource(payload) {
   return {
     snippet: {

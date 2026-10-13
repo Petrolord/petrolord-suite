@@ -21,7 +21,7 @@ import {
   readTabularFile, parseDelimitedText, tableFromRows, DELIMITERS,
 } from '@/lib/tabularFile';
 import { listWells } from '@/lib/wellsRegistry';
-import { parseManualStations, toGridSurvey } from '../services/surveyUtils';
+import { parseManualStations, toGridSurvey, mdUnitFromHeader } from '../services/surveyUtils';
 import { M_TO_FT } from '../engine/surveyMath';
 
 const SOURCES = [
@@ -40,6 +40,9 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
   const [toolcode, setToolcode] = useState('');
   const [aziRef, setAziRef] = useState('grid');
   const [unit, setUnit] = useState('m');
+  // 2026-10-13: a file's MD unit is read from the mapped MD column header
+  // ("MD (m)", "md_m"); a unit picked by hand afterwards wins
+  const [unitTouched, setUnitTouched] = useState(false);
   const [text, setText] = useState('');
   // {fileName, kind, text|sheets, sheetIndex, delimiter, header, rows, map}
   const [csv, setCsv] = useState(null);
@@ -55,6 +58,7 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
     setAziRef(survey?.imported_from?.azimuth_reference
       || wellbore?.azimuth_reference || 'grid');
     setUnit(wellbore?.depth_unit === 'ft' ? 'ft' : 'm');
+    setUnitTouched(false);
     setCsv(null);
     setGeoWellId('');
     if (editing && Array.isArray(survey?.stations)) {
@@ -139,6 +143,15 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
       return { stations: null, error: e.message };
     }
   }, [source, text, csv, geoWells, geoWellId]);
+
+  // The MD column's header, and the unit it states (null when it states none).
+  const mdHeader = source === 'csv' && csv?.header && csv.map?.md >= 0 ? csv.columns[csv.map.md] : null;
+  const headerMdUnit = mdHeader != null ? mdUnitFromHeader(mdHeader) : null;
+  useEffect(() => {
+    if (source !== 'csv' || unitTouched || !headerMdUnit) return;
+    setUnit(headerMdUnit);
+  }, [source, unitTouched, headerMdUnit]);
+  const chooseUnit = (v) => { setUnitTouched(true); setUnit(v); };
 
   // The registry stores deviations in metres/grid.
   const effectiveUnit = source === 'geo_wells' ? 'm' : unit;
@@ -235,13 +248,22 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
             </div>
             <div>
               <Label className="text-xs">MD unit</Label>
-              <Select value={effectiveUnit} onValueChange={setUnit} disabled={source === 'geo_wells'}>
+              <Select value={effectiveUnit} onValueChange={chooseUnit} disabled={source === 'geo_wells'}>
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="m">Metres</SelectItem>
                   <SelectItem value="ft">Feet</SelectItem>
                 </SelectContent>
               </Select>
+              {source === 'csv' && csv && (
+                <p className="mt-1 text-[10px] text-pl-muted" data-testid="survey-unit-note">
+                  {unitTouched
+                    ? 'Set by hand.'
+                    : headerMdUnit
+                      ? `Read from the column header: ${headerMdUnit}`
+                      : `No unit in the MD column header${mdHeader ? ` "${mdHeader}"` : ''}: check this is right.`}
+                </p>
+              )}
             </div>
           </div>
 
