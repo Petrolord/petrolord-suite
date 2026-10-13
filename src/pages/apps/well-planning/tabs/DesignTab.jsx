@@ -1039,6 +1039,7 @@ const DesignTab = () => {
                                 targets={siteTargets || []}
                                 tops={cubeTops}
                                 background="light"
+                                depthUnit={mdUnit}
                             />
                         )}
 

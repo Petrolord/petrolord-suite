@@ -106,7 +106,7 @@ describe('buildScene', () => {
 
   test('axes carry ticks for all three axes and the north arrow points +z', () => {
     const axes = new Set(scene.axes.ticks.map((t) => t.axis));
-    expect(axes).toEqual(new Set(['E', 'N', 'TVDSS']));
+    expect(axes).toEqual(new Set(['E', 'N', 'TVDSS', 'TVDSS-unit']));
     expect(scene.axes.edges.length).toBe(12 * 6);
     const na = scene.northArrow.positions;
     // shaft: first segment increases z, x constant
