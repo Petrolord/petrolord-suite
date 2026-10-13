@@ -88,7 +88,7 @@ const DeterministicResultsDisplay = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {showOil && (
                     <Card className="p-6 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-2 opacity-10 text-9xl font-bold leading-none text-pl-muted select-none">O</div>
+                        <div className="absolute top-0 right-0 p-2 opacity-10 text-9xl font-bold leading-none text-pl-muted select-none pointer-events-none" aria-hidden="true">O</div>
                         <div className="flex items-center justify-between mb-2">
                             <h3 className="text-sm uppercase text-pl-muted font-bold tracking-wider">STOOIP</h3>
                             <ResultUnitSelect value={oilUnit} onChange={setOilUnit} options={OIL_RESULT_UNITS} />
@@ -110,7 +110,7 @@ const DeterministicResultsDisplay = () => {
                 
                 {showGas && (
                     <Card className="p-6 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-2 opacity-10 text-9xl font-bold leading-none text-pl-muted select-none">G</div>
+                        <div className="absolute top-0 right-0 p-2 opacity-10 text-9xl font-bold leading-none text-pl-muted select-none pointer-events-none" aria-hidden="true">G</div>
                         <div className="flex items-center justify-between mb-2">
                             <h3 className="text-sm uppercase text-pl-muted font-bold tracking-wider" title={ft === 'oil_gas' ? 'Free gas in the gas cap; solution gas in the oil leg is not included' : undefined}>{ft === 'oil_gas' ? 'GIIP (free gas)' : 'GIIP'}</h3>
                             <ResultUnitSelect value={gasUnit} onChange={setGasUnit} options={GAS_RESULT_UNITS} />
