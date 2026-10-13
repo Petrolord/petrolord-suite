@@ -8,7 +8,7 @@
 // computed sample, as the misfit is. Pure.
 
 import { fitEatonExponent, fitBowersLoading, fitBowersU } from '../engine/calibrationFit';
-import { computeProfile } from '../engine/profile';
+import { computePrognosis } from './shalePressure';
 import { calibrationMisfit } from './honesty';
 import { comparesTo } from './calibrationImport';
 import { k0FromLot, dainesBetaFromLot, eatonK } from '../engine/fracgrad';
@@ -76,7 +76,7 @@ export function fitToCalibration(params, input, result, calibration) {
   } catch (e) {
     return { error: e.message };
   }
-  const after = computeProfile({ ...input, params: next });
+  const after = computePrognosis(input, next);
   const rmsAfter = calibrationMisfit(calibration, input.zBmlM, after.porePressurePa, 'pp').rmsMpa;
   return {
     params: next,
@@ -141,7 +141,7 @@ export function calibrateFracToLot(params, input, result, calibration) {
   } catch (e) {
     return { error: e.message };
   }
-  const after = computeProfile({ ...input, params: next });
+  const after = computePrognosis(input, next);
   const rms = calibrationMisfit(use.map(({ c }) => c), input.zBmlM, after.fracPressurePa, 'fg').rmsMpa;
   const fitNote = firm.length ? '' : ' (FITs only: a FIT is a lower bound, so the line may sit low)';
   return { params: next, text: `Fracture gradient calibrated to ${use.length} test${use.length === 1 ? '' : 's'}: ${what}, RMS ${rms.toFixed(2)} MPa at the tests${fitNote}.` };

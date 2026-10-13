@@ -9,6 +9,7 @@
 // workstation shows under the ribbon.
 
 import { comparesTo, kindOf } from './calibrationImport';
+import { prognosisModeText } from './shalePressure';
 
 const G_PER_M = 1; // depths are metres here; the caller formats them
 
@@ -70,6 +71,8 @@ export function inputNotes({
   if (input.tvdFrom === 'survey') {
     notes.push({ key: 'tvd', tone: 'info', text: 'Depths are TVD from the deviation survey; published curves sit on the well MD.' });
   }
+  // 2026-10-13: pressures from shale samples or from every sample
+  if (source === 'well' && (params?.ppFromShale || result?.sonicMedianM > 0)) notes.push({ key: 'pressures', tone: 'info', text: prognosisModeText(result, params, { fmtZ }) });
   const d = input.dropped || {};
   const gaps = (d.dtGaps || 0); const up = (d.upturn || 0); const off = (d.offSurvey || 0);
   const rg = (d.resGaps || 0); const nd = (d.noDensity || 0);
