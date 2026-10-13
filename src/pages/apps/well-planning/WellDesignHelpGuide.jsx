@@ -463,7 +463,9 @@ const WellDesignHelpGuideContent = () => {
                 text (CSV, TSV, TXT, DAT, PRN) or an Excel workbook (XLSX, XLSM, XLS). For text you choose the delimiter
                 (auto-detect, comma, tab, semicolon or whitespace); for a workbook you pick the sheet. A preview of the
                 first parsed rows shows the split before you map the MD, inclination and azimuth columns, and any other file
-                type is refused by name. It is not read as text. Each run records its MD unit, azimuth reference and the
+                type is refused by name. It is not read as text. The MD unit is read from the MD column header when it
+                states one (MD (m), md_m, MD [ft]); a header with no unit keeps the wellbore unit and the dialog asks you to
+                check it, and a unit you pick by hand wins. Each run records its MD unit, azimuth reference and the
                 file, sheet or delimiter it came from; stations are stored in metres with a grid-converted cache, so nothing
                 downstream re-guesses what the numbers meant.
               </Para>

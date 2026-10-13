@@ -27,10 +27,10 @@ export function unitToM(v, unit) {
 
 /** A metre value as a field string in `unit`, rounded so a round trip is
  *  stable to the centimetre (4 decimals in ft, 3 in m); '' for empty. */
-export function fieldFromM(m, unit) {
+export function fieldFromM(m, unit, digits = null) {
   const v = mToUnit(m, unit);
   if (v === null) return '';
-  const d = unit === 'ft' ? 4 : 3;
+  const d = digits ?? (unit === 'ft' ? 4 : 3);
   return String(Number(v.toFixed(d)));
 }
 

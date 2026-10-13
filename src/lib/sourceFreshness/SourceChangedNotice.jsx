@@ -12,6 +12,7 @@ import { noticeText, whenText } from './model.js';
  *   onCheck?: ?function(): void, onRefresh?: ?function(object): Promise<void>, onKeep?: ?function(object): void,
  *   canEdit?: boolean, readOnlyText?: string, title?: string, testId?: string, compact?: boolean, usedBy?: string}} props
  *   `usedBy` names what used the source in the sentences ("this project", "this site")
+ *   An item may carry `effect`: one sentence on what a refresh would change (shown under the detail)
  */
 export default function SourceChangedNotice({
   items, checking = false, checkedAt = null, error = null, onCheck = null, onRefresh = null, onKeep = null,
@@ -64,6 +65,7 @@ export default function SourceChangedNotice({
           <div key={item.key} className="space-y-1 border-t border-pl-warning/30 pt-1.5 first-of-type:border-0" data-testid={`${testId}-item`} data-key={item.key} data-status={item.status}>
             <p className="font-medium text-pl-text">{t.headline}</p>
             {t.detail && <p className="text-pl-muted">{t.detail}</p>}
+            {item.effect && <p className="font-medium text-pl-text" data-testid={`${testId}-effect`}>{item.effect}</p>}
             {failed[item.key] && <p className="text-pl-danger-text">{failed[item.key]}</p>}
             {canEdit ? (
               <div className="flex flex-wrap gap-1.5">
