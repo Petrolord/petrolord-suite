@@ -923,3 +923,11 @@ Save would have written one design's unsaved segments into the other. The
 draft now switches in the same render as the selection (`readDraft`), so
 the tab sees the new design's own draft or none. Test:
 `__tests__/designDraftSwitch.test.jsx` (fails on the effect-based reset).
+
+## 2026-10-13: the last metre labels on a feet wellbore
+
+Found in the video dry run: the project-ahead target list ("T1 (1885 m TVDSS)"),
+the From top picker's tops ("Oboro Sand (2039 m MD)") and the Publish dialog's
+TD and KB still printed metres on a feet wellbore or profile. They now follow
+the wellbore depth unit (the From top list follows the profile unit, as the
+rest of that dialog does).
