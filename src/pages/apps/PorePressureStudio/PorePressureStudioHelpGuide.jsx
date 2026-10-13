@@ -222,6 +222,21 @@ export default function PorePressureStudioHelpGuide() {
           with sigma max held) fits that parameter to the pressure points and kicks by least squares on the pore
           pressure, writes it into the dock and says the misfit before and after. Leak-off tests are not used for it.
         </Para>
+        <SubHeading>Pressures from shale samples</SubHeading>
+        <Para>
+          Eaton and Bowers read the compaction of a shale, so a sand, a carbonate stringer or a washout gives a pore
+          pressure that means nothing, often far below hydrostatic. With Pressures from shale samples on (Parameters,
+          on by default for a new project when the source has a VSH or GR curve), the method is evaluated at the
+          samples at or above the shale cutoff of the NCT view and the pressure is carried across the other samples by
+          depth. Above the first shale sample the section is taken as normally pressured, and below the last one its
+          overpressure is carried down. The overburden still integrates every sample, and the fracture pressure follows
+          from the carried pore pressure with the chosen fracture method. A project saved before this option keeps
+          every-sample pressures until you tick it. The notes line, the report and the published curves' provenance say
+          which samples were used and at what cutoff. With a GR curve the default cutoff sits halfway between the sand
+          and shale lines, which can admit shaly sands: on Ekene-1 a cutoff near the shale line (VSH 0.6, about 82 API)
+          follows the kit's designed prognosis within 0.6 ppg RMS. A running median on the sonic (or resistivity), in
+          the depth unit, smooths a noisy shale trace before the method reads it; it is off unless you set a window.
+        </Para>
         <SubHeading>Importing RFT/MDT, LOT/FIT and mud weights</SubHeading>
         <Para>
           Import RFT/MDT, LOT/FIT or mud weights, under the calibration box, reads a CSV, TXT or tab table (or pasted

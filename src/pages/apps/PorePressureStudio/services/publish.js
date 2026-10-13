@@ -120,6 +120,11 @@ export function preparePublishLogs(input, result, params, meta) {
         project_id: meta.projectId,
         params: { ...params },
         input_log_ids: meta.inputLogIds || [],
+        // 2026-10-13: pore pressure read in the shales (cutoff, sample count) or on every sample
+        pressure_samples: result.shaleMode?.applied
+          ? { mode: 'shale', indicator: result.shaleMode.kind, cutoff: result.shaleMode.cutoff, shale_samples: result.shaleMode.nShale, samples: result.shaleMode.n }
+          : { mode: 'every sample' },
+        ...(result.sonicMedianM > 0 ? { sonic_median_m: result.sonicMedianM } : {}),
         depth_reference: {
           index: 'MD below RKB',
           tvd_from: input.tvdFrom || 'vertical',
