@@ -192,8 +192,9 @@ export const StaleRunNotice = () => {
 // ─── Run tab main area ───────────────────────────────────────────────────────
 const RunPanel = () => {
   const {
-    caseData, lastResult, lastRunConfig, running, handleRun, runStaleness, units, defaultCfg,
+    caseData, lastResult, lastRunConfig, running, handleRun, runStaleness, units, defaultCfg, series,
   } = useMaterialBalanceStudio();
+  const ident = series?.identifiability;
   const navigate = useNavigate();
   const location = useLocation();
   // what the next run would be made on: the PVT table of the case against its pressures
@@ -319,6 +320,14 @@ const RunPanel = () => {
             <p className="text-[11px] text-pl-muted mt-2">
               Each index is its energy term over the hydrocarbon voidage ({isGas ? 'Gp Bg' : (runInjection ? 'F plus the injected volumes minus Wp Bw' : 'F minus Wp Bw')}), at the last timestep. CDI is the rock and connate water expansion.{runInjection ? ' WIDI and GIDI are the injected water and gas.' : ''}
             </p>
+
+            {ident && !ident.ok && (
+              <Alert variant="warning" className="mt-6" data-testid="mbal-identifiability">
+                <Info className="h-4 w-4" />
+                <AlertTitle>This fit does not determine the {isGas ? 'gas' : 'oil'} in place</AlertTitle>
+                <AlertDescription className="text-xs">{ident.message}</AlertDescription>
+              </Alert>
+            )}
 
             {covOut.length > 0 && (
               <Alert variant="warning" className="mt-6" data-testid="mbal-engine-coverage">
