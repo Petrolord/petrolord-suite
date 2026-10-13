@@ -82,7 +82,7 @@ export default {
         await d.click(d.page.getByLabel('Fit Gas cap ratio m'));
         await d.sleep(600);
         await d.click(d.page.getByRole('button', { name: /Run history match/ }));
-        await d.waitText('mbal-hm-status-line', /Converged|Stopped|iterations/, { timeout: 120000 });
+        await d.waitText('mbal-hm-status-line', /Converged|Stopped|iterations/, { timeout: 240000 });
         await d.sleep(1200);
         await expectText(d, t(d, 'mbal-hm-matched'), /STOIIP N \(MMSTB\)\s*15\.111\s*16\.715[\s\S]*Gas cap ratio m \(fraction\)\s*0\.6000\s*0\.5229\s*0\.4737 to 0\.5774/, 'm fitted');
         const tbl = t(d, 'mbal-hm-matched').locator('xpath=ancestor::table[1]');
