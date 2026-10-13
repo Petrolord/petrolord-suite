@@ -28,7 +28,7 @@ import { useWellPlanningStore } from '../state/WellPlanningStore';
 import { M_TO_FT } from '../engine/surveyMath';
 import {
   resolveMagReference, buildAcWell, runAntiCollisionScan, serializeAcRun,
-  deserializeAcRun, DEFAULT_AC_PARAMS,
+  deserializeAcRun, DEFAULT_AC_PARAMS, fmtSf,
 } from '../services/acUtils';
 import { definitiveComposite } from '../services/surveyUtils';
 import { assembleOffsetCandidates, registryOffsetsWithoutDatum } from '../services/offsetFrame';
@@ -319,7 +319,7 @@ const AntiCollisionTab = () => {
                     onClick={() => { setViewedRun(viewedRun?.id === r.id ? null : r); }}
                   >
                     <span className={`rounded-full px-1.5 py-0.5 uppercase ${STATUS_CHIP[r.summary?.status] || ''}`}>{r.summary?.status}</span>
-                    <span className="text-pl-text">min SF {r.summary?.overallMinSf ?? '--'}</span>
+                    <span className="text-pl-text">min SF {fmtSf(r.summary?.overallMinSf)}</span>
                     <span className="text-pl-muted">{new Date(r.created_at).toLocaleString()}</span>
                     <Button variant="ghost" size="icon" className="ml-auto h-5 w-5 text-pl-muted hover:text-pl-danger-text"
                       onClick={(e) => { e.stopPropagation(); handleDeleteRun(r.id); }}>

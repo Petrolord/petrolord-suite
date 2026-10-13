@@ -14,14 +14,13 @@ import { Loader2, FileText, Map as MapIcon, Shield } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useWellPlanningStore } from '../state/WellPlanningStore';
 import {
-  resolveMagReference, computeStationUncertainty, eouPlanEllipses, eouSectionBand,
+  resolveMagReference, computeStationUncertainty, eouPlanEllipses, eouSectionBand, runOptionLabel,
 } from '../services/acUtils';
 import { buildTrajectoryContract } from '../services/trajectoryContract';
 import {
   generateWallPlot, generateSurveyListing, generateAcReport,
 } from '../services/reportPack';
 import { getSurveyProgram, listAcRuns } from '../services/wpApi';
-import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const CARD = 'flex flex-col gap-2 rounded-lg border border-pl-border bg-pl-surface p-4';
 
@@ -177,7 +176,7 @@ const ReportsTab = () => {
                 <SelectContent>
                   {acRuns.map((r) => (
                     <SelectItem key={r.id} value={r.id} className="text-xs">
-                      {new Date(r.created_at).toLocaleString()} — {(r.summary?.status || '').toUpperCase()}, min SF {r.summary?.overallMinSf ?? EMPTY_VALUE} ({r.summary?.offsetCount} offsets)
+                      {runOptionLabel(r)}
                     </SelectItem>
                   ))}
                 </SelectContent>

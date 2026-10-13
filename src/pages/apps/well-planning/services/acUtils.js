@@ -345,3 +345,17 @@ export function uncertaintyTable(stations, covs, { k = 1, metersToUser = (v) => 
     };
   });
 }
+
+/** A separation factor as shown in run lists: 2 decimals (2026-10-13). */
+export function fmtSf(v, empty = '--') {
+  const n = Number(v);
+  return v == null || v === '' || !Number.isFinite(n) ? empty : n.toFixed(2);
+}
+
+/** The saved-run label on the Reports tab: when, status, minimum SF, offsets. */
+export function runOptionLabel(r, { locale } = {}) {
+  const when = new Date(r?.created_at ?? Date.now()).toLocaleString(locale);
+  const status = (r?.summary?.status || '').toUpperCase();
+  const n = r?.summary?.offsetCount;
+  return `${when}, ${status}, min SF ${fmtSf(r?.summary?.overallMinSf, 'n/a')}${Number.isFinite(n) ? ` (${n} offset${n === 1 ? '' : 's'})` : ''}`;
+}

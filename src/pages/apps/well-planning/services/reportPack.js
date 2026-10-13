@@ -97,6 +97,9 @@ function footer(doc, note) {
 }
 
 const fmtNum = (v, dp = 1) => (Number.isFinite(v) ? v.toFixed(dp) : EMPTY_VALUE);
+// convergence and declination to 4 decimals, as the app shows them (the
+// header printed 0.07291183644136559)
+const fmtAngle = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) ? EMPTY_VALUE : Number(v).toFixed(4));
 
 // ---------------------------------------------------------------------------
 // depth unit (2026-10-13): the report pack prints depths and lengths in the
@@ -268,9 +271,26 @@ export function drawSfLadder(doc, rect, { results, thresholds, unit = '' }) {
     const c = palette[i % palette.length];
     doc.setDrawColor(c[0], c[1], c[2]);
     polyline(doc, r.md.map((md, j) => [m.x(md), m.y(Math.min(r.sf[j], CLIP))]));
-    doc.setFontSize(6);
-    doc.text(String(r.label), rect.x + 2, rect.y + 3 + i * 3);
   });
+  // legend under the frame (2026-10-13: drawn inside the top left it sat
+  // over the curves, which start high on the left)
+  doc.setFontSize(6);
+  let lx = rect.x;
+  let ly = rect.y + rect.h + 4;
+  results.forEach((r, i) => {
+    const c = palette[i % palette.length];
+    const label = String(r.label);
+    const w = (typeof doc.getTextWidth === 'function' ? doc.getTextWidth(label) : label.length * 1.1) + 9;
+    if (lx + w > rect.x + rect.w && lx > rect.x) { lx = rect.x; ly += 3.5; }
+    doc.setDrawColor(c[0], c[1], c[2]);
+    doc.setLineWidth(0.6);
+    doc.line(lx, ly - 1, lx + 5, ly - 1);
+    doc.setLineWidth(0.2);
+    doc.setTextColor(15, 23, 42);
+    doc.text(label, lx + 6, ly);
+    lx += w;
+  });
+  m.legendBottom = results.length ? ly + 1 : rect.y + rect.h;
   return m;
 }
 
@@ -284,9 +304,9 @@ function headerRowsFromContract(contract, magRef, u = reportUnits(unitOfContract
     ['UWI', contract.wellbore.uwi ?? EMPTY_VALUE, 'Site CRS', contract.site?.crs ?? 'unset'],
     ['Wellhead', `${fmtNum(contract.wellbore.headX)} E, ${fmtNum(contract.wellbore.headY)} N`, 'KB elevation', `${fmtNum(u.len(contract.wellbore.kbElevM))} ${u.unit}`],
     ['Design', contract.design ? `${contract.design.name} r${contract.design.revision} (${contract.design.status})` : EMPTY_VALUE, 'Source', contract.source],
-    ['Azimuth ref', `${contract.wellbore.azimuthReference} (listing: grid)`, 'Convergence', `${contract.wellbore.gridConvergenceDeg ?? EMPTY_VALUE} deg`],
+    ['Azimuth ref', `${contract.wellbore.azimuthReference} (listing: grid)`, 'Convergence', `${fmtAngle(contract.wellbore.gridConvergenceDeg)} deg`],
     ...(u.unit === 'ft' ? [['Depth unit', 'feet (depths, offsets, VS)', 'Wellhead coordinates', 'site CRS metres']] : []),
-    ['Declination', `${contract.wellbore.magDeclinationDeg ?? EMPTY_VALUE} deg`, 'Geomagnetics',
+    ['Declination', `${fmtAngle(contract.wellbore.magDeclinationDeg)} deg`, 'Geomagnetics',
       magRef ? `WMM2025: ${fmtNum(magRef.bTotalNT, 0)} nT, dip ${fmtNum(magRef.dipDeg)} deg` : EMPTY_VALUE],
   ];
 }
@@ -367,7 +387,7 @@ export async function generateWallPlot({
     });
   }
 
-  footer(doc, `Petrolord Well Design Studio · petrolord-trajectory v${contract.version} · minimum-curvature engine, ISCWSA MWD Rev4 uncertainty (2σ)`);
+  footer(doc, `Petrolord Well Design Studio · petrolord-trajectory v${contract.version} · minimum-curvature engine, ISCWSA MWD Rev4 uncertainty (2 sigma)`);
   return doc;
 }
 
@@ -435,7 +455,7 @@ export async function generateAcReport({
     startY: 22,
     head: [['Separation rule (SPE-187073)', '', '', '']],
     body: [
-      ['k (probability factor)', p.k ?? EMPTY_VALUE, 'σ projection-ahead',
+      ['k (probability factor)', p.k ?? EMPTY_VALUE, 'sigma pa (projection ahead)',
         U === 'ft' ? `${p.sigmaPa != null ? L(p.sigmaPa, 2) : EMPTY_VALUE} ft` : `${p.sigmaPa ?? EMPTY_VALUE} m`],
       ['Surface margin Sm', U === 'ft' ? `${p.Sm != null ? L(p.Sm, 2) : EMPTY_VALUE} ft` : `${p.Sm ?? EMPTY_VALUE} m`, 'Radii ref / offset',
         U === 'ft'
@@ -463,7 +483,7 @@ export async function generateAcReport({
 
   // vector SF ladder
   const ladderY = (doc.lastAutoTable?.finalY ?? 90) + 8;
-  drawSfLadder(doc, { x: 10, y: ladderY, w: pageWidth - 20, h: 70 }, {
+  const ladder = drawSfLadder(doc, { x: 10, y: ladderY, w: pageWidth - 20, h: 70 }, {
     results: run.results || [],
     thresholds: { noGo: p.noGo ?? 1.0, review: p.review ?? 1.5 },
     unit: U,
@@ -482,7 +502,7 @@ export async function generateAcReport({
     }
   }
   doc.autoTable({
-    startY: ladderY + 76,
+    startY: Math.max(ladderY + 76, (ladder?.legendBottom ?? 0) + 4),
     head: [['Offset', `Ref MD (${U})`, 'SF', `C-C dist (${U})`, 'Level']],
     body: violations.length ? violations : [['No stations below the review threshold.', '', '', '', '']],
     styles: { fontSize: 6.5, cellPadding: 0.8 },
