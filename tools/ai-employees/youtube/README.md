@@ -77,12 +77,18 @@ to `seis-03`). Well Data Manager is approved but has no finished video yet.
 
 ## Running
 
+A daily cron on the studio box runs `execute.mjs` at 08:00 UTC (log
+`/root/ai-employees/execute.log`). It uploads approved tasks whose slot is
+within the next 24 hours, at most 3 a run, because YouTube's default API
+quota is 10,000 units a day and one upload with captions and a playlist
+costs about 2,100.
+
 ```
 node tools/ai-employees/youtube/propose.mjs                  # local JSON, for a look
 node tools/ai-employees/youtube/propose.mjs --db             # queue for review
 node tools/ai-employees/youtube/propose.mjs --db --keys qi-01,qi-02 --start 2026-10-20 --every-days 2
 node tools/ai-employees/youtube/execute.mjs --dry-run        # what would run, no upload, no writes
-node tools/ai-employees/youtube/execute.mjs                  # upload approved tasks
+node tools/ai-employees/youtube/execute.mjs                  # upload approved tasks whose slot is due (at most 3 a run)
 ```
 
 `propose.mjs` only reads `/root/demo-videos/<key>/` (`youtube.mp4`,
