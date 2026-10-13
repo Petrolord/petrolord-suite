@@ -97,3 +97,44 @@ test('an unsupported file type is refused by name, nothing is parsed', async () 
   expect(mockToast.mock.calls[0][0].description).toMatch(/\.pdf files are not supported/);
   expect(screen.queryByTestId('survey-preview')).toBeNull();
 });
+
+// 2026-10-13: the MD unit is read from the mapped MD column header, so the
+// kit's "MD (m)" workbook on a feet wellbore is not read as 2,250 ft.
+import { mdUnitFromHeader } from '../services/surveyUtils';
+
+describe('MD unit from the column header', () => {
+  test('metre and feet tags, bracketed or as a token', () => {
+    for (const h of ['MD (m)', 'md_m', 'MD [m]', 'm MD', 'Measured depth (metres)', 'MD_METERS']) expect(mdUnitFromHeader(h)).toBe('m');
+    for (const h of ['MD [ft]', 'MD_FT', 'Depth (feet)', 'MD (usft)', 'ft MD', 'md-ft']) expect(mdUnitFromHeader(h)).toBe('ft');
+  });
+  test('no unit stated', () => {
+    for (const h of ['MD', 'Comment', 'Inc (deg)', 'Measured Depth', '', null]) expect(mdUnitFromHeader(h)).toBeNull();
+  });
+});
+
+const unitSelect = () => screen.getAllByRole('combobox')[2];
+
+test('a file whose MD header says metres switches a feet wellbore to Metres, with the note', async () => {
+  const input = openWithSource();
+  expect(unitSelect().value).toBe('ft');
+  fireEvent.change(input, { target: { files: [fakeFile('ekene10.csv', { text: 'MD (m),Inc (deg),Azi (deg)\n0,0,0\n2250,18.087,173.66' })] } });
+  await waitFor(() => expect(screen.getByTestId('survey-unit-note')).toHaveTextContent('Read from the column header: m'));
+  expect(unitSelect().value).toBe('m');
+  expect(screen.getByText(/MD 0\.0 to 2250\.0 m/)).toBeInTheDocument();
+});
+
+test('a unit chosen by hand wins over the header', async () => {
+  const input = openWithSource();
+  fireEvent.change(input, { target: { files: [fakeFile('run.csv', { text: 'md_m,inc,azi\n0,0,0\n1000,10,90' })] } });
+  await waitFor(() => expect(unitSelect().value).toBe('m'));
+  fireEvent.change(unitSelect(), { target: { value: 'ft' } });
+  await waitFor(() => expect(screen.getByTestId('survey-unit-note')).toHaveTextContent('Set by hand.'));
+  expect(unitSelect().value).toBe('ft');
+});
+
+test('negative control: a header with no unit keeps the wellbore unit and asks to check it', async () => {
+  const input = openWithSource();
+  fireEvent.change(input, { target: { files: [fakeFile('run.csv', { text: 'MD,Inc,Azi\n0,0,0\n1000,10,90' })] } });
+  await waitFor(() => expect(screen.getByTestId('survey-unit-note')).toHaveTextContent('No unit in the MD column header "MD": check this is right.'));
+  expect(unitSelect().value).toBe('ft');
+});
