@@ -906,3 +906,24 @@ Doc: `docs/upgrade/MaterialBalanceStudio-UPGRADE.md` (the twenty-four checks,
   Campbell on Dake).
 - **Gate:** `lib/__tests__/mbalLevelAxis.test.js` (a real engine run of
   Ahmed 11-3; negative control on the Ekene numbers without the band).
+
+## 2026-10-13: a pot aquifer the data cannot see is flagged (MBAL video programme)
+
+- **Defect:** above the bubble point the pot influx (cw + cf) W dp and the
+  oil, rock and water expansions all grow in step with the pressure drop, so
+  dp/Eo is nearly constant and the pot aquifer plot is undetermined. Forced
+  onto the Ekene closed tank the engine returned OOIP 72.83 MSTB, W 40.9 MMRB
+  and a strong water drive at r2 0.999998, with no warning and its benchmark
+  badge.
+- **Fix (app side, no deploy):** `regressionIdentifiability` (lib/mbalSeries)
+  measures the spread of dp/E across the points of the fit; under 5 percent
+  the Run tab shows "This fit does not determine the oil in place", the report
+  leads its limits flags with the sentence and the summary counts it (the
+  summary row now reads "N flags on the fit, a published range or the PVT
+  table"). The badge still names the engine path.
+- **Gate:** `lib/__tests__/mbalPotIdentifiability.test.js`: real engine runs
+  on the Ekene tank (flagged, 0.02 percent spread), the same tank without an
+  aquifer (negative control) and Pletcher's published pot aquifer case
+  (identifiable, positive control). Report goldens regenerated on purpose.
+- Engine follow-up (not done, would need a calculate-mbal deploy): the same
+  check could live in the engine's warnings.
