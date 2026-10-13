@@ -927,3 +927,21 @@ Doc: `docs/upgrade/MaterialBalanceStudio-UPGRADE.md` (the twenty-four checks,
   the inputs). A workspace that is not a saved project is never compared.
 - Tests: `mbalCaseSource.test.jsx` (unsaved workspace not compared; the
   project opened by id, then compared and recorded), `rcpVolumetricIntake.test.js`.
+## 2026-10-13: the contacts through time, animated (MBAL video programme, owner request)
+
+- **Enhancement (Contacts tab):** "Contacts through time", a cross-section
+  with a Play button and a time slider (`components/reservoirbalance/ContactAnimation.jsx`,
+  pure maths in `lib/contactAnimation.js`). It plays the series of
+  `lib/contactMovement.js` (OWC risen by the net influx, GOC lowered by the
+  gas-cap expansion of the last run): on a timestep a frame is that
+  timestep's computed contact; between timesteps the contacts and the date
+  are interpolated on a straight line. Swept zones are hatched; initial
+  contacts dashed. Depths are true and in the display unit; the structure is
+  a schematic anticline drawn through the initial contacts, and the panel
+  says so. White surface and ChartLogo (chart template standard).
+- **Gates:** `lib/__tests__/contactAnimation.test.js`: a hand calculation
+  from the engine's own We of a real Dake 9.2 run reproduces every frame on a
+  timestep; interpolation; negative control (Ahmed 11-3, no influx: no frame
+  moves the OWC); the depth window holds every contact; playback rate.
+  `__tests__/contactAnimation.test.jsx`: readouts, slider, reset, no gas cap.
+- No engine change, no migration, no deploy.
