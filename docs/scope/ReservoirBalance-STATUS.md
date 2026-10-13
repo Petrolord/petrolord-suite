@@ -893,3 +893,11 @@ Doc: `docs/upgrade/MaterialBalanceStudio-UPGRADE.md` (the twenty-four checks,
   on their six-place Bo), r2 0.9999999995; without the injection column the
   tank comes out more than 5 percent larger (negative control).
 - No engine change, no migration, no function deploy.
+
+## 2026-10-13: the PVT tab says when the data rows carry their own PVT (MBAL video programme)
+
+- With PVT source "Correlated" the tab said "Engine computes PVT from the
+  selected correlations" and previewed a Standing table (Rs 468 scf/STB at
+  2,000 psia on Ekene) while the engine used the Bo and Rs on every data row
+  (Rs 400). The note `mbal-pvt-rows-first` now says the rows come first and
+  the preview is not the PVT of the run. Tests in `mbalInputsU1.test.jsx`.

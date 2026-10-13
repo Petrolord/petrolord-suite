@@ -766,6 +766,11 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                       </p>
                     ) : null;
                   })()}
+                  {form.pvt_source === 'correlated' && rowsCarryPvt && (
+                    <p className="text-[11px] text-pl-warning-text leading-snug pt-1" data-testid="mbal-pvt-rows-first">
+                      The data rows carry their own {isGas ? 'Z and Bg' : 'Bo and Rs'} (Data tab), and the engine uses a row&apos;s own values first. The correlations here fill in only what a row leaves blank, so the preview table below is not the PVT of this run.
+                    </p>
+                  )}
                 </div>
 
                 {/* Editable fluid properties */}
