@@ -455,3 +455,11 @@ closure note was the wrong one. Only the contacts the fluid system uses are
 clamped now (oil: OWC; oil with a gas cap and gas: both). Found on the Ekene
 seismic map while scripting the ReservoirCalc Pro lessons. Test:
 `__tests__/spillOilGoc.test.js` (negative control: the old clamp fails it).
+
+## 2026-10-12: the reports name the surfaces
+
+The PDF reviewer block (deterministic and probabilistic) and the Tools
+review said "Method: Surfaces (top and base surfaces, cut by the contacts)"
+without naming them. A "Surfaces: top ..., base ..." line follows the
+method now (Hybrid: the top with a constant gross thickness), from
+`surfaceNamesOf(state)`. Test: `__tests__/reportSurfaceLine.test.js`.

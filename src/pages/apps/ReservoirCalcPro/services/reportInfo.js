@@ -87,8 +87,21 @@ export function correlationSentence(meta) {
  *          inputs?: Object, results?: Object, probResults?: Object, now?: Date, build?: string}} p
  * @returns {string[]}
  */
+/**
+ * The top and base surfaces of a structural run, by name (the reports said
+ * "Surfaces (top and base surfaces ...)" without saying which, 2026-10-12).
+ */
+export function surfaceNamesOf(state) {
+  const m = state?.inputMethod;
+  if (m !== 'surfaces' && m !== 'hybrid') return null;
+  const name = (id) => { const s = id ? state?.surfaces?.[id] : null; return s ? (s.registryName || s.name) : null; };
+  const top = name(state?.inputs?.topSurfaceId);
+  const base = m === 'surfaces' ? name(state?.inputs?.baseSurfaceId) : null;
+  return top || base ? { top, base } : null;
+}
+
 export function reviewerLines(p) {
-  const { report = {}, unitSystem = 'field', inputMethod = 'simple', fluidType = 'oil', inputs = {}, results = null, probResults = null, now = new Date(), build = buildLabel() } = p;
+  const { report = {}, unitSystem = 'field', inputMethod = 'simple', fluidType = 'oil', inputs = {}, results = null, probResults = null, now = new Date(), build = buildLabel(), surfaceNames = null } = p;
   const field = String(report.field || '').trim() || 'not given';
   const analyst = String(report.analyst || '').trim() || 'not given';
   const given = (v) => String(v || '').trim() || 'not given';
@@ -100,6 +113,9 @@ export function reviewerLines(p) {
     `Method: ${METHOD_LABEL[inputMethod] || inputMethod}`,
     describeContacts({ inputMethod, fluidType, inputs, unitSystem }),
   ];
+  if (surfaceNames && (surfaceNames.top || surfaceNames.base)) {
+    lines.splice(4, 0, `Surfaces: top ${surfaceNames.top || 'not set'}${inputMethod === 'hybrid' ? ' with a constant gross thickness' : `, base ${surfaceNames.base || 'not set'}`}`);
+  }
   const grid = describeGridding(results);
   if (grid) lines.push(grid);
   // U2-004: inputs handed over from an Earth Modeling model zone
