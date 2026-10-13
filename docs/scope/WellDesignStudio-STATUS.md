@@ -931,3 +931,15 @@ the From top picker's tops ("Oboro Sand (2039 m MD)") and the Publish dialog's
 TD and KB still printed metres on a feet wellbore or profile. They now follow
 the wellbore depth unit (the From top list follows the profile unit, as the
 rest of that dialog does).
+## 2026-10-13: survey MD unit read from the column header
+
+Found in the video dry run: on a feet wellbore the New survey run dialog
+defaulted MD unit to Feet, so the kit's Ekene-10 workbook ("MD (m)", 78
+stations to 2,250 m) would have been saved as a 2,250 ft well with nothing
+said. The dialog now reads the unit stated by the mapped MD column header
+(`mdUnitFromHeader`: bracketed units through the shared `headerUnit`, or a
+unit token as in md_m, MD_FT, m MD) and sets MD unit to it, with a note
+under the select ("Read from the column header: m"); a header with no unit
+keeps the wellbore unit and asks the user to check it; a unit picked by hand
+wins. Manual paste and registry imports are unchanged. Tests:
+`__tests__/surveyDialog.test.jsx` (+5, the metres case fails on the old dialog).
