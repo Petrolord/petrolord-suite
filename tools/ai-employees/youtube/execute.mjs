@@ -3,14 +3,15 @@
 // captions, the thumbnail and the playlist, then mark the task done or
 // failed with the result and log every step.
 //   node tools/ai-employees/youtube/execute.mjs --dry-run       # plan only, no upload, no writes
-//   node tools/ai-employees/youtube/execute.mjs                 # upload every approved task
+//   node tools/ai-employees/youtube/execute.mjs                 # upload approved tasks whose slot is due (cron, daily)
+//   node tools/ai-employees/youtube/execute.mjs --max 2 --lead-hours 0
 //   node tools/ai-employees/youtube/execute.mjs --task <uuid>   # one task
 // Shadow-mode rule: only tasks a person approved in /admin/ai-employees run,
 // only while the employee is active, and only for allowlisted videos.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { executeBlocker, videoResource } from './lib/listing.mjs';
+import { executeBlocker, videoResource, dueTasks, DAILY_UPLOAD_CAP } from './lib/listing.mjs';
 import { loadServiceEnv, createDb } from './lib/supabase.mjs';
 import { tokenProvider } from './lib/oauth.mjs';
 import { createYouTubeClient } from './lib/youtube.mjs';
@@ -20,6 +21,18 @@ const SLUG = 'youtube-channel-manager';
 const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(`--${n}`);
 const arg = (n, d) => { const i = argv.indexOf(`--${n}`); return i > -1 ? argv[i + 1] : d; };
+
+// playlistItems.insert right after an upload sometimes answers 409 "The
+// operation was aborted" (seen on petro-01, 2026-10-13); YouTube's advice is
+// to retry with backoff.
+async function withRetry(fn, { tries = 4, waitMs = 5000 } = {}) {
+  for (let i = 1; ; i += 1) {
+    try { return await fn(); } catch (e) {
+      if (i >= tries || !/\((409|429|5\d\d)\)/.test(e.message)) throw e;
+      await new Promise((r) => setTimeout(r, waitMs * i));
+    }
+  }
+}
 
 async function findOrCreatePlaylist(yt, title, cache) {
   if (cache.has(title)) return cache.get(title);
@@ -78,7 +91,7 @@ async function runTask({ task, employee, allowlist, db, yt, dryRun, force, playl
     if (p.playlist) {
       try {
         const pl = await findOrCreatePlaylist(yt, p.playlist, playlists);
-        await yt.playlistItemsInsert({ playlistId: pl.id, videoId: v.id });
+        await withRetry(() => yt.playlistItemsInsert({ playlistId: pl.id, videoId: v.id }));
         result.playlist_id = pl.id;
         if (pl.created) await db.logAction({ employee_id: employee.id, task_id: task.id, action: 'playlist_created', detail: { title: p.playlist, playlist_id: pl.id } });
       } catch (e) { extras.push(`playlist: ${e.message}`); }
@@ -111,7 +124,12 @@ async function main() {
   }
   let tasks = await db.tasks(employee.id, { status: 'approved' });
   if (arg('task')) tasks = tasks.filter((t) => t.id === arg('task'));
-  if (!tasks.length) { console.log('No approved tasks.'); return; }
+  else {
+    const approved = tasks.length;
+    tasks = dueTasks(tasks, { leadHours: Number(arg('lead-hours', 24)), max: Number(arg('max', DAILY_UPLOAD_CAP)) });
+    console.log(`${approved} approved, ${tasks.length} due now.`);
+  }
+  if (!tasks.length) { console.log('No approved tasks due.'); return; }
 
   const yt = dryRun ? null : createYouTubeClient({ getToken: tokenProvider() });
   const playlists = new Map();

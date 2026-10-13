@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   seriesFor, isPublicKey, publicKeys, copyIssues, parseDescriptionFile, buildDescription, buildListing,
-  fitTags, scheduleSlots, videoResource, executeBlocker, LIMITS,
+  fitTags, scheduleSlots, videoResource, executeBlocker, LIMITS, dueTasks, DAILY_UPLOAD_CAP,
 } from '../lib/listing.mjs';
 
 const allowlist = JSON.parse(fs.readFileSync(path.join(__dirname, '../config/public-allowlist.json'), 'utf8'));
@@ -157,5 +157,20 @@ describe('schedule and execute gate', () => {
     expect(executeBlocker({ task: { ...ok, reviewer_email: null }, employee: { status: 'active' }, allowlist })).toMatch(/reviewer/);
     expect(executeBlocker({ task: { ...ok, payload: { video_key: 'lesson-qi-b4' } }, employee: { status: 'active' }, allowlist })).toMatch(/allowlist/);
     expect(executeBlocker({ task: { ...ok, kind: 'comment_reply' }, employee: { status: 'active' }, allowlist })).toMatch(/not supported/);
+  });
+});
+
+describe('dueTasks', () => {
+  const at = (id, iso) => ({ id, payload: { scheduled_at: iso } });
+  const now = Date.parse('2026-10-13T20:00:00Z');
+  const tasks = [at('c', '2026-10-17T09:00:00Z'), at('a', '2026-10-13T09:00:00Z'), at('b', '2026-10-14T09:00:00Z'), { id: 'x', payload: {} }];
+  it('takes slots that have come or come within the lead, oldest first', () => {
+    expect(dueTasks(tasks, { now, leadHours: 24 }).map((t) => t.id)).toEqual(['a', 'b']);
+    expect(dueTasks(tasks, { now, leadHours: 0 }).map((t) => t.id)).toEqual(['a']);
+  });
+  it('never takes a task without a slot, and caps a run for the daily quota', () => {
+    const many = Array.from({ length: 10 }, (_, i) => at(`t${i}`, `2026-10-0${(i % 9) + 1}T09:00:00Z`));
+    expect(dueTasks(many, { now }).length).toBe(DAILY_UPLOAD_CAP);
+    expect(dueTasks([{ id: 'x', payload: {} }], { now })).toEqual([]);
   });
 });
