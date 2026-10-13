@@ -441,7 +441,7 @@ const SolverDialog = ({
   };
 
   const targetItems = targets.map((t) => (
-    <SelectItem key={t.id} value={t.id}>{t.name} ({t.tvdss_m?.toFixed(0)} m TVDSS)</SelectItem>
+    <SelectItem key={t.id} value={t.id}>{t.name} ({Number.isFinite(t.tvdss_m) ? (mdUnit === 'ft' ? t.tvdss_m * M_TO_FT : t.tvdss_m).toFixed(0) : '?'} {mdUnit} TVDSS)</SelectItem>
   ));
 
   return (

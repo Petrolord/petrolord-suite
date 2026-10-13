@@ -1,6 +1,8 @@
 // Target create/edit dialog (WD2): point, circle, ellipse and polygon
 // kinds on wp_targets, coordinates in site-CRS metres at TVDSS.
 // Polygons are entered as one "E,N" pair per line (absolute site CRS).
+// 2026-10-13: TVDSS, radius and semi-axes show and take `depthUnit` (the
+// unit profile's depth unit, from the Targets tab); stored in metres.
 
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -8,13 +10,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { fieldFromM, unitToM } from '../services/depthUnits';
 
 const num = (v) => {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : null;
 };
 
-const TargetDialog = ({ open, onOpenChange, target, onSave }) => {
+const TargetDialog = ({ open, onOpenChange, target, onSave, depthUnit = 'm' }) => {
+  const du = depthUnit === 'ft' ? 'ft' : 'm';
   const editing = Boolean(target?.id);
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
@@ -27,10 +31,11 @@ const TargetDialog = ({ open, onOpenChange, target, onSave }) => {
       category: target?.category || 'geological',
       center_x: target?.center_x ?? '',
       center_y: target?.center_y ?? '',
-      tvdss_m: target?.tvdss_m ?? '',
-      radius_m: target?.geometry?.radius_m ?? '',
-      semi_major_m: target?.geometry?.semi_major_m ?? '',
-      semi_minor_m: target?.geometry?.semi_minor_m ?? '',
+      // field strings in the depth unit; converted back to metres on save
+      tvdss: fieldFromM(target?.tvdss_m, du),
+      radius: fieldFromM(target?.geometry?.radius_m, du),
+      semi_major: fieldFromM(target?.geometry?.semi_major_m, du),
+      semi_minor: fieldFromM(target?.geometry?.semi_minor_m, du),
       rotation_deg: target?.geometry?.rotation_deg ?? 0,
       polygon: (target?.geometry?.points || []).map(([x, y]) => `${x}, ${y}`).join('\n'),
       dip_deg: target?.dip_deg ?? '',
@@ -38,10 +43,11 @@ const TargetDialog = ({ open, onOpenChange, target, onSave }) => {
       color: target?.color || '#d97706',
       notes: target?.notes || '',
     });
-  }, [open, target]);
+  }, [open, target, du]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-  const valid = form.name?.trim() && num(form.center_x) != null && num(form.center_y) != null && num(form.tvdss_m) != null;
+  const valid = form.name?.trim() && num(form.center_x) != null && num(form.center_y) != null && num(form.tvdss) != null;
+  const toM = (v) => unitToM(v, du);
 
   const parsePolygon = () => (form.polygon || '')
     .split('\n')
@@ -50,11 +56,11 @@ const TargetDialog = ({ open, onOpenChange, target, onSave }) => {
     .map(([x, y]) => [x, y]);
 
   const buildGeometry = () => {
-    if (form.kind === 'circle' && num(form.radius_m)) return { radius_m: num(form.radius_m) };
-    if (form.kind === 'ellipse' && num(form.semi_major_m)) {
+    if (form.kind === 'circle' && num(form.radius)) return { radius_m: toM(form.radius) };
+    if (form.kind === 'ellipse' && num(form.semi_major)) {
       return {
-        semi_major_m: num(form.semi_major_m),
-        semi_minor_m: num(form.semi_minor_m) || num(form.semi_major_m),
+        semi_major_m: toM(form.semi_major),
+        semi_minor_m: (num(form.semi_minor) ? toM(form.semi_minor) : null) || toM(form.semi_major),
         rotation_deg: num(form.rotation_deg) || 0,
       };
     }
@@ -75,7 +81,7 @@ const TargetDialog = ({ open, onOpenChange, target, onSave }) => {
         category: form.category,
         center_x: num(form.center_x),
         center_y: num(form.center_y),
-        tvdss_m: num(form.tvdss_m),
+        tvdss_m: toM(form.tvdss),
         geometry: buildGeometry(),
         dip_deg: num(form.dip_deg),
         dip_azimuth_deg: num(form.dip_azimuth_deg),
@@ -96,7 +102,7 @@ const TargetDialog = ({ open, onOpenChange, target, onSave }) => {
         <DialogHeader>
           <DialogTitle>{editing ? 'Edit target' : 'New target'}</DialogTitle>
           <DialogDescription className="text-pl-muted">
-            Coordinates are in the site CRS (metres). Depth is subsea (TVDSS, positive down below MSL).
+            Coordinates are in the site CRS (metres). Depth is subsea in {du === 'ft' ? 'feet' : 'metres'} (TVDSS, positive down below MSL).
           </DialogDescription>
         </DialogHeader>
 
@@ -140,15 +146,15 @@ const TargetDialog = ({ open, onOpenChange, target, onSave }) => {
               <Input type="number" value={form.center_y} onChange={(e) => set('center_y', e.target.value)} className="h-9" />
             </div>
             <div>
-              <Label className="text-xs">TVDSS (m)</Label>
-              <Input type="number" value={form.tvdss_m} onChange={(e) => set('tvdss_m', e.target.value)} className="h-9" />
+              <Label className="text-xs">TVDSS ({du})</Label>
+              <Input type="number" value={form.tvdss} onChange={(e) => set('tvdss', e.target.value)} className="h-9" data-testid="wd-target-tvdss" />
             </div>
           </div>
 
           {form.kind === 'ellipse' && (
             <div className="grid grid-cols-3 gap-3">
-              <div><Label className="text-xs">Semi-major (m)</Label><Input type="number" value={form.semi_major_m} onChange={(e) => set('semi_major_m', e.target.value)} className="h-9" /></div>
-              <div><Label className="text-xs">Semi-minor (m)</Label><Input type="number" value={form.semi_minor_m} onChange={(e) => set('semi_minor_m', e.target.value)} className="h-9" /></div>
+              <div><Label className="text-xs">Semi-major ({du})</Label><Input type="number" value={form.semi_major} onChange={(e) => set('semi_major', e.target.value)} className="h-9" /></div>
+              <div><Label className="text-xs">Semi-minor ({du})</Label><Input type="number" value={form.semi_minor} onChange={(e) => set('semi_minor', e.target.value)} className="h-9" /></div>
               <div><Label className="text-xs">Rotation (deg)</Label><Input type="number" value={form.rotation_deg} onChange={(e) => set('rotation_deg', e.target.value)} className="h-9" /></div>
             </div>
           )}
@@ -167,8 +173,8 @@ const TargetDialog = ({ open, onOpenChange, target, onSave }) => {
           <div className="grid grid-cols-4 gap-3">
             {form.kind === 'circle' && (
               <div>
-                <Label className="text-xs">Radius (m)</Label>
-                <Input type="number" value={form.radius_m} onChange={(e) => set('radius_m', e.target.value)} className="h-9" />
+                <Label className="text-xs">Radius ({du})</Label>
+                <Input type="number" value={form.radius} onChange={(e) => set('radius', e.target.value)} className="h-9" data-testid="wd-target-radius" />
               </div>
             )}
             <div>
