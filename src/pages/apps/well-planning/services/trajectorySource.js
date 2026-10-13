@@ -13,7 +13,9 @@
 // with grid azimuths on every path (design cache, survey computed cache,
 // geo_wells deviation are all stored that way). Pure; the API layer fetches.
 
-import { compositeStations } from './surveyUtils';
+import { definitiveComposite, surveyGridStations } from './surveyUtils';
+
+export { surveyGridStations };
 
 export const TRAJECTORY_SOURCES = Object.freeze(['definitive', 'actual', 'draft', 'registry', 'none']);
 
@@ -21,8 +23,6 @@ const usable = (stations) => Array.isArray(stations) && stations.length >= 2;
 const clean = (stations) => stations.map((s) => ({ md: Number(s.md), inc: Number(s.inc), azi: Number(s.azi) }))
   .filter((s) => Number.isFinite(s.md) && Number.isFinite(s.inc) && Number.isFinite(s.azi));
 
-/** Grid stations of a survey run: the computed cache, else the raw stations. */
-export const surveyGridStations = (run) => (usable(run?.computed) ? run.computed : (run?.stations || []));
 
 /** The latest draft design with a station cache: highest revision, then most recently updated. */
 export function latestDraftWithStations(designs) {
@@ -50,7 +50,7 @@ export function resolveTrajectory({ wellbore, designs = [], surveys = [], geoWel
       note: '',
     };
   }
-  const composite = compositeStations((surveys || []).filter((s) => s.is_in_definitive).map((s) => ({ stations: surveyGridStations(s) })));
+  const composite = definitiveComposite(surveys);
   if (usable(composite)) {
     const stations = clean(composite);
     return {

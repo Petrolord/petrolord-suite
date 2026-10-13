@@ -38,7 +38,7 @@ import CrossplotPanel from './CrossplotPanel';
 import {
   mapLogs, buildProfileInput, normalizePpCurves, wellDepthFrame, normalizeResistivity,
 } from '../services/prep';
-import { computeProfile } from '../engine/profile';
+import { computePrognosis, prognosisModeText } from '../services/shalePressure';
 import { pseudoSonicFromLinearVelocity } from '../engine/velocitySource';
 import { layerCakeProfile } from '@/lib/velocityModels';
 import { preparePublishLogs, publishBlocker } from '../services/publish';
@@ -77,6 +77,12 @@ export const DEFAULT_PARAMS = {
   // U2-001: resistivity Eaton, Eaton's published exponent 1.2
   resNct: { r0OhmM: 0.6, bPerM: 2e-4 },
   eatonNRes: 1.2,
+  // 2026-10-13: a new project evaluates the method in the shales (with a VSH
+  // or GR curve on the source) and carries the pressure across the sands; the
+  // cutoff is the NCT view's (null = its default); no sonic median
+  ppFromShale: true,
+  shaleCutoff: null,
+  sonicMedianM: 0,
 };
 
 const PP_ID = 'pore-pressure-studio';
@@ -139,7 +145,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         const project = await backend.loadProject();
         if (!live || !project) return;
         setProjectId(project.id || null);
-        if (project.params) setParams((p) => ({ ...p, ...project.params }));
+        // a project saved before the shale-pressure option keeps every-sample pressures
+        if (project.params) setParams((p) => ({ ...p, ...project.params, ppFromShale: project.params.ppFromShale ?? false }));
         if (project.picks) setPicks(project.picks);
         if (project.source?.nctFittedFor) setNctFittedFor(project.source.nctFittedFor);
         if (project.source?.resNctFittedFor) setResNctFittedFor(project.source.resNctFittedFor);
@@ -302,9 +309,10 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       }
       if (!curves) return null;
       // PP-U1-002: a deviated well is computed at TVD through its survey
-      return buildProfileInput(curves, curves.units, {
+      const built = buildProfileInput(curves, curves.units, {
         mudlineMdM: params.mudlineMdM, frame: wellDepthFrame(selected), needs: byRes ? 'res' : 'dt',
       });
+      return built.shale ? { ...built, shaleKind: curves.shaleKind } : built;
     } catch (e) {
       return { error: e.message };
     }
@@ -313,7 +321,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   const profile = useMemo(() => {
     if (!input || input.error) return null;
     try {
-      return { result: computeProfile({ ...input, params }) };
+      return { result: computePrognosis(input, params) };
     } catch (e) {
       return { error: e.message };
     }
@@ -805,6 +813,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       shaleName={curves?.shaleName || null}
       shaleKind={curves?.shaleKind || null}
       byRes={byRes}
+      onCutoffChange={(c) => setParams((p) => ({ ...p, shaleCutoff: c, shaleCutoffKind: c == null ? null : (curves?.shaleKind || null) }))}
       depthUnit={units.depth}
     />
   ) : (

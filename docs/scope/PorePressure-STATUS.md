@@ -191,6 +191,59 @@ With WDM U2-007 (PR #848) the well's reference elevation comes through
 registry well with no reference elevation gives no onshore TVDSS, with the
 reason. Open: start a project's water depth from the registry well's.
 
+## 2026-10-13: published curves kept only the top of the log (fix)
+
+Found in the Well Design Studio video dry run: a prognosis published on
+Ekene-8 (14,370 samples at 0.1524 m) reached the registry with 318 values and
+14,052 nulls, so every consumer (the Well Design Studio mud window) saw only
+the top 48 m. Registry depths arrive as float32; `mdGrid` took the median of
+the MD differences as the grid step, which missed the true step by a few
+micrometres, and the error passed the hundredth-of-a-step tolerance after
+about 300 samples. The median now seeds the step from the shallow samples and
+a least-squares refinement on the sample positions sets it, so every sample
+keeps its own MD and gaps stay nulls at their own depth. Republish a project
+to replace curves published before this fix. Tests:
+`__tests__/publishMdGrid.test.js` (median-only grid as the negative control,
+a 30,000-sample log with a gap, curves to TD).
+## 2026-10-13: pressures from shale samples
+
+Found in the Well Design Studio video dry run: a prognosis on Ekene-8 put the
+sands into the pore pressure (down toward 1 to 2 ppg around 4,600 ft), and the
+mud window and casing seats Well Design Studio builds from the published curves
+looked like noise. Eaton and Bowers read shale compaction, and the trade
+evaluates them in the shales.
+
+- **Pressures from shale samples** (Parameters, testid `pp-shale-pressures`):
+  the method's pore pressure is kept at samples at or above the NCT view's
+  shale cutoff (VSH or GR) and interpolated by depth across the rest;
+  hydrostatic above the first shale sample, the last shale sample's
+  overpressure carried below it. Overburden, hydrostatic, the normal trend and
+  density provenance keep every sample; the fracture pressure follows from the
+  carried pore pressure with the project's fracture method.
+- **Running median** on the sonic or resistivity the method reads (testid
+  `pp-sonic-median`, depth window in the display unit, off by default: the
+  shale step already removes the sands, and a median across a sand-shale
+  boundary would smear sand values into the shale samples it keeps).
+- Defaults: on for a new project (DEFAULT_PARAMS.ppFromShale), off for a
+  project saved before the option (its params carry no ppFromShale), so a
+  saved prognosis does not change under its owner. The cutoff typed in the NCT
+  view is now the project's (`params.shaleCutoff`, with the indicator kind;
+  a GR value is not applied to a VSH well).
+- Suite-side step around the vendored engine (`services/shalePressure.js`,
+  `computePrognosis`), used by the workstation and the calibration fits; no
+  engines change. Notes line (when on), report line and publish provenance
+  (`pressure_samples`, `sonic_median_m`) say the mode.
+- Validation (`__tests__/shalePressure.test.js`, fixture from
+  `tools/validation/porepressure/make-ekene1-fixture.mjs`): Ekene-1 through the
+  WDM LAS reader, prep, the NCT panel's auto picks (VSH from GR on the kit's
+  18/125 API lines, cutoff 0.6, one per 50 m from 100 to 1,230 m below the
+  mudline) and Eaton n 3, against the kit's designed prognosis: shale samples
+  RMS 0.54 ppg over the 83 prognosis rows, at most 1.67 ppg through the
+  overpressure, 12.78 ppg at 1,560 m (published 12.02), lowest 7.87 ppg below
+  300 m. Negative control, every sample: RMS 8.4 ppg, lowest -10.7 ppg, the oil
+  leg at 1,560 m negative. With the GR midpoint default (68.8 API) the shale
+  path reads shaly sands (RMS 1.45 ppg, 9.75 ppg at 1,560 m): set the cutoff
+  near the shale line.
 ## 2026-10-13: the water column from the well's datum
 
 Found in the Well Design Studio video dry run: Ekene-8 (offshore, 35 m of

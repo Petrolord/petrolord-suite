@@ -160,3 +160,28 @@ describe('parseManualStations', () => {
     expect(() => parseManualStations('0 0 0')).toThrow(/at least 2/);
   });
 });
+
+describe('definitive composite and new-run defaults', () => {
+  // eslint-disable-next-line global-require
+  const { definitiveComposite, newRunDefaults, surveyGridStations } = require('../services/surveyUtils');
+  const st = (a, b) => [{ md: a, inc: 0, azi: 0 }, { md: b, inc: 1, azi: 2 }];
+
+  test('reads each flagged run through its grid cache', () => {
+    const runs = [
+      { is_in_definitive: true, stations: st(0, 100), computed: [{ md: 0, inc: 0, azi: 5 }, { md: 100, inc: 1, azi: 7 }] },
+      { is_in_definitive: false, stations: st(0, 900) },
+      { is_in_definitive: true, stations: st(100, 300) },
+    ];
+    expect(definitiveComposite(runs)).toEqual([
+      { md: 0, inc: 0, azi: 5 }, { md: 100, inc: 0, azi: 0 }, { md: 300, inc: 1, azi: 2 },
+    ]);
+    expect(surveyGridStations({ stations: st(0, 1), computed: [] })).toEqual(st(0, 1));
+    expect(definitiveComposite(null)).toEqual([]);
+  });
+
+  test('the first run on a wellbore joins the definitive composite; later runs do not', () => {
+    expect(newRunDefaults([])).toEqual({ is_in_definitive: true });
+    expect(newRunDefaults(undefined)).toEqual({ is_in_definitive: true });
+    expect(newRunDefaults([{ id: 'a' }])).toEqual({ is_in_definitive: false });
+  });
+});

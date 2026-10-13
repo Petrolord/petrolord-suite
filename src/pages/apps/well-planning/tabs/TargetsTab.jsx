@@ -3,7 +3,7 @@
 // the geo-registry pickers arrive with WD2. Coordinates are site-CRS
 // metres at TVDSS.
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -20,7 +20,10 @@ import { listSurfaces, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
 import { supabaseSharingStore } from '@/lib/recordSharing';
 import { useSourceFreshness } from '@/lib/sourceFreshness/useSourceFreshness';
 import SourceChangedNotice from '@/lib/sourceFreshness/SourceChangedNotice';
-import { targetSourceRefs, targetKept, readTargetSources, refreshTargetPatch } from '../services/targetSources';
+import { useTargetDepthUnit, mToUnit, showDepth } from '../services/depthUnits';
+import {
+  targetSourceRefs, targetKept, readTargetSources, refreshTargetPatch, targetSourceLabel, targetMoveText,
+} from '../services/targetSources';
 
 // Source freshness (2026-10-12): the registry readers the pickers use
 const REGISTRY_READERS = { listWellsWithTops, listSurfaces, downloadSurfaceGrid };
@@ -34,6 +37,8 @@ const TargetsTab = () => {
   const [view, setView] = useState('table');
   const [dialogTarget, setDialogTarget] = useState(undefined); // undefined closed, null new, object edit
   const [pickerMode, setPickerMode] = useState(null); // 'tops' | 'surface' | null
+  // 2026-10-13: TVDSS and radius in the unit profile's depth unit (stored metres)
+  const du = useTargetDepthUnit();
 
   const filtered = useMemo(() => (targets || []).filter(
     (t) => !search || t.name.toLowerCase().includes(search.toLowerCase()),
@@ -52,6 +57,27 @@ const TargetsTab = () => {
   const resolveSources = useCallback((refs) => readTargetSources(refs, REGISTRY_READERS), []);
   const sources = useSourceFreshness({ refs: sourceRefs, resolve: resolveSources, kept, names });
   const changedTargets = useMemo(() => new Set(sources.items.map((i) => i.ref?.target_id)), [sources.items]);
+
+  // 2026-10-13: what a refresh would do to each changed target, read with
+  // the same pick the refresh runs, so the notice says how far it moves
+  const [effects, setEffects] = useState({});
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      const out = {};
+      for (const item of sources.items.filter((i) => i.status === 'changed')) {
+        const t = (targets || []).find((x) => x.id === item.ref?.target_id);
+        if (!t) continue;
+        try {
+          out[item.key] = targetMoveText(t, await refreshTargetPatch(item, t, REGISTRY_READERS), { unit: du });
+        } catch (e) {
+          out[item.key] = e.message;
+        }
+      }
+      if (live) setEffects(out);
+    })();
+    return () => { live = false; };
+  }, [sources.items, targets, du]);
 
   const refreshFromSource = async (item) => {
     const t = (targets || []).find((x) => x.id === item.ref.target_id);
@@ -112,9 +138,13 @@ const TargetsTab = () => {
       Northing_m: t.center_y,
       TVDSS_m: t.tvdss_m,
       Radius_m: t.geometry?.radius_m ?? '',
+      ...(du === 'ft' ? {
+        TVDSS_ft: mToUnit(t.tvdss_m, 'ft')?.toFixed(2) ?? '',
+        Radius_ft: t.geometry?.radius_m != null ? mToUnit(t.geometry.radius_m, 'ft').toFixed(2) : '',
+      } : {}),
       Dip_deg: t.dip_deg ?? '',
       DipAzimuth_deg: t.dip_azimuth_deg ?? '',
-      Source: t.provenance?.source || 'manual',
+      Source: targetSourceLabel(t, (m) => `${showDepth(m, du, 1)} ${du}`),
       Notes: t.notes || '',
     })));
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -160,7 +190,7 @@ const TargetsTab = () => {
 
       {sourceRefs.length > 0 && (
         <SourceChangedNotice
-          items={sources.items.map((i) => ({ ...i, ref: { ...i.ref, name: `${i.ref.name || i.ref.id}, under target ${i.ref.target_name}` } }))}
+          items={sources.items.map((i) => ({ ...i, effect: effects[i.key] || null, ref: { ...i.ref, name: `${i.ref.name || i.ref.id}, under target ${i.ref.target_name}` } }))}
           checking={sources.checking}
           checkedAt={sources.checkedAt}
           error={sources.error}
@@ -185,8 +215,8 @@ const TargetsTab = () => {
                 <TableHead className="text-pl-text">Category</TableHead>
                 <TableHead className="text-pl-text text-right">Easting (m)</TableHead>
                 <TableHead className="text-pl-text text-right">Northing (m)</TableHead>
-                <TableHead className="text-pl-text text-right">TVDSS (m)</TableHead>
-                <TableHead className="text-pl-text text-right">Radius (m)</TableHead>
+                <TableHead className="text-pl-text text-right">TVDSS ({du})</TableHead>
+                <TableHead className="text-pl-text text-right">Radius ({du})</TableHead>
                 <TableHead className="text-pl-text">Source</TableHead>
                 <TableHead />
               </TableRow>
@@ -202,10 +232,10 @@ const TargetsTab = () => {
                   <TableCell className="capitalize text-pl-muted">{t.category}</TableCell>
                   <TableCell className="text-right font-mono text-pl-text">{t.center_x?.toFixed(1)}</TableCell>
                   <TableCell className="text-right font-mono text-pl-text">{t.center_y?.toFixed(1)}</TableCell>
-                  <TableCell className="text-right font-mono text-pl-text">{t.tvdss_m?.toFixed(1)}</TableCell>
-                  <TableCell className="text-right font-mono text-pl-muted">{t.geometry?.radius_m ?? ''}</TableCell>
+                  <TableCell className="text-right font-mono text-pl-text">{showDepth(t.tvdss_m, du, 1)}</TableCell>
+                  <TableCell className="text-right font-mono text-pl-muted">{showDepth(t.geometry?.radius_m, du, du === 'ft' ? 0 : 1)}</TableCell>
                   <TableCell className="text-xs text-pl-muted">
-                    {t.provenance?.source || 'manual'}
+                    {targetSourceLabel(t, (m) => `${showDepth(m, du, 1)} ${du}`)}
                     {changedTargets.has(t.id) && (
                       <span className="ml-1 rounded-full border border-pl-warning/40 bg-pl-warning-bg px-1.5 py-0.5 text-[10px] text-pl-warning-text" data-testid={`wd-target-stale-${t.id}`} title="The registry source of this target changed after it was picked. Refresh it or keep its values.">source changed</span>
                     )}
@@ -238,6 +268,7 @@ const TargetsTab = () => {
           onOpenChange={(o) => { if (!o) setDialogTarget(undefined); }}
           target={dialogTarget}
           onSave={handleSave}
+          depthUnit={du}
         />
       )}
 
@@ -245,6 +276,7 @@ const TargetsTab = () => {
         <TargetFromRegistryDialog
           open
           mode={pickerMode}
+          depthUnit={du}
           onOpenChange={(o) => { if (!o) setPickerMode(null); }}
           onPick={async (payload) => {
             try {
