@@ -74,7 +74,7 @@ export default function PorePressureStudioHelpGuide() {
       <GuideSection id="quickstart">
         <SectionHeading icon={Zap}>Quick start (10 min)</SectionHeading>
         <Step n={1} title="Pick a well">Click a registry well on the left. It needs a depth and a sonic curve; a density curve improves the overburden, otherwise Gardner densities stand in and the status bar says so.</Step>
-        <Step n={2} title="Set the water column">In the dock type the water depth, the seawater and pore fluid densities and, for an equivalent mud weight referenced to the rotary table, the mudline MD. Press Apply.</Step>
+        <Step n={2} title="Set the water column">A new project takes the water depth and the mudline MD from the well's datum in the well registry (offshore: the water depth, and the mudline at the air gap plus the water depth; onshore: no water, the mudline at the ground) and says so under the ribbon. Check them in the dock with the seawater and pore fluid densities, change them if your well differs, and press Apply.</Step>
         <Step n={3} title="Fit the trend">In NCT add shale picks at depths in the normally pressured section and press Fit NCT: the mudline transit time and the compaction constant are written into the dock.</Step>
         <Step n={4} title="Read the prognosis">Back in Prognosis, type a depth in the ribbon and read OBG, hydrostatic, PP and FG in the chosen unit; the chart shows the whole profile with your calibration points and the drilling window between PP and FG shaded. Above the chart, the narrowest window in ppg EMW and its depth, below the top 300 m (the conductor section, where PP and FG meet the seawater gradient by construction); under 0.5 ppg is flagged as a casing point or managed pressure case.</Step>
         <Step n={5} title="Deliver">Prognosis CSV downloads the table in your units with EMW columns; Publish writes PP, FP and OBG to the well; Save keeps the parameters and picks.</Step>
@@ -111,7 +111,9 @@ export default function PorePressureStudioHelpGuide() {
           the TVD minus the mudline. A well with a deviation survey is computed at its TVD from the survey; without
           one it is vertical. Offshore, set the mudline MD to the air gap plus the water depth: with the mudline MD
           shallower than the water depth the log MD would be read as depth below mudline, so the app says so under the
-          ribbon and holds Publish until it is set.
+          ribbon and holds Publish until it is set. A project with no water column of its own takes it from the well's
+          datum in the well registry (Well Data Manager, Header, Depth reference), and Publish is held for an offshore
+          well whose datum states water while the water depth in the dock is 0.
         </Para>
         <SubHeading>What the prognosis rests on</SubHeading>
         <Para>
@@ -221,6 +223,21 @@ export default function PorePressureStudioHelpGuide() {
           Fit n to calibration (Eaton sonic or resistivity), Fit A and B (Bowers loading) or Fit U (Bowers unloading,
           with sigma max held) fits that parameter to the pressure points and kicks by least squares on the pore
           pressure, writes it into the dock and says the misfit before and after. Leak-off tests are not used for it.
+        </Para>
+        <SubHeading>Pressures from shale samples</SubHeading>
+        <Para>
+          Eaton and Bowers read the compaction of a shale, so a sand, a carbonate stringer or a washout gives a pore
+          pressure that means nothing, often far below hydrostatic. With Pressures from shale samples on (Parameters,
+          on by default for a new project when the source has a VSH or GR curve), the method is evaluated at the
+          samples at or above the shale cutoff of the NCT view and the pressure is carried across the other samples by
+          depth. Above the first shale sample the section is taken as normally pressured, and below the last one its
+          overpressure is carried down. The overburden still integrates every sample, and the fracture pressure follows
+          from the carried pore pressure with the chosen fracture method. A project saved before this option keeps
+          every-sample pressures until you tick it. The notes line, the report and the published curves' provenance say
+          which samples were used and at what cutoff. With a GR curve the default cutoff sits halfway between the sand
+          and shale lines, which can admit shaly sands: on Ekene-1 a cutoff near the shale line (VSH 0.6, about 82 API)
+          follows the kit's designed prognosis within 0.6 ppg RMS. A running median on the sonic (or resistivity), in
+          the depth unit, smooths a noisy shale trace before the method reads it; it is off unless you set a window.
         </Para>
         <SubHeading>Importing RFT/MDT, LOT/FIT and mud weights</SubHeading>
         <Para>

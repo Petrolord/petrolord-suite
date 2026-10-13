@@ -890,6 +890,47 @@ a per-user choice from the header toggle (beside Help).
   failures become notes), surveyUtils (+2). Negative control: disabling the
   actual-survey preference fails 4 of them.
 
+## 2026-10-13: target source words and what a refresh does
+
+Found in the video dry run. The Source column showed the raw provenance code
+(`geo_surface`); it now reads "Surface: WDS demo: Oboro Sand top, 26.2 ft
+below", "Top: Oboro Sand in Ekene-8" or "Typed" (CSV too). The "Registry source
+changed" notice now says what Refresh from source would do, read with the same
+pick the refresh runs: "Refreshing moves T3 from 4,987.2 to 5,004.4 ft TVDSS
+(17.2 ft deeper)" (the shared notice takes an optional `effect` line per item).
+Settings and datum fields shown in feet round to 2 decimals (0.5 m showed as
+1.6404 ft); the stored metres change only when the user types. Tests:
+`__tests__/targetSourceDetail.test.jsx`.
+## 2026-10-13: anti-collision ladder MD in the wellbore unit
+
+Found in the video dry run: on a feet wellbore the separation-factor and
+distance ladders plotted reference MD in metres under an axis labelled ft
+(the 1,312 ft kickoff sat at 400). The rows now convert MD with the
+distances (`ladderRows`). The no-go and review threshold labels sit on their
+own sides of their lines, the legend moved above the plot (it overlapped the
+axis title), and both chart titles leave room for the SF/Distance and
+Highside/North buttons. Test: `__tests__/ladderChart.test.js`.
+## 2026-10-13: a design's unsaved draft stays with that design (fix)
+
+Found in the video dry run: a new design under Ekene-11 opened showing the
+previous design's S-profile, and Design methods then refused to curve to the
+target ("directly above the tie-on"), because the design end was the other
+design's TD. The draft context (keyed on the selected design) reset its
+draft in an effect, which runs after the Design tab's own load effect, so
+the tab had already loaded the new design with the old draft and does not
+load twice. Switching between two saved designs had the same leak, and a
+Save would have written one design's unsaved segments into the other. The
+draft now switches in the same render as the selection (`readDraft`), so
+the tab sees the new design's own draft or none. Test:
+`__tests__/designDraftSwitch.test.jsx` (fails on the effect-based reset).
+
+## 2026-10-13: the last metre labels on a feet wellbore
+
+Found in the video dry run: the project-ahead target list ("T1 (1885 m TVDSS)"),
+the From top picker's tops ("Oboro Sand (2039 m MD)") and the Publish dialog's
+TD and KB still printed metres on a feet wellbore or profile. They now follow
+the wellbore depth unit (the From top list follows the profile unit, as the
+rest of that dialog does).
 ## 2026-10-13: survey MD unit read from the column header
 
 Found in the video dry run: on a feet wellbore the New survey run dialog

@@ -57,6 +57,9 @@ const toDraft = (params, calibration, units) => {
     bowersSigmaMax: sMax != null ? tidy(pressureToDisplay(sMax, stressUnit(pU)), pressureDigits(stressUnit(pU))) : '',
     nu: String(params.nu),
     fracMethod: params.fracMethod || 'eaton',
+    // 2026-10-13: pore pressure from shale samples, and a sonic median
+    ppFromShale: !!params.ppFromShale,
+    sonicMedian: params.sonicMedianM > 0 ? tidy(depthToDisplay(params.sonicMedianM, zU), 2) : '',
     k0: String(params.k0 ?? 0.75),
     beta: String(params.beta ?? 0),
     tripMargin: tidy(densityToDisplay(marginsOf(params).tripKgM3, pU), densityDigits(pU)),
@@ -111,6 +114,8 @@ export default function ParamsPanel({
       k0: num(d.k0),
       beta: num(d.beta),
       report: { field: d.field.trim(), analyst: d.analyst.trim() },
+      ppFromShale: !!d.ppFromShale,
+      sonicMedianM: d.sonicMedian === '' ? 0 : Math.max(0, depthFromDisplay(num(d.sonicMedian), zU) || 0),
       // U2-003: margins are density differences, so the unit converts by its factor alone
       margins: {
         tripKgM3: Math.max(0, densityFromDisplay(num(d.tripMargin), pU) || 0),
@@ -175,6 +180,14 @@ export default function ParamsPanel({
           <Field id="pp-param-bowerssmax" label={`σ'max (${stU})`} value={d.bowersSigmaMax} onChange={set('bowersSigmaMax')} />
         </>
       )}
+      <label htmlFor="pp-shale-pressures" className="flex items-start gap-2 text-xs text-pl-muted"
+        title="Eaton and Bowers read the compaction of a shale. With this on, the pore pressure is taken at the samples at or above the shale cutoff of the NCT view and carried across the sands by depth; the overburden still uses every sample.">
+        <input id="pp-shale-pressures" data-testid="pp-shale-pressures" type="checkbox" className="mt-0.5"
+          checked={!!d.ppFromShale} onChange={(e) => setD((prev) => ({ ...prev, ppFromShale: e.target.checked }))} />
+        <span>Pressures from shale samples (cutoff from the NCT view; needs VSH or GR)</span>
+      </label>
+      <Field id="pp-sonic-median" label={`Running median on the ${d.method === 'eaton-resistivity' ? 'resistivity' : 'sonic'} (${zU}, empty = off)`} value={d.sonicMedian} onChange={set('sonicMedian')} />
+
       <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">Fracture gradient</div>
       <label htmlFor="pp-param-fracmethod" className="flex items-center justify-between gap-2 text-xs text-pl-muted">
         <span>Method</span>

@@ -85,8 +85,8 @@ const PublishDialog = ({
 
         <div className="space-y-3 text-xs">
           <div className="rounded-md border border-pl-border bg-pl-sunken p-3 space-y-1">
-            <div><span className="text-pl-muted">Trajectory:</span> {design?.name} r{design?.revision} ({source}), {stations?.length ?? 0} stations to {stations?.length ? `${stations[stations.length - 1].md.toFixed(0)} m MD` : '--'}</div>
-            <div><span className="text-pl-muted">Wellhead:</span> {Number.isFinite(wellbore?.head_x) ? `${wellbore.head_x.toFixed(1)} E, ${wellbore.head_y.toFixed(1)} N` : 'not set'} · KB {wellbore?.kb_elev_m ?? 0} m</div>
+            <div><span className="text-pl-muted">Trajectory:</span> {design?.name} r{design?.revision} ({source}), {stations?.length ?? 0} stations to {stations?.length ? `${(wellbore?.depth_unit === 'ft' ? stations[stations.length - 1].md / 0.3048 : stations[stations.length - 1].md).toFixed(0)} ${wellbore?.depth_unit === 'ft' ? 'ft' : 'm'} MD` : '--'}</div>
+            <div><span className="text-pl-muted">Wellhead:</span> {Number.isFinite(wellbore?.head_x) ? `${wellbore.head_x.toFixed(1)} E, ${wellbore.head_y.toFixed(1)} N` : 'not set'} · KB {wellbore?.depth_unit === 'ft' ? `${((wellbore?.kb_elev_m ?? 0) / 0.3048).toFixed(1)} ft` : `${wellbore?.kb_elev_m ?? 0} m`}</div>
             <div><span className="text-pl-muted">Site CRS:</span> {site?.crs || 'unset (well will import as unplaced)'}</div>
           </div>
 

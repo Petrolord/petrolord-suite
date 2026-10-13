@@ -226,3 +226,41 @@ export async function refreshTargetPatch(result, target, readers) {
   // source's, with the target's own stand-off below the pick applied again
   return { center_x: pick.center_x, center_y: pick.center_y, tvdss_m: pick.tvdss_m, provenance: pick.provenance };
 }
+
+/**
+ * What the Source column says about a target (2026-10-13): where it came
+ * from in words, with the stand-off below the pick when there is one.
+ * @param {object} target wp_targets row
+ * @param {(m:number)=>string} [depth] a metre length in the display unit, e.g. "26.2 ft"
+ */
+export function targetSourceLabel(target, depth = (m) => `${m.toFixed(1)} m`) {
+  const p = target?.provenance || {};
+  const below = Number(p.below_pick_m);
+  const off = Number.isFinite(below) && Math.abs(below) > 1e-6
+    ? `, ${depth(Math.abs(below))} ${below > 0 ? 'below' : 'above'}` : '';
+  if (p.source === 'geo_surface') return `Surface: ${p.surface_name || 'registry surface'}${off}`;
+  if (p.source === 'geo_top') return `Top: ${p.top_name || 'top'} in ${p.well_name || 'registry well'}${off}`;
+  return p.source ? String(p.source) : 'Typed';
+}
+
+/**
+ * What "Refresh from source" would do to a target, in one sentence: the
+ * TVDSS before and after and the horizontal shift (2026-10-13). Pure; the
+ * caller runs refreshTargetPatch to get the patch.
+ * @param {object} target wp_targets row
+ * @param {{center_x:number, center_y:number, tvdss_m:number}} patch
+ * @param {{unit?: 'm'|'ft'}} [opts]
+ */
+export function targetMoveText(target, patch, { unit = 'm' } = {}) {
+  const k = unit === 'ft' ? 1 / 0.3048 : 1;
+  const was = Number(target?.tvdss_m) * k;
+  const now = Number(patch?.tvdss_m) * k;
+  const dz = now - was;
+  const dh = Math.hypot(Number(patch?.center_x) - Number(target?.center_x), Number(patch?.center_y) - Number(target?.center_y));
+  const f = (v) => v.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const across = Number.isFinite(dh) && dh >= 0.05 ? `, and ${f(dh)} m across` : '';
+  if (!Number.isFinite(dz)) return null;
+  if (Math.abs(dz) < 0.05 && !across) return `Refreshing leaves ${target.name} where it is.`;
+  const vert = Math.abs(dz) < 0.05 ? 'no deeper' : `${f(Math.abs(dz))} ${unit} ${dz > 0 ? 'deeper' : 'shallower'}`;
+  return `Refreshing moves ${target.name} from ${f(was)} to ${f(now)} ${unit} TVDSS (${vert}${across}).`;
+}
