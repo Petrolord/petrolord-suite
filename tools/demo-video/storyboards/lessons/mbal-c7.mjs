@@ -75,17 +75,16 @@ export default {
         await d.unhighlight();
       } },
     { id: 'hm', chapter: 'Fitting m', chapterSub: 'History match',
-      say: 'When the logs leave m uncertain, the history match can fit it with the oil in place. Tick m and run. The match finds HMN million barrels and an m of HMM, close to the nought point four five the scenario was built with.',
+      say: 'When the logs leave m uncertain, the history match can fit it with the oil in place. Tick m and match, starting from the wrong value of nought point six. The match pulls m back to nought point five two two nine and the oil in place to sixteen point seven one five million, with wide intervals: m anywhere from nought point four seven to nought point five eight. The pressures alone cannot pin both. Take m from the logs, and let the match test it.',
       do: async (d) => {
         await d.click(seg(d, 'History match'));
         await d.sleep(1500);
-        const mrow = d.page.getByText('Gas cap ratio m (fraction)').first().locator('xpath=ancestor::div[contains(@class,"rounded") or contains(@class,"border")][1]');
-        const box = mrow.locator('input[type=checkbox], button[role=checkbox]').first();
-        await d.click(box);
+        await d.click(d.page.getByLabel('Fit Gas cap ratio m'));
         await d.sleep(600);
         await d.click(d.page.getByRole('button', { name: /Run history match/ }));
         await d.waitText('mbal-hm-status-line', /Converged|Stopped|iterations/, { timeout: 120000 });
         await d.sleep(1200);
+        await expectText(d, t(d, 'mbal-hm-matched'), /STOIIP N \(MMSTB\)\s*15\.111\s*16\.715[\s\S]*Gas cap ratio m \(fraction\)\s*0\.6000\s*0\.5229\s*0\.4737 to 0\.5774/, 'm fitted');
         const tbl = t(d, 'mbal-hm-matched').locator('xpath=ancestor::table[1]');
         await tbl.evaluate((e) => e.scrollIntoView({ behavior: 'smooth', block: 'center' }));
         await d.sleep(800);

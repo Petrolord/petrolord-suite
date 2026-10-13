@@ -36,9 +36,10 @@ export default {
         await setContacts(d, GASCAP.contacts, { onCamera: true });
       } },
     { id: 'current',
-      say: 'By the last survey the oil-water contact has risen to RISEOWC, and the gas-oil contact has come down to DOWNGOC, leaving COLUMN of oil.',
+      say: 'By the last survey the oil-water contact has risen to five thousand and thirty four point four feet, and the gas-oil contact has come down to four thousand nine hundred and seventy five point five, leaving fifty eight point nine feet of oil.',
       do: async (d) => {
         const cards = d.page.getByText('Current OWC').first().locator('xpath=ancestor::div[contains(@class,"grid")][1]');
+        await expectText(d, cards, /Current OWC\s*5034\.4 ft[\s\S]*Current GOC\s*4975\.5 ft[\s\S]*Remaining oil column\s*58\.9 ft/, 'current contacts');
         await d.highlight(cards);
         await d.sleep(4000);
         await d.unhighlight();
@@ -69,7 +70,7 @@ export default {
         await d.unhighlight();
       } },
     { id: 'area', chapter: 'What the area does', chapterSub: 'Twice the area, half the rise',
-      say: 'The contact area matters as much as the volume. Double the oil-water contact area to three hundred and sixty acres, and the same influx raises the contact by half as much.',
+      say: 'The contact area matters as much as the volume. Double the oil-water contact area to three hundred and sixty acres, and play it again: the same influx raises the contact by half as much, twelve point eight feet.',
       do: async (d) => {
         const f = t(d, 'mbal-contacts-areaOwcAcres');
         await f.evaluate((e) => e.scrollIntoView({ behavior: 'smooth', block: 'center' }));
@@ -81,6 +82,9 @@ export default {
         const anim = t(d, 'mbal-contacts-anim');
         await anim.evaluate((e) => e.scrollIntoView({ behavior: 'smooth', block: 'center' }));
         await d.sleep(1200);
+        await d.click('mbal-contacts-anim-play');
+        await d.waitText('mbal-contacts-anim-play', /Play/, { timeout: 30000 });
+        await expectText(d, 'mbal-contacts-anim-readout', /OWC risen by\s*12\.8 ft/, 'half the rise');
         await d.highlight(t(d, 'mbal-contacts-anim-readout'));
         await d.sleep(3500);
         await d.unhighlight();
