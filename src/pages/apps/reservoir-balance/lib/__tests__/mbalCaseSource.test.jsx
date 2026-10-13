@@ -87,14 +87,14 @@ describe('ReservoirCalc Pro prints the cross-check, read by id', () => {
   const renderAt = (path, client) => render(<MemoryRouter initialEntries={[path]}><MbalCrossCheckNote client={client} /></MemoryRouter>);
 
   test('beside its deterministic STOIIP, with the source and the difference', async () => {
-    mockRcp.state = { unitSystem: 'field', inputs: { fluidType: 'oil' }, results: { fluidType: 'oil', stooip: 270.6e6 } };
+    mockRcp.state = { unitSystem: 'field', project: { id: 'rcp-1', name: 'Ahmed volumetric' }, inputs: { fluidType: 'oil' }, results: { fluidType: 'oil', stooip: 270.6e6 } };
     const client = clientOver(ahmed.db);
     renderAt(`/rcp?mbalCase=${SAMPLE_CASE_IDS.ahmed}`, client);
     const note = await screen.findByTestId('rcp-mbal-check', {}, { timeout: 10000 });
     await waitFor(() => expect(note).toHaveTextContent('Material balance cross-check'));
     const ooip = ahmed.result.estimated_ooip_stb;
     const pct = Math.abs(((ooip - 270.6e6) / 270.6e6) * 100).toFixed(1);
-    expect(screen.getByTestId('rcp-mbal-check-values')).toHaveTextContent(`OOIP by material balance ${(ooip / 1e6).toFixed(2)} MMSTB; this project's deterministic volumetric STOIIP 270.60 MMSTB; material balance ${ooip >= 270.6e6 ? 'above' : 'below'} it by ${pct} percent.`);
+    expect(screen.getByTestId('rcp-mbal-check-values')).toHaveTextContent(`OOIP by material balance ${(ooip / 1e6).toFixed(2)} MMSTB; this project's deterministic volumetric STOIIP 270.60 MMSTB; material balance ${ooip >= 270.6e6 ? 'above' : 'below'} it by ${pct} percent. Project: "Ahmed volumetric".`);
     expect(note).toHaveTextContent('from Material Balance Studio case "Ahmed Example 11-3 (depletion drive)"');
     expect(note).toHaveTextContent('Last average pressure 3,188 psia');
     expect(mockRcp.updateInputs).toHaveBeenCalledWith({ mbalCheck: expect.objectContaining({ contract: 'mbal-1', case_id: SAMPLE_CASE_IDS.ahmed, unit: 'STB' }) });
@@ -107,5 +107,33 @@ describe('ReservoirCalc Pro prints the cross-check, read by id', () => {
     expect(await screen.findByTestId('rcp-mbal-check', {}, { timeout: 10000 })).toHaveTextContent('No Material Balance case was found under that id');
     expect(mockRcp.updateInputs).not.toHaveBeenCalled();
     expect(provenanceLines(buildMbalRecord({ caseData: ahmed.caseData, result: ahmed.result, run: ahmed.run }).record)[0]).toMatch(/^OOIP by material balance/);
+  });
+
+  test('a workspace that is not a saved project is not compared (the sample inputs are no volumetric estimate)', async () => {
+    mockRcp.state = { unitSystem: 'field', project: null, inputs: { fluidType: 'oil' }, results: { fluidType: 'oil', stooip: 226.28e6 } };
+    renderAt(`/rcp?mbalCase=${SAMPLE_CASE_IDS.ahmed}`, clientOver(ahmed.db));
+    const values = await screen.findByTestId('rcp-mbal-check-values', {}, { timeout: 10000 });
+    expect(values).toHaveTextContent('This workspace is not a saved project, so it is not compared');
+    expect(values).not.toHaveTextContent('226.28');
+    expect(values).not.toHaveTextContent('percent');
+  });
+
+  test('with rcpProject it opens the project the case names, then compares and records the check', async () => {
+    const project = { id: 'rcp-77', name: 'Ekene booked volumetric' };
+    mockRcp.updateInputs.mockClear();
+    mockRcp.state = { unitSystem: 'field', project: null, projects: [], inputs: { fluidType: 'oil' }, results: { fluidType: 'oil', stooip: 226.28e6 } };
+    mockRcp.loadProjects = jest.fn(async () => { mockRcp.state = { ...mockRcp.state, projects: [project] }; return { ok: true }; });
+    mockRcp.loadProject = jest.fn((p) => { mockRcp.state = { ...mockRcp.state, project: { id: p.id, name: p.name }, results: { fluidType: 'oil', stooip: 270.6e6 } }; });
+    const view = renderAt(`/rcp?mbalCase=${SAMPLE_CASE_IDS.ahmed}&rcpProject=rcp-77`, clientOver(ahmed.db));
+    await waitFor(() => expect(mockRcp.loadProject).toHaveBeenCalledWith(project), { timeout: 10000 });
+    view.rerender(<MemoryRouter initialEntries={[`/rcp?mbalCase=${SAMPLE_CASE_IDS.ahmed}&rcpProject=rcp-77`]}><MbalCrossCheckNote client={clientOver(ahmed.db)} /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId('rcp-mbal-check-values')).toHaveTextContent('Project: "Ekene booked volumetric".'), { timeout: 10000 });
+    expect(screen.getByTestId('rcp-mbal-check-values')).toHaveTextContent("this project's deterministic volumetric STOIIP 270.60 MMSTB");
+    expect(mockRcp.updateInputs).toHaveBeenCalledWith({ mbalCheck: expect.objectContaining({ case_id: SAMPLE_CASE_IDS.ahmed }) });
+    // the same volume on both sides reads as agreement, not as 0.0 percent below
+    mockRcp.state = { ...mockRcp.state, results: { fluidType: 'oil', stooip: ahmed.result.estimated_ooip_stb } };
+    view.rerender(<MemoryRouter initialEntries={[`/rcp?mbalCase=${SAMPLE_CASE_IDS.ahmed}&rcpProject=rcp-77`]}><MbalCrossCheckNote client={clientOver(ahmed.db)} /></MemoryRouter>);
+    expect(screen.getByTestId('rcp-mbal-check-values')).toHaveTextContent('the two agree to within 0.1 percent.');
+    delete mockRcp.loadProjects; delete mockRcp.loadProject;
   });
 });

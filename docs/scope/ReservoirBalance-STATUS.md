@@ -914,3 +914,16 @@ Doc: `docs/upgrade/MaterialBalanceStudio-UPGRADE.md` (the twenty-four checks,
   2,000 psia on Ekene) while the engine used the Bo and Rs on every data row
   (Rs 400). The note `mbal-pvt-rows-first` now says the rows come first and
   the preview is not the PVT of the run. Tests in `mbalInputsU1.test.jsx`.
+## 2026-10-13: the ReservoirCalc Pro cross-check opens the volumetric project (MBAL video programme)
+
+- **Defect:** "Cross-check in ReservoirCalc Pro" opened a fresh RCP workspace,
+  whose sample inputs (226.28 MMSTB) were then compared with the case: "material
+  balance below it by 94.6 percent".
+- **Fix:** a volumetric estimate taken from an RCP project keeps its
+  `project_id` in the handoff (`volumetricProjectId`, older handoffs read from
+  the record text; an edit after the handoff cuts the link). The button adds
+  `&rcpProject=<id>`; `MbalCrossCheckNote` opens that project, then compares,
+  names the project, and writes `mbalCheck` after the load (loading replaces
+  the inputs). A workspace that is not a saved project is never compared.
+- Tests: `mbalCaseSource.test.jsx` (unsaved workspace not compared; the
+  project opened by id, then compared and recorded), `rcpVolumetricIntake.test.js`.
