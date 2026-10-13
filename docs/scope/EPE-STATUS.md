@@ -88,3 +88,13 @@ Valuation with the run offered to the selected prospect. Tests:
 `src/pages/apps/epe/__tests__/epeUnitValue.test.js` (on the Ekene demo run
 the engine computed). Detail: `docs/upgrade/RiskedReservesValuation-UPGRADE.md`,
 section "U2-001".
+
+## 2026-10-13: Run Console number fields keep their focus (video programme)
+
+Found while scripting the EPE demo videos: every number field in the Run
+Console (prices, discount rate, base year, abandonment, the PIA inputs, 52 in
+all) lost its focus after one key, because the field component was declared
+inside the console and React remounted it on every render. Typing 2026 into
+Base year left 2 and the validation message "Enter a 4-digit year". The field
+is now declared at module level. Test: piaScreens.mount.test.jsx types 2026
+and 82.5 key by key (fails on the old code). No engine change.

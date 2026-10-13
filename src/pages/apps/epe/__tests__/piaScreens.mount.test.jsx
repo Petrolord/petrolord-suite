@@ -6,6 +6,7 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen, fireEvent, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 const DB = { epe_run_configs: [], epe_runs: null, epe_results: null, epe_cases: { id: 'c1', user_id: 'u1', case_name: 'Ekene' } };
@@ -69,6 +70,19 @@ const mountViewer = () => render(
 
 describe('Run Console', () => {
   beforeEach(() => { DB.epe_run_configs = []; });
+
+  test('a number field keeps its focus while a value is typed one key at a time', async () => {
+    mountConsole();
+    const baseYear = await screen.findByLabelText('Base year');
+    await userEvent.clear(baseYear);
+    await userEvent.type(baseYear, '2026');
+    expect(baseYear).toHaveValue(2026);
+    expect(document.activeElement).toBe(screen.getByLabelText('Base year'));
+    const oil = screen.getByLabelText(/Oil price/);
+    await userEvent.clear(oil);
+    await userEvent.type(oil, '82.5');
+    expect(oil).toHaveValue(82.5);
+  });
 
   test('PIA: a new-acreage PML asks for the HCT rate, flags the refusal and offers the legacy toggle', async () => {
     mountConsole();
