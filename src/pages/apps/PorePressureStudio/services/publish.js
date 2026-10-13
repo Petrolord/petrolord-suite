@@ -14,6 +14,8 @@
 // the survey or vertical, mudline MD, water depth); readers accept any
 // pp-1.x curve.
 
+import { datumWaterBlocker } from './datumWaterColumn';
+
 export const PIPELINE_VERSION = 'pp-1.1.0';
 /** Readers accept every curve of this pipeline major version. */
 export const PIPELINE_MAJOR = /^pp-1\./;
@@ -125,8 +127,11 @@ export function staleOwnCurves(existingLogs, preparedLogs, projectId) {
  * mudline, the water column is added on top, and the published curves
  * would land shallower than the depths they were computed for.
  */
-export function publishBlocker(params, { source = 'well', fmt = (m) => `${m} m` } = {}) {
+export function publishBlocker(params, { source = 'well', fmt = (m) => `${m} m`, well = null } = {}) {
   if (source !== 'well') return 'Only a well prognosis can be published (a velocity trend has no well to publish to).';
+  // 2026-10-13: an offshore well (by its registry datum) with no water column set
+  const fromDatum = datumWaterBlocker(params, well, { fmt });
+  if (fromDatum) return fromDatum;
   const wd = Number(params?.waterDepthM) || 0;
   const ml = Number(params?.mudlineMdM) || 0;
   if (wd > 0 && ml < wd) {
