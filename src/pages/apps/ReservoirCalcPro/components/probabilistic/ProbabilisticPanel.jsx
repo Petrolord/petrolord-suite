@@ -9,7 +9,7 @@ import NumberField from '../common/NumberField';
 import { useToast } from '@/components/ui/use-toast';
 import { distScaleFactor } from '../../services/unitsCatalog';
 import {
-    distKeysFor, syncDistParams, recentreDist, formatDistributions, centralOf,
+    distKeysFor, syncDistParams, recentreDist, formatDistributions, centralOf, distParamsFromRun,
 } from '../../services/distributions';
 import CorrelationEditor, { correlationsProblem } from './CorrelationEditor';
 import FitFromData from './FitFromData';
@@ -96,11 +96,11 @@ const ProbabilisticPanel = () => {
     const { toast } = useToast();
     const [currentStep, setCurrentStep] = useState(0);
     const [consistencyMode, setConsistencyMode] = useState(true);
-    const [iterations, setIterations] = useState(10000);
+    const [iterations, setIterations] = useState(() => (Number.isFinite(state.probResults?.meta?.iterations) ? state.probResults.meta.iterations : 10000));
     // U2-006: the run is in a background worker, so 100k and 250k no
     // longer freeze the page
     const ITERATION_OPTIONS = [1000, 5000, 10000, 50000, 100000, 250000];
-    const [seedText, setSeedText] = useState('');
+    const [seedText, setSeedText] = useState(() => (Number.isFinite(state.probResults?.meta?.seed) ? String(state.probResults.meta.seed) : ''));
     // Risked Reserves Valuation U2-006: a prospect opened to be re-run sets
     // the seed and the realizations of the run behind it
     useEffect(() => {
@@ -110,7 +110,10 @@ const ProbabilisticPanel = () => {
     }, [rerun]); // eslint-disable-line react-hooks/exhaustive-deps
     // U2-002: the correlation pairs the engine applies (starts from the
     // long-standing porosity-Sw -0.8)
-    const [correlations, setCorrelations] = useState([{ a: 'porosity', b: 'sw', rho: -0.8 }]);
+    // (from the run on screen when there is one, so a remount keeps its pairs)
+    const [correlations, setCorrelations] = useState(() => (Array.isArray(state.probResults?.meta?.correlations)
+        ? state.probResults.meta.correlations.map(({ a, b, rho }) => ({ a, b, rho }))
+        : [{ a: 'porosity', b: 'sw', rho: -0.8 }]));
 
     const fluidType = state.inputs.fluidType || 'oil';
     // the headline stream: gas for a gas reservoir, the oil leg otherwise
@@ -145,7 +148,8 @@ const ProbabilisticPanel = () => {
     // case, and a malformed distribution stops the run with the reason.
     const distKeys = distKeysFor({ structural, fluidType, inputMethod: state.inputMethod });
     const distKeysSig = distKeys.join(',');
-    const [distParams, setDistParams] = useState(() => syncDistParams({}, distKeys, base, state.unitSystem));
+    // the ranges of the run on screen come back when the panel mounts again
+    const [distParams, setDistParams] = useState(() => syncDistParams(distParamsFromRun(state.probResults?.meta, state.unitSystem), distKeys, base, state.unitSystem));
     useEffect(() => {
         setDistParams((prev) => syncDistParams(prev, distKeys, base, state.unitSystem));
     }, [distKeysSig]); // eslint-disable-line react-hooks/exhaustive-deps

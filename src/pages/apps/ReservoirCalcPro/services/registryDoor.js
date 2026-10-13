@@ -16,6 +16,9 @@ import { sourceRef } from '@/lib/sourceFreshness/model';
 export const BOUNDARY_KINDS = Object.freeze(['boundary', 'license_block', 'lease', 'aoi', 'prospect']);
 const M_PER_FT = 0.3048;
 
+/** Methods whose rock volume is the structure cut at the contacts. */
+export const isStructuralMethod = (m) => m === 'surfaces' || m === 'hybrid';
+
 /** Zone names across the wells with counts and how many carry a publish. */
 export function zoneCatalog(wells) {
   const byName = new Map();
@@ -37,16 +40,21 @@ export function zoneCatalog(wells) {
  * carry it, thickness converted to the system's canonical length unit.
  * @returns {{patch: Object, provenance: Object, fromWells: number, wellNames: string[]}}
  */
-export function registryPatchForZone(wells, zoneName, unitSystem = 'field') {
+export function registryPatchForZone(wells, zoneName, unitSystem = 'field', { inputMethod = 'simple' } = {}) {
   const carrying = (wells || []).filter((w) => (w.zones || []).some((z) => z.name === zoneName));
   const zones = carrying.flatMap((w) => (w.zones || []).filter((z) => z.name === zoneName));
-  const avg = zoneAveragesToInputs(zones);
+  // Surfaces and Hybrid cut the structure at the contact: NTG on net reservoir
+  const avg = zoneAveragesToInputs(zones, { basis: isStructuralMethod(inputMethod) ? 'reservoir' : 'pay' });
   const fromWells = avg.fromWells;
   const thicknessBasis = avg.thicknessBasis || null;
   const weighting = avg.weighting || null;
+  const ntgBasis = avg.ntgBasis || null;
+  const ntgNote = avg.ntgNote || null;
   delete avg.fromWells;
   delete avg.thicknessBasis;
   delete avg.weighting;
+  delete avg.ntgBasis;
+  delete avg.ntgNote;
   if (!fromWells) throw new Error(`No well carries a published average for zone ${zoneName}. Publish zone summaries from Petrophysics Studio first.`);
   const patch = { ...avg };
   if (Number.isFinite(patch.thickness)) {
@@ -57,6 +65,7 @@ export function registryPatchForZone(wells, zoneName, unitSystem = 'field') {
   // (PETRO-U2-013); every reader names such wells
   const phitWells = carrying.filter((w) => (w.zones || []).some((z) => z.name === zoneName && isPrePt9aZone(z.properties))).map((w) => w.name);
   const notes = phitWells.length ? [`${phitWells.join(', ')}: ${PRE_PT9A_ZONE_NOTE}`] : [];
+  if (ntgNote) notes.push(ntgNote);
   // Source freshness (2026-10-12): one reference per well zone averaged, so
   // a later publish from Petrophysics Studio is noticed on open
   const pulledAt = new Date().toISOString();
@@ -68,7 +77,8 @@ export function registryPatchForZone(wells, zoneName, unitSystem = 'field') {
     fromWells,
     wellNames,
     notes,
-    provenance: { source: 'shared-registry', zone: zoneName, wells: wellNames, fields: Object.keys(patch), thickness_basis: thicknessBasis, weighting, total_porosity_wells: phitWells, pulled_at: pulledAt, sources },
+    ntgBasis,
+    provenance: { source: 'shared-registry', zone: zoneName, wells: wellNames, fields: Object.keys(patch), thickness_basis: thicknessBasis, weighting, ntg_basis: ntgBasis, input_method: inputMethod, total_porosity_wells: phitWells, pulled_at: pulledAt, sources },
   };
 }
 
@@ -113,11 +123,11 @@ export function polygonRingsOfFeatures(features) {
   return rings.sort((a, b) => area(b) - area(a));
 }
 /** Word a preview of what Apply would set. */
-export function describePatch(patch, unitSystem = 'field') {
+export function describePatch(patch, unitSystem = 'field', { ntgBasis = null } = {}) {
   const parts = [];
   if (Number.isFinite(patch.porosity)) parts.push(`porosity ${patch.porosity.toFixed(3)}`);
   if (Number.isFinite(patch.sw)) parts.push(`Sw ${patch.sw.toFixed(3)}`);
-  if (Number.isFinite(patch.ntg)) parts.push(`NTG ${patch.ntg.toFixed(3)}`);
+  if (Number.isFinite(patch.ntg)) parts.push(`NTG ${patch.ntg.toFixed(3)}${ntgBasis === 'net reservoir' ? ' (net reservoir)' : ''}`);
   if (Number.isFinite(patch.thickness)) parts.push(`gross thickness ${patch.thickness.toFixed(1)} ${canonicalUnitFor('thickness', unitSystem)}`);
   if (Number.isFinite(patch.area)) parts.push(`area ${patch.area.toFixed(1)} ${canonicalUnitFor('area', unitSystem) === 'acre' ? 'acres' : 'km2'}`);
   return parts.join(', ');

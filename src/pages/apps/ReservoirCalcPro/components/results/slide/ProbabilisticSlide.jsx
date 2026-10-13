@@ -6,6 +6,9 @@ import { useReservoirCalc } from '../../../contexts/ReservoirCalcContext';
 import { ReportGenerator } from '../../tools/ReportGenerator';
 import SlideFrame from './SlideFrame';
 import TornadoChart from '../TornadoChart';
+
+// the slide's tornado panel holds four bars at a readable size; the full set is in the Detailed view and the PDF
+const SLIDE_TORNADO_ROWS = 4;
 import { tornadoSwings } from '@/lib/monteCarlo';
 import {
     SlideShell, HeroTile, Panel, StatCell, Chip,
@@ -13,7 +16,7 @@ import {
 } from './slideParts';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { inPlaceScale, headlineStream, runContext } from '../../../services/volumeDisplay';
-import { reviewerLines } from '../../../services/reportInfo';
+import { reviewerLines, surfaceNamesOf } from '../../../services/reportInfo';
 
 // Rasterise an inline <svg> element to a PNG data URL so it can be embedded in the
 // branded PDF. Renders at the SVG's viewBox size × 2 for a crisp result; resolves
@@ -97,6 +100,8 @@ const ProbabilisticSlide = () => {
     const { toast } = useToast();
     const curveRef = useRef(null);
     const tornadoSvgRef = useRef(null);
+    // the PDF takes every bar from an off-screen copy (the slide shows the top four)
+    const pdfTornadoRef = useRef(null);
     const [isExporting, setIsExporting] = useState(false);
 
     const ready = probResults && probResults.stats;
@@ -148,11 +153,11 @@ const ProbabilisticSlide = () => {
         setIsExporting(true);
         try {
             const cdfImg = curveRef.current ? await svgToPng(curveRef.current, 600, 250) : null;
-            const tornadoImg = tornadoSvgRef.current ? await svgToPng(tornadoSvgRef.current, 520, 180) : null;
+            const tornadoImg = pdfTornadoRef.current ? await svgToPng(pdfTornadoRef.current, 520, 180) : null;
             await ReportGenerator.generateProbabilisticReport(
                 project, probResults, run.unitSystem, { cdf: cdfImg, tornado: tornadoImg }, {
                     template: 'technical', fluidType: ft, reservoirName: reservoir, report: state.inputs?.report, inputMethod: state.inputMethod,
-                    reviewer: reviewerLines({ report: state.inputs?.report, unitSystem: run.unitSystem, inputMethod: state.inputMethod, fluidType: ft, inputs: state.inputs, probResults }),
+                    reviewer: reviewerLines({ surfaceNames: surfaceNamesOf(state), report: state.inputs?.report, unitSystem: run.unitSystem, inputMethod: state.inputMethod, fluidType: ft, inputs: state.inputs, probResults }),
                 },
             );
             toast({ title: 'Report downloaded', description: 'The full branded PDF was saved.' });
@@ -170,6 +175,12 @@ const ProbabilisticSlide = () => {
     );
 
     return (
+        <>
+        {swings.length > 0 && (
+            <div aria-hidden="true" style={{ position: 'fixed', left: -10000, top: 0, width: 520, height: 180, pointerEvents: 'none' }}>
+                <TornadoChart svgRef={pdfTornadoRef} rows={swings} base={swings[0].base} unit={unit} width={520} height={180} compact />
+            </div>
+        )}
         <SlideFrame fileName={`${project.replace(/\s+/g, '_')}_${reservoir.replace(/\s+/g, '_')}_probabilistic`} extraActions={pdfButton}>
             <SlideShell
                 subtitle="Probabilistic Volumetric Estimate · Monte Carlo"
@@ -200,26 +211,28 @@ const ProbabilisticSlide = () => {
                         </div>
                     </Panel>
 
-                    <div className="flex flex-1 flex-col gap-4">
-                        <Panel title="Statistics" icon={<BarChart3 className="h-4 w-4 text-blue-500" />}>
-                            <div className="grid grid-cols-2 gap-2">
-                                <StatCell label="Mean" value={fmtDec(stats.mean / denom, 2)} unit={unit} />
-                                <StatCell label="Std. Dev" value={fmtDec(stats.stdDev / denom, 2)} unit={unit} />
-                                <StatCell label="P10 / P90" value={ratio} accent />
-                                <StatCell label="Iterations" value={iterations.toLocaleString()} />
+                    {/* min-h-0 down the column so the tornado scales into the slide instead of running off its foot */}
+                    <div className="flex min-h-0 flex-1 flex-col gap-4">
+                        <Panel title="Statistics" icon={<BarChart3 className="h-4 w-4 text-blue-500" />} className="shrink-0">
+                            {/* one compact row, so the tornado below gets the height */}
+                            <div className="grid grid-cols-4 gap-2">
+                                <StatCell compact label="Mean" value={fmtDec(stats.mean / denom, 2)} unit={unit} />
+                                <StatCell compact label="Std. Dev" value={fmtDec(stats.stdDev / denom, 2)} unit={unit} />
+                                <StatCell compact label="P10 / P90" value={ratio} accent />
+                                <StatCell compact label="Runs" value={iterations.toLocaleString()} />
                             </div>
                         </Panel>
 
-                        <Panel title="Sensitivity Tornado" icon={<Activity className="h-4 w-4 text-purple-500" />} className="flex-1" right={<span className="text-[11px] font-medium text-slate-400">P50 swing per parameter</span>}>
+                        <Panel title="Sensitivity Tornado" icon={<Activity className="h-4 w-4 text-purple-500" />} className="min-h-0 flex-1 overflow-hidden" right={<span className="text-[11px] font-medium text-slate-400">{swings.length > SLIDE_TORNADO_ROWS ? `P50 swing, top ${SLIDE_TORNADO_ROWS} of ${swings.length}` : 'P50 swing per parameter'}</span>}>
                             {swings.length ? (
                                 <div className="min-h-0 flex-1">
                                     <TornadoChart
                                         svgRef={tornadoSvgRef}
-                                        rows={swings}
+                                        rows={swings.slice(0, SLIDE_TORNADO_ROWS)}
                                         base={swings[0].base}
                                         unit={unit}
                                         width={520}
-                                        height={180}
+                                        height={130}
                                         compact
                                         fluid
                                     />
@@ -245,6 +258,7 @@ const ProbabilisticSlide = () => {
                 </div>
             </SlideShell>
         </SlideFrame>
+        </>
     );
 };
 

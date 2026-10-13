@@ -69,7 +69,10 @@ const ExpertInputPanel = () => {
         }
     }, [state.inputMethod]); 
 
-    // Auto-calculate deterministic baseline when inputs change in deterministic mode
+    // Auto-calculate deterministic baseline when inputs change in deterministic mode.
+    // The active AOI, the AOIs' polygons and the surfaces are inputs too: an
+    // AOI selected or cleared, or a surface read again by Refresh from source,
+    // left the previous volume on screen until Recalculate (2026-10-12).
     useEffect(() => {
         if (state.calcMethod === 'deterministic') {
             const timeout = setTimeout(() => {
@@ -77,7 +80,7 @@ const ExpertInputPanel = () => {
             }, 500); // debounce deterministic base case calculation
             return () => clearTimeout(timeout);
         }
-    }, [state.inputs, state.calcMethod, state.unitSystem, state.inputMethod, state.gridding]);
+    }, [state.inputs, state.calcMethod, state.unitSystem, state.inputMethod, state.gridding, state.activeAoiId, state.aois, state.surfaces]);
 
     const handleDetChange = (field, val) => updateInputs({ [field]: val });
     const handleFluidChange = (val) => updateInputs({ fluidType: val });
@@ -116,9 +119,13 @@ const ExpertInputPanel = () => {
             <div className="h-full flex flex-col space-y-2 p-2 overflow-hidden">
                 <RcpSourceNotice />
                 <Card className="p-3 space-y-3 flex-shrink-0">
-                    <div className="flex justify-between items-center">
-                        <Label className="text-xs font-bold text-pl-text">Simulation Setup</Label>
-                    </div>
+                    {/* folds away like Project Settings, so the distributions get the height */}
+                    <button type="button" className="flex w-full justify-between items-center" data-testid="rcp-sim-setup-toggle"
+                        aria-expanded={isSettingsOpen} onClick={() => setSettingsOpen(!isSettingsOpen)}>
+                        <span className="text-xs font-bold text-pl-text">Simulation Setup</span>
+                        {isSettingsOpen ? <ChevronUp className="h-3 w-3 text-pl-muted" /> : <ChevronDown className="h-3 w-3 text-pl-muted" />}
+                    </button>
+                    {isSettingsOpen && (<>
                     <ProjectUnitSystemNote system={state.unitSystem || 'field'} profileSystem={profileUnitSystem} />
                     <div className="grid grid-cols-2 gap-2">
                         <div>
@@ -144,6 +151,7 @@ const ExpertInputPanel = () => {
                     </div>
                     <FluidTypeSelector value={fluidType} onChange={handleFluidChange} />
                     <ReportDetails />
+                    </>)}
                 </Card>
                 <div className="flex-1 overflow-hidden rounded-lg border border-pl-border">
                     <ProbabilisticPanel />
@@ -250,6 +258,15 @@ const ExpertInputPanel = () => {
                                         <div className="w-2 h-2 bg-pl-danger rounded-full"></div> No Top Surface
                                     </div>
                                 )}
+                                {state.inputMethod === 'surfaces' && (state.inputs.baseSurfaceId && state.surfaces?.[state.inputs.baseSurfaceId] ? (
+                                    <div className="text-xs text-pl-success-text font-medium flex items-center gap-2" data-testid="rcp-base-status">
+                                        <div className="w-2 h-2 bg-pl-success rounded-full"></div> Base Surface Selected: {state.surfaces[state.inputs.baseSurfaceId].name}
+                                    </div>
+                                ) : (
+                                    <div className="text-xs text-pl-danger-text font-medium flex items-center gap-2" data-testid="rcp-base-status">
+                                        <div className="w-2 h-2 bg-pl-danger rounded-full"></div> No Base Surface (set one in the Surfaces tab)
+                                    </div>
+                                ))}
                             </div>
                         )}
 

@@ -32,6 +32,7 @@ import { MAP_COLORMAPS } from '@/components/maps/lut';
 import { downloadBlob } from '@/components/maps/mapPng';
 import CultureImportDialog from '@/components/culture/CultureImportDialog';
 import SurfaceImportDialog from './SurfaceImportDialog';
+import { replacementHistory } from '../services/replaceInPlace';
 import {
   exportSurfaceText, controlPointsCsv, downloadText, specOfSurface, isLengthSurface,
 } from '../services/surfaceExport';
@@ -176,6 +177,8 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
   const viewRef = useRef(null);
   // MS2: import dialog and the in-place re-grid target
   const [importOpen, setImportOpen] = useState(false);
+  // Replace grid from a file: the surface the import dialog replaces in place
+  const [replaceFileTarget, setReplaceFileTarget] = useState(null);
   const [replaceId, setReplaceId] = useState(null);
   // MS3: drawing (fault-block / boundary polygons, guide points), gridding
   // constraints, arithmetic, quick GRV, time-to-depth
@@ -627,11 +630,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       if (target) {
         // re-grid in place: same id and storage path, the previous frame
         // recorded in provenance.history so the change is auditable
-        const prev = target.provenance || {};
-        const history = [...(Array.isArray(prev.history) ? prev.history : []), {
-          replaced_at: new Date().toISOString(),
-          previous: { nx: target.nx, ny: target.ny, dx: target.dx, dy: target.dy, origin_x: target.origin_x, origin_y: target.origin_y, rotation_deg: target.rotation_deg || 0, z_unit: target.z_unit ?? null, z_domain: target.z_domain, kind: target.kind, cell_m: prev.cell_m ?? null, depth_ref: prev.depth_ref ?? null, control_points: prev.control_points ?? null },
-        }];
+        const history = replacementHistory(target);
         const saved = await backend.replaceSurfaceGrid(target, { ...payload, name: target.name, provenance: { ...payload.provenance, history } });
         setStatus(`Replaced ${saved.name} in place (${payload.spec.nx}×${payload.spec.ny}).`);
         setPreview(null);
@@ -759,8 +758,10 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
     } catch (e) { setStatus(e.message); }
   };
 
-  const onImported = async (saved) => {
-    setStatus(`Imported ${saved.name} (${saved.nx}×${saved.ny}) into the registry.`);
+  const onImported = async (saved, plan, { replaced = false } = {}) => {
+    setStatus(replaced
+      ? `Replaced ${saved.name} in place from ${plan?.provenance?.imported_from?.file_name || 'the file'} (${saved.nx}×${saved.ny}). Apps that use it see the change; Restore the previous grid puts the old one back.`
+      : `Imported ${saved.name} (${saved.nx}×${saved.ny}) into the registry.`);
     await refresh();
     const grid = await loadGridM(backend, saved).catch(() => null);
     if (grid) {
@@ -1428,6 +1429,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
           onPointsCsv={pointsCsv}
           onRename={rename}
           onRegrid={regrid}
+          onReplaceFromFile={(s) => { setReplaceFileTarget(s); setImportOpen(true); }}
           onRestore={restorePrevious}
           replaceId={replaceId}
           appPaths={appPaths}
@@ -1809,7 +1811,8 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       </AlertDialog>
       <SurfaceImportDialog
         open={importOpen}
-        onOpenChange={setImportOpen}
+        onOpenChange={(o) => { setImportOpen(o); if (!o) setReplaceFileTarget(null); }}
+        replaceTarget={replaceFileTarget}
         backend={backend}
         depthUnit={depthUnit}
         onImported={onImported}

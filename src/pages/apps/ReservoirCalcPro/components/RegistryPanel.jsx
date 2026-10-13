@@ -15,7 +15,7 @@ import { Link } from 'react-router-dom';
 import { wellDataManagerHref, appPath, WELL_DATA_MANAGER_ID } from '@/components/wells/appLinks';
 import { useReservoirCalc } from '../contexts/ReservoirCalcContext';
 import {
-  zoneCatalog, registryPatchForZone, areaPatchForSurface, aoiFromBoundary, isBoundaryLayer, describePatch,
+  zoneCatalog, registryPatchForZone, areaPatchForSurface, aoiFromBoundary, isBoundaryLayer, describePatch, isStructuralMethod,
 } from '../services/registryDoor';
 import { COMPACT_FIELD_THEMED } from '@/components/ui/native-select';
 
@@ -60,20 +60,22 @@ export default function RegistryPanel() {
     const used = wells.filter((w) => !leftOut.has(w.id));
     if (carrying.length && carrying.every((w) => leftOut.has(w.id))) return { error: 'Include at least one well in the average.' };
     try {
-      const r = registryPatchForZone(used, zone, state.unitSystem);
+      const r = registryPatchForZone(used, zone, state.unitSystem, { inputMethod: state.inputMethod });
       const left = carrying.filter((w) => leftOut.has(w.id)).map((w) => w.name);
       return left.length ? { ...r, leftOut: left, provenance: { ...r.provenance, left_out: left } } : r;
     } catch (e) { return { error: e.message }; }
-  }, [zone, wells, carrying, leftOut, state.unitSystem]);
+  }, [zone, wells, carrying, leftOut, state.unitSystem, state.inputMethod]);
   // a well whose published zone has no net pay (wet or tight): usually outside the accumulation
+  const structural = isStructuralMethod(state.inputMethod);
   const noPay = (w) => (w.zones || []).some((z) => z.name === zone && Number.isFinite(z.properties?.net_m) && z.properties.net_m === 0);
 
   const applyZone = () => {
     if (!preview || preview.error) { setNote(preview?.error || 'Choose a zone first.'); return; }
     updateInputs({ ...preview.patch, registryProvenance: { ...(state.inputs?.registryProvenance || {}), zone: preview.provenance } });
     const leftNote = preview.leftOut?.length ? `; left out ${preview.leftOut.join(', ')}` : '';
-    logEvent('Registry inputs applied', `zone ${zone}: ${describePatch(preview.patch, state.unitSystem)} from ${preview.wellNames.join(', ')}${leftNote}`);
-    setNote(`Applied ${describePatch(preview.patch, state.unitSystem)} from ${preview.fromWells} well${preview.fromWells === 1 ? '' : 's'} (${preview.wellNames.join(', ')}).`);
+    const nb = { ntgBasis: preview.ntgBasis };
+    logEvent('Registry inputs applied', `zone ${zone}: ${describePatch(preview.patch, state.unitSystem, nb)} from ${preview.wellNames.join(', ')}${leftNote}`);
+    setNote(`Applied ${describePatch(preview.patch, state.unitSystem, nb)} from ${preview.fromWells} well${preview.fromWells === 1 ? '' : 's'} (${preview.wellNames.join(', ')}).`);
   };
 
   const applyArea = async () => {
@@ -125,9 +127,12 @@ export default function RegistryPanel() {
           </select>
         )}
         {preview && !preview.error && (
-          <div className="text-pl-text" data-testid="rcp-reg-preview">{describePatch(preview.patch, state.unitSystem)} from {preview.wellNames.join(', ')}</div>
+          <div className="text-pl-text" data-testid="rcp-reg-preview">{describePatch(preview.patch, state.unitSystem, { ntgBasis: preview.ntgBasis })} from {preview.wellNames.join(', ')}</div>
         )}
         {preview?.provenance?.weighting && <div className="text-[10px] text-pl-muted">Averaged as {preview.provenance.weighting}.</div>}
+        {preview?.ntgBasis === 'net reservoir' && (
+          <div className="text-[10px] text-pl-muted" data-testid="rcp-reg-ntg-basis">NTG is net reservoir over gross: the {state.inputMethod === 'hybrid' ? 'Hybrid' : 'Surfaces'} method cuts the rock at the contact, so net pay (which already stops there) would count the contact twice. Porosity and Sw come from the wells with pay.</div>
+        )}
         {preview?.notes?.length > 0 && (
           <div className="text-[10px] text-pl-warning-text" data-testid="rcp-reg-phit">{preview.notes.join(' ')}</div>
         )}
@@ -143,7 +148,7 @@ export default function RegistryPanel() {
                     className="inline-flex items-center gap-0.5 hover:underline">
                     <ExternalLink className="w-2.5 h-2.5" /> {w.name}
                   </Link>
-                  {noPay(w) && <span className="text-pl-warning-text" title="No net pay in this zone (wet or tight). Leave it out if it lies outside the accumulation." data-testid={`rcp-reg-nopay-${w.name}`}>no net pay</span>}
+                  {noPay(w) && <span className="text-pl-warning-text" title={structural ? 'No net pay in this zone: its sand counts in NTG, and porosity and Sw come from the wells with pay.' : 'No net pay in this zone (wet or tight). Leave it out if it lies outside the accumulation.'} data-testid={`rcp-reg-nopay-${w.name}`}>no net pay</span>}
                 </span>
               ))}
             </div>

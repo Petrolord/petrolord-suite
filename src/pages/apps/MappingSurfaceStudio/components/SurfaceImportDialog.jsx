@@ -7,7 +7,7 @@
 // the Project CRS). Parsing is client-side; nothing is written until
 // Import. The Seismolord import door's rules, on the shared registry.
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FileUp, Loader2, Upload } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -21,6 +21,7 @@ import { surfaceGridStats } from '@/lib/gridding/surfaceImport';
 import { readSurfaceFile } from '../services/surfaceFileDoor';
 import { crsDisplayName, transformPoint } from '@/lib/crs';
 import { normalizeTag } from '@/lib/crs/tags';
+import { replaceFromFilePlan } from '../services/replaceInPlace';
 import {
   planImport, planPointsSource, detectSign, IMPORT_DOMAINS, IMPORT_SIGNS, SURFACE_FORMAT_LABELS,
 } from '../services/importPlan';
@@ -28,7 +29,7 @@ import {
 const selCls = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-2 py-1 text-sm';
 
 export default function SurfaceImportDialog({
-  open, onOpenChange, backend, depthUnit = 'ft', onImported, onGridPoints,
+  open, onOpenChange, backend, depthUnit = 'ft', onImported, onGridPoints, replaceTarget = null,
 }) {
   const fileRef = useRef(null);
   const { crsContext } = useCrsContext();
@@ -41,6 +42,15 @@ export default function SurfaceImportDialog({
   const [fileCrs, setFileCrs] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+
+  // replacing: start from what the surface holds (the file's own header can still say otherwise)
+  useEffect(() => {
+    if (!replaceTarget) return;
+    setDomain(replaceTarget.z_domain === 'time' ? 'time' : replaceTarget.z_domain === 'attribute' ? 'attribute' : 'depth');
+    if (replaceTarget.z_unit === 'm' || replaceTarget.z_unit === 'ft') setZUnit(replaceTarget.z_unit);
+    // the surface's own CRS is the default declaration for its replacement
+    if (replaceTarget.crs) setFileCrs(replaceTarget.crs);
+  }, [replaceTarget]);
 
   const reset = () => {
     setFileName('');
@@ -57,13 +67,14 @@ export default function SurfaceImportDialog({
     setError(null);
     setParsed(null);
     setFileName(file.name);
-    setName(file.name.replace(/\.[^.]+$/, ''));
+    setName(replaceTarget ? replaceTarget.name : file.name.replace(/\.[^.]+$/, ''));
     try {
       const text = await file.text();
       // MAP-U1-003: vendor dialects are read at the door, and said
       const { g, points, notes, hint } = readSurfaceFile(text);
       if (hint.domain) setDomain(hint.domain);
       if (hint.zUnit === 'm' || hint.zUnit === 'ft') setZUnit(hint.zUnit);
+      if (!g && replaceTarget) throw new Error('This file holds scattered points. Replace a surface with a regular grid (CPS-3, ZMAP+, Irap or gridded XYZ), or grid the points as a new surface.');
       if (!g) {
         // MAP-U2-003: scattered points or a rotated lattice grid in the studio
         setParsed({ g: null, points, autoSign: detectSign(points.map((p) => p.z)), notes });
@@ -118,6 +129,13 @@ export default function SurfaceImportDialog({
       const plan = planImport({
         g: parsed.g, fileName, name, domain, zUnit, zSign, declaredTag: fileCrs, projectTag, customDefs,
       });
+      if (replaceTarget) {
+        const saved = await replaceFromFilePlan(backend, replaceTarget, plan, { fileName });
+        onImported?.(saved, plan, { replaced: true });
+        reset();
+        onOpenChange(false);
+        return;
+      }
       const saved = await backend.saveSurface({
         name: plan.name, kind: plan.kind, spec: plan.spec, grid: plan.grid,
         zDomain: plan.zDomain, zUnit: plan.zUnit, crs: plan.crs, xyUnit: plan.xyUnit,
@@ -139,7 +157,7 @@ export default function SurfaceImportDialog({
     <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base"><FileUp className="w-4 h-4 text-pl-primary-text" /> Import a surface grid</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 text-base"><FileUp className="w-4 h-4 text-pl-primary-text" /> {replaceTarget ? `Replace ${replaceTarget.name} from a file` : 'Import a surface grid'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 text-sm">
           <div>
@@ -154,10 +172,16 @@ export default function SurfaceImportDialog({
               </ul>
             )}
           </div>
-          <div>
-            <Label className="text-xs text-pl-muted">Surface name</Label>
-            <Input data-testid="map-import-name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
-          </div>
+          {replaceTarget ? (
+            <p className="text-xs text-pl-muted" data-testid="map-import-replace-note">
+              The new grid takes the place of {replaceTarget.name}: the surface keeps its name and id, so Earth Modeling, ReservoirCalc Pro and the other apps that use it see the change. The grid it replaces is kept (right-click, Restore the previous grid).
+            </p>
+          ) : (
+            <div>
+              <Label className="text-xs text-pl-muted">Surface name</Label>
+              <Input data-testid="map-import-name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <label className="block">
               <span className="text-xs text-pl-muted">Values are</span>
@@ -196,7 +220,7 @@ export default function SurfaceImportDialog({
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button size="sm" data-testid="map-import-run" disabled={!parsed || busy} onClick={doImport}>
-              {busy ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Upload className="w-4 h-4 mr-1" />} {parsed?.points ? 'Grid these points' : 'Import'}
+              {busy ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Upload className="w-4 h-4 mr-1" />} {parsed?.points ? 'Grid these points' : replaceTarget ? 'Replace surface' : 'Import'}
             </Button>
           </div>
         </div>

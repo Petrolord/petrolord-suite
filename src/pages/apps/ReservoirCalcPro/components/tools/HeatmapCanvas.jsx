@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { useResizeDetector } from 'react-resize-detector';
 import { getInterpolator, gridExtent } from '../../services/colorUtils';
+import { canvasBackingSize } from '../../services/canvasSizing';
 
 /**
  * Canvas heatmap renderer for a regular {x, y, z} grid.
@@ -25,8 +26,10 @@ const HeatmapCanvas = ({ gridData, colorscale = 'Viridis', overlay, onCanvasClic
         const w = canvas.clientWidth;
         const h = canvas.clientHeight;
         if (w < 2 || h < 2) return;
-        canvas.width = w;
-        canvas.height = h;
+        // sharp at devicePixelRatio 2: whole device pixels behind CSS-px drawing
+        const backing = canvasBackingSize(w, h, typeof window !== 'undefined' ? window.devicePixelRatio : 1);
+        canvas.width = backing.width;
+        canvas.height = backing.height;
 
         const { x, y, z } = gridData;
         const nx = x.length;
@@ -58,6 +61,7 @@ const HeatmapCanvas = ({ gridData, colorscale = 'Viridis', overlay, onCanvasClic
         dimsRef.current = dims;
 
         const ctx = canvas.getContext('2d');
+        ctx.setTransform(backing.dpr, 0, 0, backing.dpr, 0, 0);
         ctx.clearRect(0, 0, w, h);
 
         const interp = getInterpolator(colorscale);

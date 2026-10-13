@@ -507,7 +507,12 @@ function clampContactsToSpill(inputs, trap, meta, warnings) {
     const fmtZ = (v) => `${Math.round(v).toLocaleString('en-US')} ${lenU}`;
     if (!Number.isFinite(sp)) return out;
     let filled = false;
-    for (const k of ['owc', 'goc']) {
+    // only the contacts the fluid system uses: an oil case ignores a GOC left
+    // in the inputs (a fresh workspace carries one), which was clamped and
+    // reported "Filled to spill" with the OWC above the spill (2026-10-12)
+    const fluid = inputs.fluidType || 'oil';
+    const keys = fluid === 'oil' ? ['owc'] : ['owc', 'goc'];
+    for (const k of keys) {
         const v = parseFloat(inputs[k]);
         if (isNum(inputs[k]) && v < sp) { out[k] = sp; filled = true; }
     }

@@ -17,7 +17,7 @@ const RegistryGuide = () => (
     <Table
       headers={['Control', 'What it sets', 'Source']}
       rows={[
-        ['Petrophysics from a registry zone', 'Porosity, water saturation, net to gross and gross thickness (true vertical where the well has a survey, converted to the unit system) averaged across the wells that carry the zone; thickness times NTG is the net pay', 'Zone averages published by Petrophysics Studio (Zones, Publish)'],
+        ['Petrophysics from a registry zone', 'Porosity, water saturation, net to gross and gross thickness (true vertical where the well has a survey, converted to the unit system) averaged across the wells that carry the zone. With Simple, thickness times NTG is the net pay; with Surfaces or Hybrid the structure is cut at the contact, so NTG is net reservoir over gross (porosity and Vsh cutoffs only) and a wet well\'s sand counts in it', 'Zone averages published by Petrophysics Studio (Zones, Publish)'],
         ['Area from a registry surface', 'Area, from the live footprint of the surface in the unit system', 'Surfaces published by Mapping & Surface Studio, Earth Modeling or Seismolord'],
         ['Boundary polygon as an AOI', 'A new AOI with the polygon as drawn; activate it in the AOI tab to clip the structural volumetrics', 'Boundary and licence polygons drawn in Mapping & Surface Studio'],
       ]}

@@ -129,6 +129,7 @@ const SurfaceDataManager = ({ preselectSurfaceId = null }) => {
                                     variant={isTop ? "secondary" : "outline"} 
                                     className="flex-1 h-6 text-[10px]"
                                     onClick={() => setAsTop(surface.id)}
+                                    data-testid={`rcp-set-top-${surface.name}`}
                                 >
                                     {isTop && <Check className="w-3 h-3 mr-1" />} Set Top
                                 </Button>
@@ -137,6 +138,7 @@ const SurfaceDataManager = ({ preselectSurfaceId = null }) => {
                                     variant={isBase ? "secondary" : "outline"} 
                                     className="flex-1 h-6 text-[10px]"
                                     onClick={() => setAsBase(surface.id)}
+                                    data-testid={`rcp-set-base-${surface.name}`}
                                 >
                                     {isBase && <Check className="w-3 h-3 mr-1" />} Set Base
                                 </Button>
