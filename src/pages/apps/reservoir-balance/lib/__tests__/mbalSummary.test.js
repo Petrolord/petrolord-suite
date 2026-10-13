@@ -32,7 +32,7 @@ describe('the summary page', () => {
     expect(page1).toMatch(/Drive at the last timestep depletion drive; largest index Depletion \(DDI\) 0\.\d{3}; aquifer none/);
     expect(page1).toMatch(/Data 13 timesteps, 2010-01-01 to 2022-01-01; 12 in the fit/);
     expect(page1).toMatch(/Injection None on the data table/);
-    expect(page1).toMatch(/Flags 0 inputs outside a published range or the PVT table; 0 other engine warnings/);
+    expect(page1).toMatch(/Flags 0 flags on the fit, a published range or the PVT table; 0 other engine warnings/);
   });
 
   test('a gas case with an excluded point and a pot aquifer says so on page 1', () => {

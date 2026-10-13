@@ -26,7 +26,7 @@ Summary
 
  Injection                              None on the data table
 
- Flags                                  0 inputs outside a published range or the PVT table; 0 other engine warnings
+ Flags                                  0 flags on the fit, a published range or the PVT table; 0 other engine warnings
 
 This page summarises the pages after it: every value here is printed there in full, with its inputs, sources, method and limits.
 
@@ -405,12 +405,12 @@ Figure 3. Cole plot: F/Eg against Gp
 
 
                 115
-  F/Eg (Bscf)
 
 
 
 
                 110
+  F/Eg (Bscf)
 
 
 
@@ -418,10 +418,14 @@ Figure 3. Cole plot: F/Eg against Gp
                 105
 
 
-
                           OGIP of this run 100.99 Bscf
 
                 100
+
+
+
+
+                95
                       0                              10                             20               30                40        50              60
 
                                                                                                  Gp (Bscf)

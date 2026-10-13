@@ -123,8 +123,8 @@ describe('MBAL-U1-011: the PVT tab of a case whose PVT comes with its data rows'
     pvt_correlations: { pb_rs_bo: 'standing' }, formation_compressibility_psi: 4e-6, water_compressibility_psi: 3e-6, gas_cap_ratio_m: 0,
   };
   const rows = (withBo) => [0, 1, 2].map((i) => ({ timestep_index: i, pressure_psia: 2740 - 100 * i, bo_rb_stb: withBo ? 1.4 - 0.01 * i : null, rs_scf_stb: 650, bg_rb_mscf: 0.93 }));
-  const open = async (withBo) => {
-    mockDb.cfg = cfg;
+  const open = async (withBo, over = {}) => {
+    mockDb.cfg = { ...cfg, ...over };
     mockDb.pvtSaved = null;
     render(<MemoryRouter><PvtRock caseId="c1" caseData={{ id: 'c1', fluid_system: 'oil', reservoir_temperature_f: 200, initial_pressure_psia: 2740, production_data: rows(withBo) }} onConfigChange={jest.fn()} /></MemoryRouter>);
     await screen.findByTestId('mbal-pvt-cf');
@@ -150,6 +150,27 @@ describe('MBAL-U1-011: the PVT tab of a case whose PVT comes with its data rows'
     expect(screen.getAllByText(/Lab table is empty/).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByTestId('mbal-pvt-cf'), { target: { value: '5e-6' } });
     expect(await screen.findByTestId('mbal-pvt-save')).toBeDisabled();
+  });
+});
+
+describe('a correlated case whose data rows carry their own PVT', () => {
+  // the engine reads a row's own Bo and Rs before any correlation (mbalEngine, PVT precedence 1)
+  test('the tab says the rows come first and the preview is not the PVT of the run', async () => {
+    mockDb.cfg = {
+      id: 'cfg', oil_gravity_api: 32, gas_specific_gravity: null, water_salinity_ppm: 35000, pvt_source: 'correlated', pvt_lab_table: null,
+      pvt_correlations: { pb_rs_bo: 'standing' }, formation_compressibility_psi: 4e-6, water_compressibility_psi: 3e-6, gas_cap_ratio_m: 0,
+    };
+    const rows = [0, 1, 2].map((i) => ({ timestep_index: i, pressure_psia: 3200 - 100 * i, bo_rb_stb: 1.2 + 0.001 * i, rs_scf_stb: 400 }));
+    render(<MemoryRouter><PvtRock caseId="c1" caseData={{ id: 'c1', fluid_system: 'oil', reservoir_temperature_f: 180, initial_pressure_psia: 3200, production_data: rows }} onConfigChange={jest.fn()} /></MemoryRouter>);
+    expect(await screen.findByTestId('mbal-pvt-rows-first')).toHaveTextContent('The data rows carry their own Bo and Rs (Data tab), and the engine uses a row');
+  });
+
+  test('negative control: rows with no Bo carry no such note', async () => {
+    mockDb.cfg = { id: 'cfg', pvt_source: 'correlated', pvt_lab_table: null, pvt_correlations: {}, formation_compressibility_psi: 4e-6, water_compressibility_psi: 3e-6 };
+    const rows = [0, 1, 2].map((i) => ({ timestep_index: i, pressure_psia: 3200 - 100 * i, bo_rb_stb: null, rs_scf_stb: null }));
+    render(<MemoryRouter><PvtRock caseId="c1" caseData={{ id: 'c1', fluid_system: 'oil', reservoir_temperature_f: 180, initial_pressure_psia: 3200, production_data: rows }} onConfigChange={jest.fn()} /></MemoryRouter>);
+    await screen.findByTestId('mbal-pvt-cf');
+    expect(screen.queryByTestId('mbal-pvt-rows-first')).toBeNull();
   });
 });
 

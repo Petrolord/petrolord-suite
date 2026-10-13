@@ -27,7 +27,7 @@ Summary
 
  Injection                             None on the data table
 
- Flags                                 0 inputs outside a published range or the PVT table; 0 other engine warnings
+ Flags                                 0 flags on the fit, a published range or the PVT table; 0 other engine warnings
 
 This page summarises the pages after it: every value here is printed there in full, with its inputs, sources, method and limits.
 

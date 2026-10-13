@@ -27,7 +27,7 @@ Summary
 
  Injection                              None on the data table
 
- Flags                                  0 inputs outside a published range or the PVT table; 0 other engine warnings
+ Flags                                  0 flags on the fit, a published range or the PVT table; 0 other engine warnings
 
 This page summarises the pages after it: every value here is printed there in full, with its inputs, sources, method and limits.
 
@@ -434,9 +434,7 @@ Figure 2. Campbell plot: F/Et against F
                   600
 
 
-
                   550
-
 
 
                   500
@@ -448,15 +446,16 @@ Figure 2. Campbell plot: F/Et against F
                   450
 
 
-
                   400
-
 
 
                   350
 
                             OOIP of this run 307.22 MMSTB
                   300
+
+
+                  250
                         0                                   50                  100                 150              200                       250
 
                                                                                       F (MMRB)

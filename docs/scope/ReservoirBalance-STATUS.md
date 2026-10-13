@@ -873,3 +873,95 @@ Doc: `docs/upgrade/MaterialBalanceStudio-UPGRADE.md` (the twenty-four checks,
 - **2026-10-03 07:22 UTC: the owner deployed `calculate-mbal`** (`supabase functions deploy calculate-mbal --use-api`, version 24, ACTIVE; boots and validates). The U1 aquifer-flag fix (MBAL-U1-003) is live from then: a history match now reads the aquifer of the run config. Live cases with an aquifer model and the flag unset (DEMI, ochem new, WHYTE) need one rerun.
 - **U2 (branch `feat/mbal-u2`, engines PR #300):** injection in the balance (U2-002), the engine's own PVT table coverage warning (U2-006), Bo above the bubble point (U2-007, an S1 found on the way), excluded timesteps with reasons (U2-003), colleague editing under the check-out (U2-001), the `mbal-1` sender to ReservoirCalc Pro (U2-004), the ReservoirCalc Pro volumetric intake. Details and evidence: `docs/upgrade/MaterialBalanceStudio-UPGRADE.md`, "Step 2 build".
 - **Owed after U2 merges** (engine and function change): `supabase functions deploy calculate-mbal --use-api`. That deploy also carries the Fluid Systems U2 Z-factor change: `engines/fluid/blackOil.ts` is bundled into `calculate-mbal` (engines main 5ae5a80 = Fluid #299 + MBAL #300), so gas Z, Bg and every correlation-based gas term of a run move with it. Until then production keeps the U1 engine: no injection term, Boi at the bubble point for undersaturated cases without row PVT, no engine coverage warning, and the plain 500 message when a run is refused by the sharing rule.
+
+## 2026-10-13: a pressure that rises under injection is saved (MBAL video programme)
+
+- **Defect:** the Data tab refused any row whose pressure was above the row
+  before it ("The engine needs pressures that do not rise"). The engine has no
+  such rule, and since U2-002 injection is in the balance, so a waterflood that
+  replaces more than its voidage (the Ekene history carried on to 2025, VRR
+  1.05) could not be saved at all.
+- **Fix:** the rule is gone from `validateRows`. `pressureNotes` (DataHub)
+  says, without stopping the save, where a pressure rises with no new
+  injection on the row (aquifer support, a survey on another datum or a
+  short shut-in) and where a row is above the initial pressure (no expansion
+  above zero, so the engine leaves it out of the fit).
+- **Gate:** `__tests__/dataHubPressureRise.test.js` reads the flood-era file
+  (`tools/demo-video/seed/mbal_assets.mjs`) through the real import door and
+  runs the canonical engine through the edge function's mapping: 12,139,378
+  stb against the kit's 12,139,208 (the kit's own seven rows give 12,139,560
+  on their six-place Bo), r2 0.9999999995; without the injection column the
+  tank comes out more than 5 percent larger (negative control).
+- No engine change, no migration, no function deploy.
+## 2026-10-13: a level plot looks level (MBAL video programme)
+
+- **Defect:** the Campbell and Cole axes were fitted to their points alone.
+  On a closed tank the points lie within a few barrels of one another (Ekene:
+  12.1395 to 12.1396 MMSTB), so they filled the plot, every tick read 12.14
+  and the level line that proves depletion drive read as scatter.
+- **Fix:** `levelAxis` in `lib/plotModels.js`: both axes always span 5
+  percent either side of the run's level (`LEVEL_BAND`); a real rise still
+  stands out. Screen and report draw the same model; the three report
+  goldens were regenerated on purpose for the new axis (Cole on Pletcher,
+  Campbell on Dake).
+- **Gate:** `lib/__tests__/mbalLevelAxis.test.js` (a real engine run of
+  Ahmed 11-3; negative control on the Ekene numbers without the band).
+
+## 2026-10-13: the PVT tab says when the data rows carry their own PVT (MBAL video programme)
+
+- With PVT source "Correlated" the tab said "Engine computes PVT from the
+  selected correlations" and previewed a Standing table (Rs 468 scf/STB at
+  2,000 psia on Ekene) while the engine used the Bo and Rs on every data row
+  (Rs 400). The note `mbal-pvt-rows-first` now says the rows come first and
+  the preview is not the PVT of the run. Tests in `mbalInputsU1.test.jsx`.
+## 2026-10-13: the ReservoirCalc Pro cross-check opens the volumetric project (MBAL video programme)
+
+- **Defect:** "Cross-check in ReservoirCalc Pro" opened a fresh RCP workspace,
+  whose sample inputs (226.28 MMSTB) were then compared with the case: "material
+  balance below it by 94.6 percent".
+- **Fix:** a volumetric estimate taken from an RCP project keeps its
+  `project_id` in the handoff (`volumetricProjectId`, older handoffs read from
+  the record text; an edit after the handoff cuts the link). The button adds
+  `&rcpProject=<id>`; `MbalCrossCheckNote` opens that project, then compares,
+  names the project, and writes `mbalCheck` after the load (loading replaces
+  the inputs). A workspace that is not a saved project is never compared.
+- Tests: `mbalCaseSource.test.jsx` (unsaved workspace not compared; the
+  project opened by id, then compared and recorded), `rcpVolumetricIntake.test.js`.
+## 2026-10-13: the contacts through time, animated (MBAL video programme, owner request)
+
+- **Enhancement (Contacts tab):** "Contacts through time", a cross-section
+  with a Play button and a time slider (`components/reservoirbalance/ContactAnimation.jsx`,
+  pure maths in `lib/contactAnimation.js`). It plays the series of
+  `lib/contactMovement.js` (OWC risen by the net influx, GOC lowered by the
+  gas-cap expansion of the last run): on a timestep a frame is that
+  timestep's computed contact; between timesteps the contacts and the date
+  are interpolated on a straight line. Swept zones are hatched; initial
+  contacts dashed. Depths are true and in the display unit; the structure is
+  a schematic anticline drawn through the initial contacts, and the panel
+  says so. White surface and ChartLogo (chart template standard).
+- **Gates:** `lib/__tests__/contactAnimation.test.js`: a hand calculation
+  from the engine's own We of a real Dake 9.2 run reproduces every frame on a
+  timestep; interpolation; negative control (Ahmed 11-3, no influx: no frame
+  moves the OWC); the depth window holds every contact; playback rate.
+  `__tests__/contactAnimation.test.jsx`: readouts, slider, reset, no gas cap.
+- No engine change, no migration, no deploy.
+## 2026-10-13: a pot aquifer the data cannot see is flagged (MBAL video programme)
+
+- **Defect:** above the bubble point the pot influx (cw + cf) W dp and the
+  oil, rock and water expansions all grow in step with the pressure drop, so
+  dp/Eo is nearly constant and the pot aquifer plot is undetermined. Forced
+  onto the Ekene closed tank the engine returned OOIP 72.83 MSTB, W 40.9 MMRB
+  and a strong water drive at r2 0.999998, with no warning and its benchmark
+  badge.
+- **Fix (app side, no deploy):** `regressionIdentifiability` (lib/mbalSeries)
+  measures the spread of dp/E across the points of the fit; under 5 percent
+  the Run tab shows "This fit does not determine the oil in place", the report
+  leads its limits flags with the sentence and the summary counts it (the
+  summary row now reads "N flags on the fit, a published range or the PVT
+  table"). The badge still names the engine path.
+- **Gate:** `lib/__tests__/mbalPotIdentifiability.test.js`: real engine runs
+  on the Ekene tank (flagged, 0.02 percent spread), the same tank without an
+  aquifer (negative control) and Pletcher's published pot aquifer case
+  (identifiable, positive control). Report goldens regenerated on purpose.
+- Engine follow-up (not done, would need a calculate-mbal deploy): the same
+  check could live in the engine's warnings.

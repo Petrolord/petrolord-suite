@@ -28,7 +28,7 @@ Summary
 
  Injection                              None on the data table
 
- Flags                                  0 inputs outside a published range or the PVT table; 1 other engine warning
+ Flags                                  0 flags on the fit, a published range or the PVT table; 1 other engine warning
 
 This page summarises the pages after it: every value here is printed there in full, with its inputs, sources, method and limits.
 
@@ -475,10 +475,14 @@ Figure 2. Campbell plot: F/Et against F
                       60
 
 
-
                                OOIP of this run 52.50 10^6 sm3
 
                       50
+
+
+
+
+                      40
                            0                                           10                           20               30                         40
 
                                                                                                 F (10^6 rm3)

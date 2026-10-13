@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import UnitField from './UnitField';
+import ContactAnimation from './ContactAnimation';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
@@ -274,6 +275,19 @@ const ContactsTab = () => {
           )}
         </CardContent>
       </Card>
+
+      {result?.ok && (
+        <div className="lg:col-span-3">
+          <ContactAnimation
+            series={result.series}
+            initialOwcFt={num(form.initialOwcFt)}
+            initialGocFt={result.series[0]?.gocFt ?? null}
+            units={units}
+            waterLabel={waterLabel}
+            depthRef={depthRef}
+          />
+        </div>
+      )}
     </div>
   );
 };

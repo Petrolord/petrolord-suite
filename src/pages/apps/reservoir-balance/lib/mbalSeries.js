@@ -207,6 +207,37 @@ export function regressionSeries({ rows, result, runConfig, caseData }) {
   };
 }
 
+// A pot aquifer regression (F/E against dp/E) needs dp/E to vary across the
+// points of the fit. Above the bubble point the oil, rock and water
+// expansions and the pot influx all grow in step with the pressure drop, so
+// dp/E is nearly the same at every timestep: the line through the points is
+// not determined, and its slope (W) and intercept (N) mean nothing whatever
+// r2 says. On the Ekene closed tank dp/Eo varies by 0.02 percent and the
+// engine returns 73 thousand STB and a strong water drive at r2 0.999998.
+export const POT_SPREAD_MIN = 0.05;
+
+/**
+ * Can this regression separate the in-place volume from the aquifer?
+ * Only the pot aquifer plot is checked (the other plots regress on Et).
+ * @returns {{checked: boolean, ok: boolean, spread: ?number, message: ?string}}
+ */
+export function regressionIdentifiability(regression) {
+  if (regression?.variant?.kind !== 'pot') return { checked: false, ok: true, spread: null, message: null };
+  const xs = regression.points.filter((p) => p.status === 'fit' && finite(p.x)).map((p) => p.x);
+  if (xs.length < 2) return { checked: false, ok: true, spread: null, message: null };
+  const mean = xs.reduce((a, b) => a + b, 0) / xs.length;
+  const spread = mean !== 0 ? (Math.max(...xs) - Math.min(...xs)) / Math.abs(mean) : null;
+  if (spread == null || spread >= POT_SPREAD_MIN) return { checked: true, ok: true, spread, message: null };
+  const pct = spread * 100;
+  const e = regression.variant.isGas ? 'dp/Eg' : 'dp/Eo';
+  return {
+    checked: true,
+    ok: false,
+    spread,
+    message: `The pot aquifer cannot be told apart from the expansion of the reservoir on this data: across the ${xs.length} points of the fit ${e} varies by only ${pct < 0.1 ? pct.toFixed(3) : pct.toFixed(1)} percent, so the line's slope (the aquifer W) and intercept (the ${regression.variant.isGas ? 'gas' : 'oil'} in place) are not determined, whatever r2 says. Above the bubble point every term grows in step with the pressure drop. Run the case without an aquifer, or fix the in-place volume from another method and fit W in a pressure history match.`,
+  };
+}
+
 /** Ordinary least squares y = a + b x over [x, y] pairs. */
 function leastSquares(pairs) {
   const n = pairs.length;
@@ -372,10 +403,12 @@ export function influxSeries({ rows }) {
 export function buildMbalSeries({ result, runConfig, caseData }) {
   const isGas = caseData?.fluid_system === 'gas';
   const rows = buildRunRows(result?.plot_data, { productionData: caseData?.production_data });
+  const regression = regressionSeries({ rows, result, runConfig, caseData });
   return {
     isGas,
     rows,
-    regression: regressionSeries({ rows, result, runConfig, caseData }),
+    regression,
+    identifiability: regressionIdentifiability(regression),
     campbell: isGas ? null : campbellSeries({ rows, result }),
     cole: isGas ? coleSeries({ rows, result }) : null,
     pz: isGas ? pzSeries({ rows, result, runConfig, caseData }) : null,
