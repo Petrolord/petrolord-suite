@@ -114,7 +114,7 @@ export function volumetricProjectId(caseData, study) {
   const value = Number(isGas ? caseData?.volumetric_ogip_scf : caseData?.volumetric_ooip_stb);
   if (!(finite(h.value) && Number.isFinite(value) && Math.abs(h.value - value) <= 1e-6 * Math.max(1, Math.abs(h.value)))) return null;
   if (typeof h.project_id === 'string' && h.project_id) return h.project_id;
-  const m = /\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)/i.exec(String(h.record ?? ''));
+  const m = /\(([^()\s]+)\),\s[^()]*$/.exec(String(h.record ?? ''));
   return m ? m[1] : null;
 }
 

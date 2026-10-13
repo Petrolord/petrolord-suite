@@ -6,6 +6,7 @@
  */
 import { SAVED_PROJECT_ROWS } from '@/pages/apps/ReservoirCalcPro/services/savedFixtures';
 import { volumetricOptions, intakeVolumetric, volumetricBasis, volumetricProjectId } from '../rcpVolumetricIntake';
+import { readStudy, serializeStudy, emptyStudy, STUDY_KEY } from '../studyMeta';
 import { STB_TO_M3 } from '@/lib/mbalCaseSource';
 import { runSample, reportArgs, SAMPLE_CASE_IDS, AT } from './mbalTestKit';
 import { buildMbalPdf } from '@/utils/mbalReportExport';
@@ -68,5 +69,14 @@ describe('the project the cross-check opens', () => {
     const h = { app: 'ReservoirCalc Pro', record: `Ekene booked (${row.id}), Reservoir 1`, value: 12139208, at: '2026-10-03', text: 'Taken from ...' };
     expect(volumetricProjectId({ fluid_system: 'oil', volumetric_ooip_stb: 12139208 }, { handoffs: { volumetric: h } })).toBe(row.id);
     expect(volumetricProjectId({ fluid_system: 'oil', volumetric_ooip_stb: 12139208 }, { handoffs: {} })).toBeNull();
+  });
+  test('the project id survives the study record as the database keeps it (save, then read)', () => {
+    const got = intakeVolumetric({ ...row, id: '1234' }, option, { isGas: false, now: '2026-10-13T07:00:00Z' });
+    const stored = serializeStudy({ ...emptyStudy(), handoffs: { volumetric: got.handoff } });
+    const back = readStudy({ pvt_correlations: { [STUDY_KEY]: stored } });
+    expect(back.handoffs.volumetric.project_id).toBe('1234');
+    expect(volumetricProjectId({ fluid_system: 'oil', ...got.patch }, back)).toBe('1234');
+    // a record text with a numeric id, as some saved projects carry
+    expect(volumetricProjectId({ fluid_system: 'oil', ...got.patch }, { handoffs: { volumetric: { ...got.handoff, project_id: undefined } } })).toBe('1234');
   });
 });
