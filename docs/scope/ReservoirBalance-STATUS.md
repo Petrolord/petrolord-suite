@@ -874,6 +874,25 @@ Doc: `docs/upgrade/MaterialBalanceStudio-UPGRADE.md` (the twenty-four checks,
 - **U2 (branch `feat/mbal-u2`, engines PR #300):** injection in the balance (U2-002), the engine's own PVT table coverage warning (U2-006), Bo above the bubble point (U2-007, an S1 found on the way), excluded timesteps with reasons (U2-003), colleague editing under the check-out (U2-001), the `mbal-1` sender to ReservoirCalc Pro (U2-004), the ReservoirCalc Pro volumetric intake. Details and evidence: `docs/upgrade/MaterialBalanceStudio-UPGRADE.md`, "Step 2 build".
 - **Owed after U2 merges** (engine and function change): `supabase functions deploy calculate-mbal --use-api`. That deploy also carries the Fluid Systems U2 Z-factor change: `engines/fluid/blackOil.ts` is bundled into `calculate-mbal` (engines main 5ae5a80 = Fluid #299 + MBAL #300), so gas Z, Bg and every correlation-based gas term of a run move with it. Until then production keeps the U1 engine: no injection term, Boi at the bubble point for undersaturated cases without row PVT, no engine coverage warning, and the plain 500 message when a run is refused by the sharing rule.
 
+## 2026-10-13: a pressure that rises under injection is saved (MBAL video programme)
+
+- **Defect:** the Data tab refused any row whose pressure was above the row
+  before it ("The engine needs pressures that do not rise"). The engine has no
+  such rule, and since U2-002 injection is in the balance, so a waterflood that
+  replaces more than its voidage (the Ekene history carried on to 2025, VRR
+  1.05) could not be saved at all.
+- **Fix:** the rule is gone from `validateRows`. `pressureNotes` (DataHub)
+  says, without stopping the save, where a pressure rises with no new
+  injection on the row (aquifer support, a survey on another datum or a
+  short shut-in) and where a row is above the initial pressure (no expansion
+  above zero, so the engine leaves it out of the fit).
+- **Gate:** `__tests__/dataHubPressureRise.test.js` reads the flood-era file
+  (`tools/demo-video/seed/mbal_assets.mjs`) through the real import door and
+  runs the canonical engine through the edge function's mapping: 12,139,378
+  stb against the kit's 12,139,208 (the kit's own seven rows give 12,139,560
+  on their six-place Bo), r2 0.9999999995; without the injection column the
+  tank comes out more than 5 percent larger (negative control).
+- No engine change, no migration, no function deploy.
 ## 2026-10-13: a level plot looks level (MBAL video programme)
 
 - **Defect:** the Campbell and Cole axes were fitted to their points alone.
