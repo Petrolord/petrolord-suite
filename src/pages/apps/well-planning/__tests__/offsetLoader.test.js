@@ -3,10 +3,10 @@
 // loop.
 
 jest.mock('@/lib/wellsRegistry', () => ({ listWells: jest.fn() }));
-jest.mock('../services/wpApi', () => ({ listDesigns: jest.fn(), listAcRuns: jest.fn() }));
+jest.mock('../services/wpApi', () => ({ listDesigns: jest.fn(), listAcRuns: jest.fn(), listSurveys: jest.fn() }));
 
 import { listWells } from '@/lib/wellsRegistry';
-import { listDesigns, listAcRuns } from '../services/wpApi';
+import { listDesigns, listAcRuns, listSurveys } from '../services/wpApi';
 import { loadOffsetCandidates, loadSiteOffsetDesigns } from '../services/offsetLoader';
 
 const st = [{ md: 0, inc: 0, azi: 0 }, { md: 100, inc: 0, azi: 0 }];
@@ -16,7 +16,7 @@ const wellbores = [
   { id: 'b', name: 'B', head_x: 20, head_y: 0 },
 ];
 
-beforeEach(() => { jest.resetAllMocks(); });
+beforeEach(() => { jest.resetAllMocks(); listSurveys.mockResolvedValue([]); });
 
 test('failures become notes; the saved run supplies the persisted selection', async () => {
   listDesigns.mockImplementation(async (id) => {
@@ -42,4 +42,20 @@ test('cancellation stops the loop and reports cancelled', async () => {
   const full = await loadOffsetCandidates({ wellbore: wellbores[0], wellbores, isCancelled: () => true });
   expect(full).toMatchObject({ cancelled: true, candidates: [] });
   expect(listWells).not.toHaveBeenCalled();
+});
+
+test('a neighbour with only an imported definitive survey is offered on that survey', async () => {
+  const actual = [{ md: 0, inc: 0, azi: 0 }, { md: 500, inc: 5, azi: 90 }];
+  listDesigns.mockResolvedValue([]);
+  listSurveys.mockImplementation(async (id) => {
+    if (id === 'b') throw new Error('rls');
+    return id === 'a' ? [{ is_in_definitive: true, stations: actual, computed: actual }] : [];
+  });
+  listWells.mockResolvedValue([]);
+  listAcRuns.mockResolvedValue([]);
+  const res = await loadOffsetCandidates({ wellbore: wellbores[0], wellbores, siteCrs: 'X', designId: 'dd' });
+  expect(res.candidates.map((c) => [c.id, c.kind])).toEqual([['wp:a', 'wp-actual']]);
+  expect(res.candidates[0].stations).toEqual(actual);
+  expect(res.notes.join(' ')).toMatch(/actual surveys of B/);
+  expect(listSurveys).not.toHaveBeenCalledWith('me');
 });

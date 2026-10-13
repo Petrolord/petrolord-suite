@@ -191,6 +191,20 @@ With WDM U2-007 (PR #848) the well's reference elevation comes through
 registry well with no reference elevation gives no onshore TVDSS, with the
 reason. Open: start a project's water depth from the registry well's.
 
+## 2026-10-13: published curves kept only the top of the log (fix)
+
+Found in the Well Design Studio video dry run: a prognosis published on
+Ekene-8 (14,370 samples at 0.1524 m) reached the registry with 318 values and
+14,052 nulls, so every consumer (the Well Design Studio mud window) saw only
+the top 48 m. Registry depths arrive as float32; `mdGrid` took the median of
+the MD differences as the grid step, which missed the true step by a few
+micrometres, and the error passed the hundredth-of-a-step tolerance after
+about 300 samples. The median now seeds the step from the shallow samples and
+a least-squares refinement on the sample positions sets it, so every sample
+keeps its own MD and gaps stay nulls at their own depth. Republish a project
+to replace curves published before this fix. Tests:
+`__tests__/publishMdGrid.test.js` (median-only grid as the negative control,
+a 30,000-sample log with a gap, curves to TD).
 ## 2026-10-13: pressures from shale samples
 
 Found in the Well Design Studio video dry run: a prognosis on Ekene-8 put the

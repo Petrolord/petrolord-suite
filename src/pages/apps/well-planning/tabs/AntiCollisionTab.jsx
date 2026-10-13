@@ -30,7 +30,7 @@ import {
   resolveMagReference, buildAcWell, runAntiCollisionScan, serializeAcRun,
   deserializeAcRun, DEFAULT_AC_PARAMS,
 } from '../services/acUtils';
-import { compositeStations } from '../services/surveyUtils';
+import { definitiveComposite } from '../services/surveyUtils';
 import { assembleOffsetCandidates, registryOffsetsWithoutDatum } from '../services/offsetFrame';
 import { loadSiteOffsetDesigns } from '../services/offsetLoader';
 import * as wpApi from '../services/wpApi';
@@ -57,6 +57,7 @@ const AntiCollisionTab = () => {
   const [reference, setReference] = useState('plan'); // plan | composite
   const [surveys, setSurveys] = useState([]);
   const [designsByWellbore, setDesignsByWellbore] = useState({});
+  const [actualsByWellbore, setActualsByWellbore] = useState({});
   const [geoWells, setGeoWells] = useState(null);
   // Ticked offsets live in the store per design (shared with the
   // Design plots' Offsets overlay and kept across tab switches).
@@ -88,7 +89,9 @@ const AntiCollisionTab = () => {
     // candidates). Sequential fetch is fine at pad scale.
     let live = true;
     loadSiteOffsetDesigns(wellbores, wellbore?.id, { isCancelled: () => !live })
-      .then(({ map, cancelled }) => { if (live && !cancelled) setDesignsByWellbore(map); });
+      .then(({ map, actuals, cancelled }) => {
+        if (live && !cancelled) { setDesignsByWellbore(map); setActualsByWellbore(actuals || {}); }
+      });
     return () => { live = false; };
   }, [wellbores, wellbore?.id]);
 
@@ -105,10 +108,7 @@ const AntiCollisionTab = () => {
 
   const magRef = useMemo(() => resolveMagReference(site, wellbore), [site, wellbore]);
 
-  const gridStationsOf = (s) => (Array.isArray(s.computed) && s.computed.length >= 2 ? s.computed : s.stations);
-  const composite = useMemo(() => compositeStations(
-    surveys.filter((s) => s.is_in_definitive).map((s) => ({ stations: gridStationsOf(s) })),
-  ), [surveys]);
+  const composite = useMemo(() => definitiveComposite(surveys), [surveys]);
 
   const refStations = useMemo(() => {
     if (reference === 'composite') return composite.length >= 2 ? composite : null;
@@ -116,8 +116,8 @@ const AntiCollisionTab = () => {
   }, [reference, design, composite]);
 
   const offsetCandidates = useMemo(() => assembleOffsetCandidates({
-    wellbores, designsByWellbore, geoWells, wellbore, siteCrs: site?.crs,
-  }), [wellbores, designsByWellbore, geoWells, wellbore, site?.crs]);
+    wellbores, designsByWellbore, actualsByWellbore, geoWells, wellbore, siteCrs: site?.crs,
+  }), [wellbores, designsByWellbore, actualsByWellbore, geoWells, wellbore, site?.crs]);
 
   const offsetsNoDatum = useMemo(() => registryOffsetsWithoutDatum({ geoWells, wellbore, siteCrs: site?.crs }), [geoWells, wellbore, site?.crs]);
 
@@ -203,6 +203,9 @@ const AntiCollisionTab = () => {
 
   const setP = (field, value) => setParams((p) => ({ ...p, [field]: value }));
   const numP = (field, user = false) => (e) => {
+    // a field left as shown keeps the stored metres exactly (a feet value
+    // rounded for display would otherwise drift on blur)
+    if (e.target.value === e.target.defaultValue) return;
     const v = parseFloat(e.target.value);
     setP(field, Number.isFinite(v) ? (user ? userToMeters(v) : v) : DEFAULT_AC_PARAMS[field]);
   };
@@ -274,7 +277,7 @@ const AntiCollisionTab = () => {
                       onCheckedChange={(v) => setCheckedOffsets((prev) => ({ ...prev, [c.id]: !!v }))}
                     />
                     <span className="truncate">{c.label}</span>
-                    <span className="ml-auto text-[9px] uppercase text-pl-muted">{c.kind === 'geo' ? 'registry' : 'plan'}</span>
+                    <span className="ml-auto text-[9px] uppercase text-pl-muted">{c.kind === 'geo' ? 'registry' : c.kind === 'wp-actual' ? 'actual' : 'plan'}</span>
                   </label>
                 ))}
               </div>
@@ -284,8 +287,8 @@ const AntiCollisionTab = () => {
               <Label className="text-[10px] uppercase font-bold text-pl-muted">Separation rule (SPE-187073)</Label>
               <div className="grid grid-cols-3 gap-2">
                 <div><Label className="text-[10px]">k</Label><Input type="number" step="0.1" defaultValue={params.k} onBlur={numP('k')} className="h-7 text-xs" /></div>
-                <div><Label className="text-[10px]">σpa (m)</Label><Input type="number" step="0.1" defaultValue={params.sigmaPa} onBlur={numP('sigmaPa')} className="h-7 text-xs" /></div>
-                <div><Label className="text-[10px]">Sm (m)</Label><Input type="number" step="0.1" defaultValue={params.Sm} onBlur={numP('Sm')} className="h-7 text-xs" /></div>
+                <div><Label className="text-[10px]">σpa ({mdUnit})</Label><Input type="number" step="0.1" defaultValue={+metersToUser(params.sigmaPa).toFixed(3)} onBlur={numP('sigmaPa', true)} className="h-7 text-xs" data-testid="ac-sigma-pa" /></div>
+                <div><Label className="text-[10px]">Sm ({mdUnit})</Label><Input type="number" step="0.1" defaultValue={+metersToUser(params.Sm).toFixed(3)} onBlur={numP('Sm', true)} className="h-7 text-xs" data-testid="ac-sm" /></div>
                 <div><Label className="text-[10px]">Ref radius ({mdUnit})</Label><Input type="number" step="0.01" defaultValue={+metersToUser(params.refRadius).toFixed(3)} onBlur={numP('refRadius', true)} className="h-7 text-xs" /></div>
                 <div><Label className="text-[10px]">Off radius ({mdUnit})</Label><Input type="number" step="0.01" defaultValue={+metersToUser(params.offRadius).toFixed(3)} onBlur={numP('offRadius', true)} className="h-7 text-xs" /></div>
               </div>

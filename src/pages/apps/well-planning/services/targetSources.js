@@ -64,6 +64,16 @@ export function targetDepthFromSurface(surface, grid, x, y) {
 }
 
 
+// "Depth below the pick" (2026-10-13): a target is often set a stand-off
+// below the picked horizon (inside the sand, under the top). The stand-off
+// is metres, positive down (negative is above the pick); the target TVDSS is
+// the pick plus the stand-off, and both are kept in the provenance so
+// "Refresh from source" re-runs the pick and applies the same stand-off.
+const standOff = (belowM) => (Number.isFinite(Number(belowM)) ? Number(belowM) : 0);
+const standOffProvenance = (belowM, pickedTvdssM) => (standOff(belowM) !== 0
+  ? { below_pick_m: standOff(belowM), picked_tvdss_m: pickedTvdssM }
+  : {});
+
 /**
  * The target a well top gives: where the well crosses the top, at its
  * subsea depth, with the provenance and source references.
@@ -71,7 +81,7 @@ export function targetDepthFromSurface(surface, grid, x, y) {
  * @param {object} top geo_wells_tops row
  * @param {string} [name]
  */
-export function targetFromTop(well, top, name = '', { now = new Date().toISOString() } = {}) {
+export function targetFromTop(well, top, name = '', { now = new Date().toISOString(), belowM = 0 } = {}) {
   const deviation = Array.isArray(well.deviation) && well.deviation.length >= 2
     ? well.deviation : [{ md: 0, inc: 0, azi: 0 }, { md: Math.max(top.md_m + 1, well.td_md_m || top.md_m + 1), inc: 0, azi: 0 }];
   // WDM-U2-007: the target is placed at the top's subsea depth, so the
@@ -89,10 +99,11 @@ export function targetFromTop(well, top, name = '', { now = new Date().toISOStri
     category: 'geological',
     center_x: pos.x,
     center_y: pos.y,
-    tvdss_m: pos.tvdss,
+    tvdss_m: pos.tvdss + standOff(belowM),
     provenance: {
       source: 'geo_top', geo_well_id: well.id, well_name: well.name,
       top_id: top.id, top_name: top.name, top_md_m: top.md_m,
+      ...standOffProvenance(belowM, pos.tvdss),
       pulled_at: now,
       source_refs: {
         top: sourceRef({ key: 'top', kind: 'geo_wells_tops', row: top, name: `${top.name} in ${well.name}`, usedAt: now, extra: { well_id: well.id, top_name: top.name } }),
@@ -103,7 +114,7 @@ export function targetFromTop(well, top, name = '', { now = new Date().toISOStri
 }
 
 /** The target a registry surface gives at (x, y), in the surface's own map units. */
-export function targetFromSurfacePick(surface, grid, x, y, name = '', { now = new Date().toISOString() } = {}) {
+export function targetFromSurfacePick(surface, grid, x, y, name = '', { now = new Date().toISOString(), belowM = 0 } = {}) {
   const t = targetDepthFromSurface(surface, grid, x, y);
   return {
     name: name || `${surface.name} pick`,
@@ -111,9 +122,10 @@ export function targetFromSurfacePick(surface, grid, x, y, name = '', { now = ne
     category: 'geological',
     center_x: x,
     center_y: y,
-    tvdss_m: t.tvdss_m,
+    tvdss_m: t.tvdss_m + standOff(belowM),
     provenance: {
       source: 'geo_surface', surface_id: surface.id, surface_name: surface.name,
+      ...standOffProvenance(belowM, t.tvdss_m),
       sampled_z: t.sampled_z, z_unit: surface.z_unit || null, crs: t.crs, xy_unit: t.xyUnit || null,
       note: 'tvdss in metres positive down, read from the registry elevation through readDepthSurface',
       ...(t.notes.length ? { door_notes: t.notes } : {}),
@@ -200,16 +212,55 @@ export async function refreshTargetPatch(result, target, readers) {
     if (!well) throw new Error(`${p.well_name || 'The well'} is no longer in the registry.`);
     const top = (well.tops || []).find((x) => x.id === p.top_id) || (well.tops || []).find((x) => x.name === p.top_name);
     if (!top) throw new Error(`${p.top_name || 'The top'} is no longer picked in ${well.name}.`);
-    pick = targetFromTop(well, top, target.name);
+    pick = targetFromTop(well, top, target.name, { belowM: p.below_pick_m || 0 });
   } else if (p.source === 'geo_surface') {
     const rows = await readers.listSurfaces();
     const surface = rows.find((x) => x.id === p.surface_id);
     if (!surface) throw new Error(`${p.surface_name || 'The surface'} is no longer in the registry.`);
     const grid = await readers.downloadSurfaceGrid(surface);
-    pick = targetFromSurfacePick(surface, grid, target.center_x, target.center_y, target.name);
+    pick = targetFromSurfacePick(surface, grid, target.center_x, target.center_y, target.name, { belowM: p.below_pick_m || 0 });
   } else {
     throw new Error('This target was not taken from the registry.');
   }
-  // the new provenance carries no keep decision: the refreshed values are the source's
+  // the new provenance carries no keep decision: the refreshed values are the
+  // source's, with the target's own stand-off below the pick applied again
   return { center_x: pick.center_x, center_y: pick.center_y, tvdss_m: pick.tvdss_m, provenance: pick.provenance };
+}
+
+/**
+ * What the Source column says about a target (2026-10-13): where it came
+ * from in words, with the stand-off below the pick when there is one.
+ * @param {object} target wp_targets row
+ * @param {(m:number)=>string} [depth] a metre length in the display unit, e.g. "26.2 ft"
+ */
+export function targetSourceLabel(target, depth = (m) => `${m.toFixed(1)} m`) {
+  const p = target?.provenance || {};
+  const below = Number(p.below_pick_m);
+  const off = Number.isFinite(below) && Math.abs(below) > 1e-6
+    ? `, ${depth(Math.abs(below))} ${below > 0 ? 'below' : 'above'}` : '';
+  if (p.source === 'geo_surface') return `Surface: ${p.surface_name || 'registry surface'}${off}`;
+  if (p.source === 'geo_top') return `Top: ${p.top_name || 'top'} in ${p.well_name || 'registry well'}${off}`;
+  return p.source ? String(p.source) : 'Typed';
+}
+
+/**
+ * What "Refresh from source" would do to a target, in one sentence: the
+ * TVDSS before and after and the horizontal shift (2026-10-13). Pure; the
+ * caller runs refreshTargetPatch to get the patch.
+ * @param {object} target wp_targets row
+ * @param {{center_x:number, center_y:number, tvdss_m:number}} patch
+ * @param {{unit?: 'm'|'ft'}} [opts]
+ */
+export function targetMoveText(target, patch, { unit = 'm' } = {}) {
+  const k = unit === 'ft' ? 1 / 0.3048 : 1;
+  const was = Number(target?.tvdss_m) * k;
+  const now = Number(patch?.tvdss_m) * k;
+  const dz = now - was;
+  const dh = Math.hypot(Number(patch?.center_x) - Number(target?.center_x), Number(patch?.center_y) - Number(target?.center_y));
+  const f = (v) => v.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const across = Number.isFinite(dh) && dh >= 0.05 ? `, and ${f(dh)} m across` : '';
+  if (!Number.isFinite(dz)) return null;
+  if (Math.abs(dz) < 0.05 && !across) return `Refreshing leaves ${target.name} where it is.`;
+  const vert = Math.abs(dz) < 0.05 ? 'no deeper' : `${f(Math.abs(dz))} ${unit} ${dz > 0 ? 'deeper' : 'shallower'}`;
+  return `Refreshing moves ${target.name} from ${f(was)} to ${f(now)} ${unit} TVDSS (${vert}${across}).`;
 }

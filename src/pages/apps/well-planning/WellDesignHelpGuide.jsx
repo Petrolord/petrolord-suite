@@ -404,8 +404,9 @@ const WellDesignHelpGuideContent = () => {
               <SubHeading>Offset wells on the plots</SubHeading>
               <Para>
                 The Offsets button next to Targets draws offset wellbores on the section and plan views, each labelled with its
-                well name. They are the same wells the Anti-collision tab offers: the site&apos;s other wellbores (their definitive
-                design, else the latest saved one) and registry wells in the site CRS. The offsets you tick on the
+                well name. They are the same wells the Anti-collision tab offers: the site&apos;s other wellbores and registry wells in the site CRS. A wellbore
+                with a definitive actual survey is drawn and scanned on that survey, as a drilled well should be; one
+                without is drawn on its definitive design, else the latest saved one. The offsets you tick on the
                 Anti-collision tab are the ones drawn; with none ticked, the offsets of the design&apos;s latest saved
                 anti-collision run are used; with neither, the plots show the site&apos;s other wellbores and registry wells
                 whose wellhead lies within 2 km plus this plan&apos;s reach. A note above the plot says which rule applied.
@@ -468,8 +469,10 @@ const WellDesignHelpGuideContent = () => {
               </Para>
               <SubHeading>The definitive composite</SubHeading>
               <Para>
-                Flag the official runs as definitive. The composite follows the industry rule: the deeper run wins from its
-                tie-on down. It is the actual well in 3D and an available anti-collision reference.
+                Flag the official runs as definitive. The first run saved on a wellbore joins the composite on its own, so a
+                single imported survey is the definitive survey straight away. The composite follows the industry rule: the
+                deeper run wins from its tie-on down. It is the actual well in 3D, an available anti-collision reference, and
+                the survey other wellbores on the site scan against (a drilled neighbour is an offset on its actual survey).
               </Para>
               <SubHeading>Plan versus actual, and project ahead</SubHeading>
               <Para>
