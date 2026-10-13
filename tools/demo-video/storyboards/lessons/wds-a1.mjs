@@ -3,7 +3,7 @@
 // card, 07-well-design/ekene-alpha-site.csv): the CRS picker, the north
 // reference, the platform origin and a slot template, and the site menu.
 import {
-  login, expectText, openStudio, deleteSites, createSite, addSlots, confirmSite, treeRow, treeMenu, dialog, tab,
+  login, expectText, openStudio, deleteSites, ALL_VIDEO_SITES, createSite, addSlots, confirmSite, treeRow, treeMenu, dialog, tab,
   wdsLessonMeta, SLOTS,
 } from './wds-common.mjs';
 
@@ -15,7 +15,7 @@ export default {
   async setup(d, shared) {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
     await login(d.page, shared.baseUrl, shared.env);
-    await deleteSites(d, shared, /^Lesson A1/);
+    await deleteSites(d, shared, ALL_VIDEO_SITES);
     await openStudio(d, shared);
     await d.page.evaluate(() => window.__demo.moveTo(900, 500, 10));
   },

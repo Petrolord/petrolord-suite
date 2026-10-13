@@ -39,7 +39,7 @@ export async function download(d, target, name) {
 
 import {
   deleteSites, createSite, addSlots, confirmSite, buildPad, createWellbore, confirmWellbore, createDesign, targetFromSurface,
-  confirmPick, solveJ, saveDesign, openStudio, selectDesign, tab, SLOTS, T1,
+  confirmPick, solveJ, saveDesign, openStudio, selectDesign, tab, SLOTS, T1, ALL_VIDEO_SITES,
 } from '../wds-common.mjs';
 
 /**
@@ -50,6 +50,7 @@ import {
  * Ends with the design open on the Design tab.
  */
 export async function lessonSite(d, shared, site, { pad = false, kop = null, design = 'Plan 1', extra = null } = {}) {
+  await deleteSites(d, shared, ALL_VIDEO_SITES);
   if (pad) await buildPad(d, shared, site);
   else {
     await deleteSites(d, shared, new RegExp(`^${site.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));

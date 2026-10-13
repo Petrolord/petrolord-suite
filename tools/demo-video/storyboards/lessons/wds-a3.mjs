@@ -5,7 +5,7 @@
 // (Oboro Sand in Ekene-8). Absolute site coordinates, the source column,
 // and the map view.
 import {
-  login, expectText, openStudio, deleteSites, createSite, addSlots, confirmSite, createWellbore, confirmWellbore,
+  login, expectText, openStudio, deleteSites, ALL_VIDEO_SITES, createSite, addSlots, confirmSite, createWellbore, confirmWellbore,
   createDesign, newTarget, confirmTarget, targetFromSurface, confirmPick, dialog, pick, t, tab, wdsLessonMeta, SLOTS, T1,
 } from './wds-common.mjs';
 
@@ -18,7 +18,7 @@ export default {
   async setup(d, shared) {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
     await login(d.page, shared.baseUrl, shared.env);
-    await deleteSites(d, shared, /^Lesson A3/);
+    await deleteSites(d, shared, ALL_VIDEO_SITES);
     await createSite(d, SITE);
     await addSlots(d, SLOTS);
     await confirmSite(d);

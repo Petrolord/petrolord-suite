@@ -8,7 +8,7 @@
 // again and saved. The NAPE paper's integration example in a drilling app.
 import path from 'node:path';
 import {
-  login, expectText, openStudio, buildPad, seedEkene11, createWellbore, confirmWellbore, createDesign,
+  login, expectText, openStudio, deleteSites, ALL_VIDEO_SITES, buildPad, seedEkene11, createWellbore, confirmWellbore, createDesign,
   targetFromSurface, confirmPick, selectDesign, solveJ, saveDesign, t, tab,
 } from './wds-common.mjs';
 import { openMapping } from '../seed/rcp.mjs';
@@ -36,6 +36,7 @@ export default {
   async setup(d, shared) {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
     await login(d.page, shared.baseUrl, shared.env);
+    await deleteSites(d, shared, ALL_VIDEO_SITES);
     // the six-well grid back in place (a previous take replaced it)
     await openMapping(d, shared);
     await replaceFromFile(d, SURFACE, SIX);

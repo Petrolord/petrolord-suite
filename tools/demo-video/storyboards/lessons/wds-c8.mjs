@@ -3,7 +3,7 @@
 // on the plan view, the band on the section, growth with depth, the
 // survey program (instrument per interval, tie-on at a tool change) and
 // what the model needs (the cached magnetic field).
-import { login, expectText, lessonSite, dialog, t, wdsLessonMeta } from './wds-common.mjs';
+import { login, expectText, lessonSite, orbit3d, dialog, t, wdsLessonMeta } from './wds-common.mjs';
 
 const SITE = 'Lesson C8: Ekene Alpha';
 const view = (d, name) => d.page.getByRole('button', { name, exact: true }).first();

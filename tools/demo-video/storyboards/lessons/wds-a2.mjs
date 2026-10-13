@@ -3,7 +3,7 @@
 // depth unit, the azimuth reference (grid, true, magnetic), the grid
 // convergence and the WMM2025 magnetic field looked up live, and a design.
 import {
-  login, expectText, openStudio, deleteSites, createSite, addSlots, confirmSite, createWellbore, confirmWellbore,
+  login, expectText, openStudio, deleteSites, ALL_VIDEO_SITES, createSite, addSlots, confirmSite, createWellbore, confirmWellbore,
   createDesign, dialog, pick, t, tab, wdsLessonMeta, SLOTS,
 } from './wds-common.mjs';
 
@@ -15,7 +15,7 @@ export default {
   async setup(d, shared) {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
     await login(d.page, shared.baseUrl, shared.env);
-    await deleteSites(d, shared, /^Lesson A2/);
+    await deleteSites(d, shared, ALL_VIDEO_SITES);
     await createSite(d, SITE);
     await addSlots(d, SLOTS);
     await confirmSite(d);

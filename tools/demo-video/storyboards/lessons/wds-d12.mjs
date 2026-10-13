@@ -10,8 +10,8 @@ const SITE = 'Lesson D12: Ekene Alpha';
 
 async function showPdf(d, button, name, caption) {
   const file = await download(d, button, name);
-  const img = pdfPageDataUrl(file, { width: 1500 });
-  await d.slide({ eyebrow: 'Report pack', title: caption, body: `<img src="${img}" style="max-height:760px;max-width:1500px;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.45)"/>` });
+  const img = pdfPageDataUrl(file, { width: 2000 });
+  await d.slide({ eyebrow: `Report pack · ${caption}`, body: `<img src="${img}" style="display:block;height:840px;max-width:1500px;object-fit:contain;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.45)"/>` });
 }
 
 export default {

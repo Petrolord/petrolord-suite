@@ -11,6 +11,8 @@ import { expectText } from './seis-common.mjs';
 export { login, expectText };
 export const WDS = '/dashboard/apps/drilling/well-planning';
 export const KIT_DIR = process.env.EKENE_KIT || '/root/wt-kit4/dist-demo/ekene-demo-v4';
+/** Every site the WDS videos make (a setup clears them all, so the tree on camera holds only its own). */
+export const ALL_VIDEO_SITES = /^(Lesson [A-D]\d+: |WDS probe|WDS demo)/;
 export const PAD = { e: '401700', n: '521600', kbM: '25', waterM: '35' };
 
 export const t = (d, id) => d.page.getByTestId(id);
@@ -46,7 +48,7 @@ export async function treeMenu(d, name, item, { onCamera = false } = {}) {
 /** Delete every site whose name matches (off camera). */
 export async function deleteSites(d, shared, re) {
   await openStudio(d, shared);
-  for (let n = 0; n < 6; n++) {
+  for (let n = 0; n < 40; n++) {
     const names = await d.page.locator('span.truncate.font-medium').allInnerTexts();
     const hit = names.find((x) => re.test(x));
     if (!hit) return;
@@ -313,4 +315,23 @@ export async function seedEkene11(d, site, { kop = '1312.3', design = 'Plan 1' }
   await tab(d, 'Design').click(); await d.sleep(1500);
   await solveJ(d, T1.name, { kop, rate: '2.54' });
   await saveDesign(d);
+}
+
+/** Orbit the 3D view a little (drag across the canvas, cursor on camera). */
+export async function orbit3d(d, { dx = 260, dy = -60, ms = 2400 } = {}) {
+  const cube = t(d, 'wp-cube-view');
+  const b = await cube.boundingBox();
+  if (!b) return;
+  const x0 = b.x + b.width * 0.55; const y0 = b.y + b.height * 0.55;
+  await d.moveTo({ x: x0, y: y0 });
+  await d.page.mouse.move(x0, y0);
+  await d.page.mouse.down();
+  const n = Math.max(12, Math.round(ms / 40));
+  for (let i = 1; i <= n; i++) {
+    const x = x0 + (dx * i) / n; const y = y0 + (dy * i) / n;
+    await d.page.mouse.move(x, y);
+    await d.page.evaluate(([a, c]) => window.__demo.moveTo(a, c, 30), [x, y]);
+    await d.sleep(ms / n);
+  }
+  await d.page.mouse.up();
 }

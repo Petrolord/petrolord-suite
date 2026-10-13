@@ -7,7 +7,7 @@
 // neighbour, and the mud window and casing seats from Ekene-8's
 // pore pressure prognosis applied by subsea depth.
 import {
-  login, expectText, openStudio, buildPad, seedEkene11, selectDesign, solveJ, saveDesign, pickOffsets, runScan,
+  login, expectText, openStudio, deleteSites, ALL_VIDEO_SITES, buildPad, seedEkene11, selectDesign, solveJ, saveDesign, pickOffsets, runScan,
   t, tab, T1,
 } from './wds-common.mjs';
 
@@ -28,6 +28,7 @@ export default {
   async setup(d, shared) {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
     await login(d.page, shared.baseUrl, shared.env);
+    await deleteSites(d, shared, ALL_VIDEO_SITES);
     await buildPad(d, shared, SITE);
     await seedEkene11(d, SITE, { kop: '1312.3' });
     await openStudio(d, shared);

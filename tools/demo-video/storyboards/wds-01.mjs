@@ -7,7 +7,7 @@
 // narration (LENIENT=1 logs instead, for writing).
 import {
   login, expectText, openStudio, deleteSites, createSite, addSlots, confirmSite, createWellbore, confirmWellbore,
-  createDesign, targetFromSurface, confirmPick, solveJ, saveDesign, t, tab, dialog, SLOTS, T1,
+  createDesign, targetFromSurface, confirmPick, solveJ, saveDesign, ALL_VIDEO_SITES, t, tab, dialog, SLOTS, T1,
 } from './wds-common.mjs';
 
 const SITE = 'WDS demo: Ekene Alpha';
@@ -26,7 +26,7 @@ export default {
   async setup(d, shared) {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
     await login(d.page, shared.baseUrl, shared.env);
-    await deleteSites(d, shared, /^WDS demo: Ekene Alpha$/);
+    await deleteSites(d, shared, ALL_VIDEO_SITES);
     await openStudio(d, shared);
     await d.page.evaluate(() => window.__demo.moveTo(900, 500, 10));
   },
