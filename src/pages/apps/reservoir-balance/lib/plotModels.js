@@ -41,6 +41,14 @@ const leftOutWords = (counts) => {
   return parts.length ? parts.join(', ') : 'none';
 };
 
+// A level plot (Campbell, Cole) on its own data range zooms into round-off:
+// six points within a few barrels of one another spread over the whole
+// axis and a level line reads as scatter. The axis always shows at least
+// LEVEL_BAND either side of the run's level, so a real rise still stands out
+// and a flat line looks flat.
+export const LEVEL_BAND = 0.05;
+export const levelAxis = (level) => (finite(level) && level > 0 ? [level * (1 - LEVEL_BAND), level, level * (1 + LEVEL_BAND)] : undefined);
+
 const timeAxis = (dated) => (dated ? { xTitle: 'Date', xDate: true } : { xTitle: 'Timestep', xDate: false });
 
 /**
@@ -133,7 +141,7 @@ export function buildPlotModels(a) {
       applies: c.points.length > 0,
       statement: c.points.length ? null : 'Not plotted: no timestep has a withdrawal and an expansion above zero.',
       xTitle: `F (${xs.label})`, yTitle: `F/Et (${ys.label})`, xDate: false,
-      yInclude: finite(c.level) ? [ys.to(c.level)] : undefined,
+      yInclude: levelAxis(finite(c.level) ? ys.to(c.level) : null),
       series: [
         { key: 'fit', name: 'In the fit', type: 'scatter', colour: 'fit', pts: conv(c.inFit), steps: idx(true) },
         { key: 'out', name: 'Not in the fit', type: 'scatter', colour: 'out', marker: 'square', pts: conv(c.notInFit), steps: idx(false) },
@@ -159,7 +167,7 @@ export function buildPlotModels(a) {
       applies: c.points.length > 0,
       statement: c.points.length ? null : 'Not plotted: no timestep has a gas expansion above zero.',
       xTitle: `Gp (${xs.label})`, yTitle: `F/Eg (${ys.label})`, xDate: false,
-      yInclude: finite(c.level) ? [ys.to(c.level)] : undefined,
+      yInclude: levelAxis(finite(c.level) ? ys.to(c.level) : null),
       series: [
         { key: 'fit', name: 'In the fit', type: 'scatter', colour: 'fit', pts: conv(c.inFit), steps: idx(true) },
         { key: 'out', name: 'Not in the fit', type: 'scatter', colour: 'out', marker: 'square', pts: conv(c.notInFit), steps: idx(false) },

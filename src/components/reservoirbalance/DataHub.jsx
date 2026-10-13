@@ -186,15 +186,9 @@ export function validateRows(rows, caseData, units = OILFIELD_UNITS) {
     }
   }
 
-  // Monotone non-increasing pressures
-  for (let i = 1; i < rows.length; i++) {
-    if (rows[i].pressure_psia > rows[i - 1].pressure_psia + 0.5) {
-      errors.push({
-        row: i,
-        message: `The pressure of row ${i} (${pText(rows[i].pressure_psia)}) is above the row before it (${pText(rows[i - 1].pressure_psia)}). The engine needs pressures that do not rise.`,
-      });
-    }
-  }
+  // Pressures may rise: injection or an aquifer can lift the average
+  // pressure, and the engine balances every row on its own. What deserves a
+  // word is said by pressureNotes(), which never stops the save.
 
   // Dates, where given, must run forward
   let lastDate = null;
@@ -227,6 +221,36 @@ export function validateRows(rows, caseData, units = OILFIELD_UNITS) {
   }
 
   return errors;
+}
+
+/**
+ * Notes on the pressure history that do not stop the save (rows in engine
+ * units, messages in the display units): a rise where the row carries no
+ * new injection, and a pressure above the initial pressure, where the
+ * expansion is not above zero and the engine leaves the row out of the fit.
+ * Returns an array of strings.
+ */
+export function pressureNotes(rows, caseData, units = OILFIELD_UNITS) {
+  const notes = [];
+  if (!Array.isArray(rows) || rows.length < 2) return notes;
+  const pText = (v) => `${fmtNum(units.to('pressure', v), units.unit('pressure') === 'psi' ? 1 : 2)} ${units.label('pressure')}`;
+  const inj = (r) => (r?.cum_water_inj_stb ?? 0) + (r?.cum_gas_inj_scf ?? 0);
+  const rises = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i].pressure_psia > rows[i - 1].pressure_psia + 0.5 && !(inj(rows[i]) > inj(rows[i - 1]))) rises.push(i);
+  }
+  if (rises.length) {
+    notes.push(`The pressure rises at row${rises.length === 1 ? '' : 's'} ${rises.join(', ')} with no injection on ${rises.length === 1 ? 'that row' : 'those rows'}. That can be aquifer support; it can also be a survey on a different datum or a short shut-in. Check the surveys. The balance runs on every row as it is.`);
+  }
+  const pi = Number(caseData?.initial_pressure_psia);
+  if (Number.isFinite(pi)) {
+    const above = [];
+    for (let i = 1; i < rows.length; i++) if (rows[i].pressure_psia > pi + 0.5) above.push(i);
+    if (above.length) {
+      notes.push(`Row${above.length === 1 ? '' : 's'} ${above.join(', ')} ${above.length === 1 ? 'is' : 'are'} above the initial pressure (${pText(pi)}). There is no expansion above zero there, so the engine leaves ${above.length === 1 ? 'it' : 'them'} out of the fit.`);
+    }
+  }
+  return notes;
 }
 
 const fmtNum = (v, decimals = 2) => {
@@ -431,6 +455,11 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
   }, [pendingRows, caseData, units]);
 
   const canSave = Boolean(pendingRows) && validationErrors.length === 0;
+  const notes = useMemo(() => {
+    if (!pendingRows || !caseData) return [];
+    return pressureNotes(pendingRows, caseData, units);
+  }, [pendingRows, caseData, units]);
+  const doorWarnings = read ? [...read.warnings, ...notes] : [];
 
   const open = useCallback((text, name, note = null) => {
     setChoices({});
@@ -709,9 +738,9 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
 
               <ImportDoor read={read} choices={choices} setChoices={setChoices} fileName={source.name} units={units} />
 
-              {read.warnings.length > 0 && (
+              {doorWarnings.length > 0 && (
                 <div className="bg-pl-warning-bg border border-pl-warning/40 rounded p-3 space-y-1" data-testid="mbal-import-warnings">
-                  {read.warnings.map((w) => (
+                  {doorWarnings.map((w) => (
                     <p key={w} className="text-xs text-pl-warning-text flex items-start gap-2">
                       <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
                       {w}
