@@ -1,6 +1,8 @@
 -- Demo org licences: the Economics module (2026-10-13; owner-approved, for
 -- the Petroleum Economics Studio demo videos and lessons).
 --
+-- APPLIED 2026-10-13 (owner-run).
+--
 -- The "Petrolord Demo" org holds Geoscience, Reservoir and Drilling
 -- (20261008090000, 20261008120000, 20261008140000, 20261013120000). This
 -- grants Economics in the same shape as a real full-module purchase, as
