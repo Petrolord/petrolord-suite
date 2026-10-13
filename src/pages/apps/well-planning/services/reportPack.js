@@ -99,6 +99,32 @@ function footer(doc, note) {
 const fmtNum = (v, dp = 1) => (Number.isFinite(v) ? v.toFixed(dp) : EMPTY_VALUE);
 
 // ---------------------------------------------------------------------------
+// depth unit (2026-10-13): the report pack prints depths and lengths in the
+// wellbore's depth unit, as the app shows them. Site coordinates (easting,
+// northing of the wellhead) stay in the CRS metres. Geometry is drawn in
+// metres: a uniform scale does not change a true-scale chart.
+// ---------------------------------------------------------------------------
+
+const FT_PER_M = 1 / 0.3048;
+
+/**
+ * Display helpers for a depth unit.
+ * @param {'m'|'ft'} unit
+ * @returns {{unit: string, len: function(number): number, dls: function(number): number, dlsLabel: string}}
+ */
+export function reportUnits(unit = 'm') {
+  const ft = unit === 'ft';
+  return {
+    unit: ft ? 'ft' : 'm',
+    len: (m) => (Number.isFinite(m) ? (ft ? m * FT_PER_M : m) : m),
+    // dogleg severity: deg per 30 m becomes deg per 100 ft
+    dls: (d30m) => (Number.isFinite(d30m) ? (ft ? (d30m * 30.48) / 30 : d30m) : d30m),
+    dlsLabel: ft ? 'deg/100ft' : 'deg/30m',
+  };
+}
+const unitOfContract = (contract) => (contract?.wellbore?.depthUnit === 'ft' ? 'ft' : 'm');
+
+// ---------------------------------------------------------------------------
 // vector chart primitives
 // ---------------------------------------------------------------------------
 
@@ -156,8 +182,8 @@ function polyline(doc, pts) {
 const OFFSET_KIND_LABEL = { geo: 'registry', 'wp-plan': 'plan', 'wp-actual': 'actual survey' };
 
 /** Plan view: N vs E path + targets + EOU ellipses (all metres). */
-export function drawPlanView(doc, rect, { stations, targets = [], ellipses = [] }) {
-  frameRect(doc, rect, 'Plan view (N vs E, m)');
+export function drawPlanView(doc, rect, { stations, targets = [], ellipses = [], unit = 'm' }) {
+  frameRect(doc, rect, `Plan view (N vs E, ${unit})`);
   const xs = stations.map((s) => s.e).concat(targets.map((t) => t.e));
   const ys = stations.map((s) => s.n).concat(targets.map((t) => t.n));
   const m = makeMapper(rect, xs.length ? xs : [0], ys.length ? ys : [0], { equalAspect: true });
@@ -201,8 +227,10 @@ export function drawPlanView(doc, rect, { stations, targets = [], ellipses = [] 
  *  drew a 3 deg/30 m build as a corner); `ratio` (TVD mm-per-unit over
  *  VS mm-per-unit) exaggerates, and the factor is printed on the plot
  *  either way. */
-export function drawSectionView(doc, rect, { stations, band = null, ratio = 1 }) {
-  frameRect(doc, rect, 'Section view (TVD vs VS, m)');
+export function drawSectionView(doc, rect, {
+  stations, band = null, ratio = 1, unit = 'm',
+}) {
+  frameRect(doc, rect, `Section view (TVD vs VS, ${unit})`);
   const xs = stations.map((s) => s.vs).concat([0]);
   const ys = stations.map((s) => s.tvd)
     .concat(band ? band.down.map((r) => r.tvd) : [])
@@ -224,8 +252,8 @@ export function drawSectionView(doc, rect, { stations, band = null, ratio = 1 })
 }
 
 /** SF ladder: per-offset SF vs reference MD + thresholds. */
-export function drawSfLadder(doc, rect, { results, thresholds }) {
-  frameRect(doc, rect, 'Separation factor vs reference MD (SF clipped at 5)');
+export function drawSfLadder(doc, rect, { results, thresholds, unit = '' }) {
+  frameRect(doc, rect, `Separation factor vs reference MD${unit ? ` (${unit})` : ''}, SF clipped at 5`);
   const CLIP = 5;
   const allMd = results.flatMap((r) => r.md);
   const m = makeMapper(rect, allMd.length ? allMd : [0, 1], [0, CLIP], { flipY: true, pad: 0.03 });
@@ -250,13 +278,14 @@ export function drawSfLadder(doc, rect, { results, thresholds }) {
 // report generators
 // ---------------------------------------------------------------------------
 
-function headerRowsFromContract(contract, magRef) {
+function headerRowsFromContract(contract, magRef, u = reportUnits(unitOfContract(contract))) {
   return [
     ['Well', contract.wellbore.name ?? EMPTY_VALUE, 'Site', contract.site?.name ?? EMPTY_VALUE],
     ['UWI', contract.wellbore.uwi ?? EMPTY_VALUE, 'Site CRS', contract.site?.crs ?? 'unset'],
-    ['Wellhead', `${fmtNum(contract.wellbore.headX)} E, ${fmtNum(contract.wellbore.headY)} N`, 'KB elevation', `${fmtNum(contract.wellbore.kbElevM)} m`],
+    ['Wellhead', `${fmtNum(contract.wellbore.headX)} E, ${fmtNum(contract.wellbore.headY)} N`, 'KB elevation', `${fmtNum(u.len(contract.wellbore.kbElevM))} ${u.unit}`],
     ['Design', contract.design ? `${contract.design.name} r${contract.design.revision} (${contract.design.status})` : EMPTY_VALUE, 'Source', contract.source],
     ['Azimuth ref', `${contract.wellbore.azimuthReference} (listing: grid)`, 'Convergence', `${contract.wellbore.gridConvergenceDeg ?? EMPTY_VALUE} deg`],
+    ...(u.unit === 'ft' ? [['Depth unit', 'feet (depths, offsets, VS)', 'Wellhead coordinates', 'site CRS metres']] : []),
     ['Declination', `${contract.wellbore.magDeclinationDeg ?? EMPTY_VALUE} deg`, 'Geomagnetics',
       magRef ? `WMM2025: ${fmtNum(magRef.bTotalNT, 0)} nT, dip ${fmtNum(magRef.dipDeg)} deg` : EMPTY_VALUE],
   ];
@@ -267,15 +296,16 @@ function headerRowsFromContract(contract, magRef) {
  * EOU, key-station table, target table.
  */
 export async function generateWallPlot({
-  contract, targets = [], uncertainty = null, magRef = null, generatedAt = '',
+  contract, targets = [], uncertainty = null, magRef = null, generatedAt = '', depthUnit = null,
 }) {
+  const u = reportUnits(depthUnit || unitOfContract(contract));
   const logo = await loadPetrolordLogo();
   const doc = new jsPDF({ orientation: 'landscape' });
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
   brandHeader(doc, {
     logo,
-    title: `Wall plot — ${contract.wellbore.name ?? 'well'}`,
+    title: `Wall plot: ${contract.wellbore.name ?? 'well'}`,
     subtitle: `${contract.design ? `${contract.design.name} r${contract.design.revision}` : ''} · generated ${generatedAt}`,
   });
 
@@ -285,7 +315,7 @@ export async function generateWallPlot({
     margin: { left: 8 },
     tableWidth: 90,
     head: [['Well header', '', '', '']],
-    body: headerRowsFromContract(contract, magRef),
+    body: headerRowsFromContract(contract, magRef, u),
     styles: { fontSize: 6.5, cellPadding: 0.8 },
     headStyles: { fillColor: [30, 41, 59], fontSize: 7 },
     theme: 'grid',
@@ -297,10 +327,12 @@ export async function generateWallPlot({
     stations: contract.stations,
     targets,
     ellipses: uncertainty?.ellipses || [],
+    unit: u.unit,
   });
   drawSectionView(doc, { x: 104, y: 26, w: pageWidth - 104 - 74, h: pageHeight - 26 - 12 }, {
     stations: contract.stations,
     band: uncertainty?.band || null,
+    unit: u.unit,
   });
 
   // key stations (right column): first + every ~10th + TD
@@ -311,10 +343,10 @@ export async function generateWallPlot({
     startY: 26,
     margin: { left: pageWidth - 70 },
     tableWidth: 62,
-    head: [['MD', 'Inc', 'Azi', 'TVD', 'N', 'E']],
+    head: [u.unit === 'ft' ? ['MD ft', 'Inc', 'Azi', 'TVD ft', 'N ft', 'E ft'] : ['MD', 'Inc', 'Azi', 'TVD', 'N', 'E']],
     body: key.map((s) => [
-      fmtNum(s.md, 0), fmtNum(s.inc), fmtNum(s.azi), fmtNum(s.tvd, 0),
-      fmtNum(s.n, 0), fmtNum(s.e, 0),
+      fmtNum(u.len(s.md), 0), fmtNum(s.inc), fmtNum(s.azi), fmtNum(u.len(s.tvd), 0),
+      fmtNum(u.len(s.n), 0), fmtNum(u.len(s.e), 0),
     ]),
     styles: { fontSize: 5.8, cellPadding: 0.6 },
     headStyles: { fillColor: [30, 41, 59], fontSize: 6 },
@@ -325,8 +357,10 @@ export async function generateWallPlot({
       startY: (doc.lastAutoTable?.finalY ?? 100) + 3,
       margin: { left: pageWidth - 70 },
       tableWidth: 62,
-      head: [['Target', 'TVDSS', 'N', 'E']],
-      body: targets.map((t) => [t.name, fmtNum(t.tvdss, 0), fmtNum(t.n, 0), fmtNum(t.e, 0)]),
+      head: [u.unit === 'ft' ? ['Target', 'TVDSS ft', 'N ft', 'E ft', 'Radius ft'] : ['Target', 'TVDSS', 'N', 'E']],
+      body: targets.map((t) => (u.unit === 'ft'
+        ? [t.name, fmtNum(u.len(t.tvdss), 1), fmtNum(u.len(t.n), 0), fmtNum(u.len(t.e), 0), t.radius ? fmtNum(u.len(t.radius), 0) : EMPTY_VALUE]
+        : [t.name, fmtNum(t.tvdss, 0), fmtNum(t.n, 0), fmtNum(t.e, 0)])),
       styles: { fontSize: 5.8, cellPadding: 0.6 },
       headStyles: { fillColor: [120, 53, 15], fontSize: 6 },
       theme: 'grid',
@@ -338,28 +372,32 @@ export async function generateWallPlot({
 }
 
 /** Survey listing: portrait, full station table. */
-export async function generateSurveyListing({ contract, magRef = null, generatedAt = '' }) {
+export async function generateSurveyListing({
+  contract, magRef = null, generatedAt = '', depthUnit = null,
+}) {
+  const u = reportUnits(depthUnit || unitOfContract(contract));
+  const U = u.unit;
   const logo = await loadPetrolordLogo();
   const doc = new jsPDF();
   brandHeader(doc, {
     logo,
-    title: `Survey listing — ${contract.wellbore.name ?? 'well'}`,
+    title: `Survey listing: ${contract.wellbore.name ?? 'well'}`,
     subtitle: `${contract.design ? `${contract.design.name} r${contract.design.revision} (${contract.design.status})` : ''} · generated ${generatedAt}`,
   });
   doc.autoTable({
     startY: 22,
     head: [['Well header', '', '', '']],
-    body: headerRowsFromContract(contract, magRef),
+    body: headerRowsFromContract(contract, magRef, u),
     styles: { fontSize: 7, cellPadding: 1 },
     headStyles: { fillColor: [30, 41, 59] },
     theme: 'grid',
   });
   doc.autoTable({
     startY: (doc.lastAutoTable?.finalY ?? 60) + 4,
-    head: [['MD (m)', 'Inc (deg)', 'Azi grid (deg)', 'TVD (m)', 'TVDSS (m)', 'N (m)', 'E (m)', 'DLS (deg/30m)', 'VS (m)']],
+    head: [[`MD (${U})`, 'Inc (deg)', 'Azi grid (deg)', `TVD (${U})`, `TVDSS (${U})`, `N (${U})`, `E (${U})`, `DLS (${u.dlsLabel})`, `VS (${U})`]],
     body: contract.stations.map((s) => [
-      fmtNum(s.md, 2), fmtNum(s.inc, 2), fmtNum(s.azi, 2), fmtNum(s.tvd, 2),
-      fmtNum(s.tvdss, 2), fmtNum(s.n, 2), fmtNum(s.e, 2), fmtNum(s.dls30m, 2), fmtNum(s.vs, 2),
+      fmtNum(u.len(s.md), 2), fmtNum(s.inc, 2), fmtNum(s.azi, 2), fmtNum(u.len(s.tvd), 2),
+      fmtNum(u.len(s.tvdss), 2), fmtNum(u.len(s.n), 2), fmtNum(u.len(s.e), 2), fmtNum(u.dls(s.dls30m), 2), fmtNum(u.len(s.vs), 2),
     ]),
     styles: { fontSize: 6.5, cellPadding: 0.8 },
     headStyles: { fillColor: [30, 41, 59], fontSize: 7 },
@@ -368,7 +406,7 @@ export async function generateSurveyListing({ contract, magRef = null, generated
   const td = contract.stations[contract.stations.length - 1];
   doc.setFontSize(8);
   doc.text(
-    `TD: ${fmtNum(td.md, 1)} m MD / ${fmtNum(td.tvd, 1)} m TVD · closure ${fmtNum(Math.hypot(td.n, td.e), 1)} m · max DLS ${fmtNum(maxOf(contract.stations, (s) => s.dls30m), 2)} deg/30m`,
+    `TD: ${fmtNum(u.len(td.md), 1)} ${U} MD / ${fmtNum(u.len(td.tvd), 1)} ${U} TVD · closure ${fmtNum(u.len(Math.hypot(td.n, td.e)), 1)} ${U} · max DLS ${fmtNum(u.dls(maxOf(contract.stations, (s) => s.dls30m)), 2)} ${u.dlsLabel}`,
     8,
     (doc.lastAutoTable?.finalY ?? 250) + 6,
   );
@@ -377,13 +415,18 @@ export async function generateSurveyListing({ contract, magRef = null, generated
 }
 
 /** Anti-collision report from a serialized wp_ac_runs row. */
-export async function generateAcReport({ run, wellName = '', designLabel = '', generatedAt = '' }) {
+export async function generateAcReport({
+  run, wellName = '', designLabel = '', generatedAt = '', depthUnit = 'm',
+}) {
+  const u = reportUnits(depthUnit);
+  const U = u.unit;
+  const L = (m, dp) => fmtNum(u.len(Number(m)), dp);
   const logo = await loadPetrolordLogo();
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.width;
   brandHeader(doc, {
     logo,
-    title: `Anti-collision report — ${wellName}`,
+    title: `Anti-collision report: ${wellName}`,
     subtitle: `${designLabel} · reference: ${run.reference} · run ${new Date(run.created_at ?? Date.now()).toISOString().slice(0, 16).replace('T', ' ')} · generated ${generatedAt}`,
   });
 
@@ -392,8 +435,12 @@ export async function generateAcReport({ run, wellName = '', designLabel = '', g
     startY: 22,
     head: [['Separation rule (SPE-187073)', '', '', '']],
     body: [
-      ['k (probability factor)', p.k ?? EMPTY_VALUE, 'σ projection-ahead', `${p.sigmaPa ?? EMPTY_VALUE} m`],
-      ['Surface margin Sm', `${p.Sm ?? EMPTY_VALUE} m`, 'Radii ref / offset', `${p.refRadius ?? EMPTY_VALUE} / ${p.offRadius ?? EMPTY_VALUE} m`],
+      ['k (probability factor)', p.k ?? EMPTY_VALUE, 'σ projection-ahead',
+        U === 'ft' ? `${p.sigmaPa != null ? L(p.sigmaPa, 2) : EMPTY_VALUE} ft` : `${p.sigmaPa ?? EMPTY_VALUE} m`],
+      ['Surface margin Sm', U === 'ft' ? `${p.Sm != null ? L(p.Sm, 2) : EMPTY_VALUE} ft` : `${p.Sm ?? EMPTY_VALUE} m`, 'Radii ref / offset',
+        U === 'ft'
+          ? `${p.refRadius != null ? L(p.refRadius, 2) : EMPTY_VALUE} / ${p.offRadius != null ? L(p.offRadius, 2) : EMPTY_VALUE} ft`
+          : `${p.refRadius ?? EMPTY_VALUE} / ${p.offRadius ?? EMPTY_VALUE} m`],
       ['No-go below SF', p.noGo ?? 1.0, 'Review below SF', p.review ?? 1.5],
       ['Error model', 'ISCWSA MWD Rev4 (oracle-gated)', 'Overall status', (run.summary?.status ?? EMPTY_VALUE).toUpperCase()],
     ],
@@ -404,10 +451,10 @@ export async function generateAcReport({ run, wellName = '', designLabel = '', g
 
   doc.autoTable({
     startY: (doc.lastAutoTable?.finalY ?? 60) + 4,
-    head: [['Offset well', 'Kind', 'Status', 'Min SF', 'At ref MD (m)', 'Min C-C (m)']],
+    head: [['Offset well', 'Kind', 'Status', 'Min SF', `At ref MD (${U})`, `Min C-C (${U})`]],
     body: (run.results || []).map((r) => [
       r.label, OFFSET_KIND_LABEL[r.kind] || r.kind || '', (r.status || '').toUpperCase(), fmtNum(r.minSf, 2),
-      fmtNum(r.minSfMd, 0), fmtNum(minOf(r.distanceCC), 1),
+      L(r.minSfMd, 0), L(minOf(r.distanceCC), 1),
     ]),
     styles: { fontSize: 7, cellPadding: 1 },
     headStyles: { fillColor: [30, 41, 59] },
@@ -419,6 +466,7 @@ export async function generateAcReport({ run, wellName = '', designLabel = '', g
   drawSfLadder(doc, { x: 10, y: ladderY, w: pageWidth - 20, h: 70 }, {
     results: run.results || [],
     thresholds: { noGo: p.noGo ?? 1.0, review: p.review ?? 1.5 },
+    unit: U,
   });
 
   // violations
@@ -427,7 +475,7 @@ export async function generateAcReport({ run, wellName = '', designLabel = '', g
     for (let i = 0; i < r.md.length; i++) {
       if (r.sf[i] < (p.review ?? 1.5)) {
         violations.push([
-          r.label, fmtNum(r.md[i], 0), fmtNum(r.sf[i], 2), fmtNum(r.distanceCC[i], 1),
+          r.label, L(r.md[i], 0), fmtNum(r.sf[i], 2), L(r.distanceCC[i], 1),
           r.sf[i] < (p.noGo ?? 1.0) ? 'NO-GO' : 'REVIEW',
         ]);
       }
@@ -435,7 +483,7 @@ export async function generateAcReport({ run, wellName = '', designLabel = '', g
   }
   doc.autoTable({
     startY: ladderY + 76,
-    head: [['Offset', 'Ref MD (m)', 'SF', 'C-C dist (m)', 'Level']],
+    head: [['Offset', `Ref MD (${U})`, 'SF', `C-C dist (${U})`, 'Level']],
     body: violations.length ? violations : [['No stations below the review threshold.', '', '', '', '']],
     styles: { fontSize: 6.5, cellPadding: 0.8 },
     headStyles: { fillColor: [127, 29, 29] },

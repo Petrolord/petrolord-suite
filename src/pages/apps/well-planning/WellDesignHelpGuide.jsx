@@ -557,9 +557,15 @@ const WellDesignHelpGuideContent = () => {
               />
               <SubHeading>The PPFG mud window</SubHeading>
               <Para>
-                With a bridged registry well carrying a published prognosis (PP, FP, OBG), toggle PPFG in the Section view:
-                curves hang on your trajectory by exact MD-to-TVD conversion, in MPa or EMW g/cc, with the safe window shaded
-                and the tightest window called out. Missing prerequisites are stated exactly.
+                Toggle PPFG in the Section view. Prognosis from picks the well whose published prognosis (PP, FP, OBG) the
+                window uses: this design's bridged registry well, hung on your trajectory by exact MD-to-TVD conversion, or
+                an offset registry well in the site's coordinate system, nearest first. A planned well has no logs to run Pore
+                Pressure Studio on, so the offset is the usual choice before drilling: its curves go to subsea depth through
+                its own survey and depth reference, and each pressure applies to your trajectory at the same TVDSS, with the
+                equivalent mud weight taken at your own TVD below KB. The window reads in ppg, g/cc or MPa, with the safe
+                window shaded, the tightest window called out and the casing seats picked bottom-up from your trip and kick
+                margins, at this trajectory's MD. The source line names the well and says when it is an offset. Missing
+                prerequisites are stated exactly.
               </Para>
             </Section>
 
@@ -617,7 +623,7 @@ const WellDesignHelpGuideContent = () => {
                   ['Design is locked', 'It is definitive or archived. Duplicate as revision from the tree.'],
                   ['Publish or reports disabled', 'Save the design first; deliverables read the saved cache.'],
                   ['No AC offset candidates', 'Other wellbores need saved designs; registry wells need a deviation in the site CRS.'],
-                  ['PPFG panel empty', 'Publish the design, run Pore Pressure Studio on the published well, publish its curves.'],
+                  ['PPFG panel empty', 'Run Pore Pressure Studio on a nearby registry well (or on this design once published and logged) and publish its PP and FP curves, then pick it under Prognosis from.'],
                   ['3D unavailable', 'No WebGL2 in this browser session; use a local browser.'],
                   ['Solver says infeasible', 'The constraint that failed is named; adjust rate, kickoff or target.'],
                   ['Survey paste rejected', 'The line number is named; MD must increase, inclination 0 to 180, 2+ stations.'],
