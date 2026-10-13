@@ -36,15 +36,20 @@ export default function AreaDepthPanel() {
     const top = state.surfaces?.[state.inputs.topSurfaceId];
     if (!top) { setMsg({ error: true, lines: ['Select a top surface in the Surf tab first; the table is measured from it.'] }); return; }
     const settings = effectiveGridding(state.gridding, loadSettings());
+    // a base surface chosen in the Surf tab gives the base areas (the
+    // table then holds the same rock as the Surfaces method); otherwise the
+    // gross thickness below the top sets the base
+    const base = state.inputs.baseSurfaceId ? state.surfaces?.[state.inputs.baseSurfaceId] : null;
     const res = ContactVolumetricsEngine.areaDepthTable({
-      topSurface: top, constantThickness: parseFloat(state.inputs.thickness), unitSystem: state.unitSystem,
+      topSurface: top, ...(base ? { baseSurface: base } : { constantThickness: parseFloat(state.inputs.thickness) }), unitSystem: state.unitSystem,
       options: { resolution: settings.gridResolution, interpolation: settings.interpolationMethod },
     }, 40);
     if (res.error) { setMsg({ error: true, lines: [res.error] }); return; }
     const t = ['depth,area_top,area_base', ...res.rows.map((r) => `${+r.depth.toFixed(3)},${+r.areaTop.toPrecision(8)},${+r.areaBase.toPrecision(8)}`)].join('\n');
     setText(t);
     updateInputs({ areaDepth: { ...(ad || {}), rows: res.rows, text: t } });
-    setMsg({ error: false, lines: [`Measured ${res.rows.length} levels from "${top.name}" with the gross thickness as the base (${res.gridding === 'lattice' ? 'on the registry grid\'s own nodes' : `gridded by ${res.gridding}`}).`] });
+    const baseText = base ? `and "${base.name}" as the base` : 'with the gross thickness as the base';
+    setMsg({ error: false, lines: [`Measured ${res.rows.length} levels from "${top.name}" ${baseText} (${res.gridding === 'lattice' ? 'on the registry grid\'s own nodes' : `gridded by ${res.gridding}`}).`] });
   };
 
   const exportCsv = () => {

@@ -465,3 +465,13 @@ crest still showed the full 12.14 MM stb. The auto-calculation now also
 follows the active AOI, the AOIs and the surfaces. Found scripting the
 ReservoirCalc Pro lessons. Test: `__tests__/recalcOnAoiSurface.test.jsx`
 (negative control: fails without the new dependencies).
+## 2026-10-12: Area-depth "From the top surface" uses the base surface
+
+The Area-depth method's "From the top surface" measured the base areas from
+the gross thickness even when a base surface was chosen in the Surf tab,
+so the table held other rock than the Surfaces method on the same maps. It
+now measures the base areas from the chosen base surface (the message says
+which), and the table's volume matches the Surfaces volume; without a base
+surface it keeps the gross thickness. Test:
+`__tests__/areaDepthBaseSurface.test.jsx` (negative control: the thickness
+table misses by more than 10 percent on a thickening sand).
