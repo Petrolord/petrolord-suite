@@ -22,6 +22,18 @@ const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(`--${n}`);
 const arg = (n, d) => { const i = argv.indexOf(`--${n}`); return i > -1 ? argv[i + 1] : d; };
 
+// playlistItems.insert right after an upload sometimes answers 409 "The
+// operation was aborted" (seen on petro-01, 2026-10-13); YouTube's advice is
+// to retry with backoff.
+async function withRetry(fn, { tries = 4, waitMs = 5000 } = {}) {
+  for (let i = 1; ; i += 1) {
+    try { return await fn(); } catch (e) {
+      if (i >= tries || !/\((409|429|5\d\d)\)/.test(e.message)) throw e;
+      await new Promise((r) => setTimeout(r, waitMs * i));
+    }
+  }
+}
+
 async function findOrCreatePlaylist(yt, title, cache) {
   if (cache.has(title)) return cache.get(title);
   const mine = await yt.playlistsMine();
@@ -79,7 +91,7 @@ async function runTask({ task, employee, allowlist, db, yt, dryRun, force, playl
     if (p.playlist) {
       try {
         const pl = await findOrCreatePlaylist(yt, p.playlist, playlists);
-        await yt.playlistItemsInsert({ playlistId: pl.id, videoId: v.id });
+        await withRetry(() => yt.playlistItemsInsert({ playlistId: pl.id, videoId: v.id }));
         result.playlist_id = pl.id;
         if (pl.created) await db.logAction({ employee_id: employee.id, task_id: task.id, action: 'playlist_created', detail: { title: p.playlist, playlist_id: pl.id } });
       } catch (e) { extras.push(`playlist: ${e.message}`); }
