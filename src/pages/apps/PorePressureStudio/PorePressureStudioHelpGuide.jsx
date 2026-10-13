@@ -278,7 +278,7 @@ export default function PorePressureStudioHelpGuide() {
           window, the prognosis plot (the curves, the margin lines, the casing shoes and the measured points, drawn as
           vector lines on white with depth downward in the chosen depth frame) and the table with EMW in ppg. Save keeps the parameters, picks and calibration as your project and
           reopens the well next time. Well Design Studio's mud window reads the published curves in ppg or g/cc EMW
-          against its own trajectory TVD.
+          against its own trajectory TVD, on the well itself or, for a planned well, from this well as an offset at equal TVDSS.
         </Para>
       </GuideSection>
 
