@@ -22,10 +22,25 @@ const scaled = (v, unit) => {
 
 /** @param {{client?: object}} props the Supabase client (tests hand in their own) */
 export default function MbalCrossCheckNote({ client = defaultClient }) {
-  const { state, updateInputs, logEvent } = useReservoirCalc();
+  const { state, updateInputs, logEvent, loadProjects, loadProject } = useReservoirCalc();
   const [params] = useSearchParams();
   const id = params.get('mbalCase');
+  // the project the case's volumetric estimate was taken from (Material Balance sends it)
+  const projectId = params.get('rcpProject');
   const done = useRef(false);
+  const opened = useRef(false);
+  const [projectNote, setProjectNote] = useState(null);
+  useEffect(() => {
+    if (!id || !projectId || opened.current || !loadProjects || !loadProject) return;
+    opened.current = true;
+    if (state.project?.id === projectId) return;
+    loadProjects().then(() => setProjectNote('pending'));
+  }, [id, projectId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (projectNote !== 'pending') return;
+    const p = (state.projects || []).find((x) => x.id === projectId);
+    if (p) { loadProject(p); setProjectNote(null); } else setProjectNote('missing');
+  }, [projectNote, state.projects]); // eslint-disable-line react-hooks/exhaustive-deps
   const [rec, setRec] = useState(null);
   const [error, setError] = useState(null);
   useEffect(() => {
@@ -34,11 +49,19 @@ export default function MbalCrossCheckNote({ client = defaultClient }) {
     readMbalCase(client, id).then(({ record, error: e }) => {
       if (e) { setError(e); return; }
       setRec(record);
-      // kept with the project, so a saved project says what it was checked against
-      updateInputs?.({ mbalCheck: { contract: record.contract, case_id: record.case.id, case_name: record.case.name, run_id: record.run.id, ran_at: record.run.ran_at, quantity: record.in_place.quantity, value: record.in_place.value, unit: record.in_place.unit, read_at: record.read_at } });
-      logEvent?.('Material balance cross-check', `${record.case.name}, ${record.in_place.quantity} ${scaled(record.in_place.value, record.in_place.unit)}`);
     });
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // kept with the project, so a saved project says what it was checked against;
+  // written once the project the case names is open (loading it replaces the inputs)
+  const recorded = useRef(null);
+  useEffect(() => {
+    if (!rec || projectNote === 'pending' || (projectId && !opened.current)) return;
+    const key = state.project?.id ?? 'workspace';
+    if (recorded.current === key) return;
+    recorded.current = key;
+    updateInputs?.({ mbalCheck: { contract: rec.contract, case_id: rec.case.id, case_name: rec.case.name, run_id: rec.run.id, ran_at: rec.run.ran_at, quantity: rec.in_place.quantity, value: rec.in_place.value, unit: rec.in_place.unit, read_at: rec.read_at } });
+    logEvent?.('Material balance cross-check', `${rec.case.name}, ${rec.in_place.quantity} ${scaled(rec.in_place.value, rec.in_place.unit)}`);
+  }, [rec, projectNote, state.project?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!id) return null;
   if (error) {
     return <div data-testid="rcp-mbal-check" className="rounded border border-pl-warning-text/40 px-2 py-1.5 text-[11px] text-pl-warning-text flex-shrink-0">{error}</div>;
@@ -49,14 +72,23 @@ export default function MbalCrossCheckNote({ client = defaultClient }) {
   const gas = fluid === 'gas';
   const volumetric = results ? (gas ? results.giip : results.stooip) : null;
   const check = crossCheck(rec, { value: volumetric, unitSystem: state.unitSystem || 'field', fluid: gas ? 'gas' : 'oil' });
+  // a workspace that is not a saved project holds the sample inputs or unsaved
+  // ones: nothing the material balance can be fairly compared against
+  const saved = Boolean(state.project?.id);
+  const loading = projectNote === 'pending';
   return (
     <div data-testid="rcp-mbal-check" className="rounded border border-pl-border bg-pl-surface px-2 py-1.5 text-[11px] text-pl-text flex-shrink-0 space-y-0.5">
       <p className="font-semibold">Material balance cross-check</p>
       <p data-testid="rcp-mbal-check-values">
         {rec.in_place.quantity} by material balance {scaled(check.mbal, check.unit)}
-        {check.volumetric != null && check.sameFluid
+        {loading ? '. Opening the project its volumetric estimate came from.' : null}
+        {!loading && !saved && check.sameFluid
+          ? `. ${projectNote === 'missing' ? 'The project the case names is not readable from this account. ' : ''}This workspace is not a saved project, so it is not compared: open the saved project of this reservoir (Projects) to see the two side by side.`
+          : null}
+        {loading || !saved ? null : check.volumetric != null && check.sameFluid
           ? `; this project's deterministic volumetric ${gas ? 'GIIP' : 'STOIIP'} ${scaled(check.volumetric, check.unit)}; material balance ${check.differencePct >= 0 ? 'above' : 'below'} it by ${fmt(Math.abs(check.differencePct), 1)} percent.`
           : (check.sameFluid ? '. Run the deterministic case here to compare.' : `. This project is a ${fluid} case, so the volumes are not compared.`)}
+        {saved && !loading && check.sameFluid && check.volumetric != null ? ` Project: "${state.project.name}".` : null}
       </p>
       {provenanceLines(rec).map((l) => <p key={l} className="text-pl-muted">{l}</p>)}
       <p className="text-pl-muted">A material balance volume counts what the pressure history has seen connected; a volumetric one counts what the map holds. A volumetric value well above the material balance points at unconnected or undrained volume.</p>

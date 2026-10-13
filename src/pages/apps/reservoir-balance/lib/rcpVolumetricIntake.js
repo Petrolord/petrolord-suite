@@ -79,7 +79,7 @@ export function intakeVolumetric(row, option, { isGas, now = new Date().toISOStr
       volumetric_ogip_scf: isGas ? value : null,
       volumetric_estimate_source: text,
     },
-    handoff: { app: RCP_APP, record: `${row.project_name} (${row.id}), ${option.reservoir}`, value, at: now, text: `Taken from ${text}` },
+    handoff: { app: RCP_APP, record: `${row.project_name} (${row.id}), ${option.reservoir}`, project_id: row.id, reservoir: option.reservoir, value, at: now, text: `Taken from ${text}` },
   };
 }
 
@@ -98,6 +98,24 @@ export function volumetricBasis(caseData, study) {
       : `Edited in this app after the handoff. The handoff said: ${h.text} (${String(h.at).slice(0, 10)})`;
   }
   return caseData?.volumetric_estimate_source ? `Entered on the case: ${caseData.volumetric_estimate_source}` : 'Entered on the case, source not stated';
+}
+
+/**
+ * The ReservoirCalc Pro project the case's volumetric estimate was taken
+ * from, while the value on the case is still the one handed over (an edit
+ * after the handoff cuts the link). Handoffs saved before project_id was
+ * kept carry the id in their record text.
+ * @returns {?string} the saved_quickvol_projects id
+ */
+export function volumetricProjectId(caseData, study) {
+  const h = study?.handoffs?.volumetric;
+  if (h?.app !== RCP_APP) return null;
+  const isGas = caseData?.fluid_system === 'gas';
+  const value = Number(isGas ? caseData?.volumetric_ogip_scf : caseData?.volumetric_ooip_stb);
+  if (!(finite(h.value) && Number.isFinite(value) && Math.abs(h.value - value) <= 1e-6 * Math.max(1, Math.abs(h.value)))) return null;
+  if (typeof h.project_id === 'string' && h.project_id) return h.project_id;
+  const m = /\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)/i.exec(String(h.record ?? ''));
+  return m ? m[1] : null;
 }
 
 /** The saved projects the user can read (own and shared), newest first. */

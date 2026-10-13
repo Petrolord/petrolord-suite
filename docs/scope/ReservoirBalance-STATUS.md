@@ -873,3 +873,17 @@ Doc: `docs/upgrade/MaterialBalanceStudio-UPGRADE.md` (the twenty-four checks,
 - **2026-10-03 07:22 UTC: the owner deployed `calculate-mbal`** (`supabase functions deploy calculate-mbal --use-api`, version 24, ACTIVE; boots and validates). The U1 aquifer-flag fix (MBAL-U1-003) is live from then: a history match now reads the aquifer of the run config. Live cases with an aquifer model and the flag unset (DEMI, ochem new, WHYTE) need one rerun.
 - **U2 (branch `feat/mbal-u2`, engines PR #300):** injection in the balance (U2-002), the engine's own PVT table coverage warning (U2-006), Bo above the bubble point (U2-007, an S1 found on the way), excluded timesteps with reasons (U2-003), colleague editing under the check-out (U2-001), the `mbal-1` sender to ReservoirCalc Pro (U2-004), the ReservoirCalc Pro volumetric intake. Details and evidence: `docs/upgrade/MaterialBalanceStudio-UPGRADE.md`, "Step 2 build".
 - **Owed after U2 merges** (engine and function change): `supabase functions deploy calculate-mbal --use-api`. That deploy also carries the Fluid Systems U2 Z-factor change: `engines/fluid/blackOil.ts` is bundled into `calculate-mbal` (engines main 5ae5a80 = Fluid #299 + MBAL #300), so gas Z, Bg and every correlation-based gas term of a run move with it. Until then production keeps the U1 engine: no injection term, Boi at the bubble point for undersaturated cases without row PVT, no engine coverage warning, and the plain 500 message when a run is refused by the sharing rule.
+
+## 2026-10-13: the ReservoirCalc Pro cross-check opens the volumetric project (MBAL video programme)
+
+- **Defect:** "Cross-check in ReservoirCalc Pro" opened a fresh RCP workspace,
+  whose sample inputs (226.28 MMSTB) were then compared with the case: "material
+  balance below it by 94.6 percent".
+- **Fix:** a volumetric estimate taken from an RCP project keeps its
+  `project_id` in the handoff (`volumetricProjectId`, older handoffs read from
+  the record text; an edit after the handoff cuts the link). The button adds
+  `&rcpProject=<id>`; `MbalCrossCheckNote` opens that project, then compares,
+  names the project, and writes `mbalCheck` after the load (loading replaces
+  the inputs). A workspace that is not a saved project is never compared.
+- Tests: `mbalCaseSource.test.jsx` (unsaved workspace not compared; the
+  project opened by id, then compared and recorded), `rcpVolumetricIntake.test.js`.

@@ -6,6 +6,7 @@
  */
 import { SAVED_PROJECT_ROWS } from '@/pages/apps/ReservoirCalcPro/services/savedFixtures';
 import { volumetricOptions, intakeVolumetric, volumetricBasis } from '../rcpVolumetricIntake';
+import { volumetricProjectId } from '../rcpVolumetricIntake';
 import { STB_TO_M3 } from '@/lib/mbalCaseSource';
 import { runSample, reportArgs, SAMPLE_CASE_IDS, AT } from './mbalTestKit';
 import { buildMbalPdf } from '@/utils/mbalReportExport';
@@ -53,3 +54,20 @@ describe('in the report', () => {
   });
 });
 
+
+describe('the project the cross-check opens', () => {
+  const row = { id: '6f1c2d3e-0000-4000-8000-00000000abcd', project_name: 'Ekene booked', updated_at: '2026-10-13T06:00:00Z' };
+  const option = { key: 'main', reservoir: 'Reservoir 1', stooip_stb: 12139208, method: 'deterministic', unitSystem: 'field' };
+  test('a taken volume names its project; an edit after the handoff cuts the link', () => {
+    const got = intakeVolumetric(row, option, { isGas: false, now: '2026-10-13T07:00:00Z' });
+    expect(got.handoff.project_id).toBe(row.id);
+    const study = { handoffs: { volumetric: got.handoff } };
+    expect(volumetricProjectId({ fluid_system: 'oil', ...got.patch }, study)).toBe(row.id);
+    expect(volumetricProjectId({ fluid_system: 'oil', volumetric_ooip_stb: 13e6 }, study)).toBeNull();
+  });
+  test('a handoff saved before project_id was kept is read from its record text', () => {
+    const h = { app: 'ReservoirCalc Pro', record: `Ekene booked (${row.id}), Reservoir 1`, value: 12139208, at: '2026-10-03', text: 'Taken from ...' };
+    expect(volumetricProjectId({ fluid_system: 'oil', volumetric_ooip_stb: 12139208 }, { handoffs: { volumetric: h } })).toBe(row.id);
+    expect(volumetricProjectId({ fluid_system: 'oil', volumetric_ooip_stb: 12139208 }, { handoffs: {} })).toBeNull();
+  });
+});
