@@ -786,3 +786,18 @@ a per-user choice from the header toggle (beside Help).
   Tests: `__tests__/depthUnits.test.jsx` (feet round trips to the
   centimetre, with the metre path as negative control).
 - Not changed: the report pack PDFs still print metres.
+
+## 2026-10-13: depth below the pick (registry targets)
+
+- "From top" and "From surface" take a **Depth below the pick** in the
+  profile depth unit (default 0, negative is above). The target TVDSS is the
+  picked TVDSS plus the stand-off; the provenance keeps `below_pick_m` and
+  `picked_tvdss_m`, and "Refresh from source" re-runs the pick and applies the
+  same stand-off (`refreshTargetPatch`).
+- Test ids for storyboards and e2e: wd-pick-well, wd-pick-top,
+  wd-pick-surface, wd-pick-x, wd-pick-y, wd-pick-below, wd-pick-name,
+  wd-pick-create.
+- Kit check: the Ekene Oboro Sand top map reads 1877.36 m TVDSS at
+  402250 E 521750 N; 8 m below is T1 Oboro Sand, 1885.36 m.
+- Tests: `__tests__/targetStandoff.test.jsx` (5; refresh negative control:
+  the pick without the stand-off lands 8 m shallow).
