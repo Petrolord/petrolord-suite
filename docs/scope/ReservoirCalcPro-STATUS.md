@@ -455,3 +455,15 @@ closure note was the wrong one. Only the contacts the fluid system uses are
 clamped now (oil: OWC; oil with a gas cap and gas: both). Found on the Ekene
 seismic map while scripting the ReservoirCalc Pro lessons. Test:
 `__tests__/spillOilGoc.test.js` (negative control: the old clamp fails it).
+
+## 2026-10-12: the Monte Carlo panel reopens on the run's ranges
+
+The distributions lived in the panel's own state, so a remount (switching
+reservoir case, saving and reopening a project, a mode change) reset them to
+the defaults while the results on screen came from other ranges, and a
+re-run silently used the defaults. The panel now starts from what the run
+on screen recorded it sampled (`meta.inputs`, `distParamsFromRun` in
+`services/distributions.js`), with its correlations, seed and realisations;
+a run in another unit system is not read. Test:
+`__tests__/mcRangesRestored.test.jsx` (negative control: the old panel
+fails the restore test).
