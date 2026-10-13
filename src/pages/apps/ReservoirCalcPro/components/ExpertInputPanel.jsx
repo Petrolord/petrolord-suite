@@ -69,7 +69,10 @@ const ExpertInputPanel = () => {
         }
     }, [state.inputMethod]); 
 
-    // Auto-calculate deterministic baseline when inputs change in deterministic mode
+    // Auto-calculate deterministic baseline when inputs change in deterministic mode.
+    // The active AOI, the AOIs' polygons and the surfaces are inputs too: an
+    // AOI selected or cleared, or a surface read again by Refresh from source,
+    // left the previous volume on screen until Recalculate (2026-10-12).
     useEffect(() => {
         if (state.calcMethod === 'deterministic') {
             const timeout = setTimeout(() => {
@@ -77,7 +80,7 @@ const ExpertInputPanel = () => {
             }, 500); // debounce deterministic base case calculation
             return () => clearTimeout(timeout);
         }
-    }, [state.inputs, state.calcMethod, state.unitSystem, state.inputMethod, state.gridding]);
+    }, [state.inputs, state.calcMethod, state.unitSystem, state.inputMethod, state.gridding, state.activeAoiId, state.aois, state.surfaces]);
 
     const handleDetChange = (field, val) => updateInputs({ [field]: val });
     const handleFluidChange = (val) => updateInputs({ fluidType: val });

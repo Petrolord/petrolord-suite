@@ -456,6 +456,25 @@ clamped now (oil: OWC; oil with a gas cap and gas: both). Found on the Ekene
 seismic map while scripting the ReservoirCalc Pro lessons. Test:
 `__tests__/spillOilGoc.test.js` (negative control: the old clamp fails it).
 
+## 2026-10-12: the deterministic case follows AOIs and refreshed surfaces
+
+Selecting or clearing an area of interest, editing the AOIs, or a surface
+read again by Refresh from source (#1032) left the previous deterministic
+volume on screen until Recalculate was pressed: an AOI over half the Ekene
+crest still showed the full 12.14 MM stb. The auto-calculation now also
+follows the active AOI, the AOIs and the surfaces. Found scripting the
+ReservoirCalc Pro lessons. Test: `__tests__/recalcOnAoiSurface.test.jsx`
+(negative control: fails without the new dependencies).
+## 2026-10-12: Area-depth "From the top surface" uses the base surface
+
+The Area-depth method's "From the top surface" measured the base areas from
+the gross thickness even when a base surface was chosen in the Surf tab,
+so the table held other rock than the Surfaces method on the same maps. It
+now measures the base areas from the chosen base surface (the message says
+which), and the table's volume matches the Surfaces volume; without a base
+surface it keeps the gross thickness. Test:
+`__tests__/areaDepthBaseSurface.test.jsx` (negative control: the thickness
+table misses by more than 10 percent on a thickening sand).
 ## 2026-10-12: the reports name the surfaces
 
 The PDF reviewer block (deterministic and probabilistic) and the Tools
