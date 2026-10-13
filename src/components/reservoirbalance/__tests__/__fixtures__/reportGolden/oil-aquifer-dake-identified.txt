@@ -434,9 +434,7 @@ Figure 2. Campbell plot: F/Et against F
                   600
 
 
-
                   550
-
 
 
                   500
@@ -448,15 +446,16 @@ Figure 2. Campbell plot: F/Et against F
                   450
 
 
-
                   400
-
 
 
                   350
 
                             OOIP of this run 307.22 MMSTB
                   300
+
+
+                  250
                         0                                   50                  100                 150              200                       250
 
                                                                                       F (MMRB)
