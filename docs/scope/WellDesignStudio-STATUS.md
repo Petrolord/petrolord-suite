@@ -765,3 +765,18 @@ a per-user choice from the header toggle (beside Help).
 - No migration (provenance is the existing jsonb column). Tests:
   `__tests__/targetSourceFreshness.test.jsx` (4, negative control first).
 
+
+## 2026-10-13: Design toolbar fits, bottom hole labelled
+
+- The Design view toolbar (views, Targets/Offsets/DLS colour/PPFG,
+  Export, Publish) was an absolutely placed strip that scrolled sideways,
+  so at a 1440 px or 1280 px laptop width Export and Publish sat off the
+  right edge. It is now in the flow and wraps to a second row when it
+  needs to; the view switcher scrolls inside itself only at phone width
+  (no page sideways scroll at 390 px). The views below no longer reserve
+  a fixed 48 px for it.
+- The Bottom hole KPI reads "4.7198° N, 8.1186° E" (hemisphere letters,
+  S and W handled) instead of a bare "4.7198, 8.1186"; "Set well CRS" is
+  unchanged. Tests: `__tests__/trajectoryKpis.test.jsx` (formatter, KPI,
+  negative control) and a toolbar case in `WellDesignStudio.theme.test.jsx`
+  (fails on the old toolbar).
