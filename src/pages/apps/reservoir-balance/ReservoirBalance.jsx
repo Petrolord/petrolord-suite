@@ -65,6 +65,7 @@ import { driveIndexDefs, inPlaceOf, buildRunRows, runHasInjection } from './lib/
 import { MBAL_OILFIELD_VIEW, MBAL_METRIC_VIEW, MBAL_UNIT_SPEC } from './lib/mbalUnits';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { pvtTableCoverage } from './lib/pvtSource';
+import { volumetricProjectId } from './lib/rcpVolumetricIntake';
 import { RecordSharingBar } from '@/components/recordSharing';
 import { MBAL_CONTRACT } from '@/lib/mbalCaseSource';
 import { eorScreeningHref } from '@/lib/eorScreeningLinks';
@@ -192,9 +193,11 @@ export const StaleRunNotice = () => {
 // ─── Run tab main area ───────────────────────────────────────────────────────
 const RunPanel = () => {
   const {
-    caseData, lastResult, lastRunConfig, running, handleRun, runStaleness, units, defaultCfg, series,
+    caseData, lastResult, lastRunConfig, running, handleRun, runStaleness, units, defaultCfg, series, study,
   } = useMaterialBalanceStudio();
   const ident = series?.identifiability;
+  // the ReservoirCalc Pro project the volumetric estimate came from: the cross-check opens it
+  const rcpProjectId = volumetricProjectId(caseData, study);
   const navigate = useNavigate();
   const location = useLocation();
   // what the next run would be made on: the PVT table of the case against its pressures
@@ -344,7 +347,7 @@ const RunPanel = () => {
 
             <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-pl-border pt-4" data-testid="mbal-send">
               <Button variant="outline" size="sm" disabled={stale}
-                onClick={() => navigate(`${RCP_CROSS_CHECK_PATH}?mbalCase=${encodeURIComponent(caseData.id)}`)}
+                onClick={() => navigate(`${RCP_CROSS_CHECK_PATH}?mbalCase=${encodeURIComponent(caseData.id)}${rcpProjectId ? `&rcpProject=${encodeURIComponent(rcpProjectId)}` : ''}`)}
                 data-testid="mbal-send-rcp">
                 Cross-check in ReservoirCalc Pro
               </Button>
@@ -357,7 +360,7 @@ const RunPanel = () => {
               <p className="text-[11px] text-pl-muted min-w-0 flex-1">
                 {stale
                   ? 'Run the case again first: only the run of the current inputs is sent.'
-                  : `ReservoirCalc Pro reads this case by its id (contract ${MBAL_CONTRACT}): the ${isGas ? 'gas' : 'oil'} in place with its method and run, the drive mechanism and the last average pressure, and prints them beside its volumetric result.${isGas ? '' : ' EOR Screening reads the OOIP and the last average pressure of the same run by id.'}`}
+                  : `ReservoirCalc Pro reads this case by its id (contract ${MBAL_CONTRACT}): the ${isGas ? 'gas' : 'oil'} in place with its method and run, the drive mechanism and the last average pressure, and prints them beside its volumetric result${rcpProjectId ? ', opening the project the volumetric estimate of this case came from' : ''}.${isGas ? '' : ' EOR Screening reads the OOIP and the last average pressure of the same run by id.'}`}
               </p>
             </div>
 

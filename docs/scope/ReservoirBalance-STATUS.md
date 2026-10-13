@@ -907,6 +907,26 @@ Doc: `docs/upgrade/MaterialBalanceStudio-UPGRADE.md` (the twenty-four checks,
 - **Gate:** `lib/__tests__/mbalLevelAxis.test.js` (a real engine run of
   Ahmed 11-3; negative control on the Ekene numbers without the band).
 
+## 2026-10-13: the PVT tab says when the data rows carry their own PVT (MBAL video programme)
+
+- With PVT source "Correlated" the tab said "Engine computes PVT from the
+  selected correlations" and previewed a Standing table (Rs 468 scf/STB at
+  2,000 psia on Ekene) while the engine used the Bo and Rs on every data row
+  (Rs 400). The note `mbal-pvt-rows-first` now says the rows come first and
+  the preview is not the PVT of the run. Tests in `mbalInputsU1.test.jsx`.
+## 2026-10-13: the ReservoirCalc Pro cross-check opens the volumetric project (MBAL video programme)
+
+- **Defect:** "Cross-check in ReservoirCalc Pro" opened a fresh RCP workspace,
+  whose sample inputs (226.28 MMSTB) were then compared with the case: "material
+  balance below it by 94.6 percent".
+- **Fix:** a volumetric estimate taken from an RCP project keeps its
+  `project_id` in the handoff (`volumetricProjectId`, older handoffs read from
+  the record text; an edit after the handoff cuts the link). The button adds
+  `&rcpProject=<id>`; `MbalCrossCheckNote` opens that project, then compares,
+  names the project, and writes `mbalCheck` after the load (loading replaces
+  the inputs). A workspace that is not a saved project is never compared.
+- Tests: `mbalCaseSource.test.jsx` (unsaved workspace not compared; the
+  project opened by id, then compared and recorded), `rcpVolumetricIntake.test.js`.
 ## 2026-10-13: a pot aquifer the data cannot see is flagged (MBAL video programme)
 
 - **Defect:** above the bubble point the pot influx (cw + cf) W dp and the
