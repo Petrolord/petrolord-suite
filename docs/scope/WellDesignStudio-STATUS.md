@@ -765,3 +765,16 @@ a per-user choice from the header toggle (beside Help).
 - No migration (provenance is the existing jsonb column). Tests:
   `__tests__/targetSourceFreshness.test.jsx` (4, negative control first).
 
+
+## 2026-10-13: 3D view in the wellbore's depth unit
+
+- The Design tab 3D view labelled the TD in metres ("TD 2003m") and ticked the
+  TVDSS axis in metres on a feet wellbore. `services/wpMesh.js` `buildScene`
+  now takes `depthUnit` (DesignTab passes the wellbore's): the TD label reads
+  "TD 6,573 ft MD" and the TVDSS ticks are round feet at their true depth; a
+  "TVDSS ft" (or "TVDSS m") caption sits under the axis. Easting and northing
+  ticks stay in site-CRS metres. The metre scene is unchanged.
+- A TD label that sat on its target's label (a well drilled to its target)
+  is moved 12 px below it.
+- Tests: `__tests__/wpMeshDepthUnit.test.js` (feet labels and ticks, metre
+  negative control, label clash), `wpMesh.test.js` axis set.
