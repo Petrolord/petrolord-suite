@@ -13,7 +13,7 @@ export default {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
     await login(d.page, shared.baseUrl, shared.env);
     await deleteCases(d, shared, /^Lesson A3/);
-    await seedCase(d, shared, 'Lesson A3: Ekene', { pvt: { api: null, salinity: null, cf: null, cw: null }, run: false });
+    await seedCase(d, shared, 'Lesson A3: Ekene', { pvt: { api: '32', salinity: '35000', cf: null, cw: null }, run: false });
     await d.click(tab(d, 'PVT'));
     await t(d, 'mbal-pvt-cf').waitFor({ timeout: 60000 });
     await d.sleep(1500);
@@ -37,12 +37,14 @@ export default {
         await d.unhighlight();
       } },
     { id: 'preview', chapter: 'What the correlations say', chapterSub: 'Standing at the bubble point',
-      say: 'The preview shows what the selected correlations would give. Standing puts the solution gas at four hundred and sixty eight standard cubic feet per barrel above the bubble point, where the Ekene lab measured four hundred. Had the rows carried no PVT, the balance would have run on these numbers instead. That is why measured PVT belongs on the rows or in the table.',
+      say: 'Recalculate, and the preview shows what the selected correlations give. For the Ekene oil, thirty two degrees API, Standing puts the solution gas at four hundred and twenty two standard cubic feet per barrel above the bubble point, where the Ekene lab measured four hundred. Had the rows carried no PVT, the balance would have run on these numbers instead. That is why measured PVT belongs on the rows or in the table.',
       do: async (d) => {
         const table = d.page.getByText('PVT PREVIEW TABLE', { exact: false }).first().locator('xpath=ancestor::div[contains(@class,"space-y") or contains(@class,"rounded")][1]');
+        await d.click(d.page.getByRole('button', { name: /Recalculate PVT Table/ }));
+        await d.sleep(1500);
         await table.evaluate((e) => e.scrollIntoView({ behavior: 'smooth', block: 'center' }));
         await d.sleep(1200);
-        await expectText(d, d.page.locator('main').last(), /2052\s*1\.2758\s*468/, 'Standing Rs above Pb');
+        await expectText(d, d.page.locator('main').last(), /2052\s*1\.2506\s*422/, 'Standing Rs above Pb');
         await d.highlight(d.page.getByText('2052', { exact: true }).first().locator('xpath=ancestor::tr[1]'));
         await d.sleep(5000);
         await d.unhighlight();
@@ -70,12 +72,12 @@ export default {
         await d.sleep(800);
       } },
     { id: 'rock', chapter: 'Rock and water', chapterSub: 'The compressibilities',
-      say: 'Last, the rock and water compressibilities. Left blank, the engine uses its defaults, shown in grey. For Ekene: four millionths per psi for the rock, measured on core, and three for the water, with the oil gravity and the salinity. Save, and the next run uses them.',
+      say: 'Last, the rock and water compressibilities. Left blank, the engine uses its defaults, shown in grey. For Ekene: four millionths per psi for the rock, measured on core, and three for the water. Save, and the next run uses them.',
       do: async (d) => {
         const cf = t(d, 'mbal-pvt-cf');
         await cf.evaluate((e) => e.scrollIntoView({ behavior: 'smooth', block: 'center' }));
         await d.sleep(1000);
-        await setPvt(d, {}, { onCamera: true });
+        await setPvt(d, { api: null, salinity: null }, { onCamera: true });
       } },
     { id: 'next', chapter: 'Next', chapterSub: 'The straight line',
       say: 'Next, the run, and the straight line of Havlena and Odeh.',

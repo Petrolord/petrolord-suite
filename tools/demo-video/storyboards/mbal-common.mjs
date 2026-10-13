@@ -104,7 +104,9 @@ export async function saveData(d, { onCamera = false } = {}) {
 export async function setPvt(d, { api = EKENE.api, salinity = EKENE.salinity, cf = EKENE.cf, cw = EKENE.cw, sg = null, m = null } = {}, { onCamera = false } = {}) {
   await act(d, onCamera).click(tab(d, 'PVT'));
   await t(d, 'mbal-pvt-cf').waitFor({ timeout: 60000 });
-  await d.sleep(1200);
+  // the tab loads the saved config after it mounts; typing before that is overwritten
+  await d.page.getByText(/PVT preview table/i).first().waitFor({ timeout: 60000 }).catch(() => {});
+  await d.sleep(onCamera ? 1200 : 2500);
   if (api != null) await typeUnit(d, 'mbal-pvt-api', api, onCamera);
   if (sg != null) await typeUnit(d, 'mbal-pvt-sg', sg, onCamera);
   if (salinity != null) await typeUnit(d, 'mbal-pvt-salinity', salinity, onCamera);
@@ -121,6 +123,11 @@ export async function setPvt(d, { api = EKENE.api, salinity = EKENE.salinity, cf
     await t(d, 'mbal-pvt-save').waitFor({ state: 'detached', timeout: 30000 }).catch(() => {});
   }
   await d.sleep(1200);
+  if (api != null) {
+    const f = (await unitInput(d, 'mbal-pvt-api').count()) ? unitInput(d, 'mbal-pvt-api') : t(d, 'mbal-pvt-api');
+    const v = await f.inputValue().catch(() => '');
+    if (Number(v) !== Number(api)) throw new Error(`PVT tab: oil gravity reads "${v}" after save, typed ${api}`);
+  }
 }
 
 /** Aquifer tab, Model: pick a model by its label and Save. */

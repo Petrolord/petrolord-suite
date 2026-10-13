@@ -28,8 +28,8 @@ export default {
         await d.unhighlight();
       } },
     { id: 'paste', chapter: 'A pasted table', chapterSub: 'Gauge pressure and semicolons',
-      say: 'Paste a table first, to see the door at work. These columns are split by semicolons, and the pressure is in psig. The door reads the unit from the header and adds the atmospheric pressure, so three thousand one hundred and eighty five point three psig becomes three thousand two hundred psia.',
-      sub: 'Paste a table first, to see the door at work. These columns are split by semicolons, and the pressure is in psig. The door reads the unit from the header and adds the atmospheric pressure, so 3,185.3 psig becomes 3,200 psia.',
+      say: 'Paste a table first, to see the door at work. These columns are split by semicolons, and the pressure is in psig. The door reads the unit from the header and adds the atmospheric pressure, so three thousand one hundred and eighty five point three psig becomes three thousand two hundred psia, as the saved table shows.',
+      sub: 'Paste a table first, to see the door at work. These columns are split by semicolons, and the pressure is in psig. The door reads the unit from the header and adds the atmospheric pressure, so 3,185.3 psig becomes 3,200 psia, as the saved table shows.',
       do: async (d) => {
         await d.click('mbal-data-paste-toggle');
         await d.sleep(600);
@@ -45,11 +45,17 @@ export default {
         await d.highlight(t(d, 'mbal-import-counts'));
         await d.sleep(2000);
         await d.unhighlight();
-        await d.click(d.page.getByRole('button', { name: 'Discard' }));
+        await saveData(d, { onCamera: true });
+        const table = t(d, 'mbal-data-table');
+        await expectText(d, table, /2020-01-01\s*3,200\.0/, 'psig to psia');
+        await table.evaluate((e) => e.scrollIntoView({ behavior: 'smooth', block: 'center' }));
         await d.sleep(800);
+        await d.highlight(table.locator('tbody tr').first());
+        await d.sleep(2500);
+        await d.unhighlight();
       } },
     { id: 'file', chapter: 'The tank history', chapterSub: 'Each column found by its name',
-      say: 'Now the kit\'s tank history. Each column is found by its name, in any order, and each unit is read from its header: psia, stock tank barrels, standard cubic feet. Any column can be placed by hand from the list beside it. Nothing is saved yet.',
+      say: 'Now the kit\'s tank history, which replaces those rows. Each column is found by its name, in any order, and each unit is read from its header: psia, stock tank barrels, standard cubic feet. Any column can be placed by hand from the list beside it. Nothing is saved yet.',
       do: async (d) => {
         await dropFile(d, TANK, { onCamera: true });
         await expectText(d, 'mbal-pending-status', /^7 rows read\. Ready to save\.$/, 'rows read');
