@@ -14,7 +14,7 @@
 --   3. a seat on each of those apps for demo@petrolord.com.
 -- No structure change. Idempotent (an existing module row, app row or seat
 -- is skipped). Refuses if the demo account, the Drilling module or Well
--- Design Studio is missing.
+-- Design Studio (catalogue slug well-planning) is missing.
 
 do $$
 declare
@@ -36,8 +36,8 @@ begin
     raise exception 'No module with slug drilling.';
   end if;
   if not exists (select 1 from public.master_apps
-                  where slug = 'well-design-studio' and module_id = v_mod.id and status = 'Active' and is_built) then
-    raise exception 'well-design-studio is not a built, Active app in the Drilling module.';
+                  where slug = 'well-planning' and module_id = v_mod.id and status = 'Active' and is_built) then
+    raise exception 'Well Design Studio (slug well-planning) is not a built, Active app in the Drilling module.';
   end if;
 
   if not exists (select 1 from public.purchased_modules
