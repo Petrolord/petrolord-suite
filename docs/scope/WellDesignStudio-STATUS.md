@@ -801,3 +801,15 @@ a per-user choice from the header toggle (beside Help).
   402250 E 521750 N; 8 m below is T1 Oboro Sand, 1885.36 m.
 - Tests: `__tests__/targetStandoff.test.jsx` (5; refresh negative control:
   the pick without the stand-off lands 8 m shallow).
+
+## 2026-10-13: target source words and what a refresh does
+
+Found in the video dry run. The Source column showed the raw provenance code
+(`geo_surface`); it now reads "Surface: WDS demo: Oboro Sand top, 26.2 ft
+below", "Top: Oboro Sand in Ekene-8" or "Typed" (CSV too). The "Registry source
+changed" notice now says what Refresh from source would do, read with the same
+pick the refresh runs: "Refreshing moves T3 from 4,987.2 to 5,004.4 ft TVDSS
+(17.2 ft deeper)" (the shared notice takes an optional `effect` line per item).
+Settings and datum fields shown in feet round to 2 decimals (0.5 m showed as
+1.6404 ft); the stored metres change only when the user types. Tests:
+`__tests__/targetSourceDetail.test.jsx`.
