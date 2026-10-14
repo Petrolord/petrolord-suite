@@ -50,6 +50,7 @@ import { pickShaleLog, normalizeShaleIndicator } from '../services/shalePicks';
 import { fitTarget, fitToCalibration, calibrateFracToLot } from '../services/calibrate';
 import { datumToMudline } from '../services/alongHole';
 import { comparesTo } from '../services/calibrationImport';
+import { mudWeightEvidence } from '../services/mudWeightEvidence';
 import {
   UNITS_KEY, PRESSURE_UNITS, DEPTH_UNITS, readUnits, depthFromDisplay, tidyDepth,
   fmtPressure, fmtDepth, emwReferenceDepthM, emwDatumLabel, isEmw, prognosisCsv,
@@ -355,6 +356,9 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   mapperRef.current = mapper;
   const zRef = (zBml) => `${fmtDepth(mapper.fromBml(zBml), units.depth)} ${units.depth} ${refShort(mapper.key)}`;
   const computeError = input?.error || profile?.error || null;
+  // 2026-10-14: imported mud weights checked against the prognosis
+  const mwEvidence = useMemo(() => (result && input ? mudWeightEvidence({ calibration, zBmlM: input.zBmlM, result, params, fmtZ: zRef }) : null),
+    [result, input, calibration, params, mapper, units.depth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 2026-10-14: is the open prognosis the published one?
   const publishCmp = useMemo(() => {
@@ -505,6 +509,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     kbM: !seismicModel && selected ? refElevOrNull(selected) : null,
     mudlineMdM: params.mudlineMdM,
     waterDepthM: params.waterDepthM,
+    // 2026-10-14: a file naming several wells imports the rows of this one
+    wellName: !seismicModel && selected ? selected.name : null,
   }), [seismicModel, selected, params.mudlineMdM, params.waterDepthM]);
   // Wellsite Studio U2-008: the mud weights a live well published to this registry well (ECD where
   // logged, otherwise mud weight in) as a table for the calibration door, with what else it published
@@ -889,6 +895,11 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
             </span>
           </div>
         )
+      )}
+      {mwEvidence && mwEvidence.lines.length > 0 && (
+        <div className={`text-[11px] px-1 ${mwEvidence.tone === 'warn' ? 'text-pl-warning-text' : 'text-pl-text'}`} data-testid="pp-mw-evidence" data-tone={mwEvidence.tone}>
+          {mwEvidence.lines.join(' ')}
+        </div>
       )}
       {((target && ppPoints > 0) || lotPoints > 0) && (
         <div className="px-1 flex gap-2">

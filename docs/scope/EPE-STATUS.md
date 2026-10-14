@@ -150,6 +150,23 @@ it takes feet and states the stored value ("Stored as 34.99 m: the PIA sorts
 terrain by water depth in metres."). The config and the engine keep metres
 (`pia_water_depth_m`). Component `EpeWaterDepthField.jsx`, tests
 `epeWaterDepth.test.jsx`.
+## 2026-10-14: a run says when the case data changed after it (video programme)
+
+For the data governance story in the EPE demo videos. The Run Console now
+stores, on the epe_runs row, `parameters.inputs`: the input files the run
+priced (the production files of its scenario, every CAPEX and OPEX file) as
+`{ table, id, file_name, created_at, scenario_label }`. The Results Viewer
+compares that list with the case's files now and, when a file was replaced,
+added or removed, shows "The case data changed after this run:" with one line
+per slot (for example "Production: ekene-production-2p.csv was replaced by
+FSH - Ekene-11 low.generated.") and "Re-run to price the current data." with a
+Re-run with edits link (testid `epe-run-inputs-changed`). Run History marks
+such runs "Out of date" (testid `epe-run-out-of-date`). A run saved before
+this change falls back to dates (a file uploaded after the run is named);
+otherwise nothing is claimed. Logic: `src/pages/apps/epe/epeRunInputs.js`.
+Tests: `epeRunInputs.test.js` (replaced, added, removed, unchanged, other
+scenario, legacy dates) and `epeRunInputs.mount.test.jsx` (banner; fails on
+the old viewer). No migration, no engine or Edge Function change.
 ## 2026-10-13: refresh one received file from its source (video programme)
 
 A production file received from Forecast Scenario Hub, Decline Curve
