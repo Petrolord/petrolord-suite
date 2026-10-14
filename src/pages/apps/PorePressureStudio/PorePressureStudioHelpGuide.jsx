@@ -261,7 +261,22 @@ export default function PorePressureStudioHelpGuide() {
           is assumed. MD goes through the well's survey, TVDSS through its KB, a mud weight converts at the TVD below
           the rotary table. Rows with a -999 null, text or a depth above the mudline are listed with the reason.
           Pressure points and kicks are compared with the pore pressure, LOT, FIT and XLOT with the fracture pressure
-          (a FIT is a lower bound), and mud weights are drawn as a step line. Spreadsheets are saved as CSV first.
+          (a FIT is a lower bound), and mud weights are drawn as a step line. An Excel workbook is read from its first
+          sheet.
+        </Para>
+        <Para>
+          Headers written in snake_case with the unit as the last word (md_m, shoe_md_m, pressure_psia, emw_ppg,
+          mud_weight_ppg) are read for the column, its unit and its depth reference, so a file like the Ekene kit's
+          imports with nothing left to declare. A file that names several wells shows Rows for well, set to the well
+          you have open when its name contains one of them; the other wells' rows are listed as skipped. A from and to
+          depth pair is a mud weight held over that interval, drawn over it. An outcome column that says a mud weight
+          took an influx makes it a mud weight that took an influx (a red triangle, at the depth the outcome names or
+          at the interval base); losses make it a mud weight with losses (a blue cross).
+        </Para>
+        <Para>
+          Under the casing seats, a line checks the mud weights against the prognosis in ppg: the weights that held
+          should sit above the pore pressure over their intervals, and a weight that took an influx should sit below
+          it at the influx depth. The line says which ones the prognosis explains and where it may read high.
         </Para>
       </GuideSection>
 
@@ -308,6 +323,15 @@ export default function PorePressureStudioHelpGuide() {
           vector lines on white with depth downward in the chosen depth frame) and the table with EMW in ppg. Save keeps the parameters, picks and calibration as your project and
           reopens the well next time. Well Design Studio's mud window reads the published curves in ppg or g/cc EMW
           against its own trajectory TVD, on the well itself or, for a planned well, from this well as an offset at equal TVDSS.
+        </Para>
+        <SubHeading>Is the published prognosis the one open here?</SubHeading>
+        <Para>
+          The readers (Well Design Studio, Casing and Tubing, Hydraulics, Geomechanics) read what is published, never
+          your open project. Beside Publish a chip says where you stand on the selected well: Not published; Published,
+          matches (the curves on the well are the prognosis open here, sample by sample); or Unpublished changes, with
+          the largest difference in ppg. The notes line gives the curve and the depth of that difference and when the
+          published one was written. After a recalibration the chip turns to Unpublished changes until you publish,
+          so nobody downstream is left on the old prognosis without it being said.
         </Para>
       </GuideSection>
 

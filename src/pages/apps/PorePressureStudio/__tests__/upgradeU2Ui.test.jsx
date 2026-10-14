@@ -84,6 +84,40 @@ describe('U2-002 the calibration import door', () => {
   });
 });
 
+describe('2026-10-14 mud weights with intervals and outcomes, checked against the prognosis', () => {
+  test('a snake_case table imports with nothing to declare; the influx is drawn and checked', async () => {
+    mount();
+    await ready();
+    fireEvent.change(screen.getByTestId('pp-unit-pressure'), { target: { value: 'ppg' } });
+    fireEvent.click(screen.getByTestId('pp-cal-import-open'));
+    fireEvent.change(screen.getByTestId('pp-cal-import-paste'), { target: { value: 'from_md_m,to_md_m,mud_weight_ppg,note,outcome\n500,1500,9.0,top hole,held\n1500,2500,9.4,,held\n2500,2600,8.0,attempt,"FAILED: influx at 2550 m, circulated out"\n' } });
+    fireEvent.click(screen.getByTestId('pp-cal-import-read'));
+    expect(screen.queryByTestId('pp-cal-import-missing')).toBeNull();
+    expect(screen.getByTestId('pp-cal-basecol')).toHaveValue('1');
+    expect(screen.getByTestId('pp-cal-outcomecol')).toHaveValue('4');
+    expect(screen.getByTestId('pp-cal-import-preview')).toHaveTextContent('2 mud weights held over intervals, 1 mud weight that took an influx read');
+    expect(screen.getByTestId('pp-cal-import-add')).toHaveTextContent('Add 3 rows');
+    fireEvent.click(screen.getByTestId('pp-cal-import-add'));
+    await waitFor(() => expect(screen.getByTestId('pp-cal-imported')).toHaveTextContent(/2 Mud weight used, 1 Mud weight that took an influx from pasted table/));
+    expect(screen.getByTestId('pp-prognosis-chart')).toHaveAttribute('data-mwk', '1');
+    expect(screen.getByTestId('pp-prognosis-chart')).toHaveAttribute('data-mw', '4');
+    expect(screen.getByTestId('pp-mw-evidence')).toHaveTextContent(/8\.00 ppg took an influx at .* where the prognosis puts the pore pressure at \d+\.\d\d ppg: consistent\./);
+    expect(screen.getByTestId('pp-mw-evidence')).toHaveTextContent(/^Mud weights that held: 2/);
+    expect(screen.getByTestId('pp-note-mw')).toHaveTextContent('Mud weights used: 3 drawn for comparison.');
+  });
+  test('a file naming several wells asks whose rows, and skips the others with the reason', async () => {
+    mount();
+    await ready();
+    fireEvent.click(screen.getByTestId('pp-cal-import-open'));
+    fireEvent.change(screen.getByTestId('pp-cal-import-paste'), { target: { value: 'well,md_m,pressure_psia,test_type\nOTHER-1,2000,3000,MDT pretest\nOTHER-2,2100,3100,MDT pretest\n' } });
+    fireEvent.click(screen.getByTestId('pp-cal-import-read'));
+    expect(screen.getByTestId('pp-cal-import-missing')).toHaveTextContent(/choose whose rows to import/);
+    fireEvent.change(screen.getByTestId('pp-cal-well'), { target: { value: 'OTHER-2' } });
+    expect(screen.getByTestId('pp-cal-import-preview')).toHaveTextContent('1 pressure point read');
+    expect(screen.getByTestId('pp-cal-import-skipped')).toHaveTextContent('another well (OTHER-1)');
+  });
+});
+
 describe('U2-004 the depth frame in the ribbon', () => {
   test('TVDSS: the readout takes and shows TVDSS; the same sample as below mudline', async () => {
     mount();
