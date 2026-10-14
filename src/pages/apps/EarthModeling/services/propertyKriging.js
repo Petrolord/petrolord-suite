@@ -143,7 +143,7 @@ export function populateZonePropertyOk(spec, labels, pointsByBlock, allPoints, k
 
 /** One line per block for the QC panel. */
 export const METHOD_WORDS = Object.freeze({
-  constant: 'constant (weighted mean)', trend: 'trend (plane)', krige: 'simple kriging', okrige: 'ordinary kriging', none: 'no value', shm: 'saturation-height (SCAL Studio)', map: 'Petrophysics map',
+  constant: 'constant (weighted mean)', trend: 'trend (plane)', krige: 'simple kriging', okrige: 'ordinary kriging', none: 'no value', shm: 'saturation-height (SCAL Studio)', map: 'Petrophysics map', idw: 'inverse distance', typed: 'typed value',
 });
 
 /** Plain words for a property's population provenance (T1 EM-T1-007). */
@@ -152,8 +152,10 @@ export function describeProvenance(rows) {
     const vg = r.variogram
       ? `, ${r.variogram.model} variogram (range ${Math.round(r.variogram.range)} m, sill ${r.variogram.sill.toFixed(4)}${r.variogram.fitted ? ', fitted' : ''})`
       : '';
-    if (r.methodUsed === 'shm' || r.methodUsed === 'map') return `all blocks: ${METHOD_WORDS[r.methodUsed]}${r.note ? ` (${r.note})` : ''}`;
+    const lay = r.layer ? `layer ${r.layer} ` : '';
+    if (r.methodUsed === 'shm' || r.methodUsed === 'map') return `${lay}all blocks: ${METHOD_WORDS[r.methodUsed]}${r.note ? ` (${r.note})` : ''}`;
+    if (r.methodUsed === 'typed') return `${lay}block ${r.block}: typed value ${r.note}`;
     const well = `${r.wells} well${r.wells === 1 ? '' : 's'}`;
-    return `block ${r.block}: ${METHOD_WORDS[r.methodUsed] || r.methodUsed} from ${well}${vg}${r.fellBack ? ', fell back' : ''}${r.note ? ` (${r.note})` : ''}`;
+    return `${lay}block ${r.block}: ${METHOD_WORDS[r.methodUsed] || r.methodUsed} from ${well}${vg}${r.fellBack ? ', fell back' : ''}${r.note ? ` (${r.note})` : ''}`;
   }).join('; ');
 }

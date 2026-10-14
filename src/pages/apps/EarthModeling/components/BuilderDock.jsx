@@ -9,7 +9,7 @@ import { splitOwnAndShared } from '@/lib/recordSharing/rules';
 import React, { useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DERIVED_KINDS, describeDerived } from '../services/derivedSurfaces';
-import { POPULATION_METHODS, parseFluidsInput, BG_UNITS } from '../services/modelBuild';
+import { POPULATION_METHODS, parseFluidsInput, BG_UNITS, MAX_LAYERS } from '../services/modelBuild';
 import { VARIOGRAM_MODELS } from '../services/propertyKriging';
 import { mapKind } from '../services/propertyMaps';
 
@@ -166,8 +166,12 @@ export default function BuilderDock({
               <option value="">registry zone…</option>
               {zoneNames.map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
+            <input className={`${inCls} w-14 shrink-0`} type="number" min="1" max={MAX_LAYERS} step="1" data-testid={`em-layers-${i}`}
+              value={z.layers ?? 1} title="Proportional layers in the zone: each layer gets its own properties from the wells, and the volumes add up layer by layer"
+              onChange={(e) => patchZone(i, { layers: e.target.value })} />
           </div>
         ))}
+        {definition.zones.length > 0 && <p className="text-[10px] text-pl-muted">The number after each zone is its proportional layers (1 = the zone as one layer).</p>}
 
         <div className={secCls}>Fluid contacts and FVF (per zone)</div>
         <label className="flex items-center gap-1 text-pl-muted" title="The unit Bg is typed in from now on; values already typed keep the unit they were typed in">
@@ -238,6 +242,27 @@ export default function BuilderDock({
           );
         })}
 
+        <div className={secCls}>Rock properties from</div>
+        <select className={selCls} data-testid="em-control" value={definition.control || 'zones'}
+          title="Where each layer's porosity, NTG and Sw at the wells come from"
+          onChange={(e) => patch({ control: e.target.value })}>
+          <option value="zones">published zone averages (one per well)</option>
+          <option value="logs">the well logs, upscaled to each layer</option>
+        </select>
+        {definition.control === 'logs' && (
+          <div className="space-y-1 rounded border border-pl-border p-1.5" data-testid="em-cutoffs">
+            <div className="text-[10px] text-pl-muted">PHIE, VSH, SW and permeability as Petrophysics Studio published them. Net reservoir is rock with Vsh at most and porosity at least these; water is cut by the contact, so Sw counts only above the OWC.</div>
+            <div className="grid grid-cols-2 gap-1">
+              <label className="flex items-center gap-1 text-pl-muted">Vsh &le;
+                <input className={inCls} data-testid="em-cut-vsh" value={definition.cutoffs?.vsh ?? ''} placeholder="0.5"
+                  onChange={(e) => patch({ cutoffs: { ...(definition.cutoffs || {}), vsh: e.target.value } })} /></label>
+              <label className="flex items-center gap-1 text-pl-muted">PHIE &ge;
+                <input className={inCls} data-testid="em-cut-phi" value={definition.cutoffs?.phi ?? ''} placeholder="0.08"
+                  onChange={(e) => patch({ cutoffs: { ...(definition.cutoffs || {}), phi: e.target.value } })} /></label>
+            </div>
+          </div>
+        )}
+
         <div className={secCls}>Population method</div>
         {['phi', 'sw', 'ntg'].map((prop) => (
           <div key={prop} className="flex items-center gap-1">
@@ -249,6 +274,27 @@ export default function BuilderDock({
           </div>
         ))}
         <p className="text-[10px] text-pl-muted">Per fault block; short blocks fall back kriging to trend to constant (recorded in QC).</p>
+        {Object.values(definition.methods).includes('idw') && (
+          <label className="flex items-center gap-1 text-pl-muted" title="Weights fall as one over the distance to this power">
+            <span className="w-24">IDW power</span>
+            <input className={inCls} data-testid="em-idw-power" type="number" min="0.5" step="0.5" value={definition.idw?.power ?? 2}
+              onChange={(e) => patch({ idw: { ...(definition.idw || {}), power: e.target.value } })} />
+          </label>
+        )}
+        {['phi', 'sw', 'ntg'].some((p) => definition.methods[p] === 'typed') && (
+          <div className="space-y-1 rounded border border-pl-border p-1.5" data-testid="em-typed">
+            <div className="text-[10px] text-pl-muted">Typed values per zone (fractions), the same at every node: a booked case.</div>
+            {definition.zones.map((z, i) => (
+              <div key={`ty-${i}`} className="grid grid-cols-4 gap-1 items-center">
+                <span className="text-[10px] text-pl-muted truncate" title={z.name}>{z.name}</span>
+                {['phi', 'sw', 'ntg'].map((p) => (definition.methods[p] === 'typed' ? (
+                  <input key={p} className={inCls} data-testid={`em-typed-${p}-${i}`} value={z.typed?.[p] ?? ''} placeholder={p}
+                    onChange={(e) => patchZone(i, { typed: { ...(z.typed || {}), [p]: e.target.value } })} />
+                ) : <span key={p} />))}
+              </div>
+            ))}
+          </div>
+        )}
         {(definition.methods.ntg === 'map' || definition.methods.sw === 'map') && (
           <div className="space-y-1 rounded border border-pl-border p-1.5" data-testid="em-propmaps">
             <div className="text-[10px] text-pl-muted">Petrophysics maps per zone (Mapping grids the zone net pay and HCPV as attribute maps; pick the TVT keys). NTG = net pay / thickness; Sw = 1 - HCPV / (thickness x NTG x porosity).</div>

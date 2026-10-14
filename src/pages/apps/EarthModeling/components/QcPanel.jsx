@@ -7,6 +7,7 @@
 import React from 'react';
 import { describeTraps } from '../services/trapBound';
 import DistributionCard from './DistributionCard';
+import PropertyQc from './PropertyQc';
 import { fmtVolume, volumeUnitLabel, fmtDepth, fmtArea, areaUnitLabel } from '../services/units';
 import { describeProvenance } from '../services/propertyKriging';
 import { hasFluids } from '../services/modelBuild';
@@ -133,7 +134,7 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
       {built.zones.map((zone) => (
         <div className={card} key={zone.name}>
           <div className="px-2 py-1.5 text-xs font-semibold text-pl-text border-b border-pl-border">
-            {zone.name}: volumes and population provenance
+            {zone.name}: volumes and population provenance{zone.layers?.length > 1 ? ` (${zone.layers.length} proportional layers, volumes summed layer by layer)` : ''}
           </div>
           {Object.keys(zone.fluids?.blocks || {}).length > 0 && (
             <div className="px-2 py-1 text-[11px] text-pl-muted border-b border-pl-border" data-testid={`em-blockcontacts-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
@@ -227,6 +228,7 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
               </span>
             ))}
           </div>
+          <PropertyQc zone={zone} depthUnit={u} />
         </div>
       ))}
     </div>

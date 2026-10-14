@@ -291,3 +291,25 @@ exactly: GRV above the contact 18,058 acre-ft, HC area 418 acres, STOIIP
   the water was cut twice: the Ekene model read 2.8 MMstb (wet wells NTG 0).
 - Prospect to RCP sends the HC area (418 acres) with the column over it, so
   RCP's HC Area matches; it sent the whole zone's 497 acres before.
+
+## 2026-10-14: rock properties from the well logs, layers, IDW, typed values, property QC
+
+- **Rock properties from**: published zone averages (as before) or the well logs
+  upscaled to each layer (`services/logUpscale.js`): PHIE, VSH, SW and
+  permeability as Petrophysics published them; net reservoir by Vsh and PHIE
+  cutoffs; NTG net/gross in TVT; porosity over net; Sw over net above the OWC
+  (pore-volume weighted); permeability geometric mean. On Ekene the four wells
+  now all give porosity and NTG (the zone averages gave two), and NTG at every
+  well equals Petrophysics' published net reservoir over gross to 0.01.
+- **Proportional layers** per zone (1 to 50): each layer populated from its own
+  control, volumes summed layer by layer; map shows a layer or the zone;
+  GRDECL exports one cell layer per layer, with PERMX/PERMY from the logs and
+  PERMZ = 0.1 PERMX (said in the header).
+- **Methods**: inverse distance (power in the dock) and typed value per zone.
+  The booked Ekene case typed gives 12.14 MMstb with 1 or 7 layers.
+- **Property QC** under each zone: the upscaled logs per well and layer, the
+  model against the wells (difference), histograms with the wells marked.
+- Vertical wells with no survey now continue straight down past their last
+  station in the upscaler (positionAtMd clamps at the last station).
+Tests: `__tests__/logLayers.test.js` (analytic wells, deviated TVT weighting,
+Ekene vs Petrophysics NTG with a cutoff negative control, IDW, layers, GRDECL).
