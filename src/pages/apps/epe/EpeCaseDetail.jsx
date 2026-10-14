@@ -427,7 +427,7 @@ import EpeWsImport from '@/pages/apps/epe/EpeWsImport';
                           <div className="flex justify-end -mb-2 relative z-10 pr-2 pt-1">
                             <ScenarioChip label={f.scenario_label} />
                           </div>
-                          <EpeDataFileCard file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'production_volumes'})} onDelete={isOwner ? () => handleDeleteFile(f.id, 'epe_production_volumes', f.file_name) : undefined} processing={processingFileId === f.id} />
+                          <EpeDataFileCard file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'production_volumes'})} onDelete={isOwner ? () => handleDeleteFile(f.id, 'epe_production_volumes', f.file_name) : undefined} processing={processingFileId === f.id} onRefreshed={isOwner ? fetchData : undefined} />
                         </div>
                       ))}
                       {isOwner && (

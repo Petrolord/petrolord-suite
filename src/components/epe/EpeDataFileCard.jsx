@@ -19,6 +19,9 @@ import {
   FileSpreadsheet, Loader2, Trash2, Play, CheckCircle2, AlertCircle, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
+import { buildLabel } from '@/lib/platformBuild';
+import { REFRESH_LABEL, refreshHint, refreshRowsFor, replaceReceivedFile, receivedSourceOf } from '@/pages/apps/epe/epeFileRefresh';
 
 // ============================================================================
 // EpeDataFileCard
@@ -35,6 +38,10 @@ import { Button } from '@/components/ui/button';
 //   onProcess    — (file) => void       [process button]
 //   onDelete     — () => void           [delete button]
 //   processing   — boolean              [show spinner if currently processing]
+//   onRefreshed  — () => void           [owner only: a received file whose
+//                                        source changed gets a button that
+//                                        replaces this file alone, then this
+//                                        is called to reload the slot]
 // ============================================================================
 
 const formatDate = (iso) => {
@@ -92,7 +99,7 @@ const StatusBadge = ({ status, rowCount }) => {
   );
 };
 
-const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
+const EpeDataFileCard = ({ file, onProcess, onDelete, processing, onRefreshed }) => {
   const [expanded, setExpanded] = useState(false);
 
   const status = getStatus(file.data);
@@ -155,6 +162,41 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
       .catch((e) => { if (alive) setWsState({ state: 'unreadable', text: `The source could not be read: ${e.message}` }); });
     return () => { alive = false; };
   }, [wsP?.fingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Refresh from the source: replaces this file only (the slot's import
+  // dialog replaces every file of the scenario, or sums with the old one).
+  const { toast } = useToast();
+  const [refreshing, setRefreshing] = useState(false);
+  const received = status === 'PROCESSED' ? receivedSourceOf(file) : null;
+  const stateOf = { hub: hubState, dca: sourceState, wf: wfState, sim: simState, ws: wsState };
+  const kindState = received ? stateOf[received.kind] : null;
+  const canRefresh = Boolean(onRefreshed && kindState?.state === 'changed' && kindState.now);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const made = refreshRowsFor(file, kindState, { build: buildLabel() });
+      if (made.error) throw new Error(made.error);
+      const { data: { user } = {} } = await supabase.auth.getUser();
+      await replaceReceivedFile(supabase, file, made, user?.id);
+      toast({ title: 'File refreshed from its source', description: `"${made.fileName}" now holds the source's current volumes; the other files are unchanged.` });
+      onRefreshed();
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Refresh failed', description: e.message });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+  const refreshButton = canRefresh ? (
+    <div className="pt-1">
+      <Button size="sm" variant="outline" onClick={handleRefresh} disabled={refreshing || processing} data-testid="epe-file-refresh">
+        {refreshing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+        <span className="ml-1 text-xs">{refreshing ? 'Refreshing…' : REFRESH_LABEL[received.kind]}</span>
+      </Button>
+    </div>
+  ) : null;
+  // The line after a changed source: the button when it is offered, the
+  // import door otherwise (read-only views).
+  const changedTail = (kind, importLine) => (canRefresh && received?.kind === kind ? ` ${refreshHint(kind)}` : importLine);
+
   const previewCols = previewRows.length > 0 ? Object.keys(previewRows[0]).slice(0, 6) : [];
 
   return (
@@ -224,9 +266,10 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
           <p>{dcaProvenanceText(dca)}</p>
           {sourceState && (
             <p className={sourceState.state === 'unchanged' ? '' : 'text-pl-warning-text'} data-testid="epe-dca-source-state">
-              {sourceState.text}{sourceState.state === 'changed' ? ' Import it again from Decline Curve Analysis to take the new forecast.' : ''}
+              {sourceState.text}{sourceState.state === 'changed' ? changedTail('dca', ' Import it again from Decline Curve Analysis to take the new forecast.') : ''}
             </p>
           )}
+          {received?.kind === 'dca' && refreshButton}
         </div>
       )}
 
@@ -234,8 +277,11 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
         <div className="mt-2 rounded border border-pl-border bg-pl-sunken p-2 text-[11px] text-pl-muted space-y-1" data-testid="epe-hub-provenance">
           <p>{hubProvenanceText(hub)}</p>
           {hubState && (
-            <p className={hubState.state === 'unchanged' ? '' : 'text-pl-warning-text'} data-testid="epe-hub-source-state">{hubState.text}</p>
+            <p className={hubState.state === 'unchanged' ? '' : 'text-pl-warning-text'} data-testid="epe-hub-source-state">
+              {canRefresh ? hubState.text.replace(/ Import it again to take the new profile\.$/, '') : hubState.text}{hubState.state === 'changed' ? changedTail('hub', '') : ''}
+            </p>
           )}
+          {received?.kind === 'hub' && refreshButton}
         </div>
       )}
 
@@ -244,9 +290,10 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
           <p>{wfProvenanceText(wf)}</p>
           {wfState && (
             <p className={wfState.state === 'unchanged' ? '' : 'text-pl-warning-text'} data-testid="epe-wf-source-state">
-              {wfState.text}{wfState.state === 'changed' ? ' Import it again from Waterflood Design Studio to take the new forecast.' : ''}
+              {wfState.text}{wfState.state === 'changed' ? changedTail('wf', ' Import it again from Waterflood Design Studio to take the new forecast.') : ''}
             </p>
           )}
+          {received?.kind === 'wf' && refreshButton}
         </div>
       )}
 
@@ -255,9 +302,10 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
           <p>{wsProvenanceText(wsP)}</p>
           {wsState && (
             <p className={wsState.state === 'unchanged' ? '' : 'text-pl-warning-text'} data-testid="epe-ws-source-state">
-              {wsState.text}{wsState.state === 'changed' ? ' Import it again from Well Spacing Optimizer to take the new case.' : ''}
+              {wsState.text}{wsState.state === 'changed' ? changedTail('ws', ' Import it again from Well Spacing Optimizer to take the new case.') : ''}
             </p>
           )}
+          {received?.kind === 'ws' && refreshButton}
         </div>
       )}
 
@@ -266,9 +314,10 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
           <p>{simProvenanceText(simP)}</p>
           {simState && (
             <p className={simState.state === 'unchanged' ? '' : 'text-pl-warning-text'} data-testid="epe-sim-source-state">
-              {simState.text}{simState.state === 'changed' ? ' Import it again from Reservoir Simulation Studio to take the new run.' : ''}
+              {simState.text}{simState.state === 'changed' ? changedTail('sim', ' Import it again from Reservoir Simulation Studio to take the new run.') : ''}
             </p>
           )}
+          {received?.kind === 'sim' && refreshButton}
         </div>
       )}
 
