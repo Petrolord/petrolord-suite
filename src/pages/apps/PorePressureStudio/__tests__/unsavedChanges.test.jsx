@@ -48,3 +48,18 @@ test('a parameter change shows Unsaved changes, the browser asks before leaving,
   window.dispatchEvent(ev2);
   expect(ev2.defaultPrevented).toBe(false);
 });
+
+test('a new project (nothing saved) opening an offshore well whose datum supplies the water is not a change', async () => {
+  const b = makeInMemoryBackend();
+  const wells = await b.listWells();
+  const offshore = wells.map((w) => ({ ...w, well_environment: 'offshore', water_depth_m: 35, depth_ref_elev_m: 25, kb_m: 25 }));
+  const fresh = { ...b, async loadProject() { return null; }, async listWells() { return offshore; } };
+  render(<MemoryRouter><PPWorkstation backend={fresh} /></MemoryRouter>);
+  fireEvent.click(await screen.findByTestId('pp-well-row', {}, { timeout: 15000 }));
+  await waitFor(() => expect(screen.getByTestId('pp-readout-pp')).toBeInTheDocument(), { timeout: 10000 });
+  await waitFor(() => expect(screen.getByTestId('pp-note-water')).toBeInTheDocument());
+  expect(screen.queryByTestId('pp-save-state')).toBeNull();
+  fireEvent.change(screen.getByTestId('pp-param-eatonn'), { target: { value: '3.4' } });
+  fireEvent.click(screen.getByTestId('pp-apply-params'));
+  await waitFor(() => expect(screen.getByTestId('pp-save-state')).toHaveTextContent('Unsaved changes'));
+});

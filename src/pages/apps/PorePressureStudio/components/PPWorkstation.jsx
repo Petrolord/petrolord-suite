@@ -429,7 +429,9 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   // the water column a well's datum supplied is not the user's change
   const workSnap = useMemo(() => {
     const p = { ...params };
-    if (waterNote) { delete p.waterDepthM; delete p.mudlineMdM; }
+    // a water column the datum supplies, or none yet (the datum will supply it), is not a change
+    const unsetWater = !(Number(params.waterDepthM) > 0) && !(Number(params.mudlineMdM) > 0);
+    if (waterNote || unsetWater) { delete p.waterDepthM; delete p.mudlineMdM; }
     return stableJson({ params: p, picks, calibration });
   }, [params, picks, calibration, waterNote]);
   useEffect(() => {
