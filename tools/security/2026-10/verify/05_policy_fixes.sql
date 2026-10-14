@@ -1,4 +1,5 @@
--- Verify after 20261014121400 (read-only). Expect: user_role_policies = 0, true_write_policies = 0 (writes
+-- Verify after 20261014121400 (read-only). Expect: user_role_policies = 0, true_write_policies = 0, or 1 until 02 is applied
+-- (invitations "Public can update invitation by token", which 02 drops) (writes
 -- with USING/CHECK true on tenant tables), recursive_fixed = true, get_users_checks = true, storage_open = 0.
 select (select count(*) from pg_policies where schemaname='public'
           and (coalesce(qual,'') like '%user_role%' or coalesce(with_check,'') like '%user_role%')) user_role_policies,

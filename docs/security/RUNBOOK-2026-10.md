@@ -195,7 +195,7 @@ Verify:
 ! cd /opt/petrolord-studio/workspaces/dev1/projects/petrolord-suite && supabase db query --linked -f /root/sec26-apply/tools/security/2026-10/verify/05_policy_fixes.sql
 ```
 
-Expect `user_role_policies = 0`, `true_write_policies = 0`, `recursive_fixed = true`, `get_users_checks = true` and `storage_open = 0`.
+Expect `user_role_policies = 0`, `true_write_policies = 0` (1 until 02 is applied: the invitations policy 02 drops), `recursive_fixed = true`, `get_users_checks = true` and `storage_open = 0`.
 
 Rollback (table or policy blocks can be copied one at a time):
 
