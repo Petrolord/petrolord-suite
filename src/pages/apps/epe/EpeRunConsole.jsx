@@ -12,6 +12,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { payloadEscalators, followsInflation, simpleEscalators } from '@/pages/apps/epe/epeEscalation';
 import { labelForConfigKey } from '@/pages/apps/epe/epeConfigLabels';
+import { CONVENTION_HELP } from '@/pages/apps/epe/epeValuation';
 import { AppHeader } from '@/components/ui/app-shell';
 import {
   epePage, epePanel, epeSelect, epeCellInput, epeNativeCheck, epePill,
@@ -1019,6 +1020,7 @@ const EpeRunConsole = () => {
                   <option value="end_year">End of year</option>
                   <option value="mid_year">Mid-year</option>
                 </select>
+                <p className="text-xs text-pl-muted mt-1" data-testid="epe-convention-help">{CONVENTION_HELP}</p>
               </div>
               <NumField
                 errors={validationErrors}
