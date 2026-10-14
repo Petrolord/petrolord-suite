@@ -16,7 +16,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 export async function recordStoryboard(sb, clips, { baseUrl, env, outDir }) {
   fs.mkdirSync(outDir, { recursive: true });
-  const disp = await startDisplay();
+  const disp = await startDisplay(process.env.DEMO_DISPLAY || ':99'); // DEMO_DISPLAY lets two recorders run side by side
   const { ctx, page } = await openApp(`${baseUrl}/login`, { profileDir: path.join(outDir, 'profile'), overlayPath: path.join(HERE, 'overlay.js'), css: sb.viewport });
   const d = makeDirector(page);
   const shared = { baseUrl, env, values: {} };
