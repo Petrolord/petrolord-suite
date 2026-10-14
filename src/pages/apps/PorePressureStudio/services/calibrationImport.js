@@ -16,6 +16,7 @@
 // one Suite door, src/lib/ppfgUnits.js. Pure, no I/O.
 
 import { ppfgUnit } from '../../../../lib/ppfgUnits';
+import { pressureFromDisplay, emwReferenceDepthM } from './units';
 import { tvdFromTvdss, datumFromElevation } from '../../../../lib/wellDatum';
 
 export const CAL_KINDS = Object.freeze([
@@ -284,10 +285,17 @@ export function convertCalibration(table, mapping, ctx = {}) {
   if (missing.length) throw new Error(`Before import: ${missing.join('; ')}.`);
   const conv = ppfgUnit(mapping.valueUnit === 'g/cc' ? 'G/CC' : mapping.valueUnit === 'kg/m3' ? 'KG/M3' : mapping.valueUnit);
   if (!conv) throw new Error(`${mapping.valueUnit} is not a pressure, a gradient or a mud weight.`);
-  const toMpa = (v, tvd) => conv.toMpa(v, tvd);
-  // 2026-10-14: a mud weight given as EMW keeps the file's value, so the
-  // evidence line quotes 9.80 ppg as written (the pressure converts through
-  // the exact-density door, which the drilling 0.052 rule reads 0.1% lower)
+  // 2026-10-14: an EMW (ppg, sg, g/cc, kg/m3) converts with the studio's own
+  // drilling rule (0.052 psi/ft per ppg) at the depth the display reads it, so
+  // a 13.74 ppg leak-off reads 13.74 ppg on the chart and in the readout; the
+  // exact-density door read it 0.1% lower (13.73). Pressures and gradients go
+  // through the Suite door as before. The evidence line also quotes the file's value.
+  const EMW = { ppg: (v) => ['ppg', v], sg: (v) => ['sg', v], 'g/cc': (v) => ['sg', v], 'kg/m3': (v) => ['sg', v / 1000] };
+  const toMpa = (v, tvd, z) => {
+    const e = EMW[mapping.valueUnit];
+    if (e) { const [u, x] = e(v); return pressureFromDisplay(x, u, emwReferenceDepthM(z, ctx)) / 1e6; }
+    return conv.toMpa(v, tvd);
+  };
   const emwOf = (v) => (mapping.valueUnit === 'ppg' ? v : mapping.valueUnit === 'sg' || mapping.valueUnit === 'g/cc' ? v * 8.345404 : null);
   const frame = ctx.frame || null;
   const tvdAt = (md) => (frame ? frame.mdToPosition(md).tvd : md);
@@ -336,14 +344,14 @@ export function convertCalibration(table, mapping, ctx = {}) {
     let top;
     try { top = place(at); } catch (e) { skipped.push({ line, text, reason: e.message }); continue; }
     if (!(top.z >= 0)) { skipped.push({ line, text, reason: 'above the mudline' }); continue; }
-    const pMpa = toMpa(v, top.tvd);
+    const pMpa = toMpa(v, top.tvd, top.z);
     if (!Number.isFinite(pMpa) || !(pMpa > 0)) { skipped.push({ line, text, reason: 'no positive pressure' }); continue; }
     const raw = `${kind === 'mwkick' || kind === 'mwloss' ? +(at / f).toFixed(2) : cells[mapping.depthCol]} ${mapping.depthUnit} ${mapping.depthRef.toUpperCase()}, ${cells[mapping.valueCol]} ${mapping.valueUnit}`;
     if (kind === 'mw' && hasBase) {
       // a mud weight held over an interval: its top and its base, drawn as one step
       let base;
       try { base = place(b * f); } catch (e) { skipped.push({ line, text, reason: e.message }); continue; }
-      const pBase = toMpa(v, base.tvd);
+      const pBase = toMpa(v, base.tvd, base.z);
       const interval = `${ctx.source || 'import'}:${line}`;
       const e = emwOf(v);
       points.push({ z: top.z, pMpa, kind, source: ctx.source || 'import', raw: `${cells[mapping.depthCol]} to ${cells[mapping.baseCol]} ${mapping.depthUnit} ${mapping.depthRef.toUpperCase()}, ${cells[mapping.valueCol]} ${mapping.valueUnit}`, interval, end: 'top', ...(e != null ? { emwPpg: e } : {}) });
