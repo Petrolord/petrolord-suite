@@ -112,6 +112,25 @@ Two IRR readouts found on the Ekene runs while scripting the EPE videos:
   half the iterations have an IRR, with a line that says so
   (`irrStatsView`, testid `epe-mc-irr-held`).
 No engine change.
+## 2026-10-14: incremental economics on the engine valuation; compare across cases (video programme)
+
+Found while scripting the EPE demo videos (Ekene with and without Ekene-11).
+The two-run incremental block discounted every year of the delta from the base
+run's first year and included the sunk history years. On the Ekene runs
+(valuation 2026, history from 2020) it showed 1,377,011 USD for an increment of
+1,980,235 - (-459,224) = 2,439,459 USD. The increment now follows the engine
+(cashflow.ts): only the valued rows, the PV-basis flow, the exponent
+(year - valuation year) + 0.5 on mid-year, at the base run's applied rate, so
+it equals the difference of the two NPVs when both runs share their terms. The
+mismatch warning also names a different valuation year or convention. The
+incremental IRR comes from the shared IRR contract (`solveIrrInBand`); when
+several rates zero the increment they are listed (the Ekene increment has two,
+24.91% and -11.92%) where the page used to print "undefined". The run picker
+now lists the runs of the user's other cases, grouped by case with this case
+first, so a with-project run can be compared with a without-project run kept in
+its own case. Helper `epeIncremental.js`; gates `epeIncremental.test.js`
+(through the vendored engine; the invariant fails on the old discounting) and
+`epeCompareCases.mount.test.jsx`. No engine change.
 
 ## 2026-10-14: tornado readout (video programme)
 
