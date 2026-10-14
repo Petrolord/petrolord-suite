@@ -112,3 +112,58 @@ Two IRR readouts found on the Ekene runs while scripting the EPE videos:
   half the iterations have an IRR, with a line that says so
   (`irrStatsView`, testid `epe-mc-irr-held`).
 No engine change.
+## 2026-10-14: incremental economics on the engine valuation; compare across cases (video programme)
+
+Found while scripting the EPE demo videos (Ekene with and without Ekene-11).
+The two-run incremental block discounted every year of the delta from the base
+run's first year and included the sunk history years. On the Ekene runs
+(valuation 2026, history from 2020) it showed 1,377,011 USD for an increment of
+1,980,235 - (-459,224) = 2,439,459 USD. The increment now follows the engine
+(cashflow.ts): only the valued rows, the PV-basis flow, the exponent
+(year - valuation year) + 0.5 on mid-year, at the base run's applied rate, so
+it equals the difference of the two NPVs when both runs share their terms. The
+mismatch warning also names a different valuation year or convention. The
+incremental IRR comes from the shared IRR contract (`solveIrrInBand`); when
+several rates zero the increment they are listed (the Ekene increment has two,
+24.91% and -11.92%) where the page used to print "undefined". The run picker
+now lists the runs of the user's other cases, grouped by case with this case
+first, so a with-project run can be compared with a without-project run kept in
+its own case. Helper `epeIncremental.js`; gates `epeIncremental.test.js`
+(through the vendored engine; the invariant fails on the old discounting) and
+`epeCompareCases.mount.test.jsx`. No engine change.
+
+## 2026-10-14: comparison readability (video programme)
+
+Compare Runs printed money in whole compact units, so the Ekene increment of
+USD 2,439,459 read "$2.4M", the field "$2M", and the 2026 delta "$0.0037".
+Money on the page now reads to three significant figures like the Results
+Viewer (`fmtUsd3`: $2.44M, $1.98M, -$459K, $0 for differencing noise), the
+incremental block opens with one sentence ("On NPV at 10.00%, With Ekene-11
+is worth $2.44M more than Without Ekene-11.", testid `incremental-verdict`),
+and the header names the case in place of its id. Tests in
+`epeIncremental.test.js`.
+## 2026-10-14: PIA water depth in the user's depth unit (video programme)
+
+The Run Console asked for the PIA water depth in metres only. It now follows
+the user's unit profile: on the Oilfield preset (feet, the Nigerian default)
+it takes feet and states the stored value ("Stored as 34.99 m: the PIA sorts
+terrain by water depth in metres."). The config and the engine keep metres
+(`pia_water_depth_m`). Component `EpeWaterDepthField.jsx`, tests
+`epeWaterDepth.test.jsx`.
+## 2026-10-14: a run says when the case data changed after it (video programme)
+
+For the data governance story in the EPE demo videos. The Run Console now
+stores, on the epe_runs row, `parameters.inputs`: the input files the run
+priced (the production files of its scenario, every CAPEX and OPEX file) as
+`{ table, id, file_name, created_at, scenario_label }`. The Results Viewer
+compares that list with the case's files now and, when a file was replaced,
+added or removed, shows "The case data changed after this run:" with one line
+per slot (for example "Production: ekene-production-2p.csv was replaced by
+FSH - Ekene-11 low.generated.") and "Re-run to price the current data." with a
+Re-run with edits link (testid `epe-run-inputs-changed`). Run History marks
+such runs "Out of date" (testid `epe-run-out-of-date`). A run saved before
+this change falls back to dates (a file uploaded after the run is named);
+otherwise nothing is claimed. Logic: `src/pages/apps/epe/epeRunInputs.js`.
+Tests: `epeRunInputs.test.js` (replaced, added, removed, unchanged, other
+scenario, legacy dates) and `epeRunInputs.mount.test.jsx` (banner; fails on
+the old viewer). No migration, no engine or Edge Function change.

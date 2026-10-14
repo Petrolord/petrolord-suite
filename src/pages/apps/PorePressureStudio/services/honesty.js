@@ -130,7 +130,9 @@ export function inputNotes({
         : 'LOT/FIT: no test falls within the prognosis.',
     });
   }
-  const mw = (calibration || []).filter((c) => comparesTo(c) === 'mw').length;
+  // an imported interval is one mud weight (its top and base points)
+  const mwRows = (calibration || []).filter((c) => ['mw', 'mwkick', 'mwloss'].includes(comparesTo(c)));
+  const mw = new Set(mwRows.map((c, i) => c.interval || `p${i}`)).size;
   if (mw) notes.push({ key: 'mw', tone: 'info', text: `Mud weights used: ${mw} drawn for comparison.` });
   return notes;
 }
