@@ -151,8 +151,8 @@ describe('U2-002 calibration imports', () => {
     const { points } = convertCalibration(t, t.guess, CTX);
     expect(points.map((p) => p.kind)).toEqual(['lot', 'fit', 'xlot']);
     points.forEach((p) => expect(comparesTo(p)).toBe('fg'));
-    // EMW converts at the TVD below RKB (ppfgUnits): 13.382 ppg at 1,130 m
-    expect(points[0].pMpa).toBeCloseTo((13.382 * 119.82642731689663 * 9.80665 * 1130) / 1e6, 9);
+    // EMW converts at the TVD below RKB with the studio's 0.052 rule (2026-10-14): 13.382 ppg at 1,130 m
+    expect(points[0].pMpa).toBeCloseTo((13.382 * 0.052 * (1130 / 0.3048) * 6894.757293168) / 1e6, 9);
     // they are left out of the pore pressure misfit and compared with FG
     expect(calibrationMisfit(points, W.z_bml_m, W.pore_pressure_pa).points).toHaveLength(0);
     const fg = calibrationMisfit(points, W.z_bml_m, W.frac_pressure_pa, 'fg');
@@ -173,7 +173,7 @@ describe('U2-002 calibration imports', () => {
     const { points } = convertCalibration(t, { ...m, depthRef: 'md', depthUnit: 'm', valueUnit: 'sg', kind: 'mw' }, CTX);
     expect(points).toHaveLength(5);
     expect(points.every((p) => comparesTo(p) === 'mw')).toBe(true);
-    expect(points[0].pMpa).toBeCloseTo((1.03 * 1000 * 9.80665 * 1130) / 1e6, 9);
+    expect(points[0].pMpa).toBeCloseTo((1.03 * 8.345404 * 0.052 * (1130 / 0.3048) * 6894.757293168) / 1e6, 9);
   });
 
   test('kPa first, extra columns, units in brackets, an n/a row', () => {
