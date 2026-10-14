@@ -4,16 +4,18 @@ Approved by the owner and the second engineer on 2026-10-14 ("proceed as soon as
 
 ## The order
 
+Steps 5, 6 and 7 do not depend on the function deploys and may run before step 4 (verified 2026-10-14: a rolled-back run of 03, 04 and 05 without 02 failed only the four invitation probes that 02 itself fixes).
+
 | Step | What | Needs | Breaks anything if skipped or reordered? |
 |---|---|---|---|
 | 0 | Stop-gap migration 00 | none | **Done 2026-10-14**, verified |
 | 1 | Migration 01 (additive) | none | No. No live flow changes on apply |
 | 2 | Edge Function deploys (Suite and HSE) | 1 | Functions fail closed. Deploy them before 02 and 03 |
 | 3 | HSE site upload | 1 | The HSE invitation page calls 01's functions |
-| 4 | Migration 02 (invitation lockdown) | 1, 2, 3 | Run before 3 and HSE invitee signups fail |
-| 5 | Migration 03 (users guard) | 1, 2 | Run before 2 and old admin functions stop seeing platform admins in user flags |
+| 4 | Migration 02 (invitation lockdown) | 1, 2 (Suite accept-employee-invitation), 3 | Yes. Before the Suite deploy, new-account Suite invitations fail (the old function sends organization_id without a token); before 3, HSE invitee signups fail |
+| 5 | Migration 03 (users guard) | 1 | No. users.is_super_admin stays a mirror of the same three people, so old functions read the same flags |
 | 6 | Migration 04 (RLS-off tables) | none | No |
-| 7 | Migration 05 (policies, storage) | 1 | No |
+| 7 | Migration 05 (policies, storage) | 1 | No. Every function it relies on already uses the service role (send-demo-request, log-audit-event, generate-quote) |
 | 8 | Function deletes | 2 | No |
 | 9 | Suite zip | 2 | Held until the end of the current video round. No DB step needs it |
 | 10 | NextGen | none | Separate project, see the last section |
