@@ -58,6 +58,8 @@ export default function PrognosisChart({
         ph: conv(profile.hydrostaticPa[i], z),
         pp: conv(profile.porePressurePa[i], z),
         fg: conv(profile.fracPressurePa[i], z),
+        // 2026-10-14: the shale-sample pressures behind the interpreted line
+        ...(profile.shalePpPa && profile.shalePpPa[i] != null ? { sh: conv(profile.shalePpPa[i], z) } : {}),
       };
     });
     // drilling window band between PP and FG (T1-E1)
@@ -94,11 +96,12 @@ export default function PrognosisChart({
   const hasMwl = data.some((r) => r.mwl != null);
   // imported intervals carry their top and base, so the line joins them as drawn
   const mwIntervals = (calibration || []).some((c) => c.interval);
+  const hasSh = data.some((r) => r.sh != null);
 
   if (!profile) return null;
 
   return (
-    <div className="w-full h-full min-h-[360px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-canvas="chart" data-testid="pp-prognosis-chart" data-ref={mapper ? mapper.key : 'bml'} data-rows={data.length} data-seats={casing ? casing.seats.length : 0} data-cal={data.filter((r) => r.cal != null).length} data-lot={data.filter((r) => r.lot != null).length} data-mw={data.filter((r) => r.mwu != null).length} data-mwk={data.filter((r) => r.mwk != null).length} data-mwl={data.filter((r) => r.mwl != null).length}>
+    <div className="w-full h-full min-h-[360px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-canvas="chart" data-testid="pp-prognosis-chart" data-ref={mapper ? mapper.key : 'bml'} data-rows={data.length} data-seats={casing ? casing.seats.length : 0} data-cal={data.filter((r) => r.cal != null).length} data-lot={data.filter((r) => r.lot != null).length} data-mw={data.filter((r) => r.mwu != null).length} data-shale-points={data.filter((r) => r.sh != null).length}>
       <h3 className="text-center text-sm font-semibold" style={{ color: CHART_COLORS.axisLabel }}>
         Pressure prognosis
       </h3>
@@ -131,6 +134,8 @@ export default function PrognosisChart({
             <Legend verticalAlign="top" wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
             <Area dataKey="win" name="Drilling window (PP to FG)" stroke="none" fill="#22c55e" fillOpacity={0.12}
               connectNulls isAnimationActive={false} legendType="rect" />
+            {hasSh && <Line dataKey="sh" name="Shale pressures" stroke="none" legendType="circle"
+              dot={{ r: 1.4, fill: '#f4a3a8', stroke: 'none' }} activeDot={false} isAnimationActive={false} />}
             {SERIES.map((s) => (
               <Line
                 key={s.key}
