@@ -16,7 +16,9 @@ import SourceChangedNotice from '@/lib/sourceFreshness/SourceChangedNotice';
 import {
   PPFG_SOURCE_KIND, ppfgRefKey, ppfgRowFromCurves, ppfgReference, mudWindowSeen, mudWindowRowsFor,
   readPpfgSource, ppfgMoveText, designPpfgSources, tieOnWithPpfg, tieOnForSave, reviewedText,
+  ppfgNoticeItems, PPFG_REFRESH_EFFECT,
 } from '../services/ppfgSource';
+import { tightestWindowBelow, SEATS_BELOW_TOP_M } from '../services/ppfg';
 import { readyCurve, pickPpfgLogs } from '../services/ppfg';
 import PpfgReviewStatus from '../components/PpfgReviewStatus';
 
@@ -198,5 +200,63 @@ describe('what the person sees', () => {
     await waitFor(() => expect(onRefresh).toHaveBeenCalled());
     fireEvent.click(screen.getByTestId('wd-ppfg-source-changed-keep'));
     expect(onKeep).toHaveBeenCalled();
+  });
+});
+
+describe('what moved, from the mud window once it has loaded (dry-run follow-up)', () => {
+  const ft = (x) => x * 0.3048;
+  const was = {
+    seats: [{ tvd: ft(2709) }, { tvd: ft(4238) }, { tvd: ft(4709) }],
+    max_pp: { ppg: 13.94, tvd: ft(7300) }, tightest: { ppg: 0.81, tvd: ft(4709) },
+  };
+  const now = { seats: [{ tvd: ft(1693) }], max_pp: { ppg: 12.59, tvd: ft(7300) }, tightest: { ppg: 1.42, tvd: ft(1693) } };
+
+  test('the exact words: a moved shoe, the shoes no longer needed, the highest pore pressure and tightest window', () => {
+    expect(ppfgMoveText(was, now, { unit: 'ft' })).toEqual([
+      'shoe 1 at least TVD 2,709 ft to 1,693 ft',
+      'shoes 2 and 3 no longer needed',
+      'highest pore pressure 13.94 to 12.59 ppg',
+      'tightest window 0.81 ppg at TVD 4,709 ft to 1.42 ppg at TVD 1,693 ft',
+    ]);
+    expect(ppfgMoveText({ seats: [{ tvd: 100 }, { tvd: 200 }] }, { seats: [{ tvd: 100 }] })).toEqual(['shoe 2 no longer needed']);
+  });
+
+  test('a registry read without seats falls back to the generic words until the panel has loaded, then says what moved', async () => {
+    const v1 = publish('v1');
+    const v2 = publish('v2', { top: 1100, k: 1.2e-5, at: '2026-10-14T10:02:00.000Z' });
+    const ref = refOf(v1);
+    // the read ran before the trajectory compiled: no stations, so no seats in the row
+    const row = await readPpfgSource(ref, { stations: null }, readersFor({ current: v2 }));
+    expect(row.seen).toBeUndefined();
+    const item = { ...compareSource(ref, row) };
+    const rowFor = () => row;
+    const before = ppfgNoticeItems([item], { rowFor, panelSeen: null, unit: 'ft' })[0];
+    expect(before.differences).toEqual(['curves changed']);
+    expect(before.effect).toBe(PPFG_REFRESH_EFFECT);
+    const panelSeen = { wellId: WELL.id, seen: mudWindowSeen(rowsOf(v2)) };
+    const after = ppfgNoticeItems([item], { rowFor, panelSeen, unit: 'ft' })[0];
+    expect(after.differences.join('; ')).toMatch(/^shoe 1 at least TVD [\d,]+ ft to [\d,]+ ft; highest pore pressure \d+\.\d\d to \d+\.\d\d ppg/);
+    // negative control: the panel showing another well's prognosis is not used
+    const other = ppfgNoticeItems([item], { rowFor, panelSeen: { ...panelSeen, wellId: 'w-2' }, unit: 'ft' })[0];
+    expect(other.differences).toEqual(['curves changed']);
+  });
+});
+
+describe('the tightest window below the seats\' top cut-off', () => {
+  // the conductor section: PP and FG converge on the seawater gradient at the top
+  const rows = [
+    { md: 75, tvd: 75, ppPpg: 8.6, fpPpg: 8.65, ppEmw: 1.03, fpEmw: 1.036, windowMpa: 0.04 },
+    { md: 600, tvd: 600, ppPpg: 8.7, fpPpg: 12.0, ppEmw: 1.042, fpEmw: 1.438, windowMpa: 1.9 },
+    { md: 1400, tvd: 1400, ppPpg: 13.0, fpPpg: 13.8, ppEmw: 1.558, fpEmw: 1.654, windowMpa: 1.3 },
+    { md: 2000, tvd: 2000, ppPpg: 13.5, fpPpg: 15.0, ppEmw: 1.618, fpEmw: 1.797, windowMpa: 3.5 },
+  ];
+  test('below the cut-off the tightest is the ramp, in ppg and g/cc', () => {
+    const t = tightestWindowBelow(rows, { fromTvdM: 75 + SEATS_BELOW_TOP_M });
+    expect(t.tvd).toBe(1400);
+    expect(t.ppg).toBeCloseTo(0.8, 9);
+    expect(t.gcc).toBeCloseTo(0.096, 9);
+    // negative control: with no cut-off the conductor section wins
+    expect(tightestWindowBelow(rows, { fromTvdM: 0 }).tvd).toBe(75);
+    expect(mudWindowSeen(rows).tightest.tvd).toBe(1400);
   });
 });

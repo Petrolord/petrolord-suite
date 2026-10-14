@@ -58,8 +58,8 @@ import { useSourceFreshness } from '@/lib/sourceFreshness/useSourceFreshness';
 import SourceChangedNotice from '@/lib/sourceFreshness/SourceChangedNotice';
 import { keepSource, pruneKept } from '@/lib/sourceFreshness/model';
 import {
-    ppfgReference, ppfgRefKey, designPpfgSources, tieOnWithPpfg, tieOnForSave, ppfgMoveText, reviewedText,
-    readPpfgSource, mudWindowRowsFor,
+    ppfgReference, ppfgRefKey, designPpfgSources, tieOnWithPpfg, tieOnForSave, reviewedText,
+    readPpfgSource, mudWindowRowsFor, mudWindowSeen, ppfgNoticeItems,
 } from '../services/ppfgSource';
 import PlanViewChart from '../charts/PlanViewChart';
 import UnitNumberInput from '../components/UnitNumberInput';
@@ -382,16 +382,22 @@ const DesignTab = () => {
         return out;
     }, [gridMeterStations, wellbore?.kb_elev_m]);
     const ppfgFresh = useSourceFreshness({ refs: ppfgRefsToCheck, resolve: resolvePpfgSources, kept: ppfgSaved.kept, enabled: !!design });
-    const ppfgItems = ppfgFresh.items.map((i) => {
-        const moved = i.status === 'changed' ? ppfgMoveText(i.ref?.seen, ppfgFresh.rowFor(i.key)?.seen, { unit: mdUnit }) : [];
-        return {
-            ...i,
-            differences: moved.length ? moved : i.differences,
-            effect: i.status === 'changed'
-                ? 'The mud window shows the prognosis published now. Refresh from source records it as the one this design is reviewed against.'
-                : null,
-        };
-    });
+    // What moved: once the mud window has loaded that well's prognosis, what
+    // it shows now on this trajectory; before that, what the registry read
+    // computed (it has no seats when the trajectory was not compiled yet,
+    // and the kit's generic words are the fallback)
+    const panelSeen = useMemo(() => (ppfg && typeof ppfg === 'object' && ppfgLoaded && ppfgLoaded.sourceId === ppfgSource?.id
+        ? { wellId: ppfgLoaded.sourceId, seen: mudWindowSeen(ppfg.rows) } : null), [ppfg, ppfgLoaded, ppfgSource?.id]);
+    const ppfgItems = ppfgNoticeItems(ppfgFresh.items, { rowFor: ppfgFresh.rowFor, panelSeen, unit: mdUnit });
+    // a check that ran before the trajectory compiled read no seats: read again once it has
+    const ppfgRecheckFor = useRef(null);
+    useEffect(() => {
+        if (!gridMeterStations || !design?.id || ppfgRecheckFor.current === design.id) return;
+        const pending = ppfgFresh.items.filter((i) => i.status === 'changed' && !ppfgFresh.rowFor(i.key)?.seen);
+        if (!pending.length) return;
+        ppfgRecheckFor.current = design.id;
+        ppfgFresh.check();
+    }, [gridMeterStations, design?.id, ppfgFresh]);
     const currentPpfgStatus = currentPpfgRef ? (ppfgFresh.results.find((r) => r.key === currentPpfgRef.key)?.status || null) : null;
 
     // the reference for the prognosis the panel shows now (null while loading)

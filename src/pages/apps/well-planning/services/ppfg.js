@@ -234,6 +234,25 @@ export async function loadPpfgSourceCandidates(opts) {
   return ppfgSourceCandidates(wells, meta, opts);
 }
 
+/**
+ * The tightest drilling window below a top cut-off (2026-10-14: the panel
+ * summary takes it below SEATS_BELOW_TOP_M, where the seats are picked, so
+ * the conductor section's converging lines do not win), in ppg EMW, g/cc
+ * EMW and MPa at that row.
+ * @returns {null|{tvd: number, md: number, ppg: number, gcc: number, mpa: number}}
+ */
+export function tightestWindowBelow(rows, { fromTvdM = 0 } = {}) {
+  let best = null;
+  for (const r of rows || []) {
+    if (!(r.tvd >= fromTvdM) || r.ppPpg == null || r.fpPpg == null) continue;
+    const ppg = r.fpPpg - r.ppPpg;
+    if (!best || ppg < best.ppg) {
+      best = { tvd: r.tvd, md: r.md, ppg, gcc: r.fpEmw != null && r.ppEmw != null ? r.fpEmw - r.ppEmw : null, mpa: r.windowMpa };
+    }
+  }
+  return best;
+}
+
 /** Summary for the panel header: depth extent + tightest window. */
 export function mudWindowSummary(rows) {
   const windowed = rows.filter((r) => r.windowMpa != null);

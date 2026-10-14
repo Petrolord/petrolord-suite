@@ -23,7 +23,7 @@
 import { sourceRef } from '@/lib/sourceFreshness/model';
 import {
   pickPpfgLogs, readyCurve, buildMudWindow, buildMudWindowByTvdss, curvesByTvdss,
-  casingSeatsOnWindow, SEATS_BELOW_TOP_M, DEFAULT_TRIP_PPG, DEFAULT_KICK_PPG,
+  casingSeatsOnWindow, tightestWindowBelow, SEATS_BELOW_TOP_M, DEFAULT_TRIP_PPG, DEFAULT_KICK_PPG,
 } from './ppfg';
 
 export const PPFG_SOURCE_KIND = 'ppfg_prognosis';
@@ -76,13 +76,10 @@ export function mudWindowSeen(rows, { tripPpg = DEFAULT_TRIP_PPG, kickPpg = DEFA
   if (!use.length) return null;
   const fromTvdM = Math.min(...use.map((r) => r.tvd)) + SEATS_BELOW_TOP_M;
   const s = casingSeatsOnWindow(use, { tripPpg, kickPpg, fromTvdM });
-  let tightest = null;
+  // the tightest window below the same cut-off the seats and the panel summary use
+  const tightest = tightestWindowBelow(use, { fromTvdM });
   let maxPp = null;
   for (const r of use) {
-    if (r.ppPpg != null && r.fpPpg != null) {
-      const w = r.fpPpg - r.ppPpg;
-      if (!tightest || w < tightest.ppg) tightest = { ppg: w, tvd: r.tvd };
-    }
     if (r.ppPpg != null && (!maxPp || r.ppPpg > maxPp.ppg)) maxPp = { ppg: r.ppPpg, tvd: r.tvd };
   }
   const round = (v, k) => (Number.isFinite(v) ? Number(v.toFixed(k)) : null);
@@ -154,6 +151,7 @@ export function ppfgMoveText(was, now, { unit = 'ft' } = {}) {
   const tol = 0.5; // metres
   const a = was.seats || [];
   const b = now.seats || [];
+  const gone = [];
   for (let k = 0; k < Math.max(a.length, b.length); k++) {
     const p = a[k]; const q = b[k];
     if (p && q) {
@@ -161,8 +159,12 @@ export function ppfgMoveText(was, now, { unit = 'ft' } = {}) {
     } else if (q) {
       out.push(`a new shoe ${k + 1} at least TVD ${fmtZ(q.tvd, unit)}`);
     } else if (p) {
-      out.push(`shoe ${k + 1} (TVD ${fmtZ(p.tvd, unit)}) no longer needed`);
+      gone.push(k + 1);
     }
+  }
+  if (gone.length) {
+    const names = gone.length === 1 ? `shoe ${gone[0]}` : `shoes ${gone.slice(0, -1).join(', ')} and ${gone[gone.length - 1]}`;
+    out.push(`${names} no longer needed`);
   }
   if (a.length && b.length && !out.length) out.push('casing seats unchanged');
   const pair = (label, x, y) => {
@@ -175,6 +177,29 @@ export function ppfgMoveText(was, now, { unit = 'ft' } = {}) {
   pair('highest pore pressure', was.max_pp, now.max_pp);
   pair('tightest window', was.tightest, now.tightest);
   return out;
+}
+
+export const PPFG_REFRESH_EFFECT = 'The mud window shows the prognosis published now. Refresh from source records it as the one this design is reviewed against.';
+
+/**
+ * The notice items with "What moved" on this trajectory. Once the mud window
+ * has loaded the changed well's prognosis (`panelSeen`, mudWindowSeen of the
+ * rows it shows), that is what the record is compared with; before, the
+ * registry read's own summary (none when the trajectory was not compiled at
+ * the read), and with neither the kit's generic words stay.
+ * @param {object[]} items useSourceFreshness items
+ * @param {{rowFor?: function(string): ?object, panelSeen?: ?{wellId: string, seen: object}, unit?: 'ft'|'m'}} o
+ */
+export function ppfgNoticeItems(items, { rowFor = () => null, panelSeen = null, unit = 'ft' } = {}) {
+  return (items || []).map((i) => {
+    const seenNow = panelSeen && panelSeen.wellId === i.ref?.id ? panelSeen.seen : rowFor(i.key)?.seen;
+    const moved = i.status === 'changed' ? ppfgMoveText(i.ref?.seen, seenNow, { unit }) : [];
+    return {
+      ...i,
+      differences: moved.length ? moved : i.differences,
+      effect: i.status === 'changed' ? PPFG_REFRESH_EFFECT : null,
+    };
+  });
 }
 
 /** One line for a design whose reference matches what is published. */

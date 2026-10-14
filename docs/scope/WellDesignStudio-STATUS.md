@@ -982,8 +982,20 @@ need refreshing). A design now keeps a source reference for the prognosis
   An unchanged record reads "This design was reviewed against the prognosis
   on ..., published ...; casing seats then at TVD ..." (`wd-ppfg-reviewed`).
   Another well under Prognosis from is a new record, not a change.
+- What moved compares the record with what the mud window computes once it
+  has loaded that well's prognosis (`ppfgNoticeItems`), for example "shoe 1 at
+  least TVD 2,709 ft to 1,693 ft; shoes 2 and 3 no longer needed; highest pore
+  pressure 13.94 to 12.59 ppg"; before the panel loads it uses the registry
+  read (read again once the trajectory has compiled), and the kit's generic
+  "curves changed" is the fallback.
+- The panel summary (`mud-window-summary`) gives the tightest window in the
+  panel's unit (ppg EMW on a feet wellbore, g/cc on a metre one, MPa in MPa
+  mode) below the same top cut-off the seats use (`SEATS_BELOW_TOP_M`,
+  `tightestWindowBelow`): "TVD 246 to 4593 ft; tightest window 0.80 ppg EMW
+  at TVD 4,593 ft (below the top 984 ft)". It read MPa at the conductor
+  section before ("tightest window 0.05 MPa at 246 ft").
 - Code: `services/ppfgSource.js`, `components/PpfgReviewStatus.jsx`,
   DesignTab wiring; `SEATS_BELOW_TOP_M` moved to `services/ppfg.js`.
-  Tests: `__tests__/ppfgSourceChanged.test.jsx` (13), negative controls
-  (no reference: the seats move and nothing is reported; without the curve
+  Tests: `__tests__/ppfgSourceChanged.test.jsx` (18) and `mudWindowPanelU1.test.jsx` (+1), negative controls (the panel's summary from another well is not used; with no cut-off the conductor section wins;
+  no reference: the seats move and nothing is reported; without the curve
   row ids in the snapshot 6 fail).
