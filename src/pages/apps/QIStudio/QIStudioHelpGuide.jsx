@@ -294,6 +294,10 @@ function QIStudioHelpGuideContent() {
       <GuideSection id="issues">
         <SectionHeading icon={AlertTriangle}>Issue register</SectionHeading>
         <Para>The matrix suggests one issue per well and kind of gap, with a remedy. Keep a suggestion by giving it an owner or a status; a dismissed or resolved issue stays as you left it. Add your own issues at the foot of the table.</Para>
+        <SubHeading>Objectives and decisions</SubHeading>
+        <Para>Write the study's objectives and acceptance criteria on Setup, under the three setup cards: what the study must deliver and how a result will be judged, for example the blind-well error a product must meet before it is used. A line per target is optional.</Para>
+        <Para>Under the issue register, record each decision taken at a gate of the study: the gate (Data QC, Feasibility, Pilot or one you name), the outcome and the decision, who took it, the date, and the run or check it rests on (any blind-well check, inversion, property check or other run the study holds, or a version you type). Decisions are records for the report. Nothing is locked and no sign-off is enforced; a decision never counts as an issue.</Para>
+        <Para>The report prints the objectives after the summary and the decisions after the issue register; the summary says how many decisions were recorded and the latest one.</Para>
       </GuideSection>
 
       <GuideSection id="feasibility">

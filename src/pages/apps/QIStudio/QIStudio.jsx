@@ -21,7 +21,9 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { QIStudioProvider, useQIStudio } from './QIStudioContext';
 import { makeRegistryBackend } from './services/registryBackend';
 import { exportQIStudioPdf, reportModel } from './services/report';
-import { SetupPanel, InventoryPanel, UsabilityPanel, IssuesPanel, FeasibilityPanel } from './components/Panels';
+import {
+  SetupPanel, InventoryPanel, UsabilityPanel, IssuesPanel, FeasibilityPanel, DecisionsSection,
+} from './components/Panels';
 import QcPanel from './components/QcPanel';
 import TiesPanel from './components/TiesPanel';
 import InversionPanel from './components/InversionPanel';
@@ -172,6 +174,8 @@ function QIStudioContent({ organizationName }) {
         {tab === 'properties' && <PropertiesPanel />}
         {tab === 'prospects' && <ProspectsPanel />}
         {tab === 'issues' && <IssuesPanel />}
+        {/* decisions (QI upgrade P1.1) below the issue register, which is unchanged */}
+        {tab === 'issues' && <DecisionsSection />}
         {tab === 'feasibility' && <FeasibilityPanel />}
         {tab === 'report' && <ReportTab organizationName={organizationName} />}
         {tab === 'datainventory' && <ProjectInventoryTab />}

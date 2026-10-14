@@ -10,7 +10,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjects';
-import { blankProject, projectFromPayload, projectPayload, issueRegister, upsertIssue } from './services/model';
+import {
+  blankProject, projectFromPayload, projectPayload, issueRegister, upsertIssue, decisionRows,
+} from './services/model';
 import { usabilityMatrix, suggestedIssues } from './services/usability';
 import { suggestInventory, inventoryRows } from './services/inventory';
 
@@ -99,6 +101,7 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
   const suggestions = useMemo(() => suggestInventory({ wells: ready, volumes: chosenVolumes, horizons: surfaceCount }), [ready, chosenVolumes, surfaceCount]);
   const inventory = useMemo(() => inventoryRows(project.inventory, suggestions), [project.inventory, suggestions]);
   const issues = useMemo(() => issueRegister(project.issues, suggestedIssues(matrix)), [project.issues, matrix]);
+  const decisions = useMemo(() => decisionRows(project.issues), [project.issues]);
   const targetChoices = useMemo(() => {
     const names = new Set();
     for (const r of ready) for (const z of r.zones || []) names.add(z.name);
@@ -118,6 +121,11 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
     return { ...p, inventory: { ...p.inventory, [key]: { ...cur, ...patch } } };
   }), [edit, inventory]);
   const saveIssue = useCallback((issue) => edit((p) => ({ ...p, issues: upsertIssue(p.issues, issue) })), [edit]);
+  // light governance (QI upgrade P1.1): objectives and decisions
+  const setObjectivesText = useCallback((text) => edit((p) => ({ ...p, objectives: { ...(p.objectives || {}), text } })), [edit]);
+  const setTargetObjective = useCallback((target, text) => edit((p) => ({ ...p, objectives: { ...(p.objectives || {}), targets: { ...(p.objectives?.targets || {}), [target]: text } } })), [edit]);
+  const saveDecision = useCallback((d) => edit((p) => ({ ...p, issues: upsertIssue(p.issues, { ...d, type: 'decision' }) })), [edit]);
+  const removeDecision = useCallback((key) => edit((p) => ({ ...p, issues: (p.issues || []).filter((i) => i.key !== key) })), [edit]);
   const setFeasibility = useCallback((target, patch) => edit((p) => ({ ...p, feasibility: { ...p.feasibility, [target]: { ...(p.feasibility[target] || {}), ...patch } } })), [edit]);
   const setQcResult = useCallback((volumeId, record) => edit((p) => ({ ...p, qc: { ...p.qc, [volumeId]: record } })), [edit]);
   const setProperty = useCallback((aiVolumeId, patch) => edit((p) => ({ ...p, properties: { ...p.properties, [aiVolumeId]: { ...(p.properties?.[aiVolumeId] || {}), ...(typeof patch === 'function' ? patch(p.properties?.[aiVolumeId] || {}) : patch) } } })), [edit]);
@@ -271,7 +279,8 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
   }, []);
 
   const value = {
-    project, wells, volumes, chosenVolumes, loaded, ready, loading, matrix, inventory, issues, targetChoices,
+    project, wells, volumes, chosenVolumes, loaded, ready, loading, matrix, inventory, issues, decisions, targetChoices,
+    setObjectivesText, setTargetObjective, saveDecision, removeDecision,
     toggleWell, toggleVolume, toggleTarget, setSeismicAcquired, setFirstProduction, setInventory, saveIssue, setFeasibility, setQcResult, setInversion, setProperty, saveProspect, removeProspect, setPrestack, setPrestackQc, dropPrestackStore, setAvo, setSimultaneous, setDataInventory,
     jobs: backend.jobs || null, backend,
     projects, sharedProjects, currentProjectId, projectName, projectRow: shared.projectRow, sharing: shared.sharing,

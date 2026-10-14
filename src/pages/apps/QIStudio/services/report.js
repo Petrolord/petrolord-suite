@@ -6,7 +6,9 @@
 import { createReport } from '@/lib/reportKit';
 import { loadPetrolordLogo } from '@/lib/pdfBrand';
 import { STATES, inventorySummary } from './inventory';
-import { FEASIBILITY_VERDICTS } from './model';
+import {
+  FEASIBILITY_VERDICTS, decisionRows, gateLabel, outcomeLabel,
+} from './model';
 import { isStripe, snrText } from './qcRun';
 import { tieRows, waveletComparison } from './ties';
 import { INVERSION_METHODS, INVERSION_DEFAULTS } from './inversionRun';
@@ -27,7 +29,12 @@ export function reportModel({ projectName = '', organizationName = '', project, 
   const counts = inventorySummary(inventory);
   const open = issues.filter((i) => i.status === 'open');
   const verdicts = project.targets.map((t) => VERDICT_LABEL[project.feasibility[t]?.verdict || ''] || 'Not assessed');
+  // light governance (QI upgrade P1.1)
+  const decisions = decisionRows(project.issues);
+  const objectiveLines = project.targets.map((t) => [t, String(project.objectives?.targets?.[t] || '').trim()]).filter(([, v]) => v);
   return {
+    objectives: { text: String(project.objectives?.text || '').trim(), targets: objectiveLines },
+    decisions: decisions.map((d) => [d.date || '', gateLabel(d), [outcomeLabel(d), d.decision].filter(Boolean).join(': ') + (d.note ? `. ${d.note}` : ''), d.by || '', [d.ref?.label, d.refText].filter(Boolean).join('; ')]),
     identification: [
       ['Project', projectName || 'Unsaved QI study'],
       ['Organisation', organizationName || ''],
@@ -42,6 +49,8 @@ export function reportModel({ projectName = '', organizationName = '', project, 
       `Usability: ${matrix.count.good} good, ${matrix.count.limited} limited and ${matrix.count.missing} missing well and target combinations.`,
       `${open.length} open issue${open.length === 1 ? '' : 's'} (${open.filter((i) => i.severity === 'high').length} high severity).`,
       project.targets.length ? `Feasibility: ${project.targets.map((t, k) => `${t} ${verdicts[k].toLowerCase()}`).join('; ')}.` : 'No target has a feasibility verdict yet.',
+      // said only when decisions exist, so a study without them reads as before
+      ...(decisions.length ? [`${decisions.length} decision${decisions.length === 1 ? '' : 's'} recorded; the latest: ${gateLabel(decisions[0])}, ${(outcomeLabel(decisions[0]) || 'recorded').toLowerCase()}${decisions[0].date ? ` on ${decisions[0].date}` : ''}.`] : []),
     ].join(' '),
     // where each chosen volume came from: the source file, its original
     // geometry and the crop it was cut to before upload (crop before upload)
@@ -209,6 +218,10 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
   report.header({ identification: model.identification, generatedAt });
   if (model.executive) section('Executive summary', model.executive);
   section('Summary', model.summary);
+  if (model.objectives && (model.objectives.text || model.objectives.targets.length)) {
+    if (model.objectives.text) section('Objectives and acceptance criteria', model.objectives.text);
+    if (model.objectives.targets.length) table(model.objectives.text ? 'Objectives per target' : 'Objectives and acceptance criteria', ['Target', 'Objective or acceptance criterion'], model.objectives.targets);
+  }
   table('Data inventory', model.inventory.head, model.inventory.rows, { fontSize: 6.5 });
   if ((model.seismicData || []).some((r) => !/^Imported whole/.test(r[1]))) {
     table('Seismic data: source and crop', ['Volume', 'Source file, original geometry and crop'], model.seismicData, { fontSize: 6.5, note: 'A cropped volume keeps only the inlines, crosslines and time window shown, read from the source file before upload; above the window it holds no samples, so times match the uncropped data.' });
@@ -277,6 +290,7 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
   if ((model.handover || []).length) table('Handover', ['Product', 'Method', 'Label', 'Delivered as'], model.handover, { note: 'SEG-Y of each volume comes from the seismic worker (rev 1, IEEE float, inline 189, crossline 193); LAS of the logs from Well Data Manager; each run has a run record of its settings, inputs and engine.' });
   if (model.issues.rows.length) table('Issue register', model.issues.head, model.issues.rows, { fontSize: 6.5 });
   else section('Issue register', 'No open or resolved issues.');
+  if ((model.decisions || []).length) table('Decisions', ['Date', 'Gate', 'Decision', 'By', 'Refers to'], model.decisions, { fontSize: 6.5, note: 'Decisions recorded in the issue register at each gate of the study, with the run or version each rests on. They are records of the study team\'s judgement; the app does not enforce a sign-off.' });
   for (const f of model.feasibility) {
     section(`Feasibility: ${f.target}`, [
       `Verdict: ${f.verdict}.`,
