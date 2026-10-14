@@ -254,3 +254,16 @@ A well that states no depth reference elevation is left out of the ties, the
 properties, the section and the 3D scene, and the build notes name it
 (`services/modelBuild.js`, `framework3d.js`). Wells saved before the model
 tie as they did. Test: `__tests__/upgradeDatum.test.js`.
+
+## 2026-10-14: Ekene walk, stack defaults and feet (video round)
+
+Walked as a modeller building the Ekene static model on the demo account.
+- Tie tops now match surface names such as "Ekene Sand top (6-well map)" and
+  "Ekene Sand base (6-well map)" (`services/stackDefaults.js`). Before, the
+  ties stayed empty and every new zone read the FIRST registry zone of the
+  well list ("Seabed" on Ekene), so NTG came out as 0.014 with no warning. A
+  new zone now reads the zone named after the tie top above it, or none.
+- The first section pair skips wells with no tops (the "PPS demo: Ekene-1" copy).
+- The volume distribution's OWC and GOC spreads are typed in the display depth
+  unit (30 ft by default in a feet session) and converted to metres.
+Tests: `__tests__/stackDefaults.test.js`, `__tests__/distributionUnits.test.js`.

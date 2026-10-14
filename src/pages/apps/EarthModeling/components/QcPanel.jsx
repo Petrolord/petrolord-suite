@@ -128,7 +128,7 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
         </table>
       </div>
 
-      {onDistribution && <DistributionCard built={built} volumeUnits={volumeUnits} onResult={onDistribution} />}
+      {onDistribution && <DistributionCard built={built} volumeUnits={volumeUnits} depthUnit={depthUnit} onResult={onDistribution} />}
 
       {built.zones.map((zone) => (
         <div className={card} key={zone.name}>
