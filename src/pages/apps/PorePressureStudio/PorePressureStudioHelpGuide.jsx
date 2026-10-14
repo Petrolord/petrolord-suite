@@ -261,7 +261,22 @@ export default function PorePressureStudioHelpGuide() {
           is assumed. MD goes through the well's survey, TVDSS through its KB, a mud weight converts at the TVD below
           the rotary table. Rows with a -999 null, text or a depth above the mudline are listed with the reason.
           Pressure points and kicks are compared with the pore pressure, LOT, FIT and XLOT with the fracture pressure
-          (a FIT is a lower bound), and mud weights are drawn as a step line. Spreadsheets are saved as CSV first.
+          (a FIT is a lower bound), and mud weights are drawn as a step line. An Excel workbook is read from its first
+          sheet.
+        </Para>
+        <Para>
+          Headers written in snake_case with the unit as the last word (md_m, shoe_md_m, pressure_psia, emw_ppg,
+          mud_weight_ppg) are read for the column, its unit and its depth reference, so a file like the Ekene kit's
+          imports with nothing left to declare. A file that names several wells shows Rows for well, set to the well
+          you have open when its name contains one of them; the other wells' rows are listed as skipped. A from and to
+          depth pair is a mud weight held over that interval, drawn over it. An outcome column that says a mud weight
+          took an influx makes it a mud weight that took an influx (a red triangle, at the depth the outcome names or
+          at the interval base); losses make it a mud weight with losses (a blue cross).
+        </Para>
+        <Para>
+          Under the casing seats, a line checks the mud weights against the prognosis in ppg: the weights that held
+          should sit above the pore pressure over their intervals, and a weight that took an influx should sit below
+          it at the influx depth. The line says which ones the prognosis explains and where it may read high.
         </Para>
       </GuideSection>
 
