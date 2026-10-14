@@ -15,6 +15,7 @@
 //   Writes: epe_results(run_id) with { kpis, cash_flow_data }
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { callerCanSeeRow, getCaller } from '../_shared/platform-admin.ts';
 import { computeCashFlow, computeBreakevenOilPrice } from '../_shared/epe-engine.ts';
 
 const corsHeaders = {
@@ -38,6 +39,16 @@ Deno.serve(async (req) => {
     supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
     const { run_id, run_config_id } = await req.json();
     if (!run_id || !run_config_id) throw new Error('Missing run_id or run_config_id.');
+    // Security fix 2026-10-14: the caller must be signed in and able to see
+    // this run under row-level security (owner, or shared with them). The
+    // engine reads and writes with the service role, so without this anyone
+    // holding the anon key could run any organization's case by id.
+    const caller = await getCaller(supabase, req);
+    if (!caller || !(await callerCanSeeRow(caller, 'epe_runs', run_id))) {
+      return new Response(JSON.stringify({ error: 'Run not found or not yours.' }), {
+        status: caller ? 403 : 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     runId = run_id;
 
     const { data: run, error: runErr } = await supabase

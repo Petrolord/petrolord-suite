@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import EpeDataUploader from '@/components/epe/EpeDataUploader';
+import { compareRunInputs } from '@/pages/apps/epe/epeRunInputs';
 import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
 import EpeDcaImport from '@/pages/apps/epe/EpeDcaImport';
 import EpeWfImport from '@/pages/apps/epe/EpeWfImport';
@@ -338,7 +339,7 @@ import EpeWsImport from '@/pages/apps/epe/EpeWsImport';
 
       // Compact KPI formatting for the run history strip (Wave D).
       const fmtCompactUsd = (v) => (typeof v === 'number'
-        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(v)
+        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumSignificantDigits: 3 }).format(v)
         : null);
 
       const handleDeleteFile = async (fileId, table, fileName) => {
@@ -478,6 +479,10 @@ import EpeWsImport from '@/pages/apps/epe/EpeWsImport';
                       <ul className="space-y-3">
                         {runs.map(run => {
                           const status = run.status || 'complete';
+                          // the case data this run priced, compared with the files now
+                          const inputsCheck = status === 'complete'
+                            ? compareRunInputs(run, { production: productionVolumes, capex, opex })
+                            : null;
                           return (
                             <li key={run.id} className="p-3 rounded-md border border-pl-border bg-pl-surface flex flex-wrap justify-between items-center gap-4 hover:bg-pl-sunken transition-colors">
                               <div className="min-w-0">
@@ -488,6 +493,9 @@ import EpeWsImport from '@/pages/apps/epe/EpeWsImport';
                                   )}
                                   {status === 'running' && (
                                     <span className={epeBadge('warning')}>Running</span>
+                                  )}
+                                  {inputsCheck?.state === 'changed' && (
+                                    <span className={epeBadge('warning')} data-testid="epe-run-out-of-date" title={`The case data changed after this run. ${inputsCheck.changes.join(' ')}`}>Out of date</span>
                                   )}
                                   {run.locked && (
                                     <span className={`${epeBadge('neutral')} inline-flex items-center gap-1`}><Lock className="w-3 h-3" aria-hidden="true" />Locked</span>
