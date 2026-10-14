@@ -184,6 +184,64 @@ export async function listMovable(table, projectId, { isDefault = false, userId 
 export async function moveToProject(table, ids, targetProjectId) {
   if (!ids?.length) return 0;
   const { data, error } = await supabase.rpc('suite_move_to_project', { p_table: table, p_ids: ids, p_target: targetProjectId });
+  if (error?.code === '23505') {
+    throw new Error('The target project already has a record with one of these names. Rename it in one of the projects, then move it.');
+  }
   if (error) fail('Could not move the records', error);
   return Number(data) || 0;
+}
+
+// ---- P3: membership, roles and the access log ---------------------------
+
+export const PROJECT_ROLES = Object.freeze(['owner', 'editor', 'viewer']);
+
+/** Members of a project (RLS: whoever may see the project). */
+export async function listProjectMembers(projectId) {
+  const { data, error } = await supabase.from('suite_project_members')
+    .select('project_id, user_id, role, added_by, added_at').eq('project_id', projectId).order('added_at', { ascending: true });
+  if (error) fail('Could not load the project members', error);
+  return data || [];
+}
+
+/** Colleagues in the organisation, for names and the add-member picker. */
+export async function listOrgColleagues(organizationId) {
+  if (!organizationId) return [];
+  const { data, error } = await supabase.from('organization_members')
+    .select('user_id, full_name, email, role, status').eq('organization_id', organizationId);
+  if (error) fail('Could not load your colleagues', error);
+  return (data || []).filter((m) => m.user_id && String(m.status || 'active').toLowerCase() === 'active');
+}
+
+const roleOk = (role) => {
+  if (!PROJECT_ROLES.includes(role)) throw new Error('A member is an owner, an editor or a viewer.');
+  return role;
+};
+
+export async function addProjectMember(projectId, userId, role = 'editor') {
+  const { error } = await supabase.from('suite_project_members').insert({ project_id: projectId, user_id: userId, role: roleOk(role) });
+  if (error?.code === '23505') throw new Error('That colleague is already a member.');
+  if (error) fail('Could not add the member', error);
+}
+
+export async function setProjectMemberRole(projectId, userId, role) {
+  const { data, error } = await supabase.from('suite_project_members').update({ role: roleOk(role) })
+    .eq('project_id', projectId).eq('user_id', userId).select('user_id');
+  if (error) fail('Could not change the role', error);
+  if (!data || !data.length) throw new Error('Only the project owner or an organisation admin can change roles.');
+}
+
+export async function removeProjectMember(projectId, userId) {
+  const { data, error } = await supabase.from('suite_project_members').delete()
+    .eq('project_id', projectId).eq('user_id', userId).select('user_id');
+  if (error) fail('Could not remove the member', error);
+  if (!data || !data.length) throw new Error('Only the project owner or an organisation admin can remove members.');
+}
+
+/** The project's log (admin opens, visibility, members, archive, moves), newest first. */
+export async function listAccessLog(projectId, limit = 50) {
+  const { data, error } = await supabase.from('suite_project_access_log')
+    .select('id, project_id, actor_id, event, detail, created_at').eq('project_id', projectId)
+    .order('created_at', { ascending: false }).limit(limit);
+  if (error) fail('Could not load the project log', error);
+  return data || [];
 }

@@ -6,13 +6,17 @@
 #      every registry and child table, storage count) as they are now, against the
 #      same with the 36 P0 RESTRICTIVE policies dropped, i.e. pre-P0 access.
 #      While no project is members-only the two must be identical.
+#   D) P3: apply 20261015120000 (well names per project) inside the
+#      transaction, run its verify query and p3_names.sql, then roll back.
+#   E) P3 roles: membership and roles per role (p3_roles.sql).
 #   C) P2 gate: a project settings change leaves stored data byte-identical
 #      (p2_settings.sql), and only the project's managers can change settings.
 # Usage: bash tools/security/suite-projects/probes/run_liveprobes.sh A|B out.csv
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
-MODE="${1:?A, B or C}"; OUT="${2:-/dev/stdout}"
-for f in "$HERE/harness_head.sql" "$HERE/probes.sql" "$HERE/p2_settings.sql"; do
+MODE="${1:?A, B, C, D or E}"; OUT="${2:-/dev/stdout}"
+P3MIG="$HERE/../../../../supabase/migrations/20261015120000_geo_wells_name_unique_per_project.sql"
+for f in "$HERE/harness_head.sql" "$HERE/probes.sql" "$HERE/p2_settings.sql" "$HERE/p3_names.sql" "$HERE/p3_roles.sql" "$P3MIG"; do
   if grep -qiE '^\s*((begin|commit|rollback|end)\s*(transaction|work)?|start\s+transaction)\s*;' "$f"; then
     echo "REFUSING: $f has a transaction-control line" >&2; exit 1
   fi
@@ -21,7 +25,29 @@ TMP="$(mktemp)"
 {
   echo "begin isolation level repeatable read;"
   cat "$HERE/harness_head.sql"
-  if [ "$MODE" = C ]; then
+  if [ "$MODE" = E ]; then
+    cat "$HERE/p3_roles.sql"
+    cat <<'SQL'
+select kind, persona, probe, result from (
+select 1 o, 'probe' kind, persona, probe, result from _p where phase = 'probe'
+union all select 2, 'summary', 'all', 'probes', count(*) filter (where result like 'PASS%') || ' pass, ' || count(*) filter (where result like 'FAIL%') || ' fail'
+  from _p where phase = 'probe') x order by o, 2, 3, 4;
+SQL
+  elif [ "$MODE" = D ]; then
+    # NEGATIVE=1: without the migration "same name in project B" must fail
+    [ "${NEGATIVE:-0}" = 1 ] || cat "$P3MIG"
+    v="$HERE/../verify/20261015120000.verify.sql"
+    printf "insert into _p select 'probe', 'verify', 'index', row_to_json(t)::text from (\n"
+    grep -v '^--' "$v" | sed 's/;\s*$//'
+    echo ") t;"
+    cat "$HERE/p3_names.sql"
+    cat <<'SQL'
+select kind, persona, probe, result from (
+select 1 o, 'probe' kind, persona, probe, result from _p where phase = 'probe'
+union all select 2, 'summary', 'all', 'probes', count(*) filter (where result like 'PASS%') || ' pass, ' || count(*) filter (where result like 'FAIL%') || ' fail'
+  from _p where phase = 'probe') x order by o, 2, 3, 4;
+SQL
+  elif [ "$MODE" = C ]; then
     cat "$HERE/p2_settings.sql"
     cat <<'SQL'
 select kind, persona, probe, result from (

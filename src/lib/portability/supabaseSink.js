@@ -15,8 +15,13 @@ import { currentProjectId } from '@/lib/projects/projectScope';
 
 const isMissingRelation = (error) => error && (String(error.code) === '42P01' || /relation .* does not exist|Could not find the table/i.test(String(error.message || '')));
 
-export function makeSupabaseSink() {
+/**
+ * @param {{projectId?: ?string}} [opts] the Suite project rows land in
+ *   (Copy to project, P3); by default the current project
+ */
+export function makeSupabaseSink({ projectId = undefined } = {}) {
   let userCache = null;
+  const targetProject = () => (projectId !== undefined ? projectId : currentProjectId());
   let jobsAvailable = true;
   const notes = [];
   return {
@@ -31,7 +36,7 @@ export function makeSupabaseSink() {
       let organization_id = null;
       try { organization_id = (await getUserOrgRow(id))?.organization_id || null; } catch (e) { /* private account */ }
       // Suite Projects: imports land in the current project (null while projects are off)
-      userCache = { id, organization_id, project_id: currentProjectId() };
+      userCache = { id, organization_id, project_id: targetProject() };
       return userCache;
     },
 
@@ -40,7 +45,12 @@ export function makeSupabaseSink() {
      *  owner id so planImport can word a clash correctly. The name rule
      *  spans all of them; the database index covers the own half. */
     async listMyWells() {
-      const { data, error } = await supabase.from('geo_wells').select('id, name, uwi, user_id');
+      // Suite Projects P3: names are unique per project, so the clash list is
+      // the target project's wells
+      let q = supabase.from('geo_wells').select('id, name, uwi, user_id');
+      const pid = targetProject();
+      if (pid) q = q.eq('suite_project_id', pid);
+      const { data, error } = await q;
       if (error) return [];
       return data || [];
     },
