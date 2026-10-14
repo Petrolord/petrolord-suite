@@ -54,9 +54,6 @@ matter):
 
 EPE engines (epe-cash-flow-engine, epe-cash-flow-engine-batch) are held out of this batch: the EPE chain (#1083, #1105, #1095) changes the same functions, so they are deployed once, with epe-monte-carlo, after both this PR and that chain are on main (docs/security/RUNBOOK-2026-10.md, step 2).
 
-```
-```
-
 Step 2: HSE deploys, from a fresh HSE checkout after the HSE PR merges:
 
 ```
