@@ -299,3 +299,13 @@ published on the well, never the open project, and nothing said when a recalibra
   on every sample within float32; an unpublished n change is caught with its size and depth; negative control,
   no published values means nothing compared and nothing claimed) and `__tests__/publishStateUi.test.jsx` (the
   chip from Not published to matches, to Unpublished changes after a parameter change, to matches after Publish).
+## 2026-10-14: unsaved changes said
+
+Found in the Pore Pressure Studio video dry run: after calibrating on the Ekene copy and opening Well Design
+Studio, coming back reopened the defaults (the work had not been saved, and nothing said so; the autosave
+hazard noted across the Suite). A chip beside Save (`pp-save-state`, "Unsaved changes") shows while the
+parameters, picks or calibration differ from the saved project (a stable snapshot set on restore and on Save;
+the water column a well's datum supplied is left out), and the browser asks before the page is closed or
+reloaded with unsaved work (not in the worked example). Tests: `__tests__/unsavedChanges.test.jsx` (opening the
+saved well is not a change, the negative control; a change shows the chip and arms the leave prompt; Save
+clears both).
