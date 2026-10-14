@@ -207,8 +207,8 @@ Well Test Analysis Report, Well Sample well 1, Field Obodo                      
                                deviated interval (MD longer than TVD) enters as the Cinco-Ley et al. (1975) slant pseudo-skin, split off the total
                                skin; the flow model stays that of a vertical well.
 
- Time basis                    Buildup on Agarwal equivalent time with the producing time tp, or on superposition of the rate history when one is
-                               entered.
+ Time basis                    Buildup on Agarwal equivalent time with the producing time tp at the test rate q (Horner). A rate history entered on
+                               the Data tab is used only when the time basis is set to the rate history.
 
  Pressures                     Analysed and reported at the gauge depth; no correction to a datum and no gravity or friction correction between
                                gauge and sandface.
@@ -307,18 +307,21 @@ Well Test Analysis Report, Well Sample well 1, Field Obodo                      
 Figure 3. Horner semilog plot
 
                                  pws        Straight line
-                   4800
+                   4850
                                                                                                                                        Fit window
+
+
+                   4800
 
 
 
                    4750
+  Pressure (psi)
+
 
 
 
                    4700
-  Pressure (psi)
-
 
 
 
@@ -331,7 +334,6 @@ Well Test Analysis Report, Well Sample well 1, Field Obodo                      
 
 
                    4550
-
                          Slope m = 22.1 psi/cycle
                          Fit window 4.56 to 35.1 hr shut-in time (4.05 to 17.8 hr equivalent time), the detected radial flow
                    4500
@@ -339,8 +341,8 @@ Well Test Analysis Report, Well Sample well 1, Field Obodo                      
 
                                                                                              Horner time ratio (tp + dt)/dt
 
-Shut-in pressure against the Horner time ratio, with the fitted straight line. Slope m = 22.1 psi/cycle. Fit window 4.56 to 35.1 hr shut-in time (4.05 to
-17.8 hr equivalent time), the detected radial flow (11 points). The shaded band is the fit window.
+Shut-in pressure against the Horner time ratio, with the fitted straight line carried to p*. Slope m = 22.1 psi/cycle. Fit window 4.56 to 35.1 hr shut-in
+time (4.05 to 17.8 hr equivalent time), the detected radial flow (11 points). The shaded band is the fit window.
 
 
 Figure 4. Square-root-of-time plot

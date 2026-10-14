@@ -51,6 +51,8 @@
  *           fracture + exact partial-penetration pseudo-skin, dimensional
  *           plateau identity 70.6 qBmu/(Lw sqrt(kh kv)), and an auto-fit
  *           round trip (k, kv/kh, Lw, skin).
+ * CASE 13 2026-10-14: buildup after a rate history by superposition (Lee Ex. 2.1 through
+ *           the new line, line-source clean-up), fault distance (line source + image)
  * CASE 12 WT9 RTA: material-balance-time identity, oil flowing material
  *           balance on the exact exponential-decline identity (N, J), gas
  *           dynamic material balance (G, pseudo-time iteration) on an
@@ -72,7 +74,8 @@ import {
   getModel, toDimensionlessGroups, evaluateDrawdown, evaluateBuildup,
 } from '../../../src/utils/welltest/models/modelCatalog.js';
 import { bourdetDerivative } from '../../../src/utils/welltest/derivative.js';
-import { mdhAnalysis, hornerAnalysis } from '../../../src/utils/welltest/analysis.js';
+import { mdhAnalysis, hornerAnalysis, superpositionBuildupAnalysis, twoLineFaultAnalysis, FAULT_INTERSECTION_CONSTANT } from '../../../src/utils/welltest/analysis.js';
+import { rateStepsFromHistory, equivalentProducingTime } from '../../../src/utils/welltest/superposition.js';
 import { autoFitModel } from '../../../src/utils/welltest/autoFit.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -656,6 +659,66 @@ banner('CASE 12: WT9 RTA (material-balance time, flowing MB, transient linear)')
     check('transient linear: xf sqrt(k)', lin.xfSqrtK, fx.truth.xfSqrtK, 1e-6, 'ft sqrt(md)');
     check('transient linear: r2', lin.r2, 1, 1e-9);
   }
+}
+
+
+// ---------------------------------------------------------------------------
+banner('CASE 13: buildup after a rate history, and the distance to a sealing fault (2026-10-14)');
+{
+  // --- the superposition line on one rate IS Horner: Lee (1982) Example 2.1 through it
+  const lit = JSON.parse(fs.readFileSync(path.join(here, 'literature-fixtures.json'), 'utf8'));
+  const lee = (lit.buildups || [])[0];
+  const mtr = lee.mtr || {};
+  const pts = lee.points.filter((p) => p.dt >= (mtr.dtMin ?? 0) && p.dt <= (mtr.dtMax ?? Infinity));
+  const sup = superpositionBuildupAnalysis({
+    points: pts, steps: [{ start: 0, q: lee.reservoir.q }], shutInTime: lee.tp, pwfShutIn: lee.pwfShutIn, ...lee.reservoir,
+  });
+  check(`${lee.citation} through the superposition line: k`, sup.k, lee.expected.k, lee.tolerances?.k ?? 0.05, 'md');
+  checkAbs(`${lee.citation} through the superposition line: skin`, sup.skin, lee.expected.skin, lee.tolerances?.skin ?? 0.5);
+  checkAbs(`${lee.citation} through the superposition line: p*`, sup.pStar, lee.expected.pStar, lee.tolerances?.pStar ?? 10, 'psi');
+
+  // --- a clean-up then a buildup, by exact superposition of the line source
+  //     (expE1 directly, independent of the Laplace engine)
+  const r = { phi: 0.2, mu: 1.8, ct: 1.27e-5, rw: 0.51, h: 21, B: 1.21, pi: 2120 };
+  const k = 225; const skin = 3.2;
+  const eta = (0.0002637 * k) / (r.phi * r.mu * r.ct);
+  const unitDp = (141.2 * r.B * r.mu) / (k * r.h);
+  const pdLine = (t) => (t > 0 ? 0.5 * expE1((r.rw * r.rw) / (4 * eta * t)) + skin : 0);
+  const steps = rateStepsFromHistory([{ t: 0, q: 60 }, { t: 6, q: 0 }, { t: 7, q: 100 }, { t: 15, q: 140 }, { t: 27, q: 0 }]);
+  const pAt = (t) => {
+    let sum = 0; let prev = 0;
+    for (const s of steps) { if (s.start >= t) break; sum += (s.q - prev) * pdLine(t - s.start); prev = s.q; }
+    return r.pi - unitDp * sum;
+  };
+  const pwf = pAt(27);
+  const dts = Array.from({ length: 40 }, (_, i) => 10 ** (Math.log10(3) + (Math.log10(48 / 3) * i) / 39));
+  const bu = dts.map((dt) => ({ dt, pws: pAt(27 + dt) }));
+  const flowing = steps.filter((s) => s.start < 27);
+  const res = superpositionBuildupAnalysis({ points: bu, steps: flowing, shutInTime: 27, pwfShutIn: pwf, ...r });
+  check('clean-up buildup (line source): k on superposition time', res.k, k, 0.002, 'md');
+  checkAbs('clean-up buildup (line source): skin on superposition time', res.skin, skin, 0.03);
+  checkAbs('clean-up buildup (line source): p* = pi', res.pStar, r.pi, 0.01, 'psi');
+  const horner = hornerAnalysis({ points: bu, tp: equivalentProducingTime(steps, 27), pwfShutIn: pwf, ...r, q: 140 });
+  const hornerSkinErr = Math.abs(horner.skin - skin);
+  if (hornerSkinErr > 0.1) { passed += 1; console.log(`  PASS  Horner on the equivalent tp misreads the same clean-up (skin off by ${hornerSkinErr.toFixed(3)})`); }
+  else { failed += 1; console.log(`  FAIL  Horner on the equivalent tp reads the clean-up as well as superposition (skin off by ${hornerSkinErr.toFixed(3)})`); }
+
+  // --- sealing fault: the well and its image at 2L (expE1 directly)
+  check('fault constant 0.0002637 exp(-gamma) vs Earlougher 0.000148', FAULT_INTERSECTION_CONSTANT, 0.000148, 0.001);
+  const L = 555; const tp = 30000; const q = 140;
+  const pdFault = (t) => (t > 0 ? pdLine(t) + 0.5 * expE1(((2 * L) ** 2) / (4 * eta * t)) : 0);
+  const pFault = (t) => r.pi - unitDp * q * pdFault(t);
+  const pwfF = pFault(tp);
+  const pwsF = (dt) => r.pi - unitDp * q * (pdFault(tp + dt) - pdFault(dt));
+  const tFor = (tDL) => (tDL * L * L) / eta;
+  const grid = Array.from({ length: 160 }, (_, i) => 10 ** (-1 + (4.7 * i) / 159));
+  const early = grid.filter((dt) => dt >= 0.2 && dt <= tFor(0.08)).map((dt) => ({ dt, pws: pwsF(dt) }));
+  const late = grid.filter((dt) => dt >= tFor(40) && dt <= tFor(150)).map((dt) => ({ dt, pws: pwsF(dt) }));
+  const f = twoLineFaultAnalysis({ kind: 'buildup', early, late, steps: [{ start: 0, q }], shutInTime: tp, ...r });
+  check('sealing fault (line source + image): distance from the two lines', f.L, L, 0.05, 'ft');
+  check('sealing fault (line source + image): slope ratio', f.ratio, 2, 0.05);
+  check('sealing fault (line source + image): k from the first line', f.k, k, 0.01, 'md');
+  void pwfF;
 }
 
 // ---------------------------------------------------------------------------

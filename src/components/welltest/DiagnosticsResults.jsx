@@ -14,7 +14,7 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 const REGIME_ROW = 'border-pl-border bg-pl-sunken text-pl-text';
 
 const DiagnosticsResults = () => {
-  const { loglog, regimes, reservoirSpec, configSpec, unitSystem, pseudoTime } = useWellTestStudio();
+  const { loglog, regimes, reservoirSpec, configSpec, unitSystem, pseudoTime, history } = useWellTestStudio();
   const dpKind = reservoirSpec.reservoir?.fluid === 'gas' ? 'pseudoPressure' : 'pressure';
   // display-unit series from the shared builder (the PDF log-log uses it too)
   const displayLoglog = useMemo(
@@ -40,13 +40,13 @@ const DiagnosticsResults = () => {
       const sorted = inWindow.map((p) => p.derivative).sort((a, b) => a - b);
       const median = sorted[Math.floor(sorted.length / 2)];
       const r = reservoirSpec.reservoir;
-      plateauKh = (OILFIELD.DERIVATIVE_PLATEAU * r.q * r.B * r.mu) / median;
+      plateauKh = (OILFIELD.DERIVATIVE_PLATEAU * (history ? history.qn : r.q) * r.B * r.mu) / median;
     }
   }
 
   const timeName = pseudoTime.active ? 'pseudo-time' : 'time';
   const xLabel = configSpec.config?.family === 'buildup'
-    ? `Agarwal equivalent ${timeName} (hr)`
+    ? (history ? `Equivalent ${timeName} of the rate history, superposition (hr)` : `Agarwal equivalent ${timeName} (hr)`)
     : `Elapsed ${timeName} (hr)`;
   const isGas = reservoirSpec.reservoir?.fluid === 'gas';
 

@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 99add05e325f8e687749d4193b9e338a5803347e
+# commit 0750f996765eee4dacc6ae80b94fb3cee7fd8426
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 d8bd133c5a081611291cb72e0efd5909a2e23b77 README.md
@@ -308,6 +308,7 @@ b8fede0736728d07204786dc53b744d724f29de2 __tests__/wellsite.reports.test.js
 2669e6bbbd7eb717060c2d138c2f55fb7ee25b49 __tests__/wellsite.tops.test.js
 2b1081b6cdd59089b91c28653cc88ecf466d9c3d __tests__/welltest.analysis.test.js
 97b3aee776a254cc46c8d0184c79f6fa15720e24 __tests__/welltest.autoFit.test.js
+20a13f53e48e5d546f78584772a1660ecbb2ec5b __tests__/welltest.buildupSuperposition.test.js
 03370482160f0896621a299161a2d87f68510f12 __tests__/welltest.changingStorage.test.js
 509d9b8212200ea02910df4674e74ac452a0b441 __tests__/welltest.derivative.test.js
 b247d464584c13c2dbf6d59e617e5f9795944925 __tests__/welltest.gasZMethod.test.js
@@ -666,8 +667,8 @@ c138332947f647c0911d2b43fc73441e32527e0a engines/wellsite/sampleProgram.js
 9ccfee9a71a74af23d4059669f9e32d8d2e6b889 engines/wellsite/shows.js
 c0c00b28c4102b2d6a549c080d02ebc90b177bf6 engines/wellsite/time.js
 36eab8c0bb60ae29da879fdc7c3530b239fb5c2f engines/wellsite/tops.js
-2560c225a3068ec34ce86dcef120be61eb75a745 engines/welltest/analysis.js
-701d4072a2dc4822de148d41825bba8c262f5f7f engines/welltest/autoFit.js
+a85595dae8615fba5699efb66de6357616600f28 engines/welltest/analysis.js
+ef20ece47f150f075f706abe1aa996fcc7054980 engines/welltest/autoFit.js
 b905674c40d68d87bf34d32a8bdcbfc7636fcb59 engines/welltest/compressibility.js
 f3cdda47224cd3c66012e6bfe52b66b951103f8c engines/welltest/datum.js
 372a51650943b72c82bfe226b07a7d777b223846 engines/welltest/derivative.js
@@ -679,13 +680,13 @@ f2adf90723625d1d318adccb6cfbd31ca45fb862 engines/welltest/models/dualPorosity.js
 07990f09334c25e8d8a725de555c11bbdfd9baa2 engines/welltest/models/fracture.js
 257ab0050d8711948a2f7d200808b9b07596dae6 engines/welltest/models/homogeneous.js
 534bdf1b59e3630ce479e74668ada353c5ddfff4 engines/welltest/models/horizontal.js
-4e6cf33e07741e9c403147d2e7ccfbc542d685ff engines/welltest/models/modelCatalog.js
+ce0a149117c86ce15e2d50e7878901d4f5bf0c8f engines/welltest/models/modelCatalog.js
 56cb947d7164a7c0d6687d176ce112982a40f0d5 engines/welltest/models/radial.js
 50ccebe64b9437e8ccbe6d461914db938067fe0e engines/welltest/models/rectangle.js
 9171be7a4283a62044547ca000ba1d199a519469 engines/welltest/numerics.js
 815501f4fef2ec4f7e458e413a269a2e36631beb engines/welltest/partialPenetration.js
 30557794f13777eca3d0e43aa21a23830266f6f7 engines/welltest/rta.js
-4865c684bb3a50f6558579d0d1034867261a7040 engines/welltest/superposition.js
+04458bc4cfadc832f80700715a749ecc1c450520 engines/welltest/superposition.js
 0022fb903d6a6dbfc6031ed728ac2c15cb1e5811 engines/welltest/units.js
 9dfa415b1e49ee63e4ab5f1c0b0aeafec4c0fe13 jest.config.cjs
 73693376b4fe6d48ddb76cf1dfeba7002d683037 lib/conventions/percentile.js

@@ -155,6 +155,7 @@ const DataPanel = () => {
     addNotification, loadSampleTest,
     unitSystem, setUnitSystem, profileUnitSystem, reservoirSpec,
     pvtIntake, setGaugeImport, takeFluidPvt,
+    rateHistorySpec, history,
   } = useWellTestStudio();
   // WTA-U2-001: the gas table of the intake, its use, and the card's re-read
   const gasTable = pvtIntake?.gasTable || null;
@@ -489,6 +490,34 @@ const DataPanel = () => {
           <Button size="sm" variant="ghost" className="text-pl-muted" onClick={() => setRateRows([...rateRows, { t: '', q: '' }])}>
             <Plus className="w-4 h-4 mr-1" /> Add rate step
           </Button>
+          {isBuildupFamily && (
+            <div className="space-y-1 pt-1" data-testid="wts-time-basis">
+              <Label className="text-xs text-pl-muted">Buildup analysed after</Label>
+              <Select value={testConfig.timeBasis === 'history' ? 'history' : 'tp'} onValueChange={(v) => setTestField('timeBasis', v)}>
+                <SelectTrigger className="h-9" aria-label="Buildup time basis" data-testid="wts-time-basis-select"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tp">One rate q for the producing time tp (Horner)</SelectItem>
+                  <SelectItem value="history">The rate history above (superposition)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-pl-muted" data-testid="wts-time-basis-note">
+                {rateHistorySpec.ok
+                  ? `The history shuts in at ${fmt.f1(rateHistorySpec.shutInTime)} hr after ${rateHistorySpec.steps.length} rate step${rateHistorySpec.steps.length === 1 ? '' : 's'}; the last rate is ${valueWithUnit(rateKind, rateHistorySpec.qn, unitSystem, fmt.f1)} and the equivalent producing time is ${fmt.f1(rateHistorySpec.equivalentTp)} hr. `
+                  : `${rateHistorySpec.reason} `}
+                {history
+                  ? 'The straight line, the derivative and the model all follow every rate step, so a clean-up or a multi-rate test is read correctly.'
+                  : (testConfig.timeBasis === 'history'
+                    ? 'The rate history cannot be used yet, so the producing time tp applies.'
+                    : 'Horner treats the flow as one rate for tp. After a clean-up or a multi-rate test, choose the rate history.')}
+              </p>
+              {rateHistorySpec.ok && testConfig.timeBasis !== 'history' && Number.isFinite(rateHistorySpec.equivalentTp) && (
+                <Button size="sm" variant="outline" className="h-7" data-testid="wts-use-equivalent-tp"
+                  onClick={() => setTestField('tp', rateHistorySpec.equivalentTp.toFixed(2))}>
+                  Use {fmt.f1(rateHistorySpec.equivalentTp)} hr as tp
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </section>
 

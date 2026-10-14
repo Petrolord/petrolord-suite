@@ -5,8 +5,8 @@
  * 2026-10-02). Nothing is recomputed for the report. The builders convert
  * oilfield state to the display unit system and decide nothing else.
  */
-import { evaluateModelTest } from './models/modelCatalog.js';
-import { hornerTime } from './superposition.js';
+import { evaluateModelTest, evaluateRateHistory } from './models/modelCatalog.js';
+import { hornerTime, buildupSuperpositionTime } from './superposition.js';
 import { rateStepsFromHistory } from './superposition.js';
 import { fromOilfield, unitLabel } from './units.js';
 
@@ -112,25 +112,46 @@ export function buildLoglogData({ loglog = [], modelSeries = null, dpKind = 'pre
  * gauge pressures, the fitted straight line converted back from analysis
  * space, and the window the line was fitted on.
  */
-export function buildSemilogData({ prepared, config, semilogResult, unitSystem = 'oilfield' }) {
+export function buildSemilogData({ prepared, config, semilogResult, unitSystem = 'oilfield', history = null, kind = 'auto', mdhResult = null, faultResult = null }) {
   const isBuildup = config?.family === 'buildup';
   const tp = config?.tp;
+  // 2026-10-14: a buildup after a rate history plots on its superposition
+  // time, drawn as the ratio 10^X (Horner's ratio for one rate) so the axis
+  // reads the same way; 'mdh' plots a buildup against log dt
+  const mdh = isBuildup && kind === 'mdh';
+  const xOf = (t) => {
+    if (!isBuildup || mdh) return t;
+    return history ? 10 ** buildupSuperpositionTime(history.steps, history.shutInTime, t) : hornerTime(tp, t);
+  };
+  const lineOf = (res, x) => {
+    if (!res) return null;
+    if (mdh) return res.p1hrA + res.m * Math.log10(x);
+    return isBuildup ? res.pStarA - res.m * Math.log10(x) : res.p1hrA - res.m * Math.log10(x);
+  };
+  const lineRes = mdh ? mdhResult : semilogResult;
   const pts = prepared?.points || [];
-  const wMin = semilogResult?.windowMin;
-  const wMax = semilogResult?.windowMax;
+  const wMin = lineRes?.windowMin;
+  const wMax = lineRes?.windowMax;
+  // the late line of a fault analysis, in the same analysis space
+  const late = faultResult?.ok && !mdh ? faultResult.line2 : null;
+  const lateAt = (x) => {
+    if (!late) return null;
+    // the line was fitted on X (buildup) or log10 t (drawdown)
+    return late.intercept + late.slope * Math.log10(x);
+  };
   const points = pts
     .map((p) => {
-      const x = isBuildup ? hornerTime(tp, p.time) : p.time;
+      const x = xOf(p.time);
       if (!(x > 0)) return null;
       // the straight line lives in analysis space (m(p), mirrored); convert
       // each fitted value back to gauge psi so it overlays the gauge data
-      const fittedA = semilogResult
-        ? (isBuildup
-          ? semilogResult.pStarA - semilogResult.m * Math.log10(x)
-          : semilogResult.p1hrA - semilogResult.m * Math.log10(x))
-        : null;
+      const fittedA = lineOf(lineRes, x);
       const fitted = fittedA != null ? prepared.fromAnalysis(fittedA) : null;
+      const lateA = lateAt(x);
+      const lateP = lateA != null ? prepared.fromAnalysis(lateA) : null;
       return {
+        late: lateP != null && Number.isFinite(lateP) ? Number(fromOilfield('pressure', lateP, unitSystem).toFixed(2)) : null,
+        inLate: late ? p.time >= faultResult.windowMin && p.time <= faultResult.windowMax : false,
         x,
         time: p.time,
         pressure: Number(fromOilfield('pressure', p.p, unitSystem).toFixed(2)),
@@ -138,14 +159,26 @@ export function buildSemilogData({ prepared, config, semilogResult, unitSystem =
         inWindow: Number.isFinite(wMin) && Number.isFinite(wMax) ? p.time >= wMin && p.time <= wMax : false,
       };
     })
-    .filter(Boolean)
-    .sort((a, b) => a.x - b.x);
+    .filter(Boolean);
+  // 2026-10-14: the line carried on to unit ratio, where it reads p*
+  // (Horner's extrapolation; superposition time X = 0 likewise)
+  if (isBuildup && !mdh && lineRes && Number.isFinite(lineRes.pStar) && points.length) {
+    const pStar = Number(fromOilfield('pressure', lineRes.pStar, unitSystem).toFixed(2));
+    const lateA = lateAt(1);
+    const lateP = lateA != null ? prepared.fromAnalysis(lateA) : null;
+    points.push({
+      x: 1, time: null, pressure: null, fitted: pStar, pStar, inWindow: false, inLate: false,
+      late: lateP != null && Number.isFinite(lateP) ? Number(fromOilfield('pressure', lateP, unitSystem).toFixed(2)) : null,
+    });
+  }
+  points.sort((a, b) => a.x - b.x);
   const inWin = points.filter((p) => p.inWindow);
   return {
     points,
     isBuildup,
-    xLabel: isBuildup ? 'Horner time ratio (tp + dt)/dt' : 'Elapsed time (hr)',
-    name: isBuildup ? 'Horner' : 'MDH',
+    xLabel: mdh ? 'Shut-in time dt (hr)' : (isBuildup ? (history ? 'Superposition time as a ratio, 10^X (Horner ratio for one rate)' : 'Horner time ratio (tp + dt)/dt') : 'Elapsed time (hr)'),
+    name: mdh ? 'MDH' : (isBuildup ? (history ? 'Superposition' : 'Horner') : 'MDH'),
+    kind: mdh ? 'mdh' : (isBuildup ? (history ? 'superposition' : 'horner') : 'mdh'),
     // the fit window on the plot abscissa and in elapsed hours
     window: inWin.length
       ? { xMin: Math.min(...inWin.map((p) => p.x)), xMax: Math.max(...inWin.map((p) => p.x)), tMin: wMin, tMax: wMax, n: inWin.length }
@@ -176,23 +209,27 @@ export function buildSqrtData({ prepared, sqrtResult, dpKind = 'pressure', unitS
  * drawdown (or injection) at rate q for tp from pi. Times are elapsed hours
  * from the shut-in, negative before it.
  */
-export function buildHistoryMatch({ prepared, matchParams, model, reservoir, config, unitSystem = 'oilfield' }) {
+export function buildHistoryMatch({ prepared, matchParams, model, reservoir, config, unitSystem = 'oilfield', history = null }) {
   const pts = prepared?.points || [];
   if (!pts.length) return { points: [], hasModel: false, hasPrior: false };
   const uP = (v) => Number(fromOilfield('pressure', v, unitSystem).toFixed(2));
   let modelP = null;
   let priorModel = null;
-  const prior = config?.family === 'buildup' ? (prepared.preTest || []).filter((r) => config.tp + r.time > 0) : [];
+  // the shut-in on the producing clock: tp, or the rate history's shut-in (2026-10-14)
+  const ts = history ? history.shutInTime : config?.tp;
+  const prior = config?.family === 'buildup' ? (prepared.preTest || []).filter((r) => ts + r.time > 0) : [];
   if (matchParams && reservoir && config && model) {
     try {
       const times = pts.map((p) => p.time);
       const series = evaluateModelTest({
-        testType: config.family, model, params: matchParams, reservoir, tp: config.tp, times, dts: times,
+        testType: config.family, model, params: matchParams, reservoir, tp: config.tp, rateHistory: history, times, dts: times,
       });
       modelP = series.map((s) => prepared.dpToGauge(s.dp));
       if (prior.length && typeof prepared.priorToGauge === 'function') {
-        const flowTimes = prior.map((r) => config.tp + r.time);
-        const flow = evaluateModelTest({ testType: 'drawdown', model, params: matchParams, reservoir, times: flowTimes });
+        const flowTimes = prior.map((r) => ts + r.time);
+        const flow = history
+          ? evaluateRateHistory({ model, params: matchParams, reservoir, steps: history.steps, times: flowTimes })
+          : evaluateModelTest({ testType: 'drawdown', model, params: matchParams, reservoir, times: flowTimes });
         priorModel = flow.map((s) => prepared.priorToGauge(s.dp));
       }
     } catch (e) {
