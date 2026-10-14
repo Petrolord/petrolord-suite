@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import * as qiService from '@/lib/qiService';
 import { useQIStudio } from '../QIStudioContext';
+import PilotArea, { EMPTY_PILOT, pilotParam, pilotName, pilotFormProblem } from './PilotArea';
 import { prepareWell } from '../services/inversionWells';
 import { waveletChoices } from './InversionPanel';
 import ExportControls from './ExportControls';
@@ -41,6 +42,7 @@ export default function SimultaneousPanel() {
   const client = jobs || qiService;
   const [stacks, setStacks] = useState(Array.from({ length: 5 }, () => ({ volumeId: '', angle: '' })));
   const [wKey, setWKey] = useState('');
+  const [pilot, setPilot] = useState(EMPTY_PILOT);
   const [hz, setHz] = useState([]);
   const [horizons, setHorizons] = useState([]);
   const [prep, setPrep] = useState(null);
@@ -109,13 +111,14 @@ export default function SimultaneousPanel() {
     } catch (e) { setSt((m) => ({ ...m, blind: { error: qiService.friendlyError(e) } })); }
   };
   const runVolume = async () => {
+    const pp = pilotParam(pilot);
     setSt((m) => ({ ...m, volume: { job: { status: 'queued' } } }));
     const rows = [];
     try {
-      for (const [k, label] of [['ai', 'AI'], ['si', 'SI'], ['rho', 'density'], ['vpvs', 'Vp/Vs']]) rows.push({ k, row: await backend.registerPrestackVolume({ volume: first, name: `${first.name} ${label}, simultaneous`, summary: { product: k, qi_class: 'elastic_estimate' } }) });
+      for (const [k, label] of [['ai', 'AI'], ['si', 'SI'], ['rho', 'density'], ['vpvs', 'Vp/Vs']]) rows.push({ k, row: await backend.registerPrestackVolume({ volume: first, name: pilotName(`${first.name} ${label}, simultaneous`, pilot), summary: { product: k, qi_class: 'elastic_estimate' } }) });
       const ids = Object.fromEntries(rows.map((r) => [r.k, r.row.id]));
-      const jobId = await client.enqueueJob('prestack_inversion', { mode: 'volume', volume_ids: ids, name: `${first.name} simultaneous inversion`, inversion: block() });
-      setSimultaneous((cur) => ({ runs: [...(cur.runs || []), { jobId, volumeIds: ids, firstVolumeId: first.id, name: `${first.name}: AI, SI, density, Vp/Vs`, at: new Date().toISOString(), status: 'queued' }] }));
+      const jobId = await client.enqueueJob('prestack_inversion', { mode: 'volume', volume_ids: ids, name: pilotName(`${first.name} simultaneous inversion`, pilot), inversion: block(), ...(pp ? { pilot: pp } : {}) });
+      setSimultaneous((cur) => ({ runs: [...(cur.runs || []), { jobId, volumeIds: ids, firstVolumeId: first.id, name: pilotName(`${first.name}: AI, SI, density, Vp/Vs`, pilot), at: new Date().toISOString(), status: 'queued', ...(pp ? { pilot: pp } : {}) }] }));
       watch('volume', jobId, (row) => setSimultaneous((cur) => ({ runs: (cur.runs || []).map((r) => (r.jobId === jobId ? { ...r, status: 'ready', at: row.finished_at || r.at } : r)) })));
     } catch (e) {
       for (const r of rows) { try { await backend.removeVolume(r.row); } catch { /* best effort */ } }
@@ -190,7 +193,8 @@ export default function SimultaneousPanel() {
         {prep?.wells && (
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" className={btn} onClick={runBlind} disabled={!canWrite || usable.length < 2 || busy('blind')} data-testid="qi-sim-blind">Check at the wells (blind)</button>{status('blind')}
-            <button type="button" className={btn} onClick={runVolume} disabled={!canWrite || usable.length < 1 || busy('volume')} data-testid="qi-sim-run">Invert the stacks</button>{status('volume')}
+            <PilotArea value={pilot} onChange={setPilot} volume={first} disabled={!canWrite} testId="qi-sim-pilot" />
+            <button type="button" className={btn} onClick={runVolume} disabled={!canWrite || usable.length < 1 || busy('volume') || !!pilotFormProblem(pilot)} data-testid="qi-sim-run">{pilot.on ? 'Invert the stacks in the pilot area' : 'Invert the stacks'}</button>{status('volume')}
           </div>
         )}
       </div>
