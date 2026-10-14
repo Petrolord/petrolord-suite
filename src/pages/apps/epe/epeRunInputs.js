@@ -101,7 +101,10 @@ export function compareRunInputs(run, current, { scenario } = {}) {
     const beforeIds = new Set(before.map((f) => f.id));
     const removed = before.filter((f) => !nowIds.has(f.id));
     const added = now.filter((f) => !beforeIds.has(f.id));
-    if (removed.length && added.length) {
+    if (removed.length === 1 && added.length === 1 && removed[0].file_name === added[0].file_name) {
+      // a refresh from its source, or the same file uploaded again
+      changes.push(`${slot.label}: ${added[0].file_name} was replaced by a newer version (${String(added[0].created_at || '').slice(0, 10) || 'date not recorded'}).`);
+    } else if (removed.length && added.length) {
       changes.push(`${slot.label}: ${nameList(removed)} ${removed.length > 1 ? 'were' : 'was'} replaced by ${nameList(added)}.`);
     } else if (added.length) {
       changes.push(`${slot.label}: ${nameList(added)} ${added.length > 1 ? 'were' : 'was'} added.`);

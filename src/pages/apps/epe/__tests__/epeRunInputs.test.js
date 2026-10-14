@@ -33,6 +33,11 @@ describe('epeRunInputs', () => {
     });
   });
 
+  test('a file refreshed from its source keeps its name: the newer version is dated', () => {
+    const now = { ...files, production: [{ id: 'p3', file_name: 'ekene-production-2p.csv', created_at: '2026-10-14T01:52:00Z', scenario_label: '2P' }, PB] };
+    expect(compareRunInputs(runOf(snapshotOf(files, '2P')), now).changes).toEqual(['Production: ekene-production-2p.csv was replaced by a newer version (2026-10-14).']);
+  });
+
   test('added and removed files say so by slot', () => {
     const snap = snapshotOf(files, '2P');
     const added = { ...files, capex: [CX, { id: 'c2', file_name: 'ekene-13-capex.csv' }] };
