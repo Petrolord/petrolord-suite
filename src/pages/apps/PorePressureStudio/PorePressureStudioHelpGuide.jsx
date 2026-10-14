@@ -239,6 +239,18 @@ export default function PorePressureStudioHelpGuide() {
           follows the kit's designed prognosis within 0.6 ppg RMS. A running median on the sonic (or resistivity), in
           the depth unit, smooths a noisy shale trace before the method reads it; it is off unless you set a window.
         </Para>
+        <SubHeading>The interpreted line</SubHeading>
+        <Para>
+          A pore pressure specialist draws the design pore pressure as a line through the shale points. Interpreted
+          line (Parameters, 100 ft for a new project) takes the overpressure (pore pressure minus hydrostatic) at the
+          shale samples, replaces it with its median over that depth window, using shale samples only, and carries it
+          across the sands. One shale sample that reads like a sand no longer pulls the window, the mud weight and the
+          casing seats down with it. The shale-sample pressures stay on the chart as pale points beside the line, so
+          you can see what the line was drawn through. The drilling window, the casing seats, the calibration fits,
+          the CSV, the report and the published curves all use the line; the provenance records the window. Empty
+          the box to go back to the shale-sample pressures. A project saved before this option opens with it off. On
+          Ekene-1 the 100 ft line follows the kit's designed prognosis within 0.52 ppg RMS (0.62 ppg without it).
+        </Para>
         <SubHeading>Importing RFT/MDT, LOT/FIT and mud weights</SubHeading>
         <Para>
           Import RFT/MDT, LOT/FIT or mud weights, under the calibration box, reads a CSV, TXT or tab table (or pasted
