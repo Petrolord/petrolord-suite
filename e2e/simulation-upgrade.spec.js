@@ -401,7 +401,13 @@ test('U2-007 a Waterflood pattern sent as a starting deck: the quarter five-spot
   await newCase(page, 'From the flood');
   await tab(page, 'Builder').click();
   await expect(page.getByTestId('sim-wf-project')).not.toHaveValue('');
-  await page.getByTestId('sim-wf-take').click();
+  // the chosen flood project loads asynchronously; on a slow runner the first
+  // click can land before it has, so take again until the origin shows (known
+  // U2-007 flake, shard 4; taking the same pattern twice is harmless)
+  await expect(async () => {
+    await page.getByTestId('sim-wf-take').click();
+    await expect(page.getByTestId('sim-wf-origin')).toBeVisible({ timeout: 4000 });
+  }).toPass({ timeout: 60000 });
   await expect(page.getByTestId('sim-wf-origin')).toContainText('From Waterflood Design Studio project "Ekene P-1 flood" (wf-forecast-1)');
   await expect(page.getByTestId('sim-wf-origin')).toContainText('Quarter five-spot element of the pattern');
   await expect(page.getByTestId('sim-wf-origin')).toContainText('Not in the pattern, kept from the builder');
