@@ -140,5 +140,5 @@ export function grdeclText(built, { name = 'earth-model', now = new Date(), buil
   ].join('\n');
   const base = String(name).replace(/[^\w-]+/g, '_').toUpperCase() || 'EARTH_MODEL';
   const swatText = [`-- ${name}: initial water saturation (SOLUTION section) from Petrolord Earth Modeling`, `-- ${build}; ${NX} x ${NY} x ${NZ} cells, inactive cells 1`, '', kw('SWAT', packValues(swat))].join('\n');
-  return { text, fileName: `${base}.GRDECL`, swatText, swatFileName: `${base}_SWAT.INC`, dims: { nx: NX, ny: NY, nz: NZ }, active, cells: NX * NY * NZ };
+  return { text, fileName: `${base}.GRDECL`, swatText, swatFileName: `${base}_SWAT.INC`, dims: { nx: NX, ny: NY, nz: NZ }, active, cells: NX * NY * NZ, hasPerm };
 }

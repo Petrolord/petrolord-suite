@@ -374,7 +374,9 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     try {
       // U1 (EM-U1-003): the layer leaves with the model's CRS and XY unit
       const saved = await backend.saveSurface(publishPayload(built, {
-        layer, grid: mapGrid, modelName: definition.name, zoneName, methods: definition.methods,
+        layer, grid: mapGrid, modelName: definition.name, methods: definition.methods,
+        // a property of one proportional layer says which
+        zoneName: subLayer >= 0 && built.zones[zoneIdx]?.layers?.[subLayer] && !['top', 'base', 'thickness', 'isopach'].includes(layer) ? `${zoneName} layer ${subLayer + 1}` : zoneName,
       }));
       setLastPublished(saved);
       setStatus(`Published ${saved.name} to the registry. Open it in ReservoirCalc Pro or Mapping from the ribbon.`);
@@ -722,7 +724,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       const g = grdeclText(built, { name: definition.name });
       downloadBlob(new Blob([g.text], { type: 'text/plain' }), g.fileName);
       downloadBlob(new Blob([g.swatText], { type: 'text/plain' }), g.swatFileName);
-      setStatus(`Exported ${g.fileName} (${g.dims.nx} x ${g.dims.ny} x ${g.dims.nz}, ${g.active} active cells) and ${g.swatFileName}. Upload both in Reservoir Simulation Studio's Deck tab and INCLUDE them in the GRID and SOLUTION sections; add permeability.`);
+      setStatus(`Exported ${g.fileName} (${g.dims.nx} x ${g.dims.ny} x ${g.dims.nz}, ${g.active} active cells) and ${g.swatFileName}. Upload both in Reservoir Simulation Studio's Deck tab and INCLUDE them in the GRID and SOLUTION sections; ${g.hasPerm ? 'PERMX and PERMY come from the permeability logs, PERMZ is a tenth of PERMX.' : 'add permeability.'}`);
     } catch (e) { setStatus(e.message); }
   };
   // U2-009: the model to ReservoirCalc Pro as a prospect (the zone on the map)
