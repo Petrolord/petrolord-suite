@@ -26,6 +26,7 @@ import {
   GRID_STYLE, TOOLTIP_STYLE
 } from '@/utils/chartTheme';
 import { epeIrrReason, epeIrrCaution } from '@/pages/apps/epe/epeIrrReason';
+import { usd3, niceTicks, tornadoTable, tornadoSentence } from '@/pages/apps/epe/epeTornado';
 import { compareRunInputs, fetchCaseInputs } from '@/pages/apps/epe/epeRunInputs';
 import { AppHeader } from '@/components/ui/app-shell';
 import {
@@ -540,8 +541,8 @@ const TornadoChart = ({ rows, baseNpv }) => {
   // Determine X-axis bounds symmetrically around 0
   const allDeltas = data.flatMap(d => [d.deltaLow, d.deltaHigh]);
   const maxAbs = Math.max(...allDeltas.map(Math.abs), 1);
-  const padding = maxAbs * 0.1;
-  const xDomain = [-(maxAbs + padding), maxAbs + padding];
+  // evenly spaced, symmetric ticks (the padded domain gave -3.3M, -1.3M, 704K, 3.3M)
+  const { ticks: xTicks, domain: xDomain } = niceTicks(maxAbs);
 
   // Custom tooltip showing both directions for the hovered variable
   const renderTooltip = ({ active, payload, label }) => {
@@ -578,12 +579,13 @@ const TornadoChart = ({ rows, baseNpv }) => {
           <XAxis
             type="number"
             domain={xDomain}
+            ticks={xTicks}
             tick={{ fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText }}
             stroke={CHART_COLORS.axisLine}
-            tickFormatter={fmtCompact}
+            tickFormatter={usd3}
           >
             <Label
-              value={`Δ NPV from base ${fmtCompact(baseNpv)}`}
+              value={`Δ NPV from base ${usd3(baseNpv)}`}
               position="bottom"
               offset={20}
               style={{ fontSize: 11, fill: CHART_COLORS.axisLabel, fontWeight: 600 }}
@@ -604,6 +606,49 @@ const TornadoChart = ({ rows, baseNpv }) => {
           <RLegend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} verticalAlign="top" />
         </ComposedChart>
     </ChartFrame>
+  );
+};
+
+// The tornado's numbers, readable without hovering: one sentence on the two
+// biggest drivers and a table of each bar's inputs and NPVs (epeTornado.js).
+const TornadoReadout = ({ rows, baseNpv }) => {
+  const table = tornadoTable(rows, baseNpv);
+  if (table.length === 0) return null;
+  const sentence = tornadoSentence(rows, baseNpv);
+  const th = 'px-2 py-1.5 text-left text-xs font-semibold text-pl-muted whitespace-nowrap';
+  const thR = `${th} text-right`;
+  const td = `px-2 py-1.5 text-xs text-pl-text whitespace-nowrap ${epeNum}`;
+  const tdR = `${td} text-right`;
+  return (
+    <div className="mt-4">
+      {sentence && <p className="mb-2 text-sm text-pl-text" data-testid="epe-tornado-sentence">{sentence}</p>}
+      <div className="overflow-x-auto rounded border border-pl-border">
+        <table className="w-full border-collapse" data-testid="epe-tornado-table">
+          <thead className="bg-pl-sunken">
+            <tr>
+              <th className={th}>Variable</th>
+              <th className={thR}>Low input</th>
+              <th className={thR}>High input</th>
+              <th className={thR}>NPV at low</th>
+              <th className={thR}>NPV at high</th>
+              <th className={thR}>Swing</th>
+            </tr>
+          </thead>
+          <tbody>
+            {table.map((r) => (
+              <tr key={r.key} className="border-t border-pl-border">
+                <td className={`${td} font-sans`}>{r.label}</td>
+                <td className={tdR}>{r.lowInput}</td>
+                <td className={tdR}>{r.highInput}</td>
+                <td className={`${tdR} ${r.npvLow < 0 ? 'text-pl-danger-text' : ''}`}>{usd3(r.npvLow)}</td>
+                <td className={`${tdR} ${r.npvHigh < 0 ? 'text-pl-danger-text' : ''}`}>{usd3(r.npvHigh)}</td>
+                <td className={tdR}>{usd3(r.swing)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 };
 
@@ -876,10 +921,11 @@ const SensitivityPanel = ({ runId, runConfigId, userId, readOnly = false }) => {
         )}
       </div>
       <p className="mb-1 text-xs text-pl-muted">
-        Base NPV: <span className={`font-semibold text-pl-text ${epeNum}`}>{fmtCompact(baseNpv)}</span>
+        Base NPV: <span className={`font-semibold text-pl-text ${epeNum}`}>{usd3(baseNpv)}</span>
         {sensitivityRun?.duration_ms ? ` · Ran in ${sensitivityRun.duration_ms}ms` : ''}
       </p>
       <TornadoChart rows={results} baseNpv={baseNpv} />
+      <TornadoReadout rows={results} baseNpv={baseNpv} />
     </div>
   );
 };
