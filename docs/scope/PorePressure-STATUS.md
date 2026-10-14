@@ -260,3 +260,13 @@ supplied follow the next well. Publish is held for an offshore well whose datum
 states water while the water depth is 0. `services/datumWaterColumn.js`;
 tests `__tests__/datumWaterColumn.test.js` (the old 0/0 default as the negative
 control).
+## 2026-10-14: choose the shale indicator (VSH or GR)
+
+Found in the Pore Pressure Studio video dry run: Ekene-1 carries the Petrophysics Studio VSH, which the app
+always preferred, and on that VSH only four 100 ft windows above the overpressure ramp reach VSH 0.6, so the
+NCT rested on four picks; the loaded GR gives 13 at 60 API. The NCT view now offers both when a well has both
+(testid `pp-shale-indicator`, "VSH (shale volume)" / "GR (gamma ray)"). The choice (`params.shaleIndicator`)
+drives the picks and Pressures from shale samples, resets the cutoff to that curve's default and is saved with
+the project; a well with one indicator shows no choice. `shaleLogOptions` / `chooseShaleOption` in
+`services/shalePicks.js`. Tests: `__tests__/shaleIndicatorChoice.test.jsx` (switch to GR moves the picks and the
+shale-sample pressures; negative control, one indicator shows no select).
