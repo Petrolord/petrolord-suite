@@ -62,7 +62,7 @@ test('only the Default project and no clients: scope on, no switcher (screens un
   mount();
   await waitFor(() => expect(probe().available).toBe(true));
   expect(probe().show).toBe(false);
-  expect(scope.getProjectScope()).toEqual({ enabled: true, projectId: 'd', defaultProjectId: 'd' });
+  expect(scope.getProjectScope()).toEqual({ enabled: true, projectId: 'd', defaultProjectId: 'd', settings: {} });
   expect(screen.queryByTestId('project-switcher')).toBeNull();
 });
 

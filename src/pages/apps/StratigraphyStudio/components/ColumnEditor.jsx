@@ -10,7 +10,7 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import { Plus, Trash2, Save, Loader2, FileUp } from 'lucide-react';
 import { parseColumnFile } from '../services/columnImport';
 import { RANKS, orderedUnits, validateColumn } from '@/lib/stratigraphy/column';
-import { unitsOfRank, ageBounds, TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
+import { unitsOfRank, ageBounds, currentTimescale } from '@/lib/stratigraphy/timescale';
 import ColumnChart from './ColumnChart';
 import { flagText } from '@/lib/stratigraphy/ageCharts';
 import ChartExportButtons from '@/components/wells/section/ChartExportButtons';
@@ -54,7 +54,7 @@ export function LazySelect({ value, options, placeholder = null, ...rest }) {
   );
 }
 
-const flagChip = (f) => (f.update ? `${f.update.to_ma} on ${TIMESCALE_VERSION.replace('ICS ', '')}` : f.chart.replace('ICS ', ''));
+const flagChip = (f) => (f.update ? `${f.update.to_ma} on ${currentTimescale().replace('ICS ', '')}` : f.chart.replace('ICS ', ''));
 
 /** One unit row; memoised so typing in one row leaves the other 83 alone. */
 const UnitRow = memo(function UnitRow({ u, i, r, canEdit, parentOptions, stageOptions, onCell, onStage, onDel, flagTop, flagBase, savedTop, savedBase }) {
@@ -193,7 +193,7 @@ export default function ColumnEditor({ units, canEdit = true, onSave, onStatus, 
     <div className="p-3 space-y-2 text-xs min-w-0" data-testid="strat-column-editor">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-pl-text font-medium">Stratigraphic column</span>
-        <span className="text-pl-muted">{units.length} unit{units.length === 1 ? '' : 's'} · ages in Ma, timescale {TIMESCALE_VERSION}</span>
+        <span className="text-pl-muted">{units.length} unit{units.length === 1 ? '' : 's'} · ages in Ma, timescale {currentTimescale()}</span>
         <div className="ml-auto flex items-center gap-1">
           <label className={`${btnCls} ${canEdit ? 'cursor-pointer' : 'opacity-40 pointer-events-none'}`} title="Units from a Petrel zone hierarchy, a StrataBugs chart or a spreadsheet: name, rank, parent, top and base age (Ma or ka), colour">
             <FileUp className="w-3.5 h-3.5" /> Import units
@@ -238,7 +238,7 @@ export default function ColumnEditor({ units, canEdit = true, onSave, onStatus, 
         <span className="text-pl-muted">Graphic column (saved units and your edits)</span>
         <div className="ml-auto">
           <ChartExportButtons targetRef={chartRef} fileBase="Stratigraphic column" onStatus={onStatus} testIdPrefix="strat-column"
-            headerLines={() => chartHeaderLines({ title: 'Stratigraphic column', timescale: TIMESCALE_VERSION, basis: 'unit ages in Ma (lithostratigraphic units placed by their nominal ages)', field: report?.field, analyst: report?.analyst })} />
+            headerLines={() => chartHeaderLines({ title: 'Stratigraphic column', timescale: currentTimescale(), basis: 'unit ages in Ma (lithostratigraphic units placed by their nominal ages)', field: report?.field, analyst: report?.analyst })} />
         </div>
       </div>
       <div ref={chartRef}><ColumnChart units={rows} /></div>

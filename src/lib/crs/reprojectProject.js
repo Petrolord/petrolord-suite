@@ -21,6 +21,7 @@
 // tagged with the target.
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { inNonDefaultProject, getProjectScope } from '@/lib/projects/projectScope';
 import { gridDownloadPath, GRID_CACHE_CONTROL } from '@/lib/surfacesRegistry';
 import { normalizeTag, isTransformableTag } from '@/lib/crs/tags';
 import {
@@ -41,9 +42,16 @@ async function requireUser() {
   return user;
 }
 
+// Suite Projects P2: in a project other than Default, the reproject flow (an
+// explicit "reproject everything" action) converts that project's rows only;
+// em_models are not filed by project until P4, so they are left alone there.
+const PROJECT_TABLES = new Set(['geo_wells', 'geo_surfaces', 'seismic_volumes']);
 async function listOwnTagged(table, userId) {
-  const { data, error } = await supabase.from(table)
+  if (inNonDefaultProject() && !PROJECT_TABLES.has(table)) return [];
+  let q = supabase.from(table)
     .select('*').eq('user_id', userId).not('crs', 'is', null);
+  if (inNonDefaultProject()) q = q.eq('suite_project_id', getProjectScope().projectId);
+  const { data, error } = await q;
   if (error) throw new Error(`Could not list ${table}: ${error.message}`);
   return data || [];
 }

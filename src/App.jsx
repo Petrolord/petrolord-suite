@@ -391,8 +391,8 @@ function App() {
   return (
     <AuthProvider>
       <HSEProvider> 
-        <UnitProfileProvider>
-          <ProjectProvider>
+        <ProjectProvider>
+          <UnitProfileProvider>
           <AuthGuard>
             <PwaUpdatePrompt />
             <ErrorBoundary>
@@ -1095,8 +1095,8 @@ function App() {
               </ReservoirProvider>
             </ErrorBoundary>
           </AuthGuard>
-          </ProjectProvider>
-        </UnitProfileProvider>
+          </UnitProfileProvider>
+        </ProjectProvider>
           <Toaster richColors closeButton />
       </HSEProvider>
     </AuthProvider>

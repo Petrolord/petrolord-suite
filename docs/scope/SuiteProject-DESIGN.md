@@ -278,10 +278,47 @@ design above:
    (`geo_wells_owner_name_uniq`); the same name in two client projects is
    refused until a later change makes it per project.
 
+## 14. P2 as built (2026-10-14): project settings
+
+`suite_projects.settings` (jsonb, no migration) holds four keys, read through
+`src/lib/projects/projectSettings.js`; keys a build does not know survive a
+save. Owners and organisation admins edit them on the Projects page (RLS:
+the P0 manage rule); everyone else reads them.
+
+| Key | Shape | Drives |
+|---|---|---|
+| `units` | a unit profile `{preset, units}` | the reserved `project` layer of the unit resolution: user override, project, organisation, built-in (`UnitProfileProvider` now sits inside `ProjectProvider`) |
+| `crs` | `{tag, name, xyUnit, setAt}` | the Project CRS imports convert into, for projects other than Default (`settingsService.getProjectCrs` / `setProjectCrs`); the lock counts the project's own tagged rows; the reproject flow converts that project's rows only. The Default project keeps each user's own Project CRS (`geoscience_settings`) as before |
+| `datum` | `{refKind, verticalDatum, srdM}` | the depth reference of a new well entered with a bare elevation (built-in KB), and the seismic reference datum a new Pore Pressure model starts from |
+| `timescale` | an ICS edition | the default edition of every stratigraphy lookup (`src/lib/stratigraphy/timescale.js` shim; the vendored engine is unchanged) and the labels, panel and exports of Stratigraphy Studio |
+
+Decisions taken while building:
+
+1. CRS stays a storage CRS (imports convert into it), so a project's CRS is
+   locked once the project holds tagged data, as the per-user CRS always was.
+   Setting it is allowed while the project is empty; the lock is the reason a
+   settings change can never imply rewriting coordinates.
+2. Custom CRS definitions stay each user's library (decision 4: reference
+   libraries are not per project).
+3. A member who does not manage a project cannot set its CRS on first import;
+   the owner sets it (a limit to revisit in P3 with roles).
+4. `em_models` are not filed by project until P4, so a project's CRS lock and
+   reproject leave them alone.
+
+Gate (`src/lib/projects/__tests__/settingsGate.test.js`, and live, rolled back,
+`tools/security/suite-projects/probes/run_liveprobes.sh C`): a consultant
+changes every setting of a client project holding a well; the only write is
+the `suite_projects` row, and a fingerprint of every registry and child table,
+`geoscience_settings`, `suite_unit_settings` and the storage object list is
+byte-identical; a colleague who does not manage the project and another
+organisation's user change nothing; the negative control (editing the well)
+moves the fingerprint. 9 of 9 on production.
+
 ### Status
 
 | Phase | State |
 |---|---|
 | P0 | LIVE 2026-10-14. Second engineer reviewed and approved; the owner applied the three migrations. Before apply: dry run and role pentest on production inside a rolled-back transaction, 94 of 94, negative control fails 6, rollbacks restore the catalog and every persona's rows. After apply: verification queries as expected, live role pentest 94 of 94, and 0 differences between every persona's visible rows (demo account included) and pre-P0 access (`tools/security/suite-projects/probes/run_liveprobes.sh`). |
 | P1 | Built 2026-10-14. PR A: scope, `useProject()`, switcher (hidden until a user has a client or a second project), Projects page at /dashboard/projects, registries filtered and stamped, `.pld` per project, Move to project. PR B: the sidebar "Projects" entry, held until the demo recordings finish. Gate: `src/lib/projects/__tests__/geoscienceChain.test.js`: a consultant with two clients loads a well into each through Well Data Manager, and all 12 Geoscience apps list only the current project's wells (Seismolord volumes too); the negative control (projects off) lists both. User guide `docs/scope/SuiteProjects-GUIDE.md`. |
-| P2 to P4 | Not started. |
+| P2 | Built 2026-10-14 (section 14). No migration. Gate: settings change leaves stored data byte-identical, jest and live (9 of 9, rolled back). |
+| P3, P4 | In build. |

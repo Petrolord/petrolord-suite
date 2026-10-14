@@ -32,6 +32,7 @@ import { isUnknownColumnError } from '@/lib/stateVersion';
 import { DATUM_COLUMNS, datumInsertFields, datumPatch, datumColumnsPresent, validateDatum } from '@/lib/wellDatum';
 import { supabaseSharingStore, accessOf, messages } from '@/lib/recordSharing';
 import { scopeToProject, whenProjectScopeReady, insertWithProject, getProjectScope } from '@/lib/projects/projectScope';
+import { projectDepthRefKind } from '@/lib/projects/projectDefaults';
 
 export { wellNameKey, wellNameClashMessage };
 
@@ -109,7 +110,8 @@ function datumOfNewWell(w) {
   if (w.kbM === null || w.kbM === undefined || w.kbM === '') return { refKind: null, refElevM: null };
   const v = Number(w.kbM);
   if (!Number.isFinite(v)) throw new Error('KB must be a number (metres above datum).');
-  return { refKind: 'KB', refElevM: v };
+  // Suite Projects P2: the project's depth reference (built-in KB)
+  return { refKind: projectDepthRefKind(), refElevM: v };
 }
 
 // ---- team editing (U2-012) ----------------------------------------------------

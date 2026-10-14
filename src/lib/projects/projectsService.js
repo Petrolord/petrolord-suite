@@ -5,6 +5,8 @@
 // what; nothing here filters by user.
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { mergeProjectSettings, settingsProblems } from '@/lib/projects/projectSettings';
+import { setCurrentProjectSettings } from '@/lib/projects/projectScope';
 
 /** True when the error means "the P0 migrations are not applied here". */
 export function isProjectsMissingError(error) {
@@ -37,7 +39,7 @@ export async function bootstrapProjects() {
 
 export async function listProjects() {
   const { data, error } = await supabase.from('suite_projects')
-    .select('id, organization_id, owner_user_id, client_id, name, description, visibility, is_default, status, created_at, updated_at')
+    .select('id, organization_id, owner_user_id, client_id, name, description, visibility, is_default, status, settings, created_at, updated_at')
     .order('is_default', { ascending: false }).order('name', { ascending: true });
   if (error) fail('Could not load projects', error);
   return data || [];
@@ -122,6 +124,25 @@ export async function updateProject(id, patch) {
   if (error) fail('Could not update the project', error);
   if (!data || !data.length) throw new Error('Only the project owner or an organisation admin can change this project.');
   return data[0];
+}
+
+/**
+ * P2: save project settings (units, crs, datum, timescale). Reads the stored
+ * settings first and merges, so keys this build does not know survive. Only
+ * the suite_projects row is written; no registry row is touched.
+ * @returns {Promise<Object>} the stored settings after the save
+ */
+export async function saveProjectSettings(projectId, patch) {
+  const problems = settingsProblems(patch);
+  if (problems.length) throw new Error(problems[0]);
+  const { data: row, error: readError } = await supabase.from('suite_projects').select('id, settings').eq('id', projectId).single();
+  if (readError) fail('Could not read the project settings', readError);
+  const settings = mergeProjectSettings(row?.settings, patch);
+  const { data, error } = await supabase.from('suite_projects').update({ settings }).eq('id', projectId).select('id, settings');
+  if (error) fail('Could not save the project settings', error);
+  if (!data || !data.length) throw new Error('Only the project owner or an organisation admin can change project settings.');
+  setCurrentProjectSettings(projectId, data[0].settings);
+  return data[0].settings;
 }
 
 /** Remember the user's current project (the header switcher). */

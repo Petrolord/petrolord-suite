@@ -19,12 +19,26 @@
 
 const COLUMN = 'suite_project_id';
 
-let state = { enabled: false, projectId: null, defaultProjectId: null };
+let state = { enabled: false, projectId: null, defaultProjectId: null, settings: {} };
 const listeners = new Set();
 let pending = null;      // { promise, resolve } while the provider is loading
 const READY_TIMEOUT_MS = 6000;
 
 export function getProjectScope() { return state; }
+
+/** The current project's stored settings ({} when projects are off). */
+export function currentProjectSettings() { return state.enabled ? state.settings || {} : {}; }
+
+/** True when the current project is a project other than the Default one. */
+export function inNonDefaultProject() {
+  return state.enabled && !!state.projectId && state.projectId !== state.defaultProjectId;
+}
+
+/** Replace the current project's settings in the scope after a save. */
+export function setCurrentProjectSettings(projectId, settings) {
+  if (!state.enabled || state.projectId !== projectId) return;
+  setProjectScope({ ...state, settings });
+}
 
 /** The project new rows go to, or null when projects are off. */
 export function currentProjectId() { return state.enabled ? state.projectId : null; }
@@ -34,6 +48,8 @@ export function setProjectScope(next) {
     enabled: !!next?.enabled && !!next?.projectId,
     projectId: next?.projectId || null,
     defaultProjectId: next?.defaultProjectId || null,
+    // P2: the current project's settings (raw jsonb; read through projectSettings.js)
+    settings: next?.settings && typeof next.settings === 'object' ? next.settings : {},
   };
   for (const fn of listeners) { try { fn(state); } catch { /* listener errors never break the scope */ } }
 }
@@ -120,7 +136,7 @@ export async function insertWithProject(payload, run) {
 
 /** Test hook. */
 export function _resetProjectScope() {
-  state = { enabled: false, projectId: null, defaultProjectId: null };
+  state = { enabled: false, projectId: null, defaultProjectId: null, settings: {} };
   listeners.clear();
   pending = null;
 }

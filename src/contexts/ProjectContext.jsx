@@ -16,8 +16,9 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import {
-  beginProjectScopeLoad, endProjectScopeLoad, setProjectScope,
+  beginProjectScopeLoad, endProjectScopeLoad, setProjectScope, subscribeProjectScope,
 } from '@/lib/projects/projectScope';
+import { normalizeProjectSettings } from '@/lib/projects/projectSettings';
 import * as svc from '@/lib/projects/projectsService';
 import { groupProjectsByClient, projectLabel } from '@/lib/projects/projectGrouping';
 
@@ -27,6 +28,8 @@ const OFF = Object.freeze({
   available: false, loading: false, error: null,
   projects: [], clients: [], memberships: [],
   current: null, currentClient: null, defaultProjectId: null, organizationId: null,
+  settings: Object.freeze({ units: null, crs: null, datum: null, timescale: null }), isDefault: false,
+  saveSettings: async () => { throw new Error('Projects are not available yet.'); },
   epoch: 0, showSwitcher: false, label: '',
   groups: [],
   switchProject: async () => {}, refresh: async () => {},
@@ -48,8 +51,8 @@ export function ProjectProvider({ children }) {
   stRef.current = st;
   const userId = user?.id || null;
 
-  const applyScope = useCallback((projectId, defaultProjectId) => {
-    setProjectScope({ enabled: !!projectId, projectId, defaultProjectId });
+  const applyScope = useCallback((projectId, defaultProjectId, settings = {}) => {
+    setProjectScope({ enabled: !!projectId, projectId, defaultProjectId, settings });
   }, []);
 
   const loadLists = useCallback(async () => {
@@ -98,7 +101,7 @@ export function ProjectProvider({ children }) {
           || lists.projects.find((p) => p.id === boot.defaultProjectId) || null;
         try { await ensureOpenable(current, lists.memberships); } catch { current = visible(boot.defaultProjectId) || null; }
         if (cancelled) return;
-        applyScope(current?.id || null, boot.defaultProjectId);
+        applyScope(current?.id || null, boot.defaultProjectId, current?.settings);
         // a deep link chose another project: remember it, so rows the server
         // stamps (older builds, edge functions) land in the same project
         if (current && current.id !== boot.currentProjectId) svc.saveCurrentProject(userId, current.id).catch(() => {});
@@ -145,11 +148,23 @@ export function ProjectProvider({ children }) {
     if (!target) throw new Error('That project is not available to you.');
     if (target.status !== 'active') throw new Error('That project is archived. Restore it first.');
     await ensureOpenable(target, s.memberships);
-    applyScope(target.id, s.defaultProjectId);
+    applyScope(target.id, s.defaultProjectId, target.settings);
     try { await svc.saveCurrentProject(userId, target.id); } catch { /* the scope still switches for this tab */ }
     setSt((prev) => ({ ...prev, current: target, epoch: remount && prev.current?.id !== target.id ? prev.epoch + 1 : prev.epoch }));
     writeParam(target.id, s.defaultProjectId);
   }, [applyScope, ensureOpenable, userId, writeParam]);
+
+  // P2: a settings save (projectsService.saveProjectSettings) updates the
+  // scope; mirror it into the current project so units and labels follow
+  useEffect(() => subscribeProjectScope((scope) => {
+    const cur = stRef.current.current;
+    if (!cur || scope.projectId !== cur.id || scope.settings === cur.settings) return;
+    setSt((prev) => {
+      if (!prev.current || prev.current.id !== scope.projectId) return prev;
+      const next = { ...prev.current, settings: scope.settings };
+      return { ...prev, current: next, projects: prev.projects.map((p) => (p.id === next.id ? next : p)) };
+    });
+  }), []);
 
   // a deep link followed inside the app (?project= changed in the URL)
   useEffect(() => {
@@ -178,6 +193,12 @@ export function ProjectProvider({ children }) {
     if ((stRef.current.memberships || []).some((m) => m.project_id === project.id && m.role === 'owner')) return true;
     return !!project.organization_id && isOrgAdmin;
   }, [userId, isOrgAdmin]);
+
+  const saveSettings = useCallback(async (patch) => {
+    const cur = stRef.current.current;
+    if (!cur) throw new Error('No current project.');
+    return svc.saveProjectSettings(cur.id, patch);
+  }, []);
 
   const createClient = useCallback(async (c) => {
     const row = await svc.createClient({ ...c, organizationId: stRef.current.organizationId ?? organization?.id ?? null, userId });
@@ -220,6 +241,9 @@ export function ProjectProvider({ children }) {
       // just the Default project and no clients sees no change
       showSwitcher: active.length > 1 || activeClients.length > 0,
       label: projectLabel(st.current, currentClient),
+      settings: normalizeProjectSettings(st.current?.settings),
+      isDefault: !!st.current && st.current.id === st.defaultProjectId,
+      saveSettings,
       switchProject, refresh, createClient, updateClient, createProject, updateProject, canManage,
     };
   }, [st, switchProject, refresh, createClient, updateClient, createProject, updateProject, canManage]);

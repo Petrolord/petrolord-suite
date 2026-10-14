@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { MOVABLE, listMovable, moveToProject } from '@/lib/projects/projectsService';
 import { INTERNAL_LABEL, projectLabel } from '@/lib/projects/projectGrouping';
+import ProjectSettingsCard from '@/components/projects/ProjectSettingsCard';
 
 const DEFAULT_COLOUR = '#2563EB';
 
@@ -265,6 +266,8 @@ export default function ProjectsPage() {
                 <span className="text-sm font-medium text-pl-text" data-testid="projects-current-label">{projectLabel(p.current, p.currentClient)}</span>
               </CardContent>
             </Card>
+
+            <ProjectSettingsCard />
 
             <Card>
               <CardHeader>
