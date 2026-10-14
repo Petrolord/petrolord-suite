@@ -120,7 +120,7 @@ export function buildBasinCharge(results, { name = 'Basin model', settings = {},
     hcDensityKgM3,
     ...(trap ? { trap: { name: trap.name, formedMa: Number(trap.formedMa), fetchKm2: Number(trap.fetchKm2), efficiency: Number(trap.efficiency), sourceIds: Array.isArray(trap.sourceIds) ? trap.sourceIds : [], inPlace: Number(trap.inPlace), inPlaceUnit: trap.inPlaceUnit || 'MMboe' } } : {}),
     notes: [
-      '1D model at one location: expelled petroleum per unit area of source rock. Trap formation and migration are not modelled; the fetch area and the migration efficiency are the analyst\'s.',
+      '1D model at one location: expelled petroleum per unit area of source rock. Migration is not modelled: the fetch area, the age the trap formed and the migration efficiency are the analyst\'s.',
       expelled > 0 ? '' : 'Nothing is expelled in this model (the source rock is immature or lean).',
     ].filter(Boolean),
   };
