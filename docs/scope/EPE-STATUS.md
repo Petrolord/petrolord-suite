@@ -126,3 +126,14 @@ Swing) in the engine's impact order. Inputs read in each variable's unit
 recomputed: the NPVs are the batch engine's own. Helper `epeTornado.js`;
 tests `epeTornado.test.js` and `epeTornado.mount.test.jsx` (the mount test
 fails on the old viewer).
+
+## 2026-10-14: First Oil Delay on a producing field (video programme)
+
+The tornado's First Oil Delay bar (engine `schedule_shift_years`) moves every
+production file and its opex a year later. On a brownfield such as Ekene,
+producing from 2020 with Ekene-11's capex in 2027, it also delays the wells
+already on stream and the history, and the bar read +US$295K. The readout now
+says so under the table when the case produces before its first capex
+(`scheduleShiftNote`, testid `epe-tornado-delay-note`). The engine semantics
+are unchanged; a delay of the new development alone needs per-file schedule
+tags (owner decision if wanted).

@@ -55,3 +55,19 @@ describe('epeTornado', () => {
     expect(tornadoSentence([], BASE)).toBeNull();
   });
 });
+
+describe('First Oil Delay on a producing field', () => {
+  // eslint-disable-next-line global-require
+  const { scheduleShiftNote } = require('../epeTornado');
+  const delay = [{ variable: 'schedule_shift_years', variable_label: 'First Oil Delay (+1 yr)' }];
+  const brownfield = [{ year: 2020, oil_bbl: 101744, capex: 0 }, { year: 2026, oil_bbl: 40350, capex: 0 }, { year: 2027, oil_bbl: 140273, capex: 12400000 }];
+  const greenfield = [{ year: 2026, oil_bbl: 0, capex: 9e6 }, { year: 2027, oil_bbl: 50000, capex: 0 }];
+  it('notes that the bar also delays the wells already producing (Ekene: from 2020, capex 2027)', () => {
+    expect(scheduleShiftNote(delay, brownfield)).toBe('First Oil Delay moves every production file and its opex a year later. This case produces from 2020 with its first capex in 2027, so the bar also delays the wells already on stream; read it on a new development.');
+  });
+  it('no note on a case that spends before it produces, or without the bar', () => {
+    expect(scheduleShiftNote(delay, greenfield)).toBeNull();
+    expect(scheduleShiftNote([{ variable: 'oil_price_usd_bbl' }], brownfield)).toBeNull();
+    expect(scheduleShiftNote(delay, null)).toBeNull();
+  });
+});
