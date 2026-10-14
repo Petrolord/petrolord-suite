@@ -201,7 +201,10 @@ export default function PorePressureStudioHelpGuide() {
         <Para>
           The Crossplot view plots velocity against the logged density. Under loading both rise along one trend; where
           the pressure comes from fluid expansion the velocity falls while the density holds, so those samples drop
-          below the trend. The view fits the loading trend above the unloading top (by default where the velocity
+          below the trend. With Pressures from shale samples on, it reads only the shale samples, as the
+          pressures do: a sand is faster at its density than a shale and would read as a velocity reversal. A log whose
+          density was not lowered by the overpressure (a synthetic or edited density, or a density read in sands) can
+          still look unloaded, so check the cause before choosing unloading. The view fits the loading trend above the unloading top (by default where the velocity
           peaks), counts the samples below it more than 3% under the trend, and gives V max with the sigma max the
           loading curve reaches there. Use for Bowers unloading sets the method to Bowers with that sigma max and the U
           you type (Fit U to calibration refines U against measured pressures).
