@@ -30,8 +30,8 @@ export default {
   },
   steps: [
     { id: 'intro', chapter: 'Well Test Analysis Studio', chapterSub: 'Ekene-5, shut in for a week',
-      say: 'A pressure buildup is the cheapest long look a reservoir engineer gets at the rock around a well. This is Ekene-5, shut in for a week in May twenty twenty four for a static survey. The rock and fluid properties are already typed on the Data tab, from the inputs sheet in the Ekene kit: twenty one feet of net pay, a rate of forty seven point six barrels a day.',
-      sub: 'A pressure buildup is the cheapest long look a reservoir engineer gets at the rock around a well. This is Ekene-5, shut in for a week in May 2024 for a static survey. The rock and fluid properties are already typed on the Data tab, from the inputs sheet in the Ekene kit: 21 ft of net pay, a rate of 47.6 STB/D.',
+      say: 'A pressure buildup is the cheapest long look a reservoir engineer gets at the rock around a well. This is Ekene-5, shut in for a week in May twenty twenty four. The rock and fluid properties are already typed in from the Ekene kit.',
+      sub: 'A pressure buildup is the cheapest long look a reservoir engineer gets at the rock around a well. This is Ekene-5, shut in for a week in May 2024. The rock and fluid properties are already typed in from the Ekene kit.',
       do: async (d) => {
         await d.sleep(1500);
         await d.moveTo(d.page.getByLabel(/^Net thickness h/).first()); await d.sleep(1500);
@@ -56,8 +56,8 @@ export default {
         await d.highlight(t(d, 'wts-pwf-readout')); await d.sleep(2500); await d.unhighlight();
       } },
     { id: 'overview', chapter: 'The test', chapterSub: 'Flow, then a week of buildup',
-      say: 'The pressure history shows the shut-in time. The buildup rises sixty two p. s. i. over the week, most of it in the first hour.',
-      sub: 'The pressure history shows the shut-in time. The buildup rises 62 psi over the week, most of it in the first hour.',
+      say: 'The buildup rises sixty two p. s. i. over the week, most of it in the first hour.',
+      sub: 'The buildup rises 62 psi over the week, most of it in the first hour.',
       do: async (d) => {
         await scrollMain(d, 0); await d.sleep(3000);
       } },
@@ -134,8 +134,8 @@ export default {
         await d.highlight(railRow(d, 'Mechanical skin')); await d.sleep(2500); await d.unhighlight();
       } },
     { id: 'report', chapter: 'The report', chapterSub: 'Every input with its source',
-      say: 'The Report tab holds the identification, every input with its source, the skin components, the method and its limits, and six plots, and it exports as a P. D. F. One gauge file, a known answer, recovered.',
-      sub: 'The Report tab holds the identification, every input with its source, the skin components, the method and its limits, and six plots, and it exports as a PDF. One gauge file, a known answer, recovered.',
+      say: 'The report holds every input with its source, the skin split, the method and its limits, and the plots, and exports as a P. D. F. One gauge file, and the known answer recovered.',
+      sub: 'The report holds every input with its source, the skin split, the method and its limits, and the plots, and exports as a PDF. One gauge file, and the known answer recovered.',
       do: async (d) => {
         await tab(d, 'Report', { onCamera: true });
         await d.sleep(1500);
