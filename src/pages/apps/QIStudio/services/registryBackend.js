@@ -19,6 +19,11 @@ import { loadGatherForWell } from '@/lib/rockPhysicsGather';
 import { scanRemoteFile, startRemoteConversion } from '@/pages/apps/Seismolord/services/serverImport';
 import { DEFAULT_MAPPING } from '../../../../../packages/engines/engines/seismolord/segyScan';
 import { stampProject, scopeToProject, whenProjectScopeReady } from '@/lib/projects/projectScope';
+import { saveZoneMapAsSurface } from '@/pages/apps/Seismolord/services/surfacesService';
+import { latticeToWorldGrid } from '../../../../../packages/engines/engines/seismolord/surfaceOnLattice';
+import { surveyAffine, cellSpacing, surveyBounds } from '../../../../../packages/engines/engines/seismolord/surveyGeometry';
+import { geomFromManifest } from '../../../../../packages/engines/engines/seismolord/sliceAssembly';
+import { exportGridSpec } from '@/lib/gridding/gridding';
 
 /** A new derived row ('ingesting', kind 'attribute') on a parent volume, as Seismolord registers an attribute volume. */
 async function registerDerived(parent, name, attributeParams) {
@@ -91,6 +96,29 @@ export function makeRegistryBackend() {
     async loadSurface(row, { attribute = false } = {}) {
       const grid = await downloadSurfaceGrid(row);
       return readDepthSurface(row, grid, attribute ? { accept: ['attribute'], xy: 'm' } : { accept: ['elevation', 'depth'], as: 'elevation', xy: 'm' });
+    },
+    /** A zone map the worker wrote (QI upgrade P1.5): the float32 lattice grid. */
+    async downloadZoneMap(path) {
+      const { data, error } = await supabase.storage.from('seismic').download(path);
+      if (error) throw new Error(`Could not read the zone map: ${error.message}`);
+      return new Float32Array(await data.arrayBuffer());
+    },
+    /** Grid a lattice zone map onto the survey's world grid and save it as an attribute surface of the stack. */
+    async saveZoneMap({ seismic, values, name, unit, provenance }) {
+      const manifest = await getManifest(seismic);
+      const affine = surveyAffine(manifest.geometry);
+      if (!affine) throw new Error('The volume has no usable survey coordinates for a map.');
+      const geom = geomFromManifest(manifest);
+      if (values.length !== geom.nIl * geom.nXl) throw new Error('The zone map is not on this volume\'s lattice.');
+      const spec = exportGridSpec(surveyBounds(affine, manifest.geometry.il.count, manifest.geometry.xl.count), 0, cellSpacing(affine).xl || 25);
+      const { z, live } = latticeToWorldGrid(values, affine, geom, spec);
+      if (!live) throw new Error('The zone map has no values to save.');
+      return saveZoneMapAsSurface({ volume: seismic, name, unit, g: { z }, spec, provenance });
+    },
+    /** Remove the worker's lattice files once the maps are saved. */
+    async removeZoneMapFiles(paths) {
+      if (!paths?.length) return;
+      await supabase.storage.from('seismic').remove(paths);
     },
     async countSurfaces() {
       await whenProjectScopeReady();

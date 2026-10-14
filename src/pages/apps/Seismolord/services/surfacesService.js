@@ -167,6 +167,42 @@ export async function saveAmplitudeAsSurface({
 }
 
 /**
+ * Persist a QI Studio zone map (QI upgrade P1.5: a statistic of a volume
+ * between two horizons, or a horizon and a window) as an attribute surface
+ * of the volume, so Seismolord's Surfaces list and Mapping & Surface Studio
+ * show it and export it like an amplitude map. Values keep their unit and
+ * sign (attribute domain, never flipped as depth).
+ *
+ * @param {Object} p
+ * @param {Object} p.volume the stack whose lattice the map is on (seismic_volumes row)
+ * @param {string} p.name
+ * @param {string} p.unit
+ * @param {{z: Float32Array}} p.g gridded map (latticeToWorldGrid)
+ * @param {{x0,y0,dx,dy,nx,ny}} p.spec
+ * @param {Object} p.provenance zone, inputs, statistic and job
+ */
+export async function saveZoneMapAsSurface({ volume, name, unit, g, spec, provenance }) {
+  return saveSurface({
+    name,
+    kind: 'attribute',
+    spec,
+    zDomain: 'attribute',
+    zUnit: unit || null,
+    ...volumeCrsFields(volume),
+    crsNote: 'Survey world XY from the volume; values are a zone statistic of a volume (QI Studio maps from volumes), unit and sign kept',
+    grid: g.z,
+    provenance: {
+      app: SURFACE_APP,
+      made_by: 'qi-studio',
+      made_from: 'qi_zone_map',
+      volume: { id: volume.id, name: volume.name },
+      ...provenance,
+      converted_at: new Date().toISOString(),
+    },
+  });
+}
+
+/**
  * Persist an imported surface file as a first-class registry surface
  * tied to the active volume. The grid arrives normalised by the
  * parsers (row-major south-first, 1e30 nulls) and sign-fixed by the
