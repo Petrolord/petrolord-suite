@@ -17,7 +17,7 @@ const ModeSelector = ({ onSelectMode, onWorkedExample = null }) => {
                              <MonitorPlay className="w-10 h-10 md:w-12 md:h-12 text-pl-primary-fg" />
                         </div>
                     </div>
-                    <h1 className="text-3xl md:text-5xl font-bold text-pl-text mb-4 tracking-tight">Welcome to BasinFlow <span className="text-pl-accent-text font-light">GENESIS</span></h1>
+                    <h1 className="text-3xl md:text-5xl font-bold text-pl-text mb-4 tracking-tight">Basin &amp; Charge <span className="text-pl-accent-text font-light">Modeling</span></h1>
                     <p className="text-pl-muted text-base md:text-xl max-w-2xl mx-auto leading-relaxed">
                         Advanced petroleum systems modeling platform. <br className="hidden md:block"/>Choose your preferred workflow to get started.
                     </p>

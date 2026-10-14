@@ -26,7 +26,7 @@ export default function HeatFlowChart({ heatFlow, maxAge = 200, height = 220 }) 
             type="number" domain={['auto', 'auto']}
             stroke={CHART_COLORS.axisLine}
             tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-            label={{ value: 'Heat flow (mW/m²)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
+            label={{ value: 'mW/m²', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle' }, fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
           />
           <Tooltip
             contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }}
