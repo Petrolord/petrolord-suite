@@ -11,6 +11,7 @@
 // fields themselves are written by wellsRegistry (saveTop / updateTop).
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { scopeToProject, whenProjectScopeReady, insertWithProject } from '@/lib/projects/projectScope';
 import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
 import { STRAT_PROJECT_KIND } from '@/lib/stratigraphy/stratProjectState';
 import { ZoneSchemesUnavailable } from '@/lib/stratigraphy/zoneSchemesUnavailable';
@@ -36,8 +37,9 @@ export function unitRow(u) {
 
 /** Every unit visible to the caller (own plus org-shared), column order. */
 export async function listUnits() {
-  const { data, error } = await supabase.from('geo_strat_units')
-    .select('*')
+  await whenProjectScopeReady();
+  const { data, error } = await scopeToProject(supabase.from('geo_strat_units')
+    .select('*'))
     .order('order_index', { ascending: true, nullsFirst: false })
     .order('name', { ascending: true });
   if (error) throw new Error(`Could not load the stratigraphic column: ${error.message}`);
@@ -51,7 +53,7 @@ export async function saveUnit(unit) {
   if (!row.name) throw new Error('The unit needs a name.');
   const { data, error } = await writeStamped(STRAT_UNIT_KIND,
     { user_id: user.id, ...row },
-    (r) => supabase.from('geo_strat_units').insert(r).select().single());
+    (r) => insertWithProject(r, (x) => supabase.from('geo_strat_units').insert(x).select().single()));
   if (error) throw new Error(`Could not add the unit: ${error.message}`);
   return data;
 }
@@ -252,8 +254,10 @@ export async function coreImageUrl(image, expiresSeconds = 3600) {
 export { STRAT_PROJECT_KIND };
 
 export async function loadStratProject() {
-  const { data, error } = await supabase.from('strat_projects')
-    .select('*').order('updated_at', { ascending: false }).limit(1);
+  // Suite Projects: the stratigraphy project of the current Suite project
+  await whenProjectScopeReady();
+  const { data, error } = await scopeToProject(supabase.from('strat_projects')
+    .select('*')).order('updated_at', { ascending: false }).limit(1);
   if (error) throw new Error(`Could not load the stratigraphy project: ${error.message}`);
   return openStateRow(STRAT_PROJECT_KIND, data?.[0] || null);
 }
@@ -271,7 +275,7 @@ export async function saveStratProject(patch) {
   if (userError || !user) throw new Error('You must be signed in to save.');
   const { data, error } = await writeStamped(STRAT_PROJECT_KIND,
     { user_id: user.id, name: 'Default', ...patch },
-    (row) => supabase.from('strat_projects').insert(row).select().single());
+    (row) => insertWithProject(row, (x) => supabase.from('strat_projects').insert(x).select().single()));
   if (error) throw new Error(`Could not save the stratigraphy project: ${error.message}`);
   return data;
 }

@@ -20,6 +20,7 @@
 // the migration is applied every call behaves as it did.
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { scopeToProject, whenProjectScopeReady, insertWithProject } from '@/lib/projects/projectScope';
 import { writeStamped } from '@/lib/stateVersion';
 // PP0 state kind: registered in the section kit so the harness backends open
 // rows the same way (AppUpgrade WC-U1). Rows open through openSectionRow,
@@ -46,7 +47,8 @@ const conflictOr = (error, prefix) => (error.name === 'RecordConflict' ? error.m
 export async function listSections() {
   const { available } = await sharing().capability(TABLE);
   const cols = ['id', 'name', 'well_ids', 'updated_at', 'created_at', 'user_id', ...(available ? SHARING_COLUMNS.filter((c) => c !== 'updated_at') : [])];
-  const { data, error } = await supabase.from(TABLE).select(cols.join(', ')).order('updated_at', { ascending: false });
+  await whenProjectScopeReady();
+  const { data, error } = await scopeToProject(supabase.from(TABLE).select(cols.join(', '))).order('updated_at', { ascending: false });
   if (error) throw new Error(`Could not list sections: ${error.message}`);
   return (data || []).map((r) => {
     const item = { id: r.id, name: r.name, wellCount: (r.well_ids || []).length, updated_at: r.updated_at };
@@ -62,7 +64,8 @@ export async function loadSection(id = null) {
   else {
     const uid = await currentUserId();
     if (!uid) return openSectionRow(null);
-    q = q.eq('user_id', uid).order('updated_at', { ascending: false }).limit(1);
+    await whenProjectScopeReady();
+    q = scopeToProject(q.eq('user_id', uid)).order('updated_at', { ascending: false }).limit(1);
   }
   const { data, error } = await q;
   if (error) throw new Error(`Could not load the section: ${error.message}`);
@@ -77,7 +80,7 @@ async function insertSection(name, patch) {
   if (userError || !user) throw new Error('You must be signed in to save sections.');
   const { data, error } = await writeStamped(CORRELATION_SECTION_KIND,
     { user_id: user.id, ...patch, name },
-    (row) => supabase.from(TABLE).insert(row).select().single());
+    (row) => insertWithProject(row, (x) => supabase.from(TABLE).insert(x).select().single()));
   if (error) throw new Error(`Could not save the section: ${error.message}`);
   sharing().trackOpened(TABLE, data);
   return data;

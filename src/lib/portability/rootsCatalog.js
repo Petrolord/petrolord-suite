@@ -6,6 +6,7 @@
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { SAVED_PROJECT_TABLES } from './familiesCore';
+import { scopeToProject, whenProjectScopeReady } from '@/lib/projects/projectScope';
 
 /** "saved_well_test_projects" -> "well test"; "scm_marine_projects" -> "marine" */
 export const appLabel = (table) => String(table).replace(/^(saved|scm)_/, '').replace(/_projects$/, '').replace(/_/g, ' ');
@@ -35,11 +36,15 @@ async function listSavedProjects() {
  * @param {'seismic_project'|'seismic_volume'|'seismic_line'|'wp_site'|'po_field'|'epe_case'|'epe_assumption_set'|'rb_case'|'sim_case'|'saved_project'} kind
  * @returns {Promise<Array<{ id: string, name: string, table?: string, subtitle?: string, organization_id?: string|null }>>}
  */
-export async function listRootCandidates(kind) {
+export async function listRootCandidates(kind, { allProjects = false } = {}) {
+  // Suite Projects: registry roots of the current project (a backup asks for all)
+  await whenProjectScopeReady();
+  const scoped = (q) => scopeToProject(q, { allProjects });
   switch (kind) {
     case 'petro_project': case 'pp_project': case 'rp_project': case 'correlation_section': {
       const table = { petro_project: 'petro_projects', pp_project: 'pp_projects', rp_project: 'rp_projects', correlation_section: 'geo_correlation_sections' }[kind];
-      const rows = await rowsOf(supabase.from(table).select('id, name, user_id').order('name'));
+      const q = supabase.from(table).select('id, name, user_id');
+      const rows = await rowsOf((table === 'geo_correlation_sections' ? scoped(q) : q).order('name'));
       return rows.map((r) => ({ id: r.id, user_id: r.user_id, name: r.name || `${kind.replace('_', ' ')} ${String(r.id).slice(0, 8)}`, user_id: r.user_id }));
     }
     case 'ws_well': {
@@ -67,15 +72,15 @@ export async function listRootCandidates(kind) {
       return rows.map((r) => ({ id: r.id, user_id: r.user_id, name: r.name || `Basin model ${String(r.id).slice(0, 8)}`, subtitle: 'basin model' }));
     }
     case 'seismic_project': {
-      const rows = await rowsOf(supabase.from('seismic_projects').select('id, name, user_id').order('name'));
+      const rows = await rowsOf(scoped(supabase.from('seismic_projects').select('id, name, user_id')).order('name'));
       return rows.map((r) => ({ id: r.id, user_id: r.user_id, name: r.name || `Project ${String(r.id).slice(0, 8)}` }));
     }
     case 'seismic_volume': {
-      const rows = await rowsOf(supabase.from('seismic_volumes').select('id, name, kind, organization_id, user_id').order('name'));
+      const rows = await rowsOf(scoped(supabase.from('seismic_volumes').select('id, name, kind, organization_id, user_id')).order('name'));
       return rows.map((r) => ({ id: r.id, user_id: r.user_id, name: r.name || `Volume ${String(r.id).slice(0, 8)}`, subtitle: [r.kind, r.organization_id ? 'shared with organization' : 'private'].filter(Boolean).join(', ') }));
     }
     case 'seismic_line': {
-      const rows = await rowsOf(supabase.from('seismic_lines').select('id, name, organization_id, user_id').order('name'));
+      const rows = await rowsOf(scoped(supabase.from('seismic_lines').select('id, name, organization_id, user_id')).order('name'));
       return rows.map((r) => ({ id: r.id, user_id: r.user_id, name: r.name || `Line ${String(r.id).slice(0, 8)}`, subtitle: r.organization_id ? 'shared with organization' : 'private' }));
     }
     case 'wp_site': {

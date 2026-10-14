@@ -45,11 +45,13 @@ export async function discoverBackupRoots(scope, who, deps = {}) {
   const roots = [];
   const safe = async (fn) => { try { return await fn(); } catch (e) { return []; } };
 
-  for (const w of await safe(wellsFn)) if (keep(w)) roots.push({ kind: 'well', id: w.id, name: w.name || w.uwi || null });
-  for (const s of await safe(surfacesFn)) if (keep({ ...s, mine: s.user_id === who.userId })) roots.push({ kind: 'surface', id: s.id, name: s.name || null });
-  for (const c of await safe(cultureFn)) if (keep({ ...c, mine: c.user_id === who.userId })) roots.push({ kind: 'culture', id: c.id, name: c.name || null });
+  // a backup covers every Suite project the caller can read
+  const all = { allProjects: true };
+  for (const w of await safe(() => wellsFn(all))) if (keep(w)) roots.push({ kind: 'well', id: w.id, name: w.name || w.uwi || null });
+  for (const s of await safe(() => surfacesFn(all))) if (keep({ ...s, mine: s.user_id === who.userId })) roots.push({ kind: 'surface', id: s.id, name: s.name || null });
+  for (const c of await safe(() => cultureFn(all))) if (keep({ ...c, mine: c.user_id === who.userId })) roots.push({ kind: 'culture', id: c.id, name: c.name || null });
   for (const kind of BACKUP_KINDS) {
-    const items = await safe(() => candidatesFn(kind));
+    const items = await safe(() => candidatesFn(kind, all));
     for (const it of items) {
       if (!keep(it)) continue;
       roots.push({ kind: it.kind || kind, id: it.id, name: it.name || null, ...(it.table ? { table: it.table } : {}) });

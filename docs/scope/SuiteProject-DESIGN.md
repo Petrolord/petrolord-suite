@@ -1,7 +1,7 @@
 # Suite Project: design
 
 Status: P0 LIVE 2026-10-14 (reviewed and approved by the second engineer,
-applied by the owner, verified); P1 in build. The owner
+applied by the owner, verified); P1 built (see the status table). The owner
 brought the build forward on 2026-10-14 ("Start with P0 and P1") as a
 consultant pilot and added a Client level (section 12). Designed 2026-09-30
 (owner: "start the unit profile and Project design now"). Companion: `docs/scope/SuiteUnits-DESIGN-AND-STATUS.md`
@@ -283,5 +283,5 @@ design above:
 | Phase | State |
 |---|---|
 | P0 | LIVE 2026-10-14. Second engineer reviewed and approved; the owner applied the three migrations. Before apply: dry run and role pentest on production inside a rolled-back transaction, 94 of 94, negative control fails 6, rollbacks restore the catalog and every persona's rows. After apply: verification queries as expected, live role pentest 94 of 94, and 0 differences between every persona's visible rows (demo account included) and pre-P0 access (`tools/security/suite-projects/probes/run_liveprobes.sh`). |
-| P1 | In build: `useProject()`, header switcher with clients, registries filtered and stamped, `.pld` per project, Move to project. |
+| P1 | Built 2026-10-14. PR A: scope, `useProject()`, switcher (hidden until a user has a client or a second project), Projects page at /dashboard/projects, registries filtered and stamped, `.pld` per project, Move to project. PR B: the sidebar "Projects" entry, held until the demo recordings finish. Gate: `src/lib/projects/__tests__/geoscienceChain.test.js`: a consultant with two clients loads a well into each through Well Data Manager, and all 12 Geoscience apps list only the current project's wells (Seismolord volumes too); the negative control (projects off) lists both. User guide `docs/scope/SuiteProjects-GUIDE.md`. |
 | P2 to P4 | Not started. |

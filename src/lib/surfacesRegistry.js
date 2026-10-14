@@ -10,6 +10,7 @@
 // writes, enforced by RLS server-side.
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { scopeToProject, whenProjectScopeReady, insertWithProject } from '@/lib/projects/projectScope';
 import { writeXYZ } from '@/lib/gridding/surfaceExport';
 
 // Depth convention of every row here: elevation (negative below datum)
@@ -62,9 +63,11 @@ async function requireUser() {
 
 /** Own surfaces + surfaces shared with the caller's org (RLS filters;
  *  is_own is derived for the UI). */
-export async function listSurfaces() {
+export async function listSurfaces({ allProjects = false } = {}) {
+  // Suite Projects: the current project only (allProjects for backups)
+  await whenProjectScopeReady();
   const [{ data, error }, { data: { user } }] = await Promise.all([
-    supabase.from('geo_surfaces').select('*').order('created_at', { ascending: false }),
+    scopeToProject(supabase.from('geo_surfaces').select('*'), { allProjects }).order('created_at', { ascending: false }),
     supabase.auth.getUser(),
   ]);
   if (error) throw new Error(`Could not load surfaces: ${error.message}`);
@@ -97,8 +100,8 @@ export async function saveSurface(s) {
     });
   if (upError) throw new Error(`Could not upload surface grid: ${upError.message}`);
 
-  const { data, error } = await supabase.from('geo_surfaces')
-    .insert({
+  // Suite Projects: the new row lands in the current project
+  const { data, error } = await insertWithProject({
       id,
       user_id: user.id,
       name: s.name,
@@ -118,8 +121,9 @@ export async function saveSurface(s) {
       crs_note: s.crsNote || null,
       provenance: s.provenance || {},
       storage_path: path,
-    })
-    .select().single();
+    }, (row) => supabase.from('geo_surfaces')
+    .insert(row)
+    .select().single());
   if (error) {
     await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
     throw new Error(`Could not save surface ${s.name}: ${error.message}`);

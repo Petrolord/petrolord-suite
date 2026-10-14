@@ -6,12 +6,18 @@
 // read goes through RLS, so the inventory shows what the user may see.
 import { supabase } from '@/lib/customSupabaseClient';
 import { listWells, listAllLogMeta, listAllTops, downloadCurve } from '@/lib/wellsRegistry';
+import { scopeToProject, whenProjectScopeReady } from '@/lib/projects/projectScope';
 
 const PAGE = 1000;
+// registry parents carry the Suite project; their children follow them
+const PROJECT_SCOPED = new Set(['seismic_volumes', 'geo_surfaces']);
 async function selectAll(table, columns) {
   const out = [];
+  if (PROJECT_SCOPED.has(table)) await whenProjectScopeReady();
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase.from(table).select(columns).order('id', { ascending: true }).range(from, from + PAGE - 1);
+    let q = supabase.from(table).select(columns);
+    if (PROJECT_SCOPED.has(table)) q = scopeToProject(q);
+    const { data, error } = await q.order('id', { ascending: true }).range(from, from + PAGE - 1);
     if (error) throw new Error(`Could not read ${table}: ${error.message}`);
     out.push(...(data || []));
     if (!data || data.length < PAGE) return out;
@@ -60,7 +66,14 @@ export function makeRegistryInventorySource() {
         ? volumes.filter((v) => volumeIds.includes(v.id) || volumeIds.includes(v.parent_volume_id))
         : volumes;
       // every volume name, so an upload that became a volume outside the study is not listed as unconverted
-      return { volumes: keep, datasets, horizons, faults, surfaces, allVolumeNames: volumes.map((v) => v.name) };
+      // horizons and faults follow their volume into the current project
+      const inScope = new Set(volumes.map((v) => v.id));
+      return {
+        volumes: keep, datasets,
+        horizons: horizons.filter((h) => inScope.has(h.volume_id)),
+        faults: faults.filter((f) => inScope.has(f.volume_id)),
+        surfaces, allVolumeNames: volumes.map((v) => v.name),
+      };
     },
     downloadCurve,
   };

@@ -18,6 +18,7 @@ import { listDatasets } from '@/lib/qiService';
 import { loadGatherForWell } from '@/lib/rockPhysicsGather';
 import { scanRemoteFile, startRemoteConversion } from '@/pages/apps/Seismolord/services/serverImport';
 import { DEFAULT_MAPPING } from '../../../../../packages/engines/engines/seismolord/segyScan';
+import { stampProject, scopeToProject, whenProjectScopeReady } from '@/lib/projects/projectScope';
 
 /** A new derived row ('ingesting', kind 'attribute') on a parent volume, as Seismolord registers an attribute volume. */
 async function registerDerived(parent, name, attributeParams) {
@@ -27,10 +28,10 @@ async function registerDerived(parent, name, attributeParams) {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) throw new Error('You must be signed in to compute a volume.');
   const id = crypto.randomUUID();
-  const { data, error } = await supabase.from('seismic_volumes').insert({
+  const { data, error } = await supabase.from('seismic_volumes').insert(stampProject({
     id, user_id: user.id, name, storage_path: volumeDir(user.id, id), status: 'ingesting', kind: 'attribute',
     parent_volume_id: parent.id, attribute_params: attributeParams, crs: parent.crs ?? null, survey_meta: {},
-  }).select().single();
+  })).select().single();
   if (error) throw new Error(`Could not register the volume: ${error.message}`);
   return data;
 }
@@ -43,8 +44,9 @@ export function makeRegistryBackend() {
       return { well, logs, zones, tops };
     },
     async listVolumes() {
-      const { data, error } = await supabase.from('seismic_volumes')
-        .select('id, name, kind, status, user_id, created_at, storage_path, crs, attribute_params, survey_meta')
+      await whenProjectScopeReady();
+      const { data, error } = await scopeToProject(supabase.from('seismic_volumes')
+        .select('id, name, kind, status, user_id, created_at, storage_path, crs, attribute_params, survey_meta'))
         .order('created_at', { ascending: false });
       if (error) throw new Error(`Could not load seismic volumes: ${error.message}`);
       // seismic volumes, and stacks matched to a reference (Q5), which a study uses as stacks
@@ -91,7 +93,8 @@ export function makeRegistryBackend() {
       return readDepthSurface(row, grid, attribute ? { accept: ['attribute'], xy: 'm' } : { accept: ['elevation', 'depth'], as: 'elevation', xy: 'm' });
     },
     async countSurfaces() {
-      const { count, error } = await supabase.from('geo_surfaces').select('id', { count: 'exact', head: true });
+      await whenProjectScopeReady();
+      const { count, error } = await scopeToProject(supabase.from('geo_surfaces').select('id', { count: 'exact', head: true }));
       return error ? 0 : (count || 0);
     },
   };
