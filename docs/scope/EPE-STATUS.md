@@ -112,3 +112,12 @@ Two IRR readouts found on the Ekene runs while scripting the EPE videos:
   half the iterations have an IRR, with a line that says so
   (`irrStatsView`, testid `epe-mc-irr-held`).
 No engine change.
+
+## 2026-10-14: the applied price, year by year (video programme)
+
+A yearly price deck could not be checked against what the engine used: the
+engine stores each year's applied oil, gas and condensate price (deck,
+escalator and differential applied) but neither the Year-by-Year table nor
+the CSV/Excel exports showed them. Both now do when the run recorded them
+(older runs keep their columns). Test `epeAppliedPrices.test.jsx` runs a deck
+with a differential through the vendored engine.

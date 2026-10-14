@@ -72,6 +72,9 @@ const TabBar = ({ tabs, active, onChange }) => (
 );
 
 // Format a USD number as $XXX.XM or $X.XB depending on magnitude
+/** A unit price to two decimals (n/a when the run did not record it). */
+export const fmtPrice = (v) => (v == null || Number.isNaN(Number(v)) ? EMPTY_VALUE : Number(v).toFixed(2));
+
 const fmtCompact = (n) => {
   if (n == null || isNaN(n)) return EMPTY_VALUE;
   const abs = Math.abs(n);
@@ -117,6 +120,14 @@ export const cashFlowColumns = (isPIA, sampleRows = []) => {
   // feature (any row carries a value), so old exports stay unchanged.
   const rows = Array.isArray(sampleRows) ? sampleRows : [];
   const anyRow = (k) => rows.some((r) => r && r[k] != null && r[k] !== 0);
+  // the price each year received; older runs without it keep their columns
+  if (rows.some((r) => r && r.applied_oil_price != null)) {
+    cols.splice(4, 0,
+      { key: 'applied_oil_price', label: 'Oil Price Applied (USD/bbl)' },
+      { key: 'applied_gas_price', label: 'Gas Price Applied (USD/Mscf)' },
+      { key: 'applied_cond_price', label: 'Condensate Price Applied (USD/bbl)' },
+    );
+  }
   if (anyRow('min_etr_topup')) cols.push({ key: 'min_etr_topup', label: 'Min ETR Top-up (USD)' });
   if (anyRow('psc_itc_used')) cols.push({ key: 'psc_itc_used', label: 'ITC Used (USD)' });
   // Engine v3.10 (EC1-5, EC1-6, EC1-9): the PSC cost pool after recovery, the
@@ -896,6 +907,13 @@ const YearByYearTable = ({ results }) => {
     { label: 'Oil (bbl)',          get: (r) => r.oil_bbl || 0,         fmt: (v) => v ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : EMPTY_VALUE },
     { label: 'Gas (Mscf)',         get: (r) => r.gas_mscf || 0,        fmt: (v) => v ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : EMPTY_VALUE },
     { label: 'Condensate (bbl)',   get: (r) => r.condensate_bbl || 0,  fmt: (v) => v ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : EMPTY_VALUE },
+    // The price each year received (deck, escalator and differential
+    // applied), so a deck can be checked against what the engine used.
+    ...(cf.some((r) => r.applied_oil_price != null) ? [
+      { label: 'Oil price applied ($/bbl)', get: (r) => r.applied_oil_price, fmt: fmtPrice },
+      { label: 'Gas price applied ($/Mscf)', get: (r) => r.applied_gas_price, fmt: fmtPrice },
+      { label: 'Condensate price applied ($/bbl)', get: (r) => r.applied_cond_price, fmt: fmtPrice },
+    ] : []),
     { label: 'Gross Revenue',      get: (r) => r.gross_revenue ?? r.revenue ?? 0,  fmt: fmtCompact },
     { label: 'Royalty',            get: (r) => r.royalty || 0,         fmt: fmtCompact },
     { label: 'OPEX',               get: (r) => r.opex || 0,            fmt: fmtCompact },
