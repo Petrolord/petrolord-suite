@@ -7,7 +7,7 @@
 import React from 'react';
 import { describeTraps } from '../services/trapBound';
 import DistributionCard from './DistributionCard';
-import { fmtVolume, volumeUnitLabel, fmtDepth } from '../services/units';
+import { fmtVolume, volumeUnitLabel, fmtDepth, fmtArea, areaUnitLabel } from '../services/units';
 import { describeProvenance } from '../services/propertyKriging';
 import { hasFluids } from '../services/modelBuild';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
@@ -171,6 +171,12 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
               <tr>
                 <th className={th}>Block</th><th className={th}>Cells</th><th className={th} data-testid="em-vol-unit-bulk" title="Gross rock volume (GRV): zone thickness times cell area">Bulk ({vu('bulk_m3')})</th>
                 <th className={th} title="Net rock volume (NRV): GRV times net to gross">Net ({vu('net_m3')})</th><th className={th} title="Pore volume: NRV times porosity">Pore ({vu('pore_m3')})</th><th className={th} data-testid="em-vol-unit-hcpv" title="Hydrocarbon pore volume at reservoir conditions: pore volume times (1 - Sw), above the contact">HCPV ({vu('hcpv_m3')})</th>
+                {'hc_bulk_m3' in (zone.volumes.total || {}) && (
+                  <>
+                    <th className={th} data-testid="em-vol-unit-hcbulk" title="Gross rock volume above the hydrocarbon contacts (the GRV ReservoirCalc Pro reports)">HC bulk ({vu('hc_bulk_m3')})</th>
+                    <th className={th} title="Area of the nodes that hold a hydrocarbon column (ReservoirCalc Pro's HC Area)">HC area ({areaUnitLabel(volumeUnits)})</th>
+                  </>
+                )}
                 {hasFluids(zone.fluids) && (
                   <>
                     <th className={th}>Gas HCPV ({vu('gas_hcpv_m3')})</th><th className={th}>Oil HCPV ({vu('oil_hcpv_m3')})</th>
@@ -189,6 +195,12 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
                   <td className={td}>{fmtVolume(zone.volumes[k].net_m3, 'net_m3', volumeUnits)}</td>
                   <td className={td}>{fmtVolume(zone.volumes[k].pore_m3, 'pore_m3', volumeUnits)}</td>
                   <td className={td} data-testid={`em-vol-${zone.name.replace(/\s+/g, '-').toLowerCase()}-${k}-hcpv`}>{fmtVolume(zone.volumes[k].hcpv_m3, 'hcpv_m3', volumeUnits)}</td>
+                  {'hc_bulk_m3' in (zone.volumes.total || {}) && (
+                    <>
+                      <td className={td} data-testid={`em-vol-${zone.name.replace(/\s+/g, '-').toLowerCase()}-${k}-hcbulk`}>{fmtVolume(zone.volumes[k].hc_bulk_m3, 'hc_bulk_m3', volumeUnits)}</td>
+                      <td className={td} data-testid={`em-vol-${zone.name.replace(/\s+/g, '-').toLowerCase()}-${k}-hcarea`}>{fmtArea(zone.volumes[k].hc_area_m2, volumeUnits)}</td>
+                    </>
+                  )}
                   {hasFluids(zone.fluids) && (
                     <>
                       <td className={td}>{fmtVolume(zone.volumes[k].gas_hcpv_m3, 'gas_hcpv_m3', volumeUnits)}</td>

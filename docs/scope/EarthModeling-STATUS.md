@@ -276,3 +276,18 @@ by the marker's square root, so they went to 0 or 1: the Ekene walk showed
 STOIIP P90 0 against P50 4.9 MMstb, and a P50 of 6.3 against a deterministic
 10.4. `shiftProps` now leaves a node with no variance where it is.
 Test: `__tests__/varianceFallback.test.js` (negative control fails both).
+
+## 2026-10-14: reconciled with ReservoirCalc Pro (the Ekene booked case)
+
+On the RCP booked case (six-well Ekene Sand top and base, OWC 5,036.1 ft,
+NTG 0.8, porosity 0.2, Sw 0.35, Bo 1.2) the model gives RCP's numbers
+exactly: GRV above the contact 18,058 acre-ft, HC area 418 acres, STOIIP
+12.14 MMstb (`__tests__/reconcileRcp.test.js`, fixture of the live rows).
+- QC, the volumes CSV and the report PDF carry HC bulk (GRV above the
+  contacts) and HC area; the bulk column alone (52,559 acre-ft, the whole
+  zone) could not be compared with RCP.
+- NTG from a published zone is net reservoir over gross (`zonePropertyValue`).
+  It used to be net pay over gross, which holds an Sw cutoff, so with an OWC
+  the water was cut twice: the Ekene model read 2.8 MMstb (wet wells NTG 0).
+- Prospect to RCP sends the HC area (418 acres) with the column over it, so
+  RCP's HC Area matches; it sent the whole zone's 497 acres before.
