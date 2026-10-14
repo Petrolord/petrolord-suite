@@ -42,6 +42,7 @@ import { computePrognosis, prognosisModeText } from '../services/shalePressure';
 import { pseudoSonicFromLinearVelocity } from '../engine/velocitySource';
 import { layerCakeProfile } from '@/lib/velocityModels';
 import { preparePublishLogs, publishBlocker } from '../services/publish';
+import { publishedSet, compareWithPublished, publishStateText } from '../services/publishState';
 import { inputNotes, trendDepthM } from '../services/honesty';
 import { reviewerLines, prognosisPdf } from '../services/report';
 import { drillingWindow, casingDesign, WINDOW_FROM_BML_M } from '../services/drillingWindow';
@@ -107,6 +108,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   const [saving, setSaving] = useState(false);
   // PP-U1-010: the NCT was fitted on the open well (or comes from the project/default)
   const [nctFittedFor, setNctFittedFor] = useState(null);
+  // 2026-10-14: the prognosis published on the open well ({wellId, set, values})
+  const [published, setPublished] = useState(null);
   // 2026-10-13: the water column the open well's datum supplied (null when typed or saved)
   const [waterFromDatum, setWaterFromDatum] = useState(null); // {wellId, waterDepthM, mudlineMdM, text}
   const waterPrevRef = React.useRef(null);
@@ -178,6 +181,13 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     try {
       const logs = await backend.listLogs(wellId);
       const mapped = mapLogs(logs);
+      // what this studio already published on the well, for the publish state
+      const pset = publishedSet(logs);
+      setPublished({ wellId, set: pset, values: {} });
+      if (pset) {
+        Promise.all(['PP', 'FP'].map((m) => (pset[m] ? backend.downloadCurve(pset[m]).catch(() => null) : null)))
+          .then(([pp, fp]) => setPublished((prev) => (prev?.wellId === wellId ? { ...prev, values: { PP: pp, FP: fp } } : prev)));
+      }
       if (!mapped.DEPT || !mapped.DT) {
         throw new Error('This well has no depth + sonic pair. Pore pressure needs a sonic log.');
       }
@@ -342,6 +352,16 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   const zRef = (zBml) => `${fmtDepth(mapper.fromBml(zBml), units.depth)} ${units.depth} ${refShort(mapper.key)}`;
   const computeError = input?.error || profile?.error || null;
 
+  // 2026-10-14: is the open prognosis the published one?
+  const publishCmp = useMemo(() => {
+    if (!published || published.wellId !== selectedId || !published.set || !result || !input || seismicModel) return null;
+    if (!published.values?.PP && !published.values?.FP) return null;
+    return compareWithPublished(input, result, params, published);
+  }, [published, selectedId, result, input, params, seismicModel]);
+  const publishState = selectedId && !seismicModel && published?.wellId === selectedId
+    ? publishStateText({ set: published.set, cmp: publishCmp, projectId, wellName: selected?.name || 'this well', fmtZ: zRef })
+    : null;
+
   // 2026-10-13: say where the water column came from while it is still the datum's
   const waterNote = useMemo(() => {
     const w = waterFromDatum;
@@ -371,7 +391,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     fmtZ: (m) => `${fmtDepth(m, units.depth)} ${units.depth}`,
     fmtP: (mpa) => (units.pressure === 'psi' ? `${fmtPressure(mpa * 1e6, 'psi')} psi` : `${mpa.toFixed(2)} MPa`),
     seismicNote: seismicModel ? [datum.note, layerCakeAt?.note].filter(Boolean).join(' ') : null,
-  }).concat(waterNote ? [waterNote] : []), [input, result, params, seismicModel, nctFittedFor, resNctFittedFor, byRes, selectedId, calibration, units, datum.note, layerCakeAt, waterNote]);
+  }).concat(waterNote ? [waterNote] : [])
+    .concat(publishState ? [{ key: 'published', tone: publishState.tone === 'warn' ? 'warn' : 'info', text: publishState.text }] : []), [input, result, params, seismicModel, nctFittedFor, resNctFittedFor, byRes, selectedId, calibration, units, datum.note, layerCakeAt, waterNote, publishState?.text, publishState?.tone]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const readout = useMemo(() => {
     if (!result || !input) return null;
@@ -575,6 +596,11 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         inputLogIds: curves?.logIds || [],
       });
       const saved = await backend.publishCurves(selectedId, prepared, projectId);
+      // the readers now see exactly what was prepared
+      const stamp = new Date().toISOString();
+      const rows = (saved || []).map((l, k) => ({ ...l, created_at: l.created_at || stamp, provenance: l.provenance || prepared[k]?.provenance, start_md_m: l.start_md_m ?? prepared[k]?.startMdM, step_m: l.step_m ?? prepared[k]?.stepM }));
+      const byM = Object.fromEntries(prepared.map((l) => [l.mnemonic, l.data]));
+      setPublished({ wellId: selectedId, set: publishedSet(rows), values: { PP: byM.PP, FP: byM.FP } });
       setStatus(`Published ${saved.map((l) => l.mnemonic).join('/')} to the well registry.`);
     } catch (e) {
       setStatus(e.message);
@@ -709,6 +735,18 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
           >
             <FileText className="w-3.5 h-3.5" /> PDF
           </button>
+        )}
+        {result && selectedId && backend.publishCurves && publishState && (
+          <span
+            data-testid="pp-publish-state"
+            data-tone={publishState.tone}
+            title={publishState.text}
+            className={`rounded px-1.5 py-0.5 text-[11px] border whitespace-nowrap ${publishState.tone === 'warn'
+              ? 'bg-pl-warning-bg border-pl-warning/40 text-pl-warning-text'
+              : publishState.tone === 'ok' ? 'border-pl-border text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
+          >
+            {publishState.chip}
+          </span>
         )}
         {result && selectedId && backend.publishCurves && (
           <button

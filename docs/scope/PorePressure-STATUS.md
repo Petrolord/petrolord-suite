@@ -260,3 +260,20 @@ supplied follow the next well. Publish is held for an offshore well whose datum
 states water while the water depth is 0. `services/datumWaterColumn.js`;
 tests `__tests__/datumWaterColumn.test.js` (the old 0/0 default as the negative
 control).
+## 2026-10-14: publish state (is the published prognosis the one open here?)
+
+Data governance (the NAPE paper theme), found while writing the Pore Pressure Studio videos: the readers of
+the prognosis (Well Design Studio's mud window, Casing & Tubing, Hydraulics, Geomechanics) read the curves
+published on the well, never the open project, and nothing said when a recalibration had not been published.
+
+- Chip beside Publish (testid `pp-publish-state`, `data-tone` info/ok/warn): Not published; Published, matches;
+  or Unpublished changes (largest difference in ppg). Notes line `pp-note-published` gives the curve, the depth
+  in the chosen frame and the publish time, and that the readers still use the published one until you publish.
+- `services/publishState.js`: `publishedSet` (this studio's PP/FP/OBG on the well, newest of each),
+  `compareWithPublished` (PP and FP sample by sample on the well's MD, in ppg EMW at each sample's reference
+  depth), `publishStateText`. The published PP and FP are read when the well opens; after Publish the state is
+  set from exactly what was written.
+- Tests: `__tests__/publishState.test.js` (through `preparePublishLogs`: a just-published prognosis matches itself
+  on every sample within float32; an unpublished n change is caught with its size and depth; negative control,
+  no published values means nothing compared and nothing claimed) and `__tests__/publishStateUi.test.jsx` (the
+  chip from Not published to matches, to Unpublished changes after a parameter change, to matches after Publish).
