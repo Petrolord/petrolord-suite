@@ -254,3 +254,13 @@ A well that states no depth reference elevation is left out of the ties, the
 properties, the section and the 3D scene, and the build notes name it
 (`services/modelBuild.js`, `framework3d.js`). Wells saved before the model
 tie as they did. Test: `__tests__/upgradeDatum.test.js`.
+
+## 2026-10-14: the kriging range and the volume distribution after a fallback
+
+A property block that falls back from kriging (Ekene: a layer where every
+well reads NTG 1.0) carries the grid's null marker as its variance. The
+fully correlated range and the Monte Carlo distribution shifted those nodes
+by the marker's square root, so they went to 0 or 1: the Ekene walk showed
+STOIIP P90 0 against P50 4.9 MMstb, and a P50 of 6.3 against a deterministic
+10.4. `shiftProps` now leaves a node with no variance where it is.
+Test: `__tests__/varianceFallback.test.js` (negative control fails both).
