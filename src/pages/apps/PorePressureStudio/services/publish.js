@@ -127,6 +127,8 @@ export function preparePublishLogs(input, result, params, meta) {
           ? { mode: 'shale', indicator: result.shaleMode.kind, cutoff: result.shaleMode.cutoff, shale_samples: result.shaleMode.nShale, samples: result.shaleMode.n }
           : { mode: 'every sample' },
         ...(result.sonicMedianM > 0 ? { sonic_median_m: result.sonicMedianM } : {}),
+        // 2026-10-14: the interpreted line through the shale points (window, m)
+        ...(result.shaleMode?.lineM > 0 ? { pp_line_m: result.shaleMode.lineM } : {}),
         depth_reference: {
           index: 'MD below RKB',
           tvd_from: input.tvdFrom || 'vertical',
