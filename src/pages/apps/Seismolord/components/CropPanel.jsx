@@ -51,7 +51,7 @@ export const EMPTY_FORM = Object.freeze({
 });
 
 /** The survey outline in inline and crossline numbers; drag a rectangle or click polygon corners. */
-function Outline({ scan, crop, mode, onRect, onPolygon, polygon, disabled }) {
+function Outline({ scan, crop, mode, onRect, onPoint, polygon, disabled }) {
   const W = 260; const H = 190; const pad = 18;
   const { il, xl } = scan;
   const ilMax = il.max ?? il.min + (il.count - 1) * il.step;
@@ -77,7 +77,7 @@ function Outline({ scan, crop, mode, onRect, onPolygon, polygon, disabled }) {
       onPointerDown={(e) => {
         if (disabled) return;
         const [x, y] = pt(e);
-        if (mode === 'polygon') { const p = inv(x, y); onPolygon([...(polygon || []), [clampIl(p.il), clampXl(p.xl)]]); return; }
+        if (mode === 'polygon') { const p = inv(x, y); onPoint([clampIl(p.il), clampXl(p.xl)]); return; }
         drag.current = [x, y]; setLive([x, y, x, y]);
       }}
       onPointerMove={(e) => { if (drag.current) { const [x, y] = pt(e); setLive([drag.current[0], drag.current[1], x, y]); } }}
@@ -120,7 +120,7 @@ function Outline({ scan, crop, mode, onRect, onPolygon, polygon, disabled }) {
  * @param {'time'|'depth'} p.domain
  * @param {boolean} p.enabled crop on or off
  * @param {(on: boolean) => void} p.onEnabled
- * @param {Object} p.form the form state; @param {(f: Object) => void} p.onForm
+ * @param {Object} p.form the form state; @param {(f: Object|Function) => void} p.onForm a state setter (takes an updater too)
  * @param {(id: ?string) => void} [p.onDefinitionId]
  * @param {boolean} [p.showUpload] the file is uploaded as SEG-Y (server import)
  * @param {?number} p.speed MB/s for the estimate; @param {(v: number) => void} p.onSpeed
@@ -266,7 +266,7 @@ export default function CropPanel({
               <Outline
                 scan={scan} crop={crop} mode={mode} polygon={form.polygon} disabled={disabled}
                 onRect={(r) => onForm({ ...form, ...r, polygon: [] })}
-                onPolygon={(poly) => onForm({ ...form, polygon: poly })}
+                onPoint={(pt) => onForm((f) => ({ ...f, polygon: [...(f.polygon || []), pt], ilFrom: '', ilTo: '', xlFrom: '', xlTo: '' }))}
               />
               <p className="text-xs text-pl-muted">{mode === 'polygon' ? 'Click the corners; three or more make the area.' : 'Drag across the outline to draw the area.'}</p>
             </div>
