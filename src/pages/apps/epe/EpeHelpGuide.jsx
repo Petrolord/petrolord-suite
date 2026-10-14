@@ -324,6 +324,14 @@ const EpeHelpGuide = () => {
                 Costs in your CSVs should be entered in nominal (then-year) USD. The engine applies inflation escalators based on your run configuration. Don't pre-inflate your CSV costs.
               </Callout>
 
+              <SubHeading>Files received from other apps</SubHeading>
+              <Para>
+                The production slot can import a forecast from Forecast Scenario Hub, Decline Curve Analysis, Waterflood Design Studio, Reservoir Simulation Studio or Well Spacing Optimizer. The CAPEX slot can import a well's cost with <strong>Import from Well Cost &amp; Time</strong>: pick an estimate, the year the money is spent, a category, and the amount to book (the AFE total, or the Monte Carlo P50 or P90). A received file keeps where it came from: its card prints the source and checks it every time the case opens.
+              </Para>
+              <Para>
+                When the source changes, the card says what moved and the owner gets a button that replaces that one file and nothing else: <strong>Take the new profile</strong> (Forecast Scenario Hub), <strong>Take the new forecast</strong> (Decline Curve Analysis, Waterflood), <strong>Take the new run</strong> (Simulation), <strong>Take the new case</strong> (Well Spacing) or <strong>Take the new estimate</strong> (Well Cost &amp; Time). A received profile keeps its first production year. A per-well CSV and a received profile sit side by side in one slot and both count.
+              </Para>
+
               <SubHeading>Common upload pitfalls</SubHeading>
               <ul className="list-disc list-inside space-y-1 text-pl-text ml-2">
                 <li><strong>Excel quirks:</strong> Save as CSV (not Excel CSV), use UTF-8 encoding. Avoid commas in numeric fields and use periods for decimals.</li>
@@ -371,6 +379,7 @@ const EpeHelpGuide = () => {
               </Para>
               <ul className="list-disc list-inside space-y-1 text-pl-text ml-2">
                 <li><strong>Production royalty in tranches:</strong> the year's crude oil plus condensate per calendar day is split into bands, each charged its own rate, and the result is one weighted rate (PIA Seventh Schedule para 10; Royalty Regulations 2022 r.13). Onshore and shallow water: 5% on the first 5,000 bopd, 7.5% on the next 5,000, then 15% onshore or 12.5% in shallow water above 10,000 bopd. At 50,000 bopd in shallow water that is 11.25%. Deep offshore: 5% up to 50,000 bopd and 7.5% above. Frontier: 7.5% flat. A marginal field is onshore or in shallow water; tick the marginal field box for one converted under PIA s.94(1).</li>
+                <li><strong>Water depth:</strong> typed in your depth unit (feet on the Oilfield preset). The Act sorts terrain by water depth in metres, so the console shows the metres it stores, for example 114.8 ft stored as 34.99 m.</li>
                 <li><strong>Gas and NGL royalty:</strong> 5% on every terrain, and 2.5% on gas produced and utilised in Nigeria (para 10(6); Regulations r.16). Enter the in-country share in Levies & Allowances.</li>
                 <li><strong>Royalty by price:</strong> charged on oil and on condensate, each at its own price, against benchmarks of 50, 100 and 150 USD/bbl for 2021 raised by 2% a year and rounded to cents (Regulations Schedule). The Act (para 11(1)) starts the same levels one year earlier; choose that base in Levies & Allowances if your counsel reads it so.</li>
                 <li><strong>NDDC levy:</strong> 3% of the company's total annual budget, read as the year's opex plus capex, and deductible in the HCT base. You can keep the earlier opex base.</li>
@@ -449,6 +458,16 @@ const EpeHelpGuide = () => {
                 The Field Life section of the Run Console handles end-of-life economics. Set an <strong>abandonment cost</strong> to apply a post-tax outflow in a chosen year (it is not tax-deducted and not depreciated). Turn on the <strong>economic limit</strong> toggle to trim trailing years whose revenue no longer covers opex, so late-life losses stop dragging on NPV.
               </Para>
 
+              <SubHeading>Variable opex</SubHeading>
+              <Para>
+                The Variable Opex group takes costs that follow production, in US$ per barrel of liquid (oil, condensate and water), per barrel of oil, per barrel of water or per Mscf of gas, at base-year prices. They are added to the OPEX file on the volumes the run prices, so a lower forecast, another reserves scenario, or the production multiplier in the tornado and Monte Carlo moves the opex as well. Leave them blank when the OPEX file already holds these costs, or they are counted twice.
+              </Para>
+
+              <SubHeading>Valuation date and discounting convention</SubHeading>
+              <Para>
+                The NPV is valued at 31 December of the valuation year. With <strong>End of year</strong> each year's cash is placed at its year end, so the valuation year's own cash is undiscounted. With <strong>Mid-year</strong> cash is placed at mid-year, half a year before the year end, so every year is discounted half a year less and the NPV is the end-of-year NPV times the square root of one plus the rate. Tick <strong>Treat years before valuation as sunk</strong> to keep history in the model, for tax pools and allowances, while leaving it out of NPV, IRR and payback.
+              </Para>
+
               <SubHeading>Save as scenario</SubHeading>
               <Para>
                 Tick "Save as scenario" before running to give the run a memorable name. This makes the run easier to find later when comparing scenarios in the same case.
@@ -476,6 +495,16 @@ const EpeHelpGuide = () => {
                 ]}
               />
 
+              <SubHeading>When the IRR is missing or reads backwards</SubHeading>
+              <Para>
+                A missing IRR always comes with its reason: the cash flow never changes sign, the rate is beyond 1000 percent, or several rates zero the NPV (they are listed). When an IRR is reported but disagrees with the NPV about the discount rate (a negative NPV with an IRR above the rate, or the reverse), a caution explains that the cash flow brings money in first and pays it out later, as a producing field that still owes its abandonment does, so a higher rate is worse. Read the NPV.
+              </Para>
+
+              <SubHeading>Runs that are out of date</SubHeading>
+              <Para>
+                Each run records the files it priced. If a file in the case is replaced, added or removed afterwards, the run is marked <strong>Out of date</strong> in Run History and its results page lists what changed under "The case data changed after this run", with a link to re-run with edits. A file refreshed from its source shows as replaced by a newer version.
+              </Para>
+
               <SubHeading>The six tabs</SubHeading>
               <Table
                 headers={['Tab', 'When to look at it']}
@@ -485,7 +514,7 @@ const EpeHelpGuide = () => {
                   ['Waterfall',            'Single-year cascade from gross revenue to ATCF. Use to explain the math to non-economists.'],
                   ['Sensitivity (Tornado)','Shows which inputs move NPV the most. Use before committing to a fiscal scenario.'],
                   ['Risk (Monte Carlo)',   'Runs the deterministic model many times with sampled inputs. Use it to see the full NPV distribution and P(NPV>0) beside the single deterministic number.'],
-                  ['Year-by-Year Detail',  'Full numeric table. Use for QC, for sharing precise numbers, or when exporting to Excel.'],
+                  ['Year-by-Year Detail',  'Full numeric table. Use for QC, for sharing precise numbers, or when exporting to Excel. It shows the price each year actually received (deck, escalator and differential applied), and the variable opex when a run used rates.'],
                 ]}
               />
 
@@ -509,6 +538,11 @@ const EpeHelpGuide = () => {
                 <li><strong>Green bar (right of zero):</strong> NPV at the higher value. If oil price rises 20%, green shows how much NPV gains.</li>
                 <li><strong>Bar length:</strong> Bigger = more sensitive. Focus your attention on the top 3–4 variables.</li>
               </ul>
+
+              <SubHeading>The readout under the chart</SubHeading>
+              <Para>
+                One sentence names the two inputs that move NPV the most and the NPV range of each. The table lists every bar: the low and high input values in their own units, the NPV at each, and the swing. On a case that produces before its first capex (a field already on stream) a note warns that the First Oil Delay bar moves every production file a year later, the producing wells too, so read that bar on a new development.
+              </Para>
 
               <SubHeading>What to do with the output</SubHeading>
               <ul className="list-disc list-inside space-y-1 text-pl-text ml-2">
@@ -547,6 +581,10 @@ const EpeHelpGuide = () => {
               <Step n={5} title="Read the outputs">
                 The tab shows the NPV cumulative distribution (CDF), P(NPV&gt;0), percentile bands (e.g., P10 / P50 / P90), and a tornado of which sampled inputs drove the spread.
               </Step>
+
+              <Callout tone="info" title="IRR percentiles">
+                IRR percentiles describe only the iterations that have a single IRR. When fewer than half of them do, which is common for a producing field that pays its abandonment last, the IRR cards are held back and a line says how many iterations had none. Read the NPV percentiles.
+              </Callout>
 
               <SubHeading>How it works under the hood</SubHeading>
               <Para>
@@ -590,7 +628,15 @@ const EpeHelpGuide = () => {
 
               <SubHeading>"I want to compare two scenarios side by side"</SubHeading>
               <Para>
-                Use the Run Comparison view (accessible from the case detail page). It lets you select two or more runs and view their KPIs side by side. Useful for justifying a fiscal regime choice or showing the impact of a price-deck change.
+                Use Compare Runs from the case detail page. It lists this case's runs first, then the runs of your other cases, so a with-project run can be compared with a without-project run kept in its own case. The first run you tick is the base. The table shows the terms and every KPI with its change against the base.
+              </Para>
+              <Para>
+                With exactly two runs it values the increment, second run minus base, the way the engine values a run: from the valuation year, sunk years left out, at the base run's rate, so the incremental NPV equals the difference of the two NPVs. A sentence states the result (for example "On NPV at 10.00%, With Ekene-11 is worth $2.44M more than Without Ekene-11."); when several rates zero the incremental NPV they are listed and the NPV carries the decision.
+              </Para>
+
+              <SubHeading>"Approving, locking and keeping a record"</SubHeading>
+              <Para>
+                In Run History the owner can approve the run a decision rests on (who and when are recorded) and lock it so it cannot be deleted. The tab stays open while you approve, lock or delete. Save pricing as an assumption set in the Run Console to reuse one corporate deck across cases, and share the case with your organisation to let colleagues read it and clone their own what-ifs.
               </Para>
 
               <SubHeading>"What is auto-validated, and what isn't?"</SubHeading>
