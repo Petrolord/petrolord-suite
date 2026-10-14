@@ -94,8 +94,8 @@ def policy_tables_of(path):
     return sorted(set(re.findall(r'on public\.([a-z_0-9]+)', s)) | set(re.findall(r'table public\.([a-z_0-9]+)', s)))
 
 # 01: only is_super_admin changes behaviour (new objects are inert)
-write('01.rollback.sql', '20261014120000 (is_super_admin back to the email list; platform_admins left in place)',
-      func_block(['public.is_super_admin()']))
+write('01.rollback.sql', '20261014120000 (is_super_admin and handle_new_user back to the live bodies; platform_admins left in place)',
+      func_block(['public.is_super_admin()', 'public.handle_new_user()']))
 
 # 02
 write('02.rollback.sql', '20261014120100 (invitation lockdown)',

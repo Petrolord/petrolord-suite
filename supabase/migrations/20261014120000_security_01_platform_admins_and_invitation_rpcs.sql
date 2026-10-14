@@ -1,6 +1,6 @@
 -- =============================================================================
 -- SECURITY 01 of 05 (2026-10): platform_admins and the invitation RPCs.
--- ADDITIVE ONLY. Safe to apply before any function deploy or site upload.
+-- ADDITIVE: no live flow changes on apply. Safe before any function deploy or upload.
 -- Runbook: docs/security/RUNBOOK-2026-10.md (step order, verify, rollback).
 -- Review: owner + second engineer approved the security programme 2026-10-14.
 --
@@ -32,15 +32,20 @@
 --      super_admin is never granted by invitation; owner only from an owner;
 --      single use under a row lock.
 --   D. invitations.token unique index (0 duplicates on 2026-10-14).
+--   E. handle_new_user() TRANSITIONAL: also accepts an invitation_token in the
+--      signup metadata (validated, invitation role). The legacy metadata
+--      organization_id path keeps working unchanged until 02 closes it, so the
+--      new HSE page and Suite function can ship between 01 and 02 and every
+--      live signup path keeps working at every step.
 --
 -- Nothing is revoked, dropped or tightened here; 02-05 do that.
 -- Idempotent: create if not exists / create or replace / on conflict.
 -- No begin/commit inside (supabase db query -f runs the file as one
 -- implicit transaction).
 --
--- ROLLBACK (docs/security/RUNBOOK-2026-10.md, step R1): restore the old
--- is_super_admin() body (email list); the new functions and the table are
--- harmless when unused and may stay.
+-- ROLLBACK: tools/security/2026-10/rollback/01.rollback.sql restores the old
+-- is_super_admin() (email list) and handle_new_user() bodies; the new
+-- functions and the table are harmless when unused and may stay.
 -- =============================================================================
 
 -- ---- A. platform_admins -----------------------------------------------------
@@ -343,3 +348,299 @@ grant execute on function public.invitation_role_allowed(uuid, text) to authenti
 
 -- ---- D. one token per invitation ---------------------------------------------
 create unique index if not exists invitations_token_key on public.invitations (token);
+
+-- ---- E. handle_new_user: TRANSITIONAL ------------------------------------------
+-- Accepts an invitation_token in the signup metadata (validated by
+-- invitation_accept_internal; the invitation's role) IN ADDITION to the legacy
+-- metadata organization_id path, which is kept byte-for-byte in effect so that
+-- nothing live changes on apply: the HSE page and the Suite
+-- accept-employee-invitation that send the token can then ship before 02,
+-- and 02 removes the legacy branch. Live body before this file: md5
+-- a9f27ca36ad22a22e4acbafd1368502b (= 20260806100000); rollback 01 restores it.
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  org_id UUID;
+  org_name TEXT;
+  meta_full_name TEXT;
+  meta_primary_app TEXT;
+  meta_org_text TEXT;
+  meta_invitation_token TEXT;
+  v_joined JSONB;
+  v_legacy_role TEXT;  -- TRANSITIONAL (01 only; 02 removes)
+BEGIN
+  BEGIN
+    RAISE LOG 'handle_new_user: Starting for user %', NEW.id;
+
+    -- Read metadata, with sensible defaults for any missing keys
+    meta_org_text         := NULLIF(BTRIM(NEW.raw_user_meta_data->>'organization_id'), '');
+    meta_invitation_token := NULLIF(BTRIM(NEW.raw_user_meta_data->>'invitation_token'), '');
+    org_name         := COALESCE(NEW.raw_user_meta_data->>'organization_name', NEW.email);
+    meta_full_name   := COALESCE(NEW.raw_user_meta_data->>'full_name', 'New User');
+    meta_primary_app := COALESCE(NEW.raw_user_meta_data->>'primary_app', 'suite');
+
+    -- Defensive: clamp primary_app to known values
+    IF meta_primary_app NOT IN ('suite', 'hse') THEN
+      meta_primary_app := 'suite';
+    END IF;
+
+    -- ------------------------------------------------------------------------
+    -- 1a0. Invitation signup: the token (not the metadata) decides the org
+    --      and the role. Raises if the token, email or inviter is not valid.
+    -- ------------------------------------------------------------------------
+    IF meta_invitation_token IS NOT NULL THEN
+      v_joined := public.invitation_accept_internal(
+                    meta_invitation_token, NEW.id, NEW.email,
+                    NEW.raw_user_meta_data->>'full_name');
+      org_id := (v_joined->>'organization_id')::UUID;
+      IF meta_org_text IS NOT NULL AND meta_org_text::UUID IS DISTINCT FROM org_id THEN
+        RAISE EXCEPTION 'invitation is for a different organization';
+      END IF;
+    ELSIF meta_org_text IS NOT NULL THEN
+      -- TRANSITIONAL (01 only): the pre-2026-10 signup path, unchanged, so the
+      -- live HSE page and the old accept-employee-invitation keep working until
+      -- they are replaced. 02 turns this branch into a refusal.
+      org_id := meta_org_text::UUID;
+      v_legacy_role := COALESCE(NEW.raw_user_meta_data->>'role', 'owner');
+    END IF;
+
+    -- ------------------------------------------------------------------------
+    -- 1a. If signup flow (no invitation), create the org
+    -- ------------------------------------------------------------------------
+    IF org_id IS NULL THEN
+      RAISE LOG 'handle_new_user: Creating new organization for user %', NEW.id;
+
+      INSERT INTO public.organizations (
+        name,
+        contact_email,
+        created_by,
+        created_via,
+        organization_type,
+        subscription_tier,
+        subscription_status,
+        hse_status,
+        suite_status,
+        setup_completed,
+        created_at
+      )
+      VALUES (
+        org_name,
+        NEW.email,
+        NEW.id,
+        'signup',
+        'customer',
+        'free',
+        'active',
+        'ACTIVE',                                         -- HSE is free for everyone
+        CASE WHEN meta_primary_app = 'suite' THEN 'TRIAL' ELSE 'NONE' END,
+        FALSE,                                            -- setup wizard not yet run
+        NOW()
+      )
+      RETURNING id INTO org_id;
+    END IF;
+
+    -- ------------------------------------------------------------------------
+    -- 1b. Upsert public.users
+    -- ------------------------------------------------------------------------
+    INSERT INTO public.users (
+        id,
+        email,
+        organization_id,
+        primary_app,
+        subscribed_modules,
+        last_accessed_app,
+        app_preferences,
+        created_at,
+        updated_at
+    )
+    VALUES (
+        NEW.id,
+        NEW.email,
+        org_id,
+        meta_primary_app,
+        ARRAY['hse_free']::text[],
+        meta_primary_app,
+        jsonb_build_object(
+          meta_primary_app,
+          jsonb_build_object(
+            'onboarding_completed', FALSE,
+            'preferred_language',   'en',
+            'notifications_enabled', TRUE
+          )
+        ),
+        NOW(),
+        NOW()
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        organization_id = EXCLUDED.organization_id,
+        primary_app     = EXCLUDED.primary_app,
+        updated_at      = NOW();
+
+    IF v_joined IS NULL THEN
+    -- ------------------------------------------------------------------------
+    -- 1c. The creator of a new organization joins it as its owner.
+    --     (An invitee's membership was written by invitation_accept_internal.)
+    -- ------------------------------------------------------------------------
+    INSERT INTO public.organization_members (
+        organization_id,
+        user_id,
+        full_name,
+        email,
+        role,
+        status,
+        joined_at,
+        created_at,
+        updated_at
+    )
+    VALUES (
+        org_id,
+        NEW.id,
+        meta_full_name,
+        NEW.email,
+        COALESCE(v_legacy_role, 'owner'),                  -- creator; legacy join (01 only) keeps its metadata role
+        'active',                                          -- creator joins active, not invited
+        NOW(),
+        NOW(),
+        NOW()
+    )
+    ON CONFLICT (organization_id, email) DO UPDATE SET
+        user_id    = EXCLUDED.user_id,
+        full_name  = COALESCE(public.organization_members.full_name, EXCLUDED.full_name),
+        status     = 'active',
+        joined_at  = COALESCE(public.organization_members.joined_at, NOW()),
+        updated_at = NOW();
+
+    -- ------------------------------------------------------------------------
+    -- 1c2. Provision app access (NEW table: organization_apps)
+    --      Free HSE for every new org. Suite signups also get suite app
+    --      provisioned in TRIAL state — actual entitlement gated downstream
+    --      by purchased_modules and the org's suite_status.
+    -- ------------------------------------------------------------------------
+    INSERT INTO public.organization_apps (
+        organization_id,
+        app_id,
+        module_id,
+        seats_allocated,
+        seats_used,
+        status,
+        created_at
+    )
+    VALUES (
+        org_id,
+        'hse',
+        'hse_free',
+        999,                                               -- unlimited for free tier
+        0,
+        'ACTIVE',
+        NOW()
+    )
+    ON CONFLICT (organization_id, app_id) DO NOTHING;
+
+    IF meta_primary_app = 'suite' THEN
+      INSERT INTO public.organization_apps (
+          organization_id,
+          app_id,
+          module_id,
+          seats_allocated,
+          seats_used,
+          status,
+          created_at
+      )
+      VALUES (
+          org_id,
+          'suite',
+          'suite_trial',
+          5,                                               -- nominal trial seat allocation
+          0,
+          'ACTIVE',
+          NOW()
+      )
+      ON CONFLICT (organization_id, app_id) DO NOTHING;
+    END IF;
+
+    -- ------------------------------------------------------------------------
+    -- 1d. Free HSE entitlement record in purchased_modules
+    -- ------------------------------------------------------------------------
+    INSERT INTO public.purchased_modules (
+        organization_id,
+        module_id,
+        module_name,
+        status,
+        subscription_status,
+        purchase_date,
+        seats_allocated,
+        auto_renew
+    )
+    SELECT
+        org_id,
+        'hse_free',
+        'HSE Free Tier',
+        'active',
+        'active',
+        NOW(),
+        999,
+        FALSE
+    WHERE NOT EXISTS (
+        SELECT 1 FROM public.purchased_modules
+        WHERE organization_id = org_id AND module_id = 'hse_free'
+    );
+    END IF;
+
+    -- ------------------------------------------------------------------------
+    -- 1e. user_points_summary
+    -- ------------------------------------------------------------------------
+    INSERT INTO public.user_points_summary (
+        user_id,
+        organization_id,
+        total_points,
+        points_earned,
+        points_redeemed,
+        created_at,
+        updated_at
+    )
+    VALUES (
+        NEW.id,
+        org_id,
+        0,
+        0,
+        0,
+        NOW(),
+        NOW()
+    )
+    ON CONFLICT (user_id) DO UPDATE SET
+        organization_id = EXCLUDED.organization_id,
+        updated_at      = NOW();
+
+    -- ------------------------------------------------------------------------
+    -- 1f. user_profiles
+    -- ------------------------------------------------------------------------
+    INSERT INTO public.user_profiles (
+        id,
+        org_id,
+        full_name,
+        updated_at
+    )
+    VALUES (
+        NEW.id,
+        org_id,
+        meta_full_name,
+        NOW()
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        org_id    = COALESCE(EXCLUDED.org_id, public.user_profiles.org_id),
+        full_name = COALESCE(EXCLUDED.full_name, public.user_profiles.full_name);
+
+    RAISE LOG 'handle_new_user: Successfully completed for user % (org %)', NEW.id, org_id;
+
+  EXCEPTION WHEN OTHERS THEN
+    RAISE LOG 'handle_new_user: ERROR for user % - %', NEW.id, SQLERRM;
+    RAISE EXCEPTION 'Failed to initialize user: %', SQLERRM;
+  END;
+
+  RETURN NEW;
+END;
+$function$;
