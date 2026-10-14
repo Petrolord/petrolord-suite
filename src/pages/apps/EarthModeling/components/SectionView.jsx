@@ -229,14 +229,23 @@ const SectionView = forwardRef(function SectionView({
       ctx.textAlign = 'center'; ctx.fillText(SECTION_PROP_LABEL[propKey] || propKey, bx + bw / 2, by + 18);
     }
 
-    // projected wells: stick, GR column through the shared painter, tops
+    // projected wells: stick, GR column through the shared painter, tops.
+    // Wells on the same spot (a pad, or a copy of a well) share one label.
+    const labelOf = new Map();
+    const labelled = [];
+    for (const p of projected) {
+      const px = xPx(p.s);
+      const near = labelled.find((q) => Math.abs(q.px - px) < 24);
+      if (near) { near.names.push(p.well.name); labelOf.set(p, null); } else { const e = { px, names: [p.well.name], p }; labelled.push(e); labelOf.set(p, e); }
+    }
     for (const p of projected) {
       const px = xPx(p.s);
       ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
       ctx.beginPath(); ctx.moveTo(px, PAD.t); ctx.lineTo(px, cssH - PAD.b); ctx.stroke();
       ctx.setLineDash([]);
       ctx.fillStyle = '#e2e8f0'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(`${p.well.name}${p.offset * xyToM > 1 ? ` (${(p.offset * xyToM).toFixed(0)} m off)` : ''}`, px, 12);
+      const lab = labelOf.get(p);
+      if (lab) ctx.fillText(`${lab.names.join(', ')}${p.offset * xyToM > 1 ? ` (${(p.offset * xyToM).toFixed(0)} m off)` : ''}`, px, 12);
       if (p.gr && p.gr.tvdss.length > 1) {
         const depth = p.gr.tvdss;
         let i0 = 0; while (i0 < depth.length - 1 && depth[i0] < zMin) i0 += 1;
