@@ -7,7 +7,8 @@ Reads the live catalog with read-only SELECTs (supabase db query --linked) and
 writes NN_*.rollback.sql next to this file. Each rollback restores, for the
 objects its migration touches: table RLS flag, anon/authenticated table
 grants, every policy (exact text), function bodies and EXECUTE grants.
-The generated files contain no begin/commit (run them with
+Generated 2026-10-14 BEFORE any of 01-05 was applied: do not regenerate after
+applying (it would snapshot the new state). The generated files contain no begin/commit (run them with
 supabase db query --linked -f, one implicit transaction)."""
 import json, subprocess, os, re, sys
 
@@ -97,11 +98,19 @@ def policy_tables_of(path):
 write('01.rollback.sql', '20261014121000 (is_super_admin and handle_new_user back to the live bodies; platform_admins left in place)',
       func_block(['public.is_super_admin()', 'public.handle_new_user()']))
 
+def transitional_trigger():
+    m1 = open(os.path.join(MIG, '20261014121000_security_01_platform_admins_and_invitation_rpcs.sql')).read()
+    i = m1.index('CREATE OR REPLACE FUNCTION public.handle_new_user()')
+    j = m1.index('$function$;', i) + len('$function$;')
+    return m1[i:j]
+
 # 02
 write('02.rollback.sql', '20261014121100 (invitation lockdown)',
       table_block(['invitations']) + "\nalter table public.invitations alter column invited_by drop default;\n" +
-      func_block(['public.add_user_to_organization(uuid,uuid,text)', 'public.enable_hse_for_organization(uuid)',
-                  'public.handle_new_user()']))
+      func_block(['public.add_user_to_organization(uuid,uuid,text)', 'public.enable_hse_for_organization(uuid)']) +
+      '\n-- ---- public.handle_new_user(): back to the 01 TRANSITIONAL body (token or legacy path), so the\n'
+      '-- HSE page and Suite function shipped after 01 keep working. Copied from the 01 migration file.\n' +
+      transitional_trigger())
 
 # 03
 write('03.rollback.sql', '20261014121200 (users guard, seats, invited rows)',

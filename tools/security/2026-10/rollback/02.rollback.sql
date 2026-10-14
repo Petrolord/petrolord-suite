@@ -122,7 +122,8 @@ end;
 $function$;
 revoke execute on function public.enable_hse_for_organization(uuid) from public, anon, authenticated;
 grant execute on function public.enable_hse_for_organization(uuid) to service_role;
--- ---- public.handle_new_user()
+-- ---- public.handle_new_user(): back to the 01 TRANSITIONAL body (token or legacy path), so the
+-- HSE page and Suite function shipped after 01 keep working. Copied from the 01 migration file.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -134,17 +135,20 @@ DECLARE
   org_name TEXT;
   meta_full_name TEXT;
   meta_primary_app TEXT;
-  meta_role TEXT;
+  meta_org_text TEXT;
+  meta_invitation_token TEXT;
+  v_joined JSONB;
+  v_legacy_role TEXT;  -- TRANSITIONAL (01 only; 02 removes)
 BEGIN
   BEGIN
     RAISE LOG 'handle_new_user: Starting for user %', NEW.id;
 
     -- Read metadata, with sensible defaults for any missing keys
-    org_id           := (NEW.raw_user_meta_data->>'organization_id')::UUID;
+    meta_org_text         := NULLIF(BTRIM(NEW.raw_user_meta_data->>'organization_id'), '');
+    meta_invitation_token := NULLIF(BTRIM(NEW.raw_user_meta_data->>'invitation_token'), '');
     org_name         := COALESCE(NEW.raw_user_meta_data->>'organization_name', NEW.email);
     meta_full_name   := COALESCE(NEW.raw_user_meta_data->>'full_name', 'New User');
     meta_primary_app := COALESCE(NEW.raw_user_meta_data->>'primary_app', 'suite');
-    meta_role        := COALESCE(NEW.raw_user_meta_data->>'role', 'owner');
 
     -- Defensive: clamp primary_app to known values
     IF meta_primary_app NOT IN ('suite', 'hse') THEN
@@ -152,7 +156,27 @@ BEGIN
     END IF;
 
     -- ------------------------------------------------------------------------
-    -- 1a. If signup flow (no org_id passed in metadata), create the org
+    -- 1a0. Invitation signup: the token (not the metadata) decides the org
+    --      and the role. Raises if the token, email or inviter is not valid.
+    -- ------------------------------------------------------------------------
+    IF meta_invitation_token IS NOT NULL THEN
+      v_joined := public.invitation_accept_internal(
+                    meta_invitation_token, NEW.id, NEW.email,
+                    NEW.raw_user_meta_data->>'full_name');
+      org_id := (v_joined->>'organization_id')::UUID;
+      IF meta_org_text IS NOT NULL AND meta_org_text::UUID IS DISTINCT FROM org_id THEN
+        RAISE EXCEPTION 'invitation is for a different organization';
+      END IF;
+    ELSIF meta_org_text IS NOT NULL THEN
+      -- TRANSITIONAL (01 only): the pre-2026-10 signup path, unchanged, so the
+      -- live HSE page and the old accept-employee-invitation keep working until
+      -- they are replaced. 02 turns this branch into a refusal.
+      org_id := meta_org_text::UUID;
+      v_legacy_role := COALESCE(NEW.raw_user_meta_data->>'role', 'owner');
+    END IF;
+
+    -- ------------------------------------------------------------------------
+    -- 1a. If signup flow (no invitation), create the org
     -- ------------------------------------------------------------------------
     IF org_id IS NULL THEN
       RAISE LOG 'handle_new_user: Creating new organization for user %', NEW.id;
@@ -223,10 +247,10 @@ BEGIN
         primary_app     = EXCLUDED.primary_app,
         updated_at      = NOW();
 
+    IF v_joined IS NULL THEN
     -- ------------------------------------------------------------------------
-    -- 1c. Add the user as an organization member (NEW table: organization_members)
-    --     Replaces the deprecated organization_users insert.
-    --     For signup creator: status='active', role='owner', joined NOW.
+    -- 1c. The creator of a new organization joins it as its owner.
+    --     (An invitee's membership was written by invitation_accept_internal.)
     -- ------------------------------------------------------------------------
     INSERT INTO public.organization_members (
         organization_id,
@@ -244,7 +268,7 @@ BEGIN
         NEW.id,
         meta_full_name,
         NEW.email,
-        meta_role,                                         -- 'owner'
+        COALESCE(v_legacy_role, 'owner'),                  -- creator; legacy join (01 only) keeps its metadata role
         'active',                                          -- creator joins active, not invited
         NOW(),
         NOW(),
@@ -331,6 +355,7 @@ BEGIN
         SELECT 1 FROM public.purchased_modules
         WHERE organization_id = org_id AND module_id = 'hse_free'
     );
+    END IF;
 
     -- ------------------------------------------------------------------------
     -- 1e. user_points_summary
@@ -386,6 +411,3 @@ BEGIN
   RETURN NEW;
 END;
 $function$;
-revoke execute on function public.handle_new_user() from public, anon, authenticated;
-grant execute on function public.handle_new_user() to anon, authenticated;
-grant execute on function public.handle_new_user() to service_role;
