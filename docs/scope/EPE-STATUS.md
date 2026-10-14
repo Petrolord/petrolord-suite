@@ -129,3 +129,11 @@ otherwise nothing is claimed. Logic: `src/pages/apps/epe/epeRunInputs.js`.
 Tests: `epeRunInputs.test.js` (replaced, added, removed, unchanged, other
 scenario, legacy dates) and `epeRunInputs.mount.test.jsx` (banner; fails on
 the old viewer). No migration, no engine or Edge Function change.
+
+## 2026-10-14: run list readability (video programme)
+
+The Run History strip and the case list badge printed the NPV in whole
+compact units ("NPV $2M" for 2,017,000 beside a results page reading $2.02M);
+both now use three significant figures. A run whose input was refreshed from
+its source (same file name) said "X was replaced by X"; it now says "X was
+replaced by a newer version (date)". Test added to `epeRunInputs.test.js`.
