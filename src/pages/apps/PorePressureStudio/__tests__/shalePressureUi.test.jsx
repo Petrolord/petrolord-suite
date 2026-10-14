@@ -39,3 +39,16 @@ test('the Parameters toggle turns shale pressures on and the notes say so', asyn
   await waitFor(() => expect(screen.getByTestId('pp-notes').textContent).toMatch(/Pore pressure from \d+ shale samples \(VSH at or above 0\.60\)/));
   expect(screen.getByTestId('pp-shale-pressures')).toBeChecked();
 });
+
+test('a saved project opens with the interpreted line off; setting a window draws it and says so', async () => {
+  render(<MemoryRouter><PPWorkstation backend={makeInMemoryBackend()} /></MemoryRouter>);
+  const row = await screen.findByTestId('pp-well-row', {}, { timeout: 15000 });
+  fireEvent.click(row);
+  await waitFor(() => expect(screen.getByTestId('pp-readout-pp')).toBeInTheDocument(), { timeout: 10000 });
+  expect(screen.getByTestId('pp-line-window').value).toBe('');
+  fireEvent.click(screen.getByTestId('pp-shale-pressures'));
+  fireEvent.change(screen.getByTestId('pp-line-window'), { target: { value: '30' } });
+  fireEvent.click(screen.getByTestId('pp-apply-params'));
+  await waitFor(() => expect(screen.getByTestId('pp-notes').textContent).toMatch(/interpreted line through them: the median over 30 (ft|m)/));
+  expect(Number(screen.getByTestId('pp-prognosis-chart').getAttribute('data-shale-points'))).toBeGreaterThan(0);
+});
