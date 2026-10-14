@@ -88,7 +88,7 @@ describe('ekene-lot-fit.csv: shoe MD, the type column, EMW in ppg', () => {
     expect(r.missing).toEqual([]);
     expect(r.points.map((p) => p.kind)).toEqual(['fit', 'lot', 'lot']);
     // 13.74 ppg at 1,450 m below RKB
-    expect(r.points[1].pMpa).toBeCloseTo((13.74 * 119.82642731689663 * 9.80665 * 1450) / 1e6, 9); // the exact-density door
+    expect(r.points[1].pMpa).toBeCloseTo((13.74 * 0.052 * (1450 / 0.3048) * 6894.757293168) / 1e6, 9); // the studio's 0.052 rule
     expect(previewText(r.points)).toBe('2 LOTs, 1 FIT read');
   });
 });
@@ -109,7 +109,7 @@ describe('ekene-mud-weights.csv: intervals and an outcome column', () => {
     const kick = r.points.filter((p) => p.kind === 'mwkick');
     expect(kick).toHaveLength(1);
     expect(kick[0].z).toBeCloseTo(1418 - 60, 9); // "influx at 1418 m", not the interval base 1420 m
-    expect(kick[0].pMpa).toBeCloseTo((9.8 * 119.82642731689663 * 9.80665 * 1418) / 1e6, 9);
+    expect(kick[0].pMpa).toBeCloseTo((9.8 * 0.052 * (1418 / 0.3048) * 6894.757293168) / 1e6, 9);
     expect(kick[0].emwPpg).toBe(9.8);
     expect(previewText(r.points)).toBe('5 mud weights held over intervals, 1 mud weight that took an influx read');
   });

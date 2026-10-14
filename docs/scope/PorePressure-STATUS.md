@@ -338,3 +338,13 @@ outcome column, one of them the failed 9.8 ppg attempt that took an influx.
   On the shale-pressure gate's Ekene-1 prognosis the line reads "9.80 ppg took
   an influx at 4652 ft MD where the prognosis puts the pore pressure at 11.25
   ppg: consistent."
+## 2026-10-14: an imported mud weight reads back as written
+
+An EMW imported through the calibration door (ppg, sg, g/cc, kg/m3) converted through the Suite's
+exact-density door (1 ppg = 119.826 kg/m3 at g = 9.80665), while the studio displays EMW with the drilling rule
+(0.052 psi/ft per ppg), so the kit's 13.74 ppg leak-off plotted and read at 13.73. EMWs now convert with the
+studio's own rule at the depth the display reads them (`pressureFromDisplay` at `emwReferenceDepthM`), so
+every imported test and mud weight reads back to the last digit; pressures and gradients go through the Suite
+door as before. Tests: `__tests__/emwImportRule.test.js` (the kit's FIT and LOTs read 11.18, 13.74, 15.18;
+the intervals at both ends; the negative control through the exact-density door reads 0.1% low); the earlier
+pinned conversions in `upgradeU2.test.js` and `calibrationKitFiles.test.js` follow the rule.
