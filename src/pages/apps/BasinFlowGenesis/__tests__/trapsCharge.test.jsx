@@ -129,6 +129,8 @@ test('a trap sent to Prospect Risking arrives with its fetch, age, efficiency an
   expect(screen.getByTestId('rcp-bf-charge')).not.toHaveTextContent('Upper Akata source');
   const ob = assessTraps([traps[1]], payload)[0].a;
   expect(screen.getByTestId('rcp-bf-charge-result')).toHaveTextContent(`about ${ob.chargeMMboe.toPrecision(3)} MMboe reaches the trap (gas: ${ob.gasBcf.toPrecision(3)} Bcf)`);
+  // the requirement is the 60 Bcf sent with the trap, not the workspace's 10 MMboe mean typed here
+  expect(screen.getByTestId('rcp-bf-charge-basis')).toHaveTextContent("Compared with the 60 Bcf in place sent with the trap (this workspace's unrisked mean is 10 MMboe).");
   expect(rec).toHaveBeenLastCalledWith(expect.objectContaining({ trap: 'Oboro', sourceIds: [LOWER], suggestedFactor: 0.7 }));
   window.history.pushState({}, '', '/');
 });

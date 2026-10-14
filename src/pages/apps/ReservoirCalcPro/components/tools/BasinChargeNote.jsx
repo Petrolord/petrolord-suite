@@ -5,7 +5,7 @@
 // the prospect's unrisked mean, and a suggested charge factor to apply.
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { readBasinCharge, chargeAssessment, DEFAULT_MIGRATION_EFFICIENCY } from '@/lib/basinCharge';
+import { readBasinCharge, chargeAssessment, inPlaceMMboe, DEFAULT_MIGRATION_EFFICIENCY } from '@/lib/basinCharge';
 import { toMMboe } from '../../services/prospectVolumes';
 
 const cls = 'h-6 w-20 rounded border border-pl-border-strong bg-pl-surface px-1 text-xs text-pl-text';
@@ -13,13 +13,16 @@ const cls = 'h-6 w-20 rounded border border-pl-border-strong bg-pl-surface px-1 
 export default function BasinChargeNote({ meanVolume, unit, basis, onApply, onRecord }) {
   const id = useMemo(() => { try { return new URLSearchParams(window.location.search).get('bfCharge'); } catch { return null; } }, []);
   const read = useMemo(() => (id ? readBasinCharge(id) : null), [id]);
+  const workspaceRequired = Number.isFinite(Number(meanVolume)) && meanVolume !== '' && meanVolume != null ? toMMboe(Number(meanVolume), unit) : null;
   // 2026-10-14: a charge sent for one trap arrives with its numbers (Basin's Traps and charge)
   const sentTrap = read?.ok ? read.payload.trap || null : null;
   const [area, setArea] = useState(sentTrap && Number.isFinite(sentTrap.fetchKm2) ? String(sentTrap.fetchKm2) : '');
   const [trap, setTrap] = useState(sentTrap && Number.isFinite(sentTrap.formedMa) ? String(sentTrap.formedMa) : '');
   const [eff, setEff] = useState(sentTrap && Number.isFinite(sentTrap.efficiency) ? String(sentTrap.efficiency) : String(DEFAULT_MIGRATION_EFFICIENCY));
   const sourceIds = sentTrap?.sourceIds?.length ? sentTrap.sourceIds : null;
-  const required = Number.isFinite(Number(meanVolume)) && meanVolume !== '' ? toMMboe(Number(meanVolume), unit) : null;
+  // a trap sent with its volume in place is compared with that volume; otherwise with this workspace's mean
+  const trapRequired = sentTrap ? inPlaceMMboe(sentTrap.inPlace, sentTrap.inPlaceUnit) : null;
+  const required = trapRequired ?? workspaceRequired;
   const a = useMemo(() => (read?.ok ? chargeAssessment(read.payload, { fetchAreaKm2: Number(area), trapAgeMa: trap === '' ? NaN : Number(trap), efficiency: Number(eff), requiredMMboe: required, sourceIds }) : null), [read, area, trap, eff, required, sourceIds]);
   const record = useMemo(() => (read?.ok && a?.ok ? {
     schema: read.payload.schema, id: read.payload.id, model: read.payload.model.name, sentAt: read.payload.createdAt,
@@ -43,7 +46,8 @@ export default function BasinChargeNote({ meanVolume, unit, basis, onApply, onRe
         <label className="flex items-center gap-1">Migration efficiency (fraction)<input className={cls} type="number" min="0" max="1" step="0.01" value={eff} onChange={(e) => setEff(e.target.value)} data-testid="rcp-bf-charge-eff" /></label>
       </div>
       <div data-testid="rcp-bf-charge-result" className={a?.ok ? '' : 'text-pl-muted'}>{a?.ok ? a.text : a?.reason}</div>
-      {a?.ok && basis === 'recoverable' && a.factor != null && <div className="text-pl-muted">The requirement here is the recoverable mean; a trap needs its in-place volume, which is larger.</div>}
+      {trapRequired != null && <div className="text-pl-muted" data-testid="rcp-bf-charge-basis">Compared with the {sentTrap.inPlace} {sentTrap.inPlaceUnit} in place sent with the trap{workspaceRequired != null ? ` (this workspace's unrisked mean is ${Number(workspaceRequired.toPrecision(3))} MMboe)` : ''}.</div>}
+      {a?.ok && trapRequired == null && basis === 'recoverable' && a.factor != null && <div className="text-pl-muted">The requirement here is the recoverable mean; a trap needs its in-place volume, which is larger.</div>}
       {a?.ok && a.factor != null && (
         <button type="button" data-testid="rcp-bf-charge-apply" className="px-2 py-0.5 rounded border border-pl-border text-pl-text hover:bg-pl-surface" onClick={() => onApply && onApply(a.factor)}>
           Use {a.factor} as the charge factor
