@@ -79,9 +79,17 @@ Deploy from fresh clones of main after both PRs merge:
 ! cd /root/sec26-deploy && supabase functions deploy send-email send-email-via-smtp send-renewal-notification send-quote send-demo-request send-invite
 ! cd /root/sec26-deploy && supabase functions deploy admin-create-user admin-delete-organization admin-grant-user-app-access admin-suspend-org admin-update-org-entitlements insert-geoscience-apps admin-cleanup-test-data
 ! cd /root/sec26-deploy && supabase functions deploy invite-user invite-employee accept-employee-invitation get-app-seat-usage remove-member-from-app
-! cd /root/sec26-deploy && supabase functions deploy generate-quote org-export org-offboard epe-cash-flow-engine epe-cash-flow-engine-batch
+! cd /root/sec26-deploy && supabase functions deploy generate-quote org-export org-offboard
 ! rm -rf /root/sec26-hse && git clone -q --depth 1 git@github.com:Petrolord/petrolord-hse.git /root/sec26-hse && cd /root/sec26-hse && supabase link --project-ref ssyckywijlrkgcwvkwlr && supabase functions deploy hse-invite-user chat-with-petrolord log-audit-event
 ```
+
+EPE engines are NOT part of this batch. `epe-cash-flow-engine` and `epe-cash-flow-engine-batch` carry the security check (callers must be able to see the run under row level security), and the EPE chain (#1083, #1105, #1095) changes the same functions. They are deployed ONCE, together with `epe-monte-carlo`, after both #1109 and the EPE chain are on main:
+
+```
+! cd /root/sec26-deploy && git pull -q && supabase functions deploy epe-cash-flow-engine epe-cash-flow-engine-batch epe-monte-carlo
+```
+
+Until then the deployed EPE versions keep running unchanged. None of the migrations 02-05 touches an epe_* table, function or policy; the engines use the service role. The rolled-back dry run showed no count change on any epe_* table for any persona.
 
 Verify: call each with only the public anon key. Expect 401 or 403 on every line. The loop is in `docs/security/functions-2026-10.md`, "Verify after steps 1 and 2". Then click through these:
 - the Book a Demo form submits;
