@@ -30,8 +30,8 @@ describe('the zone a new model zone reads', () => {
     expect(defaultZone(0, '', EKENE_ZONES)).toEqual({ name: 'Zone 1', registryZone: '' });
     expect(defaultZone(2, 'Akata Formation', EKENE_ZONES)).toEqual({ name: 'Zone 3', registryZone: '' });
   });
-  test('harness tops TopA/TopB read zones A/B', () => {
-    expect(defaultZone(0, 'TopA', ['A', 'B']).registryZone).toBe('A');
+  test('harness tops TopA/TopB read zones A/B and keep the names Zone 1 and Zone 2', () => {
+    expect(defaultZone(0, 'TopA', ['A', 'B'])).toEqual({ name: 'Zone 1', registryZone: 'A' });
     expect(defaultZone(1, 'TopB', ['A', 'B']).registryZone).toBe('B');
   });
 });

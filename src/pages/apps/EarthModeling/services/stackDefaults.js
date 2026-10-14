@@ -59,7 +59,9 @@ export function defaultZone(i, tieTop, zoneNames = []) {
     const bare = n.replace(/^top\s*/, '').replace(/\s*top$/, '').trim();
     reg = zoneNames.includes(tieTop) ? tieTop : (byNorm.get(n) || (bare && byNorm.get(bare)) || '');
   }
-  return { name: reg || `Zone ${i + 1}`, registryZone: reg };
+  // the zone takes the registry zone's name only when the tie top has the
+  // same name (Ekene Sand); a matched "TopA" keeps "Zone 1"
+  return { name: reg && reg === tieTop ? reg : `Zone ${i + 1}`, registryZone: reg };
 }
 
 /** Two wells for the first section: the first two (by name) with tops. */
