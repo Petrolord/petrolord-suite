@@ -98,3 +98,12 @@ inside the console and React remounted it on every render. Typing 2026 into
 Base year left 2 and the validation message "Enter a 4-digit year". The field
 is now declared at module level. Test: piaScreens.mount.test.jsx types 2026
 and 82.5 key by key (fails on the old code). No engine change.
+
+## 2026-10-14: PIA water depth in the user's depth unit (video programme)
+
+The Run Console asked for the PIA water depth in metres only. It now follows
+the user's unit profile: on the Oilfield preset (feet, the Nigerian default)
+it takes feet and states the stored value ("Stored as 34.99 m: the PIA sorts
+terrain by water depth in metres."). The config and the engine keep metres
+(`pia_water_depth_m`). Component `EpeWaterDepthField.jsx`, tests
+`epeWaterDepth.test.jsx`.
