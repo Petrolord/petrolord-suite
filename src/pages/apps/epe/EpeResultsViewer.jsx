@@ -25,7 +25,7 @@ import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS,
   GRID_STYLE, TOOLTIP_STYLE
 } from '@/utils/chartTheme';
-import { epeIrrReason } from '@/pages/apps/epe/epeIrrReason';
+import { epeIrrReason, epeIrrCaution } from '@/pages/apps/epe/epeIrrReason';
 import { compareRunInputs, fetchCaseInputs } from '@/pages/apps/epe/epeRunInputs';
 import { AppHeader } from '@/components/ui/app-shell';
 import {
@@ -1609,6 +1609,11 @@ if (loading) {
               {epeIrrReason(results.kpis) && (
                 <p className="mt-3 text-xs text-pl-muted" data-testid="epe-irr-reason">
                   {epeIrrReason(results.kpis)}
+                </p>
+              )}
+              {epeIrrCaution(results.kpis, runConfig?.discount_rate_pct) && (
+                <p className="mt-3 text-xs text-pl-warning-text" data-testid="epe-irr-caution">
+                  {epeIrrCaution(results.kpis, runConfig?.discount_rate_pct)}
                 </p>
               )}
 
