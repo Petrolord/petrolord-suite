@@ -338,3 +338,13 @@ outcome column, one of them the failed 9.8 ppg attempt that took an influx.
   On the shale-pressure gate's Ekene-1 prognosis the line reads "9.80 ppg took
   an influx at 4652 ft MD where the prognosis puts the pore pressure at 11.25
   ppg: consistent."
+## 2026-10-14: choose the shale indicator (VSH or GR)
+
+Found in the Pore Pressure Studio video dry run: Ekene-1 carries the Petrophysics Studio VSH, which the app
+always preferred, and on that VSH only four 100 ft windows above the overpressure ramp reach VSH 0.6, so the
+NCT rested on four picks; the loaded GR gives 13 at 60 API. The NCT view now offers both when a well has both
+(testid `pp-shale-indicator`, "VSH (shale volume)" / "GR (gamma ray)"). The choice (`params.shaleIndicator`)
+drives the picks and Pressures from shale samples, resets the cutoff to that curve's default and is saved with
+the project; a well with one indicator shows no choice. `shaleLogOptions` / `chooseShaleOption` in
+`services/shalePicks.js`. Tests: `__tests__/shaleIndicatorChoice.test.jsx` (switch to GR moves the picks and the
+shale-sample pressures; negative control, one indicator shows no select).

@@ -46,7 +46,7 @@ import { publishedSet, compareWithPublished, publishStateText } from '../service
 import { inputNotes, trendDepthM } from '../services/honesty';
 import { reviewerLines, prognosisPdf } from '../services/report';
 import { drillingWindow, casingDesign, WINDOW_FROM_BML_M } from '../services/drillingWindow';
-import { pickShaleLog, normalizeShaleIndicator } from '../services/shalePicks';
+import { shaleLogOptions, chooseShaleOption, normalizeShaleIndicator } from '../services/shalePicks';
 import { fitTarget, fitToCalibration, calibrateFracToLot } from '../services/calibrate';
 import { datumToMudline } from '../services/alongHole';
 import { comparesTo } from '../services/calibrationImport';
@@ -201,10 +201,13 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       ]);
       const rho = mapped.RHOB ? await backend.downloadCurve(mapped.RHOB) : null;
       const resRaw = mapped.RES ? await backend.downloadCurve(mapped.RES) : null;
-      // U2-005: the shale indicator for the NCT picks (VSH, else GR)
-      const shaleLog = pickShaleLog(logs);
-      const shaleRaw = shaleLog ? await backend.downloadCurve(shaleLog.log) : null;
-      const shaleN = shaleRaw && shaleRaw.length === depth.length ? normalizeShaleIndicator(shaleRaw, shaleLog) : null;
+      // U2-005: the shale indicators for the NCT picks (VSH, else GR); 2026-10-14:
+      // both are read so the NCT view can switch between them
+      const shaleOpts = [];
+      for (const o of shaleLogOptions(logs)) {
+        const raw = await backend.downloadCurve(o.log);
+        if (raw && raw.length === depth.length) shaleOpts.push(normalizeShaleIndicator(raw, o));
+      }
       // PP-U1-004: vendor nulls, kg/m3 density and us/ft sonic are read for
       // what they are, and each decision is said
       const norm = normalizePpCurves({ depth, dt, rho, dtLog: mapped.DT, rhoLog: mapped.RHOB });
@@ -215,13 +218,11 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         dt: norm.dt,
         rho: norm.rho,
         res: resN ? resN.res : null,
-        shale: shaleN ? shaleN.values : null,
-        shaleKind: shaleN ? shaleN.kind : null,
-        shaleName: shaleN ? shaleN.name : null,
+        shaleOptions: shaleOpts,
         resName: mapped.RES?.mnemonic || null,
         units: norm.units,
         fileUnits: { DT: mapped.DT.unit, RHOB: mapped.RHOB?.unit, RES: mapped.RES?.unit },
-        notes: [...norm.notes, ...(resN ? resN.notes : []), ...(shaleN ? shaleN.notes : [])],
+        notes: [...norm.notes, ...(resN ? resN.notes : []), ...shaleOpts.flatMap((o) => o.notes)],
         logIds: Object.values(mapped).filter(Boolean).map((l) => l.id),
       });
       setNctFittedFor((prev) => (prev === wellId ? prev : null));
@@ -296,6 +297,11 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     return () => { live = false; };
   }, [params.seismicDatumElevM, seismicModel, layerCakeAt, wells, backend]);
 
+  // 2026-10-14: the shale indicator in use (the project's choice when the well has it)
+  const shaleSel = curves ? chooseShaleOption(curves.shaleOptions, params.shaleIndicator) : null;
+  const shaleCurves = useMemo(() => (curves ? {
+    ...curves, shale: shaleSel ? shaleSel.values : null, shaleKind: shaleSel ? shaleSel.kind : null, shaleName: shaleSel ? shaleSel.name : null,
+  } : null), [curves, shaleSel]);
   const byRes = params.method === 'eaton-resistivity';
   // U2-008: the mudline below the declared seismic datum (SRD), not the water depth alone
   const trendWell = seismicModel ? (wells || []).find((w) => w.name === layerCakeAt?.wellName) || null : null;
@@ -322,16 +328,16 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
           stepM: 10,
         });
       }
-      if (!curves) return null;
+      if (!shaleCurves) return null;
       // PP-U1-002: a deviated well is computed at TVD through its survey
-      const built = buildProfileInput(curves, curves.units, {
+      const built = buildProfileInput(shaleCurves, shaleCurves.units, {
         mudlineMdM: params.mudlineMdM, frame: wellDepthFrame(selected), needs: byRes ? 'res' : 'dt',
       });
-      return built.shale ? { ...built, shaleKind: curves.shaleKind } : built;
+      return built.shale ? { ...built, shaleKind: shaleCurves.shaleKind } : built;
     } catch (e) {
       return { error: e.message };
     }
-  }, [curves, seismicModel, layerCakeAt, params.mudlineMdM, params.waterDepthM, selected, trendZMaxM, byRes, datum.value]);
+  }, [shaleCurves, seismicModel, layerCakeAt, params.mudlineMdM, params.waterDepthM, selected, trendZMaxM, byRes, datum.value]);
 
   const profile = useMemo(() => {
     if (!input || input.error) return null;
@@ -858,10 +864,15 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       onResNctFitted={onResNctFitted}
       onSegmentsFitted={onSegmentsFitted}
       onSegmentsChange={onSegmentsChange}
-      shaleName={curves?.shaleName || null}
-      shaleKind={curves?.shaleKind || null}
+      shaleName={shaleCurves?.shaleName || null}
+      shaleKind={shaleCurves?.shaleKind || null}
+      shaleOptions={(curves?.shaleOptions || []).map((o) => ({ kind: o.kind, name: o.name }))}
+      onShaleIndicatorChange={(kind) => {
+        setParams((p) => ({ ...p, shaleIndicator: kind }));
+        setStatus(`Shale picks and shale-sample pressures now read ${(curves?.shaleOptions || []).find((o) => o.kind === kind)?.name || kind}; pick the shales again and fit the NCT.`);
+      }}
       byRes={byRes}
-      onCutoffChange={(c) => setParams((p) => ({ ...p, shaleCutoff: c, shaleCutoffKind: c == null ? null : (curves?.shaleKind || null) }))}
+      onCutoffChange={(c) => setParams((p) => ({ ...p, shaleCutoff: c, shaleCutoffKind: c == null ? null : (shaleCurves?.shaleKind || null) }))}
       depthUnit={units.depth}
     />
   ) : (

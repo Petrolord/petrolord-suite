@@ -34,6 +34,7 @@ export function logTicks(lo, hi) {
 export default function NctPanel({
   input, profile, params, picks, onPicksChange, onNctFitted, onResNctFitted = null, onSegmentsFitted = null, onSegmentsChange = null,
   shaleName = null, shaleKind = null, byRes = false, depthUnit = 'm', onCutoffChange = null,
+  shaleOptions = [], onShaleIndicatorChange = null,
 }) {
   const [pickDepth, setPickDepth] = useState('');
   const [fitError, setFitError] = useState(null);
@@ -148,7 +149,20 @@ export default function NctPanel({
         </label>
         {hasShale ? (
           <>
-            <span className="text-pl-muted">Shale picks on {shaleName} at or above</span>
+            {shaleOptions.length > 1 && onShaleIndicatorChange ? (
+              <>
+                <span className="text-pl-muted">Shale picks on</span>
+                <select data-testid="pp-shale-indicator" value={shaleKind || ''}
+                  title="The curve that tells shale from sand, for the picks and for Pressures from shale samples. A Petrophysics VSH may sit on its own shale lines; the GR reads the log as loaded."
+                  onChange={(e) => { setCutText(''); onCutoffChange?.(null); onShaleIndicatorChange(e.target.value); }}
+                  className="bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-[11px] text-pl-text">
+                  {shaleOptions.map((o) => <option key={o.kind} value={o.kind}>{o.name}{o.kind === 'vsh' ? ' (shale volume)' : ' (gamma ray)'}</option>)}
+                </select>
+                <span className="text-pl-muted">at or above</span>
+              </>
+            ) : (
+              <span className="text-pl-muted">Shale picks on {shaleName} at or above</span>
+            )}
             <input data-testid="pp-shale-cutoff" className={inField} value={cutText} placeholder={Number.isFinite(defaultCut) ? String(Number(defaultCut.toFixed(shaleKind === 'gr' ? 0 : 2))) : ''} onChange={(e) => changeCut(e.target.value)} />
             <span className="text-pl-muted">{shaleKind === 'gr' ? 'API' : 'v/v'} from</span>
             <input data-testid="pp-shale-from" className={inField} value={fromText} placeholder="0" onChange={(e) => setFromText(e.target.value)} />

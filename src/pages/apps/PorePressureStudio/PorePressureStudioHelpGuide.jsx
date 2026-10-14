@@ -239,6 +239,13 @@ export default function PorePressureStudioHelpGuide() {
           follows the kit's designed prognosis within 0.6 ppg RMS. A running median on the sonic (or resistivity), in
           the depth unit, smooths a noisy shale trace before the method reads it; it is off unless you set a window.
         </Para>
+        <Para>
+          When the well carries both a shale volume (VSH from Petrophysics Studio) and the gamma ray as loaded, the NCT
+          view offers both under Shale picks on. A Petrophysics VSH may sit on its own shale lines, or on a Larionov or
+          Clavier curve, that put few shallow shales over a VSH cutoff; choose the GR to read the log as loaded. The
+          choice drives the picks and Pressures from shale samples, resets the cutoff to that curve's default and is
+          saved with the project. Pick the shales again and fit the NCT after a change.
+        </Para>
         <SubHeading>The interpreted line</SubHeading>
         <Para>
           A pore pressure specialist draws the design pore pressure as a line through the shale points. Interpreted
