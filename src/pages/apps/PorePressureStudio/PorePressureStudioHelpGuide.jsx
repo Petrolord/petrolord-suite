@@ -222,7 +222,19 @@ export default function PorePressureStudioHelpGuide() {
           misfit is stated under the ribbon and in the report). They change the computation only when you ask:
           Fit n to calibration (Eaton sonic or resistivity), Fit A and B (Bowers loading) or Fit U (Bowers unloading,
           with sigma max held) fits that parameter to the pressure points and kicks by least squares on the pore
-          pressure, writes it into the dock and says the misfit before and after. Leak-off tests are not used for it.
+          pressure, writes it into the dock and says the misfit before and after. Leak-off tests are not used for it. With
+          Pressures from shale samples on (or a sonic median), the measured points usually sit in a reservoir sand where the
+          shown pore pressure is the one carried from the shales, so n (or U) is searched on that shown prognosis itself;
+          Bowers A and B read each point's nearest shale sample. A fit that would make the misfit worse is not applied,
+          and the status line says so.
+        </Para>
+        <SubHeading>Pore pressure below hydrostatic</SubHeading>
+        <Para>
+          Eaton and Bowers read under-compaction, so a pore pressure more than 0.5 ppg below hydrostatic is almost
+          always the method reading something it should not: an NCT that was never fitted on this well, picks below the
+          top of the overpressure, or sands read as shale. The notes line then says over how much of the well it
+          happens and where it is worst. Fit the NCT on shale picks in the normally pressured section, or raise the
+          shale cutoff. Real underpressure (a depleted reservoir) is measured, not predicted from the sonic.
         </Para>
         <SubHeading>Pressures from shale samples</SubHeading>
         <Para>

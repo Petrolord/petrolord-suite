@@ -5,6 +5,8 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
 import EpeDcaImport from '@/pages/apps/epe/EpeDcaImport';
 import EpeWfImport from '@/pages/apps/epe/EpeWfImport';
 import EpeSimImport from '@/pages/apps/epe/EpeSimImport';
+import EpeWctImport from '@/pages/apps/epe/EpeWctImport';
+import { wctProvenanceOf } from '@/pages/apps/epe/epeWctIntake';
 import EpeWsImport from '@/pages/apps/epe/EpeWsImport';
     import { Helmet } from 'react-helmet';
     import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -457,8 +459,9 @@ import EpeWsImport from '@/pages/apps/epe/EpeWsImport';
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {capex.length > 1 && <MultiFileWarning count={capex.length} />}
-                      {capex.map(f => <EpeDataFileCard key={f.id} file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'capex'})} onDelete={isOwner ? () => handleDeleteFile(f.id, 'epe_capex', f.file_name) : undefined} processing={processingFileId === f.id} />)}
-                      {isOwner && <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="capex" existingCount={capex.length} />}
+                      {capex.map(f => <EpeDataFileCard key={f.id} file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'capex'})} onDelete={isOwner ? () => handleDeleteFile(f.id, 'epe_capex', f.file_name) : undefined} processing={processingFileId === f.id} onRefreshed={isOwner ? fetchData : undefined} />)}
+                      {isOwner && <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="capex" existingCount={capex.length} keepIds={capex.filter((f) => wctProvenanceOf(f)).map((f) => f.id)} />}
+                      {isOwner && <EpeWctImport caseId={caseId} userId={user?.id} capex={capex} onDone={fetchData} toast={toast} />}
                     </CardContent>
                   </Card>
                   <Card>

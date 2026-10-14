@@ -79,3 +79,23 @@ export function tornadoSentence(rows, baseNpv) {
   if (t.length === 1) return `${t[0].label} moves NPV the most, from ${range(t[0])}.`;
   return `${t[0].label} and ${t[1].label} move NPV the most: ${t[0].label} from ${range(t[0])}, ${t[1].label} from ${range(t[1])}.`;
 }
+
+/**
+ * The engine's First Oil Delay (schedule_shift_years) moves every production
+ * file and its opex a year later. On a case whose wells were producing before
+ * its first capex (a brownfield such as Ekene, producing from 2020 with
+ * Ekene-11's capex in 2027) that delays the wells already on stream and the
+ * history too, so the bar does not read as a delay of the new development.
+ * Returns the note to print, or null on a case that spends before it produces.
+ */
+export function scheduleShiftNote(rows, cashFlowData) {
+  const hasBar = (rows || []).some((r) => r.variable === 'schedule_shift_years' || /First Oil Delay/i.test(r.variable_label || ''));
+  if (!hasBar || !Array.isArray(cashFlowData)) return null;
+  const years = (pred) => cashFlowData.filter(pred).map((r) => r.year).filter((y) => Number.isFinite(y));
+  const firstProd = Math.min(...years((r) => (r.oil_bbl || 0) + (r.gas_mscf || 0) + (r.condensate_bbl || 0) > 0));
+  const firstCapex = Math.min(...years((r) => (r.capex || 0) > 0));
+  if (!Number.isFinite(firstProd)) return null;
+  if (Number.isFinite(firstCapex) && firstProd >= firstCapex) return null;
+  const capexText = Number.isFinite(firstCapex) ? ` with its first capex in ${firstCapex}` : ' with no capex';
+  return `First Oil Delay moves every production file and its opex a year later. This case produces from ${firstProd}${capexText}, so the bar also delays the wells already on stream; read it on a new development.`;
+}

@@ -14,6 +14,9 @@ import { compareSimWithSource } from '@/utils/simstudio/simForecastContract';
 import { wsProvenanceOf, wsProvenanceText } from '@/pages/apps/epe/epeWsIntake';
 import { getWsCase } from '@/utils/wellspacing/wsCaseService';
 import { compareWsWithSource } from '@/utils/wellspacing/wsCaseContract';
+import { wctProvenanceOf, wctProvenanceText } from '@/pages/apps/epe/epeWctIntake';
+import { getWctAfe } from '@/utils/wellcosttime/wctAfeService';
+import { compareWctWithSource } from '@/utils/wellcosttime/wctAfeContract';
 import { motion } from 'framer-motion';
 import {
   FileSpreadsheet, Loader2, Trash2, Play, CheckCircle2, AlertCircle, ChevronDown, ChevronUp
@@ -162,12 +165,23 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing, onRefreshed })
       .catch((e) => { if (alive) setWsState({ state: 'unreadable', text: `The source could not be read: ${e.message}` }); });
     return () => { alive = false; };
   }, [wsP?.fingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A CAPEX file received from Well Cost & Time
+  const wctP = status === 'PROCESSED' ? wctProvenanceOf(file) : null;
+  const [wctState, setWctState] = useState(null);
+  useEffect(() => {
+    if (!wctP) return undefined;
+    let alive = true;
+    getWctAfe(supabase, { caseId: wctP.caseId })
+      .then((now) => { if (alive) setWctState(compareWctWithSource(wctP, now)); })
+      .catch((e) => { if (alive) setWctState({ state: 'unreadable', text: `The source could not be read: ${e.message}` }); });
+    return () => { alive = false; };
+  }, [wctP?.fingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
   // Refresh from the source: replaces this file only (the slot's import
   // dialog replaces every file of the scenario, or sums with the old one).
   const { toast } = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const received = status === 'PROCESSED' ? receivedSourceOf(file) : null;
-  const stateOf = { hub: hubState, dca: sourceState, wf: wfState, sim: simState, ws: wsState };
+  const stateOf = { hub: hubState, dca: sourceState, wf: wfState, sim: simState, ws: wsState, wct: wctState };
   const kindState = received ? stateOf[received.kind] : null;
   const canRefresh = Boolean(onRefreshed && kindState?.state === 'changed' && kindState.now);
   const handleRefresh = async () => {
@@ -177,7 +191,9 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing, onRefreshed })
       if (made.error) throw new Error(made.error);
       const { data: { user } = {} } = await supabase.auth.getUser();
       await replaceReceivedFile(supabase, file, made, user?.id);
-      toast({ title: 'File refreshed from its source', description: `"${made.fileName}" now holds the source's current volumes; the other files are unchanged.` });
+      toast({ title: 'File refreshed from its source', description: received.kind === 'wct'
+        ? `"${made.fileName}" now holds the estimate's current cost; the other files are unchanged.`
+        : `"${made.fileName}" now holds the source's current volumes; the other files are unchanged.` });
       onRefreshed();
     } catch (e) {
       toast({ variant: 'destructive', title: 'Refresh failed', description: e.message });
@@ -318,6 +334,18 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing, onRefreshed })
             </p>
           )}
           {received?.kind === 'sim' && refreshButton}
+        </div>
+      )}
+
+      {wctP && (
+        <div className="mt-2 rounded border border-pl-border bg-pl-sunken p-2 text-[11px] text-pl-muted space-y-1" data-testid="epe-wct-provenance">
+          <p>{wctProvenanceText(wctP)}</p>
+          {wctState && (
+            <p className={wctState.state === 'unchanged' ? '' : 'text-pl-warning-text'} data-testid="epe-wct-source-state">
+              {wctState.text}{wctState.state === 'changed' ? changedTail('wct', ' Import it again from Well Cost & Time to take the new estimate.') : ''}
+            </p>
+          )}
+          {received?.kind === 'wct' && refreshButton}
         </div>
       )}
 

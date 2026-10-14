@@ -27,7 +27,7 @@ import {
 } from '@/utils/chartTheme';
 import { valuationYearOf, valuedAtText, conventionText } from '@/pages/apps/epe/epeValuation';
 import { epeIrrReason, epeIrrCaution } from '@/pages/apps/epe/epeIrrReason';
-import { usd3, niceTicks, tornadoTable, tornadoSentence } from '@/pages/apps/epe/epeTornado';
+import { usd3, niceTicks, tornadoTable, tornadoSentence, scheduleShiftNote } from '@/pages/apps/epe/epeTornado';
 import { compareRunInputs, fetchCaseInputs } from '@/pages/apps/epe/epeRunInputs';
 import { AppHeader } from '@/components/ui/app-shell';
 import {
@@ -623,7 +623,7 @@ const TornadoChart = ({ rows, baseNpv }) => {
 
 // The tornado's numbers, readable without hovering: one sentence on the two
 // biggest drivers and a table of each bar's inputs and NPVs (epeTornado.js).
-const TornadoReadout = ({ rows, baseNpv }) => {
+const TornadoReadout = ({ rows, baseNpv, cashFlowData = null }) => {
   const table = tornadoTable(rows, baseNpv);
   if (table.length === 0) return null;
   const sentence = tornadoSentence(rows, baseNpv);
@@ -660,6 +660,9 @@ const TornadoReadout = ({ rows, baseNpv }) => {
           </tbody>
         </table>
       </div>
+      {scheduleShiftNote(rows, cashFlowData) && (
+        <p className="mt-2 text-xs text-pl-muted" data-testid="epe-tornado-delay-note">{scheduleShiftNote(rows, cashFlowData)}</p>
+      )}
     </div>
   );
 };
@@ -669,7 +672,7 @@ const TornadoReadout = ({ rows, baseNpv }) => {
 // Wave E: readOnly = the viewer does not own this run (shared case); the
 // tornado stays visible but new sensitivity runs are owner-only (the
 // epe_sensitivity_runs insert policy is owner-scoped anyway).
-const SensitivityPanel = ({ runId, runConfigId, userId, readOnly = false }) => {
+const SensitivityPanel = ({ runId, runConfigId, userId, readOnly = false, cashFlowData = null }) => {
   const [state, setState] = useState('loading');  // 'loading' | 'idle' | 'invoking' | 'running' | 'complete' | 'failed'
   const [sensitivityRun, setSensitivityRun] = useState(null);
   const [results, setResults] = useState([]);
@@ -937,7 +940,7 @@ const SensitivityPanel = ({ runId, runConfigId, userId, readOnly = false }) => {
         {sensitivityRun?.duration_ms ? ` · Ran in ${sensitivityRun.duration_ms}ms` : ''}
       </p>
       <TornadoChart rows={results} baseNpv={baseNpv} />
-      <TornadoReadout rows={results} baseNpv={baseNpv} />
+      <TornadoReadout rows={results} baseNpv={baseNpv} cashFlowData={cashFlowData} />
     </div>
   );
 };
@@ -1840,6 +1843,7 @@ if (loading) {
                   runConfigId={runDetails?.run_config_id}
                   userId={runDetails?.user_id}
                   readOnly={!isOwnRun}
+                  cashFlowData={results?.cash_flow_data}
                 />
               )}
 
