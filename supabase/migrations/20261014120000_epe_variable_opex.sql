@@ -1,3 +1,5 @@
+-- APPLIED 2026-10-14 by the owner (staging and production share the linked
+-- project); verified: the four columns exist as nullable numeric.
 -- Petroleum Economics Studio: variable operating cost rates (engine 3.12.2,
 -- engines PR #358). Four nullable rates on epe_run_configs, read by the
 -- three EPE edge functions (they select every column of the run config):
