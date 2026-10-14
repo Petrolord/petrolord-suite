@@ -92,6 +92,7 @@ export function nodalInflowFromWellTest(contract, choice, currentInflow = {}, { 
     model: patch.model,
     pr_psia: p.pr_psia,
     pr_method: p.pr_method,
+    pr_line: p.pr_line ?? null,
     q_stb_d: p.q_stb_d,
     pwf_psia: p.pwf_psia,
     pi_stbd_psi: J,

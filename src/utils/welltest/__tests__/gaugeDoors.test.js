@@ -7,14 +7,13 @@ const P = { k: 225, skin: 4, C: 0.005 };
 const logspace = (a, b, n) => Array.from({ length: n }, (_, i) => a * (b / a) ** (i / (n - 1)));
 
 // a clean-up with an early one-hour shut-in, read every 6 minutes in flow and from 10 s after the final shut-in
-function record() {
+function record(steps = [{ start: 0, q: 40 }, { start: 4, q: 0 }, { start: 5, q: 70 }, { start: 13, q: 100 }], ts = 25) {
   const model = getModel('homogeneous');
-  const steps = [{ start: 0, q: 40 }, { start: 4, q: 0 }, { start: 5, q: 70 }, { start: 13, q: 100 }];
-  const flowT = Array.from({ length: 250 }, (_, i) => Number((0.1 * (i + 1)).toFixed(4))).filter((t) => t <= 25);
+  const flowT = Array.from({ length: 250 }, (_, i) => Number((0.1 * (i + 1)).toFixed(4))).filter((t) => t <= ts);
   const flow = evaluateRateHistory({ model, params: P, reservoir: RES, steps, times: flowT });
   const dts = logspace(10 / 3600, 48, 60);
-  const bu = evaluateBuildupFromHistory({ model, params: P, reservoir: RES, steps, shutInTime: 25, dts });
-  return [{ t: 0, p: RES.pi }, ...flowT.map((t, i) => ({ t: t + 0.5, p: flow[i].pw })), ...dts.map((dt, i) => ({ t: 25.5 + dt, p: bu[i].pws }))];
+  const bu = evaluateBuildupFromHistory({ model, params: P, reservoir: RES, steps, shutInTime: ts, dts });
+  return [{ t: 0, p: RES.pi }, ...flowT.map((t, i) => ({ t: t + 0.5, p: flow[i].pw })), ...dts.map((dt, i) => ({ t: ts + 0.5 + dt, p: bu[i].pws }))];
 }
 
 describe('findTestStart', () => {
@@ -23,6 +22,13 @@ describe('findTestStart', () => {
     expect(r.ok).toBe(true);
     expect(r.t).toBeCloseTo(25.5, 9);
     expect(r.dtNext * 3600).toBeCloseTo(10, 6);
+  });
+
+  test('a rate cut before the shut-in rises almost as fast: the last change is the one the buildup follows', () => {
+    const r = findTestStart(record([{ start: 0, q: 40 }, { start: 4, q: 0 }, { start: 5, q: 100 }, { start: 17, q: 40 }], 21), 'up');
+    expect(r.ok).toBe(true);
+    expect(r.t).toBeCloseTo(21.5, 9);
+    expect(r.candidates).toBeGreaterThan(1);
   });
 
   test('finds the start of flow of a drawdown', () => {
@@ -40,12 +46,12 @@ describe('findTestStart', () => {
   });
 
   test('a smooth record is refused rather than cut at random', () => {
-    const steps = [1, 5, 1, 4.5, 1, 5, 1, 4.8, 1, 1, 5, 1];
+    const steps = [3, 3.2, 2.8, 3.1, 2.9, 3.3, 3, 2.7, 3.2, 3, 3.1, 2.9];
     let p = 2000;
     const rows = [{ t: 0, p }, ...steps.map((d, i) => { p += d; return { t: i + 1, p }; })];
     const r = findTestStart(rows, 'up');
     expect(r.ok).toBe(false);
-    expect(r.reason).toMatch(/No single change stands out/);
+    expect(r.reason).toMatch(/No change stands out/);
   });
 });
 

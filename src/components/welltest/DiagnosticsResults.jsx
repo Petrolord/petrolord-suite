@@ -58,6 +58,12 @@ const DiagnosticsResults = () => {
     guides = [{ y: u(level), label: 'Radial plateau' }];
     if (climbs) guides.push({ y: u(2 * level), label: 'Twice the plateau (one sealing fault)', dashed: true, color: '#dc2626' });
   }
+  // the end of radial flow in elapsed (shut-in) hours: the regimes are on the
+  // diagnostic abscissa, an equivalent time that can run past the shut-in
+  // time after a rate history, and the radius of investigation needs real time
+  const radialEndTime = radial
+    ? Math.max(...loglog.filter((p) => p.x <= radial.xEnd * (1 + 1e-9)).map((p) => p.time), 0)
+    : NaN;
   const timeName = pseudoTime.active ? 'pseudo-time' : 'time';
   const xLabel = configSpec.config?.family === 'buildup'
     ? (history ? `Equivalent ${timeName} of the rate history, superposition (hr)` : `Agarwal equivalent ${timeName} (hr)`)
@@ -78,7 +84,7 @@ const DiagnosticsResults = () => {
       {Number.isFinite(derivedKpis?.ri) && (
         <p className="text-[11px] text-pl-muted -mt-1" data-testid="wts-ri-note">
           Radius of investigation ri = sqrt(k t / (948 φ μ ct)) with k {fmt.sig3(derivedKpis.k)} md ({derivedKpis.source === 'match' ? 'working match' : 'semilog line'}): {fmt.int(fromOilfield('length', derivedKpis.ri, unitSystem))} {unitLabel('length', unitSystem)} by the end of the test
-          {radial && reservoirSpec.reservoir ? `, ${fmt.int(fromOilfield('length', radiusOfInvestigation({ k: derivedKpis.k, tHours: radial.xEnd, phi: reservoirSpec.reservoir.phi, mu: reservoirSpec.reservoir.mu, ct: reservoirSpec.reservoir.ct }), unitSystem))} ${unitLabel('length', unitSystem)} at the end of radial flow (${fmt.sig3(radial.xEnd)} hr). When the derivative leaves the plateau because of a boundary, that radius is a first estimate of how far away it is` : ''}.
+          {radial && reservoirSpec.reservoir ? `, ${fmt.int(fromOilfield('length', radiusOfInvestigation({ k: derivedKpis.k, tHours: radialEndTime, phi: reservoirSpec.reservoir.phi, mu: reservoirSpec.reservoir.mu, ct: reservoirSpec.reservoir.ct }), unitSystem))} ${unitLabel('length', unitSystem)} at the end of radial flow (${fmt.sig3(radialEndTime)} hr ${configSpec.config?.family === 'buildup' ? 'of shut-in' : 'of flow'}). When the derivative leaves the plateau because of a boundary, that radius is a first estimate of how far away it is` : ''}.
         </p>
       )}
 

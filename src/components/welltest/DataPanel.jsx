@@ -321,7 +321,7 @@ const DataPanel = () => {
               const found = findTestStart(gaugeRows, up ? 'up' : 'down');
               if (!found.ok) { addNotification(found.reason, 'info'); return; }
               setTestField('testStartTime', String(Number(found.t.toPrecision(8))));
-              addNotification(`${isBuildupFamily ? 'Shut-in' : 'Start of flow'} found at ${gaugeTime(found.t)} hr on the gauge clock: the pressure ${up ? 'rises' : 'falls'} ${Math.abs(found.dp).toFixed(2)} psi in the next ${(found.dtNext * 3600).toFixed(0)} s, the steepest change in the record.`, 'success');
+              addNotification(`${isBuildupFamily ? 'Shut-in' : 'Start of flow'} found at ${gaugeTime(found.t)} hr on the gauge clock: the pressure ${up ? 'rises' : 'falls'} ${Math.abs(found.dp).toFixed(2)} psi in the next ${(found.dtNext * 3600).toFixed(0)} s.${found.candidates > 1 ? ` The record holds ${found.candidates} sharp ${up ? 'rises' : 'falls'}; the ${isBuildupFamily ? 'buildup' : 'flow period'} follows the last.` : ' It is the steepest change in the record.'}`, 'success');
             }}>
             Find it in the gauge data
           </Button>
