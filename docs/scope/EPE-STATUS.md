@@ -130,3 +130,27 @@ owner and scenario tag, and deletes only the old row. Helper
 `epeFileRefresh.js`; tests `epeFileRefresh.test.jsx` (hub and DCA from real
 contracts, the swap, the card; negative controls: unchanged source, plain
 upload, read-only view). No engine change.
+
+## 2026-10-14: capex from Well Cost & Time (video programme)
+
+A well's capital cost reached the economics only as a typed CSV, so the AFE
+in a case and the AFE in the estimate could drift apart unseen. The CAPEX
+slot now has "Import from Well Cost & Time": pick an estimate (its latest
+saved run is read by id), the year the money is spent, a category (Drilling
+by default) and the amount to book (the AFE total, deterministic with
+contingency, or the run's Monte Carlo P50 or P90 of the base cost). The file
+is one cost row plus the `wct-afe-1` contract as its last element
+(`src/utils/wellcosttime/wctAfeContract.js`, `wctAfeService.js`,
+`src/pages/apps/epe/epeWctIntake.js`, `EpeWctImport.jsx`). The engine sums
+cost rows by year and skips the record (NPV identical with and without it).
+The file card prints the source, re-reads it on every open ("Unchanged since
+it was received" or "The source changed since it was received (the AFE
+total, now ... USD). A newer run was saved."), and offers the owner "Take
+the new estimate", which replaces that file only and keeps its year,
+category and basis (the PR #1079 refresh, extended to CAPEX files).
+Replace in the import dialog only removes earlier files from the same
+estimate, and a CSV upload into the CAPEX slot no longer replaces a file
+received from Well Cost & Time, so a hook-up CSV and the WCT AFE sit side by
+side. Tests: `epeWctIntake.test.jsx` (the kit's Ekene-11 estimate through
+the WCT services: AFE 11,799,948 USD; compare; engine gate with a negative
+control; refresh; the card). No engine, migration or Edge Function change.

@@ -13,12 +13,13 @@ import { hubProvenanceOf, epeRowsFromHubContract, hubFileName } from './epeHubIn
 import { wfProvenanceOf, epeRowsFromWfContract, wfFileName } from './epeWfIntake';
 import { simProvenanceOf, epeRowsFromSimContract, simFileName } from './epeSimIntake';
 import { wsProvenanceOf, epeRowsFromWsContract, wsFileName } from './epeWsIntake';
+import { wctProvenanceOf, epeRowsFromWctContract, wctFileName } from './epeWctIntake';
 
 /** The source kind of a received file, with its provenance record, or null. */
 export function receivedSourceOf(file) {
   const kinds = [
     ['hub', hubProvenanceOf], ['dca', dcaProvenanceOf], ['wf', wfProvenanceOf],
-    ['sim', simProvenanceOf], ['ws', wsProvenanceOf],
+    ['sim', simProvenanceOf], ['ws', wsProvenanceOf], ['wct', wctProvenanceOf],
   ];
   for (const [kind, of] of kinds) {
     const p = of(file);
@@ -34,7 +35,11 @@ export const REFRESH_LABEL = Object.freeze({
   sim: 'Take the new run',
   dca: 'Take the new forecast',
   ws: 'Take the new case',
+  wct: 'Take the new estimate',
 });
+
+/** The table a received file lives in: a Well Cost & Time estimate is a CAPEX file. */
+export const tableForKind = (kind) => (kind === 'wct' ? 'epe_capex' : 'epe_production_volumes');
 
 /** The line under a changed source, naming the button. */
 export const refreshHint = (kind) => `Press "${REFRESH_LABEL[kind]}" to replace this file only; the other files in the slot stay as they are.`;
@@ -63,6 +68,11 @@ export function refreshRowsFor(file, sourceState, { receivedAt = new Date().toIS
     case 'wf': return { rows: epeRowsFromWfContract(now, opts), fileName: wfFileName(now) };
     case 'sim': return { rows: epeRowsFromSimContract(now, opts), fileName: simFileName(now) };
     case 'ws': return { rows: epeRowsFromWsContract(now, opts), fileName: wsFileName(now) };
+    case 'wct': {
+      // same spend year, category and basis as the file it replaces
+      const b = src.provenance.booked || {};
+      return { rows: epeRowsFromWctContract(now, { ...opts, year: b.year, category: b.category, basis: b.basis || 'afe' }), fileName: wctFileName(now) };
+    }
     default: return { error: 'Unknown source.' };
     }
   } catch (e) {
@@ -75,19 +85,19 @@ export function refreshRowsFor(file, sourceState, { receivedAt = new Date().toIS
  * scenario tag), then delete the old one. Returns { id } or throws.
  */
 export async function replaceReceivedFile(supabase, file, made, userId) {
-  const { data: newRow, error: insErr } = await supabase
-    .from('epe_production_volumes')
-    .insert({
-      case_id: file.case_id,
-      user_id: userId || file.user_id,
-      file_name: made.fileName,
-      data: made.rows,
-      scenario_label: file.scenario_label ?? null,
-    })
-    .select('id')
-    .single();
+  const src = receivedSourceOf(file);
+  const table = tableForKind(src?.kind);
+  const row = {
+    case_id: file.case_id,
+    user_id: userId || file.user_id,
+    file_name: made.fileName,
+    data: made.rows,
+    // only production files carry a reserves scenario tag
+    ...(table === 'epe_production_volumes' ? { scenario_label: file.scenario_label ?? null } : {}),
+  };
+  const { data: newRow, error: insErr } = await supabase.from(table).insert(row).select('id').single();
   if (insErr) throw new Error(insErr.message);
-  const { error: delErr } = await supabase.from('epe_production_volumes').delete().eq('id', file.id);
+  const { error: delErr } = await supabase.from(table).delete().eq('id', file.id);
   if (delErr) throw new Error(`The new file was saved, but the old one could not be removed (${delErr.message}). Delete it, or the engine sums both.`);
   return { id: newRow.id };
 }
