@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 1d30a6d0d2e25e121d43ad1a28bd0a52a7e6e62b
+# commit f6729ed219822e708af0f19456b553bdf143f299
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 d8bd133c5a081611291cb72e0efd5909a2e23b77 README.md
@@ -18,6 +18,7 @@ c91937938e3031f16b175ed9dc3b69713a406be6 __tests__/assurance.peerReview.test.js
 08cf37a2403c072de69c04d5523c0d05489b97c5 __tests__/assurance.quality.test.js
 a8c2c7336a4a7636ecdf56915fde5530f3d8d8e4 __tests__/assurance.risk.test.js
 b809a10102bc1602e30553ec33588ce56396c59e __tests__/avoClass.shared.test.js
+124ba156f48d8c16efd50137ccaf398194f269a3 __tests__/basin.deposition.test.js
 64c78bc711e48200210995a0b4be3ffd1b38bf1f __tests__/basin.test.js
 285bfe65097236a1c319bd7af962515d5db8f183 __tests__/basin.u2.test.js
 17552372b2f1ad85fd1cd0b6b33ab0e0b50f95fe __tests__/conventions.percentile.test.js
@@ -349,7 +350,7 @@ e243eed36f7591d755372ad82cd59eecf25e7b47 engines/basin/KerogenLibrary.js
 1ce7f1f5e6c83d362050f04da600fe371fad1eed engines/basin/MaturityEngine.js
 50e0375dcd2fa26e4fb4c76f7b87c10b3db12927 engines/basin/PhysicsUtils.js
 dd2cc5dd31e2a03589e4bca67d850a49b98a7b20 engines/basin/PressureEngine.js
-ad2a47d4c08b0e9ebc92570b6ce9582d631b8e51 engines/basin/SimulationEngine.js
+b99ba5b967ba812d370129349d1dcf09ddcedd50 engines/basin/SimulationEngine.js
 aef2e1ecf07b9d9301597dd3e6bb6ba7f889ee25 engines/basin/ThermalPropertiesLibrary.js
 aef6b2b6b3a2abfd55c408a4bc8fefc3a1edc0e1 engines/basin/results.js
 7a80ae1b87054cb30df4ba3950d1d77a85f689da engines/dataai/cluster.js
@@ -731,7 +732,7 @@ af8a4a9c6befbcc94d5887e69c9b24ab23770131 test-data/assurance/goldens/managementO
 70e85bcf13ad9eebabd6982d9a48b6b52cd80c56 test-data/assurance/goldens/peerReview_cases.json
 b129488287f575558ccedfffd439f0350a5fe7ef test-data/assurance/goldens/qualityAssurance_cases.json
 79c826b89b8ba8a82c8dc8eaaf1226ebfecfd1b4 test-data/assurance/goldens/riskScoring_cases.json
-57c8369f4e372a5128108b88752e467999b7d797 test-data/basin/README.md
+c62993ceb362c10c008f328a16088f150f615606 test-data/basin/README.md
 9336f9686a31aa25baa2def35ff3ce92758bb81b test-data/basin/goldens.json
 d48d79ef6eccb94be4afe8cc69d732abe9ce6f91 test-data/crs/README.md
 b8b641fd2a3bc4b12fed1d2b4ed091a9397e5a17 test-data/crs/generate_minna_goldens.py

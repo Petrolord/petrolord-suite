@@ -68,6 +68,28 @@ const GlobalHistoryPanel = () => {
                                     <p className="text-[11px] text-pl-muted mt-1">The upper boundary of the heat solution, held constant through the burial history.</p>
                                 </div>
                             </div>
+                            {/* 2026-10-14: deposition through each layer's interval and the step */}
+                            <div className="space-y-2" data-testid="bf-time-settings">
+                                <h3 className="text-xs font-semibold text-pl-text">Deposition and time step</h3>
+                                <div className="bg-pl-surface p-3 rounded border border-pl-border space-y-2">
+                                    <Label className="text-xs text-pl-muted" htmlFor="bf-deposition">Deposition</Label>
+                                    <select id="bf-deposition" data-testid="bf-deposition"
+                                        value={settings?.deposition === 'continuous' ? 'continuous' : 'instant'}
+                                        onChange={(e) => dispatch({ type: 'UPDATE_SETTINGS', payload: { deposition: e.target.value } })}
+                                        className="w-full h-8 bg-pl-surface border border-pl-border-strong rounded px-2 text-xs text-pl-text">
+                                        <option value="continuous">Continuous: each layer builds up through its interval</option>
+                                        <option value="instant">Instant: each layer appears whole at its start age</option>
+                                    </select>
+                                    <Label className="text-xs text-pl-muted" htmlFor="bf-time-step">Time step</Label>
+                                    <select id="bf-time-step" data-testid="bf-time-step"
+                                        value={String([1, 0.5, 0.25, 0.1].includes(Number(settings?.timeStepMa)) ? Number(settings.timeStepMa) : 1)}
+                                        onChange={(e) => dispatch({ type: 'UPDATE_SETTINGS', payload: { timeStepMa: Number(e.target.value) } })}
+                                        className="w-full h-8 bg-pl-surface border border-pl-border-strong rounded px-2 text-xs text-pl-text">
+                                        {[1, 0.5, 0.25, 0.1].map((v) => <option key={v} value={String(v)}>{v} Ma</option>)}
+                                    </select>
+                                    <p className="text-[11px] text-pl-muted">Continuous deposition buries a layer at its own rate, so a young delta does not jump a whole formation at once. Use a step shorter than the shortest layer (0.25 Ma for a Neogene section).</p>
+                                </div>
+                            </div>
                         </div>
                     </ScrollArea>
                 </TabsContent>

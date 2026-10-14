@@ -3,10 +3,13 @@
 //  - Calibration: a delimited file with depth and Ro and/or temperature
 //    columns -> the Calibration tab's points.
 //  - Formation tops: a delimited file with name and depth -> layers
-//    (thickness from the gaps; ages are placeholders to type).
+//    (thickness from the gaps). A column file (services/columnFile.js)
+//    with ages, hiatuses, lithology, source rock and eroded thickness
+//    builds a dated model; without ages they are placeholders to type.
 //  - Registry well: tops picked in Well Data Manager or Petrophysics
 //    Studio -> the same layers, and the well is remembered as this
-//    model's tie for the launchers.
+//    model's tie for the launchers. A column file dates the well's tops
+//    and sets the lithologies by surface name (2026-10-14).
 // The previous version was a mock: a fixed delay, hardcoded points
 // under an action the reducer did not handle, and a toast claiming
 // "24 checkshot points". LAS and checkshot tabs are gone; a 1D basin
@@ -24,9 +27,11 @@ import { useToast } from '@/components/ui/use-toast';
 import { useBasinFlow } from '@/pages/apps/BasinFlowGenesis/contexts/BasinFlowContext';
 import { useMultiWell } from '@/pages/apps/BasinFlowGenesis/contexts/MultiWellContext';
 import { parseCalibrationText, parseTopsText, layersFromTops } from '../../services/calibrationImport';
-import { buildBasinModelRow } from '@/lib/basinHandoff';
+import { buildBasinModelRow, BASIN_LAYER_COLOUR } from '@/lib/basinHandoff';
+import { parseColumnText, datedTops, layersFromColumn, applyColumnToLayers, erosionWithAmounts, rowDepthM } from '../../services/columnFile';
 import { depthFromDisplay, tempFromDisplay, fmtDepth, DEPTH_UNITS } from '../../services/units';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { lithologyLabel } from '../../services/lithologyMix';
 
 const ACCEPT = { 'text/csv': ['.csv'], 'text/plain': ['.txt', '.dat', '.prn', '.asc'], 'text/tab-separated-values': ['.tsv'] };
 
@@ -73,6 +78,16 @@ const AdvancedDataImport = () => {
   const [cal, setCal] = useState(null); // { name, ro, temp, problems }
   const [tops, setTops] = useState(null); // { name, tops, problems }
   const [baseDepth, setBaseDepth] = useState('');
+  const [baseAge, setBaseAge] = useState('');
+  const [regColumn, setRegColumn] = useState(null); // { name, rows, base, problems } dates a registry well's tops
+  // calibration depths: from the model surface, or below the rig floor (KB) of the tie well
+  const [calDatum, setCalDatum] = useState('surface');
+  const surfaceBelowKbM = useMemo(() => {
+    const first = [...(state.stratigraphy || [])].sort((a, b) => (Number(a.ageStart) || 0) - (Number(b.ageStart) || 0))[0];
+    const z = Number(first?.provenance?.top_tvd_m);
+    return Number.isFinite(z) && z > 0 ? z : null;
+  }, [state.stratigraphy]);
+  const [kbOffset, setKbOffset] = useState('');
   const [registryWells, setRegistryWells] = useState(null);
   const [registryId, setRegistryId] = useState('');
 
@@ -93,8 +108,20 @@ const AdvancedDataImport = () => {
     setCal({ name, ...r, read, ro: r.ro.map((p) => ({ ...p, depth: z(p.depth) })), temp: r.temp.map((p) => ({ ...p, depth: z(p.depth), value: t(p.value) })) });
   };
   const readTops = (text, name) => {
+    // a header with a name column is a column file (ages, lithology ...);
+    // a bare two-column list is the old name and depth
+    const c = parseColumnText(text);
+    if (c.rows.length && c.hasDepth) {
+      setTops({ name, column: c, problems: c.problems, tops: [] });
+      if (c.base?.age != null) setBaseAge(String(c.base.age));
+      return;
+    }
     const r = parseTopsText(text);
     setTops({ name, ...r, tops: r.tops.map((t) => ({ ...t, depth: toM(t.depth) })) });
+  };
+  const readRegColumn = (text, name) => {
+    const c = parseColumnText(text);
+    setRegColumn({ name, ...c });
   };
   const fileUnitSelect = (
     <label className="flex items-center gap-2 text-xs text-pl-muted">Depths in the file are in
@@ -104,29 +131,54 @@ const AdvancedDataImport = () => {
     </label>
   );
 
+  // depths below KB move up by the depth of the model's surface below KB
+  const kbShiftM = calDatum === 'kb' ? (Number.isFinite(surfaceBelowKbM) ? surfaceBelowKbM : depthFromDisplay(parseFloat(kbOffset), units.depth)) : 0;
+  const kbShiftOk = calDatum !== 'kb' || (Number.isFinite(kbShiftM) && kbShiftM >= 0);
   const applyCalibration = (mode) => {
-    if (!cal) return;
+    if (!cal || !kbShiftOk) return;
     const prev = state.calibration || { ro: [], temp: [] };
-    const stamp = (pts) => pts.map((p, i) => ({ id: `${Date.now()}-${i}-${p.depth}`, ...p }));
+    const shift = (pts) => pts.map((p) => ({ ...p, depth: p.depth - kbShiftM })).filter((p) => p.depth >= 0);
+    const stamp = (pts) => shift(pts).map((p, i) => ({ id: `${Date.now()}-${i}-${p.depth}`, ...p }));
     const next = mode === 'replace'
       ? { ro: stamp(cal.ro), temp: stamp(cal.temp) }
       : { ro: [...(prev.ro || []), ...stamp(cal.ro)], temp: [...(prev.temp || []), ...stamp(cal.temp)] };
     dispatch({ type: 'SET_CALIBRATION_DATA', payload: next });
-    toast({ title: 'Calibration points applied', description: `${cal.ro.length} Ro and ${cal.temp.length} temperature points from ${cal.name}.` });
+    toast({ title: 'Calibration points applied', description: `${cal.ro.length} Ro and ${cal.temp.length} temperature points from ${cal.name}.${kbShiftM > 0 ? ` Depths moved up ${fmtDepth(kbShiftM, units.depth)} ${units.depth} from KB to the model surface.` : ''}` });
     setCal(null);
   };
 
+  // the column file's own depth unit (stated in its header) wins over the picker
+  const colUnit = tops?.column?.units?.depth || fileUnit;
+  const columnBuild = useMemo(() => {
+    const c = tops?.column;
+    if (!c) return null;
+    const typedBd = parseFloat(baseDepth);
+    const bdM = Number.isFinite(typedBd) ? rowDepthM(typedBd, colUnit) : (Number.isFinite(c.base?.depth) ? rowDepthM(c.base.depth, colUnit) : null);
+    const ba = parseFloat(baseAge);
+    const stamp = Date.now();
+    const built = layersFromColumn(datedTops(c.rows, { fileUnit: colUnit }), { baseDepthM: bdM, baseAge: Number.isFinite(ba) ? ba : null, idFor: (i) => `import-${stamp}-${i}` });
+    const applied = applyColumnToLayers(built.layers.map((l) => ({
+      id: l.id, name: l.name, ageStart: l.ageStart, ageEnd: l.ageEnd, thickness: l.thickness, lithology: l.lithology, sourceRock: l.sourceRock, agesGuessed: l.agesGuessed,
+      provenance: { lithology_guessed: l.lithologyGuessed, top_tvd_m: l.top_md_m, base_tvd_m: l.base_md_m, thickness_basis: 'file' },
+    })), c.rows);
+    const layers = applied.layers.map((l) => ({ ...l, color: BASIN_LAYER_COLOUR[l.lithology] || (l.lithology === 'mixed' ? '#8d99ae' : '#94a3b8') }));
+    const { lithologies, sources } = applied;
+    const erosionEvents = erosionWithAmounts(built.erosionEvents, c.rows, c.units?.eroded || colUnit);
+    return { layers, erosionEvents, lithologies, sources, problems: built.problems.filter((p) => !(/amount unknown/.test(p) && erosionEvents.some((e) => !e.amountUnknown && p.startsWith(e.surface)))) };
+  }, [tops, baseDepth, baseAge, colUnit]);
   const previewLayers = useMemo(() => {
+    if (columnBuild) return columnBuild.layers;
     if (!tops?.tops?.length) return [];
     const bd = toM(parseFloat(baseDepth));
     return layersFromTops(tops.tops, { baseDepth: Number.isFinite(bd) ? bd : null, idFor: (i) => `import-${Date.now()}-${i}` });
-  }, [tops, baseDepth]);
+  }, [tops, baseDepth, columnBuild]);
 
   const applyTops = () => {
     if (!previewLayers.length) return;
+    const dated = previewLayers.filter((l) => !l.agesGuessed).length;
     // U2-010: kept for Undo
-    dispatch({ type: 'REPLACE_LAYERS', payload: { stratigraphy: previewLayers, label: `Tops from ${tops.name}` } });
-    toast({ title: 'Stratigraphy replaced', description: `${previewLayers.length} layers from ${tops.name}. The ages are placeholders: type them in Properties. Undo in Properties puts the previous layers back.` });
+    dispatch({ type: 'REPLACE_LAYERS', payload: { stratigraphy: previewLayers, ...(columnBuild ? { erosionEvents: columnBuild.erosionEvents } : {}), label: `Tops from ${tops.name}` } });
+    toast({ title: 'Stratigraphy replaced', description: `${previewLayers.length} layers from ${tops.name}${columnBuild ? `: ${dated} dated, ${columnBuild.lithologies} lithologies, ${columnBuild.erosionEvents.length} erosion event${columnBuild.erosionEvents.length === 1 ? '' : 's'}` : ''}.${dated < previewLayers.length ? ' Some ages are placeholders: type them in Properties.' : ''} Undo in Properties puts the previous layers back.` });
     setTops(null);
   };
 
@@ -145,8 +197,29 @@ const AdvancedDataImport = () => {
   }, [registryWell, backend]);
   const registryBuild = useMemo(() => {
     if (!registryWell?.tops?.length) return null;
-    return buildBasinModelRow({ well: registryWell, tops: registryWell.tops, intervals: registryIntervals, userId: null });
-  }, [registryWell, registryIntervals]);
+    if (!regColumn?.rows?.length) return buildBasinModelRow({ well: registryWell, tops: registryWell.tops, intervals: registryIntervals, userId: null });
+    // a column file dates the well's tops by name; its base row dates the bottom layer at the well's TD
+    const td = Number(registryWell.td_md_m);
+    const baseAgeV = Number(regColumn.base?.age);
+    const merged = datedTops(regColumn.rows, { withDepths: registryWell.tops });
+    const withBase = Number.isFinite(td) && td > 0 && Number.isFinite(baseAgeV) ? [...merged, { id: '__base__', name: '__base__', md_m: td, age_ma: baseAgeV }] : merged;
+    const b = buildBasinModelRow({ well: registryWell, tops: withBase, intervals: registryIntervals, userId: null });
+    const kept = b.row.stratigraphy.filter((l) => l.name !== '__base__');
+    const applied = applyColumnToLayers(kept, regColumn.rows);
+    const strat = applied.layers.map((l) => ({ ...l, color: BASIN_LAYER_COLOUR[l.lithology] || (l.lithology === 'mixed' ? '#8d99ae' : l.color) }));
+    const erosion = erosionWithAmounts(b.row.erosion_events, regColumn.rows, regColumn.units?.eroded || fileUnit);
+    const matched = registryWell.tops.filter((t) => regColumn.rows.some((r) => r.name && t.name && r.name.trim().toLowerCase() === t.name.trim().toLowerCase())).length;
+    return {
+      ...b,
+      row: { ...b.row, stratigraphy: strat, erosion_events: erosion },
+      layerCount: strat.length,
+      datedCount: strat.filter((l) => !l.agesGuessed).length,
+      problems: [
+        `${regColumn.name}: ${matched} of ${registryWell.tops.length} tops matched by name, ${applied.lithologies} lithologies, ${applied.sources} source rock${applied.sources === 1 ? '' : 's'}.`,
+        ...b.problems.filter((p) => !/__base__/.test(p) && !(/amount unknown/.test(p) && erosion.some((e) => !e.amountUnknown && p.startsWith(e.surface)))),
+      ],
+    };
+  }, [registryWell, registryIntervals, regColumn, fileUnit]);
   const registryLayers = registryBuild?.row.stratigraphy || [];
 
   const applyRegistry = () => {
@@ -168,7 +241,7 @@ const AdvancedDataImport = () => {
           <tr key={l.id} className="border-t border-pl-border" data-testid={`${testid}-row`}>
             <td className="py-0.5">{l.name}</td>
             <td className="py-0.5 text-right font-mono">{fmtDepth(l.thickness, units.depth)}</td>
-            <td className="py-0.5 capitalize">{l.lithology}{l.provenance?.lithology_guessed === false ? ' (log)' : ' (guess)'}</td>
+            <td className="py-0.5">{lithologyLabel(l)}{l.provenance?.lithology_from ? ' (file)' : l.provenance?.lithology_guessed === false ? ' (log)' : ' (guess)'}{l.sourceRock?.isSource ? `, source TOC ${l.sourceRock.toc} HI ${l.sourceRock.hi}` : ''}</td>
             <td className="py-0.5 text-right font-mono">{l.ageStart} to {l.ageEnd}{l.agesGuessed ? ' (placeholder)' : ''}</td>
           </tr>
         ))}
@@ -204,10 +277,20 @@ const AdvancedDataImport = () => {
                 </div>
                 <div className="text-xs text-pl-text" data-testid="bf-import-preview-calibration">{cal.ro.length} Ro points, {cal.temp.length} temperature points read.</div>
                 {cal.read && <div className="text-[11px] text-pl-muted" data-testid="bf-import-read-units">{cal.read}</div>}
+                <div className="flex flex-wrap items-center gap-2 text-xs text-pl-muted" data-testid="bf-import-cal-datum-row">
+                  <span>Depths in the file are measured</span>
+                  <select data-testid="bf-import-cal-datum" value={calDatum} onChange={(e) => setCalDatum(e.target.value)} className="bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text">
+                    <option value="surface">from the model surface (top of the first layer)</option>
+                    <option value="kb">below the rig floor (KB), as well depths are</option>
+                  </select>
+                  {calDatum === 'kb' && (Number.isFinite(surfaceBelowKbM)
+                    ? <span data-testid="bf-import-cal-shift">The model surface is {fmtDepth(surfaceBelowKbM, units.depth)} {units.depth} below KB on the tie well, so every depth moves up by that.</span>
+                    : <label className="flex items-center gap-1">Model surface below KB ({units.depth})<Input type="number" step="any" data-testid="bf-import-cal-kb" value={kbOffset} onChange={(e) => setKbOffset(e.target.value)} className="h-7 w-24 text-xs" /></label>)}
+                </div>
                 <Problems items={cal.problems} kind="calibration" />
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" size="sm" data-testid="bf-import-apply-calibration-append" disabled={!cal.ro.length && !cal.temp.length} onClick={() => applyCalibration('append')}>Add to the points</Button>
-                  <Button size="sm" data-testid="bf-import-apply-calibration" disabled={!cal.ro.length && !cal.temp.length} onClick={() => applyCalibration('replace')}>Replace the points</Button>
+                  <Button variant="outline" size="sm" data-testid="bf-import-apply-calibration-append" disabled={(!cal.ro.length && !cal.temp.length) || !kbShiftOk} onClick={() => applyCalibration('append')}>Add to the points</Button>
+                  <Button size="sm" data-testid="bf-import-apply-calibration" disabled={(!cal.ro.length && !cal.temp.length) || !kbShiftOk} onClick={() => applyCalibration('replace')}>Replace the points</Button>
                 </div>
               </CardContent>
             </Card>
@@ -217,7 +300,7 @@ const AdvancedDataImport = () => {
         <TabsContent value="tops" className="space-y-4">
           {!tops && <ImportZone kind="tops" label="Drop a formation tops file: name and depth per row" onText={readTops} />}
           <div className="bg-pl-surface p-3 rounded border border-pl-border text-xs text-pl-muted flex flex-wrap items-center gap-3">
-            <span>Columns: <span className="font-mono">name</span>, <span className="font-mono">depth</span> (top of the layer). Thickness is the gap to the next top; give a total depth for the last layer.</span>
+            <span>Columns: <span className="font-mono">name</span>, <span className="font-mono">depth</span> (top of the layer). Thickness is the gap to the next top; give a total depth for the last layer. Add <span className="font-mono">age_ma</span>, <span className="font-mono">hiatus_end_ma</span>, <span className="font-mono">lithology</span>, <span className="font-mono">sand_pct</span>/<span className="font-mono">shale_pct</span>, <span className="font-mono">eroded_ft</span>, <span className="font-mono">toc</span> and <span className="font-mono">hi</span> columns, and a TD row with its depth and age, for a dated model.</span>
             {fileUnitSelect}
           </div>
           {tops && (
@@ -226,9 +309,23 @@ const AdvancedDataImport = () => {
                 <div className="flex items-center gap-2 text-sm text-pl-text"><FileText className="w-4 h-4 text-pl-muted" /> {tops.name}
                   <Button variant="ghost" size="icon" className="ml-auto h-6 w-6 text-pl-muted" data-testid="bf-import-clear-tops" onClick={() => setTops(null)}><X className="w-4 h-4" /></Button>
                 </div>
-                <label className="flex items-center gap-2 text-xs text-pl-muted">Total depth of the last layer ({fileUnit})
-                  <Input type="number" step="any" data-testid="bf-import-tops-td" value={baseDepth} onChange={(e) => setBaseDepth(e.target.value)} className="h-7 w-28 text-xs" placeholder="optional" />
-                </label>
+                <div className="flex flex-wrap items-center gap-4">
+                  <label className="flex items-center gap-2 text-xs text-pl-muted">Total depth of the last layer ({tops.column ? colUnit : fileUnit})
+                    <Input type="number" step="any" data-testid="bf-import-tops-td" value={baseDepth} onChange={(e) => setBaseDepth(e.target.value)} className="h-7 w-28 text-xs" placeholder={tops.column?.base?.depth != null ? String(tops.column.base.depth) : 'optional'} />
+                  </label>
+                  {tops.column && (
+                    <label className="flex items-center gap-2 text-xs text-pl-muted">Age at that depth (Ma)
+                      <Input type="number" step="any" data-testid="bf-import-tops-base-age" value={baseAge} onChange={(e) => setBaseAge(e.target.value)} className="h-7 w-24 text-xs" placeholder="optional" />
+                    </label>
+                  )}
+                </div>
+                {tops.column && (
+                  <p className="text-[11px] text-pl-muted" data-testid="bf-import-column-read">
+                    Read as a column file: {Object.entries(tops.column.columns).map(([k, v]) => `${k} from "${v}"`).join(', ')}; depths in {colUnit}{tops.column.units?.depth ? ' (stated in the header)' : ' (the unit picked above)'}.
+                    {columnBuild ? ` ${columnBuild.erosionEvents.length} erosion event${columnBuild.erosionEvents.length === 1 ? '' : 's'}${columnBuild.erosionEvents.some((e) => !e.amountUnknown) ? ` (${columnBuild.erosionEvents.filter((e) => !e.amountUnknown).map((e) => `${e.surface} ${fmtDepth(e.amount, units.depth)} ${units.depth}`).join(', ')})` : ''}.` : ''}
+                  </p>
+                )}
+                {columnBuild?.problems?.length > 0 && <p className="text-[11px] text-pl-muted" data-testid="bf-import-column-notes">{columnBuild.problems.join(' ')}</p>}
                 <Problems items={tops.problems} kind="tops" />
                 {previewLayers.length > 0 && <LayerPreview layers={previewLayers} testid="bf-import-preview-tops" />}
                 <div className="flex justify-end">
@@ -255,6 +352,18 @@ const AdvancedDataImport = () => {
                 {registryWells.map((w) => <option key={w.id} value={w.id}>{w.name} ({(w.tops || []).length} tops)</option>)}
               </select>
               {registryWell && registryLayers.length === 0 && <p className="text-xs text-pl-warning-text">This well has no tops yet.</p>}
+              {registryWell && registryLayers.length > 0 && (
+                <div className="space-y-2" data-testid="bf-registry-column">
+                  {!regColumn ? (
+                    <ImportZone kind="registry-column" label="Optional: a stratigraphic column file to date the tops and set the lithologies (surface, age, hiatus, lithology, eroded thickness, TOC, HI)" onText={readRegColumn} />
+                  ) : (
+                    <div className="flex items-center gap-2 text-xs text-pl-text" data-testid="bf-registry-column-file"><FileText className="w-4 h-4 text-pl-muted" /> Ages and lithology from {regColumn.name}
+                      <Button variant="ghost" size="icon" className="ml-auto h-6 w-6 text-pl-muted" data-testid="bf-registry-column-clear" onClick={() => setRegColumn(null)}><X className="w-4 h-4" /></Button>
+                    </div>
+                  )}
+                  {regColumn && <Problems items={regColumn.problems} kind="registry-column" />}
+                </div>
+              )}
               {registryLayers.length > 0 && <LayerPreview layers={registryLayers} testid="bf-registry-preview" />}
               {registryBuild && <p className="text-[11px] text-pl-muted" data-testid="bf-registry-notes">{registryBuild.problems.join(' ')}{registryBuild.erosionCount ? ` ${registryBuild.erosionCount} erosion event${registryBuild.erosionCount === 1 ? '' : 's'} with the amount to type.` : ''}</p>}
               <div className="flex justify-end">
