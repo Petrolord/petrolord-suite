@@ -89,3 +89,13 @@ describe('wta-1 productivity in a real save (sample buildup)', () => {
     expect(p.flow_efficiency).toBeCloseTo(derivedKpis.flowEfficiency, 9);
   });
 });
+
+describe('the line that gave p* (2026-10-14)', () => {
+  test('a buildup read on the rate history names the superposition line', () => {
+    const { productivity } = wtaProductivity({ q: 100, pwf: 2017.9, pStar: 2123.5, pi: 2123.45, pStarLine: 'superposition' });
+    expect(productivity.pr_line).toBe('superposition');
+    expect(productivity.basis).toMatch(/p\* of the superposition straight line/);
+    expect(wtaProductivity({ q: 100, pwf: 2017.9, pStar: 2123.5 }).productivity.pr_line).toBe('Horner');
+    expect(wtaProductivity({ q: 100, pwf: 2017.9, pi: 2123.45, family: 'drawdown' }).productivity.pr_line).toBeNull();
+  });
+});

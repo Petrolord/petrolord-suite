@@ -172,7 +172,7 @@ const show = (kind, v, system, digits = 1) => {
   const t = kind === 'productivityIndex' ? Number(d).toPrecision(3) : Number(d).toFixed(digits);
   return `${t} ${unitLabel(kind, system)}`;
 };
-const prWords = (m) => (m === 'p*' ? 'p* of the Horner line' : 'initial pressure as entered');
+const prWords = (m, line) => (m === 'p*' ? `p* of the ${line || 'Horner'} line` : 'initial pressure as entered');
 const dateOf = (iso) => (iso ? String(iso).slice(0, 10) : 'not given');
 
 const Row = ({ label, children, testId }) => (
@@ -206,7 +206,7 @@ export const WellTestIntakeCard = () => {
             <Row label="Test date">{c.project?.test_dates || 'not given'}</Row>
             {p && (
               <>
-                <Row label="Reservoir pressure" testId="nodal-wt-pr">{show('pressure', p.pr_psia, unitSystem)} ({prWords(p.pr_method)})</Row>
+                <Row label="Reservoir pressure" testId="nodal-wt-pr">{show('pressure', p.pr_psia, unitSystem)} ({prWords(p.pr_method, p.pr_line)})</Row>
                 <Row label="Test point" testId="nodal-wt-test-point">{show('oilRate', p.q_stb_d, unitSystem, 0)} at {show('pressure', p.pwf_psia, unitSystem)}</Row>
                 <Row label="Productivity index J" testId="nodal-wt-j">{show('productivityIndex', p.pi_stbd_psi, unitSystem)}</Row>
                 <Row label="J with the skin removed" testId="nodal-wt-j-ideal">
@@ -240,7 +240,7 @@ export const WellTestIntakeCard = () => {
         )}
         {wellTestIntake && (
           <p className="text-[11px] text-pl-muted leading-relaxed border-t border-pl-border pt-2" data-testid="nodal-wt-applied">
-            Applied {wellTestIntake.choice_label.toLowerCase()} on {dateOf(wellTestIntake.applied_at)} from {wellTestIntake.project_name || 'a Well Test project'}{wellTestIntake.well ? ` (well ${wellTestIntake.well})` : ''}: reservoir pressure {show('pressure', wellTestIntake.pr_psia, unitSystem)} ({prWords(wellTestIntake.pr_method)}), J {show('productivityIndex', wellTestIntake.pi_stbd_psi, unitSystem)}.
+            Applied {wellTestIntake.choice_label.toLowerCase()} on {dateOf(wellTestIntake.applied_at)} from {wellTestIntake.project_name || 'a Well Test project'}{wellTestIntake.well ? ` (well ${wellTestIntake.well})` : ''}: reservoir pressure {show('pressure', wellTestIntake.pr_psia, unitSystem)} ({prWords(wellTestIntake.pr_method, wellTestIntake.pr_line)}), J {show('productivityIndex', wellTestIntake.pi_stbd_psi, unitSystem)}.
             {current ? '' : ' The inflow has been edited since, so the values on screen are your own.'}
           </p>
         )}

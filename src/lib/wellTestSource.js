@@ -41,7 +41,7 @@
 //                    pwf_source (words),
 //                    pr_psia (buildup: p* of the Horner line when it gives one, else the
 //                             entered initial pressure pi; drawdown: pi),
-//                    pr_method 'p*' | 'pi',
+//                    pr_method 'p*' | 'pi', pr_line 'Horner' | 'superposition' | null (which line gave p*),
 //                    pi_stbd_psi (J = q / (pr - pwf), STB/D/psi),
 //                    dp_skin_psi (the skin pressure drop of derivedKpis.dpSkin, signed:
 //                                 negative for a stimulated well; null when skin is withheld),
@@ -70,7 +70,7 @@ const text = (v) => (v != null && String(v).trim() ? String(v).trim() : null);
  */
 export function wtaProductivity({
   fluid = 'oil', family = 'buildup', mirror = false, testType = null,
-  q, pwf, pwfSource = null, pStar = null, pi = null, dpSkin = null, skin = null,
+  q, pwf, pwfSource = null, pStar = null, pi = null, dpSkin = null, skin = null, pStarLine = 'Horner',
 } = {}) {
   const none = (reason) => ({ productivity: null, reason });
   if (fluid === 'gas') return none('A gas test: the productivity index is sent for oil tests only.');
@@ -94,12 +94,14 @@ export function wtaProductivity({
       pwf_source: pwfSource || (isBuildup ? 'flowing pressure at shut-in' : 'last flowing reading of the drawdown'),
       pr_psia: pr,
       pr_method: usePStar ? 'p*' : 'pi',
+      // 2026-10-14: which straight line gave p*: 'Horner' or 'superposition'
+      pr_line: usePStar ? pStarLine : null,
       pi_stbd_psi: J,
       dp_skin_psi: dps,
       ideal_pi_stbd_psi: ideal,
       flow_efficiency: ideal != null ? ddIdeal / dd : null,
       test_type: testType,
-      basis: `J = q / (pr - pwf) at the gauge depth, single rate; pr is ${usePStar ? 'p* of the Horner straight line' : 'the initial pressure as entered'}; the skin-removed PI takes the skin pressure drop out of the drawdown.`,
+      basis: `J = q / (pr - pwf) at the gauge depth, single rate; pr is ${usePStar ? `p* of the ${pStarLine} straight line` : 'the initial pressure as entered'}; the skin-removed PI takes the skin pressure drop out of the drawdown.`,
     },
     reason: null,
   };
@@ -230,6 +232,7 @@ export function buildWtaRecord(ctx, { now = new Date().toISOString(), projectId 
         pwf,
         pwfSource: isBuildup ? PWF_SOURCE_WORDS[ctx.prepared?.pwfSource?.kind] || null : null,
         pStar,
+        pStarLine: sl?.method === 'superposition' ? 'superposition' : 'Horner',
         pi: r.pi,
         dpSkin: k.dpSkin,
         skin: k.skin,

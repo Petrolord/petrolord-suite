@@ -130,3 +130,13 @@ describe('a sealing fault from two semilog lines', () => {
     studio.unmount();
   }, 600000);
 });
+
+describe('the Match tab shows the model parameters beyond k, skin and C', () => {
+  test('a sealing-fault match lists the distance to the boundary', async () => {
+    const studio = mountStudio();
+    await studio.act((c) => { Object.entries(RES).forEach(([k, v]) => c.setReservoirField(k, v)); c.setGaugeRows(cleanupGauge().rows); c.setTestField('tp', '24'); c.setMatchField('modelId', 'homogeneous-sealing-fault'); c.setMatchField('L', '533'); });
+    expect(studio.ctx.model.parameters.map((p) => p.key)).toContain('L');
+    expect(studio.ctx.matchParams.L).toBe(533);
+    studio.unmount();
+  }, 600000);
+});
