@@ -200,6 +200,9 @@ export function mdAtTvdss(traj, mdA, mdB, tvdss) {
 export function zoneLogControl(wells, curvesByWell, zone, { layers = 1, cutoffs = DEFAULT_CUTOFFS, owcM = null, owcAt = null } = {}) {
   const n = Math.max(1, Math.floor(Number(layers) || 1));
   const out = Array.from({ length: n }, () => ({ phi: [], sw: [], ntg: [], perm: [] }));
+  // the zone as one layer: the fallback of a layer no well can speak for
+  // (a deep layer wholly below the OWC in every well has no Sw)
+  const whole = { phi: [], sw: [], ntg: [], perm: [] };
   const rows = [];
   for (const w of wells) {
     const curves = curvesByWell?.[w.name];
@@ -224,6 +227,10 @@ export function zoneLogControl(wells, curvesByWell, zone, { layers = 1, cutoffs 
       }
       rows.push({ well: w.name, layer: u.layer, source, topMd, baseMd, grossM: u.grossM, netM: u.netM, ntg: u.ntg, phi: u.phi, sw: u.sw, perm: u.perm, x: u.x, y: u.y });
     }
+    if (n > 1) {
+      const [z] = upscaleZoneAtWell({ traj, topMd, baseMd, curves, layers: 1, cutoffs, owcM: Number.isFinite(owc) ? owc : null });
+      if (z) for (const k of ['phi', 'sw', 'ntg', 'perm']) if (Number.isFinite(z[k])) whole[k].push({ well: w.name, x: z.x, y: z.y, v: k === 'perm' ? Math.log10(z[k]) : z[k], w: Math.max(z.grossM, 1e-6) });
+    }
   }
-  return { layers: out, rows };
+  return { layers: out, zone: n > 1 ? whole : out[0], rows };
 }

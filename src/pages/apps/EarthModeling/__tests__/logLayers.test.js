@@ -159,6 +159,14 @@ describe('proportional layers through buildModel', () => {
     // permeability from the logs, ready for the GRDECL
     expect(z.props.perm).toBeTruthy();
   });
+  test('five layers: the deepest has no Sw at any well (all below the OWC) and borrows the zone\'s, so no rock is lost', async () => {
+    const b = await buildModel(def({ control: 'logs', logsResolved: { curves: ekeneCurves }, methods: { phi: 'okrige', sw: 'idw', ntg: 'okrige' } }, { layers: 5 }), regWells, surfaces, backend);
+    const z = b.zones[0];
+    const one = await buildModel(def(), regWells, surfaces, backend);
+    expect(Math.abs(z.volumes.total.bulk_m3 / one.zones[0].volumes.total.bulk_m3 - 1)).toBeLessThan(1e-12);
+    expect(z.provenance.sw.find((r) => r.layer === 5).note).toMatch(/zone's upscaled values/);
+    expect(b.notes.join(' ')).not.toMatch(/no well gives/);
+  });
   test('negative control: a constant leaves a misfit at the wells that the match table shows', async () => {
     const b = await buildModel(def({ control: 'logs', logsResolved: { curves: ekeneCurves } }), regWells, surfaces, backend);
     const fit = b.zones[0].wellMatch.filter((r) => r.prop !== 'perm' && r.model !== null);

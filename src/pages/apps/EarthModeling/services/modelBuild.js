@@ -898,7 +898,16 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       }
       return (zonePointsCache[prop] = all);
     };
-    const pointsFor = (prop, kLayer) => (control === 'logs' ? logControl.layers[kLayer][prop] : zoneAveragePoints(prop));
+    // a layer no well can speak for (Sw in a layer below the OWC in every
+    // well) takes the zone's upscaled values, and the provenance says so
+    const borrowed = new Set();
+    const pointsFor = (prop, kLayer) => {
+      if (control !== 'logs') return zoneAveragePoints(prop);
+      const own = logControl.layers[kLayer][prop];
+      if (own.length || !logControl.zone[prop].length) return own;
+      borrowed.add(`${prop}|${kLayer}`);
+      return logControl.zone[prop];
+    };
 
     const populateOne = (prop, all, typedV) => {
       const byBlock = {};
@@ -959,6 +968,7 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
           props[prop] = out.z;
         }
         if (out.variance) variance[prop] = out.variance;
+        if (borrowed.has(`${prop}|${kL}`)) out.provenance = out.provenance.map((r) => ({ ...r, note: `${r.note ? `${r.note}; ` : ''}no well has a value in this layer, so the zone's upscaled values` }));
         provenance[prop] = definition.methods?.[prop] === 'map'
           ? out.provenance.map((r) => ({ ...r, fellBack: true, note: `no Petrophysics map picked for this zone${r.note ? `; ${r.note}` : ''}` }))
           : out.provenance;
@@ -979,6 +989,13 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
     });
     for (const w of ['porosity', 'Sw', 'NTG']) progress(`${zdef.name}: ${w} populated`);
     for (const [prop, n] of Object.entries(clampSum)) propertyClamps.push({ zone: zdef.name, prop, nodes: n });
+    // a property with no control anywhere leaves its nodes empty, and an empty node holds no volume: say so
+    layerOut.forEach((L, kL) => {
+      for (const prop of ['phi', 'sw', 'ntg']) {
+        const g = L.props[prop];
+        if (g && !g.some((v) => !isNull(v) && Number.isFinite(v))) notes.push(`${zdef.name}${layerOut.length > 1 ? ` layer ${kL + 1}` : ''}: no well gives ${prop === 'phi' ? 'porosity' : prop === 'sw' ? 'Sw' : 'NTG'}, so its nodes are empty and hold no volume.`);
+      }
+    });
     if (zoneBases.size) {
       const b = [...zoneBases].join(' and ');
       for (const L of layerOut) if (L.provenance.ntg && !ntgFromMap) L.provenance.ntg = L.provenance.ntg.map((r) => ({ ...r, note: `${r.note ? `${r.note}; ` : ''}${b} over gross` }));
