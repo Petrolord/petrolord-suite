@@ -358,3 +358,23 @@ depth readout opened at its 3,500 m default on every well, which on Ekene-1 (2,1
 "11482.9 ft"; a readout depth outside the open well now moves to the deepest sample. Tests:
 `__tests__/underpressureReadout.test.jsx` (Ekene-1 kit fixture: every-sample Eaton is flagged, shale-sample
 pressures are not, the negative control; a 2,000 m well opens with the readout at 2,000 m).
+## 2026-10-14: the calibration fit goes through the shown prognosis
+
+Found in the Pore Pressure Studio video dry run on a copy of Ekene-1: with pressures from shale samples on,
+Fit n to calibration on the kit's eight Ekene-1 MDT pretests returned n 0.200 "at the search bound" and the
+misfit went from 1.18 MPa to 5.80 MPa. The pretests sit in the Ekene Sand: the engine fit evaluated Eaton at
+the sand samples (fast sonic, ratio under 1), while the pore pressure the app shows there is carried from the
+shales. Now (`services/calibrate.js`, `fitsThroughPrognosis`): when the shown prognosis differs from the
+per-sample method (shale samples, interpreted line, sonic median), Eaton n (sonic or resistivity) and Bowers U
+are searched on `computePrognosis` itself (the engine's `minimise1d`, n 0.2 to 6, U 1 to 12); Bowers A and B
+read each point's nearest shale sample; every-sample mode keeps the exact engine fit. A fit that would raise
+the shown misfit is not applied and the status line says so. Tests: `__tests__/fitThroughPrognosis.test.js`
+(negative control: the per-sample fit on the sand samples hits its bound and more than doubles the misfit;
+the new fit lowers it below 0.2 MPa and puts 1,560 m within 0.25 ppg of the kit's 12.02 ppg; the guard).
+## 2026-10-14: the running median slides
+
+The running median behind the sonic median and the interpreted line sorted every window afresh: on a
+14,370-sample log with a 300 ft window about 1.4 s per prognosis, and a calibration fit (dozens of prognoses)
+froze the page for tens of seconds with a 500 ft line. It now slides a sorted window down the log (binary
+insert and remove): the same values, about 30 ms. Tests: `__tests__/runningMedianFast.test.js` (identical to a
+sort per sample on gaps, nulls, ties and float32 depths; the old implementation fails the timing gate).

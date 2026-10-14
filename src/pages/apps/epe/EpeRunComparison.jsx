@@ -481,7 +481,7 @@ const EpeRunComparison = () => {
                   The with-project view: what the second run adds over the base run, year by year from
                   {' '}{incremental.rows[0]?.year}. Deltas are discounted as the engine discounts a run: at the base run's applied rate
                   {typeof incremental.ratePct === 'number' ? ` (${incremental.ratePct.toFixed(2)}%)` : ''}
-                  {incremental.valuationYear != null ? `, valued at ${incremental.valuationYear}` : ''}
+                  {incremental.valuationYear != null ? `, valued at 31 Dec ${incremental.valuationYear}` : ''}
                   {incremental.convention === 'mid_year' ? ' with mid-year discounting' : ' with end-year discounting'}, sunk years left out.
                 </p>
                 {incremental.shareMismatch && (

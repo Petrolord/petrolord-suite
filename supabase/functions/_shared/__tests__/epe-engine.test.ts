@@ -722,10 +722,12 @@ describe('EPE engine v3.6: discounting convention and valuation date (Wave B 2.3
     opexRows: [{ year: 2030, total_opex_usd: 10_000_000 }, { year: 2031, total_opex_usd: 10_000_000 }],
   };
 
-  it('mid-year discounting shifts every exponent by exactly half a year', () => {
+  it('mid-year discounting moves every cash flow half a year earlier than year end (engine 3.12.3, owner option A)', () => {
+    // Valued at 31 December of the valuation year: mid-year cash arrives half a
+    // year before each year end, so every factor is the end-year factor x (1+r)^0.5.
     const end = computeCashFlow({ cfg, ...input });
     const mid = computeCashFlow({ cfg: { ...cfg, discounting_convention: 'mid_year' }, ...input });
-    expect(mid.kpis.npv).toBeCloseTo(end.kpis.npv / Math.sqrt(1.1), 2);
+    expect(mid.kpis.npv).toBeCloseTo(end.kpis.npv * Math.sqrt(1.1), 2);
     expect(mid.kpis.discounting_convention).toBe('mid_year');
     expect(end.kpis.discounting_convention).toBe('end_year');
   });

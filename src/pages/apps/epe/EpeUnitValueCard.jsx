@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { buildLabel } from '@/lib/platformBuild';
 import { buildEpeUnitValue, epePriceDeckLine, epeDiscountLine } from './epeUnitValue';
+import { valuationYearOf } from './epeValuation';
 
 export const RRV_ROUTE = '/dashboard/apps/reservoir/risked-reserves-valuation';
 const n = (v, d = 2) => Number(v).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -35,7 +36,7 @@ export default function EpeUnitValueCard({ run, results, config = null }) {
             <div><dt className="text-pl-muted">Present value of capex</dt><dd className="font-pl-mono tabular-nums text-pl-text" data-testid="epe-unit-value-d">{c.split ? `${n(c.pvCapexMM, 1)} USD MM` : 'not recorded with this run'}</dd></div>
           </dl>
           <p className="mt-2 text-xs text-pl-muted">
-            NPV {n(c.npvMM, 1)} USD MM over {n(c.totalMMboe, 2)} MMboe at {epeDiscountLine(c)}; price deck {epePriceDeckLine(c)}. A prospect valuation reads value = value per barrel x volume, less the capex, so at this run&apos;s own volume it gives this run&apos;s NPV. The run, its price deck, discount rate, date and engine build travel with the value.
+            NPV {n(c.npvMM, 1)} USD MM over {n(c.totalMMboe, 2)} MMboe at {epeDiscountLine(c, { valuationYear: valuationYearOf(results?.kpis, config) })}; price deck {epePriceDeckLine(c)}. A prospect valuation reads value = value per barrel x volume, less the capex, so at this run&apos;s own volume it gives this run&apos;s NPV. The run, its price deck, discount rate, date and engine build travel with the value.
           </p>
           <Link to={`${RRV_ROUTE}?epeRun=${encodeURIComponent(run.id)}`} data-testid="epe-unit-value-send"
             className="mt-2 inline-flex items-center gap-1 rounded border border-pl-border px-2.5 py-1 text-xs text-pl-text hover:bg-pl-sunken">
