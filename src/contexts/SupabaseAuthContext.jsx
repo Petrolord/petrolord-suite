@@ -8,6 +8,17 @@ const AuthContext = createContext(undefined);
 // Exported for dev-only harnesses that stand in a signed-in user (src/dev).
 export { AuthContext };
 
+// Platform super admin, as the database decides it (public.is_super_admin()
+// reads the service-role-only public.platform_admins table). Fails closed.
+export async function fetchIsPlatformAdmin() {
+  try {
+    const { data, error } = await supabase.rpc('is_super_admin');
+    return !error && data === true;
+  } catch {
+    return false;
+  }
+}
+
 // Internal Auth Provider Content that uses Impersonation
 const AuthProviderContent = ({ children }) => {
   const { toast } = useToast();
@@ -147,12 +158,12 @@ const AuthProviderContent = ({ children }) => {
       
       if (currentUser) {
         try {
-          // Check Super Admin Status
-          const userMetadata = currentUser.user_metadata || {};
-          const rawIsSuperAdmin = userMetadata.is_super_admin === true;
-          const hardcodedSuperAdminEmails = ['info@petrolord.com','ayoasaolu@gmail.com','ayodejiasaolu1@gmail.com', 'support@petrolord.com'];
-          const isHardcodedSuperAdmin = hardcodedSuperAdminEmails.includes(currentUser.email);
-          const finalIsSuperAdmin = rawIsSuperAdmin || isHardcodedSuperAdmin;
+          // Check Super Admin Status. Security fix 2026-09-19: the server
+          // decides (public.is_super_admin() reads public.platform_admins).
+          // user_metadata.is_super_admin is user-settable with
+          // auth.updateUser({ data }) and used to unlock every app and the
+          // admin consoles here. Any error answers "not an admin".
+          const finalIsSuperAdmin = await fetchIsPlatformAdmin();
           
           setIsSuperAdmin(finalIsSuperAdmin);
           console.log(`AuthContext: isSuperAdmin = ${finalIsSuperAdmin}`);
