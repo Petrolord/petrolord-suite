@@ -12,7 +12,7 @@ import {
   CartesianGrid, Tooltip, Legend, ReferenceLine,
 } from 'recharts';
 import { KG_M3_PER_PPG } from '@/lib/ppfgUnits';
-import { casingSeatsOnWindow, DEFAULT_TRIP_PPG, DEFAULT_KICK_PPG } from '../services/ppfg';
+import { casingSeatsOnWindow, tightestWindowBelow, DEFAULT_TRIP_PPG, DEFAULT_KICK_PPG, SEATS_BELOW_TOP_M } from '../services/ppfg';
 import { lineAt } from '../../PorePressureStudio/engine/casingSeats';
 import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE, GRID_STYLE } from '@/utils/chartTheme';
 import ChartLogo from '@/components/charts/ChartLogo';
@@ -24,9 +24,8 @@ const axisProps = {
 
 const FT = 0.3048;
 const G = 9.80665;
-// the conductor section, where PP and FG converge on the seawater gradient,
-// is left out of the seat selection (the Pore Pressure Studio convention)
-export const SEATS_BELOW_TOP_M = 300;
+// the conductor section is left out of the seat selection (services/ppfg)
+export { SEATS_BELOW_TOP_M };
 const MODES = {
   ppg: { pp: 'ppPpg', fp: 'fpPpg', obg: 'obgPpg', unit: 'ppg EMW', digits: 2, label: 'ppg' },
   emw: { pp: 'ppEmw', fp: 'fpEmw', obg: 'obgEmw', unit: 'g/cc EMW', digits: 2, label: 'g/cc' },
@@ -46,6 +45,8 @@ const MudWindowPanel = ({ rows = [], summary = null, sourceLabel = '', note = nu
   const fromTvd = rows.length ? Math.min(...rows.map((r) => r.tvd)) + SEATS_BELOW_TOP_M : 0;
   const seats = useMemo(() => (marginsOk ? casingSeatsOnWindow(rows, { tripPpg, kickPpg, fromTvdM: fromTvd }) : null),
     [rows, tripPpg, kickPpg, fromTvd, marginsOk]);
+  // 2026-10-14: the summary's tightest window in the panel's unit, below the seats' top cut-off
+  const tight = useMemo(() => tightestWindowBelow(rows, { fromTvdM: fromTvd }), [rows, fromTvd]);
   const fromPpg = (ppg, tvd) => (mode === 'ppg' ? ppg : mode === 'emw' ? (ppg * KG_M3_PER_PPG) / 1000 : (ppg * KG_M3_PER_PPG * G * tvd) / 1e6);
   const sd = seats && !seats.error ? seats : null;
 
@@ -79,8 +80,11 @@ const MudWindowPanel = ({ rows = [], summary = null, sourceLabel = '', note = nu
       {note && <div className="px-3 text-[9px] text-amber-700" data-testid="mud-window-note">{note}</div>}
       {summary && (
         <div className="px-3 text-[9px] text-slate-500" data-testid="mud-window-summary">
-          TVD {dz(summary.fromTvd).toFixed(0)} to {dz(summary.toTvd).toFixed(0)} {depthUnit};
-          tightest window {summary.tightest.windowMpa.toFixed(2)} MPa at {dz(summary.tightest.tvd).toFixed(0)} {depthUnit}
+          TVD {dz(summary.fromTvd).toFixed(0)} to {dz(summary.toTvd).toFixed(0)} {depthUnit}
+          {tight && (
+            <>; tightest window {(mode === 'ppg' ? tight.ppg : mode === 'emw' ? tight.gcc : tight.mpa)?.toFixed(keys.digits === 0 ? 1 : 2)} {keys.unit} at
+              TVD {Math.round(dz(tight.tvd)).toLocaleString('en-GB')} {depthUnit} (below the top {dz(SEATS_BELOW_TOP_M).toFixed(0)} {depthUnit})</>
+          )}
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2 px-3 text-[9px] text-slate-600" data-testid="mud-window-margins">

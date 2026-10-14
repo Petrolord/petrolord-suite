@@ -297,10 +297,21 @@ freshness says whether that source has changed since.
   changed source, until refreshed or kept).
 - Adopted by ReservoirCalc Pro (zone averages, footprint area, registry
   surfaces, boundary AOIs) and Well Design Studio (targets from a top or a
-  surface). The app-to-app intakes (pvt-1, kr-1, rf-1, mbal-1, wta-1,
+  surface; since 2026-10-14 the published prognosis behind the mud window). The app-to-app intakes (pvt-1, kr-1, rf-1, mbal-1, wta-1,
   eor-screen-1) keep their own content checks ("source changed since") in
   the intake cards; they compare the contract block itself and need no
   registry stamp.
+- 2026-10-14: kind `ppfg_prognosis` (published pore pressure prognosis),
+  adopted by Well Design Studio's mud window: a design records the PP/FP/OBG
+  publish it was reviewed against (`well-planning/services/ppfgSource.js`,
+  stored in `wp_designs.tie_on.sources.ppfg`, no schema change). The
+  fingerprint covers which curve rows are published (a republish writes new
+  rows) and their pipeline; what the design saw (casing seats, tightest
+  window, highest pore pressure) rides in the reference's `seen`, outside the
+  fingerprint, and the notice's "What moved" compares it with the same
+  summary on the prognosis published now. Tests:
+  `well-planning/__tests__/ppfgSourceChanged.test.jsx` (13; without log ids
+  in the snapshot 6 fail).
 - Tests: `src/lib/sourceFreshness/__tests__/model.test.js` (12),
   `ReservoirCalcPro/__tests__/sourceFreshness.test.jsx` (5),
   `well-planning/__tests__/targetSourceFreshness.test.jsx` (4), e2e

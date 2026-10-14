@@ -32,3 +32,17 @@ test('metre wellbore: g/cc first; no em dash in the copy', () => {
   expect(screen.getByTestId('mud-window-summary')).toHaveTextContent('TVD 1000 to 2000 m');
   expect(container.textContent).not.toMatch(/[—–]/);
 });
+
+test('the summary gives the tightest window in the panel unit, below the seats\' top cut-off', () => {
+  const r = [
+    { md: 75, tvd: 75, ppMpa: 0.66, fpMpa: 0.71, obgMpa: 1.2, ppEmw: 1.03, fpEmw: 1.036, obgEmw: 1.6, ppPpg: 8.6, fpPpg: 8.65, obgPpg: 13.3, windowMpa: 0.05 },
+    { md: 600, tvd: 600, ppMpa: 6.1, fpMpa: 8.5, obgMpa: 12, ppEmw: 1.042, fpEmw: 1.438, obgEmw: 2.0, ppPpg: 8.7, fpPpg: 12.0, obgPpg: 16.7, windowMpa: 2.4 },
+    { md: 1400, tvd: 1400, ppMpa: 21.4, fpMpa: 22.7, obgMpa: 29, ppEmw: 1.558, fpEmw: 1.654, obgEmw: 2.1, ppPpg: 13.0, fpPpg: 13.8, obgPpg: 17.6, windowMpa: 1.3 },
+  ];
+  const s = { fromTvd: 75, toTvd: 1400, tightest: { tvd: 75, windowMpa: 0.05 } };
+  const { unmount } = render(<MudWindowPanel rows={r} summary={s} depthUnit="ft" />);
+  expect(screen.getByTestId('mud-window-summary').textContent.replace(/\s+/g, ' ')).toBe('TVD 246 to 4593 ft; tightest window 0.80 ppg EMW at TVD 4,593 ft (below the top 984 ft)');
+  unmount();
+  render(<MudWindowPanel rows={r} summary={s} depthUnit="m" />);
+  expect(screen.getByTestId('mud-window-summary').textContent.replace(/\s+/g, ' ')).toBe('TVD 75 to 1400 m; tightest window 0.10 g/cc EMW at TVD 1,400 m (below the top 300 m)');
+});
