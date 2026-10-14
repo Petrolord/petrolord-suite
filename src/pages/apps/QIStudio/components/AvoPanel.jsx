@@ -6,6 +6,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as qiService from '@/lib/qiService';
 import { useQIStudio } from '../QIStudioContext';
+import PilotArea, { EMPTY_PILOT, pilotParam, pilotName, pilotFormProblem } from './PilotArea';
 import { ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Label, Legend, ReferenceLine } from 'recharts';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
@@ -44,6 +45,7 @@ export default function AvoPanel() {
   const [vsVp, setVsVp] = useState(0.5);
   const [chi, setChi] = useState(20);
   const [st, setSt] = useState(null);
+  const [pilot, setPilot] = useState(EMPTY_PILOT);
   const stops = useRef([]);
   useEffect(() => () => { for (const s of stops.current) s(); }, []);
   const problem = avoProblem(stacks) || (!Object.values(products).some(Boolean) ? 'Choose at least one product.' : null);
@@ -73,13 +75,14 @@ export default function AvoPanel() {
     const live = stacks.filter((s) => s.volumeId);
     const first = chosenVolumes.find((v) => v.id === live[0].volumeId);
     const keys = Object.keys(products).filter((k) => products[k]);
+    const pp = pilotParam(pilot);
     setSt({ job: { status: 'queued' } });
     const rows = [];
     try {
-      for (const k of keys) rows.push({ k, row: await backend.registerAvoVolume({ volume: first, name: `${first.name} ${AVO_LABELS[k]}`, summary: { product: k, qi_class: 'elastic_estimate' } }) });
+      for (const k of keys) rows.push({ k, row: await backend.registerAvoVolume({ volume: first, name: pilotName(`${first.name} ${AVO_LABELS[k]}`, pilot), summary: { product: k, qi_class: 'elastic_estimate' } }) });
       const ids = Object.fromEntries(rows.map((r) => [r.k, r.row.id]));
-      const jobId = await client.enqueueJob('avo_volumes', { stacks: live.map((s) => ({ volume_id: s.volumeId, angle: Number(s.angle) })), products: ids, vs_vp: Number(vsVp), chi_deg: Number(chi), name: `${first.name} AVO` });
-      const rec = { jobId, volumeIds: ids, name: `${first.name} AVO`, stacks: live.map((s) => ({ volumeId: s.volumeId, name: chosenVolumes.find((v) => v.id === s.volumeId)?.name || s.volumeId, angle: Number(s.angle) })), vsVp: Number(vsVp), chiDeg: Number(chi), at: new Date().toISOString(), status: 'queued' };
+      const jobId = await client.enqueueJob('avo_volumes', { stacks: live.map((s) => ({ volume_id: s.volumeId, angle: Number(s.angle) })), products: ids, vs_vp: Number(vsVp), chi_deg: Number(chi), name: pilotName(`${first.name} AVO`, pilot), ...(pp ? { pilot: pp } : {}) });
+      const rec = { jobId, volumeIds: ids, name: pilotName(`${first.name} AVO`, pilot), ...(pp ? { pilot: pp } : {}), stacks: live.map((s) => ({ volumeId: s.volumeId, name: chosenVolumes.find((v) => v.id === s.volumeId)?.name || s.volumeId, angle: Number(s.angle) })), vsVp: Number(vsVp), chiDeg: Number(chi), at: new Date().toISOString(), status: 'queued' };
       setAvo((cur) => ({ runs: [...(cur.runs || []), rec] }));
       stops.current.push(client.watchJob(jobId, (row, err) => {
         setSt(err ? { error: qiService.friendlyError(err) } : { job: row });
@@ -159,7 +162,8 @@ export default function AvoPanel() {
         </div>
         {problem && <p className="text-pl-warning-text">{problem}</p>}
         <div className="flex items-center gap-2">
-          <button type="button" className={btn} onClick={run} disabled={!canWrite || !!problem || (st?.job && qiService.isActive(st.job))} data-testid="qi-avo-run">Compute the AVO volumes</button>
+          <PilotArea value={pilot} onChange={setPilot} volume={chosenVolumes.find((v) => v.id === stacks.find((x) => x.volumeId)?.volumeId) || null} disabled={!canWrite} testId="qi-avo-pilot" />
+          <button type="button" className={btn} onClick={run} disabled={!canWrite || !!problem || !!pilotFormProblem(pilot) || (st?.job && qiService.isActive(st.job))} data-testid="qi-avo-run">{pilot.on ? 'Compute the AVO volumes in the pilot area' : 'Compute the AVO volumes'}</button>
           {st?.error && <span className="text-pl-danger-text">{st.error}</span>}
           {st?.job?.status === 'failed' && <span className="text-pl-danger-text">{st.job.error_message || 'The AVO job failed.'}</span>}
           {st?.job && qiService.isActive(st.job) && <span className="text-pl-muted">{st.job.status}</span>}

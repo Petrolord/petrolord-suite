@@ -12,7 +12,7 @@ import {
   Database, Layers, Slash, CircleDot, Route, Eye, EyeOff, Loader2, Upload,
   Plus, RefreshCw, ChevronDown, ChevronRight, Pencil, ArrowLeft,
   Rows, Columns, Clock, Settings2, Mountain, Download, Building2, Globe2,
-  Activity, Folder, FolderPlus, History, Spline, Users,
+  Activity, Folder, FolderPlus, History, Spline, Users, Crop,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { OpenInAppSubmenu } from '@/components/wells/OpenInAppMenu';
@@ -27,6 +27,7 @@ import { SURFACE_EXPORT_FORMATS } from '../../services/surfacesService';
 import StorageMeter from '../StorageMeter';
 import WellDrawBadge, { wellRowTitle } from './WellDrawBadge';
 import { isOpenableVolume } from '../../services/importJobs';
+import { cropOf, provenanceLines } from '../../lib/volumeProvenance';
 import {
   horizonColor, faultColor, wellColor, surfaceColor,
 } from './interpretationColors';
@@ -126,6 +127,7 @@ function Row({
 const geometrySummary = (meta) => (meta?.il
   ? `IL ${meta.il.min}–${meta.il.max} · XL ${meta.xl.min}–${meta.xl.max} · `
     + `${meta.ns} samples @ ${meta.dt_us / 1000} ms`
+    + provenanceLines({ survey_meta: meta }).map((l) => `\n${l}`).join('')
   : 'No geometry recorded');
 
 // The active volume's slice-plane children (Petrel-style): one row per
@@ -215,7 +217,14 @@ export default function SeismicExplorer({ tree, actions }) {
                 meta={v.status === 'display_ready' ? 'display copy'
                   : v.status !== 'ready' ? v.status
                     : (depth > 0 && v.attribute_params?.name) || ''}
-                badge={v.organization_id ? (
+                badge={(v.organization_id || cropOf(v) || v.survey_meta?.pilot) ? (
+                  <>
+                    {(cropOf(v) || v.survey_meta?.pilot) && (
+                      <span title={provenanceLines(v).join('\n')} className="shrink-0" data-testid="sl-volume-cropped">
+                        <Crop className="w-3 h-3 text-pl-muted" />
+                      </span>
+                    )}
+                    {v.organization_id ? (
                   <span
                     title={v.is_own === false
                       ? 'Shared by a teammate (read-only)'
@@ -225,6 +234,8 @@ export default function SeismicExplorer({ tree, actions }) {
                     <Building2 className={`w-3 h-3 ${v.is_own === false
                       ? 'text-pl-info-text' : 'text-pl-success-text'}`} />
                   </span>
+                    ) : null}
+                  </>
                 ) : null}
                 selected={v.id === activeVolumeId}
                 onClick={() => isOpenableVolume(v) && actions.selectVolume(v.id)}
