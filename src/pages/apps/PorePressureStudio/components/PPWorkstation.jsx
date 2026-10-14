@@ -83,6 +83,9 @@ export const DEFAULT_PARAMS = {
   ppFromShale: true,
   shaleCutoff: null,
   sonicMedianM: 0,
+  // 2026-10-14: a new project draws the pore pressure as an interpreted line,
+  // the median of the shale-sample pressures over 100 ft (30.48 m)
+  ppLineM: 30.48,
 };
 
 const PP_ID = 'pore-pressure-studio';
@@ -146,7 +149,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         if (!live || !project) return;
         setProjectId(project.id || null);
         // a project saved before the shale-pressure option keeps every-sample pressures
-        if (project.params) setParams((p) => ({ ...p, ...project.params, ppFromShale: project.params.ppFromShale ?? false }));
+        // and one saved before the interpreted line keeps its shale-sample pressures
+        if (project.params) setParams((p) => ({ ...p, ...project.params, ppFromShale: project.params.ppFromShale ?? false, ppLineM: project.params.ppLineM ?? 0 }));
         if (project.picks) setPicks(project.picks);
         if (project.source?.nctFittedFor) setNctFittedFor(project.source.nctFittedFor);
         if (project.source?.resNctFittedFor) setResNctFittedFor(project.source.resNctFittedFor);
