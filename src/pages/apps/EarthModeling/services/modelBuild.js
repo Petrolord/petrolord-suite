@@ -31,6 +31,56 @@ import { isopach } from '@/lib/gridding/isopach';
 /** Registry property keys for the three populated properties. */
 export const PROP_KEYS = { phi: 'phi_avg', sw: 'sw_avg', ntg: 'ntg' };
 
+/**
+ * A published zone's value for one model property (Ekene walk 2026-10-14).
+ * NTG is net RESERVOIR over gross (net_res_tvt_m / gross_tvt_m, the rock
+ * cutoffs only) when Petrophysics published those thicknesses: its `ntg`
+ * key is net PAY over gross, which already holds a water saturation cutoff,
+ * so a model that also cuts the column at the OWC counted the contact twice
+ * (Ekene: wet wells read NTG 0 and the field 2.8 MMstb against the booked
+ * 12.14). ReservoirCalc Pro reads the same net reservoir ratio (#1035).
+ * Porosity and Sw stay the zone's pay averages (null in a well with no pay).
+ * @returns {{v: number|null, basis: 'net reservoir'|'net pay'|null}}
+ */
+export function zonePropertyValue(properties, prop) {
+  const p = properties || {};
+  if (prop === 'ntg') {
+    const g = Number.isFinite(p.gross_tvt_m) && p.gross_tvt_m > 0 ? p.gross_tvt_m : (Number.isFinite(p.gross_m) && p.gross_m > 0 ? p.gross_m : null);
+    const n = Number.isFinite(p.gross_tvt_m) && p.gross_tvt_m > 0 ? p.net_res_tvt_m : p.net_res_m;
+    if (g !== null && Number.isFinite(n)) return { v: Math.min(1, Math.max(0, n / g)), basis: 'net reservoir' };
+    return Number.isFinite(p.ntg) ? { v: p.ntg, basis: 'net pay' } : { v: null, basis: null };
+  }
+  const v = p[PROP_KEYS[prop]];
+  return { v: Number.isFinite(v) ? v : null, basis: null };
+}
+
+/**
+ * Nodes that hold a hydrocarbon column, per block and in total (Ekene walk
+ * 2026-10-14): the area ReservoirCalc Pro reports as HC Area. A node counts
+ * when its zone interval reaches above the deepest hydrocarbon contact at
+ * that node (the zone base when no OWC applies). The OWC is the engine's
+ * shape: a number, {[block]: depth} or one value per node.
+ */
+export function hcCellCounts(top, base, labels, fluids = {}) {
+  const perNode = (c) => c !== null && typeof c === 'object' && (Array.isArray(c) || ArrayBuffer.isView(c));
+  const at = (c, lab, j) => {
+    if (c === null || c === undefined) return null;
+    if (typeof c === 'number') return Number.isFinite(c) ? c : null;
+    const v = perNode(c) ? c[j] : (Object.prototype.hasOwnProperty.call(c, lab) ? c[lab] : null);
+    return Number.isFinite(v) ? v : null;
+  };
+  const out = { total: 0 };
+  for (let j = 0; j < top.length; j++) {
+    const zt = top[j]; const zb = base[j];
+    if (isNull(zt) || isNull(zb)) continue;
+    const lab = String(labels ? labels[j] : 0);
+    const w = at(fluids?.owc ?? null, lab, j);
+    const bottom = w === null ? zb : Math.min(zb, w);
+    if (bottom - zt > 0) { out[lab] = (out[lab] || 0) + 1; out.total += 1; }
+  }
+  return out;
+}
+
 export const DEFAULT_KRIGE = { model: 'spherical', range: 900, sill: 0.0025, nugget: 0.00025, fit: true, detrend: true };
 export const POPULATION_METHODS = Object.freeze([
   { key: 'constant', label: 'constant (weighted mean)' },
@@ -654,11 +704,12 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       }
       const base = zoneControlPoints(eWells, zdef.registryZone);
       const all = [];
+      const bases = new Set();
       for (const cp of base) {
         const well = placed.find((w) => w.name === cp.well);
         const zone = (well?.zones || []).find((z) => z.name === zdef.registryZone);
-        const v = zone?.properties?.[key];
-        if (Number.isFinite(v)) all.push({ x: cp.x, y: cp.y, v, w: cp.w });
+        const { v, basis } = zonePropertyValue(zone?.properties, prop);
+        if (Number.isFinite(v)) { all.push({ x: cp.x, y: cp.y, v, w: cp.w }); if (basis) bases.add(basis); }
         // PETRO-U2-013: a pre-PT9a Studio summary's phi_avg is total porosity
         if (prop === 'phi' && Number.isFinite(v) && isPrePt9aZone(zone.properties)) totalPhi.push({ zone: zdef.name, well: cp.well });
       }
@@ -684,6 +735,11 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       provenance[prop] = definition.methods?.[prop] === 'map'
         ? out.provenance.map((r) => ({ ...r, fellBack: true, note: `no Petrophysics map picked for this zone${r.note ? `; ${r.note}` : ''}` }))
         : out.provenance;
+      if (prop === 'ntg' && bases.size) {
+        const b = [...bases].join(' and ');
+        provenance.ntg = provenance.ntg.map((r) => ({ ...r, note: `${r.note ? `${r.note}; ` : ''}${b} over gross` }));
+        if (bases.has('net pay')) notes.push(`${zdef.name}: NTG from ${bases.has('net reservoir') ? 'some wells' : 'the wells'} is net PAY over gross (the zone summary has no net reservoir thickness), which already cuts water; republish the zone from Petrophysics Studio for net reservoir.`);
+      }
       progress(`${zdef.name}: ${prop === 'phi' ? 'porosity' : prop === 'sw' ? 'Sw' : 'NTG'} populated`);
     }
     if (swMapPending) {
@@ -734,6 +790,16 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
     const volumes = (hasFluids(fluids) || (shmPending && shm?.fwlAsContact))
       ? zoneVolumesWithContacts(specM, top, base, zLabels, props, volFluids)
       : zoneVolumes(specM, zThickness, zLabels, props);
+    // Ekene walk: rock volume and area above the contacts, the numbers RCP prints
+    if (hasFluids(fluids) || (shmPending && shm?.fwlAsContact)) {
+      const hc = hcCellCounts(top, base, zLabels, volFluids || {});
+      const cellM2 = specM.dx * specM.dy;
+      for (const [k, b] of Object.entries(volumes)) {
+        b.hc_bulk_m3 = (b.gas_bulk_m3 || 0) + (b.oil_bulk_m3 || 0);
+        b.hc_cells = hc[k] || 0;
+        b.hc_area_m2 = b.hc_cells * cellM2;
+      }
+    }
     const zone = { name: zdef.name, registryZone: zdef.registryZone, ...(labelsByZone ? { labels: zLabels, census: blockCensus(zLabels) } : {}), thickness: zThickness, props, variance, provenance, volumes, fluids, ...(shm ? { shm } : {}) };
     zone.range = volumeRange(specM, zone, zLabels, volFluids, top, base);
     // U2-010: what a volume distribution needs to re-run this zone's volumes

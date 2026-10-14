@@ -19,7 +19,7 @@ export const VOLUME_UNIT_SETS = Object.freeze({
   field: { key: 'field', label: 'field (acre-ft, MMbbl)', rock: 'acre-ft', pore: 'MMbbl', oil: 'MMstb', gas: 'Bscf' },
 });
 export const VOLUME_COLUMNS = Object.freeze({
-  bulk_m3: 'rock', net_m3: 'rock', pore_m3: 'pore', hcpv_m3: 'pore',
+  bulk_m3: 'rock', net_m3: 'rock', hc_bulk_m3: 'rock', pore_m3: 'pore', hcpv_m3: 'pore',
   // T1 (EM-T1-001): split HCPV and in-place volumes at surface conditions
   oil_hcpv_m3: 'pore', gas_hcpv_m3: 'pore', stoiip_m3: 'oil', giip_m3: 'gas',
 });
@@ -58,6 +58,12 @@ export function volumeUnitLabel(column, units = 'metric') {
   const set = VOLUME_UNIT_SETS[units] || VOLUME_UNIT_SETS.metric;
   return set[VOLUME_COLUMNS[column] || 'rock'];
 }
+
+export const M2_PER_ACRE = 4046.8564224;
+/** An area (m2) for display: acres in field units, km2 in metric. */
+export const areaValue = (m2, units = 'metric') => (Number.isFinite(m2) ? (units === 'field' ? m2 / M2_PER_ACRE : m2 / 1e6) : null);
+export const areaUnitLabel = (units = 'metric') => (units === 'field' ? 'acres' : 'km2');
+export const fmtArea = (m2, units = 'metric') => { const v = areaValue(m2, units); return v === null ? EMPTY_VALUE : v.toFixed(units === 'field' ? 0 : 3); };
 
 /** A depth (metres) in the display unit with `digits`. */
 export const fmtDepth = (m, unit = 'm', digits = 2) => (Number.isFinite(m) ? toDisplay(m, unit).toFixed(digits) : EMPTY_VALUE);

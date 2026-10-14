@@ -207,6 +207,14 @@ export default function EarthModelingHelpGuide() {
           Recovery and full uncertainty stay in ReservoirCalc Pro.
         </Para>
         <Para>
+          With a contact, two more columns give the rock volume above the contacts (HC bulk) and the area that holds a
+          hydrocarbon column (HC area): the GRV and HC Area ReservoirCalc Pro prints. On the same top and base maps,
+          contact and rock properties the two apps give the same volume (the Ekene booked case: 18,058 acre-ft over
+          418 acres, 12.14 MMstb). NTG read from a published Petrophysics zone is net reservoir over gross (the rock
+          cutoffs only), because net pay already cuts the water that the contact cuts again; a zone published without
+          net reservoir thickness falls back to net pay and the Build notes say so.
+        </Para>
+        <Para>
           The build status says what needs attention: wells left out of the ties and properties because they are in
           another CRS than the model or because they state no depth reference elevation (their tops then have no subsea
           depth; set it in Well Data Manager, Header tab), well ties that miss by more than 10 m while adjustment is off,
@@ -287,7 +295,7 @@ export default function EarthModelingHelpGuide() {
           Report PDF is the model report a reviewer signs: field, analyst, date and build, the volumes, the contacts and
           FVFs as used, every flag, provenance, ties and the map. GRDECL downloads the model as an Eclipse corner-point grid
           (one layer per zone) and a SWAT include for Reservoir Simulation Studio; add permeability in the deck. Prospect to
-          RCP opens ReservoirCalc Pro with the zone on the map filled in: area, average column, NTG, porosity, the Sw that
+          RCP opens ReservoirCalc Pro with the zone on the map filled in: the area with a hydrocarbon column, average column, NTG, porosity, the Sw that
           keeps the model&apos;s HCPV, contacts and FVFs.
         </Para>
         <SubHeading>3D properties, fence and isopach</SubHeading>
