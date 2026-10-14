@@ -261,3 +261,69 @@ Typing a model name (before Save) cleared the built model back to the empty
 state, because every definition change marks the build stale. A change of
 name alone now keeps it. e2e: the save test renames after a build and checks
 the map stays (it failed on the old code).
+## 2026-10-14: Ekene walk, stack defaults and feet (video round)
+
+Walked as a modeller building the Ekene static model on the demo account.
+- Tie tops now match surface names such as "Ekene Sand top (6-well map)" and
+  "Ekene Sand base (6-well map)" (`services/stackDefaults.js`). Before, the
+  ties stayed empty and every new zone read the FIRST registry zone of the
+  well list ("Seabed" on Ekene), so NTG came out as 0.014 with no warning. A
+  new zone now reads the zone named after the tie top above it, or none.
+- The first section pair skips wells with no tops (the "PPS demo: Ekene-1" copy).
+- The volume distribution's OWC and GOC spreads are typed in the display depth
+  unit (30 ft by default in a feet session) and converted to metres.
+Tests: `__tests__/stackDefaults.test.js`, `__tests__/distributionUnits.test.js`.
+## 2026-10-14: the kriging range and the volume distribution after a fallback
+
+A property block that falls back from kriging (Ekene: a layer where every
+well reads NTG 1.0) carries the grid's null marker as its variance. The
+fully correlated range and the Monte Carlo distribution shifted those nodes
+by the marker's square root, so they went to 0 or 1: the Ekene walk showed
+STOIIP P90 0 against P50 4.9 MMstb, and a P50 of 6.3 against a deterministic
+10.4. `shiftProps` now leaves a node with no variance where it is.
+Test: `__tests__/varianceFallback.test.js` (negative control fails both).
+
+## 2026-10-14: reconciled with ReservoirCalc Pro (the Ekene booked case)
+
+On the RCP booked case (six-well Ekene Sand top and base, OWC 5,036.1 ft,
+NTG 0.8, porosity 0.2, Sw 0.35, Bo 1.2) the model gives RCP's numbers
+exactly: GRV above the contact 18,058 acre-ft, HC area 418 acres, STOIIP
+12.14 MMstb (`__tests__/reconcileRcp.test.js`, fixture of the live rows).
+- QC, the volumes CSV and the report PDF carry HC bulk (GRV above the
+  contacts) and HC area; the bulk column alone (52,559 acre-ft, the whole
+  zone) could not be compared with RCP.
+- NTG from a published zone is net reservoir over gross (`zonePropertyValue`).
+  It used to be net pay over gross, which holds an Sw cutoff, so with an OWC
+  the water was cut twice: the Ekene model read 2.8 MMstb (wet wells NTG 0).
+- Prospect to RCP sends the HC area (418 acres) with the column over it, so
+  RCP's HC Area matches; it sent the whole zone's 497 acres before.
+
+## 2026-10-14: rock properties from the well logs, layers, IDW, typed values, property QC
+
+- **Rock properties from**: published zone averages (as before) or the well logs
+  upscaled to each layer (`services/logUpscale.js`): PHIE, VSH, SW and
+  permeability as Petrophysics published them; net reservoir by Vsh and PHIE
+  cutoffs; NTG net/gross in TVT; porosity over net; Sw over net above the OWC
+  (pore-volume weighted); permeability geometric mean. On Ekene the four wells
+  now all give porosity and NTG (the zone averages gave two), and NTG at every
+  well equals Petrophysics' published net reservoir over gross to 0.01.
+- **Proportional layers** per zone (1 to 50): each layer populated from its own
+  control, volumes summed layer by layer; map shows a layer or the zone;
+  GRDECL exports one cell layer per layer, with PERMX/PERMY from the logs and
+  PERMZ = 0.1 PERMX (said in the header).
+- **Methods**: inverse distance (power in the dock) and typed value per zone.
+  The booked Ekene case typed gives 12.14 MMstb with 1 or 7 layers.
+- **Property QC** under each zone: the upscaled logs per well and layer, the
+  model against the wells (difference), histograms with the wells marked.
+- Vertical wells with no survey now continue straight down past their last
+  station in the upscaler (positionAtMd clamps at the last station).
+Tests: `__tests__/logLayers.test.js` (analytic wells, deviated TVT weighting,
+Ekene vs Petrophysics NTG with a cutoff negative control, IDW, layers, GRDECL).
+
+## 2026-10-14: section fit, property colours and contacts
+
+The section opens at VE "fit" (the window's height; the Ekene Sand, 106 ft over
+922 m, was a 200 px strip at 2x) with 20x and 50x added; a colour list paints
+the zones by porosity, Sw, NTG or permeability (layers as bands, colour bar);
+each zone's OWC and GOC are drawn dashed where the zone crosses them; the line
+length reads in feet in a feet session. Tests: `__tests__/sectionFit.test.js`.

@@ -24,7 +24,7 @@ export default function ModelExplorer({
   const stackRows = definition.surfaceIds.map((id) => surfaces.find((s) => s.id === id)).filter(Boolean);
 
   return (
-    <ScrollArea className="h-full min-h-0 bg-pl-surface border-r border-pl-border">
+    <ScrollArea className="h-full min-h-0 bg-pl-surface border-r border-pl-border [&_[data-radix-scroll-area-viewport]>div]:!block">
       <div className="pb-3" data-testid="em-explorer">
         <div className={secCls}>Model stack (shallow → deep)</div>
         {!stackRows.length && <p className="px-2 text-[11px] text-pl-muted">Add registry surfaces below.</p>}

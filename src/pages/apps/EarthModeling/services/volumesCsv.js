@@ -2,7 +2,7 @@
 // per-block volume tables as CSV in the chosen display units, with the
 // population provenance and the model frame in a header. Pure.
 
-import { volumeValue, volumeUnitLabel } from './units';
+import { volumeValue, volumeUnitLabel, areaValue, areaUnitLabel } from './units';
 import { describeProvenance } from './propertyKriging';
 import { buildLabel } from '@/lib/platformBuild';
 import { describeTraps } from './trapBound';
@@ -47,15 +47,16 @@ export function volumesCsv(built, { name = 'earth-model', volumeUnits = 'metric'
   // T1: split and in-place columns join when any zone carries contacts or FVFs
   const split = built.zones.some((z) => z.volumes?.total && 'oil_hcpv_m3' in z.volumes.total);
   const inPlace = built.zones.some((z) => Number.isFinite(z.volumes?.total?.stoiip_m3) || Number.isFinite(z.volumes?.total?.giip_m3));
-  const cols = ['bulk_m3', 'net_m3', 'pore_m3', 'hcpv_m3', ...(split ? ['gas_hcpv_m3', 'oil_hcpv_m3'] : []), ...(inPlace ? ['stoiip_m3', 'giip_m3'] : [])];
+  const hcCols = built.zones.some((z) => z.volumes?.total && 'hc_bulk_m3' in z.volumes.total);
+  const cols = ['bulk_m3', ...(hcCols ? ['hc_bulk_m3'] : []), 'net_m3', 'pore_m3', 'hcpv_m3', ...(split ? ['gas_hcpv_m3', 'oil_hcpv_m3'] : []), ...(inPlace ? ['stoiip_m3', 'giip_m3'] : [])];
   const frameM = built.specM || built.spec;
-  const head = ['zone', 'registry_zone', 'block', 'cells', ...cols.map((c) => `${c.replace('_m3', '')} (${volumeUnitLabel(c, volumeUnits)})`)];
+  const head = ['zone', 'registry_zone', 'block', 'cells', ...cols.map((c) => `${c.replace('_m3', '')} (${volumeUnitLabel(c, volumeUnits)})`), ...(hcCols ? [`hc_area (${areaUnitLabel(volumeUnits)})`] : [])];
   const lines = [
     `# ${name}: volumes per zone and fault block`,
     `# frame ${built.spec.nx} x ${built.spec.ny} at ${cell(frameM.dx)} x ${cell(frameM.dy)} m${built.boundary ? `, clipped to ${built.boundary.name}` : ''}${built.crs ? `, CRS ${built.crs}` : ''}`,
     `# units ${volumeUnits}; rock volume in ${volumeUnitLabel('bulk_m3', volumeUnits)}, pore volume in ${volumeUnitLabel('pore_m3', volumeUnits)}`,
     `# field ${String(report?.field || '').trim() || 'not given'}; analyst ${String(report?.analyst || '').trim() || 'not given'}; date ${now.toISOString().slice(0, 10)}; ${build}`,
-    `# depth TVDSS in metres below mean sea level, positive down; XY unit ${built.xyUnit || 'm'}${built.crs ? '' : ' (no CRS recorded)'}; bulk = GRV, net = NRV, pore = NRV x porosity, hcpv = pore x (1 - Sw) above the contact`,
+    `# depth TVDSS in metres below mean sea level, positive down; XY unit ${built.xyUnit || 'm'}${built.crs ? '' : ' (no CRS recorded)'}; bulk = GRV, net = NRV, pore = NRV x porosity, hcpv = pore x (1 - Sw) above the contact; hc_bulk = GRV above the contacts, hc_area = area with a hydrocarbon column`,
     ...built.zones.map((z) => `# ${z.name} fluids: ${fluidText(z)}`),
     head.map(q).join(','),
   ];
@@ -64,7 +65,8 @@ export function volumesCsv(built, { name = 'earth-model', volumeUnits = 'metric'
     for (const k of keys) {
       const v = z.volumes[k];
       lines.push([z.name, z.registryZone || '', k === 'total' ? 'TOTAL' : `Block ${k}`, v.cells,
-        ...cols.map((c) => { const x = volumeValue(v[c], c, volumeUnits); return x === null ? '' : x.toFixed(4); })].map(q).join(','));
+        ...cols.map((c) => { const x = volumeValue(v[c], c, volumeUnits); return x === null ? '' : x.toFixed(4); }),
+        ...(hcCols ? [(() => { const a = areaValue(v.hc_area_m2, volumeUnits); return a === null ? '' : a.toFixed(4); })()] : [])].map(q).join(','));
     }
   }
   lines.push('');

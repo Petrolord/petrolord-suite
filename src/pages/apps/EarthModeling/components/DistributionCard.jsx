@@ -12,15 +12,29 @@ const th = 'px-2 py-1 text-left text-[10px] uppercase tracking-wider text-pl-mut
 const td = 'px-2 py-1 text-xs text-pl-text whitespace-nowrap';
 const LABEL = { hcpv_m3: 'HCPV', stoiip_m3: 'STOIIP', giip_m3: 'GIIP (free gas)' };
 
-export default function DistributionCard({ built, volumeUnits = 'metric', onResult }) {
-  const [cfg, setCfg] = useState({ owcPlusMinusM: '10', gocPlusMinusM: '', boPct: '5', bgPct: '5', properties: true, rhoPhiSw: '-0.5', iterations: '500', seed: '1' });
+// The contact spreads are typed in the display depth unit (a feet session
+// types feet) and reach the sampler in metres.
+const FT = 0.3048;
+export const spreadToM = (v, unit) => {
+  if (v === undefined || v === null || String(v).trim() === '') return '';
+  const x = Number(v);
+  return Number.isFinite(x) ? (unit === 'ft' ? x * FT : x) : v;
+};
+
+export default function DistributionCard({ built, volumeUnits = 'metric', depthUnit = 'm', onResult }) {
+  const [cfg, setCfg] = useState(() => ({ owcPlusMinus: depthUnit === 'ft' ? '30' : '10', gocPlusMinus: '', boPct: '5', bgPct: '5', properties: true, rhoPhiSw: '-0.5', iterations: '500', seed: '1' }));
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
   const set = (k) => (e) => setCfg((c) => ({ ...c, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
   const run = async () => {
     setError(null); setBusy({ fraction: 0 });
     try {
-      const d = await runVolumeDistribution(built, cfg, { onProgress: (p) => setBusy(p) });
+      const { owcPlusMinus, gocPlusMinus, ...rest } = cfg;
+      const d = await runVolumeDistribution(built, {
+        ...rest,
+        owcPlusMinusM: spreadToM(owcPlusMinus, depthUnit),
+        gocPlusMinusM: spreadToM(gocPlusMinus, depthUnit),
+      }, { onProgress: (p) => setBusy(p) });
       onResult?.(d);
     } catch (e) { setError(e.message); } finally { setBusy(null); }
   };
@@ -29,8 +43,8 @@ export default function DistributionCard({ built, volumeUnits = 'metric', onResu
     <div className="rounded border border-pl-border bg-pl-surface" data-testid="em-dist">
       <div className="px-2 py-1.5 text-xs font-semibold text-pl-text border-b border-pl-border">Volume distribution (Monte Carlo, the Suite's canonical sampler)</div>
       <div className="p-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-pl-muted">
-        <label className="flex items-center gap-1" title="Triangular, centred on each contact; all blocks move together">OWC ± m <input className={inCls} data-testid="em-dist-owc" value={cfg.owcPlusMinusM} onChange={set('owcPlusMinusM')} /></label>
-        <label className="flex items-center gap-1">GOC ± m <input className={inCls} data-testid="em-dist-goc" value={cfg.gocPlusMinusM} onChange={set('gocPlusMinusM')} /></label>
+        <label className="flex items-center gap-1" title="Triangular, centred on each contact; all blocks move together">OWC ± {depthUnit} <input className={inCls} data-testid="em-dist-owc" value={cfg.owcPlusMinus} onChange={set('owcPlusMinus')} /></label>
+        <label className="flex items-center gap-1">GOC ± {depthUnit} <input className={inCls} data-testid="em-dist-goc" value={cfg.gocPlusMinus} onChange={set('gocPlusMinus')} /></label>
         <label className="flex items-center gap-1">Bo ± % <input className={inCls} data-testid="em-dist-bo" value={cfg.boPct} onChange={set('boPct')} /></label>
         <label className="flex items-center gap-1">Bg ± % <input className={inCls} data-testid="em-dist-bg" value={cfg.bgPct} onChange={set('bgPct')} /></label>
         <label className="flex items-center gap-1" title="Shift each kriged property by a standard normal number of kriging standard deviations per trial">

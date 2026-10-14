@@ -12,7 +12,8 @@
 // The simple method computes GRV = area x thickness and HCPV = GRV x NTG x
 // phi x (1 - Sw). The handoff chooses those inputs so the model's numbers
 // come back exactly:
-//   area      the zone's mapped area (live cells x cell area)
+//   area      the area with a hydrocarbon column (hcAreaM2, the model's
+//             HC area; the zone's mapped area for payloads without it)
 //   thickness GRV of the hydrocarbon legs / area (an average column)
 //   NTG       NRV / GRV of the zone, phi = PV / NRV
 //   Sw        1 - HCPV / (PV x hydrocarbon fraction of the GRV), the
@@ -57,6 +58,8 @@ export function buildEarthModelProspect(built, { name = 'Earth model', wells = [
       registryZone: z.registryZone || '',
       cells: t.cells || 0,
       areaM2: (t.cells || 0) * cellM2,
+      // Ekene walk 2026-10-14: RCP's HC Area is the area with a column
+      hcAreaM2: Number.isFinite(t.hc_area_m2) && t.hc_area_m2 > 0 ? t.hc_area_m2 : null,
       volumes: Object.fromEntries(['bulk_m3', 'net_m3', 'pore_m3', 'hcpv_m3', 'gas_bulk_m3', 'oil_bulk_m3', 'gas_hcpv_m3', 'oil_hcpv_m3', 'stoiip_m3', 'giip_m3'].map((k) => [k, num(t[k])])),
       fluids: { goc_m: num(f.goc), owc_m: num(f.owc) ?? (z.shm?.fwlAsContact ? z.shm.fwlM : null), bo: num(f.bo), bg_rm3_sm3: num(f.bg), blocks: f.blocks || null },
       flags,
@@ -97,9 +100,10 @@ export function prospectZoneToRcpInputs(payload, zoneIndex = 0, unitSystem = 'fi
   const oil = hasSplit ? (v.oil_bulk_m3 || 0) : grvHc;
   const fluidType = gas > 0 && oil > 0 ? 'oil_gas' : gas > 0 ? 'gas' : 'oil';
   const metric = unitSystem === 'metric';
-  const thicknessM = grvHc / z.areaM2;
+  const areaM2 = Number.isFinite(z.hcAreaM2) && z.hcAreaM2 > 0 ? z.hcAreaM2 : z.areaM2;
+  const thicknessM = grvHc / areaM2;
   const inputs = {
-    area: metric ? z.areaM2 / 1e6 : z.areaM2 / M2_PER_ACRE,
+    area: metric ? areaM2 / 1e6 : areaM2 / M2_PER_ACRE,
     thickness: metric ? thicknessM : thicknessM / M_PER_FT,
     ntg, porosity: phi, sw,
     fluidType,
@@ -112,7 +116,9 @@ export function prospectZoneToRcpInputs(payload, zoneIndex = 0, unitSystem = 'fi
   };
   const notes = [
     `From Earth Modeling: ${payload.model.name}, ${z.name}${payload.report?.field ? `, field ${payload.report.field}` : ''} (${payload.createdAt.slice(0, 10)}).`,
-    `Area is the zone's mapped area; thickness is the average hydrocarbon column (GRV of the legs / area), so GRV matches the model.`,
+    areaM2 === z.areaM2
+      ? `Area is the zone's mapped area; thickness is the average hydrocarbon column (GRV of the legs / area), so GRV matches the model.`
+      : `Area is the area with a hydrocarbon column in the model; thickness is the average column there (GRV of the legs / area), so GRV matches the model.`,
     `Sw ${sw.toFixed(4)} is the saturation that keeps the model's HCPV (pore volume weighted over the hydrocarbon legs).`,
     ...(fluidType === 'oil_gas' ? ['With a gas cap, oil and gas share these averages; the model splits them node by node, so the split here is approximate.'] : []),
     ...(payload.wells?.length ? [`Wells used: ${payload.wells.join(', ')}.`] : []),
