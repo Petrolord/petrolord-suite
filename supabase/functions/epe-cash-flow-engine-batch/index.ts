@@ -22,6 +22,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { callerCanSeeRow, getCaller } from '../_shared/platform-admin.ts';
+import { readJsonObject, requireIds, errorResponse } from '../_shared/epe-request.ts';
 import { computeCashFlow, extractAnnualCapex, extractAnnualOpex, extractAnnualVolumes, parsePriceDeck, isVolumeColumn } from '../_shared/epe-engine.ts';
 
 const corsHeaders = {
@@ -136,7 +137,11 @@ Deno.serve(async (req) => {
     if (!SUPABASE_URL || !SERVICE_ROLE_KEY) throw new Error('Missing Supabase environment configuration.');
     supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-    const { run_id, base_run_config_id, sensitivity_run_id, sweep_options } = await req.json();
+    const body = await readJsonObject(req);
+    requireIds(body, ['run_id', 'base_run_config_id', 'sensitivity_run_id']);
+    const { run_id, base_run_config_id, sensitivity_run_id, sweep_options } = body as {
+      run_id: string; base_run_config_id: string; sensitivity_run_id: string; sweep_options?: any;
+    };
     // Wave C: user-set ranges. Global factor overrides apply to every
     // multiplicative sweep; per-variable overrides win over the globals.
     const globalLow = Number(sweep_options?.factor_low);
@@ -153,9 +158,6 @@ Deno.serve(async (req) => {
       high = Math.max(Math.min(high, 5), 1);
       return { low, high };
     };
-    if (!run_id || !base_run_config_id || !sensitivity_run_id) {
-      throw new Error('Missing run_id, base_run_config_id, or sensitivity_run_id.');
-    }
     // Security fix 2026-10-14: the caller must be signed in and able to see
     // both the run and the sensitivity run under row-level security. The
     // engine reads and writes with the service role, so without this anyone
@@ -430,9 +432,7 @@ Deno.serve(async (req) => {
       } catch (_) { /* swallow */ }
     }
 
-    return new Response(
-      JSON.stringify({ error: err?.message || 'Batch engine failed.', stack: err?.stack }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    // 400 for a malformed request, 500 otherwise; the stack stays in the log
+    return errorResponse(err, corsHeaders, 'Batch engine failed.');
   }
 });
