@@ -2,8 +2,8 @@
 //
 // Layers, first match wins, per family:
 //   1. user          the user's own setting ("your setting")
-//   2. project       RESERVED for the Suite Project (after NAPE); sits
-//                    between the organisation and the user; always empty today
+//   2. project       the current Suite Project's unit profile (P2, 2026-10-14); sits
+//                    between the organisation and the user
 //   3. organization  the organisation default ("organisation default")
 //   4. legacy        geoscience_settings.depth_unit, depth family only
 //                    ("your earlier depth setting")

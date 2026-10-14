@@ -14,6 +14,7 @@
 // (stacks balanced against each other); A, B and the fluid factor then
 // carry that scale too.
 import { JobFailure } from '../runJob.js';
+import { pilotProblem, pilotOn, pilotBytes } from '../pilot.js';
 import { seismicQuota, overQuotaMessage } from '../quota.js';
 import { fitShuey, contrastsFromAB, chiProjection } from '../../../../packages/engines/engines/qi/avo.js';
 import { assertFloat32Parent, derivedStorageBytes, derivedSurveyMeta } from '../../../../src/pages/apps/Seismolord/services/attributeSurveyMeta.js';
@@ -63,7 +64,7 @@ export function avoSample(angles, amps, { vsVp, chiDeg }) {
 
 export async function avoVolumes(ctx, deps) {
   const p = ctx.params || {};
-  const problem = validateAvoParams(p);
+  const problem = validateAvoParams(p) || pilotProblem(p.pilot);
   if (problem) throw new JobFailure('validate_failed', problem);
   const uid = ctx.job.user_id;
   const { admin } = deps;
@@ -113,7 +114,9 @@ export async function avoVolumes(ctx, deps) {
     manifests.push(m);
   }
   if (!manifests.every((m) => sameLattice(m, manifests[0]))) return fail('validate_failed', 'The stacks are not on one lattice (inlines, crosslines, samples and interval must match).');
-  const need = derivedStorageBytes(manifests[0]) * derived.length;
+  let pilot = null;
+  try { pilot = pilotOn(p.pilot, manifests[0]); } catch (e) { return fail('validate_failed', e.message); }
+  const need = (pilot ? pilotBytes(pilot.record, manifests[0]) : derivedStorageBytes(manifests[0])) * derived.length;
   const q = await seismicQuota(admin, uid);
   if (q.used + need > q.quota) return fail('over_quota', overQuotaMessage('The AVO volumes', need, q));
 
@@ -163,7 +166,7 @@ export async function avoVolumes(ctx, deps) {
   let result;
   try {
     result = await runVolumeJob({
-      geom, compute, fetchBrick, onBrick, outputs: derived.length,
+      geom, compute, fetchBrick, onBrick, outputs: derived.length, window: pilot?.window || null,
       shouldCancel: () => ctx.cancelled,
       onProgress: (done, total) => ctx.progress(0.95 * (total ? done / total : 0), 'Fitting AVO'),
     });
@@ -181,12 +184,13 @@ export async function avoVolumes(ctx, deps) {
       const params = { qi_class: 'elastic_estimate', product: keys[o], product_label: AVO_PRODUCTS[keys[o]], stacks: stacks.map((s) => ({ volume_id: s.row.id, name: s.row.name, angle: s.angle })), vs_vp: vsVp, ...(keys[o] === 'chi' ? { chi_deg: chiDeg } : {}), method: 'Shuey two-term least squares' };
       const job = derived.length > 1 ? { ...result, stats: result.statsByOutput[o] } : result;
       const out = buildDerivedManifest({ volumeId: d.id, name: d.name, parentManifest: manifests[0], attribute: { name: AVO_ATTRIBUTE, params }, job });
+      if (pilot) out.pilot = pilot.record;
       await deps.storage.upload(manifestPath(uid, d.id), new TextEncoder().encode(JSON.stringify(out, null, 1)), { contentType: 'application/json', upsert: true });
       const { error } = await admin.from('seismic_volumes').update({ status: 'ready', survey_meta: derivedSurveyMeta(out, parent.id), updated_at: new Date().toISOString() }).eq('id', d.id).eq('user_id', uid);
       if (error) throw new Error(`AVO computed but registration failed: ${error.message}`);
     }
     ctx.progress(1, 'Done');
-    return { volume_ids: Object.fromEntries(keys.map((k, o) => [k, derived[o].id])), stacks: stacks.map((s) => ({ volume_id: s.row.id, angle: s.angle })), vs_vp: vsVp, chi_deg: chiDeg, trace_count: result.traceCount };
+    return { volume_ids: Object.fromEntries(keys.map((k, o) => [k, derived[o].id])), stacks: stacks.map((s) => ({ volume_id: s.row.id, angle: s.angle })), vs_vp: vsVp, chi_deg: chiDeg, trace_count: result.traceCount, ...(pilot ? { pilot: pilot.record } : {}) };
   } catch (e) {
     await cleanup();
     throw e;

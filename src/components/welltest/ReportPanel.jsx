@@ -1,6 +1,8 @@
 // Left rail for the Report tab: interpretation notes, exports and result
 // handoffs (WT5): PDF report, project JSON, p*/k/s to Material Balance Studio
 // and k to the Waterflood Design Studio via the navigate-state contract.
+// 2026-10-14: the productivity index (wta-1 productivity) to Nodal Analysis
+// Studio, read there by id.
 import React, { useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Download, FileText, Send, Upload } from 'lucide-react';
@@ -12,6 +14,7 @@ import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { SectionLabel } from './primitives';
 import { wellTestDataFromContract, WTA_PROJECT_PARAM } from '@/lib/wellTestSource';
 import { eorScreeningHref } from '@/lib/eorScreeningLinks';
+import { nodalStudioHref } from '@/utils/nodal/wellTestIntake';
 
 const ReportPanel = () => {
   const ctx = useWellTestStudio();
@@ -86,6 +89,19 @@ const ReportPanel = () => {
     navigate(href);
   };
 
+  // 2026-10-14: Nodal Analysis Studio reads the wta-1 productivity block by
+  // id, so the project is saved first (as for EOR Screening).
+  const productivity = wtaRecord?.productivity || null;
+  const sendToNodal = async () => {
+    const href = nodalStudioHref(currentProjectId, { inHarness: location.pathname.startsWith('/dev/') });
+    if (!href) { addNotification('Save the project first: Nodal Analysis Studio reads it by id.', 'info'); return; }
+    if (manualSave && !(await manualSave())) { addNotification('The project could not be saved first, so Nodal Analysis Studio would read an older record.', 'error'); return; }
+    navigate(href);
+  };
+  const nodalTitle = !currentProjectId
+    ? 'Save the project first: Nodal Analysis Studio reads it by id'
+    : (productivity ? undefined : (wtaRecord?.productivity_withheld || 'No productivity index from this test'));
+
   return (
     <div className="space-y-6">
       <section>
@@ -141,10 +157,22 @@ const ReportPanel = () => {
           >
             <Send className="w-4 h-4 mr-2" /> Send to EOR Screening
           </Button>
+          <Button
+            size="sm" variant="outline" className="w-full"
+            disabled={!productivity || !currentProjectId}
+            title={nodalTitle}
+            onClick={sendToNodal}
+            data-testid="wts-send-nodal"
+          >
+            <Send className="w-4 h-4 mr-2" /> Productivity to Nodal Analysis
+          </Button>
         </div>
         <p className="text-[11px] text-pl-muted mt-2" data-testid="wts-send-note">
           Material Balance Studio receives the pressure for a new case; Waterflood Design Studio receives the permeability; EOR Screening reads the permeability and the average pressure from the saved project. Each value travels with its method{currentProjectId ? ' and the saved project, so the receiver can read it again by id.' : '. Save the project first so the receiver can read the results again after a refresh.'}
           {handoff && ` What is sent: k ${Number(handoff.k_md).toPrecision(3)} md (${handoff.kMethod})${Number.isFinite(pBar) ? `, pressure ${Number(pBar).toFixed(1)} psia (${handoff.contract?.pressure?.p_star_psia != null ? 'extrapolated p*, not corrected to an average pressure' : 'initial pressure as entered'})` : ''}.`}
+          {productivity
+            ? ` Nodal Analysis Studio reads the productivity index: J ${productivity.pi_stbd_psi.toPrecision(3)} STB/D/psi at ${productivity.q_stb_d.toFixed(0)} STB/D, pr ${productivity.pr_psia.toFixed(1)} psia (${productivity.pr_method}), pwf ${productivity.pwf_psia.toFixed(1)} psia${productivity.ideal_pi_stbd_psi != null ? `; with the skin removed J ${productivity.ideal_pi_stbd_psi.toPrecision(3)} STB/D/psi` : ''}.`
+            : (wtaRecord?.productivity_withheld ? ` No productivity index for Nodal Analysis Studio: ${wtaRecord.productivity_withheld}` : '')}
         </p>
       </section>
     </div>

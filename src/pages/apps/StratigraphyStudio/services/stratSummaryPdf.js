@@ -21,7 +21,7 @@ import { latin1 } from '@/pages/apps/WellDataManager/services/wellSheet';
 import { ageDepthModel, sortDated } from '@/lib/stratigraphy/ageDepth';
 import { wheelerChart } from '@/lib/stratigraphy/wheeler';
 import { withSectionTracts, sequenceTracts, tractBelowEach } from '@/lib/stratigraphy/sequenceTracts';
-import { unitAt, TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
+import { unitAt, currentTimescale } from '@/lib/stratigraphy/timescale';
 import { displayLabel, normalizeSurfaceType } from '@/lib/stratigraphy/vocabulary';
 import { orderedUnits } from '@/lib/stratigraphy/column';
 import { verticalDepthOf } from '@/lib/basinHandoff';
@@ -75,7 +75,7 @@ export async function buildStratSummary({ well, tops = [], intervals = [], units
     ['Prepared by', report?.analyst?.trim() || EMPTY_VALUE],
     ['Prepared on', now.toISOString().slice(0, 10)],
     ['Software', buildLabel()],
-    ['Timescale', `${TIMESCALE_VERSION} (International Chronostratigraphic Chart, ICS, CC BY 4.0)`],
+    ['Timescale', `${currentTimescale()} (International Chronostratigraphic Chart, ICS, CC BY 4.0)`],
     ['Terms', SCHEME_LABEL[scheme] || scheme],
     ['Depths', `${u === 'ft' ? 'feet' : 'metres'}; tops in MD below KB with TVD; rates and the age-depth plot in ${basis}`],
     ['Dated surfaces', `${dated.length} of ${sorted.length} tops`],
@@ -130,7 +130,7 @@ export async function buildStratSummary({ well, tops = [], intervals = [], units
     doc.setDrawColor(100, 116, 139); doc.setLineWidth(0.2);
     doc.rect(px0, py0, pw, ph);
     doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(51, 65, 85);
-    doc.text(latin1(`Age (Ma), ${TIMESCALE_VERSION}`), px0 + pw / 2, py0 - 1.5, { align: 'center' });
+    doc.text(latin1(`Age (Ma), ${currentTimescale()}`), px0 + pw / 2, py0 - 1.5, { align: 'center' });
     for (const a of [aMin, (aMin + aMax) / 2, aMax]) doc.text(String(Number(a.toFixed(2))), xOf(a), py0 + ph + 3.5, { align: 'center' });
     for (const z of [zMin, (zMin + zMax) / 2, zMax]) doc.text(d1(z), px0 - 1.5, yOf(z) + 1, { align: 'right' });
     doc.text(latin1(`${vertical.basis === 'tvd' ? 'TVD' : 'MD'} (${u}), depth down`), margin, py0 + ph + 8);
@@ -188,7 +188,7 @@ export async function buildStratSummary({ well, tops = [], intervals = [], units
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i);
     doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 110, 125);
-    doc.text(latin1(`${well.name} stratigraphic summary, ${buildLabel()}. ${TIMESCALE_VERSION}. Depths in ${u}.`), margin, pageH - 6);
+    doc.text(latin1(`${well.name} stratigraphic summary, ${buildLabel()}. ${currentTimescale()}. Depths in ${u}.`), margin, pageH - 6);
     doc.text(`Page ${i} of ${pages}`, pageW - margin, pageH - 6, { align: 'right' });
   }
   const stem = latin1(well.name).replace(/[^A-Za-z0-9._-]+/g, '_');

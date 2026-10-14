@@ -22,7 +22,7 @@ export class ValidationEngine {
         return { isValid: errors.length === 0, errors, warnings: [] };
     }
 
-    static validateStratigraphy(layers) {
+    static validateStratigraphy(layers, erosionEvents = []) {
         const errors = [];
         const warnings = [];
 
@@ -49,8 +49,15 @@ export class ValidationEngine {
         // whatever order the rows are in.
         const byAge = [...layers].sort((a, b) => Number(b.ageStart) - Number(a.ageStart));
         for (let i = 1; i < byAge.length; i++) {
-            if (Math.abs(Number(byAge[i].ageStart) - Number(byAge[i - 1].ageEnd)) > 0.1) {
-                warnings.push(`Gap or overlap detected between layer '${byAge[i].name}' and the layer below it.`);
+            const below = byAge[i - 1]; const above = byAge[i];
+            const gap = Number(below.ageEnd) - Number(above.ageStart);
+            if (gap > 0.1) {
+                // a hiatus is geology (an unconformity), not an error: say what it is,
+                // and only ask about erosion when no event sits in it
+                const ero = (erosionEvents || []).some((e) => Number(e.age) <= Number(below.ageEnd) + 1e-9 && Number(e.age) >= Number(above.ageStart) - 1e-9 && Number(e.amount) > 0);
+                if (!ero) warnings.push(`Hiatus of ${Number(gap.toFixed(2))} Ma between '${below.name}' and '${above.name}' (${above.ageStart} to ${below.ageEnd} Ma): nothing is deposited then. If section was removed, give the erosion event its thickness.`);
+            } else if (gap < -0.1) {
+                warnings.push(`Layers '${below.name}' and '${above.name}' overlap in age (${below.ageEnd} and ${above.ageStart} Ma).`);
             }
         }
 
@@ -110,7 +117,7 @@ export class ValidationEngine {
     }
 
     static validateProject(project) {
-        const stratResult = this.validateStratigraphy(project.stratigraphy);
+        const stratResult = this.validateStratigraphy(project.stratigraphy, project.erosionEvents);
         const psResult = this.validatePetroleumSystem(project.stratigraphy);
         const hfResult = this.validateHeatFlow(project.heatFlow);
 

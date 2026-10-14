@@ -13,6 +13,7 @@
 //   wells: [{name, il, xl, ln_ai, ln_si, ln_rho}], horizon_ids?, lfmHz?, eps?, iters?, vs_vp? },
 //   volume_ids?: {ai, si, rho, vpvs} (volume mode) }
 import { JobFailure } from '../runJob.js';
+import { pilotProblem, pilotOn, pilotBytes } from '../pilot.js';
 import { seismicQuota, overQuotaMessage } from '../quota.js';
 import {
   validatePrestackParams, meanVsVp, prestackLfm, prestackWaveletScale, makeCdpInverter, prestackBlindTable, prestackProducts, PRESTACK_DEFAULTS, PRESTACK_PRODUCTS,
@@ -47,7 +48,7 @@ export function validatePrestackJob(p) {
 export async function prestackInversion(ctx, deps) {
   let p;
   try { p = withUnpackedLogs(ctx.params || {}, 'inversion', ['ln_ai', 'ln_si', 'ln_rho']); } catch (e) { throw new JobFailure('validate_failed', e.message); }
-  const problem = validatePrestackJob(p);
+  const problem = validatePrestackJob(p) || pilotProblem(p.pilot);
   if (problem) throw new JobFailure('validate_failed', problem);
   const uid = ctx.job.user_id;
   const { admin } = deps;
@@ -82,6 +83,7 @@ export async function prestackInversion(ctx, deps) {
     } catch (e) { ctx.log?.warn?.(`cleanup failed: ${e.message}`); }
   };
   const fail = async (stage, message) => { await cleanup(); throw new JobFailure(stage, message); };
+  let pilot = null;
   const readManifest = deps.readManifest || (async (path) => {
     const { data, error } = await admin.storage.from('seismic').download(path);
     if (error) throw new Error(`Could not read a manifest: ${error.message}`);
@@ -102,7 +104,8 @@ export async function prestackInversion(ctx, deps) {
     if (w.ln_ai.length !== ns) return fail('validate_failed', `Well ${w.name}: the logs have ${w.ln_ai.length} samples; the stacks have ${ns}.`);
   }
   if (p.mode === 'volume') {
-    const need = derivedStorageBytes(manifests[0]) * derived.length;
+    try { pilot = pilotOn(p.pilot, manifests[0]); } catch (e) { return fail('validate_failed', e.message); }
+    const need = (pilot ? pilotBytes(pilot.record, manifests[0]) : derivedStorageBytes(manifests[0])) * derived.length;
     const q = await seismicQuota(admin, uid);
     if (q.used + need > q.quota) return fail('over_quota', overQuotaMessage('The prestack inversion volumes', need, q));
   }
@@ -183,7 +186,7 @@ export async function prestackInversion(ctx, deps) {
   };
   let result;
   try {
-    result = await runVolumeJob({ geom, compute, fetchBrick, onBrick, outputs: 4, shouldCancel: () => ctx.cancelled, onProgress: (done, total) => ctx.progress(0.03 + 0.92 * (total ? done / total : 0), 'Inverting') });
+    result = await runVolumeJob({ geom, compute, fetchBrick, onBrick, outputs: 4, window: pilot?.window || null, shouldCancel: () => ctx.cancelled, onProgress: (done, total) => ctx.progress(0.03 + 0.92 * (total ? done / total : 0), 'Inverting') });
     await Promise.all(inflight);
     if (uploadError) throw new JobFailure('upload_failed', `Uploading the inversion bricks failed: ${uploadError.message}`);
   } catch (e) {
@@ -196,12 +199,13 @@ export async function prestackInversion(ctx, deps) {
     for (let o = 0; o < 4; o++) {
       const d = derived[o];
       const out = buildDerivedManifest({ volumeId: d.id, name: d.name, parentManifest: manifests[0], attribute: { name: PRESTACK_ATTRIBUTE, params: { ...settings, product: KEYS[o], product_label: PRESTACK_PRODUCTS[KEYS[o]], output: KEYS[o] === 'ai' ? 'AI' : KEYS[o].toUpperCase(), blind } }, job: { ...result, stats: result.statsByOutput[o] } });
+      if (pilot) out.pilot = pilot.record;
       await deps.storage.upload(manifestPath(uid, d.id), new TextEncoder().encode(JSON.stringify(out, null, 1)), { contentType: 'application/json', upsert: true });
       const { error } = await admin.from('seismic_volumes').update({ status: 'ready', survey_meta: derivedSurveyMeta(out, parent.id), updated_at: new Date().toISOString() }).eq('id', d.id).eq('user_id', uid);
       if (error) throw new Error(`Inversion computed but registration failed: ${error.message}`);
     }
     ctx.progress(1, 'Done');
-    return { mode: 'volume', volume_ids: p.volume_ids, settings, blind, trace_count: result.traceCount };
+    return { mode: 'volume', volume_ids: p.volume_ids, settings, blind, trace_count: result.traceCount, ...(pilot ? { pilot: pilot.record } : {}) };
   } catch (e) {
     await cleanup();
     throw e;

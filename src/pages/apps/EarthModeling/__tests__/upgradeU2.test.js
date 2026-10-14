@@ -448,7 +448,7 @@ describe('U2-010: volume distribution through the canonical Monte Carlo module',
     expect(Math.abs((hcpv / q(0.1)) / s.p90 - 1)).toBeGreaterThan(0.15);
     // HCPV does not depend on Bo
     expect(Math.abs(d.zones[0].stats.hcpv_m3.p10 / d.zones[0].stats.hcpv_m3.p90 - 1)).toBeLessThan(1e-12);
-  });
+  }, 30000); // 2000 trials: about 5 s on a loaded runner
 
   test('contacts and kriged properties vary; the same seed reproduces the result', async () => {
     const f = await fixture();
@@ -465,7 +465,7 @@ describe('U2-010: volume distribution through the canonical Monte Carlo module',
     expect(s.p10).toBeGreaterThan(det);
     expect(Math.abs(s.p50 / det - 1)).toBeLessThan(0.05);
     await expect(runVolumeDistribution(null, {})).rejects.toThrow(/Build the model first/);
-  });
+  }, 30000);
 });
 
 describe('U2-008: Petrophysics net pay and HCPV maps as property trends', () => {

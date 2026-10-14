@@ -112,6 +112,11 @@ function QIStudioHelpGuideContent() {
           set, with its fold. The file must be sorted by inline, then crossline, and the gathers are taken as NMO-corrected.
         </Para>
         <Para>
+          Gathers can be cropped while they are read, with the same saved crop as the stacks (Seismolord&apos;s Crop before
+          importing): every trace of each kept location and the same time window are uploaded, and the gather store puts
+          the window back at its own times so it lines up with the cropped stacks.
+        </Para>
+        <Para>
           Make angle stacks with an RMS velocity table (a time in ms and a velocity in m/s per row) and three named angle
           ranges (near, mid and far by default; edit their limits). Each offset bin&apos;s incidence angle at each time is Walden&apos;s straight-ray estimate, which stays within 1.5
           degrees of an exact ray trace up to an offset equal to the depth. A stack is the fold-weighted mean of the bins whose
@@ -186,6 +191,14 @@ function QIStudioHelpGuideContent() {
           90th percentile across the scenarios, and the mean error of each scenario, so you see which assumption the result
           depends on most. Inverted over the volume, it writes four volumes in one run: impedance at Q10, Q50 and Q90 (the
           10th, 50th and 90th percentiles per sample) and the relative spread (Q90 - Q10) / Q50.
+        </Para>
+        <Para>
+          A pilot run tries the settings on a small area before the whole survey. Tick Pilot run under the run buttons
+          (here, on the Simultaneous tab and on the AVO tab) and give an inline and crossline range and a time window, or
+          pick a crop saved in Seismolord. The worker processes and writes only that sub-volume, so it is quick and uses
+          little storage. The output is named and labelled as a pilot and is empty outside the area. Inside the area it
+          matches a full run, because every trace is still processed over its whole length. Property runs on a pilot
+          impedance volume keep to its area. The report lists the pilot runs with their areas.
         </Para>
       </GuideSection>
 
@@ -290,7 +303,7 @@ function QIStudioHelpGuideContent() {
 
       <GuideSection id="report">
         <SectionHeading icon={FileText}>The report</SectionHeading>
-        <Para>The Report tab builds the quantitative interpretation report: an executive summary, the inventory, the usability matrix with the reasons for every limited or missing item, depletion notes, the well ties, the AVO volumes and angle wavelets, the prospect QI assessment, the handover list, the issue register (dismissed issues left out), the feasibility of each target and the assumptions behind them.</Para>
+        <Para>The Report tab builds the quantitative interpretation report: an executive summary, the inventory, the usability matrix with the reasons for every limited or missing item, depletion notes, the well ties, the AVO volumes and angle wavelets, the prospect QI assessment, the handover list, the issue register (dismissed issues left out), the feasibility of each target and the assumptions behind them. The data section names where each seismic volume came from: its source file, its original geometry and the crop it was cut to before upload; pilot runs are listed with their areas.</Para>
       </GuideSection>
 
       <GuideSection id="sharing">

@@ -123,3 +123,19 @@ test('one wavelet per stack is taken (angle-dependent), and a count that does no
   const bad = P('blind'); bad.inversion.wavelets = [{ samples: ricker, dt_ms: DT }];
   expect(validatePrestackJob(bad)).toMatch(/one wavelet per stack/);
 });
+
+test('pilot sub-volume: the full run inside the window, null outside, only its bricks', async () => {
+  const full = depsFor(); await prestackInversion(ctxFor(P('volume')), full.d);
+  const pil = depsFor();
+  const out = await prestackInversion(ctxFor({ ...P('volume'), pilot: { il: { from: 2, to: 4 }, xl: { from: 1, to: 3 }, t_ms: { from: 160, to: 300 } } }), pil.d);
+  expect(out.pilot.bricks).toEqual({ i0: 0, i1: 0, j0: 0, j1: 0, k0: 2, k1: 4 });
+  expect([...pil.uploads.keys()].filter((k) => k.startsWith(`${UID}/${OUT.ai}/bricks`))).toHaveLength(3);
+  const f = (u, id, s) => { const b = u.get(`${UID}/${id}/bricks/0-0-${Math.floor(s / BS)}.f32`); return b ? new Float32Array(b.buffer.slice(0)) : null; };
+  for (const id of [OUT.ai, OUT.vpvs]) {
+    for (let il = 0; il < NIL; il++) for (let xl = 0; xl < NXL; xl++) for (let s = 32; s < 80; s += 2) {
+      const i = ((il % BS) * BS + xl) * BS + (s % BS);
+      const inside = il >= 1 && il <= 3 && xl <= 2 && s >= 40 && s <= 75;
+      expect(f(pil.uploads, id, s)[i]).toBe(inside ? f(full.uploads, id, s)[i] : Math.fround(1e30));
+    }
+  }
+});

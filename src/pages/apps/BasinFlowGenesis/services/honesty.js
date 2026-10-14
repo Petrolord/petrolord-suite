@@ -40,6 +40,9 @@ export function engineInputsKey(state) {
     ts: num(state?.settings?.surfaceTemp),
     // U2-005: the compaction mode is an input (elastic, the default, adds no key)
     ...(state?.settings?.compaction === 'irreversible' ? { comp: 'irreversible' } : {}),
+    // deposition and the step are inputs (the defaults, instant at 1 Ma, add no key)
+    ...(state?.settings?.deposition === 'continuous' ? { dep: 'continuous' } : {}),
+    ...([0.5, 0.25, 0.1].includes(Number(state?.settings?.timeStepMa)) ? { dt: Number(state.settings.timeStepMa) } : {}),
   });
 }
 

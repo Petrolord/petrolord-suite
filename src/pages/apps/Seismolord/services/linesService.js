@@ -24,6 +24,7 @@ import { BrickCache, storageBrickFetcher, ABORTED } from '../engine/brickCache';
 import { persistentBrickFetcher } from './brickStore';
 import { withBrickTimeout } from '../lib/fetchWithTimeout';
 import { NULL_VALUE } from '../engine/manifest';
+import { stampProject, scopeToProject, whenProjectScopeReady } from '@/lib/projects/projectScope';
 
 export { ABORTED };
 
@@ -39,8 +40,9 @@ async function currentUser() {
 // ---- registry -------------------------------------------------------------
 
 export async function listLines() {
+  await whenProjectScopeReady();
   const [{ data, error }, { data: { user } }] = await Promise.all([
-    supabase.from('seismic_lines').select('*').order('created_at', { ascending: false }),
+    scopeToProject(supabase.from('seismic_lines').select('*')).order('created_at', { ascending: false }),
     supabase.auth.getUser(),
   ]);
   if (error) throw new Error(`Could not load 2D lines: ${error.message}`);
@@ -186,7 +188,7 @@ export async function ingestLine2d({
   const nativeTag = normalizeTag(nativeCrs);
 
   const { data: row, error: regError } = await supabase.from('seismic_lines')
-    .insert({
+    .insert(stampProject({
       id: lineId,
       user_id: user.id,
       name: displayName,
@@ -194,7 +196,7 @@ export async function ingestLine2d({
       status: 'ingesting',
       crs: nativeTag === UNKNOWN ? null : nativeTag,
       survey_meta: { ingest: { file_name: file.name, file_size: file.size, native_crs: nativeTag } },
-    })
+    }))
     .select().single();
   if (regError) throw new Error(`Could not register line: ${regError.message}`);
 

@@ -11,6 +11,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { getUserOrgRow } from '@/lib/orgContext';
 import { DATUM_COLUMNS } from '@/lib/wellDatum';
 import { isUnknownColumnError } from '@/lib/stateVersion';
+import { currentProjectId } from '@/lib/projects/projectScope';
 
 const isMissingRelation = (error) => error && (String(error.code) === '42P01' || /relation .* does not exist|Could not find the table/i.test(String(error.message || '')));
 
@@ -29,7 +30,8 @@ export function makeSupabaseSink() {
       const id = data.user.id;
       let organization_id = null;
       try { organization_id = (await getUserOrgRow(id))?.organization_id || null; } catch (e) { /* private account */ }
-      userCache = { id, organization_id };
+      // Suite Projects: imports land in the current project (null while projects are off)
+      userCache = { id, organization_id, project_id: currentProjectId() };
       return userCache;
     },
 

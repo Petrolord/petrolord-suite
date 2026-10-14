@@ -41,6 +41,8 @@ const WELL = '11111111-1111-4111-8111-111111111111';
 const SURF = '55555555-5555-4555-8555-555555555555';
 const PETRO = '77777777-7777-4777-8777-777777777777';
 const CRS_ID = '99999999-9999-4999-8999-999999999999';
+const SRC_PROJECT = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+const DST_PROJECT = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
 const uid = (n) => `${String(n).padStart(8, '0')}-0000-4000-8000-000000000000`;
 
 // registry-shaped source for the exporter (same as the PP1 gate, minimal)
@@ -58,7 +60,7 @@ function makeSource() {
   logRows.push({ id: vshId, well_id: WELL, mnemonic: 'VSH', description: 'computed', unit: 'V/V', start_md_m: curves.DEPT[0], stop_md_m: curves.DEPT[n - 1], step_m: 0.5, n_samples: n, null_count: 0, source_file: null,
     provenance: { computed: true, engine: 'petrophysics', project_id: PETRO, input_log_ids: [logRows[2].id] }, storage_path: `${SRC_USER}/${WELL}/logs/${vshId}.f32`, created_at: '2026-09-01T00:00:01Z' });
   samples[vshId] = Float32Array.from(curves.GR, (g) => (g == null ? NaN : 0.5));
-  const well = { id: WELL, user_id: SRC_USER, organization_id: SRC_ORG, name: 'KETA TYPE-1', uwi: 'KETA-1', kb_m: 25, crs: `CUSTOM:${CRS_ID}`, deviation: [], created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z' };
+  const well = { id: WELL, user_id: SRC_USER, organization_id: SRC_ORG, name: 'KETA TYPE-1', uwi: 'KETA-1', kb_m: 25, crs: `CUSTOM:${CRS_ID}`, deviation: [], created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z', suite_project_id: SRC_PROJECT };
   const zones = [{ id: uid(400), well_id: WELL, name: 'SAND A', top_md_m: 2010, base_md_m: 2030, properties: {} }];
   const tops = [{ id: uid(300), well_id: WELL, name: 'Top Sand A', md_m: 2010, interpreter: 'oracle' }];
   const grid = Float32Array.from({ length: 6 }, (_, i) => 1000 + i);
@@ -411,3 +413,23 @@ describe('PP2 import: resume after a failure', () => {
 });
 
 afterAll(() => _resetStateKinds());
+
+describe('Suite Projects (P1): .pld per project', () => {
+  test('the package never carries the source project; rows land in the importer project', async () => {
+    const { bytes } = await exportBytes();
+    const pkg = await readPackage(bytes);
+    expect(JSON.stringify(pkg.tables)).not.toContain(SRC_PROJECT);
+    const plan = planImport(pkg, { userId: DST_USER, organizationId: DST_ORG, projectId: DST_PROJECT });
+    expect(plan.planned.geo_wells.every((r) => r.suite_project_id === DST_PROJECT)).toBe(true);
+    expect(plan.planned.geo_surfaces.every((r) => r.suite_project_id === DST_PROJECT)).toBe(true);
+    // children follow their well: no project column on them
+    expect(plan.planned.geo_wells_logs.some((r) => 'suite_project_id' in r)).toBe(false);
+  });
+
+  test('with projects off the importer sends no project (the server stamps the default)', async () => {
+    const pkg = await readPackage((await exportBytes()).bytes);
+    const plan = planImport(pkg, { userId: DST_USER, organizationId: DST_ORG });
+    expect(plan.planned.geo_wells.some((r) => 'suite_project_id' in r)).toBe(false);
+  });
+});
+

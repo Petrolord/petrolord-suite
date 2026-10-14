@@ -1,6 +1,6 @@
 {
   "pages": 7,
-  "sha256": "dbe41e567ab88fd58b63a0ff780982119a3981345ae6818cdc082682f60fea49",
+  "sha256": "702351441e2dd9732ea9646bf1aba16ed90ad853735a164625a43fcdad8110ee",
   "figures": [
     {
       "id": "overview",
@@ -79,9 +79,9 @@
           },
           "drawn": {
             "pws": 45,
-            "Straight line": 45
+            "Straight line": 46
           },
-          "total": 90,
+          "total": 91,
           "bands": 1,
           "logo": true
         }

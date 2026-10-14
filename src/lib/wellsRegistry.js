@@ -31,6 +31,8 @@ import { PLATFORM_BUILD } from '@/lib/platformBuild';
 import { isUnknownColumnError } from '@/lib/stateVersion';
 import { DATUM_COLUMNS, datumInsertFields, datumPatch, datumColumnsPresent, validateDatum } from '@/lib/wellDatum';
 import { supabaseSharingStore, accessOf, messages } from '@/lib/recordSharing';
+import { scopeToProject, whenProjectScopeReady, insertWithProject, getProjectScope } from '@/lib/projects/projectScope';
+import { projectDepthRefKind } from '@/lib/projects/projectDefaults';
 
 export { wellNameKey, wellNameClashMessage };
 
@@ -108,7 +110,8 @@ function datumOfNewWell(w) {
   if (w.kbM === null || w.kbM === undefined || w.kbM === '') return { refKind: null, refElevM: null };
   const v = Number(w.kbM);
   if (!Number.isFinite(v)) throw new Error('KB must be a number (metres above datum).');
-  return { refKind: 'KB', refElevM: v };
+  // Suite Projects P2: the project's depth reference (built-in KB)
+  return { refKind: projectDepthRefKind(), refElevM: v };
 }
 
 // ---- team editing (U2-012) ----------------------------------------------------
@@ -208,7 +211,8 @@ export async function saveWell(w) {
   // the insert retries without it so well creation never breaks.
   if (w.checkshotsProvenance) row.checkshots_provenance = w.checkshotsProvenance;
   const insert = (r) => supabase.from('geo_wells').insert(r).select().single();
-  let { data, error } = await writeWithBuild(row, insert);
+  // Suite Projects: the well lands in the current project (no-op while projects are off)
+  let { data, error } = await insertWithProject(row, (r) => writeWithBuild(r, insert));
   if (error && !datumColumnsMissing && isDatumColumnError(error)) {
     // migration 20261002090000 not applied here yet: save the well as before
     datumColumnsMissing = true;
@@ -361,10 +365,12 @@ export function validateStoredCheckshotsShape(rows) {
 }
 
 /** Own wells + wells shared with the caller's organizations (RLS does
- *  the filtering; is_own is derived for the tree's badges). */
-export async function listWells() {
+ *  the filtering; is_own is derived for the tree's badges), in the current
+ *  Suite project. `allProjects` lists every project (backups). */
+export async function listWells({ allProjects = false } = {}) {
+  await whenProjectScopeReady();
   const [{ data, error }, { data: { user } }] = await Promise.all([
-    supabase.from('geo_wells').select('*').order('created_at', { ascending: false }),
+    scopeToProject(supabase.from('geo_wells').select('*'), { allProjects }).order('created_at', { ascending: false }),
     supabase.auth.getUser(),
   ]);
   if (error) throw new Error(`Could not load wells: ${error.message}`);
@@ -376,9 +382,10 @@ export async function listWells() {
  *  viewers consume wells with tops attached). Tops come back in the
  *  registry row shape ({name, md_m, ...}), MD-ascending. */
 export async function listWellsWithTops() {
+  await whenProjectScopeReady();
   const [{ data, error }, { data: { user } }] = await Promise.all([
-    supabase.from('geo_wells')
-      .select('*, geo_wells_tops(id, name, md_m, interpreter, surface_type, unit_id, confidence, age_ma, hiatus_to_ma)')
+    scopeToProject(supabase.from('geo_wells')
+      .select('*, geo_wells_tops(id, name, md_m, interpreter, surface_type, unit_id, confidence, age_ma, hiatus_to_ma)'))
       .order('created_at', { ascending: false }),
     supabase.auth.getUser(),
   ]);
@@ -407,16 +414,29 @@ async function selectAllRows(table, columns, what) {
   }
 }
 
-/** Log metadata (no samples) of every visible well: the inventory's input. */
+// Suite Projects: children follow their well. With projects on, keep only
+// rows whose well is in the current project (one small id query).
+async function inScopeWellIds() {
+  await whenProjectScopeReady();
+  if (!getProjectScope().enabled) return null;
+  const { data, error } = await scopeToProject(supabase.from('geo_wells').select('id'));
+  if (error) throw new Error(`Could not load wells: ${error.message}`);
+  return new Set((data || []).map((w) => w.id));
+}
+const keepInScope = (rows, ids) => (ids ? rows.filter((r) => ids.has(r.well_id)) : rows);
+
+/** Log metadata (no samples) of every visible well in the current project: the inventory's input. */
 export async function listAllLogMeta() {
-  return selectAllRows('geo_wells_logs',
+  const [rows, ids] = await Promise.all([selectAllRows('geo_wells_logs',
     'id, well_id, mnemonic, unit, description, start_md_m, stop_md_m, step_m, n_samples, null_count, source_file, provenance, storage_path, created_at',
-    'log inventory');
+    'log inventory'), inScopeWellIds()]);
+  return keepInScope(rows, ids);
 }
 
-/** Every top of every visible well (the cross-well tops sheet). */
+/** Every top of every visible well in the current project (the cross-well tops sheet). */
 export async function listAllTops() {
-  return selectAllRows('geo_wells_tops', '*', 'tops');
+  const [rows, ids] = await Promise.all([selectAllRows('geo_wells_tops', '*', 'tops'), inScopeWellIds()]);
+  return keepInScope(rows, ids);
 }
 
 export async function getWell(wellId) {

@@ -16,6 +16,7 @@ import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/uti
 import { THEMED_TONE } from '@/components/studio/studioTheme';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { supabase } from '@/lib/customSupabaseClient';
+import { scopeToProject, whenProjectScopeReady } from '@/lib/projects/projectScope';
 import { useVrrMonitor } from '@/contexts/VrrMonitorContext';
 import {
   proposeWellMatches, draftMatches, confirmWellMatches, buildBubbleMap, registryChanges,
@@ -27,7 +28,9 @@ const fmt = (v, d = 0) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Numb
 
 /** The wells of the registry the user may read (own and shared). */
 async function readRegistry() {
-  const { data, error } = await supabase.from('geo_wells').select('id, name, uwi, surface_x, surface_y, crs, xy_unit').order('name', { ascending: true });
+  // Suite Projects: the current project's wells
+  await whenProjectScopeReady();
+  const { data, error } = await scopeToProject(supabase.from('geo_wells').select('id, name, uwi, surface_x, surface_y, crs, xy_unit')).order('name', { ascending: true });
   if (error) throw new Error(error.message);
   return data || [];
 }

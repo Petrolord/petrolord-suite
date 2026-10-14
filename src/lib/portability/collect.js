@@ -110,6 +110,12 @@ export async function collectRow(source, col, table, id, { reason } = {}) {
 }
 
 async function addRow(source, col, table, spec, row) {
+  // Suite Projects: a package never carries the source project's id (the
+  // importer places rows in its own project; older importers would refuse it)
+  if (row && Object.prototype.hasOwnProperty.call(row, 'suite_project_id')) {
+    const { suite_project_id: _dropped, ...rest } = row;
+    row = rest;
+  }
   const id = row[spec.pk];
   if (col.tables[table].has(id)) return;
   col.tables[table].set(id, row);

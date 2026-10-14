@@ -21,6 +21,7 @@ import { surveyAffine, ilxlToWorld } from '../../packages/engines/engines/seismo
 import { loftFaultSurface, surfaceLevelTrace } from '../../packages/engines/engines/seismolord/faultObjects';
 import { makeDepthConverter, describeVelocity } from '../../packages/engines/engines/seismolord/velocityModel';
 import { compareTags } from './crs/tags';
+import { scopeToProject, whenProjectScopeReady, getProjectScope } from './projects/projectScope';
 
 export const SEISMIC_FAULT_SOURCE = 'seismolord';
 
@@ -240,13 +241,16 @@ export async function listSeismicFaultsForModel({
   if (error) throw new Error(`Could not read the Seismolord faults: ${error.message}`);
   const ids = [...new Set((rows || []).map((r) => r.volume_id).filter(Boolean))];
   if (!ids.length) return { faults: [], skipped: [] };
-  const { data: vols, error: vErr } = await supabase.from('seismic_volumes')
-    .select('id, name, crs, survey_meta, velocity_model').in('id', ids);
+  // Suite Projects: faults follow their volume, so only the current project's volumes count
+  await whenProjectScopeReady();
+  const { data: vols, error: vErr } = await scopeToProject(supabase.from('seismic_volumes')
+    .select('id, name, crs, survey_meta, velocity_model').in('id', ids));
   if (vErr) throw new Error(`Could not read the Seismolord volumes: ${vErr.message}`);
   const byId = new Map((vols || []).map((v) => [v.id, v]));
   const faults = [];
   const skipped = [];
-  for (const r of rows || []) {
+  const projectsOn = getProjectScope().enabled;
+  for (const r of (rows || []).filter((f) => !projectsOn || byId.has(f.volume_id))) {
     const v = byId.get(r.volume_id);
     if (!v) { skipped.push({ name: r.name, reason: 'its volume is not readable' }); continue; }
     const rel = hostCrs ? compareTags(v.crs, hostCrs) : 'same';

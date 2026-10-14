@@ -11,6 +11,10 @@
  *    system solve) are useMemo; the multi-solve sweeps (sensitivity, gas
  *    lift) run behind explicit actions with a stale flag.
  *
+ * Well Test intake (2026-10-14): ?wellTestProject=<id> reads the saved wta-1
+ * record by id (loadWellTestSource); applyWellTestIntake sets pr and J on
+ * click only and keeps the provenance in the payload as `wellTestIntake`.
+ *
  * Engines: src/utils/nodal/* (validated NA1-NA3; see
  * tools/validation/nodal/README.md for the gate map).
  */
@@ -35,6 +39,9 @@ import { solveOperatingPoint, solveGasOperatingPoint, operatingPointSweep } from
 import { gasLiftScreening } from '@/utils/nodal/gasLift';
 import { chokeWhp, chokeSize, gasChokeRate, gasChokeUpstream, CHOKE_COEFFS } from '@/utils/nodal/chokes';
 import { linspace } from '@/utils/nodal/numerics';
+import { supabase } from '@/lib/customSupabaseClient';
+import { readWellTestProject } from '@/lib/wellTestSource';
+import { nodalInflowFromWellTest } from '@/utils/nodal/wellTestIntake';
 
 const service = createSavedProjectsService('saved_nodal_analysis_projects', {
   signInMessage: 'Sign in to save nodal analysis projects.',
@@ -287,6 +294,9 @@ export const NodalAnalysisStudioProvider = ({ children }) => {
   const [sensitivityConfig, setSensitivityConfig] = useState(DEFAULT_SENSITIVITY);
   const [gasLiftConfig, setGasLiftConfig] = useState(DEFAULT_GASLIFT);
   const [choke, setChoke] = useState(DEFAULT_CHOKE);
+  // Well Test intake: the record read by id, and what was applied from it
+  const [wellTestSource, setWellTestSource] = useState(null);
+  const [wellTestIntake, setWellTestIntake] = useState(null);
 
   // Suite unit profile: a NEW (not yet saved or opened) workspace starts
   // from the profile's system; an explicit choice or an opened project wins
@@ -535,9 +545,10 @@ export const NodalAnalysisStudioProvider = ({ children }) => {
       sensitivityConfig,
       gasLiftConfig,
       choke,
+      wellTestIntake,
       modified: new Date().toISOString(),
     }),
-    [currentProjectId, projectName, unitSystem, fluid, inflow, well, completion, traverseView, sensitivityConfig, gasLiftConfig, choke]
+    [currentProjectId, projectName, unitSystem, fluid, inflow, well, completion, traverseView, sensitivityConfig, gasLiftConfig, choke, wellTestIntake]
   );
   const autosaveRef = useRef(serializeInputs);
   useEffect(() => {
@@ -554,6 +565,7 @@ export const NodalAnalysisStudioProvider = ({ children }) => {
     setSensitivityConfig({ ...DEFAULT_SENSITIVITY, ...(payload?.sensitivityConfig || {}) });
     setGasLiftConfig({ ...DEFAULT_GASLIFT, ...(payload?.gasLiftConfig || {}) });
     setChoke({ ...DEFAULT_CHOKE, ...(payload?.choke || {}) });
+    setWellTestIntake(payload?.wellTestIntake && typeof payload.wellTestIntake === 'object' ? payload.wellTestIntake : null);
     setSensitivity(null);
     setGasLift(null);
     setHydrated(true);
@@ -658,7 +670,40 @@ export const NodalAnalysisStudioProvider = ({ children }) => {
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [currentProjectId, hydrated, unitSystem, fluid, inflow, well, completion, traverseView, sensitivityConfig, gasLiftConfig, choke]);
+  }, [currentProjectId, hydrated, unitSystem, fluid, inflow, well, completion, traverseView, sensitivityConfig, gasLiftConfig, choke, wellTestIntake]);
+
+  // ---------------------------------------------------------------------
+  // Well Test intake (wta-1 productivity, read by id)
+
+  const loadWellTestSource = useCallback(async (id, client = supabase) => {
+    if (!id) { setWellTestSource(null); return null; }
+    setWellTestSource({ id, status: 'loading', contract: null, projectName: null, reason: null });
+    try {
+      const res = await readWellTestProject(client, id);
+      const next = { id, status: res.ok ? 'ok' : 'error', contract: res.contract, projectName: res.projectName, updatedAt: res.updatedAt, reason: res.reason };
+      setWellTestSource(next);
+      return next;
+    } catch (e) {
+      const next = { id, status: 'error', contract: null, projectName: null, reason: e?.message || 'The Well Test project could not be read.' };
+      setWellTestSource(next);
+      return next;
+    }
+  }, []);
+
+  const applyWellTestIntake = useCallback((choice) => {
+    const src = wellTestSource;
+    const res = nodalInflowFromWellTest(src?.contract, choice, inflow, { projectId: src?.id, projectName: src?.projectName });
+    if (!res.ok) {
+      addNotification(res.reason, 'error');
+      return false;
+    }
+    setInflow((p) => ({ ...p, ...res.patch }));
+    setWellTestIntake(res.provenance);
+    addNotification(`Reservoir pressure and productivity index taken from the Well Test (${res.provenance.choice_label.toLowerCase()}).`, 'success');
+    return true;
+  }, [wellTestSource, inflow, addNotification]);
+
+  const dismissWellTestSource = useCallback(() => setWellTestSource(null), []);
 
   const value = {
     // shell plumbing
@@ -676,6 +721,7 @@ export const NodalAnalysisStudioProvider = ({ children }) => {
     createProject,
     deleteProject,
     manualSave,
+    serializeInputs,
     // units
     unitSystem,
     setUnitSystem,
@@ -716,6 +762,12 @@ export const NodalAnalysisStudioProvider = ({ children }) => {
     // chokes
     chokeResult,
     solveGasChokeUpstream,
+    // Well Test intake
+    wellTestSource,
+    wellTestIntake,
+    loadWellTestSource,
+    applyWellTestIntake,
+    dismissWellTestSource,
   };
 
   return (

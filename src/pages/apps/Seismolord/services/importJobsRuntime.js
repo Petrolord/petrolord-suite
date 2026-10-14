@@ -19,6 +19,7 @@ import { conversionBudgetBytes } from './conversionV4';
 import { deflatePoolSize } from './deflatePool';
 import { newConvertWorker } from './convertWorkerFactory';
 import { setImportJobsFactory, V4_STATUS } from './importJobs';
+import { stampProject } from '@/lib/projects/projectScope';
 
 /** The ingest pipeline marker on survey_meta.ingest for v4 rows. */
 export const V4_PIPELINE = 'v4';
@@ -50,11 +51,11 @@ export async function v4ImportSupport(fileSize) {
  *  identity and CRS decisions so v4 rows carry the same record. Also the
  *  first step of a server import (serverImport.js), so a server-converted
  *  row is registered exactly like a browser-converted one. */
-export async function prepareV4Row({ file, mapping, nativeCrs, name, fingerprint: knownFingerprint = null }) {
+export async function prepareV4Row({ file, mapping, nativeCrs, name, fingerprint: knownFingerprint = null, crop = null, quotaBytes = null }) {
   const userId = await currentUserId();
   const volumeId = crypto.randomUUID();
   const displayName = name || file.name;
-  await assertQuota(file.size);
+  await assertQuota(quotaBytes ?? file.size);
   // a file imported from a link was fingerprinted by the worker that fetched
   // it (same algorithm); a local file is fingerprinted here
   const fingerprint = knownFingerprint || await fileFingerprint(file);
@@ -66,8 +67,10 @@ export async function prepareV4Row({ file, mapping, nativeCrs, name, fingerprint
     project: crsPlan.projectTag,
   });
   ingestRec.pipeline = V4_PIPELINE;
+  // crop before upload: the source file, its original geometry and the crop
+  if (crop) ingestRec.crop = crop;
   const { error } = await supabase.from('seismic_volumes')
-    .insert({
+    .insert(stampProject({
       id: volumeId,
       user_id: userId,
       name: displayName,
@@ -75,7 +78,7 @@ export async function prepareV4Row({ file, mapping, nativeCrs, name, fingerprint
       status: V4_STATUS.CONVERTING,
       crs: crsPlan.storeTag,
       survey_meta: { ingest: ingestRec },
-    })
+    }))
     .select().single();
   if (error) throw new Error(`Could not register volume: ${error.message}`);
   if (crsPlan.autoSetProject && crsPlan.projectTag !== UNKNOWN) {
@@ -108,7 +111,7 @@ async function getRow(volumeId) {
 let nextId = 1;
 
 /** Run the conversion worker; resolves the conversion record. */
-function convert({ file, scan, volumeId, onProgress, cancelToken }) {
+function convert({ file, scan, volumeId, onProgress, cancelToken, crop = null }) {
   const worker = newConvertWorker();
   const id = nextId++;
   const deviceMemory = typeof navigator !== 'undefined' ? navigator.deviceMemory : null;
@@ -132,6 +135,7 @@ function convert({ file, scan, volumeId, onProgress, cancelToken }) {
       file,
       scan,
       volumeId,
+      crop,
       memoryBudgetBytes: conversionBudgetBytes(deviceMemory),
       poolSize: deflatePoolSize(cores),
     });

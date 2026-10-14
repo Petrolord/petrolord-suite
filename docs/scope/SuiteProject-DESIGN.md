@@ -1,8 +1,10 @@
 # Suite Project: design
 
-Status: DESIGN, approved to write 2026-09-30 (owner: "start the unit profile
-and Project design now"). Build after NAPE (early November 2026), before
-customer data grows. Companion: `docs/scope/SuiteUnits-DESIGN-AND-STATUS.md`
+Status: P0 LIVE 2026-10-14 (reviewed and approved by the second engineer,
+applied by the owner, verified); P1 built (see the status table). The owner
+brought the build forward on 2026-10-14 ("Start with P0 and P1") as a
+consultant pilot and added a Client level (section 12). Designed 2026-09-30
+(owner: "start the unit profile and Project design now"). Companion: `docs/scope/SuiteUnits-DESIGN-AND-STATUS.md`
 (the unit profile, built now, is the first settings layer this design
 places inside a project).
 
@@ -213,3 +215,110 @@ decided on the proposals below and are binding for P0 to P4.
    (`strat_zone_schemes`), unit profiles, custom CRS definitions and the
    timescale tables. Projects reference them and may pin a choice (for
    example the timescale edition) in their settings.
+
+## 12. Client level (owner addition, 2026-10-14)
+
+The owner works as a consultant for several companies and is the pilot user:
+"I should be able to create separate different company projects and even
+create multiple projects within each company project." Many consultants will
+want the same. So, inside an organisation:
+
+**Organisation > Client (company) > Project**
+
+- A client has a name, an optional logo and colour, notes, and an archived
+  state (`suite_clients`). Clients of a user without an organisation are
+  personal (organisation null, owner only).
+- A project belongs to at most one client (`suite_projects.client_id`,
+  nullable). Projects without a client are shown under "Internal". A client
+  can hold many projects. The client must be in the project's organisation.
+- The header switcher groups projects by client: "Client X > Project A".
+- Who sees a client: its owner, the organisation's admins, and anyone who can
+  read at least one of its projects. A client with no projects is visible to
+  its owner and the admins only.
+- A client holding projects cannot be deleted (archive it instead).
+
+## 13. P0 as built (2026-10-14)
+
+Migrations `20261015100000_suite_projects_p0_tables.sql`,
+`20261015100100_suite_projects_p0_registries.sql` and
+`20261015100200_suite_projects_p0_backfill.sql`. Rollbacks, verification
+queries and the dry run with the role pentest are in
+`tools/security/suite-projects/`. Decisions taken while building, within the
+design above:
+
+1. **Column name `suite_project_id`**, not `project_id`: `seismic_volumes`
+   and `seismic_lines` already have `project_id` (their Seismolord project).
+2. **Helper names `suite_project_*`**: `public.can_edit_project` and
+   `is_project_member` already exist for another module.
+3. **Registry rule as RESTRICTIVE policies beside the existing ones.** The
+   permissive policies (own row, record sharing with the organisation, the
+   check-out editor) are not touched. The new policies only narrow: a row in
+   a members-only project is read by the project's owner and members, by an
+   organisation admin after a logged open (`suite_project_admin_open`, valid
+   for 12 hours), and always by the row's own creator. Rows in an open
+   project keep exactly today's access. This is why a project open to the
+   organisation does not by itself share private records: sharing a record
+   stays per record, as built in the organisation sharing wave.
+4. **Writes:** a row can be put into a project only by someone who may add
+   to it (owner, member with role owner or editor, any organisation member
+   for an open project, a logged admin), and the row's organisation must
+   match the project's.
+5. **Insert stamp:** a trigger fills a missing `suite_project_id` with the
+   writer's current project, else their default project (made on demand).
+   Every new row lands in a project even from an app build that predates P1.
+6. **Archive** hides a project from the switcher and the insert stamp; it
+   does not lock existing rows.
+7. **Backfill** (dry run on production, rolled back): 11 organisation
+   defaults and 1 personal default; every registry row stamped (34 wells,
+   14 surfaces, 2 sections, 1 seismic project, 21 volumes, 1 line); no row
+   without a project; every persona sees the same rows before and after.
+8. **Settings** stay `{}` until P2. `suite_user_state` starts empty (no
+   current project means the default project).
+9. **Unchanged for now:** the per-user well name uniqueness
+   (`geo_wells_owner_name_uniq`); the same name in two client projects is
+   refused until a later change makes it per project.
+
+## 14. P2 as built (2026-10-14): project settings
+
+`suite_projects.settings` (jsonb, no migration) holds four keys, read through
+`src/lib/projects/projectSettings.js`; keys a build does not know survive a
+save. Owners and organisation admins edit them on the Projects page (RLS:
+the P0 manage rule); everyone else reads them.
+
+| Key | Shape | Drives |
+|---|---|---|
+| `units` | a unit profile `{preset, units}` | the reserved `project` layer of the unit resolution: user override, project, organisation, built-in (`UnitProfileProvider` now sits inside `ProjectProvider`) |
+| `crs` | `{tag, name, xyUnit, setAt}` | the Project CRS imports convert into, for projects other than Default (`settingsService.getProjectCrs` / `setProjectCrs`); the lock counts the project's own tagged rows; the reproject flow converts that project's rows only. The Default project keeps each user's own Project CRS (`geoscience_settings`) as before |
+| `datum` | `{refKind, verticalDatum, srdM}` | the depth reference of a new well entered with a bare elevation (built-in KB), and the seismic reference datum a new Pore Pressure model starts from |
+| `timescale` | an ICS edition | the default edition of every stratigraphy lookup (`src/lib/stratigraphy/timescale.js` shim; the vendored engine is unchanged) and the labels, panel and exports of Stratigraphy Studio |
+
+Decisions taken while building:
+
+1. CRS stays a storage CRS (imports convert into it), so a project's CRS is
+   locked once the project holds tagged data, as the per-user CRS always was.
+   Setting it is allowed while the project is empty; the lock is the reason a
+   settings change can never imply rewriting coordinates.
+2. Custom CRS definitions stay each user's library (decision 4: reference
+   libraries are not per project).
+3. A member who does not manage a project cannot set its CRS on first import;
+   the owner sets it (a limit to revisit in P3 with roles).
+4. `em_models` are not filed by project until P4, so a project's CRS lock and
+   reproject leave them alone.
+
+Gate (`src/lib/projects/__tests__/settingsGate.test.js`, and live, rolled back,
+`tools/security/suite-projects/probes/run_liveprobes.sh C`): a consultant
+changes every setting of a client project holding a well; the only write is
+the `suite_projects` row, and a fingerprint of every registry and child table,
+`geoscience_settings`, `suite_unit_settings` and the storage object list is
+byte-identical; a colleague who does not manage the project and another
+organisation's user change nothing; the negative control (editing the well)
+moves the fingerprint. 9 of 9 on production.
+
+### Status
+
+| Phase | State |
+|---|---|
+| P0 | LIVE 2026-10-14. Second engineer reviewed and approved; the owner applied the three migrations. Before apply: dry run and role pentest on production inside a rolled-back transaction, 94 of 94, negative control fails 6, rollbacks restore the catalog and every persona's rows. After apply: verification queries as expected, live role pentest 94 of 94, and 0 differences between every persona's visible rows (demo account included) and pre-P0 access (`tools/security/suite-projects/probes/run_liveprobes.sh`). |
+| P1 | Built 2026-10-14. PR A: scope, `useProject()`, switcher (hidden until a user has a client or a second project), Projects page at /dashboard/projects, registries filtered and stamped, `.pld` per project, Move to project. PR B: the sidebar "Projects" entry, held until the demo recordings finish. Gate: `src/lib/projects/__tests__/geoscienceChain.test.js`: a consultant with two clients loads a well into each through Well Data Manager, and all 12 Geoscience apps list only the current project's wells (Seismolord volumes too); the negative control (projects off) lists both. User guide `docs/scope/SuiteProjects-GUIDE.md`. |
+| P2 | Built 2026-10-14 (section 14). No migration. Gate: settings change leaves stored data byte-identical, jest and live (9 of 9, rolled back). |
+| P3, P4 | In build. |

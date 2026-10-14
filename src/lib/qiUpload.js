@@ -14,7 +14,27 @@ export const UPLOAD_FUNCTION = 'qi-upload-url';
 const KEY_PREFIX = 'qi-upload:';
 const SIGN_BATCH = 50;
 
-export const fileFingerprint = (file) => `${file.name}|${file.size}|${file.lastModified || 0}`;
+// A cropped file (crop before upload) is a virtual file: its parts are read
+// through file.read(offset, length) and its crop key is part of its identity,
+// so two crops of one file never continue each other's upload.
+export const fileFingerprint = (file) => `${file.name}|${file.size}|${file.lastModified || 0}${file.cropKey ? `|crop:${file.cropKey}` : ''}`;
+
+/** PUT with upload progress (browsers): onBytes(sent) as the body goes out. */
+export function xhrPut(url, body, { signal, onBytes = () => {} } = {}) {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open('PUT', url);
+    x.upload.onprogress = (e) => onBytes(e.loaded);
+    x.onload = () => resolve({ ok: x.status >= 200 && x.status < 300, status: x.status });
+    x.onerror = () => reject(new Error('network error'));
+    x.onabort = () => reject(new DOMException('Upload paused', 'AbortError'));
+    if (signal) {
+      if (signal.aborted) { reject(new DOMException('Upload paused', 'AbortError')); return; }
+      signal.addEventListener('abort', () => x.abort(), { once: true });
+    }
+    x.send(body);
+  });
+}
 
 const safeStorage = (storage) => ({
   get: (k) => { try { return storage?.getItem(k) ?? null; } catch { return null; } },
@@ -42,7 +62,7 @@ const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export async function uploadLargeFile(file, {
   invoke = invokeUploadFunction,
-  fetchImpl = (...a) => fetch(...a),
+  fetchImpl = null, // tests inject one; browsers use xhrPut for progress within a part
   storage = typeof localStorage === 'undefined' ? null : localStorage,
   onProgress = () => {},
   signal,
@@ -55,6 +75,10 @@ export async function uploadLargeFile(file, {
   const store = safeStorage(storage);
   const memoKey = KEY_PREFIX + fileFingerprint(file);
   let datasetId = store.get(memoKey);
+  const useXhr = !fetchImpl && typeof XMLHttpRequest !== 'undefined';
+  const doFetch = fetchImpl || ((...a) => fetch(...a));
+  // a cropped file's parts are assembled in memory: keep two in flight
+  const lanes = file.virtual ? Math.min(concurrency, 2) : concurrency;
   let partSize;
   let partCount;
   const done = new Set();
@@ -93,7 +117,11 @@ export async function uploadLargeFile(file, {
 
   const sizeOf = (n) => (n < partCount ? partSize : file.size - partSize * (partCount - 1));
   let bytesDone = [...done].reduce((a, n) => a + sizeOf(n), 0);
-  const report = () => onProgress({ datasetId, bytesDone, bytesTotal: file.size, partsDone: done.size, partCount });
+  const inFlight = new Map(); // part -> bytes sent so far
+  const sending = () => [...inFlight.values()].reduce((a, b) => a + b, 0);
+  const report = () => onProgress({
+    datasetId, bytesDone, bytesSending: sending(), bytesTotal: file.size, partsDone: done.size, partCount,
+  });
   report();
 
   const queue = [];
@@ -111,16 +139,20 @@ export async function uploadLargeFile(file, {
 
   async function putPart(n) {
     const start = (n - 1) * partSize;
-    const blob = file.slice(start, start + sizeOf(n));
+    const blob = file.virtual ? new Uint8Array(await file.read(start, sizeOf(n))) : file.slice(start, start + sizeOf(n));
     for (let attempt = 1; ; attempt += 1) {
       if (signal?.aborted) throw new DOMException('Upload paused', 'AbortError');
       const url = await urlFor(n, attempt > 1);
       let resp;
       try {
-        resp = await fetchImpl(url, { method: 'PUT', body: blob, signal });
+        resp = useXhr
+          ? await xhrPut(url, blob, { signal, onBytes: (b) => { inFlight.set(n, b); report(); } })
+          : await doFetch(url, { method: 'PUT', body: blob, signal });
       } catch (e) {
         if (e?.name === 'AbortError') throw e;
         resp = null;
+      } finally {
+        inFlight.delete(n);
       }
       if (resp?.ok) return;
       if (attempt >= 4) throw new Error(`Part ${n} failed to upload (${resp ? resp.status : 'network error'}).`);
@@ -137,7 +169,7 @@ export async function uploadLargeFile(file, {
       report();
     }
   }
-  await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, queue.length || 1)) }, worker));
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(lanes, queue.length || 1)) }, worker));
 
   const { dataset } = await invoke({ action: 'complete', dataset_id: datasetId });
   store.del(memoKey);

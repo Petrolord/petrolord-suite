@@ -15,7 +15,9 @@ import { populateZoneProperty } from '../engine/properties';
 import { zoneVolumes, zoneVolumesWithContacts } from '../engine/volumes';
 import { normalizeTag, isTransformableTag, consensusTag } from '@/lib/crs/tags';
 import { depthDownToSurfaceZ } from '@/lib/surfaceConvention';
-import { maskOutsidePolygon, gridBBox, isNull } from '@/lib/gridding/gridmath';
+import { maskOutsidePolygon, gridBBox, isNull, sampleAtXY } from '@/lib/gridding/gridmath';
+import { zoneLogControl, DEFAULT_CUTOFFS } from './logUpscale';
+import { populateZonePropertyIdw } from './propertyIdw';
 import { NULL_VALUE } from '@/lib/gridding/numeric';
 import { readDepthSurface } from '@/lib/readDepthSurface';
 import { readWellDatum, refElevOrNull } from '@/lib/wellDatum';
@@ -31,11 +33,64 @@ import { isopach } from '@/lib/gridding/isopach';
 /** Registry property keys for the three populated properties. */
 export const PROP_KEYS = { phi: 'phi_avg', sw: 'sw_avg', ntg: 'ntg' };
 
+/**
+ * A published zone's value for one model property (Ekene walk 2026-10-14).
+ * NTG is net RESERVOIR over gross (net_res_tvt_m / gross_tvt_m, the rock
+ * cutoffs only) when Petrophysics published those thicknesses: its `ntg`
+ * key is net PAY over gross, which already holds a water saturation cutoff,
+ * so a model that also cuts the column at the OWC counted the contact twice
+ * (Ekene: wet wells read NTG 0 and the field 2.8 MMstb against the booked
+ * 12.14). ReservoirCalc Pro reads the same net reservoir ratio (#1035).
+ * Porosity and Sw stay the zone's pay averages (null in a well with no pay).
+ * @returns {{v: number|null, basis: 'net reservoir'|'net pay'|null}}
+ */
+export function zonePropertyValue(properties, prop) {
+  const p = properties || {};
+  if (prop === 'ntg') {
+    const g = Number.isFinite(p.gross_tvt_m) && p.gross_tvt_m > 0 ? p.gross_tvt_m : (Number.isFinite(p.gross_m) && p.gross_m > 0 ? p.gross_m : null);
+    const n = Number.isFinite(p.gross_tvt_m) && p.gross_tvt_m > 0 ? p.net_res_tvt_m : p.net_res_m;
+    if (g !== null && Number.isFinite(n)) return { v: Math.min(1, Math.max(0, n / g)), basis: 'net reservoir' };
+    return Number.isFinite(p.ntg) ? { v: p.ntg, basis: 'net pay' } : { v: null, basis: null };
+  }
+  const v = p[PROP_KEYS[prop]];
+  return { v: Number.isFinite(v) ? v : null, basis: null };
+}
+
+/**
+ * Nodes that hold a hydrocarbon column, per block and in total (Ekene walk
+ * 2026-10-14): the area ReservoirCalc Pro reports as HC Area. A node counts
+ * when its zone interval reaches above the deepest hydrocarbon contact at
+ * that node (the zone base when no OWC applies). The OWC is the engine's
+ * shape: a number, {[block]: depth} or one value per node.
+ */
+export function hcCellCounts(top, base, labels, fluids = {}) {
+  const perNode = (c) => c !== null && typeof c === 'object' && (Array.isArray(c) || ArrayBuffer.isView(c));
+  const at = (c, lab, j) => {
+    if (c === null || c === undefined) return null;
+    if (typeof c === 'number') return Number.isFinite(c) ? c : null;
+    const v = perNode(c) ? c[j] : (Object.prototype.hasOwnProperty.call(c, lab) ? c[lab] : null);
+    return Number.isFinite(v) ? v : null;
+  };
+  const out = { total: 0 };
+  for (let j = 0; j < top.length; j++) {
+    const zt = top[j]; const zb = base[j];
+    if (isNull(zt) || isNull(zb)) continue;
+    const lab = String(labels ? labels[j] : 0);
+    const w = at(fluids?.owc ?? null, lab, j);
+    const bottom = w === null ? zb : Math.min(zb, w);
+    if (bottom - zt > 0) { out[lab] = (out[lab] || 0) + 1; out.total += 1; }
+  }
+  return out;
+}
+
 export const DEFAULT_KRIGE = { model: 'spherical', range: 900, sill: 0.0025, nugget: 0.00025, fit: true, detrend: true };
 export const POPULATION_METHODS = Object.freeze([
   { key: 'constant', label: 'constant (weighted mean)' },
   { key: 'trend', label: 'trend (LSQ plane)' },
   { key: 'okrige', label: 'ordinary kriging (fitted variogram)' },
+  // Ekene walk: inverse distance for few wells, and a typed (booked) value
+  { key: 'idw', label: 'inverse distance (power 2)' },
+  { key: 'typed', label: 'typed value (the same everywhere)' },
   { key: 'krige', label: 'simple kriging (typed variogram, legacy)' },
   // U2-002: Sw only
   { key: 'shm', label: 'saturation-height (SCAL Studio), Sw only', only: 'sw' },
@@ -62,6 +117,13 @@ export const emptyDefinition = () => ({
   // T1 (EM-T1-001): per zone {goc, owc} in metres below datum (positive
   // down) and {bo, bg} formation volume factors; null = not given
   fluids: [],
+  // Ekene walk (2026-10-14): where the property control comes from
+  // ('zones' = the published zone averages, 'logs' = the wells' curves
+  // upscaled to each layer), the net reservoir cutoffs for the logs, and the
+  // IDW power. Layers and typed values live on each zone ({layers, typed}).
+  control: 'zones',
+  cutoffs: { vsh: '', phi: '' },
+  idw: { power: 2 },
 });
 
 /**
@@ -83,7 +145,10 @@ export function upgradeDefinition(def) {
     name: typeof d.name === 'string' && d.name.trim() ? d.name : e.name,
     surfaceIds: ids,
     topNames: ids.map((_, i) => (Array.isArray(d.topNames) && typeof d.topNames[i] === 'string' ? d.topNames[i] : '')),
-    zones: Array.isArray(d.zones) ? d.zones.filter(Boolean).map((z, i) => ({ name: z.name || `Zone ${i + 1}`, registryZone: z.registryZone || '', ...(z.maps ? { maps: z.maps } : {}) })) : [],
+    zones: Array.isArray(d.zones) ? d.zones.filter(Boolean).map((z, i) => ({
+      name: z.name || `Zone ${i + 1}`, registryZone: z.registryZone || '', ...(z.maps ? { maps: z.maps } : {}),
+      ...(z.layers ? { layers: z.layers } : {}), ...(z.typed ? { typed: z.typed } : {}),
+    })) : [],
     faultPolygons: Array.isArray(d.faultPolygons) ? d.faultPolygons.filter((p) => Array.isArray(p?.vertices)).map((p, i) => ({ ...p, name: p.name || `Fault ${i + 1}`, vertices: p.vertices.map(vert) })) : [],
     methods: { ...e.methods, ...(d.methods || {}) },
     krige: { ...e.krige, ...(d.krige || {}) },
@@ -91,6 +156,9 @@ export function upgradeDefinition(def) {
     adjust: { ...e.adjust, ...(d.adjust || {}) },
     derived: Array.isArray(d.derived) ? d.derived : [],
     fluids: Array.isArray(d.fluids) ? d.fluids : [],
+    control: d.control === 'logs' ? 'logs' : 'zones',
+    cutoffs: { ...e.cutoffs, ...(d.cutoffs || {}) },
+    idw: { ...e.idw, ...(d.idw || {}) },
   };
 }
 
@@ -234,7 +302,8 @@ export const hasFluids = (f) => !!f && (['goc', 'owc', 'bo', 'bg'].some((k) => N
 /**
  * The zone's property grids shifted by z kriging standard deviations each
  * (every node moving together), held to 0..1. `zs` is {phi, sw, ntg}; a
- * property without a variance grid is returned unshifted.
+ * property without a variance grid is returned unshifted, and so is a node
+ * with no variance (a block that fell back to a trend or a constant).
  */
 export function shiftProps(zone, zs = {}) {
   const vars = zone.variance || {};
@@ -246,26 +315,180 @@ export function shiftProps(zone, zs = {}) {
     const z = Number(zs[k]) || 0;
     if (!v || z === 0) { out[k] = g; continue; }
     out[k] = Float64Array.from(g, (x, i) => {
-      if (!Number.isFinite(v[i]) || v[i] < 0 || Math.abs(x) >= 1e29) return x;
+      // a block that fell back from kriging carries no variance (the grid's
+      // null marker): shifting by its square root sent every node to 0 or 1
+      // (Ekene: STOIIP P90 0 against P50 4.9 MMstb)
+      if (!Number.isFinite(v[i]) || v[i] < 0 || isNull(v[i]) || v[i] > 1 || Math.abs(x) >= 1e29) return x;
       return Math.min(1, Math.max(0, x + z * Math.sqrt(v[i])));
     });
   }
   return out;
 }
 
-export function volumeRange(spec, zone, labels, fluids, top, base) {
-  const vars = zone.variance || {};
-  if (!['phi', 'sw', 'ntg'].some((k) => vars[k])) return null;
+export function volumeRange(spec, zone, labels, fluids, top, base, useContacts = hasFluids(fluids)) {
+  const frames = zoneLayerFrames(zone, top, base);
+  if (!frames.some((L) => ['phi', 'sw', 'ntg'].some((k) => L.variance?.[k]))) return null;
   const K = 1.2815515655446004;
-  const shifted = (sgn) => shiftProps(zone, { phi: sgn * K, sw: -sgn * K, ntg: sgn * K });
-  const vol = (props) => (hasFluids(fluids)
-    ? zoneVolumesWithContacts(spec, top, base, labels, props, fluids)
-    : zoneVolumes(spec, zone.thickness, labels, props)).total;
-  const low = vol(shifted(-1));
-  const high = vol(shifted(1));
+  const vol = (sgn) => layeredVolumes(spec, zone, labels, fluids, top, base, { useContacts, zs: { phi: sgn * K, sw: -sgn * K, ntg: sgn * K } }).total;
+  const low = vol(-1);
+  const high = vol(1);
   const mid = zone.volumes.total;
   const pick = (b) => ({ hcpv_m3: b.hcpv_m3, stoiip_m3: b.stoiip_m3 ?? null, giip_m3: b.giip_m3 ?? null });
   return { p90: pick(low), p50: pick(mid), p10: pick(high) };
+}
+
+/** Proportional layers a zone is cut into (1 to 50; 1 = the zone itself). */
+export const MAX_LAYERS = 50;
+export const zoneLayerCount = (zdef) => Math.max(1, Math.min(MAX_LAYERS, Math.floor(Number(zdef?.layers) || 1)));
+
+/**
+ * The zone cut into n proportional layers (Ekene walk 2026-10-14): layer k
+ * spans the fraction k/n to (k+1)/n of the zone between its top and base at
+ * every node, so the layers thin and thicken with the zone. A null node is
+ * null in every layer.
+ * @returns {Array<{top, base, thickness, index, count}>}
+ */
+export function proportionalLayers(top, base, n = 1) {
+  if (n <= 1) {
+    return [{ top, base, thickness: zoneThickness(top, base), index: 0, count: 1 }];
+  }
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    const t = new Float64Array(top.length); const b = new Float64Array(top.length);
+    for (let j = 0; j < top.length; j++) {
+      if (isNull(top[j]) || isNull(base[j])) { t[j] = NULL_VALUE; b[j] = NULL_VALUE; continue; }
+      const h = base[j] - top[j];
+      t[j] = top[j] + (h * k) / n;
+      b[j] = k === n - 1 ? base[j] : top[j] + (h * (k + 1)) / n;
+    }
+    out.push({ top: t, base: b, thickness: zoneThickness(t, b), index: k, count: n });
+  }
+  return out;
+}
+
+/** Net reservoir cutoffs typed in the dock, as numbers (blank keeps the default). */
+export function cutoffsOf(c = {}) {
+  const out = {};
+  for (const k of ['vsh', 'phi']) {
+    const v = c?.[k];
+    if (v === undefined || v === null || String(v).trim() === '') continue;
+    const x = Number(v);
+    if (!Number.isFinite(x) || x < 0 || x > 1) throw new Error(`The ${k === 'vsh' ? 'Vsh' : 'porosity'} cutoff must be a fraction between 0 and 1.`);
+    out[k] = x;
+  }
+  return out;
+}
+
+/** A property typed by the user for the whole zone (the booked value), every block the same. */
+export function typedGrid(spec, labels, value, prop, zoneName) {
+  const v = value === undefined || value === null || String(value).trim() === '' ? NaN : Number(value);
+  const what = prop === 'phi' ? 'porosity' : prop === 'sw' ? 'Sw' : prop === 'ntg' ? 'NTG' : prop;
+  if (!Number.isFinite(v)) throw new Error(`${zoneName}: type a value for ${what} in the dock, or pick another method.`);
+  if (v < 0 || v > 1) throw new Error(`${zoneName}: the typed ${what} must be a fraction between 0 and 1.`);
+  const z = new Float64Array(spec.nx * spec.ny).fill(v);
+  const blocks = labels ? [...new Set(labels)].sort((a, b) => a - b) : [0];
+  return { z, provenance: blocks.map((block) => ({ block, methodUsed: 'typed', wells: 0, fellBack: false, note: `${v}` })) };
+}
+
+/**
+ * The zone's properties seen as one (for the map, the prospect and the
+ * exports of a layered zone): NTG the mean of the layers (proportional
+ * layers share the thickness), porosity weighted by NTG, Sw by NTG x
+ * porosity, so the zone's pore and hydrocarbon pore volumes without
+ * contacts equal the sum of its layers.
+ */
+export function aggregateLayerProps(layers) {
+  const n = layers[0].props.phi?.length || layers[0].top.length;
+  const out = {};
+  const has = (k) => layers.every((L) => L.props[k]);
+  if (has('ntg')) out.ntg = new Float64Array(n);
+  if (has('phi')) out.phi = new Float64Array(n);
+  if (has('sw')) out.sw = new Float64Array(n);
+  if (has('perm')) out.perm = new Float64Array(n);
+  for (let j = 0; j < n; j++) {
+    let sN = 0; let sNP = 0; let sNPW = 0; let sLk = 0; let c = 0; let dead = false;
+    for (const L of layers) {
+      const t = L.thickness[j];
+      const ntg = L.props.ntg ? L.props.ntg[j] : 1; const phi = L.props.phi ? L.props.phi[j] : 0; const sw = L.props.sw ? L.props.sw[j] : 0;
+      if (isNull(t) || [ntg, phi, sw].some((v) => isNull(v) || !Number.isFinite(v))) { dead = true; break; }
+      sN += ntg; sNP += ntg * phi; sNPW += ntg * phi * sw; c += 1;
+      if (L.props.perm && Number.isFinite(L.props.perm[j]) && !isNull(L.props.perm[j]) && L.props.perm[j] > 0) sLk += Math.log(L.props.perm[j]);
+    }
+    if (dead || !c) { for (const g of Object.values(out)) g[j] = NULL_VALUE; continue; }
+    if (out.ntg) out.ntg[j] = sN / c;
+    if (out.phi) out.phi[j] = sN > 0 ? sNP / sN : 0;
+    if (out.sw) out.sw[j] = sNP > 0 ? sNPW / sNP : 1;
+    if (out.perm) out.perm[j] = Math.exp(sLk / c);
+  }
+  return out;
+}
+
+/** Each property's provenance rows of every layer, tagged with the layer (1-based). */
+export function mergeLayerProvenance(layers) {
+  const out = {};
+  layers.forEach((L, k) => {
+    for (const [prop, rows] of Object.entries(L.provenance)) {
+      (out[prop] = out[prop] || []).push(...rows.map((r) => ({ ...r, layer: k + 1 })));
+    }
+  });
+  return out;
+}
+
+/** The zone's cell layers: its proportional layers, or the zone itself. */
+export const zoneLayerFrames = (zone, top, base) => (zone.layers?.length
+  ? zone.layers
+  : [{ top, base, thickness: zone.thickness, props: zone.props, variance: zone.variance || {} }]);
+
+function mergeVolumes(sum, v, first) {
+  for (const [blk, b] of Object.entries(v)) {
+    const s = sum[blk] || (sum[blk] = {});
+    for (const [key, x] of Object.entries(b)) {
+      if (key === 'cells') { if (first || s.cells === undefined) s.cells = x; continue; }
+      if (x === null) { if (!(key in s)) s[key] = null; continue; }
+      s[key] = (s[key] || 0) + x;
+    }
+  }
+}
+
+/**
+ * Zone volumes summed over its layers (each with its own properties), with
+ * or without contacts; `zs` shifts the kriged properties of every layer by
+ * that many kriging standard deviations (the range and the distribution).
+ */
+export function layeredVolumes(spec, zone, labels, fluids, top, base, { zs = null, useContacts = hasFluids(fluids) } = {}) {
+  const frames = zoneLayerFrames(zone, top, base);
+  const sum = {};
+  frames.forEach((L, k) => {
+    const props = zs && Object.values(zs).some((z) => Number(z) !== 0) ? shiftProps(L, zs) : L.props;
+    const v = useContacts
+      ? zoneVolumesWithContacts(spec, L.top, L.base, labels, props, fluids || {})
+      : zoneVolumes(spec, L.thickness, labels, props);
+    mergeVolumes(sum, v, k === 0);
+  });
+  return sum;
+}
+
+/**
+ * The model against its control (Ekene walk): at each control point of each
+ * layer, the control value beside the model's value at that point. Kriging
+ * and IDW honour the wells, so the difference is zero there; a constant or
+ * a trend leaves a misfit the table shows.
+ */
+export function wellMatchRows(spec, layers, pointsFor) {
+  const rows = [];
+  layers.forEach((L, k) => {
+    for (const prop of ['phi', 'sw', 'ntg', 'perm']) {
+      const g = L.props[prop];
+      if (!g) continue;
+      for (const p of pointsFor(prop, k) || []) {
+        const raw = sampleAtXY(g, spec, p.x, p.y);
+        const model = isNull(raw) || !Number.isFinite(raw) ? null : raw;
+        const control = prop === 'perm' ? 10 ** p.v : p.v;
+        rows.push({ well: p.well || '', layer: k + 1, prop, control, model, diff: model === null ? null : model - control });
+      }
+    }
+  });
+  return rows;
 }
 
 /**
@@ -622,42 +845,71 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
     // U2-001: this zone's own blocks when a fault slopes
     const zLabels = labelsByZone ? labelsByZone[i] : labels;
     const zPolygons = polygonsByZone ? polygonsByZone[i] : polygons;
-    const props = {};
-    const variance = {};
-    const provenance = {};
-    let shmPending = false;
-    let swMapPending = false;
-    for (const [prop, key] of Object.entries(PROP_KEYS)) {
-      // U2-008: Sw from the HCPV map waits for NTG and porosity; NTG from the net pay map
-      if (prop === 'sw' && definition.methods?.sw === 'map' && zoneMaps[i].sw) {
-        swMapPending = true;
-        progress(`${zdef.name}: Sw from the HCPV map`);
-        continue;
+    const top = framework.clamped[i];
+    const base = framework.clamped[i + 1];
+    const nNodes = specM.nx * specM.ny;
+    // Ekene walk: proportional layers inside the zone (1 = the zone itself)
+    const nL = zoneLayerCount(zdef);
+    const frames = proportionalLayers(top, base, nL);
+
+    const fluids = parsedFluids[i] || null;
+    const eng = engineFluids(fluids, zLabels, nNodes);
+    // U2-006: the leg bounded by Mapping's closure and spill engine
+    let trap = null;
+    if (fluids?.trap === 'closure') {
+      const owcGrid = contactGrid(fluids, 'owc', zLabels, nNodes);
+      if (owcGrid) {
+        trap = boundLegByClosure(specM, top, owcGrid);
+        eng.owc = trap.owc;
+        if (fluids.gasZone) eng.goc = Float64Array.from(trap.owc, (v) => (Number.isFinite(v) ? v : 1e12));
+        trap.traps = trap.traps.map((t) => ({ ...t, spillXY: t.spillXY ? { x: t.spillXY.x / k, y: t.spillXY.y / k } : null }));
       }
-      if (prop === 'ntg' && definition.methods?.ntg === 'map' && zoneMaps[i].ntg) {
-        const r = ntgFromNetMap(zoneMaps[i].ntg, zThickness);
-        props.ntg = r.z;
-        if (r.clamped) propertyClamps.push({ zone: zdef.name, prop: 'ntg', nodes: r.clamped });
-        provenance.ntg = [{ block: 0, methodUsed: 'map', wells: 0, fellBack: false, note: 'net pay map / zone thickness' }];
-        progress(`${zdef.name}: NTG from the net pay map`);
-        continue;
-      }
-      // U2-002: Sw from the SCAL saturation-height function waits for the contacts
-      if (prop === 'sw' && definition.methods?.sw === 'shm') {
-        shmPending = true;
-        progress(`${zdef.name}: Sw from saturation-height`);
-        continue;
-      }
-      const base = zoneControlPoints(eWells, zdef.registryZone);
+    }
+
+    // where the property control comes from: the published zone averages
+    // (one value per well) or the wells' logs upscaled to each layer
+    const control = definition.control === 'logs' ? 'logs' : 'zones';
+    let logControl = null;
+    if (control === 'logs') {
+      const curves = definition.logsResolved?.curves || {};
+      if (!Object.keys(curves).length) throw new Error('Rock properties from the well logs needs computed PHIE and VSH curves in the wells. Publish them from Petrophysics Studio, or use the zone averages.');
+      const owc = eng?.owc;
+      const owcAt = owc === null || owc === undefined ? null
+        : typeof owc === 'number' ? () => owc
+          : (x, y) => { const v = sampleAtXY(owc, specM, x, y); return Number.isFinite(v) ? v : null; };
+      logControl = zoneLogControl(eWells, curves, { topName: definition.topNames?.[i] || '', baseName: definition.topNames?.[i + 1] || '', registryZone: zdef.registryZone }, {
+        layers: nL, cutoffs: { ...DEFAULT_CUTOFFS, ...cutoffsOf(definition.cutoffs) }, owcAt,
+      });
+      if (!logControl.rows.length) notes.push(`${zdef.name}: no well has PHIE and VSH over the zone, so its properties have no log control.`);
+    }
+    const zoneBases = new Set();
+    const zonePointsCache = {};
+    const zoneAveragePoints = (prop) => {
+      if (zonePointsCache[prop]) return zonePointsCache[prop];
       const all = [];
-      for (const cp of base) {
+      if (prop === 'perm') return (zonePointsCache[prop] = all);
+      for (const cp of zoneControlPoints(eWells, zdef.registryZone)) {
         const well = placed.find((w) => w.name === cp.well);
         const zone = (well?.zones || []).find((z) => z.name === zdef.registryZone);
-        const v = zone?.properties?.[key];
-        if (Number.isFinite(v)) all.push({ x: cp.x, y: cp.y, v, w: cp.w });
+        const { v, basis } = zonePropertyValue(zone?.properties, prop);
+        if (Number.isFinite(v)) { all.push({ well: cp.well, x: cp.x, y: cp.y, v, w: cp.w }); if (basis) zoneBases.add(basis); }
         // PETRO-U2-013: a pre-PT9a Studio summary's phi_avg is total porosity
         if (prop === 'phi' && Number.isFinite(v) && isPrePt9aZone(zone.properties)) totalPhi.push({ zone: zdef.name, well: cp.well });
       }
+      return (zonePointsCache[prop] = all);
+    };
+    // a layer no well can speak for (Sw in a layer below the OWC in every
+    // well) takes the zone's upscaled values, and the provenance says so
+    const borrowed = new Set();
+    const pointsFor = (prop, kLayer) => {
+      if (control !== 'logs') return zoneAveragePoints(prop);
+      const own = logControl.layers[kLayer][prop];
+      if (own.length || !logControl.zone[prop].length) return own;
+      borrowed.add(`${prop}|${kLayer}`);
+      return logControl.zone[prop];
+    };
+
+    const populateOne = (prop, all, typedV) => {
       const byBlock = {};
       for (const p of all) {
         let lab = 0;
@@ -666,60 +918,100 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
         }
         (byBlock[lab] = byBlock[lab] || []).push(p);
       }
-      let method = definition.methods?.[prop] || 'constant';
+      let method = definition.methods?.[prop === 'perm' ? 'phi' : prop] || 'constant';
+      if (prop === 'perm' && method === 'typed') method = 'constant';
       if (method === 'map' || method === 'shm') method = 'constant'; // no map for this zone: the weighted mean, said in provenance
+      if (method === 'typed') return typedGrid(specM, zLabels, typedV, prop, zdef.name);
+      if (method === 'idw') return populateZonePropertyIdw(specM, zLabels, byBlock, all, { power: definition.idw?.power });
       // EM4: ordinary kriging with a fitted variogram and a variance grid
-      const out = method === 'okrige'
-        ? populateZonePropertyOk(specM, zLabels, byBlock, all, definition.krige || DEFAULT_KRIGE)
-        : populateZoneProperty(specM, zLabels, byBlock, all, method, definition.krige || DEFAULT_KRIGE);
-      // EM-U1-005: a trend or kriging extrapolated past the wells stays a fraction
-      const n = clampFractionGrid(out.z);
-      if (n) propertyClamps.push({ zone: zdef.name, prop, nodes: n });
-      props[prop] = out.z;
-      if (out.variance) variance[prop] = out.variance;
-      provenance[prop] = definition.methods?.[prop] === 'map'
-        ? out.provenance.map((r) => ({ ...r, fellBack: true, note: `no Petrophysics map picked for this zone${r.note ? `; ${r.note}` : ''}` }))
-        : out.provenance;
-      progress(`${zdef.name}: ${prop === 'phi' ? 'porosity' : prop === 'sw' ? 'Sw' : 'NTG'} populated`);
+      if (method === 'okrige') return populateZonePropertyOk(specM, zLabels, byBlock, all, definition.krige || DEFAULT_KRIGE);
+      return populateZoneProperty(specM, zLabels, byBlock, all, method, definition.krige || DEFAULT_KRIGE);
+    };
+
+    // U2-008: zone maps (net pay for NTG) are zone-wide and shared by the layers
+    let ntgFromMap = null;
+    if (definition.methods?.ntg === 'map' && zoneMaps[i].ntg) {
+      ntgFromMap = ntgFromNetMap(zoneMaps[i].ntg, zThickness);
+      if (ntgFromMap.clamped) propertyClamps.push({ zone: zdef.name, prop: 'ntg', nodes: ntgFromMap.clamped });
     }
-    if (swMapPending) {
-      const r = swFromHcpvMap(zoneMaps[i].sw, zThickness, props.ntg, props.phi);
-      props.sw = r.z;
-      if (r.clamped) propertyClamps.push({ zone: zdef.name, prop: 'sw', nodes: r.clamped });
-      provenance.sw = [{ block: 0, methodUsed: 'map', wells: 0, fellBack: false, note: '1 - HCPV map / (thickness x NTG x porosity)' }];
+    const swMapPending = definition.methods?.sw === 'map' && !!zoneMaps[i].sw;
+    const shmPending = definition.methods?.sw === 'shm';
+    const shmR = shmPending ? definition.shmResolved : null;
+    let fwlM = null;
+    if (shmPending) {
+      if (!shmR?.ok) throw new Error(shmR?.errors?.[0] || 'Sw from saturation-height needs a SCAL Studio project. Pick one in the dock.');
+      fwlM = Number.isFinite(shmR.fwlM) ? shmR.fwlM : shmR.fwlTvdssM;
+      if (!Number.isFinite(fwlM)) throw new Error('Sw from saturation-height needs a free-water level: the SCAL project has none, so type one in the dock.');
     }
-    const fluids = parsedFluids[i] || null;
-    const nNodes = specM.nx * specM.ny;
-    const eng = engineFluids(fluids, zLabels, nNodes);
-    const topI = framework.clamped[i];
-    // U2-006: the leg bounded by Mapping's closure and spill engine
-    let trap = null;
-    if (fluids?.trap === 'closure') {
-      const owcGrid = contactGrid(fluids, 'owc', zLabels, nNodes);
-      if (owcGrid) {
-        trap = boundLegByClosure(specM, topI, owcGrid);
-        eng.owc = trap.owc;
-        if (fluids.gasZone) eng.goc = Float64Array.from(trap.owc, (v) => (Number.isFinite(v) ? v : 1e12));
-        trap.traps = trap.traps.map((t) => ({ ...t, spillXY: t.spillXY ? { x: t.spillXY.x / k, y: t.spillXY.y / k } : null }));
+    const owcAtNodes = eng && eng.owc !== null && eng.owc !== undefined
+      ? (typeof eng.owc === 'number' ? new Float64Array(nNodes).fill(eng.owc) : eng.owc) : null;
+    const usedFwl = shmPending && (!owcAtNodes || !Array.from(owcAtNodes).some(Number.isFinite));
+
+    const clampSum = {};
+    let transitionNodes = 0;
+    const layerOut = frames.map((F, kL) => {
+      const props = {}; const variance = {}; const provenance = {};
+      for (const prop of ['phi', 'sw', 'ntg', ...(control === 'logs' ? ['perm'] : [])]) {
+        if (prop === 'ntg' && ntgFromMap) {
+          props.ntg = ntgFromMap.z;
+          provenance.ntg = [{ block: 0, methodUsed: 'map', wells: 0, fellBack: false, note: 'net pay map / zone thickness' }];
+          continue;
+        }
+        if (prop === 'sw' && (swMapPending || shmPending)) continue; // after porosity and NTG
+        const out = populateOne(prop, pointsFor(prop, kL), zdef.typed?.[prop]);
+        if (prop === 'perm') {
+          props.perm = Float64Array.from(out.z, (v) => (isNull(v) ? v : 10 ** v));
+        } else {
+          // EM-U1-005: a trend or kriging extrapolated past the wells stays a fraction
+          const n = clampFractionGrid(out.z);
+          if (n) clampSum[prop] = (clampSum[prop] || 0) + n;
+          props[prop] = out.z;
+        }
+        if (out.variance) variance[prop] = out.variance;
+        if (borrowed.has(`${prop}|${kL}`)) out.provenance = out.provenance.map((r) => ({ ...r, note: `${r.note ? `${r.note}; ` : ''}no well has a value in this layer, so the zone's upscaled values` }));
+        provenance[prop] = definition.methods?.[prop] === 'map'
+          ? out.provenance.map((r) => ({ ...r, fellBack: true, note: `no Petrophysics map picked for this zone${r.note ? `; ${r.note}` : ''}` }))
+          : out.provenance;
+      }
+      if (swMapPending) {
+        const r = swFromHcpvMap(zoneMaps[i].sw, zThickness, props.ntg, props.phi);
+        props.sw = r.z;
+        if (r.clamped) clampSum.sw = (clampSum.sw || 0) + r.clamped;
+        provenance.sw = [{ block: 0, methodUsed: 'map', wells: 0, fellBack: false, note: '1 - HCPV map / (thickness x NTG x porosity)' }];
+      } else if (shmPending) {
+        const g = shmSwGrid({ spec: specM, top: F.top, base: F.base, contact: owcAtNodes, shm: shmR, fwlM, rock: definition.shm?.rock || 'project', phi: props.phi });
+        props.sw = g.sw;
+        transitionNodes = Math.max(transitionNodes, g.transitionNodes || 0);
+        // SCAL-U2-009: the kr-1 source words of the J function travel with the zone into the report
+        provenance.sw = [{ block: 0, methodUsed: 'shm', wells: 0, fellBack: false, note: `${shmR.name || 'SCAL project'}, FWL ${fwlM.toFixed(1)} m, rock from ${definition.shm?.rock === 'model' ? 'the modelled porosity' : 'the project'}${shmR.sourceText ? `; SCAL source: ${shmR.sourceText}` : ''}` }];
+      }
+      return { ...F, props, variance, provenance };
+    });
+    for (const w of ['porosity', 'Sw', 'NTG']) progress(`${zdef.name}: ${w} populated`);
+    for (const [prop, n] of Object.entries(clampSum)) propertyClamps.push({ zone: zdef.name, prop, nodes: n });
+    // a property with no control anywhere leaves its nodes empty, and an empty node holds no volume: say so
+    layerOut.forEach((L, kL) => {
+      for (const prop of ['phi', 'sw', 'ntg']) {
+        const g = L.props[prop];
+        if (g && !g.some((v) => !isNull(v) && Number.isFinite(v))) notes.push(`${zdef.name}${layerOut.length > 1 ? ` layer ${kL + 1}` : ''}: no well gives ${prop === 'phi' ? 'porosity' : prop === 'sw' ? 'Sw' : 'NTG'}, so its nodes are empty and hold no volume.`);
+      }
+    });
+    if (zoneBases.size) {
+      const b = [...zoneBases].join(' and ');
+      for (const L of layerOut) if (L.provenance.ntg && !ntgFromMap) L.provenance.ntg = L.provenance.ntg.map((r) => ({ ...r, note: `${r.note ? `${r.note}; ` : ''}${b} over gross` }));
+      if (zoneBases.has('net pay')) notes.push(`${zdef.name}: NTG from ${zoneBases.has('net reservoir') ? 'some wells' : 'the wells'} is net PAY over gross (the zone summary has no net reservoir thickness), which already cuts water; republish the zone from Petrophysics Studio for net reservoir.`);
+    }
+    if (control === 'logs') {
+      const cut = { ...DEFAULT_CUTOFFS, ...cutoffsOf(definition.cutoffs) };
+      for (const L of layerOut) for (const prop of Object.keys(L.provenance)) {
+        if (L.provenance[prop].some((r) => ['shm', 'map', 'typed'].includes(r.methodUsed))) continue;
+        L.provenance[prop] = L.provenance[prop].map((r) => ({ ...r, note: `${r.note ? `${r.note}; ` : ''}well logs upscaled (Vsh <= ${cut.vsh}, PHIE >= ${cut.phi}${prop === 'sw' ? ', above the OWC' : ''})` }));
       }
     }
-    const top = framework.clamped[i];
-    const base = framework.clamped[i + 1];
+
     let shm = null;
     if (shmPending) {
-      const r = definition.shmResolved;
-      if (!r?.ok) throw new Error(r?.errors?.[0] || 'Sw from saturation-height needs a SCAL Studio project. Pick one in the dock.');
-      const fwlM = Number.isFinite(r.fwlM) ? r.fwlM : r.fwlTvdssM;
-      if (!Number.isFinite(fwlM)) throw new Error('Sw from saturation-height needs a free-water level: the SCAL project has none, so type one in the dock.');
-      const owcAt = eng && eng.owc !== null && eng.owc !== undefined
-        ? (typeof eng.owc === 'number' ? new Float64Array(nNodes).fill(eng.owc) : eng.owc) : null;
-      const g = shmSwGrid({ spec: specM, top, base, contact: owcAt, shm: r, fwlM, rock: definition.shm?.rock || 'project', phi: props.phi });
-      props.sw = g.sw;
-      const usedFwl = !owcAt || !Array.from(owcAt).some(Number.isFinite);
-      // SCAL-U2-009: the kr-1 source words of the J function travel with the zone into the report
-      const scalSource = r.sourceText || null;
-      provenance.sw = [{ block: 0, methodUsed: 'shm', wells: 0, fellBack: false, note: `${r.name || 'SCAL project'}, FWL ${fwlM.toFixed(1)} m, rock from ${definition.shm?.rock === 'model' ? 'the modelled porosity' : 'the project'}${scalSource ? `; SCAL source: ${scalSource}` : ''}` }];
-      shm = { project: r.name || 'SCAL project', fwlM, rock: definition.shm?.rock || 'project', transitionNodes: g.transitionNodes, fwlAsContact: usedFwl, source: scalSource };
+      shm = { project: shmR.name || 'SCAL project', fwlM, rock: definition.shm?.rock || 'project', transitionNodes, fwlAsContact: usedFwl, source: shmR.sourceText || null };
       if (usedFwl) {
         // no OWC typed: the FWL bounds the hydrocarbon leg, or the water below it would count
         if (eng) eng.owc = fwlM;
@@ -727,19 +1019,57 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       }
     }
     const volFluids = shmPending && shm?.fwlAsContact ? (eng || { owc: shm.fwlM }) : eng;
-    const volumes = (hasFluids(fluids) || (shmPending && shm?.fwlAsContact))
-      ? zoneVolumesWithContacts(specM, top, base, zLabels, props, volFluids)
-      : zoneVolumes(specM, zThickness, zLabels, props);
-    const zone = { name: zdef.name, registryZone: zdef.registryZone, ...(labelsByZone ? { labels: zLabels, census: blockCensus(zLabels) } : {}), thickness: zThickness, props, variance, provenance, volumes, fluids, ...(shm ? { shm } : {}) };
-    zone.range = volumeRange(specM, zone, zLabels, volFluids, top, base);
+    const useContacts = !!(hasFluids(fluids) || (shmPending && shm?.fwlAsContact));
+    const layered = nL > 1;
+    const zone = {
+      name: zdef.name, registryZone: zdef.registryZone, ...(labelsByZone ? { labels: zLabels, census: blockCensus(zLabels) } : {}),
+      thickness: zThickness, fluids, ...(shm ? { shm } : {}),
+      control,
+      ...(layered ? { layers: layerOut } : {}),
+      props: layered ? aggregateLayerProps(layerOut) : layerOut[0].props,
+      variance: layered ? {} : layerOut[0].variance,
+      provenance: layered ? mergeLayerProvenance(layerOut) : layerOut[0].provenance,
+      ...(logControl ? { logRows: logControl.rows } : {}),
+    };
+    const volumes = layeredVolumes(specM, zone, zLabels, volFluids, top, base, { useContacts });
+    // Ekene walk: rock volume and area above the contacts, the numbers RCP prints
+    if (useContacts) {
+      const hc = hcCellCounts(top, base, zLabels, volFluids || {});
+      const cellM2 = specM.dx * specM.dy;
+      for (const [key, b] of Object.entries(volumes)) {
+        b.hc_bulk_m3 = (b.gas_bulk_m3 || 0) + (b.oil_bulk_m3 || 0);
+        b.hc_cells = hc[key] || 0;
+        b.hc_area_m2 = b.hc_cells * cellM2;
+      }
+    }
+    zone.volumes = volumes;
+    // Ekene walk: the averages over the hydrocarbon leg (what a single-tank
+    // calculation would need to give this volume): NTG over the rock above the
+    // contacts, porosity over its net rock, Sw pore-volume weighted
+    if (useContacts && volumes.total?.hc_bulk_m3 > 0) {
+      const ones = new Float64Array(nNodes).fill(1); const zeros = new Float64Array(nNodes);
+      const swap = (over) => ({ ...zone, layers: zone.layers?.map((L) => ({ ...L, props: { ...L.props, ...over(L.props) } })), props: { ...zone.props, ...over(zone.props) } });
+      const net = layeredVolumes(specM, swap(() => ({ phi: ones, sw: zeros })), zLabels, volFluids, top, base, { useContacts }).total.hcpv_m3;
+      const pore = layeredVolumes(specM, swap(() => ({ sw: zeros })), zLabels, volFluids, top, base, { useContacts }).total.hcpv_m3;
+      const t = volumes.total;
+      zone.hcAverages = {
+        ntg: net / t.hc_bulk_m3,
+        phi: net > 0 ? pore / net : null,
+        sw: pore > 0 ? 1 - t.hcpv_m3 / pore : null,
+      };
+    }
+    zone.range = volumeRange(specM, zone, zLabels, volFluids, top, base, useContacts);
     // U2-010: what a volume distribution needs to re-run this zone's volumes
-    zone.mc = { fluids: volFluids || null, trap: !!trap, owcBase: trap ? contactGrid(fluids, 'owc', zLabels, nNodes) : null, hasFluids: !!(hasFluids(fluids) || (shmPending && shm?.fwlAsContact)) };
+    zone.mc = { fluids: volFluids || null, trap: !!trap, owcBase: trap ? contactGrid(fluids, 'owc', zLabels, nNodes) : null, hasFluids: useContacts };
     if (trap) {
       zone.trap = { traps: trap.traps, cutNodes: trap.cutNodes, openEdge: trap.openEdge };
       zone.openEdge = trap.openEdge ? { open: true, nodes: 0, spillAtEdge: true } : { open: false, nodes: 0 };
     } else {
       zone.openEdge = contactEdgeReport(specM, top, fluids, zLabels);
     }
+    // the model against its control: each control point's value beside the
+    // model's at that point (exact for kriging and IDW, a misfit for a trend or constant)
+    zone.wellMatch = wellMatchRows(specM, layerOut, (prop, kL) => pointsFor(prop, kL) || []);
     // U2-017: the zone's isopach (true stratigraphic thickness) beside its isochore,
     // Mapping's engine (TST = TVT cos(dip), dip from the zone's mid-surface)
     {

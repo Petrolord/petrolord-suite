@@ -113,8 +113,9 @@ export async function buildModelReportPdf({ built, name = 'Earth model', volumeU
   y = doc.lastAutoTable.finalY + 4;
 
   // in-place volumes per zone (totals)
-  const cols = ['bulk_m3', 'net_m3', 'pore_m3', 'hcpv_m3', 'stoiip_m3', 'giip_m3'];
-  const heads = ['Zone', 'GRV', 'NRV', 'PV', 'HCPV', 'STOIIP', 'GIIP (free gas)'];
+  const hcCols = built.zones.some((z) => z.volumes?.total && 'hc_bulk_m3' in z.volumes.total);
+  const cols = ['bulk_m3', ...(hcCols ? ['hc_bulk_m3'] : []), 'net_m3', 'pore_m3', 'hcpv_m3', 'stoiip_m3', 'giip_m3'];
+  const heads = ['Zone', 'GRV', ...(hcCols ? ['GRV above contact'] : []), 'NRV', 'PV', 'HCPV', 'STOIIP', 'GIIP (free gas)'];
   const v = (x, c) => fmtVolume(x, c, volumeUnits);
   doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text('In-place volumes per zone', M, y); doc.setFont('helvetica', 'normal');
   autoTable(doc, {

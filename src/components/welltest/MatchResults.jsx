@@ -26,7 +26,7 @@ const MatchResults = () => {
     loglog, modelSeries, prepared, matchParams, model,
     reservoirSpec, configSpec, fitResult, fitStale, matchKpis, matchMethod,
     unitSystem, pseudoTime, historyMatch,
-    changingStorage,
+    changingStorage, history,
   } = useWellTestStudio();
   const dpKind = reservoirSpec.reservoir?.fluid === 'gas' ? 'pseudoPressure' : 'pressure';
 
@@ -49,7 +49,7 @@ const MatchResults = () => {
 
   const timeName = pseudoTime.active ? 'pseudo-time' : 'time';
   const xLabel = configSpec.config?.family === 'buildup'
-    ? `Agarwal equivalent ${timeName} (hr)`
+    ? (history ? `Equivalent ${timeName} of the rate history, superposition (hr)` : `Agarwal equivalent ${timeName} (hr)`)
     : `Elapsed ${timeName} (hr)`;
   const isGas = reservoirSpec.reservoir?.fluid === 'gas';
   // display-unit series from the shared builder (the PDF log-log uses it too)
@@ -71,6 +71,24 @@ const MatchResults = () => {
         <Kpi title="kh" value={fmtU('kh', matchKpis?.kh, unitSystem, fmt.sig3)} unit={unitLabel('kh', unitSystem)} />
         <Kpi title="CD" value={fmt.sig3(matchKpis?.cd)} />
       </div>
+      {/* 2026-10-14: the model's own parameters beyond k, skin and C (a boundary distance, a fracture, dual porosity) */}
+      {(() => {
+        const extra = (model?.parameters || []).filter((meta) => !['k', 'skin', 'C'].includes(meta.key));
+        if (!extra.length || !matchParams) return null;
+        return (
+          <div className="grid grid-cols-2 xl:grid-cols-5 gap-3" data-testid="wts-match-model-params">
+            {extra.map((meta) => {
+              const kind = kindForCatalogUnit(meta.unit);
+              const v = matchParams[meta.key];
+              return (
+                <Kpi key={meta.key} title={meta.label}
+                  value={kind ? fmtU(kind, v, unitSystem, meta.unit === 'ft' ? fmt.int : fmt.sig3) : fmt.sig3(v)}
+                  unit={kind ? unitLabel(kind, unitSystem) : (meta.unit === 'dimensionless' ? '' : meta.unit)} />
+              );
+            })}
+          </div>
+        );
+      })()}
       {changingStorage?.length > 0 && (
         <p className="text-xs text-pl-muted" data-testid="wts-changing-storage">
           {changingStorage.map(([label, value]) => `${label} ${value}`).join('; ')}.

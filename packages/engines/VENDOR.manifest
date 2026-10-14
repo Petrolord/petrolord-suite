@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 99add05e325f8e687749d4193b9e338a5803347e
+# commit eab475c0d8ae0afbf34eb096a31f9c3084ebb785
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 d8bd133c5a081611291cb72e0efd5909a2e23b77 README.md
@@ -18,6 +18,7 @@ c91937938e3031f16b175ed9dc3b69713a406be6 __tests__/assurance.peerReview.test.js
 08cf37a2403c072de69c04d5523c0d05489b97c5 __tests__/assurance.quality.test.js
 a8c2c7336a4a7636ecdf56915fde5530f3d8d8e4 __tests__/assurance.risk.test.js
 b809a10102bc1602e30553ec33588ce56396c59e __tests__/avoClass.shared.test.js
+124ba156f48d8c16efd50137ccaf398194f269a3 __tests__/basin.deposition.test.js
 64c78bc711e48200210995a0b4be3ffd1b38bf1f __tests__/basin.test.js
 285bfe65097236a1c319bd7af962515d5db8f183 __tests__/basin.u2.test.js
 17552372b2f1ad85fd1cd0b6b33ab0e0b50f95fe __tests__/conventions.percentile.test.js
@@ -246,6 +247,7 @@ b0bae05701a81bdc60ed1f72bb230c19b099b073 __tests__/seismolord.manifestgate.test.
 636459112a6ddc831edc8c35f26b83215593641f __tests__/seismolord.pickexport.test.js
 d439c4815386e9d7cc43601f8a74f1dd3a80a046 __tests__/seismolord.previewreads.test.js
 e6065479bee1475c7da19d807b6e3d6dd279253a __tests__/seismolord.segyWrite.test.js
+585d02f8761ca35294946d0a70e2e264d3b3da38 __tests__/seismolord.segycrop.test.js
 57e279cc8db53c734fac234b3909b68b6a0230f3 __tests__/seismolord.segyformats.test.js
 bf7806d278a935fac4082f53a7fc2f2f5147e5fe __tests__/seismolord.stratal.test.js
 76069a1f31a767f3e9418accdfe5a6605e72974f __tests__/seismolord.structure.test.js
@@ -254,6 +256,7 @@ e49b3b8491cfd1a54d79dc0d09ccb4c72f758f2a __tests__/seismolord.synthetic.placemen
 2df3fb281d94422aa89d6ad1d90a1ea494262237 __tests__/seismolord.topstoevents.test.js
 bdd830e777c0c944e07668c8e00e6ef22f3df987 __tests__/seismolord.tracker2.test.js
 9a7c585967122edb38db31edd06f3b02d1656b5c __tests__/seismolord.v4bricks.test.js
+4ea432c987fe308b2753370af37f06d2527b4c07 __tests__/seismolord.volumejob.pilot.test.js
 e8b323c2fa467161e71a6cde3f3ee03e6289a529 __tests__/seismolord.volumejob.test.js
 bfbf553fdf6db8892a4df9b27b82f23a3526e9b0 __tests__/seismolordSegyFixture.js
 2a86b019108a1ff5cf80f100b4bc62ef3a97b87e __tests__/sim.deckgen.test.js
@@ -308,8 +311,9 @@ b8fede0736728d07204786dc53b744d724f29de2 __tests__/wellsite.reports.test.js
 2669e6bbbd7eb717060c2d138c2f55fb7ee25b49 __tests__/wellsite.tops.test.js
 2b1081b6cdd59089b91c28653cc88ecf466d9c3d __tests__/welltest.analysis.test.js
 97b3aee776a254cc46c8d0184c79f6fa15720e24 __tests__/welltest.autoFit.test.js
+20a13f53e48e5d546f78584772a1660ecbb2ec5b __tests__/welltest.buildupSuperposition.test.js
 03370482160f0896621a299161a2d87f68510f12 __tests__/welltest.changingStorage.test.js
-509d9b8212200ea02910df4674e74ac452a0b441 __tests__/welltest.derivative.test.js
+bc1fae74deb17fd57f6edc7361da445f91eb391e __tests__/welltest.derivative.test.js
 b247d464584c13c2dbf6d59e617e5f9795944925 __tests__/welltest.gasZMethod.test.js
 e1027795d48f6f39090800c00228530559fed9e9 __tests__/welltest.goldens.test.js
 eca686c75f479ef7fac94e69cb6fab72ed7ef5f7 __tests__/welltest.homogeneousModel.test.js
@@ -348,7 +352,7 @@ e243eed36f7591d755372ad82cd59eecf25e7b47 engines/basin/KerogenLibrary.js
 1ce7f1f5e6c83d362050f04da600fe371fad1eed engines/basin/MaturityEngine.js
 50e0375dcd2fa26e4fb4c76f7b87c10b3db12927 engines/basin/PhysicsUtils.js
 dd2cc5dd31e2a03589e4bca67d850a49b98a7b20 engines/basin/PressureEngine.js
-ad2a47d4c08b0e9ebc92570b6ce9582d631b8e51 engines/basin/SimulationEngine.js
+b99ba5b967ba812d370129349d1dcf09ddcedd50 engines/basin/SimulationEngine.js
 aef2e1ecf07b9d9301597dd3e6bb6ba7f889ee25 engines/basin/ThermalPropertiesLibrary.js
 aef6b2b6b3a2abfd55c408a4bc8fefc3a1edc0e1 engines/basin/results.js
 7a80ae1b87054cb30df4ba3950d1d77a85f689da engines/dataai/cluster.js
@@ -570,7 +574,7 @@ a3706390e5e5dbe06ae9a793e351e448351e5282 engines/rockphysics/wedge.js
 9d7dbcf0989ad39f0c213aba2b8f0ce77e6e98d1 engines/seismolord/autoTie.js
 de49eaf2fa7ac219ce9ff0f771135b2fcbd0b98f engines/seismolord/brickCache.js
 8eddc4f357121d21cdc7c727adcc1dfff79ca8c6 engines/seismolord/brickCodec.js
-95fa16da6d7ec4f3fd3c4f0b839d9a07851d303a engines/seismolord/brickCodecV4.js
+f9692c524b383e5f44113fe013242d758156d0a2 engines/seismolord/brickCodecV4.js
 c3ca63fe26f9af3f1abab5533ad9cdd5f769d10c engines/seismolord/brickTranscode.js
 569a8c908b95e49689f4313fb4aa94dbdd70095b engines/seismolord/brickTranscodeV4.js
 51dfe9ea937eb0b46ad7f2b654cce4965666b453 engines/seismolord/crsHint.js
@@ -597,6 +601,7 @@ c352fe76d01254fe9ea24a068da707e1fdcbd92e engines/seismolord/manifest.js
 40d9b65d7514d91e6e8da6eec765aa2fb0f20c8e engines/seismolord/pickExport.js
 86ec91bef9453522dabde1db8e78076a1c8eb363 engines/seismolord/pickImport.js
 de3474443e760832527784db15aada29e62baeee engines/seismolord/reader.js
+b378cdb6bfa3536bff265913bb8d2ddbf8d6dd30 engines/seismolord/segyCrop.js
 8d241d76b57115e3b50bfd8297c5e3ffe0299cb2 engines/seismolord/segyDecode.js
 eeb7dd106e142166c4de428017a5e2a8fea28e5d engines/seismolord/segyScan.js
 ac0554cb6ad75998b8ca0045bf3b602b514cd4a8 engines/seismolord/segyTranscode.js
@@ -612,7 +617,7 @@ f89aee7ebf3ab9952f2c7835d5ad8fffe2e8a759 engines/seismolord/tieWarp.js
 94e6ce0db5d2c869fd9611ad4bd30b2d83d9877c engines/seismolord/traceIndex.js
 2889383861a23eedf936219c03dfd6a2475dacd4 engines/seismolord/traverse.js
 05596c6559b14c94b3dbba8668683273575bfcc7 engines/seismolord/velocityModel.js
-69b2afe5af321ee85ea367cbfc3f7a70dddb630f engines/seismolord/volumeJob.js
+9a0333f919dd20e477a7d15fc4666a0841ad8792 engines/seismolord/volumeJob.js
 f924511b2b7bbd9126412ff6b0553b035a643db8 engines/seismolord/wellPath.js
 0d1e8c5a0370d977250f355b3167734c8da6ec1f engines/seismolord/wellSection.js
 52883680abe22b6d6a2e690560f8b4beca69a882 engines/seismolord/wellTie.js
@@ -666,11 +671,11 @@ c138332947f647c0911d2b43fc73441e32527e0a engines/wellsite/sampleProgram.js
 9ccfee9a71a74af23d4059669f9e32d8d2e6b889 engines/wellsite/shows.js
 c0c00b28c4102b2d6a549c080d02ebc90b177bf6 engines/wellsite/time.js
 36eab8c0bb60ae29da879fdc7c3530b239fb5c2f engines/wellsite/tops.js
-2560c225a3068ec34ce86dcef120be61eb75a745 engines/welltest/analysis.js
-701d4072a2dc4822de148d41825bba8c262f5f7f engines/welltest/autoFit.js
+a85595dae8615fba5699efb66de6357616600f28 engines/welltest/analysis.js
+ef20ece47f150f075f706abe1aa996fcc7054980 engines/welltest/autoFit.js
 b905674c40d68d87bf34d32a8bdcbfc7636fcb59 engines/welltest/compressibility.js
 f3cdda47224cd3c66012e6bfe52b66b951103f8c engines/welltest/datum.js
-372a51650943b72c82bfe226b07a7d777b223846 engines/welltest/derivative.js
+75ed315da98874b55fbd130f3cfed7ca53e5431c engines/welltest/derivative.js
 a89c9100cecef39b05f485a36b6e26432975e82b engines/welltest/flowSummary.js
 7ed95bd65c86b0118b34835e81811a4a87674247 engines/welltest/gas.js
 62b2e0cf1dabd1979af499734d3c211032b63a0f engines/welltest/lmFit.js
@@ -679,13 +684,13 @@ f2adf90723625d1d318adccb6cfbd31ca45fb862 engines/welltest/models/dualPorosity.js
 07990f09334c25e8d8a725de555c11bbdfd9baa2 engines/welltest/models/fracture.js
 257ab0050d8711948a2f7d200808b9b07596dae6 engines/welltest/models/homogeneous.js
 534bdf1b59e3630ce479e74668ada353c5ddfff4 engines/welltest/models/horizontal.js
-4e6cf33e07741e9c403147d2e7ccfbc542d685ff engines/welltest/models/modelCatalog.js
+ce0a149117c86ce15e2d50e7878901d4f5bf0c8f engines/welltest/models/modelCatalog.js
 56cb947d7164a7c0d6687d176ce112982a40f0d5 engines/welltest/models/radial.js
 50ccebe64b9437e8ccbe6d461914db938067fe0e engines/welltest/models/rectangle.js
 9171be7a4283a62044547ca000ba1d199a519469 engines/welltest/numerics.js
 815501f4fef2ec4f7e458e413a269a2e36631beb engines/welltest/partialPenetration.js
 30557794f13777eca3d0e43aa21a23830266f6f7 engines/welltest/rta.js
-4865c684bb3a50f6558579d0d1034867261a7040 engines/welltest/superposition.js
+04458bc4cfadc832f80700715a749ecc1c450520 engines/welltest/superposition.js
 0022fb903d6a6dbfc6031ed728ac2c15cb1e5811 engines/welltest/units.js
 9dfa415b1e49ee63e4ab5f1c0b0aeafec4c0fe13 jest.config.cjs
 73693376b4fe6d48ddb76cf1dfeba7002d683037 lib/conventions/percentile.js
@@ -730,7 +735,7 @@ af8a4a9c6befbcc94d5887e69c9b24ab23770131 test-data/assurance/goldens/managementO
 70e85bcf13ad9eebabd6982d9a48b6b52cd80c56 test-data/assurance/goldens/peerReview_cases.json
 b129488287f575558ccedfffd439f0350a5fe7ef test-data/assurance/goldens/qualityAssurance_cases.json
 79c826b89b8ba8a82c8dc8eaaf1226ebfecfd1b4 test-data/assurance/goldens/riskScoring_cases.json
-57c8369f4e372a5128108b88752e467999b7d797 test-data/basin/README.md
+c62993ceb362c10c008f328a16088f150f615606 test-data/basin/README.md
 9336f9686a31aa25baa2def35ff3ce92758bb81b test-data/basin/goldens.json
 d48d79ef6eccb94be4afe8cc69d732abe9ce6f91 test-data/crs/README.md
 b8b641fd2a3bc4b12fed1d2b4ed091a9397e5a17 test-data/crs/generate_minna_goldens.py

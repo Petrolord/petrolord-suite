@@ -14,9 +14,9 @@ import { orderedUnits } from '@/lib/stratigraphy/column';
 import { FallbackBadge, StyleSwatch } from './Glossary';
 import { flagText } from '@/lib/stratigraphy/ageCharts';
 import { fmtDepth } from '@/pages/apps/WellDataManager/engine/displayUnits';
-import { TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
+import { currentTimescale } from '@/lib/stratigraphy/timescale';
 
-const TS_SHORT = TIMESCALE_VERSION.replace('ICS ', '');
+const TS_SHORT = currentTimescale().replace('ICS ', '');
 const cellCls = 'bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text';
 const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40';
 

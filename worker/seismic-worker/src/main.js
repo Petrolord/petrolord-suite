@@ -11,6 +11,7 @@ import { runJob } from './runJob.js';
 import { createClient } from '@supabase/supabase-js';
 import { createHandlers, KINDS } from './handlers/index.js';
 import { makeSigner } from './s3.js';
+import { retryingStorage } from './retryingStorage.js';
 import { supabaseStorageClient } from '../../../src/pages/apps/Seismolord/services/seismicStorageClient.js';
 import { resolveCodec, DEFLATE_RAW } from '../../../packages/engines/engines/seismolord/brickCodecV4.js';
 import { pollOnce } from './loop.js';
@@ -31,7 +32,7 @@ async function main() {
   const admin = createClient(cfg.supabaseUrl, cfg.serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const handlers = createHandlers({
     admin,
-    storage: supabaseStorageClient(admin, 'seismic'),
+    storage: retryingStorage(supabaseStorageClient(admin, 'seismic'), { log }),
     sign: makeSigner(cfg.s3),
     scratchDir: cfg.scratchDir,
     // CompressionStream deflate-raw, the same codec the browser import uses

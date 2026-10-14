@@ -14,7 +14,7 @@
 // The engine (timescale.js ageOnChart) says what the new chart means for it.
 // Pure; the workstation writes.
 
-import { TIMESCALE_VERSION, TIMESCALE_V2023, ageOnChart, isTimescaleVersion } from './timescale';
+import { currentTimescale, TIMESCALE_V2023, ageOnChart, isTimescaleVersion } from './timescale';
 
 export const LEGACY_CHART = TIMESCALE_V2023;
 export const AGE_FIELDS = Object.freeze({ tops: ['age_ma', 'hiatus_to_ma'], units: ['age_top_ma', 'age_base_ma'] });
@@ -31,7 +31,7 @@ export function chartOf(stamps, kind, id, field) {
  * @param {Object} stamps view.ageCharts
  * @param {Array<{kind: 'tops'|'units', id: string, field: string}>} ages
  */
-export function withStamps(stamps, ages, version = TIMESCALE_VERSION) {
+export function withStamps(stamps, ages, version = currentTimescale()) {
   const out = { tops: { ...(stamps?.tops || {}) }, units: { ...(stamps?.units || {}) } };
   for (const a of ages) {
     if (!a?.id || !out[a.kind]) continue;
@@ -67,10 +67,10 @@ export function flagAges({ tops = [], units = [], wellName = (id) => id, canEdit
       if (raw == null || raw === '' || !Number.isFinite(Number(raw))) continue;
       const value = Number(raw);
       const chart = chartOf(stamps, kind, row.id, field);
-      if (chart === TIMESCALE_VERSION) continue;
+      if (chart === currentTimescale()) continue;
       const base = { kind, id: row.id, field, where: `${where} ${FIELD_LABEL[field]}`, value, chart, canEdit: !!canEdit(kind, row) };
       if (!isTimescaleVersion(chart)) { out.push({ ...base, update: null, stageFrom: null, stageTo: null, unreadable: true }); continue; }
-      const r = ageOnChart(value, chart, TIMESCALE_VERSION);
+      const r = ageOnChart(value, chart, currentTimescale());
       if (r.update || (r.stageFrom && r.stageTo && r.stageFrom !== r.stageTo)) out.push({ ...base, ...r });
     }
   };
@@ -84,9 +84,9 @@ export function flagText(f) {
   if (f.unreadable) return `stamped ${f.chart}, a chart this build does not read; left as entered`;
   if (f.update) {
     const d = f.update.delta_ma;
-    return `entered under ${f.chart} on the ${f.update.label}: ${f.update.from_ma} to ${f.update.to_ma} Ma (${d > 0 ? '+' : ''}${d} Myr) on ${TIMESCALE_VERSION}`;
+    return `entered under ${f.chart} on the ${f.update.label}: ${f.update.from_ma} to ${f.update.to_ma} Ma (${d > 0 ? '+' : ''}${d} Myr) on ${currentTimescale()}`;
   }
-  return `entered under ${f.chart}; the number stays, but on ${TIMESCALE_VERSION} it falls in the ${f.stageTo} (was ${f.stageFrom})`;
+  return `entered under ${f.chart}; the number stays, but on ${currentTimescale()} it falls in the ${f.stageTo} (was ${f.stageFrom})`;
 }
 
 /**

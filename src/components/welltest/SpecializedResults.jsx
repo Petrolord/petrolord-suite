@@ -1,7 +1,7 @@
 // Main area for the Specialized tab: the classic straight-line plots with
 // their fitted lines and answers (Horner or MDH semilog, sqrt-t, Cartesian
 // PSS for drawdowns).
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { CHART_COLORS, CHART_TYPOGRAPHY, PINNED_TOOLTIP_PROPS, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
@@ -19,7 +19,10 @@ const SpecializedResults = () => {
   const {
     prepared, configSpec, reservoirSpec, semilogResult, sqrtResult, pssResult,
     multiRateResult, deliverabilityResult, deliverabilityInputs, semilogWindowSource, rateSkin,
+    history, mdhBuildupResult, faultResult, sqrtMeaningful, model, matchParams,
   } = useWellTestStudio();
+  // 2026-10-14: a buildup can be read on Horner (or superposition) or MDH
+  const [plotKind, setPlotKind] = useState('horner');
   const { unitSystem } = useWellTestStudio();
   const isBuildup = configSpec.config?.family === 'buildup';
   const isGas = reservoirSpec.reservoir?.fluid === 'gas';
@@ -30,10 +33,23 @@ const SpecializedResults = () => {
 
   // Both straight-line plots come from the shared builders; the PDF report
   // draws the same arrays.
+  const showMdh = isBuildup && plotKind === 'mdh';
   const semilogData = useMemo(
-    () => buildSemilogData({ prepared, config: configSpec.config, semilogResult, unitSystem }).points,
-    [prepared, configSpec, semilogResult, unitSystem],
+    () => buildSemilogData({
+      prepared, config: configSpec.config, semilogResult, unitSystem, history, faultResult,
+      kind: showMdh ? 'mdh' : 'auto', mdhResult: mdhBuildupResult,
+    }).points.map((p) => ({
+      ...p,
+      // fitted points in colour, the rest grey (2026-10-14)
+      pIn: p.inWindow ? p.pressure : null,
+      pOut: !p.inWindow && p.pressure != null ? p.pressure : null,
+    })),
+    [prepared, configSpec, semilogResult, unitSystem, history, faultResult, showMdh, mdhBuildupResult],
   );
+  const lineName = isBuildup ? (history ? 'Superposition' : 'Horner') : 'MDH';
+  const fault = faultResult;
+  // the model's own fault distance, when the working match carries one
+  const modelL = model?.parameters?.some((p) => p.key === 'L') && Number.isFinite(matchParams?.L) ? matchParams.L : null;
 
   const sqrtData = useMemo(
     () => buildSqrtData({ prepared, sqrtResult, dpKind, unitSystem }),
@@ -64,22 +80,88 @@ const SpecializedResults = () => {
         <Kpi title="Fit r²" value={fmt.f3(semilogResult?.r2)} />
       </div>
 
-      <ChartCard title={isBuildup ? 'Horner plot' : 'MDH semilog plot'} height={320}>
+      {isBuildup && (
+        <div className="flex items-center gap-2 text-xs" data-testid="wts-semilog-kind">
+          <span className="text-pl-muted">Plot</span>
+          {[['horner', `${lineName} (p*)`], ['mdh', 'MDH (log dt)']].map(([k, label]) => (
+            <button
+              key={k} type="button"
+              data-testid={`wts-semilog-kind-${k}`}
+              onClick={() => setPlotKind(k)}
+              className={`rounded-md border px-2 py-1 ${plotKind === k ? 'border-pl-primary text-pl-text bg-pl-sunken' : 'border-pl-border text-pl-muted'}`}
+            >
+              {label}
+            </button>
+          ))}
+          {history && <span className="text-pl-muted" data-testid="wts-semilog-history-note">On the superposition time of the rate history ({history.steps.length} rate steps before the shut-in).</span>}
+        </div>
+      )}
+
+      <ChartCard title={showMdh ? 'MDH plot (buildup)' : (isBuildup ? `${lineName} plot` : 'MDH semilog plot')} height={320}>
         <ComposedChart data={semilogData} margin={{ top: 10, right: 20, bottom: 8, left: 10 }}>
           <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
           <XAxis height={XAXIS_LABEL_HEIGHT}
-            dataKey="x" type="number" scale="log" domain={['auto', 'auto']} reversed={isBuildup}
+            dataKey="x" type="number" scale="log" domain={['auto', 'auto']} reversed={isBuildup && !showMdh}
             ticks={logTicks(semilogData.map((d) => d.x))} tickFormatter={logTickFormatter} {...axisProps}
-            label={{ value: isBuildup ? 'Horner time ratio (tp + Δt)/Δt' : 'Elapsed time (hr)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+            label={{ value: showMdh ? 'Shut-in time Δt (hr)' : (isBuildup ? (history ? 'Superposition time as a ratio, 10^X (Horner ratio for one rate)' : 'Horner time ratio (tp + Δt)/Δt') : 'Elapsed time (hr)'), position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
           />
           <YAxis domain={['auto', 'auto']} {...axisProps}
             label={{ value: `Pressure (${unitLabel('pressure', unitSystem)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
           <Tooltip {...tooltipProps} />
           <Legend {...legendProps} />
-          <Scatter dataKey="pressure" name={isBuildup ? 'pws' : 'pwf'} fill={LINE.dp} isAnimationActive={false} />
-          {semilogResult && <Line type="monotone" dataKey="fitted" name="Straight line" stroke={LINE.fit} dot={false} strokeWidth={2} isAnimationActive={false} />}
+          <Scatter dataKey="pIn" name={`${isBuildup ? 'pws' : 'pwf'} in the window`} fill={LINE.dp} isAnimationActive={false} />
+          <Scatter dataKey="pOut" name="outside the window" fill="#94a3b8" isAnimationActive={false} />
+          {(showMdh ? mdhBuildupResult : semilogResult) && <Line type="monotone" dataKey="fitted" name="Straight line" stroke={LINE.fit} dot={false} strokeWidth={2} isAnimationActive={false} connectNulls />}
+          {!showMdh && fault?.ok && <Line type="monotone" dataKey="late" name="Second line" stroke={LINE.derivative} strokeDasharray="6 3" dot={false} strokeWidth={2} isAnimationActive={false} connectNulls />}
+          {isBuildup && !showMdh && semilogResult && <Scatter dataKey="pStar" name="p*" fill={LINE.fit} shape="diamond" isAnimationActive={false} />}
         </ComposedChart>
       </ChartCard>
+
+      {isBuildup && mdhBuildupResult && (
+        <div className="rounded-lg border border-pl-border bg-pl-surface p-4" data-testid="wts-mdh-buildup">
+          <p className="text-xs font-semibold text-pl-muted uppercase tracking-wider mb-2">MDH line on the same window (cross-check)</p>
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+            <Kpi title="Permeability k" value={fmt.sig3(mdhBuildupResult.k)} unit="md" />
+            <Kpi title={isGas ? 'Apparent skin s\'' : 'Skin'} value={fmt.f2(mdhBuildupResult.skin)} />
+            <Kpi title="Last Δt in the window / tp" value={fmt.sig3(mdhBuildupResult.dtOverTp)} />
+            <Kpi title="Fit r²" value={fmt.f3(mdhBuildupResult.r2)} />
+          </div>
+          <p className="text-[11px] text-pl-muted mt-2">
+            MDH plots pws against log Δt and gives no p*. It holds while Δt is small beside the producing time; {Number.isFinite(mdhBuildupResult.dtOverTp) && mdhBuildupResult.dtOverTp > 0.1
+              ? `here the window reaches ${fmt.sig3(mdhBuildupResult.dtOverTp)} of tp, so the MDH line bends and its k and skin are off: use the ${lineName} line.`
+              : `here the window stays under a tenth of tp, so MDH and ${lineName} should agree.`}
+          </p>
+        </div>
+      )}
+
+      {fault && (
+        <div className="rounded-lg border border-pl-border bg-pl-surface p-4" data-testid="wts-fault-result">
+          <p className="text-xs font-semibold text-pl-muted uppercase tracking-wider mb-2">Second straight line: distance to a sealing fault</p>
+          {fault.ok ? (
+            <>
+              <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
+                <Kpi title="First slope m1" value={fmtU(slopeKind, fault.m1, unitSystem, isGas ? fmt.sci : fmt.f2)} unit={unitLabel(slopeKind, unitSystem)} />
+                <Kpi title="Second slope m2" value={fmtU(slopeKind, fault.m2, unitSystem, isGas ? fmt.sci : fmt.f2)} unit={unitLabel(slopeKind, unitSystem)} />
+                <Kpi title="m2 / m1" value={fmt.f2(fault.ratio)} />
+                <Kpi title={isBuildup ? 'Lines meet at Δt' : 'Lines meet at t'} value={fmt.sig3(fault.dtx)} unit="hr" />
+                <Kpi title="Distance to the fault L" value={fmtU('length', fault.L, unitSystem, fmt.int)} unit={unitLabel('length', unitSystem)} accent />
+              </div>
+              {isBuildup && Number.isFinite(fault.pStar2) && (
+                <p className="text-[11px] text-pl-muted mt-2" data-testid="wts-fault-pstar">
+                  p* on the second line: {fmtU('pressure', fault.pStar2, unitSystem, fmt.f1)} {unitLabel('pressure', unitSystem)}. With a fault, the late line is the one that extrapolates to the reservoir pressure; the first line&apos;s p* reads low.
+                </p>
+              )}
+              <p className="text-[11px] text-pl-muted mt-2" data-testid="wts-fault-method">
+                L = sqrt(0.0001481 k Δt_x / (φ μ ct)) with k {fmt.sig3(fault.k)} md from the first line, where the two lines meet ({fault.reference}). One sealing fault doubles the slope.
+                {modelL != null ? ` The working match places the fault at ${fmtU('length', modelL, unitSystem, fmt.int)} ${unitLabel('length', unitSystem)}.` : ' Match the sealing-fault model on the Match tab to check the distance against the whole curve.'}
+              </p>
+              {fault.warnings?.length > 0 && <div className="mt-2"><WarningBanner warnings={fault.warnings} /></div>}
+            </>
+          ) : (
+            <p className="text-xs text-pl-muted">{fault.reason}</p>
+          )}
+        </div>
+      )}
 
       <ChartCard title={`Linear flow: ${isGas ? 'Δm(p)' : 'Δp'} vs sqrt(t)`} height={260}>
         <ComposedChart data={sqrtData} margin={{ top: 10, right: 20, bottom: 8, left: 10 }}>
@@ -91,9 +173,14 @@ const SpecializedResults = () => {
           <Tooltip {...tooltipProps} />
           <Legend {...legendProps} />
           <Scatter dataKey="dp" name={isGas ? 'Δm(p)' : 'Δp'} fill={LINE.dp} isAnimationActive={false} />
-          {sqrtResult && <Line type="monotone" dataKey="fitted" name={`Fit (slope ${fmt.f2(fromOilfield(dpKind, sqrtResult.slope, unitSystem))} ${dpUnit}/hr^0.5)`} stroke={LINE.fit} dot={false} strokeWidth={2} isAnimationActive={false} />}
+          {sqrtResult && sqrtMeaningful && <Line type="monotone" dataKey="fitted" name={`Fit (slope ${fmt.f2(fromOilfield(dpKind, sqrtResult.slope, unitSystem))} ${dpUnit}/hr^0.5)`} stroke={LINE.fit} dot={false} strokeWidth={2} isAnimationActive={false} />}
         </ComposedChart>
       </ChartCard>
+      {!sqrtMeaningful && (
+        <p className="text-[11px] text-pl-muted -mt-2" data-testid="wts-sqrt-no-line">
+          No linear flow was found on the derivative, so no line is drawn here. Set a sqrt(t) window in the left rail to fit one.
+        </p>
+      )}
 
       {multiRateResult && (
         <div className="rounded-lg border border-pl-border bg-pl-surface p-4">

@@ -83,7 +83,7 @@ const ScenarioManager = () => {
                         </h2>
                         <p className="text-pl-muted text-sm">Create, manage, and compare simulation scenarios.</p>
                     </div>
-                    <Button onClick={handleCreateClick}>
+                    <Button onClick={handleCreateClick} data-testid="bf-scenario-new">
                         <Plus className="w-4 h-4 mr-2" /> Save Current State
                     </Button>
                 </div>
@@ -126,7 +126,7 @@ const ScenarioManager = () => {
                                                 {s.parameters?.description || '-'}
                                             </TableCell>
                                             <TableCell className="text-right space-x-2">
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-pl-primary-text" onClick={() => handleLoad(s.id)} title="Load">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-pl-primary-text" onClick={() => handleLoad(s.id)} title="Load" data-testid={`bf-scenario-load-${s.id}`}>
                                                     <Play className="w-4 h-4" />
                                                 </Button>
                                                 <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-pl-danger-text" onClick={() => { setPicked((p) => p.filter((x) => x !== s.id)); handleDelete(s.id); }} title="Delete">
@@ -157,6 +157,7 @@ const ScenarioManager = () => {
                             <label className="text-xs font-medium">Name</label>
                             <Input 
                                 value={formData.name} 
+                                data-testid="bf-scenario-name"
                                 onChange={(e) => setFormData({...formData, name: e.target.value})}
                             />
                         </div>
@@ -172,7 +173,7 @@ const ScenarioManager = () => {
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSave}>Save</Button>
+                        <Button onClick={handleSave} data-testid="bf-scenario-save">Save</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

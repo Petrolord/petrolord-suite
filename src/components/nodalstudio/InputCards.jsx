@@ -7,6 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { unitLabel, fromOilfield } from '@/utils/nodal/units';
+import { wellTestProductivityStatus, wellTestIntakeCurrent } from '@/utils/nodal/wellTestIntake';
 import { useNodalStudio } from '@/contexts/NodalAnalysisStudioContext';
 import { CORRELATIONS } from '@/utils/nodal/correlations/index';
 import { Field, UnitField, SectionLabel } from './primitives';
@@ -160,6 +163,95 @@ export const InflowCard = () => {
   );
 };
 
+// 2026-10-14: the Well Test Analysis Studio intake (wta-1 productivity, read
+// by id from ?wellTestProject=). Nothing is applied until a choice is clicked;
+// the provenance of what was applied is saved with the project.
+const show = (kind, v, system, digits = 1) => {
+  if (!Number.isFinite(v)) return 'not given';
+  const d = fromOilfield(kind, v, system);
+  const t = kind === 'productivityIndex' ? Number(d).toPrecision(3) : Number(d).toFixed(digits);
+  return `${t} ${unitLabel(kind, system)}`;
+};
+const prWords = (m, line) => (m === 'p*' ? `p* of the ${line || 'Horner'} line` : 'initial pressure as entered');
+const dateOf = (iso) => (iso ? String(iso).slice(0, 10) : 'not given');
+
+const Row = ({ label, children, testId }) => (
+  <div className="flex items-start justify-between gap-2 text-xs" data-testid={testId}>
+    <span className="text-pl-muted shrink-0">{label}</span>
+    <span className="text-right">{children}</span>
+  </div>
+);
+
+export const WellTestIntakeCard = () => {
+  const { wellTestSource, wellTestIntake, applyWellTestIntake, dismissWellTestSource, inflow, unitSystem } = useNodalStudio();
+  if (!wellTestSource && !wellTestIntake) return null;
+  const c = wellTestSource?.status === 'ok' ? wellTestSource.contract : null;
+  const status = c ? wellTestProductivityStatus(c) : null;
+  const p = c?.productivity;
+  const current = wellTestIntakeCurrent(wellTestIntake, inflow);
+  return (
+    <InputCard title="From Well Test Analysis Studio">
+      <div data-testid="nodal-wt-intake" className="space-y-3">
+        {wellTestSource?.status === 'loading' && (
+          <p className="text-xs text-pl-muted">Reading the Well Test project…</p>
+        )}
+        {wellTestSource?.status === 'error' && (
+          <p className="text-xs text-pl-warning-text" data-testid="nodal-wt-intake-error">{wellTestSource.reason}</p>
+        )}
+        {c && (
+          <div className="space-y-1.5">
+            <Row label="Project" testId="nodal-wt-project">{wellTestSource.projectName || c.project?.name || 'unnamed'}</Row>
+            <Row label="Well">{c.project?.well || 'not given'}</Row>
+            <Row label="Method">{[c.project?.test_type, c.permeability?.method].filter(Boolean).join(', ') || 'not given'}</Row>
+            <Row label="Test date">{c.project?.test_dates || 'not given'}</Row>
+            {p && (
+              <>
+                <Row label="Reservoir pressure" testId="nodal-wt-pr">{show('pressure', p.pr_psia, unitSystem)} ({prWords(p.pr_method, p.pr_line)})</Row>
+                <Row label="Test point" testId="nodal-wt-test-point">{show('oilRate', p.q_stb_d, unitSystem, 0)} at {show('pressure', p.pwf_psia, unitSystem)}</Row>
+                <Row label="Productivity index J" testId="nodal-wt-j">{show('productivityIndex', p.pi_stbd_psi, unitSystem)}</Row>
+                <Row label="J with the skin removed" testId="nodal-wt-j-ideal">
+                  {Number.isFinite(p.ideal_pi_stbd_psi) ? show('productivityIndex', p.ideal_pi_stbd_psi, unitSystem) : 'not available'}
+                  {Number.isFinite(p.flow_efficiency) ? ` (flow efficiency ${(p.flow_efficiency * 100).toFixed(0)}%)` : ''}
+                </Row>
+              </>
+            )}
+          </div>
+        )}
+        {c && !status.ok && (
+          <p className="text-xs text-pl-warning-text" data-testid="nodal-wt-intake-refused">{status.reason}</p>
+        )}
+        {c && status.ok && (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <Button size="sm" variant="outline" onClick={() => applyWellTestIntake('asTested')} data-testid="nodal-wt-apply-tested">As tested</Button>
+              <Button
+                size="sm" variant="outline"
+                onClick={() => applyWellTestIntake('skinRemoved')}
+                disabled={!Number.isFinite(p.ideal_pi_stbd_psi)}
+                data-testid="nodal-wt-apply-ideal"
+              >
+                Skin removed
+              </Button>
+            </div>
+            <p className="text-[11px] text-pl-muted leading-relaxed" data-testid="nodal-wt-intake-note">
+              Either choice sets the reservoir pressure and the productivity index J for an oil well, with the straight-line PI model (a composite model stays composite). The Well Test has no bubble point, so the composite (Vogel) bubble point stays the Nodal entry. Pressures are at the Well Test gauge depth. Nothing changes until you pick a choice.
+            </p>
+          </>
+        )}
+        {wellTestIntake && (
+          <p className="text-[11px] text-pl-muted leading-relaxed border-t border-pl-border pt-2" data-testid="nodal-wt-applied">
+            Applied {wellTestIntake.choice_label.toLowerCase()} on {dateOf(wellTestIntake.applied_at)} from {wellTestIntake.project_name || 'a Well Test project'}{wellTestIntake.well ? ` (well ${wellTestIntake.well})` : ''}: reservoir pressure {show('pressure', wellTestIntake.pr_psia, unitSystem)} ({prWords(wellTestIntake.pr_method, wellTestIntake.pr_line)}), J {show('productivityIndex', wellTestIntake.pi_stbd_psi, unitSystem)}.
+            {current ? '' : ' The inflow has been edited since, so the values on screen are your own.'}
+          </p>
+        )}
+        {wellTestSource && wellTestSource.status !== 'loading' && (
+          <Button size="sm" variant="ghost" className="w-full text-xs" onClick={dismissWellTestSource} data-testid="nodal-wt-dismiss">Close the Well Test record</Button>
+        )}
+      </div>
+    </InputCard>
+  );
+};
+
 export const WellCard = () => {
   const { well, setWellField, unitSystem } = useNodalStudio();
   return (
@@ -232,6 +324,7 @@ export const SetupRail = ({ sections = ['fluid', 'inflow', 'well', 'completion']
     <SectionLabel>Inputs</SectionLabel>
     <UnitSystemSelect />
     {sections.includes('fluid') && <FluidCard />}
+    {sections.includes('inflow') && <WellTestIntakeCard />}
     {sections.includes('inflow') && <InflowCard />}
     {sections.includes('well') && <WellCard />}
     {sections.includes('completion') && <CompletionCard />}

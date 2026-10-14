@@ -3,6 +3,7 @@
 // owner-path objects so no orphan bricks accumulate.
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { scopeToProject, whenProjectScopeReady, insertWithProject } from '@/lib/projects/projectScope';
 import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
 import { SEISMIC_BUCKET } from './seismicStorage';
 import { gateManifest } from './manifestGate';
@@ -14,10 +15,12 @@ export { gateManifest };
 
 /** Own volumes plus org-shared ones (W4.1). is_own drives the UI's
  *  read-only affordances; RLS enforces the writes regardless. */
-export async function listVolumes() {
+export async function listVolumes({ allProjects = false } = {}) {
+  // Suite Projects: the current project's volumes (allProjects for backups and quota)
+  await whenProjectScopeReady();
   const [{ data, error }, { data: { user } }] = await Promise.all([
-    supabase.from('seismic_volumes')
-      .select('*')
+    scopeToProject(supabase.from('seismic_volumes')
+      .select('*'), { allProjects })
       .order('created_at', { ascending: false }),
     supabase.auth.getUser(),
   ]);
@@ -103,8 +106,9 @@ registerStateKind(SEISMIC_PROJECT_KIND, { current: 1, label: 'seismic project' }
 // a colleague only the volumes they can read: volumes stay shared one by one
 // (seismic_volumes.organization_id), with everyone's horizons and faults.
 export async function listProjects() {
-  const { data, error } = await supabase.from('seismic_projects')
-    .select('*')
+  await whenProjectScopeReady();
+  const { data, error } = await scopeToProject(supabase.from('seismic_projects')
+    .select('*'))
     .order('created_at', { ascending: false });
   if (error) throw new Error(`Could not load projects: ${error.message}`);
   const rows = (data || []).map((row) => openStateRow(SEISMIC_PROJECT_KIND, row));
@@ -118,7 +122,7 @@ export async function createProject(name, description = null) {
   if (userError || !user) throw new Error('You must be signed in to create projects.');
   const { data, error } = await writeStamped(SEISMIC_PROJECT_KIND,
     { user_id: user.id, name, description },
-    (row) => supabase.from('seismic_projects').insert(row).select().single());
+    (row) => insertWithProject(row, (x) => supabase.from('seismic_projects').insert(x).select().single()));
   if (error) throw new Error(`Could not create project: ${error.message}`);
   return data;
 }

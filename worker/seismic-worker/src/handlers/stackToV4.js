@@ -11,7 +11,16 @@
 // row as 'converting' before it enqueues, exactly as its own prepare() does.
 //
 // params: { dataset_id, volume_id, name, file_name, scan, crs_plan,
-//           custom_defs, ingest_rec }
+//           custom_defs, ingest_rec,
+//           pad_top_samples?, crop_provenance?   a file the browser cropped
+//                                                before upload: the window's
+//                                                top is padded back with nulls
+//                                                (also read from the file's
+//                                                crop card, which must agree)
+//           crop? {def, definition_id}           crop while converting a
+//                                                stored file (import from a
+//                                                link): only the kept traces
+//                                                and samples are converted }
 //
 // The worker runs with the service role, so this handler checks what RLS
 // and the storage policy would otherwise check: the dataset and the volume
@@ -27,6 +36,11 @@ import { applyCrsToScan } from '../../../../src/pages/apps/Seismolord/services/i
 import { v4SurveyMeta } from '../../../../src/pages/apps/Seismolord/services/v4SurveyMeta.js';
 import { buildManifestV4, volumeDir } from '../../../../packages/engines/engines/seismolord/manifest.js';
 import { s3RangeReader } from '../s3.js';
+import { readTextualHeader } from '../../../../packages/engines/engines/seismolord/segyScan.js';
+import { parseCropCard, padTopReader, croppedSegyReader } from '../../../../packages/engines/engines/seismolord/segyCrop.js';
+import {
+  planImportCrop, conversionView, scanConversionView, importCropProvenance,
+} from '../../../../src/pages/apps/Seismolord/services/cropImport.js';
 import { diskSpool } from '../diskSpool.js';
 
 export const SEISMIC_BUCKET = 'seismic';
@@ -40,6 +54,8 @@ export function validateParams(p) {
   if (!p.scan || typeof p.scan !== 'object' || !p.scan.il || !p.scan.xl) return 'scan is required (the import preview).';
   if (!p.crs_plan || typeof p.crs_plan !== 'object') return 'crs_plan is required.';
   if (!p.ingest_rec || typeof p.ingest_rec !== 'object') return 'ingest_rec is required.';
+  if (p.pad_top_samples != null && !(Number.isInteger(p.pad_top_samples) && p.pad_top_samples >= 0 && p.pad_top_samples < 32767)) return 'pad_top_samples must be a whole number of samples.';
+  if (p.crop != null && (typeof p.crop !== 'object' || typeof p.crop.def !== 'object' || !p.crop.def)) return 'crop needs a definition.';
   return null;
 }
 
@@ -87,10 +103,10 @@ export async function stackToV4(ctx, deps) {
     : s3RangeReader({ sign: deps.sign, bucket: dataset.bucket, key: dataset.object_key, size: Number(dataset.bytes), fetchImpl: deps.fetchImpl });
   const spool = await diskSpool(path.join(deps.scratchDir, `stack_to_v4-${ctx.job.id}-${ctx.job.attempt}`));
   try {
-    const { reader } = await openSegyDoor(raw);
+    const { reader, scan, cropRecord } = await cropAwareSource(raw, p, dataset, ctx);
     const record = await convertToSpool({
       reader,
-      scan: p.scan,
+      scan,
       spool,
       codec: deps.codec,
       ...(deps.convertOptions || {}),
@@ -104,7 +120,8 @@ export async function stackToV4(ctx, deps) {
     });
     if (ctx.cancelled) return null;
 
-    const { scan: placed, crsBlock } = applyCrsToScan(scanForManifest(p.scan, record), p.crs_plan, p.custom_defs || {});
+    const { scan: placed, crsBlock } = applyCrsToScan(scanForManifest(scan, record), p.crs_plan, p.custom_defs || {});
+    const ingestRec = cropRecord ? { ...p.ingest_rec, crop: cropRecord } : p.ingest_rec;
     const manifest = buildManifestV4({
       volumeId,
       name: p.name || volume.name,
@@ -115,6 +132,7 @@ export async function stackToV4(ctx, deps) {
       crs: crsBlock,
     });
     manifest.source.fingerprint = p.ingest_rec.fingerprint;
+    if (cropRecord) manifest.source.crop = cropRecord;
 
     const need = record.bricks.display.storedBytes + record.bricks.f32.storedBytes;
     const q = await seismicQuota(admin, uid);
@@ -129,7 +147,7 @@ export async function stackToV4(ctx, deps) {
       network: ALWAYS_ONLINE,
       onStage: async (stage) => {
         if (stage === 'display_ready') {
-          await updateRow({ status: 'display_ready', survey_meta: v4SurveyMeta(manifest, record, p.ingest_rec) });
+          await updateRow({ status: 'display_ready', survey_meta: v4SurveyMeta(manifest, record, ingestRec) });
         } else if (stage === 'ready') {
           await updateRow({ status: 'ready' });
         }
@@ -159,4 +177,39 @@ export async function stackToV4(ctx, deps) {
   } finally {
     await spool.destroy();
   }
+}
+
+/**
+ * The reader and scan a conversion runs on:
+ *  - a plain upload: the file through the SEG-Y door;
+ *  - a file cropped before upload: the same, with the window's top padded
+ *    back so the volume keeps the 0 ms origin; the pad comes from the file's
+ *    crop card (textual header card 35) and must agree with the browser's;
+ *  - a crop while converting (import from a link): only the kept traces and
+ *    samples of the stored file are read, and the scan is re-measured on them.
+ */
+export async function cropAwareSource(raw, p, dataset, ctx = {}) {
+  if (p.crop?.def) {
+    ctx.progress?.(0.01, 'Finding the kept traces');
+    let prep;
+    try {
+      prep = await planImportCrop({ raw, scan: p.scan, def: p.crop.def, mapping: p.scan.mapping, isCancelled: () => ctx.cancelled });
+    } catch (e) {
+      throw new JobFailure('validate_failed', `The crop could not be applied: ${e.message}`);
+    }
+    const name = p.file_name || dataset.original_filename;
+    const cropped = croppedSegyReader(raw, prep.layout, prep.plan, prep.crop, { sourceName: name, mapping: p.scan.mapping });
+    const reader = await conversionView(cropped, prep.crop);
+    const scan = await scanConversionView(reader, p.scan.mapping);
+    const cropRecord = importCropProvenance(prep, { file: { name, size: Number(dataset.bytes) }, mode: 'server', definitionId: p.crop.definition_id || null });
+    return { reader, scan, cropRecord };
+  }
+  const { reader } = await openSegyDoor(raw);
+  const card = parseCropCard(await readTextualHeader(reader));
+  const pad = card ? card.first : 0;
+  if (p.pad_top_samples != null && p.pad_top_samples !== pad) {
+    throw new JobFailure('validate_failed', `The uploaded file's crop starts at sample ${pad}; the import said ${p.pad_top_samples}. Upload the file again.`);
+  }
+  if (!pad) return { reader, scan: p.scan, cropRecord: p.crop_provenance || null };
+  return { reader: await padTopReader(reader, pad), scan: p.scan, cropRecord: p.crop_provenance || null };
 }

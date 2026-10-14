@@ -3,7 +3,7 @@
 // (the DCATypeCurvePlot Recharts idiom), white ChartFrame standard via the
 // caller's ChartCard.
 import React, { useMemo } from 'react';
-import { ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
 import { CHART_COLORS, CHART_TYPOGRAPHY, PINNED_TOOLTIP_PROPS, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { LINE, logTicks, logTickFormatter } from './primitives';
 
@@ -22,7 +22,7 @@ const legendProps = LEGEND_PROPS;
  * component must pass them on to the chart, or the chart has no size and
  * draws nothing (the "plain white log-log plot" tester finding, 2026-09-03).
  */
-const LogLogChart = ({ loglog, modelSeries, xLabel = 'Equivalent time (hr)', yLabel = 'Δp and derivative (psi)', ...chartProps }) => {
+const LogLogChart = ({ loglog, modelSeries, xLabel = 'Equivalent time (hr)', yLabel = 'Δp and derivative (psi)', guides = null, ...chartProps }) => {
   const data = useMemo(() => {
     const byX = new Map();
     for (const p of loglog || []) {
@@ -44,7 +44,7 @@ const LogLogChart = ({ loglog, modelSeries, xLabel = 'Equivalent time (hr)', yLa
     return [...byX.values()].sort((a, b) => a.x - b.x);
   }, [loglog, modelSeries]);
 
-  const yValues = data.flatMap((d) => [d.dp, d.derivative, d.modelDp, d.modelDerivative]).filter((v) => v > 0);
+  const yValues = [...data.flatMap((d) => [d.dp, d.derivative, d.modelDp, d.modelDerivative]), ...(guides || []).map((g) => g.y)].filter((v) => v > 0);
 
   return (
     <ComposedChart {...chartProps} data={data} margin={{ top: 10, right: 20, bottom: 8, left: 10 }}>
@@ -63,6 +63,10 @@ const LogLogChart = ({ loglog, modelSeries, xLabel = 'Equivalent time (hr)', yLa
       <Legend {...legendProps} />
       <Scatter dataKey="dp" name="Δp" fill={LINE.dp} isAnimationActive={false} />
       <Scatter dataKey="derivative" name="Bourdet derivative" fill={LINE.derivative} isAnimationActive={false} />
+      {(guides || []).map((g) => (
+        <ReferenceLine key={g.label} y={g.y} stroke={g.color || CHART_COLORS.axisText} strokeDasharray={g.dashed ? '6 4' : undefined} ifOverflow="extendDomain"
+          label={{ value: g.label, position: 'insideTopLeft', fill: g.color || CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+      ))}
       {modelSeries && <Line type="monotone" dataKey="modelDp" name="Model Δp" stroke={LINE.model} dot={false} strokeWidth={2} isAnimationActive={false} connectNulls />}
       {modelSeries && <Line type="monotone" dataKey="modelDerivative" name="Model derivative" stroke={LINE.modelDeriv} dot={false} strokeWidth={2} isAnimationActive={false} connectNulls />}
     </ComposedChart>

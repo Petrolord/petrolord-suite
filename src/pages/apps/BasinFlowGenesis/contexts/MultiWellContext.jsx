@@ -180,7 +180,8 @@ export const MultiWellProvider = ({ children, backend = null }) => {
                 stratigraphy: Array.isArray(wellData.stratigraphy) ? wellData.stratigraphy : [],
                 heat_flow: wellData.heatFlow || { type: 'constant', value: 60 },
                 erosion_events: Array.isArray(wellData.erosionEvents) ? wellData.erosionEvents : [],
-                settings: wellData.settings || {},
+                // a new model deposits continuously at 0.25 Ma (2026-10-14); a model that arrives with settings keeps them
+                settings: wellData.settings || { deposition: 'continuous', timeStepMa: 0.25 },
                 // BF-U2-018: the worked example arrives with its calibration
                 calibration_data: wellData.calibration || {},
                 // U2-019: "Save a copy" of a shared model brings its saved scenarios

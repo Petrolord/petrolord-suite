@@ -291,3 +291,84 @@ export const PWF_SOURCE_TEXT = {
   'gauge-before': 'last flowing reading before the shut-in',
   'first-buildup': 'first buildup reading, skin withheld',
 };
+
+/**
+ * Where the well was shut in (buildup, falloff) or opened (drawdown,
+ * injection) on the gauge clock (2026-10-14): the steepest pressure change
+ * between consecutive readings (psi per hour) in the test's direction,
+ * returned as the time of the reading BEFORE it, so that reading is the
+ * pressure at the instant of the change. The rate of change, not the step:
+ * a gauge reads every few seconds after a shut-in and every few minutes in
+ * flow, so an earlier clean-up shut-in can show a bigger step on a coarser
+ * clock. Refused when the steepest change is not clearly the largest (less
+ * than three times the next), so a smooth record is not cut at random.
+ * @param {Array<{t:number,p:number}>} rows gauge readings, hr and psi
+ * @param {'up'|'down'} direction up: buildup and injection; down: drawdown and falloff
+ * @returns {{ ok: true, t: number, dp: number, dtNext: number } | { ok: false, reason: string }}
+ */
+export function findTestStart(rows, direction = 'up') {
+  const pts = (rows || [])
+    .map((r) => ({ t: Number(r.t), p: Number(r.p) }))
+    .filter((r) => Number.isFinite(r.t) && Number.isFinite(r.p))
+    .sort((a, b) => a.t - b.t);
+  if (pts.length < 3) return { ok: false, reason: 'Load a gauge file first.' };
+  const sign = direction === 'down' ? -1 : 1;
+  // rate of change over each interval i (between readings i-1 and i)
+  const rates = pts.map((r, i) => {
+    if (i === 0) return -Infinity;
+    const dt = r.t - pts[i - 1].t;
+    return dt > 0 ? (sign * (r.p - pts[i - 1].p)) / dt : -Infinity;
+  });
+  let best = -1;
+  for (let i = 1; i < rates.length; i += 1) if (best < 0 || rates[i] > rates[best]) best = i;
+  if (best < 0 || !(rates[best] > 0)) return { ok: false, reason: `The pressure never ${direction === 'down' ? 'falls' : 'rises'} between two readings.` };
+  const peak = rates[best];
+  // the change must stand out from the record's ordinary movement
+  const typical = rates.slice(1).filter(Number.isFinite).map(Math.abs).sort((a, b) => a - b);
+  const median = typical[Math.floor(typical.length / 2)] || 0;
+  if (!(peak >= 3 * median) || !(peak > 0)) {
+    return { ok: false, reason: `No change stands out: the steepest ${direction === 'down' ? 'fall' : 'rise'} (${peak.toFixed(1)} psi/hr) is less than three times the typical movement (${median.toFixed(1)} psi/hr). Type the time instead.` };
+  }
+  // runs of steep change (storage keeps a shut-in steep for a while); a test
+  // can hold several (a clean-up shut-in, a rate cut). A buildup or a
+  // drawdown follows the LAST one, so of the runs reaching half the peak the
+  // latest is taken.
+  const runs = [];
+  for (let i = 1; i < rates.length; i += 1) {
+    if (rates[i] > 0.3 * peak && (i === 1 || !(rates[i - 1] > 0.3 * peak))) runs.push({ first: i, max: rates[i] });
+    else if (rates[i] > 0.3 * peak && runs.length) runs[runs.length - 1].max = Math.max(runs[runs.length - 1].max, rates[i]);
+  }
+  const strong = runs.filter((r) => r.max >= 0.5 * peak);
+  const chosen = strong[strong.length - 1];
+  const first = chosen.first;
+  if (first === 1) {
+    return { ok: false, reason: 'The record starts inside the change: the first readings already move fastest, so the shut-in (or the start of flow) came before the file starts. Leave the time blank.' };
+  }
+  return { ok: true, t: pts[first - 1].t, dp: sign * (pts[first].p - pts[first - 1].p), rate: chosen.max, dtNext: pts[first].t - pts[first - 1].t, candidates: strong.length };
+}
+
+/**
+ * A rate history file (2026-10-14): a start-time column and a rate column
+ * found by their headers (start, time, elapsed, hr / rate, q, oil, gas,
+ * stb, mscf), any other columns ignored. Times in hours, rates as written
+ * (the studio's rate unit). Returns rows as the Data tab keeps them.
+ * @returns {{ ok: true, rows: Array<{t:string,q:string}>, timeCol: string, rateCol: string } | { ok: false, reason: string }}
+ */
+export function readRateHistoryCsv(text) {
+  const table = readGaugeTable(text);
+  if (!table.rows.length) return { ok: false, reason: 'The file has no rows.' };
+  const h = table.headers || [];
+  const timeIdx = h.findIndex((x) => /start|time|elapsed|(^|[^a-z])hr|hour|(^|[^a-z])t([^a-z]|$)/i.test(x) && !/rate/i.test(x));
+  const rateIdx = h.findIndex((x, i) => i !== timeIdx && /rate|(^|[^a-z])q([^a-z]|$)|oil|gas|stb|mscf|bbl/i.test(x));
+  const ti = table.headers ? timeIdx : 0;
+  const ri = table.headers ? rateIdx : 1;
+  if (ti < 0 || ri < 0) return { ok: false, reason: 'No start-time and rate columns were found from the headers (for example start_hr and oil_rate_stbd).' };
+  const rows = [];
+  for (const r of table.rows) {
+    const t = num(r[ti], table.decimal.mark);
+    const q = num(r[ri], table.decimal.mark);
+    if (Number.isFinite(t) && Number.isFinite(q)) rows.push({ t: String(t), q: String(q) });
+  }
+  if (!rows.length) return { ok: false, reason: 'No row held a number in both columns.' };
+  return { ok: true, rows, timeCol: h[ti] || 'Column 1', rateCol: h[ri] || 'Column 2' };
+}
