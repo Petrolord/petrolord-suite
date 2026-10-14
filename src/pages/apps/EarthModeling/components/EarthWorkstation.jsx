@@ -45,6 +45,7 @@ import { toDisplay } from '@/components/wells/depthModes';
 import { refElevOrNull } from '@/lib/wellDatum';
 import { validatePolygon } from '../engine/blocks';
 import { surfaceStats } from '@/lib/gridding/gridmath';
+import { matchTopName, defaultZone, defaultSectionPair } from '../services/stackDefaults';
 
 /** A cell size for the status line: whole metres or two decimals. */
 const REPORT_KEY = 'em.report';
@@ -171,7 +172,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
           backend.listSeismicFaults().then((sf) => { if (live) setSeismicFaults(sf || { faults: [], skipped: [] }); })
             .catch((e) => { if (live) setStatus(`Seismolord faults could not be read: ${e.message}`); });
         }
-        if (w.length >= 2) setSectionWells({ a: w[0].id, b: w[1].id });
+        if (w.length >= 2) setSectionWells(defaultSectionPair(w));
       } catch (e) { if (live) { setStatus(e.message); setWells([]); } }
     })();
     return () => { live = false; };
@@ -198,10 +199,10 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     const tn = def.surfaceIds.map((id, i) => {
       if (def.topNames[i]) return def.topNames[i];
       const s = allSurfaceRows(surfaces, def).find((x) => x.id === id);
-      return s && topNames.includes(s.name) ? s.name : '';
+      return s ? matchTopName(s.name, topNames) : '';
     });
     const zones = Array.from({ length: Math.max(0, k - 1) }, (_, i) =>
-      def.zones[i] || { name: `Zone ${i + 1}`, registryZone: zoneNames[i] || '' });
+      def.zones[i] || defaultZone(i, tn[i], zoneNames));
     return { ...def, topNames: tn, zones };
   }, [surfaces, topNames, zoneNames]);
 
