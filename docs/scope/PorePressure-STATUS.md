@@ -282,3 +282,15 @@ seats follow every jump. A specialist draws the design pore pressure as a line t
   at 1,560 m (published 12.02). Negative controls: the line off (the 2,000 m dip stays), and a median over every
   sample including the sands (RMS worse by more than 1 ppg). Invariants: a constant overpressure comes back
   exactly; a window shorter than the shale spacing is the plain carried pressure.
+## 2026-10-14: the Bowers crossplot reads the shale samples
+
+Found in the Pore Pressure Studio video dry run on a copy of Ekene-1: the crossplot read every sample, so the
+sands below the unloading top (faster at their density than the shales) were counted as a velocity reversal:
+3,962 of 4,482 samples "unloaded". With Pressures from shale samples on, `bowersCrossplot` now takes the same
+shale samples (`isShale`), and the summary says so (`pp-xp-shale`, "On the N shale samples (GR at or above 82
+API)."). The help guide adds that a density not lowered by the overpressure can still look unloaded. Kit note:
+the Ekene kit's density follows a normal compaction with depth while its shale sonic carries the designed
+overpressure, so its shales still plot under the loading trend; Ekene's pressure is designed as compaction
+disequilibrium (Eaton n 3). Tests: `__tests__/crossplotShales.test.jsx` (synthetic shales on one trend with
+slower sands: every sample counts the sands as unloaded, the negative control; the shale samples count none and
+recover the trend exponent; the view's sentence).

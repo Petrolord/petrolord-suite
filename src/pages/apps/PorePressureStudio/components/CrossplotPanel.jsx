@@ -13,6 +13,7 @@ import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS } from '@/utils/chartTheme';
 import { bowersCrossplot, suggestUnloadingTop } from '../services/bowersCrossplot';
 import { depthToDisplay, depthFromDisplay, pressureToDisplay, stressUnit } from '../services/units';
+import { shaleModeOn, shaleCutoffFor } from '../services/shalePressure';
 
 const FT = 0.3048;
 
@@ -23,7 +24,15 @@ export default function CrossplotPanel({ input, params, units, onUseUnloading })
   const [uText, setUText] = useState(params.bowers?.U != null ? String(params.bowers.U) : '3');
   const topM = topText === '' ? suggested : depthFromDisplay(Number(topText), zU);
   const A = params.bowers?.A ?? 10; const B = params.bowers?.B ?? 0.75;
-  const xp = useMemo(() => (Number.isFinite(topM) ? bowersCrossplot(input, { topM, A, B, vMlFts: params.bowers?.vMlFts ?? 5000 }) : { error: 'Set the unloading top.' }), [input, topM, A, B, params.bowers?.vMlFts]);
+  // 2026-10-14: with Pressures from shale samples on, the crossplot reads the same shale samples
+  const shale = useMemo(() => {
+    if (!shaleModeOn(params, input)) return null;
+    const cutoff = shaleCutoffFor(params, input, input.shaleKind ?? null);
+    if (!Number.isFinite(cutoff)) return null;
+    const isShale = input.shale.map((v) => v >= cutoff);
+    return { isShale, cutoff, kind: input.shaleKind, n: isShale.filter(Boolean).length };
+  }, [input, params]);
+  const xp = useMemo(() => (Number.isFinite(topM) ? bowersCrossplot(input, { topM, A, B, vMlFts: params.bowers?.vMlFts ?? 5000, isShale: shale?.isShale || null }) : { error: 'Set the unloading top.' }), [input, topM, A, B, params.bowers?.vMlFts, shale]);
   const vOut = (ms) => (zU === 'ft' ? ms / FT : ms);
   const vU = zU === 'ft' ? 'ft/s' : 'm/s';
 
@@ -57,6 +66,7 @@ export default function CrossplotPanel({ input, params, units, onUseUnloading })
       <div className="text-[11px] text-pl-muted" data-testid="pp-xp-summary" data-unloaded={xp.error ? 0 : xp.unloadedCount}>
         {xp.error || (
           <>
+            {shale && <span data-testid="pp-xp-shale">On the {shale.n} shale samples ({shale.kind === 'gr' ? `GR at or above ${Math.round(shale.cutoff)} API` : `VSH at or above ${Number(shale.cutoff).toFixed(2)}`}). </span>}
             Loading trend V = {vOut(xp.trend.a).toPrecision(4)} rho^{xp.trend.b.toFixed(3)} ({vU}, kg/m3) above {depthToDisplay(topM, zU).toFixed(0)} {zU} bml.
             {' '}Below it, {xp.unloadedCount} of {xp.belowCount} samples sit more than 3% under the trend at their density: {xp.unloadedCount ? 'unloading (velocity reversal with density held).' : 'no unloading seen.'}
             {' '}V max {vOut(xp.vMaxMs).toFixed(0)} {vU}; {xp.sigmaMaxPa != null ? `sigma max on the loading curve (A ${A}, B ${B}) ${pressureToDisplay(xp.sigmaMaxPa, sU).toFixed(sU === 'psi' ? 0 : 2)} ${sU}.` : xp.sigmaError}
