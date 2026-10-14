@@ -260,3 +260,10 @@ supplied follow the next well. Publish is held for an offshore well whose datum
 states water while the water depth is 0. `services/datumWaterColumn.js`;
 tests `__tests__/datumWaterColumn.test.js` (the old 0/0 default as the negative
 control).
+## 2026-10-14: the running median slides
+
+The running median behind the sonic median and the interpreted line sorted every window afresh: on a
+14,370-sample log with a 300 ft window about 1.4 s per prognosis, and a calibration fit (dozens of prognoses)
+froze the page for tens of seconds with a 500 ft line. It now slides a sorted window down the log (binary
+insert and remove): the same values, about 30 ms. Tests: `__tests__/runningMedianFast.test.js` (identical to a
+sort per sample on gaps, nulls, ties and float32 depths; the old implementation fails the timing gate).
