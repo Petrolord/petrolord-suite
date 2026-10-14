@@ -12,6 +12,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { payloadEscalators, followsInflation, simpleEscalators } from '@/pages/apps/epe/epeEscalation';
 import { labelForConfigKey } from '@/pages/apps/epe/epeConfigLabels';
+import EpeWaterDepthField from '@/pages/apps/epe/EpeWaterDepthField';
 import { AppHeader } from '@/components/ui/app-shell';
 import {
   epePage, epePanel, epeSelect, epeCellInput, epeNativeCheck, epePill,
@@ -1560,13 +1561,10 @@ const EpeRunConsole = () => {
                         ))}
                       </div>
                     </div>
-                    <NumField
-                      errors={validationErrors}
-                      id="pia_water_depth_m"
-                      label="Water depth"
-                      suffix="m"
-                      value={config.pia_water_depth_m}
-                      onChange={(v) => handleNumberChange('pia_water_depth_m', v)}
+                    <EpeWaterDepthField
+                      valueM={config.pia_water_depth_m}
+                      onChangeM={(v) => handleNumberChange('pia_water_depth_m', v)}
+                      error={validationErrors.pia_water_depth_m}
                     />
                   </div>
                   <div className="flex items-center gap-2">
