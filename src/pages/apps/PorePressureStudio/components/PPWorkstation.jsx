@@ -89,6 +89,8 @@ export const DEFAULT_PARAMS = {
 };
 
 const PP_ID = 'pore-pressure-studio';
+// a margin that rounds to zero reads 0.00, not -0.00
+const ppg2 = (v) => (Math.abs(v) < 0.005 ? '0.00' : v.toFixed(2));
 
 /** @param {Object<string,string>} [p.appPaths] route overrides for the launchers (harness) */
 export default function PPWorkstation({ backend, appPaths = {} }) {
@@ -847,8 +849,13 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
               <span className="text-pl-warning-text" data-testid="pp-casing-closed"> · window closed by the margins at {zRef(casing.closedAtBmlM)}: no seat opens it; managed pressure or smaller margins</span>
             )}
             <span className="block text-pl-muted" data-testid="pp-casing-sections">
-              Window per section: {casing.sections.map((sec) => `${fmtDepth(mapper.fromBml(sec.topBmlM), units.depth)} to ${zRef(sec.baseBmlM)}: mud ${sec.mudPpg.toFixed(2)} ppg, margin to the design FG ${sec.marginPpg.toFixed(2)} ppg`).join(' | ')}
+              Window per section: {casing.sections.map((sec) => `${fmtDepth(mapper.fromBml(sec.topBmlM), units.depth)} to ${zRef(sec.baseBmlM)}: mud ${sec.mudPpg.toFixed(2)} ppg, margin to the design FG ${ppg2(sec.marginPpg)} ppg`).join(' | ')}
             </span>
+            {casing.sections.some((sec) => sec.marginPpg < -0.005) && (
+              <span className="block text-pl-warning-text" data-testid="pp-casing-section-closed">
+                {casing.sections.filter((sec) => sec.marginPpg < -0.005).map((sec) => `${fmtDepth(mapper.fromBml(sec.topBmlM), units.depth)} to ${zRef(sec.baseBmlM)} needs ${sec.mudPpg.toFixed(2)} ppg against a design FG of ${sec.minDesignFgPpg.toFixed(2)} ppg`).join('; ')}: that open hole does not hold with these seats; move a seat or change the margins.
+              </span>
+            )}
           </div>
         )
       )}

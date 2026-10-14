@@ -58,6 +58,36 @@ export const marginsOf = (params) => ({ ...DEFAULT_MARGINS, ...(params?.margins 
 const toPpg = (kgM3) => kgM3 / KG_M3_PER_PPG_DOCK;
 
 /**
+ * The open-hole sections between the seats (2026-10-14): each from its shoe (or
+ * the top) to the next shoe (or TD), drilled with the highest planned mud over
+ * it, against the lowest design fracture line over it. The engine's sections
+ * follow its own bottom-up seats; when a shallowest seat set by the user moves
+ * the first shoe deeper, the sections above and below it change too, and the
+ * engine kept the old ones (the first section still ended at the replaced shoe).
+ * @param {number[]} zs depths, increasing
+ * @param {number[]} mud planned mud (PP + trip margin), ppg
+ * @param {number[]} designFg design fracture line (FG - kick margin), ppg
+ * @param {number[]} seatDepths shoes, shallow to deep
+ * @returns {{top: number, base: number, mud: number, minDesignFg: number, margin: number}[]}
+ */
+export function sectionsFromSeats(zs, mud, designFg, seatDepths) {
+  const bounds = [zs[0], ...seatDepths, zs[zs.length - 1]];
+  const out = [];
+  for (let k = 0; k < bounds.length - 1; k++) {
+    const top = bounds[k]; const base = bounds[k + 1];
+    let M = Math.max(lineAt(zs, mud, top), lineAt(zs, mud, base));
+    let D = Math.min(lineAt(zs, designFg, top), lineAt(zs, designFg, base));
+    for (let i = 0; i < zs.length; i++) {
+      if (zs[i] <= top || zs[i] >= base) continue;
+      if (mud[i] > M) M = mud[i];
+      if (designFg[i] < D) D = designFg[i];
+    }
+    out.push({ top, base, mud: M, minDesignFg: D, margin: D - M });
+  }
+  return out;
+}
+
+/**
  * Casing design on the prognosis.
  * @returns {{tripPpg: number, kickPpg: number, zBmlM: number[], mudPpg: number[], designFgPpg: number[],
  *   seats: {zBmlM: number, mudBelowPpg: number, designFgPpg: number, driver: string}[],
@@ -85,6 +115,9 @@ export function casingDesign(profile, zBmlM, params, fromBmlM = WINDOW_FROM_BML_
       depths: zs, ppEmw: pp, fgEmw: fg, tripMargin: tripPpg, kickMargin: kickPpg,
       minShallowSeat: m.minShallowSeatBmlM > fromBmlM ? m.minShallowSeatBmlM : 0,
     });
+    // a user minimum moved the first shoe: the sections follow the seats as set
+    const userSeat = r.seats.some((q) => q.driver === 'minimum shallow seat');
+    const sections = userSeat ? sectionsFromSeats(zs, r.mud, r.designFg, r.seats.map((q) => q.depth)) : r.sections;
     return {
       tripPpg,
       kickPpg,
@@ -92,7 +125,7 @@ export function casingDesign(profile, zBmlM, params, fromBmlM = WINDOW_FROM_BML_
       mudPpg: r.mud,
       designFgPpg: r.designFg,
       seats: r.seats.map((s) => ({ zBmlM: s.depth, mudBelowPpg: s.mudBelow, designFgPpg: s.designFgAtShoe, driver: s.driver })),
-      sections: r.sections.map((s) => ({ topBmlM: s.top, baseBmlM: s.base, mudPpg: s.mud, minDesignFgPpg: s.minDesignFg, marginPpg: s.margin })),
+      sections: sections.map((s) => ({ topBmlM: s.top, baseBmlM: s.base, mudPpg: s.mud, minDesignFgPpg: s.minDesignFg, marginPpg: s.margin })),
       closedAtBmlM: r.closedAt,
       fromBmlM,
       at: (z) => ({ mudPpg: lineAt(zs, r.mud, z), designFgPpg: lineAt(zs, r.designFg, z) }),

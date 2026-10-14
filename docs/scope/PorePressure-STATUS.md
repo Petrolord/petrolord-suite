@@ -282,3 +282,15 @@ seats follow every jump. A specialist draws the design pore pressure as a line t
   at 1,560 m (published 12.02). Negative controls: the line off (the 2,000 m dip stays), and a median over every
   sample including the sands (RMS worse by more than 1 ppg). Invariants: a constant overpressure comes back
   exactly; a window shorter than the shale spacing is the plain carried pressure.
+## 2026-10-14: the window per section follows a user's shallowest seat
+
+Found in the Pore Pressure Studio lesson dry run on the Ekene copy: with "Shallowest seat at least 4,500 ft
+bml" the first shoe moved to 4,697 ft MD ("your minimum") while the window per section still ended its first
+section at the replaced 4,107 ft shoe (the vendored engine replaces the seat and keeps its own sections). The
+sections are now rebuilt from the seats as set when a minimum moved a shoe (`sectionsFromSeats` in
+`services/drillingWindow.js`: each section's highest planned mud against its lowest design fracture line; on
+the engine's own seats it returns the engine's sections). A section whose mud exceeds its design fracture
+line is said in amber (`pp-casing-section-closed`), and a margin that rounds to zero reads 0.00 (it read
+-0.00). Tests: `__tests__/minSeatSections.test.js` (the engine alone keeps the replaced shoe as the first
+section base, the negative control). Engines follow-up: the same rebuild belongs in
+`engines/porepressure/casingSeats.js` (Petrolord/petrolord-engines) so every consumer gets it.
