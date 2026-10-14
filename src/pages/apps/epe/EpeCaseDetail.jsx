@@ -7,7 +7,7 @@ import EpeWfImport from '@/pages/apps/epe/EpeWfImport';
 import EpeSimImport from '@/pages/apps/epe/EpeSimImport';
 import EpeWsImport from '@/pages/apps/epe/EpeWsImport';
     import { Helmet } from 'react-helmet';
-    import { useParams, Link, useNavigate } from 'react-router-dom';
+    import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
     import { useToast } from '@/components/ui/use-toast';
     import { Button } from '@/components/ui/button';
     import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -70,6 +70,10 @@ import EpeWsImport from '@/pages/apps/epe/EpeWsImport';
       const [runs, setRuns] = useState([]);
       const [runKpis, setRunKpis] = useState({}); // Wave D: run_id -> kpis for the history table
       const [loading, setLoading] = useState(true);
+      // The open tab survives a reload of the case data (approving, locking or
+      // deleting a run, an upload, an import), and ?tab=runs opens Run History.
+      const [searchParams] = useSearchParams();
+      const [tab, setTab] = useState(searchParams.get('tab') === 'runs' ? 'runs' : 'data');
       const [processingFileId, setProcessingFileId] = useState(null);
       // Wave E: sharing + import state
       const [myOrgId, setMyOrgId] = useState(null);
@@ -355,7 +359,8 @@ import EpeWsImport from '@/pages/apps/epe/EpeWsImport';
         }
       };
 
-      if (loading) {
+      // full-page spinner on the first load only; a refresh keeps the page in place
+      if (loading && !caseDetails) {
         return <div className="flex justify-center items-center h-screen"><Loader2 className="w-16 h-16 animate-spin text-pl-primary-text" aria-label="Loading case" /></div>;
       }
 
@@ -409,7 +414,7 @@ import EpeWsImport from '@/pages/apps/epe/EpeWsImport';
               </div>
             )}
 
-            <Tabs defaultValue="data" className="w-full">
+            <Tabs value={tab} onValueChange={setTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:inline-grid">
                 <TabsTrigger value="data">Data Management</TabsTrigger>
                 <TabsTrigger value="runs">Run History</TabsTrigger>
