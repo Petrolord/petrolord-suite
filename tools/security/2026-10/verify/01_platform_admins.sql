@@ -1,4 +1,4 @@
--- Verify after 20261014120000 (read-only). Expect: admins = 3 (the three confirmed emails),
+-- Verify after 20261014121000 (read-only). Expect: admins = 3 (the three confirmed emails),
 -- is_super_admin_reads_table = true, rpcs = 5, anon_accept = false, anon_lookup = true.
 select (select count(*) from public.platform_admins) admins,
        (select string_agg(email, ', ' order by email) from public.platform_admins) emails,

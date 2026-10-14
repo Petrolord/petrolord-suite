@@ -94,30 +94,30 @@ def policy_tables_of(path):
     return sorted(set(re.findall(r'on public\.([a-z_0-9]+)', s)) | set(re.findall(r'table public\.([a-z_0-9]+)', s)))
 
 # 01: only is_super_admin changes behaviour (new objects are inert)
-write('01.rollback.sql', '20261014120000 (is_super_admin and handle_new_user back to the live bodies; platform_admins left in place)',
+write('01.rollback.sql', '20261014121000 (is_super_admin and handle_new_user back to the live bodies; platform_admins left in place)',
       func_block(['public.is_super_admin()', 'public.handle_new_user()']))
 
 # 02
-write('02.rollback.sql', '20261014120100 (invitation lockdown)',
+write('02.rollback.sql', '20261014121100 (invitation lockdown)',
       table_block(['invitations']) + "\nalter table public.invitations alter column invited_by drop default;\n" +
       func_block(['public.add_user_to_organization(uuid,uuid,text)', 'public.enable_hse_for_organization(uuid)',
                   'public.handle_new_user()']))
 
 # 03
-write('03.rollback.sql', '20261014120200 (users guard, seats, invited rows)',
+write('03.rollback.sql', '20261014121200 (users guard, seats, invited rows)',
       "drop trigger if exists users_guard_privileged_columns on public.users;\n"
       "drop trigger if exists platform_admins_mirror on public.platform_admins;\n" +
       table_block(['users', 'organization_members']) + '\n' +
       func_block(['public.assign_app_seat(uuid,text,uuid)', 'public.unassign_app_seat(uuid,text,uuid)']))
 
 # 04
-t04 = [t for t in policy_tables_of('20261014120300_security_04_rls_off_tables.sql') if t not in ('projects', 'pm_resources_x')]
+t04 = [t for t in policy_tables_of('20261014121300_security_04_rls_off_tables.sql') if t not in ('projects', 'pm_resources_x')]
 t04 = [t for t in t04 if t != 'projects']
-write('04.rollback.sql', '20261014120300 (RLS-off tables)',
+write('04.rollback.sql', '20261014121300 (RLS-off tables)',
       table_block(t04) + '\n' + func_block(['public.manual_verify_quote(text,uuid)']))
 
 # 05
-s05 = open(os.path.join(MIG, '20261014120400_security_05_policy_fixes.sql')).read()
+s05 = open(os.path.join(MIG, '20261014121400_security_05_policy_fixes.sql')).read()
 userrole = [r['tablename'] for r in q("""select distinct tablename from pg_policies where schemaname='public'
     and (coalesce(qual,'') like '%get_my_claim(''user_role''%' or coalesce(with_check,'') like '%get_my_claim(''user_role''%')""")]
 t05 = sorted((set(re.findall(r'on public\.([a-z_0-9]+)', s05)) | set(re.findall(r'table public\.([a-z_0-9]+)', s05))
@@ -132,4 +132,4 @@ body += '\n'.join(f'drop policy if exists {n} on storage.objects;' for n in stor
 body += table_block(['objects'], schema='storage', only_policies=set(storage_names), drop_all=False) + '\n'
 body += func_block(['public.get_users_for_organization(uuid)', 'public.delete_organization(uuid)',
                     'public.hse_complete_org_setup(uuid)', 'public.update_last_accessed_app(text)'])
-write('05.rollback.sql', '20261014120400 (policy fixes)', body)
+write('05.rollback.sql', '20261014121400 (policy fixes)', body)

@@ -1,4 +1,4 @@
--- Verify after 20261014120100 (read-only). Expect: add_user_clients = false, open_invite_policies = 0,
+-- Verify after 20261014121100 (read-only). Expect: add_user_clients = false, open_invite_policies = 0,
 -- anon_invitations = false, trigger_needs_token = true, invite_policies = 4.
 select (has_function_privilege('anon', 'public.add_user_to_organization(uuid,uuid,text)', 'EXECUTE')
         or has_function_privilege('authenticated', 'public.add_user_to_organization(uuid,uuid,text)', 'EXECUTE')) add_user_clients,

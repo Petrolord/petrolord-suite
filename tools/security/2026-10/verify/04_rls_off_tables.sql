@@ -1,4 +1,4 @@
--- Verify after 20261014120300 (read-only). Expect: rls_off = 1 (spatial_ref_sys only), anon_on_rls_off = 1
+-- Verify after 20261014121300 (read-only). Expect: rls_off = 1 (spatial_ref_sys only), anon_on_rls_off = 1
 -- (spatial_ref_sys), anon_any_86 = 0.
 select (select count(*) from pg_class c where c.relnamespace='public'::regnamespace and c.relkind in ('r','p') and not c.relrowsecurity) rls_off,
        (select count(*) from pg_class c where c.relnamespace='public'::regnamespace and c.relkind in ('r','p') and not c.relrowsecurity
