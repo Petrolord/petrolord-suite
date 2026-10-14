@@ -98,3 +98,17 @@ inside the console and React remounted it on every render. Typing 2026 into
 Base year left 2 and the validation message "Enter a 4-digit year". The field
 is now declared at module level. Test: piaScreens.mount.test.jsx types 2026
 and 82.5 key by key (fails on the old code). No engine change.
+
+## 2026-10-14: tornado readout (video programme)
+
+The Sensitivity (Tornado) panel had no numbers without hovering, uneven ticks
+(-3.3M, -1.3M, 704K, 3.3M) and a base NPV to two figures ("2.0M" beside a
+$1.98M headline). It now has symmetric, evenly spaced ticks, money to three
+significant figures, one sentence naming the two biggest drivers and their
+NPV ranges (testid `epe-tornado-sentence`), and a table of every bar (testid
+`epe-tornado-table`: Variable, Low input, High input, NPV at low, NPV at high,
+Swing) in the engine's impact order. Inputs read in each variable's unit
+($/bbl, $/Mscf, %, "+1 yr", totals with their x0.80 factor). Nothing is
+recomputed: the NPVs are the batch engine's own. Helper `epeTornado.js`;
+tests `epeTornado.test.js` and `epeTornado.mount.test.jsx` (the mount test
+fails on the old viewer).
