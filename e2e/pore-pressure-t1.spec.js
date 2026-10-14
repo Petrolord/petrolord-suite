@@ -38,7 +38,7 @@ test('T1-001/002: depth increases downward and both calibration points are drawn
   await expect(chart.getByText('Calibration')).toHaveCount(0);
   await page.getByTestId('pp-param-cal').fill('3000, 34.5\n3600, 45.2');
   await page.getByTestId('pp-apply-params').click();
-  await expect(chart.locator('circle[fill="#e76f51"]')).toHaveCount(2);
+  await expect(chart.locator('circle[fill="#ea580c"]')).toHaveCount(2);
 });
 
 test('T1-E1/003: drilling window reported; ribbon keeps Save on screen', async ({ page }) => {
