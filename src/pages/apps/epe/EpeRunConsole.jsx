@@ -11,7 +11,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { payloadEscalators, followsInflation, simpleEscalators } from '@/pages/apps/epe/epeEscalation';
+import { snapshotOf, fetchCaseInputs } from '@/pages/apps/epe/epeRunInputs';
 import { labelForConfigKey } from '@/pages/apps/epe/epeConfigLabels';
+import { CONVENTION_HELP } from '@/pages/apps/epe/epeValuation';
+import EpeWaterDepthField from '@/pages/apps/epe/EpeWaterDepthField';
 import { AppHeader } from '@/components/ui/app-shell';
 import {
   epePage, epePanel, epeSelect, epeCellInput, epeNativeCheck, epePill,
@@ -24,6 +27,16 @@ import {
 
 // Wave E (audit 4.3): the pricing + economics subset an assumption set pins.
 // Regime terms and case-specific dates (base/valuation year) stay out.
+// Engine 3.12.2: variable operating cost rates (US$ per unit produced),
+// added to the OPEX file on the volumes a run prices. Blank = off.
+export const VARIABLE_OPEX_FIELDS = [
+  ['opex_variable_usd_per_bbl_liquid', 'Per barrel of liquid', 'USD/bbl oil + water'],
+  ['opex_variable_usd_per_bbl_oil', 'Per barrel of oil', 'USD/bbl'],
+  ['opex_variable_usd_per_bbl_water', 'Per barrel of water', 'USD/bbl'],
+  ['opex_variable_usd_per_mscf_gas', 'Per Mscf of gas', 'USD/Mscf'],
+];
+const VARIABLE_OPEX_KEYS = VARIABLE_OPEX_FIELDS.map(([k]) => k);
+
 const ASSUMPTION_SET_KEYS = [
   'oil_price_usd_bbl', 'gas_price_usd_mscf', 'condensate_price_usd_bbl',
   'oil_price_differential_usd_bbl', 'gas_price_differential_usd_mscf', 'condensate_price_differential_usd_bbl',
@@ -32,6 +45,8 @@ const ASSUMPTION_SET_KEYS = [
   'opex_escalator_pct', 'capex_escalator_pct',
   'discount_rate_pct', 'inflation_rate_pct',
   'present_value_basis', 'discounting_convention',
+  // engine 3.12.2: variable opex rates are corporate cost assumptions too
+  ...VARIABLE_OPEX_KEYS,
 ];
 
 // ----------------------------------------------------------------------------
@@ -94,6 +109,11 @@ const DEFAULT_CONFIG = {
   // ---- v3.4: field life ----
   apply_economic_limit: false,
   abandonment_cost_usd: null,
+  // ---- engine 3.12.2: variable opex rates (null = off) ----
+  opex_variable_usd_per_bbl_liquid: null,
+  opex_variable_usd_per_bbl_oil: null,
+  opex_variable_usd_per_bbl_water: null,
+  opex_variable_usd_per_mscf_gas: null,
   abandonment_year: null,
   // ---- v3.6 Wave B: equity + price realism ----
   psc_working_interest_pct: 100,
@@ -135,6 +155,32 @@ const formatTimestampForName = () => {
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
+
+// A number field with its label and validation message. Declared at module
+// level: declared inside the console it was a new component type on every
+// render, so React remounted the input after each keystroke and typing
+// "2026" into Base year left "2" (the field lost focus after one character).
+const NumField = ({ id, label, suffix, value, onChange, step = 'any', errors = {} }) => (
+  <div>
+    <Label htmlFor={id} className="text-pl-text text-sm">
+      {label} {suffix && <span className="text-pl-muted">({suffix})</span>}
+    </Label>
+    <Input
+      id={id}
+      type="number"
+      step={step}
+      value={value === '' ? '' : value}
+      onChange={(e) => onChange(e.target.value)}
+      className={errors[id] ? 'border-pl-danger' : undefined}
+    />
+    {errors[id] && (
+      <p className="text-pl-danger-text text-xs mt-1 flex items-center gap-1">
+        <AlertCircle className="w-3 h-3" />
+        {errors[id]}
+      </p>
+    )}
+  </div>
+);
 
 const EpeRunConsole = () => {
   const { caseId } = useParams();
@@ -372,6 +418,13 @@ const EpeRunConsole = () => {
         errors[k] = 'Must be a non-negative number';
       }
     });
+    // variable opex rates are optional; when given they cannot be negative
+    VARIABLE_OPEX_KEYS.forEach((k) => {
+      const v = config[k];
+      if (v !== null && v !== '' && v !== undefined && (isNaN(v) || Number(v) < 0)) {
+        errors[k] = 'Leave blank or enter zero or more';
+      }
+    });
     // A $0 oil price silently produces a $0-revenue run; require a real price.
     if (!errors.oil_price_usd_bbl && Number(config.oil_price_usd_bbl) <= 0) {
       errors.oil_price_usd_bbl = 'Oil price must be greater than zero';
@@ -547,6 +600,9 @@ const EpeRunConsole = () => {
         abandonment_fund_start_year: config.abandonment_fund_start_year === '' || config.abandonment_fund_start_year === null ? null : config.abandonment_fund_start_year,
         pia_apply_minimum_etr: config.pia_apply_minimum_etr === true,
         pia_minimum_etr_pct: config.pia_minimum_etr_pct === '' ? 15 : config.pia_minimum_etr_pct,
+        // ---- engine 3.12.2: variable opex rates (blank = null = off) ----
+        ...Object.fromEntries(VARIABLE_OPEX_KEYS.map((k) => [k,
+          config[k] === '' || config[k] === null || config[k] === undefined ? null : Number(config[k])])),
       };
 
       // 1. Insert config
@@ -557,14 +613,20 @@ const EpeRunConsole = () => {
         .single();
       if (cfgErr) throw new Error(`Saving run config failed: ${cfgErr.message}`);
 
-      // 2. Insert run record (engine reads case_id via run_id lookup)
+      // 2. Insert run record (engine reads case_id via run_id lookup). The
+      // run keeps the list of input files it priced, so the Results Viewer
+      // and Run History can say when the case data changed after it.
+      let inputs = null;
+      try {
+        inputs = snapshotOf(await fetchCaseInputs(supabase, caseId), configPayload.production_scenario);
+      } catch (_) { inputs = null; /* the run still goes; it only loses the out-of-date check */ }
       const { data: runRow, error: runErr } = await supabase
         .from('epe_runs')
         .insert({
           case_id: caseId,
           user_id: user.id,
           run_name: runName.trim(),
-          parameters: { source: 'EpeRunConsole', regime: config.fiscal_regime },
+          parameters: { source: 'EpeRunConsole', regime: config.fiscal_regime, ...(inputs ? { inputs } : {}) },
           run_config_id: cfgRow.id,
           status: 'running',
         })
@@ -646,27 +708,6 @@ const EpeRunConsole = () => {
     ...p, psc_profit_tranches: (p.psc_profit_tranches || []).filter((_, idx) => idx !== i),
   }));
 
-  const NumField = ({ id, label, suffix, value, onChange, step = 'any' }) => (
-    <div>
-      <Label htmlFor={id} className="text-pl-text text-sm">
-        {label} {suffix && <span className="text-pl-muted">({suffix})</span>}
-      </Label>
-      <Input
-        id={id}
-        type="number"
-        step={step}
-        value={value === '' ? '' : value}
-        onChange={(e) => onChange(e.target.value)}
-        className={validationErrors[id] ? 'border-pl-danger' : undefined}
-      />
-      {validationErrors[id] && (
-        <p className="text-pl-danger-text text-xs mt-1 flex items-center gap-1">
-          <AlertCircle className="w-3 h-3" />
-          {validationErrors[id]}
-        </p>
-      )}
-    </div>
-  );
 
   return (
     <>
@@ -843,7 +884,7 @@ const EpeRunConsole = () => {
                 </div>
               )}
               <p className="text-xs text-pl-muted mt-1">
-                An assumption set pins pricing and economics (prices, differentials, deck, escalation, discounting). Regime terms and case dates stay with the case.
+                An assumption set pins pricing and economics (prices, differentials, deck, escalation, discounting, variable opex rates). Regime terms and case dates stay with the case.
               </p>
             </div>
           </section>
@@ -853,6 +894,7 @@ const EpeRunConsole = () => {
             <h2 className="text-lg font-semibold text-pl-text mb-3 border-b border-pl-border pb-1">Pricing</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <NumField
+                errors={validationErrors}
                 id="oil_price_usd_bbl"
                 label="Oil price"
                 suffix="USD/bbl"
@@ -860,6 +902,7 @@ const EpeRunConsole = () => {
                 onChange={(v) => handleNumberChange('oil_price_usd_bbl', v)}
               />
               <NumField
+                errors={validationErrors}
                 id="gas_price_usd_mscf"
                 label="Gas price"
                 suffix="USD/mscf"
@@ -867,6 +910,7 @@ const EpeRunConsole = () => {
                 onChange={(v) => handleNumberChange('gas_price_usd_mscf', v)}
               />
               <NumField
+                errors={validationErrors}
                 id="condensate_price_usd_bbl"
                 label="Condensate price"
                 suffix="USD/bbl"
@@ -877,6 +921,7 @@ const EpeRunConsole = () => {
             {/* v3.6 Wave B: differentials to marker prices */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
               <NumField
+                errors={validationErrors}
                 id="oil_price_differential_usd_bbl"
                 label="Oil differential"
                 suffix="USD/bbl"
@@ -884,6 +929,7 @@ const EpeRunConsole = () => {
                 onChange={(v) => handleNumberChange('oil_price_differential_usd_bbl', v)}
               />
               <NumField
+                errors={validationErrors}
                 id="gas_price_differential_usd_mscf"
                 label="Gas differential"
                 suffix="USD/mscf"
@@ -891,6 +937,7 @@ const EpeRunConsole = () => {
                 onChange={(v) => handleNumberChange('gas_price_differential_usd_mscf', v)}
               />
               <NumField
+                errors={validationErrors}
                 id="condensate_price_differential_usd_bbl"
                 label="Condensate differential"
                 suffix="USD/bbl"
@@ -904,6 +951,7 @@ const EpeRunConsole = () => {
             {/* v3.9 Wave F: NGN mirror rate */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
               <NumField
+                errors={validationErrors}
                 id="fx_ngn_per_usd"
                 label="NGN per USD"
                 suffix="optional"
@@ -972,6 +1020,7 @@ const EpeRunConsole = () => {
             <h2 className="text-lg font-semibold text-pl-text mb-3 border-b border-pl-border pb-1">Discounting & Inflation</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <NumField
+                errors={validationErrors}
                 id="discount_rate_pct"
                 label="Discount rate"
                 suffix="%"
@@ -979,6 +1028,7 @@ const EpeRunConsole = () => {
                 onChange={(v) => handleNumberChange('discount_rate_pct', v)}
               />
               <NumField
+                errors={validationErrors}
                 id="inflation_rate_pct"
                 label="Inflation rate"
                 suffix="%"
@@ -986,6 +1036,7 @@ const EpeRunConsole = () => {
                 onChange={(v) => handleNumberChange('inflation_rate_pct', v)}
               />
               <NumField
+                errors={validationErrors}
                 id="base_year"
                 label="Base year"
                 value={config.base_year}
@@ -1004,8 +1055,10 @@ const EpeRunConsole = () => {
                   <option value="end_year">End of year</option>
                   <option value="mid_year">Mid-year</option>
                 </select>
+                <p className="text-xs text-pl-muted mt-1" data-testid="epe-convention-help">{CONVENTION_HELP}</p>
               </div>
               <NumField
+                errors={validationErrors}
                 id="valuation_year"
                 label="Valuation year"
                 suffix="blank = base year"
@@ -1042,6 +1095,7 @@ const EpeRunConsole = () => {
                   </div>
                   {(config.depreciation_method || 'straight_line') === 'straight_line' && (
                     <NumField
+                      errors={validationErrors}
                       id="jv_psc_depr_years"
                       label="Depreciation life"
                       suffix="years"
@@ -1079,6 +1133,7 @@ const EpeRunConsole = () => {
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <NumField
+                errors={validationErrors}
                 id="abandonment_cost_usd"
                 label="Abandonment cost"
                 suffix="USD (blank = none)"
@@ -1086,6 +1141,7 @@ const EpeRunConsole = () => {
                 onChange={(v) => handleNumberChange('abandonment_cost_usd', v === '' ? null : v)}
               />
               <NumField
+                errors={validationErrors}
                 id="abandonment_year"
                 label="Abandonment year"
                 suffix="blank = final year"
@@ -1109,6 +1165,7 @@ const EpeRunConsole = () => {
               </div>
               {config.abandonment_funding_mode === 'sinking_fund' && (
                 <NumField
+                  errors={validationErrors}
                   id="abandonment_fund_start_year"
                   label="Fund start year"
                   suffix="blank = first modeled year"
@@ -1123,6 +1180,30 @@ const EpeRunConsole = () => {
                 ? 'Equal annual contributions from the start year through the abandonment year. Contributions are tax-deductible and the fund pays the final spend, so there is no second cash hit at end of life.'
                 : 'Applied as a post-tax cash outflow in that year. It is not tax-deducted or depreciated, and it is excluded from cost recovery.'}
             </p>
+          </section>
+
+          {/* Variable opex (engine 3.12.2) */}
+          <section data-testid="epe-variable-opex">
+            <h2 className="text-lg font-semibold text-pl-text mb-3 border-b border-pl-border pb-1">Variable Opex</h2>
+            <p className="text-xs text-pl-muted mb-3">
+              Costs that follow production, in US$ per unit produced at base-year prices. They are added to the
+              OPEX file on the volumes this run prices, so a lower forecast, another reserves scenario or the
+              production multiplier in the sensitivity and Monte Carlo moves the opex too. Escalated with opex.
+              Leave blank when the OPEX file already holds these costs, or they are counted twice.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {VARIABLE_OPEX_FIELDS.map(([key, label, suffix]) => (
+                <NumField
+                  key={key}
+                  errors={validationErrors}
+                  id={key}
+                  label={label}
+                  suffix={suffix}
+                  value={config[key] ?? ''}
+                  onChange={(v) => handleNumberChange(key, v === '' ? null : v)}
+                />
+              ))}
+            </div>
           </section>
 
           {/* Escalation & PV Basis */}
@@ -1161,6 +1242,7 @@ const EpeRunConsole = () => {
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
                   <NumField
+                    errors={validationErrors}
                     id="oil_price_escalator_pct"
                     label="Oil price escalator"
                     suffix="%/yr"
@@ -1168,6 +1250,7 @@ const EpeRunConsole = () => {
                     onChange={(v) => handleNumberChange('oil_price_escalator_pct', v)}
                   />
                   <NumField
+                    errors={validationErrors}
                     id="gas_price_escalator_pct"
                     label="Gas price escalator"
                     suffix="%/yr"
@@ -1175,6 +1258,7 @@ const EpeRunConsole = () => {
                     onChange={(v) => handleNumberChange('gas_price_escalator_pct', v)}
                   />
                   <NumField
+                    errors={validationErrors}
                     id="condensate_price_escalator_pct"
                     label="Condensate escalator"
                     suffix="%/yr"
@@ -1182,6 +1266,7 @@ const EpeRunConsole = () => {
                     onChange={(v) => handleNumberChange('condensate_price_escalator_pct', v)}
                   />
                   <NumField
+                    errors={validationErrors}
                     id="opex_escalator_pct"
                     label="OPEX escalator"
                     suffix="%/yr"
@@ -1189,6 +1274,7 @@ const EpeRunConsole = () => {
                     onChange={(v) => handleNumberChange('opex_escalator_pct', v)}
                   />
                   <NumField
+                    errors={validationErrors}
                     id="capex_escalator_pct"
                     label="CAPEX escalator"
                     suffix="%/yr"
@@ -1262,6 +1348,7 @@ const EpeRunConsole = () => {
             {config.fiscal_regime === 'JV' ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <NumField
+                  errors={validationErrors}
                   id="jv_working_interest_pct"
                   label="Working interest"
                   suffix="%"
@@ -1269,6 +1356,7 @@ const EpeRunConsole = () => {
                   onChange={(v) => handleNumberChange('jv_working_interest_pct', v)}
                 />
                 <NumField
+                  errors={validationErrors}
                   id="jv_royalty_pct"
                   label="Royalty"
                   suffix="%"
@@ -1276,6 +1364,7 @@ const EpeRunConsole = () => {
                   onChange={(v) => handleNumberChange('jv_royalty_pct', v)}
                 />
                 <NumField
+                  errors={validationErrors}
                   id="jv_tax_rate_pct"
                   label="Tax rate"
                   suffix="%"
@@ -1286,6 +1375,7 @@ const EpeRunConsole = () => {
             ) : config.fiscal_regime === 'PSC' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <NumField
+                  errors={validationErrors}
                   id="psc_working_interest_pct"
                   label="Working interest"
                   suffix="% of contractor group"
@@ -1293,6 +1383,7 @@ const EpeRunConsole = () => {
                   onChange={(v) => handleNumberChange('psc_working_interest_pct', v)}
                 />
                 <NumField
+                  errors={validationErrors}
                   id="psc_royalty_pct"
                   label="Royalty"
                   suffix="%"
@@ -1300,6 +1391,7 @@ const EpeRunConsole = () => {
                   onChange={(v) => handleNumberChange('psc_royalty_pct', v)}
                 />
                 <NumField
+                  errors={validationErrors}
                   id="psc_cost_oil_cap_pct"
                   label="Cost-oil cap"
                   suffix="% of revenue"
@@ -1307,6 +1399,7 @@ const EpeRunConsole = () => {
                   onChange={(v) => handleNumberChange('psc_cost_oil_cap_pct', v)}
                 />
                 <NumField
+                  errors={validationErrors}
                   id="psc_contractor_profit_share_pct"
                   label="Contractor profit share"
                   suffix="%"
@@ -1314,6 +1407,7 @@ const EpeRunConsole = () => {
                   onChange={(v) => handleNumberChange('psc_contractor_profit_share_pct', v)}
                 />
                 <NumField
+                  errors={validationErrors}
                   id="psc_tax_rate_pct"
                   label="Tax rate"
                   suffix="%"
@@ -1321,6 +1415,7 @@ const EpeRunConsole = () => {
                   onChange={(v) => handleNumberChange('psc_tax_rate_pct', v)}
                 />
                 <NumField
+                  errors={validationErrors}
                   id="psc_itc_pct"
                   label="Investment tax credit"
                   suffix="% of CAPEX, credited against tax"
@@ -1385,6 +1480,7 @@ const EpeRunConsole = () => {
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                       <NumField
+                        errors={validationErrors}
                         id="psc_prior_cumulative_liquids_bbl"
                         label="Prior cumulative liquids"
                         suffix="bbl (brownfield start)"
@@ -1454,6 +1550,7 @@ const EpeRunConsole = () => {
                 {/* v3.6 Wave B: lessee equity share */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <NumField
+                    errors={validationErrors}
                     id="pia_working_interest_pct"
                     label="Working interest"
                     suffix="% of lessee; royalty tiers and caps stay field-level"
@@ -1524,12 +1621,10 @@ const EpeRunConsole = () => {
                         ))}
                       </div>
                     </div>
-                    <NumField
-                      id="pia_water_depth_m"
-                      label="Water depth"
-                      suffix="m"
-                      value={config.pia_water_depth_m}
-                      onChange={(v) => handleNumberChange('pia_water_depth_m', v)}
+                    <EpeWaterDepthField
+                      valueM={config.pia_water_depth_m}
+                      onChangeM={(v) => handleNumberChange('pia_water_depth_m', v)}
+                      error={validationErrors.pia_water_depth_m}
                     />
                   </div>
                   <div className="flex items-center gap-2">
@@ -1586,6 +1681,7 @@ const EpeRunConsole = () => {
                           {config.pia_deep_offshore_hct_interpretation === 'custom' && (
                             <div className="mt-2">
                               <NumField
+                                errors={validationErrors}
                                 id="pia_deep_offshore_hct_custom_rate_pct"
                                 label="Custom HCT rate"
                                 suffix="%"
@@ -1635,6 +1731,7 @@ const EpeRunConsole = () => {
                     <>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <NumField
+                          errors={validationErrors}
                           id="pia_hct_rate_override_pct"
                           label="HCT override"
                           suffix="% (blank = auto)"
@@ -1642,6 +1739,7 @@ const EpeRunConsole = () => {
                           onChange={(v) => handleNumberChange('pia_hct_rate_override_pct', v === '' ? null : v)}
                         />
                         <NumField
+                          errors={validationErrors}
                           id="pia_cit_rate_pct"
                           label="CIT rate"
                           suffix="%"
@@ -1649,6 +1747,7 @@ const EpeRunConsole = () => {
                           onChange={(v) => handleNumberChange('pia_cit_rate_pct', v)}
                         />
                         <NumField
+                          errors={validationErrors}
                           id="pia_tet_rate_pct"
                           label="TET rate"
                           suffix="% (blank = statute)"
@@ -1701,6 +1800,7 @@ const EpeRunConsole = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {isLegacyPia(config) ? (
                           <NumField
+                            errors={validationErrors}
                             id="pia_nddc_levy_pct_of_opex"
                             label="NDDC levy"
                             suffix="% of OPEX"
@@ -1710,6 +1810,7 @@ const EpeRunConsole = () => {
                         ) : (
                           <>
                             <NumField
+                              errors={validationErrors}
                               id="pia_nddc_levy_pct"
                               label="NDDC levy"
                               suffix={`% of ${config.pia_nddc_levy_base === 'opex' ? 'OPEX' : 'OPEX plus CAPEX'}`}
@@ -1728,6 +1829,7 @@ const EpeRunConsole = () => {
                               <p className="text-xs text-pl-muted mt-1">{PIA_INPUT_HELP.pia_nddc_levy_base}</p>
                             </div>
                             <NumField
+                              errors={validationErrors}
                               id="pia_gas_in_country_share_pct"
                               label="Gas utilised in Nigeria"
                               suffix="% of gas revenue (2.5% royalty)"
@@ -1748,6 +1850,7 @@ const EpeRunConsole = () => {
                           </>
                         )}
                         <NumField
+                          errors={validationErrors}
                           id="pia_nddc_levy_fixed_usd"
                           label="NDDC fixed amount"
                           suffix="USD/yr (blank = use %)"
@@ -1755,6 +1858,7 @@ const EpeRunConsole = () => {
                           onChange={(v) => handleNumberChange('pia_nddc_levy_fixed_usd', v === '' ? null : v)}
                         />
                         <NumField
+                          errors={validationErrors}
                           id="pia_prior_year_opex_usd"
                           label="Prior-year OPEX"
                           suffix="USD (for yr-1 HCDT)"
@@ -1763,6 +1867,7 @@ const EpeRunConsole = () => {
                         />
                         {isLegacyPia(config) ? (
                           <NumField
+                            errors={validationErrors}
                             id="pia_capex_recovery_years"
                             label="Capex recovery"
                             suffix="years"
@@ -1777,6 +1882,7 @@ const EpeRunConsole = () => {
                           </div>
                         )}
                         <NumField
+                          errors={validationErrors}
                           id="pia_cpr_limit_pct"
                           label="CPR cap"
                           suffix="% of revenue"
@@ -1784,6 +1890,7 @@ const EpeRunConsole = () => {
                           onChange={(v) => handleNumberChange('pia_cpr_limit_pct', v)}
                         />
                         <NumField
+                          errors={validationErrors}
                           id="pia_production_allowance_pct_of_price"
                           label="Prod. allowance"
                           suffix="% of price (cap)"
@@ -1791,6 +1898,7 @@ const EpeRunConsole = () => {
                           onChange={(v) => handleNumberChange('pia_production_allowance_pct_of_price', v)}
                         />
                         <NumField
+                          errors={validationErrors}
                           id="pia_production_allowance_per_bbl_converted"
                           label="Allowance (converted)"
                           suffix="USD/bbl"
@@ -1798,6 +1906,7 @@ const EpeRunConsole = () => {
                           onChange={(v) => handleNumberChange('pia_production_allowance_per_bbl_converted', v)}
                         />
                         <NumField
+                          errors={validationErrors}
                           id="pia_production_allowance_per_bbl_new"
                           label="Allowance (new)"
                           suffix="USD/bbl"
@@ -1807,6 +1916,7 @@ const EpeRunConsole = () => {
                         {!isLegacyPia(config) && (
                           <div>
                             <NumField
+                              errors={validationErrors}
                               id="pia_production_allowance_per_bbl_new_after_cap"
                               label="Allowance (new, after the cap)"
                               suffix="USD/bbl"
@@ -1851,6 +1961,7 @@ const EpeRunConsole = () => {
                             </select>
                           </div>
                           <NumField
+                            errors={validationErrors}
                             id="pia_development_levy_rate_pct"
                             label="Development Levy rate"
                             suffix="% (NTA only)"
@@ -1877,6 +1988,7 @@ const EpeRunConsole = () => {
                             {config.pia_deep_offshore_hct_interpretation === 'custom' && (
                               <div className="mt-2">
                                 <NumField
+                                  errors={validationErrors}
                                   id="pia_deep_offshore_hct_custom_rate_pct"
                                   label="Custom HCT rate"
                                   suffix="%"
@@ -1891,6 +2003,7 @@ const EpeRunConsole = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                           {config.pia_lease_status === 'new' && (
                             <NumField
+                              errors={validationErrors}
                               id="pia_new_lease_volume_cap_bbl"
                               label={`Volume cap (${config.pia_terrain.replace('_', ' ')})`}
                               suffix="bbl (new leases only)"
@@ -1908,6 +2021,7 @@ const EpeRunConsole = () => {
                             />
                           )}
                           <NumField
+                            errors={validationErrors}
                             id="pia_prior_cumulative_oil_bbl"
                             label="Prior cumulative oil"
                             suffix="bbl (brownfield start)"
@@ -1932,6 +2046,7 @@ const EpeRunConsole = () => {
                           {config.pia_apply_minimum_etr === true && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
                               <NumField
+                                errors={validationErrors}
                                 id="pia_minimum_etr_pct"
                                 label="Minimum ETR"
                                 suffix="%"

@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
 import { corsHeaders } from './cors.ts';
+import { getCaller, isPlatformAdmin } from '../_shared/platform-admin.ts';
 import { bridgeVerifyConfigured, verifyBridgeCode } from '../_shared/nextgen-bridge.ts';
 import { bridgeCoversApp } from '../_shared/bridge-scope.ts';
 import { validatePromoCode } from '../_shared/promo-codes.ts';
@@ -16,33 +17,32 @@ Deno.serve(async (req)=>{
   });
   try {
     const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-    const { modules = [], apps = [], seats = 1, billing_term = 'monthly', add_ons = [], user_id, organization_id, user_email, user_name, service_tier = 'starter', storage_gb = 0, seismic_storage_tier = null, manual_discount = 0, bridge_code = null, promo_code = null } = await req.json();
-    if (!user_id && !user_email) throw new Error('User ID or Email is required');
+    const { modules = [], apps = [], seats = 1, billing_term = 'monthly', add_ons = [], organization_id, user_name, service_tier = 'starter', storage_gb = 0, seismic_storage_tier = null, manual_discount = 0, bridge_code = null, promo_code = null } = await req.json();
+    // Security fix 2026-10-14: the requesting user is the VERIFIED caller.
+    // user_id and user_email used to come from the body, so anyone holding
+    // the public anon key could name an org admin's id, mark any org
+    // PENDING_PAYMENT, or create organizations owned by someone else.
+    // Body user_id / user_email are now ignored.
+    const caller = await getCaller(supabase, req);
+    if (!caller) {
+      return new Response(JSON.stringify({ error: 'Sign in to generate a quote.' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const user_id = caller.id;
+    const user_email = caller.email ?? '';
     // Special discounts are a sales instrument: only PLATFORM super admins may
     // apply manual_discount. Any org admin can generate a quote for their own
     // org, so honoring a client-sent discount would let customers self-discount
     // to zero. The caller is resolved from the request JWT (never from the
     // client-sent user_id) and this check runs BEFORE any writes.
     if ((Number(manual_discount) || 0) > 0) {
-      const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
-      let caller = null;
-      if (jwt) {
-        const { data: authData } = await supabase.auth.getUser(jwt);
-        caller = authData?.user ?? null;
-      }
-      // Mirrors SupabaseAuthContext: metadata flag or hardcoded emails, plus
-      // the users.is_super_admin column as the durable source.
-      const SUPER_ADMIN_EMAILS = ['info@petrolord.com', 'ayoasaolu@gmail.com', 'ayodejiasaolu1@gmail.com', 'support@petrolord.com'];
-      let isPlatformSuperAdmin = false;
-      if (caller) {
-        isPlatformSuperAdmin =
-          caller.user_metadata?.is_super_admin === true ||
-          SUPER_ADMIN_EMAILS.includes(String(caller.email || '').toLowerCase());
-        if (!isPlatformSuperAdmin) {
-          const { data: urow } = await supabase.from('users').select('is_super_admin').eq('id', caller.id).maybeSingle();
-          isPlatformSuperAdmin = urow?.is_super_admin === true;
-        }
-      }
+      // Platform super admin = public.is_super_admin() for the caller's own
+      // session (security fix 2026-09-19, refreshed 2026-10-14).
+      // user_metadata.is_super_admin and users.is_super_admin were
+      // user-settable, so any customer could self-discount to zero.
+      const isPlatformSuperAdmin = await isPlatformAdmin(supabase, caller);
       if (!isPlatformSuperAdmin) {
         throw new Error('Special discounts can only be applied by Petrolord sales. Remove the discount or contact sales@petrolord.com.');
       }
@@ -53,9 +53,9 @@ Deno.serve(async (req)=>{
     if (orgId) {
       const { data: org, error: orgError } = await supabase.from('organizations').select('*').eq('id', orgId).single();
       if (orgError) throw new Error('Organization not found');
-      // Verify admin status if user_id is present. organization_members is the
+      // Verify admin status of the caller. organization_members is the
       // single canonical membership table (consolidation 20260713300000).
-      if (user_id) {
+      {
         const ADMIN_ROLES = ['owner', 'admin', 'super_admin', 'org_admin'];
         // (org_id, user_id) is not unique — only (org_id, email) is — so a
         // user can legitimately hold two rows (e.g. placeholder + invite).
@@ -65,7 +65,7 @@ Deno.serve(async (req)=>{
           .eq('organization_id', orgId).eq('user_id', user_id);
         const isAdmin = (omRows ?? []).some((om)=>
           (om.status ?? 'active').toLowerCase() === 'active' && ADMIN_ROLES.includes(om.role));
-        if (!isAdmin) {
+        if (!isAdmin && !(await isPlatformAdmin(supabase, caller))) {
           throw new Error('Unauthorized: Must be an organization admin to generate a quote.');
         }
       }

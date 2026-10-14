@@ -34,6 +34,7 @@ export function logTicks(lo, hi) {
 export default function NctPanel({
   input, profile, params, picks, onPicksChange, onNctFitted, onResNctFitted = null, onSegmentsFitted = null, onSegmentsChange = null,
   shaleName = null, shaleKind = null, byRes = false, depthUnit = 'm', onCutoffChange = null,
+  shaleOptions = [], onShaleIndicatorChange = null,
 }) {
   const [pickDepth, setPickDepth] = useState('');
   const [fitError, setFitError] = useState(null);
@@ -148,7 +149,20 @@ export default function NctPanel({
         </label>
         {hasShale ? (
           <>
-            <span className="text-pl-muted">Shale picks on {shaleName} at or above</span>
+            {shaleOptions.length > 1 && onShaleIndicatorChange ? (
+              <>
+                <span className="text-pl-muted">Shale picks on</span>
+                <select data-testid="pp-shale-indicator" value={shaleKind || ''}
+                  title="The curve that tells shale from sand, for the picks and for Pressures from shale samples. A Petrophysics VSH may sit on its own shale lines; the GR reads the log as loaded."
+                  onChange={(e) => { setCutText(''); onCutoffChange?.(null); onShaleIndicatorChange(e.target.value); }}
+                  className="bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-[11px] text-pl-text">
+                  {shaleOptions.map((o) => <option key={o.kind} value={o.kind}>{o.name}{o.kind === 'vsh' ? ' (shale volume)' : ' (gamma ray)'}</option>)}
+                </select>
+                <span className="text-pl-muted">at or above</span>
+              </>
+            ) : (
+              <span className="text-pl-muted">Shale picks on {shaleName} at or above</span>
+            )}
             <input data-testid="pp-shale-cutoff" className={inField} value={cutText} placeholder={Number.isFinite(defaultCut) ? String(Number(defaultCut.toFixed(shaleKind === 'gr' ? 0 : 2))) : ''} onChange={(e) => changeCut(e.target.value)} />
             <span className="text-pl-muted">{shaleKind === 'gr' ? 'API' : 'v/v'} from</span>
             <input data-testid="pp-shale-from" className={inField} value={fromText} placeholder="0" onChange={(e) => setFromText(e.target.value)} />
@@ -251,7 +265,7 @@ export default function NctPanel({
             <Line dataKey="dtn" name="Normal trend" stroke="#2a9d8f" dot={false} strokeWidth={1.5} strokeDasharray="6 3" connectNulls isAnimationActive={false} />
             {/* PP-U1-014: a Scatter does not plot in a vertical-layout chart (T1-002);
                 a dot-only Line does, with no legend entry until there is a pick */}
-            {myPicks.length > 0 && <Line dataKey="pick" name="Shale picks" stroke="none" legendType="circle"
+            {myPicks.length > 0 && <Line dataKey="pick" name="Shale picks" stroke="#e76f51" strokeWidth={0} legendType="circle"
               dot={{ r: 4, fill: '#e76f51', stroke: '#9a3412' }} activeDot={false} isAnimationActive={false} />}
             {trend === 'dt' && segments.map((g, k) => (
               <ReferenceLine key={`brk-${k}`} y={depthToDisplay(g.zTopM, zU)} stroke="#334155" strokeDasharray="4 3"

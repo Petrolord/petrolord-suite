@@ -81,6 +81,29 @@ describe('the fsh-case-1 contract and the EPE file', () => {
     expect(tagged.cashFlowData).toEqual(plain.cashFlowData);
   });
 
+  it('a received profile beside a per-well CSV counts both (engines 3.12.1)', () => {
+    // The Edge Function concatenates every production file of the run. Before
+    // engines 3.12.1 the columns came from the first row only, so the hub
+    // rows (bare oil_bbl) vanished beside a per-well CSV.
+    const k = buildHubCaseContract({ projectId: 'h1', payload: SET(), caseId: 'base' }).contract;
+    const hubRows = epeRowsFromHubContract(k, 2027, { receivedAt: AT.toISOString(), build: 'b' });
+    const csv = [2025, 2026, 2027, 2028, 2029].map((year, i) => ({ year, w1_oil_bbl: 90000 * 0.8 ** i, w2_oil_bbl: 50000 * 0.85 ** i }));
+    const hubByYear = new Map(volumeRowsOf(hubRows).map((r) => [r.year, r.oil_bbl]));
+    const years = [...new Set([...csv.map((r) => r.year), ...hubByYear.keys()])].sort((a, b) => a - b);
+    const merged = years.map((year) => {
+      const c = csv.find((r) => r.year === year) || { w1_oil_bbl: 0, w2_oil_bbl: 0 };
+      return { year, w1_oil_bbl: c.w1_oil_bbl, w2_oil_bbl: c.w2_oil_bbl, w3_oil_bbl: hubByYear.get(year) || 0 };
+    });
+    const run = (prodRows) => computeCashFlow({ cfg: PIA_WORKED_EXAMPLE_CFG, prodRows, capexRows: PIA_WORKED_EXAMPLE_CAPEX, opexRows: PIA_WORKED_EXAMPLE_OPEX });
+    const one = run(merged);
+    for (const rows of [[...csv, ...hubRows], [...hubRows, ...csv]]) {
+      const split = run(rows);
+      expect(split.kpis.npv).toBeCloseTo(one.kpis.npv, 4);
+      expect(split.cashFlowData.map((r) => r.oil_bbl)).toEqual(one.cashFlowData.map((r) => r.oil_bbl));
+    }
+    expect(Math.abs(run(csv).kpis.npv - one.kpis.npv)).toBeGreaterThan(1e6);
+  });
+
   it('the source is read again by id; an edit in the hub is named', async () => {
     let payload = SET();
     const fake = { from: () => ({ select: () => ({ eq: (_, id) => ({ limit: async () => ({ data: id === 'h1' ? [{ id: 'h1', project_name: 'Gate set', updated_at: 'x', inputs_data: payload }] : [], error: null }) }) }) }) };

@@ -34,6 +34,7 @@ import SurveyProgramEditor from '../components/SurveyProgramEditor';
 import PublishDialog from '../components/PublishDialog';
 import WellpathCubeView from '../components/WellpathCubeView';
 import MudWindowPanel from '../charts/MudWindowPanel';
+import PpfgReviewStatus from '../components/PpfgReviewStatus';
 import PlanEditorTable from '../components/PlanEditorTable';
 import { Undo2, Redo2, TableProperties } from 'lucide-react';
 import {
@@ -52,7 +53,14 @@ import {
     assembleOffsetCandidates, chooseDisplayOffsets, offsetToChart, projectToSection, OFFSET_COLORS,
 } from '../services/offsetFrame';
 import { loadSiteOffsetDesigns, loadOffsetCandidates } from '../services/offsetLoader';
-import { listTops } from '@/lib/wellsRegistry';
+import { listTops, listLogs, downloadCurve, getWell } from '@/lib/wellsRegistry';
+import { useSourceFreshness } from '@/lib/sourceFreshness/useSourceFreshness';
+import SourceChangedNotice from '@/lib/sourceFreshness/SourceChangedNotice';
+import { keepSource, pruneKept } from '@/lib/sourceFreshness/model';
+import {
+    ppfgReference, ppfgRefKey, designPpfgSources, tieOnWithPpfg, tieOnForSave, reviewedText,
+    readPpfgSource, mudWindowRowsFor, mudWindowSeen, ppfgNoticeItems,
+} from '../services/ppfgSource';
 import PlanViewChart from '../charts/PlanViewChart';
 import UnitNumberInput from '../components/UnitNumberInput';
 import { DEFAULT_EXAGGERATION } from '../services/sectionScale';
@@ -115,6 +123,10 @@ const DesignTab = () => {
     // for this session (component state, not saved with the design).
     const [ppfgSources, setPpfgSources] = useState(null); // {key, list, error} | {key, loading:true}
     const [ppfgChoice, setPpfgChoice] = useState({});     // designId -> geo well id
+    // 2026-10-14: the curves behind the mud window now showing, for the
+    // design's record of the prognosis it was reviewed against
+    const [ppfgLoaded, setPpfgLoaded] = useState(null);   // {sourceId, curves, bridged, well}
+    const [ppfgRecording, setPpfgRecording] = useState(false);
     const [scene3d, setScene3d] = useState(null);    // {composite, offsets, tops} lazy-loaded
     const loadedFor = useRef(null);
     const offsetCovCache = useRef(new Map());
@@ -330,6 +342,10 @@ const DesignTab = () => {
                     rows = buildMudWindowByTvdss(byTvdss.curves, gridMeterStations, { kbElevM });
                 }
                 setPpfgNote(notes.length ? notes.join(' ') : null);
+                setPpfgLoaded(rows.length ? {
+                    sourceId: ppfgSource.id, curves, bridged: !!ppfgSource.bridged,
+                    well: ppfgSource.well || { id: ppfgSource.id, name: ppfgSource.name },
+                } : null);
                 setPpfg(rows.length ? {
                     rows,
                     summary: mudWindowSummary(rows),
@@ -339,6 +355,94 @@ const DesignTab = () => {
             .catch((e) => { if (live) { setPpfgNote(`The PPFG curves could not be loaded: ${e.message}`); setPpfg('none'); } });
         return () => { live = false; };
     }, [showPpfg, ppfgList, ppfgSource, gridMeterStations, wellbore?.kb_elev_m]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ---- 2026-10-14: the prognosis this design was reviewed against ----
+    // (services/ppfgSource; the shared source-freshness kit). One reference
+    // per source well in tie_on.sources.ppfg; with the panel open only the
+    // well under "Prognosis from" is checked, otherwise every reference.
+    const ppfgOwn = !design?.user_id || !user?.id || design.user_id === user.id;
+    const ppfgSaved = useMemo(() => designPpfgSources(design), [design]);
+    const currentPpfgRef = ppfgSource ? ppfgSaved.refs[ppfgRefKey(ppfgSource.id)] || null : null;
+    const ppfgRefsToCheck = useMemo(() => {
+        const all = Object.values(ppfgSaved.refs);
+        if (!showPpfg || !ppfgList) return all;
+        // a well whose prognosis is gone leaves the list: still say so
+        const listed = new Set(ppfgList.map((c) => c.id));
+        return all.filter((r) => r === currentPpfgRef || !listed.has(r.id));
+    }, [showPpfg, currentPpfgRef, ppfgSaved, ppfgList]);
+    const resolvePpfgSources = useCallback(async (list) => {
+        const out = new Map();
+        for (const ref of list) {
+            try {
+                out.set(ref.key, await readPpfgSource(ref, { stations: gridMeterStations, kbElevM: wellbore?.kb_elev_m || 0 }, { listLogs, downloadCurve, getWell }));
+            } catch {
+                out.set(ref.key, undefined);
+            }
+        }
+        return out;
+    }, [gridMeterStations, wellbore?.kb_elev_m]);
+    const ppfgFresh = useSourceFreshness({ refs: ppfgRefsToCheck, resolve: resolvePpfgSources, kept: ppfgSaved.kept, enabled: !!design });
+    // What moved: once the mud window has loaded that well's prognosis, what
+    // it shows now on this trajectory; before that, what the registry read
+    // computed (it has no seats when the trajectory was not compiled yet,
+    // and the kit's generic words are the fallback)
+    const panelSeen = useMemo(() => (ppfg && typeof ppfg === 'object' && ppfgLoaded && ppfgLoaded.sourceId === ppfgSource?.id
+        ? { wellId: ppfgLoaded.sourceId, seen: mudWindowSeen(ppfg.rows) } : null), [ppfg, ppfgLoaded, ppfgSource?.id]);
+    const ppfgItems = ppfgNoticeItems(ppfgFresh.items, { rowFor: ppfgFresh.rowFor, panelSeen, unit: mdUnit });
+    // a check that ran before the trajectory compiled read no seats: read again once it has
+    const ppfgRecheckFor = useRef(null);
+    useEffect(() => {
+        if (!gridMeterStations || !design?.id || ppfgRecheckFor.current === design.id) return;
+        const pending = ppfgFresh.items.filter((i) => i.status === 'changed' && !ppfgFresh.rowFor(i.key)?.seen);
+        if (!pending.length) return;
+        ppfgRecheckFor.current = design.id;
+        ppfgFresh.check();
+    }, [gridMeterStations, design?.id, ppfgFresh]);
+    const currentPpfgStatus = currentPpfgRef ? (ppfgFresh.results.find((r) => r.key === currentPpfgRef.key)?.status || null) : null;
+
+    // the reference for the prognosis the panel shows now (null while loading)
+    function currentPpfgReference() {
+        if (!showPpfg || !ppfgSource || !ppfgLoaded || ppfgLoaded.sourceId !== ppfgSource.id) return null;
+        if (!ppfg || typeof ppfg !== 'object') return null;
+        return ppfgReference({ well: ppfgLoaded.well, curves: ppfgLoaded.curves, rows: ppfg.rows, bridged: ppfgLoaded.bridged });
+    }
+    const savePpfgSources = async (next) => {
+        await updateDesign(design.id, { tie_on: tieOnWithPpfg(design.tie_on, next) });
+        await refreshDesigns(wellbore.id);
+    };
+    const recordPpfg = async () => {
+        const ref = currentPpfgReference();
+        if (!ref) return;
+        setPpfgRecording(true);
+        try {
+            const refs = { ...ppfgSaved.refs, [ref.key]: ref };
+            await savePpfgSources({ refs, kept: pruneKept(Object.fromEntries(Object.entries(ppfgSaved.kept).filter(([k]) => k !== ref.key)), Object.values(refs)) });
+            toast({ title: 'Prognosis recorded', description: `${design.name} r${design.revision} keeps ${ref.name.replace(/^The /, 'the ')}; a republish will be noticed here.` });
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Could not record the prognosis', description: e.message });
+        } finally {
+            setPpfgRecording(false);
+        }
+    };
+    const refreshPpfg = async (item) => {
+        const old = item.ref;
+        const curves = await loadPpfgCurves(old.id);
+        const well = old.bridged ? { id: old.id, name: old.well_name } : await getWell(old.id);
+        const { rows } = mudWindowRowsFor({ curves, well, bridged: !!old.bridged, stations: gridMeterStations, kbElevM: wellbore?.kb_elev_m || 0 });
+        const ref = ppfgReference({ well: { id: old.id, name: old.well_name || well.name }, curves, rows, bridged: !!old.bridged });
+        if (!ref) throw new Error('No prognosis is published on that well now.');
+        const refs = { ...ppfgSaved.refs, [ref.key]: ref };
+        const kept = { ...ppfgSaved.kept };
+        delete kept[ref.key];
+        await savePpfgSources({ refs, kept });
+    };
+    const keepPpfg = async (item) => {
+        try {
+            await savePpfgSources({ refs: ppfgSaved.refs, kept: keepSource(ppfgSaved.kept, item) });
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Could not keep the values', description: e.message });
+        }
+    };
 
     const handleExport = (format) => {
         if (!gridMeterStations) return;
@@ -421,7 +525,14 @@ const DesignTab = () => {
         try {
             await updateDesign(design.id, {
                 segments,
-                tie_on: { md: 0, inc: 0, azi: parseFloat(kickoffAzi) || 0 },
+                // 2026-10-14: the prognosis references ride along; saving with the
+                // mud window open records the prognosis it shows when none is kept
+                tie_on: (() => {
+                    const base = tieOnForSave(design, { md: 0, inc: 0, azi: parseFloat(kickoffAzi) || 0 });
+                    const ref = !currentPpfgRef ? currentPpfgReference() : null;
+                    if (!ref) return base;
+                    return tieOnWithPpfg(base, { refs: { ...ppfgSaved.refs, [ref.key]: ref }, kept: ppfgSaved.kept });
+                })(),
                 // Station cache in metres (registry convention).
                 stations: stations.map((s) => ({
                     md: userToMeters(s.md), inc: s.inc, azi: s.azi,
@@ -986,6 +1097,25 @@ const DesignTab = () => {
                         </div>
                     </div>
 
+                    {ppfgItems.length > 0 && (
+                        <div className="px-2 pt-1.5" data-testid="wd-ppfg-notice-slot">
+                            <SourceChangedNotice
+                                items={ppfgItems}
+                                checking={ppfgFresh.checking}
+                                checkedAt={ppfgFresh.checkedAt}
+                                error={ppfgFresh.error}
+                                onCheck={ppfgFresh.check}
+                                onRefresh={refreshPpfg}
+                                onKeep={keepPpfg}
+                                canEdit={ppfgOwn}
+                                readOnlyText="Only the owner of this design can refresh it or keep its values."
+                                title="Prognosis changed"
+                                testId="wd-ppfg-source-changed"
+                                usedBy="this design"
+                                compact
+                            />
+                        </div>
+                    )}
                     <div className="flex-1 min-h-0 relative">
                         {viewMode === 'section' && planRows && (
                             <div className="flex h-full w-full bg-white" data-canvas="chart">
@@ -993,7 +1123,7 @@ const DesignTab = () => {
                                     <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={sectionOverlays} targets={showTargets ? sectionTargets : []} exaggeration={sectionEx} onExaggerationChange={setSectionEx} dlsScale={dlsScale} />
                                 </div>
                                 {showPpfg && (
-                                    <div className="flex w-[340px] shrink-0 flex-col border-l border-slate-200">
+                                    <div className="flex w-[380px] 2xl:w-[440px] shrink-0 min-h-0 flex-col overflow-y-auto border-l border-slate-200" data-testid="wd-ppfg-column">
                                         {ppfgList && ppfgList.length > 0 && (
                                             <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-1.5 text-[11px] text-slate-600">
                                                 <label htmlFor="wd-ppfg-source">Prognosis from</label>
@@ -1009,7 +1139,12 @@ const DesignTab = () => {
                                                 </select>
                                             </div>
                                         )}
-                                        <div className="min-h-0 flex-1">
+                                        {ppfg && typeof ppfg === 'object' && (
+                                            <PpfgReviewStatus reference={currentPpfgRef} status={currentPpfgStatus} canEdit={ppfgOwn}
+                                                ready={!!ppfgLoaded && ppfgLoaded.sourceId === ppfgSource?.id} recording={ppfgRecording}
+                                                onRecord={recordPpfg} unit={mdUnit} />
+                                        )}
+                                        <div className="min-h-[520px] flex-1">
                                         {ppfg === 'loading' && (
                                             <div className="flex h-full items-center justify-center text-xs text-pl-muted">
                                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading PPFG curves…

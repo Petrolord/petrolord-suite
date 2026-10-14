@@ -38,7 +38,9 @@ export const WF_PROVENANCE_KEY = 'wf_forecast_1';
 export const SIM_PROVENANCE_KEY = 'sim_forecast_1';
 /** The key a Well Spacing Optimizer case rides under (WS-U2-004, epeWsIntake.js). */
 export const WS_PROVENANCE_KEY = 'ws_case_1';
-const PROVENANCE_KEYS = [DCA_PROVENANCE_KEY, HUB_PROVENANCE_KEY, WF_PROVENANCE_KEY, SIM_PROVENANCE_KEY, WS_PROVENANCE_KEY];
+/** The key a Well Cost & Time estimate rides under in a CAPEX file (epeWctIntake.js). */
+export const WCT_PROVENANCE_KEY = 'wct_afe_1';
+const PROVENANCE_KEYS = [DCA_PROVENANCE_KEY, HUB_PROVENANCE_KEY, WF_PROVENANCE_KEY, SIM_PROVENANCE_KEY, WS_PROVENANCE_KEY, WCT_PROVENANCE_KEY];
 
 /** The volume rows of a file, without a provenance record. */
 export function volumeRowsOf(data) {

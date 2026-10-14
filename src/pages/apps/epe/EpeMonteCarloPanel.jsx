@@ -51,16 +51,29 @@ const CELLS_BY_TYPE = {
   lognormal: [['mean', 'Mean'], ['stdDev', 'Std dev'], ['min', 'Low (opt.)'], ['max', 'High (opt.)']],
 };
 
-const fmtM = (n) => {
+// Money to three significant figures with the sign before the currency,
+// like the Results Viewer: the cards read "$-1.0M" and "$2.0M" for a
+// P90 of -1,036,000 and a base of 1,980,000; now "-$1.04M" and "$1.98M".
+export const fmtM = (n) => {
   if (n == null || isNaN(n)) return 'N/A';
-  const m = n / 1e6;
-  if (Math.abs(m) >= 1000) return `$${(m / 1000).toFixed(2)}B`;
-  return `$${m.toFixed(1)}M`;
+  const v = Math.abs(Number(n)) < 0.5 ? 0 : Number(n);
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumSignificantDigits: 3 }).format(v);
 };
 const fmtPct = (n) => (n == null || isNaN(n) ? 'N/A' : `${Number(n).toFixed(1)}%`);
 const fmtYr = (n) => (n == null || isNaN(n) ? 'N/A' : `${Number(n).toFixed(2)} yr`);
 
 const AXIS_TICK = { fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText };
+
+/** IRR percentiles show only when at least this share of iterations has an IRR. */
+export const MIN_IRR_SHARE = 0.5;
+
+/** Whether the IRR percentile cards show, or are held back for too few IRRs. */
+export const irrStatsView = (results) => {
+  const has = Boolean(results?.irr && results.irr.p50 != null);
+  const share = results?.irr?.nullShare != null ? 1 - Number(results.irr.nullShare) : 1;
+  const held = has && share < MIN_IRR_SHARE;
+  return { show: has && !held, held };
+};
 
 // Design system: `accent` is a status role class (text-pl-*-text) and is
 // passed only where the colour means something (the chance of a positive NPV).
@@ -369,7 +382,11 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
     return <p className="text-pl-muted text-sm py-8" role="status">Loading run configuration...</p>;
   }
 
-  const hasIrrStats = results?.irr && results.irr.p50 != null;
+  // IRR percentiles describe only the iterations that have one. When most
+  // iterations have none (a field that pays its abandonment last), the
+  // percentiles rest on a handful of draws (the Ekene field showed P90, P50
+  // and P10 all -8.1% from one iteration in a thousand), so they are held back.
+  const { show: hasIrrStats, held: irrHeld } = irrStatsView(results);
   const hasPaybackStats = results?.payback && results.payback.p50 != null;
 
   return (
@@ -512,14 +529,14 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
                 </button>
               )}
               {results.npv?.se != null && (
-                <> . Mean NPV {fmtM(results.npv.mean)} with standard error {fmtM(results.npv.se)}</>
+                <>. Mean NPV {fmtM(results.npv.mean)} with standard error {fmtM(results.npv.se)}</>
               )}
               . NPV on the run basis ({results.base?.pv_basis || 'real'}); fan bands are nominal cash flow. Petroleum convention: P90 is the low case.
             </p>
           </div>
 
           {/* IRR and payback distributions (Wave C; older saved runs may not have them) */}
-          {(hasIrrStats || hasPaybackStats) && (
+          {(hasIrrStats || irrHeld || hasPaybackStats) && (
             <div className="space-y-2">
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
                 {hasIrrStats && (
@@ -547,6 +564,13 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
                     rate brings the net present value to zero. Those iterations are counted here and
                     left out of the IRR percentiles, which describe the rest.{' '}
                   </>
+                )}
+                {irrHeld && (
+                  <span data-testid="epe-mc-irr-held">
+                    {(results.irr.nullShare * 100).toFixed(1)}% of iterations have no single IRR (their cash flow
+                    changes sign more than once or never), so IRR percentiles are not shown; read the NPV
+                    percentiles above.{' '}
+                  </span>
                 )}
                 {hasPaybackStats && results.payback.neverShare > 0 && (
                   <>The project never pays back in {(results.payback.neverShare * 100).toFixed(1)}% of iterations. </>

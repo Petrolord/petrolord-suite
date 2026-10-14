@@ -142,3 +142,16 @@ a per-user choice from the ribbon toggle (beside Help).
   `__tests__/WellCostTimeStudio.theme.test.jsx` (the shared four checks for
   the estimator and the help guide, every tab in light and dark with Full
   precision on, a seeded Monte Carlo run, the harness scope).
+
+## 2026-10-14: sender to Petroleum Economics Studio (`wct-afe-1`)
+
+An estimate's latest saved run is published as the `wct-afe-1` contract
+(`src/utils/wellcosttime/wctAfeContract.js` + `wctAfeService.js`): the AFE
+total WCT labels "AFE total (deterministic, with contingency)", its base,
+contingency, tangible and intangible parts, the Monte Carlo P10/P50/P90 of
+the base cost when the run carried one (AFE convention), the schedule, the
+wellbore and design, and a fingerprint. Petroleum Economics Studio imports it
+into a case's CAPEX slot and tells the user when a newer run changes it. The
+Report tab's Economics card now says how. Reads only; no change to the
+estimator, its engine or its tables. On the Ekene kit estimate the AFE is
+11,799,948 USD (the 11.8 MM the kit's economics books).
