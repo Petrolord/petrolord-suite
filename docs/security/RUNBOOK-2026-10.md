@@ -207,18 +207,40 @@ After step 7, the PR is merged and MIGRATIONS.md is flipped to applied.
 
 ## Step 8: function deletes
 
-Safe at any time after step 2. 86 functions have no caller in the Suite, HSE or NextGen code; that was checked twice, independently. The five whose source could not be downloaded are among them. The exact three `for f in ...; do supabase functions delete $f; done` lines are in `docs/security/functions-2026-10.md`, "Step 3: deletes". Run them from `/root/sec26-deploy`.
+Safe at any time after step 2. These are 87 functions. On 2026-10-14 none had a caller in Suite main, HSE main, NextGen main, pg_cron (which calls only hse-expiry-reminders) or any database function. Only three non-callers mention them:
+- `seed-master-apps`: the legacy /admin/seed-apps button, deleted on purpose.
+- `transcribe-audio`: an HSE helper that nothing calls.
+- `data-exchange`: a comment in an old migration.
 
-- `seed-master-apps` is deleted on purpose: anyone could write about 200 placeholder catalogue rows. The legacy "Seed apps" button on /admin/seed-apps will then show an error.
-- `invite-user` stays until the Suite zip in step 9 is live, because the live bundle still calls it (now admin-only). Delete it after the zip:
+Five of the 87 had sources that could not be downloaded: batch-process-mems, calibrate-stresses, generate-report, process-and-embed-incident and scrape-and-store-raw-incidents.
+
+Group 1: 23 legacy membership, subscription, payment and mail functions. Most took ids from the body, ran without a caller check or relayed mail. All are replaced by the repo functions deployed in step 2.
+
+```
+! cd /root/sec26-deploy && for f in assign-app-to-user reassign-admin-seat-to-member register-org-admin create-team cancel-subscription reactivate-subscription renew-subscription check-subscription-status subscription-lifecycle-manager sync-existing-payments process-paystack-payment generate-paystack-link create-quote process-quote process-quote-delivery get-quote-config generate-renewal-reminders send-renewal-reminders send-payment-notification send-quote-email send-confirmation sendgrid-send-email seed-master-apps; do supabase functions delete $f; done
+```
+
+Group 2: 12 unused AI and scraping endpoints. They spend OpenAI or other quota for anyone who calls them.
+
+```
+! cd /root/sec26-deploy && for f in analyze-image analyze-voice transcribe-audio digitize-map-via-ai ai-fault-detect ai-horizon-trace generate-fdp generate-report process-and-embed-incident run-incident-scraper scrape-and-store-raw-incidents incident-finder-engine; do supabase functions delete $f; done
+```
+
+Group 3: 52 retired compute engines and stubs. Each app now computes in the browser or in a repo function.
+
+```
+! cd /root/sec26-deploy && for f in alert-engine anomaly-detector-engine anti-collision-guardian batch-process-mems calculate-calibration calculate-mud-window calculate-properties calculate-scenario calculate-stresses calibrate-stresses casing-analysis-engine casing-analyze casing-report cementing-designer cementing-failure-analyst cementing-simulator completion-plan-creator data-exchange dca-engine ems-job-runner eor-engine fluid-studio-engine gas-lift-designer hello-world hydraulics-simulator interpolate-surface ipr-calculator job-step jobs-get mvt-server ppfg-analyze ppfg-report probe-asset pta_fit_basic pta_fit_interference pta_fit_multilayer pta_report_pdf pvt-engine recalculate-mems reservoir-simulation-connector-engine save-picks scenario-planner-engine seis-tile-job seis_tile_job sign-upload torque-drag-simulator trajectory-engine type-curve-generator validate-and-store well-correlation-engine well-cost-engine well-log-parser; do supabase functions delete $f; done
+```
+
+Keep `invite-user` until the Suite zip in step 9 is live, because the live bundle still calls it (now admin-only). Delete it after the zip:
 
 ```
 ! cd /root/sec26-deploy && supabase functions delete invite-user
 ```
 
-Verify: `supabase functions list` no longer shows them.
+Verify: `supabase functions list` shows none of them, and the count drops from 146 to 59 (58 after invite-user).
 
-Rollback: redeploy from the downloaded sources if a caller ever turns up.
+Rollback: if a caller ever turns up, redeploy that function from the downloaded sources in the session scratchpad. Group 1 functions must not come back as they were.
 
 ## Step 9: Suite zip (held to the end of the video round)
 
