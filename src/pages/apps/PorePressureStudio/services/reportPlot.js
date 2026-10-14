@@ -123,14 +123,14 @@ export function drawPrognosisPlot(doc, box, a) {
   for (const c of cal) {
     if (!inBox(c.p)) continue;
     const X = px(c.p[0]); const Y = py(c.p[1]);
-    if (c.kind === 'fg') { doc.setFillColor(29, 78, 216); doc.rect(X - 0.9, Y - 0.9, 1.8, 1.8, 'F'); } else if (c.kind === 'mw') { doc.setFillColor(161, 98, 7); doc.circle(X, Y, 0.5, 'F'); } else { doc.setFillColor(231, 111, 81); doc.circle(X, Y, 0.9, 'F'); }
+    if (c.kind === 'fg') { doc.setFillColor(29, 78, 216); doc.rect(X - 0.9, Y - 0.9, 1.8, 1.8, 'F'); } else if (c.kind === 'mwkick') { doc.setFillColor(220, 38, 38); doc.triangle(X, Y - 1.2, X + 1.1, Y + 0.9, X - 1.1, Y + 0.9, 'F'); } else if (c.kind === 'mwloss') { doc.setDrawColor(29, 78, 216); doc.line(X - 1, Y - 1, X + 1, Y + 1); doc.line(X + 1, Y - 1, X - 1, Y + 1); } else if (c.kind === 'mw') { doc.setFillColor(161, 98, 7); doc.circle(X, Y, 0.5, 'F'); } else { doc.setFillColor(231, 111, 81); doc.circle(X, Y, 0.9, 'F'); }
     drawn.cal += 1;
   }
   // legend across the top
   doc.setFontSize(6.5);
   let lx = px(x0);
   const legend = [...SERIES.map((s) => [s.name, s.rgb]), ...(cas ? [['Mud weight (PP + trip)', [124, 58, 237]], ['Design FG (FG - kick)', [69, 105, 144]]] : []),
-    ...(cal.some((c) => c.kind === 'pp') ? [['Calibration', [231, 111, 81]]] : []), ...(cal.some((c) => c.kind === 'fg') ? [['LOT/FIT', [29, 78, 216]]] : [])];
+    ...(cal.some((c) => c.kind === 'pp') ? [['Calibration', [231, 111, 81]]] : []), ...(cal.some((c) => c.kind === 'fg') ? [['LOT/FIT', [29, 78, 216]]] : []), ...(cal.some((c) => c.kind === 'mwkick') ? [['Mud weight that took an influx', [220, 38, 38]]] : [])];
   let ly = box.y + 4;
   for (const [name, rgb] of legend) {
     const wName = 7 + doc.getTextWidth(name);
