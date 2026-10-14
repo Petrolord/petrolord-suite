@@ -255,6 +255,12 @@ properties, the section and the 3D scene, and the build notes name it
 (`services/modelBuild.js`, `framework3d.js`). Wells saved before the model
 tie as they did. Test: `__tests__/upgradeDatum.test.js`.
 
+## 2026-10-14: renaming the model keeps the build
+
+Typing a model name (before Save) cleared the built model back to the empty
+state, because every definition change marks the build stale. A change of
+name alone now keeps it. e2e: the save test renames after a build and checks
+the map stays (it failed on the old code).
 ## 2026-10-14: Ekene walk, stack defaults and feet (video round)
 
 Walked as a modeller building the Ekene static model on the demo account.

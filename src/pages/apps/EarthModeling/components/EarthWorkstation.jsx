@@ -210,9 +210,16 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     return { ...def, topNames: tn, zones };
   }, [surfaces, topNames, zoneNames]);
 
+  // Renaming the model keeps the built model on screen; any other change to
+  // the definition makes it stale, so it is cleared until the next build.
+  const defRef = useRef(definition);
+  defRef.current = definition;
   const setDef = useCallback((def) => {
-    setDefinition(normalizeDefinition(def));
-    setBuilt(null);
+    const next = normalizeDefinition(def);
+    const { name: _a, ...restPrev } = defRef.current || {};
+    const { name: _b, ...restNext } = next;
+    setDefinition(next);
+    if (JSON.stringify(restPrev) !== JSON.stringify(restNext)) setBuilt(null);
   }, [normalizeDefinition]);
 
   const addSurface = (id) => setDef({ ...definition, surfaceIds: [...definition.surfaceIds, id] });
