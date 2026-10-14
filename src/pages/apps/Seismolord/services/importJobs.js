@@ -198,8 +198,12 @@ export function createImportJobManager(deps) {
    * @param {{file: File, mapping: Object, scan: Object, nativeCrs?: string,
    *   name?: string, onRowChange?: (status: string) => void}} p
    */
-  async function start({ file, mapping, scan, nativeCrs, name, onRowChange }) {
-    const prep = await deps.prepare({ file, mapping, nativeCrs, name });
+  async function start({ file, mapping, scan, nativeCrs, name, onRowChange, crop = null }) {
+    // crop ({request, provenance}): the conversion reads only the kept traces
+    // and samples (cropImport.js); `scan` is then the crop's conversion view
+    const prep = await deps.prepare({
+      file, mapping, nativeCrs, name, crop: crop?.provenance || null, ...(crop?.bytes ? { quotaBytes: crop.bytes } : {}),
+    });
     const { volumeId, userId } = prep;
     const dir = volumeDir(userId, volumeId);
     const job = newJob(volumeId, { name: prep.name, fileName: file.name, fileSize: file.size });
@@ -214,6 +218,7 @@ export function createImportJobManager(deps) {
           volumeId,
           spool: job.spool,
           cancelToken: job.cancelToken,
+          crop: crop?.request || null,
           onProgress: (p) => {
             setView(job, { convert: p });
             publish({
@@ -233,6 +238,7 @@ export function createImportJobManager(deps) {
           crs: crsBlock,
         });
         manifest.source.fingerprint = prep.ingestRec.fingerprint;
+        if (crop?.provenance) manifest.source.crop = crop.provenance;
         // everything a later session needs to finish the upload without
         // the SEG-Y: written only once the conversion is complete
         await job.spool.putJson('job', {

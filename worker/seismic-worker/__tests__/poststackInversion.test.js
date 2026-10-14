@@ -206,3 +206,48 @@ describe('sensitivity', () => {
     expect(validatePoststackParams(params('blind', { sensitivity: SENS, method: 'coloured' }))).toMatch(/absolute/);
   });
 });
+
+// QI pilot sub-volume (2026-10-14): the pilot run is the full run inside its
+// window, null outside, and writes only the bricks the window touches; the
+// manifest and the row say it is a pilot. Negative control: a different
+// regularisation changes the pilot's values.
+describe('pilot sub-volume', () => {
+  const run = async (over = {}, extra = {}) => {
+    const uploads = new Map(); const updates = [];
+    const storage = { upload: async (path, bytes) => { uploads.set(path, Uint8Array.from(bytes)); return {}; } };
+    const out = await poststackInversion(ctxFor({ ...params('volume', extra), ...over }), depsFor({ volumes: { [VOL]: PARENT, [OUT]: { ...DERIVED } }, horizons: HZ_ROWS, updates }, { storage }));
+    return { out, uploads, updates };
+  };
+  const bricksOf = (u) => [...u.keys()].filter((k) => k.endsWith('.f32')).sort();
+  const at = (u, il, xl, s) => {
+    const b = u.get(`${UID}/${OUT}/bricks/0-0-${Math.floor(s / B)}.f32`);
+    return b ? new Float32Array(b.buffer)[((il % B) * B + (xl % B)) * B + (s % B)] : Math.fround(NULL_VALUE);
+  };
+  const PILOT = { il: { from: 3, to: 6 }, xl: { from: 2, to: 4 }, t_ms: { from: 200, to: 400 }, crop_name: 'Pilot A' };
+  test('equals the full run inside the window, null outside, only its bricks written', async () => {
+    const full = await run();
+    const pilot = await run({ pilot: PILOT });
+    expect(bricksOf(pilot.uploads)).toEqual([`${UID}/${OUT}/bricks/0-0-3.f32`, `${UID}/${OUT}/bricks/0-0-4.f32`, `${UID}/${OUT}/bricks/0-0-5.f32`, `${UID}/${OUT}/bricks/0-0-6.f32`]);
+    expect(bricksOf(full.uploads)).toHaveLength(GRID[2]);
+    let inside = 0;
+    for (let il = 0; il < NIL; il++) for (let xl = 0; xl < NXL; xl++) for (let s = 0; s < NS; s += 3) {
+      const inWin = il >= 2 && il <= 5 && xl >= 1 && xl <= 3 && s >= 50 && s <= 100;
+      if (inWin) { expect(at(pilot.uploads, il, xl, s)).toBe(at(full.uploads, il, xl, s)); inside += 1; } else expect(at(pilot.uploads, il, xl, s)).toBe(Math.fround(NULL_VALUE));
+    }
+    expect(inside).toBeGreaterThan(100);
+    expect(pilot.out.trace_count).toBe(12);
+    expect(pilot.out.pilot).toMatchObject({ il: { from: 3, to: 6 }, xl: { from: 2, to: 4 }, t_ms: { from: 200, to: 400 }, crop_name: 'Pilot A', bricks: { i0: 0, i1: 0, j0: 0, j1: 0, k0: 3, k1: 6 } });
+    const m = JSON.parse(new TextDecoder().decode(pilot.uploads.get(`${UID}/${OUT}/manifest.json`)));
+    expect(m.pilot.grid).toEqual({ i0: 2, i1: 5, j0: 1, j1: 3, k0: 50, k1: 100 });
+    const ready = pilot.updates.find((u) => u.row.status === 'ready');
+    expect(ready.row.survey_meta.pilot.crop_name).toBe('Pilot A');
+    expect(ready.row.survey_meta.storage_bytes).toBe(4 * B ** 3 * 4);
+    // negative control: other settings, other values in the window
+    const other = await run({ pilot: PILOT }, { eps: 5 });
+    expect(at(other.uploads, 3, 2, 70)).not.toBe(at(pilot.uploads, 3, 2, 70));
+  });
+  test('a pilot outside the volume or back to front is refused', async () => {
+    await expect(run({ pilot: { il: { from: 50, to: 60 } } })).rejects.toMatchObject({ stage: 'validate_failed' });
+    await expect(run({ pilot: { il: { from: 5, to: 2 } } })).rejects.toMatchObject({ stage: 'validate_failed' });
+  });
+});

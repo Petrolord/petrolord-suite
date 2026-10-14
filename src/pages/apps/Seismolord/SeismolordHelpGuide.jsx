@@ -170,6 +170,30 @@ export default function SeismolordHelpGuide() {
           paused, resumed and carried on in a later session without the SEG-Y file. Attribute volumes wait for the
           full-precision copy.
         </Para>
+        <SubHeading>Crop before importing</SubHeading>
+        <Para>
+          After the scan, tick Crop before importing to keep only an area and a time window. Type the inline and
+          crossline range, or drag a rectangle (or click the corners of a polygon) on the survey outline, and give the
+          time window. The crop is made while your computer reads the file, so only the kept traces and samples are
+          uploaded and stored: the step shows the traces kept, the cropped size against the original and the upload
+          time at your connection speed (typed, or measured during an upload). Thinning out traces is there for quick
+          looks only; QI work keeps every trace.
+        </Para>
+        <Para>
+          Name a crop and save it (for yourself, or shared with your organisation) so the other volumes of the study are
+          cut to exactly the same area and line up trace for trace: pick it from Saved crop on the next file. For a
+          velocity volume tick Velocity volume: the same area is kept from 0 ms, because depth conversion and the
+          low-frequency model need the overburden. A cropped volume keeps its 0 ms origin; the samples above the
+          window show as empty, so horizons, wells and ties line up with uncropped data. Its explorer row carries a
+          crop mark; hover it for the source file, the original geometry and the crop.
+        </Para>
+        <Para>
+          The server import uploads only the cropped file. If the upload stops (a network drop, a closed tab), pick
+          the same file again: its crop comes back and the upload continues where it stopped. The browser import
+          converts only the crop. From a link, the Petrolord server keeps only the crop while it converts the stored
+          file. A file of prestack gathers is recognised (several traces at each location) and uploaded for QI
+          Studio's Prestack tab with the same crop, every trace of each kept location included.
+        </Para>
         <Callout tone="warn" title="Declare the CRS">
           The project CRS in the status bar and the volume's CRS decide where wells and surfaces land. A volume
           imported under an unknown CRS cannot be mapped against the registry's wells.
