@@ -1,8 +1,8 @@
 // admin-delete-organization: deployed from the Horizons era and never committed; brought into
 // the repo by the platform-admin security fix (2026-09-19) so it can be
 // reviewed. Before: it checked public.users.is_super_admin of a super_admin_id taken from the BODY, with verify_jwt off, so anyone could act as any admin (or self-flag, then pass their own id).
-// The caller must be a signed-in PLATFORM SUPER ADMIN: a row in
-// public.is_super_admin() (see ../_shared/platform-admin.ts). Any
+// The caller must be a signed-in PLATFORM SUPER ADMIN: public.is_super_admin()
+// true for their own session (see ../_shared/platform-admin.ts). Any
 // super_admin_id in the request body is ignored; the audited id is the
 // caller's own.
 

@@ -87,10 +87,12 @@ Deno.serve(async (req) => {
       user_metadata: {
         full_name: member.full_name || member.email,
         invitation_token: token,
-        // Checked against the token's org by the new trigger; what the old
-        // trigger joined on, so this also works before the migration.
+        // The transitional and final triggers validate the token and grant
+        // the invited row's role. organization_id is what the pre-2026-10
+        // trigger joined on (ON CONFLICT (org, email) keeps the invited
+        // row's role), so this also works before the migration. No role is
+        // sent: metadata is never a source of a role.
         organization_id: member.organization_id,
-        role: member.role || 'viewer',
         primary_app: 'suite',
       },
     });
