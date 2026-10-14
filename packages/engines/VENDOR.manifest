@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit c985c9f7e2ea639c140104ead64657dd5d16302d
+# commit 34be953214541958a34958eb18e088d51d2921d5
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 d8bd133c5a081611291cb72e0efd5909a2e23b77 README.md
@@ -96,11 +96,12 @@ abcbd2156e6237afe3d79c54a4fcf5da01f8553c __tests__/economics.fiscal.test.js
 0cfc52914cac8b9d768a651bbcf30b0a00edd687 __tests__/economics.mixedVolumeLayouts.test.ts
 aa9054fec5694ca34639324f30c4b5a0db2265e3 __tests__/economics.montecarlo.test.ts
 ad2f1028829ac155f69150627e7d2ee265a0d559 __tests__/economics.npvOnly.test.js
-8b768f9d8c3455dab93ce8070475f6a32485a069 __tests__/economics.pia2021.test.ts
+b9b8d6abce877e5675cdb14334a8d17231d25e0a __tests__/economics.pia2021.test.ts
 99faa5cdb4014434cc0b5f3a14028105ae6277c5 __tests__/economics.portfolio.test.js
 1d94383519e558eb6ee571c224851e131d1ceb6e __tests__/economics.prms.test.js
 76f2b4633d6b2c3454432603f0f9b64b670e20a9 __tests__/economics.projectControls.test.js
 72c18a80f3b74cb2a9fecc96fd1afdbbf74220bc __tests__/economics.screening.test.js
+69d427bdc2cb096c69980409ff454eeafeb662fa __tests__/economics.variableOpex.test.ts
 2038afe22572e69b34e531a9b124f158e47aed43 __tests__/ekene.dynamic.test.js
 7dd761a5c22aa067629e34b0781ea638e5010de5 __tests__/engine.copy.lint.test.js
 fbbf68ed7522d1dc140d5c87aa562a6d2090eb92 __tests__/facilities.compression.test.js
@@ -410,7 +411,7 @@ a3904c39ae34bf8b0fd2ba4c72554ff64eede52e engines/earthmodeling/properties.js
 3aa4cd1dd35ad60ede5d0f149a4004fed02a6e1b engines/earthmodeling/wellties.js
 52d840d950b16f55675bcc4862102e58760c2184 engines/economics/afe.js
 98e518c240a47e79ee0b35b7a669dcd71f647ace engines/economics/breakeven.js
-90ae8463123fb89486036463c40f982c449bd424 engines/economics/cashflow.ts
+59bc7c89e514a5cb6ed9ba50a224da6c39821695 engines/economics/cashflow.ts
 50ac7531ccf97001e32ef6e50476f32c88551f4c engines/economics/decisionTree.js
 d6b4ad421a8ab1ff9d4dfcad971e7861dcc9561b engines/economics/farmout.js
 ebf138f5d367fa684b0f70d650f6829f76c99abd engines/economics/fdp/conceptCalculations.js
@@ -432,7 +433,7 @@ d8ac24897bfbecaa51950d028eb196aee19c5e0f engines/economics/fdp/subsurfaceCalcula
 db7f8a3772c2503676436ba9ba3a5c5addb94fa7 engines/economics/gasContract.js
 88a2d3c11858d6c84df765411d8fee79bea06d10 engines/economics/irrContract.js
 e843192b4b84ab4ba94fac3bb7da12911ac14f3c engines/economics/jointVenture.js
-860abcae5846c2edc72e44eaf64d43440e7516ac engines/economics/montecarlo.ts
+0a716172d145cf1c223487daf24221740a5bb7f2 engines/economics/montecarlo.ts
 c0ae041b624e176dc31e533d443105dad7e65fb6 engines/economics/portfolio.js
 7961ed0d01f8a14bd8b4f40dfcbf4cefd7b93277 engines/economics/prms.js
 fb468263f54b6b3615c5a60acce5473bfffe72fb engines/economics/projectControls.js
@@ -813,7 +814,7 @@ d2d39d35ea1dbbeecf6f49dbcbf88aea335f15d0 test-data/economics/ekene-gsa/README.md
 9b842529948dfc599c351e69bb2baca4c32a34ae test-data/economics/fixtures/pia-worked-example.json
 66cbc1fb874b8efd4ac7f0f583f53395e1c579f8 test-data/economics/goldens/afe_cases.json
 219c479a3fc0fe1a3c4d3efabf75eaf6297caf24 test-data/economics/goldens/breakeven_cases.json
-d9dbada8549d96ef54e522138e7d852b4d7e0ceb test-data/economics/goldens/cashflow_cases.json
+c95abc0300c5b468f5ef0d43cfc9d83cc8878b7d test-data/economics/goldens/cashflow_cases.json
 01430c7961199cffb8d04619272118d9150811c4 test-data/economics/goldens/decision_cases.json
 ca6abfa4c9ce17a1f720521be93710750f2ee0fd test-data/economics/goldens/farmout_cases.json
 b410a67f1b2af570f84f5811e4a9d210f625f4e2 test-data/economics/goldens/fdp_cases.json

@@ -140,3 +140,40 @@ until they are redeployed, runs still compute on 3.12.0:
     supabase functions deploy epe-monte-carlo
 
 New runs then stamp engine_version 3.12.1. No migration.
+
+## 2026-10-14: variable opex rates (engine 3.12.2)
+
+New in the Run Console: a "Variable Opex" group with four optional rates,
+US$ per barrel of liquid (oil + condensate + water), per barrel of oil, per
+barrel of water and per Mscf of gas. The engine (engines PR #358, 3.12.2)
+adds them to the OPEX file's yearly total on the volumes the run prices, in
+base-year dollars escalated like the file opex, so every use of opex (the
+economic limit, cost recovery, HCT and CIT bases, NDDC, unit costs) reads
+file plus variable. A lower forecast, another reserves scenario, a refreshed
+received profile, the tornado Production bar and the Monte Carlo production
+multiplier now move the opex; the tornado OPEX bar and the Monte Carlo opex
+multiplier scale the rates too (`opex_variable_scale`). The Year-by-Year
+table shows "of which variable" when a run used rates; assumption sets carry
+the rates; blank means off (and avoids double counting when the OPEX file
+already holds these costs, as the Ekene kit's does). Also: the CAPEX/OPEX
+column checks read every row's headers (a mixed cost slot no longer fails as
+"no cost column"). Rates off reproduce every golden.
+
+Gates: engines `__tests__/economics.variableOpex.test.ts` (fixed file plus
+US$4/bbl liquid equals the explicit Ekene-rule file on every line under JV,
+PSC and PIA at 100% and 60% working interest; production x0.8 gives 0.8x
+variable opex; seeded Monte Carlo with an opex multiplier equals the explicit
+file; negative controls fail 7 tests, the MC equality, and the header check).
+Suite `epeVariableOpex.test.jsx` (fields, payload, validation, labels).
+
+### Owner steps, in order
+
+1. Apply `supabase/migrations/20261014120000_epe_variable_opex.sql` to staging,
+   then production, BEFORE uploading the Suite build: until then saving a run
+   config fails on the unknown columns.
+   `supabase db query --linked -f supabase/migrations/20261014120000_epe_variable_opex.sql`
+2. Redeploy the three functions that bundle `_shared/epe-engine.ts`:
+   `supabase functions deploy epe-cash-flow-engine`,
+   `supabase functions deploy epe-cash-flow-engine-batch`,
+   `supabase functions deploy epe-monte-carlo`.
+3. Upload the Suite build.

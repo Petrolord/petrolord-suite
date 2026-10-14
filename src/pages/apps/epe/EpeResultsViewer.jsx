@@ -899,6 +899,9 @@ const YearByYearTable = ({ results }) => {
     { label: 'Gross Revenue',      get: (r) => r.gross_revenue ?? r.revenue ?? 0,  fmt: fmtCompact },
     { label: 'Royalty',            get: (r) => r.royalty || 0,         fmt: fmtCompact },
     { label: 'OPEX',               get: (r) => r.opex || 0,            fmt: fmtCompact },
+    // engine 3.12.2: the part of OPEX that follows production, when the run used rates
+    ...(cf.some((r) => typeof r.opex_variable === 'number')
+      ? [{ label: '  of which variable', get: (r) => r.opex_variable || 0, fmt: fmtCompact }] : []),
     { label: 'CAPEX',              get: (r) => r.capex || 0,           fmt: fmtCompact },
   ];
 
