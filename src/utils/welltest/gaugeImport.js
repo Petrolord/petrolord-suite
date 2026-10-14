@@ -291,3 +291,77 @@ export const PWF_SOURCE_TEXT = {
   'gauge-before': 'last flowing reading before the shut-in',
   'first-buildup': 'first buildup reading, skin withheld',
 };
+
+/**
+ * Where the well was shut in (buildup, falloff) or opened (drawdown,
+ * injection) on the gauge clock (2026-10-14): the steepest pressure change
+ * between consecutive readings (psi per hour) in the test's direction,
+ * returned as the time of the reading BEFORE it, so that reading is the
+ * pressure at the instant of the change. The rate of change, not the step:
+ * a gauge reads every few seconds after a shut-in and every few minutes in
+ * flow, so an earlier clean-up shut-in can show a bigger step on a coarser
+ * clock. Refused when the steepest change is not clearly the largest (less
+ * than three times the next), so a smooth record is not cut at random.
+ * @param {Array<{t:number,p:number}>} rows gauge readings, hr and psi
+ * @param {'up'|'down'} direction up: buildup and injection; down: drawdown and falloff
+ * @returns {{ ok: true, t: number, dp: number, dtNext: number } | { ok: false, reason: string }}
+ */
+export function findTestStart(rows, direction = 'up') {
+  const pts = (rows || [])
+    .map((r) => ({ t: Number(r.t), p: Number(r.p) }))
+    .filter((r) => Number.isFinite(r.t) && Number.isFinite(r.p))
+    .sort((a, b) => a.t - b.t);
+  if (pts.length < 3) return { ok: false, reason: 'Load a gauge file first.' };
+  const sign = direction === 'down' ? -1 : 1;
+  // rate of change over each interval i (between readings i-1 and i)
+  const rates = pts.map((r, i) => {
+    if (i === 0) return -Infinity;
+    const dt = r.t - pts[i - 1].t;
+    return dt > 0 ? (sign * (r.p - pts[i - 1].p)) / dt : -Infinity;
+  });
+  let best = -1;
+  for (let i = 1; i < rates.length; i += 1) if (best < 0 || rates[i] > rates[best]) best = i;
+  if (best < 0 || !(rates[best] > 0)) return { ok: false, reason: `The pressure never ${direction === 'down' ? 'falls' : 'rises'} between two readings.` };
+  const peak = rates[best];
+  // the steep run the peak belongs to (storage keeps the rise steep for a
+  // while): walk back to its first interval; the shut-in is the reading before
+  let first = best;
+  while (first > 1 && rates[first - 1] > 0.3 * peak) first -= 1;
+  let last = best;
+  while (last < rates.length - 1 && rates[last + 1] > 0.3 * peak) last += 1;
+  if (first === 1) {
+    return { ok: false, reason: 'The record starts inside the change: the first readings already move fastest, so the shut-in (or the start of flow) came before the file starts. Leave the time blank.' };
+  }
+  let outside = 0;
+  for (let i = 1; i < rates.length; i += 1) if ((i < first || i > last) && rates[i] > outside) outside = rates[i];
+  if (!(peak >= 3 * outside)) {
+    return { ok: false, reason: `No single change stands out: the steepest ${direction === 'down' ? 'fall' : 'rise'} (${peak.toFixed(1)} psi/hr) is less than three times the steepest elsewhere (${outside.toFixed(1)} psi/hr). Type the time instead.` };
+  }
+  return { ok: true, t: pts[first - 1].t, dp: sign * (pts[first].p - pts[first - 1].p), rate: peak, dtNext: pts[first].t - pts[first - 1].t };
+}
+
+/**
+ * A rate history file (2026-10-14): a start-time column and a rate column
+ * found by their headers (start, time, elapsed, hr / rate, q, oil, gas,
+ * stb, mscf), any other columns ignored. Times in hours, rates as written
+ * (the studio's rate unit). Returns rows as the Data tab keeps them.
+ * @returns {{ ok: true, rows: Array<{t:string,q:string}>, timeCol: string, rateCol: string } | { ok: false, reason: string }}
+ */
+export function readRateHistoryCsv(text) {
+  const table = readGaugeTable(text);
+  if (!table.rows.length) return { ok: false, reason: 'The file has no rows.' };
+  const h = table.headers || [];
+  const timeIdx = h.findIndex((x) => /start|time|elapsed|(^|[^a-z])hr|hour|(^|[^a-z])t([^a-z]|$)/i.test(x) && !/rate/i.test(x));
+  const rateIdx = h.findIndex((x, i) => i !== timeIdx && /rate|(^|[^a-z])q([^a-z]|$)|oil|gas|stb|mscf|bbl/i.test(x));
+  const ti = table.headers ? timeIdx : 0;
+  const ri = table.headers ? rateIdx : 1;
+  if (ti < 0 || ri < 0) return { ok: false, reason: 'No start-time and rate columns were found from the headers (for example start_hr and oil_rate_stbd).' };
+  const rows = [];
+  for (const r of table.rows) {
+    const t = num(r[ti], table.decimal.mark);
+    const q = num(r[ri], table.decimal.mark);
+    if (Number.isFinite(t) && Number.isFinite(q)) rows.push({ t: String(t), q: String(q) });
+  }
+  if (!rows.length) return { ok: false, reason: 'No row held a number in both columns.' };
+  return { ok: true, rows, timeCol: h[ti] || 'Column 1', rateCol: h[ri] || 'Column 2' };
+}

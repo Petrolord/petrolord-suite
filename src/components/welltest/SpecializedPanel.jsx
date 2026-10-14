@@ -16,7 +16,7 @@ const SpecializedPanel = () => {
   const {
     windows, setWindowField, configSpec, regimes, reservoirSpec, autoSemilogWindow, semilogWindowSource,
     deliverabilityInputs, setDeliverabilityField, setDeliverabilityRows,
-    rateSkinRows, setRateSkinRows, reservoirInputs, derivedKpis,
+    rateSkinRows, setRateSkinRows, reservoirInputs, derivedKpis, history,
   } = useWellTestStudio();
   // WTA-U2-003: v arrives oilfield (UnitInput converts the rate)
   const setSkinRow = (i, key, v) => setRateSkinRows(rateSkinRows.map((r, idx) => (idx === i ? { ...r, [key]: v } : r)));
@@ -35,7 +35,7 @@ const SpecializedPanel = () => {
   return (
     <div className="space-y-6">
       <section>
-        <SectionLabel>{isBuildup ? 'Horner window' : 'MDH window'}</SectionLabel>
+        <SectionLabel>{isBuildup ? (history ? 'Superposition window' : 'Horner window') : 'MDH window'}</SectionLabel>
         <div className="grid grid-cols-2 gap-3">
           <Field label="From" suffix="hr" value={windows.semilogMin} onChange={(v) => setWindowField('semilogMin', v)} placeholder="auto" />
           <Field label="To" suffix="hr" value={windows.semilogMax} onChange={(v) => setWindowField('semilogMax', v)} placeholder="auto" />
@@ -58,6 +58,17 @@ const SpecializedPanel = () => {
             A line through storage-dominated data gives a k far from the truth; set the window on the flat derivative.
           </p>
         )}
+      </section>
+
+      <section data-testid="wts-late-window">
+        <SectionLabel>Second line (boundary)</SectionLabel>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Late from" suffix="hr" value={windows.lateMin} onChange={(v) => setWindowField('lateMin', v)} placeholder="off" />
+          <Field label="Late to" suffix="hr" value={windows.lateMax} onChange={(v) => setWindowField('lateMax', v)} placeholder="off" />
+        </div>
+        <p className="text-[11px] text-pl-muted mt-2">
+          When the derivative rises to a second, higher level late in the test, set a window on it ({isBuildup ? 'shut-in time' : 'elapsed time'}). The second line is fitted there and the distance to a sealing fault is read where it meets the first line (Gray 1965).
+        </p>
       </section>
 
       <section>

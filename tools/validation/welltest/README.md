@@ -20,6 +20,8 @@ Validation-first gate for the PTA engines in `src/utils/welltest/`
 
       node tools/validation/welltest/run-validation.mjs
 
+  (Since the gas z engine moved to TypeScript, bundle it first: `npx esbuild tools/validation/welltest/run-validation.mjs --bundle --platform=node --format=esm --outfile=/tmp/wt/tools/validation/welltest/run.mjs`, copy `literature-fixtures.json` beside it and `src/utils/welltest/__tests__/goldens.json` to `/tmp/wt/src/utils/welltest/__tests__/`, then run `node /tmp/wt/tools/validation/welltest/run.mjs`.)
+
 ## Cases
 
 1. Stehfest vs known transform pairs
