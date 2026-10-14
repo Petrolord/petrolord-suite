@@ -260,3 +260,42 @@ supplied follow the next well. Publish is held for an offshore well whose datum
 states water while the water depth is 0. `services/datumWaterColumn.js`;
 tests `__tests__/datumWaterColumn.test.js` (the old 0/0 default as the negative
 control).
+## 2026-10-14: the interpreted line
+
+Found in the Pore Pressure Studio video dry run on a copy of Ekene-1 (GR only): with pressures from shale
+samples the prognosis still jumps by 1 to 2 ppg wherever one shale sample reads like a sand (around 2,000 m
+MD on Ekene-1 it dips 1.9 ppg below the designed prognosis), and the drilling window, mud weight and casing
+seats follow every jump. A specialist draws the design pore pressure as a line through the shale points.
+
+- **Interpreted line** (Parameters, testid `pp-line-window`, depth in the display unit, empty = off): the
+  overpressure (PP minus hydrostatic) at the shale samples is replaced by its running median over the window,
+  shale samples only, then carried across the sands as before (`interpretedLine` in
+  `services/shalePressure.js`). The fracture pressure follows from the line; overburden and hydrostatic are
+  unchanged. The shale-sample pressures stay on the result (`shalePpPa`) and on the chart as pale points
+  ("Shale pressures", `data-shale-points`).
+- Default 100 ft (30.48 m) for a new project (DEFAULT_PARAMS.ppLineM); a project saved before the option
+  opens with it off. Notes line and report ("interpreted line through them: the median over 100 ft") and
+  publish provenance (`pp_line_m`) say it.
+- Validation (`__tests__/interpretedLine.test.js`, the Ekene-1 fixture through the shipped path, GR picks at
+  60 API one per 100 ft in the normal section, pressures at 82 API, Eaton n 3): RMS 0.52 ppg against the
+  kit's designed prognosis (0.62 without the line), within 1.65 ppg through the overpressure (1.93), 12.42 ppg
+  at 1,560 m (published 12.02). Negative controls: the line off (the 2,000 m dip stays), and a median over every
+  sample including the sands (RMS worse by more than 1 ppg). Invariants: a constant overpressure comes back
+  exactly; a window shorter than the shale spacing is the plain carried pressure.
+## 2026-10-14: publish state (is the published prognosis the one open here?)
+
+Data governance (the NAPE paper theme), found while writing the Pore Pressure Studio videos: the readers of
+the prognosis (Well Design Studio's mud window, Casing & Tubing, Hydraulics, Geomechanics) read the curves
+published on the well, never the open project, and nothing said when a recalibration had not been published.
+
+- Chip beside Publish (testid `pp-publish-state`, `data-tone` info/ok/warn): Not published; Published, matches;
+  or Unpublished changes (largest difference in ppg). Notes line `pp-note-published` gives the curve, the depth
+  in the chosen frame and the publish time, and that the readers still use the published one until you publish.
+- `services/publishState.js`: `publishedSet` (this studio's PP/FP/OBG on the well, newest of each),
+  `compareWithPublished` (PP and FP sample by sample on the well's MD, in ppg EMW at each sample's reference
+  depth), `publishStateText`. The published PP and FP are read when the well opens; after Publish the state is
+  set from exactly what was written.
+- Tests: `__tests__/publishState.test.js` (through `preparePublishLogs`: a just-published prognosis matches itself
+  on every sample within float32; an unpublished n change is caught with its size and depth; negative control,
+  no published values means nothing compared and nothing claimed) and `__tests__/publishStateUi.test.jsx` (the
+  chip from Not published to matches, to Unpublished changes after a parameter change, to matches after Publish).
