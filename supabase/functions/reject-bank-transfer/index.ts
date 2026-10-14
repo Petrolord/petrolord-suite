@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "./cors.ts";
+import { requirePlatformAdmin } from "../_shared/platform-admin.ts";
 
 // reject-bank-transfer
 // --------------------------------------------------------------------------
@@ -25,6 +26,12 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
+
+    // Security fix 2026-10-14: platform super admins only (the admin
+    // console's bank transfer queue). Before, anyone holding the public anon
+    // key could approve their own uploaded "proof" and get the licence.
+    const guard = await requirePlatformAdmin(supabase, req);
+    if (!guard.ok) return json({ success: false, error: guard.error }, guard.status);
 
     const { subscription_id, reason } = await req.json();
     if (!subscription_id) throw new Error("Missing subscription_id");

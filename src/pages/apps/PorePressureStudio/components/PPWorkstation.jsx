@@ -46,10 +46,11 @@ import { publishedSet, compareWithPublished, publishStateText } from '../service
 import { inputNotes, trendDepthM } from '../services/honesty';
 import { reviewerLines, prognosisPdf } from '../services/report';
 import { drillingWindow, casingDesign, WINDOW_FROM_BML_M } from '../services/drillingWindow';
-import { pickShaleLog, normalizeShaleIndicator } from '../services/shalePicks';
+import { shaleLogOptions, chooseShaleOption, normalizeShaleIndicator } from '../services/shalePicks';
 import { fitTarget, fitToCalibration, calibrateFracToLot } from '../services/calibrate';
 import { datumToMudline } from '../services/alongHole';
 import { comparesTo } from '../services/calibrationImport';
+import { mudWeightEvidence } from '../services/mudWeightEvidence';
 import {
   UNITS_KEY, PRESSURE_UNITS, DEPTH_UNITS, readUnits, depthFromDisplay, tidyDepth,
   fmtPressure, fmtDepth, emwReferenceDepthM, emwDatumLabel, isEmw, prognosisCsv,
@@ -91,6 +92,8 @@ export const DEFAULT_PARAMS = {
 };
 
 const PP_ID = 'pore-pressure-studio';
+// a margin that rounds to zero reads 0.00, not -0.00
+const ppg2 = (v) => (Math.abs(v) < 0.005 ? '0.00' : v.toFixed(2));
 
 /** @param {Object<string,string>} [p.appPaths] route overrides for the launchers (harness) */
 export default function PPWorkstation({ backend, appPaths = {} }) {
@@ -207,10 +210,13 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       ]);
       const rho = mapped.RHOB ? await backend.downloadCurve(mapped.RHOB) : null;
       const resRaw = mapped.RES ? await backend.downloadCurve(mapped.RES) : null;
-      // U2-005: the shale indicator for the NCT picks (VSH, else GR)
-      const shaleLog = pickShaleLog(logs);
-      const shaleRaw = shaleLog ? await backend.downloadCurve(shaleLog.log) : null;
-      const shaleN = shaleRaw && shaleRaw.length === depth.length ? normalizeShaleIndicator(shaleRaw, shaleLog) : null;
+      // U2-005: the shale indicators for the NCT picks (VSH, else GR); 2026-10-14:
+      // both are read so the NCT view can switch between them
+      const shaleOpts = [];
+      for (const o of shaleLogOptions(logs)) {
+        const raw = await backend.downloadCurve(o.log);
+        if (raw && raw.length === depth.length) shaleOpts.push(normalizeShaleIndicator(raw, o));
+      }
       // PP-U1-004: vendor nulls, kg/m3 density and us/ft sonic are read for
       // what they are, and each decision is said
       const norm = normalizePpCurves({ depth, dt, rho, dtLog: mapped.DT, rhoLog: mapped.RHOB });
@@ -221,13 +227,11 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         dt: norm.dt,
         rho: norm.rho,
         res: resN ? resN.res : null,
-        shale: shaleN ? shaleN.values : null,
-        shaleKind: shaleN ? shaleN.kind : null,
-        shaleName: shaleN ? shaleN.name : null,
+        shaleOptions: shaleOpts,
         resName: mapped.RES?.mnemonic || null,
         units: norm.units,
         fileUnits: { DT: mapped.DT.unit, RHOB: mapped.RHOB?.unit, RES: mapped.RES?.unit },
-        notes: [...norm.notes, ...(resN ? resN.notes : []), ...(shaleN ? shaleN.notes : [])],
+        notes: [...norm.notes, ...(resN ? resN.notes : []), ...shaleOpts.flatMap((o) => o.notes)],
         logIds: Object.values(mapped).filter(Boolean).map((l) => l.id),
       });
       setNctFittedFor((prev) => (prev === wellId ? prev : null));
@@ -302,6 +306,11 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     return () => { live = false; };
   }, [params.seismicDatumElevM, seismicModel, layerCakeAt, wells, backend]);
 
+  // 2026-10-14: the shale indicator in use (the project's choice when the well has it)
+  const shaleSel = curves ? chooseShaleOption(curves.shaleOptions, params.shaleIndicator) : null;
+  const shaleCurves = useMemo(() => (curves ? {
+    ...curves, shale: shaleSel ? shaleSel.values : null, shaleKind: shaleSel ? shaleSel.kind : null, shaleName: shaleSel ? shaleSel.name : null,
+  } : null), [curves, shaleSel]);
   const byRes = params.method === 'eaton-resistivity';
   // U2-008: the mudline below the declared seismic datum (SRD), not the water depth alone
   const trendWell = seismicModel ? (wells || []).find((w) => w.name === layerCakeAt?.wellName) || null : null;
@@ -328,16 +337,16 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
           stepM: 10,
         });
       }
-      if (!curves) return null;
+      if (!shaleCurves) return null;
       // PP-U1-002: a deviated well is computed at TVD through its survey
-      const built = buildProfileInput(curves, curves.units, {
+      const built = buildProfileInput(shaleCurves, shaleCurves.units, {
         mudlineMdM: params.mudlineMdM, frame: wellDepthFrame(selected), needs: byRes ? 'res' : 'dt',
       });
-      return built.shale ? { ...built, shaleKind: curves.shaleKind } : built;
+      return built.shale ? { ...built, shaleKind: shaleCurves.shaleKind } : built;
     } catch (e) {
       return { error: e.message };
     }
-  }, [curves, seismicModel, layerCakeAt, params.mudlineMdM, params.waterDepthM, selected, trendZMaxM, byRes, datum.value]);
+  }, [shaleCurves, seismicModel, layerCakeAt, params.mudlineMdM, params.waterDepthM, selected, trendZMaxM, byRes, datum.value]);
 
   const profile = useMemo(() => {
     if (!input || input.error) return null;
@@ -349,6 +358,17 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   }, [input, params]);
 
   const result = profile?.result || null;
+  // 2026-10-14: a readout depth outside the open well (the 3,500 m default on a
+  // shallower well read as 11,483 ft) moves to the deepest sample
+  useEffect(() => {
+    const z = input && !input.error ? input.zBmlM : null;
+    if (!z?.length) return;
+    const zMax = z[z.length - 1];
+    if (readoutDepthM > zMax + 1 || readoutDepthM < z[0] - 1) {
+      setReadoutDepthM(zMax);
+      setReadoutText(tidyDepth(mapperRef.current ? mapperRef.current.fromBml(zMax) : zMax, units.depth));
+    }
+  }, [input]); // eslint-disable-line react-hooks/exhaustive-deps
   const windowInfo = useMemo(() => (result && input ? drillingWindow(result, input.zBmlM, params) : null), [result, input, params]);
   // U2-003: kick and trip margins and the bottom-up casing seats
   const casing = useMemo(() => (result && input ? casingDesign(result, input.zBmlM, params) : null), [result, input, params]);
@@ -362,6 +382,9 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   mapperRef.current = mapper;
   const zRef = (zBml) => `${fmtDepth(mapper.fromBml(zBml), units.depth)} ${units.depth} ${refShort(mapper.key)}`;
   const computeError = input?.error || profile?.error || null;
+  // 2026-10-14: imported mud weights checked against the prognosis
+  const mwEvidence = useMemo(() => (result && input ? mudWeightEvidence({ calibration, zBmlM: input.zBmlM, result, params, fmtZ: zRef }) : null),
+    [result, input, calibration, params, mapper, units.depth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 2026-10-14: is the open prognosis the published one?
   const publishCmp = useMemo(() => {
@@ -533,6 +556,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     kbM: !seismicModel && selected ? refElevOrNull(selected) : null,
     mudlineMdM: params.mudlineMdM,
     waterDepthM: params.waterDepthM,
+    // 2026-10-14: a file naming several wells imports the rows of this one
+    wellName: !seismicModel && selected ? selected.name : null,
   }), [seismicModel, selected, params.mudlineMdM, params.waterDepthM]);
   // Wellsite Studio U2-008: the mud weights a live well published to this registry well (ECD where
   // logged, otherwise mud weight in) as a table for the calibration door, with what else it published
@@ -887,10 +912,15 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       onResNctFitted={onResNctFitted}
       onSegmentsFitted={onSegmentsFitted}
       onSegmentsChange={onSegmentsChange}
-      shaleName={curves?.shaleName || null}
-      shaleKind={curves?.shaleKind || null}
+      shaleName={shaleCurves?.shaleName || null}
+      shaleKind={shaleCurves?.shaleKind || null}
+      shaleOptions={(curves?.shaleOptions || []).map((o) => ({ kind: o.kind, name: o.name }))}
+      onShaleIndicatorChange={(kind) => {
+        setParams((p) => ({ ...p, shaleIndicator: kind }));
+        setStatus(`Shale picks and shale-sample pressures now read ${(curves?.shaleOptions || []).find((o) => o.kind === kind)?.name || kind}; pick the shales again and fit the NCT.`);
+      }}
       byRes={byRes}
-      onCutoffChange={(c) => setParams((p) => ({ ...p, shaleCutoff: c, shaleCutoffKind: c == null ? null : (curves?.shaleKind || null) }))}
+      onCutoffChange={(c) => setParams((p) => ({ ...p, shaleCutoff: c, shaleCutoffKind: c == null ? null : (shaleCurves?.shaleKind || null) }))}
       depthUnit={units.depth}
     />
   ) : (
@@ -920,10 +950,20 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
               <span className="text-pl-warning-text" data-testid="pp-casing-closed"> · window closed by the margins at {zRef(casing.closedAtBmlM)}: no seat opens it; managed pressure or smaller margins</span>
             )}
             <span className="block text-pl-muted" data-testid="pp-casing-sections">
-              Window per section: {casing.sections.map((sec) => `${fmtDepth(mapper.fromBml(sec.topBmlM), units.depth)} to ${zRef(sec.baseBmlM)}: mud ${sec.mudPpg.toFixed(2)} ppg, margin to the design FG ${sec.marginPpg.toFixed(2)} ppg`).join(' | ')}
+              Window per section: {casing.sections.map((sec) => `${fmtDepth(mapper.fromBml(sec.topBmlM), units.depth)} to ${zRef(sec.baseBmlM)}: mud ${sec.mudPpg.toFixed(2)} ppg, margin to the design FG ${ppg2(sec.marginPpg)} ppg`).join(' | ')}
             </span>
+            {casing.sections.some((sec) => sec.marginPpg < -0.005) && (
+              <span className="block text-pl-warning-text" data-testid="pp-casing-section-closed">
+                {casing.sections.filter((sec) => sec.marginPpg < -0.005).map((sec) => `${fmtDepth(mapper.fromBml(sec.topBmlM), units.depth)} to ${zRef(sec.baseBmlM)} needs ${sec.mudPpg.toFixed(2)} ppg against a design FG of ${sec.minDesignFgPpg.toFixed(2)} ppg`).join('; ')}: that open hole does not hold with these seats; move a seat or change the margins.
+              </span>
+            )}
           </div>
         )
+      )}
+      {mwEvidence && mwEvidence.lines.length > 0 && (
+        <div className={`text-[11px] px-1 ${mwEvidence.tone === 'warn' ? 'text-pl-warning-text' : 'text-pl-text'}`} data-testid="pp-mw-evidence" data-tone={mwEvidence.tone}>
+          {mwEvidence.lines.join(' ')}
+        </div>
       )}
       {((target && ppPoints > 0) || lotPoints > 0) && (
         <div className="px-1 flex gap-2">

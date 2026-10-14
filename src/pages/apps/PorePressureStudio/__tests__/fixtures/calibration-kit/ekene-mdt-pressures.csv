@@ -1,0 +1,13 @@
+well,md_m,tvdss_m,pressure_psia,fluid,gradient_psi_per_ft,test_type,quality
+Ekene-1,1549.0,1523.99,3187.9,oil,0.3361,MDT pretest,good
+Ekene-1,1552.0,1527.04,3191.2,oil,0.3361,MDT pretest,good
+Ekene-1,1555.0,1529.94,3194.5,oil,0.3361,MDT pretest,good
+Ekene-1,1558.0,1532.99,3197.8,oil,0.3361,MDT pretest,good
+Ekene-1,1561.0,1536.03,3201.4,water,0.4377,MDT pretest,good
+Ekene-1,1565.0,1540.00,3207.2,water,0.4377,MDT pretest,good
+Ekene-1,1570.0,1545.02,3214.4,water,0.4377,MDT pretest,good
+Ekene-1,1576.0,1550.97,3223.0,water,0.4377,MDT pretest,good
+Ekene-3,1543.0,1518.05,3181.3,oil,0.3361,MDT pretest,good
+Ekene-3,1550.0,1525.06,3189.0,oil,0.3361,MDT pretest,good
+Ekene-3,1558.0,1532.99,3197.8,oil,0.3361,MDT pretest,good
+Ekene-3,1566.0,1541.06,3208.6,water,0.4377,MDT pretest,good

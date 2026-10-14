@@ -151,7 +151,7 @@ describe('the card on the run\'s results page', () => {
     expect(screen.getByTestId('epe-unit-value-npv-per-boe').textContent).toBe('2.74 USD/boe');
     expect(screen.getByTestId('epe-unit-value-u').textContent).toBe('18.36 USD/boe');
     expect(screen.getByTestId('epe-unit-value-d').textContent).toBe('11.3 USD MM');
-    expect(screen.getByTestId('epe-unit-value').textContent).toMatch(/NPV 2\.0 USD MM over 0\.72 MMboe at 10% real, end-year discounting; price deck "Episode 26 case": oil 75 \$\/bbl/);
+    expect(screen.getByTestId('epe-unit-value').textContent).toMatch(/NPV 2\.0 USD MM over 0\.72 MMboe at 10% real, end-year discounting, valued at 31 Dec 2026; price deck "Episode 26 case": oil 75 \$\/bbl/);
     expect(screen.getByTestId('epe-unit-value-send').getAttribute('href')).toBe('/dashboard/apps/reservoir/risked-reserves-valuation?epeRun=r1');
   });
   test('a run that cannot be sent says why and offers no link; no results, no card', () => {

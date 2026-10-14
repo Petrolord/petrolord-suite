@@ -142,7 +142,12 @@
 //     resolved prices honor optional *_price_scale multipliers so tornado/MC
 //     sweeps remain meaningful with decks. Realized prices floor at 0.
 //   - Mid-year discounting (cfg.discounting_convention: 'end_year' default |
-//     'mid_year'): mid-year adds 0.5 to every discount exponent.
+//     'mid_year'). The valuation date is 31 December of the valuation year
+//     (end-of-year exponent = year - valuation year, so that year's cash is
+//     undiscounted). Mid-year cash arrives half a year before its year end,
+//     so mid-year subtracts 0.5 from every exponent (v3.12.3, owner decision
+//     2026-10-14, option A; before it added 0.5, which discounted mid-year
+//     cash MORE than year-end cash for the same valuation date).
 //   - Valuation date (cfg.valuation_year, default base_year) as the
 //     discounting reference, and cfg.treat_prior_as_sunk: pre-valuation
 //     years stay modeled (fiscal state accrues through them) but are
@@ -232,7 +237,18 @@
 import { solveIrrInBand } from './irrContract.js';
 
 // Stamped into kpis.engine_version on every run (Wave A provenance).
-export const ENGINE_VERSION = '3.12.0';
+// 3.12.1: production volume columns are picked per row, so files with
+// different headers in one slot all count (pickVolumeColumns,
+// extractAnnualVolumes; gate __tests__/economics.mixedVolumeLayouts.test.ts).
+// 3.12.2: variable operating cost rates (opex_variable_usd_per_bbl_oil,
+// _per_bbl_water, _per_mscf_gas, _per_bbl_liquid; opex_variable_scale) join
+// the OPEX file's yearly total and are reported as opex_variable; the CAPEX
+// and OPEX column checks read every row's headers (gate
+// __tests__/economics.variableOpex.test.ts).
+// 3.12.3: mid-year discounting subtracts 0.5 from the exponent (cash half a
+// year before the 31 December valuation date; it used to add 0.5). End-of-year
+// results are unchanged (gate __tests__/economics.midYearDiscounting.test.ts).
+export const ENGINE_VERSION = '3.12.3';
 
 // ============================================================================
 // TYPES
@@ -431,11 +447,21 @@ function pickStreamCols(keys: string[], stream: { suffix: string; bare: string[]
 
 // Which columns each stream would read from these rows (normalized names).
 // Used by computeCashFlow's ingestion validation to fail loudly.
+//
+// v3.12.1: every row is read, and the answer is the union over rows. The
+// Edge Function concatenates every production file of the run, so a per-well
+// CSV (ekene_1_oil_bbl, ...) can sit beside a received profile (bare
+// oil_bbl); reading the first row's headers only made one of the two files
+// invisible to the validation and to extractAnnualVolumes.
 export function pickVolumeColumns(prodRows: any[]): Record<string, string[]> {
   const out: Record<string, string[]> = { oil_bbl: [], gas_mscf: [], condensate_bbl: [], water_bbl: [] };
   if (!prodRows || prodRows.length === 0) return out;
-  const keys = Object.keys(normalizeRows([prodRows[0]])[0]);
-  for (const stream of VOLUME_STREAMS) out[stream.field] = pickStreamCols(keys, stream);
+  const seen = VOLUME_STREAMS.map(() => new Set<string>());
+  for (const row of normalizeRows(prodRows)) {
+    const keys = Object.keys(row);
+    VOLUME_STREAMS.forEach((stream, i) => { for (const c of pickStreamCols(keys, stream)) seen[i].add(c); });
+  }
+  VOLUME_STREAMS.forEach((stream, i) => { out[stream.field] = Array.from(seen[i]); });
   return out;
 }
 
@@ -445,7 +471,10 @@ const OPEX_USD_COLS = ['total_opex_usd', 'opex_usd', 'cost_usd', 'amount_usd'];
 // Which USD columns a cost file exposes (preferred aliases + *_usd fallback).
 export function pickUsdColumns(rows: any[], preferredCols: string[], fallbackPattern?: RegExp): string[] {
   if (!rows || rows.length === 0) return [];
-  const keys = Object.keys(normalizeRows([rows[0]])[0]);
+  // v3.12.2: the headers of every row (two cost files with different layouts
+  // flattened into one list, as the edge function sends them), so a valid
+  // second file is never reported as "no cost column".
+  const keys = Array.from(new Set(normalizeRows(rows).flatMap((r: any) => Object.keys(r))));
   const preferred = keys.filter(k => preferredCols.includes(k));
   if (preferred.length > 0) return preferred;
   if (fallbackPattern) return keys.filter(k => fallbackPattern.test(k) && !k.startsWith('total_'));
@@ -549,13 +578,26 @@ function resolveRowYear(row: any, baseYear: number): number | null {
 export function extractAnnualVolumes(prodRows: any[], baseYear: number): AnnualVolumes[] {
   if (!prodRows || prodRows.length === 0) return [];
   const rows = normalizeRows(prodRows);
-  const keys = Object.keys(rows[0]);
-  const streamCols = VOLUME_STREAMS.map(s => ({ field: s.field, cols: pickStreamCols(keys, s) }));
+  // v3.12.1: the columns are picked per row (rows of different files carry
+  // different headers; see pickVolumeColumns). Rows of one file share their
+  // headers, so the pick is cached by the row's key list.
+  const pickCache = new Map<string, Array<{ field: keyof Omit<AnnualVolumes, 'year'>; cols: string[] }>>();
+  const streamColsOf = (row: any) => {
+    const keys = Object.keys(row);
+    const sig = keys.join('\u0000');
+    let hit = pickCache.get(sig);
+    if (!hit) {
+      hit = VOLUME_STREAMS.map(s => ({ field: s.field, cols: pickStreamCols(keys, s) }));
+      pickCache.set(sig, hit);
+    }
+    return hit;
+  };
 
   const annual = new Map<number, AnnualVolumes>();
   for (const row of rows) {
     const year = resolveRowYear(row, baseYear);
     if (year === null) continue;
+    const streamCols = streamColsOf(row);
 
     if (!annual.has(year)) annual.set(year, { year, oil_bbl: 0, gas_mscf: 0, condensate_bbl: 0, water_bbl: 0 });
     const a = annual.get(year)!;
@@ -1699,7 +1741,7 @@ export function paybackPeriod(cashFlows: number[]): string {
 // user can fix the file (or we can add an alias).
 
 const seenHeaders = (rows: any[]) =>
-  rows.length > 0 ? Object.keys(normalizeRows([rows[0]])[0]).join(', ') : '(none)';
+  rows.length > 0 ? Array.from(new Set(normalizeRows(rows).flatMap((r: any) => Object.keys(r)))).join(', ') : '(none)';
 
 function validateIngestion({ cfg, prodRows, capexRows, opexRows, annualVols, annualCapex, annualOpex }: {
   cfg: any;
@@ -1823,7 +1865,7 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
   const valuationYear = Number.isFinite(valuationYearRaw) && valuationYearRaw > 0 ? valuationYearRaw : baseYear;
   const sunkCutoff = cfg.treat_prior_as_sunk === true ? valuationYear : null;
   // Discount exponent: years from the valuation date, +0.5 under mid-year.
-  const dexp = (year: number) => (year - valuationYear) + (midYear ? 0.5 : 0);
+  const dexp = (year: number) => (year - valuationYear) - (midYear ? 0.5 : 0);
 
   // ---- v3.6 (Wave B): price resolution (decks, differentials, scales) ----
   const priceDeck = parsePriceDeck(cfg);
@@ -1867,6 +1909,41 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
   }
 
   validateIngestion({ cfg, prodRows, capexRows, opexRows, annualVols, annualCapex, annualOpex });
+
+  // v3.12.2: variable operating cost rates. US$ per barrel of oil, of water,
+  // of liquid (oil + condensate + water) and per Mscf of gas, applied to the
+  // volumes this run prices in each year (after the scenario filter and the
+  // first-oil shift, and after any production multiplier the Monte Carlo or
+  // the sensitivity sweep applied to the rows), in base-year dollars like the
+  // OPEX file, so the opex escalator inflates both alike. The variable part
+  // joins the file's yearly total here, so every use of opex (the economic
+  // limit, cost recovery, the hydrocarbon and income tax bases, NDDC, unit
+  // costs) reads file + variable; it is also reported on its own line.
+  // opex_variable_scale (default 1) lets an opex multiplier scale it too.
+  const rateOf = (k: string) => { const r = Number(cfg[k]); return Number.isFinite(r) && r > 0 ? r : 0; };
+  const varRates = {
+    oil: rateOf('opex_variable_usd_per_bbl_oil'),
+    water: rateOf('opex_variable_usd_per_bbl_water'),
+    gas: rateOf('opex_variable_usd_per_mscf_gas'),
+    liquid: rateOf('opex_variable_usd_per_bbl_liquid'),
+  };
+  const varScaleRaw = Number(cfg.opex_variable_scale ?? 1);
+  const varScale = Number.isFinite(varScaleRaw) && varScaleRaw >= 0 ? varScaleRaw : 1;
+  const variableOpexOn = varRates.oil + varRates.water + varRates.gas + varRates.liquid > 0;
+  const annualOpexVariable = new Map<number, number>();
+  if (variableOpexOn) {
+    annualOpex = new Map(annualOpex);
+    for (const v of annualVols) {
+      const amount = varScale * (
+        varRates.oil * v.oil_bbl
+        + varRates.water * v.water_bbl
+        + varRates.gas * v.gas_mscf
+        + varRates.liquid * (v.oil_bbl + v.condensate_bbl + v.water_bbl));
+      if (amount === 0) continue;
+      annualOpexVariable.set(v.year, (annualOpexVariable.get(v.year) || 0) + amount);
+      annualOpex.set(v.year, (annualOpex.get(v.year) || 0) + amount);
+    }
+  }
 
   const yearSet = new Set<number>([
     ...annualVols.map(v => v.year),
@@ -2062,6 +2139,7 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
       gross_revenue: grossRev,
       revenue: grossRev,
       opex: opexInflated,
+      ...(variableOpexOn ? { opex_variable: (annualOpexVariable.get(year) || 0) * Math.pow(1 + opexEscalator, t) } : {}),
       capex: capexNominal,
       depreciation: depr,
       oil_bbl: v.oil_bbl,
@@ -2332,7 +2410,7 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
       // share of the value as government take.
       if (jvWorkingInterest !== 1) {
         const JV_SHARE_SCALED_KEYS = [
-          'gross_revenue', 'revenue', 'opex', 'capex', 'depreciation',
+          'gross_revenue', 'revenue', 'opex', 'opex_variable', 'capex', 'depreciation',
           'oil_bbl', 'gas_mscf', 'condensate_bbl', 'decom_fund_contribution',
         ];
         for (const k of JV_SHARE_SCALED_KEYS) {
@@ -2350,7 +2428,7 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
     // state threaded between years (pscCarryforward, piaState).
     if (wiRegime !== 1) {
       const WI_SCALED_KEYS = [
-        'gross_revenue', 'revenue', 'opex', 'capex', 'depreciation',
+        'gross_revenue', 'revenue', 'opex', 'opex_variable', 'capex', 'depreciation',
         'oil_bbl', 'gas_mscf', 'condensate_bbl',
         'royalty', 'production_royalty', 'price_royalty', 'hcdt', 'nddc',
         'liquids_production_royalty', 'gas_royalty', 'decom_fund_deduction',
@@ -2453,6 +2531,7 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
     total_revenue: evalRows.reduce((s, d) => s + d.gross_revenue, 0),
     total_capex: evalRows.reduce((s, d) => s + d.capex, 0),
     total_opex: evalRows.reduce((s, d) => s + d.opex, 0),
+    ...(variableOpexOn ? { total_opex_variable: evalRows.reduce((s, d) => s + (d.opex_variable || 0), 0) } : {}),
     total_tax: evalRows.reduce((s, d) => s + (d.tax || 0), 0),
     total_net_cash_flow_nominal: evalRows.reduce((s, d) => s + d.net_cash_flow, 0),
     total_net_cash_flow_real: evalRows.reduce((s, d) => s + d.real_net_cash_flow, 0),
