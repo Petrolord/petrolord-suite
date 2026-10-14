@@ -1,7 +1,7 @@
 # Suite Project: design
 
-Status: P0 BUILT 2026-10-14 (migrations written and dry-run tested, awaiting
-the second engineer's review and the owner's apply); P1 in build. The owner
+Status: P0 LIVE 2026-10-14 (reviewed and approved by the second engineer,
+applied by the owner, verified); P1 in build. The owner
 brought the build forward on 2026-10-14 ("Start with P0 and P1") as a
 consultant pilot and added a Client level (section 12). Designed 2026-09-30
 (owner: "start the unit profile and Project design now"). Companion: `docs/scope/SuiteUnits-DESIGN-AND-STATUS.md`
@@ -282,6 +282,6 @@ design above:
 
 | Phase | State |
 |---|---|
-| P0 | Built 2026-10-14. Dry run and role pentest on production inside a rolled-back transaction: 94 of 94 probes pass, the negative control fails 6 as expected, the rollbacks restore the catalog and every persona's rows. Awaiting second engineer review and the owner's apply. |
+| P0 | LIVE 2026-10-14. Second engineer reviewed and approved; the owner applied the three migrations. Before apply: dry run and role pentest on production inside a rolled-back transaction, 94 of 94, negative control fails 6, rollbacks restore the catalog and every persona's rows. After apply: verification queries as expected, live role pentest 94 of 94, and 0 differences between every persona's visible rows (demo account included) and pre-P0 access (`tools/security/suite-projects/probes/run_liveprobes.sh`). |
 | P1 | In build: `useProject()`, header switcher with clients, registries filtered and stamped, `.pld` per project, Move to project. |
 | P2 to P4 | Not started. |
