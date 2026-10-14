@@ -67,3 +67,23 @@ test('the reviewer lines name the deposition and the step', async () => {
   const lines = reviewerLines({ modelName: 'm', state: state(58.5), units: { depth: 'ft', temp: 'F' }, now: new Date('2026-10-14T00:00:00Z'), build: 'b' });
   expect(lines.join('\n')).toMatch(/continuous deposition \(each layer builds up through its interval\); 0.5 Ma steps ending at 0 Ma/);
 });
+
+test('scenario comparison carries each trap\'s charge and factor, from each scenario\'s own result', async () => {
+  const { compareScenarios } = await import('../services/scenarioCompare');
+  const { engineInputsKey } = await import('../services/honesty');
+  const mk = async (name, hf) => {
+    const st = state(hf);
+    const r = await SimulationEngine.run(st);
+    return { id: name, name, ...st, results: { ...r, runOf: { key: engineInputsKey(st) } } };
+  };
+  const a = await mk('Base', 58.5); const b = await mk('Cool', 52);
+  const { rows } = compareScenarios([a, b], { depth: 'ft', temp: 'F' });
+  const row = rows.find((r) => r.key === 'trap-Ekene');
+  expect(row.label).toBe('Charge reaching Ekene (MMboe)');
+  const want = [a, b].map((sc) => outputValue(sc.results, `charge:${TRAPS[0].id}`, { stratigraphy: strat, traps: TRAPS }));
+  expect(row.values).toEqual(want.map((v) => Number(v.toFixed(1)).toLocaleString('en-US')));
+  expect(row.differs).toBe(true);
+  expect(rows.find((r) => r.key === 'factor-Oboro').values.every((v) => /^0\.\d$/.test(v))).toBe(true);
+  // the charge reads before the layer tables
+  expect(rows.findIndex((r) => r.key === 'trap-Ekene')).toBeLessThan(rows.findIndex((r) => r.key.startsWith('ro-')));
+}, 120000);

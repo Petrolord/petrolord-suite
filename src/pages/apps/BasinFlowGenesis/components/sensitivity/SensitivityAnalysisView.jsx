@@ -162,16 +162,16 @@ const SensitivityAnalysisView = () => {
                         <div className="grid grid-cols-2 gap-2">
                             <div>
                                 <Label className="text-xs text-pl-muted">Min</Label>
-                                <Input type="number" step="any" data-testid="bf-sens-min" value={range.min} onChange={e => setRange({...range, min: +e.target.value})} className="h-8 text-xs" />
+                                <Input type="number" step="any" data-testid="bf-sens-min" value={range.min} onChange={e => setRange({...range, min: e.target.value})} className="h-8 text-xs" />
                             </div>
                             <div>
                                 <Label className="text-xs text-pl-muted">Max</Label>
-                                <Input type="number" step="any" data-testid="bf-sens-max" value={range.max} onChange={e => setRange({...range, max: +e.target.value})} className="h-8 text-xs" />
+                                <Input type="number" step="any" data-testid="bf-sens-max" value={range.max} onChange={e => setRange({...range, max: e.target.value})} className="h-8 text-xs" />
                             </div>
                         </div>
                         <div>
                              <Label className="text-xs text-pl-muted">Steps</Label>
-                             <Input type="number" data-testid="bf-sens-steps" value={range.steps} onChange={e => setRange({...range, steps: Math.max(2, +e.target.value)})} className="h-8 text-xs" />
+                             <Input type="number" data-testid="bf-sens-steps" value={range.steps} onChange={e => setRange({...range, steps: e.target.value})} className="h-8 text-xs" />
                         </div>
                         <div className="space-y-2">
                             <Label className="text-xs text-pl-muted" htmlFor="bf-sens-output">Read</Label>
