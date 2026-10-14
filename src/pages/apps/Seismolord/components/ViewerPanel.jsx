@@ -101,6 +101,7 @@ import { reprojectFeatures } from '@/lib/cultureImport';
 import { transformPoint, crsDisplayName, projectorFor } from '@/lib/crs';
 import { buildLabel } from '@/lib/platformBuild';
 import { sectionLineLabel, sectionCaption, verticalLabel, displayLabel } from '../lib/sectionCaption';
+import { verticalOf, timeOnlyReason } from '../lib/verticalDomain';
 import { normalizeTag, isTransformableTag, LOCAL } from '@/lib/crs/tags';
 import PlotDialog from './workspace/dialogs/PlotDialog';
 import ComputeAttributeDialog from './workspace/dialogs/ComputeAttributeDialog';
@@ -807,11 +808,15 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
   // depth-conversion for section/3D cursor readouts and the section depth
   // axis — the same converter family the map's depth domains use (layer
   // cakes convert per column via the loaded boundary grids)
-  const depthConv = useMemo(() => (velocityForDisplay && manifest
+  // P1.6: a depth-domain volume is already in depth; converting it through a
+  // velocity model would convert it twice, so it has no converter
+  const volVertical = useMemo(() => verticalOf(manifest), [manifest]);
+  const volDepth = volVertical.domain === 'depth';
+  const depthConv = useMemo(() => (velocityForDisplay && manifest && !volDepth
     ? makeDepthConverter(velocityForDisplay, {
       dtUs: manifest.geometry.dt_us, boundaries: velBoundaries,
     })
-    : null), [velocityForDisplay, manifest, velBoundaries]);
+    : null), [velocityForDisplay, manifest, velBoundaries, volDepth]);
 
   // resolved survey affine (well overlays + the synthetics window)
   const affine = useMemo(
@@ -826,6 +831,14 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
   // feedback 2026-09-22) shown on its explorer row and in a toast.
   const wellBuild = useMemo(() => {
     if (!manifest || !geom) return { sections: [], skipped: [] };
+    // P1.6: well paths are timed by checkshots or a velocity model; a depth
+    // volume would need them in depth below the seismic datum, not built yet
+    if (volDepth) {
+      return {
+        sections: [],
+        skipped: wells.map((w) => ({ id: w.id, name: w.name, code: 'depth_volume', reason: 'This volume is in depth, and wells are drawn on volumes in two-way time.' })),
+      };
+    }
     return buildWellSections({
       wells,
       geom,
@@ -835,7 +848,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
       boundaries: velBoundaries,
       checkshotsOf: (w) => effectiveCheckshots(w).rows,
     });
-  }, [wells, manifest, geom, affine, velocityForDisplay, velBoundaries]);
+  }, [wells, manifest, geom, affine, velocityForDisplay, velBoundaries, volDepth]);
   const wellSections = wellBuild.sections;
 
   // per visible well: drawn (with its T-D source) or why not; CRS skips
@@ -2755,6 +2768,8 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
         if (req !== mapSliceReqRef.current) return;    // superseded
         setMapTimeSlice({
           ...assembled, index: idx, ms: (idx * manifest.geometry.dt_us) / 1000,
+          // P1.6: a depth-domain volume's slice is at a depth
+          ...(verticalOf(manifest).domain === 'depth' ? { sliceWord: 'Depth slice', unit: verticalOf(manifest).unit } : {}),
         });
       } catch (e) {
         if (!isAborted(e) && req === mapSliceReqRef.current) {
@@ -3393,15 +3408,27 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
   const captionFor = useCallback((lineLabel, depth) => () => sectionCaption({
     volumeName: volume?.name,
     lineLabel,
-    depth,
-    depthUnit,
+    // a depth-domain volume (P1.6) is a depth picture in its own unit
+    depth: depth === null ? null : (depth || volDepth),
+    depthUnit: volDepth ? volVertical.unit : depthUnit,
     velocityText: depth && velocityForDisplay ? describeVelocity(velocityForDisplay) : null,
     display,
     crsName: volume?.crs ? crsDisplayName(volume.crs) : null,
     build: buildLabel(),
-  }), [volume, depthUnit, velocityForDisplay, display]);
+  }), [volume, depthUnit, velocityForDisplay, display, volDepth, volVertical]);
   const setUnitView = unitsHook.setUnit;
   const setDepthUnit = useCallback((u) => setUnitView('depth', u), [setUnitView]);
+  // P1.6: tools that work in two-way time refuse a depth volume with the reason
+  useEffect(() => {
+    const what = {
+      topsToHorizons: 'Tops to horizons',
+      velocity: 'The velocity model',
+      makeSurface: 'Make surface',
+    }[openDialog];
+    if (!what || !volDepth) return;
+    toast({ title: `${what} needs a time volume`, description: timeOnlyReason(manifest, what, volume?.name) });
+    setOpenDialog(null);
+  }, [openDialog, volDepth, manifest, volume, toast]);
   const isDepthSection = sectionDomain === 'depth'
     && (orientation === 'inline' || orientation === 'xline');
 
@@ -3724,8 +3751,8 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
     const g = manifest.geometry;
     if (orientation === 'inline') return `IL ${g.il.min + sliceIndex * g.il.step}`;
     if (orientation === 'xline') return `XL ${g.xl.min + sliceIndex * g.xl.step}`;
-    return `${(sliceIndex * g.dt_us) / 1000} ms`;
-  }, [manifest, orientation, sliceIndex]);
+    return `${(sliceIndex * g.dt_us) / 1000} ${volVertical.unit}`;
+  }, [manifest, orientation, sliceIndex, volVertical]);
 
   // the active volume's slice-plane children in the explorer, labeled
   // with the CURRENT positions (they follow scrubbing and map clicks)
@@ -3745,11 +3772,11 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
       },
       {
         key: 'time',
-        label: `Time slice ${(indices.time * g.dt_us) / 1000} ms`,
+        label: volDepth ? `Depth slice ${(indices.time * g.dt_us) / 1000} ${volVertical.unit}` : `Time slice ${(indices.time * g.dt_us) / 1000} ms`,
         visible: sliceVis.time,
       },
     ];
-  }, [manifest, indices, sliceVis]);
+  }, [manifest, indices, sliceVis, volDepth, volVertical]);
 
   // ---- workspace tree model + actions (explorer props) -------------------
   const tree = {
@@ -3932,6 +3959,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
               setDepthUnit={setDepthUnit}
               unitNote={<UnitProfileNote u={unitsHook} className="max-w-[12rem] text-[10px] leading-tight" />}
               depthReady={Boolean(depthConv)}
+              nativeDepth={volDepth ? volVertical.unit : null}
               orientation={orientation}
               setOrientation={setOrientation}
               lineLabel={lineLabel}
@@ -4527,6 +4555,9 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
               title: 'Synthetics',
               icon: Waves,
               content: (
+                volDepth ? (
+                  <p className="p-3 text-xs text-pl-muted" data-testid="sl-synthetics-depth">{timeOnlyReason(manifest, 'Synthetics and well ties', volume?.name)}</p>
+                ) : (
                 <SyntheticsPanel
                   wells={wellsApi.wells}
                   listLogs={listLogs}
@@ -4545,6 +4576,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
                   onClearCheckshots={clearDerivedCheckshots}
                   loadRockPhysicsGather={loadRockPhysicsGatherForWell}
                 />
+                )
               ),
             },
             {

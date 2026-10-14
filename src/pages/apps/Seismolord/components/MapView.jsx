@@ -1142,7 +1142,7 @@ function MapView({
       ctx.font = `${Math.round(11 * dpr)}px ui-monospace, monospace`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'bottom';
-      ctx.fillText(`Time slice ${p.timeSlice.ms} ms`, gl + 8 * dpr,
+      ctx.fillText(`${p.timeSlice.sliceWord || 'Time slice'} ${p.timeSlice.ms} ${p.timeSlice.unit || 'ms'}`, gl + 8 * dpr,
         canvas.height - (p.active || p.activeSurface ? 40 : 26) * dpr);
     }
 

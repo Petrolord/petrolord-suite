@@ -12,6 +12,7 @@ import { JobFailure } from '../runJob.js';
 import { seismicQuota, overQuotaMessage } from '../quota.js';
 import { matchStacks, shiftTrace, rotatePhase } from '../../../../packages/engines/engines/qi/conditioning.js';
 import { assertFloat32Parent, derivedStorageBytes, derivedSurveyMeta } from '../../../../src/pages/apps/Seismolord/services/attributeSurveyMeta.js';
+import { assertTimeDomain } from '../../../../src/pages/apps/Seismolord/lib/verticalDomain.js';
 import { storageBrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCache.js';
 import { v4BrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCodecV4.js';
 import { geomFromManifest, brickKey } from '../../../../packages/engines/engines/seismolord/sliceAssembly.js';
@@ -79,7 +80,7 @@ export async function matchStacksJob(ctx, deps) {
   });
   const vols = [ref, ...stacks.map((s) => s.row)];
   const mans = [];
-  for (const v of vols) { const m = await readManifest(`${v.storage_path}/manifest.json`); try { assertFloat32Parent(m); } catch (e) { throw new JobFailure('validate_failed', e.message); } mans.push(m); }
+  for (const v of vols) { const m = await readManifest(`${v.storage_path}/manifest.json`); try { assertFloat32Parent(m); assertTimeDomain(m, 'Stack matching'); } catch (e) { throw new JobFailure('validate_failed', e.message); } mans.push(m); }
   if (!mans.every((m) => sameLattice(m, mans[0]))) throw new JobFailure('validate_failed', 'The stacks are not on one lattice.');
   const need = derivedStorageBytes(mans[0]) * stacks.length;
   const q = await seismicQuota(admin, uid);

@@ -26,6 +26,7 @@ import {
   propertyGate, propertyClass, propertyShort, clampFraction,
 } from '../../../../src/pages/apps/QIStudio/services/propertyRun.js';
 import { assertFloat32Parent, derivedStorageBytes, derivedSurveyMeta } from '../../../../src/pages/apps/Seismolord/services/attributeSurveyMeta.js';
+import { assertTimeDomain } from '../../../../src/pages/apps/Seismolord/lib/verticalDomain.js';
 import { storageBrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCache.js';
 import { v4BrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCodecV4.js';
 import { geomFromManifest, brickKey } from '../../../../packages/engines/engines/seismolord/sliceAssembly.js';
@@ -109,7 +110,7 @@ export async function propertyPrediction(ctx, deps) {
     return JSON.parse(await data.text());
   });
   const manifest = await readManifest(`${source.storage_path}/manifest.json`);
-  try { assertFloat32Parent(manifest); } catch (e) { return fail('validate_failed', e.message); }
+  try { assertFloat32Parent(manifest); assertTimeDomain(manifest, 'Property prediction'); } catch (e) { return fail('validate_failed', e.message); }
   const ap = manifest.attribute?.params || {};
   const postAi = manifest.attribute?.name === 'qi_inversion' && ap.output === 'AI' && ap.product !== 'spread';
   const preAi = manifest.attribute?.name === 'qi_prestack_inversion' && ap.product === 'ai';

@@ -28,7 +28,7 @@ export default function HomeTab({
   overlayColormap, setOverlayColormap, overlayOpacity, setOverlayOpacity,
   overlayBlend, setOverlayBlend,
   onUndo, onRedo, canUndo, canRedo, undoLabel, redoLabel, onOpenSessions,
-  sectionDomain, setSectionDomain, depthReady, depthUnit = 'm', setDepthUnit = null, unitNote = null,
+  sectionDomain, setSectionDomain, depthReady, nativeDepth = null, depthUnit = 'm', setDepthUnit = null, unitNote = null,
   flattenHorizonId = null, setFlattenHorizonId = null, flattenChoices = [], flattenInfo = null,
   player = null,
 }) {
@@ -103,9 +103,11 @@ export default function HomeTab({
           value={sectionDomain}
           onChange={(e) => setSectionDomain(e.target.value)}
           disabled={!manifest || isTimeSlice || orientation === 'traverse' || !depthReady}
-          title={depthReady
-            ? 'Depth stretches the section per column through the velocity model (display only; picking is disabled in depth)'
-            : 'Depth needs a velocity model (layer cakes also need their boundary horizons loaded)'}
+          title={nativeDepth
+            ? `This volume is in depth already (${nativeDepth}), so its sections show on a depth axis without a velocity model`
+            : depthReady
+              ? 'Depth stretches the section per column through the velocity model (display only; picking is disabled in depth)'
+              : 'Depth needs a velocity model (layer cakes also need their boundary horizons loaded)'}
         >
           <option value="twt">Time (TWT)</option>
           <option value="depth">Depth</option>

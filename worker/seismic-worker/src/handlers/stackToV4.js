@@ -34,6 +34,7 @@ import { convertToSpool } from '../../../../src/pages/apps/Seismolord/services/c
 import { createTwoStageUpload } from '../../../../src/pages/apps/Seismolord/services/uploadV4.js';
 import { applyCrsToScan } from '../../../../src/pages/apps/Seismolord/services/ingestCrs.js';
 import { v4SurveyMeta } from '../../../../src/pages/apps/Seismolord/services/v4SurveyMeta.js';
+import { applyVerticalToManifest, depthDtUs } from '../../../../src/pages/apps/Seismolord/lib/verticalDomain.js';
 import { buildManifestV4, volumeDir } from '../../../../packages/engines/engines/seismolord/manifest.js';
 import { s3RangeReader } from '../s3.js';
 import { readTextualHeader } from '../../../../packages/engines/engines/seismolord/segyScan.js';
@@ -133,6 +134,8 @@ export async function stackToV4(ctx, deps) {
     });
     manifest.source.fingerprint = p.ingest_rec.fingerprint;
     if (cropRecord) manifest.source.crop = cropRecord;
+    // a depth import (P1.6): the vertical axis the user declared
+    applyVerticalToManifest(manifest, p.ingest_rec?.vertical);
 
     const need = record.bricks.display.storedBytes + record.bricks.f32.storedBytes;
     const q = await seismicQuota(admin, uid);
@@ -193,7 +196,11 @@ export async function cropAwareSource(raw, p, dataset, ctx = {}) {
     ctx.progress?.(0.01, 'Finding the kept traces');
     let prep;
     try {
-      prep = await planImportCrop({ raw, scan: p.scan, def: p.crop.def, mapping: p.scan.mapping, isCancelled: () => ctx.cancelled });
+      // a depth import's window is in its depth unit, read by the declared interval (P1.6)
+      const vertical = p.ingest_rec?.vertical?.domain === 'depth' ? p.ingest_rec.vertical : null;
+      prep = await planImportCrop({
+        raw, scan: p.scan, def: p.crop.def, mapping: p.scan.mapping, isCancelled: () => ctx.cancelled, ...(vertical ? { dtUs: depthDtUs(vertical) } : {}),
+      });
     } catch (e) {
       throw new JobFailure('validate_failed', `The crop could not be applied: ${e.message}`);
     }
@@ -201,7 +208,9 @@ export async function cropAwareSource(raw, p, dataset, ctx = {}) {
     const cropped = croppedSegyReader(raw, prep.layout, prep.plan, prep.crop, { sourceName: name, mapping: p.scan.mapping });
     const reader = await conversionView(cropped, prep.crop);
     const scan = await scanConversionView(reader, p.scan.mapping);
-    const cropRecord = importCropProvenance(prep, { file: { name, size: Number(dataset.bytes) }, mode: 'server', definitionId: p.crop.definition_id || null });
+    const cropRecord = importCropProvenance(prep, {
+      file: { name, size: Number(dataset.bytes) }, mode: 'server', definitionId: p.crop.definition_id || null, vertical: p.ingest_rec?.vertical || null,
+    });
     return { reader, scan, cropRecord };
   }
   const { reader } = await openSegyDoor(raw);

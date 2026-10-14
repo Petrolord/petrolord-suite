@@ -33,6 +33,7 @@ import { getProjectCrs, addCustomDef } from '@/lib/crs/settingsService';
 import { isTransformableTag, normalizeTag, UNKNOWN } from '@/lib/crs/tags';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { COORD_UNITS, SAMPLE_FORMATS, needsTraceLattice, inspectSegy } from '../lib/segyDoor';
+import { depthDeclaration, depthDtUs, depthPrefill, VELOCITY_TYPES } from '../lib/verticalDomain';
 
 const fmtInt = (v) => (v == null ? EMPTY_VALUE : v.toLocaleString('en-US'));
 const fmtBytes = (b) => (b >= 1024 ** 3 ? `${(b / 1024 ** 3).toFixed(2)} GB` : `${(b / 1024 ** 2).toFixed(1)} MB`);
@@ -66,12 +67,17 @@ export function ByteField({ value, max, onCommit, disabled, ariaLabel }) {
 }
 
 /** Why Start import stays off for this scan (SEIS-U1-002, -005), or null. */
-export function importBlockReason({ scan, domain, useV4, v4Support, compress16 }) {
+export function importBlockReason({ scan, domain, useV4, v4Support, compress16, verticalError = null }) {
   if (!scan) return null;
   if (domain === 'depth') {
-    return 'Seismolord interprets volumes in two-way time: a depth volume\'s sample axis would read as '
-      + 'milliseconds, and horizons picked on it would be depth converted a second time. Import the '
-      + 'time-migrated volume, or declare Two-way time if the header is wrong.';
+    // QI upgrade P1.6 (2026-10-15): depth volumes import with their declared
+    // unit and interval, through the background import or the server
+    if (verticalError) return verticalError;
+    if (!useV4) {
+      return 'A depth volume imports through the background import or the Petrolord server. '
+        + (compress16 ? 'Untick 16-bit storage, or choose the server.' : 'Choose the server: this browser cannot run the background import.');
+    }
+    return null;
   }
   if (needsTraceLattice(scan) && !useV4) {
     return 'This survey has an irregular outline or is not inline-sorted. It imports through the '
@@ -159,6 +165,8 @@ export default function ImportPanel({
   // textual-header hint prefills it once per file, never commits it
   const [domain, setDomain] = useState('time');
   const domainPrefilledRef = useRef(false);
+  // P1.6: a depth file's unit, sample interval and whether it holds velocities
+  const [depthForm, setDepthForm] = useState({ unit: 'm', dz: '', velocity: false, velocityType: 'interval' });
   const crsPrefilledRef = useRef(false);
   const [interrupted, setInterrupted] = useState([]); // status 'ingesting' rows
   const [resuming, setResuming] = useState(null);     // row being resumed
@@ -237,6 +245,7 @@ export default function ImportPanel({
     setSanityOverride(false);
     crsPrefilledRef.current = false;
     setDomain('time');
+    setDepthForm({ unit: 'm', dz: '', velocity: false, velocityType: 'interval' });
     domainPrefilledRef.current = false;
     runScan(f, mapping);
     if (onFilePicked) onFilePicked(f, mapping);
@@ -261,6 +270,7 @@ export default function ImportPanel({
         scan: cropped ? cropped.convScan : scanData.scan,
         crop: cropped ? { request: cropRequest(cropped.prep, file.name, mapping), provenance: cropped.provenance, bytes: cropped.cropped.size } : null,
         nativeCrs: crsTag,
+        ...(vertical ? { vertical } : {}),
         // the viewer re-lists volumes as the row becomes openable
         onRowChange: (status) => { if (onIngested) onIngested({ status, name: file.name }); },
       });
@@ -288,6 +298,7 @@ export default function ImportPanel({
       setSanityOverride(false);
       crsPrefilledRef.current = false;
       setDomain('time');
+      setDepthForm({ unit: 'm', dz: '', velocity: false, velocityType: 'interval' });
       domainPrefilledRef.current = false;
       setLinkProgress(null);
       runScan(remote, mapping);
@@ -307,6 +318,7 @@ export default function ImportPanel({
       await startRemoteConversion({
         remote: file, mapping, scan: scanData.scan, nativeCrs: crsTag,
         crop: def ? { def, definitionId: cropDefId, estimatedBytes: est?.croppedBytes } : null,
+        ...(vertical ? { vertical } : {}),
       });
       setServerStarted(true);
       setPhase('background');
@@ -330,18 +342,19 @@ export default function ImportPanel({
     setCropStatus('Finding the kept traces');
     try {
       const onProgress = (done, total) => setCropStatus(`Finding the kept traces from the headers: ${Math.round((100 * done) / Math.max(1, total))} percent`);
-      let prep = await planImportCrop({ raw, scan: scanData.scan, def, mapping, onProgress });
+      const dtOpt = cropDtUs ? { dtUs: cropDtUs } : {};
+      let prep = await planImportCrop({ raw, scan: scanData.scan, def, mapping, onProgress, ...dtOpt });
       let cropped = cropSource(raw, prep, { sourceName: file.name, mapping });
       if (prep.plan.verify) {
         try {
           await spotCheckCrop(cropped, prep.plan);
         } catch (e) {
           if (e?.name !== 'CropGridMismatch') throw e;
-          prep = await planImportCrop({ raw, scan: scanData.scan, def, mapping, fromHeaders: true, onProgress });
+          prep = await planImportCrop({ raw, scan: scanData.scan, def, mapping, fromHeaders: true, onProgress, ...dtOpt });
           cropped = cropSource(raw, prep, { sourceName: file.name, mapping });
         }
       }
-      const provenance = importCropProvenance(prep, { file, mode: forUpload ? 'upload' : 'browser', definitionId: cropDefId });
+      const provenance = importCropProvenance(prep, { file, mode: forUpload ? 'upload' : 'browser', definitionId: cropDefId, vertical });
       if (gathersOnly) return { prep, cropped, provenance };
       setCropStatus('Checking the cropped file');
       const view = await conversionView(cropped, prep.crop);
@@ -381,6 +394,7 @@ export default function ImportPanel({
       setUpload({ bytesDone: 0, bytesTotal: crop ? crop.fileLike.size : file.size });
       await startServerImport({
         file, mapping, scan: scanData.scan, nativeCrs: crsTag, onUploadProgress: uploadProgress(meter), signal: ctl.signal, crop,
+        ...(vertical ? { vertical } : {}),
       });
       forgetCropFor(file);
       setServerStarted(true);
@@ -468,6 +482,18 @@ export default function ImportPanel({
   };
 
   const scan = scanData?.scan;
+  // P1.6: the depth declaration (null for time), or why it cannot be used
+  const { vertical, verticalError } = useMemo(() => {
+    if (domain !== 'depth') return { vertical: null, verticalError: null };
+    try {
+      return {
+        vertical: depthDeclaration({ unit: depthForm.unit, dz: depthForm.dz, velocity: depthForm.velocity ? { type: depthForm.velocityType } : null }),
+        verticalError: null,
+      };
+    } catch (e) { return { vertical: null, verticalError: e.message }; }
+  }, [domain, depthForm]);
+  // the sample interval a depth window is read in (x 1000); null for time
+  const cropDtUs = vertical ? depthDtUs(vertical) : null;
 
   // the file's layout and gathers check (local files), for the crop step
   useEffect(() => {
@@ -488,15 +514,15 @@ export default function ImportPanel({
   // a link import's crop is applied on the server; checked here against the scan
   const remoteCrop = useMemo(() => {
     if (!file?.remote || !cropOn || !scan) return null;
-    try { return normalizeCrop(defFromForm(cropForm), { il: scan.il, xl: scan.xl, ns: scan.ns, dtUs: scan.dtUs }); } catch { return null; }
-  }, [file, cropOn, scan, cropForm]);
+    try { return normalizeCrop(defFromForm(cropForm), { il: scan.il, xl: scan.xl, ns: scan.ns, dtUs: cropDtUs || scan.dtUs }); } catch { return null; }
+  }, [file, cropOn, scan, cropForm, cropDtUs]);
   const cropProblem = useMemo(() => {
     if (!cropOn || !scan) return null;
     try {
-      normalizeCrop(defFromForm(cropForm), { il: scan.il, xl: scan.xl, ns: layoutInfo?.door?.ns || scan.ns, dtUs: layoutInfo?.door?.dtUs || scan.dtUs });
+      normalizeCrop(defFromForm(cropForm), { il: scan.il, xl: scan.xl, ns: layoutInfo?.door?.ns || scan.ns, dtUs: cropDtUs || layoutInfo?.door?.dtUs || scan.dtUs });
       return null;
     } catch (e) { return e.message; }
-  }, [cropOn, scan, cropForm, layoutInfo]);
+  }, [cropOn, scan, cropForm, layoutInfo, cropDtUs]);
 
   useEffect(() => {
     if (onBusyChange) onBusyChange(phase === 'ingesting' || phase === 'uploading' || phase === 'fetching');
@@ -531,6 +557,8 @@ export default function ImportPanel({
     if (!scan || domainPrefilledRef.current) return;
     domainPrefilledRef.current = true;
     if (scan.depthHint?.preselect) setDomain('depth');
+    // P1.6: the depth unit and interval as the header gives them, editable
+    setDepthForm((f) => ({ ...f, ...depthPrefill(scan) }));
   }, [scan]);
 
   // Plausibility of the scanned coordinates under the declared CRS.
@@ -566,12 +594,14 @@ export default function ImportPanel({
   const crsChosen = Boolean(crsTag);
   // the server import is always the v4 path, so the lattice rule is met
   const blockReason = gathers
-    ? 'This file holds prestack gathers (several traces at each inline and crossline), so it does not become a Seismolord volume. Upload it for QI Studio instead.'
+    ? domain === 'depth'
+      ? 'This file holds prestack gathers in depth. QI Studio\'s prestack tools work in two-way time, so depth gathers cannot be used there yet.'
+      : 'This file holds prestack gathers (several traces at each inline and crossline), so it does not become a Seismolord volume. Upload it for QI Studio instead.'
     : cropProblem ? `The crop is not valid: ${cropProblem}`
       : cropOn && !file?.remote && !useServer && !useV4
         ? 'Cropping runs in the background import or the server import. Choose the server, or untick 16-bit storage.'
         : importBlockReason({
-          scan, domain, useV4: useV4 || useServer, v4Support, compress16: useServer ? false : compress16,
+          scan, domain, useV4: useV4 || useServer, v4Support, compress16: useServer ? false : compress16, verticalError,
         });
   const busy = phase === 'ingesting' || phase === 'uploading' || phase === 'fetching';
   const sanityBlocks = Boolean(sanity && !sanity.ok && sanity.verdict === 'out-of-area' && !sanityOverride);
@@ -949,6 +979,54 @@ export default function ImportPanel({
                     : <>The textual header mentions &quot;{scan.depthHint.word}&quot; and also time, so Two-way time stays chosen. Check the header below if the volume is in depth.</>}
                 </div>
               )}
+              {domain === 'depth' && (
+                <div className="space-y-2 text-sm text-pl-text" data-testid="sl-import-depth">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="flex items-center gap-2">
+                      Depth unit
+                      <select
+                        className="rounded border border-pl-border-strong bg-pl-surface p-1 text-sm text-pl-text"
+                        value={depthForm.unit} onChange={(e) => setDepthForm({ ...depthForm, unit: e.target.value })}
+                        disabled={busy} aria-label="Depth unit" data-testid="sl-depth-unit"
+                      >
+                        <option value="m">metres</option>
+                        <option value="ft">feet</option>
+                      </select>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      Sample interval
+                      <input
+                        className="w-24 rounded border border-pl-border-strong bg-pl-surface px-2 py-1 text-sm text-pl-text"
+                        inputMode="decimal" value={depthForm.dz} onChange={(e) => setDepthForm({ ...depthForm, dz: e.target.value })}
+                        disabled={busy} aria-label="Depth sample interval" data-testid="sl-depth-dz"
+                      />
+                      {depthForm.unit === 'ft' ? 'ft' : 'm'}
+                    </label>
+                  </div>
+                  <p className="text-xs text-pl-muted">
+                    Prefilled from the file header (sample interval {scan.dtUs}, measurement system {scan.measurementSystem === 1 ? 'metres' : scan.measurementSystem === 2 ? 'feet' : 'unstated'}).
+                    Depth files store the interval in different ways, so check it against the processing report: {fmtInt(scan.ns)} samples at the interval above reach {vertical ? fmtInt(Math.round((scan.ns - 1) * vertical.dz)) : EMPTY_VALUE} {depthForm.unit === 'ft' ? 'ft' : 'm'}.
+                  </p>
+                  <label className="flex flex-wrap items-center gap-2">
+                    <input type="checkbox" checked={depthForm.velocity} onChange={(e) => setDepthForm({ ...depthForm, velocity: e.target.checked })} disabled={busy} data-testid="sl-depth-velocity" />
+                    This volume holds velocities
+                    {depthForm.velocity && (
+                      <select
+                        className="rounded border border-pl-border-strong bg-pl-surface p-1 text-sm text-pl-text"
+                        value={depthForm.velocityType} onChange={(e) => setDepthForm({ ...depthForm, velocityType: e.target.value })}
+                        disabled={busy} aria-label="Velocity type" data-testid="sl-depth-velocity-type"
+                      >
+                        {Object.entries(VELOCITY_TYPES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                      </select>
+                    )}
+                    {depthForm.velocity && <span className="text-xs text-pl-muted">in {depthForm.unit === 'ft' ? 'ft/s' : 'm/s'}</span>}
+                  </label>
+                  <p className="text-xs text-pl-muted">
+                    Seismolord shows a depth volume on a depth axis. Tools that work in two-way time (well ties and synthetics, the velocity model, tops to horizons, frequency attributes and QI Studio) say so and do not use it.
+                  </p>
+                  {verticalError && <p className="text-xs text-pl-danger-text" data-testid="sl-depth-error">{verticalError}</p>}
+                </div>
+              )}
             </div>
 
             {/* CRS assignment: the Petrel step. Nothing imports without an
@@ -1021,8 +1099,8 @@ export default function ImportPanel({
             </div>
 
             <CropPanel
-              scan={scan}
-              door={layoutInfo?.door || null}
+              scan={cropDtUs ? { ...scan, dtUs: cropDtUs } : scan}
+              door={layoutInfo?.door && cropDtUs ? { ...layoutInfo.door, dtUs: cropDtUs } : layoutInfo?.door || null}
               fileSize={file?.size || 0}
               domain={domain}
               enabled={cropOn}
@@ -1239,7 +1317,7 @@ export default function ImportPanel({
             <Button
               variant="outline"
               onClick={startGatherUpload}
-              disabled={busy || phase === 'background' || Boolean(cropProblem)}
+              disabled={busy || phase === 'background' || Boolean(cropProblem) || domain === 'depth'}
               data-testid="sl-upload-gathers"
               title="The gathers go to the worker store; build the gather store in QI Studio, Prestack tab"
             >

@@ -46,7 +46,7 @@ export function serverImportAdvice(fileSize, v4Support) {
  * @returns {Promise<{jobId: string, volumeId: string, datasetId: string}>}
  */
 export async function startServerImport({
-  file, mapping, scan, nativeCrs, name, onUploadProgress, signal, crop = null,
+  file, mapping, scan, nativeCrs, name, onUploadProgress, signal, crop = null, vertical = null,
 }, deps = {}) {
   const upload = deps.upload || uploadLargeFile;
   const prepare = deps.prepare || prepareV4Row;
@@ -57,9 +57,10 @@ export async function startServerImport({
   const sent = crop ? crop.fileLike : file;
   const dataset = await upload(sent, { name: name || file.name, onProgress: onUploadProgress, signal, fingerprint });
   // the row records the source file's name; its size and fingerprint are the uploaded file's
+  const v = vertical ? { vertical } : {};
   const prep = await prepare(crop
-    ? { file: { ...sent, name: file.name }, mapping, nativeCrs, name, crop: crop.provenance }
-    : { file, mapping, nativeCrs, name });
+    ? { file: { ...sent, name: file.name }, mapping, nativeCrs, name, crop: crop.provenance, ...v }
+    : { file, mapping, nativeCrs, name, ...v });
   const jobId = await enqueue('stack_to_v4', {
     dataset_id: dataset.id,
     volume_id: prep.volumeId,
@@ -132,10 +133,12 @@ export async function scanRemoteFile(remote, mapping, deps = {}) {
  * reads the stored file: only the kept traces and samples are converted and
  * stored as the volume.
  */
-export async function startRemoteConversion({ remote, mapping, scan, nativeCrs, name, crop = null }, deps = {}) {
+export async function startRemoteConversion({ remote, mapping, scan, nativeCrs, name, crop = null, vertical = null }, deps = {}) {
   const prepare = deps.prepare || prepareV4Row;
   const enqueue = deps.enqueue || enqueueJob;
-  const prep = await prepare({ file: { name: remote.name, size: crop?.estimatedBytes || remote.size }, mapping, nativeCrs, name, fingerprint: remote.fingerprint });
+  const prep = await prepare({
+    file: { name: remote.name, size: crop?.estimatedBytes || remote.size }, mapping, nativeCrs, name, fingerprint: remote.fingerprint, ...(vertical ? { vertical } : {}),
+  });
   const jobId = await enqueue('stack_to_v4', {
     dataset_id: remote.datasetId,
     volume_id: prep.volumeId,

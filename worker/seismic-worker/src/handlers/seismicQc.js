@@ -10,6 +10,7 @@
 import { JobFailure } from '../runJob.js';
 import { runSeismicQc, qcIssues } from '../../../../src/pages/apps/QIStudio/services/qcRun.js';
 import { assertFloat32Parent } from '../../../../src/pages/apps/Seismolord/services/attributeSurveyMeta.js';
+import { assertTimeDomain } from '../../../../src/pages/apps/Seismolord/lib/verticalDomain.js';
 import { storageBrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCache.js';
 import { v4BrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCodecV4.js';
 import { geomFromManifest, brickKey } from '../../../../packages/engines/engines/seismolord/sliceAssembly.js';
@@ -43,7 +44,7 @@ export async function seismicQc(ctx, deps) {
     return JSON.parse(await data.text());
   });
   const manifest = await readManifest(`${vol.storage_path}/manifest.json`);
-  try { assertFloat32Parent(manifest); } catch (e) { throw new JobFailure('validate_failed', e.message); }
+  try { assertFloat32Parent(manifest); assertTimeDomain(manifest, 'Seismic QC'); } catch (e) { throw new JobFailure('validate_failed', e.message); }
   const fetcher = deps.makeFetcher
     ? deps.makeFetcher(manifest)
     : v4BrickFetcher(storageBrickFetcher({ supabaseUrl: deps.supabaseUrl, getToken: async () => deps.serviceRoleKey, bucket: 'seismic' }), manifest);

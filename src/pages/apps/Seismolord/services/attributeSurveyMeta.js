@@ -8,9 +8,13 @@ import { ATTRIBUTE_DEFS } from '../engine/attributes';
 import { DISCONTINUITY_DEFS } from '../engine/discontinuity';
 import { mapGradientTransform } from '../engine/structureAttributes';
 import { surveyAffine } from '../engine/surveyGeometry';
+import { verticalMeta, isDepthVolume, verticalOf } from '../lib/verticalDomain';
 
 /** Every computable derived-volume attribute: per-trace + neighborhood. */
 export const ALL_ATTRIBUTE_DEFS = { ...ATTRIBUTE_DEFS, ...DISCONTINUITY_DEFS };
+
+/** Attributes whose values are frequencies or scaled by one (time volumes only, P1.6). */
+export const FREQUENCY_ATTRIBUTES = new Set(['inst_freq', 'sweetness', 'spectral']);
 
 /**
  * Why an attribute cannot be computed on this parent, or null. Today only
@@ -20,6 +24,11 @@ export const ALL_ATTRIBUTE_DEFS = { ...ATTRIBUTE_DEFS, ...DISCONTINUITY_DEFS };
 export function attributePrecheck(attributeName, parentManifest) {
   const def = Object.prototype.hasOwnProperty.call(ALL_ATTRIBUTE_DEFS, attributeName)
     ? ALL_ATTRIBUTE_DEFS[attributeName] : null;
+  // P1.6: frequencies (Hz) need a time axis; on a depth volume they would be
+  // cycles per thousand metres or feet, which no one reads as Hz
+  if (def && FREQUENCY_ATTRIBUTES.has(attributeName) && isDepthVolume(parentManifest)) {
+    return `${def.label} is measured in hertz, so it needs a volume in two-way time. This volume is in depth (${verticalOf(parentManifest).unit}).`;
+  }
   if (!def?.needsAffine) return null;
   try {
     mapGradientTransform(surveyAffine(parentManifest?.geometry));
@@ -62,6 +71,8 @@ export function derivedSurveyMeta(manifest, parentVolumeId) {
     ...(manifest.geometry.coord_scalar != null
       ? { coord_scalar: manifest.geometry.coord_scalar } : {}),
     ...(manifest.geometry.crs ? { crs: manifest.geometry.crs } : {}),
+    // a derived volume of a depth volume is in depth too (P1.6)
+    ...verticalMeta(manifest.geometry),
     brick: manifest.brick.grid,
     brick_size: manifest.brick.size,
     stats: manifest.stats,

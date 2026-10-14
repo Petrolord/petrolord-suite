@@ -31,6 +31,7 @@ import {
   makeScenarioInverters, blindSensitivity, spreadProducts, makeBlindInverter, blindProtocol, residualTrace, residualPercent,
 } from '../../../../src/pages/apps/QIStudio/services/inversionRun.js';
 import { assertFloat32Parent, derivedStorageBytes, derivedSurveyMeta } from '../../../../src/pages/apps/Seismolord/services/attributeSurveyMeta.js';
+import { assertTimeDomain } from '../../../../src/pages/apps/Seismolord/lib/verticalDomain.js';
 import { storageBrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCache.js';
 import { v4BrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCodecV4.js';
 import { geomFromManifest, brickKey } from '../../../../packages/engines/engines/seismolord/sliceAssembly.js';
@@ -144,7 +145,7 @@ export async function poststackInversion(ctx, deps) {
     return JSON.parse(await data.text());
   });
   const manifest = await readManifest(`${parent.storage_path}/manifest.json`);
-  try { assertFloat32Parent(manifest); } catch (e) { return fail('validate_failed', e.message); }
+  try { assertFloat32Parent(manifest); assertTimeDomain(manifest, 'Post-stack inversion'); } catch (e) { return fail('validate_failed', e.message); }
   const geom = geomFromManifest(manifest);
   const dtMs = Number(manifest.geometry.dt_us) / 1000;
   const { nIl, nXl, ns, brickSize: b } = geom;

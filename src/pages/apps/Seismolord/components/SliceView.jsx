@@ -246,7 +246,8 @@ function SliceView({
     const zScale = depthAxisInfo?.unit === 'ft' ? 1 / 0.3048 : 1;
     const twt = depthAxisInfo
       ? { title: `${depthAxisInfo.unit === 'ft' ? 'ft' : 'm'} TVDSS`, valueAtZero: depthAxisInfo.z0 * zScale, valuePerCell: depthAxisInfo.dz * zScale }
-      : { title: 'ms', valueAtZero: 0, valuePerCell: gm.dt_us / 1000 };
+      // P1.6: a depth-domain volume's samples are depths in its own unit
+      : { title: gm.vertical?.domain === 'depth' ? (gm.vertical.unit === 'ft' ? 'ft' : 'm') : 'ms', valueAtZero: 0, valuePerCell: gm.dt_us / 1000 };
     if (orientation === 'inline') return { x: xl, y: twt };
     if (orientation === 'xline') return { x: il, y: twt };
     if (orientation === 'traverse') {
@@ -1229,7 +1230,7 @@ function SliceView({
     if (!vals || !hint) return;
     if (info) {
       vals.textContent = `IL ${info.il}   XL ${info.xl}   `
-        + (info.ms != null ? `${info.ms.toFixed(1)} ms   ` : '')
+        + (info.ms != null ? `${info.ms.toFixed(1)} ${info.zUnit || 'ms'}   ` : '')
         + (info.z != null ? (propsRef.current.depthUnit === 'ft'
           ? `TVDSS ${(info.z / 0.3048).toFixed(1)} ft   ` : `TVDSS ${info.z.toFixed(1)} m   `) : '')
         + `amp ${info.amp === null ? 'null' : `${info.ampApprox ? '≈' : ''}${info.amp.toExponential(3)}`}`;
@@ -1283,6 +1284,8 @@ function SliceView({
       il: latticeNumber(geo.il.min, hit.ilIdx, geo.il.step),
       xl: latticeNumber(geo.xl.min, hit.xlIdx, geo.xl.step),
       ms,
+      // P1.6: on a depth-domain volume the sample axis reads in its depth unit
+      ...(geo.vertical?.domain === 'depth' ? { zUnit: `${geo.vertical.unit === 'ft' ? 'ft' : 'm'} depth` } : {}),
       z,
       amp: amp === NULL_F32 ? null : amp,
       // 8-bit display copy: the centre of the code's bin

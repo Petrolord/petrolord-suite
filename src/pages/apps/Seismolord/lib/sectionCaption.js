@@ -14,6 +14,10 @@ export function sectionLineLabel(geometry, orientation, index, traverseName = nu
   if (orientation === 'inline') return `Inline ${geometry.il.min + index * geometry.il.step}`;
   if (orientation === 'xline') return `Crossline ${geometry.xl.min + index * geometry.xl.step}`;
   const ms = (index * geometry.dt_us) / 1000;
+  // a depth-domain volume (P1.6): the slice is at a depth in its own unit
+  if (geometry.vertical?.domain === 'depth') {
+    return `Depth slice ${ms.toLocaleString('en-US', { maximumFractionDigits: 3 })} ${geometry.vertical.unit === 'ft' ? 'ft' : 'm'}`;
+  }
   return `Time slice ${ms.toLocaleString('en-US', { maximumFractionDigits: 3 })} ms`;
 }
 
