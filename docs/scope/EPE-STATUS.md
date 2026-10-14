@@ -98,6 +98,20 @@ inside the console and React remounted it on every render. Typing 2026 into
 Base year left 2 and the validation message "Enter a 4-digit year". The field
 is now declared at module level. Test: piaScreens.mount.test.jsx types 2026
 and 82.5 key by key (fails on the old code). No engine change.
+## 2026-10-13: reading the IRR (video programme)
+
+Two IRR readouts found on the Ekene runs while scripting the EPE videos:
+- The field without Ekene-11 reports NPV -$459K and IRR 13.53% at 10%: a
+  producing field earns first and pays its abandonment last, so its one root
+  is a borrowing rate. The Results Viewer now prints a caution under the KPIs
+  whenever the NPV and the IRR disagree about the discount rate
+  (`epeIrrCaution`, testid `epe-irr-caution`), checked on engine-computed flows
+  with a spend-first negative control (`epeIrrCaution.test.js`).
+- Monte Carlo showed IRR P90, P50 and P10 all -8.1% from one iteration in a
+  thousand (99.9% have no IRR). The IRR cards are held back when fewer than
+  half the iterations have an IRR, with a line that says so
+  (`irrStatsView`, testid `epe-mc-irr-held`).
+No engine change.
 
 ## 2026-10-14: a received forecast beside a per-well CSV counts both (engines 3.12.1)
 
