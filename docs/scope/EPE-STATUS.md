@@ -167,11 +167,3 @@ otherwise nothing is claimed. Logic: `src/pages/apps/epe/epeRunInputs.js`.
 Tests: `epeRunInputs.test.js` (replaced, added, removed, unchanged, other
 scenario, legacy dates) and `epeRunInputs.mount.test.jsx` (banner; fails on
 the old viewer). No migration, no engine or Edge Function change.
-## 2026-10-14: the applied price, year by year (video programme)
-
-A yearly price deck could not be checked against what the engine used: the
-engine stores each year's applied oil, gas and condensate price (deck,
-escalator and differential applied) but neither the Year-by-Year table nor
-the CSV/Excel exports showed them. Both now do when the run recorded them
-(older runs keep their columns). Test `epeAppliedPrices.test.jsx` runs a deck
-with a differential through the vendored engine.
