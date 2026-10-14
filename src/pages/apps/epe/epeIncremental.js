@@ -8,7 +8,9 @@
 // 1,980,235 - (-459,224) = 2,439,459 USD. The engine (cashflow.ts) values only
 // the rows it does not treat as sunk, on the PV-basis flow (real when the run
 // is on a real basis), with the exponent
-//   dexp(year) = (year - valuation year) + 0.5 on mid-year discounting.
+//   dexp(year) = (year - valuation year) - 0.5 on mid-year discounting
+// (valuation at 31 December of the valuation year; engine 3.12.3, owner
+// decision 2026-10-14, option A).
 // The increment here does the same, so when both runs share valuation year,
 // convention, basis and rate the incremental NPV equals the difference of the
 // two runs' NPVs (gate: __tests__/epeIncremental.test.js through the engine).
@@ -69,7 +71,7 @@ export function computeIncremental(base, second) {
   });
 
   const anchor = vb.valuationYear ?? years[0];
-  const half = vb.convention === 'mid_year' ? 0.5 : 0;
+  const half = vb.convention === 'mid_year' ? -0.5 : 0;
   const times = rows.map((r) => (r.year - anchor) + half);
   const rate = vb.ratePct !== null ? vb.ratePct / 100 : null;
   const npv = rate !== null

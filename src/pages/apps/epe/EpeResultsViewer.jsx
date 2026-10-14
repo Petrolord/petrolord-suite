@@ -25,6 +25,7 @@ import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS,
   GRID_STYLE, TOOLTIP_STYLE
 } from '@/utils/chartTheme';
+import { valuationYearOf, valuedAtText, conventionText } from '@/pages/apps/epe/epeValuation';
 import { epeIrrReason, epeIrrCaution } from '@/pages/apps/epe/epeIrrReason';
 import { usd3, niceTicks, tornadoTable, tornadoSentence, scheduleShiftNote } from '@/pages/apps/epe/epeTornado';
 import { compareRunInputs, fetchCaseInputs } from '@/pages/apps/epe/epeRunInputs';
@@ -303,7 +304,7 @@ const CashFlowProfile = ({ results }) => {
 // NPV vs discount rate (Wave D, audit 4.5): the classic profile exhibit.
 // Engine v3.8 writes kpis.npv_profile; older runs simply skip this panel.
 // ----------------------------------------------------------------------------
-const NpvProfileChart = ({ kpis }) => {
+const NpvProfileChart = ({ kpis, valuationYear = null }) => {
   const profile = kpis?.npv_profile;
   if (!Array.isArray(profile) || profile.length === 0) return null;
   const applied = kpis.discount_rate_applied_pct != null
@@ -316,7 +317,7 @@ const NpvProfileChart = ({ kpis }) => {
         NPV vs Discount Rate
       </h3>
       <p style={{ fontSize: 11, color: CHART_COLORS.axisText, margin: '0 0 6px 4px' }}>
-        On the run's PV basis and discounting convention. The dot marks the applied rate.
+        On the run's PV basis and {conventionText(kpis.discounting_convention)}{valuationYear ? `, ${valuedAtText(valuationYear)}` : ''}. The dot marks the applied rate.
       </p>
       <ChartFrame height={220} logoHeight={24} exportFilename="pe-studio-npv-vs-rate">
         <ComposedChart data={profile} margin={CHART_MARGINS.standard}>
@@ -1301,7 +1302,7 @@ const EpeResultsViewer = () => {
       const yrs = (v) => (v == null ? null : `${Number(v).toFixed(2)} yrs`);
       const vol = (v, unit) => (v == null || v === 0 ? null
         : `${Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 })} ${unit}`);
-      const conventionNote = kpis.discounting_convention === 'mid_year' ? ', mid-year' : '';
+      const conventionNote = `${kpis.discounting_convention === 'mid_year' ? ', mid-year' : ''}${valuationYearOf(kpis, runConfig) ? `, ${valuedAtText(valuationYearOf(kpis, runConfig))}` : ''}`;
       const kpiPairs = [
         [`NPV @ ${kpis.discount_rate_applied_pct != null ? Number(kpis.discount_rate_applied_pct).toFixed(1) : '10'}% (${kpis.pv_basis || 'real'}${conventionNote})`, money(kpis.npv)],
         ['IRR', kpis.irr != null ? pct(kpis.irr, 2) : 'n/a'],
@@ -1766,7 +1767,7 @@ if (loading) {
                 </div>
               )}
 
-              <NpvProfileChart kpis={results.kpis} />
+              <NpvProfileChart kpis={results.kpis} valuationYear={valuationYearOf(results.kpis, runConfig)} />
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }} className={epePanel}>

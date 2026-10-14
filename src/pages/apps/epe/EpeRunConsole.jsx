@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { payloadEscalators, followsInflation, simpleEscalators } from '@/pages/apps/epe/epeEscalation';
 import { snapshotOf, fetchCaseInputs } from '@/pages/apps/epe/epeRunInputs';
 import { labelForConfigKey } from '@/pages/apps/epe/epeConfigLabels';
+import { CONVENTION_HELP } from '@/pages/apps/epe/epeValuation';
 import EpeWaterDepthField from '@/pages/apps/epe/EpeWaterDepthField';
 import { AppHeader } from '@/components/ui/app-shell';
 import {
@@ -1027,6 +1028,7 @@ const EpeRunConsole = () => {
                   <option value="end_year">End of year</option>
                   <option value="mid_year">Mid-year</option>
                 </select>
+                <p className="text-xs text-pl-muted mt-1" data-testid="epe-convention-help">{CONVENTION_HELP}</p>
               </div>
               <NumField
                 errors={validationErrors}
