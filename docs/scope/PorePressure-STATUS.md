@@ -390,3 +390,15 @@ overpressure, so its shales still plot under the loading trend; Ekene's pressure
 disequilibrium (Eaton n 3). Tests: `__tests__/crossplotShales.test.jsx` (synthetic shales on one trend with
 slower sands: every sample counts the sands as unloaded, the negative control; the shale samples count none and
 recover the trend exponent; the view's sentence).
+## 2026-10-14: the window per section follows a user's shallowest seat
+
+Found in the Pore Pressure Studio lesson dry run on the Ekene copy: with "Shallowest seat at least 4,500 ft
+bml" the first shoe moved to 4,697 ft MD ("your minimum") while the window per section still ended its first
+section at the replaced 4,107 ft shoe (the vendored engine replaces the seat and keeps its own sections). The
+sections are now rebuilt from the seats as set when a minimum moved a shoe (`sectionsFromSeats` in
+`services/drillingWindow.js`: each section's highest planned mud against its lowest design fracture line; on
+the engine's own seats it returns the engine's sections). A section whose mud exceeds its design fracture
+line is said in amber (`pp-casing-section-closed`), and a margin that rounds to zero reads 0.00 (it read
+-0.00). Tests: `__tests__/minSeatSections.test.js` (the engine alone keeps the replaced shoe as the first
+section base, the negative control). Engines follow-up: the same rebuild belongs in
+`engines/porepressure/casingSeats.js` (Petrolord/petrolord-engines) so every consumer gets it.
