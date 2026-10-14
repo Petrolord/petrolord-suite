@@ -26,7 +26,7 @@ export default {
   },
   steps: [
     { id: 'profile', chapter: 'The asset profile', chapterSub: 'Terrain, lease and water depth',
-      say: 'Under the Petroleum Industry Act the terms follow the asset. Ekene is in shallow water, on a petroleum mining lease converted from an old oil mining lease, in thirty five metres of water. Terrain and lease status set the hydrocarbon tax and the production allowance; the terrain sets the royalty tranches.',
+      say: 'Under the Petroleum Industry Act the terms follow the asset. Ekene is in shallow water, on a petroleum mining lease converted from an old oil mining lease, in a hundred and fourteen point eight feet of water, which the field stores as thirty four point nine nine metres because the Act sorts terrain in metres. Terrain and lease status set the hydrocarbon tax and the production allowance; the terrain sets the royalty tranches.',
       do: async (d) => {
         for (const n of ['Shallow Water', 'PML', 'Converted']) { await d.moveTo(d.page.getByRole('button', { name: n, exact: true }).first()); await d.sleep(1800); }
         await d.moveTo(d.page.locator('#pia_water_depth_m')); await d.sleep(1800);

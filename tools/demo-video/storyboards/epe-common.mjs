@@ -27,10 +27,13 @@ export const FILES = {
   prodNo11: path.join(ASSETS, 'ekene-production-2p-without-ekene-11.csv'),
   opexNo11: path.join(ASSETS, 'ekene-opex-without-ekene-11.csv'),
   fieldNo11: path.join(ASSETS, 'ekene-production-field-without-ekene-11.csv'),
+  capexRev: path.join(ASSETS, 'ekene-capex-afe-revision.csv'),
+  capexHookup: path.join(ASSETS, 'ekene-capex-hookup.csv'),
 };
 /** Every case the EPE videos make (a setup clears them all). */
 export const ALL_VIDEO_CASES = /^(EPE demo|EPE probe|Lesson [A-D]\d+)/;
 const SLOT = { prod: 0, capex: 1, opex: 2 };
+const TITLE = { prod: 'Production Volumes', capex: 'CAPEX', opex: 'OPEX' };
 const DROP = { prod: 'Drop Production CSV here', capex: 'Drop CAPEX CSV here', opex: 'Drop OPEX CSV here' };
 
 export const t = (d, id) => d.page.getByTestId(id);
@@ -123,8 +126,12 @@ export async function newCase(d, name, description = '', { onCamera = false } = 
 export async function upload(d, slot, file, { tag = null, onCamera = false, replace = null, hold = 0, beforeConfirm = null } = {}) {
   const p = d.page;
   const zone = p.getByText(DROP[slot]).first();
+  // the slot's own card: an uploader that just succeeded shows "Upload another" and has no file input
+  const card = p.locator('div.rounded-lg, div[class*=card]', { has: p.getByText(TITLE[slot], { exact: true }) }).filter({ has: p.locator('input[type=file], button:has-text("Upload another")') }).last();
+  const again = card.getByRole('button', { name: 'Upload another' });
+  if (await again.count()) { if (onCamera) await d.click(again.first()); else await again.first().click(); await d.sleep(600); }
   if (onCamera) { await zone.scrollIntoViewIfNeeded(); await d.moveTo(zone); await d.sleep(400); }
-  await p.locator('input[type=file]').nth(SLOT[slot]).setInputFiles(file);
+  await card.locator('input[type=file]').first().setInputFiles(file);
   const confirm = p.getByRole('button', { name: 'Confirm Upload' }).first();
   await confirm.waitFor({ timeout: 30000 });
   await d.sleep(800);
@@ -303,3 +310,71 @@ export async function addDeck(d, rows, { onCamera = false } = {}) {
 }
 /** The results page's one-line KPI text (for checks). */
 export const headline = async (d) => (await d.page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 900);
+
+/** Monte Carlo inputs: { 'Oil price ($/bbl)': ['52.5', '75', '97.5'], ... } (triangular). */
+export async function setMc(d, spec, { onCamera = false, iterations = '1000', seed = '20261109' } = {}) {
+  const a = act(d, onCamera);
+  for (const [label, vals] of Object.entries(spec)) {
+    const row = d.page.locator('div.flex', { has: d.page.locator('label', { hasText: label }) }).filter({ has: d.page.locator('select') }).last();
+    const box = row.locator('input[type=checkbox]').first();
+    if (!(await box.isChecked())) await a.click(box);
+    if (vals) {
+      const nums = row.locator('input[type=number]');
+      for (let i = 0; i < vals.length; i++) await a.type(nums.nth(i), vals[i]);
+    }
+  }
+  const it = d.page.locator('select').filter({ has: d.page.locator('option[value="5000"]') }).first();
+  await a.select(it, iterations);
+  await a.type(d.page.getByPlaceholder('random'), seed);
+}
+export async function runMc(d, { onCamera = false } = {}) {
+  await act(d, onCamera).click(d.page.getByRole('button', { name: /Run Monte Carlo/ }));
+  await d.page.getByText(/^NPV P50$/i).first().waitFor({ timeout: 300000 });
+  await d.sleep(3000);
+}
+
+// ---------------------------------------------------------------- Well Cost & Time (Ekene-11's AFE)
+export const WCT = '/dashboard/apps/drilling/well-cost-time';
+export const WCT_SITE = 'EPE demo: Ekene Alpha';
+export const WCT_FILE = path.join(KIT_DIR, '10-drilling/ekene-11-well-cost.wct.json');
+/** A Well Cost & Time estimate "Ekene-11 AFE" with a saved run, on our own site and wellbore (off camera). */
+export async function seedWct(d, shared) {
+  const sb = await db(shared);
+  const { data: me } = await sb.auth.getUser();
+  const uid = me.user.id;
+  await sb.from('wp_sites').delete().eq('user_id', uid).eq('name', WCT_SITE);
+  const site = await sb.from('wp_sites').insert({ user_id: uid, name: WCT_SITE }).select('id').single();
+  if (site.error) throw new Error(`wct site: ${site.error.message}`);
+  const wb = await sb.from('wp_wellbores').insert({ user_id: uid, site_id: site.data.id, name: 'Ekene-11', depth_unit: 'ft', kb_elev_m: 25 }).select('id').single();
+  if (wb.error) throw new Error(`wct wellbore: ${wb.error.message}`);
+  const p = d.page;
+  await p.goto(`${shared.baseUrl}${WCT}`, { waitUntil: 'domcontentloaded' });
+  await p.getByText(WCT_SITE).first().waitFor({ timeout: 90000 });
+  await d.sleep(1500);
+  await p.getByText(WCT_SITE).first().click();
+  await d.sleep(2500);
+  await p.getByTestId('wct-import-file').setInputFiles(WCT_FILE);
+  await d.sleep(4000);
+  await p.getByTestId('wct-tab-report').click();
+  await d.sleep(2000);
+  await p.getByTestId('wct-save-run').click();
+  await d.sleep(4000);
+  return { siteId: site.data.id, wellboreId: wb.data.id };
+}
+/** CAPEX slot: import the estimate's AFE for a year (the WCT import dialog, #1100). */
+export async function importFromWct(d, { year = '2027', onCamera = false, hold = 0 } = {}) {
+  const a = act(d, onCamera);
+  const b = d.page.getByTestId('epe-from-wct');
+  await b.scrollIntoViewIfNeeded();
+  await a.click(b);
+  const dlg = dialog(d);
+  await dlg.getByTestId('epe-wct-import').waitFor({ timeout: 30000 });
+  await d.sleep(1200);
+  const pick = dlg.getByText(/Ekene-11 AFE/).first();
+  if (await pick.count()) await a.click(pick);
+  await a.type(dlg.getByTestId('epe-wct-year'), year);
+  if (hold) await d.sleep(hold);
+  await a.click(dlg.getByTestId('epe-wct-import'));
+  await d.page.getByRole('dialog').waitFor({ state: 'hidden', timeout: 60000 });
+  await d.sleep(2500);
+}

@@ -67,8 +67,11 @@ export default {
       say: 'Drop a revised file into the same scenario and the app offers to replace the one already there, ticked by default. Untick it only when the new file adds wells to the old one, because the engine adds together every file a run uses. Here we cancel.',
       do: async (d) => {
         const p = d.page;
+        const card = p.locator('div.rounded-lg, div[class*=card]', { has: p.getByText('Production Volumes', { exact: true }) }).filter({ has: p.locator('input[type=file], button:has-text("Upload another")') }).last();
+        const again = card.getByRole('button', { name: 'Upload another' });
+        if (await again.count()) { await d.click(again.first()); await d.sleep(600); }
         await d.moveTo(p.getByText('Drop Production CSV here').first());
-        await p.locator('input[type=file]').nth(0).setInputFiles(FILES.prod);
+        await card.locator('input[type=file]').first().setInputFiles(FILES.prod);
         await p.getByRole('button', { name: 'Confirm Upload' }).first().waitFor();
         await d.sleep(600);
         const sel = p.locator('select').filter({ has: p.locator('option[value="2P"]') }).first();

@@ -1,7 +1,8 @@
 // Petroleum Economics with Petrolord, Lesson A3: discounting and the
-// valuation date. The discount rate and the NPV against rate chart, end of
-// year or mid-year discounting, and the valuation year with history treated
-// as sunk, on the Ekene case.
+// valuation date. The discount rate and the NPV against rate chart, and the
+// valuation year with history treated as sunk, on the Ekene case. (Mid-year
+// discounting is left out: its convention was corrected on 2026-10-14,
+// owner option A, engine 3.12.3.)
 import {
   login, expectText, openRun, rerunWithEdits, runAnalysis, kpi, lessonCase, KIT_RUN, epeLessonMeta,
 } from './epe-common.mjs';
@@ -46,9 +47,9 @@ export default {
         await runAnalysis(d, { onCamera: true });
       } },
     { id: 'sunkres',
-      say: 'The N. P. V. jumps to fifteen point six million dollars, and none of that extra money is still to be made. For a decision taken today, the past is sunk: tick the box.',
+      say: 'The N. P. V. jumps to sixteen point three million dollars, and none of that extra money is still to be made. For a decision taken today, the past is sunk: tick the box.',
       do: async (d) => {
-        await expectText(d, npvText(d), /\$15\.6M/, 'history valued');
+        await expectText(d, npvText(d), /\$16\.3M/, 'history valued');
         await d.highlight(npvText(d)); await d.sleep(4500); await d.unhighlight();
       } },
     { id: 'next', chapter: 'Discounting', chapterSub: 'Next: the Nigerian fiscal regime',

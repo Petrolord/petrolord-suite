@@ -62,7 +62,7 @@ export default {
         const b = d.page.getByText('Year-by-Year Detail', { exact: true }).first();
         await b.scrollIntoViewIfNeeded(); await d.click(b); await d.sleep(1500);
         const row = d.page.locator('tr', { hasText: 'Oil price applied' }).first();
-        await expectText(d, row, /65\.00\s+70\.00\s+75\.00/, 'applied prices');
+        await expectText(d, row, /65\.00\s*70\.00\s*75\.00/, 'applied prices');
         await d.highlight(row); await d.sleep(3500); await d.unhighlight();
       } },
     { id: 'next', chapter: 'Prices', chapterSub: 'Next: discounting and the valuation date',

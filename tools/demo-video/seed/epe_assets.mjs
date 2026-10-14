@@ -5,6 +5,11 @@
 //                                             to field columns (oil_bbl, gas_mscf,
 //                                             water_bbl), the layout a received
 //                                             forecast uses
+//   ekene-capex-hookup.csv                    the kit's capex without the AFE row
+//                                             (the AFE comes from Well Cost & Time)
+//   ekene-capex-afe-revision.csv              the kit's capex with the Ekene-11
+//                                             drilling AFE revised 10% up
+//                                             (USD 12.98 MM), for the lessons
 //   ekene-opex-without-ekene-11.csv           USD 600,000 fixed plus USD 4 per
 //                                             barrel of oil and water, while
 //                                             the four producers flow
@@ -49,4 +54,8 @@ const stream = (r, re) => head.reduce((t, h, i) => (re.test(h) && no11(h) ? t + 
 const fieldOut = ['year,oil_bbl,gas_mscf,water_bbl', ...rows.map((r) => [r[0], stream(r, /_oil_bbl$/).toFixed(3), stream(r, /_gas_mscf$/).toFixed(3), stream(r, /_water_bbl$/).toFixed(3)].join(','))];
 fs.writeFileSync(path.join(out, 'ekene-production-field-without-ekene-11.csv'), `${fieldOut.join('\n')}\n`);
 fs.writeFileSync(path.join(out, 'ekene-opex-without-ekene-11.csv'), `${opexOut.join('\n')}\n`);
+const capex = read('ekene-capex.csv');
+const capexOut = capex.map((r, i) => (i > 0 && /AFE/.test(r[2]) ? [r[0], r[1], 'Ekene-11 drilling and completion (AFE revision 1)', String(Math.round(Number(r[3]) * 1.1))] : r).join(','));
+fs.writeFileSync(path.join(out, 'ekene-capex-hookup.csv'), `${capex.filter((r, i) => i === 0 || !/AFE/.test(r[2])).map((r) => r.join(',')).join('\n')}\n`);
+fs.writeFileSync(path.join(out, 'ekene-capex-afe-revision.csv'), `${capexOut.join('\n')}\n`);
 console.log(`wrote ${rows.length} years (${rows[0][0]} to ${rows[rows.length - 1][0]}) to ${out}`);

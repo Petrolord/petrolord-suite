@@ -1,16 +1,17 @@
 // Petroleum Economics Studio, demo 1: from the plan to the investment
 // decision (Ekene kit v4, 12-economics). A case for the Ekene field with
-// Ekene-11, the kit's production (tagged 2P), capex (the Ekene-11 AFE) and
-// opex, the Run Console set as the kit says (USD 75 flat, associated gas
-// unsold, valued at 1 January 2026 with history sunk, economic limit,
-// abandonment USD 6.8 MM, PIA in 35 m of water), the result, the cash flow,
+// Ekene-11, the kit's production (tagged 2P), capex (the Ekene-11 AFE from
+// Well Cost & Time, the hook-up from a CSV) and opex, the Run Console set as
+// the kit says (USD 75 flat, associated gas unsold, valuation year 2026 with
+// history sunk, economic limit, abandonment USD 6.8 MM, PIA in 114.8 ft of
+// water), the result, the cash flow,
 // and the decision: compared with the same field without Ekene-11 (a case
 // the setup makes), the well adds USD 2.44 MM.
 // `expectText` steps stop the take if the screen disagrees with the narration
 // (LENIENT=1 logs instead, for writing).
 import {
   login, expectText, deleteCases, seedCase, openCases, newCase, upload, openConsole, fillConsole, runAnalysis,
-  caseId, kpi, showTab, bodyText, FILES, KIT_CONSOLE,
+  caseId, kpi, showTab, bodyText, FILES, KIT_CONSOLE, seedWct, importFromWct,
 } from './epe-common.mjs';
 
 export const WITH = 'EPE demo: Ekene with Ekene-11';
@@ -44,16 +45,17 @@ export default {
     await login(d.page, shared.baseUrl, shared.env);
     await deleteCases(shared, new RegExp(`^${WITH}$`));
     await ensureWithout(d, shared);
+    await seedWct(d, shared);
     await openCases(d, shared);
     await d.page.evaluate(() => window.__demo.moveTo(900, 500, 10));
   },
   steps: [
     { id: 'intro', chapter: 'Petroleum Economics Studio', chapterSub: 'Is Ekene-11 worth drilling?',
-      say: 'Every plan ends with one question: is it worth the money? Ekene holds twelve point one four million stock tank barrels in place, the number ReservoirCalc Pro and Material Balance Studio agree on. Four wells have produced since twenty twenty, and Well Design Studio has planned the next one, Ekene eleven. Petroleum Economics Studio prices the field with and without it.',
-      sub: 'Every plan ends with one question: is it worth the money? Ekene holds 12.14 MM stb in place, the number ReservoirCalc Pro and Material Balance Studio agree on. Four wells have produced since 2020, and Well Design Studio has planned the next one, Ekene-11. Petroleum Economics Studio prices the field with and without it.',
+      say: 'Every plan ends with one question: is it worth the money? Ekene holds twelve point one four million stock tank barrels in place, the number ReservoirCalc Pro and Material Balance Studio agree on. Well Design Studio has planned the next well, Ekene eleven. Petroleum Economics Studio prices the field with and without it.',
+      sub: 'Every plan ends with one question: is it worth the money? Ekene holds 12.14 MM stb in place, the number ReservoirCalc Pro and Material Balance Studio agree on. Well Design Studio has planned the next well, Ekene-11. Petroleum Economics Studio prices the field with and without it.',
       do: async (d) => {
         await d.lowerThird('Ekene · 12.14 MM stb in place', 'ReservoirCalc Pro and Material Balance Studio · Ekene-11 planned in Well Design Studio');
-        await d.sleep(9000);
+        await d.sleep(6500);
         await d.lowerThird('');
         await d.sleep(600);
       } },
@@ -72,17 +74,18 @@ export default {
         } });
       } },
     { id: 'capex',
-      say: 'Capex is Ekene eleven itself: eleven point eight million dollars to drill and complete, the authority for expenditure behind the well design, and six hundred thousand to hook it up on the Ekene Alpha platform, both in twenty twenty seven.',
-      sub: 'Capex is Ekene-11 itself: US$ 11.8 MM to drill and complete, the authority for expenditure behind the well design, and US$ 0.6 MM to hook it up on the Ekene Alpha platform, both in 2027.',
+      say: 'Capex is Ekene eleven itself, and it comes from Well Cost and Time, where the drilling team costed the well Well Design Studio planned: an authority for expenditure of eleven point eight million dollars, spent in twenty twenty seven. The file keeps where it came from. The six hundred thousand dollar hook up on the Ekene Alpha platform is a small C. S. V. beside it.',
+      sub: 'Capex is Ekene-11 itself, and it comes from Well Cost & Time, where the drilling team costed the well Well Design Studio planned: an AFE of US$ 11.8 MM, spent in 2027. The file keeps where it came from. The US$ 0.6 MM hook-up on the Ekene Alpha platform is a small CSV beside it.',
       do: async (d) => {
-        await upload(d, 'capex', FILES.capex, { onCamera: true, beforeConfirm: async (dd) => {
-          await expectText(dd, preview(dd), /11800000[\s\S]*600000/, 'capex preview');
-          await dd.highlight(preview(dd)); await dd.sleep(4500); await dd.unhighlight();
-        } });
+        await importFromWct(d, { year: '2027', onCamera: true, hold: 1500 });
+        const pv = d.page.getByTestId('epe-wct-provenance');
+        await expectText(d, pv, /AFE 11,799,948 USD/, 'wct provenance');
+        await d.highlight(pv); await d.sleep(4000); await d.unhighlight();
+        await upload(d, 'capex', FILES.capexHookup, { onCamera: true, replace: false });
       } },
     { id: 'opex',
-      say: 'Opex is six hundred thousand dollars a year for the field, one hundred thousand more while Ekene eleven flows, and four dollars for every barrel of oil and water lifted.',
-      sub: 'Opex is US$ 600,000 a year for the field, US$ 100,000 more while Ekene-11 flows, and US$ 4 for every barrel of oil and water lifted.',
+      say: 'Opex is six hundred thousand dollars a year, one hundred thousand more while Ekene eleven flows, and four dollars a barrel of liquid.',
+      sub: 'Opex is US$ 600,000 a year, US$ 100,000 more while Ekene-11 flows, and US$ 4 a barrel of liquid.',
       do: async (d) => {
         await upload(d, 'opex', FILES.opex, { onCamera: true, hold: 2500 });
       } },
@@ -101,8 +104,8 @@ export default {
         await d.sleep(1000);
       } },
     { id: 'fiscal', chapter: 'Fiscal terms', chapterSub: 'PIA 2021, NTA 2025 from 2026',
-      say: 'The fiscal regime is the Petroleum Industry Act: shallow water, a petroleum mining lease, converted, in thirty five metres of water. The engine reads the framework year by year, so every valued year from twenty twenty six is taxed under the Nigeria Tax Act twenty twenty five.',
-      sub: 'The fiscal regime is the Petroleum Industry Act: shallow water, a petroleum mining lease, converted, in 35 m (115 ft) of water. The engine reads the framework year by year, so every valued year from 2026 is taxed under the Nigeria Tax Act 2025.',
+      say: 'The fiscal regime is the Petroleum Industry Act: shallow water, a petroleum mining lease, converted, in a hundred and fourteen point eight feet of water. From twenty twenty six the engine taxes under the Nigeria Tax Act twenty twenty five.',
+      sub: 'The fiscal regime is the Petroleum Industry Act: shallow water, a petroleum mining lease, converted, in 114.8 ft of water. From 2026 the engine taxes under the Nigeria Tax Act 2025.',
       do: async (d) => {
         await fillConsole(d, KIT_CONSOLE, { onCamera: true, only: ['regime', 'waterDepthM'] });
         await d.sleep(1500);
@@ -118,19 +121,19 @@ export default {
         await d.unhighlight();
       } },
     { id: 'irr',
-      say: 'There is no single I. R. R., and the app says why: the cash flow is positive in twenty twenty six, negative in twenty twenty seven when Ekene eleven is paid for, and negative again at the end for the abandonment. Three rates zero its N. P. V., so none of them is the return. Read the N. P. V.',
-      sub: 'There is no single IRR, and the app says why: the cash flow is positive in 2026, negative in 2027 when Ekene-11 is paid for, and negative again at the end for the abandonment. Three rates zero its NPV, so none of them is the return. Read the NPV.',
+      say: 'There is no single I. R. R., and the app says why: the cash flow turns negative when Ekene eleven is paid for and again for the abandonment, so three rates zero its N. P. V. Read the N. P. V.',
+      sub: 'There is no single IRR, and the app says why: the cash flow turns negative when Ekene-11 is paid for and again for the abandonment, so three rates zero its NPV. Read the NPV.',
       do: async (d) => {
         const why = d.page.getByTestId('epe-irr-reason');
-        await expectText(d, why, /-3\.68%, 36\.70% and 906\.44%/, 'IRR roots');
+        await expectText(d, why, /-3\.68%, 36\.70% and 906\.4\d%/, 'IRR roots');
         await why.scrollIntoViewIfNeeded();
         await d.highlight(why);
         await d.sleep(5000);
         await d.unhighlight();
       } },
     { id: 'kpis',
-      say: 'The oil price could fall to sixty four dollars a barrel before the field stops paying. And government takes ninety three percent of the undiscounted profit: royalty, hydrocarbon tax, companies income tax, and the levies.',
-      sub: 'The oil price could fall to US$ 64.1/bbl before the field stops paying. And government takes 93.2% of the undiscounted profit: royalty, hydrocarbon tax, companies income tax, and the levies.',
+      say: 'The oil price could fall to sixty four dollars a barrel before the field stops paying. And government takes ninety three percent of the undiscounted profit.',
+      sub: 'The oil price could fall to US$ 64.1/bbl before the field stops paying. And government takes 93.2% of the undiscounted profit.',
       do: async (d) => {
         const be = kpi(d, 'Breakeven oil price');
         await expectText(d, d.page.locator('body'), /Breakeven oil price\s*\$64\.1\/bbl\s*Government take\s*93\.2%/, 'breakeven, take');
@@ -145,14 +148,6 @@ export default {
         await expectText(d, d.page.locator('body'), /field life ends 2037/, 'limit year');
         await showTab(d, 'Cash Flow Profile');
         await d.sleep(6000);
-      } },
-    { id: 'waterfall',
-      say: 'The waterfall takes one year apart. In twenty twenty six, three million dollars of revenue becomes seven hundred and thirty nine thousand of cash after royalty, opex, the levies, hydrocarbon tax and income tax.',
-      sub: 'The waterfall takes one year apart. In 2026, US$ 3.0 MM of revenue becomes US$ 739K of cash after royalty, opex, the levies, hydrocarbon tax and income tax.',
-      do: async (d) => {
-        await showTab(d, 'Waterfall');
-        await expectText(d, d.page.locator('body'), /Waterfall: Year 2026[\s\S]*\+3\.0M[\s\S]*\+739K/, 'waterfall 2026');
-        await d.sleep(6500);
       } },
     { id: 'compare', chapter: 'The decision', chapterSub: 'With and without Ekene-11',
       say: 'Now the decision. The same field without Ekene eleven, its own case, is worth minus four hundred and fifty nine thousand: its remaining oil does not pay for its decommissioning. Compare Runs puts the two side by side, without first, as the base.',
