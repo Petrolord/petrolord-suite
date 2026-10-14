@@ -131,3 +131,47 @@ first, so a with-project run can be compared with a without-project run kept in
 its own case. Helper `epeIncremental.js`; gates `epeIncremental.test.js`
 (through the vendored engine; the invariant fails on the old discounting) and
 `epeCompareCases.mount.test.jsx`. No engine change.
+
+## 2026-10-14: comparison readability (video programme)
+
+Compare Runs printed money in whole compact units, so the Ekene increment of
+USD 2,439,459 read "$2.4M", the field "$2M", and the 2026 delta "$0.0037".
+Money on the page now reads to three significant figures like the Results
+Viewer (`fmtUsd3`: $2.44M, $1.98M, -$459K, $0 for differencing noise), the
+incremental block opens with one sentence ("On NPV at 10.00%, With Ekene-11
+is worth $2.44M more than Without Ekene-11.", testid `incremental-verdict`),
+and the header names the case in place of its id. Tests in
+`epeIncremental.test.js`.
+## 2026-10-14: PIA water depth in the user's depth unit (video programme)
+
+The Run Console asked for the PIA water depth in metres only. It now follows
+the user's unit profile: on the Oilfield preset (feet, the Nigerian default)
+it takes feet and states the stored value ("Stored as 34.99 m: the PIA sorts
+terrain by water depth in metres."). The config and the engine keep metres
+(`pia_water_depth_m`). Component `EpeWaterDepthField.jsx`, tests
+`epeWaterDepth.test.jsx`.
+## 2026-10-14: a run says when the case data changed after it (video programme)
+
+For the data governance story in the EPE demo videos. The Run Console now
+stores, on the epe_runs row, `parameters.inputs`: the input files the run
+priced (the production files of its scenario, every CAPEX and OPEX file) as
+`{ table, id, file_name, created_at, scenario_label }`. The Results Viewer
+compares that list with the case's files now and, when a file was replaced,
+added or removed, shows "The case data changed after this run:" with one line
+per slot (for example "Production: ekene-production-2p.csv was replaced by
+FSH - Ekene-11 low.generated.") and "Re-run to price the current data." with a
+Re-run with edits link (testid `epe-run-inputs-changed`). Run History marks
+such runs "Out of date" (testid `epe-run-out-of-date`). A run saved before
+this change falls back to dates (a file uploaded after the run is named);
+otherwise nothing is claimed. Logic: `src/pages/apps/epe/epeRunInputs.js`.
+Tests: `epeRunInputs.test.js` (replaced, added, removed, unchanged, other
+scenario, legacy dates) and `epeRunInputs.mount.test.jsx` (banner; fails on
+the old viewer). No migration, no engine or Edge Function change.
+
+## 2026-10-14: run list readability (video programme)
+
+The Run History strip and the case list badge printed the NPV in whole
+compact units ("NPV $2M" for 2,017,000 beside a results page reading $2.02M);
+both now use three significant figures. A run whose input was refreshed from
+its source (same file name) said "X was replaced by X"; it now says "X was
+replaced by a newer version (date)". Test added to `epeRunInputs.test.js`.
