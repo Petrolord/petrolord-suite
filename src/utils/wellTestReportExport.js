@@ -82,6 +82,7 @@ export const buildReportHeader = ({
  */
 export const buildCrossCheckRows = ({
   model, matchParams, matchMethodKind, fitResult, semilogResult, multiRateResult, isBuildup, isGas, skinWithheld,
+  mdhBuildupResult = null,
 }) => {
   const rows = [];
   const skin = (v) => (skinWithheld ? 'withheld' : f2(v));
@@ -96,9 +97,17 @@ export const buildCrossCheckRows = ({
   }
   if (semilogResult) {
     rows.push([
-      isBuildup ? 'Horner straight line' : 'MDH straight line',
+      isBuildup ? (semilogResult.method === 'superposition' ? 'Superposition straight line (rate history)' : 'Horner straight line') : 'MDH straight line',
       sig3(semilogResult.k), skin(semilogResult.skin),
       `Semilog slope, r2 ${f2(semilogResult.r2)}${isGas ? ', pseudo-pressure' : ''}`,
+    ]);
+  }
+  // 2026-10-14: the MDH line of a buildup on the same window
+  if (isBuildup && mdhBuildupResult) {
+    rows.push([
+      'MDH straight line (pws against log dt)',
+      sig3(mdhBuildupResult.k), skin(mdhBuildupResult.skin),
+      `Semilog slope, r2 ${f2(mdhBuildupResult.r2)}; the window reaches ${sig3(mdhBuildupResult.dtOverTp)} of tp${mdhBuildupResult.dtOverTp > 0.1 ? ', so MDH bends' : ''}`,
     ]);
   }
   if (multiRateResult) {
@@ -131,6 +140,8 @@ export const collectReportArgs = (ctx) => ({
   sqrtResult: ctx.sqrtMeaningful ? ctx.sqrtResult : null,
   pssResult: ctx.pssResult,
   multiRateResult: ctx.multiRateResult,
+  mdhBuildupResult: ctx.mdhBuildupResult || null,
+  faultResult: ctx.faultResult?.ok ? ctx.faultResult : null,
   deliverabilityResult: ctx.deliverabilityResult,
   rtaResult: ctx.rtaResult,
   rtaImport: ctx.rtaImport,
@@ -261,13 +272,22 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
 
   const straight = [];
   if (semilogResult) {
-    straight.push([isBuildup ? 'Horner slope m' : 'MDH slope m', `${isGas ? sci(u(dpKind, semilogResult.m)) : f1(u(dpKind, semilogResult.m))} ${dpUnit}/cycle`]);
+    straight.push([isBuildup ? (semilogResult.method === 'superposition' ? 'Superposition slope m' : 'Horner slope m') : 'MDH slope m', `${isGas ? sci(u(dpKind, semilogResult.m)) : f1(u(dpKind, semilogResult.m))} ${dpUnit}/cycle`]);
     straight.push(['Semilog k (md)', sig3(semilogResult.k)]);
     straight.push(['Semilog skin', prepared?.skinWithheld ? 'withheld' : f2(semilogResult.skin)]);
     if (isBuildup && Number.isFinite(semilogResult.pStar)) straight.push([`Extrapolated p* (${uL('pressure')})`, f1(u('pressure', semilogResult.pStar))]);
     straight.push(['Semilog fit r2', f2(semilogResult.r2)]);
     // the basis is named: the flow regimes below are in equivalent time
     if (Number.isFinite(semilogResult.windowMin)) straight.push([isBuildup ? 'Semilog fit window (shut-in time dt, hr)' : 'Semilog fit window (elapsed time, hr)', `${sig3(semilogResult.windowMin)} to ${sig3(semilogResult.windowMax)}`]);
+  }
+  // 2026-10-14: the second line and the fault distance (Gray 1965)
+  if (a.faultResult) {
+    const fr = a.faultResult;
+    straight.push(['Second line slope m2', `${isGas ? sci(u(dpKind, fr.m2)) : f1(u(dpKind, fr.m2))} ${dpUnit}/cycle`]);
+    straight.push(['Slope ratio m2/m1 (one sealing fault: 2)', f2(fr.ratio)]);
+    straight.push([`Lines meet at ${isBuildup ? 'dt' : 't'} (hr)`, sig3(fr.dtx)]);
+    straight.push([`Distance to a sealing fault, two lines (${uL('length')})`, sig3(u('length', fr.L))]);
+    if (isBuildup && Number.isFinite(fr.pStar2)) straight.push([`p* on the second line (${uL('pressure')})`, f1(u('pressure', fr.pStar2))]);
   }
   if (sqrtResult) straight.push(['sqrt(t) slope', `${f2(u(dpKind, sqrtResult.slope))} ${dpUnit}/hr^0.5`]);
   if (pssResult) {
@@ -283,6 +303,7 @@ export const buildWellTestPdf = (a, { logo = null, generatedAt = new Date() } = 
 
   const cross = buildCrossCheckRows({
     model, matchParams, matchMethodKind, fitResult, semilogResult, multiRateResult, isBuildup, isGas, skinWithheld: !!prepared?.skinWithheld,
+    mdhBuildupResult: a.mdhBuildupResult,
   });
   if (cross.length) {
     table('Cross-check of methods', ['Method', 'k (md)', 'Skin', 'Basis'], cross, {

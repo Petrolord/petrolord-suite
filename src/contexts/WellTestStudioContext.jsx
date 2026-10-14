@@ -1218,8 +1218,8 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   // into every save so other apps read the results by id (lib/wellTestSource)
   const wtaRecord = useMemo(() => buildWtaRecord({
     reservoirSpec, derivedKpis, configSpec, semilogResult, matchMethod, fitResult, model, skinBreakdown, prepared,
-    completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId, rateSkin, datum,
-  }), [datum, reservoirSpec, derivedKpis, configSpec, semilogResult, matchMethod, fitResult, model, skinBreakdown, prepared,
+    completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId, rateSkin, datum, history,
+  }), [history, datum, reservoirSpec, derivedKpis, configSpec, semilogResult, matchMethod, fitResult, model, skinBreakdown, prepared,
     completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId, rateSkin]);
 
   // ---- Project persistence ----

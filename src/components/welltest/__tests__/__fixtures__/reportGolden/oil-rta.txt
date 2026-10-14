@@ -72,13 +72,13 @@ vertical hole only. kv/kh not entered: 0.1 is assumed.
 
 
 Model match: Homogeneous reservoir (manual match)
- Parameter                                                                    Value                  95% confidence
+ Parameter                                                                   Value                   95% confidence
 
- Permeability (md)                                                            85.0                   n/a
+ Permeability (md)                                                           85.0                    n/a
 
- Skin factor (dimensionless)                                                  0.00                   n/a
+ Skin factor (dimensionless)                                                 0.00                    n/a
 
- Wellbore storage (bbl/psi)                                                   0.0100                 n/a
+ Wellbore storage (bbl/psi)                                                  0.0100                  n/a
 
 Manual match: no regression was run on these values, so no confidence intervals are given.
 
@@ -99,20 +99,22 @@ Straight-line analyses
 
 
 Cross-check of methods
- Method                                                                      k (md)         Skin           Basis
+ Method                                         k (md)    Skin       Basis
 
- Model match, Homogeneous reservoir                                          85.0           0.00           Manual match
+ Model match, Homogeneous reservoir             85.0      0.00       Manual match
 
- Horner straight line                                                        83.0           6.15           Semilog slope, r2 1.00
+ Horner straight line                           83.0      6.15       Semilog slope, r2 1.00
+
+ MDH straight line (pws against log dt)         114       10.82      Semilog slope, r2 0.99; the window reaches 0.975 of tp, so MDH bends
 
 Independent routes to the same permeability and skin. Agreement supports the interpretation; a spread points at the window or the model.
 
 Flow regimes observed
- Regime                                                       From (hr)                 To (hr)              Span (log cycles)
+ Regime                                                       From (hr)                 To (hr)             Span (log cycles)
 
- Transition between regimes                                   0.212                     1.57                 0.9
+ Transition between regimes                                   0.212                     1.57                0.9
 
- Radial flow                                                  4.05                      17.8                 0.6
+ Radial flow                                                  4.05                      17.8                0.6
 
 Detected on the Bourdet derivative; times are Agarwal equivalent time, which runs behind shut-in time late in a buildup. The semilog fit window
 above is in shut-in time.

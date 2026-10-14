@@ -84,6 +84,14 @@ describe('a buildup after a clean-up', () => {
     studio.unmount();
   }, 600000);
 
+  test('the productivity index sent to Nodal uses the last rate of the history, not the test rate q', async () => {
+    const studio = await setup('history');
+    await studio.act((c) => c.setReservoirField('q', '999'));
+    expect(studio.ctx.wtaRecord.productivity.q_stb_d).toBe(140);
+    expect(studio.ctx.wtaRecord.permeability.method).toMatch(/Superposition straight line/);
+    studio.unmount();
+  }, 600000);
+
   test('the auto-fit on the rate history recovers k, skin and C', async () => {
     const studio = await setup('history');
     await studio.act((c) => { c.setMatchField('k', '100'); c.setMatchField('skin', '0'); c.setMatchField('C', '0.01'); });

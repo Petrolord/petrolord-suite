@@ -13,9 +13,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
-import { unitLabel } from '@/utils/welltest/units';
+import { unitLabel, toOilfield } from '@/utils/welltest/units';
 import {
   readGaugeTable, detectGaugeMapping, convertGaugeRows, PRESSURE_UNITS, TIME_UNITS, TEMPERATURE_UNITS, PWF_SOURCE_TEXT, gaugeTime,
+  findTestStart, readRateHistoryCsv,
 } from '@/utils/welltest/gaugeImport';
 import { SectionLabel, Field, UnitField, UnitInput, fmt, valueWithUnit } from './primitives';
 import { createGaugeImporter } from '@/utils/welltest/gaugeImportClient';
@@ -247,6 +248,23 @@ const DataPanel = () => {
     reader.readAsText(file);
   };
 
+  // 2026-10-14: a rate history file (start time, rate), rates in the display unit
+  const rateFileRef = useRef(null);
+  const onRateFile = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const res = readRateHistoryCsv(String(ev.target.result || ''));
+      if (!res.ok) { addNotification(res.reason, 'error'); return; }
+      // the file is in the display unit; state is oilfield
+      setRateRows(res.rows.map((r) => ({ t: r.t, q: unitSystem === 'oilfield' ? r.q : String(toOilfield(rateKind, Number(r.q), unitSystem)) })));
+      addNotification(`Loaded ${res.rows.length} rate steps from ${file.name} (${res.timeCol} in hours, ${res.rateCol} in ${unitLabel(rateKind, unitSystem)}).`, 'success');
+    };
+    reader.readAsText(file);
+  };
+
   // v arrives oilfield: the rate input converts (UnitInput)
   const setRate = (i, key, v) => setRateRows(rateRows.map((r, idx) => (idx === i
     ? { ...r, [key]: v }
@@ -295,6 +313,18 @@ const DataPanel = () => {
             value={testConfig.testStartTime ?? ''}
             onChange={(v) => setTestField('testStartTime', v)}
           />
+          {/* 2026-10-14: read the shut-in (or the start of flow) off the gauge record */}
+          <Button size="sm" variant="outline" className="h-7" data-testid="wts-find-start" disabled={gaugeRows.length < 3}
+            onClick={() => {
+              // pressure rises at a shut-in and an injection start; it falls at a drawdown start and a falloff
+              const up = testConfig.testType === 'buildup' || testConfig.testType === 'injection';
+              const found = findTestStart(gaugeRows, up ? 'up' : 'down');
+              if (!found.ok) { addNotification(found.reason, 'info'); return; }
+              setTestField('testStartTime', String(Number(found.t.toPrecision(8))));
+              addNotification(`${isBuildupFamily ? 'Shut-in' : 'Start of flow'} found at ${gaugeTime(found.t)} hr on the gauge clock: the pressure ${up ? 'rises' : 'falls'} ${Math.abs(found.dp).toFixed(2)} psi in the next ${(found.dtNext * 3600).toFixed(0)} s, the steepest change in the record.`, 'success');
+            }}>
+            Find it in the gauge data
+          </Button>
           {isBuildupFamily && (
             <>
               <UnitField
@@ -478,6 +508,10 @@ const DataPanel = () => {
           {rateRows.length === 0 && (
             <p className="text-[11px] text-pl-muted">Optional: step rate history for flow-period QC and equivalent producing time.</p>
           )}
+          <input ref={rateFileRef} type="file" accept=".csv,text/csv,.txt" className="hidden" data-testid="wts-rates-file" onChange={onRateFile} />
+          <Button size="sm" variant="outline" className="h-7" data-testid="wts-import-rates" onClick={() => rateFileRef.current?.click()}>
+            <Upload className="w-3.5 h-3.5 mr-1" /> Import rates
+          </Button>
           {rateRows.map((r, i) => (
             <div key={i} className="flex items-center gap-2">
               <Input value={r.t} onChange={(e) => setRate(i, 't', e.target.value)} placeholder="Start hr" className="h-8" aria-label={`Start time, step ${i + 1} (hr)`} />

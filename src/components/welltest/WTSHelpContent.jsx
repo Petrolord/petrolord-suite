@@ -309,6 +309,17 @@ const WTSHelpContent = () => (
       when you prefer the one-rate form.
     </P>
 
+    <H>Finding the shut-in, and importing the rates</H>
+    <P>
+      When the gauge file holds the flowing period too, &quot;Find it in the gauge data&quot; under the gauge-clock time
+      reads the shut-in (or the start of flow) off the record: the steepest pressure change in the test&apos;s direction,
+      taken at the reading just before it, so that reading is the flowing pressure at shut-in. It compares rates of
+      change, so a clean-up shut-in read on a coarser clock is not mistaken for the final one, and it refuses a record
+      with no clear change or one that starts after the shut-in. &quot;Import rates&quot; reads a rate history file
+      with a start-time column and a rate column found by their headers (start_hr and oil_rate_stbd, for example), in
+      the display units.
+    </P>
+
     <H>MDH, and the distance to a sealing fault</H>
     <P>
       On the Specialized tab a buildup can be read on the Horner (or superposition) plot, where the line is carried to

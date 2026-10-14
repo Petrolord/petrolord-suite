@@ -129,7 +129,7 @@ export function buildWtaRecord(ctx, { now = new Date().toISOString(), projectId 
   const mm = ctx.matchMethod?.kind || 'none';
   const fit = mm === 'regression' ? ctx.fitResult : null;
   const fromMatch = k.source === 'match';
-  const lineName = isBuildup ? 'Horner straight line' : 'MDH straight line';
+  const lineName = isBuildup ? (sl?.method === 'superposition' ? 'Superposition straight line (rate history)' : 'Horner straight line') : 'MDH straight line';
   const permMethod = fromMatch
     ? `Model match, ${ctx.model?.label || 'model'}${fit ? (fit.converged ? ' (regression converged)' : ' (regression stopped early)') : ' (manual match)'}`
     : `${lineName}${isGas ? ' in pseudo-pressure' : ''}`;
@@ -225,7 +225,8 @@ export function buildWtaRecord(ctx, { now = new Date().toISOString(), projectId 
         family: cfg?.family,
         mirror: !!cfg?.mirror,
         testType: cfg?.testType ?? null,
-        q: r.q,
+        // the rate flowing before the shut-in: the history's last rate on the rate-history basis
+        q: isBuildup && ctx.history ? ctx.history.qn : r.q,
         pwf,
         pwfSource: isBuildup ? PWF_SOURCE_WORDS[ctx.prepared?.pwfSource?.kind] || null : null,
         pStar,

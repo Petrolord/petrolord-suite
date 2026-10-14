@@ -78,11 +78,13 @@ Well Test Analysis Report, Well Sample well 1                                   
 
 
 Cross-check of methods
- Method                                            k (md)                Skin             Basis
+ Method                                         k (md)   Skin      Basis
 
- Horner straight line                              83.0                  6.15             Semilog slope, r2 1.00
+ Horner straight line                           83.0     6.15      Semilog slope, r2 1.00
 
-Only one method has produced a result so far.
+ MDH straight line (pws against log dt)         114      10.82     Semilog slope, r2 0.99; the window reaches 0.975 of tp, so MDH bends
+
+Independent routes to the same permeability and skin. Agreement supports the interpretation; a spread points at the window or the model.
 
 Flow regimes observed
  Regime                                                     From (hr)                 To (hr)            Span (log cycles)
