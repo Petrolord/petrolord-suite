@@ -1,0 +1,9 @@
+[
+ {"key":"signIn","op":"signIn"},
+ {"key":"crs","op":"ensureCrs","tag":"EPSG:23031"},
+ {"key":"wells","op":"importWells","wells":"f3/wells.json","lasDir":"/srv/qi-benchmark/f3/nlog","addPhid":true},
+ {"key":"seismic","op":"importSeismic","file":"/srv/qi-benchmark/f3/F3_NLOG_IL99-136.sgy","name":"BENCH F3 NLOG IL99-136 (partial)","def":{"schema":1,"name":"BENCH F3 partial 0-3000 ms","il":{"from":99,"to":136,"step":1},"xl":{"from":1,"to":1419,"step":1},"polygon":null,"decimate":{"il":1,"xl":1},"window":{"from":0,"to":3000},"startAtZero":false},"wait":true},
+ {"key":"qc","op":"qc","volume":"BENCH F3 NLOG IL99-136 (partial)"},
+ {"key":"wellsOnVolume","op":"wells","volume":"BENCH F3 NLOG IL99-136 (partial)"},
+ {"key":"mine","op":"listMine"}
+]
