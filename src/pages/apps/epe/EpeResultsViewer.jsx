@@ -27,6 +27,7 @@ import {
 } from '@/utils/chartTheme';
 import { epeIrrReason, epeIrrCaution } from '@/pages/apps/epe/epeIrrReason';
 import { usd3, niceTicks, tornadoTable, tornadoSentence } from '@/pages/apps/epe/epeTornado';
+import { compareRunInputs, fetchCaseInputs } from '@/pages/apps/epe/epeRunInputs';
 import { AppHeader } from '@/components/ui/app-shell';
 import {
   epePage, epePanel, epeTile, epeH2, epeNum, epeNumCell, epeSigned, epePill,
@@ -1126,6 +1127,22 @@ const EpeResultsViewer = () => {
     fetchResults();
   }, [runId, toast, navigate]);
 
+  // The case data this run priced, compared with the case's files now
+  // (epeRunInputs.js): a replaced, added or removed file says so above the KPIs.
+  const [inputsCheck, setInputsCheck] = useState(null);
+  useEffect(() => {
+    if (!runDetails?.case_id) return undefined;
+    let alive = true;
+    fetchCaseInputs(supabase, runDetails.case_id)
+      .then((files) => {
+        if (!alive) return;
+        const scenario = runConfig ? (runConfig.production_scenario ?? null) : undefined;
+        setInputsCheck(compareRunInputs(runDetails, files, { scenario }));
+      })
+      .catch(() => { if (alive) setInputsCheck(null); });
+    return () => { alive = false; };
+  }, [runDetails, runConfig]);
+
   // -------------------------------------------------------------------------
   // Exports (v3.4): CSV / XLSX / branded PDF of the run
   // -------------------------------------------------------------------------
@@ -1559,6 +1576,25 @@ if (loading) {
             )}>
               {frameworkBadge(results.kpis)}
             </span>
+          )}
+          {inputsCheck?.state === 'changed' && (
+            <div className={`${epeCallout('warning')} max-w-3xl text-xs space-y-1`} data-testid="epe-run-inputs-changed">
+              <p className="font-medium">The case data changed after this run:</p>
+              <ul className="list-disc pl-5 space-y-0.5">
+                {inputsCheck.changes.map((c) => <li key={c}>{c}</li>)}
+              </ul>
+              <p>
+                Re-run to price the current data.
+                {isOwnRun && runDetails?.case_id && runDetails?.run_config_id && (
+                  <>
+                    {' '}
+                    <Link className="font-medium underline underline-offset-2" to={`/dashboard/apps/economics/epe/cases/${runDetails.case_id}/run?fromConfig=${runDetails.run_config_id}`}>
+                      Re-run with edits
+                    </Link>
+                  </>
+                )}
+              </p>
+            </div>
           )}
           {/* EC7 (engines 3.12.0): legacy PIA runs say so on the results */}
           {results?.kpis?.fiscal_regime === 'PIA'
