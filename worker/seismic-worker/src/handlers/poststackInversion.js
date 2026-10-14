@@ -23,6 +23,7 @@
 // the parent, the derived row and every horizon belong to the job's user,
 // and the derived volume fits the user's seismic quota.
 import { JobFailure } from '../runJob.js';
+import { pilotProblem, pilotOn, pilotBytes } from '../pilot.js';
 import { seismicQuota, overQuotaMessage } from '../quota.js';
 import {
   validateInversionParams, lfmWells, horizonsAtFrom, waveletScale, makeTraceInverter,
@@ -88,7 +89,7 @@ export function inversionSummary(inv, extra = {}) {
 export async function poststackInversion(ctx, deps) {
   let p;
   try { p = withUnpackedLogs(ctx.params || {}, 'inversion', ['ln_ai']); } catch (e) { throw new JobFailure('validate_failed', e.message); }
-  const problem = validatePoststackParams(p);
+  const problem = validatePoststackParams(p) || pilotProblem(p.pilot);
   if (problem) throw new JobFailure('validate_failed', problem);
   const uid = ctx.job.user_id;
   const { admin } = deps;
@@ -144,8 +145,10 @@ export async function poststackInversion(ctx, deps) {
     if (w.il < 0 || w.il >= nIl || w.xl < 0 || w.xl >= nXl) return fail('validate_failed', `Well ${w.name} is outside the survey.`);
     if (w.ln_ai.length !== ns) return fail('validate_failed', `Well ${w.name}: the impedance log has ${w.ln_ai.length} samples; the volume has ${ns}.`);
   }
+  let pilot = null;
+  try { pilot = p.mode === 'volume' ? pilotOn(p.pilot, manifest) : null; } catch (e) { return fail('validate_failed', e.message); }
   if (p.mode === 'volume') {
-    const need = derivedStorageBytes(manifest) * derived.length;
+    const need = (pilot ? pilotBytes(pilot.record, manifest) : derivedStorageBytes(manifest)) * derived.length;
     const q = await seismicQuota(admin, uid);
     if (q.used + need > q.quota) return fail('over_quota', overQuotaMessage(derived.length > 1 ? 'The inversion volumes' : 'The inversion volume', need, q));
   }
@@ -258,7 +261,7 @@ export async function poststackInversion(ctx, deps) {
   let result;
   try {
     result = await runVolumeJob({
-      geom, compute, fetchBrick, onBrick, outputs: derived.length,
+      geom, compute, fetchBrick, onBrick, outputs: derived.length, window: pilot?.window || null,
       shouldCancel: () => ctx.cancelled,
       onProgress: (done, total) => ctx.progress(0.03 + 0.92 * (total ? done / total : 0), 'Inverting'),
     });
@@ -277,6 +280,7 @@ export async function poststackInversion(ctx, deps) {
       const attribute = { name: INVERSION_ATTRIBUTE, params: { ...summary, ...product, blind, ...(sensitivity ? { sensitivity } : {}) } };
       const job = scenarioRun ? { ...result, stats: result.statsByOutput[o] } : result;
       const out = buildDerivedManifest({ volumeId: d.id, name: d.name, parentManifest: manifest, attribute, job });
+      if (pilot) out.pilot = pilot.record;
       await deps.storage.upload(manifestPath(uid, d.id), new TextEncoder().encode(JSON.stringify(out, null, 1)), { contentType: 'application/json', upsert: true });
       const { error } = await admin.from('seismic_volumes')
         .update({ status: 'ready', survey_meta: derivedSurveyMeta(out, parent.id), updated_at: new Date().toISOString() })
@@ -290,7 +294,7 @@ export async function poststackInversion(ctx, deps) {
       ...(scenarioRun ? { volume_ids: Object.fromEntries(SPREAD_PRODUCTS.map((x, o) => [x.key, derived[o].id])) } : {}),
       parent_volume_id: parent.id, volume_name: parent.name, settings: summary, blind,
       ...(sensitivity ? { sensitivity } : {}),
-      bricks: uploaded.length, trace_count: result.traceCount,
+      bricks: uploaded.length, trace_count: result.traceCount, ...(pilot ? { pilot: pilot.record } : {}),
     };
   } catch (e) {
     await cleanup();

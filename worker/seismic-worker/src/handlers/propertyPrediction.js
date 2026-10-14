@@ -19,6 +19,7 @@
 // handler checks what RLS would: every volume belongs to the job's user,
 // and the outputs fit the user's seismic quota.
 import { JobFailure } from '../runJob.js';
+import { pilotProblem, pilotOn, pilotBytes } from '../pilot.js';
 import { seismicQuota, overQuotaMessage } from '../quota.js';
 import {
   validatePropertyParams, calibrateProperty, predictTrace, faciesClass, PROPERTY_KINDS,
@@ -61,7 +62,7 @@ export function validatePropertyJob(p) {
 export async function propertyPrediction(ctx, deps) {
   let p;
   try { p = withUnpackedLogs(ctx.params || {}, 'property', ['ln_ai', 'target', 'vpvs']); } catch (e) { throw new JobFailure('validate_failed', e.message); }
-  const problem = validatePropertyJob(p);
+  const problem = validatePropertyJob(p) || pilotProblem(p.pilot);
   if (problem) throw new JobFailure('validate_failed', problem);
   const uid = ctx.job.user_id;
   const { admin } = deps;
@@ -129,8 +130,13 @@ export async function propertyPrediction(ctx, deps) {
     if (w.il < 0 || w.il >= nIl || w.xl < 0 || w.xl >= nXl) return fail('validate_failed', `Well ${w.name} is outside the survey.`);
     if (w.ln_ai.length !== ns) return fail('validate_failed', `Well ${w.name}: the logs have ${w.ln_ai.length} samples; the volume has ${ns}.`);
   }
+  // a pilot impedance volume holds only its window: the properties follow it
+  // unless the run names its own pilot
+  const pilotParam = p.pilot || (manifest.pilot ? { il: manifest.pilot.il, xl: manifest.pilot.xl, t_ms: manifest.pilot.t_ms, ...(manifest.pilot.crop_name ? { crop_name: manifest.pilot.crop_name } : {}) } : null);
+  let pilot = null;
+  try { pilot = p.mode === 'volume' ? pilotOn(pilotParam, manifest) : null; } catch (e) { return fail('validate_failed', e.message); }
   if (p.mode === 'volume') {
-    const need = derivedStorageBytes(manifest) * derived.length;
+    const need = (pilot ? pilotBytes(pilot.record, manifest) : derivedStorageBytes(manifest)) * derived.length;
     const q = await seismicQuota(admin, uid);
     if (q.used + need > q.quota) return fail('over_quota', overQuotaMessage('The property volumes', need, q));
   }
@@ -208,7 +214,7 @@ export async function propertyPrediction(ctx, deps) {
   let result;
   try {
     result = await runVolumeJob({
-      geom, compute, fetchBrick, onBrick, outputs: targets.length,
+      geom, compute, fetchBrick, onBrick, outputs: targets.length, window: pilot?.window || null,
       shouldCancel: () => ctx.cancelled,
       onProgress: (done, total) => ctx.progress(0.05 + 0.9 * (total ? done / total : 0), 'Predicting'),
     });
@@ -229,6 +235,7 @@ export async function propertyPrediction(ctx, deps) {
         : { product: key, product_label: `Porosity, ${key.toUpperCase()}`, qi_class: 'calibrated_prediction' };
       const attribute = { name: PROPERTY_ATTRIBUTE, params: { ...settings, ...product, summary: cal.summary, check: cal.rows } };
       const out = buildDerivedManifest({ volumeId: d.id, name: d.name, parentManifest: manifest, attribute, job: { ...result, stats: result.statsByOutput[o] } });
+      if (pilot) out.pilot = pilot.record;
       await deps.storage.upload(manifestPath(uid, d.id), new TextEncoder().encode(JSON.stringify(out, null, 1)), { contentType: 'application/json', upsert: true });
       const { error } = await admin.from('seismic_volumes')
         .update({ status: 'ready', survey_meta: derivedSurveyMeta(out, source.id), updated_at: new Date().toISOString() })
@@ -238,7 +245,7 @@ export async function propertyPrediction(ctx, deps) {
     // a facies named but absent at the wells has no model class: its registered row goes
     for (const d of derived) if (!targets.includes(d)) await admin.from('seismic_volumes').delete().eq('id', d.id).eq('user_id', uid);
     ctx.progress(1, 'Done');
-    return { mode: 'volume', volume_ids: Object.fromEntries(keys.map((k, o) => [k, targets[o].id])), settings, summary: cal.summary, rows: cal.rows, trace_count: result.traceCount };
+    return { mode: 'volume', volume_ids: Object.fromEntries(keys.map((k, o) => [k, targets[o].id])), settings, summary: cal.summary, rows: cal.rows, trace_count: result.traceCount, ...(pilot ? { pilot: pilot.record } : {}) };
   } catch (e) {
     await cleanup();
     throw e;
