@@ -376,6 +376,18 @@ const WTSHelpContent = () => (
       when the analyst takes the point.
     </P>
 
+    <H>The productivity index in Nodal Analysis Studio</H>
+    <P>
+      For an oil buildup or drawdown, every save also writes the productivity index of the test: J is the test rate
+      divided by the drawdown from the reservoir pressure (p* of the Horner line when the test gives one, else the
+      initial pressure) to the flowing pressure (at shut-in for a buildup, the last flowing reading for a drawdown).
+      It is also given with the skin pressure drop taken out of the drawdown, which is the PI the well would have with
+      zero skin. On the Report tab, Productivity to Nodal Analysis saves the project and opens Nodal Analysis Studio,
+      which shows the record on its Inflow tab and applies the pressure and J only when you pick As tested or Skin
+      removed. Gas tests, injection and falloff tests, and a buildup whose flowing pressure at shut-in is not known
+      send no index, and the Report tab says why.
+    </P>
+
     <H>Large gauge files</H>
     <P>
       A gauge file is read in the background, so the page stays usable while a file of several hundred thousand
