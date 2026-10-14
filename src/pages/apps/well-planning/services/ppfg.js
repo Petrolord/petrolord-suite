@@ -283,6 +283,9 @@ export function ppfgSourceLine(curves, { offsetName = null } = {}) {
 // trajectory, so the seats come out in TVD and are carried to MD on the
 // same rows. EMW in ppg (exact g, as the rows are).
 
+// the conductor section, where PP and FG converge on the seawater gradient,
+// is left out of the seat selection (the Pore Pressure Studio convention)
+export const SEATS_BELOW_TOP_M = 300;
 export const DEFAULT_TRIP_PPG = 0.5;
 export const DEFAULT_KICK_PPG = 0.5;
 

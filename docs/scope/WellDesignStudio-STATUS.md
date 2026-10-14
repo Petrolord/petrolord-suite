@@ -956,3 +956,34 @@ minimum SF to 2 decimals, as does the Anti-Collision run history
 (`fmtSf`, `runOptionLabel` in services/acUtils.js). Test:
 `__tests__/reportText.test.js` scans every string the three generators write
 for characters outside Latin-1 (fails on the sigma it replaced).
+## 2026-10-14: the prognosis a design was reviewed against
+
+The PPFG mud window reads the PP/FP/OBG Pore Pressure Studio published, live,
+so a republished prognosis moved the casing seats with nothing said (NAPE data
+governance theme: a change to a decision object says which downstream outputs
+need refreshing). A design now keeps a source reference for the prognosis
+(shared kit `src/lib/sourceFreshness`, new kind `ppfg_prognosis`):
+
+- Recorded with **Review against this prognosis** under Prognosis from
+  (testid `wd-ppfg-record`), or by Save with the window open when the design
+  has none for that well. Stored in `wp_designs.tie_on.sources.ppfg`
+  (`{ refs: { 'ppfg:<geo well id>': ref }, kept }`) beside md/inc/azi: no
+  schema change, and Save carries it over. The reference holds the curve rows
+  and pipeline (the fingerprint) and what the design saw on its trajectory:
+  casing seats at the default 0.5/0.5 ppg margins, the tightest window, the
+  highest pore pressure.
+- Checked when the design opens and when the panel loads; while the panel is
+  open only the well under Prognosis from (plus any recorded well whose
+  prognosis is gone). A republish or a deleted prognosis shows **Prognosis
+  changed** above the views (testid `wd-ppfg-source-changed`, with
+  `-refresh`, `-keep`, `-check`) with what moved on this trajectory in the
+  wellbore unit and ppg, and when it was republished. Refresh from source
+  records the publish now showing; Keep current values records that version.
+  An unchanged record reads "This design was reviewed against the prognosis
+  on ..., published ...; casing seats then at TVD ..." (`wd-ppfg-reviewed`).
+  Another well under Prognosis from is a new record, not a change.
+- Code: `services/ppfgSource.js`, `components/PpfgReviewStatus.jsx`,
+  DesignTab wiring; `SEATS_BELOW_TOP_M` moved to `services/ppfg.js`.
+  Tests: `__tests__/ppfgSourceChanged.test.jsx` (13), negative controls
+  (no reference: the seats move and nothing is reported; without the curve
+  row ids in the snapshot 6 fail).

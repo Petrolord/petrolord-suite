@@ -12,7 +12,7 @@ import {
   CartesianGrid, Tooltip, Legend, ReferenceLine,
 } from 'recharts';
 import { KG_M3_PER_PPG } from '@/lib/ppfgUnits';
-import { casingSeatsOnWindow, DEFAULT_TRIP_PPG, DEFAULT_KICK_PPG } from '../services/ppfg';
+import { casingSeatsOnWindow, DEFAULT_TRIP_PPG, DEFAULT_KICK_PPG, SEATS_BELOW_TOP_M } from '../services/ppfg';
 import { lineAt } from '../../PorePressureStudio/engine/casingSeats';
 import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE, GRID_STYLE } from '@/utils/chartTheme';
 import ChartLogo from '@/components/charts/ChartLogo';
@@ -24,9 +24,8 @@ const axisProps = {
 
 const FT = 0.3048;
 const G = 9.80665;
-// the conductor section, where PP and FG converge on the seawater gradient,
-// is left out of the seat selection (the Pore Pressure Studio convention)
-export const SEATS_BELOW_TOP_M = 300;
+// the conductor section is left out of the seat selection (services/ppfg)
+export { SEATS_BELOW_TOP_M };
 const MODES = {
   ppg: { pp: 'ppPpg', fp: 'fpPpg', obg: 'obgPpg', unit: 'ppg EMW', digits: 2, label: 'ppg' },
   emw: { pp: 'ppEmw', fp: 'fpEmw', obg: 'obgEmw', unit: 'g/cc EMW', digits: 2, label: 'g/cc' },
