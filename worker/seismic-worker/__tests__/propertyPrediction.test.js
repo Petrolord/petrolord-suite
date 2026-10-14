@@ -7,7 +7,8 @@
 // labels; then the guards: an impedance volume from an absolute inversion,
 // ownership, the output ids.
 import { propertyPrediction, validatePropertyJob, outputKeys } from '../src/handlers/propertyPrediction.js';
-import { calibrateProperty } from '../../../src/pages/apps/QIStudio/services/propertyRun';
+import { calibrateProperty, propertyIssues, propertyProtocolText } from '../../../src/pages/apps/QIStudio/services/propertyRun';
+import { packLog, unpackLog } from '../../../src/pages/apps/QIStudio/services/logPacking';
 import { NULL_VALUE } from '../../../packages/engines/engines/seismolord/manifest';
 import { KINDS } from '../src/handlers/index.js';
 
@@ -82,6 +83,28 @@ test('calibrate equals the run module on the same traces', async () => {
   expect(out.rows).toEqual(ref.rows);
   expect(out.summary.b).toBeCloseTo(-3.5e-5, 6);
   for (const r of out.rows) expect(r.corr).toBeGreaterThan(0.95);
+});
+
+test('truly blind check (QI upgrade P1.2): each well is predicted from the inversion\'s held-back estimate when the volume records it', async () => {
+  // the held-back estimates read 6 percent high at W1 to W3; W4 has none and was used by the inversion
+  const held = WELLS.slice(0, 3).map((w) => ({ name: w.name, il: w.il, xl: w.xl, ln_ai: packLog(Array.from({ length: NS }, (_, s) => Math.log(1.06 * aiAt(w.il, w.xl, s)))) }));
+  const params = { output: 'AI', method: 'model_based', wells: WELLS.map((w) => w.name), blind_traces: held };
+  const out = await propertyPrediction(ctxFor({ mode: 'calibrate', ai_volume_id: AIV, property: prop('porosity') }), depsFor({ [AIV]: SRC }, params));
+  const vol = WELLS.map((w) => Float32Array.from({ length: NS }, (_, s) => aiAt(w.il, w.xl, s)));
+  const blindAi = [...held.map((h) => Float64Array.from(unpackLog(h.ln_ai), Math.exp)), vol[3]];
+  expect(out.rows).toEqual(calibrateProperty({ pr: prop('porosity'), aiTraces: blindAi, dtMs: DT_MS }).rows);
+  // negative control: from the volume at every well the check reads differently (and better)
+  const fromVolume = calibrateProperty({ pr: prop('porosity'), aiTraces: vol, dtMs: DT_MS }).rows;
+  expect(out.rows[0].rms).toBeGreaterThan(fromVolume[0].rms * 2);
+  expect(out.blind_protocol.rows.map((r) => r.source)).toEqual(['held_back', 'held_back', 'held_back', 'volume_not_blind']);
+  expect(out.blind_protocol.fully_blind).toBe(false);
+  expect(propertyIssues(out, 'Dome AI').some((i) => /not blind at W4/.test(i.title))).toBe(true);
+  // a well the inversion did not use is blind by construction
+  const out2 = await propertyPrediction(ctxFor({ mode: 'calibrate', ai_volume_id: AIV, property: prop('porosity') }), depsFor({ [AIV]: SRC }, { ...params, wells: ['W1', 'W2', 'W3'] }));
+  expect(out2.blind_protocol.rows[3].source).toBe('not_in_inversion');
+  expect(out2.blind_protocol.fully_blind).toBe(true);
+  expect(propertyProtocolText(out2)).toMatch(/never saw it/);
+  expect(propertyProtocolText({})).toMatch(/not fully blind/);
 });
 
 test('porosity volumes: Q10 <= Q50 <= Q90, labelled calibrated predictions', async () => {

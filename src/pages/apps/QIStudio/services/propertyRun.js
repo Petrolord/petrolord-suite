@@ -24,6 +24,8 @@ export {
   PROPERTY_DEFAULTS, modeFilter, upscaleWells, fitProperty, predictTrace, posteriorTable, posteriorTable2D, calibrateProperty,
 } from '../engine/propertyCalibration';
 
+import { unpackLog } from './logPacking';
+
 export const PROPERTY_KINDS = {
   porosity: { label: 'Porosity from impedance' },
   facies: { label: 'Facies probability (Bayesian)' },
@@ -72,6 +74,8 @@ export function propertyIssues(result, volumeName = 'the impedance volume') {
   const out = [];
   const kind = result?.settings?.kind;
   const add = (key, severity, title, detail, remedy) => out.push({ key: `property:${volumeName}:${kind}:${key}`, area: 'Property prediction', severity, title, detail, remedy });
+  const notBlind = (result?.blind_protocol?.rows || []).filter((r) => r.source === 'volume_not_blind').map((r) => r.name);
+  if (notBlind.length) add('not-blind', 'medium', `The ${kind} check is not blind at ${notBlind.join(', ')}`, `The impedance volume used ${notBlind.length === 1 ? 'this well' : 'these wells'} and records no held-back estimate, so the check there leans on the well itself.`, 'Rerun the inversion volume (it now records each well held back), then the property check.');
   for (const r of result?.rows || []) {
     if (r.error) { add(`${r.name}:error`, 'medium', `${r.name}: no check`, r.error, 'Give the other wells enough labelled samples in the window.'); continue; }
     if (kind === 'facies') {
@@ -83,4 +87,63 @@ export function propertyIssues(result, volumeName = 'the impedance volume') {
     }
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Truly blind property check (QI upgrade P1.2, 2026-10-15). A well left out
+// of the property model used to be predicted from the impedance volume at
+// its trace, and that volume came from an inversion that had the well in its
+// low-frequency model and wavelet scale, so the check was not blind. An
+// inversion volume now records each well's held-back estimate
+// (blind_traces); the check predicts each left-out well from that estimate.
+
+/**
+ * The impedance (and Vp/Vs) the check predicts each well from, and the
+ * protocol row of each well.
+ * @param {Object} p
+ * @param {Array<{name, il, xl}>} p.wells the property job's wells
+ * @param {Object} p.aiParams the impedance volume's manifest attribute params
+ * @param {?Object} [p.vpvsParams] the Vp/Vs volume's manifest attribute params (two attributes)
+ * @param {Array<ArrayLike<number>>} p.aiTraces the volume's AI at each well
+ * @param {?Array<ArrayLike<number>>} [p.vpvsTraces]
+ * @returns {{aiTraces, vpvsTraces, protocol: {version, fully_blind: boolean, rows: Array<{name, source}>}}}
+ */
+export function blindCheckTraces({ wells, aiParams = {}, vpvsParams = null, aiTraces, vpvsTraces = null }) {
+  const used = new Set(aiParams.wells || []);
+  const held = (params, key) => new Map((params?.blind_traces || []).filter((x) => x?.[key]).map((x) => [x.name, x]));
+  const aiHeld = held(aiParams, 'ln_ai');
+  const vpHeld = vpvsParams ? held(vpvsParams, 'vpvs') : null;
+  const rows = []; const ai = []; const vp = vpvsTraces ? [] : null;
+  wells.forEach((w, k) => {
+    const h = aiHeld.get(w.name);
+    const sameTrace = h && h.il === w.il && h.xl === w.xl;
+    if (sameTrace) {
+      const ln = unpackLog(h.ln_ai);
+      ai.push(Float64Array.from(ln, (v) => (Number.isFinite(v) ? Math.exp(v) : NaN)));
+      if (vp) {
+        const hv = vpHeld?.get(w.name);
+        vp.push(hv && hv.il === w.il && hv.xl === w.xl ? Float64Array.from(unpackLog(hv.vpvs), (v) => (Number.isFinite(v) ? v : NaN)) : vpvsTraces[k]);
+      }
+      rows.push({ name: w.name, source: 'held_back' });
+    } else {
+      ai.push(aiTraces[k]);
+      if (vp) vp.push(vpvsTraces[k]);
+      rows.push({ name: w.name, source: used.has(w.name) ? 'volume_not_blind' : 'not_in_inversion' });
+    }
+  });
+  return { aiTraces: ai, vpvsTraces: vp, protocol: { version: 'held-back-v2', fully_blind: rows.every((r) => r.source !== 'volume_not_blind'), rows } };
+}
+
+export const BLIND_SOURCE_WORDS = {
+  held_back: 'the inversion with this well held back',
+  not_in_inversion: 'the impedance volume (the inversion did not use this well)',
+  volume_not_blind: 'the impedance volume, which used this well (not blind)',
+};
+
+/** The property check's protocol in words, for the panel and the report. */
+export function propertyProtocolText(result) {
+  const p = result?.blind_protocol;
+  if (!p) return 'Each well was left out of the property model and predicted from the impedance volume at its trace; that volume used every well, so the check was not fully blind (a result from before 2026-10-15).';
+  const notBlind = p.rows.filter((r) => r.source === 'volume_not_blind').map((r) => r.name);
+  return `Each well was left out of the property model and predicted from ${p.fully_blind ? 'an impedance estimate that never saw it: the inversion run with that well held back from its low-frequency model and wavelet scale, or an inversion that did not use it' : 'the impedance at its trace'}.${notBlind.length ? ` Not blind: ${notBlind.join(', ')} (the impedance volume used ${notBlind.length === 1 ? 'this well' : 'these wells'} and holds no held-back estimate; rerun the inversion to record one).` : ''}`;
 }

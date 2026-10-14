@@ -867,3 +867,15 @@ Owner, 2026-10-14: "Go with the light version and start priority 1. I also want 
 - **Report:** the objectives after the summary, the decisions after the issue register; the summary adds the count and the latest decision only when there is one, so earlier studies read as before.
 - **Decision:** no workflow engine, no locking and no enforced sign-off (the owner's light version). No migration (project payload).
 - **Tests:** `__tests__/qiGovernance.test.jsx` (7), including the decision kept out of the register as a negative control.
+
+### P1.2 Truly blind wells (2026-10-15; closes U2-008)
+- **Before:** a well left out of the blind check was out of the low-frequency model only. The wavelet scale (and the coloured operator) used every well, the field wavelet averaged its tie, and the property check predicted each left-out well from an impedance volume whose inversion had used it.
+- **Now (protocol `held-back-v2`):**
+  - post-stack: a held-back well is out of the model, the wavelet scale (coloured: the operator's impedance and seismic spectra) and, with the field wavelet, the average itself (the browser sends the other ties' average per well, `blind_wavelets`). Sensitivity scenarios hold the well back from their model and scale.
+  - simultaneous: out of the three models, the wavelet scale, the background Vs/Vp (unless typed) and the angle or field wavelet averages.
+  - property: each well is out of the property model (as before) and predicted from the inversion's held-back estimate at it, which every inversion volume now records (`attribute.params.blind_traces`, packed ln AI; Vp/Vs for the simultaneous Vp/Vs volume). A well the inversion never used is blind by construction. A volume from before the change gives "not blind" rows and a medium issue.
+  - Every result carries `blind_protocol` (what was excluded, the per-well scales, notes); the panels and the report state it. Older results say they held the well out of the model only.
+  - A wavelet that is one well's own tie wavelet is named in the protocol: that well's blind result is not independent of the wavelet.
+- **U2-008:** the Simultaneous tab offers its blind results to the issue register (AI or SI error over 10 percent medium, over 20 high; density correlation under 0.5 medium; density error over 10 percent low).
+- **Gates (call the shipped code):** each worker's blind table equals a hand-built held-back reference exactly; the earlier protocol (one scale on every well) is the negative control and differs when one well's log disagrees; re-breaking the exclusion in the run modules fails 3 post-stack and 2 prestack tests. The property check equals the engine calibration on the held-back traces, and from the volume traces it reads more than twice better at a biased well (negative control).
+- **Worker redeploy needed** (poststack_inversion, prestack_inversion, property_prediction).

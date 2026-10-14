@@ -14,7 +14,9 @@ import { prepareWell } from '../services/inversionWells';
 import { waveletChoices } from './InversionPanel';
 import ExportControls from './ExportControls';
 import { extractAngleWavelets } from '../services/angleWavelets';
-import { meanVsVp } from '../services/prestackRun';
+import { meanVsVp, simultaneousIssues } from '../services/prestackRun';
+import { blindProtocolText } from '../services/inversionRun';
+import { tieRows, leaveOneOutWavelets } from '../services/ties';
 import { describeWavelet, storedSamples } from '@/pages/apps/Seismolord/lib/wellWavelet';
 import { packLog } from '../services/logPacking';
 
@@ -38,7 +40,7 @@ export function simultaneousProblem(stacks) {
 }
 
 export default function SimultaneousPanel() {
-  const { chosenVolumes, ready, project, setSimultaneous, backend, jobs, canWrite } = useQIStudio();
+  const { chosenVolumes, ready, project, setSimultaneous, backend, jobs, canWrite, saveIssue, addNotification } = useQIStudio();
   const client = jobs || qiService;
   const [stacks, setStacks] = useState(Array.from({ length: 5 }, () => ({ volumeId: '', angle: '' })));
   const [wKey, setWKey] = useState('');
@@ -78,7 +80,15 @@ export default function SimultaneousPanel() {
         const thetaDeg = live.map((x) => Number(x.angle));
         const res = extractAngleWavelets({ wells, tracesByWell, thetaDeg, vsVp: meanVsVp(wells) });
         const dtMs = row.result_refs.dt_ms;
-        setSimultaneous({ angleWavelets: { at: row.finished_at || new Date().toISOString(), dtMs, items: res.map((r) => ({ angle: r.angle, samples: r.samples ? Array.from(storedSamples(r.samples)) : null, ...(r.samples ? describeWavelet(r.samples, dtMs) : {}), wells: r.wells })) } });
+        // truly blind (QI upgrade P1.2): the angle wavelets again without each
+        // well, so a held-back well does not shape the wavelets it is judged with
+        const blind = wells.length > 1 ? wells.map((w) => {
+          const keep = wells.map((x, j) => j).filter((j) => wells[j].name !== w.name);
+          let r2 = null;
+          try { r2 = extractAngleWavelets({ wells: keep.map((j) => wells[j]), tracesByWell: keep.map((j) => tracesByWell[j]), thetaDeg, vsVp: meanVsVp(keep.map((j) => wells[j])) }); } catch { r2 = null; }
+          return r2 && r2.every((x) => x.samples) ? { name: w.name, items: r2.map((x) => Array.from(storedSamples(x.samples))) } : null;
+        }).filter(Boolean) : [];
+        setSimultaneous({ angleWavelets: { at: row.finished_at || new Date().toISOString(), dtMs, items: res.map((r) => ({ angle: r.angle, samples: r.samples ? Array.from(storedSamples(r.samples)) : null, ...(r.samples ? describeWavelet(r.samples, dtMs) : {}), wells: r.wells })), blind } });
       });
     } catch (e) { setSt((m) => ({ ...m, aw: { error: qiService.friendlyError(e) } })); }
   };
@@ -92,10 +102,25 @@ export default function SimultaneousPanel() {
       setPrep({ wells });
     } catch (e) { setPrep({ error: e.message }); }
   };
+  // truly blind (QI upgrade P1.2): the wavelets each held-back well is judged with leave it out
+  const blindWaveletBlock = () => {
+    const names = usable.map((w) => w.name);
+    if (useAngle && awMatches) {
+      const bw = (aw.blind || []).filter((b) => names.includes(b.name) && b.items.length === live.length).map((b) => ({ name: b.name, wavelets: b.items.map((x) => ({ samples: x, dt_ms: aw.dtMs })) }));
+      return bw.length ? { blind_wavelets: bw } : {};
+    }
+    if (wavelet?.key === 'field') {
+      const bw = leaveOneOutWavelets(tieRows(ready), names);
+      return bw.length ? { blind_wavelets: bw } : {};
+    }
+    const own = wavelet?.key?.startsWith('well:') ? ready.find((r) => `well:${r.well.id}` === wavelet.key)?.well?.name : null;
+    return own ? { wavelet_well: own } : {};
+  };
   const block = () => ({
     stacks: live.map((s) => ({ volume_id: s.volumeId, angle: Number(s.angle) })),
     wavelet: { samples: wavelet.samples, dt_ms: wavelet.dtMs },
     ...(useAngle && awMatches ? { wavelets: aw.items.map((it) => ({ samples: it.samples, dt_ms: aw.dtMs })) } : {}),
+    ...blindWaveletBlock(),
     wells: usable.map((w) => ({ name: w.name, il: w.il, xl: w.xl, ln_ai: packLog(w.ln_ai), ln_si: packLog(w.elastic.ln_si), ln_rho: packLog(w.elastic.ln_rho) })),
     horizon_ids: hz,
   });
@@ -134,6 +159,11 @@ export default function SimultaneousPanel() {
     return null;
   };
   const busy = (k) => !!st[k]?.job && qiService.isActive(st[k].job);
+  const simIssues = useMemo(() => simultaneousIssues(saved.blind?.result?.blind, saved.blind?.volumeName), [saved.blind]);
+  const addSimIssues = () => {
+    for (const i of simIssues) saveIssue({ ...i, status: 'open', owner: '' });
+    addNotification(`${simIssues.length} simultaneous issue${simIssues.length === 1 ? '' : 's'} added to the register.`, 'success');
+  };
 
   if (chosenVolumes.length < 3) return <section className={card}><p className={muted}>Choose at least three angle stack volumes on Setup for a simultaneous inversion.</p></section>;
   return (
@@ -199,12 +229,17 @@ export default function SimultaneousPanel() {
         )}
       </div>
       {saved.blind?.result && (
+        <>
         <table className="text-xs" data-testid="qi-sim-blind-table">
           <thead><tr><th className={th}>Well</th><th className={th}>AI error (percent)</th><th className={th}>SI error</th><th className={th}>Density error</th><th className={th}>Density correlation</th></tr></thead>
           <tbody className="font-mono tabular-nums">
             {saved.blind.result.blind.map((r) => <tr key={r.name}><td className={`${td} font-sans`}>{r.name}</td><td className={td}>{f1(r.blind.ai.rmsPct)}</td><td className={td}>{f1(r.blind.si.rmsPct)}</td><td className={td}>{f1(r.blind.rho.rmsPct)}</td><td className={td}>{f2(r.blind.rho.corr)}</td></tr>)}
           </tbody>
         </table>
+        {/* QI upgrade P1.2: the protocol, and the blind results to the register (U2-008) */}
+        <p className={muted} data-testid="qi-sim-blind-protocol">{blindProtocolText(saved.blind.result)}</p>
+        {simIssues.length > 0 && canWrite && <button type="button" className={btn} onClick={addSimIssues} data-testid="qi-sim-issues">{`Add ${simIssues.length} simultaneous issue${simIssues.length === 1 ? '' : 's'} to the register`}</button>}
+        </>
       )}
       {(saved.runs || []).length > 0 && (
         <table className="text-xs" data-testid="qi-sim-runs">

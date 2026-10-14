@@ -11,9 +11,11 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import * as qiService from '@/lib/qiService';
 import { useQIStudio } from '../QIStudioContext';
 import PilotArea, { EMPTY_PILOT, pilotParam, pilotName, pilotFormProblem } from './PilotArea';
-import { tieRows, waveletComparison } from '../services/ties';
+import { tieRows, waveletComparison, leaveOneOutWavelets } from '../services/ties';
 import { prepareWell } from '../services/inversionWells';
-import { INVERSION_METHODS, INVERSION_DEFAULTS, inversionIssues, validateSensitivity, MAX_SCENARIOS } from '../services/inversionRun';
+import {
+  INVERSION_METHODS, INVERSION_DEFAULTS, inversionIssues, validateSensitivity, MAX_SCENARIOS, blindProtocolText,
+} from '../services/inversionRun';
 import ExportControls from './ExportControls';
 import { packLog } from '../services/logPacking';
 
@@ -141,9 +143,21 @@ export default function InversionPanel() {
     }
   };
   const usable = prep?.wells?.filter((w) => w.ok) || [];
+  // truly blind (QI upgrade P1.2): with the field wavelet, each held-back
+  // well gets the average of the other ties; with one well's own tie
+  // wavelet, the protocol names that well
+  const blindWaveletBlock = () => {
+    if (wavelet?.key === 'field') {
+      const bw = leaveOneOutWavelets(tieRows(ready), usable.map((w) => w.name));
+      return bw.length ? { blind_wavelets: bw } : {};
+    }
+    const own = wavelet?.key?.startsWith('well:') ? ready.find((r) => `well:${r.well.id}` === wavelet.key)?.well?.name : null;
+    return own ? { wavelet_well: own } : {};
+  };
   const inversionBlock = () => ({
     method: s.method,
     wavelet: { samples: wavelet.samples, dt_ms: wavelet.dtMs },
+    ...blindWaveletBlock(),
     wells: usable.map((w) => ({ name: w.name, il: w.il, xl: w.xl, ln_ai: packLog(w.ln_ai) })),
     horizon_ids: s.horizonIds,
     lfmHz: Number(s.lfmHz),
@@ -329,6 +343,7 @@ export default function InversionPanel() {
         <div className="space-y-2" data-testid="qi-inv-blind-result">
           <p className={muted}>{`Blind-well check on ${saved.blind.volumeName}, ${String(saved.blind.at).slice(0, 16).replace('T', ' ')}: ${INVERSION_METHODS[saved.blind.result.settings?.method]?.label || ''}. Errors compare AI with each log after a high cut at ${INVERSION_DEFAULTS.truthHz} Hz.${Number.isFinite(saved.blind.result.settings?.wavelet_scale) ? ` Wavelet scaled to the seismic at the wells by ${saved.blind.result.settings.wavelet_scale.toPrecision(3)}.` : ''}`}</p>
           <BlindTable result={saved.blind.result} />
+          <p className={muted} data-testid="qi-inv-blind-protocol">{blindProtocolText(saved.blind.result)}</p>
           {issues.length > 0 && canWrite && <button type="button" className={btn} onClick={addIssues} data-testid="qi-inv-issues">{`Add ${issues.length} inversion issue${issues.length === 1 ? '' : 's'} to the register`}</button>}
         </div>
       )}

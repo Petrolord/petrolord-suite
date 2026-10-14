@@ -16,7 +16,7 @@ import { JobFailure } from '../runJob.js';
 import { pilotProblem, pilotOn, pilotBytes } from '../pilot.js';
 import { seismicQuota, overQuotaMessage } from '../quota.js';
 import {
-  validatePrestackParams, meanVsVp, prestackLfm, prestackWaveletScale, makeCdpInverter, prestackBlindTable, prestackProducts, PRESTACK_DEFAULTS, PRESTACK_PRODUCTS,
+  validatePrestackParams, prestackBlindTable, prestackProducts, PRESTACK_DEFAULTS, PRESTACK_PRODUCTS, makeBlindCdpInverter,
 } from '../../../../src/pages/apps/QIStudio/services/prestackRun.js';
 import { horizonsAtFrom } from '../../../../src/pages/apps/QIStudio/services/inversionRun.js';
 import { assertFloat32Parent, derivedStorageBytes, derivedSurveyMeta } from '../../../../src/pages/apps/Seismolord/services/attributeSurveyMeta.js';
@@ -27,7 +27,7 @@ import { sameLattice, surveyAffine, ilxlToWorld } from '../../../../packages/eng
 import { runVolumeJob } from '../../../../packages/engines/engines/seismolord/volumeJob.js';
 import { resampleWavelet } from '../../../../packages/engines/engines/qi/wavelets.js';
 import { buildDerivedManifest, brickRelPath, volumeDir, manifestPath, NULL_VALUE } from '../../../../packages/engines/engines/seismolord/manifest.js';
-import { withUnpackedLogs } from '../../../../src/pages/apps/QIStudio/services/logPacking.js';
+import { withUnpackedLogs, packLog } from '../../../../src/pages/apps/QIStudio/services/logPacking.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const KEYS = ['ai', 'si', 'rho', 'vpvs'];
@@ -143,21 +143,32 @@ export async function prestackInversion(ctx, deps) {
   };
   // one wavelet for every stack, or one per stack (angle-dependent, Q6b)
   const wavelet = inv.wavelets ? inv.wavelets.map(onGrid) : onGrid(inv.wavelet);
-  const scaled = (k) => (Array.isArray(wavelet) ? wavelet.map((w) => w.map((v) => v * k)) : wavelet.map((v) => v * k));
-  const vsVp = inv.vs_vp ?? meanVsVp(inv.wells);
 
   ctx.progress(0.01, 'Reading the well traces');
   const tracesByWell = [];
   for (const w of inv.wells) tracesByWell.push(await readTraces(w.il, w.xl));
-  let scale;
-  try { scale = prestackWaveletScale(inv.wells.map((w, k) => ({ well: w, traces: tracesByWell[k] })), thetaDeg, wavelet, vsVp).scale; } catch (e) { return fail('compute_failed', e.message); }
-  const lfm = prestackLfm(inv.wells, { dtMs, lfmHz: inv.lfmHz, posOf, horizonsAt });
-  const invert = makeCdpInverter({ inv, thetaDeg, wavelet: scaled(scale), lfm, posOf, horizonsAt, ns, dtMs, vsVp });
+  // truly blind (QI upgrade P1.2): rebuilt per held-back well without it
+  let blindInv;
+  try {
+    blindInv = makeBlindCdpInverter({
+      inv, thetaDeg, wavelet, onGrid: (samples, dt) => onGrid({ samples, dt_ms: dt }), wells: inv.wells, tracesByWell, posOf, horizonsAt, ns, dtMs,
+    });
+  } catch (e) { return fail('compute_failed', e.message); }
+  const { invert, scale, vsVp } = blindInv;
   ctx.progress(0.03, 'Blind wells');
   const blind = inv.wells.length >= 2 ? prestackBlindTable({ invert, wells: inv.wells, tracesByWell, dtMs, truthHz: inv.truthHz }) : [];
-  const settings = { qi_class: 'elastic_estimate', method: 'Fatti three-term simultaneous inversion', wavelets: inv.wavelets ? 'one per stack, from the wells' : 'one for every stack', stacks: stacks.map((s) => ({ volume_id: s.row.id, name: s.row.name, angle: s.angle })), wells: inv.wells.map((w) => w.name), horizon_ids: inv.horizon_ids || [], lfm_hz: inv.lfmHz, eps: inv.eps, vs_vp: vsVp, wavelet_scale: scale };
+  const blindProtocol = { ...blindInv.protocol, held_back: blindInv.heldBack };
+  const settings = { qi_class: 'elastic_estimate', method: 'Fatti three-term simultaneous inversion', wavelets: inv.wavelets ? 'one per stack, from the wells' : 'one for every stack', stacks: stacks.map((s) => ({ volume_id: s.row.id, name: s.row.name, angle: s.angle })), wells: inv.wells.map((w) => w.name), horizon_ids: inv.horizon_ids || [], lfm_hz: inv.lfmHz, eps: inv.eps, vs_vp: vsVp, wavelet_scale: scale, blind_protocol: blindProtocol };
+  // each well's held-back estimate, recorded with the AI and Vp/Vs volumes
+  // so the property check predicts each well from an inversion that never saw it
+  const pack = (a) => packLog(Array.from(a, (v) => (Number.isFinite(v) ? v : NaN)));
+  const blindTracesFor = (key) => [...blindInv.blindTraces.entries()].map(([name, m]) => {
+    const w = inv.wells.find((x) => x.name === name);
+    const values = key === 'ai' ? m.lnAi : Float64Array.from(m.lnAi, (v, i) => Math.exp(v - m.lnSi[i]));
+    return { name, il: w.il, xl: w.xl, ...(key === 'ai' ? { ln_ai: pack(values) } : { vpvs: pack(values) }) };
+  }).filter((x) => (x.ln_ai || x.vpvs).n > 0);
   if (ctx.cancelled) { await cleanup(); return null; }
-  if (p.mode === 'blind') { ctx.progress(1, 'Done'); return { mode: 'blind', settings, blind }; }
+  if (p.mode === 'blind') { ctx.progress(1, 'Done'); return { mode: 'blind', settings, blind, blind_protocol: blindProtocol }; }
 
   // every CDP: the other stacks' bricks for the column beside the first
   let column = null; let others = null;
@@ -198,14 +209,14 @@ export async function prestackInversion(ctx, deps) {
   try {
     for (let o = 0; o < 4; o++) {
       const d = derived[o];
-      const out = buildDerivedManifest({ volumeId: d.id, name: d.name, parentManifest: manifests[0], attribute: { name: PRESTACK_ATTRIBUTE, params: { ...settings, product: KEYS[o], product_label: PRESTACK_PRODUCTS[KEYS[o]], output: KEYS[o] === 'ai' ? 'AI' : KEYS[o].toUpperCase(), blind } }, job: { ...result, stats: result.statsByOutput[o] } });
+      const out = buildDerivedManifest({ volumeId: d.id, name: d.name, parentManifest: manifests[0], attribute: { name: PRESTACK_ATTRIBUTE, params: { ...settings, product: KEYS[o], product_label: PRESTACK_PRODUCTS[KEYS[o]], output: KEYS[o] === 'ai' ? 'AI' : KEYS[o].toUpperCase(), blind, ...(KEYS[o] === 'ai' || KEYS[o] === 'vpvs' ? { blind_traces: blindTracesFor(KEYS[o]) } : {}) } }, job: { ...result, stats: result.statsByOutput[o] } });
       if (pilot) out.pilot = pilot.record;
       await deps.storage.upload(manifestPath(uid, d.id), new TextEncoder().encode(JSON.stringify(out, null, 1)), { contentType: 'application/json', upsert: true });
       const { error } = await admin.from('seismic_volumes').update({ status: 'ready', survey_meta: derivedSurveyMeta(out, parent.id), updated_at: new Date().toISOString() }).eq('id', d.id).eq('user_id', uid);
       if (error) throw new Error(`Inversion computed but registration failed: ${error.message}`);
     }
     ctx.progress(1, 'Done');
-    return { mode: 'volume', volume_ids: p.volume_ids, settings, blind, trace_count: result.traceCount, ...(pilot ? { pilot: pilot.record } : {}) };
+    return { mode: 'volume', volume_ids: p.volume_ids, settings, blind, blind_protocol: blindProtocol, trace_count: result.traceCount, ...(pilot ? { pilot: pilot.record } : {}) };
   } catch (e) {
     await cleanup();
     throw e;

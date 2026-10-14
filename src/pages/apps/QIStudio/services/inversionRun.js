@@ -73,6 +73,12 @@ export function validateInversionParams(p) {
   if (p.mode === 'blind' && wells.length < 2) return 'A blind-well check needs at least two wells.';
   const h = inv.horizon_ids || [];
   if (!Array.isArray(h) || h.length > MAX_HORIZONS) return `Use at most ${MAX_HORIZONS} horizons.`;
+  if (inv.blind_wavelets != null) {
+    if (!Array.isArray(inv.blind_wavelets)) return 'The blind wavelets must be a list.';
+    for (const bw of inv.blind_wavelets) {
+      if (!bw?.name || !Array.isArray(bw.samples) || bw.samples.length < 5 || bw.samples.length % 2 === 0 || !bw.samples.every(fin)) return 'Each blind wavelet needs the well name and an odd number of samples, at least five.';
+    }
+  }
   return validateSensitivity(inv.sensitivity, inv.method);
 }
 
@@ -253,6 +259,96 @@ export function inversionIssues(blind, volumeName = 'the volume') {
 }
 
 // ---------------------------------------------------------------------------
+// Truly blind wells (QI upgrade P1.2, 2026-10-15). Before this, a well left
+// out of the blind check was out of the low-frequency model only: the
+// wavelet scale (or the coloured operator) was fitted on every well,
+// including the one being tested, and the field wavelet averaged its tie.
+// Now a held-back well is out of everything the inversion learns from the
+// wells: the low-frequency model, the wavelet scale, the coloured operator's
+// impedance spectrum and seismic spectrum, and (when the field wavelet is
+// used) the wavelet average itself (the browser sends the average of the
+// other ties as blind_wavelets). The with-well column is unchanged.
+
+export const BLIND_PROTOCOL = 'held-back-v2';
+
+/**
+ * The protocol statement of a result: what a held-back well was left out of.
+ * @param {{absolute: boolean, blindWavelets: boolean, waveletWell?: ?string}} p
+ */
+export function blindProtocol({ absolute, blindWavelets, waveletWell = null }) {
+  const out = ['the low-frequency model', absolute ? 'the wavelet scale' : 'the coloured operator (its impedance and seismic spectra)'];
+  if (blindWavelets) out.push('the field wavelet average');
+  return { version: BLIND_PROTOCOL, excluded_from: out, ...(waveletWell ? { wavelet_from_well: waveletWell } : {}) };
+}
+
+/** The protocol in words, for the panel and the report (older results say what they did). */
+export function blindProtocolText(result) {
+  const p = result?.blind_protocol || result?.settings?.blind_protocol;
+  if (!p) return 'Each well was left out of the low-frequency model only; the wavelet scale used every well (a result from before the truly blind check of 2026-10-15).';
+  const parts = p.excluded_from || [];
+  const list = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0] || 'the low-frequency model';
+  return `Truly blind: each held-back well was left out of ${list}.${p.wavelet_from_well ? ` The wavelet is ${p.wavelet_from_well}'s own tie wavelet, so that well's blind result is not independent of the wavelet.` : ''}${(p.notes || []).length ? ` ${p.notes.join(' ')}` : ''}`;
+}
+
+/**
+ * The inverter for the blind check and the volume: with no well named it is
+ * the full inversion (every well); with a well named it is rebuilt without
+ * that well (wavelet scale or coloured operator from the others, the other
+ * ties' wavelet average when given, and the low-frequency model without it).
+ * The blind traces it produced are kept, so a volume run can record them for
+ * the property check.
+ * @param {Object} p
+ * @param {Object} p.inv the job's inversion block
+ * @param {Float64Array} p.wavelet the unscaled wavelet on the volume's grid
+ * @param {(samples, dtMs) => Float64Array} [p.onGrid] puts a blind wavelet on the grid
+ * @param {Array} p.wells the job's wells (name, il, xl, ln_ai)
+ * @param {Array<ArrayLike<number>>} p.traces the seismic at each well
+ * @returns {{invert, scale: ?number, alpha: ?number, protocol, scales: Array<{name, scale}>, blindTraces: Map<string, Float64Array>}}
+ */
+export function makeBlindInverter({ inv, wavelet, onGrid = (x) => Float64Array.from(x), wells, traces, posOf, horizonsAt, ns, dtMs }) {
+  const s = { ...INVERSION_DEFAULTS, ...inv };
+  const absolute = INVERSION_METHODS[s.method].absolute;
+  const lfm = absolute ? lfmWells(wells, { dtMs, lfmHz: s.lfmHz, posOf, horizonsAt }) : [];
+  const blindW = new Map((inv.blind_wavelets || []).map((w) => [w.name, onGrid(w.samples, w.dt_ms)]));
+  const notes = [];
+  const build = (exclude) => {
+    const keep = wells.map((w, k) => k).filter((k) => wells[k].name !== exclude);
+    const w0 = (exclude && blindW.get(exclude)) || wavelet;
+    if (absolute) {
+      const scale = waveletScale(keep.map((k) => ({ trace: traces[k], lnAi: wells[k].ln_ai })), w0).scale;
+      return { scale, invert: makeTraceInverter({ inv, wavelet: w0.map((v) => v * scale), wells: lfm, posOf, horizonsAt, ns, dtMs }) };
+    }
+    const c = colouredFromWells({ wellTraces: keep.map((k) => traces[k]), wellLogs: keep.map((k) => wells[k].ln_ai), dtMs, ns, band: s.band });
+    return { alpha: c.alpha, invert: makeTraceInverter({ inv, wavelet: w0, wells: lfm, posOf, horizonsAt, ns, dtMs, coloured: c.operator }) };
+  };
+  const full = build(null);
+  const held = new Map();
+  const scales = [];
+  const blindTraces = new Map();
+  const heldFor = (name) => {
+    if (!held.has(name)) {
+      let b = null;
+      try { b = build(name); } catch (e) {
+        notes.push(`${name}: ${e.message} Its blind row is empty.`);
+      }
+      held.set(name, b);
+      if (b) scales.push({ name, ...(b.scale != null ? { scale: b.scale } : { slope: b.alpha }) });
+    }
+    return held.get(name);
+  };
+  const invert = (trace, il, xl, exclude) => {
+    if (!exclude) return full.invert(trace, il, xl);
+    const b = heldFor(exclude);
+    const out = b ? b.invert(trace, il, xl, exclude) : new Float64Array(ns).fill(NaN);
+    blindTraces.set(exclude, out);
+    return out;
+  };
+  const waveletWell = typeof inv.wavelet_well === 'string' && inv.wavelet_well ? inv.wavelet_well : null;
+  const protocol = { ...blindProtocol({ absolute, blindWavelets: blindW.size > 0, waveletWell }), notes };
+  return { invert, scale: full.scale ?? null, alpha: full.alpha ?? null, protocol, scales, blindTraces };
+}
+
+// ---------------------------------------------------------------------------
 // Sensitivity (QI Q8a): the same inversion under alternative assumptions,
 // summarised per sample as Q10, Q50 and Q90 (the 10th, 50th and 90th
 // percentiles; parameters carry no P-labels, PT10 owner decision 1) and the
@@ -314,23 +410,38 @@ const traceSeed = (seed, il, xl) => (((seed * 73856093) ^ (il * 19349663) ^ (xl 
  */
 export function makeScenarioInverters({ inv, wells, traces, posOf, horizonsAt, ns, dtMs }) {
   const scenarios = sensitivityScenarios(inv);
-  const pairs = wells.map((w, k) => ({ trace: traces[k], lnAi: w.ln_ai }));
-  const scaleCache = new Map();
+  const pairs = wells.map((w, k) => ({ trace: traces[k], lnAi: w.ln_ai, name: w.name }));
   const lfmCache = new Map();
-  const inverters = scenarios.map((sc) => {
-    if (!scaleCache.has(sc.wavelet)) scaleCache.set(sc.wavelet, waveletScale(pairs, sc.wavelet).scale);
-    const scale = scaleCache.get(sc.wavelet);
-    if (!lfmCache.has(sc.lfmHz)) lfmCache.set(sc.lfmHz, lfmWells(wells, { dtMs, lfmHz: sc.lfmHz, posOf, horizonsAt }));
-    const invert = makeTraceInverter({
-      inv: { ...inv, lfmHz: sc.lfmHz }, wavelet: sc.wavelet.map((v) => v * scale), wells: lfmCache.get(sc.lfmHz), posOf, horizonsAt, ns, dtMs,
+  // truly blind (P1.2): a held-back well is out of each scenario's wavelet
+  // scale as well as its low-frequency model; the inverters are rebuilt per
+  // held-back well (cached), so the blind spread does not lean on that well
+  const buildAll = (exclude) => {
+    const scaleCache = new Map();
+    const keep = exclude ? pairs.filter((x) => x.name !== exclude) : pairs;
+    return scenarios.map((sc) => {
+      if (!scaleCache.has(sc.wavelet)) scaleCache.set(sc.wavelet, waveletScale(keep, sc.wavelet).scale);
+      const scale = scaleCache.get(sc.wavelet);
+      if (!lfmCache.has(sc.lfmHz)) lfmCache.set(sc.lfmHz, lfmWells(wells, { dtMs, lfmHz: sc.lfmHz, posOf, horizonsAt }));
+      const invert = makeTraceInverter({
+        inv: { ...inv, lfmHz: sc.lfmHz }, wavelet: sc.wavelet.map((v) => v * scale), wells: lfmCache.get(sc.lfmHz), posOf, horizonsAt, ns, dtMs,
+      });
+      return { invert, scale, seed: sc.seed };
     });
-    return { invert, scale, seed: sc.seed };
-  });
+  };
+  const inverters = buildAll(null);
+  const heldBack = new Map();
   const live = (v) => Math.abs(v) <= NULL_LIM && fin(v);
-  const realise = (trace, il, xl, exclude) => inverters.map(({ invert, seed }) => {
-    const t = seed != null ? addNoise(trace, inv.sensitivity.snr, traceSeed(seed, il, xl), live) : trace;
-    return invert(t, il, xl, exclude);
-  });
+  const realise = (trace, il, xl, exclude) => {
+    let set = inverters;
+    if (exclude) {
+      if (!heldBack.has(exclude)) heldBack.set(exclude, buildAll(exclude));
+      set = heldBack.get(exclude);
+    }
+    return set.map(({ invert, seed }) => {
+      const t = seed != null ? addNoise(trace, inv.sensitivity.snr, traceSeed(seed, il, xl), live) : trace;
+      return invert(t, il, xl, exclude);
+    });
+  };
   return { scenarios, scales: inverters.map((x) => x.scale), realise };
 }
 
@@ -339,12 +450,15 @@ export function makeScenarioInverters({ inv, wells, traces, posOf, horizonsAt, n
  * of the blind AI error across scenarios, and per scenario the mean blind
  * error over the wells (which assumption moves the result most).
  */
-export function blindSensitivity({ realise, scenarios, wells, traces, dtMs, truthHz }) {
+export function blindSensitivity({ realise, scenarios, wells, traces, dtMs, truthHz, blindTraces = null }) {
   const half = halfWindowFor(truthHz, dtMs);
   const perScenario = scenarios.map(() => []);
   const rows = wells.map((w, k) => {
     const truth = lowPassFinite(w.ln_ai, half);
-    const errs = realise(traces[k], w.il, w.xl, w.name).map((m) => blindWellScore(m, truth).rmsPct);
+    const real = realise(traces[k], w.il, w.xl, w.name);
+    // the blind Q50 (ln AI) at the well, for the property check of a Q50 volume
+    if (blindTraces) blindTraces.set(w.name, Float64Array.from(quantilesAcross(real.map((m) => m.map(Math.exp)), [0.5])[0], (v) => Math.log(v)));
+    const errs = real.map((m) => blindWellScore(m, truth).rmsPct);
     errs.forEach((e, j) => perScenario[j].push(e));
     const sorted = errs.filter(fin).sort((a, b) => a - b);
     return { name: w.name, q10: quantileSorted(sorted, 0.1), q50: quantileSorted(sorted, 0.5), q90: quantileSorted(sorted, 0.9) };

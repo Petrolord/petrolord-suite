@@ -52,6 +52,26 @@ export function waveletComparison(rows) {
   return { dtMs: dt, names: resampled.map((x) => x.name), ...cmp };
 }
 
+/**
+ * Truly blind wells (QI upgrade P1.2): for each named well whose tie wavelet
+ * is in the field average, the average of the OTHER ties' wavelets, so a
+ * held-back well does not shape the wavelet its blind result is judged with.
+ * A well whose removal leaves fewer than two ties gets no entry (the field
+ * average is used and the protocol says so).
+ * @returns {Array<{name, samples: number[], dt_ms: number}>}
+ */
+export function leaveOneOutWavelets(rows, names) {
+  const out = [];
+  for (const name of names) {
+    if (!rows.some((r) => r.wellName === name && r.tie?.wavelet?.samples)) continue;
+    const cmp = waveletComparison(rows.filter((r) => r.wellName !== name));
+    if (!cmp) continue;
+    const samples = Array.from(cmp.average);
+    out.push({ name, samples: samples.length % 2 ? samples : samples.slice(0, -1), dt_ms: cmp.dtMs });
+  }
+  return out;
+}
+
 const spread = (vals) => (vals.length ? Math.max(...vals) - Math.min(...vals) : 0);
 
 /** Tie issues for the register. */

@@ -200,6 +200,15 @@ function QIStudioHelpGuideContent() {
           matches a full run, because every trace is still processed over its whole length. Property runs on a pilot
           impedance volume keep to its area. The report lists the pilot runs with their areas.
         </Para>
+        <SubHeading>Truly blind wells</SubHeading>
+        <Para>
+          A well held back in the blind check is left out of everything the inversion learns from the wells: the
+          low-frequency model, the wavelet scale (for coloured inversion, the operator&apos;s impedance and seismic spectra) and,
+          with the field wavelet, the wavelet average itself, which is rebuilt from the other ties. The with-well column is
+          the full inversion. If the wavelet is one well&apos;s own tie wavelet, that well&apos;s blind result is not independent of
+          the wavelet, and the line under the table says so. Results from before this change say they held the well out of
+          the model only. A volume run records each well&apos;s held-back estimate, so the property check can use it.
+        </Para>
       </GuideSection>
 
       <GuideSection id="simultaneous">
@@ -223,6 +232,12 @@ function QIStudioHelpGuideContent() {
           out at a lower frequency (absorption and NMO stretch). The table gives each wavelet&apos;s peak frequency and phase, and
           each well&apos;s synthetic against the stack: the synthetic-against-real check by angle. With Use one wavelet per stack,
           the inversion takes them in place of the single tie wavelet.
+        </Para>
+        <Para>
+          The blind check here is truly blind too: a held-back well is out of all three models, the wavelet scale, the
+          background Vs/Vp (unless you typed it), and the wavelet average (the angle wavelets or the field wavelet are
+          rebuilt from the other wells). Add the blind results to the issue register with the button under the table: an AI
+          or SI error over 10 percent, a density correlation under 0.5, or a density error over 10 percent.
         </Para>
       </GuideSection>
 
@@ -248,6 +263,12 @@ function QIStudioHelpGuideContent() {
           much of the well falls inside Q10 to Q90 (about 80 percent is right); facies report the share predicted correctly. A
           poor correlation, a poor facies score or an interval that covers under 60 or over 95 percent is offered to the
           issue register.
+        </Para>
+        <Para>
+          The check is blind. A well is left out of the property model, and it is predicted from the inversion run with that
+          well held back (the estimate the inversion volume recorded at it), or from the volume where the inversion never
+          used the well. An impedance volume made before 2026-10-15 holds no held-back estimate; the check then names the
+          wells where it is not blind and offers an issue to rerun the inversion.
         </Para>
       </GuideSection>
 
