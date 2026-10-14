@@ -402,3 +402,13 @@ line is said in amber (`pp-casing-section-closed`), and a margin that rounds to 
 -0.00). Tests: `__tests__/minSeatSections.test.js` (the engine alone keeps the replaced shoe as the first
 section base, the negative control). Engines follow-up: the same rebuild belongs in
 `engines/porepressure/casingSeats.js` (Petrolord/petrolord-engines) so every consumer gets it.
+## 2026-10-14: unsaved changes said
+
+Found in the Pore Pressure Studio video dry run: after calibrating on the Ekene copy and opening Well Design
+Studio, coming back reopened the defaults (the work had not been saved, and nothing said so; the autosave
+hazard noted across the Suite). A chip beside Save (`pp-save-state`, "Unsaved changes") shows while the
+parameters, picks or calibration differ from the saved project (a stable snapshot set on restore and on Save;
+the water column a well's datum supplied is left out), and the browser asks before the page is closed or
+reloaded with unsaved work (not in the worked example). Tests: `__tests__/unsavedChanges.test.jsx` (opening the
+saved well is not a change, the negative control; a change shows the chip and arms the leave prompt; Save
+clears both).

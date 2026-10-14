@@ -346,6 +346,13 @@ export default function PorePressureStudioHelpGuide() {
           reopens the well next time. Well Design Studio's mud window reads the published curves in ppg or g/cc EMW
           against its own trajectory TVD, on the well itself or, for a planned well, from this well as an offset at equal TVDSS.
         </Para>
+        <SubHeading>Unsaved changes</SubHeading>
+        <Para>
+          The project is kept only when you press Save. While the parameters, the picks or the calibration differ from
+          the saved project, a chip beside Save says Unsaved changes, and the browser asks before you close or reload
+          the page. Opening a well, and the water column its datum supplies, does not count as a change. Save before
+          leaving for another app: the project reopens on the well it was saved on.
+        </Para>
         <SubHeading>Is the published prognosis the one open here?</SubHeading>
         <Para>
           The readers (Well Design Studio, Casing and Tubing, Hydraulics, Geomechanics) read what is published, never

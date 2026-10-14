@@ -61,6 +61,7 @@ import {
 } from '../services/depthRef';
 import { refElevOrNull } from '@/lib/wellDatum';
 import { applyDatumWaterColumn } from '../services/datumWaterColumn';
+import { stableJson } from '@/lib/sourceFreshness/model';
 
 const storage = () => { try { return window.localStorage; } catch { return null; } };
 
@@ -112,6 +113,11 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   const [status, setStatus] = useState('Ready.');
   const [dockOpen, setDockOpen] = useState(true);
   const [saving, setSaving] = useState(false);
+  // 2026-10-14: what the saved project holds (a stable snapshot), to say when
+  // the open work differs from it; markClean asks for a new baseline once the
+  // state a restore or a save set has rendered
+  const [savedSnap, setSavedSnap] = useState(null);
+  const [markClean, setMarkClean] = useState(true);
   // PP-U1-010: the NCT was fitted on the open well (or comes from the project/default)
   const [nctFittedFor, setNctFittedFor] = useState(null);
   // 2026-10-14: the prognosis published on the open well ({wellId, set, values})
@@ -162,6 +168,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         if (project.source?.resNctFittedFor) setResNctFittedFor(project.source.resNctFittedFor);
         if (project.calibration) setCalibration(project.calibration);
         setStatus('Restored saved project.');
+        setMarkClean(true);
         // PP-U1-013: reopen the well the project was saved on
         const savedWell = project.source?.kind === 'well' ? project.source.wellId : null;
         if (savedWell && list.some((w) => w.id === savedWell)) setReopenId(savedWell);
@@ -442,6 +449,27 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     };
   }, [result, input, readoutDepthM, units.pressure, params]);
 
+  // the water column a well's datum supplied is not the user's change
+  const workSnap = useMemo(() => {
+    const p = { ...params };
+    // a water column the datum supplies, or none yet (the datum will supply it), is not a change
+    const unsetWater = !(Number(params.waterDepthM) > 0) && !(Number(params.mudlineMdM) > 0);
+    if (waterNote || unsetWater) { delete p.waterDepthM; delete p.mudlineMdM; }
+    return stableJson({ params: p, picks, calibration });
+  }, [params, picks, calibration, waterNote]);
+  useEffect(() => {
+    if (!markClean || !wells) return;
+    setSavedSnap(workSnap);
+    setMarkClean(false);
+  }, [markClean, workSnap, wells]);
+  const unsaved = savedSnap != null && workSnap !== savedSnap;
+  useEffect(() => {
+    if (!unsaved || backend.isExample) return undefined;
+    const warn = (e) => { e.preventDefault(); e.returnValue = ''; return ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [unsaved, backend.isExample]);
+
   const reportArgs = () => ({
     wellName: selected?.name || '',
     source: seismicModel ? 'seismic' : 'well',
@@ -606,6 +634,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
           : { kind: 'well', wellId: selectedId, nctFittedFor, resNctFittedFor },
       });
       if (saved?.id) setProjectId(saved.id);
+      setMarkClean(true);
       setStatus('Project saved.');
     } catch (e) {
       setStatus(e.message);
@@ -791,6 +820,12 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
             {publishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
             Publish
           </button>
+        )}
+        {unsaved && (
+          <span data-testid="pp-save-state" title="The parameters, picks or calibration differ from the saved project. Save keeps them; leaving the page without saving loses them."
+            className="rounded px-1.5 py-0.5 text-[11px] whitespace-nowrap bg-pl-warning-bg border border-pl-warning/40 text-pl-warning-text">
+            Unsaved changes
+          </span>
         )}
         <button
           type="button"
