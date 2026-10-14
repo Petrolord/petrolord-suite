@@ -1,8 +1,10 @@
 # Suite Project: design
 
-Status: DESIGN, approved to write 2026-09-30 (owner: "start the unit profile
-and Project design now"). Build after NAPE (early November 2026), before
-customer data grows. Companion: `docs/scope/SuiteUnits-DESIGN-AND-STATUS.md`
+Status: P0 BUILT 2026-10-14 (migrations written and dry-run tested, awaiting
+the second engineer's review and the owner's apply); P1 in build. The owner
+brought the build forward on 2026-10-14 ("Start with P0 and P1") as a
+consultant pilot and added a Client level (section 12). Designed 2026-09-30
+(owner: "start the unit profile and Project design now"). Companion: `docs/scope/SuiteUnits-DESIGN-AND-STATUS.md`
 (the unit profile, built now, is the first settings layer this design
 places inside a project).
 
@@ -213,3 +215,73 @@ decided on the proposals below and are binding for P0 to P4.
    (`strat_zone_schemes`), unit profiles, custom CRS definitions and the
    timescale tables. Projects reference them and may pin a choice (for
    example the timescale edition) in their settings.
+
+## 12. Client level (owner addition, 2026-10-14)
+
+The owner works as a consultant for several companies and is the pilot user:
+"I should be able to create separate different company projects and even
+create multiple projects within each company project." Many consultants will
+want the same. So, inside an organisation:
+
+**Organisation > Client (company) > Project**
+
+- A client has a name, an optional logo and colour, notes, and an archived
+  state (`suite_clients`). Clients of a user without an organisation are
+  personal (organisation null, owner only).
+- A project belongs to at most one client (`suite_projects.client_id`,
+  nullable). Projects without a client are shown under "Internal". A client
+  can hold many projects. The client must be in the project's organisation.
+- The header switcher groups projects by client: "Client X > Project A".
+- Who sees a client: its owner, the organisation's admins, and anyone who can
+  read at least one of its projects. A client with no projects is visible to
+  its owner and the admins only.
+- A client holding projects cannot be deleted (archive it instead).
+
+## 13. P0 as built (2026-10-14)
+
+Migrations `20261015100000_suite_projects_p0_tables.sql`,
+`20261015100100_suite_projects_p0_registries.sql` and
+`20261015100200_suite_projects_p0_backfill.sql`. Rollbacks, verification
+queries and the dry run with the role pentest are in
+`tools/security/suite-projects/`. Decisions taken while building, within the
+design above:
+
+1. **Column name `suite_project_id`**, not `project_id`: `seismic_volumes`
+   and `seismic_lines` already have `project_id` (their Seismolord project).
+2. **Helper names `suite_project_*`**: `public.can_edit_project` and
+   `is_project_member` already exist for another module.
+3. **Registry rule as RESTRICTIVE policies beside the existing ones.** The
+   permissive policies (own row, record sharing with the organisation, the
+   check-out editor) are not touched. The new policies only narrow: a row in
+   a members-only project is read by the project's owner and members, by an
+   organisation admin after a logged open (`suite_project_admin_open`, valid
+   for 12 hours), and always by the row's own creator. Rows in an open
+   project keep exactly today's access. This is why a project open to the
+   organisation does not by itself share private records: sharing a record
+   stays per record, as built in the organisation sharing wave.
+4. **Writes:** a row can be put into a project only by someone who may add
+   to it (owner, member with role owner or editor, any organisation member
+   for an open project, a logged admin), and the row's organisation must
+   match the project's.
+5. **Insert stamp:** a trigger fills a missing `suite_project_id` with the
+   writer's current project, else their default project (made on demand).
+   Every new row lands in a project even from an app build that predates P1.
+6. **Archive** hides a project from the switcher and the insert stamp; it
+   does not lock existing rows.
+7. **Backfill** (dry run on production, rolled back): 11 organisation
+   defaults and 1 personal default; every registry row stamped (34 wells,
+   14 surfaces, 2 sections, 1 seismic project, 21 volumes, 1 line); no row
+   without a project; every persona sees the same rows before and after.
+8. **Settings** stay `{}` until P2. `suite_user_state` starts empty (no
+   current project means the default project).
+9. **Unchanged for now:** the per-user well name uniqueness
+   (`geo_wells_owner_name_uniq`); the same name in two client projects is
+   refused until a later change makes it per project.
+
+### Status
+
+| Phase | State |
+|---|---|
+| P0 | Built 2026-10-14. Dry run and role pentest on production inside a rolled-back transaction: 94 of 94 probes pass, the negative control fails 6 as expected, the rollbacks restore the catalog and every persona's rows. Awaiting second engineer review and the owner's apply. |
+| P1 | In build: `useProject()`, header switcher with clients, registries filtered and stamped, `.pld` per project, Move to project. |
+| P2 to P4 | Not started. |
