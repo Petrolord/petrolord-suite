@@ -76,7 +76,7 @@ const MudWindowPanel = ({ rows = [], summary = null, sourceLabel = '', note = nu
           ))}
         </div>
       </div>
-      {sourceLabel && <div className="px-3 text-[9px] text-slate-500" data-testid="mud-window-source">Curves: {sourceLabel}</div>}
+      {sourceLabel && <div className="truncate px-3 text-[9px] text-slate-500" title={`Curves: ${sourceLabel}`} data-testid="mud-window-source">Curves: {sourceLabel}</div>}
       {note && <div className="px-3 text-[9px] text-amber-700" data-testid="mud-window-note">{note}</div>}
       {summary && (
         <div className="px-3 text-[9px] text-slate-500" data-testid="mud-window-summary">
@@ -106,7 +106,9 @@ const MudWindowPanel = ({ rows = [], summary = null, sourceLabel = '', note = nu
         </div>
       )}
       {seats?.error && <div className="px-3 text-[9px] text-amber-700" data-testid="mud-window-seats">{seats.error}</div>}
-      <div className="min-h-0 flex-1">
+      {/* 2026-10-14: the chart keeps a usable height in a narrow column; the
+          text above it no longer squeezes it until its legend overlaps the seats */}
+      <div className="min-h-[300px] flex-1" data-testid="mud-window-chart">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={CHART_MARGINS.compact} layout="vertical">
             <CartesianGrid {...GRID_STYLE} />

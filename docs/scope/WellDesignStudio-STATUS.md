@@ -999,3 +999,11 @@ need refreshing). A design now keeps a source reference for the prognosis
   Tests: `__tests__/ppfgSourceChanged.test.jsx` (18) and `mudWindowPanelU1.test.jsx` (+1), negative controls (the panel's summary from another well is not used; with no cut-off the conductor section wins;
   no reference: the seats move and nothing is reported; without the curve
   row ids in the snapshot 6 fail).
+
+## 2026-10-14: the mud window column on a laptop screen
+
+Found in the Pore Pressure Studio video dry run at 1440 x 810: with the review line, the margins and five casing
+seats above it, the mud window chart in the 340 px PPFG column was squeezed until its legend overlapped the seat
+list. The column is 380 px (440 px on wide screens) and scrolls, the chart keeps at least 300 px of height
+(`mud-window-chart`), and the long Curves line is one line with its full text on hover. Test in
+`__tests__/mudWindowPanelU1.test.jsx`.
