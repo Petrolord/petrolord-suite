@@ -133,8 +133,12 @@ test('publishing the thickness layer lands an isochore in the registry', async (
 test('model definition saves and reloads through the backend', async ({ page }) => {
   await stackAndBuild(page);
   await page.getByTestId('em-model-name').fill('Keta framework');
+  // renaming keeps the built model (it used to clear the map back to the empty state)
+  await expect(page.getByTestId('em-empty')).toHaveCount(0);
+  await expect(page.getByTestId('em-map-layer')).toBeVisible();
   await page.getByTestId('em-save-model').click();
   await expect(page.getByTestId('em-status')).toContainText('Saved model "Keta framework"');
+  await expect(page.getByTestId('em-map-layer')).toBeVisible();
 });
 
 test('earth-modeling app route loads its chunk and gates on auth', async ({ page }) => {

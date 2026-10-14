@@ -292,8 +292,44 @@ const WTSHelpContent = () => (
       Injection and falloff tests mirror onto the drawdown and buildup machinery with q the injection rate: an
       injection raises pressure above pi exactly as a drawdown lowers it, and a falloff decays from the shut-in
       injection pressure like a buildup in reverse. Enter the injection time as tp for a falloff. When the rate history
-      holds more than one flowing rate, the studio also fits the Odeh-Jones multi-rate superposition line and reports
-      its k and skin next to the single-rate answers.
+      holds more than one flowing rate, a drawdown also gets the Odeh-Jones multi-rate superposition line with its k
+      and skin next to the single-rate answers.
+    </P>
+
+    <H>A buildup after a clean-up or a multi-rate test</H>
+    <P>
+      Horner treats everything before the shut-in as one rate q flowing for tp hours. After a clean-up with several
+      rates, or a shut-in part-way through, that is not what happened, and k, skin and p* come out biased. Enter the
+      rate history on the Data tab (start time and rate of each step, a zero rate for each shut-in) and set
+      &quot;Buildup analysed after&quot; to the rate history. The analysed shut-in is the last zero-rate step. The
+      straight line is then fitted on the superposition time X = sum of (q_j - q_j-1)/q_n log(ts + dt - t_j-1) minus
+      log dt, which reads p* at X = 0; the derivative is plotted on the matching equivalent time; and the model and the
+      auto-fit run through every rate step. With one rate from time zero this is exactly Horner and Agarwal. The
+      button &quot;Use ... hr as tp&quot; puts the equivalent producing time (cumulative volume over the last rate) into tp
+      when you prefer the one-rate form.
+    </P>
+
+    <H>Finding the shut-in, and importing the rates</H>
+    <P>
+      When the gauge file holds the flowing period too, &quot;Find it in the gauge data&quot; under the gauge-clock time
+      reads the shut-in (or the start of flow) off the record: the steepest pressure change in the test&apos;s direction,
+      taken at the reading just before it, so that reading is the flowing pressure at shut-in. It compares rates of
+      change, so a clean-up shut-in read on a coarser clock is not mistaken for the final one, and it refuses a record
+      with no clear change or one that starts after the shut-in. &quot;Import rates&quot; reads a rate history file
+      with a start-time column and a rate column found by their headers (start_hr and oil_rate_stbd, for example), in
+      the display units.
+    </P>
+
+    <H>MDH, and the distance to a sealing fault</H>
+    <P>
+      On the Specialized tab a buildup can be read on the Horner (or superposition) plot, where the line is carried to
+      p*, or on the MDH plot of pws against log dt. MDH gives the same k and skin while dt stays small beside tp, and no
+      p*; the cross-check card says how far the window reaches into tp. When the derivative climbs to a second, higher
+      level late in the test, set the &quot;Second line (boundary)&quot; window on that part. The second line is drawn
+      dashed; one sealing fault doubles the slope, so the card reports m2/m1, and the distance to the fault comes from
+      where the two lines meet: L = sqrt(0.0001481 k dt_x / (phi mu ct)) (Gray 1965; Earlougher 1977). The method needs
+      the late line to have reached its doubled slope, so a short test reads the distance short; the sealing-fault model
+      on the Match tab checks it against the whole curve.
     </P>
 
     <H>Gas PVT from Fluid Systems Studio</H>
@@ -349,6 +385,18 @@ const WTSHelpContent = () => (
       on the day of the test. Type the test dates here, so the point lands on the right row. Material Balance prints
       the project, the method and the date, and says if the value was edited there afterwards. Its numbers change only
       when the analyst takes the point.
+    </P>
+
+    <H>The productivity index in Nodal Analysis Studio</H>
+    <P>
+      For an oil buildup or drawdown, every save also writes the productivity index of the test: J is the test rate
+      divided by the drawdown from the reservoir pressure (p* of the Horner line when the test gives one, else the
+      initial pressure) to the flowing pressure (at shut-in for a buildup, the last flowing reading for a drawdown).
+      It is also given with the skin pressure drop taken out of the drawdown, which is the PI the well would have with
+      zero skin. On the Report tab, Productivity to Nodal Analysis saves the project and opens Nodal Analysis Studio,
+      which shows the record on its Inflow tab and applies the pressure and J only when you pick As tested or Skin
+      removed. Gas tests, injection and falloff tests, and a buildup whose flowing pressure at shut-in is not known
+      send no index, and the Report tab says why.
     </P>
 
     <H>Large gauge files</H>

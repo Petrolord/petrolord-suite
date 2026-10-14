@@ -32,6 +32,24 @@
 //   temperature_degF
 //   status         { match: 'regression' | 'manual' | 'semilog' | 'none', converged: bool | null,
 //                    note: words | null }
+//   productivity   (2026-10-14, read by Nodal Analysis Studio) oil buildups and
+//                  drawdowns only; null for a gas test, an injection or falloff, or
+//                  when it cannot be computed (then productivity_withheld says why):
+//                  { q_stb_d (the test rate, STB/D),
+//                    pwf_psia (buildup: the flowing pressure at shut-in, prepared.pwfShutIn;
+//                              drawdown: the last flowing reading of the analysis series),
+//                    pwf_source (words),
+//                    pr_psia (buildup: p* of the Horner line when it gives one, else the
+//                             entered initial pressure pi; drawdown: pi),
+//                    pr_method 'p*' | 'pi',
+//                    pi_stbd_psi (J = q / (pr - pwf), STB/D/psi),
+//                    dp_skin_psi (the skin pressure drop of derivedKpis.dpSkin, signed:
+//                                 negative for a stimulated well; null when skin is withheld),
+//                    ideal_pi_stbd_psi (q / (pr - pwf - dp_skin), the PI with the skin
+//                                       removed; null without dp_skin or when not positive),
+//                    flow_efficiency (J / ideal J = (pr - pwf - dp_skin) / (pr - pwf), or null),
+//                    test_type, basis (words: gauge depth, single rate, straight line) }
+//   productivity_withheld  words | null: why productivity is null
 //   computed_at    ISO time the record was built (the save)
 // A reader converts for display and says so.
 
@@ -43,6 +61,56 @@ export const WTA_TABLE = 'saved_well_test_projects';
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
 const orNull = (v) => (finite(v) ? v : null);
 const text = (v) => (v != null && String(v).trim() ? String(v).trim() : null);
+
+/**
+ * The wta-1 productivity block (2026-10-14), context free. Pressures are gauge
+ * psia, the rate STB/D. dpSkin is the magnitude the studio shows
+ * (derivedKpis.dpSkin) and takes its sign from the total skin.
+ * @returns {{productivity: ?object, reason: ?string}}
+ */
+export function wtaProductivity({
+  fluid = 'oil', family = 'buildup', mirror = false, testType = null,
+  q, pwf, pwfSource = null, pStar = null, pi = null, dpSkin = null, skin = null,
+} = {}) {
+  const none = (reason) => ({ productivity: null, reason });
+  if (fluid === 'gas') return none('A gas test: the productivity index is sent for oil tests only.');
+  if (mirror) return none('An injection or falloff test: the productivity index is sent for producing tests only.');
+  if (!(finite(q) && q > 0)) return none('No positive test rate.');
+  if (!finite(pwf)) return none('No flowing pressure for the test.');
+  const isBuildup = family === 'buildup';
+  const usePStar = isBuildup && finite(pStar);
+  const pr = usePStar ? pStar : pi;
+  if (!finite(pr)) return none('No reservoir pressure (p* or pi) for the test.');
+  if (!(pr > pwf)) return none(`The reservoir pressure (${pr.toFixed(1)} psia) is not above the flowing pressure (${pwf.toFixed(1)} psia), so no productivity index follows.`);
+  const dd = pr - pwf;
+  const J = q / dd;
+  const dps = finite(dpSkin) && finite(skin) ? (skin < 0 ? -Math.abs(dpSkin) : Math.abs(dpSkin)) : null;
+  const ddIdeal = dps != null ? dd - dps : NaN;
+  const ideal = ddIdeal > 0 ? q / ddIdeal : null;
+  return {
+    productivity: {
+      q_stb_d: q,
+      pwf_psia: pwf,
+      pwf_source: pwfSource || (isBuildup ? 'flowing pressure at shut-in' : 'last flowing reading of the drawdown'),
+      pr_psia: pr,
+      pr_method: usePStar ? 'p*' : 'pi',
+      pi_stbd_psi: J,
+      dp_skin_psi: dps,
+      ideal_pi_stbd_psi: ideal,
+      flow_efficiency: ideal != null ? ddIdeal / dd : null,
+      test_type: testType,
+      basis: `J = q / (pr - pwf) at the gauge depth, single rate; pr is ${usePStar ? 'p* of the Horner straight line' : 'the initial pressure as entered'}; the skin-removed PI takes the skin pressure drop out of the drawdown.`,
+    },
+    reason: null,
+  };
+}
+
+const PWF_SOURCE_WORDS = {
+  entered: 'flowing pressure at shut-in as entered',
+  gauge: 'gauge reading at the shut-in instant',
+  'gauge-before': 'last gauge reading before shut-in',
+  'first-buildup': 'first buildup reading (skin withheld)',
+};
 
 /**
  * The wta-1 record of the interpretation the studio holds now.
@@ -61,7 +129,7 @@ export function buildWtaRecord(ctx, { now = new Date().toISOString(), projectId 
   const mm = ctx.matchMethod?.kind || 'none';
   const fit = mm === 'regression' ? ctx.fitResult : null;
   const fromMatch = k.source === 'match';
-  const lineName = isBuildup ? 'Horner straight line' : 'MDH straight line';
+  const lineName = isBuildup ? (sl?.method === 'superposition' ? 'Superposition straight line (rate history)' : 'Horner straight line') : 'MDH straight line';
   const permMethod = fromMatch
     ? `Model match, ${ctx.model?.label || 'model'}${fit ? (fit.converged ? ' (regression converged)' : ' (regression stopped early)') : ' (manual match)'}`
     : `${lineName}${isGas ? ' in pseudo-pressure' : ''}`;
@@ -145,6 +213,29 @@ export function buildWtaRecord(ctx, { now = new Date().toISOString(), projectId 
       converged: fit ? !!fit.converged : null,
       note: ctx.matchMethod?.note || null,
     },
+    ...(() => {
+      // 2026-10-14: the productivity index for Nodal Analysis Studio
+      if (ctx.prepared?.skinWithheld && isBuildup) {
+        return { productivity: null, productivity_withheld: 'The flowing pressure at shut-in is not known (skin is withheld), so the productivity index would be biased. Enter the flowing pressure at shut-in.' };
+      }
+      const pts = ctx.prepared?.points || [];
+      const pwf = isBuildup ? ctx.prepared?.pwfShutIn : (pts.length ? pts[pts.length - 1].p : NaN);
+      const { productivity, reason } = wtaProductivity({
+        fluid: isGas ? 'gas' : 'oil',
+        family: cfg?.family,
+        mirror: !!cfg?.mirror,
+        testType: cfg?.testType ?? null,
+        // the rate flowing before the shut-in: the history's last rate on the rate-history basis
+        q: isBuildup && ctx.history ? ctx.history.qn : r.q,
+        pwf,
+        pwfSource: isBuildup ? PWF_SOURCE_WORDS[ctx.prepared?.pwfSource?.kind] || null : null,
+        pStar,
+        pi: r.pi,
+        dpSkin: k.dpSkin,
+        skin: k.skin,
+      });
+      return { productivity, productivity_withheld: reason };
+    })(),
     computed_at: now,
   };
 }

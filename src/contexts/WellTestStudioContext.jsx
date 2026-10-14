@@ -11,8 +11,8 @@ import { useStudioNotifications } from '@/components/studio/useStudioNotificatio
 import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjects';
 import { getModel, evaluateModelTest, evaluateBuildup, toDimensionlessGroups } from '@/utils/welltest/models/modelCatalog';
 import { bourdetDerivative, logDecimate, trimSpikes, detectFlowRegimes } from '@/utils/welltest/derivative';
-import { agarwalEquivalentTime, rateStepsFromHistory, detectFlowPeriods, equivalentProducingTime } from '@/utils/welltest/superposition';
-import { mdhAnalysis, hornerAnalysis, cartesianPssAnalysis, sqrtTimeAnalysis, radiusOfInvestigation, skinPressureDrop, flowEfficiency, multiRateSemilogAnalysis } from '@/utils/welltest/analysis';
+import { agarwalEquivalentTime, rateStepsFromHistory, detectFlowPeriods, equivalentProducingTime, buildupSuperpositionTerms, superpositionEquivalentTime } from '@/utils/welltest/superposition';
+import { mdhAnalysis, hornerAnalysis, cartesianPssAnalysis, sqrtTimeAnalysis, radiusOfInvestigation, skinPressureDrop, flowEfficiency, multiRateSemilogAnalysis, superpositionBuildupAnalysis, mdhBuildupAnalysis, twoLineFaultAnalysis } from '@/utils/welltest/analysis';
 import { autoFitModel } from '@/utils/welltest/autoFit';
 import { buildGasPvtTable, makePseudoPressure, deliverabilityAnalysis, normalizedPseudoTime, GAS, WELLTEST_Z_METHODS, rateDependentSkinFit, nonDarcyDFromF } from '@/utils/welltest/gas';
 import { UNIT_SYSTEMS } from '@/utils/welltest/units';
@@ -107,6 +107,12 @@ export const DEFAULT_TEST_CONFIG = {
   spikeThreshold: '6',
   // WT8: diagnostics abscissa, gas tests only ('time' | 'pseudo-time')
   abscissa: 'time',
+  // 2026-10-14: what a buildup is analysed after. 'tp': one rate q for the
+  // producing time tp (Horner, Agarwal). 'history': the rate history entered
+  // on the Data tab, by superposition (straight line on superposition time,
+  // derivative on its equivalent time, the model through every rate step).
+  // Projects saved before carry no field and keep 'tp'.
+  timeBasis: 'tp',
 };
 
 export const DEFAULT_MATCH = { modelId: 'homogeneous', k: '50', skin: '0', C: '0.01' };
@@ -116,6 +122,8 @@ export const DEFAULT_WINDOWS = {
   semilogMin: '', semilogMax: '',
   pssMin: '', pssMax: '',
   sqrtMin: '', sqrtMax: '',
+  // 2026-10-14: the second (late) semilog line, for a sealing fault
+  lateMin: '', lateMax: '',
 };
 
 /**
@@ -253,8 +261,11 @@ export function buildTestConfig(t) {
     spikeTrimOn: !!t.spikeTrimOn,
     spikeThreshold: Math.max(num(t.spikeThreshold) || 6, 2),
     abscissa: t.abscissa === 'pseudo-time' ? 'pseudo-time' : 'time',
+    timeBasis: t.timeBasis === 'history' ? 'history' : 'tp',
   };
-  if (out.family === 'buildup' && !(out.tp > 0)) {
+  // with the rate history as the time basis tp is not used (the history
+  // gives the flowing periods); the provider checks the history itself
+  if (out.family === 'buildup' && !(out.tp > 0) && out.timeBasis !== 'history') {
     return {
       config: null,
       error: testType === 'falloff'
@@ -263,6 +274,37 @@ export function buildTestConfig(t) {
     };
   }
   return { config: out, error: null };
+}
+
+/**
+ * The rate history as the buildup sees it (2026-10-14). The analysed shut-in
+ * is the start of the LAST zero-rate step that follows a flowing one (a
+ * clean-up can hold an earlier shut-in); the steps before it carry the
+ * superposition weights. Rates are taken as magnitudes, so an injection
+ * history entered as negative rates serves a falloff the same way.
+ * @returns {{ ok, steps, shutInTime, qn, equivalentTp, flowingRates, reason }}
+ */
+export function buildRateHistorySpec(rateRows) {
+  const steps = rateStepsFromHistory((rateRows || []).map((r) => ({ t: num(r.t), q: Math.abs(num(r.q)) })));
+  const none = (reason) => ({ ok: false, steps, shutInTime: NaN, qn: NaN, equivalentTp: NaN, flowingRates: 0, reason });
+  if (!steps.length) return none('No rate history is entered.');
+  let shut = null;
+  for (let i = steps.length - 1; i > 0; i -= 1) {
+    if (steps[i].q === 0 && steps.slice(0, i).some((x) => x.q > 0)) { shut = steps[i]; break; }
+  }
+  if (!shut) return none('The rate history has no shut-in after a flowing rate.');
+  const flowing = steps.filter((x) => x.start < shut.start);
+  const sup = buildupSuperpositionTerms(flowing, shut.start);
+  if (!sup.ok) return none(sup.reason);
+  return {
+    ok: true,
+    steps: flowing,
+    shutInTime: shut.start,
+    qn: sup.qn,
+    equivalentTp: equivalentProducingTime(steps, shut.start),
+    flowingRates: new Set(flowing.filter((x) => x.q > 0).map((x) => x.q)).size,
+    reason: null,
+  };
 }
 
 /**
@@ -438,15 +480,24 @@ export function prepareTestData({ gaugeRows, reservoir, config }) {
  * pseudo-time abscissa is selected; the identical map is applied to the
  * model overlay so the comparison stays apples-to-apples.
  */
-export function buildLoglog({ points, config, taOf = (t) => t }) {
+export function buildLoglog({ points, config, taOf = (t) => t, history = null }) {
   if (!points?.length || !config) return [];
-  const abscissa = (t) =>
-    config.family === 'buildup' ? agarwalEquivalentTime(config.tp, taOf(t)) : taOf(t);
+  const abscissa = (t) => buildupAbscissa({ config, history, t: taOf(t) });
   const series = points
     .map((p) => ({ x: abscissa(p.time), y: p.dp, time: p.time }))
     .filter((p) => p.x > 0 && p.y > 0);
   const deriv = bourdetDerivative(series, { L: config.smoothingL });
   return deriv.map((d, i) => ({ x: d.x, time: series[i]?.time ?? d.x, dp: d.y, derivative: d.derivative }));
+}
+
+/**
+ * Diagnostic abscissa of one point: Agarwal's equivalent time with tp, or the
+ * superposition equivalent time of the rate history (2026-10-14), or the
+ * elapsed time of a drawdown.
+ */
+export function buildupAbscissa({ config, history, t }) {
+  if (config?.family !== 'buildup') return t;
+  return history ? superpositionEquivalentTime(history.steps, history.shutInTime, t) : agarwalEquivalentTime(config.tp, t);
 }
 
 /**
@@ -588,7 +639,19 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   // ---- Derived analysis (never persisted) ----
   const gasTable = pvtIntake?.gasTable || null;
   const reservoirSpec = useMemo(() => buildReservoirInputs(reservoirInputs, { gasTable }), [reservoirInputs, gasTable]);
-  const configSpec = useMemo(() => buildTestConfig(testConfig), [testConfig]);
+  const rawConfigSpec = useMemo(() => buildTestConfig(testConfig), [testConfig]);
+  // 2026-10-14: the rate history of the Data tab, and whether the buildup is
+  // analysed on it (time basis 'history' and a usable history)
+  const rateHistorySpec = useMemo(() => buildRateHistorySpec(rateRows), [rateRows]);
+  const history = rawConfigSpec.config?.family === 'buildup' && rawConfigSpec.config.timeBasis === 'history' && rateHistorySpec.ok
+    ? rateHistorySpec : null;
+  const configSpec = useMemo(() => {
+    const cfg = rawConfigSpec.config;
+    if (!cfg || cfg.family !== 'buildup' || cfg.timeBasis !== 'history' || rateHistorySpec.ok) return rawConfigSpec;
+    // history asked for but not usable: fall back to tp when there is one
+    if (cfg.tp > 0) return rawConfigSpec;
+    return { config: null, error: `${rateHistorySpec.reason} Enter the rate history with its shut-in, or set the time basis to the producing time tp.` };
+  }, [rawConfigSpec, rateHistorySpec]);
   const model = useMemo(() => getModel(matchInputs.modelId) || getModel('homogeneous'), [matchInputs.modelId]);
 
   const prepared = useMemo(
@@ -614,8 +677,8 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   }, [reservoirSpec, configSpec, prepared]);
 
   const loglog = useMemo(
-    () => buildLoglog({ points: prepared.points, config: configSpec.config, taOf: pseudoTime.taOf }),
-    [prepared, configSpec, pseudoTime],
+    () => buildLoglog({ points: prepared.points, config: configSpec.config, taOf: pseudoTime.taOf, history }),
+    [prepared, configSpec, pseudoTime, history],
   );
 
   const regimes = useMemo(() => detectFlowRegimes(loglog), [loglog]);
@@ -623,7 +686,8 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   const flowPeriods = useMemo(() => {
     const steps = rateStepsFromHistory(rateRows.map((r) => ({ t: num(r.t), q: num(r.q) })));
     if (!steps.length) return { steps: [], periods: [], equivalentTp: NaN };
-    const shutIn = steps.find((s) => s.q === 0 && s.start > 0);
+    // the analysed shut-in is the last one: a clean-up can shut in earlier
+    const shutIn = [...steps].reverse().find((s) => s.q === 0 && s.start > 0);
     return {
       steps,
       periods: detectFlowPeriods(steps.map((s) => ({ t: s.start, q: s.q }))),
@@ -655,11 +719,11 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
         params: matchParams,
         reservoir: reservoirSpec.reservoir,
         tp: cfg.tp,
+        rateHistory: history,
         times,
         dts: times,
       });
-      const abscissa = (t) =>
-        (cfg.family === 'buildup' ? agarwalEquivalentTime(cfg.tp, pseudoTime.taOf(t)) : pseudoTime.taOf(t));
+      const abscissa = (t) => buildupAbscissa({ config: cfg, history, t: pseudoTime.taOf(t) });
       const base = series.map((p, i) => ({ x: abscissa(times[i]), y: p.dp })).filter((p) => p.x > 0 && p.y > 0);
       const deriv = bourdetDerivative(base, { L: cfg.smoothingL });
       return deriv.map((d) => ({ x: d.x, modelDp: d.y, modelDerivative: d.derivative }));
@@ -667,7 +731,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
       console.error(e);
       return null;
     }
-  }, [matchParams, model, reservoirSpec, configSpec, prepared, pseudoTime]);
+  }, [matchParams, model, reservoirSpec, configSpec, prepared, pseudoTime, history]);
 
   const windowedPoints = useCallback((minKey, maxKey, auto = null) => {
     let lo = num(windows[minKey]);
@@ -708,12 +772,20 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     const pts = windowedPoints('semilogMin', 'semilogMax', autoSemilogWindow);
     if (pts.length < 4) return null;
     const raw = cfg.family === 'buildup'
-      ? hornerAnalysis({
-        points: pts.map((p) => ({ dt: p.time, pws: p.pa })),
-        tp: cfg.tp,
-        pwfShutIn: prepared.paShutIn,
-        ...reservoirSpec.reservoir,
-      })
+      ? (history
+        ? superpositionBuildupAnalysis({
+          points: pts.map((p) => ({ dt: p.time, pws: p.pa })),
+          steps: history.steps,
+          shutInTime: history.shutInTime,
+          pwfShutIn: prepared.paShutIn,
+          ...reservoirSpec.reservoir,
+        })
+        : hornerAnalysis({
+          points: pts.map((p) => ({ dt: p.time, pws: p.pa })),
+          tp: cfg.tp,
+          pwfShutIn: prepared.paShutIn,
+          ...reservoirSpec.reservoir,
+        }))
       : mdhAnalysis({
         points: pts.map((p) => ({ t: p.time, pwf: p.pa })),
         ...reservoirSpec.reservoir,
@@ -722,6 +794,8 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     if (!raw) return null;
     return {
       ...raw,
+      // which straight line this is (2026-10-14)
+      method: cfg.family === 'buildup' ? (history ? 'superposition' : 'horner') : 'mdh',
       // the elapsed-time window the line was fitted on (report plot marks it)
       windowMin: pts[0].time,
       windowMax: pts[pts.length - 1].time,
@@ -734,7 +808,66 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
       p1hr: Number.isFinite(raw.p1hr) ? prepared.fromAnalysis(raw.p1hr) : raw.p1hr,
       pStar: Number.isFinite(raw.pStar) ? prepared.fromAnalysis(raw.pStar) : raw.pStar,
     };
-  }, [reservoirSpec, configSpec, prepared, windowedPoints, autoSemilogWindow]);
+  }, [reservoirSpec, configSpec, prepared, windowedPoints, autoSemilogWindow, history]);
+
+  // 2026-10-14: the MDH line on the same window for a buildup (pws against
+  // log dt, valid while dt << tp), shown beside Horner as a cross-check
+  const mdhBuildupResult = useMemo(() => {
+    const cfg = configSpec.config;
+    if (!reservoirSpec.reservoir || cfg?.family !== 'buildup') return null;
+    const pts = windowedPoints('semilogMin', 'semilogMax', autoSemilogWindow);
+    if (pts.length < 4) return null;
+    const q = history ? history.qn : reservoirSpec.reservoir.q;
+    const raw = mdhBuildupAnalysis({
+      points: pts.map((p) => ({ dt: p.time, pws: p.pa })),
+      pwfShutIn: prepared.paShutIn,
+      ...reservoirSpec.reservoir,
+      q,
+    });
+    if (!raw) return null;
+    return {
+      ...raw,
+      skin: prepared.skinWithheld ? null : raw.skin,
+      p1hrA: raw.p1hr,
+      p1hr: Number.isFinite(raw.p1hr) ? prepared.fromAnalysis(raw.p1hr) : raw.p1hr,
+      windowMin: pts[0].time,
+      windowMax: pts[pts.length - 1].time,
+      // dt against the producing time: MDH holds while dt is small beside it
+      dtOverTp: pts[pts.length - 1].time / (history ? history.equivalentTp : cfg.tp),
+    };
+  }, [reservoirSpec, configSpec, prepared, windowedPoints, autoSemilogWindow, history]);
+
+  // 2026-10-14: a second, later semilog line (the boundary) and the distance
+  // to a sealing fault where the two lines meet (Gray 1965). The first line
+  // is the semilog window above; the second has its own window.
+  const faultResult = useMemo(() => {
+    const cfg = configSpec.config;
+    const r = reservoirSpec.reservoir;
+    if (!r || !cfg) return null;
+    const lo = num(windows.lateMin);
+    const hi = num(windows.lateMax);
+    if (!Number.isFinite(lo) && !Number.isFinite(hi)) return null;
+    const early = windowedPoints('semilogMin', 'semilogMax', autoSemilogWindow);
+    const late = windowedPoints('lateMin', 'lateMax');
+    if (early.length < 3 || late.length < 3) {
+      return { ok: false, reason: 'Each line needs at least 3 points in its window.', windowMin: lo, windowMax: hi };
+    }
+    const isBuildup = cfg.family === 'buildup';
+    const steps = isBuildup ? (history ? history.steps : [{ start: 0, q: r.q }]) : null;
+    const shutInTime = isBuildup ? (history ? history.shutInTime : cfg.tp) : null;
+    const out = twoLineFaultAnalysis({
+      kind: isBuildup ? 'buildup' : 'drawdown',
+      early: early.map((p) => (isBuildup ? { dt: p.time, pws: p.pa } : { t: p.time, pwf: p.pa })),
+      late: late.map((p) => (isBuildup ? { dt: p.time, pws: p.pa } : { t: p.time, pwf: p.pa })),
+      steps,
+      shutInTime,
+      ...r,
+    });
+    // with a fault, p* belongs on the late (doubled) line: the early line
+    // extrapolates below the reservoir pressure
+    const pStar2 = isBuildup && out.ok && Number.isFinite(out.line2?.intercept) ? prepared.fromAnalysis(out.line2.intercept) : NaN;
+    return { ...out, pStar2, windowMin: late[0].time, windowMax: late[late.length - 1].time, lateN: late.length, earlyN: early.length };
+  }, [reservoirSpec, configSpec, windows, windowedPoints, autoSemilogWindow, history, prepared]);
 
   // Cartesian PSS pore volume stays a liquid drawdown analysis.
   const pssResult = useMemo(() => {
@@ -843,7 +976,10 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     if (!(k > 0)) return null;
     const lastTime = prepared.points.length ? prepared.points[prepared.points.length - 1].time : NaN;
     // analysis units (psi for oil, psi^2/cp for gas via the equivalent FVF)
-    const dpSkinA = Number.isFinite(skin) ? skinPressureDrop({ q: r.q, B: r.B, mu: r.mu, k, h: r.h, skin }) : NaN;
+    // the rate flowing before the shut-in: the history's last rate when the
+    // buildup is analysed on the rate history (2026-10-14)
+    const qUse = history ? history.qn : r.q;
+    const dpSkinA = Number.isFinite(skin) ? skinPressureDrop({ q: qUse, B: r.B, mu: r.mu, k, h: r.h, skin }) : NaN;
     // display value in gauge psi: offset the reference by the skin drop
     const dpSkin = Number.isFinite(dpSkinA)
       ? Math.abs(prepared.dpToGauge(dpSkinA) - prepared.dpToGauge(0))
@@ -867,7 +1003,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
         ? matchParams.C * toDimensionlessGroups({ ...r, k }).cdPerBblPsi
         : NaN,
     };
-  }, [reservoirSpec, matchParams, matchInputs, fitResult, semilogResult, prepared]);
+  }, [reservoirSpec, matchParams, matchInputs, fitResult, semilogResult, prepared, history]);
 
   const rateSkin = useMemo(() => {
     const r = reservoirSpec.reservoir;
@@ -935,6 +1071,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
         data,
         reservoir: reservoirSpec.reservoir,
         tp: cfg.tp,
+        rateHistory: history,
         initialParams: matchParams || undefined,
         smoothingL: cfg.smoothingL,
       });
@@ -964,7 +1101,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     } finally {
       setIsFitting(false);
     }
-  }, [isFitting, reservoirSpec, configSpec, prepared, model, matchParams, addNotification]);
+  }, [isFitting, reservoirSpec, configSpec, prepared, model, matchParams, addNotification, history]);
 
   const matchMethod = useMemo(
     () => resolveMatchMethod({ source: derivedKpis?.source, fitResult, fitStale, model, matchInputs }),
@@ -988,8 +1125,8 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   }), [reservoirInputs, reservoirSpec, completion, inputMeta, unitSystem, pvtIntake]);
 
   const flowSummary = useMemo(() => buildFlowSummary({
-    rateRows, config: configSpec.config, reservoir: reservoirSpec.reservoir, prepared, periodMeta, unitSystem,
-  }), [rateRows, configSpec, reservoirSpec, prepared, periodMeta, unitSystem]);
+    rateRows, config: configSpec.config, reservoir: reservoirSpec.reservoir, prepared, periodMeta, unitSystem, analysedHistory: history,
+  }), [rateRows, configSpec, reservoirSpec, prepared, periodMeta, unitSystem, history]);
 
   const identificationRows = useMemo(() => buildIdentificationRows({
     projectName, wellName, fieldName, analyst, identification, completion, config: configSpec.config, unitSystem,
@@ -1007,14 +1144,14 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   }), [completion, gaugeImport, unitSystem, datum, configSpec, semilogResult, prepared]);
   const dataUse = useMemo(() => buildDataUseRows({ prepared, unitSystem }), [prepared, unitSystem]);
   const limitsRows = useMemo(() => buildLimitsRows({
-    reservoir: reservoirSpec.reservoir, config: configSpec.config, model, prepared, datum,
-  }), [reservoirSpec, configSpec, model, prepared, datum]);
+    reservoir: reservoirSpec.reservoir, config: configSpec.config, model, prepared, datum, history,
+  }), [reservoirSpec, configSpec, model, prepared, datum, history]);
 
   // History match (model against the gauge over the whole record) and the
   // test overview: one calculation, drawn on the tabs and in the PDF.
   const historyMatch = useMemo(() => buildHistoryMatch({
-    prepared, matchParams, model, reservoir: reservoirSpec.reservoir, config: configSpec.config, unitSystem,
-  }), [prepared, matchParams, model, reservoirSpec, configSpec, unitSystem]);
+    prepared, matchParams, model, reservoir: reservoirSpec.reservoir, config: configSpec.config, unitSystem, history,
+  }), [prepared, matchParams, model, reservoirSpec, configSpec, unitSystem, history]);
 
   const overview = useMemo(() => buildOverviewData({
     gaugeRows, rateRows, config: configSpec.config, reservoir: reservoirSpec.reservoir, unitSystem,
@@ -1081,8 +1218,8 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   // into every save so other apps read the results by id (lib/wellTestSource)
   const wtaRecord = useMemo(() => buildWtaRecord({
     reservoirSpec, derivedKpis, configSpec, semilogResult, matchMethod, fitResult, model, skinBreakdown, prepared,
-    completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId, rateSkin, datum,
-  }), [datum, reservoirSpec, derivedKpis, configSpec, semilogResult, matchMethod, fitResult, model, skinBreakdown, prepared,
+    completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId, rateSkin, datum, history,
+  }), [history, datum, reservoirSpec, derivedKpis, configSpec, semilogResult, matchMethod, fitResult, model, skinBreakdown, prepared,
     completion, reservoirInputs, identification, projectName, wellName, fieldName, analyst, currentProjectId, rateSkin]);
 
   // ---- Project persistence ----
@@ -1346,6 +1483,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
     autoSemilogWindow, semilogWindowSource, matchKpis, sqrtMeaningful,
     matchParams, modelSeries, changingStorage,
     semilogResult, pssResult, sqrtResult, derivedKpis,
+    mdhBuildupResult, faultResult, rateHistorySpec, history,
     multiRateResult, deliverabilityResult,
     // report model and shared plot series (tester round 2)
     skinBreakdown, inputsTable, flowSummary, identificationRows, historyMatch, overview,

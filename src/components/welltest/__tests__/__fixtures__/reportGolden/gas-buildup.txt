@@ -50,24 +50,24 @@ Gauge, datum and pressure basis
 
 Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                            Page 1 of 6
 Skin components
- Component                                                             Value                 Basis
+ Component                                                             Value              Basis
 
- Apparent skin s'                                                      6.46                  From the interpretation
+ Apparent skin s'                                                      6.46               From the interpretation
 
- Partial-penetration pseudo-skin s_pp                                  2.60                  Papatzacos (1987)
+ Partial-penetration pseudo-skin s_pp                                  2.60               Papatzacos (1987)
 
- Slant pseudo-skin s_theta (14.8 degrees from vertical)                -0.02                 Cinco-Ley, Ramey and Miller (1975), from the MD and
-                                                                                             TVD of the perforations
+ Slant pseudo-skin s_theta (14.8 degrees from vertical)                -0.02              Cinco-Ley, Ramey and Miller (1975), from the MD and
+                                                                                          TVD of the perforations
 
- Mechanical and rate-dependent skin                                    2.50                  s_d = (hp/h) (s - s_pp - s_theta)
+ Mechanical and rate-dependent skin                                    2.50               s_d = (hp/h) (s - s_pp - s_theta)
 
- Net pay h (ft)                                                        45                    Input
+ Net pay h (ft)                                                        45                 Input
 
- Perforated length hp (ft)                                             29                    True vertical depth
+ Perforated length hp (ft)                                             29                 True vertical depth
 
- Top of pay to top of perforations h1 (ft)                             0                     True vertical depth
+ Top of pay to top of perforations h1 (ft)                             0                  True vertical depth
 
- kv/kh                                                                 0.1                   Assumed default 0.1 (no value entered)
+ kv/kh                                                                 0.1                Assumed default 0.1 (no value entered)
 
 Papatzacos (1987): s_pp = (1/hpD - 1) ln(pi/(2 rD)) + (1/hpD) ln[hpD/(2 + hpD) sqrt((A - 1)/(B - 1))], with hpD = hp/h, rD = (rw/h) sqrt(kv/kh), h1D =
 h1/h, A = 1/(h1D + hpD/4), B = 1/(h1D + 3 hpD/4). Slant: s_theta = -(theta'/41)^2.06 - (theta'/56)^1.865 log10(hD/100), theta' = atan(sqrt(kv/kh) tan
@@ -77,34 +77,36 @@ approximate. kv/kh not entered: 0.1 is assumed.
 
 
 Straight-line analyses
- Analysis                                                                                          Result
+ Analysis                                                                                        Result
 
- Horner slope m                                                                                    8.558e+6 psi2/cp/cycle
+ Horner slope m                                                                                  8.558e+6 psi2/cp/cycle
 
- Semilog k (md)                                                                                    13.6
+ Semilog k (md)                                                                                  13.6
 
- Semilog skin                                                                                      6.46
+ Semilog skin                                                                                    6.46
 
- Extrapolated p* (psi)                                                                             4800.1
+ Extrapolated p* (psi)                                                                           4800.1
 
- Semilog fit r2                                                                                    1.00
+ Semilog fit r2                                                                                  1.00
 
- Semilog fit window (shut-in time dt, hr)                                                          4.56 to 35.1
+ Semilog fit window (shut-in time dt, hr)                                                        4.56 to 35.1
 
 
 Cross-check of methods
- Method                                      k (md)          Skin             Basis
+ Method                                        k (md)        Skin      Basis
 
- Horner straight line                        13.6            6.46             Semilog slope, r2 1.00, pseudo-pressure
+ Horner straight line                          13.6          6.46      Semilog slope, r2 1.00, pseudo-pressure
 
-Only one method has produced a result so far.
+ MDH straight line (pws against log dt)        18.7          11.12     Semilog slope, r2 0.99; the window reaches 0.975 of tp, so MDH bends
+
+Independent routes to the same permeability and skin. Agreement supports the interpretation; a spread points at the window or the model.
 
 Flow regimes observed
- Regime                                                         From (hr)                   To (hr)                Span (log cycles)
+ Regime                                                         From (hr)                 To (hr)               Span (log cycles)
 
- Transition between regimes                                     0.212                       1.57                   0.9
+ Transition between regimes                                     0.212                     1.57                  0.9
 
- Radial flow                                                    4.05                        17.8                   0.6
+ Radial flow                                                    4.05                      17.8                  0.6
 
 Detected on the Bourdet derivative; times are Agarwal equivalent time, which runs behind shut-in time late in a buildup. The semilog fit window
 above is in shut-in time.
@@ -193,8 +195,8 @@ Well Test Analysis Report, Well Sample well 1, Field Obodo                      
                                deviated interval (MD longer than TVD) enters as the Cinco-Ley et al. (1975) slant pseudo-skin, split off the total
                                skin; the flow model stays that of a vertical well.
 
- Time basis                    Buildup on Agarwal equivalent time with the producing time tp, or on superposition of the rate history when one is
-                               entered.
+ Time basis                    Buildup on Agarwal equivalent time with the producing time tp at the test rate q (Horner). A rate history entered on
+                               the Data tab is used only when the time basis is set to the rate history.
 
  Pressures                     Analysed and reported at the gauge depth; no correction to a datum and no gravity or friction correction between
                                gauge and sandface.
@@ -205,7 +207,7 @@ Well Test Analysis Report, Well Sample well 1, Field Obodo                      
 
 
 
-Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                              Page 4 of 6
+Well Test Analysis Report, Well Sample well 1, Field Obodo                                                                               Page 4 of 6
 Plots
 Figure 1. Test overview
 
@@ -279,18 +281,21 @@ Well Test Analysis Report, Well Sample well 1, Field Obodo                      
 Figure 3. Horner semilog plot
 
                               pws         Straight line
-                   4800
+                   4850
                                                                                                                                     Fit window
+
+
+                   4800
 
 
 
                    4750
+  Pressure (psi)
+
 
 
 
                    4700
-  Pressure (psi)
-
 
 
 
@@ -303,7 +308,6 @@ Well Test Analysis Report, Well Sample well 1, Field Obodo                      
 
 
                    4550
-
                          Slope m = 8.558e+6 psi2/cp/cycle
                          Fit window 4.56 to 35.1 hr shut-in time (4.05 to 17.8 hr equivalent time), the detected radial flow
                    4500
@@ -311,9 +315,9 @@ Well Test Analysis Report, Well Sample well 1, Field Obodo                      
 
                                                                                           Horner time ratio (tp + dt)/dt
 
-Shut-in pressure against the Horner time ratio, with the fitted straight line. Slope m = 8.558e+6 psi2/cp/cycle. Fit window 4.56 to 35.1 hr shut-in
-time (4.05 to 17.8 hr equivalent time), the detected radial flow (11 points). The shaded band is the fit window. The line is fitted in pseudo-pressure
-and drawn back in pressure.
+Shut-in pressure against the Horner time ratio, with the fitted straight line carried to p*. Slope m = 8.558e+6 psi2/cp/cycle. Fit window 4.56 to 35.1
+hr shut-in time (4.05 to 17.8 hr equivalent time), the detected radial flow (11 points). The shaded band is the fit window. The line is fitted in
+pseudo-pressure and drawn back in pressure.
 
 
 Figure 4. Square-root-of-time plot

@@ -55,6 +55,7 @@ const ReportResults = () => {
     multiRateResult, deliverabilityResult, fitResult, matchMethod, regimes, notes, model,
     unitSystem, rtaResult,
     identificationRows, inputsTable, skinBreakdown, flowSummary, pressureBasisRows, dataUse, limitsRows, changingStorage, rateSkin,
+    mdhBuildupResult, faultResult,
   } = ctx;
   const uL = (kind) => unitLabel(kind, unitSystem);
 
@@ -77,7 +78,10 @@ const ReportResults = () => {
     matchMethodKind: matchMethod?.kind,
     fitResult: matchMethod?.kind === 'regression' ? fitResult : null,
     semilogResult, multiRateResult, isBuildup, isGas, skinWithheld: !!prepared.skinWithheld,
+    mdhBuildupResult,
   });
+  const fault = faultResult?.ok ? faultResult : null;
+  const slopeKindR = isGas ? 'pseudoSlope' : 'semilogSlope';
   const figures = buildReportFigures(ctx);
   const TEST_LABELS = {
     buildup: 'Pressure buildup',
@@ -198,13 +202,17 @@ const ReportResults = () => {
           <p className="text-xs font-semibold text-pl-muted uppercase tracking-wider mb-1">Straight-line analyses</p>
           <table className="w-full text-xs">
             <tbody>
-              <Row label={isBuildup ? 'Horner slope m' : 'MDH slope m'} value={fmtU(isGas ? 'pseudoSlope' : 'semilogSlope', semilogResult?.m, unitSystem, isGas ? fmt.sci : fmt.f1)} unit={uL(isGas ? 'pseudoSlope' : 'semilogSlope')} />
+              <Row label={isBuildup ? (semilogResult?.method === 'superposition' ? 'Superposition slope m' : 'Horner slope m') : 'MDH slope m'} value={fmtU(isGas ? 'pseudoSlope' : 'semilogSlope', semilogResult?.m, unitSystem, isGas ? fmt.sci : fmt.f1)} unit={uL(isGas ? 'pseudoSlope' : 'semilogSlope')} />
               <Row label="Semilog k" value={fmt.sig3(semilogResult?.k)} unit="md" />
               <Row label="Semilog skin" value={fmt.f2(semilogResult?.skin)} />
               {isBuildup && <Row label="Extrapolated p*" value={fmtU('pressure', semilogResult?.pStar, unitSystem, fmt.f1)} unit={uL('pressure')} />}
               <Row label="Semilog fit r²" value={fmt.f3(semilogResult?.r2)} />
 {sqrtMeaningful &&               <Row label="sqrt(t) slope" value={fmt.f2(fromOilfield(isGas ? 'pseudoPressure' : 'pressure', sqrtResult?.slope, unitSystem))} unit={`${uL(isGas ? 'pseudoPressure' : 'pressure')}/hr^0.5`} />}
               {!isBuildup && pssResult && <Row label="Connected pore volume" value={unitSystem === 'si' ? fmt.f3(fromOilfield('poreVolume', pssResult.poreVolumeMMbbl, unitSystem)) : fmt.f2(pssResult.poreVolumeMMbbl)} unit={unitSystem === 'si' ? 'MM m³' : 'MMbbl'} />}
+              {fault && <Row label="Second line slope m2" value={fmtU(slopeKindR, fault.m2, unitSystem, isGas ? fmt.sci : fmt.f1)} unit={uL(slopeKindR)} />}
+              {fault && <Row label="Slope ratio m2/m1" value={fmt.f2(fault.ratio)} />}
+              {fault && <Row label="Distance to a sealing fault (two lines)" value={fmtU('length', fault.L, unitSystem, fmt.int)} unit={uL('length')} />}
+              {fault && isBuildup && Number.isFinite(fault.pStar2) && <Row label="p* on the second line" value={fmtU('pressure', fault.pStar2, unitSystem, fmt.f1)} unit={uL('pressure')} />}
               {multiRateResult && <Row label="Multi-rate k (Odeh-Jones)" value={fmt.sig3(multiRateResult.k)} unit="md" />}
               {multiRateResult && <Row label="Multi-rate skin" value={fmt.f2(multiRateResult.skin)} />}
             </tbody>

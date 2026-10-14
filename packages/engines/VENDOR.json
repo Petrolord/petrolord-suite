@@ -2,14 +2,14 @@
   "$comment": "Vendoring contract for packages/engines. Checked by tools/check-vendored-engines.mjs; see that file for the model. The check is against the PINNED commit below and its committed manifest, never against engines HEAD: a guard pointed at HEAD goes red the moment canonical moves and then blocks every unrelated Suite PR. Moving the pin is a deliberate, reviewed vendoring pass. The Suite vendors the WHOLE canonical tree, so the expected state of this file is the one it is in: an EMPTY knownDeviations list. Any deviation that is genuinely deliberate goes in that list with a reason, a group and a burnDownWhen, and every differing or extra path is pinned to the blob currently vendored, so a second drift on an already-known path still fails. burnDownWhen states the condition under which the row must be removed, because a bare reason goes stale on its own: in NextGen a row reading \"pull only with the recut in the same deploy window\" became false the moment the recut merged and nothing in the file said so. A ledger entry whose deviation has gone is also a failure, so the list can only shrink.",
   "canonical": {
     "repo": "git@github.com:Petrolord/petrolord-engines.git",
-    "commit": "99add05e325f8e687749d4193b9e338a5803347e",
+    "commit": "1d30a6d0d2e25e121d43ad1a28bd0a52a7e6e62b",
     "manifest": "VENDOR.manifest"
   },
   "vendoring": {
     "method": "file-by-file reconciliation against a canonical clone, verified by blob hash with this guard, hashed from the files on disk rather than from the git index",
     "$comment": "NOT a whole-tree `git subtree pull`. That silently DELETED 24 Suite-only downstream files on 2026-09-14. Vendor the paths the canonical range actually touched, then run the guard, which is what proves nothing else moved.",
     "lastVendored": "2026-10-14",
-    "lastVendoredRange": "a6cb03757333b0d4f0b2d10330a7cad793db0635..99add05e325f8e687749d4193b9e338a5803347e (engines PR #360: EPE cash flow 3.12.4, speed only: Horner NPV in the IRR contract, cached royalty-by-price benchmarks, one header pick per production file; gate economics.irrHorner.test.ts)"
+    "lastVendoredRange": "99add05e325f8e687749d4193b9e338a5803347e..1d30a6d0d2e25e121d43ad1a28bd0a52a7e6e62b (engines PR #361: Well Test buildup after a rate history by superposition, MDH buildup line, fault distance from two semilog lines, auto-fit with a rate history; PR #362: the rise and the second plateau after radial flow named, levelRatio; gates welltest.buildupSuperposition.test.js, welltest.derivative.test.js)"
   },
   "testing": {
     "$comment": "The Suite needs no equivalent of NextGen's tools/run-vendored-engine-tests.mjs. jest.config.js uses testMatch '**/__tests__/**/*.test.(js|jsx|ts)' with no testPathIgnorePatterns, so all 179 suites under packages/engines/__tests__ already run in `npm test` beside the Suite's own. There is no allow-list of known engine test failures because there are none: the vendored suites are green.",

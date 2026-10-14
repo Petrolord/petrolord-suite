@@ -212,3 +212,10 @@ binds the shared `src/hooks/useUnitDraft.js` (`createUnitDraft`) to its unit
 module. `unitTyping.test.jsx` passes unchanged. `tools/unit-draft-guard.mjs`
 (jest gate `tools/__tests__/unitDraftGuard.test.js`) now holds src/ at zero
 converted inputs without a draft.
+
+## 2026-10-14: Well Test intake (branch `feat/welltest-send-to-nodal`)
+
+- Opened with `?wellTestProject=<id>` (from the Well Test Report tab), the studio starts on the Inflow tab and reads the saved wta-1 record by id (`readWellTestProject`). A card "From Well Test Analysis Studio" (`nodal-wt-intake`) above the inflow inputs names the project, well, method, test date, pr (p* or pi), the test point and J, with the skin-removed J and flow efficiency.
+- Two choices, applied on click only: **As tested** (pr and J) and **Skin removed** (pr and the ideal J). The IPR becomes the straight-line PI unless it is composite, which stays composite with the Nodal bubble point (the Well Test has none). Gas tests and records without a productivity block are refused with the reason.
+- Provenance: the payload keeps a small `wellTestIntake` object (project, well, choice, pr and its method, J, applied date); the card shows it when the project is reopened and says when the inflow has been edited since.
+- Code: `src/utils/nodal/wellTestIntake.js`, context `loadWellTestSource` / `applyWellTestIntake`, `WellTestIntakeCard` in `InputCards.jsx`. Units follow the display system; state stays oilfield. No migration.

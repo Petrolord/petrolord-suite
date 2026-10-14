@@ -563,7 +563,7 @@ export const periodKey = (start) => String(Number.isFinite(start) ? Number(start
  * remark the user added. With no rate history the periods come from the
  * test setup (rate q for tp, then the shut-in), and the table says so.
  */
-export function buildFlowSummary({ rateRows = [], config, reservoir, prepared, periodMeta = {}, unitSystem = 'oilfield' }) {
+export function buildFlowSummary({ rateRows = [], config, reservoir, prepared, periodMeta = {}, unitSystem = 'oilfield', analysedHistory = null }) {
   const isGas = reservoir?.fluid === 'gas';
   const rateKind = isGas ? 'gasRate' : 'oilRate';
   const volKind = isGas ? 'gasVolume' : 'oilVolume';
@@ -615,9 +615,13 @@ export function buildFlowSummary({ rateRows = [], config, reservoir, prepared, p
   // WTA-U1-008: the analysis reads the test rate q (and tp); an entered rate
   // history that says otherwise is stated, never silently reconciled
   const mismatch = [];
-  if (!derived && reservoir?.q > 0) {
+  const basisNote = analysedHistory ? ' The buildup is analysed on this rate history, so the test rate q and the producing time tp of the test setup are not used.' : '';
+  if (analysedHistory) {
+    // nothing to reconcile: the history is what the analysis reads
+  } else if (!derived && reservoir?.q > 0) {
     const sorted = [...history].sort((a, b) => a.t - b.t);
-    const shutIn = isBuildup ? sorted.find((r) => r.q === 0 && r.t > 0) : null;
+    // the analysed shut-in is the last one (a clean-up can hold an earlier one)
+    const shutIn = isBuildup ? [...sorted].reverse().find((r) => r.q === 0 && r.t > 0) : null;
     const flowing = sorted.filter((r) => r.q !== 0 && (!shutIn || r.t < shutIn.t));
     const qHist = flowing.length ? Math.abs(flowing[flowing.length - 1].q) : NaN;
     const show = (v) => `${plain(fromOilfield(rateKind, v, unitSystem))} ${unitLabel(rateKind, unitSystem)}`;
@@ -635,7 +639,7 @@ export function buildFlowSummary({ rateRows = [], config, reservoir, prepared, p
     empty: rows.length === 0,
     note: (derived
       ? `No rate history was entered: the periods are taken from the test setup (${isBuildup ? 'rate q for the producing time tp, then the shut-in' : 'rate q over the gauge record'}).`
-      : 'Periods from the entered rate history.') + (mismatch.length ? ` ${mismatch.join(' ')}` : ''),
+      : `Periods from the entered rate history.${basisNote}`) + (mismatch.length ? ` ${mismatch.join(' ')}` : ''),
     rateKind,
     volKind,
     totalVolume: summary.totalVolume,
@@ -865,7 +869,7 @@ export function changingStorageRows({ model, params, reservoir, groups, unitSyst
  * [topic, statement] rows. The gas row carries the reduced state of the
  * test against its z method's window.
  */
-export function buildLimitsRows({ reservoir, config, model, prepared, datum = null }) {
+export function buildLimitsRows({ reservoir, config, model, prepared, datum = null, history = null }) {
   const gas = reservoir?.fluid === 'gas';
   const rows = [
     ['Fluid', gas
@@ -873,14 +877,28 @@ export function buildLimitsRows({ reservoir, config, model, prepared, datum = nu
       : 'Single-phase flow of a slightly compressible liquid with constant viscosity, formation volume factor and total compressibility. Gas coming out of solution near the well is not modelled.'],
     ['Wellbore storage', wellboreLimitText(model)],
     ['Well geometry', `${model?.label ? `${model.label} model. ` : ''}A vertical well open over the net pay unless the horizontal model is chosen. Partial penetration enters as a pseudo-skin only (Papatzacos 1987): there is no limited-entry (spherical flow) model. A deviated interval (MD longer than TVD) enters as the Cinco-Ley et al. (1975) slant pseudo-skin, split off the total skin; the flow model stays that of a vertical well.`],
-    ['Time basis', config?.family === 'buildup'
-      ? 'Buildup on Agarwal equivalent time with the producing time tp, or on superposition of the rate history when one is entered.'
-      : 'Drawdown on elapsed time from the start of flow; a rate history with more than one rate is analysed by superposition (Odeh-Jones).'],
+    ['Time basis', timeBasisText(config, history)],
     ['Pressures', datumLimitText(datum)],
   ];
   const range = gasRangeCheck({ reservoir, pressures: (prepared?.points || []).map((p) => p.p) });
   if (range) rows.push([range.method === 'fluid-table' ? 'Gas PVT table range' : 'Gas z-factor range', range.text]);
   return rows;
+}
+
+/**
+ * What the analysis time is (2026-10-14). Before, the report said a buildup
+ * used the superposition of the rate history whenever one was entered; no
+ * calculation did. Now it is a choice on the Data tab and the text follows it.
+ */
+export function timeBasisText(config, history = null) {
+  if (config?.family === 'buildup') {
+    if (history) {
+      const n = history.steps?.length || 0;
+      return `Buildup after the entered rate history, by superposition of its ${n} rate step${n === 1 ? '' : 's'} before the shut-in at ${plain(history.shutInTime)} hr: the straight line on superposition time, the derivative on its equivalent time and the model through every rate step.`;
+    }
+    return 'Buildup on Agarwal equivalent time with the producing time tp at the test rate q (Horner). A rate history entered on the Data tab is used only when the time basis is set to the rate history.';
+  }
+  return 'Drawdown on elapsed time from the start of flow at the test rate q. When the rate history holds more than one rate, the Odeh-Jones superposition line is fitted as well.';
 }
 
 // ---- deliverability coefficient units (WTA-U1-014, RL7) ----------------------

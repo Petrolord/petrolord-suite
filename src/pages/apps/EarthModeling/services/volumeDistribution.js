@@ -20,8 +20,7 @@
 // reproduced in review.
 
 import { createCorrelatedSampler, mulberry32, basicStats } from '@/lib/monteCarlo';
-import { zoneVolumes, zoneVolumesWithContacts } from '../engine/volumes';
-import { shiftProps } from './modelBuild';
+import { layeredVolumes } from './modelBuild';
 import { boundLegByClosure } from './trapBound';
 
 export const MAX_ITERATIONS = 5000;
@@ -45,7 +44,9 @@ export function zoneInputs(zone, cfg = {}) {
   if (Number.isFinite(f.bo) && boPct > 0) inputs.bo = tri(f.bo * (1 - boPct / 100), f.bo, f.bo * (1 + boPct / 100));
   if (Number.isFinite(f.bg) && bgPct > 0) inputs.bg = tri(f.bg * (1 - bgPct / 100), f.bg, f.bg * (1 + bgPct / 100));
   if (cfg.properties) {
-    for (const k of ['phi', 'sw', 'ntg']) if (zone.variance?.[k]) inputs[`${k}Z`] = { type: 'normal', mean: 0, stdDev: 1 };
+    // a layered zone varies a property when any of its layers was kriged
+    const frames = zone.layers?.length ? zone.layers : [{ variance: zone.variance }];
+    for (const k of ['phi', 'sw', 'ntg']) if (frames.some((L) => L.variance?.[k])) inputs[`${k}Z`] = { type: 'normal', mean: 0, stdDev: 1 };
   }
   return inputs;
 }
@@ -85,7 +86,7 @@ export async function runVolumeDistribution(built, cfg = {}, { onProgress = null
     const samples = Object.fromEntries(QUANTITIES.map((q) => [q, []]));
     for (let t = 0; t < iterations; t++) {
       const { values } = sampler.sample();
-      const props = shiftProps(zone, { phi: values.phiZ || 0, sw: values.swZ || 0, ntg: values.ntgZ || 0 });
+      const zs = { phi: values.phiZ || 0, sw: values.swZ || 0, ntg: values.ntgZ || 0 };
       let v;
       if (zone.mc?.hasFluids && base0) {
         const fl = { ...base0 };
@@ -96,9 +97,9 @@ export async function runVolumeDistribution(built, cfg = {}, { onProgress = null
         if (values.gocShift) fl.goc = shiftContact(base0.goc, values.gocShift);
         if (Number.isFinite(values.bo)) fl.bo = values.bo;
         if (Number.isFinite(values.bg)) fl.bg = values.bg;
-        v = zoneVolumesWithContacts(spec, top, base, labels, props, fl).total;
+        v = layeredVolumes(spec, zone, labels, fl, top, base, { zs, useContacts: true }).total;
       } else {
-        v = zoneVolumes(spec, zone.thickness, labels, props).total;
+        v = layeredVolumes(spec, zone, labels, null, top, base, { zs, useContacts: false }).total;
       }
       for (const q of QUANTITIES) if (v && Number.isFinite(v[q])) samples[q].push(v[q]);
       done += 1;

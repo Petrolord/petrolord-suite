@@ -100,7 +100,7 @@ export function buildReportFigures(s) {
     figures.push({
       id: 'loglog',
       title: 'Log-log diagnostic plot',
-      caption: `Pressure change and Bourdet derivative against ${isBuildup ? `Agarwal equivalent ${timeName}` : `elapsed ${timeName}`}. `
+      caption: `Pressure change and Bourdet derivative against ${isBuildup ? (s.history ? `the equivalent ${timeName} of the rate history (superposition)` : `Agarwal equivalent ${timeName}`) : `elapsed ${timeName}`}. `
         + (hasMatch
           ? `The lines are the ${s.model?.label || 'model'} match (${s.matchMethod?.kind === 'regression' ? 'regression' : 'manual match'}). `
           : 'No model has been matched, so the plot shows the data only. ')
@@ -131,7 +131,8 @@ export function buildReportFigures(s) {
   }
 
   // 3. Horner or MDH ------------------------------------------------------------
-  const sl = buildSemilogData({ prepared: s.prepared, config, semilogResult: s.semilogResult, unitSystem });
+  const sl = buildSemilogData({ prepared: s.prepared, config, semilogResult: s.semilogResult, unitSystem, history: s.history || null, faultResult: s.faultResult || null });
+  const fault = s.faultResult?.ok ? s.faultResult : null;
   if (sl.points.length && s.semilogResult) {
     const slopeKind = isGas ? 'pseudoSlope' : 'semilogSlope';
     const m = fromOilfield(slopeKind, s.semilogResult.m, unitSystem);
@@ -152,8 +153,9 @@ export function buildReportFigures(s) {
     figures.push({
       id: 'semilog',
       title: `${sl.name} semilog plot`,
-      caption: `${isBuildup ? 'Shut-in pressure against the Horner time ratio' : 'Flowing pressure against elapsed time'}, with the fitted straight line. `
+      caption: `${isBuildup ? (s.history ? 'Shut-in pressure against the superposition time of the rate history' : 'Shut-in pressure against the Horner time ratio') : 'Flowing pressure against elapsed time'}, with the fitted straight line${isBuildup ? ' carried to p*' : ''}. `
         + `${slopeText}. ${windowText}${w ? ` (${w.n} points)` : ''}. The shaded band is the fit window.`
+        + (fault ? ` The second line (slope ${Number(fromOilfield(isGas ? 'pseudoSlope' : 'semilogSlope', fault.m2, unitSystem)).toFixed(1)}, ${Number(fault.ratio).toFixed(2)} times the first) meets it at ${sig(fault.dtx)} hr: a sealing fault about ${Math.round(fromOilfield('length', fault.L, unitSystem)).toLocaleString('en-US')} ${unitLabel('length', unitSystem)} away (Gray 1965).` : '')
         + (isGas ? ' The line is fitted in pseudo-pressure and drawn back in pressure.' : ''),
       panels: [{
         height: 84,
@@ -165,8 +167,9 @@ export function buildReportFigures(s) {
           bands: w ? [{ x0: w.xMin, x1: w.xMax, label: 'Fit window', rgb: PLOT_RGB.fit }] : [],
           notes: [slopeText, windowText],
           series: [
-            { name: isBuildup ? 'pws' : 'pwf', type: 'scatter', rgb: PLOT_RGB.dp, pts: xy(sl.points, 'x', 'pressure') },
+            { name: isBuildup ? 'pws' : 'pwf', type: 'scatter', rgb: PLOT_RGB.dp, pts: xy(sl.points.filter((p) => p.pressure != null), 'x', 'pressure') },
             { name: 'Straight line', type: 'line', rgb: PLOT_RGB.fit, pts: xy(sl.points.filter((p) => p.fitted != null), 'x', 'fitted'), width: 0.5 },
+            ...(fault ? [{ name: 'Second line', type: 'line', rgb: PLOT_RGB.derivative, pts: xy(sl.points.filter((p) => p.late != null), 'x', 'late'), width: 0.5 }] : []),
           ],
         },
       }],
