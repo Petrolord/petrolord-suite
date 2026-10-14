@@ -167,30 +167,3 @@ otherwise nothing is claimed. Logic: `src/pages/apps/epe/epeRunInputs.js`.
 Tests: `epeRunInputs.test.js` (replaced, added, removed, unchanged, other
 scenario, legacy dates) and `epeRunInputs.mount.test.jsx` (banner; fails on
 the old viewer). No migration, no engine or Edge Function change.
-## 2026-10-14: a received forecast beside a per-well CSV counts both (engines 3.12.1)
-
-Found while scripting the EPE videos (demo 3): the Edge Function
-concatenates every production file of a run, and the engine picked the
-volume columns from the first row only. A per-well CSV (`ekene_1_oil_bbl`,
-...) beside a profile received from Forecast Scenario Hub, Decline Curve
-Analysis, Waterflood, Simulation or Well Spacing (bare `oil_bbl`) silently
-dropped one file. On the demo account the Ekene-11 hub profile vanished
-while its capex counted: NPV -$12.1M where the same volumes in one file give
-$1.98M. Engines PR #357 (merge c985c9f, ENGINE_VERSION 3.12.1) picks the
-columns per row; vendored here (guard clean, 1316 paths). Gates: engines
-`economics.mixedVolumeLayouts.test.ts` (split equals single file, both row
-orders; 3 of 5 fail on the old engine) and `epeHubIntake.test.js` "a received
-profile beside a per-well CSV counts both" (fails on the old vendored engine).
-No number moves for single-layout cases (goldens unchanged apart from the
-version string).
-
-### Owner steps
-
-The three EPE functions bundle `supabase/functions/_shared/epe-engine.ts`;
-until they are redeployed, runs still compute on 3.12.0:
-
-    supabase functions deploy epe-cash-flow-engine
-    supabase functions deploy epe-cash-flow-engine-batch
-    supabase functions deploy epe-monte-carlo
-
-New runs then stamp engine_version 3.12.1. No migration.
