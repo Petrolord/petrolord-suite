@@ -31,6 +31,7 @@ QI Studio holds the first package of a quantitative interpretation study: the da
   - Presentation view, PNG, PDF and CSV.
   - Hand-set states and items are saved in the project payload (`dataInventory`), so no migration. The shared core is `src/lib/projectInventory`, the board is `src/components/projectInventory`.
   - The tab is appended after Report, so the recorded tabs (Setup to Report, including the Data inventory register) keep their names, order and positions.
+- **Gathers** (QI upgrade P1.7, 2026-10-15): the gather viewer, a tab appended after the Data matrix. The `gather_panel` worker kind reads one CDP, part of an inline or crossline (up to 24 gathers) or the gathers at the study wells from a gather store (and its trimmed copy beside it), as one float32 panel behind a two-hour link (the janitor removes panels after six hours). Variable density or wiggle; Walden angle contours, stretch mute and angle mute from the velocity table (engines `qi/gatherDisplay.js`); residual moveout picks and the fitted parabola at the event times with the prestack QC's coherence rule; the stored QC reading where the QC sampled the CDP; NMO for a store recorded as not corrected. Closes QI-UPGRADE U2-004.
 - **Report:** the QI Data Audit and Feasibility Report on the shared Report Kit, with the executive summary, the QC, tie, inversion, sensitivity, property, prospect and handover tables, and the QI class definitions.
 
 ## Decisions
