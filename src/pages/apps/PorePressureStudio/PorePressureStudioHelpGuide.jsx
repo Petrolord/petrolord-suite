@@ -309,6 +309,15 @@ export default function PorePressureStudioHelpGuide() {
           reopens the well next time. Well Design Studio's mud window reads the published curves in ppg or g/cc EMW
           against its own trajectory TVD, on the well itself or, for a planned well, from this well as an offset at equal TVDSS.
         </Para>
+        <SubHeading>Is the published prognosis the one open here?</SubHeading>
+        <Para>
+          The readers (Well Design Studio, Casing and Tubing, Hydraulics, Geomechanics) read what is published, never
+          your open project. Beside Publish a chip says where you stand on the selected well: Not published; Published,
+          matches (the curves on the well are the prognosis open here, sample by sample); or Unpublished changes, with
+          the largest difference in ppg. The notes line gives the curve and the depth of that difference and when the
+          published one was written. After a recalibration the chip turns to Unpublished changes until you publish,
+          so nobody downstream is left on the old prognosis without it being said.
+        </Para>
       </GuideSection>
 
       <GuideSection id="links">
