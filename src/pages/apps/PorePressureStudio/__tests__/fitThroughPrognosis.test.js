@@ -92,3 +92,19 @@ describe('a fit never makes the shown misfit worse', () => {
     });
   });
 });
+
+describe('Daines calibrated where no tectonic term is needed', () => {
+  test('beta reads 0.000, not -0.000', () => {
+    const E = ekene1();
+    const { calibrateFracToLot } = jest.requireActual('../services/calibrate');
+    const p = { ...E.params, fracMethod: 'daines', nu: 0.3, beta: 0 };
+    const r0 = computePrognosis(E.input, p);
+    // a leak-off exactly on Eaton's line at nu 0.3: Daines needs no tectonic term
+    const i = 300;
+    const K = 0.3 / 0.7;
+    const lot = r0.porePressurePa[i] + K * (r0.overburdenPa[i] - r0.porePressurePa[i]);
+    const r = calibrateFracToLot(p, E.input, r0, [{ z: E.input.zBmlM[i], pMpa: lot / 1e6, kind: 'lot' }]);
+    expect(r.text).toMatch(/beta 0\.000 with nu 0\.3/);
+    expect(Object.is(r.params.beta, -0)).toBe(false);
+  });
+});

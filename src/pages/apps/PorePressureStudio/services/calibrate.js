@@ -154,6 +154,8 @@ export function fracMethodText(p) {
   return `K = nu/(1-nu), nu = ${p.nu}`;
 }
 
+// a coefficient that rounds to zero reads 0.000, not -0.000
+const fix3 = (v) => (Math.abs(v) < 0.0005 ? 0 : v).toFixed(3);
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); const n = s.length; return n % 2 ? s[(n - 1) / 2] : 0.5 * (s[n / 2 - 1] + s[n / 2]); };
 
 /**
@@ -184,7 +186,7 @@ export function calibrateFracToLot(params, input, result, calibration) {
       next = { ...params, k0: Number(k0.toFixed(4)) }; what = `k0 ${k0.toFixed(3)}`;
     } else if (m === 'daines') {
       const beta = median(use.map(at).map((q) => dainesBetaFromLot(q.lot, q.S, q.PP, params.nu)));
-      next = { ...params, beta: Number(beta.toFixed(4)) }; what = `beta ${beta.toFixed(3)} with nu ${params.nu}`;
+      next = { ...params, beta: Number((Math.abs(beta) < 0.00005 ? 0 : beta).toFixed(4)) }; what = `beta ${fix3(beta)} with nu ${params.nu}`;
     } else {
       const k0 = median(k0s);
       const nu = k0 / (1 + k0); // K = nu/(1-nu) solved for nu
