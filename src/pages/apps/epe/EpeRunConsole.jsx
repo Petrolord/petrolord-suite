@@ -27,6 +27,16 @@ import {
 
 // Wave E (audit 4.3): the pricing + economics subset an assumption set pins.
 // Regime terms and case-specific dates (base/valuation year) stay out.
+// Engine 3.12.2: variable operating cost rates (US$ per unit produced),
+// added to the OPEX file on the volumes a run prices. Blank = off.
+export const VARIABLE_OPEX_FIELDS = [
+  ['opex_variable_usd_per_bbl_liquid', 'Per barrel of liquid', 'USD/bbl oil + water'],
+  ['opex_variable_usd_per_bbl_oil', 'Per barrel of oil', 'USD/bbl'],
+  ['opex_variable_usd_per_bbl_water', 'Per barrel of water', 'USD/bbl'],
+  ['opex_variable_usd_per_mscf_gas', 'Per Mscf of gas', 'USD/Mscf'],
+];
+const VARIABLE_OPEX_KEYS = VARIABLE_OPEX_FIELDS.map(([k]) => k);
+
 const ASSUMPTION_SET_KEYS = [
   'oil_price_usd_bbl', 'gas_price_usd_mscf', 'condensate_price_usd_bbl',
   'oil_price_differential_usd_bbl', 'gas_price_differential_usd_mscf', 'condensate_price_differential_usd_bbl',
@@ -35,6 +45,8 @@ const ASSUMPTION_SET_KEYS = [
   'opex_escalator_pct', 'capex_escalator_pct',
   'discount_rate_pct', 'inflation_rate_pct',
   'present_value_basis', 'discounting_convention',
+  // engine 3.12.2: variable opex rates are corporate cost assumptions too
+  ...VARIABLE_OPEX_KEYS,
 ];
 
 // ----------------------------------------------------------------------------
@@ -97,6 +109,11 @@ const DEFAULT_CONFIG = {
   // ---- v3.4: field life ----
   apply_economic_limit: false,
   abandonment_cost_usd: null,
+  // ---- engine 3.12.2: variable opex rates (null = off) ----
+  opex_variable_usd_per_bbl_liquid: null,
+  opex_variable_usd_per_bbl_oil: null,
+  opex_variable_usd_per_bbl_water: null,
+  opex_variable_usd_per_mscf_gas: null,
   abandonment_year: null,
   // ---- v3.6 Wave B: equity + price realism ----
   psc_working_interest_pct: 100,
@@ -401,6 +418,13 @@ const EpeRunConsole = () => {
         errors[k] = 'Must be a non-negative number';
       }
     });
+    // variable opex rates are optional; when given they cannot be negative
+    VARIABLE_OPEX_KEYS.forEach((k) => {
+      const v = config[k];
+      if (v !== null && v !== '' && v !== undefined && (isNaN(v) || Number(v) < 0)) {
+        errors[k] = 'Leave blank or enter zero or more';
+      }
+    });
     // A $0 oil price silently produces a $0-revenue run; require a real price.
     if (!errors.oil_price_usd_bbl && Number(config.oil_price_usd_bbl) <= 0) {
       errors.oil_price_usd_bbl = 'Oil price must be greater than zero';
@@ -576,6 +600,9 @@ const EpeRunConsole = () => {
         abandonment_fund_start_year: config.abandonment_fund_start_year === '' || config.abandonment_fund_start_year === null ? null : config.abandonment_fund_start_year,
         pia_apply_minimum_etr: config.pia_apply_minimum_etr === true,
         pia_minimum_etr_pct: config.pia_minimum_etr_pct === '' ? 15 : config.pia_minimum_etr_pct,
+        // ---- engine 3.12.2: variable opex rates (blank = null = off) ----
+        ...Object.fromEntries(VARIABLE_OPEX_KEYS.map((k) => [k,
+          config[k] === '' || config[k] === null || config[k] === undefined ? null : Number(config[k])])),
       };
 
       // 1. Insert config
@@ -857,7 +884,7 @@ const EpeRunConsole = () => {
                 </div>
               )}
               <p className="text-xs text-pl-muted mt-1">
-                An assumption set pins pricing and economics (prices, differentials, deck, escalation, discounting). Regime terms and case dates stay with the case.
+                An assumption set pins pricing and economics (prices, differentials, deck, escalation, discounting, variable opex rates). Regime terms and case dates stay with the case.
               </p>
             </div>
           </section>
@@ -1153,6 +1180,30 @@ const EpeRunConsole = () => {
                 ? 'Equal annual contributions from the start year through the abandonment year. Contributions are tax-deductible and the fund pays the final spend, so there is no second cash hit at end of life.'
                 : 'Applied as a post-tax cash outflow in that year. It is not tax-deducted or depreciated, and it is excluded from cost recovery.'}
             </p>
+          </section>
+
+          {/* Variable opex (engine 3.12.2) */}
+          <section data-testid="epe-variable-opex">
+            <h2 className="text-lg font-semibold text-pl-text mb-3 border-b border-pl-border pb-1">Variable Opex</h2>
+            <p className="text-xs text-pl-muted mb-3">
+              Costs that follow production, in US$ per unit produced at base-year prices. They are added to the
+              OPEX file on the volumes this run prices, so a lower forecast, another reserves scenario or the
+              production multiplier in the sensitivity and Monte Carlo moves the opex too. Escalated with opex.
+              Leave blank when the OPEX file already holds these costs, or they are counted twice.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {VARIABLE_OPEX_FIELDS.map(([key, label, suffix]) => (
+                <NumField
+                  key={key}
+                  errors={validationErrors}
+                  id={key}
+                  label={label}
+                  suffix={suffix}
+                  value={config[key] ?? ''}
+                  onChange={(v) => handleNumberChange(key, v === '' ? null : v)}
+                />
+              ))}
+            </div>
           </section>
 
           {/* Escalation & PV Basis */}
