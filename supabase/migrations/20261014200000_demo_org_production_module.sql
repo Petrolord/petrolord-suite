@@ -1,7 +1,7 @@
 -- Demo org licences: the Production module (2026-10-14; for the Well Test Analysis
 -- Studio videos: the productivity index goes to Nodal Analysis Studio).
 --
--- NOT APPLIED. Owner applies: supabase db query --linked -f <this file>.
+-- APPLIED 2026-10-14 (owner-run).
 --
 -- The "Petrolord Demo" org holds Geoscience, Reservoir and Drilling
 -- (20261008090000, 20261008120000, 20261008140000, 20261013120000) and Economics
