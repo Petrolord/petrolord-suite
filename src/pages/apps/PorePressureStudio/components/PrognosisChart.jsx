@@ -101,7 +101,7 @@ export default function PrognosisChart({
   if (!profile) return null;
 
   return (
-    <div className="w-full h-full min-h-[360px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-canvas="chart" data-testid="pp-prognosis-chart" data-ref={mapper ? mapper.key : 'bml'} data-rows={data.length} data-seats={casing ? casing.seats.length : 0} data-cal={data.filter((r) => r.cal != null).length} data-lot={data.filter((r) => r.lot != null).length} data-mw={data.filter((r) => r.mwu != null).length} data-shale-points={data.filter((r) => r.sh != null).length}>
+    <div className="w-full h-full min-h-[360px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-canvas="chart" data-testid="pp-prognosis-chart" data-ref={mapper ? mapper.key : 'bml'} data-rows={data.length} data-seats={casing ? casing.seats.length : 0} data-cal={data.filter((r) => r.cal != null).length} data-lot={data.filter((r) => r.lot != null).length} data-mw={data.filter((r) => r.mwu != null).length} data-mwk={data.filter((r) => r.mwk != null).length} data-mwl={data.filter((r) => r.mwl != null).length} data-shale-points={data.filter((r) => r.sh != null).length}>
       <h3 className="text-center text-sm font-semibold" style={{ color: CHART_COLORS.axisLabel }}>
         Pressure prognosis
       </h3>
