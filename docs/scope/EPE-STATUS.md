@@ -167,21 +167,3 @@ otherwise nothing is claimed. Logic: `src/pages/apps/epe/epeRunInputs.js`.
 Tests: `epeRunInputs.test.js` (replaced, added, removed, unchanged, other
 scenario, legacy dates) and `epeRunInputs.mount.test.jsx` (banner; fails on
 the old viewer). No migration, no engine or Edge Function change.
-## 2026-10-13: refresh one received file from its source (video programme)
-
-A production file received from Forecast Scenario Hub, Decline Curve
-Analysis, Waterflood Design Studio, Reservoir Simulation Studio or Well
-Spacing Optimizer already said on its card when the source changed, but the
-only way to take the new volumes was the slot's import dialog, which with
-"Replace" ticked replaced every production file of the scenario (the field's
-base file beside the received profile) and unticked summed the old profile
-with the new one. The card now offers a button when the source changed
-("Take the new profile" for the hub, "Take the new forecast" for DCA and
-Waterflood, "Take the new run" for Simulation, "Take the new case" for Well
-Spacing; testid `epe-file-refresh`, owner only). It builds the rows with the
-same intake function from the current contract (the hub profile keeps its
-received first production year), inserts the new row with the same case,
-owner and scenario tag, and deletes only the old row. Helper
-`epeFileRefresh.js`; tests `epeFileRefresh.test.jsx` (hub and DCA from real
-contracts, the swap, the card; negative controls: unchanged source, plain
-upload, read-only view). No engine change.
