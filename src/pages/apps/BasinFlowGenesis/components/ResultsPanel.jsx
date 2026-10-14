@@ -9,6 +9,7 @@ import TemperatureHistoryPlot from './plots/TemperatureHistoryPlot';
 import MaturityPlot from './plots/MaturityPlot';
 import GenerationExpulsionPlot from './plots/GenerationExpulsionPlot';
 import ChargeTimingPlot from './plots/ChargeTimingPlot';
+import TrapsPanel from './TrapsPanel';
 import PressurePlot from './plots/PressurePlot';
 import { buildBasinPressure, writeBasinPressure } from '@/lib/basinPressure';
 import { buildBasinCharge, writeBasinCharge } from '@/lib/basinCharge';
@@ -56,6 +57,23 @@ const ResultsPanel = () => {
             return { payload, href: `${appPath('reservoircalc-pro', appPaths)}?bfCharge=${payload.id}` };
         } catch (e) { return { error: e.message }; }
     }, [results, state.settings, state.stratigraphy, mwState, appPaths]);
+
+    // 2026-10-14: each trap's own payload (its numbers ride along to Prospect Risking)
+    const traps = useMemo(() => (Array.isArray(state.settings?.traps) ? state.settings.traps : []), [state.settings?.traps]);
+    const trapSends = useMemo(() => {
+        const m = new Map();
+        if (!chargeSend?.payload) return m;
+        traps.forEach((t) => {
+            try {
+                const payload = buildBasinCharge(results, {
+                    name: mwState?.wellDataMap?.[mwState?.activeWellId]?.name || 'Basin model', settings: state.settings, stratigraphy: state.stratigraphy,
+                    criticalMoment: eventsChartRows(results).criticalMoment, kineticsLabel, hcDensityKgM3: Spec.RHO_HC, trap: t,
+                });
+                m.set(t.id, { payload, href: `${appPath('reservoircalc-pro', appPaths)}?bfCharge=${payload.id}` });
+            } catch { /* no charge to send */ }
+        });
+        return m;
+    }, [traps, chargeSend, results, state.settings, state.stratigraphy, mwState, appPaths]);
 
     const handleDownloadImage = async (type = 'png') => {
         if (!printRef.current) return;
@@ -133,7 +151,8 @@ const ResultsPanel = () => {
                                          </>
                                      ) : <span data-testid="bf-charge-send-none">{chargeSend?.error}</span>}
                                  </div>
-                                 <div className="flex-1 min-h-0"><ChargeTimingPlot results={results} /></div>
+                                 <TrapsPanel payload={chargeSend?.payload || null} sendFor={(t) => trapSends.get(t.id) || null} />
+                                 <div className="flex-1 min-h-[420px]"><ChargeTimingPlot results={results} traps={traps} /></div>
                              </div>
                          </TabsContent>
                      </div>

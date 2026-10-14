@@ -161,7 +161,9 @@ const AdvancedDataImport = () => {
       id: l.id, name: l.name, ageStart: l.ageStart, ageEnd: l.ageEnd, thickness: l.thickness, lithology: l.lithology, sourceRock: l.sourceRock, agesGuessed: l.agesGuessed,
       provenance: { lithology_guessed: l.lithologyGuessed, top_tvd_m: l.top_md_m, base_tvd_m: l.base_md_m, thickness_basis: 'file' },
     })), c.rows);
-    const layers = applied.layers.map((l) => ({ ...l, color: BASIN_LAYER_COLOUR[l.lithology] || (l.lithology === 'mixed' ? '#8d99ae' : '#94a3b8') }));
+    // a source rock reads apart from the shales around it on the burial plot
+    const colourOf = (l) => (l.sourceRock?.isSource ? '#7f4f24' : BASIN_LAYER_COLOUR[l.lithology] || (l.lithology === 'mixed' ? '#8d99ae' : '#94a3b8'));
+    const layers = applied.layers.map((l) => ({ ...l, color: colourOf(l) }));
     const { lithologies, sources } = applied;
     const erosionEvents = erosionWithAmounts(built.erosionEvents, c.rows, c.units?.eroded || colUnit);
     return { layers, erosionEvents, lithologies, sources, problems: built.problems.filter((p) => !(/amount unknown/.test(p) && erosionEvents.some((e) => !e.amountUnknown && p.startsWith(e.surface)))) };
@@ -206,20 +208,26 @@ const AdvancedDataImport = () => {
     const b = buildBasinModelRow({ well: registryWell, tops: withBase, intervals: registryIntervals, userId: null });
     const kept = b.row.stratigraphy.filter((l) => l.name !== '__base__');
     const applied = applyColumnToLayers(kept, regColumn.rows);
-    const strat = applied.layers.map((l) => ({ ...l, color: BASIN_LAYER_COLOUR[l.lithology] || (l.lithology === 'mixed' ? '#8d99ae' : l.color) }));
+    const strat = applied.layers.map((l) => ({ ...l, color: l.sourceRock?.isSource ? '#7f4f24' : BASIN_LAYER_COLOUR[l.lithology] || (l.lithology === 'mixed' ? '#8d99ae' : l.color) }));
     const erosion = erosionWithAmounts(b.row.erosion_events, regColumn.rows, regColumn.units?.eroded || fileUnit);
     const matched = registryWell.tops.filter((t) => regColumn.rows.some((r) => r.name && t.name && r.name.trim().toLowerCase() === t.name.trim().toLowerCase())).length;
+    const datedCount = strat.filter((l) => !l.agesGuessed).length;
+    const known = erosion.filter((e) => !e.amountUnknown);
     return {
       ...b,
       row: { ...b.row, stratigraphy: strat, erosion_events: erosion },
       layerCount: strat.length,
-      datedCount: strat.filter((l) => !l.agesGuessed).length,
+      datedCount,
+      // the "with the amount to type" count: events the file gave no thickness
+      erosionCount: erosion.length - known.length,
       problems: [
-        `${regColumn.name}: ${matched} of ${registryWell.tops.length} tops matched by name, ${applied.lithologies} lithologies, ${applied.sources} source rock${applied.sources === 1 ? '' : 's'}.`,
-        ...b.problems.filter((p) => !/__base__/.test(p) && !(/amount unknown/.test(p) && erosion.some((e) => !e.amountUnknown && p.startsWith(e.surface)))),
+        `${regColumn.name}: ${matched} of ${registryWell.tops.length} tops matched by name, ${datedCount} of ${strat.length} layers dated, ${applied.lithologies} lithologies, ${applied.sources} source rock${applied.sources === 1 ? '' : 's'}${known.length ? `, ${known.map((e) => `${fmtDepth(e.amount, units.depth)} ${units.depth} eroded at the ${e.surface}`).join(', ')}` : ''}.`,
+        ...b.problems.filter((p) => !/__base__/.test(p)
+          && !(/amount unknown/.test(p) && known.some((e) => p.startsWith(e.surface)))
+          && !(/placeholder ages/.test(p) && datedCount === strat.length)),
       ],
     };
-  }, [registryWell, registryIntervals, regColumn, fileUnit]);
+  }, [registryWell, registryIntervals, regColumn, fileUnit, units.depth]);
   const registryLayers = registryBuild?.row.stratigraphy || [];
 
   const applyRegistry = () => {
@@ -230,7 +238,7 @@ const AdvancedDataImport = () => {
       stratigraphy: registryLayers, erosionEvents: b.row.erosion_events, label: `Registry well ${registryWell.name}`,
       settings: { registryWellId: registryWell.id, registryWellName: registryWell.name, registryKbM: b.row.settings.registryKbM, timescale: b.row.settings.timescale },
     } });
-    toast({ title: 'Stratigraphy from the registry', description: `${b.layerCount} layers from ${registryWell.name}: ${b.datedCount} dated, ${b.erosionCount} erosion event${b.erosionCount === 1 ? '' : 's'}. ${b.problems.join(' ')}` });
+    toast({ title: 'Stratigraphy from the registry', description: `${b.layerCount} layers from ${registryWell.name}: ${b.datedCount} dated, ${(b.row.erosion_events || []).length} erosion event${(b.row.erosion_events || []).length === 1 ? '' : 's'}. ${b.problems.join(' ')}` });
   };
 
   const LayerPreview = ({ layers, testid }) => (

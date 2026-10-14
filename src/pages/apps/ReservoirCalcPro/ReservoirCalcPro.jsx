@@ -291,6 +291,10 @@ export const ReservoirCalcProContent = () => {
     const [toolsOpen, setToolsOpen] = useState(false);
     const [toolsTab, setToolsTab] = useState('settings');
     const openTools = (open) => { setToolsOpen(open); if (!open) setToolsTab('settings'); };
+    // a charge sent from Basin & Charge Modeling opens on Prospect Risking, where it is read (2026-10-14)
+    useEffect(() => {
+        try { if (new URLSearchParams(window.location.search).get('bfCharge')) { setToolsTab('risking'); setToolsOpen(true); } } catch { /* no window */ }
+    }, []);
     
     // Panel States (Persisted)
     const [showLeft, setShowLeft] = useState(() => localStorage.getItem('rc_showLeft') !== 'false');

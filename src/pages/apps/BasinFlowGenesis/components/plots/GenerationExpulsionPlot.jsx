@@ -3,11 +3,13 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS } from '@/utils/chartTheme';
 import { alignSeriesByAge, seriesColor, ageAxisProps, maxAgeOf, layerKey } from '../../services/resultsView';
+import { phaseSplit, GAS_WINDOW_RO } from '@/lib/basinCharge';
 
 /**
  * Cumulative generated vs expelled hydrocarbon mass (kg HC per m²
  * column area) for source-rock layers — solid = generated,
- * dashed = expelled.
+ * dashed = expelled, dotted = the part expelled in the gas window (the
+ * source at 1.3 %Ro or more when it left the rock; 2026-10-14).
  */
 const GenerationExpulsionPlot = ({ results }) => {
     const { data, meta } = results;
@@ -18,16 +20,20 @@ const GenerationExpulsionPlot = ({ results }) => {
             (data.generation[li] || []).some(e => e.value > 0));
         const gen = alignSeriesByAge(data.timeSteps, data.generation, meta.layers);
         const exp = alignSeriesByAge(data.timeSteps, data.expulsion, meta.layers);
+        const gasSeries = meta.layers.map((_, li) => phaseSplit(data.expulsion[li], data.maturity?.[li]).map((p) => ({ age: p.age, value: p.gas })));
+        const gas = alignSeriesByAge(data.timeSteps, gasSeries, meta.layers);
+        const withGas = new Set(meta.layers.map((l, li) => ((gasSeries[li] || []).some((e) => e.value > 0) ? layerKey(l, li) : null)).filter(Boolean));
         const rows = gen.map((g, i) => {
             const point = { age: g.age };
             sources.forEach(layer => {
                 // U2-012: keyed by layer id, labelled by name
                 point[`${layer.key}:gen`] = g[layer.key];
                 point[`${layer.key}:exp`] = exp[i][layer.key];
+                if (withGas.has(layer.key)) point[`${layer.key}:gas`] = gas[i][layer.key];
             });
             return point;
         });
-        return { chartData: rows, sourceLayers: sources };
+        return { chartData: rows, sourceLayers: sources.map((l) => ({ ...l, gas: withGas.has(l.key) })) };
     }, [data, meta]);
 
     if (sourceLayers.length === 0) {
@@ -62,6 +68,7 @@ const GenerationExpulsionPlot = ({ results }) => {
                             <React.Fragment key={layer.key}>
                                 <Line type="monotone" dataKey={`${layer.key}:gen`} name={`${layer.name} generated`} stroke={seriesColor(idx)} strokeWidth={2} dot={false} connectNulls={false} />
                                 <Line type="monotone" dataKey={`${layer.key}:exp`} name={`${layer.name} expelled`} stroke={seriesColor(idx)} strokeWidth={2} strokeDasharray="6 3" dot={false} connectNulls={false} />
+                                {layer.gas && <Line type="monotone" dataKey={`${layer.key}:gas`} name={`${layer.name} expelled as gas (${GAS_WINDOW_RO} %Ro and above)`} stroke={seriesColor(idx)} strokeWidth={1.5} strokeDasharray="2 3" dot={false} connectNulls={false} />}
                             </React.Fragment>
                         ))}
                     </LineChart>

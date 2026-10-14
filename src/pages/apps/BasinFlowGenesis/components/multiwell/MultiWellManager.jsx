@@ -65,14 +65,7 @@ const MultiWellManager = () => {
     
     // New Well Dialog State
     const [isCreateOpen, setIsCreateOpen] = useState(false);
-    const [newWellData, setNewWellData] = useState({
-        name: '',
-        location: '',
-        status: 'not-started',
-        description: '',
-        depthMin: 0,
-        depthMax: 5000
-    });
+    const [newWellData, setNewWellData] = useState({ name: '', status: 'not-started' });
 
     // Initialize active well if none selected but we have wells
     useEffect(() => {
@@ -88,6 +81,15 @@ const MultiWellManager = () => {
             addWell({ name: 'Exploration Well 1', status: 'not-started' });
         }
     }, [mwState.wells, mwState.loaded]); // Depend on wells to ensure we catch updates
+
+    // a model just created opens once the list holds it
+    const [pendingOpen, setPendingOpen] = useState(null);
+    useEffect(() => {
+        if (pendingOpen && (mwState.wells || []).some((w) => w.id === pendingOpen)) {
+            handleSwitchWell(pendingOpen);
+            setPendingOpen(null);
+        }
+    }, [pendingOpen, mwState.wells]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleSwitchWell = (targetId) => {
         if (targetId === mwState.activeWellId) return;
@@ -173,18 +175,13 @@ const MultiWellManager = () => {
              return;
         }
 
-        const wellPayload = {
-            name: newWellData.name,
-            status: newWellData.status,
-            location: { name: newWellData.location },
-            description: newWellData.description,
-            depthRange: { min: parseFloat(newWellData.depthMin), max: parseFloat(newWellData.depthMax) }
-        };
-
-        addWell(wellPayload);
+        // 2026-10-14: the dialog asked for a location, a depth range and a
+        // description that were never stored; it takes what the model keeps, and
+        // the new model opens (it used to be added and left closed)
+        const wellPayload = { name: newWellData.name.trim(), status: newWellData.status };
+        addWell(wellPayload).then((id) => { if (id) setPendingOpen(id); });
         setIsCreateOpen(false);
-        setNewWellData({ name: '', location: '', status: 'not-started', description: '', depthMin: 0, depthMax: 5000 });
-        toast({ title: "Well Created", description: `${wellPayload.name} added to project.` });
+        setNewWellData({ name: '', status: 'not-started' });
     };
 
     const filteredWells = (mwState.wells || []).filter(w => 
@@ -292,7 +289,7 @@ const MultiWellManager = () => {
             <div className="p-4 border-b border-pl-border space-y-4 shrink-0">
                 <div className="flex justify-between items-center">
                     <h3 className="text-sm font-semibold text-pl-text">Project Wells</h3>
-                    <Button size="icon" variant="ghost" className="h-6 w-6 hover:bg-pl-sunken hover:text-pl-primary-text" onClick={() => setIsCreateOpen(true)}>
+                    <Button size="icon" variant="ghost" className="h-6 w-6 hover:bg-pl-sunken hover:text-pl-primary-text" onClick={() => setIsCreateOpen(true)} aria-label="New well model" data-testid="bf-new-well">
                         <Plus className="w-4 h-4" />
                     </Button>
                 </div>
@@ -358,8 +355,10 @@ const MultiWellManager = () => {
                             <Input 
                                 value={newWellData.name}
                                 onChange={e => setNewWellData({...newWellData, name: e.target.value})}
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleCreateWell(); }}
                                 className="col-span-3" 
                                 placeholder="e.g. Exploration Well 01"
+                                data-testid="bf-new-well-name"
                             />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
@@ -378,44 +377,10 @@ const MultiWellManager = () => {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right text-pl-muted">Location</Label>
-                            <Input 
-                                value={newWellData.location}
-                                onChange={e => setNewWellData({...newWellData, location: e.target.value})}
-                                className="col-span-3" 
-                                placeholder="e.g. Block 4, Offshore"
-                            />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right text-pl-muted">Depth (m)</Label>
-                            <div className="col-span-3 flex gap-2 items-center">
-                                <Input 
-                                    type="number" placeholder="Min" 
-                                    value={newWellData.depthMin}
-                                    onChange={e => setNewWellData({...newWellData, depthMin: e.target.value})}
-                                />
-                                <span className="text-pl-muted">-</span>
-                                <Input 
-                                    type="number" placeholder="Max" 
-                                    value={newWellData.depthMax}
-                                    onChange={e => setNewWellData({...newWellData, depthMax: e.target.value})}
-                                />
-                            </div>
-                        </div>
-                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right text-pl-muted">Description</Label>
-                            <Input 
-                                value={newWellData.description}
-                                onChange={e => setNewWellData({...newWellData, description: e.target.value})}
-                                className="col-span-3" 
-                                placeholder="Optional notes..."
-                            />
-                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-                        <Button onClick={handleCreateWell}>Create Well</Button>
+                        <Button onClick={handleCreateWell} data-testid="bf-new-well-create">Create Well</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

@@ -58,6 +58,9 @@ describeAppTheme({
   scopeTestId: SCOPE,
 });
 
+// full-app renders (the expert shell, a run with every results tab) take 3 to 6 s on a loaded runner
+jest.setTimeout(30000);
+
 describe('BasinFlow Genesis themed states', () => {
   beforeEach(() => { try { window.localStorage.clear(); } catch { /* storage unavailable */ } });
 

@@ -122,8 +122,8 @@ const CalibrationView = () => {
             const x = variable ? (fitted.heatFlow.value / (state.heatFlow.value || 60)) : fitted.heatFlow.value;
             const bound = fitAtBound(x, HeatFlowFitter.bounds(state.heatFlow));
             const msg = variable
-                ? `Heat-flow history scaled by ${x.toFixed(2)}; present-day ${presentDayHeatFlow(fitted.heatFlow).toFixed(1)} mW/m2. Weighted misfit ${fitted.misfit.toFixed(2)} (1 = 0.1 %Ro or 10 C per point).`
-                : `Heat flow fitted to ${fitted.heatFlow.value.toFixed(1)} mW/m2. Weighted misfit ${fitted.misfit.toFixed(2)} (1 = 0.1 %Ro or 10 C per point).`;
+                ? `Heat-flow history scaled by ${x.toFixed(2)}; present-day ${presentDayHeatFlow(fitted.heatFlow).toFixed(1)} mW/m2. Weighted misfit ${fitted.misfit.toFixed(2)} (1 = 0.1 %Ro or ${tU === 'F' ? '18 F' : '10 C'} per point).`
+                : `Heat flow fitted to ${fitted.heatFlow.value.toFixed(1)} mW/m2. Weighted misfit ${fitted.misfit.toFixed(2)} (1 = 0.1 %Ro or ${tU === 'F' ? '18 F' : '10 C'} per point).`;
             setFitNote(bound ? `${msg} The fit stopped at the ${bound} end of the search range (${HeatFlowFitter.bounds(state.heatFlow).join(' to ')}${variable ? ' times the history' : ' mW/m2'}): the data want a value outside it, so check the stratigraphy, erosion or the points.` : msg);
             toast({ title: bound ? 'Fit on the search bound' : 'Optimization Complete', description: msg });
         } catch (e) {
@@ -227,11 +227,11 @@ const CalibrationView = () => {
                         <div className="space-y-2">
                             <div className="flex justify-between">
                                 <Label className="text-xs text-pl-muted">Basal Heat Flow (mW/m²)</Label>
-                                <span className="text-xs font-mono text-pl-text">{presentDayHeatFlow(state.heatFlow).toFixed(0)}</span>
+                                <span className="text-xs font-mono text-pl-text" data-testid="bf-cal-heatflow">{presentDayHeatFlow(state.heatFlow).toFixed(1)}</span>
                             </div>
                             <Slider
                                 value={[presentDayHeatFlow(state.heatFlow) || 60]}
-                                min={30} max={150} step={1}
+                                min={30} max={150} step={0.5}
                                 onValueChange={(v) => handleParameterChange('heatFlow', v[0])}
                                 onValueCommit={() => runSimulation()}
                             />
@@ -281,7 +281,7 @@ const CalibrationView = () => {
                                         <tr key={i} className="border-t border-pl-border" data-testid={`bf-cal-bht-row-${i}`}>
                                             <td className="font-mono">{zD(p.depth).toFixed(0)}</td>
                                             <td className="font-mono">{tD(p.raw ?? p.value).toFixed(1)}</td>
-                                            <td className="font-mono" title={p.note || ''}>{tD(p.value).toFixed(1)}{p.method === 'none' ? ' (raw)' : ''}</td>
+                                            <td className="font-mono" title={p.note || ''}>{tD(p.value).toFixed(1)}{p.kind === 'DST' ? ' (DST)' : p.method === 'none' ? ' (raw)' : ''}</td>
                                         </tr>
                                     ))}
                                 </tbody>
