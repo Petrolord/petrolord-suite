@@ -20,6 +20,7 @@ import {
 } from '@/lib/wellsRegistry';
 import { listIntervals, replaceIntervals } from '@/lib/stratRegistry';
 import { createSavedProjectsService } from '@/utils/savedProjects';
+import { selectScoped } from '@/lib/projects/projectScope';
 
 // PETRO-U2-010: SCAL Studio's saved projects (owner-only rows), read for
 // their saturation-height functions; the Studio never writes them
@@ -74,16 +75,15 @@ async function readScan(req) {
 registerStateKind(PETRO_PROJECT_KIND, petroProjectKindSpec);
 
 async function loadProject() {
-  const { data, error } = await supabase.from('petro_projects')
-    .select('*').order('updated_at', { ascending: false }).limit(1);
+  const { data, error } = await selectScoped(() => supabase.from('petro_projects')
+    .select('*'), (q) => q.order('updated_at', { ascending: false }).limit(1));
   if (error) throw new Error(`Could not load the project: ${error.message}`);
   return openStateRow(PETRO_PROJECT_KIND, data?.[0] || null);
 }
 
 async function listProjects() {
-  const { data, error } = await supabase.from('petro_projects')
-    .select('id, name, description, updated_at')
-    .order('updated_at', { ascending: false });
+  const { data, error } = await selectScoped(() => supabase.from('petro_projects')
+    .select('id, name, description, updated_at'), (q) => q.order('updated_at', { ascending: false }));
   if (error) throw new Error(`Could not list interpretations: ${error.message}`);
   return data || [];
 }

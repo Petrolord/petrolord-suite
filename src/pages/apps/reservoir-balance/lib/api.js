@@ -19,6 +19,7 @@
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { STUDY_KEY } from './studyMeta';
+import { selectScoped } from '@/lib/projects/projectScope';
 
 // =============================================================================
 // READ-ONLY GUARD (record sharing)
@@ -59,11 +60,10 @@ export function setCaseSharingStore(store) { caseStore = store || null; }
  * RLS filters to user_id = auth.uid().
  */
 export async function listCases() {
-  const { data, error } = await supabase
+  const { data, error } = await selectScoped(() => supabase
     .from('rb_cases')
     .select('*')
-    .is('archived_at', null)
-    .order('updated_at', { ascending: false });
+    .is('archived_at', null), (q) => q.order('updated_at', { ascending: false }));
   return { data, error };
 }
 

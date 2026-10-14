@@ -15,6 +15,7 @@ jest.mock('@/contexts/SupabaseAuthContext', () => {
 });
 jest.mock('@/lib/projects/projectsService', () => ({
   MOVABLE: [{ table: 'geo_wells', label: 'Wells' }],
+  APP_MOVABLE: [{ table: 'saved_well_test_projects', label: 'Saved well test projects', nameColumn: 'project_name' }],
   listMovable: jest.fn(async () => [{ id: 'w1', name: 'LEGACY-1' }]),
   moveToProject: jest.fn(async () => 1),
 }));

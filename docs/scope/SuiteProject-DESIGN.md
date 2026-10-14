@@ -343,6 +343,40 @@ admin adds a member and it is logged; removal ends access while the removed
 member keeps their own rows; leaving works) and 5 of 5 name probes, whose
 negative control (without the migration) fails the second project's name.
 
+## 16. P4 as built (2026-10-14): app project tables adopt the project
+
+Migration `20261015130000_suite_projects_p4_app_tables.sql` gives 77 root
+tables the P0 treatment (column, insert stamp, RESTRICTIVE policies,
+backfill into the creator's default project); child tables follow their
+root. Module by module:
+
+| Module | Root tables | Lists now scoped in |
+|---|---|---|
+| Geoscience apps | petro_projects, pp_projects, rp_projects, em_models, bf_wells, rcp_prospects, rrv_valuations, saved_qi_studio_projects, saved_quickvol_projects | Petrophysics, Pore Pressure, Rock Physics, Earth Modeling, Basin, ReservoirCalc Pro (projects and prospects), Risked Reserves, QI Studio |
+| Every Studio-shell app (Reservoir, Production, Facilities, Economics, Midstream, Downstream) | every `saved_*_projects` and `scm_*_projects` | the shared `createSavedProjectsService` (one change covers them all) |
+| Drilling | wp_sites (every `wp_*` hangs from a site) | Well Design Studio (`wpApi.listSites`) |
+| Economics | epe_cases (cases); epe_assumption_sets (a library: column and stamp, list stays organisation-wide, decision 4) | Petroleum Economics Studio case list |
+| Production | po_fields | Production Operations (`productionSpine.listFields`) |
+| Material balance | rb_cases | Material Balance Studio |
+| Simulation | sim_cases | Reservoir Simulation Studio |
+
+Rules kept from P0: saves never carry a project (a new row is placed by the
+database's insert stamp, and saving an existing row never moves it); lists
+use `selectScoped`, which falls back to the unscoped list if the column is
+not there yet, so the code is safe before the migration is applied; Move to
+project accepts these tables (owner of the rows, editable target, logged).
+
+Gate: rolled-back production dry run (`run_p4_dryrun.sh`): applied twice;
+every persona's view of all 77 tables (counts and md5 of visible ids, demo
+included, 1240 comparisons) unchanged after apply and after rollback; 148
+rows stamped, none left without a project; verify all true; probes 10 of 10
+(saved project lands in the default, or in the current project; an
+org-shared ReservoirCalc Pro project in a members-only project is hidden from
+a non-member until moved to the open default; another organisation never sees
+it; a non-member cannot write into the members-only project; Well Design
+sites and Economics cases land in the default). Each module's jest suites
+green on the branch.
+
 ### Status
 
 | Phase | State |
@@ -351,4 +385,4 @@ negative control (without the migration) fails the second project's name.
 | P1 | Built 2026-10-14. PR A: scope, `useProject()`, switcher (hidden until a user has a client or a second project), Projects page at /dashboard/projects, registries filtered and stamped, `.pld` per project, Move to project. PR B: the sidebar "Projects" entry, held until the demo recordings finish. Gate: `src/lib/projects/__tests__/geoscienceChain.test.js`: a consultant with two clients loads a well into each through Well Data Manager, and all 12 Geoscience apps list only the current project's wells (Seismolord volumes too); the negative control (projects off) lists both. User guide `docs/scope/SuiteProjects-GUIDE.md`. |
 | P2 | Built 2026-10-14 (section 14). No migration. Gate: settings change leaves stored data byte-identical, jest and live (9 of 9, rolled back). |
 | P3 | Built 2026-10-14 (section 15). One migration (well names per project), owner apply pending. Gate: per-role pentest 20 of 20 and name probes 5 of 5, live and rolled back. |
-| P4 | In build. |
+| P4 | Built 2026-10-14 (section 16). One migration (77 app tables), owner apply pending; lists scoped module by module. |

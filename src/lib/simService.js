@@ -7,6 +7,7 @@
 // worker on the studio VPS does everything else (worker/sim-worker/).
 import { supabase } from '@/lib/customSupabaseClient';
 import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
+import { selectScoped } from '@/lib/projects/projectScope';
 
 const BUCKET = 'sim';
 
@@ -32,10 +33,9 @@ const SIM_CASE_KIND = 'sim-case';
 registerStateKind(SIM_CASE_KIND, { current: 1, label: 'simulation case' });
 
 export async function listCases() {
-  const { data, error } = await supabase
+  const { data, error } = await selectScoped(() => supabase
     .from('sim_cases')
-    .select('*')
-    .order('updated_at', { ascending: false });
+    .select('*'), (q) => q.order('updated_at', { ascending: false }));
   if (error) throw error;
   return (data || []).map((row) => openStateRow(SIM_CASE_KIND, row));
 }

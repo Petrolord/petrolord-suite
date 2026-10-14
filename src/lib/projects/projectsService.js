@@ -169,10 +169,94 @@ export const MOVABLE = [
   { table: 'geo_correlation_sections', label: 'Correlation sections' },
 ];
 
+
+/** P4: app project tables that Move to project accepts (suite_move_to_project knows them). */
+export const APP_MOVABLE = Object.freeze([
+  { table: 'petro_projects', label: 'Petrophysics interpretations', nameColumn: 'name' },
+  { table: 'pp_projects', label: 'Pore Pressure projects', nameColumn: 'name' },
+  { table: 'rp_projects', label: 'Rock Physics projects', nameColumn: 'name' },
+  { table: 'em_models', label: 'Earth models', nameColumn: 'name' },
+  { table: 'bf_wells', label: 'Basin models', nameColumn: 'name' },
+  { table: 'rcp_prospects', label: 'ReservoirCalc Pro prospects', nameColumn: 'name' },
+  { table: 'rrv_valuations', label: 'Risked reserves valuations', nameColumn: 'name' },
+  { table: 'saved_allocation_projects', label: 'Saved allocation projects', nameColumn: 'project_name' },
+  { table: 'saved_blend_optimizer_projects', label: 'Saved blend optimizer projects', nameColumn: 'project_name' },
+  { table: 'saved_breakeven_projects', label: 'Saved breakeven projects', nameColumn: 'project_name' },
+  { table: 'saved_carbon_projects', label: 'Saved carbon projects', nameColumn: 'project_name' },
+  { table: 'saved_casing_design_projects', label: 'Saved casing design projects', nameColumn: 'project_name' },
+  { table: 'saved_choke_projects', label: 'Saved choke projects', nameColumn: 'project_name' },
+  { table: 'saved_compressor_projects', label: 'Saved compressor projects', nameColumn: 'project_name' },
+  { table: 'saved_compressor_pump_projects', label: 'Saved compressor pump projects', nameColumn: 'project_name' },
+  { table: 'saved_corrosion_projects', label: 'Saved corrosion projects', nameColumn: 'project_name' },
+  { table: 'saved_crude_assay_projects', label: 'Saved crude assay projects', nameColumn: 'project_name' },
+  { table: 'saved_dca_projects', label: 'Saved dca projects', nameColumn: 'project_name' },
+  { table: 'saved_decision_tree_projects', label: 'Saved decision tree projects', nameColumn: 'project_name' },
+  { table: 'saved_drilling_fluids_projects', label: 'Saved drilling fluids projects', nameColumn: 'project_name' },
+  { table: 'saved_energy_efficiency_projects', label: 'Saved energy efficiency projects', nameColumn: 'project_name' },
+  { table: 'saved_eor_screening_projects', label: 'Saved eor screening projects', nameColumn: 'project_name' },
+  { table: 'saved_esp_projects', label: 'Saved esp projects', nameColumn: 'project_name' },
+  { table: 'saved_fdp_projects', label: 'Saved fdp projects', nameColumn: 'project_name' },
+  { table: 'saved_flare_projects', label: 'Saved flare projects', nameColumn: 'project_name' },
+  { table: 'saved_flowassurance_projects', label: 'Saved flowassurance projects', nameColumn: 'project_name' },
+  { table: 'saved_fluid_studio_projects', label: 'Saved fluid studio projects', nameColumn: 'project_name' },
+  { table: 'saved_fuel_pricing_projects', label: 'Saved fuel pricing projects', nameColumn: 'project_name' },
+  { table: 'saved_gaslift_projects', label: 'Saved gaslift projects', nameColumn: 'project_name' },
+  { table: 'saved_gasprocessing_projects', label: 'Saved gasprocessing projects', nameColumn: 'project_name' },
+  { table: 'saved_gaswell_projects', label: 'Saved gaswell projects', nameColumn: 'project_name' },
+  { table: 'saved_heat_exchanger_projects', label: 'Saved heat exchanger projects', nameColumn: 'project_name' },
+  { table: 'saved_intervention_projects', label: 'Saved intervention projects', nameColumn: 'project_name' },
+  { table: 'saved_liftadvisor_projects', label: 'Saved liftadvisor projects', nameColumn: 'project_name' },
+  { table: 'saved_linesizing_projects', label: 'Saved linesizing projects', nameColumn: 'project_name' },
+  { table: 'saved_lpg_cng_projects', label: 'Saved lpg cng projects', nameColumn: 'project_name' },
+  { table: 'saved_mbal_projects', label: 'Saved mbal projects', nameColumn: 'project_name' },
+  { table: 'saved_meter_projects', label: 'Saved meter projects', nameColumn: 'project_name' },
+  { table: 'saved_modular_refinery_projects', label: 'Saved modular refinery projects', nameColumn: 'project_name' },
+  { table: 'saved_network_projects', label: 'Saved network projects', nameColumn: 'project_name' },
+  { table: 'saved_nodal_analysis_projects', label: 'Saved nodal analysis projects', nameColumn: 'project_name' },
+  { table: 'saved_npv_projects', label: 'Saved npv projects', nameColumn: 'project_name' },
+  { table: 'saved_petrophysics_projects', label: 'Saved petrophysics projects', nameColumn: 'project_name' },
+  { table: 'saved_pipeline_sizer_projects', label: 'Saved pipeline sizer projects', nameColumn: 'project_name' },
+  { table: 'saved_pump_projects', label: 'Saved pump projects', nameColumn: 'project_name' },
+  { table: 'saved_pvt_projects', label: 'Saved pvt projects', nameColumn: 'project_name' },
+  { table: 'saved_pwt_projects', label: 'Saved pwt projects', nameColumn: 'project_name' },
+  { table: 'saved_qi_studio_projects', label: 'QI Studio projects', nameColumn: 'project_name' },
+  { table: 'saved_quickvol_projects', label: 'ReservoirCalc Pro projects', nameColumn: 'project_name' },
+  { table: 'saved_refinery_plan_projects', label: 'Saved refinery plan projects', nameColumn: 'project_name' },
+  { table: 'saved_relief_projects', label: 'Saved relief projects', nameColumn: 'project_name' },
+  { table: 'saved_report_autopilot_projects', label: 'Saved report autopilot projects', nameColumn: 'project_name' },
+  { table: 'saved_reservoir_balance_projects', label: 'Saved reservoir balance projects', nameColumn: 'project_name' },
+  { table: 'saved_rf_projects', label: 'Saved rf projects', nameColumn: 'project_name' },
+  { table: 'saved_rodpump_projects', label: 'Saved rodpump projects', nameColumn: 'project_name' },
+  { table: 'saved_scal_projects', label: 'Saved scal projects', nameColumn: 'project_name' },
+  { table: 'saved_scenario_hub_projects', label: 'Saved scenario hub projects', nameColumn: 'project_name' },
+  { table: 'saved_separator_projects', label: 'Saved separator projects', nameColumn: 'project_name' },
+  { table: 'saved_surveillance_projects', label: 'Saved surveillance projects', nameColumn: 'project_name' },
+  { table: 'saved_tank_projects', label: 'Saved tank projects', nameColumn: 'project_name' },
+  { table: 'saved_terminal_projects', label: 'Saved terminal projects', nameColumn: 'project_name' },
+  { table: 'saved_valve_projects', label: 'Saved valve projects', nameColumn: 'project_name' },
+  { table: 'saved_voi_projects', label: 'Saved voi projects', nameColumn: 'project_name' },
+  { table: 'saved_vrr_projects', label: 'Saved vrr projects', nameColumn: 'project_name' },
+  { table: 'saved_waterflood_design_projects', label: 'Saved waterflood design projects', nameColumn: 'project_name' },
+  { table: 'saved_well_cost_iq_projects', label: 'Saved well cost iq projects', nameColumn: 'project_name' },
+  { table: 'saved_well_cost_projects', label: 'Saved well cost projects', nameColumn: 'project_name' },
+  { table: 'saved_well_spacing_projects', label: 'Saved well spacing projects', nameColumn: 'project_name' },
+  { table: 'saved_well_test_projects', label: 'Saved well test projects', nameColumn: 'project_name' },
+  { table: 'scm_marine_projects', label: 'Saved marine projects', nameColumn: 'project_name' },
+  { table: 'scm_materials_projects', label: 'Saved materials projects', nameColumn: 'project_name' },
+  { table: 'wp_sites', label: 'Well Design sites', nameColumn: 'name' },
+  { table: 'epe_cases', label: 'Economics cases', nameColumn: 'case_name' },
+  { table: 'epe_assumption_sets', label: 'Economics assumption sets', nameColumn: 'name' },
+  { table: 'po_fields', label: 'Production fields', nameColumn: 'name' },
+  { table: 'rb_cases', label: 'Material Balance cases', nameColumn: 'name' },
+  { table: 'sim_cases', label: 'Simulation cases', nameColumn: 'name' },
+]);
+
 /** Rows of one movable table in one project (own rows only: only the owner moves). */
 export async function listMovable(table, projectId, { isDefault = false, userId } = {}) {
-  if (!MOVABLE.some((m) => m.table === table)) throw new Error('This kind of record cannot be moved.');
-  let q = supabase.from(table).select('id, name, suite_project_id, user_id, created_at').order('name', { ascending: true });
+  const app = APP_MOVABLE.find((m) => m.table === table);
+  if (!app && !MOVABLE.some((m) => m.table === table)) throw new Error('This kind of record cannot be moved.');
+  const nameColumn = app ? app.nameColumn : 'name';
+  let q = supabase.from(table).select(`id, name:${nameColumn}, suite_project_id, user_id, created_at`).order(nameColumn, { ascending: true });
   q = isDefault ? q.or(`suite_project_id.eq.${projectId},suite_project_id.is.null`) : q.eq('suite_project_id', projectId);
   if (userId) q = q.eq('user_id', userId);
   const { data, error } = await q;

@@ -2,6 +2,7 @@ import { saveAs } from 'file-saver';
 import { supabase } from '@/lib/customSupabaseClient';
 import { compactRun, compactReservoirs } from './runCompaction';
 import { supabaseSharingStore, sharingOf } from '@/lib/recordSharing';
+import { selectScoped } from '@/lib/projects/projectScope';
 
 // ReservoirCalc Pro project persistence.
 //
@@ -85,10 +86,10 @@ export const toBlob = (project, version) => ({
 export const ProjectService = {
     /** The signed-in user's projects and the ones colleagues shared with the organisation (RLS decides). */
     async getProjects() {
-        const { data, error } = await supabase
+        // Suite Projects P4: the current project's projects
+        const { data, error } = await selectScoped(() => supabase
             .from(TABLE)
-            .select('*')
-            .order('created_at', { ascending: false });
+            .select('*'), (q) => q.order('created_at', { ascending: false }));
         if (error) throw new Error(friendlyError(error));
         return (data || []).map(fromRow);
     },

@@ -7,6 +7,7 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
 import { supabaseSharingStore, makeHarnessSharing, colleagueShared } from '@/lib/recordSharing';
+import { selectScoped } from '@/lib/projects/projectScope';
 
 // PP0 state kind (docs/scope/ProjectPortability-PLAN.md §4.3): version 1 is
 // the current row shape; a future shape change bumps `current` and adds
@@ -28,16 +29,16 @@ export function makeRegistryProspectsBackend() {
     async listProspects() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
-      const { data, error } = await supabase.from('rcp_prospects')
-        .select('*').eq('user_id', user.id).order('updated_at', { ascending: false });
+      const { data, error } = await selectScoped(() => supabase.from('rcp_prospects')
+        .select('*').eq('user_id', user.id), (q) => q.order('updated_at', { ascending: false }));
       if (error) throw new Error(`Could not load prospects: ${error.message}`);
       return (data || []).map((r) => openStateRow(RCP_PROSPECT_KIND, r));
     },
     async listSharedProspects() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
-      const { data, error } = await supabase.from('rcp_prospects')
-        .select('*').neq('user_id', user.id).order('updated_at', { ascending: false });
+      const { data, error } = await selectScoped(() => supabase.from('rcp_prospects')
+        .select('*').neq('user_id', user.id), (q) => q.order('updated_at', { ascending: false }));
       if (error) throw new Error(`Could not load shared prospects: ${error.message}`);
       return (data || []).map((r) => openStateRow(RCP_PROSPECT_KIND, r));
     },

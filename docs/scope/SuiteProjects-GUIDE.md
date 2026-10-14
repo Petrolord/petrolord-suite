@@ -91,8 +91,11 @@ clients' projects.
 Archive a project or a client when the work ends. It leaves the switcher;
 nothing is deleted. Restore it from the Projects page.
 
-## Not yet project-aware (planned)
+## App projects
 
-Each app's own saved sessions (for example a saved Petrophysics project or a
-Material Balance case) are not yet filed by project; they follow in phase P4.
+Each app's saved work (a Petrophysics interpretation, a Material Balance
+case, a Well Design site, an Economics case, every saved study) belongs to
+the project that was current when it was first saved, and each app lists the
+current project's only. Work saved before projects existed is in Default;
+move it from the Projects page like wells.
 
