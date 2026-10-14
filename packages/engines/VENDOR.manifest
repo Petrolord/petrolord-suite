@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 0750f996765eee4dacc6ae80b94fb3cee7fd8426
+# commit 1d30a6d0d2e25e121d43ad1a28bd0a52a7e6e62b
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 d8bd133c5a081611291cb72e0efd5909a2e23b77 README.md
@@ -310,7 +310,7 @@ b8fede0736728d07204786dc53b744d724f29de2 __tests__/wellsite.reports.test.js
 97b3aee776a254cc46c8d0184c79f6fa15720e24 __tests__/welltest.autoFit.test.js
 20a13f53e48e5d546f78584772a1660ecbb2ec5b __tests__/welltest.buildupSuperposition.test.js
 03370482160f0896621a299161a2d87f68510f12 __tests__/welltest.changingStorage.test.js
-509d9b8212200ea02910df4674e74ac452a0b441 __tests__/welltest.derivative.test.js
+bc1fae74deb17fd57f6edc7361da445f91eb391e __tests__/welltest.derivative.test.js
 b247d464584c13c2dbf6d59e617e5f9795944925 __tests__/welltest.gasZMethod.test.js
 e1027795d48f6f39090800c00228530559fed9e9 __tests__/welltest.goldens.test.js
 eca686c75f479ef7fac94e69cb6fab72ed7ef5f7 __tests__/welltest.homogeneousModel.test.js
@@ -671,7 +671,7 @@ a85595dae8615fba5699efb66de6357616600f28 engines/welltest/analysis.js
 ef20ece47f150f075f706abe1aa996fcc7054980 engines/welltest/autoFit.js
 b905674c40d68d87bf34d32a8bdcbfc7636fcb59 engines/welltest/compressibility.js
 f3cdda47224cd3c66012e6bfe52b66b951103f8c engines/welltest/datum.js
-372a51650943b72c82bfe226b07a7d777b223846 engines/welltest/derivative.js
+75ed315da98874b55fbd130f3cfed7ca53e5431c engines/welltest/derivative.js
 a89c9100cecef39b05f485a36b6e26432975e82b engines/welltest/flowSummary.js
 7ed95bd65c86b0118b34835e81811a4a87674247 engines/welltest/gas.js
 62b2e0cf1dabd1979af499734d3c211032b63a0f engines/welltest/lmFit.js

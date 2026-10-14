@@ -5,6 +5,7 @@ import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { OILFIELD } from '@/utils/welltest/models/modelCatalog';
 import { unitLabel, fromOilfield } from '@/utils/welltest/units';
 import { buildLoglogData } from '@/utils/welltest/plotData';
+import { radiusOfInvestigation } from '@/utils/welltest/analysis';
 import { ChartCard, Kpi, WarningBanner, fmt } from './primitives';
 import LogLogChart from './LogLogChart';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
@@ -14,7 +15,7 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 const REGIME_ROW = 'border-pl-border bg-pl-sunken text-pl-text';
 
 const DiagnosticsResults = () => {
-  const { loglog, regimes, reservoirSpec, configSpec, unitSystem, pseudoTime, history } = useWellTestStudio();
+  const { loglog, regimes, reservoirSpec, configSpec, unitSystem, pseudoTime, history, derivedKpis } = useWellTestStudio();
   const dpKind = reservoirSpec.reservoir?.fluid === 'gas' ? 'pseudoPressure' : 'pressure';
   // display-unit series from the shared builder (the PDF log-log uses it too)
   const displayLoglog = useMemo(
@@ -44,6 +45,19 @@ const DiagnosticsResults = () => {
     }
   }
 
+  // 2026-10-14: the radial plateau drawn across the plot and, when the late
+  // derivative climbs well above it, twice the plateau (one sealing fault)
+  let guides = null;
+  if (radial && plateauKh != null) {
+    const inWindow = loglog.filter((p) => p.x >= radial.xStart && p.x <= radial.xEnd && p.derivative > 0);
+    const sorted = inWindow.map((p) => p.derivative).sort((a, b) => a - b);
+    const level = sorted[Math.floor(sorted.length / 2)];
+    const later = loglog.filter((p) => p.x > radial.xEnd && p.derivative > 0);
+    const climbs = later.some((p) => p.derivative > 1.3 * level);
+    const u = (v) => fromOilfield(dpKind, v, unitSystem);
+    guides = [{ y: u(level), label: 'Radial plateau' }];
+    if (climbs) guides.push({ y: u(2 * level), label: 'Twice the plateau (one sealing fault)', dashed: true, color: '#dc2626' });
+  }
   const timeName = pseudoTime.active ? 'pseudo-time' : 'time';
   const xLabel = configSpec.config?.family === 'buildup'
     ? (history ? `Equivalent ${timeName} of the rate history, superposition (hr)` : `Agarwal equivalent ${timeName} (hr)`)
@@ -54,15 +68,22 @@ const DiagnosticsResults = () => {
     <div className="space-y-4 overflow-y-auto">
       {!reservoirSpec.reservoir && <WarningBanner warnings={[reservoirSpec.error]} />}
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
         <Kpi title="Diagnostic points" value={fmt.int(loglog.length)} />
         <Kpi title="Regimes detected" value={fmt.int(regimes.length)} />
         <Kpi title="Radial plateau kh" value={fmt.sig3(plateauKh == null ? null : fromOilfield('kh', plateauKh, unitSystem))} unit={unitLabel('kh', unitSystem)} accent={plateauKh != null} />
         <Kpi title="Plateau k" value={reservoirSpec.reservoir && plateauKh != null ? fmt.sig3(plateauKh / reservoirSpec.reservoir.h) : EMPTY_VALUE} unit="md" />
+        <Kpi title="Radius investigated" value={fmt.int(fromOilfield('length', derivedKpis?.ri, unitSystem))} unit={unitLabel('length', unitSystem)} />
       </div>
+      {Number.isFinite(derivedKpis?.ri) && (
+        <p className="text-[11px] text-pl-muted -mt-1" data-testid="wts-ri-note">
+          Radius of investigation ri = sqrt(k t / (948 φ μ ct)) with k {fmt.sig3(derivedKpis.k)} md ({derivedKpis.source === 'match' ? 'working match' : 'semilog line'}): {fmt.int(fromOilfield('length', derivedKpis.ri, unitSystem))} {unitLabel('length', unitSystem)} by the end of the test
+          {radial && reservoirSpec.reservoir ? `, ${fmt.int(fromOilfield('length', radiusOfInvestigation({ k: derivedKpis.k, tHours: radial.xEnd, phi: reservoirSpec.reservoir.phi, mu: reservoirSpec.reservoir.mu, ct: reservoirSpec.reservoir.ct }), unitSystem))} ${unitLabel('length', unitSystem)} at the end of radial flow (${fmt.sig3(radial.xEnd)} hr). When the derivative leaves the plateau because of a boundary, that radius is a first estimate of how far away it is` : ''}.
+        </p>
+      )}
 
       <ChartCard title="Log-log diagnostic plot" height={360}>
-        <LogLogChart loglog={displayLoglog} xLabel={xLabel} yLabel={`${isGas ? 'Δm(p)' : 'Δp'} and derivative (${unitLabel(dpKind, unitSystem)})`} />
+        <LogLogChart loglog={displayLoglog} guides={guides} xLabel={xLabel} yLabel={`${isGas ? 'Δm(p)' : 'Δp'} and derivative (${unitLabel(dpKind, unitSystem)})`} />
       </ChartCard>
 
       <div className="rounded-lg border border-pl-border bg-pl-surface p-4 space-y-2">

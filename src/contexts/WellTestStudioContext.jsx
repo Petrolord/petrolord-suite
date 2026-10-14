@@ -686,7 +686,8 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   const flowPeriods = useMemo(() => {
     const steps = rateStepsFromHistory(rateRows.map((r) => ({ t: num(r.t), q: num(r.q) })));
     if (!steps.length) return { steps: [], periods: [], equivalentTp: NaN };
-    const shutIn = steps.find((s) => s.q === 0 && s.start > 0);
+    // the analysed shut-in is the last one: a clean-up can shut in earlier
+    const shutIn = [...steps].reverse().find((s) => s.q === 0 && s.start > 0);
     return {
       steps,
       periods: detectFlowPeriods(steps.map((s) => ({ t: s.start, q: s.q }))),
@@ -862,8 +863,11 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
       shutInTime,
       ...r,
     });
-    return { ...out, windowMin: late[0].time, windowMax: late[late.length - 1].time, lateN: late.length, earlyN: early.length };
-  }, [reservoirSpec, configSpec, windows, windowedPoints, autoSemilogWindow, history]);
+    // with a fault, p* belongs on the late (doubled) line: the early line
+    // extrapolates below the reservoir pressure
+    const pStar2 = isBuildup && out.ok && Number.isFinite(out.line2?.intercept) ? prepared.fromAnalysis(out.line2.intercept) : NaN;
+    return { ...out, pStar2, windowMin: late[0].time, windowMax: late[late.length - 1].time, lateN: late.length, earlyN: early.length };
+  }, [reservoirSpec, configSpec, windows, windowedPoints, autoSemilogWindow, history, prepared]);
 
   // Cartesian PSS pore volume stays a liquid drawdown analysis.
   const pssResult = useMemo(() => {

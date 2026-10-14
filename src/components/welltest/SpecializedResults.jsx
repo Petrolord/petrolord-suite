@@ -146,6 +146,11 @@ const SpecializedResults = () => {
                 <Kpi title={isBuildup ? 'Lines meet at Δt' : 'Lines meet at t'} value={fmt.sig3(fault.dtx)} unit="hr" />
                 <Kpi title="Distance to the fault L" value={fmtU('length', fault.L, unitSystem, fmt.int)} unit={unitLabel('length', unitSystem)} accent />
               </div>
+              {isBuildup && Number.isFinite(fault.pStar2) && (
+                <p className="text-[11px] text-pl-muted mt-2" data-testid="wts-fault-pstar">
+                  p* on the second line: {fmtU('pressure', fault.pStar2, unitSystem, fmt.f1)} {unitLabel('pressure', unitSystem)}. With a fault, the late line is the one that extrapolates to the reservoir pressure; the first line&apos;s p* reads low.
+                </p>
+              )}
               <p className="text-[11px] text-pl-muted mt-2" data-testid="wts-fault-method">
                 L = sqrt(0.0001481 k Δt_x / (φ μ ct)) with k {fmt.sig3(fault.k)} md from the first line, where the two lines meet ({fault.reference}). One sealing fault doubles the slope.
                 {modelL != null ? ` The working match places the fault at ${fmtU('length', modelL, unitSystem, fmt.int)} ${unitLabel('length', unitSystem)}.` : ' Match the sealing-fault model on the Match tab to check the distance against the whole curve.'}
