@@ -134,7 +134,7 @@ export default function PrognosisChart({
             <Legend verticalAlign="top" wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
             <Area dataKey="win" name="Drilling window (PP to FG)" stroke="none" fill="#22c55e" fillOpacity={0.12}
               connectNulls isAnimationActive={false} legendType="rect" />
-            {hasSh && <Line dataKey="sh" name="Shale pressures" stroke="none" legendType="circle"
+            {hasSh && <Line dataKey="sh" name="Shale pressures" stroke="#ec8f96" strokeWidth={0} legendType="circle"
               dot={{ r: 1.4, fill: '#f4a3a8', stroke: 'none' }} activeDot={false} isAnimationActive={false} />}
             {SERIES.map((s) => (
               <Line
@@ -157,16 +157,18 @@ export default function PrognosisChart({
                 ifOverflow="extendDomain" label={{ value: `Shoe ${k + 1}`, position: 'insideTopRight', fill: '#334155', fontSize: 10 }} />
             ))}
             {/* a Scatter does not plot in a vertical-layout chart: a dot-only Line
-                does (T1-002); no legend entry without points */}
-            {hasCal && <Line dataKey="cal" name="Calibration" stroke="none" legendType="circle"
-              dot={{ r: 4, fill: '#e76f51', stroke: '#9a3412' }} activeDot={false} isAnimationActive={false} />}
-            {hasLot && <Line dataKey="lot" name="LOT/FIT" stroke="none" legendType="diamond"
+                does (T1-002); no legend entry without points. 2026-10-14: the
+                series carry their colour with a zero-width line, so the legend
+                draws the marker (a stroke of "none" left an empty legend icon) */}
+            {hasCal && <Line dataKey="cal" name="Calibration" stroke="#ea580c" strokeWidth={0} legendType="circle"
+              dot={{ r: 5, fill: '#ea580c', stroke: '#ffffff', strokeWidth: 1.5 }} activeDot={false} isAnimationActive={false} />}
+            {hasLot && <Line dataKey="lot" name="LOT/FIT" stroke="#1d4ed8" strokeWidth={0} legendType="diamond"
               dot={{ r: 4, fill: '#1d4ed8', stroke: '#1e3a8a' }} activeDot={false} isAnimationActive={false} />}
             {hasMw && <Line dataKey="mwu" name="Mud weight used" stroke="#a16207" strokeWidth={1.5} type={mwIntervals ? 'linear' : 'stepAfter'}
               dot={false} connectNulls isAnimationActive={false} />}
-            {hasMwk && <Line dataKey="mwk" name="Mud weight that took an influx" stroke="none" legendType="triangle"
+            {hasMwk && <Line dataKey="mwk" name="Mud weight that took an influx" stroke="#dc2626" strokeWidth={0} legendType="triangle"
               dot={InfluxDot} activeDot={false} isAnimationActive={false} />}
-            {hasMwl && <Line dataKey="mwl" name="Mud weight with losses" stroke="none" legendType="cross"
+            {hasMwl && <Line dataKey="mwl" name="Mud weight with losses" stroke="#2563eb" strokeWidth={0} legendType="cross"
               dot={LossDot} activeDot={false} isAnimationActive={false} />}
           </ComposedChart>
         </ResponsiveContainer>
