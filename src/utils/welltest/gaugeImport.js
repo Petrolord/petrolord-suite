@@ -323,21 +323,28 @@ export function findTestStart(rows, direction = 'up') {
   for (let i = 1; i < rates.length; i += 1) if (best < 0 || rates[i] > rates[best]) best = i;
   if (best < 0 || !(rates[best] > 0)) return { ok: false, reason: `The pressure never ${direction === 'down' ? 'falls' : 'rises'} between two readings.` };
   const peak = rates[best];
-  // the steep run the peak belongs to (storage keeps the rise steep for a
-  // while): walk back to its first interval; the shut-in is the reading before
-  let first = best;
-  while (first > 1 && rates[first - 1] > 0.3 * peak) first -= 1;
-  let last = best;
-  while (last < rates.length - 1 && rates[last + 1] > 0.3 * peak) last += 1;
+  // the change must stand out from the record's ordinary movement
+  const typical = rates.slice(1).filter(Number.isFinite).map(Math.abs).sort((a, b) => a - b);
+  const median = typical[Math.floor(typical.length / 2)] || 0;
+  if (!(peak >= 3 * median) || !(peak > 0)) {
+    return { ok: false, reason: `No change stands out: the steepest ${direction === 'down' ? 'fall' : 'rise'} (${peak.toFixed(1)} psi/hr) is less than three times the typical movement (${median.toFixed(1)} psi/hr). Type the time instead.` };
+  }
+  // runs of steep change (storage keeps a shut-in steep for a while); a test
+  // can hold several (a clean-up shut-in, a rate cut). A buildup or a
+  // drawdown follows the LAST one, so of the runs reaching half the peak the
+  // latest is taken.
+  const runs = [];
+  for (let i = 1; i < rates.length; i += 1) {
+    if (rates[i] > 0.3 * peak && (i === 1 || !(rates[i - 1] > 0.3 * peak))) runs.push({ first: i, max: rates[i] });
+    else if (rates[i] > 0.3 * peak && runs.length) runs[runs.length - 1].max = Math.max(runs[runs.length - 1].max, rates[i]);
+  }
+  const strong = runs.filter((r) => r.max >= 0.5 * peak);
+  const chosen = strong[strong.length - 1];
+  const first = chosen.first;
   if (first === 1) {
     return { ok: false, reason: 'The record starts inside the change: the first readings already move fastest, so the shut-in (or the start of flow) came before the file starts. Leave the time blank.' };
   }
-  let outside = 0;
-  for (let i = 1; i < rates.length; i += 1) if ((i < first || i > last) && rates[i] > outside) outside = rates[i];
-  if (!(peak >= 3 * outside)) {
-    return { ok: false, reason: `No single change stands out: the steepest ${direction === 'down' ? 'fall' : 'rise'} (${peak.toFixed(1)} psi/hr) is less than three times the steepest elsewhere (${outside.toFixed(1)} psi/hr). Type the time instead.` };
-  }
-  return { ok: true, t: pts[first - 1].t, dp: sign * (pts[first].p - pts[first - 1].p), rate: peak, dtNext: pts[first].t - pts[first - 1].t };
+  return { ok: true, t: pts[first - 1].t, dp: sign * (pts[first].p - pts[first - 1].p), rate: chosen.max, dtNext: pts[first].t - pts[first - 1].t, candidates: strong.length };
 }
 
 /**

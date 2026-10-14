@@ -696,3 +696,4 @@ Engines PRs Petrolord/petrolord-engines #361 (merged 0750f99) and #362 (merged 1
 
 - The Match tab shows every model parameter beyond k, skin and C as a card (the distance to a boundary, a fracture half-length, omega and lambda), so a boundary match reads its distance without hunting in the rail; its log-log axis names the rate history's equivalent time on that basis.
 - wta-1 `productivity.pr_line` says which straight line gave p* (Horner or superposition); Nodal Analysis Studio's intake card and its applied note name it (they said "Horner line" for a superposition p*).
+- "Find it in the gauge data" now takes the LAST sharp change when a record holds several (a clean-up shut-in, a rate cut for sampling), and refuses a record whose steepest change is under three times its typical movement; the notice says how many it saw.
