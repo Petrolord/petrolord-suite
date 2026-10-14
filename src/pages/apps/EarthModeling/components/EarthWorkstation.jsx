@@ -44,7 +44,7 @@ import { appPath, mapSurfaceHref, reservoirCalcSurfaceHref, MAPPING_ID, RESERVOI
 import { toDisplay } from '@/components/wells/depthModes';
 import { refElevOrNull } from '@/lib/wellDatum';
 import { validatePolygon } from '../engine/blocks';
-import { surfaceStats } from '@/lib/gridding/gridmath';
+import { surfaceStats, isNull as isNullValue } from '@/lib/gridding/gridmath';
 import { matchTopName, defaultZone, defaultSectionPair } from '../services/stackDefaults';
 import { resolveLogCurves } from '../services/logUpscale';
 
@@ -314,8 +314,11 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     if (layer === 'isopach') return built.zones[zoneIdx]?.isopach?.tst || null;
     const z = built.zones[zoneIdx];
     const L = subLayer >= 0 && z?.layers?.[subLayer] ? z.layers[subLayer] : null;
-    if (layer.endsWith('_var')) return (L ? L.variance : z?.variance)?.[layer.slice(0, -4)] || null;
-    return (L ? L.props : z?.props)?.[layer] || null;
+    const g = layer.endsWith('_var') ? (L ? L.variance : z?.variance)?.[layer.slice(0, -4)] : (L ? L.props : z?.props)?.[layer];
+    if (!g) return null;
+    // a property is shown where the zone is mapped (kriging fills the whole frame)
+    const th = built.thickness[zoneIdx];
+    return th ? Float64Array.from(g, (v, j) => (isNullValue(th[j]) ? th[j] : v)) : g;
   }, [built, layer, zoneIdx, subLayer]);
 
   // T1 (EM-T1-005): contour interval and colour-bar ticks round in the

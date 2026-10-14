@@ -166,7 +166,7 @@ export default function BuilderDock({
               <option value="">registry zone…</option>
               {zoneNames.map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
-            <input className={`${inCls} w-14 shrink-0`} type="number" min="1" max={MAX_LAYERS} step="1" data-testid={`em-layers-${i}`}
+            <input className="w-12 shrink-0 rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs" type="number" min="1" max={MAX_LAYERS} step="1" data-testid={`em-layers-${i}`}
               value={z.layers ?? 1} title="Proportional layers in the zone: each layer gets its own properties from the wells, and the volumes add up layer by layer"
               onChange={(e) => patchZone(i, { layers: e.target.value })} />
           </div>
