@@ -313,3 +313,11 @@ exactly: GRV above the contact 18,058 acre-ft, HC area 418 acres, STOIIP
   station in the upscaler (positionAtMd clamps at the last station).
 Tests: `__tests__/logLayers.test.js` (analytic wells, deviated TVT weighting,
 Ekene vs Petrophysics NTG with a cutoff negative control, IDW, layers, GRDECL).
+
+## 2026-10-14: section fit, property colours and contacts
+
+The section opens at VE "fit" (the window's height; the Ekene Sand, 106 ft over
+922 m, was a 200 px strip at 2x) with 20x and 50x added; a colour list paints
+the zones by porosity, Sw, NTG or permeability (layers as bands, colour bar);
+each zone's OWC and GOC are drawn dashed where the zone crosses them; the line
+length reads in feet in a feet session. Tests: `__tests__/sectionFit.test.js`.

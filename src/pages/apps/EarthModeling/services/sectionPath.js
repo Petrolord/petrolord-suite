@@ -5,7 +5,9 @@
 // nearest point on the line, and the vertical scale follows a vertical
 // exaggeration against the horizontal scale. Pure, no I/O.
 
-export const VE_OPTIONS = Object.freeze([1, 2, 5, 10]);
+// 0 = fit: the section fills the window's height (a thin reservoir over a
+// long line needs 20x to 50x to be read at all)
+export const VE_OPTIONS = Object.freeze([0, 1, 2, 5, 10, 20, 50]);
 
 /** Cumulative arc lengths of a polyline; total is the last entry. */
 export function arcLengths(vertices) {
@@ -83,10 +85,12 @@ export function projectWells(wells, vertices, maxOffset) {
  * from the plot width, vertical = ve times that; the plot height follows
  * the depth range (clamped between minH and maxH).
  */
-export function sectionScale({ total, zMin, zMax, plotW, ve = 1, minH = 200, maxH = 2400 }) {
+export function sectionScale({ total, zMin, zMax, plotW, ve = 1, minH = 200, maxH = 2400, fitH = null }) {
   const hScale = total > 0 ? plotW / total : 1;
   const vScale = ve * hScale;
   const range = Math.max(1, zMax - zMin);
-  const plotH = Math.max(minH, Math.min(maxH, range * vScale));
+  const plotH = ve === 0
+    ? Math.max(minH, Math.min(maxH, Number(fitH) > 0 ? fitH : 420))
+    : Math.max(minH, Math.min(maxH, range * vScale));
   return { hScale, vScale: plotH / range, plotH, exaggeration: (plotH / range) / hScale };
 }

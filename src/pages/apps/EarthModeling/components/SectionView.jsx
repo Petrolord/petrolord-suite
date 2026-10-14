@@ -20,6 +20,18 @@ const PAD = { l: 56, r: 60, t: 26, b: 26 };
 const ZONE_FILLS = ['rgba(34,197,94,0.22)', 'rgba(59,130,246,0.22)', 'rgba(234,179,8,0.22)', 'rgba(244,114,182,0.22)', 'rgba(168,85,247,0.22)'];
 const SURF_STROKES = ['#4ade80', '#60a5fa', '#facc15', '#f472b6', '#c084fc', '#f87171'];
 const TRACK_W = 44;
+export const SECTION_PROP_LABEL = { phi: 'Porosity', sw: 'Sw', ntg: 'NTG', perm: 'Permeability (md)' };
+
+/** A blue to yellow to red ramp for property fills (t in 0..1). */
+export function sectionColour(t) {
+  const x = Math.min(1, Math.max(0, Number.isFinite(t) ? t : 0));
+  const stops = [[0, [49, 54, 149]], [0.25, [69, 117, 180]], [0.5, [254, 224, 144]], [0.75, [244, 109, 67]], [1, [165, 0, 38]]];
+  let k = 0; while (k < stops.length - 2 && x > stops[k + 1][0]) k += 1;
+  const [x0, c0] = stops[k]; const [x1, c1] = stops[k + 1];
+  const f = (x - x0) / (x1 - x0);
+  const c = c0.map((v, i) => Math.round(v + f * (c1[i] - v)));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
 
 /** A GR track object for the shared painter (0 to 150 API, sand below the cut-off filled). */
 export function grTrack(values, cutoff = 75) {
@@ -33,6 +45,7 @@ export function grTrack(values, cutoff = 75) {
 const SectionView = forwardRef(function SectionView({
   spec, clamped = [], surfaceNames = [], zoneNames = [], vertices = null, ties = [],
   projected = [], depthUnit = 'm', ve = 1, width = null, xyToM = 1,
+  zones = [], colour = 'zones',
 }, ref) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
@@ -84,7 +97,8 @@ const SectionView = forwardRef(function SectionView({
     const plotW = cssW - PAD.l - PAD.r;
     // EM-U1-001: horizontal metres on any frame, so VE compares metres with metres
     const totalM = path.total * xyToM;
-    const sc = sectionScale({ total: totalM, zMin, zMax, plotW, ve });
+    const fitH = (wrap.clientHeight || 0) - PAD.t - PAD.b - 8;
+    const sc = sectionScale({ total: totalM, zMin, zMax, plotW, ve, fitH });
     const cssH = sc.plotH + PAD.t + PAD.b;
     canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr);
     canvas.style.width = `${cssW}px`; canvas.style.height = `${cssH}px`;
@@ -97,7 +111,44 @@ const SectionView = forwardRef(function SectionView({
     const xPx = (s) => PAD.l + (s / path.total) * plotW;
     const yPx = (z) => PAD.t + (z - zMin) * sc.vScale;
 
-    for (let s = 0; s + 1 < profiles.length; s++) {
+    // Ekene walk: a property painted in the zones (each proportional layer
+    // its own band), sampled at the section's points
+    const propKey = colour !== 'zones' ? colour : null;
+    let propRange = null;
+    if (propKey) {
+      let lo = Infinity; let hi = -Infinity;
+      const bands = [];
+      zones.forEach((z) => {
+        const frames = z.layers?.length ? z.layers : null;
+        const zi = zones.indexOf(z);
+        const list = frames ? frames.map((L) => ({ top: L.top, base: L.base, g: L.props?.[propKey] })) : [{ top: clamped[zi], base: clamped[zi + 1], g: z.props?.[propKey] }];
+        for (const b of list) {
+          if (!b.g) continue;
+          const vals = new Array(N_SAMPLES); const tz = new Array(N_SAMPLES); const bz = new Array(N_SAMPLES);
+          for (let i = 0; i < N_SAMPLES; i++) {
+            const v = sampleAtXY(b.g, spec, path.x[i], path.y[i]);
+            vals[i] = isNull(v) || !Number.isFinite(v) ? null : v;
+            tz[i] = sampleAtXY(b.top, spec, path.x[i], path.y[i]); bz[i] = sampleAtXY(b.base, spec, path.x[i], path.y[i]);
+            if (vals[i] !== null) { lo = Math.min(lo, vals[i]); hi = Math.max(hi, vals[i]); }
+          }
+          bands.push({ vals, tz, bz });
+        }
+      });
+      if (Number.isFinite(lo)) {
+        if (!(hi > lo)) { lo -= 0.005; hi += 0.005; }
+        propRange = { lo, hi };
+        for (const b of bands) {
+          for (let i = 0; i + 1 < N_SAMPLES; i++) {
+            const v = b.vals[i];
+            if (v === null || isNull(b.tz[i]) || isNull(b.bz[i])) continue;
+            ctx.fillStyle = sectionColour((v - lo) / (hi - lo));
+            const x0 = xPx(path.s[i]); const x1 = xPx(path.s[i + 1]) + 0.6;
+            ctx.fillRect(x0, yPx(b.tz[i]), x1 - x0, Math.max(0.6, yPx(b.bz[i]) - yPx(b.tz[i])));
+          }
+        }
+      }
+    }
+    for (let s = 0; s + 1 < profiles.length && !propRange; s++) {
       ctx.fillStyle = ZONE_FILLS[s % ZONE_FILLS.length];
       ctx.beginPath();
       let started = false;
@@ -140,6 +191,42 @@ const SectionView = forwardRef(function SectionView({
       if (isNull(a) || isNull(b) || !zoneNames[s]) continue;
       ctx.fillStyle = '#e2e8f0'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
       ctx.fillText(zoneNames[s], xPx(path.s[mid]), (yPx(a) + yPx(b)) / 2 + 4);
+    }
+
+    // Ekene walk: each zone's oil-water and gas-oil contacts, dashed, where the zone is above them
+    zones.forEach((z, zi) => {
+      const f = z.fluids || {};
+      for (const [kind, colourC, label] of [['owc', '#38bdf8', 'OWC'], ['goc', '#f87171', 'GOC']]) {
+        const c = f[kind];
+        if (!Number.isFinite(c)) continue;
+        const top = profiles[zi]; const bot = profiles[zi + 1];
+        if (!top || !bot) continue;
+        ctx.strokeStyle = colourC; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        let pen = false; let lastX = null;
+        for (let i = 0; i < N_SAMPLES; i++) {
+          const inside = !isNull(top[i]) && !isNull(bot[i]) && top[i] < c && bot[i] > c;
+          if (!inside) { pen = false; continue; }
+          const x = xPx(path.s[i]);
+          if (pen) ctx.lineTo(x, yPx(c)); else { ctx.moveTo(x, yPx(c)); pen = true; }
+          lastX = x;
+        }
+        ctx.stroke(); ctx.setLineDash([]);
+        if (lastX !== null) {
+          ctx.fillStyle = colourC; ctx.font = '10px sans-serif'; ctx.textAlign = 'right';
+          ctx.fillText(`${label} ${Math.round(toDisplay(c, depthUnit)).toLocaleString('en-GB')} ${depthUnit}`, lastX - 4, yPx(c) - 4);
+        }
+      }
+    });
+    if (propRange) {
+      // colour bar, top right inside the plot
+      const bw = 120; const bx = cssW - PAD.r - bw - 8; const by = PAD.t + 6;
+      for (let k = 0; k < bw; k++) { ctx.fillStyle = sectionColour(k / (bw - 1)); ctx.fillRect(bx + k, by, 1, 8); }
+      ctx.fillStyle = '#e2e8f0'; ctx.font = '9px sans-serif';
+      const fmtP = (v) => (propKey === 'perm' ? v.toFixed(0) : v.toFixed(3));
+      ctx.textAlign = 'left'; ctx.fillText(fmtP(propRange.lo), bx, by + 18);
+      ctx.textAlign = 'right'; ctx.fillText(fmtP(propRange.hi), bx + bw, by + 18);
+      ctx.textAlign = 'center'; ctx.fillText(SECTION_PROP_LABEL[propKey] || propKey, bx + bw / 2, by + 18);
     }
 
     // projected wells: stick, GR column through the shared painter, tops
@@ -190,12 +277,13 @@ const SectionView = forwardRef(function SectionView({
       ctx.strokeStyle = 'rgba(148,163,184,0.15)'; ctx.beginPath(); ctx.moveTo(PAD.l, yPx(z)); ctx.lineTo(cssW - PAD.r, yPx(z)); ctx.stroke();
     }
     ctx.textAlign = 'center';
-    ctx.fillText(`${totalM.toFixed(0)} m along the line, vertical exaggeration ${sc.exaggeration.toFixed(1)}x`, (PAD.l + cssW - PAD.r) / 2, cssH - 8);
+    const along = depthUnit === 'ft' ? `${Math.round(totalM / 0.3048).toLocaleString('en-GB')} ft` : `${totalM.toFixed(0)} m`;
+    ctx.fillText(`${along} along the line, vertical exaggeration ${sc.exaggeration.toFixed(1)}x`, (PAD.l + cssW - PAD.r) / 2, cssH - 8);
     ctx.save(); ctx.translate(12, cssH / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(`TVDSS (${depthUnit})`, 0, 0); ctx.restore();
-  }, [spec, clamped, surfaceNames, zoneNames, vertices, ties, projected, depthUnit, ve, width, xyToM]);
+  }, [spec, clamped, surfaceNames, zoneNames, vertices, ties, projected, depthUnit, ve, width, xyToM, zones, colour]);
 
   return (
-    <div ref={wrapRef} className="w-full overflow-auto" data-testid="em-section-wrap">
+    <div ref={wrapRef} className="w-full h-full min-h-0 overflow-auto" data-testid="em-section-wrap">
       {/* design system (W4B): the section is painted for a dark ground and stays dark in both themes */}
       <canvas ref={canvasRef} data-testid="em-section-canvas" data-canvas="dark" className="rounded border border-slate-800" />
     </div>
