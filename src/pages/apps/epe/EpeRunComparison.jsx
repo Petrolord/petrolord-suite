@@ -19,7 +19,7 @@ import { CONFIG_SECTIONS, labelForConfigKey, unitForConfigKey, formatConfigValue
 import { AppHeader } from '@/components/ui/app-shell';
 import { epePage, epePanel, epeTile, epeH2, epeH3, epeNum, epeNumCell, epeCallout } from './epeUi';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
-import { computeIncremental, incrementalIrrLabel, incrementalIrrNote } from './epeIncremental';
+import { computeIncremental, incrementalIrrLabel, incrementalIrrNote, fmtUsd3, incrementVerdict } from './epeIncremental';
 
 // Wave D (audit 4.6): comparison is capped so the table and chart stay
 // readable; six runs also matches the series palette below.
@@ -58,6 +58,7 @@ const EpeRunComparison = () => {
   const [selectedRunIds, setSelectedRunIds] = useState([]);
   const [comparisonResults, setComparisonResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [caseName, setCaseName] = useState(null);
   const [loadingComparison, setLoadingComparison] = useState(false);
 
   useEffect(() => {
@@ -90,6 +91,7 @@ const EpeRunComparison = () => {
       } else {
         const names = new Map((caseRows || []).map((c) => [c.id, c.case_name]));
         setAvailableRuns((data || []).map((r) => ({ ...r, case_name: names.get(r.case_id) || 'Another case' })));
+        setCaseName(names.get(caseId) || null);
       }
       setLoading(false);
     };
@@ -182,10 +184,7 @@ const EpeRunComparison = () => {
     }
   };
 
-  const formatCurrency = (value) => {
-    if (typeof value !== 'number') return 'N/A';
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(value);
-  };
+  const formatCurrency = fmtUsd3;
 
   // Wave D: deltas vs run 1 for every numeric KPI row, in the row's own unit.
   const formatDelta = (d, kind) => {
@@ -332,7 +331,7 @@ const EpeRunComparison = () => {
       <AppHeader
         eyebrow="Petroleum Economics Studio"
         title="Compare Economic Runs"
-        subtitle={`Select runs to compare for Case ID: ${caseId}`}
+        subtitle={caseName ? `Runs of ${caseName} and your other cases` : 'Pick the runs to compare'}
         icon={GitCompare}
         backTo={`/dashboard/apps/economics/epe/cases/${caseId}`}
         backLabel="Back to Case Details"
@@ -499,6 +498,9 @@ const EpeRunComparison = () => {
                   <p className={`${epeCallout('warning')} text-xs mb-3`} data-testid="incremental-basis-mismatch">
                     The two runs differ in {incremental.mismatches.join(', ')}. The increment is valued on the base run's terms, so the incremental NPV is no longer the difference of the two NPVs; align the configs before relying on it.
                   </p>
+                )}
+                {incrementVerdict(incremental) && (
+                  <p className="text-sm font-medium text-pl-text mb-3" data-testid="incremental-verdict">{incrementVerdict(incremental)}</p>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div className={`${epeTile} p-4`}>
