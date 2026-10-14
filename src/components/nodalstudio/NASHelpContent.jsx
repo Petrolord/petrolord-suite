@@ -37,6 +37,15 @@ const NASHelpContent = () => (
         The engine behind this tab is validated against an independent oracle and published worked
         examples before anything reaches the screen.
       </p>
+      <p>
+        From Well Test Analysis Studio, Productivity to Nodal Analysis opens this studio on the Inflow
+        tab with a card naming the saved test: the project, well, method and date, the reservoir
+        pressure (p* or the initial pressure), the test point and the productivity index J. As tested
+        takes the pressure and J; Skin removed takes the pressure and the J with the skin pressure
+        drop taken out. Nothing changes until you pick one. A composite model stays composite and keeps
+        the bubble point entered here, since the well test has none. The project remembers where the
+        values came from and the card shows it when you reopen it.
+      </p>
     </Section>
 
     <Section icon={Waves} title="Outflow (VLP)">
