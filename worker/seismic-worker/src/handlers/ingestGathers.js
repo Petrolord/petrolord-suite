@@ -18,7 +18,8 @@ import { webcrypto } from 'node:crypto';
 import { JobFailure } from '../runJob.js';
 import { s3RangeReader } from '../s3.js';
 import { openSegyDoor } from '../../../../src/pages/apps/Seismolord/lib/segyDoor.js';
-import { readFileHeaders } from '../../../../packages/engines/engines/seismolord/segyScan.js';
+import { readFileHeaders, readTextualHeader } from '../../../../packages/engines/engines/seismolord/segyScan.js';
+import { parseCropCard, padTopReader } from '../../../../packages/engines/engines/seismolord/segyCrop.js';
 import { decodeSamples, applyCoordScalar } from '../../../../packages/engines/engines/seismolord/segyDecode.js';
 import { makeAffineFit, affineFitAdd, solveAffineFit, affineToManifest } from '../../../../packages/engines/engines/seismolord/surveyGeometry.js';
 import { blockBuilder, builderBytes, gatherManifest, gatherBlockKey, foldBlockKey, cdpSlot } from '../../../../packages/engines/engines/qi/gatherStore.js';
@@ -73,6 +74,10 @@ export async function ingestGathers(ctx, deps) {
   const raw = deps.makeReader ? deps.makeReader(ds) : s3RangeReader({ sign, bucket: ds.bucket, key: ds.object_key, size: Number(ds.bytes), fetchImpl });
   let reader;
   try { ({ reader } = await openSegyDoor(raw)); } catch (e) { throw new JobFailure('not_segy', e.message); }
+  // a file cropped before upload: the window's top is padded back with nulls,
+  // so the gathers sit on the same time axis as the cropped stacks
+  const crop = parseCropCard(await readTextualHeader(reader));
+  if (crop?.first) reader = await padTopReader(reader, crop.first);
   const h = await readFileHeaders(reader);
   const { ns, dtUs, formatCode } = h;
 
@@ -170,7 +175,7 @@ export async function ingestGathers(ctx, deps) {
         name: g.name, il: g.il, xl: g.xl, ns, dtUs, cb,
         bins: { kind: 'offset', width: binW, centres: Array.from({ length: nBins }, (_, b) => (b + 0.5) * binW) },
         affine: aff ? affineToManifest(aff) : null,
-        source: { dataset_id: ds.id, file: ds.original_filename, mapping: map, nmo_corrected: true },
+        source: { dataset_id: ds.id, file: ds.original_filename, mapping: map, nmo_corrected: true, ...(crop ? { crop } : {}) },
       }),
       blocks_present: blocks,
       traces: h.totalTraces,
@@ -180,7 +185,7 @@ export async function ingestGathers(ctx, deps) {
     const { error: insErr } = await admin.from('qi_datasets').insert({
       id, user_id: uid, name: g.name, kind: 'gathers_offset', status: 'uploaded', original_filename: ds.original_filename,
       bucket: workBucket, object_key: `${prefix}/manifest.json`, bytes, part_size: blockBytes, part_count: 1,
-      uploaded_at: new Date().toISOString(), meta: { source_dataset: ds.id, blocks: blocks.length, bins: nBins, bin_width_m: binW, traces: h.totalTraces },
+      uploaded_at: new Date().toISOString(), meta: { source_dataset: ds.id, blocks: blocks.length, bins: nBins, bin_width_m: binW, traces: h.totalTraces, ...(crop ? { crop } : {}) },
     });
     if (insErr) throw new Error(`Gathers stored but registration failed: ${insErr.message}`);
     ctx.progress(1, 'Done');
