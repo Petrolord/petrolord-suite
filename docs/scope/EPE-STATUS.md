@@ -112,3 +112,12 @@ Two IRR readouts found on the Ekene runs while scripting the EPE videos:
   half the iterations have an IRR, with a line that says so
   (`irrStatsView`, testid `epe-mc-irr-held`).
 No engine change.
+
+## 2026-10-14: case detail keeps its place (video programme)
+
+Every reload of a case (approve, lock or delete a run, an upload, an import)
+replaced the page with a full-screen spinner, so the uncontrolled tabs came
+back on Data Management: approving a run in Run History threw the user back
+to the data and to the top of the page. The spinner now shows on the first
+load only, the tabs are controlled, and `?tab=runs` opens Run History.
+Test `epeCaseTabs.mount.test.jsx` (fails on the old page).
