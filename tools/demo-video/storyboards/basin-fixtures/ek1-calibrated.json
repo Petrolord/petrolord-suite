@@ -1,0 +1,598 @@
+{
+ "location_coords": null,
+ "surface_elevation": null,
+ "water_depth": null,
+ "stratigraphy": [
+  {
+   "id": "strat-1bc4c4de-2e97-472a-8a5a-38ba1d92189c-0",
+   "name": "Seabed",
+   "color": "#f4a261",
+   "ageEnd": 0,
+   "ageStart": 2.6,
+   "lithology": "sandstone",
+   "thickness": 290,
+   "provenance": {
+    "top_md_m": 60,
+    "base_md_m": 350,
+    "top_tvd_m": 60,
+    "age_charts": {
+     "ageEnd": {
+      "top": "Seabed",
+      "chart": "ICS 2023/09",
+      "field": "age_ma",
+      "value": 0
+     },
+     "ageStart": {
+      "top": "Benin Formation",
+      "chart": "ICS 2023/09",
+      "field": "age_ma",
+      "value": 2.6
+     }
+    },
+    "base_tvd_m": 350,
+    "lithology_from": "column file",
+    "thickness_basis": "tvd",
+    "registry_well_id": "1bc4c4de-2e97-472a-8a5a-38ba1d92189c",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyGuessed": false
+  },
+  {
+   "id": "strat-1bc4c4de-2e97-472a-8a5a-38ba1d92189c-1",
+   "name": "Benin Formation",
+   "color": "#f4a261",
+   "ageEnd": 2.6,
+   "ageStart": 5.3,
+   "lithology": "sandstone",
+   "thickness": 800,
+   "provenance": {
+    "top_md_m": 350,
+    "base_md_m": 1150,
+    "top_tvd_m": 350,
+    "age_charts": {
+     "ageEnd": {
+      "top": "Benin Formation",
+      "chart": "ICS 2023/09",
+      "field": "age_ma",
+      "value": 2.6
+     },
+     "ageStart": {
+      "top": "Agbada Formation",
+      "chart": "ICS 2023/09",
+      "field": "age_ma",
+      "value": 5.3
+     }
+    },
+    "base_tvd_m": 1150,
+    "lithology_from": "column file",
+    "thickness_basis": "tvd",
+    "registry_well_id": "1bc4c4de-2e97-472a-8a5a-38ba1d92189c",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyGuessed": false
+  },
+  {
+   "id": "strat-1bc4c4de-2e97-472a-8a5a-38ba1d92189c-2",
+   "name": "Agbada Formation",
+   "color": "#8d99ae",
+   "ageEnd": 5.3,
+   "ageStart": 12.5,
+   "lithology": "mixed",
+   "thickness": 140,
+   "provenance": {
+    "top_md_m": 1150,
+    "base_md_m": 1290,
+    "top_tvd_m": 1150,
+    "age_charts": {
+     "ageEnd": {
+      "top": "Agbada Formation",
+      "chart": "ICS 2023/09",
+      "field": "age_ma",
+      "value": 5.3
+     },
+     "ageStart": {
+      "top": "Ogbia Shale",
+      "chart": "ICS 2023/09",
+      "field": "age_ma",
+      "value": 12.5
+     }
+    },
+    "base_tvd_m": 1290,
+    "lithology_from": "column file",
+    "thickness_basis": "tvd",
+    "registry_well_id": "1bc4c4de-2e97-472a-8a5a-38ba1d92189c",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyMix": {
+    "shale": 50,
+    "limestone": 0,
+    "sandstone": 50
+   },
+   "lithologyGuessed": false
+  },
+  {
+   "id": "strat-1bc4c4de-2e97-472a-8a5a-38ba1d92189c-3",
+   "name": "Ogbia Shale",
+   "color": "#264653",
+   "ageEnd": 12.5,
+   "ageStart": 14.8,
+   "lithology": "shale",
+   "thickness": 258,
+   "provenance": {
+    "top_md_m": 1290,
+    "base_md_m": 1548,
+    "top_tvd_m": 1290,
+    "age_charts": {
+     "ageEnd": {
+      "top": "Ogbia Shale",
+      "chart": "ICS 2023/09",
+      "field": "age_ma",
+      "value": 12.5
+     },
+     "ageStart": {
+      "top": "Ekene Sand",
+      "chart": "ICS 2023/09",
+      "field": "age_ma",
+      "value": 14.8
+     }
+    },
+    "base_tvd_m": 1548,
+    "lithology_from": "column file",
+    "thickness_basis": "tvd",
+    "registry_well_id": "1bc4c4de-2e97-472a-8a5a-38ba1d92189c",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyGuessed": false
+  },
+  {
+   "id": "strat-1bc4c4de-2e97-472a-8a5a-38ba1d92189c-4",
+   "name": "Ekene Sand",
+   "color": "#f4a261",
+   "ageEnd": 14.8,
+   "ageStart": 15.4,
+   "lithology": "sandstone",
+   "thickness": 32,
+   "provenance": {
+    "top_md_m": 1548,
+    "base_md_m": 1580,
+    "top_tvd_m": 1548,
+    "age_charts": {
+     "ageEnd": {
+      "top": "Ekene Sand",
+      "chart": "ICS 2023/09",
+      "field": "age_ma",
+      "value": 14.8
+     },
+     "ageStart": {
+      "top": "Ekene Sand Base",
+      "chart": "ICS 2023/09",
+      "field": "age_ma",
+      "value": 15.4
+     }
+    },
+    "base_tvd_m": 1580,
+    "lithology_from": "column file",
+    "thickness_basis": "tvd",
+    "registry_well_id": "1bc4c4de-2e97-472a-8a5a-38ba1d92189c",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyGuessed": false
+  },
+  {
+   "id": "strat-1bc4c4de-2e97-472a-8a5a-38ba1d92189c-5",
+   "name": "Ekene Sand Base",
+   "color": "#8d99ae",
+   "ageEnd": 15.4,
+   "ageStart": 16.4,
+   "lithology": "mixed",
+   "thickness": 210,
+   "provenance": {
+    "top_md_m": 1580,
+    "base_md_m": 1790,
+    "top_tvd_m": 1580,
+    "age_charts": {
+     "ageEnd": {
+      "top": "Ekene Sand Base",
+      "chart": "ICS 2023/09",
+      "field": "age_ma",
+      "value": 15.4
+     },
+     "ageStart": {
+      "top": "Oboro Unconformity",
+      "chart": "ICS 2023/09",
+      "field": "age_ma",
+      "value": 16.4
+     }
+    },
+    "base_tvd_m": 1790,
+    "lithology_from": "column file",
+    "thickness_basis": "tvd",
+    "registry_well_id": "1bc4c4de-2e97-472a-8a5a-38ba1d92189c",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyMix": {
+    "shale": 60,
+    "limestone": 0,
+    "sandstone": 40
+   },
+   "lithologyGuessed": false
+  },
+  {
+   "id": "strat-1bc4c4de-2e97-472a-8a5a-38ba1d92189c-6",
+   "name": "Oboro Unconformity",
+   "color": "#264653",
+   "ageEnd": 20.5,
+   "ageStart": 21,
+   "lithology": "shale",
+   "thickness": 55,
+   "provenance": {
+    "top_md_m": 1790,
+    "base_md_m": 1845,
+    "top_tvd_m": 1790,
+    "age_charts": {
+     "ageEnd": {
+      "top": "Oboro Unconformity",
+      "chart": "ICS 2023/09",
+      "field": "hiatus_to_ma",
+      "value": 20.5
+     },
+     "ageStart": {
+      "top": "Oboro Sand",
+      "chart": "ICS 2023/09",
+      "field": "age_ma",
+      "value": 21
+     }
+    },
+    "base_tvd_m": 1845,
+    "lithology_from": "column file",
+    "thickness_basis": "tvd",
+    "registry_well_id": "1bc4c4de-2e97-472a-8a5a-38ba1d92189c",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyGuessed": false
+  },
+  {
+   "id": "strat-1bc4c4de-2e97-472a-8a5a-38ba1d92189c-7",
+   "name": "Oboro Sand",
+   "color": "#f4a261",
+   "ageEnd": 21,
+   "ageStart": 22.2,
+   "lithology": "sandstone",
+   "thickness": 67,
+   "provenance": {
+    "top_md_m": 1845,
+    "base_md_m": 1912,
+    "top_tvd_m": 1845,
+    "age_charts": {
+     "ageEnd": {
+      "top": "Oboro Sand",
+      "chart": "ICS 2023/09",
+      "field": "age_ma",
+      "value": 21
+     },
+     "ageStart": {
+      "top": "Oboro Sand Base",
+      "chart": "ICS 2023/09",
+      "field": "age_ma",
+      "value": 22.2
+     }
+    },
+    "base_tvd_m": 1912,
+    "lithology_from": "column file",
+    "thickness_basis": "tvd",
+    "registry_well_id": "1bc4c4de-2e97-472a-8a5a-38ba1d92189c",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyGuessed": false
+  },
+  {
+   "id": "strat-1bc4c4de-2e97-472a-8a5a-38ba1d92189c-8",
+   "name": "Oboro Sand Base",
+   "color": "#8d99ae",
+   "ageEnd": 22.2,
+   "ageStart": 28,
+   "lithology": "mixed",
+   "thickness": 168,
+   "provenance": {
+    "top_md_m": 1912,
+    "base_md_m": 2080,
+    "top_tvd_m": 1912,
+    "age_charts": {
+     "ageEnd": {
+      "top": "Oboro Sand Base",
+      "chart": "ICS 2023/09",
+      "field": "age_ma",
+      "value": 22.2
+     },
+     "ageStart": {
+      "top": "Akata Formation",
+      "chart": "ICS 2023/09",
+      "field": "age_ma",
+      "value": 28
+     }
+    },
+    "base_tvd_m": 2080,
+    "lithology_from": "column file",
+    "thickness_basis": "tvd",
+    "registry_well_id": "1bc4c4de-2e97-472a-8a5a-38ba1d92189c",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyMix": {
+    "shale": 70,
+    "limestone": 0,
+    "sandstone": 30
+   },
+   "lithologyGuessed": false
+  },
+  {
+   "id": "strat-1bc4c4de-2e97-472a-8a5a-38ba1d92189c-9",
+   "name": "Akata Formation",
+   "color": "#264653",
+   "ageEnd": 28,
+   "ageStart": 30,
+   "lithology": "shale",
+   "thickness": 169.8811999999998,
+   "provenance": {
+    "top_md_m": 2080,
+    "base_md_m": 2249.8812,
+    "top_tvd_m": 2080,
+    "age_charts": {
+     "ageEnd": {
+      "top": "Akata Formation",
+      "chart": "ICS 2023/09",
+      "field": "age_ma",
+      "value": 28
+     },
+     "ageStart": {
+      "top": "__base__",
+      "chart": "ICS 2023/09",
+      "field": "age_ma",
+      "value": 30
+     }
+    },
+    "base_tvd_m": 2249.8812,
+    "lithology_from": "column file",
+    "thickness_basis": "tvd",
+    "registry_well_id": "1bc4c4de-2e97-472a-8a5a-38ba1d92189c",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyGuessed": false
+  }
+ ],
+ "thermal_history": null,
+ "status": "in-progress",
+ "calibration_data": {
+  "ro": [
+   {
+    "id": "1792008105718-0-459.9888000000001",
+    "depth": 459.9888000000001,
+    "value": 0.29
+   },
+   {
+    "id": "1792008105718-1-699.98832",
+    "depth": 699.98832,
+    "value": 0.32
+   },
+   {
+    "id": "1792008105718-2-919.99296",
+    "depth": 919.99296,
+    "value": 0.34
+   },
+   {
+    "id": "1792008105718-3-1139.9976000000001",
+    "depth": 1139.9976000000001,
+    "value": 0.35
+   },
+   {
+    "id": "1792008105718-4-1269.9948000000002",
+    "depth": 1269.9948000000002,
+    "value": 0.41
+   },
+   {
+    "id": "1792008105718-5-1389.99456",
+    "depth": 1389.99456,
+    "value": 0.43
+   },
+   {
+    "id": "1792008105718-6-1560.0120000000002",
+    "depth": 1560.0120000000002,
+    "value": 0.45
+   },
+   {
+    "id": "1792008105718-7-1659.9864",
+    "depth": 1659.9864,
+    "value": 0.47
+   },
+   {
+    "id": "1792008105718-8-1800.01152",
+    "depth": 1800.01152,
+    "value": 0.54
+   },
+   {
+    "id": "1792008105718-9-1899.98592",
+    "depth": 1899.98592,
+    "value": 0.53
+   },
+   {
+    "id": "1792008105718-10-1979.99592",
+    "depth": 1979.99592,
+    "value": 0.56
+   },
+   {
+    "id": "1792008105718-11-2060.00592",
+    "depth": 2060.00592,
+    "value": 0.61
+   },
+   {
+    "id": "1792008105718-12-2139.9854400000004",
+    "depth": 2139.9854400000004,
+    "value": 0.63
+   },
+   {
+    "id": "1792008105718-13-2185.0044000000003",
+    "depth": 2185.0044000000003,
+    "value": 0.65
+   }
+  ],
+  "bht": {
+   "method": "horner",
+   "circulationH": 4
+  },
+  "temp": [
+   {
+    "id": "1792008102521-0-1389.99456",
+    "depth": 1389.99456,
+    "value": 69.61111111111111,
+    "shutInH": 6
+   },
+   {
+    "id": "1792008102521-1-1389.99456",
+    "depth": 1389.99456,
+    "value": 72.94444444444444,
+    "shutInH": 11
+   },
+   {
+    "id": "1792008102521-2-1389.99456",
+    "depth": 1389.99456,
+    "value": 74.61111111111111,
+    "shutInH": 17
+   },
+   {
+    "id": "1792008102521-3-1496.0040000000001",
+    "kind": "DST",
+    "depth": 1496.0040000000001,
+    "value": 82.05555555555554
+   },
+   {
+    "id": "1792008102521-4-1739.9964",
+    "depth": 1739.9964,
+    "value": 81.22222222222221,
+    "shutInH": 6
+   },
+   {
+    "id": "1792008102521-5-1739.9964",
+    "depth": 1739.9964,
+    "value": 85.55555555555556,
+    "shutInH": 12
+   },
+   {
+    "id": "1792008102521-6-1739.9964",
+    "depth": 1739.9964,
+    "value": 87.44444444444444,
+    "shutInH": 19
+   },
+   {
+    "id": "1792008102521-7-2189.91168",
+    "depth": 2189.91168,
+    "value": 96.33333333333333,
+    "shutInH": 6
+   },
+   {
+    "id": "1792008102521-8-2189.91168",
+    "depth": 2189.91168,
+    "value": 101.38888888888889,
+    "shutInH": 12
+   },
+   {
+    "id": "1792008102521-9-2189.91168",
+    "depth": 2189.91168,
+    "value": 103.38888888888889,
+    "shutInH": 18
+   }
+  ]
+ },
+ "heat_flow": {
+  "type": "constant",
+  "value": 58.5
+ },
+ "erosion_events": [
+  {
+   "age": 16.4,
+   "to_ma": 20.5,
+   "amount": 149.9616,
+   "from_ma": 16.4,
+   "surface": "Oboro Unconformity",
+   "amountUnknown": false
+  }
+ ],
+ "settings": {
+  "timescale": "ICS 2026/06",
+  "deposition": "continuous",
+  "timeStepMa": 0.25,
+  "registryKbM": 25.0000008,
+  "surfaceTemp": 25,
+  "registryWellId": "1bc4c4de-2e97-472a-8a5a-38ba1d92189c",
+  "registryWellName": "Ekene-1"
+ },
+ "scenarios": []
+}
