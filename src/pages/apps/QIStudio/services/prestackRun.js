@@ -47,6 +47,13 @@ export function validatePrestackParams(p) {
   }
   if (p.mode === 'blind' && wells.length < 2) return 'A blind-well check needs at least two wells.';
   if (inv.eps != null && !(Array.isArray(inv.eps) && inv.eps.length === 3 && inv.eps.every((e) => e >= 0))) return 'Give three regularisation weights, zero or positive.';
+  if (inv.blind_wavelets != null) {
+    if (!Array.isArray(inv.blind_wavelets)) return 'The blind wavelets must be a list.';
+    for (const bw of inv.blind_wavelets) {
+      const list = bw?.wavelets || (bw?.samples ? [bw] : null);
+      if (!bw?.name || !list || !list.every(okWavelet) || (bw.wavelets && bw.wavelets.length !== st.length)) return 'Each blind wavelet needs the well name and one wavelet (or one per stack) with an odd number of samples, at least five.';
+    }
+  }
   if ((inv.horizon_ids || []).length > 6) return 'Use at most 6 horizons.';
   return null;
 }
@@ -141,4 +148,90 @@ export function prestackBlindTable({ invert, wells, tracesByWell, dtMs, truthHz 
     });
     return { name: w.name, blind: score(invert(tracesByWell[k], w.il, w.xl, w.name)), withWell: score(invert(tracesByWell[k], w.il, w.xl)) };
   });
+}
+
+// ---------------------------------------------------------------------------
+// Truly blind wells (QI upgrade P1.2, 2026-10-15): a held-back well is out of
+// all three low-frequency models, the wavelet scale, the background Vs/Vp of
+// the linearisation (unless it was typed) and, when the browser sends them,
+// the wavelet averages (the field tie wavelet or the angle wavelets) of the
+// other wells. The with-well column is the full inversion, as before.
+
+export const PRESTACK_BLIND_PROTOCOL = 'held-back-v2';
+
+/**
+ * The inverter for the blind check and the volume (as post-stack's
+ * makeBlindInverter): no well named is the full inversion; a named well is
+ * rebuilt without it. Keeps each held-back estimate (ln AI, ln SI, ln rho).
+ * @returns {{invert, scale, vsVp, protocol, heldBack: Array<{name, scale, vs_vp}>, blindTraces: Map<string, {lnAi, lnSi, lnRho}>}}
+ */
+export function makeBlindCdpInverter({ inv, thetaDeg, wavelet, onGrid = (x) => Float64Array.from(x), wells, tracesByWell, posOf, horizonsAt, ns, dtMs }) {
+  const s = { ...PRESTACK_DEFAULTS, ...inv };
+  const lfm = prestackLfm(wells, { dtMs, lfmHz: s.lfmHz, posOf, horizonsAt });
+  const perStack = Array.isArray(wavelet[0]) || ArrayBuffer.isView(wavelet[0]);
+  const blindW = new Map();
+  for (const bw of inv.blind_wavelets || []) {
+    const w = bw.wavelets ? bw.wavelets.map((x) => onGrid(x.samples, x.dt_ms)) : onGrid(bw.samples, bw.dt_ms);
+    // a blind wavelet is used only where it matches the wavelet in use (one, or one per stack)
+    if (Array.isArray(w) === perStack) blindW.set(bw.name, w);
+  }
+  const typedVsVp = fin(inv.vs_vp) ? inv.vs_vp : null;
+  const notes = [];
+  const build = (exclude) => {
+    const keep = wells.map((w, k) => k).filter((k) => wells[k].name !== exclude);
+    const vsVp = typedVsVp ?? meanVsVp(keep.map((k) => wells[k]));
+    const w0 = (exclude && blindW.get(exclude)) || wavelet;
+    const scale = prestackWaveletScale(keep.map((k) => ({ well: wells[k], traces: tracesByWell[k] })), thetaDeg, w0, vsVp).scale;
+    const scaled = Array.isArray(w0) ? w0.map((w) => w.map((v) => v * scale)) : w0.map((v) => v * scale);
+    return { scale, vsVp, invert: makeCdpInverter({ inv: s, thetaDeg, wavelet: scaled, lfm, posOf, horizonsAt, ns, dtMs, vsVp }) };
+  };
+  const full = build(null);
+  const held = new Map();
+  const heldBack = [];
+  const blindTraces = new Map();
+  const heldFor = (name) => {
+    if (!held.has(name)) {
+      let b = null;
+      try { b = build(name); } catch (e) { notes.push(`${name}: ${e.message} Its blind row is empty.`); }
+      held.set(name, b);
+      if (b) heldBack.push({ name, scale: b.scale, vs_vp: b.vsVp });
+    }
+    return held.get(name);
+  };
+  const dead = () => ({ lnAi: new Float64Array(ns).fill(NaN), lnSi: new Float64Array(ns).fill(NaN), lnRho: new Float64Array(ns).fill(NaN) });
+  const invert = (traces, il, xl, exclude) => {
+    if (!exclude) return full.invert(traces, il, xl);
+    const b = heldFor(exclude);
+    const m = b ? b.invert(traces, il, xl, exclude) : dead();
+    blindTraces.set(exclude, m);
+    return m;
+  };
+  const excluded = ['the three low-frequency models', 'the wavelet scale'];
+  if (typedVsVp == null) excluded.push('the background Vs/Vp');
+  if (blindW.size) excluded.push(perStack ? 'the angle wavelet averages' : 'the field wavelet average');
+  const waveletWell = typeof inv.wavelet_well === 'string' && inv.wavelet_well ? inv.wavelet_well : null;
+  const protocol = { version: PRESTACK_BLIND_PROTOCOL, excluded_from: excluded, notes, ...(waveletWell ? { wavelet_from_well: waveletWell } : {}) };
+  return { invert, scale: full.scale, vsVp: full.vsVp, protocol, heldBack, blindTraces };
+}
+
+/**
+ * Issues for the register from a simultaneous blind-well table (closes
+ * QI-UPGRADE U2-008). AI and SI: a blind error over 10 percent is medium,
+ * over 20 high. Density: a blind correlation under 0.5 is medium (density is
+ * weakly resolved here; read the density volume with care), and a density
+ * error over 10 percent is low.
+ */
+export function simultaneousIssues(blind, name = 'the stacks') {
+  const out = [];
+  const add = (key, severity, title, detail, remedy) => out.push({ key: `simultaneous:${name}:${key}`, area: 'Simultaneous inversion', severity, title, detail, remedy });
+  for (const r of blind || []) {
+    for (const [k, label] of [['ai', 'AI'], ['si', 'SI']]) {
+      const e = r.blind?.[k]?.rmsPct;
+      if (fin(e) && e > 10) add(`${r.name}:${k}`, e > 20 ? 'high' : 'medium', `${r.name}: blind ${label} error ${e.toFixed(1)} percent`, `Simultaneous inversion of ${name}, the well held back.`, 'Check the tie and the wavelet scale at this well, the stacks\' alignment (match the stacks), and the horizons the models follow.');
+    }
+    const rc = r.blind?.rho?.corr; const re = r.blind?.rho?.rmsPct;
+    if (fin(rc) && rc < 0.5) add(`${r.name}:rho-corr`, 'medium', `${r.name}: density does not follow the well`, `Blind density correlation ${rc.toFixed(2)} on ${name}.`, 'Treat the density volume as unresolved here: use AI and Vp/Vs, or add far-angle data.');
+    else if (fin(re) && re > 10) add(`${r.name}:rho-err`, 'low', `${r.name}: blind density error ${re.toFixed(1)} percent`, `Simultaneous inversion of ${name}.`, 'Read density away from the wells with its uncertainty.');
+  }
+  return out;
 }

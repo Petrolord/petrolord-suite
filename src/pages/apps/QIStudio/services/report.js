@@ -11,8 +11,8 @@ import {
 } from './model';
 import { isStripe, snrText } from './qcRun';
 import { tieRows, waveletComparison } from './ties';
-import { INVERSION_METHODS, INVERSION_DEFAULTS } from './inversionRun';
-import { faciesClass } from './propertyRun';
+import { INVERSION_METHODS, INVERSION_DEFAULTS, blindProtocolText } from './inversionRun';
+import { faciesClass, propertyProtocolText } from './propertyRun';
 import { cropLines, cropOf } from '@/pages/apps/Seismolord/lib/volumeProvenance';
 import { pilotText } from '../components/PilotArea';
 
@@ -108,6 +108,7 @@ export function reportModel({ projectName = '', organizationName = '', project, 
         at: String(rec.at || '').slice(0, 10),
         method: INVERSION_METHODS[res.settings?.method]?.label || res.settings?.method || '',
         relative: rel,
+        protocol: blindProtocolText(res),
         rows: res.blind.map((w) => [w.name, n(w.blind.corr, 2), rel ? 'n/a' : n(w.blind.rmsPct, 1), n(w.withWell.corr, 2), rel ? 'n/a' : n(w.withWell.rmsPct, 1)]),
         volumes: (r.runs || []).filter((x) => x.status === 'ready').map((x) => x.name),
         spread: r.spread?.result?.sensitivity ? {
@@ -121,7 +122,7 @@ export function reportModel({ projectName = '', organizationName = '', project, 
       const n = (v, d) => (Number.isFinite(v) ? v.toFixed(d) : '');
       const p = (v) => (Number.isFinite(v) ? String(Math.round(100 * v)) : '');
       return {
-        kind: k, volume: c.volumeName || '', at: String(c.at || '').slice(0, 10),
+        kind: k, volume: c.volumeName || '', at: String(c.at || '').slice(0, 10), protocol: propertyProtocolText(res),
         summary: k === 'facies'
           ? res.summary.classes.map((x) => [x.name, String(x.n), n(x.prior, 2), n(x.mean, 0), n(x.sd, 0), faciesClass(x.name) === 'fluid_hypothesis' ? 'fluid hypothesis' : 'calibrated prediction'])
           : `porosity = ${n(res.summary.a, 4)} ${res.summary.b < 0 ? '-' : '+'} ${Math.abs(res.summary.b).toExponential(3)} x AI (r squared ${n(res.summary.r2, 2)}, ${res.summary.n} samples, residual SD ${n(res.summary.s, 4)}).${Number.isFinite(res.summary.sLoo) && res.summary.sExtra > 0 ? ` The Q10 to Q90 band adds ${n(res.summary.sExtra, 4)} for the inversion's error, from the wells left out (their RMS error ${n(res.summary.sLoo, 4)}).` : ''}`,
@@ -159,6 +160,7 @@ export function reportModel({ projectName = '', organizationName = '', project, 
       volume: project.simultaneous.blind.volumeName, at: String(project.simultaneous.blind.at || '').slice(0, 10),
       rows: project.simultaneous.blind.result.blind.map((r) => [r.name, ...['ai', 'si', 'rho'].map((k) => (Number.isFinite(r.blind[k].rmsPct) ? r.blind[k].rmsPct.toFixed(1) : '')), Number.isFinite(r.blind.rho.corr) ? r.blind.rho.corr.toFixed(2) : '']),
       runs: (project.simultaneous.runs || []).filter((r) => r.status === 'ready').map((r) => r.name),
+      protocol: blindProtocolText(project.simultaneous.blind.result),
     } : null,
     angleWavelets: project.simultaneous?.angleWavelets ? project.simultaneous.angleWavelets.items.map((it) => [String(it.angle), Number.isFinite(it.peakHz) ? it.peakHz.toFixed(1) : '', Number.isFinite(it.phaseDeg) ? it.phaseDeg.toFixed(0) : '', it.samples ? it.wells.map((w) => `${w.name} ${Number.isFinite(w.synthCorr) ? w.synthCorr.toFixed(2) : ''}`).join(', ') : 'none']) : null,
     prestackQc: Object.values(project.prestackQc || {}).filter((r) => r?.result?.times).map((r) => ({
@@ -260,11 +262,11 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
   if (model.angleWavelets) table('Angle wavelets', ['Stack angle', 'Peak (Hz)', 'Phase (degrees)', 'Synthetic against the stack, by well'], model.angleWavelets, { note: 'One wavelet per angle stack, extracted at each well by least squares against the Fatti reflectivity of its logs at that angle, then aligned and averaged across the wells. The correlation is each well\'s synthetic against the stack at the well.' });
   if (model.simultaneous) {
     const v = model.simultaneous;
-    table(`Simultaneous inversion: ${v.volume}`, ['Well', 'Blind AI error (percent)', 'SI error', 'Density error', 'Density correlation'], v.rows, { note: `Fatti three-term inversion of the angle stacks${v.at ? ` on ${v.at}` : ''}, each parameter pulled to its own low-frequency model; each well left out of all three in turn. Density is the least resolved parameter and leans on the far angles.${v.runs.length ? ` Volumes: ${v.runs.join(', ')}.` : ''} Elastic estimates.` });
+    table(`Simultaneous inversion: ${v.volume}`, ['Well', 'Blind AI error (percent)', 'SI error', 'Density error', 'Density correlation'], v.rows, { note: `Fatti three-term inversion of the angle stacks${v.at ? ` on ${v.at}` : ''}, each parameter pulled to its own low-frequency model; each well left out of all three in turn. ${v.protocol} Density is the least resolved parameter and leans on the far angles.${v.runs.length ? ` Volumes: ${v.runs.join(', ')}.` : ''} Elastic estimates.` });
   }
   for (const v of model.inversion || []) {
     table(`Impedance inversion: ${v.volume}`, ['Well', 'Blind correlation', 'Blind AI error (percent)', 'With the well: correlation', 'With the well: error (percent)'], v.rows, {
-      note: `${v.method}, run on the seismic worker${v.at ? ` on ${v.at}` : ''}. Each well is left out of the low-frequency model in turn and compared with its own log after a high cut at ${INVERSION_DEFAULTS.truthHz} Hz${v.relative ? '; relative impedance has no level, so only the correlation is reported' : ''}. Products are elastic estimates.${v.volumes.length ? ` Impedance volumes: ${v.volumes.join(', ')}.` : ''}`,
+      note: `${v.method}, run on the seismic worker${v.at ? ` on ${v.at}` : ''}. Each well is left out of the low-frequency model in turn and compared with its own log after a high cut at ${INVERSION_DEFAULTS.truthHz} Hz${v.relative ? '; relative impedance has no level, so only the correlation is reported' : ''}. ${v.protocol || ''} Products are elastic estimates.${v.volumes.length ? ` Impedance volumes: ${v.volumes.join(', ')}.` : ''}`,
     });
     if (v.spread) {
       table(`Inversion sensitivity: ${v.volume}`, ['Well', 'Blind AI error Q10 (percent)', 'Q50', 'Q90'], v.spread.rows, { note: 'The blind-well check repeated under each scenario (wavelet, model cut, noise); Q10, Q50 and Q90 are the 10th, 50th and 90th percentiles across the scenarios.' });
@@ -275,9 +277,9 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
     const vols = pp.volumes.length ? ` Volumes: ${pp.volumes.join(', ')}.` : '';
     if (pp.kind === 'facies') {
       table(`Facies from ${pp.volume}`, ['Facies', 'Samples', 'Prior', 'Mean AI', 'SD', 'Label'], pp.summary, { note: `Bayesian classification in impedance, calibrated on the wells' logs at seismic scale${pp.at ? ` on ${pp.at}` : ''}. Facies named for a fluid are fluid hypotheses.${vols}` });
-      table(`Facies check: ${pp.volume}`, ['Well left out', 'Samples', 'Facies right (percent)'], pp.rows, { note: 'Each well left out of the model and predicted from the inverted impedance at its trace.' });
+      table(`Facies check: ${pp.volume}`, ['Well left out', 'Samples', 'Facies right (percent)'], pp.rows, { note: pp.protocol || 'Each well left out of the model and predicted from the inverted impedance at its trace.' });
     } else {
-      table(`Porosity from ${pp.volume}`, ['Well left out', 'Samples', 'RMS error', 'Correlation', 'Inside Q10 to Q90 (percent)'], pp.rows, { note: `${pp.summary} Calibrated on the wells' logs at seismic scale${pp.at ? ` on ${pp.at}` : ''}; each well is then left out and predicted from the inverted impedance at its trace. Q10 and Q90 bound the 80 percent prediction interval; about 80 percent of a well should fall inside.${vols}` });
+      table(`Porosity from ${pp.volume}`, ['Well left out', 'Samples', 'RMS error', 'Correlation', 'Inside Q10 to Q90 (percent)'], pp.rows, { note: `${pp.summary} Calibrated on the wells' logs at seismic scale${pp.at ? ` on ${pp.at}` : ''}. ${pp.protocol || ''} Q10 and Q90 bound the 80 percent prediction interval; about 80 percent of a well should fall inside.${vols}` });
     }
   }
   if ((model.prospects || []).length) {

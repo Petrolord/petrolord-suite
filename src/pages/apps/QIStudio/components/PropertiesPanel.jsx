@@ -11,7 +11,7 @@ import * as qiService from '@/lib/qiService';
 import { useQIStudio } from '../QIStudioContext';
 import { prepareWell } from '../services/inversionWells';
 import { INVERSION_METHODS } from '../services/inversionRun';
-import { PROPERTY_KINDS, PROPERTY_DEFAULTS, MAX_FACIES, propertyIssues, faciesClass } from '../services/propertyRun';
+import { PROPERTY_KINDS, PROPERTY_DEFAULTS, MAX_FACIES, propertyIssues, faciesClass, propertyProtocolText } from '../services/propertyRun';
 import ExportControls from './ExportControls';
 import { packLog } from '../services/logPacking';
 
@@ -252,6 +252,7 @@ export default function PropertiesPanel() {
           <p className={muted}>{`Calibrated on ${cal.volumeName}, ${String(cal.at).slice(0, 16).replace('T', ' ')}.`}</p>
           <Summary result={cal.result} />
           <CheckTable result={cal.result} />
+          <p className={muted} data-testid="qi-prop-protocol">{propertyProtocolText(cal.result)}</p>
           {issues.length > 0 && canWrite && <button type="button" className={btn} onClick={addIssues} data-testid="qi-prop-issues">{`Add ${issues.length} property issue${issues.length === 1 ? '' : 's'} to the register`}</button>}
         </div>
       )}

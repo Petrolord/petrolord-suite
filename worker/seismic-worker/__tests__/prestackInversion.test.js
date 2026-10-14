@@ -7,7 +7,9 @@
 // Vp/Vs that match the truth at a well. Then the guards.
 import { packLog } from '../../../src/pages/apps/QIStudio/services/logPacking.js';
 import { prestackInversion, validatePrestackJob } from '../src/handlers/prestackInversion.js';
-import { meanVsVp, prestackLfm, prestackWaveletScale, makeCdpInverter, prestackBlindTable, PRESTACK_DEFAULTS } from '../../../src/pages/apps/QIStudio/services/prestackRun';
+import {
+  meanVsVp, prestackLfm, prestackWaveletScale, makeCdpInverter, prestackBlindTable, PRESTACK_DEFAULTS, simultaneousIssues,
+} from '../../../src/pages/apps/QIStudio/services/prestackRun';
 import { horizonsAtFrom } from '../../../src/pages/apps/QIStudio/services/inversionRun';
 import { forwardFatti } from '../../../packages/engines/engines/qi/prestackInversion';
 import { NULL_VALUE } from '../../../packages/engines/engines/seismolord/manifest';
@@ -70,13 +72,80 @@ test('blind mode equals the run module on the same traces', async () => {
   const wells = WELLS.map((w) => ({ ...w, ln_ai: w.ln_ai.map((v) => (Number.isFinite(v) ? v : NaN)), ln_si: w.ln_si.map((v) => (Number.isFinite(v) ? v : NaN)), ln_rho: w.ln_rho.map((v) => (Number.isFinite(v) ? v : NaN)) }));
   const posOf = (il, xl) => ({ x: il, y: xl });
   const at = horizonsAtFrom([GRIDS.h1, GRIDS.h2], NXL, DT);
-  const traces = wells.map((w) => THETA.map((_, k) => Float32Array.from({ length: NS }, (_, s) => STORES[k].get(`0-0-${Math.floor(s / BS)}`)[((w.il % BS) * BS + w.xl) * BS + (s % BS)])));
+  const traces = tracesOf(wells);
+  expect(out.blind).toEqual(handBlind(wells, traces, posOf, at));
+  for (const r of out.blind) expect(r.blind.ai.rmsPct).toBeLessThan(5);
+  expect(out.blind_protocol.excluded_from).toEqual(['the three low-frequency models', 'the wavelet scale', 'the background Vs/Vp']);
+});
+
+const cleanWells = (ws) => ws.map((w) => ({ ...w, ln_ai: w.ln_ai.map((v) => (Number.isFinite(v) ? v : NaN)), ln_si: w.ln_si.map((v) => (Number.isFinite(v) ? v : NaN)), ln_rho: w.ln_rho.map((v) => (Number.isFinite(v) ? v : NaN)) }));
+const tracesOf = (wells) => wells.map((w) => THETA.map((_, k) => Float32Array.from({ length: NS }, (_, s) => STORES[k].get(`0-0-${Math.floor(s / BS)}`)[((w.il % BS) * BS + w.xl) * BS + (s % BS)])));
+/** The truly blind table by hand (QI upgrade P1.2): each held-back well out of the models, the scale and the Vs/Vp. */
+function handBlind(wells, traces, posOf, at) {
+  const lfm = prestackLfm(wells, { dtMs: DT, lfmHz: 8, posOf, horizonsAt: at });
+  const build = (exclude) => {
+    const keep = wells.map((w, k) => k).filter((k) => wells[k].name !== exclude);
+    const vsVp = meanVsVp(keep.map((k) => wells[k]));
+    const { scale } = prestackWaveletScale(keep.map((k) => ({ well: wells[k], traces: traces[k] })), THETA, Float64Array.from(ricker), vsVp);
+    return makeCdpInverter({ inv: { ...PRESTACK_DEFAULTS, iters: 150 }, thetaDeg: THETA, wavelet: Float64Array.from(ricker).map((v) => v * scale), lfm, posOf, horizonsAt: at, ns: NS, dtMs: DT, vsVp });
+  };
+  const full = build(null);
+  const invert = (tr, il, xl, exclude) => (exclude ? build(exclude)(tr, il, xl, exclude) : full(tr, il, xl));
+  return prestackBlindTable({ invert, wells, tracesByWell: traces, dtMs: DT, truthHz: 50 });
+}
+
+test('truly blind: a held-back well is out of the wavelet scale and the Vs/Vp; the old protocol differs', async () => {
+  // C's impedance log carries a doubled contrast and its shear log is 15
+  // percent slow, so a wavelet scale and a Vs/Vp that see C differ
+  const lnAiC = WELLS[2].ln_ai.filter(Number.isFinite);
+  const mC = lnAiC.reduce((a, v) => a + v, 0) / lnAiC.length;
+  const odd = { ...WELLS[2], ln_ai: WELLS[2].ln_ai.map((v) => (Number.isFinite(v) ? mC + 2 * (v - mC) : v)), ln_si: WELLS[2].ln_si.map((v) => (Number.isFinite(v) ? v + Math.log(0.85) : v)) };
+  const params = P('blind'); params.inversion.wells = [WELLS[0], WELLS[1], odd];
+  const out = await prestackInversion(ctxFor(params), depsFor().d);
+  const wells = cleanWells([WELLS[0], WELLS[1], odd]);
+  const posOf = (il, xl) => ({ x: il, y: xl });
+  const at = horizonsAtFrom([GRIDS.h1, GRIDS.h2], NXL, DT);
+  const traces = tracesOf(wells);
+  expect(out.blind).toEqual(handBlind(wells, traces, posOf, at));
+  // negative control: one scale and one Vs/Vp on every well (the protocol before 2026-10-15)
   const vsVp = meanVsVp(wells);
   const { scale } = prestackWaveletScale(wells.map((w, k) => ({ well: w, traces: traces[k] })), THETA, Float64Array.from(ricker), vsVp);
-  const invert = makeCdpInverter({ inv: { ...PRESTACK_DEFAULTS, iters: 150 }, thetaDeg: THETA, wavelet: Float64Array.from(ricker).map((v) => v * scale), lfm: prestackLfm(wells, { dtMs: DT, lfmHz: 8, posOf, horizonsAt: at }), posOf, horizonsAt: at, ns: NS, dtMs: DT, vsVp });
-  const ref = prestackBlindTable({ invert, wells, tracesByWell: traces, dtMs: DT, truthHz: 50 });
-  expect(out.blind).toEqual(ref);
-  for (const r of out.blind) expect(r.blind.ai.rmsPct).toBeLessThan(5);
+  const old = makeCdpInverter({ inv: { ...PRESTACK_DEFAULTS, iters: 150 }, thetaDeg: THETA, wavelet: Float64Array.from(ricker).map((v) => v * scale), lfm: prestackLfm(wells, { dtMs: DT, lfmHz: 8, posOf, horizonsAt: at }), posOf, horizonsAt: at, ns: NS, dtMs: DT, vsVp });
+  const oldTable = prestackBlindTable({ invert: old, wells, tracesByWell: traces, dtMs: DT, truthHz: 50 });
+  const d = out.blind.slice(0, 2).map((r, k) => Math.abs(r.blind.ai.rmsPct - oldTable[k].blind.ai.rmsPct) + Math.abs(r.blind.si.rmsPct - oldTable[k].blind.si.rmsPct));
+  expect(Math.max(...d)).toBeGreaterThan(0.1);
+  expect(out.blind_protocol.held_back.find((h) => h.name === 'C').vs_vp).not.toBeCloseTo(out.settings.vs_vp, 4);
+});
+
+test('a typed Vs/Vp is kept for every held-back well, and the protocol says so', async () => {
+  const params = P('blind'); params.inversion.vs_vp = 0.5;
+  const out = await prestackInversion(ctxFor(params), depsFor().d);
+  expect(out.blind_protocol.excluded_from).not.toContain('the background Vs/Vp');
+  expect(out.blind_protocol.held_back.every((h) => h.vs_vp === 0.5)).toBe(true);
+});
+
+test('a volume run records the held-back AI and Vp/Vs at each well for the property check', async () => {
+  const { d, uploads } = depsFor();
+  await prestackInversion(ctxFor(P('volume')), d);
+  const ai = JSON.parse(new TextDecoder().decode(uploads.get(`${UID}/${OUT.ai}/manifest.json`)));
+  const vpvs = JSON.parse(new TextDecoder().decode(uploads.get(`${UID}/${OUT.vpvs}/manifest.json`)));
+  const si = JSON.parse(new TextDecoder().decode(uploads.get(`${UID}/${OUT.si}/manifest.json`)));
+  expect(ai.attribute.params.blind_traces.map((x) => x.name)).toEqual(['A', 'B', 'C']);
+  expect(ai.attribute.params.blind_traces[0].ln_ai.packed).toBe(1);
+  expect(vpvs.attribute.params.blind_traces[0].vpvs.packed).toBe(1);
+  expect(si.attribute.params.blind_traces).toBeUndefined();
+});
+
+test('simultaneous blind results become register issues (U2-008)', () => {
+  const blind = [
+    { name: 'A', blind: { ai: { rmsPct: 4 }, si: { rmsPct: 12 }, rho: { rmsPct: 3, corr: 0.8 } } },
+    { name: 'B', blind: { ai: { rmsPct: 24 }, si: { rmsPct: 6 }, rho: { rmsPct: 12, corr: 0.3 } } },
+    { name: 'C', blind: { ai: { rmsPct: 3 }, si: { rmsPct: 4 }, rho: { rmsPct: 14, corr: 0.7 } } },
+  ];
+  const issues = simultaneousIssues(blind, 'near mid far');
+  expect(issues.map((i) => [i.key.split(':').slice(-2).join(':'), i.severity])).toEqual([['A:si', 'medium'], ['B:ai', 'high'], ['B:rho-corr', 'medium'], ['C:rho-err', 'low']]);
+  expect(issues.every((i) => i.area === 'Simultaneous inversion')).toBe(true);
+  expect(simultaneousIssues([{ name: 'D', blind: { ai: { rmsPct: 2 }, si: { rmsPct: 2 }, rho: { rmsPct: 2, corr: 0.9 } } }])).toEqual([]);
 });
 
 test('packed logs (the client form since 2026-10-10) give the same blind table as plain arrays, within the packing step', async () => {

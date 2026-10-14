@@ -26,9 +26,9 @@ import { JobFailure } from '../runJob.js';
 import { pilotProblem, pilotOn, pilotBytes } from '../pilot.js';
 import { seismicQuota, overQuotaMessage } from '../quota.js';
 import {
-  validateInversionParams, lfmWells, horizonsAtFrom, waveletScale, makeTraceInverter,
-  blindWellTable, colouredFromWells, INVERSION_DEFAULTS, INVERSION_METHODS,
-  makeScenarioInverters, blindSensitivity, spreadProducts,
+  validateInversionParams, horizonsAtFrom,
+  blindWellTable, INVERSION_DEFAULTS, INVERSION_METHODS,
+  makeScenarioInverters, blindSensitivity, spreadProducts, makeBlindInverter, blindProtocol,
 } from '../../../../src/pages/apps/QIStudio/services/inversionRun.js';
 import { assertFloat32Parent, derivedStorageBytes, derivedSurveyMeta } from '../../../../src/pages/apps/Seismolord/services/attributeSurveyMeta.js';
 import { storageBrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCache.js';
@@ -40,7 +40,7 @@ import { resampleWavelet } from '../../../../packages/engines/engines/qi/wavelet
 import {
   buildDerivedManifest, brickRelPath, volumeDir, manifestPath, NULL_VALUE,
 } from '../../../../packages/engines/engines/seismolord/manifest.js';
-import { withUnpackedLogs } from '../../../../src/pages/apps/QIStudio/services/logPacking.js';
+import { withUnpackedLogs, packLog } from '../../../../src/pages/apps/QIStudio/services/logPacking.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const UPLOADS_IN_FLIGHT = 4;
@@ -190,30 +190,29 @@ export async function poststackInversion(ctx, deps) {
     const x = Float64Array.from(w.samples);
     return Number(w.dt_ms) > 0 && Math.abs(w.dt_ms - dtMs) > 1e-9 ? resampleWavelet(x, w.dt_ms, dtMs) : x;
   };
-  let wavelet = onGrid(inv.wavelet);
+  const wavelet = onGrid(inv.wavelet);
 
   ctx.progress(0.01, 'Reading the well traces');
   const traces = [];
   for (const w of inv.wells) traces.push(await readTrace(w.il, w.xl));
-  let scale = null; let alpha = null; let coloured = null;
+  // truly blind (QI upgrade P1.2): the inverter is rebuilt for each held-back
+  // well without it (wavelet scale or coloured operator, the field wavelet
+  // average when the browser sent the others' average, and the model)
+  let blindInv;
   try {
-    if (absolute) {
-      scale = waveletScale(inv.wells.map((w, k) => ({ trace: traces[k], lnAi: w.ln_ai })), wavelet).scale;
-      wavelet = wavelet.map((v) => v * scale);
-    } else {
-      const c = colouredFromWells({ wellTraces: traces, wellLogs: inv.wells.map((w) => w.ln_ai), dtMs, ns, band: s.band });
-      alpha = c.alpha; coloured = c.operator;
-    }
+    blindInv = makeBlindInverter({
+      inv, wavelet, onGrid: (samples, dt) => onGrid({ samples, dt_ms: dt }), wells: inv.wells, traces, posOf, horizonsAt, ns, dtMs,
+    });
   } catch (e) {
     return fail('compute_failed', e.message);
   }
-  const wells = lfmWells(inv.wells, { dtMs, lfmHz: s.lfmHz, posOf, horizonsAt });
-  const invert = makeTraceInverter({ inv, wavelet, wells, posOf, horizonsAt, ns, dtMs, coloured });
+  const { invert, scale, alpha } = blindInv;
 
   ctx.progress(0.03, 'Blind wells');
   const blind = inv.wells.length >= 2
     ? blindWellTable({ invert, wells: inv.wells, traces, dtMs, truthHz: s.truthHz, absolute, lowCutHz: s.band[0] })
     : [];
+  const blindTraces = blindInv.blindTraces;
   let scenarioRun = null; let sensitivity = null;
   if (sens) {
     ctx.progress(0.04, 'Sensitivity at the wells');
@@ -227,14 +226,28 @@ export async function poststackInversion(ctx, deps) {
     } catch (e) {
       return fail('compute_failed', e.message);
     }
-    const bs = inv.wells.length >= 2 ? blindSensitivity({ ...scenarioRun, wells: inv.wells, traces, dtMs, truthHz: s.truthHz }) : { rows: [], byScenario: [] };
-    sensitivity = { scenarios: scenarioRun.scenarios.map((x) => x.label), scales: scenarioRun.scales, snr: sens.snr ?? null, ...bs };
+    // the blind Q50 replaces the single-inversion blind traces for the property check
+    if (inv.wells.length >= 2) blindTraces.clear();
+    const bs = inv.wells.length >= 2 ? blindSensitivity({ ...scenarioRun, wells: inv.wells, traces, dtMs, truthHz: s.truthHz, blindTraces }) : { rows: [], byScenario: [] };
+    // the scenarios hold back each well from their model and wavelet scale; their wavelets are the ones listed
+    sensitivity = { scenarios: scenarioRun.scenarios.map((x) => x.label), scales: scenarioRun.scales, snr: sens.snr ?? null, ...bs, blind_protocol: blindProtocol({ absolute: true, blindWavelets: false }) };
   }
-  const summary = inversionSummary(inv, { ...(scale != null ? { wavelet_scale: scale } : {}), ...(alpha != null ? { impedance_slope: alpha } : {}), ...(sensitivity ? { scenarios: sensitivity.scenarios } : {}) });
+  const blindProtocolRec = { ...blindInv.protocol, held_back: blindInv.scales };
+  const summary = inversionSummary(inv, {
+    ...(scale != null ? { wavelet_scale: scale } : {}), ...(alpha != null ? { impedance_slope: alpha } : {}), ...(sensitivity ? { scenarios: sensitivity.scenarios } : {}),
+    blind_protocol: blindProtocolRec,
+  });
+  // the held-back estimate at each well (ln AI, packed), recorded with a
+  // volume so the property check can predict each well from an inversion
+  // that never saw it (absolute methods only; relative AI has no level)
+  const blindTracesRec = absolute ? [...blindTraces.entries()].map(([name, m]) => {
+    const w = inv.wells.find((x) => x.name === name);
+    return { name, il: w.il, xl: w.xl, ln_ai: packLog(Array.from(m, (v) => (Number.isFinite(v) ? v : NaN))) };
+  }).filter((x) => x.ln_ai.n > 0) : [];
   if (ctx.cancelled) { await cleanup(); return null; }
   if (p.mode === 'blind') {
     ctx.progress(1, 'Done');
-    return { mode: 'blind', parent_volume_id: parent.id, volume_name: parent.name, settings: summary, blind, ...(sensitivity ? { sensitivity } : {}) };
+    return { mode: 'blind', parent_volume_id: parent.id, volume_name: parent.name, settings: summary, blind, blind_protocol: blindProtocolRec, ...(sensitivity ? { sensitivity } : {}) };
   }
 
   // the whole volume, published like an attribute volume
@@ -277,7 +290,7 @@ export async function poststackInversion(ctx, deps) {
     for (let o = 0; o < derived.length; o++) {
       const d = derived[o];
       const product = scenarioRun ? { product: SPREAD_PRODUCTS[o].key, product_label: SPREAD_PRODUCTS[o].label } : {};
-      const attribute = { name: INVERSION_ATTRIBUTE, params: { ...summary, ...product, blind, ...(sensitivity ? { sensitivity } : {}) } };
+      const attribute = { name: INVERSION_ATTRIBUTE, params: { ...summary, ...product, blind, ...(sensitivity ? { sensitivity } : {}), ...(blindTracesRec.length && (!scenarioRun || SPREAD_PRODUCTS[o].key === 'q50') ? { blind_traces: blindTracesRec } : {}) } };
       const job = scenarioRun ? { ...result, stats: result.statsByOutput[o] } : result;
       const out = buildDerivedManifest({ volumeId: d.id, name: d.name, parentManifest: manifest, attribute, job });
       if (pilot) out.pilot = pilot.record;
@@ -292,7 +305,7 @@ export async function poststackInversion(ctx, deps) {
       mode: 'volume',
       volume_id: derived[0].id,
       ...(scenarioRun ? { volume_ids: Object.fromEntries(SPREAD_PRODUCTS.map((x, o) => [x.key, derived[o].id])) } : {}),
-      parent_volume_id: parent.id, volume_name: parent.name, settings: summary, blind,
+      parent_volume_id: parent.id, volume_name: parent.name, settings: summary, blind, blind_protocol: blindProtocolRec,
       ...(sensitivity ? { sensitivity } : {}),
       bricks: uploaded.length, trace_count: result.traceCount, ...(pilot ? { pilot: pilot.record } : {}),
     };
