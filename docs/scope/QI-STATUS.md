@@ -856,3 +856,14 @@ Owner-approved 2026-10-14 for the client QI study (about 120 km2, six wells; fiv
 - **Gathers:** a 467 MB gather file (120 x 100 locations, fold 12, 751 samples) was recognised (fold 12), cropped to 60 x 50 locations and 400 to 2000 ms (66 MB, 36,000 traces, every trace of each kept location), uploaded, and built by ingest_gathers in 4 s with ns 501 (the 100 samples above the window put back as nulls), crop recorded.
 - **Pilot inversion on the Ekene demo volume** (EKENE3D-full.sgy, 128 x 128 x 601, five wells, model-based): pilot inlines 1040 to 1079, crosslines 2030 to 2089, 800 to 1600 ms ran in 25 s against 116 s for the full run, wrote 16 bricks (16 MiB) against 40, and matched the full run exactly at 100 of 100 points inside the area; 300 of 300 points outside were empty. Both test volumes were removed afterwards.
 - **Found and fixed:** run beside a full inversion, the pilot job failed twice on a brick upload ("fetch failed"): the worker runs two jobs in one Node process, and while one computes the other's uploads can stall until the connection drops; the derived-volume handlers did not retry. `worker/seismic-worker/src/retryingStorage.js` now retries a dropped connection, 408, 429 and 5xx with backoff (fix PR, worker redeploy).
+
+## QI Studio upgrade P1-P2 (owner GO 2026-10-14)
+
+Owner, 2026-10-14: "Go with the light version and start priority 1. I also want the Volve/F3 benchmark included and that you proceed non-stop into Priority 2." Every change is additive: the tabs, default views and test ids the QI videos and the NextGen QI course show are unchanged.
+
+### P1.1 Light governance (2026-10-15)
+- **Objectives and acceptance criteria** on Setup, below the three setup cards: the study's text and an optional line per target (payload `objectives`).
+- **Decisions** in the issue register: gate (Data QC, Feasibility, Pilot, or a named gate), outcome, decision, by whom, date, and the run or version it refers to (chosen from the study's runs and checks, or typed). Stored in `issues` with `type: 'decision'`; shown in a Decisions table under the register; excluded from the issue table, its sort and its counts.
+- **Report:** the objectives after the summary, the decisions after the issue register; the summary adds the count and the latest decision only when there is one, so earlier studies read as before.
+- **Decision:** no workflow engine, no locking and no enforced sign-off (the owner's light version). No migration (project payload).
+- **Tests:** `__tests__/qiGovernance.test.jsx` (7), including the decision kept out of the register as a negative control.

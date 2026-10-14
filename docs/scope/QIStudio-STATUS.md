@@ -52,3 +52,7 @@ QI Studio holds the first package of a quantitative interpretation study: the da
 
 1. Apply `20261006140000_saved_qi_studio_projects.sql`.
 2. Decide whether QI Studio gets its own Geoscience tile and price.
+
+## Upgrade P1-P2 (owner GO 2026-10-14)
+
+- **P1.1 Light governance (2026-10-15):** an "Objectives and acceptance criteria" box on Setup (study text, optional line per target; payload `objectives`), and decisions in the issue register (gate Data QC, Feasibility, Pilot or a named gate; outcome, decision, by whom, date, the run or version it rests on; saved in `issues` with `type: 'decision'`, shown in their own table under the register and never counted as issues). Both are printed in the report. No workflow engine and no enforced sign-off. Tests `__tests__/qiGovernance.test.jsx` (7).
