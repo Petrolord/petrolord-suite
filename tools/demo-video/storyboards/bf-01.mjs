@@ -19,6 +19,8 @@ export default {
   viewport: { w: 1440, h: 810 },
   async setup(d, shared) {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
+    // only this video's own models in the list (the series leaves its models behind)
+    await deleteModels(shared, /^Lesson /);
     await deleteModels(shared, /^Basin demo: Ekene-1$/);
     // the kitchen model of demo 2 is in the list, as it would be in a project
     await seedModel(shared, 'kitchen-run', KITCHEN);

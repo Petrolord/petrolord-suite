@@ -1,5 +1,5 @@
 // Basin Modelling with Petrolord, Lesson D12: hand-offs and the report.
-import { login, expectText, openBf, enterExpert, openModel, simulate, resultsTab, seedModel, t, bfLessonMeta } from './bf-common.mjs';
+import { login, expectText, openBf, enterExpert, openModel, simulate, resultsTab, seedModel, t, deleteModels, bfLessonMeta } from './bf-common.mjs';
 
 const NAME = 'Lesson D12: East kitchen';
 export default {
@@ -7,6 +7,8 @@ export default {
   ...bfLessonMeta(12, 'D', 'Hand-offs *and the report*', 'Prospect Risking, the pressure profile, the PDF report and the CSV'),
   async setup(d, shared) {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
+    // only this video's own models in the list (the series leaves its models behind)
+    await deleteModels(shared, /^Lesson /);
     await seedModel(shared, 'kitchen-run', NAME);
     await login(d.page, shared.baseUrl, shared.env);
     await openBf(d, shared);

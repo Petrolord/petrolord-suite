@@ -7,6 +7,8 @@ export default {
   ...bfLessonMeta(1, 'A', 'The workspace and *a new model*', 'Guided and Expert mode, the tabs, the model list, the units and the time settings'),
   async setup(d, shared) {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
+    // only this video's own models in the list (the series leaves its models behind)
+    await deleteModels(shared, /^Lesson /);
     await deleteModels(shared, /^Lesson A1:/);
     await seedModel(shared, 'ek1-calibrated', EK1);
     await login(d.page, shared.baseUrl, shared.env);

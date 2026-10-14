@@ -1,5 +1,5 @@
 // Basin Modelling with Petrolord, Lesson D10: traps and charge timing.
-import { login, expectText, openBf, enterExpert, openModel, simulate, resultsTab, seedModel, t, bfLessonMeta, fixtureWith } from './bf-common.mjs';
+import { login, expectText, openBf, enterExpert, openModel, simulate, resultsTab, seedModel, t, deleteModels, bfLessonMeta, fixtureWith } from './bf-common.mjs';
 
 const NAME = 'Lesson D10: East kitchen';
 export default {
@@ -7,6 +7,8 @@ export default {
   ...bfLessonMeta(10, 'D', 'Traps *and charge timing*', 'A trap by hand, the charge it takes, the factor bands and a trap that formed too late'),
   async setup(d, shared) {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
+    // only this video's own models in the list (the series leaves its models behind)
+    await deleteModels(shared, /^Lesson /);
     const settings = { ...fixtureWith('kitchen-run', (r) => r).settings, traps: [] };
     await seedModel(shared, 'kitchen-run', NAME, { settings });
     await login(d.page, shared.baseUrl, shared.env);

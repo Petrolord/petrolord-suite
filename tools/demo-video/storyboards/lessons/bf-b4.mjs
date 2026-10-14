@@ -1,5 +1,5 @@
 // Basin Modelling with Petrolord, Lesson B4: heat flow and the surface.
-import { login, expectText, openBf, enterExpert, openModel, simulate, resultsTab, seedModel, t, tab, bfLessonMeta, layerCard, thermal } from './bf-common.mjs';
+import { login, expectText, openBf, enterExpert, openModel, simulate, resultsTab, seedModel, t, deleteModels, tab, bfLessonMeta, layerCard, thermal } from './bf-common.mjs';
 
 const NAME = 'Lesson B4: Ekene-1';
 export default {
@@ -7,6 +7,8 @@ export default {
   ...bfLessonMeta(4, 'B', 'Heat flow *and the surface*', 'The boundaries of the heat solution, conductivity and the temperature history'),
   async setup(d, shared) {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
+    // only this video's own models in the list (the series leaves its models behind)
+    await deleteModels(shared, /^Lesson /);
     await seedModel(shared, 'ek1-calibrated', NAME, { heat_flow: { type: 'constant', value: 60, history: [] } });
     await login(d.page, shared.baseUrl, shared.env);
     await openBf(d, shared);

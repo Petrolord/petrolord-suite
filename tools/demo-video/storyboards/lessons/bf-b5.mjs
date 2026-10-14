@@ -7,6 +7,8 @@ export default {
   ...bfLessonMeta(5, 'B', 'Correcting *bottom-hole temperatures*', 'Depths below KB, raw log temperatures, Horner, AAPG and Harrison, and the DST'),
   async setup(d, shared) {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
+    // only this video's own models in the list (the series leaves its models behind)
+    await deleteModels(shared, /^Lesson /);
     await seedModel(shared, 'ek1-calibrated', NAME, { calibration_data: { ro: [], temp: [] } });
     await login(d.page, shared.baseUrl, shared.env);
     await openBf(d, shared);

@@ -1,5 +1,5 @@
 // Basin Modelling with Petrolord, Lesson D11: sensitivity and scenarios.
-import { login, expectText, openBf, enterExpert, openModel, simulate, seedModel, t, tab, bfLessonMeta } from './bf-common.mjs';
+import { login, expectText, openBf, enterExpert, openModel, simulate, seedModel, t, deleteModels, tab, bfLessonMeta } from './bf-common.mjs';
 
 const NAME = 'Lesson D11: East kitchen';
 export default {
@@ -7,6 +7,8 @@ export default {
   ...bfLessonMeta(11, 'D', 'Sensitivity *and what to trust*', 'Migration efficiency, conductivity and the source maturity, every value a run'),
   async setup(d, shared) {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
+    // only this video's own models in the list (the series leaves its models behind)
+    await deleteModels(shared, /^Lesson /);
     await seedModel(shared, 'kitchen-run', NAME);
     await login(d.page, shared.baseUrl, shared.env);
     await openBf(d, shared);

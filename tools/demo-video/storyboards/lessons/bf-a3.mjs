@@ -7,6 +7,8 @@ export default {
   ...bfLessonMeta(3, 'A', 'Burial history *and decompaction*', 'How the layers were buried, deposition through time, the step and compaction'),
   async setup(d, shared) {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
+    // only this video's own models in the list (the series leaves its models behind)
+    await deleteModels(shared, /^Lesson /);
     await seedModel(shared, 'ek1-calibrated', NAME);
     await login(d.page, shared.baseUrl, shared.env);
     await openBf(d, shared);

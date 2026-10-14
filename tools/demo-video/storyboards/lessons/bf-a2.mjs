@@ -7,6 +7,8 @@ export default {
   ...bfLessonMeta(2, 'A', 'Building the column *from a well*', 'Registry tops, a stratigraphic column file, the hiatus and the eroded section'),
   async setup(d, shared) {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
+    // only this video's own models in the list (the series leaves its models behind)
+    await deleteModels(shared, /^Lesson /);
     await deleteModels(shared, /^Lesson A2:/);
     await seedModel(shared, 'ek1-calibrated', EK1);
     await login(d.page, shared.baseUrl, shared.env);

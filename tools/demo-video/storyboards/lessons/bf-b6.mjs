@@ -1,5 +1,5 @@
 // Basin Modelling with Petrolord, Lesson B6: calibrating to vitrinite and temperature.
-import { login, expectText, openBf, enterExpert, openModel, simulate, importCalibration, seedModel, t, tab, bfLessonMeta } from './bf-common.mjs';
+import { login, expectText, openBf, enterExpert, openModel, simulate, importCalibration, seedModel, t, deleteModels, tab, bfLessonMeta } from './bf-common.mjs';
 
 const NAME = 'Lesson B6: Ekene-1';
 export default {
@@ -7,6 +7,8 @@ export default {
   ...bfLessonMeta(6, 'B', 'Calibrating to *vitrinite and temperature*', 'Easy%Ro against measured reflectance, residuals and Auto-Fit'),
   async setup(d, shared) {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
+    // only this video's own models in the list (the series leaves its models behind)
+    await deleteModels(shared, /^Lesson /);
     await seedModel(shared, 'ek1-calibrated', NAME, { heat_flow: { type: 'constant', value: 70, history: [] } });
     await login(d.page, shared.baseUrl, shared.env);
     await openBf(d, shared);

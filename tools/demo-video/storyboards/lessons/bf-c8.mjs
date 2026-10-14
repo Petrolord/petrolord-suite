@@ -7,6 +7,8 @@ export default {
   ...bfLessonMeta(8, 'C', 'Maturity *and the kitchen*', 'A pseudo-well where the source is buried, and the oil and gas windows'),
   async setup(d, shared) {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
+    // only this video's own models in the list (the series leaves its models behind)
+    await deleteModels(shared, /^Lesson /);
     await deleteModels(shared, /^Lesson C8:/);
     await seedModel(shared, 'ek1-calibrated', EK1);
     await login(d.page, shared.baseUrl, shared.env);

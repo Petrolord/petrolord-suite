@@ -1,5 +1,5 @@
 // Basin Modelling with Petrolord, Lesson C7: source rocks from Rock-Eval.
-import { login, expectText, openBf, enterExpert, openModel, simulate, resultsTab, seedModel, t, tab, bfLessonMeta, layerCard } from './bf-common.mjs';
+import { login, expectText, openBf, enterExpert, openModel, simulate, resultsTab, seedModel, t, deleteModels, tab, bfLessonMeta, layerCard } from './bf-common.mjs';
 
 const NAME = 'Lesson C7: Ekene-1';
 export default {
@@ -7,6 +7,8 @@ export default {
   ...bfLessonMeta(7, 'C', 'Source rocks *from Rock-Eval*', 'TOC, hydrogen index and kinetics, and what the Akata did at Ekene-1'),
   async setup(d, shared) {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
+    // only this video's own models in the list (the series leaves its models behind)
+    await deleteModels(shared, /^Lesson /);
     await seedModel(shared, 'ek1-calibrated', NAME);
     await login(d.page, shared.baseUrl, shared.env);
     await openBf(d, shared);
