@@ -15,8 +15,8 @@ const i = args.indexOf('--base-url');
 const baseUrl = i >= 0 ? args[i + 1] : 'http://127.0.0.1:4173';
 const mod = (await import(pathToFileURL(path.resolve(file)).href)).default;
 const env = loadEnv();
-const disp = await startDisplay(':98'); // not :99, so a probe can run beside a recording on another well
-const { ctx, page } = await openApp(`${baseUrl}/login`, { profileDir: path.join(OUT_ROOT, '.probe-profile'), overlayPath: path.join(HERE, 'lib', 'overlay.js'), css: mod.viewport || { w: 1440, h: 810 } });
+const disp = await startDisplay(process.env.PROBE_DISPLAY || ':98'); // not :99, so a probe can run beside a recording on another well
+const { ctx, page } = await openApp(`${baseUrl}/login`, { profileDir: path.join(OUT_ROOT, process.env.DEMO_PROBE_PROFILE || '.probe-profile'), overlayPath: path.join(HERE, 'lib', 'overlay.js'), css: mod.viewport || { w: 1440, h: 810 } });
 const d = makeDirector(page);
 d.sleep = d.sleep || ((ms) => page.waitForTimeout(ms));
 const shared = { baseUrl, env, values: {} };
