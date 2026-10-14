@@ -55,7 +55,7 @@ const WellTestStudioContent = () => {
   const {
     projects, sharedProjects, currentProjectId, createProject, openProject, deleteProject,
     projectRow, sharing, viewingShared, canWrite, saveCopy,
-    manualSave, isSaving, saveError, lastSaveTime,
+    manualSave, isSaving, saveError, lastSaveTime, dirty,
     notifications, removeNotification, addNotification,
     isFitting, takeFluidPvt,
   } = useWellTestStudio();
@@ -160,7 +160,7 @@ const WellTestStudioContent = () => {
         }
         headerActions={
           <>
-            <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />
+            <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} dirty={dirty} />
             <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Well Test Analysis Studio Guide"
