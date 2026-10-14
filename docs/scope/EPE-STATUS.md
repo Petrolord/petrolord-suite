@@ -132,6 +132,16 @@ its own case. Helper `epeIncremental.js`; gates `epeIncremental.test.js`
 (through the vendored engine; the invariant fails on the old discounting) and
 `epeCompareCases.mount.test.jsx`. No engine change.
 
+## 2026-10-14: comparison readability (video programme)
+
+Compare Runs printed money in whole compact units, so the Ekene increment of
+USD 2,439,459 read "$2.4M", the field "$2M", and the 2026 delta "$0.0037".
+Money on the page now reads to three significant figures like the Results
+Viewer (`fmtUsd3`: $2.44M, $1.98M, -$459K, $0 for differencing noise), the
+incremental block opens with one sentence ("On NPV at 10.00%, With Ekene-11
+is worth $2.44M more than Without Ekene-11.", testid `incremental-verdict`),
+and the header names the case in place of its id. Tests in
+`epeIncremental.test.js`.
 ## 2026-10-14: the applied price, year by year (video programme)
 
 A yearly price deck could not be checked against what the engine used: the

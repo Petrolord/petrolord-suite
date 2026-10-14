@@ -569,6 +569,18 @@ const WellDesignHelpGuideContent = () => {
                 margins, at this trajectory's MD. The source line names the well and says when it is an offset. Missing
                 prerequisites are stated exactly.
               </Para>
+              <SubHeading>When the prognosis changes</SubHeading>
+              <Para>
+                The window always shows the prognosis published now, so a republish in Pore Pressure Studio moves the
+                casing seats. To be told when that happens, click Review against this prognosis under Prognosis from (or
+                save the design with the window open): the design keeps a record of that publish and of what it saw on
+                this trajectory, the casing seats at the default margins, the tightest window and the highest pore
+                pressure. When the prognosis on that well is published again, or deleted, Prognosis changed appears above
+                the views with what moved here (for example shoe 2 at least TVD 4,212 ft to 4,337 ft, highest pore
+                pressure 14.42 to 13.80 ppg) and when it was republished. Refresh from source records the new publish as
+                the one this design is reviewed against; Keep current values records that you have seen the change. A
+                different well chosen under Prognosis from is a new record, which you review the same way.
+              </Para>
             </Section>
 
             <Section id="reports">
