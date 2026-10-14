@@ -697,3 +697,9 @@ Engines PRs Petrolord/petrolord-engines #361 (merged 0750f99) and #362 (merged 1
 - The Match tab shows every model parameter beyond k, skin and C as a card (the distance to a boundary, a fracture half-length, omega and lambda), so a boundary match reads its distance without hunting in the rail; its log-log axis names the rate history's equivalent time on that basis.
 - wta-1 `productivity.pr_line` says which straight line gave p* (Horner or superposition); Nodal Analysis Studio's intake card and its applied note name it (they said "Horner line" for a superposition p*).
 - "Find it in the gauge data" now takes the LAST sharp change when a record holds several (a clean-up shut-in, a rate cut for sampling), and refuses a record whose steepest change is under three times its typical movement; the notice says how many it saw.
+
+## 2026-10-14: pending edits are written before leaving a project (branch `fix/welltest-flush-pending-save`)
+
+- **Defect fixed:** the autosave fires 10 s after the last edit, and creating or opening another project (or leaving the page) within those 10 s lost the edit while the header said "Saved" (the platform hazard SCAL #949 and QI #961 fixed for their studios). Found while scripting the Well Test lessons: a project made seconds before the next one opened empty.
+- Now the studio keeps a print of the last save, the header says "Unsaved changes" while the inputs differ from it, and pending edits are written before another project is opened or created, when the page is hidden, and when the studio unmounts; closing the tab with edits pending asks first. Opening a project is not an edit. Test in `src/contexts/__tests__/wellTestSharing.test.jsx` (negative control: without the flush the edit is lost).
+- The MDH cross-check no longer says its k "reads high" when it bends: after a rate cut before the shut-in it reads low (Ekene-11: 199 md against 225).

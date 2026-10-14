@@ -142,3 +142,30 @@ describe('Well Test projects under record sharing', () => {
     expect(row(h, 'mine').inputs_data.reservoirInputs.B).toBe('1.31');
   });
 });
+
+describe('pending edits are written before leaving a project (2026-10-14)', () => {
+  test('an edit made seconds before opening another project is saved to the first one', async () => {
+    const h = setup();
+    const { result } = mount(h);
+    await waitFor(() => expect(result.current.sharing.ready).toBe(true));
+    await act(async () => { await result.current.openProject('mine'); });
+    await waitFor(() => expect(result.current.reservoirInputs.B).toBe('1.30'));
+    expect(result.current.dirty).toBe(false);
+    act(() => result.current.setReservoirField('B', '1.33'));
+    await waitFor(() => expect(result.current.dirty).toBe(true));
+    // well inside the 10 s autosave: open another project at once
+    await act(async () => { await result.current.createProject('Lesson second'); });
+    expect(row(h, 'mine').inputs_data.reservoirInputs.B).toBe('1.33');
+    expect(result.current.dirty).toBe(false);
+  });
+
+  test('opening a project is not an edit: nothing is pending', async () => {
+    const h = setup();
+    const { result } = mount(h);
+    await waitFor(() => expect(result.current.sharing.ready).toBe(true));
+    await act(async () => { await result.current.openProject('mine'); });
+    await waitFor(() => expect(result.current.currentProjectId).toBe('mine'));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(result.current.dirty).toBe(false);
+  });
+});

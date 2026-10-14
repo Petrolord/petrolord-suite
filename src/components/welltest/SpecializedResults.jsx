@@ -128,7 +128,7 @@ const SpecializedResults = () => {
           </div>
           <p className="text-[11px] text-pl-muted mt-2">
             MDH plots pws against log Δt and gives no p*. It holds while Δt is small beside the producing time; {Number.isFinite(mdhBuildupResult.dtOverTp) && mdhBuildupResult.dtOverTp > 0.1
-              ? `here the window reaches ${fmt.sig3(mdhBuildupResult.dtOverTp)} of tp, so the MDH line bends and its k reads high: use the ${lineName} line.`
+              ? `here the window reaches ${fmt.sig3(mdhBuildupResult.dtOverTp)} of tp, so the MDH line bends and its k and skin are off: use the ${lineName} line.`
               : `here the window stays under a tenth of tp, so MDH and ${lineName} should agree.`}
           </p>
         </div>
