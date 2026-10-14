@@ -19,6 +19,8 @@ import { presentDayHeatFlow } from './history';
 import { getThermalProps } from './ThermalPropertiesLibrary';
 import { getCompactionParams } from './CompactionModelLibrary';
 import { CalibrationCalculator } from './CalibrationCalculator';
+import { buildBasinCharge } from '@/lib/basinCharge';
+import { assessTraps } from './traps';
 import { TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
 
 export const latin1 = (t) => String(t ?? '')
@@ -61,7 +63,7 @@ export function reviewerLines(p) {
   const lines = [
     `Model: ${modelName || 'not named'} | Well: ${st.registryWellName || 'not tied to a registry well'} | Field: ${field} | Analyst: ${analyst} | Date: ${now.toISOString().slice(0, 10)} | ${build}`,
     `Units: depth ${zU}, temperature ${tU}; engine SI (m, C, Ma, mW/m2). Ages: ${st.timescale || (st.fromStratigraphyStudio ? 'ICS 2023/09 (sent before chart versions travelled)' : 'as typed')}; current chart ${TIMESCALE_VERSION}`,
-    `Engine: 1D forward model; Athy (Sclater and Christie) decompaction, ${st.compaction === 'irreversible' ? 'maximum-burial compaction (an unroofed layer keeps its deepest compaction)' : 'elastic (porosity follows present burial, no maximum-burial memory)'}; implicit conduction on cells up to 100 m; Easy%Ro (Sweeney and Burnham 1990) at each layer centre and through the column in slices up to about 100 m; kerogen transformation by parallel Arrhenius reactions; 1 Ma steps ending at 0 Ma`,
+    `Engine: 1D forward model; Athy (Sclater and Christie) decompaction, ${st.compaction === 'irreversible' ? 'maximum-burial compaction (an unroofed layer keeps its deepest compaction)' : 'elastic (porosity follows present burial, no maximum-burial memory)'}; implicit conduction on cells up to 100 m; Easy%Ro (Sweeney and Burnham 1990) at each layer centre and through the column in slices up to about 100 m; kerogen transformation by parallel Arrhenius reactions; ${st.deposition === 'continuous' ? 'continuous deposition (each layer builds up through its interval)' : 'instant deposition (each layer appears at its start age)'}; ${[1, 0.5, 0.25, 0.1].includes(Number(st.timeStepMa)) ? Number(st.timeStepMa) : 1} Ma steps ending at 0 Ma`,
     hf.type === 'variable'
       ? `Basal heat flow: history ${(hf.history || []).slice().sort((a, b) => b.age - a.age).map((q) => `${q.age} Ma ${q.value}`).join(', ')} mW/m2 (present ${f(presentDayHeatFlow(hf), 1)})`
       : `Basal heat flow: constant ${f(Number(hf.value), 1)} mW/m2`,
@@ -157,6 +159,23 @@ export function basinReportPdf(JsPDF, args, { logo = null } = {}) {
     const flat = (k) => results.data[k].flat().map((e) => e.value);
     const { criticalMoment } = eventsChartRows(results);
     y += 3;
+    // 2026-10-14: the traps and the charge each takes (services/traps.js)
+    const traps = Array.isArray(args.state?.settings?.traps) ? args.state.settings.traps : [];
+    if (traps.length) {
+      let payload = null;
+      try { payload = buildBasinCharge(withLayerRoles(results, args.state?.stratigraphy || []), { stratigraphy: args.state?.stratigraphy || [] }); } catch { payload = null; }
+      const srcName = (ids) => (ids?.length ? ids.map((id) => (args.state?.stratigraphy || []).find((l) => l.id === id)?.name || id).join(', ') : 'every source');
+      y += 4;
+      if (y > pageH - 30) { doc.addPage(); y = 16; }
+      doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text('Traps and charge', margin, y); y += 5; doc.setFontSize(7.5);
+      y = table(doc, {
+        head: ['Trap', 'Formed (Ma)', 'Fetch (km2)', 'Eff.', 'Charged by', 'After (%)', 'MMboe', 'Oil MMbbl', 'Gas Bcf', 'x fill', 'Factor'],
+        rows: assessTraps(traps, payload).map(({ trap: t, a }) => [t.name, String(t.formedMa), String(t.fetchKm2), String(t.efficiency), srcName(t.sourceIds),
+          a?.ok ? (100 * (1 - a.beforeTrapFraction)).toFixed(0) : '', a?.ok ? f(a.chargeMMboe, 1) : '', a?.ok ? f(a.oilMMbbl, 1) : '', a?.ok ? f(a.gasBcf, 1) : '', a?.ok && a.ratio != null ? f(a.ratio, 2) : '', a?.ok && a.factor != null ? String(a.factor) : '']),
+        y, margin, pageW, pageH, widths: [16, 11, 11, 8, 26, 10, 11, 11, 10, 9, 9],
+      });
+      y += 3;
+    }
     doc.text(latin1(`Maximum temperature ${f(tempToDisplay(Math.max(...flat('temperature')), units.temp), 1)} ${units.temp}; maximum Ro ${Math.max(...flat('maturity')).toFixed(2)} %; ${criticalMoment != null ? `critical moment (peak expulsion) ${criticalMoment} Ma` : 'no expulsion modelled'}. Maturity windows: oil 0.55 to 1.3, wet gas 1.3 to 2.0, dry gas above 2.0 %Ro.`), margin, y, { maxWidth: pageW - 2 * margin });
   } else {
     doc.text('No run: simulate the model to report its present-day state.', margin, y);
@@ -164,7 +183,7 @@ export function basinReportPdf(JsPDF, args, { logo = null } = {}) {
   // BF-U2-011: the plots the reviewer signs, drawn as vectors (the report
   // claimed plots and had none)
   if (results?.data?.timeSteps?.length) {
-    const footer = () => { doc.setFontSize(7); doc.setTextColor(100, 116, 139); doc.text(latin1('Depths below the model surface; time from the oldest layer to the present. Trap formation and migration are not modelled (1D).'), margin, pageH - 8); };
+    const footer = () => { doc.setFontSize(7); doc.setTextColor(100, 116, 139); doc.text(latin1('Depths below the model surface; time from the oldest layer to the present. Migration is not modelled (1D): the traps take the fetch area and efficiency the analyst gives.'), margin, pageH - 8); };
     footer();
     doc.addPage();
     const roles = withLayerRoles(results, args.state?.stratigraphy || []);
@@ -176,6 +195,6 @@ export function basinReportPdf(JsPDF, args, { logo = null } = {}) {
   }
   doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
-  doc.text(latin1('Depths below the model surface; Ro by Easy%Ro at each layer centre, and through the column for calibration; transformation of the source kerogen. Trap formation and migration are not modelled (1D).'), margin, pageH - 8);
+  doc.text(latin1('Depths below the model surface; Ro by Easy%Ro at each layer centre, and through the column for calibration; transformation of the source kerogen. Migration is not modelled (1D): the traps take the fetch area and efficiency the analyst gives.'), margin, pageH - 8);
   return doc;
 }

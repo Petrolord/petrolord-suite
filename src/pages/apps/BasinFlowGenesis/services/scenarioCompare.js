@@ -12,6 +12,7 @@ import { engineInputsKey } from './honesty';
 import { finalDepthProfile, eventsChartRows, withLayerRoles, calibrationProfile } from './resultsView';
 import { presentDayHeatFlow } from './history';
 import { depthToDisplay, tempToDisplay } from './units';
+import { outputValue } from './sensitivity';
 
 export const MAX_COMPARE = 4;
 
@@ -59,13 +60,6 @@ export function compareScenarios(scenarios, units = { depth: 'm', temp: 'C' }) {
   const results = list.map(resultOf);
   const layerOrder = [];
   results.forEach((r) => (r?.meta?.layers || []).forEach((l) => { if (!layerOrder.some((x) => x.id === l.id)) layerOrder.push({ id: l.id, name: l.name }); }));
-  const present = results.map((r) => (r ? new Map(finalDepthProfile(r).map((p) => [p.id, p])) : null));
-  for (const l of layerOrder) {
-    push('Present-day Ro (%)', `ro-${l.id}`, l.name, present.map((m) => (m?.get(l.id) ? m.get(l.id).ro.toFixed(2) : EMPTY_VALUE)));
-  }
-  for (const l of layerOrder) {
-    push(`Present-day temperature (${tU})`, `t-${l.id}`, l.name, present.map((m) => (m?.get(l.id) ? fmt(tempToDisplay(m.get(l.id).temp, tU), 1) : EMPTY_VALUE)));
-  }
   push('Charge', 'tr', 'Source transformation, present', results.map((r) => {
     if (!r) return EMPTY_VALUE;
     const vals = r.meta.layers.map((l, li) => (l.sourceRock?.isSource ? r.data.transformation[li]?.slice(-1)[0]?.value : null)).filter(Number.isFinite);
@@ -81,8 +75,29 @@ export function compareScenarios(scenarios, units = { depth: 'm', temp: 'C' }) {
     const tot = r.data.expulsion.reduce((a, s) => a + (s?.length ? s[s.length - 1].value : 0), 0);
     return fmt(tot, 1);
   }));
+  // 2026-10-14: each trap's charge and factor on each scenario's own result (traps matched by name)
+  const trapNames = [];
+  list.forEach((sc) => (sc.settings?.traps || []).forEach((tp) => { if (tp?.name && !trapNames.includes(tp.name)) trapNames.push(tp.name); }));
+  for (const name of trapNames) {
+    const val = (sc, r, kind) => {
+      const tp = (sc.settings?.traps || []).find((x) => x.name === name);
+      if (!r || !tp) return NaN;
+      return outputValue(r, `${kind}:${tp.id}`, { stratigraphy: sc.stratigraphy || [], traps: sc.settings.traps });
+    };
+    push('Charge', `trap-${name}`, `Charge reaching ${name} (MMboe)`, list.map((sc, i) => fmt(val(sc, results[i], 'charge'), 1)));
+    push('Charge', `factor-${name}`, `Charge factor, ${name}`, list.map((sc, i) => { const v = val(sc, results[i], 'factor'); return Number.isFinite(v) ? String(v) : EMPTY_VALUE; }));
+  }
   push('Burial', 'maxT', `Maximum temperature (${tU})`, results.map((r) => (r ? fmt(tempToDisplay(Math.max(...r.data.temperature.flat().map((e) => e.value)), tU), 1) : EMPTY_VALUE)));
   push('Burial', 'maxZ', `Deepest burial (${zU})`, results.map((r) => (r ? fmt(depthToDisplay(r.meta.maxDepth, zU), 0) : EMPTY_VALUE)));
+  // the layer-by-layer tables last (2026-10-14): the charge reads first
+  const present = results.map((r) => (r ? new Map(finalDepthProfile(r).map((p) => [p.id, p])) : null));
+  for (const l of layerOrder) {
+    push('Present-day Ro (%)', `ro-${l.id}`, l.name, present.map((m) => (m?.get(l.id) ? m.get(l.id).ro.toFixed(2) : EMPTY_VALUE)));
+  }
+  for (const l of layerOrder) {
+    push(`Present-day temperature (${tU})`, `t-${l.id}`, l.name, present.map((m) => (m?.get(l.id) ? fmt(tempToDisplay(m.get(l.id).temp, tU), 1) : EMPTY_VALUE)));
+  }
+
   return { columns, rows };
 }
 

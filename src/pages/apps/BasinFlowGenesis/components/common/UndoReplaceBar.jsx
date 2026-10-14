@@ -11,7 +11,10 @@ export default function UndoReplaceBar() {
     if (!u) return null;
     return (
         <div className="flex items-center gap-3 px-4 py-2 text-xs bg-pl-sunken border-b border-pl-border text-pl-text" data-testid="bf-undo-bar">
-            <span>{u.label} replaced {u.stratigraphy?.length || 0} layer{u.stratigraphy?.length === 1 ? '' : 's'}.</span>
+            {/* an empty model was filled, not replaced (it read "replaced 0 layers") */}
+            <span>{u.stratigraphy?.length
+                ? `${u.label} replaced ${u.stratigraphy.length} layer${u.stratigraphy.length === 1 ? '' : 's'}.`
+                : `${u.label}: ${state.stratigraphy?.length || 0} layer${state.stratigraphy?.length === 1 ? '' : 's'} added to the empty model.`}</span>
             <Button size="sm" variant="outline" className="h-7 text-xs" data-testid="bf-undo-replace" onClick={() => dispatch({ type: 'UNDO_REPLACE' })}>
                 <Undo2 className="w-3 h-3 mr-1" /> Undo
             </Button>

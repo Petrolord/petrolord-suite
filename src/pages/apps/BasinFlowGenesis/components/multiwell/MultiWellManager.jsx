@@ -50,7 +50,11 @@ const MultiWellManager = () => {
     const { state: bfState, dispatch: bfDispatch, units } = useBasinFlow();
     // TD from the stated depth range, else the stratigraphy's total thickness (Basin T1-006: the seeded well read TD 0m)
     const wellTd = (well) => {
-        const strat = well.stratigraphy?.length ? well.stratigraphy : (well.id === mwState.activeWellId ? bfState.stratigraphy || [] : []);
+        // the open model's live layers; the others from their saved rows (the list
+        // entries carry only names, so every model but the edited one read "not set")
+        const saved = mwState.wellDataMap?.[well.id]?.stratigraphy;
+        const strat = well.id === mwState.activeWellId && bfState.stratigraphy?.length ? bfState.stratigraphy
+            : well.stratigraphy?.length ? well.stratigraphy : Array.isArray(saved) ? saved : [];
         const m = Number(well.depthRange?.max) || strat.reduce((acc, l) => acc + (Number(l.thickness) || 0), 0);
         if (!(m > 0)) return 'not set';
         const u = units?.depth || 'm';
