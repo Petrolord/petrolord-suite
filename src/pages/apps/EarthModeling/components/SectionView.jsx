@@ -245,7 +245,12 @@ const SectionView = forwardRef(function SectionView({
       ctx.setLineDash([]);
       ctx.fillStyle = '#e2e8f0'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
       const lab = labelOf.get(p);
-      if (lab) ctx.fillText(`${lab.names.join(', ')}${p.offset * xyToM > 1 ? ` (${(p.offset * xyToM).toFixed(0)} m off)` : ''}`, px, 12);
+      if (lab) {
+        // kept inside the canvas: a well at the end of the line was cut at the edge
+        const text = `${lab.names.join(', ')}${p.offset * xyToM > 1 ? ` (${(p.offset * xyToM).toFixed(0)} m off)` : ''}`;
+        const half = ctx.measureText(text).width / 2;
+        ctx.fillText(text, Math.min(cssW - half - 4, Math.max(half + 4, px)), 12);
+      }
       if (p.gr && p.gr.tvdss.length > 1) {
         const depth = p.gr.tvdss;
         let i0 = 0; while (i0 < depth.length - 1 && depth[i0] < zMin) i0 += 1;
