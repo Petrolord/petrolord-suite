@@ -97,7 +97,8 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   const [sectionPath, setSectionPath] = useState(null);       // [[x, y], ...] world
   const [sectionDrawing, setSectionDrawing] = useState(false);
   const [sectionPending, setSectionPending] = useState([]);
-  const [ve, setVe] = useState(2);
+  const [ve, setVe] = useState(0); // fit the window
+  const [secColour, setSecColour] = useState('zones');
   const [wellCurves, setWellCurves] = useState({});           // wellId -> {tvdss, values} | null
   const sectionRef = useRef(null);
   const [lastPublished, setLastPublished] = useState(null); // EM5: the row the launchers point at
@@ -780,9 +781,17 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       {sectionPath && <button type="button" data-testid="em-sec-clear" className={viewBtn(false)} onClick={() => { setSectionPath(null); setStatus('Section back to the well pair.'); }}>Well pair</button>}
       <label className="flex items-center gap-1 text-[11px] text-pl-muted">VE
         <select className={selCls} data-testid="em-sec-ve" value={ve} onChange={(e) => setVe(Number(e.target.value))}>
-          {VE_OPTIONS.map((v) => <option key={v} value={v}>{v}x</option>)}
+          {VE_OPTIONS.map((v) => <option key={v} value={v}>{v === 0 ? 'fit' : `${v}x`}</option>)}
         </select>
       </label>
+      <select className={selCls} data-testid="em-sec-colour" value={secColour} onChange={(e) => setSecColour(e.target.value)}
+        title="Colour the zones by a modelled property (each layer of a layered zone its own band)">
+        <option value="zones">colour: zones</option>
+        <option value="phi">colour: porosity</option>
+        <option value="sw">colour: Sw</option>
+        <option value="ntg">colour: NTG</option>
+        {(built?.zones || []).some((z) => z.props?.perm) && <option value="perm">colour: permeability</option>}
+      </select>
       <span className="text-[11px] text-pl-muted" data-testid="em-sec-wells">{projected.length} well{projected.length === 1 ? '' : 's'} on the line</span>
       <button type="button" data-testid="em-sec-png" className={`${viewBtn(false)} ml-auto`} title="Download the section as a PNG" onClick={exportSectionPng}>
         <ImageDown className="w-3.5 h-3.5" /> PNG
@@ -806,8 +815,9 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       )}
     </div>
   ) : view === 'section' ? (
-    <div className="p-3">
+    <div className="p-3 h-full min-h-0 flex flex-col">
       {sectionToolbar}
+      <div className="flex-1 min-h-0">
       <SectionView
         ref={sectionRef}
         spec={built?.spec}
@@ -820,7 +830,10 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
         depthUnit={depthUnit}
         ve={ve}
         xyToM={built?.xyToM || 1}
+        zones={built?.zones || []}
+        colour={secColour}
       />
+      </div>
     </div>
   ) : !built ? (
     <div className="h-full flex items-center justify-center text-pl-muted text-sm" data-testid="em-empty">

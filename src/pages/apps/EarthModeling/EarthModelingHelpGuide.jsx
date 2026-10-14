@@ -158,8 +158,10 @@ export default function EarthModelingHelpGuide() {
           The section cuts the framework along the straight line between two wells, or along a line you draw: Draw
           line on map, click the vertices, Finish section line. Wells within two cells of the line are drawn at their
           projection with a GR column (sand below 75 API filled), their top ticks with the tie residual, and the
-          offset from the line. VE sets the vertical exaggeration ({VE_OPTIONS.join(', ')}x); the footer prints the
-          exaggeration achieved. PNG downloads the section.
+          offset from the line. VE sets the vertical exaggeration (fit, the default, fills the window; or{' '}
+          {VE_OPTIONS.filter((v) => v > 0).join(', ')}x); the footer prints the exaggeration achieved. The colour list
+          paints the zones by porosity, Sw, NTG or permeability (each layer of a layered zone its own band, with a colour
+          bar), and each zone&apos;s OWC and GOC are drawn dashed where the zone crosses them. PNG downloads the section.
         </Para>
       </GuideSection>
 
