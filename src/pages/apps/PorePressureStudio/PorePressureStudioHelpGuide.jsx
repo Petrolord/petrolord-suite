@@ -224,6 +224,14 @@ export default function PorePressureStudioHelpGuide() {
           with sigma max held) fits that parameter to the pressure points and kicks by least squares on the pore
           pressure, writes it into the dock and says the misfit before and after. Leak-off tests are not used for it.
         </Para>
+        <SubHeading>Pore pressure below hydrostatic</SubHeading>
+        <Para>
+          Eaton and Bowers read under-compaction, so a pore pressure more than 0.5 ppg below hydrostatic is almost
+          always the method reading something it should not: an NCT that was never fitted on this well, picks below the
+          top of the overpressure, or sands read as shale. The notes line then says over how much of the well it
+          happens and where it is worst. Fit the NCT on shale picks in the normally pressured section, or raise the
+          shale cutoff. Real underpressure (a depleted reservoir) is measured, not predicted from the sonic.
+        </Para>
         <SubHeading>Pressures from shale samples</SubHeading>
         <Para>
           Eaton and Bowers read the compaction of a shale, so a sand, a carbonate stringer or a washout gives a pore
@@ -238,6 +246,13 @@ export default function PorePressureStudioHelpGuide() {
           and shale lines, which can admit shaly sands: on Ekene-1 a cutoff near the shale line (VSH 0.6, about 82 API)
           follows the kit's designed prognosis within 0.6 ppg RMS. A running median on the sonic (or resistivity), in
           the depth unit, smooths a noisy shale trace before the method reads it; it is off unless you set a window.
+        </Para>
+        <Para>
+          When the well carries both a shale volume (VSH from Petrophysics Studio) and the gamma ray as loaded, the NCT
+          view offers both under Shale picks on. A Petrophysics VSH may sit on its own shale lines, or on a Larionov or
+          Clavier curve, that put few shallow shales over a VSH cutoff; choose the GR to read the log as loaded. The
+          choice drives the picks and Pressures from shale samples, resets the cutoff to that curve's default and is
+          saved with the project. Pick the shales again and fit the NCT after a change.
         </Para>
         <SubHeading>The interpreted line</SubHeading>
         <Para>

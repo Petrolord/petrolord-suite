@@ -27,6 +27,7 @@ import {
 } from '@/utils/chartTheme';
 import { valuationYearOf, valuedAtText, conventionText } from '@/pages/apps/epe/epeValuation';
 import { epeIrrReason, epeIrrCaution } from '@/pages/apps/epe/epeIrrReason';
+import { usd3, niceTicks, tornadoTable, tornadoSentence, scheduleShiftNote } from '@/pages/apps/epe/epeTornado';
 import { compareRunInputs, fetchCaseInputs } from '@/pages/apps/epe/epeRunInputs';
 import { AppHeader } from '@/components/ui/app-shell';
 import {
@@ -74,6 +75,9 @@ const TabBar = ({ tabs, active, onChange }) => (
 );
 
 // Format a USD number as $XXX.XM or $X.XB depending on magnitude
+/** A unit price to two decimals (n/a when the run did not record it). */
+export const fmtPrice = (v) => (v == null || Number.isNaN(Number(v)) ? EMPTY_VALUE : Number(v).toFixed(2));
+
 const fmtCompact = (n) => {
   if (n == null || isNaN(n)) return EMPTY_VALUE;
   const abs = Math.abs(n);
@@ -119,6 +123,14 @@ export const cashFlowColumns = (isPIA, sampleRows = []) => {
   // feature (any row carries a value), so old exports stay unchanged.
   const rows = Array.isArray(sampleRows) ? sampleRows : [];
   const anyRow = (k) => rows.some((r) => r && r[k] != null && r[k] !== 0);
+  // the price each year received; older runs without it keep their columns
+  if (rows.some((r) => r && r.applied_oil_price != null)) {
+    cols.splice(4, 0,
+      { key: 'applied_oil_price', label: 'Oil Price Applied (USD/bbl)' },
+      { key: 'applied_gas_price', label: 'Gas Price Applied (USD/Mscf)' },
+      { key: 'applied_cond_price', label: 'Condensate Price Applied (USD/bbl)' },
+    );
+  }
   if (anyRow('min_etr_topup')) cols.push({ key: 'min_etr_topup', label: 'Min ETR Top-up (USD)' });
   if (anyRow('psc_itc_used')) cols.push({ key: 'psc_itc_used', label: 'ITC Used (USD)' });
   // Engine v3.10 (EC1-5, EC1-6, EC1-9): the PSC cost pool after recovery, the
@@ -541,8 +553,8 @@ const TornadoChart = ({ rows, baseNpv }) => {
   // Determine X-axis bounds symmetrically around 0
   const allDeltas = data.flatMap(d => [d.deltaLow, d.deltaHigh]);
   const maxAbs = Math.max(...allDeltas.map(Math.abs), 1);
-  const padding = maxAbs * 0.1;
-  const xDomain = [-(maxAbs + padding), maxAbs + padding];
+  // evenly spaced, symmetric ticks (the padded domain gave -3.3M, -1.3M, 704K, 3.3M)
+  const { ticks: xTicks, domain: xDomain } = niceTicks(maxAbs);
 
   // Custom tooltip showing both directions for the hovered variable
   const renderTooltip = ({ active, payload, label }) => {
@@ -579,12 +591,13 @@ const TornadoChart = ({ rows, baseNpv }) => {
           <XAxis
             type="number"
             domain={xDomain}
+            ticks={xTicks}
             tick={{ fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText }}
             stroke={CHART_COLORS.axisLine}
-            tickFormatter={fmtCompact}
+            tickFormatter={usd3}
           >
             <Label
-              value={`Δ NPV from base ${fmtCompact(baseNpv)}`}
+              value={`Δ NPV from base ${usd3(baseNpv)}`}
               position="bottom"
               offset={20}
               style={{ fontSize: 11, fill: CHART_COLORS.axisLabel, fontWeight: 600 }}
@@ -608,12 +621,58 @@ const TornadoChart = ({ rows, baseNpv }) => {
   );
 };
 
+// The tornado's numbers, readable without hovering: one sentence on the two
+// biggest drivers and a table of each bar's inputs and NPVs (epeTornado.js).
+const TornadoReadout = ({ rows, baseNpv, cashFlowData = null }) => {
+  const table = tornadoTable(rows, baseNpv);
+  if (table.length === 0) return null;
+  const sentence = tornadoSentence(rows, baseNpv);
+  const th = 'px-2 py-1.5 text-left text-xs font-semibold text-pl-muted whitespace-nowrap';
+  const thR = `${th} text-right`;
+  const td = `px-2 py-1.5 text-xs text-pl-text whitespace-nowrap ${epeNum}`;
+  const tdR = `${td} text-right`;
+  return (
+    <div className="mt-4">
+      {sentence && <p className="mb-2 text-sm text-pl-text" data-testid="epe-tornado-sentence">{sentence}</p>}
+      <div className="overflow-x-auto rounded border border-pl-border">
+        <table className="w-full border-collapse" data-testid="epe-tornado-table">
+          <thead className="bg-pl-sunken">
+            <tr>
+              <th className={th}>Variable</th>
+              <th className={thR}>Low input</th>
+              <th className={thR}>High input</th>
+              <th className={thR}>NPV at low</th>
+              <th className={thR}>NPV at high</th>
+              <th className={thR}>Swing</th>
+            </tr>
+          </thead>
+          <tbody>
+            {table.map((r) => (
+              <tr key={r.key} className="border-t border-pl-border">
+                <td className={`${td} font-sans`}>{r.label}</td>
+                <td className={tdR}>{r.lowInput}</td>
+                <td className={tdR}>{r.highInput}</td>
+                <td className={`${tdR} ${r.npvLow < 0 ? 'text-pl-danger-text' : ''}`}>{usd3(r.npvLow)}</td>
+                <td className={`${tdR} ${r.npvHigh < 0 ? 'text-pl-danger-text' : ''}`}>{usd3(r.npvHigh)}</td>
+                <td className={tdR}>{usd3(r.swing)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {scheduleShiftNote(rows, cashFlowData) && (
+        <p className="mt-2 text-xs text-pl-muted" data-testid="epe-tornado-delay-note">{scheduleShiftNote(rows, cashFlowData)}</p>
+      )}
+    </div>
+  );
+};
+
 // SensitivityPanel — orchestrates the run lifecycle:
 // idle → invoking → running → complete (or failed)
 // Wave E: readOnly = the viewer does not own this run (shared case); the
 // tornado stays visible but new sensitivity runs are owner-only (the
 // epe_sensitivity_runs insert policy is owner-scoped anyway).
-const SensitivityPanel = ({ runId, runConfigId, userId, readOnly = false }) => {
+const SensitivityPanel = ({ runId, runConfigId, userId, readOnly = false, cashFlowData = null }) => {
   const [state, setState] = useState('loading');  // 'loading' | 'idle' | 'invoking' | 'running' | 'complete' | 'failed'
   const [sensitivityRun, setSensitivityRun] = useState(null);
   const [results, setResults] = useState([]);
@@ -877,10 +936,11 @@ const SensitivityPanel = ({ runId, runConfigId, userId, readOnly = false }) => {
         )}
       </div>
       <p className="mb-1 text-xs text-pl-muted">
-        Base NPV: <span className={`font-semibold text-pl-text ${epeNum}`}>{fmtCompact(baseNpv)}</span>
+        Base NPV: <span className={`font-semibold text-pl-text ${epeNum}`}>{usd3(baseNpv)}</span>
         {sensitivityRun?.duration_ms ? ` · Ran in ${sensitivityRun.duration_ms}ms` : ''}
       </p>
       <TornadoChart rows={results} baseNpv={baseNpv} />
+      <TornadoReadout rows={results} baseNpv={baseNpv} cashFlowData={cashFlowData} />
     </div>
   );
 };
@@ -898,6 +958,13 @@ const YearByYearTable = ({ results }) => {
     { label: 'Oil (bbl)',          get: (r) => r.oil_bbl || 0,         fmt: (v) => v ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : EMPTY_VALUE },
     { label: 'Gas (Mscf)',         get: (r) => r.gas_mscf || 0,        fmt: (v) => v ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : EMPTY_VALUE },
     { label: 'Condensate (bbl)',   get: (r) => r.condensate_bbl || 0,  fmt: (v) => v ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : EMPTY_VALUE },
+    // The price each year received (deck, escalator and differential
+    // applied), so a deck can be checked against what the engine used.
+    ...(cf.some((r) => r.applied_oil_price != null) ? [
+      { label: 'Oil price applied ($/bbl)', get: (r) => r.applied_oil_price, fmt: fmtPrice },
+      { label: 'Gas price applied ($/Mscf)', get: (r) => r.applied_gas_price, fmt: fmtPrice },
+      { label: 'Condensate price applied ($/bbl)', get: (r) => r.applied_cond_price, fmt: fmtPrice },
+    ] : []),
     { label: 'Gross Revenue',      get: (r) => r.gross_revenue ?? r.revenue ?? 0,  fmt: fmtCompact },
     { label: 'Royalty',            get: (r) => r.royalty || 0,         fmt: fmtCompact },
     { label: 'OPEX',               get: (r) => r.opex || 0,            fmt: fmtCompact },
@@ -1773,6 +1840,7 @@ if (loading) {
                   runConfigId={runDetails?.run_config_id}
                   userId={runDetails?.user_id}
                   readOnly={!isOwnRun}
+                  cashFlowData={results?.cash_flow_data}
                 />
               )}
 
