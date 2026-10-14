@@ -120,9 +120,9 @@ export function epePriceDeckLine(c) {
   return `${c.priceDeckName ? `"${c.priceDeckName}"` : 'unnamed'}${parts.length ? `: ${parts.join(', ')}` : ''}`;
 }
 
-/** '10% real, end-year discounting' */
-export function epeDiscountLine(c) {
+/** '10% real, end-year discounting', with ', valued at 31 Dec 2026' when the valuation year is given */
+export function epeDiscountLine(c, { valuationYear = null } = {}) {
   if (c?.discountRatePct === null || c?.discountRatePct === undefined) return 'not recorded with the run';
   const how = c.discounting === 'mid_year' ? 'mid-year discounting' : c.discounting === 'end_year' ? 'end-year discounting' : null;
-  return `${plain(c.discountRatePct)}%${c.pvBasis ? ` ${c.pvBasis}` : ''}${how ? `, ${how}` : ''}`;
+  return `${plain(c.discountRatePct)}%${c.pvBasis ? ` ${c.pvBasis}` : ''}${how ? `, ${how}` : ''}${valuationYear ? `, valued at 31 Dec ${valuationYear}` : ''}`;
 }
