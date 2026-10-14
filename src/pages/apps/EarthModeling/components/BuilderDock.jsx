@@ -54,7 +54,7 @@ export default function BuilderDock({
   );
 
   return (
-    <ScrollArea className="h-full min-h-0 bg-pl-surface border-l border-pl-border">
+    <ScrollArea className="h-full min-h-0 bg-pl-surface border-l border-pl-border [&_[data-radix-scroll-area-viewport]>div]:!block">
       <div className="p-2 space-y-2 text-xs" data-testid="em-builder">
         <div className={secCls}>Model</div>
         <input className={inCls} data-testid="em-model-name" value={definition.name}
