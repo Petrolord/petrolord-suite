@@ -10,6 +10,7 @@
 
 import { comparesTo, kindOf } from './calibrationImport';
 import { prognosisModeText } from './shalePressure';
+import { emwReferenceDepthM, pressureFromDisplay } from './units';
 
 const G_PER_M = 1; // depths are metres here; the caller formats them
 
@@ -52,6 +53,40 @@ export function calibrationMisfit(calibration, zBmlM, ppPa, compare = 'pp') {
   return { points: points.map((p, k) => ({ ...p, kind: kindOf(pts[k]) })), rmsMpa, maxAbsMpa, deepestM: Math.max(...pts.map((c) => c.z)) };
 }
 
+/** Depth below mudline from which the underpressure check reads (the top samples sit on a few feet of datum). */
+export const UNDERPRESSURE_FROM_BML_M = 30;
+/** How far below hydrostatic, in ppg EMW, a sample has to be to count. */
+export const UNDERPRESSURE_PPG = 0.5;
+
+/**
+ * Pore pressure below hydrostatic (2026-10-14). Eaton and Bowers read
+ * under-compaction, so a pore pressure well under hydrostatic almost always
+ * means an unfitted or mis-picked normal trend, or sands read as shale; the
+ * Niger Delta and most young deltas are rarely underpressured. Samples more
+ * than UNDERPRESSURE_PPG below hydrostatic (EMW at each sample's reference
+ * depth) are counted, with the thickness they cover and the worst one.
+ * @returns {null|{count: number, thicknessM: number, shallowestBmlM: number, worstPpg: number, worstBmlM: number}}
+ */
+export function underpressure(input, result, params) {
+  const z = input?.zBmlM; const pp = result?.porePressurePa; const ph = result?.hydrostaticPa;
+  if (!z?.length || !pp || !ph) return null;
+  let count = 0; let thick = 0; let shallow = null; let worst = 0; let worstZ = null;
+  for (let i = 0; i < z.length; i++) {
+    if (!(z[i] >= UNDERPRESSURE_FROM_BML_M) || !Number.isFinite(pp[i]) || !Number.isFinite(ph[i])) continue;
+    const ref = emwReferenceDepthM(z[i], params);
+    const perPpg = pressureFromDisplay(1, 'ppg', ref);
+    if (!(perPpg > 0)) continue;
+    const deficit = (ph[i] - pp[i]) / perPpg;
+    if (deficit <= UNDERPRESSURE_PPG) continue;
+    count += 1;
+    const dz = i > 0 ? Math.min(z[i] - z[i - 1], 50) : 0;
+    thick += Math.max(0, dz);
+    if (shallow == null) shallow = z[i];
+    if (deficit > worst) { worst = deficit; worstZ = z[i]; }
+  }
+  return count ? { count, thicknessM: thick, shallowestBmlM: shallow, worstPpg: worst, worstBmlM: worstZ } : null;
+}
+
 /**
  * The sentences for the notes line, in order of weight.
  * @returns {{key: string, text: string, tone: 'warn'|'info'}[]}
@@ -73,6 +108,15 @@ export function inputNotes({
   }
   // 2026-10-13: pressures from shale samples or from every sample
   if (source === 'well' && (params?.ppFromShale || result?.sonicMedianM > 0)) notes.push({ key: 'pressures', tone: 'info', text: prognosisModeText(result, params, { fmtZ }) });
+  // 2026-10-14: a pore pressure well under hydrostatic is said, with what usually causes it
+  const under = underpressure(input, result, params);
+  if (under) {
+    notes.push({
+      key: 'underpressure',
+      tone: 'warn',
+      text: `Pore pressure more than ${UNDERPRESSURE_PPG} ppg below hydrostatic over ${fmtZ(under.thicknessM)} of the well (up to ${under.worstPpg.toFixed(1)} ppg below, at ${fmtZ(under.worstBmlM)} below mudline). Eaton and Bowers rarely read real underpressure: fit the NCT on shale picks, or raise the shale cutoff so sands are not read as shale.`,
+    });
+  }
   const d = input.dropped || {};
   const gaps = (d.dtGaps || 0); const up = (d.upturn || 0); const off = (d.offSurvey || 0);
   const rg = (d.resGaps || 0); const nd = (d.noDensity || 0);
@@ -130,7 +174,9 @@ export function inputNotes({
         : 'LOT/FIT: no test falls within the prognosis.',
     });
   }
-  const mw = (calibration || []).filter((c) => comparesTo(c) === 'mw').length;
+  // an imported interval is one mud weight (its top and base points)
+  const mwRows = (calibration || []).filter((c) => ['mw', 'mwkick', 'mwloss'].includes(comparesTo(c)));
+  const mw = new Set(mwRows.map((c, i) => c.interval || `p${i}`)).size;
   if (mw) notes.push({ key: 'mw', tone: 'info', text: `Mud weights used: ${mw} drawn for comparison.` });
   return notes;
 }

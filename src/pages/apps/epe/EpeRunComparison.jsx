@@ -19,6 +19,7 @@ import { CONFIG_SECTIONS, labelForConfigKey, unitForConfigKey, formatConfigValue
 import { AppHeader } from '@/components/ui/app-shell';
 import { epePage, epePanel, epeTile, epeH2, epeH3, epeNum, epeNumCell, epeCallout } from './epeUi';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { computeIncremental, incrementalIrrLabel, incrementalIrrNote, fmtUsd3, incrementVerdict } from './epeIncremental';
 
 // Wave D (audit 4.6): comparison is capped so the table and chart stay
 // readable; six runs also matches the series palette below.
@@ -57,6 +58,7 @@ const EpeRunComparison = () => {
   const [selectedRunIds, setSelectedRunIds] = useState([]);
   const [comparisonResults, setComparisonResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [caseName, setCaseName] = useState(null);
   const [loadingComparison, setLoadingComparison] = useState(false);
 
   useEffect(() => {
@@ -69,25 +71,46 @@ const EpeRunComparison = () => {
         return;
       }
 
-      // Wave E: no user_id filter — RLS scopes visibility, so on a shared
-      // case a reviewer sees the owner's complete runs too.
-      const { data, error } = await supabase
-        .from('epe_runs')
-        .select('id, run_name, created_at')
-        .eq('case_id', caseId)
-        // Wave A: failed/running runs have no results to compare
-        .or('status.is.null,status.eq.complete')
-        .order('created_at', { ascending: false });
+      // Wave E: no user_id filter, RLS scopes visibility, so on a shared
+      // case a reviewer sees the owner's complete runs too. Runs of the
+      // user's other visible cases are listed as well (grouped by case), so
+      // a "with project" run can be compared with a "without project" run
+      // kept in its own case.
+      const [{ data, error }, { data: caseRows }] = await Promise.all([
+        supabase
+          .from('epe_runs')
+          .select('id, run_name, created_at, case_id')
+          // Wave A: failed/running runs have no results to compare
+          .or('status.is.null,status.eq.complete')
+          .order('created_at', { ascending: false }),
+        supabase.from('epe_cases').select('id, case_name'),
+      ]);
 
       if (error) {
         toast({ title: 'Error fetching runs', description: error.message, variant: 'destructive' });
       } else {
-        setAvailableRuns(data);
+        const names = new Map((caseRows || []).map((c) => [c.id, c.case_name]));
+        setAvailableRuns((data || []).map((r) => ({ ...r, case_name: names.get(r.case_id) || 'Another case' })));
+        setCaseName(names.get(caseId) || null);
       }
       setLoading(false);
     };
     fetchRuns();
   }, [caseId, toast, navigate]);
+
+  // Runs grouped by case, this case first, the others by name.
+  const runGroups = useMemo(() => {
+    const groups = new Map();
+    for (const r of availableRuns) {
+      if (!groups.has(r.case_id)) groups.set(r.case_id, { caseId: r.case_id, caseName: r.case_name, runs: [] });
+      groups.get(r.case_id).runs.push(r);
+    }
+    return Array.from(groups.values()).sort((x, y) => {
+      if (x.caseId === caseId) return -1;
+      if (y.caseId === caseId) return 1;
+      return String(x.caseName).localeCompare(String(y.caseName));
+    });
+  }, [availableRuns, caseId]);
 
   const handleCheckboxChange = (runId) => {
     setSelectedRunIds(prev => {
@@ -113,7 +136,7 @@ const EpeRunComparison = () => {
         selectedRunIds.map(async (runId) => {
           const { data: runData, error: runError } = await supabase
             .from('epe_runs')
-            .select('run_name, run_config_id')
+            .select('run_name, run_config_id, case_id')
             .eq('id', runId)
             .single();
           if (runError) throw new Error(`Failed to fetch run name for ${runId}: ${runError.message}`);
@@ -140,13 +163,19 @@ const EpeRunComparison = () => {
           return {
             id: runId,
             name: runData.run_name,
+            caseId: runData.case_id,
+            caseName: availableRuns.find((r) => r.id === runId)?.case_name || null,
             kpis: resultData?.kpis || null,
             cashFlowData: Array.isArray(resultData?.cash_flow_data) ? resultData.cash_flow_data : null,
             config,
           };
         })
       );
-      setComparisonResults(fetchedResults);
+      // runs from more than one case are labelled with their case name
+      const crossCase = new Set(fetchedResults.map((r) => r.caseId)).size > 1;
+      setComparisonResults(crossCase
+        ? fetchedResults.map((r) => ({ ...r, name: r.caseName ? `${r.name} (${r.caseName})` : r.name }))
+        : fetchedResults);
     } catch (error) {
       console.error('Comparison failed:', error);
       toast({ title: 'Comparison Failed', description: error.message || 'An error occurred during comparison.', variant: 'destructive' });
@@ -155,10 +184,7 @@ const EpeRunComparison = () => {
     }
   };
 
-  const formatCurrency = (value) => {
-    if (typeof value !== 'number') return 'N/A';
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(value);
-  };
+  const formatCurrency = fmtUsd3;
 
   // Wave D: deltas vs run 1 for every numeric KPI row, in the row's own unit.
   const formatDelta = (d, kind) => {
@@ -220,94 +246,25 @@ const EpeRunComparison = () => {
   }, [comparisonResults]);
 
   // Wave F (audit 2.7): incremental economics when exactly two runs are
-  // compared. Delta flows are second minus first (with-project minus base),
-  // discounted at the BASE run's applied rate with end-year exponents
-  // anchored at the base run's earliest year. Client-side bisection mirrors
-  // the engine's IRR bracket; no server code imported.
+  // compared, second minus first (with-project minus base), on the base
+  // run's own valuation: the rows the engine values (sunk history left out),
+  // its PV basis, valuation year, discounting convention and applied rate
+  // (epeIncremental.js). The rate of return is the shared IRR contract's.
   const incremental = useMemo(() => {
     if (comparisonResults.length !== 2) return null;
     const [base, second] = comparisonResults;
-    if (!base.cashFlowData || !second.cashFlowData) return null;
-
-    const ncfByYear = (rows) => {
-      const m = new Map();
-      for (const row of rows) {
-        if (typeof row.year === 'number' && typeof row.net_cash_flow === 'number') {
-          m.set(row.year, row.net_cash_flow);
-        }
-      }
-      return m;
-    };
-    const baseNcf = ncfByYear(base.cashFlowData);
-    const secondNcf = ncfByYear(second.cashFlowData);
-    const years = Array.from(new Set([...baseNcf.keys(), ...secondNcf.keys()])).sort((a, b) => a - b);
-    if (years.length === 0) return null;
-
-    let cum = 0;
-    const rows = years.map((year) => {
-      const delta = (secondNcf.get(year) || 0) - (baseNcf.get(year) || 0);
-      cum += delta;
-      return { year, delta, cumulative: cum };
-    });
-
-    const anchorYear = Math.min(...base.cashFlowData.map((r) => r.year).filter((y) => typeof y === 'number'));
-    const ratePct = base.kpis?.discount_rate_applied_pct;
-    const rate = typeof ratePct === 'number' ? ratePct / 100 : null;
-
-    const npvAt = (r) => rows.reduce((s, row) => s + row.delta / Math.pow(1 + r, row.year - anchorYear), 0);
-    const npv = rate !== null ? npvAt(rate) : null;
-
-    // Bisection IRR on the delta flows: bracket [-0.99, 10], null when no
-    // sign change (same convention as the engine solver).
-    const irr = (() => {
-      const hasNeg = rows.some((r) => r.delta < 0);
-      const hasPos = rows.some((r) => r.delta > 0);
-      if (!hasNeg || !hasPos) return null;
-      let lo = -0.99, hi = 10;
-      let fLo = npvAt(lo), fHi = npvAt(hi);
-      if (!Number.isFinite(fLo) || !Number.isFinite(fHi) || fLo * fHi > 0) return null;
-      for (let i = 0; i < 200 && hi - lo > 1e-9; i++) {
-        const mid = (lo + hi) / 2;
-        const fMid = npvAt(mid);
-        if (fMid === 0) return mid;
-        if (fLo * fMid < 0) { hi = mid; fHi = fMid; } else { lo = mid; fLo = fMid; }
-      }
-      return (lo + hi) / 2;
-    })();
-
-    // Payback on cumulative delta, in years from the first delta year.
-    const payback = (() => {
-      let running = 0;
-      for (const row of rows) {
-        const prev = running;
-        running += row.delta;
-        if (prev < 0 && running >= 0 && row.delta !== 0) {
-          return (row.year - rows[0].year) + (-prev / row.delta);
-        }
-      }
-      return running >= 0 && rows[0].delta >= 0 ? 0 : null;
-    })();
-
-    const basisMismatch = base.kpis && second.kpis && (
-      base.kpis.pv_basis !== second.kpis.pv_basis
-      || base.kpis.discount_rate_applied_pct !== second.kpis.discount_rate_applied_pct
-    );
+    const inc = computeIncremental(base, second);
+    if (!inc) return null;
     // Engine v3.10 (engines #193): below 100 percent working interest, a run
     // saved before 3.10 holds FIELD-LEVEL revenue, volumes, opex, capex and
     // depreciation, while 3.10 stores them at the working-interest share.
     // Differencing one against the other differences two different bases.
     const shareMismatch = base.kpis && second.kpis
       && atShareBasis(base.kpis) !== atShareBasis(second.kpis);
-
     return {
+      ...inc,
       baseName: base.name,
       secondName: second.name,
-      rows,
-      ratePct,
-      npv,
-      irr,
-      payback,
-      basisMismatch,
       shareMismatch,
       baseEngine: engineLabel(base.kpis),
       secondEngine: engineLabel(second.kpis),
@@ -351,7 +308,7 @@ const EpeRunComparison = () => {
     if (incremental) {
       lines.push(esc(`INCREMENTAL (${incremental.secondName} minus ${incremental.baseName})`));
       lines.push(['Incremental NPV', incremental.npv != null ? incremental.npv.toFixed(2) : 'N/A'].map(esc).join(','));
-      lines.push(['Incremental IRR (%)', incremental.irr != null ? (incremental.irr * 100).toFixed(2) : 'undefined'].map(esc).join(','));
+      lines.push(['Incremental IRR (%)', incremental.irr != null ? incremental.irr.toFixed(2) : (incrementalIrrNote(incremental) || 'none')].map(esc).join(','));
       lines.push(['Incremental payback (years)', incremental.payback != null ? incremental.payback.toFixed(2) : 'never'].map(esc).join(','));
       lines.push(['year', 'delta_net_cash_flow', 'cumulative_delta'].map(esc).join(','));
       for (const row of incremental.rows) {
@@ -374,7 +331,7 @@ const EpeRunComparison = () => {
       <AppHeader
         eyebrow="Petroleum Economics Studio"
         title="Compare Economic Runs"
-        subtitle={`Select runs to compare for Case ID: ${caseId}`}
+        subtitle={caseName ? `Runs of ${caseName} and your other cases` : 'Pick the runs to compare'}
         icon={GitCompare}
         backTo={`/dashboard/apps/economics/epe/cases/${caseId}`}
         backLabel="Back to Case Details"
@@ -382,23 +339,32 @@ const EpeRunComparison = () => {
       <div className={epePage}>
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className={`${epePanel} mb-8`}>
           <h2 className={`${epeH2} mb-1`}>Available Runs</h2>
-          <p className="text-sm text-pl-muted mb-4">Pick 2 to {MAX_COMPARE} runs. The first selected run is the comparison base.</p>
+          <p className="text-sm text-pl-muted mb-4">Pick 2 to {MAX_COMPARE} runs. The first selected run is the comparison base. Runs of your other cases are listed below this case's, so a with-project run can be compared with a without-project run kept in its own case.</p>
           {loading ? (
             <div className="text-center py-8 text-pl-muted">Loading runs...</div>
           ) : availableRuns.length === 0 ? (
-            <div className="text-center py-8 text-pl-muted">No runs available for this case.</div>
+            <div className="text-center py-8 text-pl-muted">No completed runs to compare yet.</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {availableRuns.map(run => (
-                <div key={run.id} className="flex items-center space-x-2 rounded-md border border-pl-border bg-pl-surface p-3 hover:bg-pl-sunken transition-colors">
-                  <Checkbox
-                    id={run.id}
-                    checked={selectedRunIds.includes(run.id)}
-                    onCheckedChange={() => handleCheckboxChange(run.id)}
-                  />
-                  <label htmlFor={run.id} className="text-pl-text cursor-pointer flex-grow">
-                    {run.run_name} <span className="text-xs text-pl-muted">({new Date(run.created_at).toLocaleDateString()})</span>
-                  </label>
+            <div className="space-y-5">
+              {runGroups.map((g) => (
+                <div key={g.caseId} data-testid="compare-case-group">
+                  <h3 className="text-sm font-semibold text-pl-text mb-2">
+                    {g.caseName}{g.caseId === caseId ? ' (this case)' : ''}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {g.runs.map(run => (
+                      <div key={run.id} className="flex items-center space-x-2 rounded-md border border-pl-border bg-pl-surface p-3 hover:bg-pl-sunken transition-colors">
+                        <Checkbox
+                          id={run.id}
+                          checked={selectedRunIds.includes(run.id)}
+                          onCheckedChange={() => handleCheckboxChange(run.id)}
+                        />
+                        <label htmlFor={run.id} className="text-pl-text cursor-pointer flex-grow">
+                          {run.run_name} <span className="text-xs text-pl-muted">({new Date(run.created_at).toLocaleDateString()})</span>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
@@ -512,9 +478,11 @@ const EpeRunComparison = () => {
                   Incremental: {incremental.secondName} minus {incremental.baseName}
                 </h3>
                 <p className="text-xs text-pl-muted mb-3">
-                  The with-project view: what the second run adds over the base run, year by year.
-                  Deltas discounted at the base run's applied rate
-                  {typeof incremental.ratePct === 'number' ? ` (${incremental.ratePct.toFixed(2)}%)` : ''}; both runs should share a basis for a clean read.
+                  The with-project view: what the second run adds over the base run, year by year from
+                  {' '}{incremental.rows[0]?.year}. Deltas are discounted as the engine discounts a run: at the base run's applied rate
+                  {typeof incremental.ratePct === 'number' ? ` (${incremental.ratePct.toFixed(2)}%)` : ''}
+                  {incremental.valuationYear != null ? `, valued at 31 Dec ${incremental.valuationYear}` : ''}
+                  {incremental.convention === 'mid_year' ? ' with mid-year discounting' : ' with end-year discounting'}, sunk years left out.
                 </p>
                 {incremental.shareMismatch && (
                   <p className={`${epeCallout('warning')} text-xs mb-3`} data-testid="engine-share-mismatch">
@@ -526,10 +494,13 @@ const EpeRunComparison = () => {
                     runs are re-run on the same engine.
                   </p>
                 )}
-                {incremental.basisMismatch && (
-                  <p className={`${epeCallout('warning')} text-xs mb-3`}>
-                    The two runs use different PV bases or discount rates. Incremental NPV is still computed at the base run's rate, but align the configs before relying on it.
+                {incremental.mismatches.length > 0 && (
+                  <p className={`${epeCallout('warning')} text-xs mb-3`} data-testid="incremental-basis-mismatch">
+                    The two runs differ in {incremental.mismatches.join(', ')}. The increment is valued on the base run's terms, so the incremental NPV is no longer the difference of the two NPVs; align the configs before relying on it.
                   </p>
+                )}
+                {incrementVerdict(incremental) && (
+                  <p className="text-sm font-medium text-pl-text mb-3" data-testid="incremental-verdict">{incrementVerdict(incremental)}</p>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div className={`${epeTile} p-4`}>
@@ -541,8 +512,11 @@ const EpeRunComparison = () => {
                   <div className={`${epeTile} p-4`}>
                     <p className="text-xs text-pl-muted">Incremental IRR</p>
                     <p className={`text-xl font-semibold ${epeNum} text-pl-text`}>
-                      {incremental.irr != null ? `${(incremental.irr * 100).toFixed(2)}%` : 'undefined'}
+                      {incrementalIrrLabel(incremental)}
                     </p>
+                    {incrementalIrrNote(incremental) && (
+                      <p className="text-xs text-pl-muted mt-1" data-testid="incremental-irr-note">{incrementalIrrNote(incremental)}</p>
+                    )}
                   </div>
                   <div className={`${epeTile} p-4`}>
                     <p className="text-xs text-pl-muted">Incremental payback</p>

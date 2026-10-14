@@ -75,8 +75,9 @@ export default function ReportTab({
 
         <Card title="Economics" testId="wct-econ-link-card">
           <div className="text-xs text-pl-muted">
-            Feed the well cost into a full-cycle evaluation (CAPEX line, phasing, fiscal terms)
-            in Petroleum Economics Studio.
+            Feed the well cost into a full-cycle evaluation in Petroleum Economics Studio: save a
+            run here, then use Import from Well Cost &amp; Time in a case's CAPEX slot. The case books
+            the latest saved run and says when a newer one is saved.
           </div>
           <Link to="/dashboard/apps/economics/epe/cases"
             className="mt-2 inline-flex items-center gap-1 rounded bg-pl-sunken px-2 py-1 text-xs text-pl-primary-text hover:bg-pl-border">

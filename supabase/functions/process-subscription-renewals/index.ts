@@ -4,6 +4,7 @@ import { corsHeaders } from "./cors.ts";
 import { addMonths, termMonths } from "../_shared/billing-term.ts";
 import { loadNgnPerUsd, usdToNgn, ngnToKobo } from "../_shared/paystack-ngn.ts";
 import { grantSeismicStorage } from "../_shared/seismic-storage.ts";
+import { isServiceRoleRequest, requirePlatformAdmin } from "../_shared/platform-admin.ts";
 const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
 serve(async (req)=>{
   if (req.method === 'OPTIONS') {
@@ -13,6 +14,17 @@ serve(async (req)=>{
   }
   try {
     const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+    // Security fix 2026-10-14: this charges saved cards for due renewals, so
+    // only a scheduler holding the service-role key or a platform super
+    // admin may start it. Before, anyone holding the anon key could.
+    if (!isServiceRoleRequest(req)) {
+      const guard = await requirePlatformAdmin(supabase, req);
+      if (!guard.ok) {
+        return new Response(JSON.stringify({ error: guard.error }), {
+          status: guard.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
     // 1. Query eligible subscriptions
     // Conditions: renewal_date <= today, status is active or past_due
     const today = new Date().toISOString().split('T')[0];
