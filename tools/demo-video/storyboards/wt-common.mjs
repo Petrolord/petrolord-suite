@@ -206,6 +206,8 @@ export async function setupTest(d, shared, { name, test, gauge = true, inputs = 
   if (rates && I.rates) await rateRows(d, I.rates);
   if (basis) await pick(d, 'Buildup time basis', basis);
   await d.sleep(1000);
+  // save now: the autosave waits 10 s, and a setup may open another project
+  if (name) { await d.page.getByRole('button', { name: /^Save$|Unsaved changes|Saved/ }).first().click().catch(() => {}); await d.sleep(2000); }
   if (tabName) await tab(d, tabName);
   await scrollMain(d, 0, { ms: 0 });
   await d.page.evaluate(() => window.__demo?.moveTo(900, 500, 10));
