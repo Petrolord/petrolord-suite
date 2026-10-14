@@ -43,8 +43,11 @@ export function assertFloat32Parent(parentManifest) {
 export function derivedStorageBytes(parentManifest) {
   const b = parentManifest?.brick;
   if (!b?.count || !b?.size) throw new Error('Parent manifest has no brick block.');
-  // derived volumes always write float32 bricks on the parent's PADDED grid
-  return b.count * b.size ** 3 * 4;
+  // derived volumes always write float32 bricks on the parent's PADDED grid;
+  // a pilot sub-volume (QI) writes only the bricks its window touches
+  const w = parentManifest.pilot?.bricks;
+  const count = w ? (w.i1 - w.i0 + 1) * (w.j1 - w.j0 + 1) * (w.k1 - w.k0 + 1) : b.count;
+  return count * b.size ** 3 * 4;
 }
 
 /** survey_meta for a derived volume's row once it is ready. */
@@ -65,5 +68,6 @@ export function derivedSurveyMeta(manifest, parentVolumeId) {
     storage_bytes: derivedStorageBytes(manifest),
     attribute: manifest.attribute,
     parent_volume_id: parentVolumeId,
+    ...(manifest.pilot ? { pilot: manifest.pilot } : {}),
   };
 }

@@ -11,6 +11,8 @@ import { isStripe, snrText } from './qcRun';
 import { tieRows, waveletComparison } from './ties';
 import { INVERSION_METHODS, INVERSION_DEFAULTS } from './inversionRun';
 import { faciesClass } from './propertyRun';
+import { cropLines, cropOf } from '@/pages/apps/Seismolord/lib/volumeProvenance';
+import { pilotText } from '../components/PilotArea';
 
 export const REPORT_TITLE = 'Quantitative Interpretation Report';
 export const APP_NAME = 'Petrolord QI Studio';
@@ -41,6 +43,15 @@ export function reportModel({ projectName = '', organizationName = '', project, 
       `${open.length} open issue${open.length === 1 ? '' : 's'} (${open.filter((i) => i.severity === 'high').length} high severity).`,
       project.targets.length ? `Feasibility: ${project.targets.map((t, k) => `${t} ${verdicts[k].toLowerCase()}`).join('; ')}.` : 'No target has a feasibility verdict yet.',
     ].join(' '),
+    // where each chosen volume came from: the source file, its original
+    // geometry and the crop it was cut to before upload (crop before upload)
+    seismicData: chosenVolumes.map((v) => [v.name, cropLines(cropOf(v)).join(' ') || 'Imported whole (no crop).']),
+    // runs limited to a pilot sub-volume
+    pilots: [
+      ...Object.values(project.inversion || {}).flatMap((r) => (r.runs || [])),
+      ...(project.simultaneous?.runs || []),
+      ...(project.avo?.runs || []),
+    ].filter((x) => x?.pilot).map((x) => [x.name, pilotText(x.pilot), x.status === 'ready' ? 'Ready' : x.status || '']),
     inventory: {
       head: ['Area', 'Data', 'State', 'Received', 'Note', 'From the Suite'],
       rows: inventory.map((r) => [r.area, r.label, STATE_LABEL[r.state] || r.state, r.date || '', r.note || '', r.suggested ? r.suggested.evidence : '']),
@@ -199,6 +210,12 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
   if (model.executive) section('Executive summary', model.executive);
   section('Summary', model.summary);
   table('Data inventory', model.inventory.head, model.inventory.rows, { fontSize: 6.5 });
+  if ((model.seismicData || []).some((r) => !/^Imported whole/.test(r[1]))) {
+    table('Seismic data: source and crop', ['Volume', 'Source file, original geometry and crop'], model.seismicData, { fontSize: 6.5, note: 'A cropped volume keeps only the inlines, crosslines and time window shown, read from the source file before upload; above the window it holds no samples, so times match the uncropped data.' });
+  }
+  if ((model.pilots || []).length) {
+    table('Pilot runs', ['Run', 'Pilot sub-volume', 'State'], model.pilots, { note: 'A pilot run processes and stores only its area and time window. Inside it the result matches a full run, because every trace is processed over its whole length; outside it the volume is empty.' });
+  }
   if (model.usability.rows.length) {
     table('Usability matrix', model.usability.head, model.usability.rows, { note: 'Each well against each target: good, limited or missing for a quantitative interpretation.' });
     if (model.usability.detail.length) table('Usability: what is limited or missing', ['Well', 'Target', 'Item', 'Grade', 'Reason'], model.usability.detail, { fontSize: 6.5 });

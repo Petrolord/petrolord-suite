@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import * as qiService from '@/lib/qiService';
 import { useQIStudio } from '../QIStudioContext';
+import PilotArea, { EMPTY_PILOT, pilotParam, pilotName, pilotFormProblem } from './PilotArea';
 import { tieRows, waveletComparison } from '../services/ties';
 import { prepareWell } from '../services/inversionWells';
 import { INVERSION_METHODS, INVERSION_DEFAULTS, inversionIssues, validateSensitivity, MAX_SCENARIOS } from '../services/inversionRun';
@@ -107,6 +108,8 @@ export default function InversionPanel() {
   const [prep, setPrep] = useState(null); // {busy} | {frame, wells} | {error}
   const [job, setJob] = useState({}); // mode -> {job} | {error}
   const [outName, setOutName] = useState('');
+  const [pilot, setPilot] = useState(EMPTY_PILOT);
+  const pilotBlock = () => { const pp = pilotParam(pilot); return pp ? { pilot: pp } : {}; };
   const [spreadOpts, setSpreadOpts] = useState({ varyWavelet: true, varyModel: true, noise: false, snr: 5 });
   const stops = useRef([]);
   useEffect(() => () => { for (const x of stops.current) x(); }, []);
@@ -164,14 +167,14 @@ export default function InversionPanel() {
     }
   };
   const runVolume = async () => {
-    const name = outName.trim() || `${volume.name} AI, ${INVERSION_METHODS[s.method].label}`;
+    const name = pilotName(outName.trim() || `${volume.name} AI, ${INVERSION_METHODS[s.method].label}`, pilot);
     setJob((j) => ({ ...j, volume: { job: { status: 'queued', progress: 0 } } }));
     let row = null;
     try {
       const summary = { qi_class: 'elastic_estimate', method: s.method, wells: usable.map((w) => w.name), horizon_ids: s.horizonIds };
       row = await backend.registerInversionVolume({ volume, name, summary });
-      const jobId = await client.enqueueJob('poststack_inversion', { mode: 'volume', parent_volume_id: volume.id, volume_id: row.id, name, inversion: inversionBlock() });
-      setInversion(volume.id, (cur) => ({ runs: [...(cur.runs || []), { jobId, volumeId: row.id, name, method: s.method, at: new Date().toISOString(), status: 'queued' }] }));
+      const jobId = await client.enqueueJob('poststack_inversion', { mode: 'volume', parent_volume_id: volume.id, volume_id: row.id, name, inversion: inversionBlock(), ...pilotBlock() });
+      setInversion(volume.id, (cur) => ({ runs: [...(cur.runs || []), { jobId, volumeId: row.id, name, method: s.method, at: new Date().toISOString(), status: 'queued', ...pilotBlock() }] }));
       watch('volume', jobId, (done) => setInversion(volume.id, (cur) => ({
         runs: (cur.runs || []).map((r) => (r.jobId === jobId ? { ...r, status: 'ready', at: done.finished_at || r.at, blind: done.result_refs?.blind || null } : r)),
       })));
@@ -193,15 +196,15 @@ export default function InversionPanel() {
     }
   };
   const runSpreadVolume = async () => {
-    const stem = outName.trim() || `${volume.name} AI, ${INVERSION_METHODS[s.method].label}`;
+    const stem = pilotName(outName.trim() || `${volume.name} AI, ${INVERSION_METHODS[s.method].label}`, pilot);
     setJob((j) => ({ ...j, spreadVolume: { job: { status: 'queued', progress: 0 } } }));
     const rows = [];
     try {
       const summary = { qi_class: 'elastic_estimate', method: s.method, wells: usable.map((w) => w.name), horizon_ids: s.horizonIds, sensitivity: true };
       for (const [key, label] of SPREAD_KEYS) rows.push({ key, row: await backend.registerInversionVolume({ volume, name: `${stem}, ${label}`, summary: { ...summary, product: key } }) });
       const volumeIds = Object.fromEntries(rows.map((r) => [r.key, r.row.id]));
-      const jobId = await client.enqueueJob('poststack_inversion', { mode: 'volume', parent_volume_id: volume.id, volume_ids: volumeIds, name: `${stem} (uncertainty)`, inversion: { ...inversionBlock(), sensitivity: sensBlock } });
-      setInversion(volume.id, (cur) => ({ runs: [...(cur.runs || []), { jobId, volumeId: volumeIds.q50, volumeIds, name: `${stem}: Q10, Q50, Q90 and spread`, method: s.method, at: new Date().toISOString(), status: 'queued' }] }));
+      const jobId = await client.enqueueJob('poststack_inversion', { mode: 'volume', parent_volume_id: volume.id, volume_ids: volumeIds, name: `${stem} (uncertainty)`, inversion: { ...inversionBlock(), sensitivity: sensBlock }, ...pilotBlock() });
+      setInversion(volume.id, (cur) => ({ runs: [...(cur.runs || []), { jobId, volumeId: volumeIds.q50, volumeIds, name: `${stem}: Q10, Q50, Q90 and spread`, method: s.method, at: new Date().toISOString(), status: 'queued', ...pilotBlock() }] }));
       watch('spreadVolume', jobId, (done) => setInversion(volume.id, (cur) => ({
         runs: (cur.runs || []).map((r) => (r.jobId === jobId ? { ...r, status: 'ready', at: done.finished_at || r.at } : r)),
       })));
@@ -330,10 +333,11 @@ export default function InversionPanel() {
         </div>
       )}
 
+      {prep?.wells && <PilotArea value={pilot} onChange={setPilot} volume={volume} disabled={!canWrite} testId="qi-inv-pilot" />}
       {prep?.wells && (
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <input className={`${input} w-72`} placeholder={`${volume.name} AI, ${INVERSION_METHODS[s.method].label}`} value={outName} onChange={(e) => setOutName(e.target.value)} aria-label="Name of the impedance volume" />
-          <button type="button" className={btn} onClick={runVolume} disabled={!canRun || busy('volume')} data-testid="qi-inv-run">Invert the volume</button>
+          <button type="button" className={btn} onClick={runVolume} disabled={!canRun || busy('volume') || !!pilotFormProblem(pilot)} data-testid="qi-inv-run">{pilot.on ? 'Invert the pilot area' : 'Invert the volume'}</button>
           {status('volume')}
         </div>
       )}
@@ -352,7 +356,7 @@ export default function InversionPanel() {
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" className={btn} onClick={runSpreadBlind} disabled={!canRun || !!sensProblem || usable.length < 2 || busy('spread')} data-testid="qi-inv-spread-blind">Check the spread at the wells</button>
             {status('spread')}
-            <button type="button" className={btn} onClick={runSpreadVolume} disabled={!canRun || !!sensProblem || busy('spreadVolume')} data-testid="qi-inv-spread-run">Invert with uncertainty (four volumes)</button>
+            <button type="button" className={btn} onClick={runSpreadVolume} disabled={!canRun || !!sensProblem || busy('spreadVolume') || !!pilotFormProblem(pilot)} data-testid="qi-inv-spread-run">Invert with uncertainty (four volumes)</button>
             {status('spreadVolume')}
           </div>
           {saved.spread?.result && <SpreadTables result={saved.spread.result} />}

@@ -15,8 +15,16 @@ import { listVolumes, deleteVolume } from '../services/volumesService';
 import { publishConversionProgress, clearConversionProgress } from '../sources/conversionProgress';
 import { getImportJobs, v4ImportSupport, V4_STATUS } from '../services/importJobsRuntime';
 import {
-  serverImportAdvice, startServerImport, fetchFromLink, scanRemoteFile, startRemoteConversion,
+  serverImportAdvice, startServerImport, fetchFromLink, scanRemoteFile, startRemoteConversion, uploadForQi,
 } from '../services/serverImport';
+import { fileReader } from '../engine/reader';
+import { detectGatherLayout, normalizeCrop } from '../engine/segyCrop';
+import {
+  planImportCrop, cropSource, spotCheckCrop, conversionView, scanConversionView, cropFileLike,
+  importCropProvenance, cropRequest, layoutFromDoor, rememberCropFor, recallCropFor, forgetCropFor,
+  savedUploadSpeed, saveUploadSpeed, speedMeter, formatDuration, cropEstimate,
+} from '../services/cropImport';
+import CropPanel, { EMPTY_FORM, defFromForm } from './CropPanel';
 import CrsPicker from '@/components/crs/CrsPicker';
 import StorageMeter from './StorageMeter';
 import CrsBadge from '@/components/crs/CrsBadge';
@@ -24,7 +32,7 @@ import { sanityCheck, crsDisplayName } from '@/lib/crs';
 import { getProjectCrs, addCustomDef } from '@/lib/crs/settingsService';
 import { isTransformableTag, normalizeTag, UNKNOWN } from '@/lib/crs/tags';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
-import { COORD_UNITS, SAMPLE_FORMATS, needsTraceLattice } from '../lib/segyDoor';
+import { COORD_UNITS, SAMPLE_FORMATS, needsTraceLattice, inspectSegy } from '../lib/segyDoor';
 
 const fmtInt = (v) => (v == null ? EMPTY_VALUE : v.toLocaleString('en-US'));
 const fmtBytes = (b) => (b >= 1024 ** 3 ? `${(b / 1024 ** 3).toFixed(2)} GB` : `${(b / 1024 ** 2).toFixed(1)} MB`);
@@ -182,6 +190,16 @@ export default function ImportPanel({
   const [linkUrl, setLinkUrl] = useState('');
   const [linkProgress, setLinkProgress] = useState(null);
   const useV4 = Boolean(v4Support?.ok) && !compress16;
+  // Crop before upload (2026-10-14): the crop step, the file's layout and
+  // whether it holds prestack gathers (both read from the first traces)
+  const [cropOn, setCropOn] = useState(false);
+  const [cropForm, setCropForm] = useState(EMPTY_FORM);
+  const [cropDefId, setCropDefId] = useState(null);
+  const [cropStatus, setCropStatus] = useState(null);
+  const [cropRestored, setCropRestored] = useState(false);
+  const [layoutInfo, setLayoutInfo] = useState(null); // {door, gathers}
+  const [speed, setSpeed] = useState(() => savedUploadSpeed());
+  const [measured, setMeasured] = useState(null);
 
   const runScan = async (f, m) => {
     // rapid mapping edits fire overlapping scans; only the LATEST result
@@ -207,6 +225,14 @@ export default function ImportPanel({
     const f = e.target.files?.[0];
     if (!f) return;
     setFile(f);
+    // an unfinished cropped upload of this file: its crop comes back, so the
+    // same bytes are produced and the upload continues where it stopped
+    const remembered = recallCropFor(f);
+    setCropOn(Boolean(remembered));
+    setCropForm(remembered ? { ...EMPTY_FORM, ...remembered } : EMPTY_FORM);
+    setCropRestored(Boolean(remembered));
+    setCropDefId(null);
+    setLayoutInfo(null);
     setCrsTag(null);
     setSanityOverride(false);
     crsPrefilledRef.current = false;
@@ -228,10 +254,12 @@ export default function ImportPanel({
     setError(null);
     setProgress(null);
     try {
+      const cropped = cropOn ? await buildCrop({ forUpload: false }) : null;
       await getImportJobs().start({
         file,
         mapping,
-        scan: scanData.scan,
+        scan: cropped ? cropped.convScan : scanData.scan,
+        crop: cropped ? { request: cropRequest(cropped.prep, file.name, mapping), provenance: cropped.provenance, bytes: cropped.cropped.size } : null,
         nativeCrs: crsTag,
         // the viewer re-lists volumes as the row becomes openable
         onRowChange: (status) => { if (onIngested) onIngested({ status, name: file.name }); },
@@ -274,7 +302,12 @@ export default function ImportPanel({
     setPhase('ingesting');
     setError(null);
     try {
-      await startRemoteConversion({ remote: file, mapping, scan: scanData.scan, nativeCrs: crsTag });
+      const def = cropOn ? defFromForm(cropForm) : null;
+      const est = def && remoteCrop ? cropEstimate({ crop: remoteCrop, scan: scanData.scan, door: null, fileSize: file.size }) : null;
+      await startRemoteConversion({
+        remote: file, mapping, scan: scanData.scan, nativeCrs: crsTag,
+        crop: def ? { def, definitionId: cropDefId, estimatedBytes: est?.croppedBytes } : null,
+      });
       setServerStarted(true);
       setPhase('background');
       toast({ title: 'Converting on the server', description: `${file.name}: follow it under Server jobs.` });
@@ -286,16 +319,70 @@ export default function ImportPanel({
     }
   };
 
+  /**
+   * The crop for this file: snapped, its kept traces found (from the headers
+   * when the grid is irregular, gathers, or the arithmetic plan fails its
+   * spot check), the cropped file and the scan its conversion runs on.
+   */
+  const buildCrop = async ({ forUpload, gathersOnly = false }) => {
+    const raw = fileReader(file);
+    const def = defFromForm(cropForm);
+    setCropStatus('Finding the kept traces');
+    try {
+      const onProgress = (done, total) => setCropStatus(`Finding the kept traces from the headers: ${Math.round((100 * done) / Math.max(1, total))} percent`);
+      let prep = await planImportCrop({ raw, scan: scanData.scan, def, mapping, onProgress });
+      let cropped = cropSource(raw, prep, { sourceName: file.name, mapping });
+      if (prep.plan.verify) {
+        try {
+          await spotCheckCrop(cropped, prep.plan);
+        } catch (e) {
+          if (e?.name !== 'CropGridMismatch') throw e;
+          prep = await planImportCrop({ raw, scan: scanData.scan, def, mapping, fromHeaders: true, onProgress });
+          cropped = cropSource(raw, prep, { sourceName: file.name, mapping });
+        }
+      }
+      const provenance = importCropProvenance(prep, { file, mode: forUpload ? 'upload' : 'browser', definitionId: cropDefId });
+      if (gathersOnly) return { prep, cropped, provenance };
+      setCropStatus('Checking the cropped file');
+      const view = await conversionView(cropped, prep.crop);
+      const convScan = await scanConversionView(view, mapping);
+      // the conversion keeps the import's placement checks
+      convScan.coordScalar = convScan.coordScalar ?? scanData.scan.coordScalar;
+      return { prep, cropped, provenance, convScan };
+    } finally {
+      setCropStatus(null);
+    }
+  };
+
+  const uploadProgress = (meter) => (p) => {
+    setUpload(p);
+    meter.add(p.bytesDone + (p.bytesSending || 0));
+    const v = meter.mbPerSecond();
+    if (v) { setMeasured(v); saveUploadSpeed(v); }
+  };
+
   const startServer = async () => {
     setPhase('uploading');
     setError(null);
-    setUpload({ bytesDone: 0, bytesTotal: file.size });
+    setMeasured(null);
     const ctl = new AbortController();
     uploadAbortRef.current = ctl;
+    const meter = speedMeter();
     try {
+      let crop = null;
+      if (cropOn) {
+        const c = await buildCrop({ forUpload: true });
+        crop = {
+          fileLike: cropFileLike(c.cropped, { file, crop: c.prep.crop }),
+          scan: c.convScan, padTop: c.prep.crop.samples.first, provenance: c.provenance,
+        };
+        rememberCropFor(file, cropForm);
+      }
+      setUpload({ bytesDone: 0, bytesTotal: crop ? crop.fileLike.size : file.size });
       await startServerImport({
-        file, mapping, scan: scanData.scan, nativeCrs: crsTag, onUploadProgress: setUpload, signal: ctl.signal,
+        file, mapping, scan: scanData.scan, nativeCrs: crsTag, onUploadProgress: uploadProgress(meter), signal: ctl.signal, crop,
       });
+      forgetCropFor(file);
       setServerStarted(true);
       setPhase('background');
       toast({
@@ -306,10 +393,41 @@ export default function ImportPanel({
       if (onServerImportStarted) onServerImportStarted();
     } catch (e) {
       if (e?.name === 'AbortError') {
-        setError('Upload paused. Pick the same file again and start the import to continue from where it stopped.');
+        setError(cropOn
+          ? 'Upload paused. Pick the same file again (its crop comes back) and start the import to continue from where it stopped.'
+          : 'Upload paused. Pick the same file again and start the import to continue from where it stopped.');
       } else {
         setError(e.message);
       }
+      setPhase('error');
+    } finally {
+      uploadAbortRef.current = null;
+    }
+  };
+
+  /** Prestack gathers: upload (cropped or not) for QI Studio's gather store. */
+  const startGatherUpload = async () => {
+    setPhase('uploading');
+    setError(null);
+    setMeasured(null);
+    const ctl = new AbortController();
+    uploadAbortRef.current = ctl;
+    const meter = speedMeter();
+    try {
+      let crop = null;
+      if (cropOn) {
+        const c = await buildCrop({ forUpload: true, gathersOnly: true });
+        crop = { fileLike: cropFileLike(c.cropped, { file, crop: c.prep.crop }) };
+        rememberCropFor(file, cropForm);
+      }
+      setUpload({ bytesDone: 0, bytesTotal: crop ? crop.fileLike.size : file.size });
+      await uploadForQi({ file, onUploadProgress: uploadProgress(meter), signal: ctl.signal, crop });
+      forgetCropFor(file);
+      setServerStarted(true);
+      setPhase('background');
+      toast({ title: 'Gathers uploaded', description: `${file.name}: build the gather store in QI Studio, Prestack tab.` });
+    } catch (e) {
+      setError(e?.name === 'AbortError' ? 'Upload paused. Pick the same file again and upload it to continue from where it stopped.' : e.message);
       setPhase('error');
     } finally {
       uploadAbortRef.current = null;
@@ -350,6 +468,35 @@ export default function ImportPanel({
   };
 
   const scan = scanData?.scan;
+
+  // the file's layout and gathers check (local files), for the crop step
+  useEffect(() => {
+    if (!file || file.remote || !scan) { setLayoutInfo(null); return undefined; }
+    let stale = false;
+    (async () => {
+      try {
+        const raw = fileReader(file);
+        const door = await inspectSegy(raw);
+        const layout = layoutFromDoor(door, raw.size);
+        const gathers = await detectGatherLayout(raw, layout, mapping);
+        if (!stale) setLayoutInfo({ door, gathers });
+      } catch { if (!stale) setLayoutInfo(null); }
+    })();
+    return () => { stale = true; };
+  }, [file, scan, mapping]);
+  const gathers = layoutInfo?.gathers?.gathers ? layoutInfo.gathers : null;
+  // a link import's crop is applied on the server; checked here against the scan
+  const remoteCrop = useMemo(() => {
+    if (!file?.remote || !cropOn || !scan) return null;
+    try { return normalizeCrop(defFromForm(cropForm), { il: scan.il, xl: scan.xl, ns: scan.ns, dtUs: scan.dtUs }); } catch { return null; }
+  }, [file, cropOn, scan, cropForm]);
+  const cropProblem = useMemo(() => {
+    if (!cropOn || !scan) return null;
+    try {
+      normalizeCrop(defFromForm(cropForm), { il: scan.il, xl: scan.xl, ns: layoutInfo?.door?.ns || scan.ns, dtUs: layoutInfo?.door?.dtUs || scan.dtUs });
+      return null;
+    } catch (e) { return e.message; }
+  }, [cropOn, scan, cropForm, layoutInfo]);
 
   useEffect(() => {
     if (onBusyChange) onBusyChange(phase === 'ingesting' || phase === 'uploading' || phase === 'fetching');
@@ -418,9 +565,14 @@ export default function ImportPanel({
 
   const crsChosen = Boolean(crsTag);
   // the server import is always the v4 path, so the lattice rule is met
-  const blockReason = importBlockReason({
-    scan, domain, useV4: useV4 || useServer, v4Support, compress16: useServer ? false : compress16,
-  });
+  const blockReason = gathers
+    ? 'This file holds prestack gathers (several traces at each inline and crossline), so it does not become a Seismolord volume. Upload it for QI Studio instead.'
+    : cropProblem ? `The crop is not valid: ${cropProblem}`
+      : cropOn && !file?.remote && !useServer && !useV4
+        ? 'Cropping runs in the background import or the server import. Choose the server, or untick 16-bit storage.'
+        : importBlockReason({
+          scan, domain, useV4: useV4 || useServer, v4Support, compress16: useServer ? false : compress16,
+        });
   const busy = phase === 'ingesting' || phase === 'uploading' || phase === 'fetching';
   const sanityBlocks = Boolean(sanity && !sanity.ok && sanity.verdict === 'out-of-area' && !sanityOverride);
   const projectSet = Boolean(project?.tag && isTransformableTag(project.tag));
@@ -868,6 +1020,32 @@ export default function ImportPanel({
               )}
             </div>
 
+            <CropPanel
+              scan={scan}
+              door={layoutInfo?.door || null}
+              fileSize={file?.size || 0}
+              domain={domain}
+              enabled={cropOn}
+              onEnabled={(on) => { setCropOn(on); setCropRestored(false); }}
+              form={cropForm}
+              onForm={setCropForm}
+              onDefinitionId={setCropDefId}
+              showUpload={!file?.remote && (useServer || Boolean(gathers))}
+              speed={speed}
+              onSpeed={(v) => { setSpeed(v); if (v) saveUploadSpeed(v); }}
+              gathers={layoutInfo?.gathers || null}
+              disabled={busy}
+              status={cropStatus}
+            />
+            {cropRestored && cropOn && (
+              <div className="text-xs text-pl-muted" data-testid="sl-crop-restored">
+                The crop of the unfinished upload of this file was restored, so the upload continues where it stopped. Change it only to start a new upload.
+              </div>
+            )}
+            {file?.remote && cropOn && (
+              <div className="text-xs text-pl-muted">The Petrolord server keeps only this crop while it converts the stored file.</div>
+            )}
+
             {scan.warnings.length > 0 && (
               <div className="rounded-lg border border-pl-warning/50 bg-pl-warning-bg p-3 text-sm text-pl-warning-text space-y-1">
                 {scan.warnings.map((w) => (
@@ -951,14 +1129,19 @@ export default function ImportPanel({
           <div className="space-y-2" data-testid="sl-server-upload">
             <div className="flex items-center text-pl-text text-sm">
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              {`Uploading to the Petrolord server: ${fmtBytes(upload.bytesDone)} of ${fmtBytes(upload.bytesTotal)}`}
+              {`Uploading to the Petrolord server: ${fmtBytes(upload.bytesDone + (upload.bytesSending || 0))} of ${fmtBytes(upload.bytesTotal)}`}
             </div>
             <div className="h-2 rounded bg-pl-sunken overflow-hidden">
               <div
                 className="h-full bg-pl-primary transition-all"
-                style={{ width: `${Math.round((upload.bytesDone / Math.max(1, upload.bytesTotal)) * 100)}%` }}
+                style={{ width: `${Math.round(((upload.bytesDone + (upload.bytesSending || 0)) / Math.max(1, upload.bytesTotal)) * 100)}%` }}
               />
             </div>
+            {measured && (
+              <div className="text-xs text-pl-text" data-testid="sl-upload-speed">
+                {`Measured ${measured.toFixed(2)} MB/s: about ${formatDuration((upload.bytesTotal - upload.bytesDone - (upload.bytesSending || 0)) / (measured * 1e6))} left.`}
+              </div>
+            )}
             <div className="text-xs text-pl-muted">
               Keep this tab open until the upload finishes. If it stops, pick the same file again: the upload continues from where it stopped.
             </div>
@@ -1052,6 +1235,18 @@ export default function ImportPanel({
             <Play className="w-4 h-4 mr-2" />
             Start import
           </Button>
+          {gathers && file && !file.remote && (
+            <Button
+              variant="outline"
+              onClick={startGatherUpload}
+              disabled={busy || phase === 'background' || Boolean(cropProblem)}
+              data-testid="sl-upload-gathers"
+              title="The gathers go to the worker store; build the gather store in QI Studio, Prestack tab"
+            >
+              <Server className="w-4 h-4 mr-2" />
+              Upload gathers for QI Studio
+            </Button>
+          )}
           {file && onViewNow && (
             // Stream L: the viewer already shows this file; the import
             // keeps running with the dialog closed and its progress
