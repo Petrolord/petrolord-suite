@@ -44,17 +44,19 @@ export default {
         await d.highlight(t(d, 'pp-casing-seats')); await d.sleep(3000); await d.unhighlight();
         await setParams(d, { trip: '0.5', kick: '0.5' }, { onCamera: true });
       } },
-    { id: 'min', chapter: 'A shallowest seat', chapterSub: 'Your minimum',
-      say: 'A regulator or a shallow aquifer may set a minimum for the first string. Shallowest seat at least four thousand five hundred feet below the mudline moves the first shoe down to it, and the line says it is your minimum.',
+    { id: 'min', chapter: 'A shallowest seat', chapterSub: 'Your minimum, checked',
+      say: 'A regulator or a shallow aquifer may set a minimum for the first string. Shallowest seat at least four thousand five hundred feet below the mudline moves the first shoe down to four thousand six hundred and ninety seven feet, marked as your minimum.',
       do: async (d) => {
         await setParams(d, { minseat: '4500' }, { onCamera: true });
-        await expectText(d, t(d, 'pp-casing-seats'), /\(your minimum\)/, 'min');
-        await d.highlight(t(d, 'pp-casing-seats')); await d.sleep(3500); await d.unhighlight();
+        await expectText(d, t(d, 'pp-casing-seats'), /shoe at least 4697 ft MD \(your minimum\)/, 'min');
+        await d.highlight(t(d, 'pp-casing-seats')); await d.sleep(3000); await d.unhighlight();
       } },
-    { id: 'sections', chapter: 'Window per section', chapterSub: 'What each open hole has to work with',
-      say: 'Under the seats, the window per section gives each open hole its mud weight and its margin to the design fracture line. These are the numbers the well plan carries forward.',
+    { id: 'sections', chapter: 'Window per section', chapterSub: 'Does each open hole hold?',
+      say: 'The window per section checks it. The top hole now runs down to that shoe, needs eleven point seven zero pounds per gallon, and the design fracture line above it is only ten point six eight. The studio says that open hole does not hold with these seats. The minimum is a constraint, and the design has to answer it: a seat higher up, or different margins.',
       do: async (d) => {
-        await d.highlight(t(d, 'pp-casing-sections')); await d.sleep(4000); await d.unhighlight();
+        await expectText(d, t(d, 'pp-casing-section-closed'), /1181 to 4697 ft MD needs 11\.70 ppg against a design FG of 10\.68 ppg/, 'closed');
+        await d.highlight(t(d, 'pp-casing-sections')); await d.sleep(2500); await d.unhighlight();
+        await d.highlight(t(d, 'pp-casing-section-closed')); await d.sleep(4000); await d.unhighlight();
       } },
   ],
 };
