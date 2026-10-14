@@ -169,6 +169,8 @@ export default function EarthModelingHelpGuide() {
           constant: 'The interval-weighted mean of the zone averages of the wells in the block.',
           trend: 'A least-squares plane through the wells of the block.',
           okrige: 'Ordinary kriging with a variogram fitted from the wells (or typed), trend removed first; also gives a variance map.',
+          idw: 'Inverse distance: each node is the mean of the wells weighted by one over the distance squared (the power is set in the dock). Exact at the wells; needs no variogram, so it suits a field with few wells.',
+          typed: 'A value you type per zone (a fraction), the same at every node: a booked case, or a check against another app.',
           krige: 'The original simple kriging with a typed variogram and mean; kept for saved models.',
           shm: 'Sw from a SCAL Studio saturation-height function: per node, the mean Sw over the hydrocarbon leg from its height above the free-water level.',
           map: 'Per zone, NTG from a Petrophysics net pay map (net pay / thickness) and Sw from its HCPV map (1 - HCPV / (thickness x NTG x porosity)).',
@@ -181,6 +183,25 @@ export default function EarthModelingHelpGuide() {
           A kriged property carries a variance map (Porosity, Sw or NTG kriging variance in the map layer list): low
           near the wells, high where the property is guessed. It can be published as an attribute.
         </Para>
+        <SubHeading>Rock properties from the well logs</SubHeading>
+        <Para>
+          Rock properties from: published zone averages uses the one summary per well and zone that Petrophysics Studio
+          published (NTG as net reservoir over gross; porosity and Sw are pay averages, so a well with no pay has none).
+          The well logs, upscaled to each layer reads the PHIE, VSH, SW and permeability curves Petrophysics Studio
+          published and averages them at every well over each zone or layer: net reservoir is rock with Vsh at most and
+          PHIE at least the cutoffs in the dock (0.5 and 0.08 when blank); NTG is net over gross in true vertical
+          thickness; porosity is averaged over the net rock; Sw over the net rock above the OWC, weighted by pore volume,
+          because below the contact the logs read water; permeability is the geometric mean over the net rock. A wet well
+          therefore still gives porosity and NTG. Permeability fills the map list and the GRDECL.
+        </Para>
+        <SubHeading>Layers</SubHeading>
+        <Para>
+          The number after each zone in the dock cuts it into that many proportional layers: each layer takes the same
+          fraction of the zone at every node, so the layers thin and thicken with it. Each layer is populated from its
+          own upscaled values, the volumes are added layer by layer, and the map shows one layer or the whole zone
+          (NTG averaged, porosity weighted by NTG, Sw by pore volume). With the same properties in every layer the
+          volume does not change with the layer count.
+        </Para>
       </GuideSection>
 
       <GuideSection id="qc">
@@ -190,6 +211,12 @@ export default function EarthModelingHelpGuide() {
           per zone, the volume table (bulk, net, pore and hydrocarbon pore volume per block and in total, in the chosen
           units) with the population provenance under it. Bulk volume is thickness times cell area; net multiplies by
           NTG, pore by porosity, hydrocarbon pore volume by one minus Sw.
+        </Para>
+        <Para>
+          Under each zone, the property QC lists the logs as upscaled at every well and layer, the model against the
+          wells (the value at the well, the model there and the difference: kriging and inverse distance honour the
+          wells, a constant or a trend does not), and a histogram of each property in the model with the wells&apos;
+          values marked in red.
         </Para>
         <Para>
           Fluid contacts and FVF (per zone, in the dock) cut each zone at the gas-oil and oil-water contacts, typed as
@@ -285,8 +312,8 @@ export default function EarthModelingHelpGuide() {
         </Para>
         <SubHeading>Volume distribution</SubHeading>
         <Para>
-          QC and volumes, Volume distribution: type the spread of the contacts (plus or minus metres), of Bo and Bg (plus or
-          minus percent), tick kriged properties, then Run. Each trial re-runs the volumes with the Suite&apos;s canonical Monte
+          QC and volumes, Volume distribution: type the spread of the contacts (plus or minus your depth unit), of Bo
+          and Bg (plus or minus percent), tick kriged properties, then Run. Each trial re-runs the volumes with the Suite&apos;s canonical Monte
           Carlo sampler. P90 is the low case (the 10th percentile of outcomes), P10 the high case. The same seed gives the
           same answer.
         </Para>
@@ -294,7 +321,9 @@ export default function EarthModelingHelpGuide() {
         <Para>
           Report PDF is the model report a reviewer signs: field, analyst, date and build, the volumes, the contacts and
           FVFs as used, every flag, provenance, ties and the map. GRDECL downloads the model as an Eclipse corner-point grid
-          (one layer per zone) and a SWAT include for Reservoir Simulation Studio; add permeability in the deck. Prospect to
+          (one cell layer per zone, or per layer of a layered zone) and a SWAT include for Reservoir Simulation Studio.
+          With properties from the logs it carries PERMX and PERMY from the permeability logs and PERMZ as a tenth of
+          PERMX (an assumption to check); otherwise add permeability in the deck. Prospect to
           RCP opens ReservoirCalc Pro with the zone on the map filled in: the area with a hydrocarbon column, average column, NTG, porosity, the Sw that
           keeps the model&apos;s HCPV, contacts and FVFs.
         </Para>

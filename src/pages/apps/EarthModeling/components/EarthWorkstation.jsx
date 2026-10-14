@@ -44,8 +44,9 @@ import { appPath, mapSurfaceHref, reservoirCalcSurfaceHref, MAPPING_ID, RESERVOI
 import { toDisplay } from '@/components/wells/depthModes';
 import { refElevOrNull } from '@/lib/wellDatum';
 import { validatePolygon } from '../engine/blocks';
-import { surfaceStats } from '@/lib/gridding/gridmath';
+import { surfaceStats, isNull as isNullValue } from '@/lib/gridding/gridmath';
 import { matchTopName, defaultZone, defaultSectionPair } from '../services/stackDefaults';
+import { resolveLogCurves } from '../services/logUpscale';
 
 /** A cell size for the status line: whole metres or two decimals. */
 const REPORT_KEY = 'em.report';
@@ -65,6 +66,7 @@ const LAYERS = [
   { key: 'phi', label: 'Porosity' },
   { key: 'sw', label: 'Sw' },
   { key: 'ntg', label: 'NTG' },
+  { key: 'perm', label: 'Permeability (md, from the logs)' },
   { key: 'phi_var', label: 'Porosity kriging variance' },
   { key: 'sw_var', label: 'Sw kriging variance' },
   { key: 'ntg_var', label: 'NTG kriging variance' },
@@ -84,6 +86,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   const [view, setView] = useState('map');
   const [zoneIdx, setZoneIdx] = useState(0);
   const [layer, setLayer] = useState('top');
+  const [subLayer, setSubLayer] = useState(-1); // a proportional layer of the zone, -1 = the whole zone
   const [drawing, setDrawing] = useState(false);
   const [searchParams] = useSearchParams();
   const deepLinkRef = useRef({ surface: searchParams.get('surface'), done: false });
@@ -243,6 +246,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   const [buildProgress, setBuildProgress] = useState(null);
   const [buildWhere, setBuildWhere] = useState(null);
   const buildAbortRef = useRef(null);
+  const logCacheRef = useRef(new Map());
   const cancelBuild = () => { buildAbortRef.current?.abort(); };
   const build = async () => {
     setBuilding(true);
@@ -251,7 +255,12 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     buildAbortRef.current = ctrl;
     try {
       // U2-002: the SCAL project is read here, so the worker gets plain data
-      const def = definition.methods?.sw === 'shm' ? { ...definition, shmResolved: await resolveShm(definition.shm, backend) } : definition;
+      let def = definition.methods?.sw === 'shm' ? { ...definition, shmResolved: await resolveShm(definition.shm, backend) } : definition;
+      // Ekene walk: the wells' computed curves, read here so the worker gets plain arrays
+      if (definition.control === 'logs') {
+        setBuildProgress({ label: 'Reading the well logs', fraction: 0 });
+        def = { ...def, logsResolved: await resolveLogCurves(wells, backend, logCacheRef.current) };
+      }
       const { built: result, where } = await runBuild({
         definition: def, wells, surfaces, backend, signal: ctrl.signal,
         onProgress: (p) => setBuildProgress({ label: p.label, fraction: p.fraction }),
@@ -259,6 +268,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       setBuilt(result);
       setBuildWhere(where);
       setZoneIdx(0);
+      setSubLayer(-1);
       const blocks = Object.keys(result.census).length;
       const clamps = result.counts.reduce((a, b) => a + b, 0);
       const adj = result.adjustment;
@@ -302,9 +312,14 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     if (layer === 'base') return built.clamped[zoneIdx + 1] || null;
     if (layer === 'thickness') return built.thickness[zoneIdx] || null;
     if (layer === 'isopach') return built.zones[zoneIdx]?.isopach?.tst || null;
-    if (layer.endsWith('_var')) return built.zones[zoneIdx]?.variance?.[layer.slice(0, -4)] || null;
-    return built.zones[zoneIdx]?.props?.[layer] || null;
-  }, [built, layer, zoneIdx]);
+    const z = built.zones[zoneIdx];
+    const L = subLayer >= 0 && z?.layers?.[subLayer] ? z.layers[subLayer] : null;
+    const g = layer.endsWith('_var') ? (L ? L.variance : z?.variance)?.[layer.slice(0, -4)] : (L ? L.props : z?.props)?.[layer];
+    if (!g) return null;
+    // a property is shown where the zone is mapped (kriging fills the whole frame)
+    const th = built.thickness[zoneIdx];
+    return th ? Float64Array.from(g, (v, j) => (isNullValue(th[j]) ? th[j] : v)) : g;
+  }, [built, layer, zoneIdx, subLayer]);
 
   // T1 (EM-T1-005): contour interval and colour-bar ticks round in the
   // display unit (the Mapping plan), depth layers in the shared sign
@@ -352,14 +367,16 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     });
   };
   const zoneName = built?.zones?.[zoneIdx]?.name || definition.zones[zoneIdx]?.name || '';
-  const layerLabel = LAYERS.find((l) => l.key === layer)?.label || layer;
+  const layerLabel = `${LAYERS.find((l) => l.key === layer)?.label || layer}${subLayer >= 0 && built?.zones?.[zoneIdx]?.layers?.[subLayer] && !['top', 'base', 'thickness', 'isopach', 'blocks'].includes(layer) ? `, layer ${subLayer + 1}` : ''}`;
 
   const publish = async () => {
     if (!built || !mapGrid || layer === 'blocks') return;
     try {
       // U1 (EM-U1-003): the layer leaves with the model's CRS and XY unit
       const saved = await backend.saveSurface(publishPayload(built, {
-        layer, grid: mapGrid, modelName: definition.name, zoneName, methods: definition.methods,
+        layer, grid: mapGrid, modelName: definition.name, methods: definition.methods,
+        // a property of one proportional layer says which
+        zoneName: subLayer >= 0 && built.zones[zoneIdx]?.layers?.[subLayer] && !['top', 'base', 'thickness', 'isopach'].includes(layer) ? `${zoneName} layer ${subLayer + 1}` : zoneName,
       }));
       setLastPublished(saved);
       setStatus(`Published ${saved.name} to the registry. Open it in ReservoirCalc Pro or Mapping from the ribbon.`);
@@ -614,12 +631,25 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
         </>
       )}
       <select className={selCls} data-testid="em-map-zone" value={zoneIdx}
-        onChange={(e) => setZoneIdx(Number(e.target.value))}>
+        onChange={(e) => { setZoneIdx(Number(e.target.value)); setSubLayer(-1); }}>
         {built.zones.map((z, i) => <option key={z.name} value={i}>{z.name}</option>)}
       </select>
       <select className={selCls} data-testid="em-map-layer" value={layer} onChange={(e) => setLayer(e.target.value)}>
-        {LAYERS.filter((l) => !l.key.endsWith('_var') || built.zones[zoneIdx]?.variance?.[l.key.slice(0, -4)]).map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}
+        {LAYERS.filter((l) => {
+          const z = built.zones[zoneIdx];
+          if (l.key === 'perm') return !!z?.props?.perm;
+          if (!l.key.endsWith('_var')) return true;
+          const k = l.key.slice(0, -4);
+          return !!(z?.variance?.[k] || (z?.layers || []).some((L) => L.variance?.[k]));
+        }).map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}
       </select>
+      {built.zones[zoneIdx]?.layers?.length > 1 && ['phi', 'sw', 'ntg', 'perm', 'phi_var', 'sw_var', 'ntg_var'].includes(layer) && (
+        <select className={selCls} data-testid="em-map-sublayer" value={subLayer} onChange={(e) => setSubLayer(Number(e.target.value))}
+          title="One proportional layer of the zone, or the zone as a whole (NTG mean, porosity NTG-weighted, Sw pore-volume weighted)">
+          <option value={-1}>whole zone</option>
+          {built.zones[zoneIdx].layers.map((_, k) => <option key={k} value={k}>layer {k + 1} of {built.zones[zoneIdx].layers.length}</option>)}
+        </select>
+      )}
       {layer === 'blocks' && !built.labels && <span className="text-[11px] text-pl-muted">no fault polygons, so a single block</span>}
       {layer.endsWith('_var') && <span className="text-[11px] text-pl-muted" data-testid="em-map-variance-note">low near the wells, high where the property is guessed</span>}
     </div>
@@ -694,7 +724,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       const g = grdeclText(built, { name: definition.name });
       downloadBlob(new Blob([g.text], { type: 'text/plain' }), g.fileName);
       downloadBlob(new Blob([g.swatText], { type: 'text/plain' }), g.swatFileName);
-      setStatus(`Exported ${g.fileName} (${g.dims.nx} x ${g.dims.ny} x ${g.dims.nz}, ${g.active} active cells) and ${g.swatFileName}. Upload both in Reservoir Simulation Studio's Deck tab and INCLUDE them in the GRID and SOLUTION sections; add permeability.`);
+      setStatus(`Exported ${g.fileName} (${g.dims.nx} x ${g.dims.ny} x ${g.dims.nz}, ${g.active} active cells) and ${g.swatFileName}. Upload both in Reservoir Simulation Studio's Deck tab and INCLUDE them in the GRID and SOLUTION sections; ${g.hasPerm ? 'PERMX and PERMY come from the permeability logs, PERMZ is a tenth of PERMX.' : 'add permeability.'}`);
     } catch (e) { setStatus(e.message); }
   };
   // U2-009: the model to ReservoirCalc Pro as a prospect (the zone on the map)
