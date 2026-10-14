@@ -468,3 +468,13 @@ On the Logs tab, "Edit logs" (owner only) opens three tools. Every result is a N
 - **Naming:** a repeat edit takes the next free name (`:2`). The curve badge reads "Computed by Well Data Manager (splice / log edit / sonic drift correction)".
 - **Engines:** `petrophysics/logEdit.js` (engines #317, vendored at ce06e87).
 - **Tests:** `qiLogEdit.test.js` (7, including a deviated well in a uniform medium showing no drift, with the along-hole-time negative control) and `qiLogEditPanel.test.jsx` (2).
+
+## 2026-10-14: computed curves say where they came from in the Logs table
+
+Found in the Pore Pressure Studio video dry run: a published PP, FP and OBG showed an empty Source cell in the
+Logs table, and the computed badge's tooltip read "Computed by pore-pressure-studio (interpretation)". The
+Source cell of a computed curve now names the app, its pipeline and the day it was written ("Pore Pressure
+Studio, pp-1.1.0, 2026-10-14"; testid `wdm-log-source-<mnemonic>`), and the badge names Pore Pressure Studio,
+Rock Physics Studio and Geomechanics in words ("pressure prognosis" for a Pore Pressure Studio curve).
+`curveSource` in `engine/provenance.js`; tests `__tests__/curveSource.test.js` (negative control: a row with
+neither a file nor computed provenance says nothing).

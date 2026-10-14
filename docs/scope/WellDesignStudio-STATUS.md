@@ -956,3 +956,54 @@ minimum SF to 2 decimals, as does the Anti-Collision run history
 (`fmtSf`, `runOptionLabel` in services/acUtils.js). Test:
 `__tests__/reportText.test.js` scans every string the three generators write
 for characters outside Latin-1 (fails on the sigma it replaced).
+## 2026-10-14: the prognosis a design was reviewed against
+
+The PPFG mud window reads the PP/FP/OBG Pore Pressure Studio published, live,
+so a republished prognosis moved the casing seats with nothing said (NAPE data
+governance theme: a change to a decision object says which downstream outputs
+need refreshing). A design now keeps a source reference for the prognosis
+(shared kit `src/lib/sourceFreshness`, new kind `ppfg_prognosis`):
+
+- Recorded with **Review against this prognosis** under Prognosis from
+  (testid `wd-ppfg-record`), or by Save with the window open when the design
+  has none for that well. Stored in `wp_designs.tie_on.sources.ppfg`
+  (`{ refs: { 'ppfg:<geo well id>': ref }, kept }`) beside md/inc/azi: no
+  schema change, and Save carries it over. The reference holds the curve rows
+  and pipeline (the fingerprint) and what the design saw on its trajectory:
+  casing seats at the default 0.5/0.5 ppg margins, the tightest window, the
+  highest pore pressure.
+- Checked when the design opens and when the panel loads; while the panel is
+  open only the well under Prognosis from (plus any recorded well whose
+  prognosis is gone). A republish or a deleted prognosis shows **Prognosis
+  changed** above the views (testid `wd-ppfg-source-changed`, with
+  `-refresh`, `-keep`, `-check`) with what moved on this trajectory in the
+  wellbore unit and ppg, and when it was republished. Refresh from source
+  records the publish now showing; Keep current values records that version.
+  An unchanged record reads "This design was reviewed against the prognosis
+  on ..., published ...; casing seats then at TVD ..." (`wd-ppfg-reviewed`).
+  Another well under Prognosis from is a new record, not a change.
+- What moved compares the record with what the mud window computes once it
+  has loaded that well's prognosis (`ppfgNoticeItems`), for example "shoe 1 at
+  least TVD 2,709 ft to 1,693 ft; shoes 2 and 3 no longer needed; highest pore
+  pressure 13.94 to 12.59 ppg"; before the panel loads it uses the registry
+  read (read again once the trajectory has compiled), and the kit's generic
+  "curves changed" is the fallback.
+- The panel summary (`mud-window-summary`) gives the tightest window in the
+  panel's unit (ppg EMW on a feet wellbore, g/cc on a metre one, MPa in MPa
+  mode) below the same top cut-off the seats use (`SEATS_BELOW_TOP_M`,
+  `tightestWindowBelow`): "TVD 246 to 4593 ft; tightest window 0.80 ppg EMW
+  at TVD 4,593 ft (below the top 984 ft)". It read MPa at the conductor
+  section before ("tightest window 0.05 MPa at 246 ft").
+- Code: `services/ppfgSource.js`, `components/PpfgReviewStatus.jsx`,
+  DesignTab wiring; `SEATS_BELOW_TOP_M` moved to `services/ppfg.js`.
+  Tests: `__tests__/ppfgSourceChanged.test.jsx` (18) and `mudWindowPanelU1.test.jsx` (+1), negative controls (the panel's summary from another well is not used; with no cut-off the conductor section wins;
+  no reference: the seats move and nothing is reported; without the curve
+  row ids in the snapshot 6 fail).
+
+## 2026-10-14: the mud window column on a laptop screen
+
+Found in the Pore Pressure Studio video dry run at 1440 x 810: with the review line, the margins and five casing
+seats above it, the mud window chart in the 340 px PPFG column was squeezed until its legend overlapped the seat
+list. The column is 380 px (440 px on wide screens) and scrolls, the chart keeps at least 300 px of height
+(`mud-window-chart`), and the long Curves line is one line with its full text on hover. Test in
+`__tests__/mudWindowPanelU1.test.jsx`.

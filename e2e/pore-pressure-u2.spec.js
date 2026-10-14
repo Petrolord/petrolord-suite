@@ -66,7 +66,7 @@ test('U2-002: a hostile RFT/MDT table (semicolons, comma decimals, TVDSS, psi, n
   await page.getByTestId('pp-cal-import-add').click();
   await expect(page.getByTestId('pp-prognosis-chart')).toHaveAttribute('data-cal', '4');
   await expect(page.getByTestId('pp-note-calibration')).toContainText(/4 points, PP misfit RMS 0\.0\d MPa/);
-  await expect(page.getByTestId('pp-prognosis-chart').locator('circle[fill="#e76f51"]')).toHaveCount(4);
+  await expect(page.getByTestId('pp-prognosis-chart').locator('circle[fill="#ea580c"]')).toHaveCount(4);
 });
 
 test('U2-001: resistivity Eaton on the oracle well reads the same pore pressure as sonic', async ({ page }) => {

@@ -60,6 +60,7 @@ const toDraft = (params, calibration, units) => {
     // 2026-10-13: pore pressure from shale samples, and a sonic median
     ppFromShale: !!params.ppFromShale,
     sonicMedian: params.sonicMedianM > 0 ? tidy(depthToDisplay(params.sonicMedianM, zU), 2) : '',
+    ppLine: params.ppLineM > 0 ? tidy(depthToDisplay(params.ppLineM, zU), 2) : '',
     k0: String(params.k0 ?? 0.75),
     beta: String(params.beta ?? 0),
     tripMargin: tidy(densityToDisplay(marginsOf(params).tripKgM3, pU), densityDigits(pU)),
@@ -116,6 +117,7 @@ export default function ParamsPanel({
       report: { field: d.field.trim(), analyst: d.analyst.trim() },
       ppFromShale: !!d.ppFromShale,
       sonicMedianM: d.sonicMedian === '' ? 0 : Math.max(0, depthFromDisplay(num(d.sonicMedian), zU) || 0),
+      ppLineM: d.ppLine === '' ? 0 : Math.max(0, depthFromDisplay(num(d.ppLine), zU) || 0),
       // U2-003: margins are density differences, so the unit converts by its factor alone
       margins: {
         tripKgM3: Math.max(0, densityFromDisplay(num(d.tripMargin), pU) || 0),
@@ -186,6 +188,9 @@ export default function ParamsPanel({
           checked={!!d.ppFromShale} onChange={(e) => setD((prev) => ({ ...prev, ppFromShale: e.target.checked }))} />
         <span>Pressures from shale samples (cutoff from the NCT view; needs VSH or GR)</span>
       </label>
+      <span title="The design pore pressure as a line through the shale points: the median of their overpressure over this depth window, carried across the sands. The shale-sample pressures stay on the chart as points. Needs Pressures from shale samples.">
+        <Field id="pp-line-window" label={`Interpreted line: median of the shale pressures over (${zU}, empty = off)`} value={d.ppLine} onChange={set('ppLine')} />
+      </span>
       <Field id="pp-sonic-median" label={`Running median on the ${d.method === 'eaton-resistivity' ? 'resistivity' : 'sonic'} (${zU}, empty = off)`} value={d.sonicMedian} onChange={set('sonicMedian')} />
 
       <div className="text-[11px] uppercase tracking-wide text-pl-muted mt-1">Fracture gradient</div>
@@ -224,7 +229,12 @@ export default function ParamsPanel({
         const imported = (calibration || []).filter((c) => c.source);
         if (!imported.length) return null;
         const byKind = {};
-        for (const c of imported) byKind[kindOf(c)] = (byKind[kindOf(c)] || 0) + 1;
+        const seen = new Set();
+        for (const c of imported) {
+          // an imported mud weight interval is one row (its top and base points)
+          if (c.interval) { if (seen.has(c.interval)) continue; seen.add(c.interval); }
+          byKind[kindOf(c)] = (byKind[kindOf(c)] || 0) + 1;
+        }
         const files = [...new Set(imported.map((c) => c.source))];
         return (
           <div className="text-[11px] text-pl-muted flex flex-wrap items-center gap-1" data-testid="pp-cal-imported">

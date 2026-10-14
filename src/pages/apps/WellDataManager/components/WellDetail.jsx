@@ -13,7 +13,7 @@ import LogTracks from './LogTracks';
 import LogEditPanel from './LogEditPanel';
 import ExportDialog from './ExportDialog';
 import ZonesPanel from './ZonesPanel';
-import { curveOrigin, assignedCrsProvenance } from '../engine/provenance';
+import { curveOrigin, curveSource, assignedCrsProvenance } from '../engine/provenance';
 import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
 import { mapTopHref, appPath, MAPPING_ID } from '@/components/wells/appLinks';
 import CrsBadge from '@/components/crs/CrsBadge';
@@ -818,7 +818,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
                         <td className={tdCls}>{log.step_m == null ? 'irregular' : fmtDepth(log.step_m, unit, 3)}</td>
                         <td className={tdCls}>{log.n_samples}</td>
                         <td className={tdCls}>{log.null_count}</td>
-                        <td className={`${tdCls} text-pl-muted`}>{log.source_file || EMPTY_VALUE}</td>
+                        <td className={`${tdCls} text-pl-muted`} data-testid={`wdm-log-source-${log.mnemonic}`}>{curveSource(log) || EMPTY_VALUE}</td>
                         <td className={tdCls}>
                           {mayEdit && confirmDelete !== log.id && (
                             <button

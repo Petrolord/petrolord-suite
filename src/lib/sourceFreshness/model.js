@@ -82,6 +82,22 @@ export const SOURCE_KINDS = Object.freeze({
     label: 'well top',
     snapshot: (row) => ({ md_m: num(row.md_m) }),
   },
+  // 2026-10-14 (Well Design Studio): the PP/FP/OBG curves Pore Pressure
+  // Studio published on a registry well, as a design's mud window read them.
+  // Content = which curve rows (a republish writes new rows) and their
+  // pipeline; what the design saw (casing seats, window) rides in the
+  // reference's `seen`, outside the fingerprint, so a trajectory edit is not
+  // a change at the source.
+  ppfg_prognosis: {
+    label: 'published pore pressure prognosis',
+    snapshot: (row) => ({
+      well_id: row.id || null,
+      curves: Array.isArray(row.curves)
+        ? [...row.curves].sort((a, b) => String(a.mnemonic).localeCompare(String(b.mnemonic)))
+          .map((c) => [c.mnemonic || null, c.log_id || null, c.pipeline_version || null, c.published_at || null])
+        : null,
+    }),
+  },
   geo_wells: {
     label: 'registry well',
     snapshot: (row) => ({

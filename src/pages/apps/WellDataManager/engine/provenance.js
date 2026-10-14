@@ -17,7 +17,15 @@ const OPERATION_WORDS = {
   edit: 'log edit',
   'drift-correction': 'sonic drift correction',
 };
-const ENGINE_NAMES = { 'petrophysics-studio': 'Petrophysics Studio', 'well-data-manager': 'Well Data Manager' };
+const ENGINE_NAMES = {
+  'petrophysics-studio': 'Petrophysics Studio',
+  'well-data-manager': 'Well Data Manager',
+  'pore-pressure-studio': 'Pore Pressure Studio',
+  'rock-physics-studio': 'Rock Physics Studio',
+  'geomechanics-studio': 'Geomechanics',
+};
+// what a computed curve is, by the app that made it, when it records no operation
+const DEFAULT_WORK = { 'pore-pressure-studio': 'pressure prognosis' };
 
 /**
  * @param {Object} log registry row
@@ -27,7 +35,7 @@ export function curveOrigin(log) {
   const p = log?.provenance || {};
   if (p.computed) {
     const app = ENGINE_NAMES[p.engine] || p.engine || 'another app';
-    const how = OPERATION_WORDS[p.operation] || (p.operation ? String(p.operation).replace(/[-_]/g, ' ') : 'interpretation');
+    const how = OPERATION_WORDS[p.operation] || (p.operation ? String(p.operation).replace(/[-_]/g, ' ') : (DEFAULT_WORK[p.engine] || 'interpretation'));
     const parts = [`Computed by ${app} (${how})`];
     if (p.interpretation_name) parts.push(`interpretation "${p.interpretation_name}"`);
     if (p.pipeline_version) parts.push(`pipeline ${p.pipeline_version}`);
@@ -44,6 +52,23 @@ export function curveOrigin(log) {
       : `LAS 3.0 text channel, stored as codes: ${Object.entries(p.codes || {}).map(([k, v]) => `${k} = ${v}`).join(', ')}.` };
   }
   return null;
+}
+
+/**
+ * The Source cell of the Logs table (2026-10-14): a loaded log names its file;
+ * a computed curve, which has no file, names the app, its pipeline and when it
+ * was written, so a reader sees which prognosis or interpretation is on the
+ * well without opening a tooltip.
+ * @param {Object} log registry row
+ * @returns {?string} null when there is nothing to say (the caller shows its empty mark)
+ */
+export function curveSource(log) {
+  if (log?.source_file) return log.source_file;
+  const p = log?.provenance || {};
+  if (!p.computed) return null;
+  const app = ENGINE_NAMES[p.engine] || p.engine || 'another app';
+  const when = log.created_at && !Number.isNaN(Date.parse(log.created_at)) ? new Date(log.created_at).toISOString().slice(0, 10) : null;
+  return [app, p.pipeline_version || null, when].filter(Boolean).join(', ');
 }
 
 /**
