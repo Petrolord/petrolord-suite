@@ -908,6 +908,8 @@ Owner, 2026-10-14: "Go with the light version and start priority 1. I also want 
 
 ## 2026-10-15: gather viewer (QI upgrade P1.7)
 
+### P1.7 Gather viewer (2026-10-15)
+
 Closes QI-UPGRADE U2-004 (the persona walk found the app measured gathers it could not show).
 
 - **Engines PR #365** (`qi/gatherDisplay.js`): `nmoCorrect` (hyperbolic NMO with Vrms per sample, linear interpolation, optional stretch mute), `angleField` (Walden angle of every sample), `angleContour` (the time each offset reaches an angle: overlay and angle mute) and `stretchMuteTimes` (earliest time inside the stretch limit, varying velocity honoured).
