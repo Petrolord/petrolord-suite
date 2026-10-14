@@ -1,6 +1,6 @@
 // Nodal Analysis Studio (NA4): IPR x VLP system analysis on the validated
 // nodal engine stack (src/utils/nodal, gates in tools/validation/nodal).
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useSearchParams } from 'react-router-dom';
 import { Activity } from 'lucide-react';
@@ -19,6 +19,7 @@ import { SensitivityResults, GasLiftResults } from '@/components/nodalstudio/Swe
 import ChokesResults from '@/components/nodalstudio/ChokesResults';
 import NASHelpContent from '@/components/nodalstudio/NASHelpContent';
 import { SectionLabel } from '@/components/nodalstudio/primitives';
+import { WTA_PROJECT_PARAM } from '@/lib/wellTestSource';
 
 // Design system rollout batch 2D (docs/scope/DesignSystem-Rollout.md): the
 // page sits in the dashboard scope, so every class below is a theme role.
@@ -85,13 +86,20 @@ const NodalStudioContent = () => {
     lastSaveTime,
     manualSave,
     isScreening,
+    loadWellTestSource,
   } = useNodalStudio();
 
   const [searchParams] = useSearchParams();
+  // 2026-10-14: ?wellTestProject=<id> (sent from Well Test Analysis Studio)
+  // opens on the Inflow tab, where the intake card shows the record
+  const wellTestProjectId = searchParams.get(WTA_PROJECT_PARAM);
   const initialTab = TABS.some((t) => t.value === searchParams.get('tab'))
     ? searchParams.get('tab')
-    : 'system';
+    : (wellTestProjectId ? 'ipr' : 'system');
   const [activeTab, setActiveTab] = useState(initialTab);
+  useEffect(() => {
+    if (wellTestProjectId) loadWellTestSource(wellTestProjectId);
+  }, [wellTestProjectId, loadWellTestSource]);
 
   const leftPanel = useMemo(() => {
     const projectBlock = (
