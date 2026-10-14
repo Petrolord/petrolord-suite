@@ -148,6 +148,7 @@ export const METHOD_WORDS = Object.freeze({
 
 /** Plain words for a property's population provenance (T1 EM-T1-007). */
 export function describeProvenance(rows) {
+  if (rows.some((r) => r.layer)) return describeLayered(rows);
   return rows.map((r) => {
     const vg = r.variogram
       ? `, ${r.variogram.model} variogram (range ${Math.round(r.variogram.range)} m, sill ${r.variogram.sill.toFixed(4)}${r.variogram.fitted ? ', fitted' : ''})`
@@ -158,4 +159,29 @@ export function describeProvenance(rows) {
     const well = `${r.wells} well${r.wells === 1 ? '' : 's'}`;
     return `${lay}block ${r.block}: ${METHOD_WORDS[r.methodUsed] || r.methodUsed} from ${well}${vg}${r.fellBack ? ', fell back' : ''}${r.note ? ` (${r.note})` : ''}`;
   }).join('; ');
+}
+
+/**
+ * A layered zone's provenance, compact (Ekene walk): consecutive layers
+ * with the same method and wells are one entry ("layers 1 to 3"), and a
+ * note every row shares (the log upscaling) is said once at the end.
+ */
+function describeLayered(rows) {
+  const notes = rows.map((r) => (r.note || '').split('; ').filter(Boolean));
+  const common = notes[0].filter((n) => notes.every((ns) => ns.includes(n)));
+  const core = (r, i) => {
+    const own = notes[i].filter((n) => !common.includes(n));
+    const tail = own.length ? ` (${own.join('; ')})` : '';
+    if (r.methodUsed === 'shm' || r.methodUsed === 'map') return `all blocks: ${METHOD_WORDS[r.methodUsed]}${tail}`;
+    if (r.methodUsed === 'typed') return `block ${r.block}: typed value ${r.note}`;
+    return `block ${r.block}: ${METHOD_WORDS[r.methodUsed] || r.methodUsed} from ${r.wells} well${r.wells === 1 ? '' : 's'}${r.fellBack ? ', fell back' : ''}${tail}`;
+  };
+  const groups = [];
+  rows.forEach((r, i) => {
+    const c = core(r, i);
+    const g = groups[groups.length - 1];
+    if (g && g.text === c && g.last === r.layer - 1) { g.last = r.layer; } else groups.push({ first: r.layer, last: r.layer, text: c });
+  });
+  const body = groups.map((g) => `${g.first === g.last ? `layer ${g.first}` : `layers ${g.first} to ${g.last}`} ${g.text}`).join('; ');
+  return common.length && !rows.some((r) => r.methodUsed === 'typed') ? `${body}; ${common.join('; ')}` : body;
 }

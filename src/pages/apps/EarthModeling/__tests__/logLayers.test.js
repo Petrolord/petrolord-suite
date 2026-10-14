@@ -192,3 +192,10 @@ test('GRDECL: one cell layer per proportional layer, and permeability from the l
   expect(plain.text).not.toMatch(/^PERMX$/m);
   expect(plain.dims.nz).toBe(1);
 });
+
+test('a layered zone says its provenance compactly: equal layers grouped, the shared note once', async () => {
+  const { describeProvenance } = await import('../services/propertyKriging');
+  const rows = [1, 2, 3].map((layer) => ({ layer, block: 0, methodUsed: 'okrige', wells: 4, fellBack: false, note: 'well logs upscaled (Vsh <= 0.5)' }));
+  rows.push({ layer: 4, block: 0, methodUsed: 'trend', wells: 4, fellBack: true, note: 'flat data; well logs upscaled (Vsh <= 0.5)' });
+  expect(describeProvenance(rows)).toBe('layers 1 to 3 block 0: ordinary kriging from 4 wells; layer 4 block 0: trend (plane) from 4 wells, fell back (flat data); well logs upscaled (Vsh <= 0.5)');
+});
