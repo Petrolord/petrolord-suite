@@ -101,7 +101,7 @@ test('new models are selectable and the SI toggle converts the studio', async ({
   await page.getByText('Homogeneous reservoir').click();
   await expect(page.getByRole('option', { name: /Homogeneous, closed rectangle/i })).toBeVisible();
   await page.getByRole('option', { name: /Horizontal well/i }).click();
-  await expect(page.getByText(/Vertical anisotropy/i)).toBeVisible();
+  await expect(page.getByText(/Vertical anisotropy/i).first()).toBeVisible();
   await expect(page.getByText(/Well length/i).first()).toBeVisible();
 
   // WT8: switching to SI converts inputs and results in place
