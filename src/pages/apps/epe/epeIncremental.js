@@ -8,7 +8,9 @@
 // 1,980,235 - (-459,224) = 2,439,459 USD. The engine (cashflow.ts) values only
 // the rows it does not treat as sunk, on the PV-basis flow (real when the run
 // is on a real basis), with the exponent
-//   dexp(year) = (year - valuation year) + 0.5 on mid-year discounting.
+//   dexp(year) = (year - valuation year) - 0.5 on mid-year discounting
+// (valuation at 31 December of the valuation year; engine 3.12.3, owner
+// decision 2026-10-14, option A).
 // The increment here does the same, so when both runs share valuation year,
 // convention, basis and rate the incremental NPV equals the difference of the
 // two runs' NPVs (gate: __tests__/epeIncremental.test.js through the engine).
@@ -69,7 +71,7 @@ export function computeIncremental(base, second) {
   });
 
   const anchor = vb.valuationYear ?? years[0];
-  const half = vb.convention === 'mid_year' ? 0.5 : 0;
+  const half = vb.convention === 'mid_year' ? -0.5 : 0;
   const times = rows.map((r) => (r.year - anchor) + half);
   const rate = vb.ratePct !== null ? vb.ratePct / 100 : null;
   const npv = rate !== null
@@ -149,3 +151,26 @@ export function incrementalIrrNote(inc) {
 }
 
 export default computeIncremental;
+
+/**
+ * Money for the comparison page, to three significant figures like the
+ * Results Viewer ($1.98M, -$459K, $2.44M). The page used whole compact units,
+ * so a 2.44 MM increment read "$2.4M" and a 1.98 MM run "$2M". Values under
+ * half a dollar are rounding noise from differencing two runs and read $0.
+ */
+export function fmtUsd3(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 'N/A';
+  const v = Math.abs(value) < 0.5 ? 0 : value;
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumSignificantDigits: 3 }).format(v);
+}
+
+/** One plain sentence for the decision the increment supports, or null. */
+export function incrementVerdict(inc) {
+  if (!inc || typeof inc.npv !== 'number' || !Number.isFinite(inc.npv)) return null;
+  const at = typeof inc.ratePct === 'number' ? ` at ${inc.ratePct.toFixed(2)}%` : '';
+  const amount = fmtUsd3(Math.abs(inc.npv));
+  if (fmtUsd3(inc.npv) === '$0') return `On NPV${at}, ${inc.secondName} and ${inc.baseName} are worth the same.`;
+  return inc.npv > 0
+    ? `On NPV${at}, ${inc.secondName} is worth ${amount} more than ${inc.baseName}.`
+    : `On NPV${at}, ${inc.secondName} is worth ${amount} less than ${inc.baseName}.`;
+}

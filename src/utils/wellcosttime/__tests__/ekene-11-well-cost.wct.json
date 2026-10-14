@@ -1,0 +1,279 @@
+{
+  "format": "petrolord-wct-case",
+  "version": 1,
+  "name": "Ekene-11 AFE",
+  "program": {
+    "activities": [
+      {
+        "id": "a1",
+        "kind": "flat",
+        "label": "Skid the rig to the Ekene-11 slot and spud",
+        "durationHr": 12
+      },
+      {
+        "id": "a2",
+        "kind": "drill",
+        "label": "Jet the 30in conductor (KB to mudline is 60 m)",
+        "fromMdM": 0,
+        "toMdM": 150,
+        "ropMPerHr": 25
+      },
+      {
+        "id": "a3",
+        "kind": "casing",
+        "label": "Release the conductor running tool",
+        "mdM": 150,
+        "runSpeedMPerHr": 150,
+        "flatHr": 6
+      },
+      {
+        "id": "a4",
+        "kind": "drill",
+        "label": "Drill 26in surface hole",
+        "fromMdM": 150,
+        "toMdM": 600,
+        "ropMPerHr": 30
+      },
+      {
+        "id": "a5",
+        "kind": "casing",
+        "label": "Run and cement 20in casing",
+        "mdM": 600,
+        "runSpeedMPerHr": 250,
+        "flatHr": 16
+      },
+      {
+        "id": "a6",
+        "kind": "flat",
+        "label": "Nipple up and test the BOP",
+        "durationHr": 30
+      },
+      {
+        "id": "a7",
+        "kind": "drill",
+        "label": "Drill 17-1/2in intermediate hole",
+        "fromMdM": 600,
+        "toMdM": 1530,
+        "ropMPerHr": 20
+      },
+      {
+        "id": "a8",
+        "kind": "casing",
+        "label": "Run and cement 13-3/8in casing",
+        "mdM": 1530,
+        "runSpeedMPerHr": 220,
+        "flatHr": 18
+      },
+      {
+        "id": "a9",
+        "kind": "flat",
+        "label": "Drill out and leak-off test at the 13-3/8in shoe",
+        "durationHr": 6
+      },
+      {
+        "id": "a10",
+        "kind": "drill",
+        "label": "Drill 12-1/4in hole, first bit",
+        "fromMdM": 1530,
+        "toMdM": 1650,
+        "ropMPerHr": 14
+      },
+      {
+        "id": "a11",
+        "kind": "trip",
+        "label": "Bit trip in the 12-1/4in hole",
+        "mdM": 1650,
+        "tripSpeedMPerHr": 300
+      },
+      {
+        "id": "a12",
+        "kind": "drill",
+        "label": "Drill 12-1/4in hole to the 9-5/8in shoe",
+        "fromMdM": 1650,
+        "toMdM": 1901,
+        "ropMPerHr": 12
+      },
+      {
+        "id": "a13",
+        "kind": "casing",
+        "label": "Run and cement 9-5/8in casing",
+        "mdM": 1901,
+        "runSpeedMPerHr": 200,
+        "flatHr": 20
+      },
+      {
+        "id": "a14",
+        "kind": "flat",
+        "label": "Drill out and leak-off test at the 9-5/8in shoe",
+        "durationHr": 6
+      },
+      {
+        "id": "a15",
+        "kind": "drill",
+        "label": "Drill 8-1/2in hole through the Oboro Sand to TD",
+        "fromMdM": 1901,
+        "toMdM": 2100,
+        "ropMPerHr": 9
+      },
+      {
+        "id": "a16",
+        "kind": "flat",
+        "label": "Wireline logging across the Oboro Sand",
+        "durationHr": 30
+      },
+      {
+        "id": "a17",
+        "kind": "casing",
+        "label": "Run and cement the 7in liner",
+        "mdM": 2097,
+        "runSpeedMPerHr": 180,
+        "flatHr": 24
+      },
+      {
+        "id": "a18",
+        "kind": "flat",
+        "label": "Complete: sand screens, tubing, perforate, clean up and test",
+        "durationHr": 160
+      },
+      {
+        "id": "a19",
+        "kind": "flat",
+        "label": "Rig down and skid off the slot",
+        "durationHr": 12
+      }
+    ],
+    "nptFrac": 0.15
+  },
+  "costs": {
+    "items": [
+      {
+        "id": "k1",
+        "label": "Rig dayrate",
+        "category": "intangible",
+        "basis": "per-day",
+        "rate": 130000
+      },
+      {
+        "id": "k2",
+        "label": "Integrated services spread",
+        "category": "intangible",
+        "basis": "per-day",
+        "rate": 46000
+      },
+      {
+        "id": "k3",
+        "label": "Marine and aviation logistics",
+        "category": "intangible",
+        "basis": "per-day",
+        "rate": 28000
+      },
+      {
+        "id": "k4",
+        "label": "Mud and consumables",
+        "category": "intangible",
+        "basis": "per-meter",
+        "rate": 220
+      },
+      {
+        "id": "k5",
+        "label": "Bits and downhole tools",
+        "category": "intangible",
+        "basis": "per-meter",
+        "rate": 120
+      },
+      {
+        "id": "k6",
+        "label": "Conductor, wellhead and tree",
+        "category": "tangible",
+        "basis": "lump",
+        "value": 1150000,
+        "atActivityId": "a5"
+      },
+      {
+        "id": "k7",
+        "label": "Casing, liner and accessories",
+        "category": "tangible",
+        "basis": "lump",
+        "value": 1650000,
+        "atActivityId": "a17"
+      },
+      {
+        "id": "k8",
+        "label": "Cementing services",
+        "category": "intangible",
+        "basis": "lump",
+        "value": 480000,
+        "atActivityId": "a17"
+      },
+      {
+        "id": "k9",
+        "label": "Wireline logging",
+        "category": "intangible",
+        "basis": "lump",
+        "value": 380000,
+        "atActivityId": "a16"
+      },
+      {
+        "id": "k10",
+        "label": "Completion equipment and sand screens",
+        "category": "tangible",
+        "basis": "lump",
+        "value": 1450000,
+        "atActivityId": "a18"
+      }
+    ],
+    "contingencyFrac": 0.1
+  },
+  "risk": {
+    "iterations": 2000,
+    "seed": 20270115,
+    "uncertainties": [
+      {
+        "target": "activity",
+        "id": "a7",
+        "field": "ropMPerHr",
+        "dist": {
+          "type": "triangular",
+          "min": 12,
+          "mode": 20,
+          "max": 28
+        }
+      },
+      {
+        "target": "activity",
+        "id": "a15",
+        "field": "ropMPerHr",
+        "dist": {
+          "type": "triangular",
+          "min": 5,
+          "mode": 9,
+          "max": 12
+        }
+      },
+      {
+        "target": "activity",
+        "id": "a18",
+        "field": "durationHr",
+        "dist": {
+          "type": "triangular",
+          "min": 130,
+          "mode": 160,
+          "max": 240
+        }
+      },
+      {
+        "target": "item",
+        "id": "k7",
+        "field": "value",
+        "dist": {
+          "type": "triangular",
+          "min": 1550000,
+          "mode": 1650000,
+          "max": 1950000
+        }
+      }
+    ]
+  },
+  "params": {},
+  "notes": "Ekene-11, Oboro Sand producer from Ekene Alpha. Spud 2027-01-15. Casing program and mud weights from ekene-11-casing-program.csv. The services spread rate is the one number tuned: it makes the AFE total the 11,800,000 USD the economics episode books. Risked run: 2000 iterations at seed 20270115."
+}

@@ -141,7 +141,9 @@ describe('OUT: curves for the registry and mud weights for Pore Pressure Studio'
     const res = convertCalibration(table, table.guess, { frame: null, kbM: 25, mudlineMdM: 0, waterDepthM: 0, source: 'Wellsite Studio' });
     expect(res.skipped).toEqual([]);
     expect(res.points[1]).toMatchObject({ kind: 'mw', source: 'Wellsite Studio' });
-    expect(res.points[1].pMpa).toBeCloseTo((1260 * G * 2150) / 1e6, 6);
+    // 2026-10-14 (#1106): an EMW converts with Pore Pressure Studio's own 0.052 rule (kg/m3 -> sg -> ppg),
+    // so it reads back in the studio as written; 0.1% above rho g h
+    expect(res.points[1].pMpa).toBeCloseTo((1.26 * 8.345404 * 0.052 * (2150 / 0.3048) * 6894.757293168) / 1e6, 6);
     expect(evidenceText(Object.values(picked))).toBe('Wellsite Studio live well KETA-2 published DXC, DEXP, TGAS, ROP, MWIN, ECD on 2026-10-01. They are registry curves: open them beside the prognosis in Well Data Manager or Petrophysics.');
     expect(evidenceText([{ mnemonic: 'GR', provenance: {} }])).toBeNull();
   });

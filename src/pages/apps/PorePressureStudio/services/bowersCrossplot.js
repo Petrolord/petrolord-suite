@@ -13,11 +13,14 @@ import { bowersSigmaLoading } from '../engine/bowers';
  * @param {{zBmlM: number[], dtUsPerM: (number|null)[], rhoKgM3: (number|null)[]}} input
  * @param {{topM: number, A: number, B: number, vMlFts?: number, tolerance?: number}} opts
  *   topM: the unloading top (depth below mudline); tolerance: the fraction below
- *   the loading trend that counts as unloaded (0.03)
+ *   the loading trend that counts as unloaded (0.03); isShale (2026-10-14): when
+ *   given, only those samples are read, since Bowers' curves describe shales and a
+ *   sand's faster velocity at its density reads as a velocity reversal
  */
-export function bowersCrossplot(input, { topM, A, B, vMlFts = 5000, tolerance = 0.03 }) {
+export function bowersCrossplot(input, { topM, A, B, vMlFts = 5000, tolerance = 0.03, isShale = null }) {
   const pts = [];
   for (let i = 0; i < (input?.zBmlM?.length || 0); i++) {
+    if (isShale && !isShale[i]) continue;
     const dt = input.dtUsPerM[i]; const rho = input.rhoKgM3?.[i];
     if (!(dt > 0) || !(rho > 0)) continue;
     pts.push({ i, z: input.zBmlM[i], v: 1e6 / dt, rho });

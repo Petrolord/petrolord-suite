@@ -51,11 +51,13 @@ const CELLS_BY_TYPE = {
   lognormal: [['mean', 'Mean'], ['stdDev', 'Std dev'], ['min', 'Low (opt.)'], ['max', 'High (opt.)']],
 };
 
-const fmtM = (n) => {
+// Money to three significant figures with the sign before the currency,
+// like the Results Viewer: the cards read "$-1.0M" and "$2.0M" for a
+// P90 of -1,036,000 and a base of 1,980,000; now "-$1.04M" and "$1.98M".
+export const fmtM = (n) => {
   if (n == null || isNaN(n)) return 'N/A';
-  const m = n / 1e6;
-  if (Math.abs(m) >= 1000) return `$${(m / 1000).toFixed(2)}B`;
-  return `$${m.toFixed(1)}M`;
+  const v = Math.abs(Number(n)) < 0.5 ? 0 : Number(n);
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumSignificantDigits: 3 }).format(v);
 };
 const fmtPct = (n) => (n == null || isNaN(n) ? 'N/A' : `${Number(n).toFixed(1)}%`);
 const fmtYr = (n) => (n == null || isNaN(n) ? 'N/A' : `${Number(n).toFixed(2)} yr`);

@@ -338,6 +338,90 @@ outcome column, one of them the failed 9.8 ppg attempt that took an influx.
   On the shale-pressure gate's Ekene-1 prognosis the line reads "9.80 ppg took
   an influx at 4652 ft MD where the prognosis puts the pore pressure at 11.25
   ppg: consistent."
+## 2026-10-14: choose the shale indicator (VSH or GR)
+
+Found in the Pore Pressure Studio video dry run: Ekene-1 carries the Petrophysics Studio VSH, which the app
+always preferred, and on that VSH only four 100 ft windows above the overpressure ramp reach VSH 0.6, so the
+NCT rested on four picks; the loaded GR gives 13 at 60 API. The NCT view now offers both when a well has both
+(testid `pp-shale-indicator`, "VSH (shale volume)" / "GR (gamma ray)"). The choice (`params.shaleIndicator`)
+drives the picks and Pressures from shale samples, resets the cutoff to that curve's default and is saved with
+the project; a well with one indicator shows no choice. `shaleLogOptions` / `chooseShaleOption` in
+`services/shalePicks.js`. Tests: `__tests__/shaleIndicatorChoice.test.jsx` (switch to GR moves the picks and the
+shale-sample pressures; negative control, one indicator shows no select).
+## 2026-10-14: underpressure said; the readout inside the well
+
+Found in the Pore Pressure Studio video dry runs. (1) On Ekene-9 with the default trend the readout showed a
+pore pressure of 1.83 ppg at 1,000 ft MD with nothing said. A pore pressure more than 0.5 ppg EMW below
+hydrostatic (below the top 30 m) now raises a warning note (`pp-note-underpressure`) with the thickness it
+covers and the worst sample, and what usually causes it (`underpressure` in `services/honesty.js`). (2) The
+depth readout opened at its 3,500 m default on every well, which on Ekene-1 (2,190 m below the mudline) read
+"11482.9 ft"; a readout depth outside the open well now moves to the deepest sample. Tests:
+`__tests__/underpressureReadout.test.jsx` (Ekene-1 kit fixture: every-sample Eaton is flagged, shale-sample
+pressures are not, the negative control; a 2,000 m well opens with the readout at 2,000 m).
+## 2026-10-14: the calibration fit goes through the shown prognosis
+
+Found in the Pore Pressure Studio video dry run on a copy of Ekene-1: with pressures from shale samples on,
+Fit n to calibration on the kit's eight Ekene-1 MDT pretests returned n 0.200 "at the search bound" and the
+misfit went from 1.18 MPa to 5.80 MPa. The pretests sit in the Ekene Sand: the engine fit evaluated Eaton at
+the sand samples (fast sonic, ratio under 1), while the pore pressure the app shows there is carried from the
+shales. Now (`services/calibrate.js`, `fitsThroughPrognosis`): when the shown prognosis differs from the
+per-sample method (shale samples, interpreted line, sonic median), Eaton n (sonic or resistivity) and Bowers U
+are searched on `computePrognosis` itself (the engine's `minimise1d`, n 0.2 to 6, U 1 to 12); Bowers A and B
+read each point's nearest shale sample; every-sample mode keeps the exact engine fit. A fit that would raise
+the shown misfit is not applied and the status line says so. Tests: `__tests__/fitThroughPrognosis.test.js`
+(negative control: the per-sample fit on the sand samples hits its bound and more than doubles the misfit;
+the new fit lowers it below 0.2 MPa and puts 1,560 m within 0.25 ppg of the kit's 12.02 ppg; the guard).
+## 2026-10-14: the running median slides
+
+The running median behind the sonic median and the interpreted line sorted every window afresh: on a
+14,370-sample log with a 300 ft window about 1.4 s per prognosis, and a calibration fit (dozens of prognoses)
+froze the page for tens of seconds with a 500 ft line. It now slides a sorted window down the log (binary
+insert and remove): the same values, about 30 ms. Tests: `__tests__/runningMedianFast.test.js` (identical to a
+sort per sample on gaps, nulls, ties and float32 depths; the old implementation fails the timing gate).
+## 2026-10-14: the Bowers crossplot reads the shale samples
+
+Found in the Pore Pressure Studio video dry run on a copy of Ekene-1: the crossplot read every sample, so the
+sands below the unloading top (faster at their density than the shales) were counted as a velocity reversal:
+3,962 of 4,482 samples "unloaded". With Pressures from shale samples on, `bowersCrossplot` now takes the same
+shale samples (`isShale`), and the summary says so (`pp-xp-shale`, "On the N shale samples (GR at or above 82
+API)."). The help guide adds that a density not lowered by the overpressure can still look unloaded. Kit note:
+the Ekene kit's density follows a normal compaction with depth while its shale sonic carries the designed
+overpressure, so its shales still plot under the loading trend; Ekene's pressure is designed as compaction
+disequilibrium (Eaton n 3). Tests: `__tests__/crossplotShales.test.jsx` (synthetic shales on one trend with
+slower sands: every sample counts the sands as unloaded, the negative control; the shale samples count none and
+recover the trend exponent; the view's sentence).
+## 2026-10-14: the window per section follows a user's shallowest seat
+
+Found in the Pore Pressure Studio lesson dry run on the Ekene copy: with "Shallowest seat at least 4,500 ft
+bml" the first shoe moved to 4,697 ft MD ("your minimum") while the window per section still ended its first
+section at the replaced 4,107 ft shoe (the vendored engine replaces the seat and keeps its own sections). The
+sections are now rebuilt from the seats as set when a minimum moved a shoe (`sectionsFromSeats` in
+`services/drillingWindow.js`: each section's highest planned mud against its lowest design fracture line; on
+the engine's own seats it returns the engine's sections). A section whose mud exceeds its design fracture
+line is said in amber (`pp-casing-section-closed`), and a margin that rounds to zero reads 0.00 (it read
+-0.00). Tests: `__tests__/minSeatSections.test.js` (the engine alone keeps the replaced shoe as the first
+section base, the negative control). Engines follow-up: the same rebuild belongs in
+`engines/porepressure/casingSeats.js` (Petrolord/petrolord-engines) so every consumer gets it.
+## 2026-10-14: unsaved changes said
+
+Found in the Pore Pressure Studio video dry run: after calibrating on the Ekene copy and opening Well Design
+Studio, coming back reopened the defaults (the work had not been saved, and nothing said so; the autosave
+hazard noted across the Suite). A chip beside Save (`pp-save-state`, "Unsaved changes") shows while the
+parameters, picks or calibration differ from the saved project (a stable snapshot set on restore and on Save;
+the water column a well's datum supplied is left out), and the browser asks before the page is closed or
+reloaded with unsaved work (not in the worked example). Tests: `__tests__/unsavedChanges.test.jsx` (opening the
+saved well is not a change, the negative control; a change shows the chip and arms the leave prompt; Save
+clears both).
+## 2026-10-14: an imported mud weight reads back as written
+
+An EMW imported through the calibration door (ppg, sg, g/cc, kg/m3) converted through the Suite's
+exact-density door (1 ppg = 119.826 kg/m3 at g = 9.80665), while the studio displays EMW with the drilling rule
+(0.052 psi/ft per ppg), so the kit's 13.74 ppg leak-off plotted and read at 13.73. EMWs now convert with the
+studio's own rule at the depth the display reads them (`pressureFromDisplay` at `emwReferenceDepthM`), so
+every imported test and mud weight reads back to the last digit; pressures and gradients go through the Suite
+door as before. Tests: `__tests__/emwImportRule.test.js` (the kit's FIT and LOTs read 11.18, 13.74, 15.18;
+the intervals at both ends; the negative control through the exact-density door reads 0.1% low); the earlier
+pinned conversions in `upgradeU2.test.js` and `calibrationKitFiles.test.js` follow the rule.
 ## 2026-10-14: legend markers and a ribbon that fits a laptop
 
 Found in the Pore Pressure Studio video dry runs at 1440 x 810. The prognosis chart's point series (shale
