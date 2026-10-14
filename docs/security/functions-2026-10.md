@@ -49,7 +49,12 @@ matter):
 ! cd /root/sec26-deploy && supabase functions deploy send-email send-email-via-smtp send-renewal-notification send-quote send-demo-request send-invite
 ! cd /root/sec26-deploy && supabase functions deploy admin-create-user admin-delete-organization admin-grant-user-app-access admin-suspend-org admin-update-org-entitlements insert-geoscience-apps admin-cleanup-test-data
 ! cd /root/sec26-deploy && supabase functions deploy invite-user invite-employee accept-employee-invitation get-app-seat-usage remove-member-from-app
-! cd /root/sec26-deploy && supabase functions deploy generate-quote org-export org-offboard epe-cash-flow-engine epe-cash-flow-engine-batch
+! cd /root/sec26-deploy && supabase functions deploy generate-quote org-export org-offboard
+```
+
+EPE engines (epe-cash-flow-engine, epe-cash-flow-engine-batch) are held out of this batch: the EPE chain (#1083, #1105, #1095) changes the same functions, so they are deployed once, with epe-monte-carlo, after both this PR and that chain are on main (docs/security/RUNBOOK-2026-10.md, step 2).
+
+```
 ```
 
 Step 2: HSE deploys, from a fresh HSE checkout after the HSE PR merges:
@@ -172,8 +177,8 @@ functions (invite-user stays deployed for it, now admin-only).
 | digitize-map-via-ai | off | NONE | UNUSED (no caller in Suite, HSE, NextGen, Lordsway, cron) | delete | delete |
 | ems-job-runner | off | NONE | UNUSED (no caller in Suite, HSE, NextGen, Lordsway, cron) | delete | delete |
 | eor-engine | off | NONE | UNUSED (no caller in Suite, HSE, NextGen, Lordsway, cron) | delete | delete |
-| epe-cash-flow-engine | on | suite:pages/apps/epe/EpeRunConsole.jsx,pages/apps/epe/EpeResultsViewer.jsx,__tests__/domain.economics.test.js,_shared/epe-engine.ts,_shared/epe-mc.ts,epe-monte-carlo/index.ts(+1) | used, in repo: fixed | run must be visible to the caller under RLS | Suite deploy |
-| epe-cash-flow-engine-batch | on | suite:pages/apps/epe/EpeResultsViewer.jsx,_shared/epe-engine.ts,_shared/epe-mc.ts | used, in repo: fixed | run and sensitivity run visible under RLS | Suite deploy |
+| epe-cash-flow-engine | on | suite:pages/apps/epe/EpeRunConsole.jsx,pages/apps/epe/EpeResultsViewer.jsx,__tests__/domain.economics.test.js,_shared/epe-engine.ts,_shared/epe-mc.ts,epe-monte-carlo/index.ts(+1) | used, in repo: fixed | run must be visible to the caller under RLS | deploy with the EPE chain |
+| epe-cash-flow-engine-batch | on | suite:pages/apps/epe/EpeResultsViewer.jsx,_shared/epe-engine.ts,_shared/epe-mc.ts | used, in repo: fixed | run and sensitivity run visible under RLS | deploy with the EPE chain |
 | epe-monte-carlo | on | suite:pages/apps/epe/EpeMonteCarloPanel.jsx,_shared/epe-engine.ts,_shared/epe-mc.ts | in repo, checked: no change | caller check present or public by design | none |
 | fluid-studio-engine | off | NONE | UNUSED (no caller in Suite, HSE, NextGen, Lordsway, cron) | delete | delete |
 | forecast-safety | on | hse:services/predictiveAnalyticsService.js,components/hse/HSEDashboard.jsx | in repo, checked: no change | caller check present or public by design | none |
