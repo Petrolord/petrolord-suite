@@ -48,6 +48,11 @@ const REGISTRY_READS_UP_TO = 1;
 // _migration: the transient open-time note a state-kind migrator may attach
 // (petro-project v2, PT10a); it is for the status line, never a column
 const STRIP_ON_INSERT = new Set(['created_at', 'updated_at', '_migration']);
+// Suite Projects (P0 migration 20261015100100): registry rows carry
+// suite_project_id. An imported row lands in the importer's chosen (current)
+// project; a package's own project id never travels.
+export const PROJECT_TABLES = new Set(['geo_wells', 'geo_surfaces', 'geo_culture', 'geo_correlation_sections',
+  'geo_strat_units', 'strat_projects', 'seismic_projects', 'seismic_volumes', 'seismic_lines']);
 const REGISTRY_STRIP = new Set(['schema_version', 'app_build', 'engine_version']);
 // Organisation sharing (migration 20261002100000): an imported record is the
 // importer's own and private. Its sharing state, check-out, row version and
@@ -251,7 +256,7 @@ export function newStoragePath(table, userId, row) {
 
 /**
  * @param {ReturnType<typeof readPackage> extends Promise<infer T> ? T : never} pkg
- * @param {{ userId: string, organizationId: string|null, shareWithOrg?: boolean, existing?: { wells?: Array<{name, uwi}> } }} target
+ * @param {{ userId: string, organizationId: string|null, projectId?: string|null, shareWithOrg?: boolean, existing?: { wells?: Array<{name, uwi}> } }} target
  */
 export function planImport(pkg, target) {
   const { manifest, tables, blobs } = pkg;
@@ -322,6 +327,9 @@ export function planImport(pkg, target) {
       if ('user_id' in row || (spec.scope && spec.scope.includes('user_id'))) row.user_id = target.userId;
       if ('organization_id' in row || (spec.scope && spec.scope.includes('organization_id'))) row.organization_id = spec.orgWide ? target.organizationId : orgId;
       for (const c of spec.stripOnInsert || []) delete row[c]; // e.g. created_by: the column default stamps the importer
+      // Suite Projects: into the importer's project, or (projects off) let the server place it
+      delete row.suite_project_id;
+      if (target.projectId && PROJECT_TABLES.has(table)) row.suite_project_id = target.projectId;
       for (const c of STRIP_ON_INSERT) delete row[c];
       if (SHARING_TABLES[table]) {
         for (const c of SHARING_STRIP) delete row[c];
@@ -461,7 +469,7 @@ export function planImport(pkg, target) {
 
   const rowsPlanned = Object.values(planned).reduce((n, r) => n + r.length, 0);
   return {
-    manifest, target: { userId: target.userId, organizationId: orgId, shareWithOrg: !!target.shareWithOrg },
+    manifest, target: { userId: target.userId, organizationId: orgId, projectId: target.projectId ?? null, shareWithOrg: !!target.shareWithOrg },
     idMap, planned, items, blobs: blobPlan, customCrs, notes, warnings,
     counts: { rows: rowsPlanned, blobs: blobPlan.length, tables: Object.fromEntries(Object.entries(planned).map(([t, r]) => [t, r.length])) },
     importedFrom,
@@ -556,7 +564,7 @@ export async function importPackage(data, sink, { shareWithOrg = false, onProgre
   const pkg = await readPackage(data);
   const who = await sink.currentUser();
   const existing = { wells: await sink.listMyWells() };
-  const plan = planImport(pkg, { userId: who.id, organizationId: who.organization_id ?? null, shareWithOrg, existing });
+  const plan = planImport(pkg, { userId: who.id, organizationId: who.organization_id ?? null, projectId: who.project_id ?? null, shareWithOrg, existing });
   const summary = await executeImport(plan, sink, { onProgress, resumeJobId });
   return { pkg, plan, summary };
 }
@@ -566,7 +574,7 @@ export async function preflightPackage(data, sink, { shareWithOrg = false } = {}
   const pkg = await readPackage(data);
   const who = await sink.currentUser();
   const existing = { wells: await sink.listMyWells() };
-  const plan = planImport(pkg, { userId: who.id, organizationId: who.organization_id ?? null, shareWithOrg, existing });
+  const plan = planImport(pkg, { userId: who.id, organizationId: who.organization_id ?? null, projectId: who.project_id ?? null, shareWithOrg, existing });
   return { pkg, plan };
 }
 

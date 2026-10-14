@@ -6,6 +6,7 @@
 // row carries the structured tag of that frame.
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { scopeToProject, whenProjectScopeReady, insertWithProject } from '@/lib/projects/projectScope';
 import { resolveUserOrgId } from '@/lib/orgContext';
 
 const BUCKET = 'culture';
@@ -17,9 +18,11 @@ async function requireUser() {
 }
 
 /** Own layers + layers shared with the caller's org (RLS filters). */
-export async function listCulture() {
+export async function listCulture({ allProjects = false } = {}) {
+  // Suite Projects: the current project only (allProjects for backups)
+  await whenProjectScopeReady();
   const [{ data, error }, { data: { user } }] = await Promise.all([
-    supabase.from('geo_culture').select('*').order('created_at', { ascending: false }),
+    scopeToProject(supabase.from('geo_culture').select('*'), { allProjects }).order('created_at', { ascending: false }),
     supabase.auth.getUser(),
   ]);
   if (error) throw new Error(`Could not load culture layers: ${error.message}`);
@@ -44,8 +47,8 @@ export async function saveCulture(c) {
     });
   if (upError) throw new Error(`Could not upload culture features: ${upError.message}`);
 
-  const { data, error } = await supabase.from('geo_culture')
-    .insert({
+  // Suite Projects: the new row lands in the current project
+  const { data, error } = await insertWithProject({
       id,
       user_id: user.id,
       name: c.name,
@@ -60,8 +63,9 @@ export async function saveCulture(c) {
       bbox: c.bbox || null,
       provenance: c.provenance || {},
       storage_path: path,
-    })
-    .select().single();
+    }, (row) => supabase.from('geo_culture')
+    .insert(row)
+    .select().single());
   if (error) {
     await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
     throw new Error(`Could not save culture layer ${c.name}: ${error.message}`);

@@ -2,12 +2,15 @@
 // 2026-09-03). The dashboard sidebar is hidden on every /dashboard/apps
 // route, so a workstation ribbon is the only way out of an app; this is
 // the Geomechanics ribbon idiom (Home icon + module name) as one shared
-// element, placed first in the ribbon.
+// element, placed first in the ribbon. Since Suite Projects P1 it also
+// carries the project switcher (hidden for users with only the Default
+// project and no clients).
 
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Home } from 'lucide-react';
 import { moduleHomePath, MODULE_LABELS } from '@/components/wells/appLinks';
+import ProjectSwitcher from '@/components/projects/ProjectSwitcher';
 
 // Design system roles.
 const THEMED = { link: 'text-pl-muted hover:text-pl-text', sep: 'text-pl-border-strong' };
@@ -33,6 +36,8 @@ export default function ModuleHomeLink({ module, label, to, testId, className = 
         <Home className="h-3.5 w-3.5" /> {text}
       </Link>
       <span className={`${cls.sep} select-none`} aria-hidden="true">|</span>
+      {/* Suite Projects: renders nothing until the user has a client or a second project */}
+      <ProjectSwitcher withSeparator />
     </>
   );
 }

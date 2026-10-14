@@ -16,6 +16,7 @@ import { UNKNOWN } from '@/lib/crs/tags';
 // services can use them without inheriting this module's inline worker
 // URL, which babel-jest cannot parse. Re-exported for existing callers.
 import { SEISMIC_BUCKET, STORAGE_QUOTA_BYTES, assertQuota } from './seismicStorage';
+import { stampProject } from '@/lib/projects/projectScope';
 
 export { SEISMIC_BUCKET, STORAGE_QUOTA_BYTES };
 // Concurrency is governed by the worker's MAX_UNACKED_BRICKS backpressure
@@ -143,7 +144,7 @@ export async function ingestVolume({
     // must finish with the SAME codec the first bricks were written in
     if (compress16) ingestRec.dtype = INT16_DTYPE;
     const { data, error } = await supabase.from('seismic_volumes')
-      .insert({
+      .insert(stampProject({
         id: volumeId,
         user_id: userId,
         name: displayName,
@@ -151,7 +152,7 @@ export async function ingestVolume({
         status: 'ingesting',
         crs: crsPlan.storeTag,
         survey_meta: { ingest: ingestRec },
-      })
+      }))
       .select().single();
     if (error) throw new Error(`Could not register volume: ${error.message}`);
     row = data;

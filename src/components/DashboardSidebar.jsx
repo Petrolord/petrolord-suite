@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
+import ProjectSwitcher from '@/components/projects/ProjectSwitcher';
 import { useSuiteAccess } from '@/hooks/useSuiteAccess';
 import { useHSEAccess } from '@/hooks/useHSEAccess';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -121,6 +122,9 @@ const DashboardSidebar = ({ onNavigate, className }) => {
             <span className="text-pl-muted text-xs">Enterprise Edition</span>
           </div>
         </Link>
+
+        {/* Suite Projects: renders nothing until the user has a client or a second project */}
+        <div className="-mt-5 mb-4 empty:hidden"><ProjectSwitcher /></div>
 
         {isImpersonating && (
             <div className="mb-4 p-3 bg-pl-warning-bg border border-pl-warning/40 rounded-lg text-pl-warning-text text-xs" role="status">

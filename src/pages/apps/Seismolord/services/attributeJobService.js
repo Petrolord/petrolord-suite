@@ -16,6 +16,7 @@ import { newAttributeWorker } from './attributeWorkerFactory';
 import {
   ALL_ATTRIBUTE_DEFS, attributePrecheck, assertFloat32Parent, derivedStorageBytes, derivedSurveyMeta,
 } from './attributeSurveyMeta';
+import { stampProject } from '@/lib/projects/projectScope';
 
 // moved to a pure module so the seismic worker can share them
 export {
@@ -85,7 +86,7 @@ export async function registerAttributeVolume({ parent, parentManifest, attribut
   const displayName = name || defaultDerivedName(parent.name, attribute.name, attribute.params);
 
   const { data: row, error: insertError } = await supabase.from('seismic_volumes')
-    .insert({
+    .insert(stampProject({
       id: volumeId,
       user_id: userId,
       name: displayName,
@@ -96,7 +97,7 @@ export async function registerAttributeVolume({ parent, parentManifest, attribut
       attribute_params: { name: attribute.name, params: attribute.params ?? {}, ...(attribute.north ? { north: attribute.north } : {}) },
       crs: parent.crs,
       survey_meta: {},
-    })
+    }))
     .select().single();
   if (insertError) throw new Error(`Could not register the attribute volume: ${insertError.message}`);
   return { row, volumeId, userId, dir, displayName };

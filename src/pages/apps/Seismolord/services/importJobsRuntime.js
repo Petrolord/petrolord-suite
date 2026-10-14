@@ -19,6 +19,7 @@ import { conversionBudgetBytes } from './conversionV4';
 import { deflatePoolSize } from './deflatePool';
 import { newConvertWorker } from './convertWorkerFactory';
 import { setImportJobsFactory, V4_STATUS } from './importJobs';
+import { stampProject } from '@/lib/projects/projectScope';
 
 /** The ingest pipeline marker on survey_meta.ingest for v4 rows. */
 export const V4_PIPELINE = 'v4';
@@ -67,7 +68,7 @@ export async function prepareV4Row({ file, mapping, nativeCrs, name, fingerprint
   });
   ingestRec.pipeline = V4_PIPELINE;
   const { error } = await supabase.from('seismic_volumes')
-    .insert({
+    .insert(stampProject({
       id: volumeId,
       user_id: userId,
       name: displayName,
@@ -75,7 +76,7 @@ export async function prepareV4Row({ file, mapping, nativeCrs, name, fingerprint
       status: V4_STATUS.CONVERTING,
       crs: crsPlan.storeTag,
       survey_meta: { ingest: ingestRec },
-    })
+    }))
     .select().single();
   if (error) throw new Error(`Could not register volume: ${error.message}`);
   if (crsPlan.autoSetProject && crsPlan.projectTag !== UNKNOWN) {

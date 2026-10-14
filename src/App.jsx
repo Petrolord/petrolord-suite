@@ -17,6 +17,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { AdminOrgProvider } from '@/contexts/AdminOrganizationContext';
 // Suite unit profile: one provider so every app reads the same resolved units
 import { UnitProfileProvider } from '@/lib/units/UnitProfileContext';
+import { ProjectProvider, ProjectScopeBoundary } from '@/contexts/ProjectContext';
 import ProtectedAppRoute from '@/components/ProtectedAppRoute';
 import PwaUpdatePrompt from '@/components/pwa/PwaUpdatePrompt';
 import { runAccessDiagnostics } from '@/utils/debugAccess';
@@ -345,6 +346,7 @@ const SeatManagement = lazy(() => import('@/pages/SeatManagement'));
 const EmployeeManagement = lazy(() => import('@/pages/EmployeeManagement'));
 const DataExport = lazy(() => import('@/pages/DataExport'));
 const UnitSettings = lazy(() => import('@/pages/UnitSettings'));
+const ProjectsPage = lazy(() => import('@/pages/ProjectsPage'));
 const AccessRequests = lazy(() => import('@/pages/admin/AccessRequests'));
 const SubscriptionManagement = lazy(() => import('@/pages/SubscriptionManagement'));
 const RenewSubscription = lazy(() => import('@/pages/RenewSubscription'));
@@ -390,6 +392,7 @@ function App() {
     <AuthProvider>
       <HSEProvider> 
         <UnitProfileProvider>
+          <ProjectProvider>
           <AuthGuard>
             <PwaUpdatePrompt />
             <ErrorBoundary>
@@ -397,6 +400,7 @@ function App() {
                     <AdminOrgProvider>
                       <div className={`${isDashboard ? "h-screen overflow-hidden" : "min-h-screen overflow-y-auto"} w-full`}>
                           <Suspense fallback={<PageLoader />}>
+                            <ProjectScopeBoundary>
                             <Routes>
                               <Route path="/" element={<Home />} />
                               <Route path="/login" element={<Login />} />
@@ -538,6 +542,7 @@ function App() {
                                 <Route path="access-requests" element={<AccessRequests />} />
                                 {/* Suite unit profile: every member sees it; RLS decides who edits the organisation default */}
                                 <Route path="units" element={<UnitSettings />} />
+                                <Route path="projects" element={<ProjectsPage />} />
                                 
                                 <Route path="data-export" element={
                                   <ProtectedRoute requiredPermission={SUITE_PERMISSIONS.MANAGE_ORGANIZATION}>
@@ -1083,12 +1088,14 @@ function App() {
                               )}
                               <Route path="*" element={<Navigate to="/" replace />} />
                             </Routes>
+                            </ProjectScopeBoundary>
                           </Suspense>
                         </div>
                     </AdminOrgProvider>
               </ReservoirProvider>
             </ErrorBoundary>
           </AuthGuard>
+          </ProjectProvider>
         </UnitProfileProvider>
           <Toaster richColors closeButton />
       </HSEProvider>
