@@ -222,7 +222,11 @@ export default function PorePressureStudioHelpGuide() {
           misfit is stated under the ribbon and in the report). They change the computation only when you ask:
           Fit n to calibration (Eaton sonic or resistivity), Fit A and B (Bowers loading) or Fit U (Bowers unloading,
           with sigma max held) fits that parameter to the pressure points and kicks by least squares on the pore
-          pressure, writes it into the dock and says the misfit before and after. Leak-off tests are not used for it.
+          pressure, writes it into the dock and says the misfit before and after. Leak-off tests are not used for it. With
+          Pressures from shale samples on (or a sonic median), the measured points usually sit in a reservoir sand where the
+          shown pore pressure is the one carried from the shales, so n (or U) is searched on that shown prognosis itself;
+          Bowers A and B read each point's nearest shale sample. A fit that would make the misfit worse is not applied,
+          and the status line says so.
         </Para>
         <SubHeading>Pore pressure below hydrostatic</SubHeading>
         <Para>
