@@ -84,3 +84,11 @@ the "Petrolord Demo" org (licences: migration
 
 `ffmpeg` (with libass), `Xvfb`, the Playwright Chromium, and the Inter font
 (`fonts-inter`) for the burned-in subtitles.
+
+## Two recorders side by side
+
+`DEMO_DISPLAY` (default `:99`) sets the virtual display `make.mjs` records on, and `DEMO_PROBE_DISPLAY`
+(default `:98`) and `DEMO_PROBE_PROFILE` (default `.probe-profile`) the display and browser profile a probe uses,
+so two video programmes can record and dry-run at the same time without capturing each other's windows or
+wiping each other's profile. Hold both programmes' recorder locks while one records, so two captures never
+share the CPU.

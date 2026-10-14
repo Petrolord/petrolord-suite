@@ -17,9 +17,9 @@ export default {
   },
   steps: [
     { id: 'window', chapter: 'The drilling window', chapterSub: 'Between pore and fracture pressure',
-      say: 'The mud must stay above the pore pressure and below the fracture pressure: the green band. Below the conductor section, its narrowest point on the calibrated prognosis is two point one one pounds per gallon, at seven thousand two hundred and thirty feet.',
+      say: 'The mud must stay above the pore pressure and below the fracture pressure: the green band. Below the conductor section, its narrowest point on the calibrated prognosis is two point one three pounds per gallon, at seven thousand two hundred and thirty feet.',
       do: async (d) => {
-        await expectText(d, t(d, 'pp-drilling-window'), /Narrowest drilling window 2\.11 ppg[\s\S]*at 7230 ft MD/, 'window');
+        await expectText(d, t(d, 'pp-drilling-window'), /Narrowest drilling window 2\.13 ppg[\s\S]*at 7230 ft MD/, 'window');
         await d.highlight(t(d, 'pp-drilling-window')); await d.sleep(3500); await d.unhighlight();
       } },
     { id: 'margins', chapter: 'Margins', chapterSub: 'Trip and kick',
@@ -31,16 +31,16 @@ export default {
         await d.highlight(t(d, 'pp-prognosis-chart')); await d.sleep(3000); await d.unhighlight();
       } },
     { id: 'seats', chapter: 'Seats from the bottom up', chapterSub: 'Applied Drilling Engineering, chapter seven',
-      say: 'The seats come from the bottom up. The mud needed at total depth sets how high that open hole can reach before the design fracture line falls below it; there goes a shoe, and the mud needed there sets the next one up. Here: two shoes, at least four thousand one hundred and seven and five thousand two hundred and sixty nine feet.',
+      say: 'The seats come from the bottom up. The mud needed at total depth sets how high that open hole can reach before the design fracture line falls below it; there goes a shoe, and the mud needed there sets the next one up. Here: two shoes, at least four thousand one hundred and five and five thousand two hundred and sixty eight feet.',
       do: async (d) => {
-        await expectText(d, t(d, 'pp-casing-seats'), /shoe at least 4107 ft MD, then 12\.53 ppg below; shoe at least 5269 ft MD, then 13\.97 ppg below/, 'seats');
+        await expectText(d, t(d, 'pp-casing-seats'), /shoe at least 4105 ft MD, then 12\.53 ppg below; shoe at least 5268 ft MD, then 13\.97 ppg below/, 'seats');
         await d.highlight(t(d, 'pp-casing-seats')); await d.sleep(4000); await d.unhighlight();
       } },
     { id: 'tight', chapter: 'Tighter margins', chapterSub: 'Point three each',
-      say: 'Margins are a policy, and they move the seats. At zero point three each, the shoes move to three thousand three hundred and forty seven and four thousand seven hundred and eighty one feet. Back to half a pound.',
+      say: 'Margins are a policy, and they move the seats. At zero point three each, the shoes move to three thousand and eighty six and four thousand seven hundred and seventy two feet. Back to half a pound.',
       do: async (d) => {
         await setParams(d, { trip: '0.3', kick: '0.3' }, { onCamera: true });
-        await expectText(d, t(d, 'pp-casing-seats'), /shoe at least 3347 ft MD[\s\S]*shoe at least 4781 ft MD/, 'tight');
+        await expectText(d, t(d, 'pp-casing-seats'), /shoe at least 3086 ft MD[\s\S]*shoe at least 4772 ft MD/, 'tight');
         await d.highlight(t(d, 'pp-casing-seats')); await d.sleep(3000); await d.unhighlight();
         await setParams(d, { trip: '0.5', kick: '0.5' }, { onCamera: true });
       } },
@@ -52,9 +52,9 @@ export default {
         await d.highlight(t(d, 'pp-casing-seats')); await d.sleep(3000); await d.unhighlight();
       } },
     { id: 'sections', chapter: 'Window per section', chapterSub: 'Does each open hole hold?',
-      say: 'The window per section checks it. The top hole now runs down to that shoe, needs eleven point seven zero pounds per gallon, and the design fracture line above it is only ten point six eight. The studio says that open hole does not hold with these seats. The minimum is a constraint, and the design has to answer it: a seat higher up, or different margins.',
+      say: 'The window per section checks it. The top hole now runs down to that shoe, needs eleven point seven zero pounds per gallon, and the design fracture line above it is only ten point seven zero. The studio says that open hole does not hold with these seats. The minimum is a constraint, and the design has to answer it: a seat higher up, or different margins.',
       do: async (d) => {
-        await expectText(d, t(d, 'pp-casing-section-closed'), /1181 to 4697 ft MD needs 11\.70 ppg against a design FG of 10\.68 ppg/, 'closed');
+        await expectText(d, t(d, 'pp-casing-section-closed'), /1181 to 4697 ft MD needs 11\.70 ppg against a design FG of 10\.70 ppg/, 'closed');
         await d.highlight(t(d, 'pp-casing-sections')); await d.sleep(2500); await d.unhighlight();
         await d.highlight(t(d, 'pp-casing-section-closed')); await d.sleep(4000); await d.unhighlight();
       } },

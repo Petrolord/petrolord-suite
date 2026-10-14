@@ -94,13 +94,13 @@ export default {
         await d.unhighlight();
       } },
     { id: 'seats', chapter: 'Fewer strings', chapterSub: 'Seats on the calibrated prognosis',
-      say: 'The fracture pressure rests on the pore pressure, so it is calibrated to the leak-off tests again: Poisson\'s ratio zero point two nine five. The casing design follows: two shoes now, at least four thousand one hundred and seven and five thousand two hundred and sixty nine feet, with thirteen point nine seven pounds per gallon of mud to total depth.',
-      sub: 'The fracture pressure rests on the pore pressure, so it is calibrated to the leak-off tests again: Poisson\'s ratio 0.295. The casing design follows: two shoes now, at least 4,107 and 5,269 ft, with 13.97 ppg of mud to total depth.',
+      say: 'The fracture pressure rests on the pore pressure, so it is calibrated to the leak-off tests again: Poisson\'s ratio zero point two nine six. The casing design follows: two shoes now, at least four thousand one hundred and five and five thousand two hundred and sixty eight feet, with thirteen point nine seven pounds per gallon of mud to total depth.',
+      sub: 'The fracture pressure rests on the pore pressure, so it is calibrated to the leak-off tests again: Poisson\'s ratio 0.296. The casing design follows: two shoes now, at least 4,105 and 5,268 ft, with 13.97 ppg of mud to total depth.',
       do: async (d) => {
         await d.click(t(d, 'pp-fit-lot'));
-        await expectText(d, t(d, 'pp-status'), /Fracture gradient calibrated to 2 tests: nu 0\.295/, 'nu again');
+        await expectText(d, t(d, 'pp-status'), /Fracture gradient calibrated to 2 tests: nu 0\.296/, 'nu again');
         await d.sleep(1500);
-        await expectText(d, t(d, 'pp-casing-seats'), /shoe at least 4107 ft MD, then 12\.53 ppg below; shoe at least 5269 ft MD, then 13\.97 ppg below/, 'seats');
+        await expectText(d, t(d, 'pp-casing-seats'), /shoe at least 4105 ft MD, then 12\.53 ppg below; shoe at least 5268 ft MD, then 13\.97 ppg below/, 'seats');
         await d.highlight(t(d, 'pp-casing-seats'));
         await d.sleep(4000);
         await d.unhighlight();
@@ -115,11 +115,11 @@ export default {
         await d.sleep(1500);
       } },
     { id: 'wds', chapter: 'Downstream', chapterSub: 'Ekene West-1 in Well Design Studio',
-      say: 'In Well Design Studio, Ekene West-1 opens with a notice: the prognosis on the copy of Ekene-1 changed after this design was reviewed against it. It says when, and what moved on this trajectory: the first two shoes go deeper, to three thousand nine hundred and eighty eight and four thousand nine hundred and twenty feet true vertical depth, shoes three, four and five are no longer needed, and the highest pore pressure drops from fourteen point one two to thirteen point three four pounds per gallon.',
-      sub: 'In Well Design Studio, Ekene West-1 opens with a notice: the prognosis on the copy of Ekene-1 changed after this design was reviewed against it. It says when, and what moved on this trajectory: the first two shoes go deeper, to 3,988 and 4,920 ft true vertical depth, shoes 3, 4 and 5 are no longer needed, and the highest pore pressure drops from 14.12 to 13.34 ppg.',
+      say: 'In Well Design Studio, Ekene West-1 opens with a notice: the prognosis on the copy of Ekene-1 changed after this design was reviewed against it. It says when, and what moved on this trajectory: the first two shoes go deeper, to three thousand nine hundred and forty nine and four thousand nine hundred and thirteen feet true vertical depth, shoes three, four and five are no longer needed, and the highest pore pressure drops from fourteen point one two to thirteen point three four pounds per gallon.',
+      sub: 'In Well Design Studio, Ekene West-1 opens with a notice: the prognosis on the copy of Ekene-1 changed after this design was reviewed against it. It says when, and what moved on this trajectory: the first two shoes go deeper, to 3,949 and 4,913 ft true vertical depth, shoes 3, 4 and 5 are no longer needed, and the highest pore pressure drops from 14.12 to 13.34 ppg.',
       do: async (d, shared) => {
         await openWestWindow(d, shared, { onCamera: true });
-        await expectText(d, t(d, 'wd-ppfg-source-changed'), /What moved: shoe 1 at least TVD 1,595 ft to 3,988 ft; shoe 2 at least TVD 4,034 ft to 4,920 ft; shoes 3, 4 and 5 no longer needed; highest pore pressure 14\.12 to 13\.34 ppg/, 'what moved');
+        await expectText(d, t(d, 'wd-ppfg-source-changed'), /What moved: shoe 1 at least TVD 1,446 ft to 3,949 ft; shoe 2 at least TVD 3,999 ft to 4,913 ft; shoes 3, 4 and 5 no longer needed; highest pore pressure 14\.12 to 13\.34 ppg/, 'what moved');
         await d.highlight(t(d, 'wd-ppfg-source-changed'));
         await d.sleep(6000);
         await d.unhighlight();

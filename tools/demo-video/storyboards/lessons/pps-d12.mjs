@@ -66,10 +66,10 @@ export default {
         await d.sleep(1200);
       } },
     { id: 'notice', chapter: 'The notice', chapterSub: 'What moved on this trajectory',
-      say: 'Ekene West-1 now opens with a notice: the prognosis changed after the design was reviewed against it, when, and what moved on its trajectory: both shoes a little deeper, the first from three thousand nine hundred and eighty eight to four thousand two hundred and sixteen feet true vertical depth, the second from four thousand nine hundred and twenty to five thousand three hundred and twenty four.',
+      say: 'Ekene West-1 now opens with a notice: the prognosis changed after the design was reviewed against it, when, and what moved on its trajectory: both shoes a little deeper, the first from three thousand nine hundred and forty nine to four thousand two hundred and thirteen feet true vertical depth, the second from four thousand nine hundred and thirteen to five thousand three hundred and twenty three.',
       do: async (d, shared) => {
         await openWestWindow(d, shared, { onCamera: true, w: W });
-        await expectText(d, t(d, 'wd-ppfg-source-changed'), /What moved: shoe 1 at least TVD 3,988 ft to 4,216 ft; shoe 2 at least TVD 4,920 ft to 5,324 ft/, 'what moved');
+        await expectText(d, t(d, 'wd-ppfg-source-changed'), /What moved: shoe 1 at least TVD 3,949 ft to 4,213 ft; shoe 2 at least TVD 4,913 ft to 5,323 ft/, 'what moved');
         await d.highlight(t(d, 'wd-ppfg-source-changed')); await d.sleep(5000); await d.unhighlight();
       } },
     { id: 'keep', chapter: 'Keep current values', chapterSub: 'A decision, recorded',

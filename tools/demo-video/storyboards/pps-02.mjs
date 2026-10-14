@@ -45,15 +45,15 @@ export default {
         await expectText(d, t(d, 'pp-status'), /Imported 3 calibration points from ekene-lot-fit\.csv/, 'lot import');
       } },
     { id: 'lotfit',
-      say: 'The diamonds sit below the blue fracture line: Poisson\'s ratio of zero point four was too high for these rocks. Calibrating to the two leak-off tests sets it to zero point two five eight, and the fracture pressure comes down onto them. A formation integrity test is only a lower bound, so it is left out of the fit.',
-      sub: 'The diamonds sit below the blue fracture line: Poisson\'s ratio of 0.4 was too high for these rocks. Calibrating to the two leak-off tests sets it to 0.258, and the fracture pressure comes down onto them. A formation integrity test is only a lower bound, so it is left out of the fit.',
+      say: 'The diamonds sit below the blue fracture line: Poisson\'s ratio of zero point four was too high for these rocks. Calibrating to the two leak-off tests sets it to zero point two five nine, and the fracture pressure comes down onto them. A formation integrity test is only a lower bound, so it is left out of the fit.',
+      sub: 'The diamonds sit below the blue fracture line: Poisson\'s ratio of 0.4 was too high for these rocks. Calibrating to the two leak-off tests sets it to 0.259, and the fracture pressure comes down onto them. A formation integrity test is only a lower bound, so it is left out of the fit.',
       do: async (d) => {
         await d.highlight(t(d, 'pp-prognosis-chart'));
         await d.sleep(2500);
         await d.unhighlight();
         await d.click(t(d, 'pp-fit-lot'));
         await d.sleep(1500);
-        await expectText(d, t(d, 'pp-status'), /Fracture gradient calibrated to 2 tests: nu 0\.258/, 'nu');
+        await expectText(d, t(d, 'pp-status'), /Fracture gradient calibrated to 2 tests: nu 0\.259/, 'nu');
         await d.highlight(t(d, 'pp-status'));
         await d.sleep(2500);
         await d.unhighlight();
@@ -77,10 +77,10 @@ export default {
         await d.unhighlight();
       } },
     { id: 'seats', chapter: 'Casing seats', chapterSub: 'On the calibrated fracture line',
-      say: 'With the fracture line calibrated, the casing seats are worked out again from the bottom up, and on this uncalibrated pore pressure they come to five shoes: at least three thousand and seventy one, four thousand one hundred and twenty, four thousand seven hundred and twenty three, five thousand two hundred and seventy nine, and six thousand seven hundred and twenty one feet.',
-      sub: 'With the fracture line calibrated, the casing seats are worked out again from the bottom up, and on this uncalibrated pore pressure they come to five shoes: at least 3,071, 4,120, 4,723, 5,279 and 6,721 ft.',
+      say: 'With the fracture line calibrated, the casing seats are worked out again from the bottom up, and on this uncalibrated pore pressure they come to five shoes: at least two thousand one hundred and sixty three, four thousand one hundred and nine, four thousand six hundred and ninety six, five thousand two hundred and seventy five, and six thousand seven hundred and ten feet.',
+      sub: 'With the fracture line calibrated, the casing seats are worked out again from the bottom up, and on this uncalibrated pore pressure they come to five shoes: at least 2,163, 4,109, 4,696, 5,275 and 6,710 ft.',
       do: async (d) => {
-        await expectText(d, t(d, 'pp-casing-seats'), /shoe at least 3071 ft MD[\s\S]*shoe at least 4120 ft MD[\s\S]*shoe at least 4723 ft MD[\s\S]*shoe at least 5279 ft MD[\s\S]*shoe at least 6721 ft MD, then 14\.75 ppg below/, 'seats');
+        await expectText(d, t(d, 'pp-casing-seats'), /shoe at least 2163 ft MD[\s\S]*shoe at least 4109 ft MD[\s\S]*shoe at least 4696 ft MD[\s\S]*shoe at least 5275 ft MD[\s\S]*shoe at least 6710 ft MD, then 14\.75 ppg below/, 'seats');
         await d.highlight(t(d, 'pp-casing-seats'));
         await d.sleep(4500);
         await d.unhighlight();
@@ -108,10 +108,10 @@ export default {
         await d.unhighlight();
       } },
     { id: 'wdsseats',
-      say: 'The casing seats follow on Ekene West-1\'s own trajectory: five shoes again, from one thousand five hundred and ninety five feet true vertical depth down to six thousand six hundred and fifty. To make the hand over count, the design is reviewed against this prognosis. The design now remembers which prognosis it was checked against, and what the seats were.',
-      sub: 'The casing seats follow on Ekene West-1\'s own trajectory: five shoes again, from 1,595 ft true vertical depth down to 6,650 ft. To make the hand over count, the design is reviewed against this prognosis. The design now remembers which prognosis it was checked against, and what the seats were.',
+      say: 'The casing seats follow on Ekene West-1\'s own trajectory: five shoes again, from one thousand four hundred and forty six feet true vertical depth down to six thousand six hundred and forty. To make the hand over count, the design is reviewed against this prognosis. The design now remembers which prognosis it was checked against, and what the seats were.',
+      sub: 'The casing seats follow on Ekene West-1\'s own trajectory: five shoes again, from 1,446 ft true vertical depth down to 6,640 ft. To make the hand over count, the design is reviewed against this prognosis. The design now remembers which prognosis it was checked against, and what the seats were.',
       do: async (d) => {
-        await expectText(d, t(d, 'mud-window-seats'), /shoe 1 at least TVD 1595 ft[\s\S]*shoe 5 at least TVD 6650 ft/, 'wds seats');
+        await expectText(d, t(d, 'mud-window-seats'), /shoe 1 at least TVD 1446 ft[\s\S]*shoe 5 at least TVD 6640 ft/, 'wds seats');
         await d.highlight(t(d, 'mud-window-seats'));
         await d.sleep(3500);
         await d.unhighlight();
