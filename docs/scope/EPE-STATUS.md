@@ -113,6 +113,48 @@ Two IRR readouts found on the Ekene runs while scripting the EPE videos:
   (`irrStatsView`, testid `epe-mc-irr-held`).
 No engine change.
 
+Two IRR readouts found on the Ekene runs while scripting the EPE videos:
+- The field without Ekene-11 reports NPV -$459K and IRR 13.53% at 10%: a
+  producing field earns first and pays its abandonment last, so its one root
+  is a borrowing rate. The Results Viewer now prints a caution under the KPIs
+  whenever the NPV and the IRR disagree about the discount rate
+  (`epeIrrCaution`, testid `epe-irr-caution`), checked on engine-computed flows
+  with a spend-first negative control (`epeIrrCaution.test.js`).
+- Monte Carlo showed IRR P90, P50 and P10 all -8.1% from one iteration in a
+  thousand (99.9% have no IRR). The IRR cards are held back when fewer than
+  half the iterations have an IRR, with a line that says so
+  (`irrStatsView`, testid `epe-mc-irr-held`).
+No engine change.
+## 2026-10-14: incremental economics on the engine valuation; compare across cases (video programme)
+
+Found while scripting the EPE demo videos (Ekene with and without Ekene-11).
+The two-run incremental block discounted every year of the delta from the base
+run's first year and included the sunk history years. On the Ekene runs
+(valuation 2026, history from 2020) it showed 1,377,011 USD for an increment of
+1,980,235 - (-459,224) = 2,439,459 USD. The increment now follows the engine
+(cashflow.ts): only the valued rows, the PV-basis flow, the exponent
+(year - valuation year) + 0.5 on mid-year, at the base run's applied rate, so
+it equals the difference of the two NPVs when both runs share their terms. The
+mismatch warning also names a different valuation year or convention. The
+incremental IRR comes from the shared IRR contract (`solveIrrInBand`); when
+several rates zero the increment they are listed (the Ekene increment has two,
+24.91% and -11.92%) where the page used to print "undefined". The run picker
+now lists the runs of the user's other cases, grouped by case with this case
+first, so a with-project run can be compared with a without-project run kept in
+its own case. Helper `epeIncremental.js`; gates `epeIncremental.test.js`
+(through the vendored engine; the invariant fails on the old discounting) and
+`epeCompareCases.mount.test.jsx`. No engine change.
+
+## 2026-10-14: comparison readability (video programme)
+
+Compare Runs printed money in whole compact units, so the Ekene increment of
+USD 2,439,459 read "$2.4M", the field "$2M", and the 2026 delta "$0.0037".
+Money on the page now reads to three significant figures like the Results
+Viewer (`fmtUsd3`: $2.44M, $1.98M, -$459K, $0 for differencing noise), the
+incremental block opens with one sentence ("On NPV at 10.00%, With Ekene-11
+is worth $2.44M more than Without Ekene-11.", testid `incremental-verdict`),
+and the header names the case in place of its id. Tests in
+`epeIncremental.test.js`.
 ## 2026-10-14: a received forecast beside a per-well CSV counts both (engines 3.12.1)
 
 Found while scripting the EPE videos (demo 3): the Edge Function
@@ -177,3 +219,35 @@ Suite `epeVariableOpex.test.jsx` (fields, payload, validation, labels).
    `supabase functions deploy epe-cash-flow-engine-batch`,
    `supabase functions deploy epe-monte-carlo`.
 3. Upload the Suite build.
+## 2026-10-14: mid-year discounting, owner decision option A (engines 3.12.3)
+
+The engine's two conventions disagreed about the valuation date: end of year
+used exponent year - V (so the valuation year's cash was undiscounted, a 31
+December valuation date) while mid-year added 0.5, which discounted mid-year
+cash MORE than year-end cash (Ekene: end of year US$1.98 MM, mid-year
+US$1.89 MM). Owner decision 2026-10-14, option A: the valuation date is 31
+December of the valuation year; end of year is unchanged; mid-year uses
+year - V - 0.5, cash half a year before the year end (Ekene mid-year now
+US$2,076,888 = end-of-year x sqrt(1.1)).
+
+- Engines PR #359 (merge a6cb037, ENGINE_VERSION 3.12.3), vendored here with
+  #358 (3.12.2, variable opex engine code; its Run Console fields ride #1095,
+  held for the owner migration; the engine fields are optional and off by
+  default). Goldens moved: mid_year_discounting 20,586,124 -> 22,644,736 and
+  multiyear_pia_midyear_real 196,677,221 -> 210,043,634; every end-of-year
+  golden unchanged. Gate economics.midYearDiscounting.test.ts on the Ekene kit
+  case.
+- Suite: the incremental economics (epeIncremental.js) follow the new
+  exponent; the wording says "valued at 31 Dec <year>" in Compare Runs, the
+  value per barrel card, the NPV against rate chart and the PDF KPI label, and
+  the Run Console explains the conventions under the select
+  (epeValuation.js). Tests epeMidYear.test.js (fails on the old exponent).
+- Owner step (ONCE, at the end of the round, with the other engine PRs):
+  redeploy epe-cash-flow-engine, epe-cash-flow-engine-batch and
+  epe-monte-carlo. Until then live mid-year runs keep the old exponent.
+- Affected elsewhere (not changed, listed for the owner): NextGen course
+  "Cash Flow" intermediate (EC1) quotes the old mid-year numbers from its own
+  vendored engine copy (mid_year_discounting 20,586,124.09 -> 22,644,736.49;
+  AKATA mid-year 69,159,247.46 nominal -> 76,075,172.20 and 70,188,970.32 real
+  -> 74,959,094.68; graded field jv_npv_mid_year_usd) and teaches "mid-year
+  NPV = end-year / sqrt(1 + r)". It moves only if NextGen re-vendors.
