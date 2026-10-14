@@ -214,6 +214,12 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
               ))}
             </tbody>
           </table>
+          {zone.hcAverages && (
+            <div className="px-2 py-1 text-[11px] text-pl-text border-t border-pl-border" data-testid={`em-hcavg-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}
+              title="Averages over the rock above the contacts: NTG over the HC bulk, porosity over its net rock, Sw weighted by pore volume. A single-tank calculation on these values gives this volume.">
+              Over the hydrocarbon leg: NTG {zone.hcAverages.ntg.toFixed(3)}, porosity {Number.isFinite(zone.hcAverages.phi) ? zone.hcAverages.phi.toFixed(3) : 'none'}, Sw {Number.isFinite(zone.hcAverages.sw) ? zone.hcAverages.sw.toFixed(3) : 'none'}
+            </div>
+          )}
           {zone.range && (
             <div className="px-2 py-1 text-[11px] text-pl-text border-t border-pl-border" data-testid={`em-range-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
               Property range from the kriging variance (fully correlated): HCPV P90 {fmtVolume(zone.range.p90.hcpv_m3, 'hcpv_m3', volumeUnits)},

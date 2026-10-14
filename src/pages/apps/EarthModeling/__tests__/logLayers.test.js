@@ -166,6 +166,9 @@ describe('proportional layers through buildModel', () => {
     expect(Math.abs(z.volumes.total.bulk_m3 / one.zones[0].volumes.total.bulk_m3 - 1)).toBeLessThan(1e-12);
     expect(z.provenance.sw.find((r) => r.layer === 5).note).toMatch(/zone's upscaled values/);
     expect(b.notes.join(' ')).not.toMatch(/no well gives/);
+    // the leg averages give the layered volume back in one tank
+    const a = z.hcAverages; const v = z.volumes.total;
+    expect(Math.abs((v.hc_bulk_m3 * a.ntg * a.phi * (1 - a.sw)) / v.hcpv_m3 - 1)).toBeLessThan(1e-9);
   });
   test('negative control: a constant leaves a misfit at the wells that the match table shows', async () => {
     const b = await buildModel(def({ control: 'logs', logsResolved: { curves: ekeneCurves } }), regWells, surfaces, backend);

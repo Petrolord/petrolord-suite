@@ -39,6 +39,9 @@ describe('the booked Ekene case equals ReservoirCalc Pro', () => {
     expect((t.stoiip_m3 / M3_PER_BBL / 1e6).toFixed(2)).toBe('12.14');
     // the whole zone is bigger: the bulk column alone never matched RCP
     expect(t.bulk_m3 / M3_PER_ACRE_FT).toBeGreaterThan(50000);
+    // the averages over the leg are the booked values back
+    const a = built.zones[0].hcAverages;
+    expect(a.ntg).toBeCloseTo(0.8, 12); expect(a.phi).toBeCloseTo(0.2, 12); expect(a.sw).toBeCloseTo(0.35, 12);
   });
 
   test('the prospect handed to RCP reproduces the model in RCP\'s own engine, with RCP\'s HC area', () => {

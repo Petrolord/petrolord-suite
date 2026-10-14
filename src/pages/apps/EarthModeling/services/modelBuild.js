@@ -1043,6 +1043,21 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       }
     }
     zone.volumes = volumes;
+    // Ekene walk: the averages over the hydrocarbon leg (what a single-tank
+    // calculation would need to give this volume): NTG over the rock above the
+    // contacts, porosity over its net rock, Sw pore-volume weighted
+    if (useContacts && volumes.total?.hc_bulk_m3 > 0) {
+      const ones = new Float64Array(nNodes).fill(1); const zeros = new Float64Array(nNodes);
+      const swap = (over) => ({ ...zone, layers: zone.layers?.map((L) => ({ ...L, props: { ...L.props, ...over(L.props) } })), props: { ...zone.props, ...over(zone.props) } });
+      const net = layeredVolumes(specM, swap(() => ({ phi: ones, sw: zeros })), zLabels, volFluids, top, base, { useContacts }).total.hcpv_m3;
+      const pore = layeredVolumes(specM, swap(() => ({ sw: zeros })), zLabels, volFluids, top, base, { useContacts }).total.hcpv_m3;
+      const t = volumes.total;
+      zone.hcAverages = {
+        ntg: net / t.hc_bulk_m3,
+        phi: net > 0 ? pore / net : null,
+        sw: pore > 0 ? 1 - t.hcpv_m3 / pore : null,
+      };
+    }
     zone.range = volumeRange(specM, zone, zLabels, volFluids, top, base, useContacts);
     // U2-010: what a volume distribution needs to re-run this zone's volumes
     zone.mc = { fluids: volFluids || null, trap: !!trap, owcBase: trap ? contactGrid(fluids, 'owc', zLabels, nNodes) : null, hasFluids: useContacts };
