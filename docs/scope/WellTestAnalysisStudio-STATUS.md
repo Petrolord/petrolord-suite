@@ -668,3 +668,11 @@ Items, validation and proving tests: `docs/upgrade/WellTestAnalysis-UPGRADE.md`
 - **State (jsonb, no migration):** the fields above; old payloads open unchanged.
 - **Numbers that move:** a deviated perforated interval now carries a slant term in the skin split (the reviewed sample: s_d 2.46 to 2.48); everything else only when the user takes the new input.
 - **Open:** faster date parsing; the analysis after a very large import stays on the page (1 to 2.5 s); MBH (after NAPE); Papatzacos paper.
+
+## 2026-10-14: productivity to Nodal Analysis Studio (branch `feat/welltest-send-to-nodal`)
+
+- **wta-1 `productivity` block** (additive, `src/lib/wellTestSource.js`, context-free `wtaProductivity`): for oil buildups and drawdowns, the test rate, pwf (the flowing pressure at shut-in for a buildup, the last flowing reading for a drawdown), pr (p* of the Horner line when it gives one, else pi; `pr_method` says which), J = q / (pr - pwf), the signed skin pressure drop (from `derivedKpis.dpSkin`), the skin-removed J = q / (pr - pwf - dp_skin) and the flow efficiency. Null for gas, injection and falloff tests, when skin is withheld on a buildup, or when pr is not above pwf; `productivity_withheld` says why. The sample buildup: q 450 STB/D, p* 4800.1 psia, pwf 4530.8 psia, J 1.67 STB/D/psi, skin removed 2.97 STB/D/psi, flow efficiency 56% (equals the studio's own flow efficiency).
+- **Report tab:** "Productivity to Nodal Analysis" (`wts-send-nodal`) under Send results; enabled with a saved project and a productivity block; saves first, then opens `/dashboard/apps/production/nodal-analysis-studio?wellTestProject=<id>`. The send note states J, the rate, pr and pwf, or why no index is sent.
+- **Nodal side:** see `NodalAnalysisStudio-STATUS.md` (same date).
+- **Tests:** `src/lib/__tests__/wellTestProductivity.test.jsx` (hand numbers and the real sample save), `src/utils/nodal/__tests__/wellTestIntake.test.jsx`.
+- **State (jsonb, no migration).** No e2e spec covered the senders, so none was extended.

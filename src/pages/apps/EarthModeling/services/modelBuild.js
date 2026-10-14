@@ -234,7 +234,8 @@ export const hasFluids = (f) => !!f && (['goc', 'owc', 'bo', 'bg'].some((k) => N
 /**
  * The zone's property grids shifted by z kriging standard deviations each
  * (every node moving together), held to 0..1. `zs` is {phi, sw, ntg}; a
- * property without a variance grid is returned unshifted.
+ * property without a variance grid is returned unshifted, and so is a node
+ * with no variance (a block that fell back to a trend or a constant).
  */
 export function shiftProps(zone, zs = {}) {
   const vars = zone.variance || {};
@@ -246,7 +247,10 @@ export function shiftProps(zone, zs = {}) {
     const z = Number(zs[k]) || 0;
     if (!v || z === 0) { out[k] = g; continue; }
     out[k] = Float64Array.from(g, (x, i) => {
-      if (!Number.isFinite(v[i]) || v[i] < 0 || Math.abs(x) >= 1e29) return x;
+      // a block that fell back from kriging carries no variance (the grid's
+      // null marker): shifting by its square root sent every node to 0 or 1
+      // (Ekene: STOIIP P90 0 against P50 4.9 MMstb)
+      if (!Number.isFinite(v[i]) || v[i] < 0 || isNull(v[i]) || v[i] > 1 || Math.abs(x) >= 1e29) return x;
       return Math.min(1, Math.max(0, x + z * Math.sqrt(v[i])));
     });
   }

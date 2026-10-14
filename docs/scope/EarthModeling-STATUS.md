@@ -267,3 +267,12 @@ Walked as a modeller building the Ekene static model on the demo account.
 - The volume distribution's OWC and GOC spreads are typed in the display depth
   unit (30 ft by default in a feet session) and converted to metres.
 Tests: `__tests__/stackDefaults.test.js`, `__tests__/distributionUnits.test.js`.
+## 2026-10-14: the kriging range and the volume distribution after a fallback
+
+A property block that falls back from kriging (Ekene: a layer where every
+well reads NTG 1.0) carries the grid's null marker as its variance. The
+fully correlated range and the Monte Carlo distribution shifted those nodes
+by the marker's square root, so they went to 0 or 1: the Ekene walk showed
+STOIIP P90 0 against P50 4.9 MMstb, and a P50 of 6.3 against a deterministic
+10.4. `shiftProps` now leaves a node with no variance where it is.
+Test: `__tests__/varianceFallback.test.js` (negative control fails both).
