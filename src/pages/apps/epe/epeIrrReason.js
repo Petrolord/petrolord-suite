@@ -51,4 +51,30 @@ export const epeIrrReason = (kpis) => {
   }
 };
 
+/**
+ * A caution for a rate that is reported but reads backwards. For a project
+ * that spends first and earns later, the NPV at the discount rate is positive
+ * exactly when the IRR is above that rate. When the two disagree (NPV below
+ * zero with the IRR above the rate, or the reverse) the cash flow takes money
+ * first and pays later, like a loan: a producing field that still owes its
+ * abandonment is the usual case. The rate is then what that money costs, and
+ * a higher rate is worse. Returns null when the two agree or a figure is
+ * missing.
+ *
+ * @param {object} kpis the run's KPIs (npv, irr in percent, discount_rate_applied_pct)
+ * @param {number} [ratePct] the discount rate in percent when the KPIs lack it
+ * @returns {string|null}
+ */
+export const epeIrrCaution = (kpis, ratePct) => {
+  if (!kpis || kpis.irr == null) return null;
+  const irr = Number(kpis.irr);
+  const npv = Number(kpis.npv);
+  const rate = Number(kpis.discount_rate_applied_pct ?? ratePct);
+  if (![irr, npv, rate].every(Number.isFinite) || npv === 0) return null;
+  const backwards = (npv < 0 && irr > rate) || (npv > 0 && irr < rate);
+  if (!backwards) return null;
+  return `Read the NPV here. This cash flow brings money in first and pays it out later (a producing field that still owes its abandonment is the usual case), so ${pct(irr)} is the rate that money costs and a higher rate is worse. `
+    + `The NPV at ${pct(rate)} is ${npv < 0 ? 'negative' : 'positive'}, which is the answer to use.`;
+};
+
 export default epeIrrReason;
