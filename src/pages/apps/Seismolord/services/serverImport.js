@@ -38,11 +38,15 @@ export function serverImportAdvice(fileSize, v4Support) {
  * @param {string} [p.name]
  * @param {(p: {bytesDone: number, bytesTotal: number}) => void} [p.onUploadProgress]
  * @param {AbortSignal} [p.signal] pauses the upload (it resumes next time)
+ * @param {?Object} [p.crop] crop before upload: {fileLike (the cropped file,
+ *   cropImport.cropFileLike), scan (the preview scan of its conversion view),
+ *   padTop (samples above the window), provenance}. Only the cropped file is
+ *   uploaded; the server pads the top back so the volume keeps 0 ms.
  * @param {Object} [deps] injected for tests: upload, prepare, enqueue
  * @returns {Promise<{jobId: string, volumeId: string, datasetId: string}>}
  */
 export async function startServerImport({
-  file, mapping, scan, nativeCrs, name, onUploadProgress, signal,
+  file, mapping, scan, nativeCrs, name, onUploadProgress, signal, crop = null,
 }, deps = {}) {
   const upload = deps.upload || uploadLargeFile;
   const prepare = deps.prepare || prepareV4Row;
@@ -50,19 +54,37 @@ export async function startServerImport({
   // the same sampled fingerprint the volume row records: with it the server
   // resumes this user's unfinished upload of the file from any browser
   const fingerprint = deps.fingerprint || fileFingerprint;
-  const dataset = await upload(file, { name: name || file.name, onProgress: onUploadProgress, signal, fingerprint });
-  const prep = await prepare({ file, mapping, nativeCrs, name });
+  const sent = crop ? crop.fileLike : file;
+  const dataset = await upload(sent, { name: name || file.name, onProgress: onUploadProgress, signal, fingerprint });
+  // the row records the source file's name; its size and fingerprint are the uploaded file's
+  const prep = await prepare(crop
+    ? { file: { ...sent, name: file.name }, mapping, nativeCrs, name, crop: crop.provenance }
+    : { file, mapping, nativeCrs, name });
   const jobId = await enqueue('stack_to_v4', {
     dataset_id: dataset.id,
     volume_id: prep.volumeId,
     name: prep.name,
     file_name: file.name,
-    scan,
+    scan: crop ? crop.scan : scan,
     crs_plan: prep.crsPlan,
     custom_defs: prep.customDefs || {},
     ingest_rec: prep.ingestRec,
+    ...(crop ? { pad_top_samples: crop.padTop, crop_provenance: crop.provenance } : {}),
   });
   return { jobId, volumeId: prep.volumeId, datasetId: dataset.id };
+}
+
+/**
+ * Upload only (prestack gathers for QI Studio, with or without a crop): the
+ * file goes to the worker store and stops there; QI Studio's Prestack tab
+ * builds the gather store from it.
+ */
+export async function uploadForQi({ file, name, onUploadProgress, signal, crop = null }, deps = {}) {
+  const upload = deps.upload || uploadLargeFile;
+  const fingerprint = deps.fingerprint || fileFingerprint;
+  const sent = crop ? crop.fileLike : file;
+  const dataset = await upload(sent, { name: name || file.name, onProgress: onUploadProgress, signal, fingerprint });
+  return { datasetId: dataset.id, name: dataset.name };
 }
 
 /** Resolves a job's final row once it leaves queued/running; onUpdate sees every poll. */
@@ -104,11 +126,16 @@ export async function scanRemoteFile(remote, mapping, deps = {}) {
   return { scan: r.scan, textLines: r.textLines || [], preview: r.preview || [] };
 }
 
-/** Step 3: register the row as any import does and convert on the server. */
-export async function startRemoteConversion({ remote, mapping, scan, nativeCrs, name }, deps = {}) {
+/**
+ * Step 3: register the row as any import does and convert on the server.
+ * With `crop` ({def, definitionId}) the worker keeps only the crop while it
+ * reads the stored file: only the kept traces and samples are converted and
+ * stored as the volume.
+ */
+export async function startRemoteConversion({ remote, mapping, scan, nativeCrs, name, crop = null }, deps = {}) {
   const prepare = deps.prepare || prepareV4Row;
   const enqueue = deps.enqueue || enqueueJob;
-  const prep = await prepare({ file: { name: remote.name, size: remote.size }, mapping, nativeCrs, name, fingerprint: remote.fingerprint });
+  const prep = await prepare({ file: { name: remote.name, size: crop?.estimatedBytes || remote.size }, mapping, nativeCrs, name, fingerprint: remote.fingerprint });
   const jobId = await enqueue('stack_to_v4', {
     dataset_id: remote.datasetId,
     volume_id: prep.volumeId,
@@ -118,6 +145,7 @@ export async function startRemoteConversion({ remote, mapping, scan, nativeCrs, 
     crs_plan: prep.crsPlan,
     custom_defs: prep.customDefs || {},
     ingest_rec: prep.ingestRec,
+    ...(crop ? { crop: { def: crop.def, definition_id: crop.definitionId || null } } : {}),
   });
   return { jobId, volumeId: prep.volumeId, datasetId: remote.datasetId };
 }

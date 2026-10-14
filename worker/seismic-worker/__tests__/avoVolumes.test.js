@@ -100,3 +100,18 @@ test('negative control: stacks given the wrong angles return a wrong gradient', 
   for (let s = 0; s < NS; s++) if (Math.abs(at(OUT.B, s) - Bof(3, 2, s)) > 0.01) off += 1;
   expect(off).toBeGreaterThan(NS / 2);
 });
+
+test('pilot sub-volume: the full run inside the window, null outside, only its bricks', async () => {
+  const full = depsFor(); await avoVolumes(ctxFor(P), full.d);
+  const pil = depsFor();
+  const out = await avoVolumes(ctxFor({ ...P, pilot: { il: { from: 2, to: 4 }, xl: { from: 2, to: 3 }, t_ms: { from: 72, to: 120 } } }), pil.d);
+  expect(out.pilot.grid).toEqual({ i0: 1, i1: 3, j0: 1, j1: 2, k0: 18, k1: 30 });
+  expect([...pil.uploads.keys()].filter((k) => k.startsWith(`${UID}/${OUT.A}/bricks`)).sort()).toEqual([`${UID}/${OUT.A}/bricks/0-0-1.f32`]);
+  const f = (u, s) => new Float32Array(u.get(`${UID}/${OUT.A}/bricks/0-0-${Math.floor(s / BS)}.f32`).buffer.slice(0));
+  for (let il = 0; il < NIL; il++) for (let xl = 0; xl < NXL; xl++) for (let s = 16; s < 32; s++) {
+    const i = ((il % BS) * BS + xl) * BS + (s % BS);
+    const inside = il >= 1 && il <= 3 && xl >= 1 && xl <= 2 && s >= 18 && s <= 30;
+    expect(f(pil.uploads, s)[i]).toBe(inside ? f(full.uploads, s)[i] : Math.fround(1e30));
+  }
+  expect(JSON.parse(new TextDecoder().decode(pil.uploads.get(`${UID}/${OUT.A}/manifest.json`))).pilot.t_ms).toEqual({ from: 72, to: 120 });
+});
