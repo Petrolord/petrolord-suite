@@ -11,6 +11,18 @@
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { normalizeTag, UNKNOWN } from '@/lib/crs/tags';
+import { inNonDefaultProject, currentProjectSettings, getProjectScope } from '@/lib/projects/projectScope';
+import { normalizeProjectSettings } from '@/lib/projects/projectSettings';
+import { saveProjectSettings } from '@/lib/projects/projectsService';
+
+// Suite Projects P2 (docs/scope/SuiteProject-DESIGN.md section 14): in a
+// project other than the Default one, the Project CRS is the PROJECT's
+// (suite_projects.settings.crs), so two clients' projects can live in two
+// systems. The lock counts that project's data only. The Default project
+// keeps each user's own Project CRS in geoscience_settings, exactly as before.
+// Custom CRS definitions stay the user's library (an organisation-wide
+// reference, design decision 4).
+const projectCrsSlot = () => (inNonDefaultProject() ? getProjectScope() : null);
 
 async function requireUser() {
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -40,6 +52,17 @@ export async function getSettings() {
 /** The caller's Project CRS tag, or UNKNOWN when not chosen yet. */
 export async function getProjectCrs() {
   const s = await getSettings();
+  if (projectCrsSlot()) {
+    const crs = normalizeProjectSettings(currentProjectSettings()).crs;
+    return {
+      tag: crs ? crs.tag : UNKNOWN,
+      name: crs?.name || null,
+      xyUnit: crs?.xyUnit || 'm',
+      customDefs: s.custom_defs || {},
+      setAt: crs?.setAt || null,
+      scope: 'project',
+    };
+  }
   return {
     tag: s.project_crs ? normalizeTag(s.project_crs) : UNKNOWN,
     name: s.project_crs_name || null,
@@ -56,13 +79,17 @@ export async function getProjectCrs() {
  */
 export async function countCrsTaggedData() {
   const user = await requireUser();
-  const tables = ['geo_wells', 'geo_surfaces', 'seismic_volumes', 'em_models'];
-  const counts = {};
+  const slot = projectCrsSlot();
+  // a project's lock counts its own registry rows (em_models join projects in P4)
+  const tables = slot ? ['geo_wells', 'geo_surfaces', 'seismic_volumes'] : ['geo_wells', 'geo_surfaces', 'seismic_volumes', 'em_models'];
+  const counts = { em_models: 0 };
   await Promise.all(tables.map(async (table) => {
-    const { count, error } = await supabase.from(table)
+    let q = supabase.from(table)
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .not('crs', 'is', null);
+    if (slot) q = q.eq('suite_project_id', slot.projectId);
+    const { count, error } = await q;
     counts[table] = error ? 0 : (count || 0);
   }));
   counts.total = tables.reduce((s, t) => s + counts[t], 0);
@@ -95,6 +122,14 @@ export async function setProjectCrs({ tag, name = null, xyUnit = 'm', allowWithD
       err.counts = counts;
       throw err;
     }
+  }
+  const slot = projectCrsSlot();
+  if (slot) {
+    // the project's own CRS; writing it never touches stored data
+    const stored = await saveProjectSettings(slot.projectId, {
+      crs: { tag: normalized, name, xyUnit, setAt: new Date().toISOString() },
+    });
+    return { project_crs: normalizeProjectSettings(stored).crs?.tag || normalized, project_crs_name: name, project_xy_unit: xyUnit, scope: 'project' };
   }
   await getSettings();
   const { data, error } = await supabase.from('geoscience_settings')

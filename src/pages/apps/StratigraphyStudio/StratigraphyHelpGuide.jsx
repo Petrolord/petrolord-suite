@@ -15,7 +15,7 @@ import {
 } from '@/components/helpguide/HelpGuideLayout';
 import { SURFACE_TYPES, SYSTEMS_TRACTS, MOTIFS, displayLabel } from '@/lib/stratigraphy/vocabulary';
 import { INTERVAL_KINDS, LITHOLOGIES } from '@/lib/stratigraphy/lithology';
-import { TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
+import { currentTimescale } from '@/lib/stratigraphy/timescale';
 import { RANKS } from '@/lib/stratigraphy/column';
 
 const APP_PATH = '/dashboard/apps/geoscience/stratigraphy-studio';
@@ -87,7 +87,7 @@ export default function StratigraphyHelpGuide() {
         <Table headers={['Control', 'What it does']} rows={[
           ['Add unit', 'a new top-level formation to name, rank and place inside a parent'],
           ['Import units', 'reads a Petrel zone hierarchy, a StrataBugs chart or a spreadsheet (name, rank or level, parent by name, top and base age in Ma or ka, colour) in any column and row order; the rows arrive unsaved, names already in the column are left as they are, repeats and overlaps are named'],
-          ['From stage', `fills the top and base ages from a stage of the ICS chart (${TIMESCALE_VERSION})`],
+          ['From stage', `fills the top and base ages from a stage of the ICS chart (${currentTimescale()})`],
           ['Save column', 'validates every unit and writes the additions, changes and removals; a problem refuses the whole save'],
           ['map', 'beside a unit in the explorer once a top names it: opens the top\'s structure map in Mapping'],
           ['SVG, PNG', 'exports the graphic column with a header: timescale, field, prepared by, date and build'],
@@ -257,7 +257,7 @@ export default function StratigraphyHelpGuide() {
           rates and hiatuses, the well's Wheeler cells, the column, and a reviewed-by line.
         </Para>
         <Callout tone="info" title="Timescale: chart versions">
-          Lookups, stage fills and exports use the ICS chart {TIMESCALE_VERSION}. Every age you type or fill is stamped
+          Lookups, stage fills and exports use the ICS chart {currentTimescale()}. Every age you type or fill is stamped
           with the chart it was entered under (in your stratigraphy project). Ages entered before are read as ICS
           2023/09: one that sits on a boundary the new chart moved (the Jurassic/Cretaceous boundary moved from 145.0 to
           143.1 Ma) is flagged in Tops, Column and the Timescale view with the change, and Accept updates every such age
@@ -333,7 +333,7 @@ export default function StratigraphyHelpGuide() {
           ['Stratal slice', 'a horizontal sample of a seismic volume a fraction of the way between two horizons'],
           ['Net sand', 'the thickness of the sand-family lithologies between two surfaces, from the lithology log'],
         ]} />
-        <Para>References: Catuneanu (2006) Principles of Sequence Stratigraphy; Catuneanu et al. (2009) Earth-Science Reviews 92; Van Wagoner et al. (1988, 1990); Mitchum et al. (1977); Wheeler (1958); the ICS International Chronostratigraphic Chart ({TIMESCALE_VERSION}, CC BY 4.0).</Para>
+        <Para>References: Catuneanu (2006) Principles of Sequence Stratigraphy; Catuneanu et al. (2009) Earth-Science Reviews 92; Van Wagoner et al. (1988, 1990); Mitchum et al. (1977); Wheeler (1958); the ICS International Chronostratigraphic Chart ({currentTimescale()}, CC BY 4.0).</Para>
       </GuideSection>
     </HelpGuideShell>
     </div>

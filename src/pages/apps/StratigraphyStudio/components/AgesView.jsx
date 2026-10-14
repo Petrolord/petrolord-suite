@@ -10,7 +10,7 @@ import { Link } from 'react-router-dom';
 import { Loader2, Flame, Tags, FileText } from 'lucide-react';
 import AgeDepthPlot from '@/components/wells/section/AgeDepthPlot';
 import { ageDepthModel, validateAgeDepth, sortDated } from '@/lib/stratigraphy/ageDepth';
-import { unitAt, TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
+import { unitAt, currentTimescale } from '@/lib/stratigraphy/timescale';
 import { normalizeSurfaceType } from '@/lib/stratigraphy/vocabulary';
 import { buildBasinModelRow, verticalDepthOf, mergeBasinUpdate } from '@/lib/basinHandoff';
 import ChartExportButtons from '@/components/wells/section/ChartExportButtons';
@@ -120,7 +120,7 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
     <div className="p-3 space-y-3 text-xs" data-testid="strat-ages-view">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-pl-text font-medium">{well.name} in time</span>
-        <span className="text-pl-muted">{dated.length} dated surface{dated.length === 1 ? '' : 's'} · timescale {TIMESCALE_VERSION}</span>
+        <span className="text-pl-muted">{dated.length} dated surface{dated.length === 1 ? '' : 's'} · timescale {currentTimescale()}</span>
         <div className="ml-auto flex items-center gap-1">
           <button type="button" className={btnCls} disabled={!canEdit || busy || !biozones.length} onClick={createDatums} data-testid="strat-biozone-datums" title="Create typed biozone tops at each biozone range's top and base with its ages">
             <Tags className="w-3.5 h-3.5" /> Biozone datums ({biozones.length})
@@ -133,7 +133,7 @@ export default function AgesView({ well, tops, intervals, backend, onStatus, onT
           </button>
           <Link to={appPath('basinflow-genesis', appPaths)} className="text-pl-primary-text hover:text-pl-primary-text-hover px-1" data-testid="strat-open-basin">Open Basin</Link>
           <ChartExportButtons targetRef={plotRef} fileBase={`${well.name} age-depth`} onStatus={onStatus} testIdPrefix="strat-ages" disabled={dated.length < 2}
-            headerLines={() => chartHeaderLines({ title: `Age-depth plot: ${well.name}`, wells: [well.name], timescale: TIMESCALE_VERSION, basis: vertical.basis === 'tvd' ? `TVD below KB through the survey (${unit}); rates vertical` : `MD (${unit}), the well has no survey`, field: report?.field, analyst: report?.analyst })} />
+            headerLines={() => chartHeaderLines({ title: `Age-depth plot: ${well.name}`, wells: [well.name], timescale: currentTimescale(), basis: vertical.basis === 'tvd' ? `TVD below KB through the survey (${unit}); rates vertical` : `MD (${unit}), the well has no survey`, field: report?.field, analyst: report?.analyst })} />
         </div>
       </div>
       {/* STRAT-U2-004: the plot and tables read in the display unit (the model runs in metres; the plot converts its own axis and rates) */}

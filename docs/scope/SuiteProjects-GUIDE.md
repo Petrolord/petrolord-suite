@@ -39,6 +39,22 @@ project only.
   owner can see that log.
 - Another organisation never sees your clients or projects.
 
+## Project settings
+
+On the Projects page, the owner of a project (or an organisation admin) sets:
+
+- **Units**: follow the organisation default, or set units for this project.
+  Anyone who chose their own units keeps them.
+- **Coordinate reference system** (client projects): the system imports
+  convert into. Set it before loading data; once the project holds data in
+  it, change it with Seismolord's reproject flow.
+- **Datum**: the depth reference for new wells (KB, RT, DF, GL...), the
+  vertical datum and the seismic reference datum for new pore pressure models.
+- **Geologic timescale**: stay on an earlier ICS chart edition for this
+  project's stratigraphy.
+
+A settings change applies from then on. Data already stored never changes.
+
 ## Packages and backups
 
 - **Export package** (Well Data Manager) packs the current project's data.
@@ -54,5 +70,4 @@ nothing is deleted. Restore it from the Projects page.
 
 Each app's own saved sessions (for example a saved Petrophysics project or a
 Material Balance case) are not yet filed by project; they follow in phase P4.
-Project settings for CRS, units and datum arrive in P2, and member
-management in P3.
+Member management arrives in P3.

@@ -21,6 +21,7 @@ function matches(row, f) {
     case 'eq': return v === f.val;
     case 'is': return f.val === 'null' ? v === null || v === undefined : v === f.val;
     case 'in': return f.val.includes(v);
+    case 'not': return !matches(row, { col: f.col, op: f.val.op, val: f.val.val });
     default: return true;
   }
 }
@@ -43,6 +44,7 @@ export function makeFakeSupabase({ user = { id: 'me' }, tables = {} } = {}) {
       eq(col, val) { st.filters.push({ col, op: 'eq', val }); return api; },
       is(col, val) { st.filters.push({ col, op: 'is', val: val === null ? 'null' : val }); return api; },
       in(col, vals) { st.filters.push({ col, op: 'in', val: vals }); return api; },
+      not(col, op, val) { st.filters.push({ col, op: 'not', val: { op, val: val === null ? 'null' : val } }); return api; },
       or(expr) { st.ors.push(parseOr(expr)); return api; },
       order() { return api; },
       limit(n) { st.limit = n; return api; },

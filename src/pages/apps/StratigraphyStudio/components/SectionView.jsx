@@ -26,7 +26,7 @@ import { toDisplay, fromDisplay } from '@/components/wells/depthModes';
 import { suggestSurfaces } from '@/lib/stratigraphy/tractAssist';
 import ChartExportButtons from '@/components/wells/section/ChartExportButtons';
 import { chartHeaderLines } from '@/components/wells/section/chartExport';
-import { TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
+import { currentTimescale } from '@/lib/stratigraphy/timescale';
 
 const TRACT_COLOUR = Object.fromEntries(SYSTEMS_TRACTS.map((t) => [t.code, t.colour]));
 const selCls = 'bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text';
@@ -444,7 +444,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
           Wheeler chart of the section at its wells, time down (not interpolated between wells). Dated surfaces come from the Tops view; an unconformity needs a hiatus end.
           <span className="ml-auto text-pl-muted">{typedCount} typed surfaces · {tractCount} tract{tractCount === 1 ? '' : 's'}</span>
           <ChartExportButtons targetRef={wheelerRef} fileBase={`${sec.sectionName || 'Section'} Wheeler`} onStatus={onStatus} testIdPrefix="strat-wheeler"
-            headerLines={() => chartHeaderLines({ title: `Wheeler chart: ${sec.sectionName || 'section'}`, wells: sectionWells.map((w) => w.name), section: sec.sectionName, scheme, timescale: TIMESCALE_VERSION, basis: `ages from dated surfaces; columns in section order, ${wSpacing === 'equal' ? 'equally spaced' : wSpacing === 'line' ? 'spaced by distance along the section line' : 'spaced by wellhead distance'}`, field: report?.field || sec.savedRow?.track_layout?.report?.field, analyst: report?.analyst || sec.savedRow?.track_layout?.report?.analyst })} />
+            headerLines={() => chartHeaderLines({ title: `Wheeler chart: ${sec.sectionName || 'section'}`, wells: sectionWells.map((w) => w.name), section: sec.sectionName, scheme, timescale: currentTimescale(), basis: `ages from dated surfaces; columns in section order, ${wSpacing === 'equal' ? 'equally spaced' : wSpacing === 'line' ? 'spaced by distance along the section line' : 'spaced by wellhead distance'}`, field: report?.field || sec.savedRow?.track_layout?.report?.field, analyst: report?.analyst || sec.savedRow?.track_layout?.report?.analyst })} />
         </div>
         <div className="flex-1 min-h-0 overflow-auto p-3" ref={wheelerRef}>
           <WheelerChart wells={wheelerWells} tractRows={tractRows} scheme={scheme} width={Math.max(480, 160 * sectionWells.length + 80)} height={440} testIdPrefix="strat-wheeler" spacing={wSpacing} alongM={lineAlong} />

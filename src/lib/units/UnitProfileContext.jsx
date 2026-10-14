@@ -7,11 +7,12 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { resolveProfile, sourceLabel, BUILT_IN_RESOLUTION } from './profile';
 import { loadLayers, readSnapshot, saveUserProfile, saveOrgProfile } from './profileService';
+import { useProject } from '@/contexts/ProjectContext';
 
 const UnitProfileContext = createContext(null);
 
 const ADMIN_ROLES = ['owner', 'admin', 'org_admin', 'super_admin'];
-const EMPTY_LAYERS = { user: null, organization: null, legacyDepthUnit: null, tableAvailable: true, orgMeta: null };
+const EMPTY_LAYERS = { user: null, project: null, organization: null, legacyDepthUnit: null, tableAvailable: true, orgMeta: null };
 
 /** The value the hook returns when no provider is mounted. */
 export const NO_PROFILE = Object.freeze({
@@ -35,9 +36,11 @@ export const NO_PROFILE = Object.freeze({
 /**
  * Pure part of the provider, exported for tests: layers in, context value out.
  */
-export function buildProfileValue({ layers, userId, orgId, role, ready, error }) {
-  const l = layers || EMPTY_LAYERS;
-  const r = resolveProfile({ user: l.user, organization: l.organization, legacyDepthUnit: l.legacyDepthUnit });
+export function buildProfileValue({ layers, userId, orgId, role, ready, error, project = null }) {
+  const l = { ...(layers || EMPTY_LAYERS), project: project || null };
+  // Suite Projects P2: the current project's unit profile fills the reserved
+  // layer between the user's own choice and the organisation default
+  const r = resolveProfile({ user: l.user, project: l.project, organization: l.organization, legacyDepthUnit: l.legacyDepthUnit });
   return {
     available: true,
     ready,
@@ -56,6 +59,7 @@ export function buildProfileValue({ layers, userId, orgId, role, ready, error })
 
 export function UnitProfileProvider({ children }) {
   const { user, organization, role } = useAuth() || {};
+  const projectUnits = useProject().settings?.units || null;
   const userId = user?.id || null;
   const orgId = organization?.id || null;
   const [layers, setLayers] = useState(() => readSnapshot(userId));
@@ -93,11 +97,11 @@ export function UnitProfileProvider({ children }) {
   }, [userId, orgId, load]);
 
   const value = useMemo(() => ({
-    ...buildProfileValue({ layers, userId, orgId, role, ready, error }),
+    ...buildProfileValue({ layers, userId, orgId, role, ready, error, project: projectUnits }),
     refresh: () => load(true),
     saveMine,
     saveOrganization,
-  }), [layers, userId, orgId, role, ready, error, load, saveMine, saveOrganization]);
+  }), [layers, userId, orgId, role, ready, error, load, saveMine, saveOrganization, projectUnits]);
 
   return <UnitProfileContext.Provider value={value}>{children}</UnitProfileContext.Provider>;
 }
@@ -105,7 +109,7 @@ export function UnitProfileProvider({ children }) {
 /** For tests and harnesses: a provider with fixed layers and no I/O. */
 export function StaticUnitProfileProvider({ layers = null, role = 'member', children, onSaveMine, onSaveOrganization }) {
   const value = useMemo(() => ({
-    ...buildProfileValue({ layers, userId: 'static-user', orgId: 'static-org', role, ready: true, error: null }),
+    ...buildProfileValue({ layers, userId: 'static-user', orgId: 'static-org', role, ready: true, error: null, project: layers?.project || null }),
     refresh: async () => {},
     saveMine: onSaveMine || (async () => ({ stored: 'database' })),
     saveOrganization: onSaveOrganization || (async () => {}),

@@ -19,7 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { SCHEMES } from '@/lib/stratigraphy/vocabulary';
 import { useScheme } from '@/lib/stratigraphy/scheme';
-import { TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
+import { currentTimescale } from '@/lib/stratigraphy/timescale';
 import { orderedUnits } from '@/lib/stratigraphy/column';
 import { wellDataManagerHref, appPath, WELL_DATA_MANAGER_ID, MAPPING_ID, mapTopHref } from '@/components/wells/appLinks';
 import ColumnEditor from './ColumnEditor';
@@ -43,7 +43,7 @@ const VIEWS = [
   { id: 'glossary', label: 'Glossary', icon: BookOpen },
 ];
 
-const TIMESCALE_LABEL = TIMESCALE_VERSION;
+const TIMESCALE_LABEL = currentTimescale();
 const SCHEME_LABEL = { catuneanu: 'Catuneanu', exxon: 'Exxon (display)' };
 
 /**

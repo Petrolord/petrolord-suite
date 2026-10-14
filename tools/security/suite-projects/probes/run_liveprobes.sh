@@ -6,11 +6,13 @@
 #      every registry and child table, storage count) as they are now, against the
 #      same with the 36 P0 RESTRICTIVE policies dropped, i.e. pre-P0 access.
 #      While no project is members-only the two must be identical.
+#   C) P2 gate: a project settings change leaves stored data byte-identical
+#      (p2_settings.sql), and only the project's managers can change settings.
 # Usage: bash tools/security/suite-projects/probes/run_liveprobes.sh A|B out.csv
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
-MODE="${1:?A or B}"; OUT="${2:-/dev/stdout}"
-for f in "$HERE/harness_head.sql" "$HERE/probes.sql"; do
+MODE="${1:?A, B or C}"; OUT="${2:-/dev/stdout}"
+for f in "$HERE/harness_head.sql" "$HERE/probes.sql" "$HERE/p2_settings.sql"; do
   if grep -qiE '^\s*((begin|commit|rollback|end)\s*(transaction|work)?|start\s+transaction)\s*;' "$f"; then
     echo "REFUSING: $f has a transaction-control line" >&2; exit 1
   fi
@@ -19,7 +21,15 @@ TMP="$(mktemp)"
 {
   echo "begin isolation level repeatable read;"
   cat "$HERE/harness_head.sql"
-  if [ "$MODE" = A ]; then
+  if [ "$MODE" = C ]; then
+    cat "$HERE/p2_settings.sql"
+    cat <<'SQL'
+select kind, persona, probe, result from (
+select 1 o, 'probe' kind, persona, probe, result from _p where phase = 'probe'
+union all select 2, 'summary', 'all', 'probes', count(*) filter (where result like 'PASS%') || ' pass, ' || count(*) filter (where result like 'FAIL%') || ' fail'
+  from _p where phase = 'probe') x order by o, 2, 3, 4;
+SQL
+  elif [ "$MODE" = A ]; then
     for v in "$HERE"/../verify/*.verify.sql; do
       printf "insert into _p select 'verify', '%s', 'row', row_to_json(t)::text from (\n" "$(basename "$v")"
       grep -v '^--' "$v" | sed 's/;\s*$//'

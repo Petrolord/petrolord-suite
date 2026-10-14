@@ -62,6 +62,7 @@ import {
 import { refElevOrNull } from '@/lib/wellDatum';
 import { applyDatumWaterColumn } from '../services/datumWaterColumn';
 import { stableJson } from '@/lib/sourceFreshness/model';
+import { withProjectDatumDefaults } from '@/lib/projects/projectDefaults';
 
 const storage = () => { try { return window.localStorage; } catch { return null; } };
 
@@ -105,7 +106,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   const [seismicModel, setSeismicModel] = useState(null); // exclusive with curves
   const [projectId, setProjectId] = useState(null);
   const [publishing, setPublishing] = useState(false);
-  const [params, setParams] = useState(DEFAULT_PARAMS);
+  // Suite Projects P2: a new model starts from the project's seismic datum when it sets one
+  const [params, setParams] = useState(() => withProjectDatumDefaults(DEFAULT_PARAMS));
   const [picks, setPicks] = useState([]);
   const [calibration, setCalibration] = useState([]);
   const [view, setView] = useState('prognosis'); // 'prognosis' | 'nct'
