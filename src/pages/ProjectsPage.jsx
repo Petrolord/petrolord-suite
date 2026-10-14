@@ -13,7 +13,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { AccountScope, AccountPage, AccountHeader, accountCallout } from '@/components/account/accountChrome';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useProject } from '@/contexts/ProjectContext';
-import { MOVABLE, listMovable, moveToProject } from '@/lib/projects/projectsService';
+import { MOVABLE, APP_MOVABLE, listMovable, moveToProject } from '@/lib/projects/projectsService';
 import { INTERNAL_LABEL, projectLabel } from '@/lib/projects/projectGrouping';
 import ProjectSettingsCard from '@/components/projects/ProjectSettingsCard';
 import ProjectMembersCard from '@/components/projects/ProjectMembersCard';
@@ -163,7 +163,7 @@ function MovePanel({ projects, defaultProjectId, userId, onMoved }) {
   }, [source, table, defaultProjectId, userId]);
 
   const toggle = (id) => setPicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const label = MOVABLE.find((m) => m.table === table)?.label || 'Records';
+  const label = [...MOVABLE, ...APP_MOVABLE].find((m) => m.table === table)?.label || 'Records';
   const targets = active.filter((p) => p.id !== source);
 
   const move = () => run('move', async () => {
@@ -193,7 +193,12 @@ function MovePanel({ projects, defaultProjectId, userId, onMoved }) {
         </label>
         <label className="text-xs text-pl-muted">What
           <NativeSelect value={table} onChange={(e) => setTable(e.target.value)} data-testid="projects-move-kind">
-            {MOVABLE.map((m) => <option key={m.table} value={m.table}>{m.label}</option>)}
+            <optgroup label="Data">
+              {MOVABLE.map((m) => <option key={m.table} value={m.table}>{m.label}</option>)}
+            </optgroup>
+            <optgroup label="App projects">
+              {APP_MOVABLE.map((m) => <option key={m.table} value={m.table}>{m.label}</option>)}
+            </optgroup>
           </NativeSelect>
         </label>
         <label className="text-xs text-pl-muted">To

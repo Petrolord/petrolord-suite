@@ -11,6 +11,7 @@ import { listWellsWithTops, listLogs, downloadCurve } from '@/lib/wellsRegistry'
 import { getDepthUnit } from '@/lib/crs/settingsService';
 import { listIntervals } from '@/lib/stratRegistry';
 import { supabaseSharingStore, makeHarnessSharing, colleagueShared } from '@/lib/recordSharing';
+import { selectScoped } from '@/lib/projects/projectScope';
 
 // what a save reads back: enough to keep the version and the check-out in
 // step without pulling the whole model (scenario results can be large)
@@ -31,8 +32,8 @@ export function makeRegistryBackend() {
     async listWells() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
-      const { data, error } = await supabase.from('bf_wells').select('*')
-        .order('updated_at', { ascending: false });
+      const { data, error } = await selectScoped(() => supabase.from('bf_wells').select('*'),
+        (q) => q.order('updated_at', { ascending: false }));
       if (error) throw new Error(`Could not load wells: ${error.message}`);
       return data || [];
     },

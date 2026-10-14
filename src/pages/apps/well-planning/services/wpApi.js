@@ -9,6 +9,7 @@
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
+import { selectScoped } from '@/lib/projects/projectScope';
 
 const one = ({ data, error }) => {
   if (error) throw error;
@@ -22,7 +23,7 @@ const many = ({ data, error }) => {
 // ---- sites ----------------------------------------------------------------
 
 export async function listSites() {
-  return many(await supabase.from('wp_sites').select('*').order('created_at', { ascending: false }));
+  return many(await selectScoped(() => supabase.from('wp_sites').select('*'), (q) => q.order('created_at', { ascending: false })));
 }
 
 export async function saveSite(site, userId) {

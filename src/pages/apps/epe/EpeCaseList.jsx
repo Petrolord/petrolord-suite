@@ -25,6 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useNavigate, Link } from 'react-router-dom';
 import { AppHeader } from '@/components/ui/app-shell';
 import { epePage, epePanel, epeRow, epeBadge, epeEyebrow, epeNum, epeNativeCheck } from './epeUi';
+import { selectScoped } from '@/lib/projects/projectScope';
 
 const EpeCaseList = () => {
   const { toast } = useToast();
@@ -60,10 +61,10 @@ const EpeCaseList = () => {
 
     // Wave E: no user_id filter; RLS returns own cases plus cases shared
     // with the organization (read-only).
-    const { data, error } = await supabase
+    // Suite Projects P4: the current project's cases
+    const { data, error } = await selectScoped(() => supabase
       .from('epe_cases')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .select('*'), (q) => q.order('created_at', { ascending: false }));
 
     if (error) {
       toast({ title: 'Error fetching cases', description: error.message, variant: 'destructive' });

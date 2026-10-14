@@ -27,6 +27,7 @@ import { projectWellIds } from './projectRow';
 import { layerCakeAlongWell } from './alongHole';
 import { wellDepthFrame } from './prep';
 import { normalizeVelocity, layercakeDepthM } from '@/pages/apps/Seismolord/engine/velocityModel';
+import { selectScoped } from '@/lib/projects/projectScope';
 
 // ---- Seismolord velocity models (P4; layer cakes from Seismolord U2-006) ----
 // Through the shared reader (src/lib/velocityModels): the volume row's
@@ -111,8 +112,8 @@ const PP_PROJECT_KIND = 'pp-project';
 registerStateKind(PP_PROJECT_KIND, { current: 1, label: 'pore pressure project' });
 
 async function loadProject() {
-  const { data, error } = await supabase.from('pp_projects')
-    .select('*').order('updated_at', { ascending: false }).limit(1);
+  const { data, error } = await selectScoped(() => supabase.from('pp_projects')
+    .select('*'), (q) => q.order('updated_at', { ascending: false }).limit(1));
   if (error) throw new Error(`Could not load the project: ${error.message}`);
   return openStateRow(PP_PROJECT_KIND, data?.[0] || null);
 }

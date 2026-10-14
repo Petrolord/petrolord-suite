@@ -14,6 +14,12 @@
 // payload shape bump `schemaVersion` and pass step-wise `migrations`.
 import { supabase } from '@/lib/customSupabaseClient';
 import { registerStateKind, openState, writeStamped } from '@/lib/stateVersion';
+import { selectScoped } from '@/lib/projects/projectScope';
+
+// Suite Projects P4: lists show the current project's saved projects. Saves
+// are upserts and carry no project: a new row is placed in the current
+// project by the database's insert stamp, and saving an existing row never
+// moves it (moving is the Projects page's job).
 
 export function createSavedProjectsService(tableName, {
   signInMessage = 'Sign in to save projects.',
@@ -33,10 +39,10 @@ export function createSavedProjectsService(tableName, {
   return {
     /** List the caller's projects, most recently touched first. */
     async list() {
-      const { data, error } = await supabase
-        .from(tableName)
-        .select('id, project_name, created_at, updated_at')
-        .order('updated_at', { ascending: false });
+      const { data, error } = await selectScoped(
+        () => supabase.from(tableName).select('id, project_name, created_at, updated_at'),
+        (q) => q.order('updated_at', { ascending: false }),
+      );
       if (error) throw error;
       return (data || []).map((r) => ({
         id: r.id,
@@ -83,9 +89,10 @@ export function createSavedProjectsService(tableName, {
      */
     async listRows() {
       const base = 'id, project_name, created_at, updated_at, user_id';
-      let res = await supabase.from(tableName).select(`${base}, visibility, organization_id, org_access`).order('updated_at', { ascending: false });
+      const byDate = (q) => q.order('updated_at', { ascending: false });
+      let res = await selectScoped(() => supabase.from(tableName).select(`${base}, visibility, organization_id, org_access`), byDate);
       if (res.error && (['42703', 'PGRST204'].includes(String(res.error.code)) || /column .* does not exist|Could not find the '.*' column/i.test(String(res.error.message || '')))) {
-        res = await supabase.from(tableName).select(base).order('updated_at', { ascending: false });
+        res = await selectScoped(() => supabase.from(tableName).select(base), byDate);
       }
       if (res.error) throw res.error;
       return (res.data || []).map((r) => ({
