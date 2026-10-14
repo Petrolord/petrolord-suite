@@ -13,24 +13,28 @@ const cls = 'h-6 w-20 rounded border border-pl-border-strong bg-pl-surface px-1 
 export default function BasinChargeNote({ meanVolume, unit, basis, onApply, onRecord }) {
   const id = useMemo(() => { try { return new URLSearchParams(window.location.search).get('bfCharge'); } catch { return null; } }, []);
   const read = useMemo(() => (id ? readBasinCharge(id) : null), [id]);
-  const [area, setArea] = useState('');
-  const [trap, setTrap] = useState('');
-  const [eff, setEff] = useState(String(DEFAULT_MIGRATION_EFFICIENCY));
+  // 2026-10-14: a charge sent for one trap arrives with its numbers (Basin's Traps and charge)
+  const sentTrap = read?.ok ? read.payload.trap || null : null;
+  const [area, setArea] = useState(sentTrap && Number.isFinite(sentTrap.fetchKm2) ? String(sentTrap.fetchKm2) : '');
+  const [trap, setTrap] = useState(sentTrap && Number.isFinite(sentTrap.formedMa) ? String(sentTrap.formedMa) : '');
+  const [eff, setEff] = useState(sentTrap && Number.isFinite(sentTrap.efficiency) ? String(sentTrap.efficiency) : String(DEFAULT_MIGRATION_EFFICIENCY));
+  const sourceIds = sentTrap?.sourceIds?.length ? sentTrap.sourceIds : null;
   const required = Number.isFinite(Number(meanVolume)) && meanVolume !== '' ? toMMboe(Number(meanVolume), unit) : null;
-  const a = useMemo(() => (read?.ok ? chargeAssessment(read.payload, { fetchAreaKm2: Number(area), trapAgeMa: trap === '' ? NaN : Number(trap), efficiency: Number(eff), requiredMMboe: required }) : null), [read, area, trap, eff, required]);
+  const a = useMemo(() => (read?.ok ? chargeAssessment(read.payload, { fetchAreaKm2: Number(area), trapAgeMa: trap === '' ? NaN : Number(trap), efficiency: Number(eff), requiredMMboe: required, sourceIds }) : null), [read, area, trap, eff, required, sourceIds]);
   const record = useMemo(() => (read?.ok && a?.ok ? {
     schema: read.payload.schema, id: read.payload.id, model: read.payload.model.name, sentAt: read.payload.createdAt,
     fetchAreaKm2: Number(area), trapAgeMa: Number(trap), efficiency: Number(eff), chargeMMboe: a.chargeMMboe, ratio: a.ratio, suggestedFactor: a.factor,
-  } : null), [read, a, area, trap, eff]);
+    ...(sentTrap ? { trap: sentTrap.name, sourceIds: sentTrap.sourceIds || [], oilMMbbl: a.oilMMbbl, gasBcf: a.gasBcf } : {}),
+  } : null), [read, a, area, trap, eff, sentTrap]);
   useEffect(() => { if (onRecord) onRecord(record); }, [record]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!read) return null;
   if (!read.ok) return <div className="rounded border border-pl-warning/40 bg-pl-warning-bg p-2 text-[11px] text-pl-warning-text" data-testid="rcp-bf-charge-error">{read.reason}</div>;
   const p = read.payload;
   return (
     <div className="rounded border border-pl-border bg-pl-sunken p-2 text-[11px] text-pl-text space-y-1.5" data-testid="rcp-bf-charge">
-      <div className="font-semibold">Charge from the basin model: {p.model.name}</div>
+      <div className="font-semibold">Charge from the basin model: {p.model.name}{sentTrap ? `, trap ${sentTrap.name}` : ''}</div>
       <div className="text-pl-muted">
-        {p.sources.map((s) => `${s.name}: TOC ${s.tocWtPct} wt %, HI ${s.hi}, ${(100 * s.transformation).toFixed(0)} % transformed, ${s.expelledKgM2.toFixed(0)} kg/m2 expelled`).join('; ')}.
+        {(sourceIds ? p.sources.filter((s) => sourceIds.includes(s.id)) : p.sources).map((s) => `${s.name}: TOC ${s.tocWtPct} wt %, HI ${s.hi}, ${(100 * s.transformation).toFixed(0)} % transformed, ${s.expelledKgM2.toFixed(0)} kg/m2 expelled`).join('; ')}.
         {p.criticalMomentMa != null ? ` Critical moment ${p.criticalMomentMa} Ma.` : ''}
       </div>
       <div className="flex flex-wrap items-center gap-2">

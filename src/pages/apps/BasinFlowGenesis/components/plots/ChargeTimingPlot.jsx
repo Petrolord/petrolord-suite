@@ -2,15 +2,17 @@ import React, { useMemo } from 'react';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS } from '@/utils/chartTheme';
 import { eventsChartRows, ageTicks, maxAgeOf } from '../../services/resultsView';
+import { trapIntervals } from '../../services/traps';
 
 /**
  * Petroleum-system events chart (Magoon and Dow; Basin T1-003): one row per
  * element and process on the same geological time axis as the other plots
  * (oldest on the left), the critical moment marked. Drawn in HTML so the
  * row bars can hold several intervals each and print cleanly. Trap
- * formation and preservation are not modelled in 1D and are stated so.
+ * formation comes from the model's traps (2026-10-14: TrapsPanel), each from
+ * the age it formed to the present; with none, the row says how to add them.
  */
-const ChargeTimingPlot = ({ results }) => {
+const ChargeTimingPlot = ({ results, traps = [] }) => {
     const maxAge = maxAgeOf(results);
     const { rows, criticalMoment } = useMemo(() => eventsChartRows(results), [results]);
     const ticks = ageTicks(maxAge);
@@ -42,10 +44,20 @@ const ChargeTimingPlot = ({ results }) => {
                             </div>
                         </div>
                     ))}
-                    <div className="flex items-center h-9 border-b border-slate-100">
-                        <div className="w-36 shrink-0 pr-2 text-right text-[11px] text-slate-700 font-medium">Trap formation</div>
-                        <div className="flex-1 text-[10px] text-slate-400 pl-2">not modelled in 1D; mark it from the structural history</div>
-                    </div>
+                    {trapIntervals(traps).length === 0 ? (
+                        <div className="flex items-center h-9 border-b border-slate-100" data-testid="bf-events-row-trap">
+                            <div className="w-36 shrink-0 pr-2 text-right text-[11px] text-slate-700 font-medium">Trap formation</div>
+                            <div className="flex-1 text-[10px] text-slate-400 pl-2">add the traps above, with the age each formed from the structural history</div>
+                        </div>
+                    ) : trapIntervals(traps).map((iv) => (
+                        <div key={iv.layer} className="flex items-center h-9 border-b border-slate-100" data-testid={`bf-events-row-trap-${iv.layer}`}>
+                            <div className="w-36 shrink-0 pr-2 text-right text-[11px] text-slate-700 font-medium truncate" title={`${iv.layer} trap`}>Trap: {iv.layer}</div>
+                            <div className="relative flex-1 h-5">
+                                <div className="absolute top-0 h-5 rounded-sm flex items-center px-1 text-[10px] text-white whitespace-nowrap overflow-hidden" title={`${iv.layer}: formed ${iv.interval[0]} Ma`}
+                                    style={{ left: x(Math.min(iv.interval[0], maxAge)), width: w([Math.min(iv.interval[0], maxAge), 0]), background: '#0e7490', opacity: 0.85 }}>formed {iv.interval[0]} Ma</div>
+                            </div>
+                        </div>
+                    ))}
                     {criticalMoment != null && (
                         <div className="absolute top-0 bottom-0 pointer-events-none" style={{ left: `calc(9rem + (100% - 9rem) * ${1 - criticalMoment / maxAge})` }} data-testid="bf-critical-moment">
                             <div className="h-full border-l-2 border-dashed border-red-600" />
