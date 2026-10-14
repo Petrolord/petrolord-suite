@@ -17,8 +17,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { corsHeaders } from './cors.ts';
 import { sendEmail } from '../_shared/email.ts';
+import { isPlatformAdmin as isPlatformAdminRow } from '../_shared/platform-admin.ts';
 
-const SUPER_ADMIN_EMAILS = ['info@petrolord.com', 'ayoasaolu@gmail.com', 'ayodejiasaolu1@gmail.com', 'support@petrolord.com'];
 const ADMIN_ROLES = ['owner', 'admin', 'org_admin', 'super_admin'];
 
 Deno.serve(async (req) => {
@@ -53,15 +53,26 @@ Deno.serve(async (req) => {
       .eq('organization_id', organization_id).eq('user_id', caller.id);
     const isOrgAdmin = (callerRows ?? []).some((m) =>
       (m.status ?? 'active').toLowerCase() === 'active' && ADMIN_ROLES.includes(m.role));
-    let allowed = isOrgAdmin ||
-      caller.user_metadata?.is_super_admin === true ||
-      SUPER_ADMIN_EMAILS.includes(String(caller.email || '').toLowerCase());
-    if (!allowed) {
-      const { data: urow } = await supabaseAdmin.from('users')
-        .select('is_super_admin').eq('id', caller.id).maybeSingle();
-      allowed = urow?.is_super_admin === true;
-    }
+    // Platform super admin = public.is_super_admin() for the caller's own
+    // session (security fix 2026-09-19): user_metadata.is_super_admin and
+    // users.is_super_admin were user-settable, so any account could invite
+    // itself into any org.
+    const isPlatformAdmin = await isPlatformAdminRow(supabaseAdmin, { id: caller.id, jwt });
+    const allowed = isOrgAdmin || isPlatformAdmin;
     if (!allowed) return json({ error: 'Only organization admins can invite members.' }, 403);
+
+    // Role guard (security fix 2026-09-19): 'super_admin' is never granted by
+    // invitation, and only an owner (or a platform super admin) may invite
+    // another owner. accept-employee-invitation / handle_new_user grant the
+    // role written here, so this is where it is policed.
+    const callerIsOwner = (callerRows ?? []).some((m) =>
+      (m.status ?? 'active').toLowerCase() === 'active' && ['owner', 'super_admin'].includes(m.role));
+    if (role === 'super_admin') {
+      return json({ error: 'The super_admin role cannot be granted by invitation.' }, 403);
+    }
+    if (role === 'owner' && !callerIsOwner && !isPlatformAdmin) {
+      return json({ error: 'Only an owner can invite another owner.' }, 403);
+    }
 
     // 3. Upsert the invited member row. (organization_id, email) is unique:
     //    an existing ACTIVE member is reported as such; an existing invited
