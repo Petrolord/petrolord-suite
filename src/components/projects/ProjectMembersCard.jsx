@@ -6,7 +6,7 @@
 //   viewer  reads a members-only project's data, changes nothing
 // In a project open to the organisation every colleague reads and adds data
 // already; membership matters most for members-only projects.
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Users, History, UserPlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,7 +37,11 @@ const EVENT_TEXT = {
 export default function ProjectMembersCard() {
   const p = useProject();
   const { toast } = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   const project = p.current;
+  const projectId = project?.id || null;
+  const orgId = project?.organization_id || null;
   const canEdit = p.canManage(project);
   const [members, setMembers] = useState(null);
   const [colleagues, setColleagues] = useState([]);
@@ -46,20 +50,22 @@ export default function ProjectMembersCard() {
   const [pickRole, setPickRole] = useState('editor');
   const [busy, setBusy] = useState(false);
 
+  // keyed on the project's id only: a new project object (a settings save)
+  // or a new toast function must not reload the list
   const load = useCallback(async () => {
-    if (!project) return;
+    if (!projectId) return;
     try {
       const [m, c, l] = await Promise.all([
-        listProjectMembers(project.id),
-        listOrgColleagues(project.organization_id),
-        canEdit ? listAccessLog(project.id) : Promise.resolve([]),
+        listProjectMembers(projectId),
+        listOrgColleagues(orgId),
+        canEdit ? listAccessLog(projectId) : Promise.resolve([]),
       ]);
       setMembers(m); setColleagues(c); setLog(l);
     } catch (e) {
       setMembers([]);
-      toast({ variant: 'destructive', title: 'Members not loaded', description: e.message });
+      toastRef.current({ variant: 'destructive', title: 'Members not loaded', description: e.message });
     }
-  }, [project, canEdit, toast]);
+  }, [projectId, orgId, canEdit]);
   useEffect(() => { load(); }, [load]);
 
   const nameOf = useMemo(() => {
