@@ -17,6 +17,7 @@ import { pilotProblem, pilotOn, pilotBytes } from '../pilot.js';
 import { seismicQuota, overQuotaMessage } from '../quota.js';
 import {
   validatePrestackParams, prestackBlindTable, prestackProducts, PRESTACK_DEFAULTS, PRESTACK_PRODUCTS, makeBlindCdpInverter,
+  densityDecision, prestackResiduals, prestackResidualPercent,
 } from '../../../../src/pages/apps/QIStudio/services/prestackRun.js';
 import { horizonsAtFrom } from '../../../../src/pages/apps/QIStudio/services/inversionRun.js';
 import { assertFloat32Parent, derivedStorageBytes, derivedSurveyMeta } from '../../../../src/pages/apps/Seismolord/services/attributeSurveyMeta.js';
@@ -42,6 +43,7 @@ export function validatePrestackJob(p) {
   if (new Set(p.inversion.stacks.map((s) => s.volume_id)).size !== p.inversion.stacks.length) return 'Each stack must be a different volume.';
   if ((p.inversion.horizon_ids || []).some((h) => !UUID.test(String(h)))) return 'Each horizon id must be a uuid.';
   if (p.mode === 'volume' && !KEYS.every((k) => UUID.test(String(p.volume_ids?.[k])))) return 'volume_ids needs ai, si, rho and vpvs for a volume run.';
+  if (p.mode === 'volume' && p.inversion.residual && !p.inversion.stacks.every((_, k) => UUID.test(String(p.volume_ids?.[`res_${k}`])))) return 'volume_ids needs res_0 to res_n, one per stack, to write the seismic residuals.';
   return null;
 }
 
@@ -68,8 +70,10 @@ export async function prestackInversion(ctx, deps) {
   }
   const parent = stacks[0].row;
   const derived = [];
+  // QI upgrade P1.4: one seismic residual per stack, after the four products
+  const outKeys = [...KEYS, ...(p.mode === 'volume' && inv.residual ? inv.stacks.map((_, k) => `res_${k}`) : [])];
   if (p.mode === 'volume') {
-    for (const k of KEYS) {
+    for (const k of outKeys) {
       const row = await rowOf(p.volume_ids[k]);
       if (!row || row.user_id !== uid || row.kind !== 'attribute' || row.parent_volume_id !== parent.id || row.status !== 'ingesting') throw new JobFailure('validate_failed', 'An output volume is not a new volume registered on the first stack.');
       derived.push(row);
@@ -158,7 +162,14 @@ export async function prestackInversion(ctx, deps) {
   ctx.progress(0.03, 'Blind wells');
   const blind = inv.wells.length >= 2 ? prestackBlindTable({ invert, wells: inv.wells, tracesByWell, dtMs, truthHz: inv.truthHz }) : [];
   const blindProtocol = { ...blindInv.protocol, held_back: blindInv.heldBack };
-  const settings = { qi_class: 'elastic_estimate', method: 'Fatti three-term simultaneous inversion', wavelets: inv.wavelets ? 'one per stack, from the wells' : 'one for every stack', stacks: stacks.map((s) => ({ volume_id: s.row.id, name: s.row.name, angle: s.angle })), wells: inv.wells.map((w) => w.name), horizon_ids: inv.horizon_ids || [], lfm_hz: inv.lfmHz, eps: inv.eps, vs_vp: vsVp, wavelet_scale: scale, blind_protocol: blindProtocol };
+  // QI upgrade P1.4: the density gate decides whether density is written, with its reason
+  const density = densityDecision({ thetaDeg, blind, gate: inv.density_gate || {} });
+  const residualAtWells = inv.wells.map((w, k) => {
+    const m = invert(tracesByWell[k], w.il, w.xl);
+    const pct = prestackResidualPercent(tracesByWell[k], prestackResiduals(tracesByWell[k], m, thetaDeg, blindInv.scaledWavelet, vsVp));
+    return { name: w.name, pct };
+  });
+  const settings = { qi_class: 'elastic_estimate', method: 'Fatti three-term simultaneous inversion', wavelets: inv.wavelets ? 'one per stack, from the wells' : 'one for every stack', stacks: stacks.map((s) => ({ volume_id: s.row.id, name: s.row.name, angle: s.angle })), wells: inv.wells.map((w) => w.name), horizon_ids: inv.horizon_ids || [], lfm_hz: inv.lfmHz, eps: inv.eps, vs_vp: vsVp, wavelet_scale: scale, blind_protocol: blindProtocol, density_gate: density.checks, density_produced: density.produced };
   // each well's held-back estimate, recorded with the AI and Vp/Vs volumes
   // so the property check predicts each well from an inversion that never saw it
   const pack = (a) => packLog(Array.from(a, (v) => (Number.isFinite(v) ? v : NaN)));
@@ -168,7 +179,7 @@ export async function prestackInversion(ctx, deps) {
     return { name, il: w.il, xl: w.xl, ...(key === 'ai' ? { ln_ai: pack(values) } : { vpvs: pack(values) }) };
   }).filter((x) => (x.ln_ai || x.vpvs).n > 0);
   if (ctx.cancelled) { await cleanup(); return null; }
-  if (p.mode === 'blind') { ctx.progress(1, 'Done'); return { mode: 'blind', settings, blind, blind_protocol: blindProtocol }; }
+  if (p.mode === 'blind') { ctx.progress(1, 'Done'); return { mode: 'blind', settings, blind, blind_protocol: blindProtocol, density, residual_at_wells: residualAtWells }; }
 
   // every CDP: the other stacks' bricks for the column beside the first
   let column = null; let others = null;
@@ -181,8 +192,14 @@ export async function prestackInversion(ctx, deps) {
   const compute = (trace, outs, il, xl) => {
     const base = ((il % b) * b + (xl % b)) * b;
     const traces = [trace, ...stacks.slice(1).map((_, m) => Float32Array.from({ length: ns }, (_, s) => others.get(Math.floor(s / b))[m][base + (s % b)]))];
-    const prods = prestackProducts(invert(traces, il, xl));
-    prods.forEach((v, o) => { for (let k = 0; k < ns; k++) outs[o][k] = Number.isFinite(v[k]) && Math.abs(v[k]) < NULL_LIM ? v[k] : NULL_VALUE; });
+    const m = invert(traces, il, xl);
+    const prods = prestackProducts(m);
+    if (inv.residual) prods.push(...prestackResiduals(traces, m, thetaDeg, blindInv.scaledWavelet, vsVp));
+    prods.forEach((v, o) => {
+      // a withheld density is still computed (it is part of the fit) but its output is dropped
+      if (o === 2 && !density.produced) return;
+      for (let k = 0; k < ns; k++) outs[o][k] = Number.isFinite(v[k]) && Math.abs(v[k]) < NULL_LIM ? v[k] : NULL_VALUE;
+    });
   };
   const dirs = derived.map((d) => volumeDir(uid, d.id));
   const inflight = new Set();
@@ -197,7 +214,7 @@ export async function prestackInversion(ctx, deps) {
   };
   let result;
   try {
-    result = await runVolumeJob({ geom, compute, fetchBrick, onBrick, outputs: 4, window: pilot?.window || null, shouldCancel: () => ctx.cancelled, onProgress: (done, total) => ctx.progress(0.03 + 0.92 * (total ? done / total : 0), 'Inverting') });
+    result = await runVolumeJob({ geom, compute, fetchBrick, onBrick: (x) => (x.output === 2 && !density.produced ? undefined : onBrick(x)), outputs: outKeys.length, window: pilot?.window || null, shouldCancel: () => ctx.cancelled, onProgress: (done, total) => ctx.progress(0.03 + 0.92 * (total ? done / total : 0), 'Inverting') });
     await Promise.all(inflight);
     if (uploadError) throw new JobFailure('upload_failed', `Uploading the inversion bricks failed: ${uploadError.message}`);
   } catch (e) {
@@ -207,16 +224,25 @@ export async function prestackInversion(ctx, deps) {
     throw e;
   }
   try {
-    for (let o = 0; o < 4; o++) {
+    for (let o = 0; o < outKeys.length; o++) {
       const d = derived[o];
-      const out = buildDerivedManifest({ volumeId: d.id, name: d.name, parentManifest: manifests[0], attribute: { name: PRESTACK_ATTRIBUTE, params: { ...settings, product: KEYS[o], product_label: PRESTACK_PRODUCTS[KEYS[o]], output: KEYS[o] === 'ai' ? 'AI' : KEYS[o].toUpperCase(), blind, ...(KEYS[o] === 'ai' || KEYS[o] === 'vpvs' ? { blind_traces: blindTracesFor(KEYS[o]) } : {}) } }, job: { ...result, stats: result.statsByOutput[o] } });
+      const key = outKeys[o];
+      if (key === 'rho' && !density.produced) {
+        // the gate withheld density: its registered row goes, with nothing uploaded
+        await admin.from('seismic_volumes').delete().eq('id', d.id).eq('user_id', uid);
+        continue;
+      }
+      const resK = key.startsWith('res_') ? Number(key.slice(4)) : null;
+      const label = resK != null ? `Seismic residual of ${stacks[resK].row.name} (the stack minus the synthetic of the inversion)` : PRESTACK_PRODUCTS[key];
+      const out = buildDerivedManifest({ volumeId: d.id, name: d.name, parentManifest: manifests[0], attribute: { name: PRESTACK_ATTRIBUTE, params: { ...settings, product: key, product_label: label, output: key === 'ai' ? 'AI' : resK != null ? 'seismic residual' : key.toUpperCase(), blind, density, ...(key === 'ai' || key === 'vpvs' ? { blind_traces: blindTracesFor(key) } : {}) } }, job: { ...result, stats: result.statsByOutput[o] } });
       if (pilot) out.pilot = pilot.record;
       await deps.storage.upload(manifestPath(uid, d.id), new TextEncoder().encode(JSON.stringify(out, null, 1)), { contentType: 'application/json', upsert: true });
       const { error } = await admin.from('seismic_volumes').update({ status: 'ready', survey_meta: derivedSurveyMeta(out, parent.id), updated_at: new Date().toISOString() }).eq('id', d.id).eq('user_id', uid);
       if (error) throw new Error(`Inversion computed but registration failed: ${error.message}`);
     }
     ctx.progress(1, 'Done');
-    return { mode: 'volume', volume_ids: p.volume_ids, settings, blind, blind_protocol: blindProtocol, trace_count: result.traceCount, ...(pilot ? { pilot: pilot.record } : {}) };
+    const written = Object.fromEntries(outKeys.filter((k) => k !== 'rho' || density.produced).map((k) => [k, p.volume_ids[k]]));
+    return { mode: 'volume', volume_ids: written, settings, blind, blind_protocol: blindProtocol, density, residual_at_wells: residualAtWells, trace_count: result.traceCount, ...(pilot ? { pilot: pilot.record } : {}) };
   } catch (e) {
     await cleanup();
     throw e;

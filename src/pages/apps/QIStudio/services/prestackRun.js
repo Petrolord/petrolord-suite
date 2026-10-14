@@ -33,8 +33,13 @@ export function validatePrestackParams(p) {
   const st = inv.stacks;
   if (!Array.isArray(st) || st.length < 3 || st.length > 6) return 'Give three to six angle stacks (density needs the far angles).';
   if (st.some((s) => !(s.angle >= 0 && s.angle <= 50))) return 'Each stack needs its mean angle, 0 to 50 degrees.';
-  const a = st.map((s) => s.angle);
-  if (Math.max(...a) < 25) return 'The farthest stack should reach 25 degrees or more, or density is not resolved.';
+  // the far-angle rule now decides whether density is produced (densityDecision), not whether the run starts (QI upgrade P1.4)
+  if (inv.density_gate != null) {
+    const g = inv.density_gate;
+    if (typeof g !== 'object' || (g.min_far_deg != null && !(g.min_far_deg >= 0 && g.min_far_deg <= 50)) || (g.min_blind_corr != null && !(g.min_blind_corr >= -1 && g.min_blind_corr <= 1))) return 'The density gate needs a far angle of 0 to 50 degrees and a correlation of -1 to 1.';
+  }
+  if (inv.vs_vp != null && !(inv.vs_vp > 0.2 && inv.vs_vp < 0.9)) return 'Vs/Vp must be between 0.2 and 0.9.';
+  if (inv.lfmHz != null && !(inv.lfmHz >= 2 && inv.lfmHz <= 20)) return 'The low-frequency model cut must be 2 to 20 Hz.';
   const okWavelet = (w) => w && Array.isArray(w.samples) && w.samples.length >= 5 && w.samples.length % 2 === 1;
   if (inv.wavelets != null) {
     if (!Array.isArray(inv.wavelets) || inv.wavelets.length !== st.length || !inv.wavelets.every(okWavelet)) return 'Give one wavelet per stack, each with an odd number of samples, at least five.';
@@ -183,7 +188,7 @@ export function makeBlindCdpInverter({ inv, thetaDeg, wavelet, onGrid = (x) => F
     const w0 = (exclude && blindW.get(exclude)) || wavelet;
     const scale = prestackWaveletScale(keep.map((k) => ({ well: wells[k], traces: tracesByWell[k] })), thetaDeg, w0, vsVp).scale;
     const scaled = Array.isArray(w0) ? w0.map((w) => w.map((v) => v * scale)) : w0.map((v) => v * scale);
-    return { scale, vsVp, invert: makeCdpInverter({ inv: s, thetaDeg, wavelet: scaled, lfm, posOf, horizonsAt, ns, dtMs, vsVp }) };
+    return { scale, vsVp, wavelet: scaled, invert: makeCdpInverter({ inv: s, thetaDeg, wavelet: scaled, lfm, posOf, horizonsAt, ns, dtMs, vsVp }) };
   };
   const full = build(null);
   const held = new Map();
@@ -211,7 +216,7 @@ export function makeBlindCdpInverter({ inv, thetaDeg, wavelet, onGrid = (x) => F
   if (blindW.size) excluded.push(perStack ? 'the angle wavelet averages' : 'the field wavelet average');
   const waveletWell = typeof inv.wavelet_well === 'string' && inv.wavelet_well ? inv.wavelet_well : null;
   const protocol = { version: PRESTACK_BLIND_PROTOCOL, excluded_from: excluded, notes, ...(waveletWell ? { wavelet_from_well: waveletWell } : {}) };
-  return { invert, scale: full.scale, vsVp: full.vsVp, protocol, heldBack, blindTraces };
+  return { invert, scale: full.scale, vsVp: full.vsVp, scaledWavelet: full.wavelet, protocol, heldBack, blindTraces };
 }
 
 /**
@@ -234,4 +239,58 @@ export function simultaneousIssues(blind, name = 'the stacks') {
     else if (fin(re) && re > 10) add(`${r.name}:rho-err`, 'low', `${r.name}: blind density error ${re.toFixed(1)} percent`, `Simultaneous inversion of ${name}.`, 'Read density away from the wells with its uncertainty.');
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Inversion trust outputs (QI upgrade P1.4, 2026-10-15).
+
+/**
+ * The density gate's defaults: the farthest stack must reach 25 degrees
+ * (Buland and Omre 2003; the engine's near-angle negative control loses the
+ * density detail) and the blind density correlation at the wells must reach
+ * 0.5 (median over the wells, at least two of them).
+ */
+export const DENSITY_GATE_DEFAULTS = Object.freeze({ min_far_deg: 25, min_blind_corr: 0.5 });
+
+/**
+ * Whether the simultaneous inversion writes a density volume, and why.
+ * AI, SI and Vp/Vs are written either way.
+ * @returns {{produced: boolean, reason: string, checks: {far_deg, median_blind_corr, wells, min_far_deg, min_blind_corr}}}
+ */
+export function densityDecision({ thetaDeg, blind = [], gate = {} }) {
+  const g = { ...DENSITY_GATE_DEFAULTS, ...Object.fromEntries(Object.entries(gate || {}).filter(([, v]) => v != null)) };
+  const far = Math.max(...thetaDeg);
+  const corr = (blind || []).map((r) => r?.blind?.rho?.corr).filter(fin).sort((x, y) => x - y);
+  const median = corr.length ? (corr.length % 2 ? corr[(corr.length - 1) / 2] : (corr[corr.length / 2 - 1] + corr[corr.length / 2]) / 2) : NaN;
+  const checks = { far_deg: far, median_blind_corr: fin(median) ? median : null, wells: corr.length, min_far_deg: g.min_far_deg, min_blind_corr: g.min_blind_corr };
+  if (far < g.min_far_deg) return { produced: false, reason: `Density is not written: the farthest stack is ${far} degrees and density needs ${g.min_far_deg} or more.`, checks };
+  if (corr.length < 2) return { produced: false, reason: 'Density is not written: it needs a blind check at two wells or more to show it is resolved.', checks };
+  if (median < g.min_blind_corr) return { produced: false, reason: `Density is not written: its blind correlation at the wells is ${median.toFixed(2)} (median of ${corr.length}), under ${g.min_blind_corr}.`, checks };
+  return { produced: true, reason: `Density is written: the farthest stack is ${far} degrees and its blind correlation at the wells is ${median.toFixed(2)} (median of ${corr.length}).`, checks };
+}
+
+/**
+ * The seismic residual of one CDP: each stack minus the Fatti synthetic of
+ * the inverted ln(AI), ln(SI) and ln(rho) through the scaled wavelet(s) the
+ * inversion used. NaN where the stack is null.
+ * @returns {Float64Array[]} one residual per stack
+ */
+export function prestackResiduals(traces, m, thetaDeg, wavelet, vsVp) {
+  const fill = { lnAi: holdFill(m.lnAi), lnSi: holdFill(m.lnSi), lnRho: holdFill(m.lnRho) };
+  const n = traces[0].length;
+  if (!fill.lnAi || !fill.lnSi || !fill.lnRho) return traces.map(() => new Float64Array(n).fill(NaN));
+  const syn = forwardFatti(fill, thetaDeg, wavelet, vsVp);
+  return traces.map((t, k) => Float64Array.from({ length: n }, (_, i) => (isNull(t[i]) || !fin(m.lnAi[i]) ? NaN : t[i] - syn[k][i])));
+}
+
+/** Each stack's residual RMS as a percentage of its RMS. */
+export function prestackResidualPercent(traces, residuals) {
+  return traces.map((t, k) => {
+    let sr = 0; let sd = 0; let n = 0;
+    for (let i = 0; i < t.length; i++) {
+      if (!fin(residuals[k][i]) || isNull(t[i])) continue;
+      sr += residuals[k][i] ** 2; sd += t[i] ** 2; n += 1;
+    }
+    return n && sd > 0 ? 100 * Math.sqrt(sr / sd) : NaN;
+  });
 }

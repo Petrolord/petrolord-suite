@@ -209,6 +209,12 @@ function QIStudioHelpGuideContent() {
           the wavelet, and the line under the table says so. Results from before this change say they held the well out of
           the model only. A volume run records each well&apos;s held-back estimate, so the property check can use it.
         </Para>
+        <Para>
+          Tick Also write the seismic residual (absolute methods) to get a second volume: the seismic minus the synthetic of
+          the inverted impedance through the same scaled wavelet. Where the inversion explains the seismic it is small;
+          energy left in it marks what the model could not fit. The blind result also gives the residual at each well as a
+          percentage of the seismic RMS.
+        </Para>
       </GuideSection>
 
       <GuideSection id="simultaneous">
@@ -238,6 +244,23 @@ function QIStudioHelpGuideContent() {
           background Vs/Vp (unless you typed it), and the wavelet average (the angle wavelets or the field wavelet are
           rebuilt from the other wells). Add the blind results to the issue register with the button under the table: an AI
           or SI error over 10 percent, a density correlation under 0.5, or a density error over 10 percent.
+        </Para>
+        <SubHeading>Settings and the density gate</SubHeading>
+        <Para>
+          Under Settings you can change the pull of AI, SI and density to their models (0.05 each by default; a larger pull
+          keeps that parameter closer to its model), the low-frequency model cut, and the background Vs/Vp of the
+          linearisation (blank takes the wells&apos; mean, shown beside the box). A cleared box holds the run with a message.
+        </Para>
+        <Para>
+          The density gate decides whether a density volume is written, and says why under the blind table. Density is
+          written when the farthest stack reaches 25 degrees and the blind density correlation at the wells (the median, over
+          two wells or more) reaches the gate, 0.5 by default. Otherwise the run still writes AI, SI and Vp/Vs, and density
+          is left out with its reason. Stacks that all sit under 25 degrees no longer stop the run.
+        </Para>
+        <Para>
+          Tick Also write each stack&apos;s seismic residual to get, for every stack, the stack minus the synthetic of the
+          inverted logs through the same wavelet and Fatti operator. The line under the blind table gives the residual at each
+          well as a percentage of each stack&apos;s RMS: structured energy left in the residual is what the inversion could not fit.
         </Para>
       </GuideSection>
 

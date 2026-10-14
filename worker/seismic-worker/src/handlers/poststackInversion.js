@@ -28,7 +28,7 @@ import { seismicQuota, overQuotaMessage } from '../quota.js';
 import {
   validateInversionParams, horizonsAtFrom,
   blindWellTable, INVERSION_DEFAULTS, INVERSION_METHODS,
-  makeScenarioInverters, blindSensitivity, spreadProducts, makeBlindInverter, blindProtocol,
+  makeScenarioInverters, blindSensitivity, spreadProducts, makeBlindInverter, blindProtocol, residualTrace, residualPercent,
 } from '../../../../src/pages/apps/QIStudio/services/inversionRun.js';
 import { assertFloat32Parent, derivedStorageBytes, derivedSurveyMeta } from '../../../../src/pages/apps/Seismolord/services/attributeSurveyMeta.js';
 import { storageBrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCache.js';
@@ -55,6 +55,11 @@ export const SPREAD_PRODUCTS = Object.freeze([
 export function validatePoststackParams(p) {
   if (!p || typeof p !== 'object') return 'Missing job settings.';
   if (!UUID.test(String(p.parent_volume_id))) return 'parent_volume_id is required.';
+  if (p.inversion?.residual && p.mode === 'volume') {
+    if (p.inversion.sensitivity) return 'The seismic residual is written with a single inversion, not an uncertainty run.';
+    if (!INVERSION_METHODS[p.inversion.method]?.absolute) return 'The seismic residual needs an absolute method (coloured inversion has no forward model).';
+    if (!UUID.test(String(p.residual_volume_id))) return 'residual_volume_id is required to write the seismic residual.';
+  }
   if (p.mode === 'volume') {
     if (p.inversion?.sensitivity) {
       if (!SPREAD_PRODUCTS.every((x) => UUID.test(String(p.volume_ids?.[x.key])))) return 'volume_ids needs q10, q50, q90 and spread for a sensitivity volume run.';
@@ -104,7 +109,9 @@ export async function poststackInversion(ctx, deps) {
     return data;
   };
   const sens = absolute ? inv.sensitivity || null : null;
-  const targetIds = p.mode !== 'volume' ? [] : (sens ? SPREAD_PRODUCTS.map((x) => p.volume_ids[x.key]) : [p.volume_id]);
+  // QI upgrade P1.4: the seismic residual as a second output of a single absolute inversion
+  const withResidual = p.mode === 'volume' && !sens && absolute && !!inv.residual;
+  const targetIds = p.mode !== 'volume' ? [] : (sens ? SPREAD_PRODUCTS.map((x) => p.volume_ids[x.key]) : [p.volume_id, ...(withResidual ? [p.residual_volume_id] : [])]);
   let derived = [];
   const uploaded = [];
   const cleanup = async () => {
@@ -213,6 +220,11 @@ export async function poststackInversion(ctx, deps) {
     ? blindWellTable({ invert, wells: inv.wells, traces, dtMs, truthHz: s.truthHz, absolute, lowCutHz: s.band[0] })
     : [];
   const blindTraces = blindInv.blindTraces;
+  // QI upgrade P1.4: how much of the seismic the full inversion leaves unexplained at each well
+  const residualAtWells = absolute && blindInv.scaledWavelet ? inv.wells.map((w, k) => {
+    const res = residualTrace(traces[k], invert(traces[k], w.il, w.xl), blindInv.scaledWavelet);
+    return { name: w.name, pct: residualPercent(traces[k], res) };
+  }) : [];
   let scenarioRun = null; let sensitivity = null;
   if (sens) {
     ctx.progress(0.04, 'Sensitivity at the wells');
@@ -247,7 +259,7 @@ export async function poststackInversion(ctx, deps) {
   if (ctx.cancelled) { await cleanup(); return null; }
   if (p.mode === 'blind') {
     ctx.progress(1, 'Done');
-    return { mode: 'blind', parent_volume_id: parent.id, volume_name: parent.name, settings: summary, blind, blind_protocol: blindProtocolRec, ...(sensitivity ? { sensitivity } : {}) };
+    return { mode: 'blind', parent_volume_id: parent.id, volume_name: parent.name, settings: summary, blind, blind_protocol: blindProtocolRec, residual_at_wells: residualAtWells, ...(sensitivity ? { sensitivity } : {}) };
   }
 
   // the whole volume, published like an attribute volume
@@ -267,10 +279,16 @@ export async function poststackInversion(ctx, deps) {
   const put = (out, values) => { for (let k = 0; k < ns; k++) out[k] = Number.isFinite(values[k]) ? values[k] : NULL_VALUE; };
   const compute = scenarioRun
     ? (trace, outs, il, xl) => { spreadProducts(scenarioRun.realise(trace, il, xl)).forEach((v, o) => put(outs[o], v)); }
-    : (trace, out, il, xl) => {
-      const m = invert(trace, il, xl);
-      put(out, absolute ? m.map(Math.exp) : m);
-    };
+    : withResidual
+      ? (trace, outs, il, xl) => {
+        const m = invert(trace, il, xl);
+        put(outs[0], m.map(Math.exp));
+        put(outs[1], residualTrace(trace, m, blindInv.scaledWavelet));
+      }
+      : (trace, out, il, xl) => {
+        const m = invert(trace, il, xl);
+        put(out, absolute ? m.map(Math.exp) : m);
+      };
   let result;
   try {
     result = await runVolumeJob({
@@ -289,9 +307,10 @@ export async function poststackInversion(ctx, deps) {
   try {
     for (let o = 0; o < derived.length; o++) {
       const d = derived[o];
-      const product = scenarioRun ? { product: SPREAD_PRODUCTS[o].key, product_label: SPREAD_PRODUCTS[o].label } : {};
-      const attribute = { name: INVERSION_ATTRIBUTE, params: { ...summary, ...product, blind, ...(sensitivity ? { sensitivity } : {}), ...(blindTracesRec.length && (!scenarioRun || SPREAD_PRODUCTS[o].key === 'q50') ? { blind_traces: blindTracesRec } : {}) } };
-      const job = scenarioRun ? { ...result, stats: result.statsByOutput[o] } : result;
+      const product = scenarioRun ? { product: SPREAD_PRODUCTS[o].key, product_label: SPREAD_PRODUCTS[o].label }
+        : withResidual && o === 1 ? { product: 'residual', product_label: 'Seismic residual (input minus the synthetic of the inversion)', output: 'seismic residual' } : {};
+      const attribute = { name: INVERSION_ATTRIBUTE, params: { ...summary, ...product, blind, ...(sensitivity ? { sensitivity } : {}), ...(blindTracesRec.length && (scenarioRun ? SPREAD_PRODUCTS[o].key === 'q50' : o === 0) ? { blind_traces: blindTracesRec } : {}), ...(o === 0 && residualAtWells.length ? { residual_at_wells: residualAtWells } : {}) } };
+      const job = scenarioRun || withResidual ? { ...result, stats: result.statsByOutput[o] } : result;
       const out = buildDerivedManifest({ volumeId: d.id, name: d.name, parentManifest: manifest, attribute, job });
       if (pilot) out.pilot = pilot.record;
       await deps.storage.upload(manifestPath(uid, d.id), new TextEncoder().encode(JSON.stringify(out, null, 1)), { contentType: 'application/json', upsert: true });
@@ -305,7 +324,8 @@ export async function poststackInversion(ctx, deps) {
       mode: 'volume',
       volume_id: derived[0].id,
       ...(scenarioRun ? { volume_ids: Object.fromEntries(SPREAD_PRODUCTS.map((x, o) => [x.key, derived[o].id])) } : {}),
-      parent_volume_id: parent.id, volume_name: parent.name, settings: summary, blind, blind_protocol: blindProtocolRec,
+      ...(withResidual ? { residual_volume_id: derived[1].id, residual: { percent_of_seismic: manifest.stats?.rms > 0 ? (100 * result.statsByOutput[1].rms) / manifest.stats.rms : null, at_wells: residualAtWells } } : {}),
+      parent_volume_id: parent.id, volume_name: parent.name, settings: summary, blind, blind_protocol: blindProtocolRec, residual_at_wells: residualAtWells,
       ...(sensitivity ? { sensitivity } : {}),
       bricks: uploaded.length, trace_count: result.traceCount, ...(pilot ? { pilot: pilot.record } : {}),
     };
