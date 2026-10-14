@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import EpeDataUploader from '@/components/epe/EpeDataUploader';
+import { compareRunInputs } from '@/pages/apps/epe/epeRunInputs';
 import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
 import EpeDcaImport from '@/pages/apps/epe/EpeDcaImport';
 import EpeWfImport from '@/pages/apps/epe/EpeWfImport';
 import EpeSimImport from '@/pages/apps/epe/EpeSimImport';
 import EpeWsImport from '@/pages/apps/epe/EpeWsImport';
     import { Helmet } from 'react-helmet';
-    import { useParams, Link, useNavigate } from 'react-router-dom';
+    import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
     import { useToast } from '@/components/ui/use-toast';
     import { Button } from '@/components/ui/button';
     import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -69,6 +70,10 @@ import EpeWsImport from '@/pages/apps/epe/EpeWsImport';
       const [runs, setRuns] = useState([]);
       const [runKpis, setRunKpis] = useState({}); // Wave D: run_id -> kpis for the history table
       const [loading, setLoading] = useState(true);
+      // The open tab survives a reload of the case data (approving, locking or
+      // deleting a run, an upload, an import), and ?tab=runs opens Run History.
+      const [searchParams] = useSearchParams();
+      const [tab, setTab] = useState(searchParams.get('tab') === 'runs' ? 'runs' : 'data');
       const [processingFileId, setProcessingFileId] = useState(null);
       // Wave E: sharing + import state
       const [myOrgId, setMyOrgId] = useState(null);
@@ -338,7 +343,7 @@ import EpeWsImport from '@/pages/apps/epe/EpeWsImport';
 
       // Compact KPI formatting for the run history strip (Wave D).
       const fmtCompactUsd = (v) => (typeof v === 'number'
-        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(v)
+        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumSignificantDigits: 3 }).format(v)
         : null);
 
       const handleDeleteFile = async (fileId, table, fileName) => {
@@ -354,7 +359,8 @@ import EpeWsImport from '@/pages/apps/epe/EpeWsImport';
         }
       };
 
-      if (loading) {
+      // full-page spinner on the first load only; a refresh keeps the page in place
+      if (loading && !caseDetails) {
         return <div className="flex justify-center items-center h-screen"><Loader2 className="w-16 h-16 animate-spin text-pl-primary-text" aria-label="Loading case" /></div>;
       }
 
@@ -408,7 +414,7 @@ import EpeWsImport from '@/pages/apps/epe/EpeWsImport';
               </div>
             )}
 
-            <Tabs defaultValue="data" className="w-full">
+            <Tabs value={tab} onValueChange={setTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:inline-grid">
                 <TabsTrigger value="data">Data Management</TabsTrigger>
                 <TabsTrigger value="runs">Run History</TabsTrigger>
@@ -427,7 +433,7 @@ import EpeWsImport from '@/pages/apps/epe/EpeWsImport';
                           <div className="flex justify-end -mb-2 relative z-10 pr-2 pt-1">
                             <ScenarioChip label={f.scenario_label} />
                           </div>
-                          <EpeDataFileCard file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'production_volumes'})} onDelete={isOwner ? () => handleDeleteFile(f.id, 'epe_production_volumes', f.file_name) : undefined} processing={processingFileId === f.id} />
+                          <EpeDataFileCard file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'production_volumes'})} onDelete={isOwner ? () => handleDeleteFile(f.id, 'epe_production_volumes', f.file_name) : undefined} processing={processingFileId === f.id} onRefreshed={isOwner ? fetchData : undefined} />
                         </div>
                       ))}
                       {isOwner && (
@@ -478,6 +484,10 @@ import EpeWsImport from '@/pages/apps/epe/EpeWsImport';
                       <ul className="space-y-3">
                         {runs.map(run => {
                           const status = run.status || 'complete';
+                          // the case data this run priced, compared with the files now
+                          const inputsCheck = status === 'complete'
+                            ? compareRunInputs(run, { production: productionVolumes, capex, opex })
+                            : null;
                           return (
                             <li key={run.id} className="p-3 rounded-md border border-pl-border bg-pl-surface flex flex-wrap justify-between items-center gap-4 hover:bg-pl-sunken transition-colors">
                               <div className="min-w-0">
@@ -488,6 +498,9 @@ import EpeWsImport from '@/pages/apps/epe/EpeWsImport';
                                   )}
                                   {status === 'running' && (
                                     <span className={epeBadge('warning')}>Running</span>
+                                  )}
+                                  {inputsCheck?.state === 'changed' && (
+                                    <span className={epeBadge('warning')} data-testid="epe-run-out-of-date" title={`The case data changed after this run. ${inputsCheck.changes.join(' ')}`}>Out of date</span>
                                   )}
                                   {run.locked && (
                                     <span className={`${epeBadge('neutral')} inline-flex items-center gap-1`}><Lock className="w-3 h-3" aria-hidden="true" />Locked</span>

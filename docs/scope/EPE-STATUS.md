@@ -112,19 +112,6 @@ Two IRR readouts found on the Ekene runs while scripting the EPE videos:
   half the iterations have an IRR, with a line that says so
   (`irrStatsView`, testid `epe-mc-irr-held`).
 No engine change.
-
-Two IRR readouts found on the Ekene runs while scripting the EPE videos:
-- The field without Ekene-11 reports NPV -$459K and IRR 13.53% at 10%: a
-  producing field earns first and pays its abandonment last, so its one root
-  is a borrowing rate. The Results Viewer now prints a caution under the KPIs
-  whenever the NPV and the IRR disagree about the discount rate
-  (`epeIrrCaution`, testid `epe-irr-caution`), checked on engine-computed flows
-  with a spend-first negative control (`epeIrrCaution.test.js`).
-- Monte Carlo showed IRR P90, P50 and P10 all -8.1% from one iteration in a
-  thousand (99.9% have no IRR). The IRR cards are held back when fewer than
-  half the iterations have an IRR, with a line that says so
-  (`irrStatsView`, testid `epe-mc-irr-held`).
-No engine change.
 ## 2026-10-14: incremental economics on the engine valuation; compare across cases (video programme)
 
 Found while scripting the EPE demo videos (Ekene with and without Ekene-11).
@@ -155,99 +142,36 @@ incremental block opens with one sentence ("On NPV at 10.00%, With Ekene-11
 is worth $2.44M more than Without Ekene-11.", testid `incremental-verdict`),
 and the header names the case in place of its id. Tests in
 `epeIncremental.test.js`.
-## 2026-10-14: a received forecast beside a per-well CSV counts both (engines 3.12.1)
+## 2026-10-14: PIA water depth in the user's depth unit (video programme)
 
-Found while scripting the EPE videos (demo 3): the Edge Function
-concatenates every production file of a run, and the engine picked the
-volume columns from the first row only. A per-well CSV (`ekene_1_oil_bbl`,
-...) beside a profile received from Forecast Scenario Hub, Decline Curve
-Analysis, Waterflood, Simulation or Well Spacing (bare `oil_bbl`) silently
-dropped one file. On the demo account the Ekene-11 hub profile vanished
-while its capex counted: NPV -$12.1M where the same volumes in one file give
-$1.98M. Engines PR #357 (merge c985c9f, ENGINE_VERSION 3.12.1) picks the
-columns per row; vendored here (guard clean, 1316 paths). Gates: engines
-`economics.mixedVolumeLayouts.test.ts` (split equals single file, both row
-orders; 3 of 5 fail on the old engine) and `epeHubIntake.test.js` "a received
-profile beside a per-well CSV counts both" (fails on the old vendored engine).
-No number moves for single-layout cases (goldens unchanged apart from the
-version string).
+The Run Console asked for the PIA water depth in metres only. It now follows
+the user's unit profile: on the Oilfield preset (feet, the Nigerian default)
+it takes feet and states the stored value ("Stored as 34.99 m: the PIA sorts
+terrain by water depth in metres."). The config and the engine keep metres
+(`pia_water_depth_m`). Component `EpeWaterDepthField.jsx`, tests
+`epeWaterDepth.test.jsx`.
+## 2026-10-14: a run says when the case data changed after it (video programme)
 
-### Owner steps
+For the data governance story in the EPE demo videos. The Run Console now
+stores, on the epe_runs row, `parameters.inputs`: the input files the run
+priced (the production files of its scenario, every CAPEX and OPEX file) as
+`{ table, id, file_name, created_at, scenario_label }`. The Results Viewer
+compares that list with the case's files now and, when a file was replaced,
+added or removed, shows "The case data changed after this run:" with one line
+per slot (for example "Production: ekene-production-2p.csv was replaced by
+FSH - Ekene-11 low.generated.") and "Re-run to price the current data." with a
+Re-run with edits link (testid `epe-run-inputs-changed`). Run History marks
+such runs "Out of date" (testid `epe-run-out-of-date`). A run saved before
+this change falls back to dates (a file uploaded after the run is named);
+otherwise nothing is claimed. Logic: `src/pages/apps/epe/epeRunInputs.js`.
+Tests: `epeRunInputs.test.js` (replaced, added, removed, unchanged, other
+scenario, legacy dates) and `epeRunInputs.mount.test.jsx` (banner; fails on
+the old viewer). No migration, no engine or Edge Function change.
 
-The three EPE functions bundle `supabase/functions/_shared/epe-engine.ts`;
-until they are redeployed, runs still compute on 3.12.0:
+## 2026-10-14: run list readability (video programme)
 
-    supabase functions deploy epe-cash-flow-engine
-    supabase functions deploy epe-cash-flow-engine-batch
-    supabase functions deploy epe-monte-carlo
-
-New runs then stamp engine_version 3.12.1. No migration.
-
-## 2026-10-14: variable opex rates (engine 3.12.2)
-
-New in the Run Console: a "Variable Opex" group with four optional rates,
-US$ per barrel of liquid (oil + condensate + water), per barrel of oil, per
-barrel of water and per Mscf of gas. The engine (engines PR #358, 3.12.2)
-adds them to the OPEX file's yearly total on the volumes the run prices, in
-base-year dollars escalated like the file opex, so every use of opex (the
-economic limit, cost recovery, HCT and CIT bases, NDDC, unit costs) reads
-file plus variable. A lower forecast, another reserves scenario, a refreshed
-received profile, the tornado Production bar and the Monte Carlo production
-multiplier now move the opex; the tornado OPEX bar and the Monte Carlo opex
-multiplier scale the rates too (`opex_variable_scale`). The Year-by-Year
-table shows "of which variable" when a run used rates; assumption sets carry
-the rates; blank means off (and avoids double counting when the OPEX file
-already holds these costs, as the Ekene kit's does). Also: the CAPEX/OPEX
-column checks read every row's headers (a mixed cost slot no longer fails as
-"no cost column"). Rates off reproduce every golden.
-
-Gates: engines `__tests__/economics.variableOpex.test.ts` (fixed file plus
-US$4/bbl liquid equals the explicit Ekene-rule file on every line under JV,
-PSC and PIA at 100% and 60% working interest; production x0.8 gives 0.8x
-variable opex; seeded Monte Carlo with an opex multiplier equals the explicit
-file; negative controls fail 7 tests, the MC equality, and the header check).
-Suite `epeVariableOpex.test.jsx` (fields, payload, validation, labels).
-
-### Owner steps, in order
-
-1. Apply `supabase/migrations/20261014120000_epe_variable_opex.sql` to staging,
-   then production, BEFORE uploading the Suite build: until then saving a run
-   config fails on the unknown columns.
-   `supabase db query --linked -f supabase/migrations/20261014120000_epe_variable_opex.sql`
-2. Redeploy the three functions that bundle `_shared/epe-engine.ts`:
-   `supabase functions deploy epe-cash-flow-engine`,
-   `supabase functions deploy epe-cash-flow-engine-batch`,
-   `supabase functions deploy epe-monte-carlo`.
-3. Upload the Suite build.
-## 2026-10-14: mid-year discounting, owner decision option A (engines 3.12.3)
-
-The engine's two conventions disagreed about the valuation date: end of year
-used exponent year - V (so the valuation year's cash was undiscounted, a 31
-December valuation date) while mid-year added 0.5, which discounted mid-year
-cash MORE than year-end cash (Ekene: end of year US$1.98 MM, mid-year
-US$1.89 MM). Owner decision 2026-10-14, option A: the valuation date is 31
-December of the valuation year; end of year is unchanged; mid-year uses
-year - V - 0.5, cash half a year before the year end (Ekene mid-year now
-US$2,076,888 = end-of-year x sqrt(1.1)).
-
-- Engines PR #359 (merge a6cb037, ENGINE_VERSION 3.12.3), vendored here with
-  #358 (3.12.2, variable opex engine code; its Run Console fields ride #1095,
-  held for the owner migration; the engine fields are optional and off by
-  default). Goldens moved: mid_year_discounting 20,586,124 -> 22,644,736 and
-  multiyear_pia_midyear_real 196,677,221 -> 210,043,634; every end-of-year
-  golden unchanged. Gate economics.midYearDiscounting.test.ts on the Ekene kit
-  case.
-- Suite: the incremental economics (epeIncremental.js) follow the new
-  exponent; the wording says "valued at 31 Dec <year>" in Compare Runs, the
-  value per barrel card, the NPV against rate chart and the PDF KPI label, and
-  the Run Console explains the conventions under the select
-  (epeValuation.js). Tests epeMidYear.test.js (fails on the old exponent).
-- Owner step (ONCE, at the end of the round, with the other engine PRs):
-  redeploy epe-cash-flow-engine, epe-cash-flow-engine-batch and
-  epe-monte-carlo. Until then live mid-year runs keep the old exponent.
-- Affected elsewhere (not changed, listed for the owner): NextGen course
-  "Cash Flow" intermediate (EC1) quotes the old mid-year numbers from its own
-  vendored engine copy (mid_year_discounting 20,586,124.09 -> 22,644,736.49;
-  AKATA mid-year 69,159,247.46 nominal -> 76,075,172.20 and 70,188,970.32 real
-  -> 74,959,094.68; graded field jv_npv_mid_year_usd) and teaches "mid-year
-  NPV = end-year / sqrt(1 + r)". It moves only if NextGen re-vendors.
+The Run History strip and the case list badge printed the NPV in whole
+compact units ("NPV $2M" for 2,017,000 beside a results page reading $2.02M);
+both now use three significant figures. A run whose input was refreshed from
+its source (same file name) said "X was replaced by X"; it now says "X was
+replaced by a newer version (date)". Test added to `epeRunInputs.test.js`.

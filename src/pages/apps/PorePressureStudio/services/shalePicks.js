@@ -14,6 +14,33 @@ export const VSH_ALIASES = ['VSH', 'VSHALE', 'VSH_CND', 'VCL', 'VCLAY', 'VCL_CND
 export const GR_ALIASES = ['GR', 'GRC', 'SGR', 'CGR', 'GR_EDTC', 'HGR'];
 export const DEFAULT_VSH_CUTOFF = 0.6;
 
+/**
+ * Every shale indicator among the registry logs (2026-10-14): the first VSH
+ * alias and the first GR alias present, VSH first. A Petrophysics VSH can sit
+ * on its own shale lines (or a non-linear Larionov or Clavier curve) that put
+ * few shallow shales over a VSH cutoff, so the NCT view lets the user read the
+ * GR instead.
+ * @returns {{kind: 'vsh'|'gr', log: object}[]}
+ */
+export function shaleLogOptions(logs) {
+  const byBase = new Map();
+  for (const l of logs || []) {
+    const base = String(l.mnemonic || '').toUpperCase().split(':')[0];
+    if (!byBase.has(base)) byBase.set(base, l);
+  }
+  const out = [];
+  const v = VSH_ALIASES.find((a) => byBase.has(a));
+  if (v) out.push({ kind: 'vsh', log: byBase.get(v) });
+  const g = GR_ALIASES.find((a) => byBase.has(a));
+  if (g) out.push({ kind: 'gr', log: byBase.get(g) });
+  return out;
+}
+
+/** The indicator in use: the project's choice when the well has it, else VSH first. */
+export function chooseShaleOption(options, preferred = null) {
+  return (options || []).find((o) => o.kind === preferred) || (options || [])[0] || null;
+}
+
 /** The shale indicator among the registry logs: VSH first, then GR. */
 export function pickShaleLog(logs) {
   const byBase = new Map();
