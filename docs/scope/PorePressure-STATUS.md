@@ -260,3 +260,42 @@ supplied follow the next well. Publish is held for an offshore well whose datum
 states water while the water depth is 0. `services/datumWaterColumn.js`;
 tests `__tests__/datumWaterColumn.test.js` (the old 0/0 default as the negative
 control).
+## 2026-10-14: the calibration door reads the Ekene kit's files; mud weights as evidence
+
+Found in the Pore Pressure Studio video dry run: Import RFT/MDT, LOT/FIT or mud
+weights guessed nothing on the kit's own files (ekene-demo-v4 05-pressure).
+Their snake_case headers carry the unit as the last word (md_m, shoe_md_m,
+pressure_psia, emw_ppg, mud_weight_ppg), which the header patterns missed
+(a word boundary does not fall at an underscore), so every column, unit and
+reference had to be declared by hand; the MDT file mixes Ekene-1 and Ekene-3
+with no way to keep one well's rows; and the mud weights are intervals with an
+outcome column, one of them the failed 9.8 ppg attempt that took an influx.
+
+- Headers are read as words with the unit taken off (`headerWords`): the depth
+  (MD before TVD before TVDSS; a from/to pair is an interval), the value and
+  its unit, the type column (MDT pretest reads as RFT/MDT), a well column, an
+  outcome column and a note column. All three kit files import with no choice
+  left (MDT 8 points for Ekene-1, LOT/FIT 1 FIT and 2 LOTs, mud weights 5
+  intervals and 1 influx).
+- Rows for well (testid `pp-cal-well`): defaults to the value the open well's
+  name contains, longest whole-name match ("PPS demo: Ekene-1" picks Ekene-1,
+  never Ekene-10); other wells' rows are skipped as "another well (Ekene-3)";
+  "every well in the file" on request; no match asks.
+- Interval base column (`pp-cal-basecol`): a mud weight held from..to is drawn
+  over its interval (top and base points of one row).
+- Outcome column (`pp-cal-outcomecol`): influx/kick/flow/gain makes the row a
+  mud weight that took an influx (red triangle) at the depth the outcome names
+  ("influx at 1418 m") or the interval base; losses make it a mud weight with
+  losses (blue cross). "no losses, no influx" holds.
+- Mud weights as evidence (`services/mudWeightEvidence.js`, testid
+  `pp-mw-evidence` under the casing seats): held weights against the prognosis
+  pore pressure over their intervals, influx rows against the pore pressure at
+  the influx depth, losses against the fracture pressure, in ppg EMW with the
+  file's own EMW quoted. Drawn and checked, never fitted.
+- Excel workbooks are read from the first sheet (`src/lib/tabularFile.js`).
+- Tests: `__tests__/calibrationKitFiles.test.js` (kit fixtures; negative
+  controls: the old header pattern finds no depth in md_m, and a hydrostatic
+  prognosis does not explain the influx), two cases in `upgradeU2Ui.test.jsx`.
+  On the shale-pressure gate's Ekene-1 prognosis the line reads "9.80 ppg took
+  an influx at 4652 ft MD where the prognosis puts the pore pressure at 11.25
+  ppg: consistent."

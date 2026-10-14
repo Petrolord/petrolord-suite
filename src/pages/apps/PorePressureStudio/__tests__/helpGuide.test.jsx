@@ -46,6 +46,9 @@ describe('PorePressureStudioHelpGuide', () => {
     expect(text).toMatch(/Worked example on|It runs on\s+ORACLE PP-1/);
     // U2-002
     expect(text).toMatch(/declare the depth column and reference/);
+    // 2026-10-14
+    expect(text).toMatch(/Rows for well/);
+    expect(text).toMatch(/took an influx should sit below\s+it at the influx depth/);
   });
 
   test('copy carries no em dashes (owner rule)', () => {

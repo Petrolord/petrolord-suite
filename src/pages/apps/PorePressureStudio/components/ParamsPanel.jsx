@@ -224,7 +224,12 @@ export default function ParamsPanel({
         const imported = (calibration || []).filter((c) => c.source);
         if (!imported.length) return null;
         const byKind = {};
-        for (const c of imported) byKind[kindOf(c)] = (byKind[kindOf(c)] || 0) + 1;
+        const seen = new Set();
+        for (const c of imported) {
+          // an imported mud weight interval is one row (its top and base points)
+          if (c.interval) { if (seen.has(c.interval)) continue; seen.add(c.interval); }
+          byKind[kindOf(c)] = (byKind[kindOf(c)] || 0) + 1;
+        }
         const files = [...new Set(imported.map((c) => c.source))];
         return (
           <div className="text-[11px] text-pl-muted flex flex-wrap items-center gap-1" data-testid="pp-cal-imported">
