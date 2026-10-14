@@ -142,6 +142,14 @@ incremental block opens with one sentence ("On NPV at 10.00%, With Ekene-11
 is worth $2.44M more than Without Ekene-11.", testid `incremental-verdict`),
 and the header names the case in place of its id. Tests in
 `epeIncremental.test.js`.
+## 2026-10-14: PIA water depth in the user's depth unit (video programme)
+
+The Run Console asked for the PIA water depth in metres only. It now follows
+the user's unit profile: on the Oilfield preset (feet, the Nigerian default)
+it takes feet and states the stored value ("Stored as 34.99 m: the PIA sorts
+terrain by water depth in metres."). The config and the engine keep metres
+(`pia_water_depth_m`). Component `EpeWaterDepthField.jsx`, tests
+`epeWaterDepth.test.jsx`.
 ## 2026-10-14: Monte Carlo money to three figures (video programme)
 
 The Monte Carlo cards printed one decimal of a million with the sign after
