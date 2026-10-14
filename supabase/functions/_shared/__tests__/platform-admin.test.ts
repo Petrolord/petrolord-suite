@@ -7,9 +7,10 @@
 // run with the caller's verified JWT, can.
 
 import {
-  bearerToken, getCaller, isPlatformAdmin, isOrgAdmin, requirePlatformAdmin,
-  decideInvitationAcceptance, escapeHtml,
+  bearerToken, getCaller, isPlatformAdmin, isOrgAdmin, isOrgMember, requirePlatformAdmin,
+  decideInvitationAcceptance, escapeHtml, isServiceRoleRequest, safeEqual, callerCanSeeRow,
 } from '../platform-admin.ts';
+import { buildInternalMail } from '../internal-mail.ts';
 import { resolveSendableInvitation, inviteOrigin, DEFAULT_INVITE_ORIGIN } from '../invite-send.ts';
 
 type Row = Record<string, unknown>;
@@ -247,5 +248,90 @@ describe('send-invite: no longer a relay', () => {
     expect(inviteOrigin('https://evil.test')).toBe(DEFAULT_INVITE_ORIGIN);
     expect(inviteOrigin(null)).toBe(DEFAULT_INVITE_ORIGIN);
     expect(escapeHtml('Acme <script>"x"&\'')).toBe('Acme &lt;script&gt;&quot;x&quot;&amp;&#39;');
+  });
+});
+
+describe('isOrgMember', () => {
+  const tables = { organization_members: [
+    { organization_id: 'o1', user_id: 'u-viewer', role: 'viewer', status: 'active' },
+    { organization_id: 'o1', user_id: 'u-gone', role: 'admin', status: 'removed' },
+  ] };
+  test('any active role in that org; removed and other orgs are not members', async () => {
+    const a = mockAdmin({ tables });
+    expect(await isOrgMember(a, 'u-viewer', 'o1')).toBe(true);
+    expect(await isOrgMember(a, 'u-gone', 'o1')).toBe(false);
+    expect(await isOrgMember(a, 'u-viewer', 'o2')).toBe(false);
+    expect(await isOrgMember(mockAdmin({ failTables: ['organization_members'] }), 'u-viewer', 'o1')).toBe(false);
+  });
+});
+
+describe('isServiceRoleRequest (internal mail and notification functions)', () => {
+  beforeAll(() => { process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-key-123'; });
+  test('only the exact service-role key passes', () => {
+    expect(isServiceRoleRequest(req('Bearer service-key-123'))).toBe(true);
+    expect(isServiceRoleRequest(req('Bearer anon-key'))).toBe(false);
+    expect(isServiceRoleRequest(req('Bearer service-key-1234'))).toBe(false);
+    expect(isServiceRoleRequest(req('Bearer jwt-admin'))).toBe(false);
+    expect(isServiceRoleRequest(req())).toBe(false);
+  });
+  test('fails closed when the key is not configured', () => {
+    const saved = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    process.env.SUPABASE_SERVICE_ROLE_KEY = '';
+    expect(isServiceRoleRequest(req('Bearer '))).toBe(false);
+    expect(isServiceRoleRequest(req('Bearer x'))).toBe(false);
+    process.env.SUPABASE_SERVICE_ROLE_KEY = saved;
+  });
+  test('safeEqual', () => {
+    expect(safeEqual('abc', 'abc')).toBe(true);
+    expect(safeEqual('abc', 'abd')).toBe(false);
+    expect(safeEqual('abc', 'abcd')).toBe(false);
+    expect(safeEqual('', '')).toBe(true);
+  });
+});
+
+describe('callerCanSeeRow (EPE engines): row-level security decides', () => {
+  const RUN = '11111111-2222-4333-8444-555555555555';
+  beforeEach(() => {
+    // deno-lint-ignore no-explicit-any
+    (globalThis as any).fetch = jest.fn(async (url: string, init: { headers: Record<string, string> }) => {
+      rpcCalls.push({ url, auth: init.headers.Authorization, apikey: init.headers.apikey });
+      const visible = init.headers.Authorization === 'Bearer jwt-owner';
+      return { ok: true, status: 200, json: async () => (visible ? [{ id: RUN }] : []) };
+    });
+  });
+  test('asks PostgREST as the caller and trusts only a matching row', async () => {
+    expect(await callerCanSeeRow({ id: 'u1', jwt: 'jwt-owner' }, 'epe_runs', RUN)).toBe(true);
+    expect(rpcCalls[0].url).toBe(`https://proj.supabase.co/rest/v1/epe_runs?select=id&id=eq.${RUN}`);
+    expect(await callerCanSeeRow({ id: 'u2', jwt: 'jwt-stranger' }, 'epe_runs', RUN)).toBe(false);
+  });
+  test('rejects odd table names, non-uuid ids and callers without a session', async () => {
+    expect(await callerCanSeeRow({ id: 'u1', jwt: 'jwt-owner' }, 'epe_runs;drop', RUN)).toBe(false);
+    expect(await callerCanSeeRow({ id: 'u1', jwt: 'jwt-owner' }, 'epe_runs', `${RUN}&or=(id.neq.0)`)).toBe(false);
+    expect(await callerCanSeeRow({ id: 'u1' }, 'epe_runs', RUN)).toBe(false);
+    expect(await callerCanSeeRow(null, 'epe_runs', RUN)).toBe(false);
+  });
+});
+
+describe('buildInternalMail (send-email, send-email-via-smtp)', () => {
+  test('one valid recipient, subject and html required', () => {
+    expect(buildInternalMail({ to: 'a@b.co', subject: 'Hi', html: '<p>x</p>' })).toEqual({ to: 'a@b.co', subject: 'Hi', html: '<p>x</p>' });
+    expect(typeof buildInternalMail({ to: 'a@b.co,c@d.co', subject: 'Hi', html: 'x' })).toBe('string');
+    expect(typeof buildInternalMail({ to: ['a@b.co'] as never, subject: 'Hi', html: 'x' })).toBe('string');
+    expect(typeof buildInternalMail({ to: 'a@b.co', html: 'x' })).toBe('string');
+    expect(typeof buildInternalMail(null)).toBe('string');
+  });
+  test('subject header injection is flattened', () => {
+    const m = buildInternalMail({ to: 'a@b.co', subject: 'Hi\r\nBcc: x@y.z', html: 'x' });
+    expect(typeof m !== 'string' && m.subject).toBe('Hi Bcc: x@y.z');
+  });
+  test('the quote_created template escapes values and keeps only https links', () => {
+    const m = buildInternalMail({ to: 'a@b.co', template: 'quote_created', details: {
+      orgName: '<script>x</script>', numUsers: 3, term: 'annual', calculation: { final: 99 }, link: 'javascript:alert(1)' } });
+    expect(typeof m).toBe('object');
+    if (typeof m === 'string') return;
+    expect(m.html).toContain('&lt;script&gt;');
+    expect(m.html).not.toContain('javascript:');
+    const ok = buildInternalMail({ to: 'a@b.co', template: 'quote_created', details: { link: 'https://x.supabase.co/q.pdf' } });
+    expect(typeof ok !== 'string' && ok.html).toContain('https://x.supabase.co/q.pdf');
   });
 });

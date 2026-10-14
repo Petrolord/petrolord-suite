@@ -98,6 +98,33 @@ export async function isPlatformAdmin(_admin: Client, caller: Caller | null | un
   }
 }
 
+/**
+ * True only when the caller's own session can SELECT the row `id` of
+ * `table` under row-level security: the database's sharing rules decide,
+ * not this function. Used by service-role engines that take a row id from
+ * the body. Fails closed.
+ */
+export async function callerCanSeeRow(caller: Caller | null | undefined, table: string, id: unknown): Promise<boolean> {
+  const jwt = caller?.jwt;
+  if (!caller?.id || !jwt) return false;
+  if (!/^[a-z_][a-z0-9_]{0,62}$/.test(table)) return false;
+  const rowId = String(id ?? '');
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rowId)) return false;
+  const url = env('SUPABASE_URL').replace(/\/$/, '');
+  const apikey = env('SUPABASE_ANON_KEY') || env('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !apikey) return false;
+  try {
+    const res = await fetch(`${url}/rest/v1/${table}?select=id&id=eq.${rowId}`, {
+      headers: { apikey, Authorization: `Bearer ${jwt}`, Accept: 'application/json' },
+    });
+    if (!res.ok) return false;
+    const rows = await res.json();
+    return Array.isArray(rows) && rows.some((r: { id?: string }) => r?.id === rowId);
+  } catch {
+    return false;
+  }
+}
+
 /** Active owner/admin/org_admin/super_admin member of orgId. Fails closed. */
 export async function isOrgAdmin(admin: Client, userId: string | null | undefined, orgId: string | null | undefined): Promise<boolean> {
   if (!userId || !orgId) return false;
@@ -110,6 +137,42 @@ export async function isOrgAdmin(admin: Client, userId: string | null | undefine
   } catch {
     return false;
   }
+}
+
+/** Active member (any role) of orgId. Fails closed. */
+export async function isOrgMember(admin: Client, userId: string | null | undefined, orgId: string | null | undefined): Promise<boolean> {
+  if (!userId || !orgId) return false;
+  try {
+    const { data, error } = await admin.from('organization_members')
+      .select('role, status').eq('organization_id', orgId).eq('user_id', userId);
+    if (error) return false;
+    return (data ?? []).some((m: { status?: string | null }) =>
+      String(m.status ?? 'active').toLowerCase() === 'active');
+  } catch {
+    return false;
+  }
+}
+
+/** Constant-time string compare (no early exit on the first differing byte). */
+export function safeEqual(a: string, b: string): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  let diff = a.length ^ b.length;
+  const n = Math.max(a.length, b.length);
+  for (let i = 0; i < n; i++) diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
+  return diff === 0;
+}
+
+/**
+ * True only when the request's bearer token IS this project's service-role
+ * key: a call from another edge function, never from a browser. Used by the
+ * mail and notification functions that other functions call. Fails closed
+ * when the key is not configured.
+ */
+export function isServiceRoleRequest(req: { headers: { get(name: string): string | null } }): boolean {
+  const key = env('SUPABASE_SERVICE_ROLE_KEY');
+  const token = bearerToken(req);
+  if (!key || !token) return false;
+  return safeEqual(token, key);
 }
 
 export type GuardResult =

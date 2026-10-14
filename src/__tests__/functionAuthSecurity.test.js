@@ -23,6 +23,11 @@ const GUARDED = [
   'admin-grant-user-app-access', 'admin-create-user', 'send-invite', 'insert-geoscience-apps',
   'org-offboard', 'org-export', 'invite-employee', 'generate-quote', 'admin-cleanup-test-data',
   'accept-employee-invitation',
+  // 2026-10 sweep
+  'get-app-seat-usage', 'remove-member-from-app', 'send-quote', 'invite-user',
+  'send-email', 'send-email-via-smtp', 'send-renewal-notification', 'send-demo-request',
+  'activate-bank-transfer', 'reject-bank-transfer', 'verify-bank-transfer',
+  'process-subscription-renewals', 'epe-cash-flow-engine', 'epe-cash-flow-engine-batch',
 ];
 
 const allFunctionSources = () => fs.readdirSync(path.join(ROOT, FNS), { withFileTypes: true })
@@ -113,5 +118,66 @@ describe('edge functions and client', () => {
     const src = read('src/components/admin/organizations/OrgTeam.jsx');
     expect(src).toMatch(/functions\.invoke\('invite-employee'/);
     expect(src).not.toMatch(/functions\.invoke\('invite-user'/);
+  });
+});
+
+describe('2026-10 sweep: each function checks its caller the right way', () => {
+  const src = (fn) => code(read(`${FNS}/${fn}/index.ts`));
+
+  it.each(['send-email', 'send-email-via-smtp', 'send-renewal-notification'])(
+    '%s serves only service-role callers (no open mail relay)', (fn) => {
+      const s = src(fn);
+      expect(s).toMatch(/isServiceRoleRequest\(req\)/);
+      expect(s).not.toMatch(/sendgrid-send-email/);
+    });
+
+  it.each(['send-quote', 'activate-bank-transfer', 'reject-bank-transfer'])(
+    '%s requires a platform super admin', (fn) => {
+      expect(src(fn)).toMatch(/requirePlatformAdmin\(supabase, req\)/);
+    });
+
+  it('process-subscription-renewals: service role or platform admin only', () => {
+    const s = src('process-subscription-renewals');
+    expect(s).toMatch(/isServiceRoleRequest\(req\)/);
+    expect(s).toMatch(/requirePlatformAdmin\(supabase, req\)/);
+  });
+
+  it('remove-member-from-app ignores requested_by and checks the org of the assignment', () => {
+    const s = src('remove-member-from-app');
+    expect(s).not.toMatch(/requested_by/);
+    expect(s).not.toMatch(/organization_users/);
+    expect(s).toMatch(/isOrgAdmin\(supabase, caller\.id, organization_id\)/);
+    expect(s).toMatch(/\.eq\('organization_id', organization_id\)/);
+  });
+
+  it('get-app-seat-usage: members only, no auth user listing', () => {
+    const s = src('get-app-seat-usage');
+    expect(s).toMatch(/isOrgMember\(supabase, caller\.id, organization_id\)/);
+    expect(s).not.toMatch(/listUsers/);
+  });
+
+  it('invite-user and verify-bank-transfer check the caller against the organization', () => {
+    expect(src('invite-user')).toMatch(/isOrgAdmin\(supabaseClient, caller\.id, organization_id\)/);
+    const v = src('verify-bank-transfer');
+    expect(v).toMatch(/isOrgAdmin\(supabase, caller\.id, orgId\)/);
+    expect(v).not.toMatch(/const \{[^}]*user_id[^}]*\} = await req\.json\(\)/);
+  });
+
+  it('generate-quote takes the user from the session, never the body', () => {
+    const s = src('generate-quote');
+    expect(s).toMatch(/const user_id = caller\.id;/);
+    expect(s).not.toMatch(/const \{[^}]*\buser_id\b[^}]*\} = await req\.json\(\)/);
+  });
+
+  it.each(['epe-cash-flow-engine', 'epe-cash-flow-engine-batch'])(
+    '%s checks the run is visible to the caller under RLS', (fn) => {
+      expect(src(fn)).toMatch(/callerCanSeeRow\(caller, 'epe_runs', run_id\)/);
+    });
+
+  it('send-demo-request (public form) escapes what it echoes and rate-limits per address', () => {
+    const s = src('send-demo-request');
+    expect(s).toMatch(/escapeHtml\(full_name/);
+    expect(s).toMatch(/escapeHtml\(company_name\)/);
+    expect(s).toMatch(/PER_EMAIL_PER_DAY/);
   });
 });
