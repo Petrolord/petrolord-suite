@@ -167,9 +167,3 @@ otherwise nothing is claimed. Logic: `src/pages/apps/epe/epeRunInputs.js`.
 Tests: `epeRunInputs.test.js` (replaced, added, removed, unchanged, other
 scenario, legacy dates) and `epeRunInputs.mount.test.jsx` (banner; fails on
 the old viewer). No migration, no engine or Edge Function change.
-## 2026-10-14: Monte Carlo money to three figures (video programme)
-
-The Monte Carlo cards printed one decimal of a million with the sign after
-the currency: a P90 of -1,036,000 read "$-1.0M" and the deterministic base of
-1,980,235 read "$2.0M" beside a headline of $1.98M. `fmtM` now formats like
-the Results Viewer: "-$1.04M", "$1.98M", "$97.5K". Test `epeMcFormat.test.js`.
