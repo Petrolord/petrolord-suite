@@ -10,7 +10,7 @@ Steps 5, 6 and 7 do not depend on the function deploys and may run before step 4
 |---|---|---|---|
 | 0 | Stop-gap migration 00 | none | **Done 2026-10-14**, verified |
 | 1 | Migration 01 (additive) | none | No. No live flow changes on apply |
-| 2 | Edge Function deploys (Suite and HSE) | 1 | Functions fail closed. Deploy them before 02 and 03 |
+| 2 | Edge Function deploys (Suite and HSE) | none | Functions fail closed. The Suite batch must precede 02 |
 | 3 | HSE site upload | 1 | The HSE invitation page calls 01's functions |
 | 4 | Migration 02 (invitation lockdown) | 1, 2 (Suite accept-employee-invitation), 3 | Yes. Before the Suite deploy, new-account Suite invitations fail (the old function sends organization_id without a token); before 3, HSE invitee signups fail |
 | 5 | Migration 03 (users guard) | 1 | No. users.is_super_admin stays a mirror of the same three people, so old functions read the same flags |
