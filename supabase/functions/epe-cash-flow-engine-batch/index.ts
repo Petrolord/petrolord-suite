@@ -337,8 +337,14 @@ Deno.serve(async (req) => {
       const lowProd = isProd ? scaleVolRows(prodRows, eff.low) : prodRows;
       const highProd = isProd ? scaleVolRows(prodRows, eff.high) : prodRows;
 
-      const lowResult = computeCashFlow({ cfg: baseCfg, prodRows: lowProd, capexRows: lowCapex, opexRows: lowOpex });
-      const highResult = computeCashFlow({ cfg: baseCfg, prodRows: highProd, capexRows: highCapex, opexRows: highOpex });
+      // Engine 3.12.2: the OPEX bar scales the variable opex rates with the
+      // file (opex_variable_scale); the Production bar reaches them through
+      // the scaled volumes.
+      const varScale = Number(baseCfg.opex_variable_scale ?? 1) || 1;
+      const lowCfg = isOpex ? { ...baseCfg, opex_variable_scale: varScale * eff.low } : baseCfg;
+      const highCfg = isOpex ? { ...baseCfg, opex_variable_scale: varScale * eff.high } : baseCfg;
+      const lowResult = computeCashFlow({ cfg: lowCfg, prodRows: lowProd, capexRows: lowCapex, opexRows: lowOpex });
+      const highResult = computeCashFlow({ cfg: highCfg, prodRows: highProd, capexRows: highCapex, opexRows: highOpex });
       const lowNpv = lowResult.kpis.npv;
       const highNpv = highResult.kpis.npv;
       const deltaLow = lowNpv - baseNpv;
