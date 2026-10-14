@@ -25,7 +25,10 @@ import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS,
   GRID_STYLE, TOOLTIP_STYLE
 } from '@/utils/chartTheme';
+import { valuationYearOf, valuedAtText, conventionText } from '@/pages/apps/epe/epeValuation';
 import { epeIrrReason, epeIrrCaution } from '@/pages/apps/epe/epeIrrReason';
+import { usd3, niceTicks, tornadoTable, tornadoSentence, scheduleShiftNote } from '@/pages/apps/epe/epeTornado';
+import { compareRunInputs, fetchCaseInputs } from '@/pages/apps/epe/epeRunInputs';
 import { AppHeader } from '@/components/ui/app-shell';
 import {
   epePage, epePanel, epeTile, epeH2, epeNum, epeNumCell, epeSigned, epePill,
@@ -72,6 +75,9 @@ const TabBar = ({ tabs, active, onChange }) => (
 );
 
 // Format a USD number as $XXX.XM or $X.XB depending on magnitude
+/** A unit price to two decimals (n/a when the run did not record it). */
+export const fmtPrice = (v) => (v == null || Number.isNaN(Number(v)) ? EMPTY_VALUE : Number(v).toFixed(2));
+
 const fmtCompact = (n) => {
   if (n == null || isNaN(n)) return EMPTY_VALUE;
   const abs = Math.abs(n);
@@ -117,6 +123,14 @@ export const cashFlowColumns = (isPIA, sampleRows = []) => {
   // feature (any row carries a value), so old exports stay unchanged.
   const rows = Array.isArray(sampleRows) ? sampleRows : [];
   const anyRow = (k) => rows.some((r) => r && r[k] != null && r[k] !== 0);
+  // the price each year received; older runs without it keep their columns
+  if (rows.some((r) => r && r.applied_oil_price != null)) {
+    cols.splice(4, 0,
+      { key: 'applied_oil_price', label: 'Oil Price Applied (USD/bbl)' },
+      { key: 'applied_gas_price', label: 'Gas Price Applied (USD/Mscf)' },
+      { key: 'applied_cond_price', label: 'Condensate Price Applied (USD/bbl)' },
+    );
+  }
   if (anyRow('min_etr_topup')) cols.push({ key: 'min_etr_topup', label: 'Min ETR Top-up (USD)' });
   if (anyRow('psc_itc_used')) cols.push({ key: 'psc_itc_used', label: 'ITC Used (USD)' });
   // Engine v3.10 (EC1-5, EC1-6, EC1-9): the PSC cost pool after recovery, the
@@ -290,7 +304,7 @@ const CashFlowProfile = ({ results }) => {
 // NPV vs discount rate (Wave D, audit 4.5): the classic profile exhibit.
 // Engine v3.8 writes kpis.npv_profile; older runs simply skip this panel.
 // ----------------------------------------------------------------------------
-const NpvProfileChart = ({ kpis }) => {
+const NpvProfileChart = ({ kpis, valuationYear = null }) => {
   const profile = kpis?.npv_profile;
   if (!Array.isArray(profile) || profile.length === 0) return null;
   const applied = kpis.discount_rate_applied_pct != null
@@ -303,7 +317,7 @@ const NpvProfileChart = ({ kpis }) => {
         NPV vs Discount Rate
       </h3>
       <p style={{ fontSize: 11, color: CHART_COLORS.axisText, margin: '0 0 6px 4px' }}>
-        On the run's PV basis and discounting convention. The dot marks the applied rate.
+        On the run's PV basis and {conventionText(kpis.discounting_convention)}{valuationYear ? `, ${valuedAtText(valuationYear)}` : ''}. The dot marks the applied rate.
       </p>
       <ChartFrame height={220} logoHeight={24} exportFilename="pe-studio-npv-vs-rate">
         <ComposedChart data={profile} margin={CHART_MARGINS.standard}>
@@ -539,8 +553,8 @@ const TornadoChart = ({ rows, baseNpv }) => {
   // Determine X-axis bounds symmetrically around 0
   const allDeltas = data.flatMap(d => [d.deltaLow, d.deltaHigh]);
   const maxAbs = Math.max(...allDeltas.map(Math.abs), 1);
-  const padding = maxAbs * 0.1;
-  const xDomain = [-(maxAbs + padding), maxAbs + padding];
+  // evenly spaced, symmetric ticks (the padded domain gave -3.3M, -1.3M, 704K, 3.3M)
+  const { ticks: xTicks, domain: xDomain } = niceTicks(maxAbs);
 
   // Custom tooltip showing both directions for the hovered variable
   const renderTooltip = ({ active, payload, label }) => {
@@ -577,12 +591,13 @@ const TornadoChart = ({ rows, baseNpv }) => {
           <XAxis
             type="number"
             domain={xDomain}
+            ticks={xTicks}
             tick={{ fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText }}
             stroke={CHART_COLORS.axisLine}
-            tickFormatter={fmtCompact}
+            tickFormatter={usd3}
           >
             <Label
-              value={`Δ NPV from base ${fmtCompact(baseNpv)}`}
+              value={`Δ NPV from base ${usd3(baseNpv)}`}
               position="bottom"
               offset={20}
               style={{ fontSize: 11, fill: CHART_COLORS.axisLabel, fontWeight: 600 }}
@@ -606,12 +621,58 @@ const TornadoChart = ({ rows, baseNpv }) => {
   );
 };
 
+// The tornado's numbers, readable without hovering: one sentence on the two
+// biggest drivers and a table of each bar's inputs and NPVs (epeTornado.js).
+const TornadoReadout = ({ rows, baseNpv, cashFlowData = null }) => {
+  const table = tornadoTable(rows, baseNpv);
+  if (table.length === 0) return null;
+  const sentence = tornadoSentence(rows, baseNpv);
+  const th = 'px-2 py-1.5 text-left text-xs font-semibold text-pl-muted whitespace-nowrap';
+  const thR = `${th} text-right`;
+  const td = `px-2 py-1.5 text-xs text-pl-text whitespace-nowrap ${epeNum}`;
+  const tdR = `${td} text-right`;
+  return (
+    <div className="mt-4">
+      {sentence && <p className="mb-2 text-sm text-pl-text" data-testid="epe-tornado-sentence">{sentence}</p>}
+      <div className="overflow-x-auto rounded border border-pl-border">
+        <table className="w-full border-collapse" data-testid="epe-tornado-table">
+          <thead className="bg-pl-sunken">
+            <tr>
+              <th className={th}>Variable</th>
+              <th className={thR}>Low input</th>
+              <th className={thR}>High input</th>
+              <th className={thR}>NPV at low</th>
+              <th className={thR}>NPV at high</th>
+              <th className={thR}>Swing</th>
+            </tr>
+          </thead>
+          <tbody>
+            {table.map((r) => (
+              <tr key={r.key} className="border-t border-pl-border">
+                <td className={`${td} font-sans`}>{r.label}</td>
+                <td className={tdR}>{r.lowInput}</td>
+                <td className={tdR}>{r.highInput}</td>
+                <td className={`${tdR} ${r.npvLow < 0 ? 'text-pl-danger-text' : ''}`}>{usd3(r.npvLow)}</td>
+                <td className={`${tdR} ${r.npvHigh < 0 ? 'text-pl-danger-text' : ''}`}>{usd3(r.npvHigh)}</td>
+                <td className={tdR}>{usd3(r.swing)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {scheduleShiftNote(rows, cashFlowData) && (
+        <p className="mt-2 text-xs text-pl-muted" data-testid="epe-tornado-delay-note">{scheduleShiftNote(rows, cashFlowData)}</p>
+      )}
+    </div>
+  );
+};
+
 // SensitivityPanel — orchestrates the run lifecycle:
 // idle → invoking → running → complete (or failed)
 // Wave E: readOnly = the viewer does not own this run (shared case); the
 // tornado stays visible but new sensitivity runs are owner-only (the
 // epe_sensitivity_runs insert policy is owner-scoped anyway).
-const SensitivityPanel = ({ runId, runConfigId, userId, readOnly = false }) => {
+const SensitivityPanel = ({ runId, runConfigId, userId, readOnly = false, cashFlowData = null }) => {
   const [state, setState] = useState('loading');  // 'loading' | 'idle' | 'invoking' | 'running' | 'complete' | 'failed'
   const [sensitivityRun, setSensitivityRun] = useState(null);
   const [results, setResults] = useState([]);
@@ -875,10 +936,11 @@ const SensitivityPanel = ({ runId, runConfigId, userId, readOnly = false }) => {
         )}
       </div>
       <p className="mb-1 text-xs text-pl-muted">
-        Base NPV: <span className={`font-semibold text-pl-text ${epeNum}`}>{fmtCompact(baseNpv)}</span>
+        Base NPV: <span className={`font-semibold text-pl-text ${epeNum}`}>{usd3(baseNpv)}</span>
         {sensitivityRun?.duration_ms ? ` · Ran in ${sensitivityRun.duration_ms}ms` : ''}
       </p>
       <TornadoChart rows={results} baseNpv={baseNpv} />
+      <TornadoReadout rows={results} baseNpv={baseNpv} cashFlowData={cashFlowData} />
     </div>
   );
 };
@@ -896,9 +958,19 @@ const YearByYearTable = ({ results }) => {
     { label: 'Oil (bbl)',          get: (r) => r.oil_bbl || 0,         fmt: (v) => v ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : EMPTY_VALUE },
     { label: 'Gas (Mscf)',         get: (r) => r.gas_mscf || 0,        fmt: (v) => v ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : EMPTY_VALUE },
     { label: 'Condensate (bbl)',   get: (r) => r.condensate_bbl || 0,  fmt: (v) => v ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : EMPTY_VALUE },
+    // The price each year received (deck, escalator and differential
+    // applied), so a deck can be checked against what the engine used.
+    ...(cf.some((r) => r.applied_oil_price != null) ? [
+      { label: 'Oil price applied ($/bbl)', get: (r) => r.applied_oil_price, fmt: fmtPrice },
+      { label: 'Gas price applied ($/Mscf)', get: (r) => r.applied_gas_price, fmt: fmtPrice },
+      { label: 'Condensate price applied ($/bbl)', get: (r) => r.applied_cond_price, fmt: fmtPrice },
+    ] : []),
     { label: 'Gross Revenue',      get: (r) => r.gross_revenue ?? r.revenue ?? 0,  fmt: fmtCompact },
     { label: 'Royalty',            get: (r) => r.royalty || 0,         fmt: fmtCompact },
     { label: 'OPEX',               get: (r) => r.opex || 0,            fmt: fmtCompact },
+    // engine 3.12.2: the part of OPEX that follows production, when the run used rates
+    ...(cf.some((r) => typeof r.opex_variable === 'number')
+      ? [{ label: '  of which variable', get: (r) => r.opex_variable || 0, fmt: fmtCompact }] : []),
     { label: 'CAPEX',              get: (r) => r.capex || 0,           fmt: fmtCompact },
   ];
 
@@ -1080,6 +1152,22 @@ const EpeResultsViewer = () => {
     fetchResults();
   }, [runId, toast, navigate]);
 
+  // The case data this run priced, compared with the case's files now
+  // (epeRunInputs.js): a replaced, added or removed file says so above the KPIs.
+  const [inputsCheck, setInputsCheck] = useState(null);
+  useEffect(() => {
+    if (!runDetails?.case_id) return undefined;
+    let alive = true;
+    fetchCaseInputs(supabase, runDetails.case_id)
+      .then((files) => {
+        if (!alive) return;
+        const scenario = runConfig ? (runConfig.production_scenario ?? null) : undefined;
+        setInputsCheck(compareRunInputs(runDetails, files, { scenario }));
+      })
+      .catch(() => { if (alive) setInputsCheck(null); });
+    return () => { alive = false; };
+  }, [runDetails, runConfig]);
+
   // -------------------------------------------------------------------------
   // Exports (v3.4): CSV / XLSX / branded PDF of the run
   // -------------------------------------------------------------------------
@@ -1217,7 +1305,7 @@ const EpeResultsViewer = () => {
       const yrs = (v) => (v == null ? null : `${Number(v).toFixed(2)} yrs`);
       const vol = (v, unit) => (v == null || v === 0 ? null
         : `${Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 })} ${unit}`);
-      const conventionNote = kpis.discounting_convention === 'mid_year' ? ', mid-year' : '';
+      const conventionNote = `${kpis.discounting_convention === 'mid_year' ? ', mid-year' : ''}${valuationYearOf(kpis, runConfig) ? `, ${valuedAtText(valuationYearOf(kpis, runConfig))}` : ''}`;
       const kpiPairs = [
         [`NPV @ ${kpis.discount_rate_applied_pct != null ? Number(kpis.discount_rate_applied_pct).toFixed(1) : '10'}% (${kpis.pv_basis || 'real'}${conventionNote})`, money(kpis.npv)],
         ['IRR', kpis.irr != null ? pct(kpis.irr, 2) : 'n/a'],
@@ -1514,6 +1602,25 @@ if (loading) {
               {frameworkBadge(results.kpis)}
             </span>
           )}
+          {inputsCheck?.state === 'changed' && (
+            <div className={`${epeCallout('warning')} max-w-3xl text-xs space-y-1`} data-testid="epe-run-inputs-changed">
+              <p className="font-medium">The case data changed after this run:</p>
+              <ul className="list-disc pl-5 space-y-0.5">
+                {inputsCheck.changes.map((c) => <li key={c}>{c}</li>)}
+              </ul>
+              <p>
+                Re-run to price the current data.
+                {isOwnRun && runDetails?.case_id && runDetails?.run_config_id && (
+                  <>
+                    {' '}
+                    <Link className="font-medium underline underline-offset-2" to={`/dashboard/apps/economics/epe/cases/${runDetails.case_id}/run?fromConfig=${runDetails.run_config_id}`}>
+                      Re-run with edits
+                    </Link>
+                  </>
+                )}
+              </p>
+            </div>
+          )}
           {/* EC7 (engines 3.12.0): legacy PIA runs say so on the results */}
           {results?.kpis?.fiscal_regime === 'PIA'
             && (results.kpis.pia_legacy_pre_audit === true || runConfig?.pia_legacy_pre_audit === true) && (
@@ -1663,7 +1770,7 @@ if (loading) {
                 </div>
               )}
 
-              <NpvProfileChart kpis={results.kpis} />
+              <NpvProfileChart kpis={results.kpis} valuationYear={valuationYearOf(results.kpis, runConfig)} />
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }} className={epePanel}>
@@ -1736,6 +1843,7 @@ if (loading) {
                   runConfigId={runDetails?.run_config_id}
                   userId={runDetails?.user_id}
                   readOnly={!isOwnRun}
+                  cashFlowData={results?.cash_flow_data}
                 />
               )}
 

@@ -46,3 +46,21 @@ test('the summary gives the tightest window in the panel unit, below the seats\'
   render(<MudWindowPanel rows={r} summary={s} depthUnit="m" />);
   expect(screen.getByTestId('mud-window-summary').textContent.replace(/\s+/g, ' ')).toBe('TVD 75 to 1400 m; tightest window 0.10 g/cc EMW at TVD 1,400 m (below the top 300 m)');
 });
+
+test('2026-10-14: the chart keeps a usable height and a long source line is one line with its full text on hover', () => {
+  const long = 'PP MPa (Pore Pressure Studio pp-1.1.0), FP MPa (Pore Pressure Studio pp-1.1.0), OBG MPa (Pore Pressure Studio pp-1.1.0) from PPS demo: Ekene-1 (offset, by TVDSS)';
+  render(<MudWindowPanel rows={rows} summary={summary} depthUnit="ft" sourceLabel={long} />);
+  // in a narrow column the text above the chart squeezed it until its legend overlapped the casing seats
+  expect(screen.getByTestId('mud-window-chart').className).toMatch(/min-h-\[300px\]/);
+  const src = screen.getByTestId('mud-window-source');
+  expect(src.className).toMatch(/\btruncate\b/);
+  expect(src).toHaveAttribute('title', `Curves: ${long}`);
+});
+
+test('2026-10-14: the depth axis runs between round numbers', async () => {
+  const { niceFloor, niceCeil } = await import('../charts/MudWindowPanel');
+  expect(niceFloor(246)).toBe(0);
+  expect(niceCeil(7052)).toBe(7500);
+  expect(niceFloor(1250)).toBe(1000);
+  expect(niceCeil(2000)).toBe(2000);
+});

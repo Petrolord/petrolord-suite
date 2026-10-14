@@ -87,3 +87,23 @@ describe('incremental economics on the engine valuation', () => {
     expect(incrementalIrrNote({ irr: 24.9087, irrStatus: 'ok' })).toBeNull();
   });
 });
+
+describe('comparison readability', () => {
+  // eslint-disable-next-line global-require
+  const { fmtUsd3, incrementVerdict } = require('../epeIncremental');
+  it('money to three significant figures, as on the Results Viewer', () => {
+    expect(fmtUsd3(2439459.37)).toBe('$2.44M');
+    expect(fmtUsd3(1980235.48)).toBe('$1.98M');
+    expect(fmtUsd3(-459223.89)).toBe('-$459K');
+    expect(fmtUsd3(0.0037)).toBe('$0');
+    expect(fmtUsd3(-0.0037)).toBe('$0');
+    expect(fmtUsd3(null)).toBe('N/A');
+  });
+  it('the verdict names the better case and the amount', () => {
+    const inc = { npv: 2439459.37, ratePct: 10, secondName: 'With Ekene-11', baseName: 'Without Ekene-11' };
+    expect(incrementVerdict(inc)).toBe('On NPV at 10.00%, With Ekene-11 is worth $2.44M more than Without Ekene-11.');
+    expect(incrementVerdict({ ...inc, npv: -3009000 })).toBe('On NPV at 10.00%, With Ekene-11 is worth $3.01M less than Without Ekene-11.');
+    expect(incrementVerdict({ ...inc, npv: 0.2 })).toMatch(/are worth the same/);
+    expect(incrementVerdict(null)).toBeNull();
+  });
+});

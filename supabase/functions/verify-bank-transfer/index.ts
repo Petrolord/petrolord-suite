@@ -1,6 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "./cors.ts";
+import { getCaller, isOrgAdmin, isPlatformAdmin } from "../_shared/platform-admin.ts";
+
+// Proof uploads: allowed types only, at most 10 MB decoded.
+const MAX_PROOF_BYTES = 10 * 1024 * 1024;
 import { writeSubscriptionForQuote } from "../_shared/subscription-write.ts";
 
 // verify-bank-transfer
@@ -63,7 +67,13 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { quote_id, user_id, fileBase64, fileName } = await req.json();
+    // Security fix 2026-10-14: the caller must be signed in (checked again
+    // against the quote's organization below). Body user_id is ignored.
+    const caller = await getCaller(supabase, req);
+    if (!caller) return json({ success: false, error: "Sign in to upload a payment proof." }, 401);
+    const user_id = caller.id;
+
+    const { quote_id, fileBase64, fileName } = await req.json();
 
     if (!quote_id) throw new Error("Missing quote_id");
     if (!fileBase64) throw new Error("Missing file data");
@@ -82,10 +92,17 @@ serve(async (req) => {
 
     const orgId = quote.organization_id;
     if (!orgId) throw new Error("Quote is not linked to an organization");
+    if (!(await isOrgAdmin(supabase, caller.id, orgId)) && !(await isPlatformAdmin(supabase, caller))) {
+      return json({ success: false, error: "Only an admin of this organization can upload its payment proof." }, 403);
+    }
 
     // 2. Decode + upload the proof file to the public `quotes` bucket.
     const ext = extOf(fileName);
-    const contentType = CONTENT_TYPES[ext] ?? "application/octet-stream";
+    const contentType = CONTENT_TYPES[ext];
+    if (!contentType) return json({ success: false, error: "Upload a PDF or an image (PNG, JPG, GIF, WEBP)." }, 400);
+    if (String(fileBase64).length > Math.ceil(MAX_PROOF_BYTES / 3) * 4 + 4) {
+      return json({ success: false, error: "The file is larger than 10 MB." }, 400);
+    }
     const binary = atob(fileBase64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);

@@ -33,6 +33,11 @@ const MODES = {
 };
 
 /** rows from services/ppfg.buildMudWindow. */
+// 2026-10-14: depth ticks on round numbers (0, 2000, 4000 ft), not from the first sample (246, 2246, ...)
+const NICE_STEP = 500;
+export const niceFloor = (v) => (Number.isFinite(v) ? Math.floor(v / NICE_STEP) * NICE_STEP : v);
+export const niceCeil = (v) => (Number.isFinite(v) ? Math.ceil(v / NICE_STEP) * NICE_STEP : v);
+
 const MudWindowPanel = ({ rows = [], summary = null, sourceLabel = '', note = null, depthUnit = 'm' }) => {
   const [mode, setMode] = useState(depthUnit === 'ft' ? 'ppg' : 'emw'); // ppg | emw | mpa
   const keys = MODES[mode] || MODES.emw;
@@ -76,7 +81,7 @@ const MudWindowPanel = ({ rows = [], summary = null, sourceLabel = '', note = nu
           ))}
         </div>
       </div>
-      {sourceLabel && <div className="px-3 text-[9px] text-slate-500" data-testid="mud-window-source">Curves: {sourceLabel}</div>}
+      {sourceLabel && <div className="truncate px-3 text-[9px] text-slate-500" title={`Curves: ${sourceLabel}`} data-testid="mud-window-source">Curves: {sourceLabel}</div>}
       {note && <div className="px-3 text-[9px] text-amber-700" data-testid="mud-window-note">{note}</div>}
       {summary && (
         <div className="px-3 text-[9px] text-slate-500" data-testid="mud-window-summary">
@@ -106,14 +111,16 @@ const MudWindowPanel = ({ rows = [], summary = null, sourceLabel = '', note = nu
         </div>
       )}
       {seats?.error && <div className="px-3 text-[9px] text-amber-700" data-testid="mud-window-seats">{seats.error}</div>}
-      <div className="min-h-0 flex-1">
+      {/* 2026-10-14: the chart keeps a usable height in a narrow column; the
+          text above it no longer squeezes it until its legend overlaps the seats */}
+      <div className="min-h-[300px] flex-1" data-testid="mud-window-chart">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={CHART_MARGINS.compact} layout="vertical">
             <CartesianGrid {...GRID_STYLE} />
             <XAxis type="number" domain={['auto', 'auto']} {...axisProps}
               tickFormatter={(v) => v.toFixed(keys.digits)}
               label={{ value: keys.unit, position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-            <YAxis dataKey="tvdShown" type="number" domain={['dataMin', 'dataMax']} {...axisProps}
+            <YAxis dataKey="tvdShown" type="number" domain={[(lo) => niceFloor(lo), (hi) => niceCeil(hi)]} {...axisProps}
               tickFormatter={(v) => v.toFixed(0)}
               label={{ value: `TVD (${depthUnit})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
             <Tooltip contentStyle={TOOLTIP_STYLE}

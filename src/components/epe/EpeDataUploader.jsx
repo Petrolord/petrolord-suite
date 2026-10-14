@@ -100,7 +100,9 @@ const formatBytes = (b) => {
 // without it the total existingCount keeps the pre-Wave-F behavior.
 const SCENARIO_PRESETS = ['1P', '2P', '3P'];
 
-const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0, existingFiles = null }) => {
+// keepIds: files a CSV upload never replaces (a CAPEX file received from
+// Well Cost & Time keeps its source; replace it from its own card).
+const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0, existingFiles = null, keepIds = [] }) => {
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -115,8 +117,8 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0, exist
   // Files this upload would supersede: same scenario when the parent tells
   // us the per-file tags, else the whole slot (legacy behavior).
   const replaceableCount = existingFiles
-    ? existingFiles.filter((f) => (f.scenario_label ?? null) === effectiveScenario).length
-    : existingCount;
+    ? existingFiles.filter((f) => (f.scenario_label ?? null) === effectiveScenario && !keepIds.includes(f.id)).length
+    : Math.max(0, existingCount - keepIds.length);
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewData, setPreviewData] = useState(null);  // { columns, rows, totalRows }
   const [filenameWarning, setFilenameWarning] = useState(null);
@@ -311,6 +313,7 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0, exist
           .delete({ count: 'exact' })
           .eq('case_id', caseId)
           .neq('id', dbRecord.id);
+        if (keepIds.length) deleteQuery = deleteQuery.not('id', 'in', `(${keepIds.join(',')})`);
         if (isProduction) {
           deleteQuery = effectiveScenario
             ? deleteQuery.eq('scenario_label', effectiveScenario)

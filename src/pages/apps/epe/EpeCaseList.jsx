@@ -149,7 +149,7 @@ const EpeCaseList = () => {
   };
 
   const fmtBadgeUsd = (v) => (typeof v === 'number'
-    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(v)
+    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumSignificantDigits: 3 }).format(v)
     : null);
 
   const handleNewCase = async () => {
