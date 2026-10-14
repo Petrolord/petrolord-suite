@@ -28,6 +28,17 @@ const SERIES = [
   { key: 'fg', name: 'Fracture pressure', color: '#456990' },
 ];
 
+// marker for a mud weight that took an influx (the pore pressure was above it)
+function InfluxDot({ cx, cy, value }) {
+  if (cx == null || cy == null || value == null) return null;
+  return <path d={`M${cx},${cy - 6} L${cx + 6},${cy + 5} L${cx - 6},${cy + 5} Z`} fill="#dc2626" stroke="#7f1d1d" strokeWidth={1} />;
+}
+// marker for a mud weight that lost returns (the fracture pressure was below it)
+function LossDot({ cx, cy, value }) {
+  if (cx == null || cy == null || value == null) return null;
+  return <path d={`M${cx - 5},${cy - 5} L${cx + 5},${cy + 5} M${cx + 5},${cy - 5} L${cx - 5},${cy + 5}`} stroke="#1d4ed8" strokeWidth={2} />;
+}
+
 export default function PrognosisChart({
   profile, zBmlM, calibration, units = DEFAULT_UNITS, params = null, casing = null, mapper = null,
 }) {
@@ -47,6 +58,8 @@ export default function PrognosisChart({
         ph: conv(profile.hydrostaticPa[i], z),
         pp: conv(profile.porePressurePa[i], z),
         fg: conv(profile.fracPressurePa[i], z),
+        // 2026-10-14: the shale-sample pressures behind the interpreted line
+        ...(profile.shalePpPa && profile.shalePpPa[i] != null ? { sh: conv(profile.shalePpPa[i], z) } : {}),
       };
     });
     // drilling window band between PP and FG (T1-E1)
@@ -65,7 +78,8 @@ export default function PrognosisChart({
       });
     }
     // U2-002: pressure points and kicks (cal), leak-off tests (lot), mud weights used (mwu)
-    const KEY = { pp: 'cal', fg: 'lot', mw: 'mwu' };
+    // 2026-10-14: mud weights that took an influx (mwk) or lost returns (mwl)
+    const KEY = { pp: 'cal', fg: 'lot', mw: 'mwu', mwkick: 'mwk', mwloss: 'mwl' };
     for (const c of calibration || []) {
       if (Number.isFinite(c.z) && Number.isFinite(c.pMpa)) {
         rows.push({ z: zOf(c.z), [KEY[comparesTo(c)]]: conv(c.pMpa * 1e6, c.z) });
@@ -78,11 +92,16 @@ export default function PrognosisChart({
   const hasCal = data.some((r) => r.cal != null);
   const hasLot = data.some((r) => r.lot != null);
   const hasMw = data.some((r) => r.mwu != null);
+  const hasMwk = data.some((r) => r.mwk != null);
+  const hasMwl = data.some((r) => r.mwl != null);
+  // imported intervals carry their top and base, so the line joins them as drawn
+  const mwIntervals = (calibration || []).some((c) => c.interval);
+  const hasSh = data.some((r) => r.sh != null);
 
   if (!profile) return null;
 
   return (
-    <div className="w-full h-full min-h-[360px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-canvas="chart" data-testid="pp-prognosis-chart" data-ref={mapper ? mapper.key : 'bml'} data-rows={data.length} data-seats={casing ? casing.seats.length : 0} data-cal={data.filter((r) => r.cal != null).length} data-lot={data.filter((r) => r.lot != null).length} data-mw={data.filter((r) => r.mwu != null).length}>
+    <div className="w-full h-full min-h-[360px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-canvas="chart" data-testid="pp-prognosis-chart" data-ref={mapper ? mapper.key : 'bml'} data-rows={data.length} data-seats={casing ? casing.seats.length : 0} data-cal={data.filter((r) => r.cal != null).length} data-lot={data.filter((r) => r.lot != null).length} data-mw={data.filter((r) => r.mwu != null).length} data-mwk={data.filter((r) => r.mwk != null).length} data-mwl={data.filter((r) => r.mwl != null).length} data-shale-points={data.filter((r) => r.sh != null).length}>
       <h3 className="text-center text-sm font-semibold" style={{ color: CHART_COLORS.axisLabel }}>
         Pressure prognosis
       </h3>
@@ -115,6 +134,8 @@ export default function PrognosisChart({
             <Legend verticalAlign="top" wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
             <Area dataKey="win" name="Drilling window (PP to FG)" stroke="none" fill="#22c55e" fillOpacity={0.12}
               connectNulls isAnimationActive={false} legendType="rect" />
+            {hasSh && <Line dataKey="sh" name="Shale pressures" stroke="none" legendType="circle"
+              dot={{ r: 1.4, fill: '#f4a3a8', stroke: 'none' }} activeDot={false} isAnimationActive={false} />}
             {SERIES.map((s) => (
               <Line
                 key={s.key}
@@ -141,8 +162,12 @@ export default function PrognosisChart({
               dot={{ r: 4, fill: '#e76f51', stroke: '#9a3412' }} activeDot={false} isAnimationActive={false} />}
             {hasLot && <Line dataKey="lot" name="LOT/FIT" stroke="none" legendType="diamond"
               dot={{ r: 4, fill: '#1d4ed8', stroke: '#1e3a8a' }} activeDot={false} isAnimationActive={false} />}
-            {hasMw && <Line dataKey="mwu" name="Mud weight used" stroke="#a16207" strokeWidth={1.5} type="stepAfter"
+            {hasMw && <Line dataKey="mwu" name="Mud weight used" stroke="#a16207" strokeWidth={1.5} type={mwIntervals ? 'linear' : 'stepAfter'}
               dot={false} connectNulls isAnimationActive={false} />}
+            {hasMwk && <Line dataKey="mwk" name="Mud weight that took an influx" stroke="none" legendType="triangle"
+              dot={InfluxDot} activeDot={false} isAnimationActive={false} />}
+            {hasMwl && <Line dataKey="mwl" name="Mud weight with losses" stroke="none" legendType="cross"
+              dot={LossDot} activeDot={false} isAnimationActive={false} />}
           </ComposedChart>
         </ResponsiveContainer>
       </div>

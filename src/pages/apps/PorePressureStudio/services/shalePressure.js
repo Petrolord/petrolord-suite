@@ -21,6 +21,13 @@
 //      is carried down;
 //   4. the fracture pressure follows from that pore pressure with the
 //      project's fracture method, exactly as the engine computes it.
+//   5. (2026-10-14) optional interpreted line: the overpressure (PP minus
+//      hydrostatic) at the shale samples is replaced by its running median
+//      over a depth window, using only shale samples, and carried across the
+//      sands the same way. A specialist draws the design pore pressure as a
+//      line through the shale points rather than through every spike; the
+//      raw shale-sample pressures are kept on the result (shalePpPa) so the
+//      chart can show them as points beside the line.
 // The all-samples path (option off) returns the engine result untouched.
 
 import { computeProfile } from '../engine/profile';
@@ -95,6 +102,26 @@ export function interpolateFromShale(zM, ppPa, phPa, isShale) {
   return out;
 }
 
+/**
+ * The interpreted line (2026-10-14): the running median of the overpressure
+ * at the shale samples over a depth window, carried across the rest by
+ * interpolateFromShale. Overpressure, so the hydrostatic gradient inside the
+ * window does not bias the median.
+ * @param {number[]} zM depths below mudline
+ * @param {number[]} ppPa method pore pressure on every sample
+ * @param {number[]} phPa hydrostatic on every sample
+ * @param {boolean[]} isShale
+ * @param {number} windowM full window length (> 0)
+ * @returns {number[]|null} null when there is no shale sample
+ */
+export function interpretedLine(zM, ppPa, phPa, isShale, windowM) {
+  const excess = ppPa.map((v, i) => (isShale[i] && Number.isFinite(v) ? v - phPa[i] : null));
+  if (!excess.some((v) => v != null)) return null;
+  const med = runningMedian(zM, excess, windowM);
+  const linePp = med.map((v, i) => (v == null || !Number.isFinite(v) ? NaN : v + phPa[i]));
+  return interpolateFromShale(zM, linePp, phPa, med.map((v) => v != null && Number.isFinite(v)));
+}
+
 /** Is the shale-pressure mode applicable and on for this input? */
 export function shaleModeOn(params, input) {
   return !!params?.ppFromShale && Array.isArray(input?.shale) && input.shale.length === input.zBmlM?.length;
@@ -124,6 +151,7 @@ export function computePrognosis(input, params, { shaleKind = input?.shaleKind ?
   }
   let pp = methodPp;
   let shaleMode = null;
+  let shalePpPa = null;
   if (on) {
     const cutoff = shaleCutoffFor(params, input, shaleKind);
     const isShale = input.shale.map((s) => Number.isFinite(cutoff) && s >= cutoff);
@@ -131,6 +159,15 @@ export function computePrognosis(input, params, { shaleKind = input?.shaleKind ?
     const nShale = isShale.filter(Boolean).length;
     if (carried) pp = carried;
     shaleMode = { cutoff, kind: shaleKind, nShale, n: input.zBmlM.length, applied: !!carried };
+    const lineM = Number(params?.ppLineM) || 0;
+    if (carried && lineM > 0) {
+      const line = interpretedLine(input.zBmlM, methodPp, base.hydrostaticPa, isShale, lineM);
+      if (line) {
+        shaleMode.lineM = lineM;
+        shalePpPa = methodPp.map((v, i) => (isShale[i] && Number.isFinite(v) ? v : null));
+        pp = line;
+      }
+    }
   }
   const K = fracCoefficient(params);
   return {
@@ -138,6 +175,7 @@ export function computePrognosis(input, params, { shaleKind = input?.shaleKind ?
     porePressurePa: pp,
     fracPressurePa: pp.map((v, i) => fracPressure(base.overburdenPa[i], v, K)),
     ...(shaleMode ? { shaleMode } : {}),
+    ...(shalePpPa ? { shalePpPa } : {}),
     ...(win > 0 ? { sonicMedianM: win } : {}),
   };
 }
@@ -149,6 +187,7 @@ export function prognosisModeText(result, params, { fmtZ = (m) => `${Math.round(
     const s = result.shaleMode;
     const cut = s.kind === 'gr' ? `GR at or above ${Math.round(s.cutoff)} API` : `VSH at or above ${Number(s.cutoff).toFixed(2)}`;
     parts.push(`Pore pressure from ${s.nShale} shale samples (${cut}), carried across the other ${s.n - s.nShale} samples by depth`);
+    if (s.lineM > 0) parts.push(`interpreted line through them: the median over ${fmtZ(s.lineM)}`);
   } else if (result?.shaleMode && !result.shaleMode.applied) {
     parts.push('Pressures from shale samples is on, but no sample reaches the shale cutoff: pore pressure from every sample');
   } else if (params?.ppFromShale) {
