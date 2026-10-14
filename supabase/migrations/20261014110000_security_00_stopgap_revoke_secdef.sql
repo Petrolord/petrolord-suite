@@ -1,6 +1,8 @@
 -- =============================================================================
 -- SECURITY 00 (2026-10-14): STOP-GAP. Client EXECUTE off the SECURITY DEFINER
--- functions that anyone can exploit today. Tiny, standalone, apply now.
+-- functions that anyone could exploit. Tiny, standalone.
+-- APPLIED 2026-10-14 by the owner (verified: tools/security/2026-10/verify/00_stopgap.sql,
+-- all 8 rows anon_x=false, auth_x=false except get_users_for_organization, svc_x=true).
 -- The consolidated fix (01-05, docs/security/RUNBOOK-2026-10.md) follows.
 --
 -- Read live 2026-10-14 (has_function_privilege, pg_get_functiondef):
