@@ -1123,7 +1123,7 @@ const DesignTab = () => {
                                     <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={sectionOverlays} targets={showTargets ? sectionTargets : []} exaggeration={sectionEx} onExaggerationChange={setSectionEx} dlsScale={dlsScale} />
                                 </div>
                                 {showPpfg && (
-                                    <div className="flex w-[340px] shrink-0 flex-col border-l border-slate-200">
+                                    <div className="flex w-[380px] 2xl:w-[440px] shrink-0 min-h-0 flex-col overflow-y-auto border-l border-slate-200" data-testid="wd-ppfg-column">
                                         {ppfgList && ppfgList.length > 0 && (
                                             <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-1.5 text-[11px] text-slate-600">
                                                 <label htmlFor="wd-ppfg-source">Prognosis from</label>
@@ -1144,7 +1144,7 @@ const DesignTab = () => {
                                                 ready={!!ppfgLoaded && ppfgLoaded.sourceId === ppfgSource?.id} recording={ppfgRecording}
                                                 onRecord={recordPpfg} unit={mdUnit} />
                                         )}
-                                        <div className="min-h-0 flex-1">
+                                        <div className="min-h-[520px] flex-1">
                                         {ppfg === 'loading' && (
                                             <div className="flex h-full items-center justify-center text-xs text-pl-muted">
                                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading PPFG curves…
