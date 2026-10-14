@@ -328,6 +328,17 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   }, [input, params]);
 
   const result = profile?.result || null;
+  // 2026-10-14: a readout depth outside the open well (the 3,500 m default on a
+  // shallower well read as 11,483 ft) moves to the deepest sample
+  useEffect(() => {
+    const z = input && !input.error ? input.zBmlM : null;
+    if (!z?.length) return;
+    const zMax = z[z.length - 1];
+    if (readoutDepthM > zMax + 1 || readoutDepthM < z[0] - 1) {
+      setReadoutDepthM(zMax);
+      setReadoutText(tidyDepth(mapperRef.current ? mapperRef.current.fromBml(zMax) : zMax, units.depth));
+    }
+  }, [input]); // eslint-disable-line react-hooks/exhaustive-deps
   const windowInfo = useMemo(() => (result && input ? drillingWindow(result, input.zBmlM, params) : null), [result, input, params]);
   // U2-003: kick and trip margins and the bottom-up casing seats
   const casing = useMemo(() => (result && input ? casingDesign(result, input.zBmlM, params) : null), [result, input, params]);

@@ -224,6 +224,14 @@ export default function PorePressureStudioHelpGuide() {
           with sigma max held) fits that parameter to the pressure points and kicks by least squares on the pore
           pressure, writes it into the dock and says the misfit before and after. Leak-off tests are not used for it.
         </Para>
+        <SubHeading>Pore pressure below hydrostatic</SubHeading>
+        <Para>
+          Eaton and Bowers read under-compaction, so a pore pressure more than 0.5 ppg below hydrostatic is almost
+          always the method reading something it should not: an NCT that was never fitted on this well, picks below the
+          top of the overpressure, or sands read as shale. The notes line then says over how much of the well it
+          happens and where it is worst. Fit the NCT on shale picks in the normally pressured section, or raise the
+          shale cutoff. Real underpressure (a depleted reservoir) is measured, not predicted from the sonic.
+        </Para>
         <SubHeading>Pressures from shale samples</SubHeading>
         <Para>
           Eaton and Bowers read the compaction of a shale, so a sand, a carbonate stringer or a washout gives a pore

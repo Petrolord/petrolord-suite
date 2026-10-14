@@ -260,3 +260,13 @@ supplied follow the next well. Publish is held for an offshore well whose datum
 states water while the water depth is 0. `services/datumWaterColumn.js`;
 tests `__tests__/datumWaterColumn.test.js` (the old 0/0 default as the negative
 control).
+## 2026-10-14: underpressure said; the readout inside the well
+
+Found in the Pore Pressure Studio video dry runs. (1) On Ekene-9 with the default trend the readout showed a
+pore pressure of 1.83 ppg at 1,000 ft MD with nothing said. A pore pressure more than 0.5 ppg EMW below
+hydrostatic (below the top 30 m) now raises a warning note (`pp-note-underpressure`) with the thickness it
+covers and the worst sample, and what usually causes it (`underpressure` in `services/honesty.js`). (2) The
+depth readout opened at its 3,500 m default on every well, which on Ekene-1 (2,190 m below the mudline) read
+"11482.9 ft"; a readout depth outside the open well now moves to the deepest sample. Tests:
+`__tests__/underpressureReadout.test.jsx` (Ekene-1 kit fixture: every-sample Eaton is flagged, shale-sample
+pressures are not, the negative control; a 2,000 m well opens with the readout at 2,000 m).
