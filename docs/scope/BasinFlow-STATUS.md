@@ -221,3 +221,41 @@ stores nothing and says "<field> needs a number. The last value is kept."
 The boxes are text inputs with a decimal keypad now (no spinner). Gate:
 `__tests__/unitTyping.test.jsx` (32 tests; 16 failed on the old code).
 Ages remain number inputs with no unit conversion and are not changed.
+
+## 2026-10-14: Ekene basin videos round (continuous deposition, column files, traps and charge)
+
+Built while recording the Basin & Charge Modeling videos on the Ekene field
+(owner round directive 2026-10-14). Engines PR #363 (f6729ed), vendored.
+
+- **Deposition and the time step.** `settings.deposition: 'continuous'` builds
+  each layer up through its interval (sub-layers put down as each part of the
+  interval completes; results reported for the input layers) and
+  `settings.timeStepMa` takes 1, 0.5, 0.25 or 0.1 Ma. A new model is continuous
+  at 0.25 Ma; older models keep instant at 1 Ma (goldens unchanged). Global
+  History, Thermal, sets both. Gate `packages/engines/__tests__/basin.deposition.test.js`
+  (constant-rate burial is linear, instant mode as the negative control;
+  Easy%Ro under 2 C/Ma heating within 0.01 %Ro of the exact Arrhenius integral
+  at 0.25 Ma, the pre-G7 kcal/J unit error as the control).
+- **Column files** (`services/columnFile.js`): the Formation tops door reads
+  ages, hiatuses, lithology and sand/shale parts, eroded thickness,
+  TOC/HI/kerogen and a TD row, and the depth unit a header states (md_m was
+  read as feet). The Registry well door takes the same file without depths to
+  date a well's tops by name, so a model tied to an undated registry well is
+  dated without touching the registry.
+- **Calibration depths below KB** move up to the model surface (the tie
+  well's first top: the seabed, 60 m on Ekene-1). Before, an MD file was read
+  197 ft too deep on Ekene-1.
+- **Traps and charge** (`components/TrapsPanel.jsx`, `services/traps.js`,
+  `src/lib/basinCharge.js`): traps live with the model (`settings.traps`),
+  typed or read from a traps file; each is assessed on the run (share expelled
+  after it formed, charge in MMboe split into oil MMbbl and gas Bcf by the
+  source's Ro at expulsion, times the fill, the suggested charge factor), drawn
+  on the events chart from the age it formed, and sent one at a time to
+  Prospect Risking with its numbers filled in. The Expulsion tab draws the
+  gas-window part dotted. Gate `__tests__/trapsCharge.test.jsx` (negative
+  control: inverting the window line fails 4 of 6).
+- Smaller: a hiatus is named as one before the run; the new-model dialog keeps
+  only what is stored and opens the model; heat flow reads to 0.1 mW/m2; the
+  BHT table marks DST rows; the welcome reads Basin & Charge Modeling.
+- Still 1D: no migration path (the fetch area and efficiency carry it), no
+  lithosphere heat-flow model (U2-002), no secondary cracking of oil to gas.

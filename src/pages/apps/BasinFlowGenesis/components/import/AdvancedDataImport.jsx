@@ -161,7 +161,9 @@ const AdvancedDataImport = () => {
       id: l.id, name: l.name, ageStart: l.ageStart, ageEnd: l.ageEnd, thickness: l.thickness, lithology: l.lithology, sourceRock: l.sourceRock, agesGuessed: l.agesGuessed,
       provenance: { lithology_guessed: l.lithologyGuessed, top_tvd_m: l.top_md_m, base_tvd_m: l.base_md_m, thickness_basis: 'file' },
     })), c.rows);
-    const layers = applied.layers.map((l) => ({ ...l, color: BASIN_LAYER_COLOUR[l.lithology] || (l.lithology === 'mixed' ? '#8d99ae' : '#94a3b8') }));
+    // a source rock reads apart from the shales around it on the burial plot
+    const colourOf = (l) => (l.sourceRock?.isSource ? '#7f4f24' : BASIN_LAYER_COLOUR[l.lithology] || (l.lithology === 'mixed' ? '#8d99ae' : '#94a3b8'));
+    const layers = applied.layers.map((l) => ({ ...l, color: colourOf(l) }));
     const { lithologies, sources } = applied;
     const erosionEvents = erosionWithAmounts(built.erosionEvents, c.rows, c.units?.eroded || colUnit);
     return { layers, erosionEvents, lithologies, sources, problems: built.problems.filter((p) => !(/amount unknown/.test(p) && erosionEvents.some((e) => !e.amountUnknown && p.startsWith(e.surface)))) };
@@ -206,7 +208,7 @@ const AdvancedDataImport = () => {
     const b = buildBasinModelRow({ well: registryWell, tops: withBase, intervals: registryIntervals, userId: null });
     const kept = b.row.stratigraphy.filter((l) => l.name !== '__base__');
     const applied = applyColumnToLayers(kept, regColumn.rows);
-    const strat = applied.layers.map((l) => ({ ...l, color: BASIN_LAYER_COLOUR[l.lithology] || (l.lithology === 'mixed' ? '#8d99ae' : l.color) }));
+    const strat = applied.layers.map((l) => ({ ...l, color: l.sourceRock?.isSource ? '#7f4f24' : BASIN_LAYER_COLOUR[l.lithology] || (l.lithology === 'mixed' ? '#8d99ae' : l.color) }));
     const erosion = erosionWithAmounts(b.row.erosion_events, regColumn.rows, regColumn.units?.eroded || fileUnit);
     const matched = registryWell.tops.filter((t) => regColumn.rows.some((r) => r.name && t.name && r.name.trim().toLowerCase() === t.name.trim().toLowerCase())).length;
     const datedCount = strat.filter((l) => !l.agesGuessed).length;

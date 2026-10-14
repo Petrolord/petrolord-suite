@@ -76,10 +76,13 @@ export default function BasinFlowHelpGuide() {
         <SectionHeading icon={Layers}>Stratigraphy and source rocks</SectionHeading>
         <Para>
           Layers are listed youngest first, as in a well. Each layer deposits at its start age and is complete at its
-          end age; the engine deposits it at once at the start age and steps forward one million years at a time.
-          Thickness is the present-day thickness; the engine finds the solid thickness and decompacts it back through
-          time with the lithology's porosity-depth curve. A gap or overlap between the ages of neighbouring layers is
-          flagged before the run.
+          end age. With Continuous deposition (Global History, Thermal, the default for a new model) the layer builds
+          up through that interval in slices, so it is buried at its own rate; with Instant deposition it appears
+          whole at its start age. The time step is 1, 0.5, 0.25 or 0.1 million years: use one shorter than the
+          shortest layer (0.25 Ma for a Neogene delta). Thickness is the present-day thickness; the engine finds the
+          solid thickness and decompacts it back through time with the lithology's porosity-depth curve. A hiatus
+          between neighbouring layers is named before the run (an erosion event with a thickness inside it needs no
+          note), and an overlap is flagged.
         </Para>
         <SubHeading>Source rocks</SubHeading>
         <Para>
@@ -134,12 +137,14 @@ export default function BasinFlowHelpGuide() {
         <SectionHeading icon={Upload}>Import and the registry</SectionHeading>
         <Table headers={['Import', 'File', 'What it does']} rows={[
           ['Calibration data', 'Delimited text with depth (TVD preferred to MD) and Ro and/or temperature columns', 'Reads units stated in the header (Depth (ft), BHT (degF)) and converts them, says which column and unit it read, previews the points and every row it could not read; replaces or adds to the points.'],
-          ['Formation tops', 'Delimited text with name and depth', 'Previews the layers it would make (thickness from the gaps, optional total depth, a lithology guess) and replaces the stratigraphy; ages are placeholders to type.'],
-          ['Registry well', 'A well in the shared registry with tops', 'The same build as Send to Basin in Stratigraphy Studio: vertical (TVD) thicknesses through the survey, ages from dated tops, lithology from the log, each hiatus as an erosion event whose amount you type. The well becomes this model\'s tie for the launchers.'],
+          ['Formation tops', 'Delimited text with name and depth, or a column file', 'Previews the layers it would make (thickness from the gaps, optional total depth, a lithology guess) and replaces the stratigraphy. Without an age column the ages are placeholders to type. A column file also carries age_ma, hiatus_end_ma, surface_type, lithology, sand_pct and shale_pct (a mixed layer), eroded_ft or eroded_m, toc, hi and kerogen, and a TD row with the base depth and age: the model comes in dated, with its lithologies, sources and erosion.'],
+          ['Registry well', 'A well in the shared registry with tops', 'The same build as Send to Basin in Stratigraphy Studio: vertical (TVD) thicknesses through the survey, ages from dated tops, lithology from the log, each hiatus as an erosion event whose amount you type. The well becomes this model\'s tie for the launchers. A column file (no depths needed) dates the well\'s tops by surface name and sets the lithologies, eroded thickness and sources, with its TD row dating the bottom layer.'],
         ]} />
         <Callout tone="info" title="File units">
-          Files are read in the display depth unit shown on the import tab; switch it if a file is in the other unit.
-          Temperatures in files are degrees C.
+          A unit in a column header (md_m, depth_ft, BHT (degF)) is read and said; otherwise files are read in the
+          depth unit shown on the import tab. Temperatures without a unit are degrees C. Calibration depths measured
+          below the rig floor (KB), as well depths are, move up to the model surface: on a model tied to a registry
+          well the app knows the depth of its first top below KB (the seabed on an offshore well); otherwise type it.
         </Callout>
         <Para>A template, a tops file or a registry well replaces the layers of the open model. Templates ask first, by model name. After any replacement an Undo bar at the top of Properties puts the previous layers, erosion and tie back (one step, until you open another model).</Para>
         <Para>Petrophysics logs: for a model tied to a registry well, this tab reads the well's published porosity (PHIT, else PHIE) and TOC curves, averages them over each layer and shows the log porosity beside the model's. Set the surface porosity from the log scales each layer so the model matches the log (the compaction coefficient is kept). Set the source TOC from the log writes the mean TOC to layers marked as source rock; a log TOC is the present-day value, so raise it for a source that has already generated. Undo in Properties reverses either.</Para>
@@ -154,10 +159,12 @@ export default function BasinFlowHelpGuide() {
           ['Temperature', 'Layer temperature through time.'],
           ['Maturity', 'Easy%Ro through time with the windows labelled: oil 0.55 to 1.3 %Ro, wet gas 1.3 to 2.0, dry gas above 2.0 (Tissot and Welte).'],
           ['Expulsion', 'Generated and expelled mass per square metre for the source layers, and their transformation ratio.'],
-          ['Timing', 'The petroleum system events chart: deposition of the source, reservoir, seal and overburden rocks, the generation and expulsion windows, and the critical moment at the peak expulsion rate. Trap formation is not modelled in 1D.'],
+          ['Timing', 'The petroleum system events chart: deposition of the source, reservoir, seal and overburden rocks, the generation and expulsion windows, and the critical moment at the peak expulsion rate. Each trap you add on the Timing tab is drawn from the age it formed.'],
         ]} />
         <Para>Each layer is its own series on every plot, keyed by the layer and labelled by its name, so two layers with the same name are both drawn; rename them to tell them apart in the legend.</Para>
         <Para>A run computes in the background: the run dialog shows its progress, Cancel run stops it and keeps the previous result, and Keep working closes the dialog while it finishes.</Para>
+        <SubHeading>Traps and charge</SubHeading>
+        <Para>On the Timing tab, Traps and charge keeps the traps this model's kitchen charges: when each formed (from the structural history), the fetch area it drains in km², the migration efficiency (the share of the expelled petroleum that reaches it), the source layer on its migration path and the volume in place it holds (MMstb, MMbbl, MMboe or Bcf). Type them or read a traps file (trap, formed_ma, fetch_km2, migration_efficiency, charged_by, in_place, in_place_unit). For each trap the table gives the share of the expulsion that came after it formed, the charge that reaches it in MMboe, split into oil (MMbbl) and gas (Bcf), how many times it fills the trap and a suggested charge factor for Pg. Petroleum expelled while the source was below 1.3 %Ro counts as oil and at or above it as gas; the Expulsion tab draws the gas part dotted. The 1D model has no migration path, so the fetch area and the efficiency carry that risk. Prospect Risking sends one trap to ReservoirCalc Pro with these numbers filled in.</Para>
         <Para>The Pressure tab shows present-day hydrostatic, pore and overburden pressure through the column (MPa with metres, psi with feet). The pore pressure is a 1D estimate of what the burial rate can trap in low-permeability layers (compaction disequilibrium); it does not feed back into compaction. Send to Pore Pressure Studio opens that app with the profile as a reference, in its declared units.</Para>
       </GuideSection>
 
