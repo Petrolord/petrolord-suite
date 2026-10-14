@@ -175,25 +175,3 @@ compact units ("NPV $2M" for 2,017,000 beside a results page reading $2.02M);
 both now use three significant figures. A run whose input was refreshed from
 its source (same file name) said "X was replaced by X"; it now says "X was
 replaced by a newer version (date)". Test added to `epeRunInputs.test.js`.
-The Sensitivity (Tornado) panel had no numbers without hovering, uneven ticks
-(-3.3M, -1.3M, 704K, 3.3M) and a base NPV to two figures ("2.0M" beside a
-$1.98M headline). It now has symmetric, evenly spaced ticks, money to three
-significant figures, one sentence naming the two biggest drivers and their
-NPV ranges (testid `epe-tornado-sentence`), and a table of every bar (testid
-`epe-tornado-table`: Variable, Low input, High input, NPV at low, NPV at high,
-Swing) in the engine's impact order. Inputs read in each variable's unit
-($/bbl, $/Mscf, %, "+1 yr", totals with their x0.80 factor). Nothing is
-recomputed: the NPVs are the batch engine's own. Helper `epeTornado.js`;
-tests `epeTornado.test.js` and `epeTornado.mount.test.jsx` (the mount test
-fails on the old viewer).
-
-## 2026-10-14: First Oil Delay on a producing field (video programme)
-
-The tornado's First Oil Delay bar (engine `schedule_shift_years`) moves every
-production file and its opex a year later. On a brownfield such as Ekene,
-producing from 2020 with Ekene-11's capex in 2027, it also delays the wells
-already on stream and the history, and the bar read +US$295K. The readout now
-says so under the table when the case produces before its first capex
-(`scheduleShiftNote`, testid `epe-tornado-delay-note`). The engine semantics
-are unchanged; a delay of the new development alone needs per-file schedule
-tags (owner decision if wanted).
