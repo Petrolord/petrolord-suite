@@ -201,7 +201,10 @@ export default function PorePressureStudioHelpGuide() {
         <Para>
           The Crossplot view plots velocity against the logged density. Under loading both rise along one trend; where
           the pressure comes from fluid expansion the velocity falls while the density holds, so those samples drop
-          below the trend. The view fits the loading trend above the unloading top (by default where the velocity
+          below the trend. With Pressures from shale samples on, it reads only the shale samples, as the
+          pressures do: a sand is faster at its density than a shale and would read as a velocity reversal. A log whose
+          density was not lowered by the overpressure (a synthetic or edited density, or a density read in sands) can
+          still look unloaded, so check the cause before choosing unloading. The view fits the loading trend above the unloading top (by default where the velocity
           peaks), counts the samples below it more than 3% under the trend, and gives V max with the sigma max the
           loading curve reaches there. Use for Bowers unloading sets the method to Bowers with that sigma max and the U
           you type (Fit U to calibration refines U against measured pressures).
@@ -222,7 +225,19 @@ export default function PorePressureStudioHelpGuide() {
           misfit is stated under the ribbon and in the report). They change the computation only when you ask:
           Fit n to calibration (Eaton sonic or resistivity), Fit A and B (Bowers loading) or Fit U (Bowers unloading,
           with sigma max held) fits that parameter to the pressure points and kicks by least squares on the pore
-          pressure, writes it into the dock and says the misfit before and after. Leak-off tests are not used for it.
+          pressure, writes it into the dock and says the misfit before and after. Leak-off tests are not used for it. With
+          Pressures from shale samples on (or a sonic median), the measured points usually sit in a reservoir sand where the
+          shown pore pressure is the one carried from the shales, so n (or U) is searched on that shown prognosis itself;
+          Bowers A and B read each point's nearest shale sample. A fit that would make the misfit worse is not applied,
+          and the status line says so.
+        </Para>
+        <SubHeading>Pore pressure below hydrostatic</SubHeading>
+        <Para>
+          Eaton and Bowers read under-compaction, so a pore pressure more than 0.5 ppg below hydrostatic is almost
+          always the method reading something it should not: an NCT that was never fitted on this well, picks below the
+          top of the overpressure, or sands read as shale. The notes line then says over how much of the well it
+          happens and where it is worst. Fit the NCT on shale picks in the normally pressured section, or raise the
+          shale cutoff. Real underpressure (a depleted reservoir) is measured, not predicted from the sonic.
         </Para>
         <SubHeading>Pressures from shale samples</SubHeading>
         <Para>
@@ -238,6 +253,13 @@ export default function PorePressureStudioHelpGuide() {
           and shale lines, which can admit shaly sands: on Ekene-1 a cutoff near the shale line (VSH 0.6, about 82 API)
           follows the kit's designed prognosis within 0.6 ppg RMS. A running median on the sonic (or resistivity), in
           the depth unit, smooths a noisy shale trace before the method reads it; it is off unless you set a window.
+        </Para>
+        <Para>
+          When the well carries both a shale volume (VSH from Petrophysics Studio) and the gamma ray as loaded, the NCT
+          view offers both under Shale picks on. A Petrophysics VSH may sit on its own shale lines, or on a Larionov or
+          Clavier curve, that put few shallow shales over a VSH cutoff; choose the GR to read the log as loaded. The
+          choice drives the picks and Pressures from shale samples, resets the cutoff to that curve's default and is
+          saved with the project. Pick the shales again and fit the NCT after a change.
         </Para>
         <SubHeading>The interpreted line</SubHeading>
         <Para>
@@ -261,7 +283,22 @@ export default function PorePressureStudioHelpGuide() {
           is assumed. MD goes through the well's survey, TVDSS through its KB, a mud weight converts at the TVD below
           the rotary table. Rows with a -999 null, text or a depth above the mudline are listed with the reason.
           Pressure points and kicks are compared with the pore pressure, LOT, FIT and XLOT with the fracture pressure
-          (a FIT is a lower bound), and mud weights are drawn as a step line. Spreadsheets are saved as CSV first.
+          (a FIT is a lower bound), and mud weights are drawn as a step line. An Excel workbook is read from its first
+          sheet.
+        </Para>
+        <Para>
+          Headers written in snake_case with the unit as the last word (md_m, shoe_md_m, pressure_psia, emw_ppg,
+          mud_weight_ppg) are read for the column, its unit and its depth reference, so a file like the Ekene kit's
+          imports with nothing left to declare. A file that names several wells shows Rows for well, set to the well
+          you have open when its name contains one of them; the other wells' rows are listed as skipped. A from and to
+          depth pair is a mud weight held over that interval, drawn over it. An outcome column that says a mud weight
+          took an influx makes it a mud weight that took an influx (a red triangle, at the depth the outcome names or
+          at the interval base); losses make it a mud weight with losses (a blue cross).
+        </Para>
+        <Para>
+          Under the casing seats, a line checks the mud weights against the prognosis in ppg: the weights that held
+          should sit above the pore pressure over their intervals, and a weight that took an influx should sit below
+          it at the influx depth. The line says which ones the prognosis explains and where it may read high.
         </Para>
       </GuideSection>
 
@@ -308,6 +345,15 @@ export default function PorePressureStudioHelpGuide() {
           vector lines on white with depth downward in the chosen depth frame) and the table with EMW in ppg. Save keeps the parameters, picks and calibration as your project and
           reopens the well next time. Well Design Studio's mud window reads the published curves in ppg or g/cc EMW
           against its own trajectory TVD, on the well itself or, for a planned well, from this well as an offset at equal TVDSS.
+        </Para>
+        <SubHeading>Is the published prognosis the one open here?</SubHeading>
+        <Para>
+          The readers (Well Design Studio, Casing and Tubing, Hydraulics, Geomechanics) read what is published, never
+          your open project. Beside Publish a chip says where you stand on the selected well: Not published; Published,
+          matches (the curves on the well are the prognosis open here, sample by sample); or Unpublished changes, with
+          the largest difference in ppg. The notes line gives the curve and the depth of that difference and when the
+          published one was written. After a recalibration the chip turns to Unpublished changes until you publish,
+          so nobody downstream is left on the old prognosis without it being said.
         </Para>
       </GuideSection>
 

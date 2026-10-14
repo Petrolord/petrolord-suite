@@ -42,13 +42,15 @@ import { computePrognosis, prognosisModeText } from '../services/shalePressure';
 import { pseudoSonicFromLinearVelocity } from '../engine/velocitySource';
 import { layerCakeProfile } from '@/lib/velocityModels';
 import { preparePublishLogs, publishBlocker } from '../services/publish';
+import { publishedSet, compareWithPublished, publishStateText } from '../services/publishState';
 import { inputNotes, trendDepthM } from '../services/honesty';
 import { reviewerLines, prognosisPdf } from '../services/report';
 import { drillingWindow, casingDesign, WINDOW_FROM_BML_M } from '../services/drillingWindow';
-import { pickShaleLog, normalizeShaleIndicator } from '../services/shalePicks';
+import { shaleLogOptions, chooseShaleOption, normalizeShaleIndicator } from '../services/shalePicks';
 import { fitTarget, fitToCalibration, calibrateFracToLot } from '../services/calibrate';
 import { datumToMudline } from '../services/alongHole';
 import { comparesTo } from '../services/calibrationImport';
+import { mudWeightEvidence } from '../services/mudWeightEvidence';
 import {
   UNITS_KEY, PRESSURE_UNITS, DEPTH_UNITS, readUnits, depthFromDisplay, tidyDepth,
   fmtPressure, fmtDepth, emwReferenceDepthM, emwDatumLabel, isEmw, prognosisCsv,
@@ -112,6 +114,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   const [saving, setSaving] = useState(false);
   // PP-U1-010: the NCT was fitted on the open well (or comes from the project/default)
   const [nctFittedFor, setNctFittedFor] = useState(null);
+  // 2026-10-14: the prognosis published on the open well ({wellId, set, values})
+  const [published, setPublished] = useState(null);
   // 2026-10-13: the water column the open well's datum supplied (null when typed or saved)
   const [waterFromDatum, setWaterFromDatum] = useState(null); // {wellId, waterDepthM, mudlineMdM, text}
   const waterPrevRef = React.useRef(null);
@@ -184,6 +188,13 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     try {
       const logs = await backend.listLogs(wellId);
       const mapped = mapLogs(logs);
+      // what this studio already published on the well, for the publish state
+      const pset = publishedSet(logs);
+      setPublished({ wellId, set: pset, values: {} });
+      if (pset) {
+        Promise.all(['PP', 'FP'].map((m) => (pset[m] ? backend.downloadCurve(pset[m]).catch(() => null) : null)))
+          .then(([pp, fp]) => setPublished((prev) => (prev?.wellId === wellId ? { ...prev, values: { PP: pp, FP: fp } } : prev)));
+      }
       if (!mapped.DEPT || !mapped.DT) {
         throw new Error('This well has no depth + sonic pair. Pore pressure needs a sonic log.');
       }
@@ -192,10 +203,13 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       ]);
       const rho = mapped.RHOB ? await backend.downloadCurve(mapped.RHOB) : null;
       const resRaw = mapped.RES ? await backend.downloadCurve(mapped.RES) : null;
-      // U2-005: the shale indicator for the NCT picks (VSH, else GR)
-      const shaleLog = pickShaleLog(logs);
-      const shaleRaw = shaleLog ? await backend.downloadCurve(shaleLog.log) : null;
-      const shaleN = shaleRaw && shaleRaw.length === depth.length ? normalizeShaleIndicator(shaleRaw, shaleLog) : null;
+      // U2-005: the shale indicators for the NCT picks (VSH, else GR); 2026-10-14:
+      // both are read so the NCT view can switch between them
+      const shaleOpts = [];
+      for (const o of shaleLogOptions(logs)) {
+        const raw = await backend.downloadCurve(o.log);
+        if (raw && raw.length === depth.length) shaleOpts.push(normalizeShaleIndicator(raw, o));
+      }
       // PP-U1-004: vendor nulls, kg/m3 density and us/ft sonic are read for
       // what they are, and each decision is said
       const norm = normalizePpCurves({ depth, dt, rho, dtLog: mapped.DT, rhoLog: mapped.RHOB });
@@ -206,13 +220,11 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         dt: norm.dt,
         rho: norm.rho,
         res: resN ? resN.res : null,
-        shale: shaleN ? shaleN.values : null,
-        shaleKind: shaleN ? shaleN.kind : null,
-        shaleName: shaleN ? shaleN.name : null,
+        shaleOptions: shaleOpts,
         resName: mapped.RES?.mnemonic || null,
         units: norm.units,
         fileUnits: { DT: mapped.DT.unit, RHOB: mapped.RHOB?.unit, RES: mapped.RES?.unit },
-        notes: [...norm.notes, ...(resN ? resN.notes : []), ...(shaleN ? shaleN.notes : [])],
+        notes: [...norm.notes, ...(resN ? resN.notes : []), ...shaleOpts.flatMap((o) => o.notes)],
         logIds: Object.values(mapped).filter(Boolean).map((l) => l.id),
       });
       setNctFittedFor((prev) => (prev === wellId ? prev : null));
@@ -287,6 +299,11 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     return () => { live = false; };
   }, [params.seismicDatumElevM, seismicModel, layerCakeAt, wells, backend]);
 
+  // 2026-10-14: the shale indicator in use (the project's choice when the well has it)
+  const shaleSel = curves ? chooseShaleOption(curves.shaleOptions, params.shaleIndicator) : null;
+  const shaleCurves = useMemo(() => (curves ? {
+    ...curves, shale: shaleSel ? shaleSel.values : null, shaleKind: shaleSel ? shaleSel.kind : null, shaleName: shaleSel ? shaleSel.name : null,
+  } : null), [curves, shaleSel]);
   const byRes = params.method === 'eaton-resistivity';
   // U2-008: the mudline below the declared seismic datum (SRD), not the water depth alone
   const trendWell = seismicModel ? (wells || []).find((w) => w.name === layerCakeAt?.wellName) || null : null;
@@ -313,16 +330,16 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
           stepM: 10,
         });
       }
-      if (!curves) return null;
+      if (!shaleCurves) return null;
       // PP-U1-002: a deviated well is computed at TVD through its survey
-      const built = buildProfileInput(curves, curves.units, {
+      const built = buildProfileInput(shaleCurves, shaleCurves.units, {
         mudlineMdM: params.mudlineMdM, frame: wellDepthFrame(selected), needs: byRes ? 'res' : 'dt',
       });
-      return built.shale ? { ...built, shaleKind: curves.shaleKind } : built;
+      return built.shale ? { ...built, shaleKind: shaleCurves.shaleKind } : built;
     } catch (e) {
       return { error: e.message };
     }
-  }, [curves, seismicModel, layerCakeAt, params.mudlineMdM, params.waterDepthM, selected, trendZMaxM, byRes, datum.value]);
+  }, [shaleCurves, seismicModel, layerCakeAt, params.mudlineMdM, params.waterDepthM, selected, trendZMaxM, byRes, datum.value]);
 
   const profile = useMemo(() => {
     if (!input || input.error) return null;
@@ -334,6 +351,17 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   }, [input, params]);
 
   const result = profile?.result || null;
+  // 2026-10-14: a readout depth outside the open well (the 3,500 m default on a
+  // shallower well read as 11,483 ft) moves to the deepest sample
+  useEffect(() => {
+    const z = input && !input.error ? input.zBmlM : null;
+    if (!z?.length) return;
+    const zMax = z[z.length - 1];
+    if (readoutDepthM > zMax + 1 || readoutDepthM < z[0] - 1) {
+      setReadoutDepthM(zMax);
+      setReadoutText(tidyDepth(mapperRef.current ? mapperRef.current.fromBml(zMax) : zMax, units.depth));
+    }
+  }, [input]); // eslint-disable-line react-hooks/exhaustive-deps
   const windowInfo = useMemo(() => (result && input ? drillingWindow(result, input.zBmlM, params) : null), [result, input, params]);
   // U2-003: kick and trip margins and the bottom-up casing seats
   const casing = useMemo(() => (result && input ? casingDesign(result, input.zBmlM, params) : null), [result, input, params]);
@@ -347,6 +375,19 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   mapperRef.current = mapper;
   const zRef = (zBml) => `${fmtDepth(mapper.fromBml(zBml), units.depth)} ${units.depth} ${refShort(mapper.key)}`;
   const computeError = input?.error || profile?.error || null;
+  // 2026-10-14: imported mud weights checked against the prognosis
+  const mwEvidence = useMemo(() => (result && input ? mudWeightEvidence({ calibration, zBmlM: input.zBmlM, result, params, fmtZ: zRef }) : null),
+    [result, input, calibration, params, mapper, units.depth]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 2026-10-14: is the open prognosis the published one?
+  const publishCmp = useMemo(() => {
+    if (!published || published.wellId !== selectedId || !published.set || !result || !input || seismicModel) return null;
+    if (!published.values?.PP && !published.values?.FP) return null;
+    return compareWithPublished(input, result, params, published);
+  }, [published, selectedId, result, input, params, seismicModel]);
+  const publishState = selectedId && !seismicModel && published?.wellId === selectedId
+    ? publishStateText({ set: published.set, cmp: publishCmp, projectId, wellName: selected?.name || 'this well', fmtZ: zRef })
+    : null;
 
   // 2026-10-13: say where the water column came from while it is still the datum's
   const waterNote = useMemo(() => {
@@ -377,7 +418,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     fmtZ: (m) => `${fmtDepth(m, units.depth)} ${units.depth}`,
     fmtP: (mpa) => (units.pressure === 'psi' ? `${fmtPressure(mpa * 1e6, 'psi')} psi` : `${mpa.toFixed(2)} MPa`),
     seismicNote: seismicModel ? [datum.note, layerCakeAt?.note].filter(Boolean).join(' ') : null,
-  }).concat(waterNote ? [waterNote] : []), [input, result, params, seismicModel, nctFittedFor, resNctFittedFor, byRes, selectedId, calibration, units, datum.note, layerCakeAt, waterNote]);
+  }).concat(waterNote ? [waterNote] : [])
+    .concat(publishState ? [{ key: 'published', tone: publishState.tone === 'warn' ? 'warn' : 'info', text: publishState.text }] : []), [input, result, params, seismicModel, nctFittedFor, resNctFittedFor, byRes, selectedId, calibration, units, datum.note, layerCakeAt, waterNote, publishState?.text, publishState?.tone]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const readout = useMemo(() => {
     if (!result || !input) return null;
@@ -486,6 +528,8 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     kbM: !seismicModel && selected ? refElevOrNull(selected) : null,
     mudlineMdM: params.mudlineMdM,
     waterDepthM: params.waterDepthM,
+    // 2026-10-14: a file naming several wells imports the rows of this one
+    wellName: !seismicModel && selected ? selected.name : null,
   }), [seismicModel, selected, params.mudlineMdM, params.waterDepthM]);
   // Wellsite Studio U2-008: the mud weights a live well published to this registry well (ECD where
   // logged, otherwise mud weight in) as a table for the calibration door, with what else it published
@@ -581,6 +625,11 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         inputLogIds: curves?.logIds || [],
       });
       const saved = await backend.publishCurves(selectedId, prepared, projectId);
+      // the readers now see exactly what was prepared
+      const stamp = new Date().toISOString();
+      const rows = (saved || []).map((l, k) => ({ ...l, created_at: l.created_at || stamp, provenance: l.provenance || prepared[k]?.provenance, start_md_m: l.start_md_m ?? prepared[k]?.startMdM, step_m: l.step_m ?? prepared[k]?.stepM }));
+      const byM = Object.fromEntries(prepared.map((l) => [l.mnemonic, l.data]));
+      setPublished({ wellId: selectedId, set: publishedSet(rows), values: { PP: byM.PP, FP: byM.FP } });
       setStatus(`Published ${saved.map((l) => l.mnemonic).join('/')} to the well registry.`);
     } catch (e) {
       setStatus(e.message);
@@ -716,6 +765,18 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
             <FileText className="w-3.5 h-3.5" /> PDF
           </button>
         )}
+        {result && selectedId && backend.publishCurves && publishState && (
+          <span
+            data-testid="pp-publish-state"
+            data-tone={publishState.tone}
+            title={publishState.text}
+            className={`rounded px-1.5 py-0.5 text-[11px] border whitespace-nowrap ${publishState.tone === 'warn'
+              ? 'bg-pl-warning-bg border-pl-warning/40 text-pl-warning-text'
+              : publishState.tone === 'ok' ? 'border-pl-border text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
+          >
+            {publishState.chip}
+          </span>
+        )}
         {result && selectedId && backend.publishCurves && (
           <button
             type="button"
@@ -816,10 +877,15 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       onResNctFitted={onResNctFitted}
       onSegmentsFitted={onSegmentsFitted}
       onSegmentsChange={onSegmentsChange}
-      shaleName={curves?.shaleName || null}
-      shaleKind={curves?.shaleKind || null}
+      shaleName={shaleCurves?.shaleName || null}
+      shaleKind={shaleCurves?.shaleKind || null}
+      shaleOptions={(curves?.shaleOptions || []).map((o) => ({ kind: o.kind, name: o.name }))}
+      onShaleIndicatorChange={(kind) => {
+        setParams((p) => ({ ...p, shaleIndicator: kind }));
+        setStatus(`Shale picks and shale-sample pressures now read ${(curves?.shaleOptions || []).find((o) => o.kind === kind)?.name || kind}; pick the shales again and fit the NCT.`);
+      }}
       byRes={byRes}
-      onCutoffChange={(c) => setParams((p) => ({ ...p, shaleCutoff: c, shaleCutoffKind: c == null ? null : (curves?.shaleKind || null) }))}
+      onCutoffChange={(c) => setParams((p) => ({ ...p, shaleCutoff: c, shaleCutoffKind: c == null ? null : (shaleCurves?.shaleKind || null) }))}
       depthUnit={units.depth}
     />
   ) : (
@@ -858,6 +924,11 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
             )}
           </div>
         )
+      )}
+      {mwEvidence && mwEvidence.lines.length > 0 && (
+        <div className={`text-[11px] px-1 ${mwEvidence.tone === 'warn' ? 'text-pl-warning-text' : 'text-pl-text'}`} data-testid="pp-mw-evidence" data-tone={mwEvidence.tone}>
+          {mwEvidence.lines.join(' ')}
+        </div>
       )}
       {((target && ppPoints > 0) || lotPoints > 0) && (
         <div className="px-1 flex gap-2">
