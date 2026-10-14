@@ -260,6 +260,104 @@ supplied follow the next well. Publish is held for an offshore well whose datum
 states water while the water depth is 0. `services/datumWaterColumn.js`;
 tests `__tests__/datumWaterColumn.test.js` (the old 0/0 default as the negative
 control).
+## 2026-10-14: the interpreted line
+
+Found in the Pore Pressure Studio video dry run on a copy of Ekene-1 (GR only): with pressures from shale
+samples the prognosis still jumps by 1 to 2 ppg wherever one shale sample reads like a sand (around 2,000 m
+MD on Ekene-1 it dips 1.9 ppg below the designed prognosis), and the drilling window, mud weight and casing
+seats follow every jump. A specialist draws the design pore pressure as a line through the shale points.
+
+- **Interpreted line** (Parameters, testid `pp-line-window`, depth in the display unit, empty = off): the
+  overpressure (PP minus hydrostatic) at the shale samples is replaced by its running median over the window,
+  shale samples only, then carried across the sands as before (`interpretedLine` in
+  `services/shalePressure.js`). The fracture pressure follows from the line; overburden and hydrostatic are
+  unchanged. The shale-sample pressures stay on the result (`shalePpPa`) and on the chart as pale points
+  ("Shale pressures", `data-shale-points`).
+- Default 100 ft (30.48 m) for a new project (DEFAULT_PARAMS.ppLineM); a project saved before the option
+  opens with it off. Notes line and report ("interpreted line through them: the median over 100 ft") and
+  publish provenance (`pp_line_m`) say it.
+- Validation (`__tests__/interpretedLine.test.js`, the Ekene-1 fixture through the shipped path, GR picks at
+  60 API one per 100 ft in the normal section, pressures at 82 API, Eaton n 3): RMS 0.52 ppg against the
+  kit's designed prognosis (0.62 without the line), within 1.65 ppg through the overpressure (1.93), 12.42 ppg
+  at 1,560 m (published 12.02). Negative controls: the line off (the 2,000 m dip stays), and a median over every
+  sample including the sands (RMS worse by more than 1 ppg). Invariants: a constant overpressure comes back
+  exactly; a window shorter than the shale spacing is the plain carried pressure.
+## 2026-10-14: publish state (is the published prognosis the one open here?)
+
+Data governance (the NAPE paper theme), found while writing the Pore Pressure Studio videos: the readers of
+the prognosis (Well Design Studio's mud window, Casing & Tubing, Hydraulics, Geomechanics) read the curves
+published on the well, never the open project, and nothing said when a recalibration had not been published.
+
+- Chip beside Publish (testid `pp-publish-state`, `data-tone` info/ok/warn): Not published; Published, matches;
+  or Unpublished changes (largest difference in ppg). Notes line `pp-note-published` gives the curve, the depth
+  in the chosen frame and the publish time, and that the readers still use the published one until you publish.
+- `services/publishState.js`: `publishedSet` (this studio's PP/FP/OBG on the well, newest of each),
+  `compareWithPublished` (PP and FP sample by sample on the well's MD, in ppg EMW at each sample's reference
+  depth), `publishStateText`. The published PP and FP are read when the well opens; after Publish the state is
+  set from exactly what was written.
+- Tests: `__tests__/publishState.test.js` (through `preparePublishLogs`: a just-published prognosis matches itself
+  on every sample within float32; an unpublished n change is caught with its size and depth; negative control,
+  no published values means nothing compared and nothing claimed) and `__tests__/publishStateUi.test.jsx` (the
+  chip from Not published to matches, to Unpublished changes after a parameter change, to matches after Publish).
+## 2026-10-14: the calibration door reads the Ekene kit's files; mud weights as evidence
+
+Found in the Pore Pressure Studio video dry run: Import RFT/MDT, LOT/FIT or mud
+weights guessed nothing on the kit's own files (ekene-demo-v4 05-pressure).
+Their snake_case headers carry the unit as the last word (md_m, shoe_md_m,
+pressure_psia, emw_ppg, mud_weight_ppg), which the header patterns missed
+(a word boundary does not fall at an underscore), so every column, unit and
+reference had to be declared by hand; the MDT file mixes Ekene-1 and Ekene-3
+with no way to keep one well's rows; and the mud weights are intervals with an
+outcome column, one of them the failed 9.8 ppg attempt that took an influx.
+
+- Headers are read as words with the unit taken off (`headerWords`): the depth
+  (MD before TVD before TVDSS; a from/to pair is an interval), the value and
+  its unit, the type column (MDT pretest reads as RFT/MDT), a well column, an
+  outcome column and a note column. All three kit files import with no choice
+  left (MDT 8 points for Ekene-1, LOT/FIT 1 FIT and 2 LOTs, mud weights 5
+  intervals and 1 influx).
+- Rows for well (testid `pp-cal-well`): defaults to the value the open well's
+  name contains, longest whole-name match ("PPS demo: Ekene-1" picks Ekene-1,
+  never Ekene-10); other wells' rows are skipped as "another well (Ekene-3)";
+  "every well in the file" on request; no match asks.
+- Interval base column (`pp-cal-basecol`): a mud weight held from..to is drawn
+  over its interval (top and base points of one row).
+- Outcome column (`pp-cal-outcomecol`): influx/kick/flow/gain makes the row a
+  mud weight that took an influx (red triangle) at the depth the outcome names
+  ("influx at 1418 m") or the interval base; losses make it a mud weight with
+  losses (blue cross). "no losses, no influx" holds.
+- Mud weights as evidence (`services/mudWeightEvidence.js`, testid
+  `pp-mw-evidence` under the casing seats): held weights against the prognosis
+  pore pressure over their intervals, influx rows against the pore pressure at
+  the influx depth, losses against the fracture pressure, in ppg EMW with the
+  file's own EMW quoted. Drawn and checked, never fitted.
+- Excel workbooks are read from the first sheet (`src/lib/tabularFile.js`).
+- Tests: `__tests__/calibrationKitFiles.test.js` (kit fixtures; negative
+  controls: the old header pattern finds no depth in md_m, and a hydrostatic
+  prognosis does not explain the influx), two cases in `upgradeU2Ui.test.jsx`.
+  On the shale-pressure gate's Ekene-1 prognosis the line reads "9.80 ppg took
+  an influx at 4652 ft MD where the prognosis puts the pore pressure at 11.25
+  ppg: consistent."
+## 2026-10-14: choose the shale indicator (VSH or GR)
+
+Found in the Pore Pressure Studio video dry run: Ekene-1 carries the Petrophysics Studio VSH, which the app
+always preferred, and on that VSH only four 100 ft windows above the overpressure ramp reach VSH 0.6, so the
+NCT rested on four picks; the loaded GR gives 13 at 60 API. The NCT view now offers both when a well has both
+(testid `pp-shale-indicator`, "VSH (shale volume)" / "GR (gamma ray)"). The choice (`params.shaleIndicator`)
+drives the picks and Pressures from shale samples, resets the cutoff to that curve's default and is saved with
+the project; a well with one indicator shows no choice. `shaleLogOptions` / `chooseShaleOption` in
+`services/shalePicks.js`. Tests: `__tests__/shaleIndicatorChoice.test.jsx` (switch to GR moves the picks and the
+shale-sample pressures; negative control, one indicator shows no select).
+## 2026-10-14: underpressure said; the readout inside the well
+
+Found in the Pore Pressure Studio video dry runs. (1) On Ekene-9 with the default trend the readout showed a
+pore pressure of 1.83 ppg at 1,000 ft MD with nothing said. A pore pressure more than 0.5 ppg EMW below
+hydrostatic (below the top 30 m) now raises a warning note (`pp-note-underpressure`) with the thickness it
+covers and the worst sample, and what usually causes it (`underpressure` in `services/honesty.js`). (2) The
+depth readout opened at its 3,500 m default on every well, which on Ekene-1 (2,190 m below the mudline) read
+"11482.9 ft"; a readout depth outside the open well now moves to the deepest sample. Tests:
+`__tests__/underpressureReadout.test.jsx` (Ekene-1 kit fixture: every-sample Eaton is flagged, shale-sample
+pressures are not, the negative control; a 2,000 m well opens with the readout at 2,000 m).
 ## 2026-10-14: the calibration fit goes through the shown prognosis
 
 Found in the Pore Pressure Studio video dry run on a copy of Ekene-1: with pressures from shale samples on,

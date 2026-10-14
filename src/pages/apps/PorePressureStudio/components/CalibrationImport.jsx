@@ -8,11 +8,28 @@
 import React, { useMemo, useState } from 'react';
 import { FileUp } from 'lucide-react';
 import {
-  parseCalibrationTable, convertCalibration, missingChoices, CAL_KINDS, DEPTH_REFS, VALUE_UNITS,
+  parseCalibrationTable, convertCalibration, missingChoices, guessWell, sheetToText, CAL_KINDS, DEPTH_REFS, VALUE_UNITS,
 } from '../services/calibrationImport';
+import { classifyFile, parseWorkbook } from '@/lib/tabularFile';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const sel = 'bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-[11px] text-pl-text max-w-[9rem]';
+
+/** "8 RFT/MDT pressure" or "5 mud weight intervals, 1 that took an influx". */
+export function previewText(points) {
+  const n = { rft: 0, kick: 0, lot: 0, fit: 0, xlot: 0, mw: 0, mwkick: 0, mwloss: 0 };
+  const seen = new Set();
+  for (const p of points) {
+    if (p.interval) { if (seen.has(p.interval)) continue; seen.add(p.interval); }
+    n[p.kind] = (n[p.kind] || 0) + 1;
+  }
+  const words = {
+    rft: ['pressure point', 'pressure points'], kick: ['kick', 'kicks'], lot: ['LOT', 'LOTs'], fit: ['FIT', 'FITs'], xlot: ['XLOT', 'XLOTs'],
+    mw: ['mud weight', 'mud weights'], mwkick: ['mud weight that took an influx', 'mud weights that took an influx'], mwloss: ['mud weight with losses', 'mud weights with losses'],
+  };
+  const parts = Object.entries(n).filter(([, v]) => v > 0).map(([k, v]) => `${v} ${words[k][v === 1 ? 0 : 1]}${k === 'mw' && seen.size ? ' held over intervals' : ''}`);
+  return `${parts.join(', ') || 'nothing'} read`;
+}
 
 function Row({ label, children }) {
   return (
@@ -27,6 +44,8 @@ function Row({ label, children }) {
  * @param {{ctx: {frame?, kbM?, mudlineMdM?, waterDepthM?}, onImport: (points, summary) => void,
  *   fmtZ: (m) => string, fmtP: (mpa) => string}} props
  */
+const rowCount = (points) => new Set(points.map((p, i) => p.interval || `p${i}`)).size;
+
 export default function CalibrationImport({ ctx, onImport, fmtZ = (m) => `${m.toFixed(1)} m`, fmtP = (p) => `${p.toFixed(2)} MPa`, wellsiteSource = null }) {
   // Wellsite Studio U2-008: the mud weights a live well published come in through this same door,
   // as a table with its units in the header, for the user to check and declare like any other file
@@ -54,7 +73,7 @@ export default function CalibrationImport({ ctx, onImport, fmtZ = (m) => `${m.to
     try {
       const t = parseCalibrationTable(raw);
       setTable(t);
-      setM({ ...t.guess, kind: t.guess.kind || '' });
+      setM({ ...t.guess, kind: t.guess.kind || '', well: t.guess.wellCol != null ? (guessWell(t.wells, ctx?.wellName) || '') : null });
     } catch (e) {
       setTable(null);
       setError(e.message);
@@ -64,7 +83,15 @@ export default function CalibrationImport({ ctx, onImport, fmtZ = (m) => `${m.to
   const onFile = async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (/\.(xlsx?|xlsm)$/i.test(f.name)) { setError(`${f.name} is a spreadsheet: save it as CSV or paste the cells here.`); return; }
+    // 2026-10-14: a workbook is read from its first sheet
+    if (classifyFile(f.name) === 'workbook') {
+      try {
+        const { sheets } = parseWorkbook(new Uint8Array(await f.arrayBuffer()));
+        read(sheetToText(sheets[0].rows), `${f.name} (sheet ${sheets[0].name})`);
+      } catch (err) { setError(`${f.name} could not be read: ${err.message}`); }
+      e.target.value = '';
+      return;
+    }
     read(await f.text(), f.name);
     e.target.value = '';
   };
@@ -77,7 +104,7 @@ export default function CalibrationImport({ ctx, onImport, fmtZ = (m) => `${m.to
 
   const set = (k) => (e) => {
     const v = e.target.value;
-    setM((prev) => ({ ...prev, [k]: ['depthCol', 'valueCol', 'kindCol'].includes(k) ? (v === '' ? null : Number(v)) : v }));
+    setM((prev) => ({ ...prev, [k]: ['depthCol', 'valueCol', 'kindCol', 'baseCol', 'wellCol', 'outcomeCol'].includes(k) ? (v === '' ? null : Number(v)) : v }));
   };
   const colOptions = (allowNone) => (
     <>
@@ -89,7 +116,7 @@ export default function CalibrationImport({ ctx, onImport, fmtZ = (m) => `${m.to
 
   const add = () => {
     if (!result || result.error || !result.points.length) return;
-    onImport(result.points, { name, read: result.points.length, skipped: result.skipped });
+    onImport(result.points, { name, read: rowCount(result.points), skipped: result.skipped });
     setTable(null); setText(''); setOpen(false);
   };
 
@@ -130,7 +157,17 @@ export default function CalibrationImport({ ctx, onImport, fmtZ = (m) => `${m.to
           <div className="text-[11px] text-pl-muted" data-testid="pp-cal-import-read-summary">
             {name}: {table.rows.length} rows, {table.columns.length} columns ({table.columns.join(', ')}), separated by {table.delim}{table.commaDecimal ? ', comma decimals' : ''}{table.headerLines === 2 ? ', units in the second header line' : ''}.
           </div>
+          {m.wellCol != null && (
+            <Row label="Rows for well">
+              <select data-testid="pp-cal-well" className={sel} value={m.well || ''} onChange={set('well')}>
+                <option value="">choose</option>
+                {table.wells.map((w) => <option key={w} value={w}>{w}</option>)}
+                <option value="*">every well in the file</option>
+              </select>
+            </Row>
+          )}
           <Row label="Depth column"><select data-testid="pp-cal-depthcol" className={sel} value={m.depthCol ?? ''} onChange={set('depthCol')}>{colOptions(false)}</select></Row>
+          <Row label="Interval base column"><select data-testid="pp-cal-basecol" className={sel} value={m.baseCol ?? ''} onChange={set('baseCol')}>{colOptions(true)}</select></Row>
           <Row label="Depth reference">
             <select data-testid="pp-cal-depthref" className={sel} value={m.depthRef || ''} onChange={set('depthRef')}>
               <option value="">declare</option>
@@ -150,6 +187,7 @@ export default function CalibrationImport({ ctx, onImport, fmtZ = (m) => `${m.to
             </select>
           </Row>
           <Row label="Type column"><select data-testid="pp-cal-kindcol" className={sel} value={m.kindCol ?? ''} onChange={set('kindCol')}>{colOptions(true)}</select></Row>
+          <Row label="Outcome column"><select data-testid="pp-cal-outcomecol" className={sel} value={m.outcomeCol ?? ''} onChange={set('outcomeCol')}>{colOptions(true)}</select></Row>
           <Row label={m.kindCol != null ? 'Type where the column is blank' : 'The values are'}>
             <select data-testid="pp-cal-kind" className={sel} value={m.kind || ''} onChange={set('kind')}>
               <option value="">choose</option>
@@ -160,8 +198,8 @@ export default function CalibrationImport({ ctx, onImport, fmtZ = (m) => `${m.to
           {result?.error && <div className="text-[11px] text-pl-warning-text" data-testid="pp-cal-import-error">{result.error}</div>}
           {result && !result.error && (
             <div className="text-[11px] text-pl-text" data-testid="pp-cal-import-preview" data-read={result.points.length} data-skipped={result.skipped.length}>
-              {result.points.length} point{result.points.length === 1 ? '' : 's'} read
-              {result.points.slice(0, 3).map((p, k) => <span key={k} className="block text-pl-muted">{p.raw} = {fmtZ(p.z)} bml, {fmtP(p.pMpa)}</span>)}
+              {previewText(result.points)}
+              {result.points.filter((p) => p.raw).slice(0, 3).map((p, k) => <span key={k} className="block text-pl-muted">{p.raw} = {fmtZ(p.z)} bml, {fmtP(p.pMpa)}</span>)}
               {result.skipped.length > 0 && (
                 <span className="block text-pl-warning-text" data-testid="pp-cal-import-skipped">
                   {result.skipped.length} not read: {result.skipped.slice(0, 4).map((s) => `line ${s.line} (${s.reason})`).join('; ')}{result.skipped.length > 4 ? '; ...' : ''}
@@ -173,7 +211,7 @@ export default function CalibrationImport({ ctx, onImport, fmtZ = (m) => `${m.to
             disabled={!result || !!result.error || !result.points.length}
             title={missing.length ? `To import: ${missing.join('; ')}` : undefined}
             className="self-start px-2 py-1 text-xs rounded border border-pl-primary text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40">
-            Add {result && !result.error ? result.points.length : EMPTY_VALUE} points
+            Add {result && !result.error ? rowCount(result.points) : EMPTY_VALUE} rows
           </button>
         </>
       )}

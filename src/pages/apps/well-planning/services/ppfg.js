@@ -234,6 +234,25 @@ export async function loadPpfgSourceCandidates(opts) {
   return ppfgSourceCandidates(wells, meta, opts);
 }
 
+/**
+ * The tightest drilling window below a top cut-off (2026-10-14: the panel
+ * summary takes it below SEATS_BELOW_TOP_M, where the seats are picked, so
+ * the conductor section's converging lines do not win), in ppg EMW, g/cc
+ * EMW and MPa at that row.
+ * @returns {null|{tvd: number, md: number, ppg: number, gcc: number, mpa: number}}
+ */
+export function tightestWindowBelow(rows, { fromTvdM = 0 } = {}) {
+  let best = null;
+  for (const r of rows || []) {
+    if (!(r.tvd >= fromTvdM) || r.ppPpg == null || r.fpPpg == null) continue;
+    const ppg = r.fpPpg - r.ppPpg;
+    if (!best || ppg < best.ppg) {
+      best = { tvd: r.tvd, md: r.md, ppg, gcc: r.fpEmw != null && r.ppEmw != null ? r.fpEmw - r.ppEmw : null, mpa: r.windowMpa };
+    }
+  }
+  return best;
+}
+
 /** Summary for the panel header: depth extent + tightest window. */
 export function mudWindowSummary(rows) {
   const windowed = rows.filter((r) => r.windowMpa != null);
@@ -283,6 +302,9 @@ export function ppfgSourceLine(curves, { offsetName = null } = {}) {
 // trajectory, so the seats come out in TVD and are carried to MD on the
 // same rows. EMW in ppg (exact g, as the rows are).
 
+// the conductor section, where PP and FG converge on the seawater gradient,
+// is left out of the seat selection (the Pore Pressure Studio convention)
+export const SEATS_BELOW_TOP_M = 300;
 export const DEFAULT_TRIP_PPG = 0.5;
 export const DEFAULT_KICK_PPG = 0.5;
 
