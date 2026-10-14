@@ -691,17 +691,17 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
             to={wellDataManagerHref(selected.id, 'logs', appPath(WELL_DATA_MANAGER_ID, appPaths))}
             data-testid="pp-open-wdm"
             title="Open this well in Well Data Manager on its logs (published curves are listed there)"
-            className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken"
+            className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken"
           >
             <Database className="w-3.5 h-3.5" /> Well data
           </Link>
         )}
-        <OpenInAppMenu wellIds={selected ? [selected.id] : []} paths={appPaths} exclude={[PP_ID]} testIdPrefix="pp" />
+        <OpenInAppMenu wellIds={selected ? [selected.id] : []} paths={appPaths} exclude={[PP_ID]} testIdPrefix="pp" className="whitespace-nowrap" />
         <Link
           to={`${appPath(PP_ID, appPaths)}/help`}
           data-testid="pp-help"
           title="Open the Pore Pressure Studio help guide"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken"
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken"
         >
           <HelpCircle className="w-3.5 h-3.5" /> Help
         </Link>
@@ -727,7 +727,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
             type="button"
             data-testid="pp-export-csv"
             title="Download the prognosis against depth in the chosen units, with EMW columns, for the well plan"
-            className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+            className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
               border-pl-border text-pl-text hover:bg-pl-sunken"
             onClick={exportCsv}
           >
@@ -739,7 +739,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
             type="button"
             data-testid="pp-export-pdf"
             title="Download the prognosis report: well, field, analyst, datum, method, NCT, calibration and the table in the chosen units with EMW"
-            className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+            className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
               border-pl-border text-pl-text hover:bg-pl-sunken"
             onClick={exportPdf}
           >

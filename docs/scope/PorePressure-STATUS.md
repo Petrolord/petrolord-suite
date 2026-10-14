@@ -338,3 +338,12 @@ outcome column, one of them the failed 9.8 ppg attempt that took an influx.
   On the shale-pressure gate's Ekene-1 prognosis the line reads "9.80 ppg took
   an influx at 4652 ft MD where the prognosis puts the pore pressure at 11.25
   ppg: consistent."
+## 2026-10-14: legend markers and a ribbon that fits a laptop
+
+Found in the Pore Pressure Studio video dry runs at 1440 x 810. The prognosis chart's point series (shale
+pressures, calibration, LOT/FIT, a mud weight that took an influx or had losses) and the NCT view's shale picks
+showed their names beside an empty legend icon: they were drawn with a stroke of "none", which the legend uses
+for the icon. They now carry their colour on a zero-width line, so the legend draws the marker; calibration
+points are larger with a white edge so they read over the shale points. The ribbon's Well data, Open in, Help,
+Prognosis CSV and PDF no longer break onto two lines. Test: `__tests__/legendMarkers.test.jsx` (fails on the
+old series, the negative control).
