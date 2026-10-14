@@ -7,8 +7,8 @@
 // unloading curve with sigma max held. Each point is matched to its nearest
 // computed sample, as the misfit is. Pure.
 
-import { fitEatonExponent, fitBowersLoading, fitBowersU } from '../engine/calibrationFit';
-import { computePrognosis } from './shalePressure';
+import { fitEatonExponent, fitBowersLoading, fitBowersU, minimise1d } from '../engine/calibrationFit';
+import { computePrognosis, shaleModeOn, shaleCutoffFor } from './shalePressure';
 import { calibrationMisfit } from './honesty';
 import { comparesTo } from './calibrationImport';
 import { k0FromLot, dainesBetaFromLot, eatonK } from '../engine/fracgrad';
@@ -25,6 +25,33 @@ export function matchedPoints(calibration, input, result) {
     out.push({ i: best, ppMeasured: pts[k].pMpa * 1e6 });
   });
   return out;
+}
+
+/**
+ * 2026-10-14: does the prognosis the app shows differ from the engine's
+ * per-sample method (pressures from shale samples, an interpreted line, a
+ * sonic median)? Then a fit must go through that prognosis: the measured
+ * pressures sit in the reservoir sands, where the per-sample method reads a
+ * sand and the shown pore pressure is the one carried from the shales. Fitting
+ * Eaton's n on the sand samples drove n to its search bound and made the
+ * misfit worse (Ekene-1: 1.18 MPa before, 5.80 MPa after).
+ */
+export function fitsThroughPrognosis(params, input) {
+  return shaleModeOn(params, input) || Number(params?.sonicMedianM) > 0;
+}
+
+/** Each point's nearest shale sample (shale mode), for the Bowers A and B fit. */
+function nearestShale(points, input, params) {
+  const cutoff = shaleCutoffFor(params, input, input.shaleKind ?? null);
+  const shale = input.zBmlM.map((_, i) => Number.isFinite(cutoff) && input.shale[i] >= cutoff);
+  return points.map((q) => {
+    let best = -1;
+    for (let i = 0; i < input.zBmlM.length; i++) {
+      if (!shale[i]) continue;
+      if (best < 0 || Math.abs(input.zBmlM[i] - input.zBmlM[q.i]) < Math.abs(input.zBmlM[best] - input.zBmlM[q.i])) best = i;
+    }
+    return best < 0 ? q : { ...q, i: best };
+  });
 }
 
 /** What the current method can fit, or null. */
@@ -50,8 +77,21 @@ export function fitToCalibration(params, input, result, calibration) {
   if (pts.length < need) return { error: `Fitting needs ${need === 2 ? 'two measured pressures' : 'a measured pressure'} (RFT/MDT or kick) within the prognosis.` };
   const before = calibrationMisfit(calibration, input.zBmlM, result.porePressurePa, 'pp').rmsMpa;
   let next; let what;
+  const through = fitsThroughPrognosis(params, input);
+  const rmsWith = (p) => calibrationMisfit(calibration, input.zBmlM, computePrognosis(input, p).porePressurePa, 'pp').rmsMpa;
   try {
-    if (target.key === 'eatonN' || target.key === 'eatonNRes') {
+    if (through && target.key !== 'bowersAB') {
+      // one parameter, searched on the prognosis the app shows
+      const [lo, hi] = target.key === 'bowersU' ? [1, 12] : [0.2, 6];
+      const set = (x) => (target.key === 'bowersU'
+        ? { ...params, bowers: { ...params.bowers, U: x } }
+        : { ...params, [target.key]: x });
+      const r = minimise1d((x) => rmsWith(set(x)), lo, hi, { scan: 31, tol: 1e-4, maxIter: 40 });
+      const atBound = r.x - lo < 1e-4 * (hi - lo) || hi - r.x < 1e-4 * (hi - lo);
+      next = set(Number(r.x.toFixed(4)));
+      const name = target.key === 'bowersU' ? 'U' : 'n';
+      what = `${name} ${r.x.toFixed(3)} on the shown prognosis${atBound ? ' (at the search bound: check the trend and the points)' : ''}`;
+    } else if (target.key === 'eatonN' || target.key === 'eatonNRes') {
       const byRes = target.key === 'eatonNRes';
       const f = fitEatonExponent(pts.map(({ i, ppMeasured }) => ({
         S: result.overburdenPa[i],
@@ -62,7 +102,9 @@ export function fitToCalibration(params, input, result, calibration) {
       next = { ...params, [target.key]: Number(f.n.toFixed(4)) };
       what = `n ${f.n.toFixed(3)}${f.atBound ? ' (at the search bound: check the trend and the points)' : ''}`;
     } else if (target.key === 'bowersAB') {
-      const f = fitBowersLoading(pts.map(({ i, ppMeasured }) => ({ vMs: result.vMs[i], S: result.overburdenPa[i], ppMeasured })), params.bowers?.vMlFts ?? 5000);
+      // in shale mode each point reads the velocity of its nearest shale sample
+      const use = through && shaleModeOn(params, input) ? nearestShale(pts, input, params) : pts;
+      const f = fitBowersLoading(use.map(({ i, ppMeasured }) => ({ vMs: result.vMs[i], S: result.overburdenPa[i], ppMeasured })), params.bowers?.vMlFts ?? 5000);
       next = { ...params, bowers: { ...params.bowers, A: Number(f.A.toPrecision(6)), B: Number(f.B.toPrecision(6)) } };
       what = `A ${f.A.toPrecision(4)}, B ${f.B.toPrecision(4)} (ft/s, psi) on ${f.used} points`;
     } else {
@@ -78,6 +120,17 @@ export function fitToCalibration(params, input, result, calibration) {
   }
   const after = computePrognosis(input, next);
   const rmsAfter = calibrationMisfit(calibration, input.zBmlM, after.porePressurePa, 'pp').rmsMpa;
+  // a fit never hands back a worse prognosis than the one it started from
+  if (!(rmsAfter <= before + 1e-9)) {
+    return {
+      params,
+      n: pts.length,
+      rmsBeforeMpa: before,
+      rmsAfterMpa: before,
+      kept: true,
+      text: `The fit did not improve on the current parameters (${what} gave a misfit RMS of ${rmsAfter.toFixed(2)} MPa against ${before.toFixed(2)} MPa now), so they are kept. Check the trend and the points.`,
+    };
+  }
   return {
     params: next,
     n: pts.length,
