@@ -94,7 +94,7 @@ describe('BasinFlow Genesis themed states', () => {
       expectNoLegacyChrome();
     }
     selectTab(screen.getByTestId('bf-tab-sensitivity'));
-    await waitFor(() => expect(screen.getByText('Parameter Sensitivity: Max Final %Ro').closest('[data-canvas]')).toHaveAttribute('data-canvas', 'chart'));
+    await waitFor(() => expect(screen.getByTestId('bf-sens-title').closest('[data-canvas]')).toHaveAttribute('data-canvas', 'chart'));
   });
 
   test('dark: Expert mode reads in dark with no legacy chrome', async () => {
