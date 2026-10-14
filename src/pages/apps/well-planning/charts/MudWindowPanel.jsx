@@ -33,6 +33,11 @@ const MODES = {
 };
 
 /** rows from services/ppfg.buildMudWindow. */
+// 2026-10-14: depth ticks on round numbers (0, 2000, 4000 ft), not from the first sample (246, 2246, ...)
+const NICE_STEP = 500;
+export const niceFloor = (v) => (Number.isFinite(v) ? Math.floor(v / NICE_STEP) * NICE_STEP : v);
+export const niceCeil = (v) => (Number.isFinite(v) ? Math.ceil(v / NICE_STEP) * NICE_STEP : v);
+
 const MudWindowPanel = ({ rows = [], summary = null, sourceLabel = '', note = null, depthUnit = 'm' }) => {
   const [mode, setMode] = useState(depthUnit === 'ft' ? 'ppg' : 'emw'); // ppg | emw | mpa
   const keys = MODES[mode] || MODES.emw;
@@ -115,7 +120,7 @@ const MudWindowPanel = ({ rows = [], summary = null, sourceLabel = '', note = nu
             <XAxis type="number" domain={['auto', 'auto']} {...axisProps}
               tickFormatter={(v) => v.toFixed(keys.digits)}
               label={{ value: keys.unit, position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-            <YAxis dataKey="tvdShown" type="number" domain={['dataMin', 'dataMax']} {...axisProps}
+            <YAxis dataKey="tvdShown" type="number" domain={[(lo) => niceFloor(lo), (hi) => niceCeil(hi)]} {...axisProps}
               tickFormatter={(v) => v.toFixed(0)}
               label={{ value: `TVD (${depthUnit})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
             <Tooltip contentStyle={TOOLTIP_STYLE}

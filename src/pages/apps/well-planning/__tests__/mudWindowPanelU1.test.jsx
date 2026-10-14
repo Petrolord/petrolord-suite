@@ -56,3 +56,11 @@ test('2026-10-14: the chart keeps a usable height and a long source line is one 
   expect(src.className).toMatch(/\btruncate\b/);
   expect(src).toHaveAttribute('title', `Curves: ${long}`);
 });
+
+test('2026-10-14: the depth axis runs between round numbers', async () => {
+  const { niceFloor, niceCeil } = await import('../charts/MudWindowPanel');
+  expect(niceFloor(246)).toBe(0);
+  expect(niceCeil(7052)).toBe(7500);
+  expect(niceFloor(1250)).toBe(1000);
+  expect(niceCeil(2000)).toBe(2000);
+});
