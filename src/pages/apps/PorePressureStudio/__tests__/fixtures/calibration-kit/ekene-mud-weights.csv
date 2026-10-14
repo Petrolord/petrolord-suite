@@ -1,0 +1,7 @@
+from_md_m,to_md_m,mud_weight_ppg,note,outcome
+60,600,8.80,seawater and gel sweeps,held
+600,1300,9.20,"no losses, no influx",held
+1300,1450,11.00,raised through the top of the Ogbia ramp on connection gas,held
+1450,1800,13.30,reservoir drilled 1.3 ppg over its pore pressure: the ramp below sets the weight,held
+1800,2250,14.90,Akata; held in a 0.28 ppg window under the shoe,held
+1300,1420,9.80,first attempt through the ramp at the old 600 to 1300 m weight plus 0.6,"FAILED: influx at 1418 m (pore 10.09 ppg), circulated out, raised to 11.0"

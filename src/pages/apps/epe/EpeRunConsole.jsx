@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { payloadEscalators, followsInflation, simpleEscalators } from '@/pages/apps/epe/epeEscalation';
+import { snapshotOf, fetchCaseInputs } from '@/pages/apps/epe/epeRunInputs';
 import { labelForConfigKey } from '@/pages/apps/epe/epeConfigLabels';
 import EpeWaterDepthField from '@/pages/apps/epe/EpeWaterDepthField';
 import { AppHeader } from '@/components/ui/app-shell';
@@ -584,14 +585,20 @@ const EpeRunConsole = () => {
         .single();
       if (cfgErr) throw new Error(`Saving run config failed: ${cfgErr.message}`);
 
-      // 2. Insert run record (engine reads case_id via run_id lookup)
+      // 2. Insert run record (engine reads case_id via run_id lookup). The
+      // run keeps the list of input files it priced, so the Results Viewer
+      // and Run History can say when the case data changed after it.
+      let inputs = null;
+      try {
+        inputs = snapshotOf(await fetchCaseInputs(supabase, caseId), configPayload.production_scenario);
+      } catch (_) { inputs = null; /* the run still goes; it only loses the out-of-date check */ }
       const { data: runRow, error: runErr } = await supabase
         .from('epe_runs')
         .insert({
           case_id: caseId,
           user_id: user.id,
           run_name: runName.trim(),
-          parameters: { source: 'EpeRunConsole', regime: config.fiscal_regime },
+          parameters: { source: 'EpeRunConsole', regime: config.fiscal_regime, ...(inputs ? { inputs } : {}) },
           run_config_id: cfgRow.id,
           status: 'running',
         })
