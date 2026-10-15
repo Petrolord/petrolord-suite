@@ -22,6 +22,7 @@
 import { affineForNorth } from '../lib/northReference';
 import { BrickCache, storageBrickFetcher } from '../engine/brickCache';
 import { v4BrickFetcher } from '../engine/brickCodecV4';
+import { withLocalBricks } from '@/lib/localWorkspace/localBricks';
 import { geomFromManifest, brickKey } from '../engine/sliceAssembly';
 import { makeTraceCompute } from '../engine/attributes';
 import { DISCONTINUITY_DEFS } from '../engine/discontinuity';
@@ -51,11 +52,11 @@ async function handleCompute({ id, config }) {
   const manifest = config.manifest;
   // a v4 parent's float32 copy lives under v4/f/ (the job refuses to
   // start before the parent is 'ready', so f32 is complete here)
-  const fetcher = v4BrickFetcher(storageBrickFetcher({
+  const fetcher = v4BrickFetcher(withLocalBricks(storageBrickFetcher({
     supabaseUrl: config.supabaseUrl,
     getToken,
     bucket: config.bucket,
-  }), manifest);
+  })), manifest);
 
   const geom = geomFromManifest(manifest);           // version gate at the choke point
   const { name, params = {} } = config.attribute;

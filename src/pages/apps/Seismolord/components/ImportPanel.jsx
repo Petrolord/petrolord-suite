@@ -27,6 +27,12 @@ import {
 import CropPanel, { EMPTY_FORM, defFromForm } from './CropPanel';
 import CrsPicker from '@/components/crs/CrsPicker';
 import StorageMeter from './StorageMeter';
+import LocalWorkspacePanel from '@/components/localWorkspace/LocalWorkspacePanel';
+import { useLocalWorkspace, localReady } from '@/lib/localWorkspace/runtime';
+import { currentProjectSettings, currentProjectId } from '@/lib/projects/projectScope';
+import { saveProjectSettings } from '@/lib/projects/projectsService';
+import { startLocalImport } from '../services/localImportRuntime';
+import { localVsUploadEstimate, durationWords } from '../services/localImport';
 import CrsBadge from '@/components/crs/CrsBadge';
 import { sanityCheck, crsDisplayName } from '@/lib/crs';
 import { getProjectCrs, addCustomDef } from '@/lib/crs/settingsService';
@@ -200,6 +206,16 @@ export default function ImportPanel({
   const [linkUrl, setLinkUrl] = useState('');
   const [linkProgress, setLinkProgress] = useState(null);
   const useV4 = Boolean(v4Support?.ok) && !compress16;
+  // Local Workspace (owner decision 7): where this import's seismic lives.
+  // The project's choice is the default; a project with none asks here,
+  // defaulting to this computer, and remembers the answer.
+  const lws = useLocalWorkspace();
+  const projectStorage = currentProjectSettings()?.seismic?.storage || null;
+  const localOffered = lws.schemaReady && lws.support.any;
+  const [keepLocal, setKeepLocal] = useState(() => (projectStorage ? projectStorage === 'local' : true));
+  const [rememberChoice, setRememberChoice] = useState(true);
+  useEffect(() => { if (projectStorage) setKeepLocal(projectStorage === 'local'); }, [projectStorage]);
+  const goLocal = localOffered && keepLocal && Boolean(file) && !file?.remote;
   // Crop before upload (2026-10-14): the crop step, the file's layout and
   // whether it holds prestack gathers (both read from the first traces)
   const [cropOn, setCropOn] = useState(false);
@@ -460,7 +476,39 @@ export default function ImportPanel({
     }
   };
 
+  const startLocal = async () => {
+    setPhase('ingesting');
+    setError(null);
+    try {
+      if (!projectStorage && rememberChoice && currentProjectId()) {
+        await saveProjectSettings(currentProjectId(), { seismic: { storage: 'local' } }).catch(() => {});
+      }
+      const cropped = cropOn ? await buildCrop({ forUpload: false }) : null;
+      const delayed = cropped ? null : await delayedScan();
+      await startLocalImport({
+        file,
+        mapping,
+        scan: cropped ? cropped.convScan : delayed.scan,
+        ...(delayed ? { traceDelay: delayed.traceDelay } : {}),
+        crop: cropped ? { request: cropRequest(cropped.prep, file.name, mapping), provenance: cropped.provenance } : null,
+        nativeCrs: crsTag,
+        ...(vertical ? { vertical } : {}),
+        onDone: () => { if (onIngested) onIngested({ status: V4_STATUS.READY, name: file.name }); },
+      });
+      setPhase('background');
+      toast({ title: 'Importing to this computer', description: `${file.name}: nothing is uploaded. Progress is in the status bar; keep this tab open until it finishes.` });
+      if (onBackgroundStarted) onBackgroundStarted();
+    } catch (e) {
+      setError(e.message);
+      setPhase('error');
+    }
+  };
+
   const startIngest = async () => {
+    if (goLocal) { await startLocal(); return; }
+    if (!projectStorage && rememberChoice && localOffered && currentProjectId() && file && !file.remote) {
+      saveProjectSettings(currentProjectId(), { seismic: { storage: 'cloud' } }).catch(() => {});
+    }
     if (file?.remote) { await startRemote(); return; }
     if (useServer) { await startServer(); return; }
     if (useV4) { await startBackground(); return; }
@@ -1274,7 +1322,42 @@ export default function ImportPanel({
           </div>
         )}
 
-        {file && !file.remote && scan && serverAdvice?.offer && phase !== 'background' && (
+        {file && !file.remote && scan && localOffered && phase !== 'background' && (() => {
+          const bytes = file.size;
+          const est = localVsUploadEstimate({ bytes, readMBps: 60, uploadMBps: speed || null });
+          return (
+            <fieldset className="rounded-lg border border-pl-border p-3 space-y-2 text-sm text-pl-text" data-testid="sl-import-keep">
+              <legend className="px-1 text-pl-muted">Where the seismic lives</legend>
+              <label className="flex items-start gap-2">
+                <input type="radio" name="sl-import-keep" checked={keepLocal} onChange={() => setKeepLocal(true)} disabled={busy} data-testid="sl-import-keep-local" />
+                <span>
+                  Keep on this computer
+                  <span className="block text-xs text-pl-muted">
+                    {`Nothing is uploaded. About ${durationWords(est.keepSeconds)} on a typical laptop drive, needs about ${(est.diskBytes / 1e9).toFixed(0)} GB on the drive with your workspace folder. Attributes and inversion run here; colleagues see it as living on ${lws.workspace?.label || 'this computer'}.`}
+                  </span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2">
+                <input type="radio" name="sl-import-keep" checked={!keepLocal} onChange={() => setKeepLocal(false)} disabled={busy} data-testid="sl-import-keep-cloud" />
+                <span>
+                  Upload to Petrolord
+                  <span className="block text-xs text-pl-muted">
+                    {est.uploadSeconds != null ? `About ${durationWords(est.uploadSeconds)} at your measured upload speed. ` : ''}Opens on any computer and counts against the cloud storage.
+                  </span>
+                </span>
+              </label>
+              {!projectStorage && currentProjectId() && (
+                <label className="flex items-center gap-2 text-xs text-pl-muted">
+                  <input type="checkbox" checked={rememberChoice} onChange={(e) => setRememberChoice(e.target.checked)} />
+                  Use this choice for the rest of this project (you can change it in Projects, Seismic storage)
+                </label>
+              )}
+              {keepLocal && !localReady(lws) && <LocalWorkspacePanel compact />}
+            </fieldset>
+          );
+        })()}
+
+        {file && !file.remote && scan && serverAdvice?.offer && !goLocal && phase !== 'background' && (
           <fieldset className="rounded-lg border border-pl-border p-3 space-y-2 text-sm text-pl-text" data-testid="sl-import-where">
             <legend className="px-1 text-pl-muted">Where to convert</legend>
             <label className="flex items-start gap-2">
@@ -1320,7 +1403,7 @@ export default function ImportPanel({
         <div className="flex gap-3">
           <Button
             onClick={startIngest}
-            disabled={!scan || busy || phase === 'scanning' || phase === 'background' || !crsChosen || sanityBlocks || Boolean(blockReason)}
+            disabled={!scan || busy || phase === 'scanning' || phase === 'background' || !crsChosen || sanityBlocks || Boolean(blockReason) || (goLocal && !localReady(lws))}
             title={!scan ? undefined
               : blockReason ? blockReason
               : !crsChosen ? 'Choose the coordinate reference system of this file first'

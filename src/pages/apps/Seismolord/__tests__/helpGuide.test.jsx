@@ -13,7 +13,7 @@ describe('SeismolordHelpGuide', () => {
     renderGuide();
     expect(screen.getByRole('heading', { level: 1, name: /Seismolord Help Guide/ })).toBeInTheDocument();
     for (const { id } of HELP_SECTIONS) expect(document.getElementById(`section-${id}`)).not.toBeNull();
-    expect(HELP_SECTIONS.length).toBe(17);
+    expect(HELP_SECTIONS.length).toBe(18); // 18 with Local workspace (2026-10-15)
   });
 
   test('names the launchers, the depth unit and the sign convention', () => {

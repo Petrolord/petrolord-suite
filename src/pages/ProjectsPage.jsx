@@ -78,10 +78,12 @@ function NewProjectForm({ clients, onCreate, busy, defaultClientId }) {
   const [name, setName] = useState('');
   const [clientId, setClientId] = useState(defaultClientId || '');
   const [description, setDescription] = useState('');
+  // Local Workspace (owner decision 7): where this project's seismic lives, Local by default
+  const [seismicStorage, setSeismicStorage] = useState('local');
   useEffect(() => { if (defaultClientId) setClientId(defaultClientId); }, [defaultClientId]);
   const submit = async (e) => {
     e.preventDefault();
-    const ok = await onCreate({ name, clientId: clientId || null, description });
+    const ok = await onCreate({ name, clientId: clientId || null, description, seismicStorage });
     if (ok) { setName(''); setDescription(''); }
   };
   return (
@@ -95,6 +97,14 @@ function NewProjectForm({ clients, onCreate, busy, defaultClientId }) {
         <Plus className="mr-1 h-4 w-4" /> Create project
       </Button>
       <Input className="h-8 text-xs sm:col-span-3" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optional)" aria-label="Project description" />
+      <label className="text-xs text-pl-muted sm:col-span-3 flex flex-wrap items-center gap-2">
+        Where should this project&apos;s seismic volumes live?
+        <NativeSelect value={seismicStorage} onChange={(e) => setSeismicStorage(e.target.value)} className="h-8 max-w-xs text-xs" aria-label="Seismic storage" data-testid="projects-new-project-seismic">
+          <option value="local">On my computer (nothing uploaded; best on a slow link)</option>
+          <option value="cloud">On Petrolord servers (opens anywhere; uploads the data)</option>
+        </NativeSelect>
+        <span>You can choose again for each import.</span>
+      </label>
     </form>
   );
 }

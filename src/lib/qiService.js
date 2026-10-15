@@ -17,12 +17,24 @@ export const friendlyError = (error) => {
   return msg;
 };
 
-export async function enqueueJob(kind, params = {}, inputRefs = {}, organizationId = null) {
+async function serverEnqueue(kind, params, inputRefs, organizationId) {
   const { data, error } = await supabase.rpc('qi_enqueue_job', {
     p_kind: kind, p_params: params, p_input_refs: inputRefs, p_organization_id: organizationId,
   });
   if (error) throw error;
   return data;
+}
+
+/**
+ * Local Workspace L1: a job whose volumes are on this computer runs here in
+ * the browser (the worker's own handlers), recorded in qi_jobs like any other;
+ * everything else goes to the seismic worker as before. The id returned is a
+ * qi_jobs id either way, so getJob/watchJob/cancelJob work unchanged.
+ */
+export async function enqueueJob(kind, params = {}, inputRefs = {}, organizationId = null) {
+  const { routeJob } = await import('@/lib/localWorkspace/runtime');
+  const { jobId } = await routeJob(kind, params, inputRefs, organizationId, () => serverEnqueue(kind, params, inputRefs, organizationId));
+  return jobId;
 }
 
 export async function cancelJob(jobId) {

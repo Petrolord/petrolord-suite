@@ -6,6 +6,12 @@ import { useAppUnits } from '@/lib/units/useAppUnits';
 import UnitProfileNote from '@/components/units/UnitProfileNote';
 import { SEISMOLORD_UNIT_APP, SEISMOLORD_UNITS, SEISMOLORD_LEGACY_UNIT_KEYS } from '../lib/unitProfile';
 import { appPath as appRoutePath } from '@/components/wells/appLinks';
+import { placementsFor, uploadPreviewsFor } from '@/lib/localWorkspace/runtime';
+import { setVolumeLocation } from '@/lib/localWorkspace/cloud';
+import LocalWorkspacePanel from '@/components/localWorkspace/LocalWorkspacePanel';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { promoteToCloud } from '@/lib/localWorkspace/promote';
+import { assertQuota } from '../services/seismicStorage';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Loader2, Route, Box, ScanLine, Save, Map as MapIcon, X, Bot, Waves, Spline, Wrench, Compass, Server,
@@ -1226,6 +1232,19 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
         } catch { /* fallback already in place */ }
       }
       if (seq !== selectSeqRef.current) return;   // a newer selection won; drop this one
+      // Local Workspace: a volume that lives on another computer (or whose
+      // local files are gone) shows its horizons and faults, never a broken
+      // brick stream; the explorer offers its previews and a copy request
+      if (!v.local) {
+        const pl = (await placementsFor([v]).catch(() => new Map())).get(v.id);
+        if (seq !== selectSeqRef.current) return;
+        if (pl && !pl.canOpen) {
+          setHorizons(hz);
+          setFaults(flt);
+          setError(pl.title);
+          return;
+        }
+      }
       // Stream L: bricks stream through the slice worker (decode, slicing
       // and the one budgeted cache all live there)
       const src = v.local ? v.source : await getSliceClient().openBricks({
@@ -3817,7 +3836,47 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
     traverseSavedId,
   };
 
+  // Local Workspace: the owner copies a local volume to the cloud (the
+  // existing resumable two-stage upload, read from the workspace folder)
+  const promoteVolume = async (v) => {
+    toast({ title: 'Copying to the cloud', description: `${v.name}: uploading from this computer. Keep this tab open; it resumes if interrupted.` });
+    try {
+      let last = 0;
+      await promoteToCloud({
+        supabase, row: v, assertQuota,
+        onProgress: (st) => {
+          const done = (st.display?.done || 0) + (st.f32?.done || 0);
+          const total = (st.display?.total || 0) + (st.f32?.total || 0);
+          if (total && Date.now() - last > 15000) { last = Date.now(); toast({ title: 'Copying to the cloud', description: `${v.name}: ${Math.round((100 * done) / total)}%` }); }
+        },
+      }).run();
+      toast({ title: 'Copied to the cloud', description: `${v.name} now opens on any computer and counts against the cloud storage.` });
+      setVolumesRefresh((k) => k + 1);
+    } catch (e) {
+      toast({ title: 'Copy to the cloud failed', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  // Local Workspace (owner decision 4): previews of a local volume, per volume
+  const setVolumePreviews = async (v, mode) => {
+    try {
+      await setVolumeLocation(supabase, v.id, { previews: mode });
+      if (mode === 'off') {
+        await supabase.storage.from('seismic').remove(['inline', 'xline', 'time'].map((n) => `${v.storage_path}/previews/${n}.png`));
+        toast({ title: 'Previews removed', description: `${v.name}: colleagues see its name, geometry and horizons only.` });
+      } else {
+        await uploadPreviewsFor(v.id);
+        toast({ title: 'Previews shared', description: `${v.name}: colleagues in this project see a small preview.` });
+      }
+      setVolumesRefresh((k) => k + 1);
+    } catch (e) {
+      toast({ title: 'Could not change the previews', description: e.message, variant: 'destructive' });
+    }
+  };
+
   const treeActions = {
+    promoteVolume,
+    setVolumePreviews,
     selectVolume,
     deleteVolume: deleteVolumeAction,
     shareVolume: onShareVolume,
@@ -3945,6 +4004,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
           label: 'Home',
           content: (
             <HomeTab
+              onOpenLocalWorkspace={() => setOpenDialog('localWorkspace')}
               volumes={volumes}
               volume={volume}
               selectVolume={selectVolume}
@@ -4702,6 +4762,12 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
         hasVolume={Boolean(volume)}
       />
 
+      <Dialog open={openDialog === 'localWorkspace'} onOpenChange={(o) => { if (!o) { setOpenDialog(null); setVolumesRefresh((k) => k + 1); } }}>
+        <DialogContent className="max-w-xl" data-testid="sl-local-workspace-dialog">
+          <DialogHeader><DialogTitle>Local workspace</DialogTitle></DialogHeader>
+          <LocalWorkspacePanel />
+        </DialogContent>
+      </Dialog>
       <ImportSegyDialog
         open={openDialog === 'import'}
         onOpenChange={(o) => setOpenDialog(o ? 'import' : null)}

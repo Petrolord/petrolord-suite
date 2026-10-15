@@ -9,6 +9,9 @@ import {
   ISSUE_STATES, SEVERITIES, FEASIBILITY_VERDICTS, DECISION_GATES, DECISION_OUTCOMES, decisionProblem, runChoices, gateLabel, outcomeLabel,
 } from '../services/model';
 import { timeOnlyReason } from '@/pages/apps/Seismolord/lib/verticalDomain';
+import LocationBadge from '@/components/localWorkspace/LocationBadge';
+import LocalWorkspacePanel from '@/components/localWorkspace/LocalWorkspacePanel';
+import { useVolumePlacements } from '@/lib/localWorkspace/runtime';
 
 const card = 'rounded-lg border border-pl-border bg-pl-surface p-4 space-y-3';
 const h2 = 'text-sm font-semibold text-pl-text';
@@ -30,6 +33,8 @@ export function SetupPanel() {
     wells, volumes, project, loaded, toggleWell, toggleVolume, toggleTarget, targetChoices, setSeismicAcquired, setFirstProduction, canWrite,
     setObjectivesText, setTargetObjective,
   } = useQIStudio();
+  // Local Workspace: where each volume lives (jobs on a local volume run on this computer)
+  const placements = useVolumePlacements(volumes);
   const objectives = project.objectives || { text: '', targets: {} };
   return (
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-4" data-testid="qi-setup">
@@ -77,6 +82,7 @@ export function SetupPanel() {
               <label key={v.id} className="flex items-center gap-2" title={depthWhy || undefined}>
                 <input type="checkbox" checked={!depthWhy && project.volumeIds.includes(v.id)} onChange={() => toggleVolume(v.id)} disabled={!canWrite || Boolean(depthWhy)} data-testid={`qi-volume-${v.id}`} />
                 <span className="text-pl-text">{v.name}</span>
+                <LocationBadge placement={placements.get(v.id)} />
                 {depthWhy && <span className="text-pl-muted" data-testid={`qi-volume-depth-${v.id}`}>(depth: QI Studio works in two-way time)</span>}
               </label>
             );
@@ -96,6 +102,11 @@ export function SetupPanel() {
             </label>
           );
         })}
+      </section>
+      <section className={card} data-testid="qi-local-workspace">
+        <h2 className={h2}>Local workspace</h2>
+        <p className={muted}>Volumes kept on this computer are processed here: QC, attributes, inversion, AVO, properties and zone maps run in this browser with the same code as the Petrolord servers. Nothing of the seismic is uploaded; results and summaries save to the cloud as usual.</p>
+        <LocalWorkspacePanel compact />
       </section>
       {/* light governance (QI upgrade P1.1): added below the three setup cards */}
       <section className={`${card} xl:col-span-3`} data-testid="qi-objectives">

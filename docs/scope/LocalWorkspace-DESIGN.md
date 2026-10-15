@@ -1,7 +1,8 @@
 # Local workspace mode for Seismolord and QI Studio: design note
 
-**Status:** DESIGN NOTE, approved for writing by the owner on 2026-10-15. Nothing is built.
-The owner decides the open questions in section 11 before any phase starts.
+**Status:** L0 DONE and L1 BUILT (2026-10-15). The owner decided section 11 on 2026-10-15
+(section 13). L2 (Petrolord Local) and L3 wait until after NAPE. Results: section 14 (L0) and
+section 15 (L1).
 
 **Scope:** Seismolord (seismic interpretation) and QI Studio. Other Geoscience apps only
 read what these two publish.
@@ -639,3 +640,108 @@ Include local mode in the existing subscriptions for now, since it lowers our eg
   https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation
 - Browser version numbers for OPFS and the folder picker are from the MDN and Chrome pages
   above and caniuse; L0 re-checks them on the target machines.
+
+## 13. Owner decisions (2026-10-15, binding)
+
+1. Local workspaces are included in existing subscriptions; no new paywall.
+2. L0 and L1 now. L2 (Petrolord Local) after NAPE; the job router keeps an executor slot for it.
+3. The helper's publisher is Lordsway Energy (L2 only).
+4. Previews of local volumes upload to the cloud by default, off for members-only Suite projects,
+   with a per-volume override.
+5. No app-level encryption of local files in L1; the help tells users to rely on BitLocker or
+   FileVault.
+6. No streaming of volumes from a colleague's machine.
+7. At project creation, and on the first seismic import in a project without a choice, ask where
+   seismic lives, defaulting to Local. Existing projects and volumes stay as they are (cloud).
+8. The owner's QI client study is the L1 pilot.
+
+## 14. L0 results (2026-10-15)
+
+Measured on the worker host (8 cores, 31 GB RAM; disk O_DIRECT write 133 MB/s, cold read 1.3 to
+1.5 GB/s) in the Playwright v1.61.1 image: HeadlessChrome 149.0.7827.55, Firefox 151.0 and
+Playwright's Linux WebKit 26.5. Pages were served from http://127.0.0.1, which is a secure context.
+
+**Chromium OPFS, 256 MiB pack files** (OPFS on Linux is disk-backed in the profile, so
+createWritable is the proxy for a user folder; the native folder picker cannot be automated headless,
+so the real NTFS or APFS folder number comes from the owner's laptop in the pilot):
+
+| Write path | MB/s | Renderer RSS |
+|---|---|---|
+| Worker createWritable, 4 MiB chunks, 8 GB | 369 | about 105 MB |
+| Worker createWritable, 4 MiB chunks, 20 GB | 290 (74 s) | 110 MB |
+| Worker createWritable, 1 MiB chunks, 4 GB | 395 | 103 MB |
+| Main thread createWritable, 4 MiB chunks | 530 | 117 MB |
+| Worker createSyncAccessHandle, 4 MiB / 1 MiB | 748 / 783 | about 105 MB |
+
+1 MiB reads over 20 GB of packs (`getFile().slice()`): sequential with 1 in flight 117 to 379 MB/s
+cold and 454 to 506 MB/s warm; random 466 to 531 MB/s; 8 in flight 599 MB/s sequential and 1138 MB/s
+random. RSS rises to 1.1 to 1.4 GB in tight read loops (buffers are collected late), so reads in
+flight are bounded.
+
+**Capabilities and persistence.** createWritable works in a dedicated worker; createSyncAccessHandle
+exists in workers only. A directory handle stored in IndexedDB reads back inside a worker. With a
+persistent profile, OPFS files and IndexedDB records (handle included) survive a full browser close
+and relaunch in Chromium and Firefox. `persist()` returns false in headless Chromium; Firefox never
+settles it (it waits on a prompt), so L1 races it against a timeout. Chromium's `estimate()` quota is
+elastic (5.4 GB incognito, 10.7 GB rising to 36.5 GB as data grew), so it is a guide only; no web API
+reports a user folder's free space. Clearing all site data removes OPFS and IndexedDB together;
+clearing only file systems leaves a stale handle that throws NotFoundError. L1 therefore shows a
+volume as missing from the cloud replica record.
+
+**Firefox 151:** no folder picker; OPFS, createWritable (page and worker), sync handles and
+deflate-raw all present. 2 GB: 536 to 727 MB/s write, 1.3 to 1.7 GB/s read. Best-effort quota about
+10 GiB: createWritable throws QuotaExceededError at 9984 MiB, but a sync handle write returns a short
+count without throwing. L1 checks every write count.
+
+**WebKit (Playwright Linux build):** navigator.storage is absent entirely, so local mode is refused
+cleanly. Real Safari 17+ has OPFS and still needs a test on a Mac.
+
+**Hashing:** SubtleCrypto SHA-256 of 1 MiB at 1175 to 1598 MB/s (per-brick hashes); the pure-JS
+incremental SHA-256 (full source hash) at 208 MB/s in Chromium, 59 MB/s in Firefox and 165 MB/s in
+WebKit, digest equal to SubtleCrypto. An 80 GB source hashes in about 6.5 minutes in Chromium, beside
+the conversion.
+
+**Packaged worker (feasibility only, nothing shipped):** `worker/seismic-worker/build.mjs` bundles
+196 modules into three ESM files (1.77, 0.89 and 1.75 MB) with Node built-ins only. Node 25.9
+`--build-sea` with `"mainFormat": "module"` builds one 130 MB Linux executable that starts and runs
+in-process jobs. Blocker for L2: worker threads load `jobThread.js` from disk, so that file must be an
+SEA asset written out at start (or the helper runs with JOB_THREADS=0). Signing is untested.
+
+## 15. L1 as built (2026-10-15)
+
+- **Store:** `src/lib/localWorkspace/` with three backends on one handle surface: a user-picked
+  folder (File System Access), OPFS with a warning, and memory for tests. Write-once 256 MiB packs,
+  a per-pack index written at close, a pack without an index dropped by the next writer, per-brick
+  SHA-256 and a brick root, verification with a negative control. The store implements the upload
+  spool interface, so the existing v4 conversion writes into it and the existing two-stage upload
+  promotes from it.
+- **Import with no upload:** the import dialog asks where the seismic lives (Keep on this computer,
+  or Upload to Petrolord, with times and disk). The existing scan, crop and v4 transcode write into the
+  workspace; a second worker hashes the whole source. Only the row, the manifest and (decision 4)
+  three small previews reach the cloud.
+- **Identity:** `content_id` = hash of source SHA-256, mapping, crop and codec (plus parent, recipe
+  and engine for products); `brick_root` over the stored bricks.
+- **Cloud records** (migration 20261016100000, applied 2026-10-15): `seismic_volumes.storage_location`,
+  `content_id`, `brick_root`, `device_id`, `previews`; `seismic_devices`; `seismic_volume_replicas`;
+  `seismic_copy_requests`; `qi_jobs.executor` and `device_id` with the claim, sweep and enqueue
+  filters and `qi_start_local_job` / `qi_update_local_job`; `qi_datasets.storage_location`.
+- **Reading:** every brick path (viewer slice worker, horizon and framework trackers, attribute
+  worker, browser jobs) goes through `withLocalBricks`, which serves a local volume from the
+  workspace and never calls the cloud for it.
+- **Jobs:** `qiService.enqueueJob` routes by where the inputs live (`router.js`). Browser jobs run the
+  seismic worker's own handler files in Web Workers with browser dependencies (user client, local
+  writer, local fetchers), recorded in `qi_jobs` with `executor = 'browser'` and the device. Kinds:
+  attribute volumes, seismic QC, post-stack inversion, property prediction, stack sampling, AVO,
+  stack matching, simultaneous inversion of angle stacks and zone maps. Prestack gather kinds wait for
+  the helper (L2 registers a `local` executor in the same router).
+- **Collaboration:** location badges in the Seismic Explorer and QI Studio; a volume on another
+  computer opens a notice with its previews and "Ask for a cloud copy"; the owner answers from Local
+  workspace, Copy requests, or chooses Copy to the cloud (promotion through the existing resumable
+  upload; the row becomes `both`).
+- **Survival:** the workspace record, folder handle and volume records live in IndexedDB; the folder
+  asks for permission again unless "Allow on every visit" was chosen; a tab closed mid-job is marked
+  closed on the next visit and its partial outputs removed.
+- **Space:** imports and jobs check the disk need first (a hard refusal where the browser enforces a
+  quota, Firefox and Safari; guidance on Chromium and folders), and a full disk fails the write with
+  a plain message.
+

@@ -2,6 +2,7 @@
 // (house pattern). Storage cleanup pairs row deletion with the volume's
 // owner-path objects so no orphan bricks accumulate.
 
+import { removeLocalVolume } from '@/lib/localWorkspace/workspace';
 import { supabase } from '@/lib/customSupabaseClient';
 import { scopeToProject, whenProjectScopeReady, insertWithProject } from '@/lib/projects/projectScope';
 import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
@@ -67,7 +68,7 @@ export async function deleteVolume(volume) {
   const paths = [`${dir}/manifest.json`];
   // v4 stores (large-survey plan): display levels and the float32 copy
   const v4Dirs = ['v4/f', ...Array.from({ length: 8 }, (_, L) => `v4/d${L}`)];
-  for (const sub of ['bricks', 'horizons', ...v4Dirs]) {
+  for (const sub of ['bricks', 'horizons', 'previews', ...v4Dirs]) {
     let offset = 0;
     for (;;) {
       const { data, error } = await supabase.storage.from(SEISMIC_BUCKET)
@@ -90,6 +91,8 @@ export async function deleteVolume(volume) {
   if (error) throw new Error(`Could not delete volume record: ${error.message}`);
   // an unfinished v4 upload's local copy has no further use
   await removeOpfsSpool(volume.id);
+  // Local Workspace: the volume's files on this computer go with it
+  await removeLocalVolume(volume.id).catch(() => {});
 }
 
 // ---- W4.2 projects (explorer grouping) -----------------------------------

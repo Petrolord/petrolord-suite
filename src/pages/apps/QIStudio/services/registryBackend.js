@@ -10,6 +10,7 @@ import { getManifest, deleteVolume } from '@/pages/apps/Seismolord/services/volu
 import { listHorizons, loadHorizonGrid } from '@/pages/apps/Seismolord/services/horizonsService';
 import { listFaults } from '@/pages/apps/Seismolord/services/faultsService';
 import { assertQuota } from '@/pages/apps/Seismolord/services/seismicStorage';
+import { derivedTarget, markDerivedLocal, forgetLocal } from '@/lib/localWorkspace/runtime';
 import { assertFloat32Parent, derivedStorageBytes } from '@/pages/apps/Seismolord/services/attributeSurveyMeta';
 import { volumeDir } from '../../../../../packages/engines/engines/seismolord/manifest';
 import { volumeFrame } from './inversionWells';
@@ -30,7 +31,9 @@ import { exportGridSpec } from '@/lib/gridding/gridding';
 async function registerDerived(parent, name, attributeParams) {
   const manifest = await getManifest(parent);
   assertFloat32Parent(manifest);
-  await assertQuota(derivedStorageBytes(manifest));
+  // Local Workspace: a product of a volume on this computer stays on this computer
+  const target = await derivedTarget(parent.id);
+  if (target.location !== 'local') await assertQuota(derivedStorageBytes(manifest));
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) throw new Error('You must be signed in to compute a volume.');
   const id = crypto.randomUUID();
@@ -39,6 +42,15 @@ async function registerDerived(parent, name, attributeParams) {
     parent_volume_id: parent.id, attribute_params: attributeParams, crs: parent.crs ?? null, survey_meta: {},
   })).select().single();
   if (error) throw new Error(`Could not register the volume: ${error.message}`);
+  if (target.location === 'local') {
+    try {
+      await markDerivedLocal(data, derivedStorageBytes(manifest));
+    } catch (e) {
+      await supabase.from('seismic_volumes').delete().eq('id', data.id);
+      await forgetLocal(data.id);
+      throw e;
+    }
+  }
   return data;
 }
 

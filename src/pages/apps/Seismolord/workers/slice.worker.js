@@ -4,6 +4,8 @@
 
 import { createSliceWorkerHandler } from '../sources/sliceWorkerHandler';
 import { persistentBrickFetcher } from '../services/brickStore';
+import { storageBrickFetcher } from '../engine/brickCache';
+import { withLocalBricks } from '@/lib/localWorkspace/localBricks';
 import { reportedDeviceMemory } from '../sources/memoryBudget';
 import { createDeflatePool, deflatePoolSize } from '../services/deflatePool';
 import { nativeInflateRaw } from '../engine/brickCodecV4';
@@ -26,7 +28,10 @@ const handler = createSliceWorkerHandler(
   {
     deviceMemory: reportedDeviceMemory(self),
     // IndexedDB works in workers: a reload scrubs from disk
-    wrapPersistent: (fetcher) => persistentBrickFetcher(fetcher),
+    // Local Workspace: a volume on this computer reads from its workspace
+    // folder, ahead of (and never into) the IndexedDB brick cache
+    makeFetcher: (cfg) => withLocalBricks(storageBrickFetcher(cfg)),
+    wrapPersistent: (fetcher) => withLocalBricks(persistentBrickFetcher(fetcher)),
     inflate,
   },
 );
