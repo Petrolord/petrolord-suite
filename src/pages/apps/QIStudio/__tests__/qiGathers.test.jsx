@@ -108,7 +108,7 @@ test('the Gathers tab is appended last and shows the store\'s gathers with the m
   const enqueue = jest.spyOn(backend.jobs, 'enqueueJob');
   render(<MemoryRouter><QIStudio backend={backend} sharingStore={null} /></MemoryRouter>);
   const tabs = await screen.findAllByRole('tab');
-  expect(tabs.map((t) => t.textContent).slice(-2)).toEqual(['Data matrix', 'Gathers']);
+  expect(tabs.map((t) => t.textContent).slice(-3)).toEqual(['Data matrix', 'Maps', 'Gathers']);
   fireEvent.click(screen.getByTestId('qi-tab-gathers'));
   await screen.findByTestId('qi-gathers-store', {}, { timeout: 20000 });
   fireEvent.change(screen.getByTestId('qi-gathers-events'), { target: { value: '1400' } });
