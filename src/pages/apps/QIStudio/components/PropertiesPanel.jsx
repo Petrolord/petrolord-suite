@@ -15,6 +15,9 @@ import {
   PROPERTY_KINDS, PROPERTY_DEFAULTS, MAX_FACIES, propertyIssues, faciesClass, propertyProtocolText, propertyGate, PROPERTY_GATE_DEFAULTS, propertyName, propertyShort, propertyClass,
 } from '../services/propertyRun';
 import ExportControls from './ExportControls';
+import JobWarnings from './JobWarnings';
+import WellCrsNote from './WellCrsNote';
+import { warningsField } from '../services/jobWarnings';
 import { packLog } from '../services/logPacking';
 
 const card = 'rounded-lg border border-pl-border bg-pl-surface p-4 space-y-3';
@@ -172,7 +175,7 @@ export default function PropertiesPanel() {
       const jobId = await client.enqueueJob('property_prediction', { mode: 'volume', ai_volume_id: ai.id, ...(two ? { second_volume_id: ai.vpvsId } : {}), volume_ids: volumeIds, name: `${ai.name} ${kind}`, property: block() });
       setProperty(ai.id, (cur) => ({ [kind]: { ...(cur[kind] || {}), runs: [...(cur[kind]?.runs || []), { jobId, volumeIds, name: `${ai.name}: ${PROPERTY_KINDS[kind].label.toLowerCase()}`, at: new Date().toISOString(), status: 'queued' }] } }));
       watch('volume', jobId, (done) => setProperty(ai.id, (cur) => ({
-        [kind]: { ...(cur[kind] || {}), runs: (cur[kind]?.runs || []).map((r) => (r.jobId === jobId ? { ...r, status: 'ready', at: done.finished_at || r.at } : r)) },
+        [kind]: { ...(cur[kind] || {}), runs: (cur[kind]?.runs || []).map((r) => (r.jobId === jobId ? { ...r, status: 'ready', at: done.finished_at || r.at, ...warningsField(done.result_refs) } : r)) },
       })));
     } catch (e) {
       for (const r of rows) { try { await backend.removeVolume(r.row); } catch { /* best effort */ } }
@@ -263,7 +266,7 @@ export default function PropertiesPanel() {
               <tr key={w.wellId}>
                 <td className={td}>{w.name}</td>
                 {!w.ok ? <td className={`${td} text-pl-warning-text`} colSpan={2}>{w.reason}</td> : (
-                  <><td className={td}>{w.curves}</td><td className={w[kind]?.values && (!two || w.elastic?.ln_si) ? td : `${td} text-pl-warning-text`}>{w[kind]?.values && two && !w.elastic?.ln_si ? `${w[kind]?.curve}; left out: AI and Vp/Vs need a shear log` : (w[kind]?.curve || w[kind]?.reason)}</td></>
+                  <><td className={td}>{w.curves}<WellCrsNote well={w} /></td><td className={w[kind]?.values && (!two || w.elastic?.ln_si) ? td : `${td} text-pl-warning-text`}>{w[kind]?.values && two && !w.elastic?.ln_si ? `${w[kind]?.curve}; left out: AI and Vp/Vs need a shear log` : (w[kind]?.curve || w[kind]?.reason)}</td></>
                 )}
               </tr>
             ))}
@@ -300,7 +303,7 @@ export default function PropertiesPanel() {
             {saved[kind].runs.map((r) => (
               <tr key={r.jobId}>
                 <td className={td}>{r.name}</td>
-                <td className={td}>{r.status === 'ready' ? <Link className="underline" to="/dashboard/apps/geoscience/seismolord">Ready: open in Seismolord</Link> : r.status}</td>
+                <td className={td}>{r.status === 'ready' ? <Link className="underline" to="/dashboard/apps/geoscience/seismolord">Ready: open in Seismolord</Link> : r.status}<JobWarnings result={r} testId="qi-prop-run-warnings" /></td>
                 <td className={td}>{String(r.at).slice(0, 16).replace('T', ' ')}</td>
                 <td className={td}>{r.status === 'ready' && <ExportControls name={r.name} jobId={r.jobId} volumes={Object.entries(r.volumeIds || {}).map(([k, id]) => ({ key: k.replace(':', '-'), label: k.startsWith('p:') ? `P(${names[k.slice(2)] || k.slice(2)})` : k.toUpperCase(), id }))} />}</td>
               </tr>

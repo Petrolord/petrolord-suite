@@ -259,3 +259,24 @@ test('pilot sub-volume: the full run inside the window, null outside, only its b
     }
   }
 });
+
+// QI round 3 (2026-10-15): the tie guard on the simultaneous wavelet scale,
+// as post-stack's (#1154, F3 benchmark F-3). Recorded when the logs belong to
+// the stacks; refused when they do not (negative control: logs whose texture
+// is unrelated to the seismic).
+test('the simultaneous wavelet scale needs a tie: recorded when good, refused when the logs do not match the stacks', async () => {
+  const { prestackScaleTie } = await import('../../../src/pages/apps/QIStudio/services/prestackRun.js');
+  const { MIN_SCALE_TIE } = await import('../../../src/pages/apps/QIStudio/services/inversionRun.js');
+  const ok = await prestackInversion(ctxFor(P('blind')), depsFor().d);
+  expect(ok.settings.wavelet_scale_tie.corr).toBeGreaterThan(0.99);
+  expect(ok.settings.wavelet_scale_tie.samples).toBeGreaterThan(100);
+  const tex = (base, amp, per) => (v, k) => (Number.isFinite(v) ? base + amp * Math.cos(2 * Math.PI * k / per) : v);
+  const wrong = WELLS.map((w) => ({ ...w, ln_ai: w.ln_ai.map(tex(8.8, 0.03, 7.3)), ln_si: w.ln_si.map(tex(8.15, 0.03, 5.1)), ln_rho: w.ln_rho.map(tex(0.85, 0.02, 9.7)) }));
+  const wellsW = cleanWells(wrong);
+  const t = prestackScaleTie;
+  expect(() => t(wellsW.map((w, k) => ({ well: w, traces: tracesOf(wellsW)[k] })), THETA, Float64Array.from(ricker), 0.5)).toThrow(/tie too poorly/);
+  const { corr } = prestackWaveletScale(wellsW.map((w, k) => ({ well: w, traces: tracesOf(wellsW)[k] })), THETA, Float64Array.from(ricker), 0.5);
+  expect(corr).toBeLessThan(MIN_SCALE_TIE);
+  const params = P('blind'); params.inversion.wells = wrong;
+  await expect(prestackInversion(ctxFor(params), depsFor().d)).rejects.toMatchObject({ stage: 'compute_failed', message: expect.stringMatching(/tie too poorly/) });
+});

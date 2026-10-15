@@ -436,6 +436,9 @@ test('simultaneous: five stacks, the wells with shear and density, the blind tab
   fireEvent.click(screen.getByTestId('qi-sim-run'));
   const runs = await screen.findByTestId('qi-sim-runs', {}, { timeout: 20000 });
   await waitFor(() => expect(runs).toHaveTextContent(/Ready: open in Seismolord/));
+  // QI round 3: the scale's tie and the job's warnings are shown
+  expect(screen.getByTestId('qi-sim-scale-tie')).toHaveTextContent(/scaled to the stacks at the wells by 1\.10, on a tie of 0\.86 \(a run under 0\.3 is refused\)/);
+  expect(within(runs).getByTestId('qi-sim-run-warnings')).toHaveTextContent(/Warning: 6 of 245760 samples of the AI/);
   expect(enqueue.mock.calls.filter((c) => c[0] === 'prestack_inversion')[1][1].volume_ids).toEqual({ ai: 'mem-sim-qi-v1-ai', si: 'mem-sim-qi-v1-si', rho: 'mem-sim-qi-v1-rho', vpvs: 'mem-sim-qi-v1-vpvs' });
 
   // facies in AI and Vp/Vs from the simultaneous inversion

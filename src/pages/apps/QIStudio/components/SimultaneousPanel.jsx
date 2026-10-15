@@ -13,9 +13,12 @@ import PilotArea, { EMPTY_PILOT, pilotParam, pilotName, pilotFormProblem } from 
 import { prepareWell } from '../services/inversionWells';
 import { waveletChoices } from './InversionPanel';
 import ExportControls from './ExportControls';
+import JobWarnings from './JobWarnings';
+import WellCrsNote from './WellCrsNote';
+import { warningsField } from '../services/jobWarnings';
 import { extractAngleWavelets } from '../services/angleWavelets';
 import { meanVsVp, simultaneousIssues, PRESTACK_DEFAULTS, DENSITY_GATE_DEFAULTS } from '../services/prestackRun';
-import { blindProtocolText } from '../services/inversionRun';
+import { blindProtocolText, MIN_SCALE_TIE } from '../services/inversionRun';
 import { tieRows, leaveOneOutWavelets } from '../services/ties';
 import { describeWavelet, storedSamples } from '@/pages/apps/Seismolord/lib/wellWavelet';
 import { packLog } from '../services/logPacking';
@@ -177,7 +180,7 @@ export default function SimultaneousPanel() {
       const jobId = await client.enqueueJob('prestack_inversion', { mode: 'volume', volume_ids: ids, name: pilotName(`${first.name} simultaneous inversion`, pilot), inversion: { ...block(), ...(writeResidual ? { residual: true } : {}) }, ...(pp ? { pilot: pp } : {}) });
       setSimultaneous((cur) => ({ runs: [...(cur.runs || []), { jobId, volumeIds: ids, firstVolumeId: first.id, name: pilotName(`${first.name}: AI, SI, density, Vp/Vs`, pilot), at: new Date().toISOString(), status: 'queued', ...(pp ? { pilot: pp } : {}) }] }));
       // the worker returns the volumes it wrote: density goes when the gate withholds it
-      watch('volume', jobId, (row) => setSimultaneous((cur) => ({ runs: (cur.runs || []).map((r) => (r.jobId === jobId ? { ...r, status: 'ready', at: row.finished_at || r.at, ...(row.result_refs?.volume_ids ? { volumeIds: row.result_refs.volume_ids } : {}), ...(row.result_refs?.density ? { density: row.result_refs.density } : {}) } : r)) })));
+      watch('volume', jobId, (row) => setSimultaneous((cur) => ({ runs: (cur.runs || []).map((r) => (r.jobId === jobId ? { ...r, status: 'ready', at: row.finished_at || r.at, ...(row.result_refs?.volume_ids ? { volumeIds: row.result_refs.volume_ids } : {}), ...(row.result_refs?.density ? { density: row.result_refs.density } : {}), ...warningsField(row.result_refs) } : r)) })));
     } catch (e) {
       for (const r of rows) { try { await backend.removeVolume(r.row); } catch { /* best effort */ } }
       setSt((m) => ({ ...m, volume: { error: qiService.friendlyError(e) } }));
@@ -246,7 +249,7 @@ export default function SimultaneousPanel() {
             <thead><tr><th className={th}>Well</th><th className={th}>Curves</th></tr></thead>
             <tbody>
               {prep.wells.map((w) => (
-                <tr key={w.wellId}><td className={td}>{w.name}</td><td className={w.ok && w.elastic?.ln_si ? td : `${td} text-pl-warning-text`}>{!w.ok ? w.reason : w.elastic?.ln_si ? `${w.curves}, ${w.elastic.curves}` : w.elastic?.reason}</td></tr>
+                <tr key={w.wellId}><td className={td}>{w.name}</td><td className={w.ok && w.elastic?.ln_si ? td : `${td} text-pl-warning-text`}>{!w.ok ? w.reason : w.elastic?.ln_si ? `${w.curves}, ${w.elastic.curves}` : w.elastic?.reason}<WellCrsNote well={w} /></td></tr>
               ))}
             </tbody>
           </table>
@@ -286,6 +289,7 @@ export default function SimultaneousPanel() {
         </table>
         {/* QI upgrade P1.2: the protocol, and the blind results to the register (U2-008) */}
         <p className={muted} data-testid="qi-sim-blind-protocol">{blindProtocolText(saved.blind.result)}</p>
+        {Number.isFinite(saved.blind.result.settings?.wavelet_scale) && <p className={muted} data-testid="qi-sim-scale-tie">{`Wavelet scaled to the stacks at the wells by ${saved.blind.result.settings.wavelet_scale.toPrecision(3)}${Number.isFinite(saved.blind.result.settings?.wavelet_scale_tie?.corr) ? `, on a tie of ${saved.blind.result.settings.wavelet_scale_tie.corr.toFixed(2)} (a run under ${MIN_SCALE_TIE} is refused)` : ''}.`}</p>}
         {saved.blind.result.density && <p className={saved.blind.result.density.produced ? muted : 'text-xs text-pl-warning-text'} data-testid="qi-sim-density">{saved.blind.result.density.reason}</p>}
         {(saved.blind.result.residual_at_wells || []).length > 0 && <p className={muted} data-testid="qi-sim-residual-wells">{`Seismic residual at the wells, percent of each stack's RMS: ${saved.blind.result.residual_at_wells.map((w) => `${w.name} ${w.pct.map((v) => (Number.isFinite(v) ? v.toFixed(0) : EMPTY_VALUE)).join(' / ')}`).join('; ')}.`}</p>}
         {simIssues.length > 0 && canWrite && <button type="button" className={btn} onClick={addSimIssues} data-testid="qi-sim-issues">{`Add ${simIssues.length} simultaneous issue${simIssues.length === 1 ? '' : 's'} to the register`}</button>}
@@ -297,7 +301,7 @@ export default function SimultaneousPanel() {
           <tbody>
             {saved.runs.map((r) => (
               <tr key={r.jobId}><td className={td}>{r.name}</td>
-                <td className={td}>{r.status === 'ready' ? <Link className="underline" to="/dashboard/apps/geoscience/seismolord">Ready: open in Seismolord</Link> : r.status}</td>
+                <td className={td}>{r.status === 'ready' ? <Link className="underline" to="/dashboard/apps/geoscience/seismolord">Ready: open in Seismolord</Link> : r.status}<JobWarnings result={r} testId="qi-sim-run-warnings" /></td>
                 <td className={td}>{r.status === 'ready' && <ExportControls name={r.name} jobId={r.jobId} volumes={Object.entries(r.volumeIds).map(([k, id]) => ({ key: k, label: k.toUpperCase(), id }))} />}</td></tr>
             ))}
           </tbody>

@@ -171,7 +171,7 @@ export async function prestackInversion(ctx, deps) {
     const pct = prestackResidualPercent(tracesByWell[k], prestackResiduals(tracesByWell[k], m, thetaDeg, blindInv.scaledWavelet, vsVp));
     return { name: w.name, pct };
   });
-  const settings = { qi_class: 'elastic_estimate', method: 'Fatti three-term simultaneous inversion', wavelets: inv.wavelets ? 'one per stack, from the wells' : 'one for every stack', stacks: stacks.map((s) => ({ volume_id: s.row.id, name: s.row.name, angle: s.angle })), wells: inv.wells.map((w) => w.name), horizon_ids: inv.horizon_ids || [], lfm_hz: inv.lfmHz, eps: inv.eps, vs_vp: vsVp, wavelet_scale: scale, blind_protocol: blindProtocol, density_gate: density.checks, density_produced: density.produced };
+  const settings = { qi_class: 'elastic_estimate', method: 'Fatti three-term simultaneous inversion', wavelets: inv.wavelets ? 'one per stack, from the wells' : 'one for every stack', stacks: stacks.map((s) => ({ volume_id: s.row.id, name: s.row.name, angle: s.angle })), wells: inv.wells.map((w) => w.name), horizon_ids: inv.horizon_ids || [], lfm_hz: inv.lfmHz, eps: inv.eps, vs_vp: vsVp, wavelet_scale: scale, ...(blindInv.scaleTie ? { wavelet_scale_tie: { corr: blindInv.scaleTie.corr, samples: blindInv.scaleTie.samples } } : {}), blind_protocol: blindProtocol, density_gate: density.checks, density_produced: density.produced };
   // each well's held-back estimate, recorded with the AI and Vp/Vs volumes
   // so the property check predicts each well from an inversion that never saw it
   const pack = (a) => packLog(Array.from(a, (v) => (Number.isFinite(v) ? v : NaN)));

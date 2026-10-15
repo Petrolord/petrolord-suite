@@ -19,6 +19,9 @@ import {
 } from '../services/inversionRun';
 import { ilxlToWorld } from '../../../../../packages/engines/engines/seismolord/surveyGeometry';
 import ExportControls from './ExportControls';
+import JobWarnings from './JobWarnings';
+import WellCrsNote from './WellCrsNote';
+import { warningsField } from '../services/jobWarnings';
 import { packLog } from '../services/logPacking';
 
 const SPREAD_KEYS = [['q10', 'AI Q10'], ['q50', 'AI Q50'], ['q90', 'AI Q90'], ['spread', 'AI spread']];
@@ -77,14 +80,25 @@ function SpreadTables({ result }) {
   );
 }
 
-function BlindTable({ result }) {
+// F3 benchmark F-10 (QI round 3): a coloured run takes its polarity from the
+// wells it kept, so each held-out row can differ; shown when recorded
+export function blindPolarityByWell(result) {
+  const m = new Map();
+  for (const h of result?.blind_protocol?.held_back || []) if (h.polarity === 1 || h.polarity === -1) m.set(h.name, h.polarity);
+  return m;
+}
+export const polarityLabel = (p) => (p === -1 ? 'reversed' : p === 1 ? 'normal' : EMPTY_VALUE);
+
+export function BlindTable({ result }) {
   const rel = result.settings?.output === 'relative AI';
+  const pol = blindPolarityByWell(result);
   return (
     <table className="text-xs" data-testid="qi-inv-blind-table">
       <thead>
         <tr>
           <th className={th}>Well</th><th className={th}>Blind correlation</th>{!rel && <th className={th}>Blind AI error (percent)</th>}
           <th className={th}>With the well: correlation</th>{!rel && <th className={th}>With the well: error (percent)</th>}
+          {pol.size > 0 && <th className={th} data-testid="qi-inv-blind-polarity-head">Polarity used (well held out)</th>}
         </tr>
       </thead>
       <tbody className="font-mono tabular-nums">
@@ -93,6 +107,7 @@ function BlindTable({ result }) {
             <td className={`${td} font-sans`}>{r.name}</td>
             <td className={td}>{f(r.blind.corr)}</td>{!rel && <td className={td}>{f(r.blind.rmsPct, 1)}</td>}
             <td className={td}>{f(r.withWell.corr)}</td>{!rel && <td className={td}>{f(r.withWell.rmsPct, 1)}</td>}
+            {pol.size > 0 && <td className={`${td} font-sans`} data-testid={`qi-inv-blind-polarity-${r.name}`}>{polarityLabel(pol.get(r.name))}</td>}
           </tr>
         ))}
       </tbody>
@@ -208,7 +223,7 @@ export default function InversionPanel() {
       const jobId = await client.enqueueJob('poststack_inversion', { mode: 'volume', parent_volume_id: volume.id, volume_id: row.id, ...(res ? { residual_volume_id: res.id } : {}), name, inversion: { ...inversionBlock(), ...(res ? { residual: true } : {}) }, ...pilotBlock() });
       setInversion(volume.id, (cur) => ({ runs: [...(cur.runs || []), { jobId, volumeId: row.id, ...(res ? { residualVolumeId: res.id } : {}), name, method: s.method, at: new Date().toISOString(), status: 'queued', ...pilotBlock() }] }));
       watch('volume', jobId, (done) => setInversion(volume.id, (cur) => ({
-        runs: (cur.runs || []).map((r) => (r.jobId === jobId ? { ...r, status: 'ready', at: done.finished_at || r.at, blind: done.result_refs?.blind || null, ...(done.result_refs?.residual ? { residual: done.result_refs.residual } : {}) } : r)),
+        runs: (cur.runs || []).map((r) => (r.jobId === jobId ? { ...r, status: 'ready', at: done.finished_at || r.at, blind: done.result_refs?.blind || null, ...warningsField(done.result_refs), ...(done.result_refs?.residual ? { residual: done.result_refs.residual } : {}) } : r)),
       })));
     } catch (e) {
       if (row) { try { await backend.removeVolume(row); } catch { /* best effort */ } }
@@ -258,7 +273,7 @@ export default function InversionPanel() {
       const jobId = await client.enqueueJob('poststack_inversion', { mode: 'volume', parent_volume_id: volume.id, volume_ids: volumeIds, name: `${stem} (uncertainty)`, inversion: { ...inversionBlock(), sensitivity: sensBlock }, ...pilotBlock() });
       setInversion(volume.id, (cur) => ({ runs: [...(cur.runs || []), { jobId, volumeId: volumeIds.q50, volumeIds, name: `${stem}: Q10, Q50, Q90 and spread`, method: s.method, at: new Date().toISOString(), status: 'queued', ...pilotBlock() }] }));
       watch('spreadVolume', jobId, (done) => setInversion(volume.id, (cur) => ({
-        runs: (cur.runs || []).map((r) => (r.jobId === jobId ? { ...r, status: 'ready', at: done.finished_at || r.at } : r)),
+        runs: (cur.runs || []).map((r) => (r.jobId === jobId ? { ...r, status: 'ready', at: done.finished_at || r.at, ...warningsField(done.result_refs) } : r)),
       })));
     } catch (e) {
       for (const r of rows) { try { await backend.removeVolume(r.row); } catch { /* best effort */ } }
@@ -358,7 +373,7 @@ export default function InversionPanel() {
                   {w.ok ? (
                     <>
                       <td className={`${td} font-mono`}>{`${w.il}, ${w.xl}`}</td>
-                      <td className={td}>{w.curves}</td>
+                      <td className={td}>{w.curves}<WellCrsNote well={w} /></td>
                       <td className={td}>{w.timeSource}</td>
                       <td className={`${td} font-mono`}>{w.samples}</td>
                     </>
@@ -479,7 +494,7 @@ export default function InversionPanel() {
               <tr key={r.jobId}>
                 <td className={td}>{r.name}</td>
                 <td className={td}>{INVERSION_METHODS[r.method]?.label || r.method}</td>
-                <td className={td}>{r.status === 'ready' ? <Link className="underline" to="/dashboard/apps/geoscience/seismolord">Ready: open in Seismolord</Link> : r.status}</td>
+                <td className={td}>{r.status === 'ready' ? <Link className="underline" to="/dashboard/apps/geoscience/seismolord">Ready: open in Seismolord</Link> : r.status}<JobWarnings result={r} testId="qi-inv-run-warnings" /></td>
                 <td className={td}>{String(r.at).slice(0, 16).replace('T', ' ')}</td>
                 <td className={td}>{r.status === 'ready' && <ExportControls name={r.name} jobId={r.jobId} volumes={r.volumeIds ? Object.entries(r.volumeIds).map(([k, id]) => ({ key: k, label: k.toUpperCase(), id })) : [{ key: 'ai', label: 'AI', id: r.volumeId }, ...(r.residualVolumeId ? [{ key: 'residual', label: 'Residual', id: r.residualVolumeId }] : [])]} />}</td>
               </tr>

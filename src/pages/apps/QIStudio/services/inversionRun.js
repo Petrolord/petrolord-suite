@@ -330,7 +330,10 @@ export function blindProtocolText(result) {
   if (!p) return 'Each well was left out of the low-frequency model only; the wavelet scale used every well (a result from before the truly blind check of 2026-10-15).';
   const parts = p.excluded_from || [];
   const list = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0] || 'the low-frequency model';
-  return `Truly blind: each held-back well was left out of ${list}.${p.wavelet_from_well ? ` The wavelet is ${p.wavelet_from_well}'s own tie wavelet, so that well's blind result is not independent of the wavelet.` : ''}${(p.notes || []).length ? ` ${p.notes.join(' ')}` : ''}`;
+  // F3 benchmark F-10 (QI round 3): the polarity each held-out coloured run took from its kept wells
+  const pol = (p.held_back || []).filter((h) => h.polarity === 1 || h.polarity === -1);
+  const polText = pol.length ? ` Polarity from the kept wells, with each well held out: ${pol.map((h) => `${h.name} ${h.polarity === -1 ? 'reversed' : 'normal'}`).join(', ')}.${new Set(pol.map((h) => h.polarity)).size > 1 ? ' The wells disagree on polarity, so the blind results are not comparable between wells; check the ties.' : ''}` : '';
+  return `Truly blind: each held-back well was left out of ${list}.${p.wavelet_from_well ? ` The wavelet is ${p.wavelet_from_well}'s own tie wavelet, so that well's blind result is not independent of the wavelet.` : ''}${(p.notes || []).length ? ` ${p.notes.join(' ')}` : ''}${polText}`;
 }
 
 /**
@@ -401,7 +404,7 @@ export function makeBlindInverter({ inv, wavelet, onGrid = (x) => Float64Array.f
       return { scale, wavelet: scaled, trendFit: fit, invert: makeTraceInverter({ inv, wavelet: scaled, wells: wellsT, posOf, horizonsAt, ns, dtMs, trendFit: fit, trendAt }) };
     }
     const c = colouredFromWells({ wellTraces: keep.map((k) => traces[k]), wellLogs: keep.map((k) => wells[k].ln_ai), dtMs, ns, band: s.band });
-    return { alpha: c.alpha, invert: makeTraceInverter({ inv, wavelet: w0, wells: lfm, posOf, horizonsAt, ns, dtMs, coloured: c.operator }) };
+    return { alpha: c.alpha, polarity: c.polarity, invert: makeTraceInverter({ inv, wavelet: w0, wells: lfm, posOf, horizonsAt, ns, dtMs, coloured: c.operator }) };
   };
   let tie = null;
   if (absolute) {
@@ -419,7 +422,8 @@ export function makeBlindInverter({ inv, wavelet, onGrid = (x) => Float64Array.f
         notes.push(`${name}: ${e.message} Its blind row is empty.`);
       }
       held.set(name, b);
-      if (b) scales.push({ name, ...(b.scale != null ? { scale: b.scale } : { slope: b.alpha }) });
+      // F3 benchmark F-10 (QI round 3): the polarity each held-out coloured run took from its kept wells
+      if (b) scales.push({ name, ...(b.scale != null ? { scale: b.scale } : { slope: b.alpha, ...(b.polarity != null ? { polarity: b.polarity } : {}) }) });
     }
     return held.get(name);
   };
@@ -433,7 +437,7 @@ export function makeBlindInverter({ inv, wavelet, onGrid = (x) => Float64Array.f
   const waveletWell = typeof inv.wavelet_well === 'string' && inv.wavelet_well ? inv.wavelet_well : null;
   const base = blindProtocol({ absolute, blindWavelets: blindW.size > 0, waveletWell });
   const protocol = { ...base, excluded_from: useTrend ? [...base.excluded_from, 'the velocity trend calibration'] : base.excluded_from, notes };
-  return { invert, scale: full.scale ?? null, alpha: full.alpha ?? null, scaledWavelet: full.wavelet || null, trendFit: full.trendFit || null, protocol, scales, blindTraces, scaleTie: tie };
+  return { invert, scale: full.scale ?? null, alpha: full.alpha ?? null, polarity: full.polarity ?? null, scaledWavelet: full.wavelet || null, trendFit: full.trendFit || null, protocol, scales, blindTraces, scaleTie: tie };
 }
 
 // ---------------------------------------------------------------------------
