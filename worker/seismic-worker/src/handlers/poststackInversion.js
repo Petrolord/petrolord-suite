@@ -246,7 +246,7 @@ export async function poststackInversion(ctx, deps) {
   }
   const blindProtocolRec = { ...blindInv.protocol, held_back: blindInv.scales };
   const summary = inversionSummary(inv, {
-    ...(scale != null ? { wavelet_scale: scale } : {}), ...(alpha != null ? { impedance_slope: alpha } : {}), ...(sensitivity ? { scenarios: sensitivity.scenarios } : {}),
+    ...(scale != null ? { wavelet_scale: scale } : {}), ...(blindInv.scaleTie ? { wavelet_scale_tie: { corr: blindInv.scaleTie.corr, samples: blindInv.scaleTie.samples } } : {}), ...(alpha != null ? { impedance_slope: alpha } : {}), ...(sensitivity ? { scenarios: sensitivity.scenarios } : {}),
     blind_protocol: blindProtocolRec,
   });
   // the held-back estimate at each well (ln AI, packed), recorded with a

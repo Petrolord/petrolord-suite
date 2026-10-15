@@ -384,3 +384,19 @@ describe('pilot sub-volume', () => {
     await expect(run({ pilot: { il: { from: 5, to: 2 } } })).rejects.toMatchObject({ stage: 'validate_failed' });
   });
 });
+
+// F3 benchmark F-3 (2026-10-15): a poor tie shrinks the least-squares wavelet
+// scale towards zero and the absolute inversion overflows. The tie behind the
+// scale is measured and recorded; under 0.3 the run is refused. Negative
+// control: logs that do not belong to their traces.
+test('the wavelet scale needs a tie: recorded when good, refused when the logs do not match the seismic', async () => {
+  const { scaleTieQuality, MIN_SCALE_TIE } = await import('../../../src/pages/apps/QIStudio/services/inversionRun.js');
+  const good = WELLS.map((w) => ({ trace: seis(w.il), lnAi: w.ln_ai.map((v) => (v == null ? NaN : v)) }));
+  expect(scaleTieQuality(good, ricker).corr).toBeGreaterThan(0.99);
+  // the same logs with their texture moved by a quarter cycle: no longer the seismic's reflectivity
+  const wrong = WELLS.map((w) => ({ ...w, ln_ai: w.ln_ai.map((v, k) => (v == null ? null : 8.6 + 0.03 * Math.cos(2 * Math.PI * k / 7.3))) }));
+  expect(scaleTieQuality(wrong.map((w) => ({ trace: seis(w.il), lnAi: w.ln_ai.map((v) => (v == null ? NaN : v)) })), ricker).corr).toBeLessThan(MIN_SCALE_TIE);
+  const ok = await poststackInversion(ctxFor(params('blind')), depsFor({ volumes: { [VOL]: PARENT }, horizons: HZ_ROWS }));
+  expect(ok.settings.wavelet_scale_tie.corr).toBeGreaterThan(0.99);
+  await expect(poststackInversion(ctxFor(params('blind', { wells: wrong })), depsFor({ volumes: { [VOL]: PARENT }, horizons: HZ_ROWS }))).rejects.toThrow(/tie too poorly/);
+});
