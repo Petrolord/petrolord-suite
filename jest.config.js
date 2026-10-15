@@ -38,6 +38,8 @@ export default {
     'breakevenWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/breakevenWorkerFactoryMock.js',
     // Seismolord v4 import: the conversion worker factory (import.meta)
     'convertWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/convertWorkerFactoryMock.js',
+    // Local workspace: the browser job worker and the local import worker (import.meta)
+    'localJobWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/localJobWorkerFactoryMock.js',
     // Data & AI D2: the ML Workbench worker factory (import.meta)
     'mlWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/mlWorkerFactoryMock.js',
     // Data & AI D3: the Electrofacies Studio worker factory (import.meta)
