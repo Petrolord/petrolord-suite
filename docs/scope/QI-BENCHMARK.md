@@ -314,6 +314,57 @@ checkshots (provenance `wdm-edit`, note naming the source file);
 F02-01 keeps its sonic-integrated table. No derived (committed) ties on any
 of the four.
 
+### 3e. Option 2: suggested anchors (2026-10-15, worker suite-d76677ff6+engines-1b0a7a806)
+
+Engine `engines/seismolord/autoAnchors.js` (`suggestTieAnchors`, engines #373
+and #374; Suite PR #1159, not yet on main, so the harness bundled it from
+that branch). The harness builds each well's synthetic as Synthetics does
+(the well's current time-depth, the statistical wavelet of the traces round
+the well, the centre trace), calls `suggestTieAnchors`, and where it offers
+anchors commits them the way the Synthetics commit does
+(`warpToCheckshots(denseTieWarp(warp, range))` through the well's own TWT to
+TVDSS, saved as derived checkshots with provenance `well_tie_warp`). Both
+settings of the panel's "SEG normal polarity" box were tried and the better
+kept, as an interpreter would toggle it. Starting state: the NLOG
+checkshots on F03-02, F03-04 and F06-01, sonic on F02-01, no derived ties.
+
+| Well | Time-depth | OK | Anchors | Phase (degrees) | Corr before | Corr after |
+|---|---|---|---|---|---|---|
+| F06-01 | NLOG checkshots | no: no window at 0.3 | 0 | -53 | -0.03 | 0.12 |
+| F03-04 | NLOG checkshots | yes | 22 | -97 | -0.06 | 0.39 |
+| F03-02 | NLOG checkshots | no: no window at 0.3 | 0 | -165 | 0.01 | 0.20 |
+| F02-01 | sonic | yes | 24 | -169 | -0.01 | 0.43 |
+
+Committed on F03-04 (91 derived rows) and F02-01 (104 rows). The autoTie QC
+on the committed ties then reads shifts near zero (the warp aligned the
+events) but no better correlation: F03-04 0.36 whole log / 0.41 at MD 1200
+to 2000 m, F02-01 0.40 / 0.55, with residual phases of 30 to 85 degrees.
+
+Milestone B on the anchors: model-based refused by the scale-tie guard
+(tie wavelets whole log 0.137, job 0a3cb1b4; window 1100 to 1848 ms 0.129,
+24a5472c; Ricker 35 Hz 0.182, a310ad46). Coloured ran (38038673): F03-04
+0.14, F03-02 -0.21, F02-01 -0.31 blind against +0.36 with the well in;
+window 1100 to 1848 ms (62b42db1): 0.12, -0.19, -0.45 blind against +0.45
+with the well in (finding F-10).
+
+**Comparison of the three tie states**
+
+| | Sonic time-depth, best-window bulk ties | NLOG checkshots, best-window bulk ties | NLOG checkshots, suggested anchors (F03-04, F02-01) |
+|---|---|---|---|
+| F02-01 tie | 0.53 | 0.53 (still sonic) | 0.43 suggested; QC 0.40 / 0.55 |
+| F03-02 tie | 0.54 | 0.58 | not offered (0.20) |
+| F03-04 tie | 0.42 | 0.41 | 0.39 suggested; QC 0.36 / 0.41 |
+| F06-01 tie | not tied | 0.71 (no density in the record) | not offered (0.12) |
+| Scale tie behind model-based | 0.11 to 0.30; one window passed, then the blind guard failed it (F03-04 244 percent) | 0.106 to 0.139 | 0.129 to 0.182 |
+| Model-based | refused | refused | refused |
+| Coloured blind correlation (window 1100-1848 ms) | -0.08 to -0.38 (before the polarity fix) | 0.28, 0.03, 0.39 | 0.12, -0.19, -0.45 |
+| Milestone B | FAIL | FAIL | FAIL |
+
+**State left on the QA wells:** the best of the three, NLOG checkshots with
+the best-window bulk ties committed (F03-02 +41.0 ms, F03-04 -15.7 ms,
+F02-01 -28.3 ms on its sonic table, F06-01 -11.5 ms). It has the highest tie
+correlations and the only coloured result with every well positive.
+
 Not yet run (waiting for seismic over the wells): ties, rock physics and
 feasibility, inversion with blind wells, properties, and for Volve the
 prestack, AVO and simultaneous steps. `plan-f3-full.template.json` holds the
@@ -365,6 +416,19 @@ model-based and coloured blind checks; volume; porosity 1200 to 2100 ms).
 - **F-8 (copy, minor).** The guard message read "a correlation of 0.30 ...
   under 0.3" for a value just below 0.3; print two more decimals or round
   down.
+- **F-9 (suggested anchors, for the Seismolord lead).** `suggestTieAnchors`
+  returns nothing usable when the synthetic carries NaN outside the logged
+  interval (as a masked synthetic does): the phase rotation runs the analytic
+  signal over the whole trace and NaN spreads through the transform, so no
+  window reaches 0.3. Given the panel's unmasked synthetic (zeros) it works.
+  Suggest filling gaps with zero inside the phase step, or rejecting NaN with
+  a message. The Synthetics button passes the unmasked synthetic, so the app
+  itself is not affected today.
+- **F-10 (coloured polarity per held-out well).** With the anchors, F02-01's
+  coloured result is -0.31 / -0.45 blind and +0.36 / +0.45 with the well in:
+  the polarity #1156 takes from the wells flips when F02-01 is held out,
+  because F02-01 and F03-04 now disagree on polarity. Worth stating the
+  polarity each held-out run used in the blind table.
 - **F-5 (time origin).** The dGB stack's first sample is at 4 ms (trace byte
   109 and textual card 37). Seismolord takes sample 0 as 0 ms, so the volume
   sits 4 ms early; the tie shift absorbs it, but the import does not say so.
@@ -387,7 +451,7 @@ model-based and coloured blind checks; volume; porosity 1200 to 2100 ms).
 | Milestone | Criterion | Result |
 |---|---|---|
 | A (Package 1) | Full Package 1 on an open dataset | Partly (2026-10-15, worker 863ee986b). Wells, CRS placement, seismic QC and zone maps pass on F3. Ties stay poor to fair (0.42 to 0.54 in the best window) with a sonic-only time-depth and no stretch tool, under the app's good band (0.7). Feasibility and the report not run |
-| B (post-stack study) | Blind wells and prospect table on an open dataset | FAIL on F3, refused cleanly. Sonic time-depth: every absolute run stopped by the scale-tie guard (0.01 to 0.30) or the blind guard (F03-04 244 percent). Measured checkshots (option 3, NLOG T/Z on three wells): ties 0.41 to 0.71, scale tie 0.11 to 0.14, refused; coloured blind correlation 0.03 to 0.39 after the polarity fix. The mismatch sits in the seismic (phase and polarity differ by well); Volve is the better test |
+| B (post-stack study) | Blind wells and prospect table on an open dataset | FAIL on F3, refused cleanly. Sonic time-depth: every absolute run stopped by the scale-tie guard (0.01 to 0.30) or the blind guard (F03-04 244 percent). Measured checkshots (option 3, NLOG T/Z on three wells): ties 0.41 to 0.71, scale tie 0.11 to 0.14, refused; coloured blind correlation 0.03 to 0.39 after the polarity fix. Suggested anchors (option 2): offered on two wells, ties 0.36 to 0.55, scale tie 0.13 to 0.18, refused. The mismatch sits in the seismic (phase and polarity differ by well); Volve is the better test |
 | C (prestack study) | Blind-well error in published ranges, AVO class at known wells | Not yet (Volve needed) |
 
 ## 7. Limits

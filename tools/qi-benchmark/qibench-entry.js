@@ -28,12 +28,17 @@ import { saveHorizon } from '@/pages/apps/Seismolord/services/horizonsService';
 import { normalizeInputCurve } from '@/components/wells/curveUnits';
 import { listLogs, downloadCurve } from '@/lib/wellsRegistry';
 import { autoTieWell, tiedCheckshots, fieldTieConvention } from '@/pages/apps/Seismolord/engine/autoTie';
-import { rotateConstantPhase } from '@/pages/apps/Seismolord/engine/tieWarp';
+import { rotateConstantPhase, makeTieWarp, warpToCheckshots } from '@/pages/apps/Seismolord/engine/tieWarp';
+import { denseTieWarp } from '@/pages/apps/Seismolord/components/SyntheticsPanel';
+import { buildSynthetic, extractStatisticalWavelet } from '@/pages/apps/Seismolord/engine/synthetics';
+import { effectiveCheckshots } from '@/pages/apps/Seismolord/services/wellsService';
+// option 2 (Suite PR #1159, not on main yet): the engine as vendored on that branch
+import { suggestTieAnchors } from '/root/wt-anchors/packages/engines/engines/seismolord/autoAnchors.js';
 import { makeTvdssToTwt } from '@/pages/apps/Seismolord/engine/wellSection';
 import { storageBrickFetcher } from '@/pages/apps/Seismolord/engine/brickCache';
 import { v4BrickFetcher } from '@/pages/apps/Seismolord/engine/brickCodecV4';
 import { geomFromManifest, brickKey } from '@/pages/apps/Seismolord/engine/sliceAssembly';
-import { surveyAffine } from '@/pages/apps/Seismolord/engine/surveyGeometry';
+import { surveyAffine, worldToIlxl } from '@/pages/apps/Seismolord/engine/surveyGeometry';
 
 const MAP = { ilByte: 189, xlByte: 193 };
 const backend = makeRegistryBackend();
@@ -184,7 +189,7 @@ window.qb = {
     return { jobId: j, status: r.status, error: r.error_message, summary: r.result_refs?.summary, rows: r.result_refs?.rows, dtMs: frame.dtMs, skipped: prepared.filter((w) => !ok.includes(w)).map((w) => [w.name, w.reason || w[kind]?.reason]) };
   },
   /** Seismolord's automatic tie (engines autoTie, as Tops to Horizons runs it) for each benchmark well; commit=true saves the tied relation as derived checkshots, as Commit tie does. */
-  async tie(volumeName, { commit = false, commitAny = false, names = null, maxShiftMs = 60, mdRange = null } = {}) {
+  async tie(volumeName, { commit = false, commitAny = false, names = null, maxShiftMs = 60, mdRange = null, effective = false } = {}) {
     const volume = await this.volumeByName(volumeName);
     const manifest = await getManifest(volume);
     const geom = geomFromManifest(manifest);
@@ -213,7 +218,7 @@ window.qb = {
       const md = Float64Array.from({ length: dt.length }, (_, i) => Number(sonic.start_md_m) + i * Number(sonic.step_m));
       // a tie window: logs outside the MD range are left out (NaN), as a user trims the tie interval
       if (mdRange) for (let i = 0; i < md.length; i++) if (md[i] < mdRange[0] || md[i] > mdRange[1]) { dt[i] = NaN; if (rho) rho[i] = NaN; }
-      const rows = w.checkshots || [];
+      const rows = effective ? effectiveCheckshots(w).rows : (w.checkshots || []);
       const timeConv = makeTvdssToTwt({ checkshots: rows, dtUs, maxTwtMs: geom.ns * dtUs / 1000 });
       const well = { name: w.name, surfaceX: w.surface_x, surfaceY: w.surface_y, kbM: w.ref_elev_m ?? w.kb_m, tdMdM: w.td_md_m, deviation: w.deviation, logs: { md, dtUsPerM: Float32Array.from(dt, (v) => (Number.isFinite(v) ? v : NaN)), rho: rho ? Float32Array.from(rho, (v) => (Number.isFinite(v) ? v : NaN)) : null } };
       let t = null; let err = null;
@@ -292,6 +297,73 @@ window.qb = {
     const jobs = (await listJobs({ limit: 50 })).filter((j) => ['queued', 'running'].includes(j.status));
     for (const j of jobs) await cancelJob(j.id);
     return jobs.map((j) => [j.id, j.kind, j.status]);
+  },
+  /** Option 2: the Synthetics "Suggest anchors" on each well (synthetic from the well's current time-depth and the
+   *  statistical wavelet of the traces around it, against the centre trace), then the Synthetics commit:
+   *  warpToCheckshots(denseTieWarp(warp, range)) through the well's own TWT -> TVDSS, saved as derived checkshots. */
+  async suggestAnchors(volumeName, { names = null, commit = false } = {}) {
+    const volume = await this.volumeByName(volumeName);
+    const manifest = await getManifest(volume);
+    const geom = geomFromManifest(manifest);
+    const affine = surveyAffine(manifest.geometry);
+    const dtUs = Number(manifest.geometry.dt_us); const dtMs = dtUs / 1000;
+    const { data: sess } = await supabase.auth.getSession();
+    const fetcher = v4BrickFetcher(storageBrickFetcher({ supabaseUrl: supabase.supabaseUrl, getToken: async () => sess.session.access_token, bucket: 'seismic' }), manifest);
+    const b = geom.brickSize; const nk = geom.grid[2];
+    const cache = new Map();
+    const brick = async (i, j, k) => { const key = `${i}-${j}-${k}`; if (!cache.has(key)) { if (cache.size > 400) cache.clear(); cache.set(key, new Float32Array(await fetcher(brickKey(volume.storage_path, i, j, k)))); } return cache.get(key); };
+    const getTrace = async (il, xl) => {
+      const bricks = await Promise.all(Array.from({ length: nk }, (_, k) => brick(Math.floor(il / b), Math.floor(xl / b), k)));
+      const base = ((il % b) * b + (xl % b)) * b;
+      return Float32Array.from({ length: geom.ns }, (_, s2) => { const v = bricks[Math.floor(s2 / b)][base + (s2 % b)]; return Math.abs(v) > 1e29 ? 0 : v; });
+    };
+    const frame = await backend.loadVolumeFrame(volume);
+    const out = [];
+    for (const w of await listWells()) {
+      if (names ? !names.includes(w.name) : !w.name.startsWith('F3 ')) continue;
+      const rec = { name: w.name };
+      try {
+        const rows = effectiveCheckshots(w).rows;
+        rec.timeDepth = effectiveCheckshots(w).derived ? 'derived' : (w.checkshots_provenance?.source === 'wdm-edit' ? 'NLOG checkshots' : 'sonic-integrated');
+        const tc = makeTvdssToTwt({ checkshots: rows, dtUs, maxTwtMs: geom.ns * dtMs });
+        const logs = await listLogs(w.id);
+        const sonic = logs.find((l) => l.mnemonic === 'DT'); const dens = logs.find((l) => l.mnemonic === 'RHOB');
+        const dt = Float64Array.from(normalizeInputCurve('DT', sonic, await downloadCurve(sonic)).data);
+        let rho = dens ? Float64Array.from(normalizeInputCurve('RHOB', dens, await downloadCurve(dens)).data) : null;
+        if (rho && (rho.length !== dt.length || dens.start_md_m !== sonic.start_md_m)) rho = null;
+        const md = Float64Array.from({ length: dt.length }, (_, i) => Number(sonic.start_md_m) + i * Number(sonic.step_m));
+        const kb = w.ref_elev_m ?? w.kb_m;
+        // vertical wells (no deviation loaded): TVDSS = MD - KB; the trace the well sits on, as QI's prepareWell places it
+        const ij = worldToIlxl(frame.affine, w.surface_x, w.surface_y);
+        const il = Math.round(ij.i); const xl = Math.round(ij.j);
+        if (!(il >= 0 && il < geom.nIl && xl >= 0 && xl < geom.nXl)) { rec.error = 'outside the survey'; out.push(rec); continue; }
+        const centre = await getTrace(il, xl);
+        const around = [];
+        for (const [di, dj] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = il + di; const c = xl + dj; if (a >= 0 && c >= 0 && a < geom.nIl && c < geom.nXl) around.push(await getTrace(a, c)); }
+        const wav = extractStatisticalWavelet(around, dtMs);
+        const syn = buildSynthetic({ dtCurve: Float32Array.from(dt, (v) => (Number.isFinite(v) ? v : NaN)), rhobCurve: rho ? Float32Array.from(rho, (v) => (Number.isFinite(v) ? v : NaN)) : null, mdArray: md, mdToTvdss: (m) => m - kb, tvdssToTwt: (z) => tc.toTwtMs(z), dtMs, ns: geom.ns, wavelet: wav });
+        // the synthetic as the Synthetics panel passes it (result.synthetic, unmasked; NaN would poison the phase rotation)
+        const synN = Float32Array.from(syn.synthetic, (v) => (Number.isFinite(v) ? v : 0));
+        // the panel's "SEG normal polarity" box: both settings tried, the better kept (as an interpreter toggles it)
+        const tries = [['normal', synN], ['reverse', synN.map((v) => -v)]].map(([pol, sy]) => ({ pol, sy, sg: suggestTieAnchors(sy, centre, dtMs) }));
+        rec.tries = tries.map((t) => ({ polarity: t.pol, ok: t.sg.ok, anchors: t.sg.anchors?.length || 0, phiDeg: t.sg.phiDeg, corrBefore: t.sg.corrBefore, corrAfter: t.sg.corrAfter, bulkShiftMs: t.sg.bulkShiftMs }));
+        const best = tries.filter((t) => t.sg.ok).sort((a, b) => b.sg.corrAfter - a.sg.corrAfter)[0] || tries[0];
+        const synthetic = best.sy; const sg = best.sg; rec.polarity = best.pol;
+        Object.assign(rec, { il: il + 0, xl: xl + 0, ok: sg.ok, anchors: sg.anchors?.length || 0, phiDeg: sg.phiDeg, corrBefore: sg.corrBefore, corrAfter: sg.corrAfter, reason: sg.reason || null });
+        if (sg.ok && commit) {
+          // the run's TWT -> TVDSS through its own T(z): invert the checkshot table over the logged span
+          const live = []; for (let i = 0; i < synthetic.length; i++) if (syn.validity[i]) live.push(i * dtMs);
+          const toTvdss = (t) => { for (let k = 1; k < rows.length; k++) if (rows[k].twt_ms >= t) { const a = rows[k - 1]; const c = rows[k]; return a.tvdss_m + ((t - a.twt_ms) * (c.tvdss_m - a.tvdss_m)) / (c.twt_ms - a.twt_ms); } return null; };
+          toTvdss.range = live.length ? [live[0], live[live.length - 1]] : null;
+          const warp = makeTieWarp(sg.anchors);
+          const csRows = warpToCheckshots(denseTieWarp(warp, toTvdss.range), toTvdss).map((r) => ({ tvdss_m: r.tvdssM, twt_ms: r.twtMs }));
+          await saveDerivedCheckshots(w.id, { rows: csRows, provenance: { source: 'well_tie_warp', anchors: sg.anchors.length, phi_deg: Math.round(sg.phiDeg * 10) / 10, created_at: new Date().toISOString(), qc: { corr_before: sg.corrBefore, corr_after: sg.corrAfter, benchmark: 'suggested anchors' }, volume_id: volume.id } });
+          rec.committed = csRows.length;
+        }
+      } catch (e) { rec.error = e.message; }
+      out.push(rec);
+    }
+    return out;
   },
   async clearTies(names = null) {
     const out = [];

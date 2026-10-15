@@ -1,0 +1,11 @@
+[
+ {"key":"an2_signIn","op":"signIn"},
+ {"key":"an2_commit","op":"suggestAnchors","volume":"BENCH F3 stack (dGB, wells area)","opts":{"commit":true,"names":["F3 F03-04","F3 F02-01"]}},
+ {"key":"an2_qcWhole","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"effective":true,"maxShiftMs":20}},
+ {"key":"an2_qc1200","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"effective":true,"maxShiftMs":20,"mdRange":[1200,2000]}},
+ {"key":"an2_mbWhole","op":"inversion","volume":"BENCH F3 stack (dGB, wells area)","opts":{"method":"model_based","wavelet":"tie"},"stopOnError":false},
+ {"key":"an2_mbWin","op":"inversion","volume":"BENCH F3 stack (dGB, wells area)","opts":{"method":"model_based","wavelet":"tie","windowMs":[1100,1848]},"stopOnError":false},
+ {"key":"an2_mbRicker","op":"inversion","volume":"BENCH F3 stack (dGB, wells area)","opts":{"method":"model_based","rickerHz":35},"stopOnError":false},
+ {"key":"an2_col","op":"inversion","volume":"BENCH F3 stack (dGB, wells area)","opts":{"method":"coloured","wavelet":"tie"},"stopOnError":false},
+ {"key":"an2_colWin","op":"inversion","volume":"BENCH F3 stack (dGB, wells area)","opts":{"method":"coloured","wavelet":"tie","windowMs":[1100,1848]},"stopOnError":false}
+]

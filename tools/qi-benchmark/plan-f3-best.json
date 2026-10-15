@@ -1,0 +1,9 @@
+[
+ {"key":"best_signIn","op":"signIn"},
+ {"key":"best_clear","op":"clearTies"},
+ {"key":"best_c1","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"commitAny":true,"names":["F3 F03-02"],"mdRange":[1200,2000]}},
+ {"key":"best_c2","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"commitAny":true,"names":["F3 F03-04"],"mdRange":[1200,2000]}},
+ {"key":"best_c3","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"commitAny":true,"names":["F3 F02-01"],"mdRange":[1200,2000]}},
+ {"key":"best_c4","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"commitAny":true,"names":["F3 F06-01"]}},
+ {"key":"best_qc","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"effective":true,"maxShiftMs":20}}
+]
