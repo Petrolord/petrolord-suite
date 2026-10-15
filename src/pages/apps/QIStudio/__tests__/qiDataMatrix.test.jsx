@@ -43,7 +43,10 @@ test('the tab follows the recorded tabs, which keep their names and order (later
   render(<MemoryRouter><QIStudio backend={makeInMemoryBackend()} sharingStore={null} /></MemoryRouter>);
   await screen.findByTestId('qi-well-qi-w1', {}, { timeout: 30000 });
   const tabs = within(screen.getByRole('tablist')).getAllByRole('tab').map((t) => t.getAttribute('data-testid'));
-  expect(tabs.slice(0, 15)).toEqual(['setup', 'inventory', 'usability', 'qc', 'ties', 'prestack', 'avo', 'inversion', 'simultaneous', 'properties', 'prospects', 'issues', 'feasibility', 'report', 'datainventory'].map((k) => `qi-tab-${k}`));
+  const recorded = ['setup', 'inventory', 'usability', 'qc', 'ties', 'prestack', 'avo', 'inversion', 'simultaneous', 'properties', 'prospects', 'issues', 'feasibility', 'report', 'datainventory'].map((k) => `qi-tab-${k}`);
+  // the recorded tabs keep their names and order; later tabs (the gather
+  // viewer, QI upgrade 2026-10-15) only ever join after them
+  expect(tabs.slice(0, recorded.length)).toEqual(recorded);
   expect(screen.getByTestId('qi-tab-setup')).toHaveAttribute('aria-selected', 'true');
 });
 

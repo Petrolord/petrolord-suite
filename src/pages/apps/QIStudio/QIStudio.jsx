@@ -34,6 +34,7 @@ import AvoPanel from './components/AvoPanel';
 import SimultaneousPanel from './components/SimultaneousPanel';
 import ProjectInventoryTab from './components/ProjectInventoryTab';
 import MapsPanel from './components/MapsPanel';
+import GathersPanel from './components/GathersPanel';
 
 const TABS = [
   { value: 'setup', label: 'Setup' },
@@ -55,6 +56,9 @@ const TABS = [
   { value: 'datainventory', label: 'Data matrix' },
   // QI upgrade P1.5: maps from volumes, appended after the recorded tabs
   { value: 'maps', label: 'Maps' },
+  // gather viewer (QI upgrade P1.7, 2026-10-15): appended after the Data
+  // matrix for the same reason
+  { value: 'gathers', label: 'Gathers' },
 ];
 const SHARING_STORE = supabaseSharingStore();
 const REGISTRY = makeRegistryBackend();
@@ -156,11 +160,14 @@ function QIStudioContent({ organizationName }) {
       />
       <div className="p-4 md:p-6 space-y-4">
         <ProjectCard />
-        <div className="flex gap-1 border-b border-pl-border" role="tablist">
+        {/* The recorded tabs (Setup to Data matrix) fill one row at 1366 px with
+            4 px to spare; tabs added later (Gathers, 2026-10-15) wrap onto a
+            second row instead of squeezing the recorded labels onto two lines */}
+        <div className="flex flex-wrap gap-1 border-b border-pl-border" role="tablist">
           {TABS.map((t) => (
             <button key={t.value} type="button" role="tab" aria-selected={tab === t.value} data-testid={`qi-tab-${t.value}`}
               onClick={() => setTab(t.value)}
-              className={`px-3 py-1.5 text-sm -mb-px border-b-2 ${tab === t.value ? 'border-pl-primary text-pl-text font-medium' : 'border-transparent text-pl-muted'}`}>
+              className={`px-3 py-1.5 text-sm -mb-px border-b-2 whitespace-nowrap ${tab === t.value ? 'border-pl-primary text-pl-text font-medium' : 'border-transparent text-pl-muted'}`}>
               {t.label}
             </button>
           ))}
@@ -183,6 +190,7 @@ function QIStudioContent({ organizationName }) {
         {tab === 'report' && <ReportTab organizationName={organizationName} />}
         {tab === 'datainventory' && <ProjectInventoryTab />}
         {tab === 'maps' && <MapsPanel />}
+        {tab === 'gathers' && <GathersPanel />}
       </div>
       <Notifications />
     </>

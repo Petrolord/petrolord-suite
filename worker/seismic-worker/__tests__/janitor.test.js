@@ -49,7 +49,7 @@ test('abandons only uploads older than the limit and expires only raw files past
   const admin = adminMock(rows);
   const calls = [];
   const out = await runJanitor({ admin, sign, now: () => NOW, fetchImpl: async (url, init) => { calls.push(`${init.method} ${url}`); return { ok: true, status: 204 }; }, log: { warn() {} } });
-  expect(out).toEqual({ abandoned: 1, expired: 1, exports: 0, errors: 0 });
+  expect(out).toEqual({ abandoned: 1, expired: 1, exports: 0, panels: 0, errors: 0 });
   expect(calls).toEqual([
     'DELETE https://store/seismic-raw/u/a.sgy?m=DELETE&uploadId=U1',
     'DELETE https://store/seismic-raw/u/c.sgy?m=DELETE',
@@ -70,7 +70,7 @@ test('an object already gone (404) still counts as done', async () => {
 test('a store failure is counted and the row kept for the next run (negative control)', async () => {
   const rows = [{ ...base, id: 'y', status: 'uploaded', created_at: ago(90), uploaded_at: ago(90), object_key: 'u/y.sgy' }];
   const out = await runJanitor({ admin: adminMock(rows), sign, now: () => NOW, fetchImpl: async () => ({ ok: false, status: 503 }), log: { warn() {} } });
-  expect(out).toEqual({ abandoned: 0, expired: 0, exports: 0, errors: 1 });
+  expect(out).toEqual({ abandoned: 0, expired: 0, exports: 0, panels: 0, errors: 1 });
   expect(rows[0].status).toBe('uploaded');
 });
 
@@ -106,4 +106,22 @@ test('a gather store is not a raw upload: retention leaves it alone (negative co
   const out = await runJanitor({ admin, sign, now: () => NOW, fetchImpl: async () => ({ ok: true, status: 204 }), log: { warn() {} } });
   expect(out.expired).toBe(0);
   expect(rows[0].status).toBe('uploaded');
+});
+
+test('removes gather viewer panels after their retention in hours, and keeps a younger one and any export', async () => {
+  const { PANEL_RETENTION_HOURS } = require('../src/janitor.js');
+  const hoursAgo = (h) => new Date(NOW - h * 3600e3).toISOString();
+  const rows = [
+    { id: 'old-p', kind: 'gather_panel', status: 'succeeded', finished_at: hoursAgo(PANEL_RETENTION_HOURS + 1), result_refs: { bucket: 'seismic-work', key: 'panels/u/j1/panel.f32', url: 'https://p' } },
+    { id: 'new-p', kind: 'gather_panel', status: 'succeeded', finished_at: hoursAgo(1), result_refs: { bucket: 'seismic-work', key: 'panels/u/j2/panel.f32', url: 'https://q' } },
+    // an export of the same age as the old panel is inside its 3-day retention (negative control)
+    { id: 'ex', kind: 'export_segy', status: 'succeeded', finished_at: hoursAgo(PANEL_RETENTION_HOURS + 1), result_refs: { bucket: 'seismic-work', key: 'exports/u/j3/a.sgy', url: 'https://e' } },
+  ];
+  const calls = [];
+  const out = await runJanitor({ admin: adminMock(rows), sign, now: () => NOW, fetchImpl: async (url, init) => { calls.push(`${init.method} ${url}`); return { ok: true, status: 204 }; }, log: { warn() {} } });
+  expect(out).toMatchObject({ panels: 1, exports: 0, errors: 0 });
+  expect(calls).toEqual(['DELETE https://store/seismic-work/panels/u/j1/panel.f32?m=DELETE']);
+  expect(rows[0].result_refs.removed_at).toBeTruthy();
+  expect(rows[1].result_refs.url).toBe('https://q');
+  expect(rows[2].result_refs.url).toBe('https://e');
 });

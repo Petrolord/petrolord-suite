@@ -105,7 +105,7 @@ re-checked in this round.
 |---|---|---|
 | Radon multiple attenuation, f-x deconvolution, structure-oriented filtering | QI-STATUS C9 | Still wanted once a client delivers gathers with multiples (U2-001) |
 | Vintage and processing-version linking (stack family) | QI-PLAN Q3 | The per-stack angles, matching and wavelets cover a single survey; linking waits for a 4D client (U2-006) |
-| Gather panels at wells and prospects | QI-STATUS C8 | Wanted (U2-004) |
+| Gather panels at wells and prospects | QI-STATUS C8 | Done 2026-10-15: the Gathers tab (U2-004) |
 | Survey-wide spectral shaping per stack | QI-STATUS C9 | Only if a study needs bandwidth matching (U2-005) |
 | Open-dataset benchmark (Volve, F3) | QI-PLAN | Waits on the owner's licence check (U2-002) |
 
@@ -121,7 +121,7 @@ qi_datasets, SEG-Y exports, the RRV prospect record and `.pld`.
 |---|---|---|---|
 | 1 | U2-002 | Benchmark the whole chain on Volve (prestack, wells with shear) and F3; record blind-well errors in QI-STATUS | L |
 | 2 | U2-003 | ~~Owner tile and price for QI Studio~~ Done 2026-10-07: own tile, 1690 a month | S |
-| 3 | U2-004 | Gather viewer at a CDP and at wells, with the mute and the trimmed result beside it | M |
+| 3 | U2-004 | ~~Gather viewer at a CDP and at wells, with the mute and the trimmed result beside it~~ Done 2026-10-15 (QI upgrade P1.7): the Gathers tab | M |
 | 4 | U2-001 | Radon, f-x and structure-oriented filtering on the worker (engines first) | L |
 | 5 | U2-005 | Per-stack shaping filter that keeps relative amplitudes | M |
 | 6 | U2-006 | Vintage and processing-version linking | M |

@@ -114,7 +114,48 @@ export function makeInMemoryBackend() {
       const grid = row.id === 'qi-s2' ? Float32Array.from(elev, (v) => (v >= -2100 ? 1 : 0.1)) : elev;
       return readDepthSurface(row, grid, attribute ? { accept: ['attribute'], xy: 'm' } : { accept: ['elevation', 'depth'], as: 'elevation', xy: 'm' });
     },
+    // the gather viewer reads its panel from the job's link; here the job keeps it
+    async fetchGatherPanel(r) { return GATHER_PANELS.get(r.key); },
     jobs: makeInMemoryJobs({ removedDatasets }),
+  };
+}
+
+// gather viewer panels by key: a small store (8 x 8 CDPs, 12 offset bins of
+// 250 m, 2 ms, 0 to 1.6 s, NMO-corrected) with a flat class III event at 900
+// ms whose amplitude grows with offset and a 3 ms residual at 1400 ms
+const GATHER_PANELS = new Map();
+export function inMemoryGatherPanel(params, jobId) {
+  const nIl = 8; const nXl = 8; const ns = 801; const dt = 2; const nb = 12;
+  const centres = Array.from({ length: nb }, (_, b) => (b + 0.5) * 250);
+  const ricker = (t) => { const a = (Math.PI * 30 * t / 1000) ** 2; return (1 - 2 * a) * Math.exp(-a); };
+  const geom = { il: { min: 1001, max: 1008, step: 1, count: nIl }, xl: { min: 2001, max: 2008, step: 1, count: nXl }, ns, dt_us: dt * 1000, affine: { origin: { x: 0, y: 0 }, il_vec: { x: 0, y: 25 }, xl_vec: { x: 25, y: 0 } } };
+  const ci = params.il ?? 4; const cj = params.xl ?? 4;
+  let cdps = [{ i: ci, j: cj }];
+  if (params.mode === 'inline') cdps = Array.from({ length: nXl }, (_, j) => ({ i: ci, j })).filter((c) => c.j >= (params.from ?? 0) && c.j <= (params.to ?? nXl - 1) && (c.j - (params.from ?? 0)) % (params.step || 1) === 0);
+  if (params.mode === 'crossline') cdps = Array.from({ length: nIl }, (_, i) => ({ i, j: cj })).filter((c) => c.i >= (params.from ?? 0) && c.i <= (params.to ?? nIl - 1) && (c.i - (params.from ?? 0)) % (params.step || 1) === 0);
+  if (params.mode === 'points') cdps = params.points.map((q) => ({ i: Math.round(q.y / 25), j: Math.round(q.x / 25), label: q.label })).filter((c) => c.i >= 0 && c.i < nIl && c.j >= 0 && c.j < nXl);
+  const s0 = params.t_ms ? Math.max(0, Math.floor(params.t_ms[0] / dt)) : 0;
+  const s1 = params.t_ms ? Math.min(ns - 1, Math.ceil(params.t_ms[1] / dt)) : ns - 1;
+  const nw = s1 - s0 + 1; const stores = params.compare_dataset_id ? 2 : 1;
+  const data = new Float32Array(stores * cdps.length * nb * nw);
+  let at = 0;
+  for (let st = 0; st < stores; st++) for (const c of cdps) for (let b = 0; b < nb; b++) {
+    const x = centres[b]; const far = centres[nb - 1];
+    const rmo = st === 1 ? 0 : 3 * (x / far) ** 2;
+    for (let s = 0; s < nw; s++) {
+      const t = (s0 + s) * dt;
+      data[at + s] = (-0.05 - 0.12 * (x / far) ** 2) * ricker(t - 900) + 0.08 * ricker(t - (1400 + rmo)) + 0.002 * Math.sin(0.7 * s + c.i + 3 * c.j);
+    }
+    at += nw;
+  }
+  const key = `panels/mem/${jobId}/panel.f32`;
+  GATHER_PANELS.set(key, data);
+  return {
+    dataset_id: params.dataset_id, name: 'Keta CDP gathers gathers', ...(params.compare_dataset_id ? { compare_dataset_id: params.compare_dataset_id, compare_name: 'Keta CDP gathers trimmed' } : {}),
+    mode: params.mode, geometry: geom, bins: { kind: 'offset', width: 250, centres }, nmo_corrected: true,
+    window: { s0, ns: nw, t0_ms: s0 * dt, dt_ms: dt }, stores,
+    gathers: cdps.map((c) => ({ i: c.i, j: c.j, il: 1001 + c.i, xl: 2001 + c.j, ...(c.label ? { label: c.label } : {}), fold: new Array(nb).fill(c.i === 7 ? 0 : 4), ...(stores === 2 ? { compareFold: new Array(nb).fill(4) } : {}) })),
+    skipped: [], bucket: 'seismic-work', key, bytes: data.byteLength, url: `https://storage.petrolord.com/harness/${key}`,
   };
 }
 
@@ -139,6 +180,10 @@ function makeInMemoryJobs({ removedDatasets = new Set() } = {}) {
       if (kind === 'remove_dataset') {
         removedDatasets.add(params.dataset_id);
         results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { dataset_id: params.dataset_id, removed_objects: 1 } });
+        return id;
+      }
+      if (kind === 'gather_panel') {
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: inMemoryGatherPanel(params, id) });
         return id;
       }
       if (kind === 'match_stacks') {

@@ -21,6 +21,7 @@ export const HELP_SECTIONS = [
   { id: 'usability', icon: Grid3x3, title: 'Usability matrix' },
   { id: 'qc', icon: Activity, title: 'Seismic QC' },
   { id: 'prestack', icon: Rows, title: 'Prestack gathers and angle stacks' },
+  { id: 'gathers', icon: Rows, title: 'Gather viewer' },
   { id: 'avo', icon: TrendingDown, title: 'AVO' },
   { id: 'inversion', icon: Layers, title: 'Impedance inversion' },
   { id: 'simultaneous', icon: Combine, title: 'Simultaneous inversion' },
@@ -357,6 +358,13 @@ function QIStudioHelpGuideContent() {
         <Para>Write the study's objectives and acceptance criteria on Setup, under the three setup cards: what the study must deliver and how a result will be judged, for example the blind-well error a product must meet before it is used. A line per target is optional.</Para>
         <Para>Under the issue register, record each decision taken at a gate of the study: the gate (Data QC, Feasibility, Pilot or one you name), the outcome and the decision, who took it, the date, and the run or check it rests on (any blind-well check, inversion, property check or other run the study holds, or a version you type). Decisions are records for the report. Nothing is locked and no sign-off is enforced; a decision never counts as an issue.</Para>
         <Para>The report prints the objectives after the summary and the decisions after the issue register; the summary says how many decisions were recorded and the latest one.</Para>
+      </GuideSection>
+
+      <GuideSection id="gathers">
+        <SectionHeading icon={Rows}>Gather viewer</SectionHeading>
+        <Para>The Gathers tab shows the gathers of a worker gather store: one CDP (the centre one if you leave the inline and crossline blank), part of an inline or crossline (up to 24 gathers, with a step), or the gathers at the study wells (each well at the middle of its first study target, or at its surface location). Show one CDP first so the store's line numbers are known. A time window shortens the panel. When a store was trimmed on the Prestack tab, pick the trimmed copy under Beside it to see the two side by side.</Para>
+        <Para>The overlays come from the velocity table (the one used for this store's angle stacks when there is one): angle contours at 10, 20, 30 and 40 degrees (Walden's straight ray), the stretch-mute line at the stretch limit you set, and an angle mute line. Residual moveout is measured on the shown gather at the event times (the prestack QC times, or the times you type): green picks and the fitted parabola where the event is coherent across the nearer offsets, grey picks where it is not. Where the prestack QC sampled the CDP, its stored reading is drawn too (orange) and listed beside the live one. Gathers are taken as NMO-corrected, as the store records; a store recorded as not corrected is shown NMO-corrected with the velocity table, which you can switch off.</Para>
+        <Para>The worker writes each panel to its store for six hours with a two-hour link; showing the gathers again makes a new one. Only your own stores can be viewed.</Para>
       </GuideSection>
 
       <GuideSection id="feasibility">
