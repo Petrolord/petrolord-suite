@@ -10,6 +10,8 @@ import { Plus, Trash2 } from 'lucide-react';
 import { depthToDisplay, depthFromDisplay, tempToDisplay, tempFromDisplay, tempSymbol } from '../../services/units';
 import UnitNumberInput from '../UnitNumberInput';
 
+// 2026-10-15: in the narrow card the four temperature columns squeezed the
+// depth and value boxes to one character; they keep a minimum width now.
 function PointTable({ kind, label, unit, points, onChange, defaults, depthUnit, toDisp, fromDisp, bht = false }) {
   const set = (i, patch) => onChange(points.map((p, k) => (k === i ? { ...p, ...patch } : p)));
   const add = () => onChange([...points, { id: Date.now(), ...defaults }]);
@@ -38,9 +40,9 @@ function PointTable({ kind, label, unit, points, onChange, defaults, depthUnit, 
           <tbody>
             {points.map((p, i) => (
               <tr key={p.id ?? i} className="border-t border-pl-border">
-                <td className="py-0.5 pr-1"><UnitNumberInput data-testid={`bf-cal-${kind}-depth-${i}`} name="Depth" unit={depthUnit} value={p.depth} toDisplay={(m) => depthToDisplay(m, depthUnit)} fromDisplay={(v) => depthFromDisplay(v, depthUnit)} onCommit={(depth) => set(i, { depth })} className="h-7 text-xs" /></td>
-                <td className="py-0.5 pr-1"><UnitNumberInput data-testid={`bf-cal-${kind}-value-${i}`} name={unit} unit={unit} value={p.value} toDisplay={toDisp} fromDisplay={fromDisp} digits={3} onCommit={(value) => set(i, { value })} className="h-7 text-xs" /></td>
-                {bht && <td className="py-0.5 pr-1"><Input type="number" step="any" data-testid={`bf-cal-${kind}-shutin-${i}`} value={p.shutInH ?? ''} placeholder="h" onChange={(e) => { const v = parseFloat(e.target.value); set(i, { shutInH: Number.isFinite(v) && v > 0 ? v : undefined }); }} className="h-7 text-xs w-16" /></td>}
+                <td className="py-0.5 pr-1"><UnitNumberInput data-testid={`bf-cal-${kind}-depth-${i}`} name="Depth" unit={depthUnit} value={p.depth} toDisplay={(m) => depthToDisplay(m, depthUnit)} fromDisplay={(v) => depthFromDisplay(v, depthUnit)} onCommit={(depth) => set(i, { depth })} className="h-7 text-xs min-w-[4.75rem] px-1.5" /></td>
+                <td className="py-0.5 pr-1"><UnitNumberInput data-testid={`bf-cal-${kind}-value-${i}`} name={unit} unit={unit} value={p.value} toDisplay={toDisp} fromDisplay={fromDisp} digits={3} onCommit={(value) => set(i, { value })} className="h-7 text-xs min-w-[3.25rem] px-1.5" /></td>
+                {bht && <td className="py-0.5 pr-1"><Input type="number" step="any" data-testid={`bf-cal-${kind}-shutin-${i}`} value={p.shutInH ?? ''} placeholder="h" onChange={(e) => { const v = parseFloat(e.target.value); set(i, { shutInH: Number.isFinite(v) && v > 0 ? v : undefined }); }} className="h-7 text-xs w-12 min-w-[3rem] px-1.5" /></td>}
                 {bht && <td className="py-0.5 pr-1">
                   <select data-testid={`bf-cal-${kind}-kind-${i}`} value={p.kind === 'DST' ? 'DST' : 'BHT'} onChange={(e) => set(i, { kind: e.target.value === 'DST' ? 'DST' : undefined })}
                     className="h-7 text-xs bg-pl-surface border border-pl-border-strong rounded px-1 text-pl-text">

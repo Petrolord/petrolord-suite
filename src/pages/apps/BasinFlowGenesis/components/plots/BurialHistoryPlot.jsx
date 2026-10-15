@@ -19,6 +19,12 @@ const LITHOLOGY_COLORS = {
 const RO_LINES = MATURITY_WINDOWS.map((w) => ({ key: `ro_${w.from}`, value: w.from, label: `${w.from} %Ro`, color: w.fill }));
 const ISOTHERMS_C = [60, 100, 150].map((t, i) => ({ key: `t_${t}`, value: t, label: `${t} °C`, color: ['#0ea5e9', '#f97316', '#dc2626'][i] }));
 
+/** A burial tooltip value (a layer's [top, base] or an isoline depth, display units). */
+export const burialTip = (v, zU) => {
+    const f = (x) => (Number.isFinite(Number(x)) ? Math.round(Number(x)).toLocaleString('en-US') : '');
+    return Array.isArray(v) ? `${f(v[0])} to ${f(v[1])} ${zU}` : `${f(v)} ${zU}`;
+};
+
 const BurialHistoryPlot = ({ results, units = { depth: 'm' } }) => {
     const { data, meta } = results;
     const zU = units.depth;
@@ -81,7 +87,9 @@ const BurialHistoryPlot = ({ results, units = { depth: 'm' } }) => {
                             tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                             label={{ value: depthLabel(zU), angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
                         />
-                        <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} />
+                        {/* 2026-10-15: the tooltip printed raw depths to thirteen decimals with no unit */}
+                        <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }}
+                            labelFormatter={(age) => `${age} Ma`} formatter={(v, name) => [burialTip(v, zU), name]} />
                         <Legend verticalAlign="top" wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
                         {eroded.map((p) => (
                             <Area
