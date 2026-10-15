@@ -9,9 +9,11 @@ import { Link } from 'react-router-dom';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import * as qiService from '@/lib/qiService';
 import { useQIStudio } from '../QIStudioContext';
-import { prepareWell } from '../services/inversionWells';
+import { prepareWell, NTG_CUTOFF_DEFAULTS } from '../services/inversionWells';
 import { INVERSION_METHODS } from '../services/inversionRun';
-import { PROPERTY_KINDS, PROPERTY_DEFAULTS, MAX_FACIES, propertyIssues, faciesClass, propertyProtocolText } from '../services/propertyRun';
+import {
+  PROPERTY_KINDS, PROPERTY_DEFAULTS, MAX_FACIES, propertyIssues, faciesClass, propertyProtocolText, propertyGate, PROPERTY_GATE_DEFAULTS, propertyName, propertyShort, propertyClass,
+} from '../services/propertyRun';
 import ExportControls from './ExportControls';
 import { packLog } from '../services/logPacking';
 
@@ -85,7 +87,7 @@ function Summary({ result }) {
       </table>
     );
   }
-  return <p className="text-xs text-pl-text font-mono" data-testid="qi-prop-transform">{`porosity = ${f(s.a, 4)} ${s.b < 0 ? '-' : '+'} ${Math.abs(s.b).toExponential(3)} x AI   (r squared ${f(s.r2)}, ${s.n} samples, residual SD ${f(s.s, 4)})${Number.isFinite(s.sLoo) && s.sExtra > 0 ? `; the Q10 to Q90 band adds ${f(s.sExtra, 4)} for the inversion's error, from the wells left out (their RMS error ${f(s.sLoo, 4)})` : ''}`}</p>;
+  return <p className="text-xs text-pl-text font-mono" data-testid="qi-prop-transform">{`${propertyName(result.settings?.kind)} = ${f(s.a, 4)} ${s.b < 0 ? '-' : '+'} ${Math.abs(s.b).toExponential(3)} x AI   (r squared ${f(s.r2)}, ${s.n} samples, residual SD ${f(s.s, 4)})${Number.isFinite(s.sLoo) && s.sExtra > 0 ? `; the Q10 to Q90 band adds ${f(s.sExtra, 4)} for the inversion's error, from the wells left out (their RMS error ${f(s.sLoo, 4)})` : ''}`}</p>;
 }
 
 export default function PropertiesPanel() {
@@ -100,6 +102,16 @@ export default function PropertiesPanel() {
   const [priors, setPriors] = useState(PROPERTY_DEFAULTS.priors);
   const [win, setWin] = useState({ t0: '', t1: '' });
   const [attrs, setAttrs] = useState('ai');
+  // QI upgrade P1.3: NTG cutoffs (when a well has no NTG curve) and the gate of NTG and Sw
+  const [ntgCut, setNtgCut] = useState({ vsh: String(NTG_CUTOFF_DEFAULTS.vsh), phi: String(NTG_CUTOFF_DEFAULTS.phi) });
+  const [gateUi, setGateUi] = useState({ minCorr: String(PROPERTY_GATE_DEFAULTS.min_corr), covLo: String(100 * PROPERTY_GATE_DEFAULTS.coverage[0]), covHi: String(100 * PROPERTY_GATE_DEFAULTS.coverage[1]) });
+  const gated = !!PROPERTY_KINDS[kind]?.gated;
+  const gateBlock = () => ({ min_corr: Number(gateUi.minCorr), coverage: [Number(gateUi.covLo) / 100, Number(gateUi.covHi) / 100] });
+  const gateUiProblem = gated && (['minCorr', 'covLo', 'covHi'].some((k) => String(gateUi[k]).trim() === '' || !Number.isFinite(Number(gateUi[k])))
+    || !(Number(gateUi.minCorr) >= -1 && Number(gateUi.minCorr) <= 1) || !(Number(gateUi.covLo) >= 0 && Number(gateUi.covLo) < Number(gateUi.covHi) && Number(gateUi.covHi) <= 100))
+    ? 'Give the gate: a correlation of -1 to 1 and a coverage band within 0 to 100 percent.' : null;
+  const cutProblem = kind === 'ntg' && (['vsh', 'phi'].some((k) => String(ntgCut[k]).trim() === '' || !(Number(ntgCut[k]) >= 0 && Number(ntgCut[k]) <= 1)))
+    ? 'Give the net cutoffs as fractions, 0 to 1.' : null;
   const two = kind === 'facies' && attrs === 'ai_vpvs' && !!ai?.vpvsId;
   const [prep, setPrep] = useState(null);
   const [job, setJob] = useState({});
@@ -112,7 +124,7 @@ export default function PropertiesPanel() {
     try {
       const frame = await backend.loadVolumeFrame(ai.seismic);
       const wells = [];
-      for (const r of ready) wells.push(await prepareWell(r, frame, backend.downloadCurve, { extras: two ? [kind, 'elastic'] : [kind] }));
+      for (const r of ready) wells.push(await prepareWell(r, frame, backend.downloadCurve, { extras: two ? [kind, 'elastic'] : [kind], ...(kind === 'ntg' ? { ntgCutoffs: { vsh: Number(ntgCut.vsh), phi: Number(ntgCut.phi) } } : {}) }));
       setPrep({ wells });
     } catch (e) {
       setPrep({ error: e.message });
@@ -130,6 +142,7 @@ export default function PropertiesPanel() {
     ...(two ? { attributes: 'ai_vpvs' } : {}),
     ...(win.t0 !== '' && win.t1 !== '' ? { window_ms: [Number(win.t0), Number(win.t1)] } : {}),
     ...(kind === 'facies' ? { names, density, priors } : {}),
+    ...(gated ? { gate: gateBlock() } : {}),
   });
   const watch = (mode, jobId, onDone) => {
     const stop = client.watchJob(jobId, (row, err) => {
@@ -150,7 +163,8 @@ export default function PropertiesPanel() {
   };
   const runVolume = async () => {
     setJob((j) => ({ ...j, volume: { job: { status: 'queued', progress: 0 } } }));
-    const keys = kind === 'facies' ? [...Object.keys(names).map((c) => [`p:${c}`, `probability of ${names[c]}`]), ['best', 'most likely facies']] : [['q10', 'porosity Q10'], ['q50', 'porosity Q50'], ['q90', 'porosity Q90']];
+    const q = (k) => `${kind === 'porosity' ? 'porosity' : propertyShort(kind)} ${k}`;
+    const keys = kind === 'facies' ? [...Object.keys(names).map((c) => [`p:${c}`, `probability of ${names[c]}`]), ['best', 'most likely facies']] : [['q10', q('Q10')], ['q50', q('Q50')], ['q90', q('Q90')]];
     const rows = [];
     try {
       for (const [key, label] of keys) rows.push({ key, row: await backend.registerPropertyVolume({ aiVolumeId: ai.id, name: `${ai.name}, ${label}`, summary: { kind, product: key } }) });
@@ -181,7 +195,10 @@ export default function PropertiesPanel() {
     addNotification(`${issues.length} property issue${issues.length === 1 ? '' : 's'} added to the register.`, 'success');
   };
   const tooManyFacies = kind === 'facies' && Object.keys(names).length > MAX_FACIES;
-  const canRun = canWrite && usable.length >= 2 && !tooManyFacies && (kind !== 'facies' || Object.keys(names).length >= 2);
+  const canRun = canWrite && usable.length >= 2 && !tooManyFacies && (kind !== 'facies' || Object.keys(names).length >= 2) && !gateUiProblem && !cutProblem;
+  // QI upgrade P1.3: NTG and Sw volumes only after a check that passes the gate as it is set now
+  const gateNow = gated && cal?.result ? propertyGate(cal.result, gateBlock()) : null;
+  const volumeHeld = gated && !gateNow?.pass;
 
   if (!choices.length) return <section className={card}><p className={muted}>Invert a volume on the Inversion tab first: porosity and facies are predicted from a finished impedance volume (not a relative one).</p></section>;
   return (
@@ -214,6 +231,23 @@ export default function PropertiesPanel() {
             </label>
           </>
         )}
+        {kind === 'ntg' && (
+          <span className="flex items-center gap-1" data-testid="qi-prop-ntg-cutoffs">Net where no NTG curve: Vsh at most
+            <input className={`${input} w-16`} type="number" step="0.05" min="0" max="1" value={ntgCut.vsh} onChange={(e) => setNtgCut((c) => ({ ...c, vsh: e.target.value }))} aria-label="Shale volume cutoff" data-testid="qi-prop-ntg-vsh" />
+            and porosity at least
+            <input className={`${input} w-16`} type="number" step="0.01" min="0" max="1" value={ntgCut.phi} onChange={(e) => setNtgCut((c) => ({ ...c, phi: e.target.value }))} aria-label="Porosity cutoff" data-testid="qi-prop-ntg-phi" />
+          </span>
+        )}
+        {gated && (
+          <span className="flex items-center gap-1" data-testid="qi-prop-gate-settings">Written only if every well left out correlates at
+            <input className={`${input} w-16`} type="number" step="0.05" min="-1" max="1" value={gateUi.minCorr} onChange={(e) => setGateUi((g) => ({ ...g, minCorr: e.target.value }))} aria-label="Gate correlation" data-testid="qi-prop-gate-corr" />
+            or more, with
+            <input className={`${input} w-14`} type="number" min="0" max="100" value={gateUi.covLo} onChange={(e) => setGateUi((g) => ({ ...g, covLo: e.target.value }))} aria-label="Gate coverage from (percent)" data-testid="qi-prop-gate-lo" />
+            to
+            <input className={`${input} w-14`} type="number" min="0" max="100" value={gateUi.covHi} onChange={(e) => setGateUi((g) => ({ ...g, covHi: e.target.value }))} aria-label="Gate coverage to (percent)" data-testid="qi-prop-gate-hi" />
+            percent inside Q10 to Q90
+          </span>
+        )}
         <label className="flex items-center gap-1">Window (ms)
           <input className={`${input} w-20`} type="number" placeholder="start" value={win.t0} onChange={(e) => setWin((w) => ({ ...w, t0: e.target.value }))} aria-label="Window start (ms)" />
           <input className={`${input} w-20`} type="number" placeholder="end" value={win.t1} onChange={(e) => setWin((w) => ({ ...w, t1: e.target.value }))} aria-label="Window end (ms)" />
@@ -223,7 +257,7 @@ export default function PropertiesPanel() {
       {prep?.error && <p className="text-xs text-pl-danger-text">{prep.error}</p>}
       {prep?.wells && (
         <table className="text-xs" data-testid="qi-prop-wells">
-          <thead><tr><th className={th}>Well</th><th className={th}>Impedance from</th><th className={th}>{kind === 'facies' ? 'Facies curve' : 'Porosity curve'}</th></tr></thead>
+          <thead><tr><th className={th}>Well</th><th className={th}>Impedance from</th><th className={th}>{kind === 'facies' ? 'Facies curve' : `${kind === 'porosity' ? 'Porosity' : propertyShort(kind)} curve`}</th></tr></thead>
           <tbody>
             {prep.wells.map((w) => (
               <tr key={w.wellId}>
@@ -236,6 +270,8 @@ export default function PropertiesPanel() {
           </tbody>
         </table>
       )}
+      {(gateUiProblem || cutProblem) && <p className="text-xs text-pl-warning-text">{gateUiProblem || cutProblem}</p>}
+      {gated && !cal && prep?.wells && <p className={muted} data-testid="qi-prop-gate">{`Calibrate and check first: the ${propertyName(kind)} volume is written only when its blind check passes the gate.`}</p>}
       {kind === 'facies' && prep?.wells && <p className={muted}>{Object.keys(names).length ? `Facies: ${Object.entries(names).map(([c, n]) => `${c} ${n}`).join(', ')}. Names that speak of a fluid are labelled fluid hypotheses.` : 'No facies names found on the wells.'}</p>}
       {tooManyFacies && <p className="text-xs text-pl-warning-text">{`At most ${MAX_FACIES} facies; merge some in Rock Physics Studio first.`}</p>}
       {prep?.wells && (
@@ -243,7 +279,7 @@ export default function PropertiesPanel() {
           <button type="button" className={btn} onClick={calibrate} disabled={!canRun || busy('calibrate')} data-testid="qi-prop-calibrate">Calibrate and check at the wells</button>
           {usable.length < 2 && <span className="text-pl-muted">Needs two wells with impedance and the property.</span>}
           {status('calibrate')}
-          <button type="button" className={btn} onClick={runVolume} disabled={!canRun || busy('volume')} data-testid="qi-prop-run">Predict the volume</button>
+          <button type="button" className={btn} onClick={runVolume} disabled={!canRun || busy('volume') || volumeHeld} data-testid="qi-prop-run">Predict the volume</button>
           {status('volume')}
         </div>
       )}
@@ -253,6 +289,7 @@ export default function PropertiesPanel() {
           <Summary result={cal.result} />
           <CheckTable result={cal.result} />
           <p className={muted} data-testid="qi-prop-protocol">{propertyProtocolText(cal.result)}</p>
+          {gateNow && <p className={gateNow.pass ? 'text-xs text-pl-success-text' : 'text-xs text-pl-warning-text'} data-testid="qi-prop-gate">{`${gateNow.text}${gated ? ` Labelled ${propertyClass(kind) === 'fluid_hypothesis' ? 'a fluid hypothesis' : 'a calibrated prediction'}; values held within 0 and 1.` : ''}`}</p>}
           {issues.length > 0 && canWrite && <button type="button" className={btn} onClick={addIssues} data-testid="qi-prop-issues">{`Add ${issues.length} property issue${issues.length === 1 ? '' : 's'} to the register`}</button>}
         </div>
       )}

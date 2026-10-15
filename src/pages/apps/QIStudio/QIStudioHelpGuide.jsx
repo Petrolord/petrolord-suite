@@ -293,6 +293,20 @@ function QIStudioHelpGuideContent() {
           used the well. An impedance volume made before 2026-10-15 holds no held-back estimate; the check then names the
           wells where it is not blind and offers an issue to rerun the inversion.
         </Para>
+        <SubHeading>Net-to-gross and water saturation</SubHeading>
+        <Para>
+          Predict also offers net-to-gross and water saturation from impedance, beside porosity, each as Q10, Q50 and Q90
+          held within 0 and 1. Net-to-gross reads an NTG or net-flag curve (NTG, NET, NET_FLAG, NETSAND, PAYFLAG and similar);
+          a well without one gets a net flag from its shale volume and porosity with the cutoffs you set (Vsh at most 0.4 and
+          porosity at least 0.08 by default), named in the wells table. Water saturation reads the SW curve. Water saturation
+          from the seismic is labelled a fluid hypothesis.
+        </Para>
+        <Para>
+          Each is written only when its blind check passes the gate: the check must be fully blind, at two wells or more, and
+          every well left out must correlate at the set value or more (0.5) with the set share of the well inside Q10 to Q90
+          (60 to 95 percent). Until it passes, Predict the volume stays off and the line under the check says why; change
+          the gate and the line follows. Porosity is not gated, as before.
+        </Para>
       </GuideSection>
 
       <GuideSection id="prospects">

@@ -29,7 +29,56 @@ import { unpackLog } from './logPacking';
 export const PROPERTY_KINDS = {
   porosity: { label: 'Porosity from impedance' },
   facies: { label: 'Facies probability (Bayesian)' },
+  // QI upgrade P1.3: beside porosity, each written only when its blind check passes the gate
+  ntg: { label: 'Net-to-gross from impedance', gated: true, name: 'net-to-gross', short: 'NTG', fraction: true },
+  sw: { label: 'Water saturation from impedance', gated: true, name: 'water saturation', short: 'Sw', fraction: true },
 };
+
+/** The property's name in a sentence, and its short label. */
+export const propertyName = (kind) => PROPERTY_KINDS[kind]?.name || (kind === 'facies' ? 'facies' : 'porosity');
+export const propertyShort = (kind) => PROPERTY_KINDS[kind]?.short || (kind === 'facies' ? 'Facies' : 'Porosity');
+
+/** Product labels: water saturation from the seismic is a fluid hypothesis (SOW section 10); NTG and porosity are calibrated predictions. */
+export const propertyClass = (kind) => (kind === 'sw' ? 'fluid_hypothesis' : 'calibrated_prediction');
+
+/**
+ * The blind-check gate of NTG and Sw (QI upgrade P1.3, 2026-10-15): the
+ * volume is written only when the check is fully blind, at least two wells
+ * were checked, and at every well the left-out correlation reaches min_corr
+ * and the share of the well inside Q10 to Q90 lies within the coverage band.
+ * Defaults: correlation 0.5, coverage 60 to 95 percent (the porosity issue
+ * thresholds).
+ */
+export const PROPERTY_GATE_DEFAULTS = Object.freeze({ min_corr: 0.5, coverage: [0.6, 0.95] });
+
+/** @returns {{pass: boolean, reasons: string[], thresholds}} */
+export function propertyGate(result, gate = {}) {
+  const t = { ...PROPERTY_GATE_DEFAULTS, ...Object.fromEntries(Object.entries(gate || {}).filter(([, v]) => v != null)) };
+  const reasons = [];
+  const rows = result?.rows || [];
+  const checked = rows.filter((r) => !r.error);
+  const name = propertyName(result?.settings?.kind);
+  if (!result?.blind_protocol?.fully_blind) reasons.push('the check is not fully blind (rerun the inversion so it records each well held back)');
+  if (checked.length < 2) reasons.push(`it needs a check at two wells or more (${checked.length} checked)`);
+  for (const r of rows) {
+    if (r.error) { reasons.push(`${r.name} could not be checked: ${r.error}`); continue; }
+    if (!(Number.isFinite(r.corr) && r.corr >= t.min_corr)) reasons.push(`${r.name}: left-out correlation ${Number.isFinite(r.corr) ? r.corr.toFixed(2) : 'not defined'}, under ${t.min_corr}`);
+    if (!(Number.isFinite(r.coverage) && r.coverage >= t.coverage[0] && r.coverage <= t.coverage[1])) reasons.push(`${r.name}: ${Number.isFinite(r.coverage) ? (100 * r.coverage).toFixed(0) : 'no'} percent inside Q10 to Q90, outside ${(100 * t.coverage[0]).toFixed(0)} to ${(100 * t.coverage[1]).toFixed(0)}`);
+  }
+  return { pass: !reasons.length, reasons, thresholds: t, text: reasons.length ? `The ${name} volume is withheld: ${reasons.join('; ')}.` : `The ${name} check passes: every well left out correlates at ${t.min_corr} or more and holds ${(100 * t.coverage[0]).toFixed(0)} to ${(100 * t.coverage[1]).toFixed(0)} percent inside Q10 to Q90.` };
+}
+
+/** Why a gate's thresholds cannot be used, or null. */
+export function gateProblem(g) {
+  if (g == null) return null;
+  if (typeof g !== 'object') return 'The gate must be an object.';
+  if (g.min_corr != null && !(g.min_corr >= -1 && g.min_corr <= 1)) return 'The gate correlation must be -1 to 1.';
+  if (g.coverage != null && !(Array.isArray(g.coverage) && g.coverage.length === 2 && g.coverage[0] >= 0 && g.coverage[1] <= 1 && g.coverage[0] < g.coverage[1])) return 'The gate coverage must be a band within 0 to 1.';
+  return null;
+}
+
+/** Fractions (NTG, Sw) are held within 0 and 1 in the volumes. */
+export const clampFraction = (v) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : v);
 export const MAX_FACIES = 5;
 const fin = Number.isFinite;
 // whole words only ("soil" is no fluid); underscores and digits separate words here
@@ -55,6 +104,7 @@ export function validatePropertyParams(p) {
     if (pr.kind !== 'facies') return 'Classify in AI and Vp/Vs for facies; porosity uses AI.';
     for (const w of wells) if (!Array.isArray(w.vpvs) || w.vpvs.length !== w.ln_ai.length) return `Well ${w.name} needs Vp/Vs on the same time axis.`;
   }
+  if (PROPERTY_KINDS[pr.kind].gated) { const g = gateProblem(pr.gate); if (g) return g; }
   if (pr.kind === 'facies') {
     if (!pr.names || typeof pr.names !== 'object') return 'Name the facies codes.';
     if (Object.keys(pr.names).length > MAX_FACIES) return `At most ${MAX_FACIES} facies.`;
@@ -81,8 +131,8 @@ export function propertyIssues(result, volumeName = 'the impedance volume') {
     if (kind === 'facies') {
       if (Number.isFinite(r.accuracy) && r.accuracy < 0.6) add(`${r.name}:acc`, 'high', `${r.name}: facies predicted poorly when left out`, `Accuracy ${(100 * r.accuracy).toFixed(0)} percent from ${volumeName}.`, 'Check that impedance separates these facies (Rock Physics Studio feasibility), merge facies it cannot separate, or add an attribute.');
     } else {
-      if (Number.isFinite(r.corr) && r.corr < 0.5) add(`${r.name}:corr`, 'high', `${r.name}: porosity follows the well poorly when left out`, `Correlation ${r.corr.toFixed(2)} from ${volumeName}.`, 'Check the inversion at this well (blind-well table) and the transform window.');
-      if (Number.isFinite(r.bias) && Number.isFinite(r.rms) && r.rms > 0 && Math.abs(r.bias) > 0.7 * r.rms) add(`${r.name}:bias`, 'medium', `${r.name}: porosity is ${r.bias > 0 ? 'over' : 'under'}-predicted when left out`, `Mean error ${r.bias.toFixed(3)} against an RMS error of ${r.rms.toFixed(3)}: most of the error is a shift.`, 'Check the inversion\'s low-frequency model and the wavelet scale at this well.');
+      if (Number.isFinite(r.corr) && r.corr < 0.5) add(`${r.name}:corr`, 'high', `${r.name}: ${propertyName(kind)} follows the well poorly when left out`, `Correlation ${r.corr.toFixed(2)} from ${volumeName}.`, 'Check the inversion at this well (blind-well table) and the transform window.');
+      if (Number.isFinite(r.bias) && Number.isFinite(r.rms) && r.rms > 0 && Math.abs(r.bias) > 0.7 * r.rms) add(`${r.name}:bias`, 'medium', `${r.name}: ${propertyName(kind)} is ${r.bias > 0 ? 'over' : 'under'}-predicted when left out`, `Mean error ${r.bias.toFixed(3)} against an RMS error of ${r.rms.toFixed(3)}: most of the error is a shift.`, 'Check the inversion\'s low-frequency model and the wavelet scale at this well.');
       if (Number.isFinite(r.coverage) && (r.coverage < 0.6 || r.coverage > 0.95)) add(`${r.name}:cov`, 'medium', `${r.name}: the 80 percent interval covers ${(100 * r.coverage).toFixed(0)} percent of the well`, r.coverage < 0.6 ? 'The interval is too narrow for the error of the inversion at this well.' : 'The interval is wider than the error at this well needs.', 'Read Q10 and Q90 with care here; recalibrate with more wells or a narrower window.');
     }
   }
