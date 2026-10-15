@@ -3,6 +3,7 @@
 // (supabase/migrations/20261005120000_qi_jobs.sql); the worker on
 // seismic-worker.petrolord.com does everything else (worker/seismic-worker/).
 import { supabase } from '@/lib/customSupabaseClient';
+import { scopeToProject, isProjectColumnError, whenProjectScopeReady } from '@/lib/projects/projectScope';
 
 export const ACTIVE_STATUSES = ['queued', 'running'];
 export const isActive = (job) => ACTIVE_STATUSES.includes(job?.status);
@@ -30,9 +31,21 @@ export async function cancelJob(jobId) {
   return data;
 }
 
-export async function listJobs({ limit = 50 } = {}) {
-  const { data, error } = await supabase.from('qi_jobs').select('*')
-    .order('queued_at', { ascending: false }).limit(limit);
+/**
+ * Suite Projects (QI upgrade, migration 20261015160000): job and file lists
+ * follow the current project. Before that migration is applied the column is
+ * missing; the list is then read unscoped, as before.
+ */
+async function scopedList(build) {
+  await whenProjectScopeReady();
+  const first = await scopeToProject(build());
+  if (!first?.error || !isProjectColumnError(first.error)) return first;
+  return build();
+}
+
+export async function listJobs({ limit = 50, allProjects = false } = {}) {
+  const build = () => supabase.from('qi_jobs').select('*').order('queued_at', { ascending: false }).limit(limit);
+  const { data, error } = allProjects ? await build() : await scopedList(build);
   if (error) throw error;
   return data || [];
 }
@@ -43,9 +56,9 @@ export async function getJob(jobId) {
   return data;
 }
 
-export async function listDatasets({ limit = 100 } = {}) {
-  const { data, error } = await supabase.from('qi_datasets').select('*')
-    .neq('status', 'deleted').order('created_at', { ascending: false }).limit(limit);
+export async function listDatasets({ limit = 100, allProjects = false } = {}) {
+  const build = () => supabase.from('qi_datasets').select('*').neq('status', 'deleted').order('created_at', { ascending: false }).limit(limit);
+  const { data, error } = allProjects ? await build() : await scopedList(build);
   if (error) throw error;
   return data || [];
 }

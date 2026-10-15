@@ -10,6 +10,7 @@
 //
 // params: { url, name? }
 import { JobFailure } from '../runJob.js';
+import { projectFrom } from '../project.js';
 import { guardedGet, urlProblem } from '../netGuard.js';
 import { s3RangeReader } from '../s3.js';
 import {
@@ -134,7 +135,7 @@ export async function ingestUrl(ctx, deps) {
 
   const name = typeof p.name === 'string' && p.name.trim() ? p.name.trim().slice(0, 200) : fileName.slice(0, 200);
   const { error } = await admin.from('qi_datasets').insert({
-    id, user_id: uid, name, kind: 'segy_upload', status: 'uploaded', original_filename: fileName.slice(0, 500),
+    id, user_id: uid, ...projectFrom(ctx.job), name, kind: 'segy_upload', status: 'uploaded', original_filename: fileName.slice(0, 500),
     bucket: rawBucket, object_key: key, bytes: total, part_size: PART_SIZE, part_count: Math.max(1, parts.length),
     upload_id: null, uploaded_at: new Date().toISOString(), meta: { fingerprint, source: describeSource(finalUrl) },
   });

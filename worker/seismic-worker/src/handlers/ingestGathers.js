@@ -16,6 +16,7 @@
 // block size or bin width that would fit.
 import { webcrypto } from 'node:crypto';
 import { JobFailure } from '../runJob.js';
+import { projectFrom } from '../project.js';
 import { s3RangeReader } from '../s3.js';
 import { openSegyDoor } from '../../../../src/pages/apps/Seismolord/lib/segyDoor.js';
 import { readFileHeaders, readTextualHeader } from '../../../../packages/engines/engines/seismolord/segyScan.js';
@@ -183,7 +184,7 @@ export async function ingestGathers(ctx, deps) {
     const mBytes = new TextEncoder().encode(JSON.stringify(manifest));
     await put('manifest.json', mBytes);
     const { error: insErr } = await admin.from('qi_datasets').insert({
-      id, user_id: uid, name: g.name, kind: 'gathers_offset', status: 'uploaded', original_filename: ds.original_filename,
+      id, user_id: uid, ...projectFrom(ds, ctx.job), name: g.name, kind: 'gathers_offset', status: 'uploaded', original_filename: ds.original_filename,
       bucket: workBucket, object_key: `${prefix}/manifest.json`, bytes, part_size: blockBytes, part_count: 1,
       uploaded_at: new Date().toISOString(), meta: { source_dataset: ds.id, blocks: blocks.length, bins: nBins, bin_width_m: binW, traces: h.totalTraces, ...(crop ? { crop } : {}) },
     });

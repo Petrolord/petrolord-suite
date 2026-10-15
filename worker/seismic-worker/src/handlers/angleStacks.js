@@ -15,6 +15,7 @@
 //   ranges: [{name, from, to}] (1 to 4, degrees), min_fold? (1), name? }
 import { webcrypto } from 'node:crypto';
 import { JobFailure } from '../runJob.js';
+import { projectFrom } from '../project.js';
 import { multipartWriter, s3RangeReader } from '../s3.js';
 import { waldenAngle, velocityOnGrid } from '../../../../packages/engines/engines/qi/prestack.js';
 import { readGather, gatherBlockKey, foldBlockKey } from '../../../../packages/engines/engines/qi/gatherStore.js';
@@ -175,7 +176,7 @@ export async function angleStacks(ctx, deps) {
       const pseudo = { size: done[k].bytes, slice: (a, b) => ({ arrayBuffer: () => reader.read(a, b - a) }) };
       const fingerprint = deps.fingerprint ? await deps.fingerprint(pseudo) : await fileFingerprint(pseudo, (bytes) => webcrypto.subtle.digest('SHA-256', bytes));
       const { error: insErr } = await admin.from('qi_datasets').insert({
-        id: ids[k], user_id: uid, name: `${base} ${ranges[k].name}`.slice(0, 200), kind: 'segy_upload', status: 'uploaded', original_filename: files[k],
+        id: ids[k], user_id: uid, ...projectFrom(ds, ctx.job), name: `${base} ${ranges[k].name}`.slice(0, 200), kind: 'segy_upload', status: 'uploaded', original_filename: files[k],
         bucket: workBucket, object_key: keys[k], bytes: done[k].bytes, part_size: deps.partSize || PART_SIZE, part_count: Math.max(1, done[k].parts),
         uploaded_at: new Date().toISOString(),
         meta: { fingerprint, partial_stack: { name: ranges[k].name, from: ranges[k].from, to: ranges[k].to, min_fold: minFold }, source_gathers: ds.id, velocity: p.velocity },
