@@ -19,6 +19,8 @@ export function tieOf(well) {
     shiftMs: qc.bulk_shift_ms ?? null,
     phaseDeg: qc.phase_deg ?? null,
     anchors: qc.anchors || 0,
+    // phase along the tie (QI round 3): the drift of the window phases, when measured
+    phaseDriftDeg: Number.isFinite(qc.phase_trend?.drift_deg) ? qc.phase_trend.drift_deg : null,
     volume: qc.volume || null,
     measuredAt: qc.measured_at || null,
     wavelet: w ? {
@@ -83,6 +85,7 @@ export function tieIssues(rows, comparison) {
     if (!t) { add(`${r.wellId}:none`, 'medium', `${r.wellName}: no well tie`, 'No tie has been committed for this well in Seismolord.', 'Tie the well in Seismolord (Synthetics), using the drift-corrected sonic where there is one, and commit the tie.'); continue; }
     if (t.meanCorr != null && t.meanCorr < 0.5) add(`${r.wellId}:poor`, 'high', `${r.wellName}: poor tie`, `Mean windowed correlation ${t.meanCorr.toFixed(2)}.`, 'Revisit the tie: the sonic (drift-correct it to the checkshots), the wavelet, the bulk shift and stretch anchors. A poor tie undermines every amplitude interpretation at this well.');
     else if (t.meanCorr != null && t.meanCorr < 0.7) add(`${r.wellId}:fair`, 'medium', `${r.wellName}: fair tie`, `Mean windowed correlation ${t.meanCorr.toFixed(2)}${t.minCorr != null ? `, minimum ${t.minCorr.toFixed(2)}` : ''}.`, 'Check the target window in particular; consider a drift-corrected sonic or a well-extracted wavelet.');
+    if (t.phaseDriftDeg != null && Math.abs(t.phaseDriftDeg) >= 45) add(`${r.wellId}:phase-drift`, 'medium', `${r.wellName}: tie phase drifts with time`, `The phase measured window by window drifts ${Math.round(t.phaseDriftDeg)} degrees down the tie, so one constant-phase wavelet fits part of the interval only.`, 'Tie and extract the wavelet over the target window, or use a stack with Q compensation; check the AVO and the inversion at the target.');
     if (t.wavelet && !t.wavelet.samples && t.wavelet.kind !== 'ricker') add(`${r.wellId}:nowavelet`, 'low', `${r.wellName}: tie wavelet not stored`, 'This tie was committed before wavelets were kept, so only its peak and phase are known.', 'Re-commit the tie in Seismolord to keep the wavelet itself for modelling and inversion.');
   }
   const phases = rows.map((r) => r.tie?.wavelet?.phaseDeg).filter((v) => Number.isFinite(v));

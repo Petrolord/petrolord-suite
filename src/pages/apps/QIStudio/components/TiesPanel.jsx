@@ -50,7 +50,7 @@ export default function TiesPanel() {
         <Link className="underline" to="/dashboard/apps/geoscience/seismolord">Open Seismolord</Link>
       </p>
       <table className="text-xs" data-testid="qi-ties-table">
-        <thead><tr><th className={th}>Well</th><th className={th}>Mean correlation</th><th className={th}>Minimum</th><th className={th}>Bulk shift (ms)</th><th className={th}>Wavelet</th><th className={th}>Tied on</th><th className={th} /></tr></thead>
+        <thead><tr><th className={th}>Well</th><th className={th}>Mean correlation</th><th className={th}>Minimum</th><th className={th}>Bulk shift (ms)</th><th className={th}>Phase drift (degrees)</th><th className={th}>Wavelet</th><th className={th}>Tied on</th><th className={th} /></tr></thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.wellId}>
@@ -60,11 +60,12 @@ export default function TiesPanel() {
                   <td className={`${td} font-mono`}>{f(r.tie.meanCorr)}</td>
                   <td className={`${td} font-mono`}>{f(r.tie.minCorr)}</td>
                   <td className={`${td} font-mono`}>{f(r.tie.shiftMs, 1)}</td>
+                  <td className={`${td} font-mono`} title="Seismolord Synthetics, Phase along the tie">{r.tie.phaseDriftDeg != null ? f(r.tie.phaseDriftDeg, 0) : EMPTY_VALUE}</td>
                   <td className={td}>{r.tie.wavelet ? `${r.tie.wavelet.kind || 'tie'}, ${f(r.tie.wavelet.peakHz, 1)} Hz, ${f(r.tie.wavelet.phaseDeg, 0)} deg${r.tie.wavelet.samples ? '' : ' (wavelet not stored)'}` : EMPTY_VALUE}</td>
                   <td className={td}>{String(r.tie.measuredAt || '').slice(0, 10) || EMPTY_VALUE}</td>
                   <td className={td}>{r.tie.wavelet?.samples && <button type="button" className={btn} onClick={() => downloadText(`${r.wellName.replace(/[^A-Za-z0-9._-]+/g, '_')}_wavelet.txt`, waveletText({ name: `${r.wellName} tie wavelet`, dtMs: r.tie.wavelet.dtMs, samples: r.tie.wavelet.samples, source: 'the wavelet stored with the Seismolord tie' }))}>Wavelet (text)</button>}</td>
                 </>
-              ) : <td className={`${td} text-pl-muted`} colSpan={6}>No tie committed in Seismolord</td>}
+              ) : <td className={`${td} text-pl-muted`} colSpan={7}>No tie committed in Seismolord</td>}
             </tr>
           ))}
         </tbody>

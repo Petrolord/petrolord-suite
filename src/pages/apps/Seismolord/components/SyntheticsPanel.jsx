@@ -34,6 +34,7 @@ import {
   rotateConstantPhase, estimatePhaseRotation, windowedTieQc,
 } from '../engine/tieWarp';
 import { anchorSuggestion } from '../lib/anchorSuggestion';
+import { timeVariantPhaseCheck, rotateTimeVariant, trendPhaseAt } from '../engine/tiePhase';
 import { effectiveCheckshots } from '../services/wellsService';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { readWellDatum, refElevOrNull } from '@/lib/wellDatum';
@@ -387,6 +388,14 @@ export function denseTieWarp(warp, range, stepMs = 20) {
   return { ...warp, anchors };
 }
 
+/** One line for the phase-along-the-tie check (QI round 3). */
+export function phaseAlongText(c) {
+  if (!c?.trend) return 'Phase along the tie: too few windows correlate to measure a drift.';
+  const t = c.trend; const r2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : 'n/a');
+  const head = `Phase along the tie: ${Math.round(t.aDeg)} degrees at ${Math.round(t.t0Ms)} ms, drifting ${Math.round(t.driftDeg)} degrees to ${Math.round(t.t1Ms)} ms (scatter ${Math.round(t.rmsDeg)}). One phase gives r ${r2(c.corrConstant)}; a phase varying with time gives r ${r2(c.corrTimeVariant)}.`;
+  return c.offer ? `${head} A constant-phase wavelet fits part of the interval only: tie the target window, or use a stack with Q compensation for amplitude work.` : `${head} A constant phase fits this tie.`;
+}
+
 export default function SyntheticsPanel({
   wells, listLogs, downloadCurve, synthesize, getTraces,
   horizons, loadGrid, affine, geom, dtUs, velocity, boundaries,
@@ -417,6 +426,9 @@ export default function SyntheticsPanel({
   const [commitBusy, setCommitBusy] = useState(false);
   // automatic anchor suggestion (dynamic warping, QI upgrade 2026-10-15)
   const [anchorNote, setAnchorNote] = useState(null);
+  // phase along the tie (QI round 3): the window phases, their drift, and the time-variant rotation
+  const [tvPhase, setTvPhase] = useState(null);
+  const [tvApplied, setTvApplied] = useState(false);
   // U2-020 (second half): the angle gather Rock Physics Studio published for this well
   const [rpGather, setRpGather] = useState(null);
   const [showRpGather, setShowRpGather] = useState(false);
@@ -700,6 +712,7 @@ export default function SyntheticsPanel({
     anchors: anchors.length,
     wavelet: waveletInfo,
     wellName: view?.wellName || view?.well?.name || null,
+    phaseTrend: tvPhase?.trend ? { ...tvPhase.trend, applied: tvApplied } : null,
   });
 
   const suggest = () => {
@@ -716,7 +729,9 @@ export default function SyntheticsPanel({
     const warp = anchors.length ? makeTieWarp(anchors) : null;
     let display = null;
     if (warp) display = warpTrace(view.result.synthetic, dtMs, warp);
-    if (phiApplied && phase) {
+    if (tvApplied && tvPhase?.trend) {
+      display = rotateTimeVariant(display || view.result.synthetic, dtMs, (t) => trendPhaseAt(tvPhase.trend, t));
+    } else if (phiApplied && phase) {
       display = rotateConstantPhase(display || view.result.synthetic, phase.phiRad);
     }
     const centre = view.corridor?.length
@@ -728,7 +743,7 @@ export default function SyntheticsPanel({
       qc = windowedTieQc(display || view.result.synthetic, centre, dtMs);
     }
     return { warp, display, qc };
-  }, [view, anchors, phase, phiApplied, shiftMs, dtMs]);
+  }, [view, anchors, phase, phiApplied, tvPhase, tvApplied, shiftMs, dtMs]);
 
   const qcSummary = useMemo(() => {
     const rows = (tie?.qc || []).filter((r) => r.corr != null);
@@ -858,6 +873,17 @@ export default function SyntheticsPanel({
     } catch (e) {
       setAnchorNote({ ok: false, text: e.message });
     }
+  };
+
+  // Phase along the tie: the constant phase window by window on the warped
+  // (not rotated) synthetic, the drift, and what a time-variant phase gives
+  const checkPhaseAlong = () => {
+    if (!view?.result || !view.corridor?.length) return;
+    const centre = view.corridor[(view.corridor.length - 1) / 2];
+    const base = tie?.warp ? warpTrace(view.result.synthetic, dtMs, tie.warp) : view.result.synthetic;
+    const c = timeVariantPhaseCheck(base, centre, dtMs);
+    setTvPhase({ ...c, rotated: undefined });
+    if (!c.offer) setTvApplied(false);
   };
 
   // ---- W3.3 phase + commits ---------------------------------------------
@@ -1192,6 +1218,12 @@ export default function SyntheticsPanel({
             >
               Suggest anchors
             </Button>
+            <Button variant="outline" size="sm" onClick={checkPhaseAlong}
+              disabled={!view.corridor?.length} data-testid="synth-phase-profile"
+              title="Measure the phase window by window down the tie: a constant-phase wavelet breaks when the seismic phase drifts with time."
+            >
+              Phase along the tie
+            </Button>
             {anchorNote && (
               <span className={anchorNote.ok ? 'text-pl-muted' : 'text-pl-warning-text'} data-testid="synth-anchors-suggest-result">{anchorNote.text}</span>
             )}
@@ -1204,6 +1236,19 @@ export default function SyntheticsPanel({
                 >
                   {phiApplied ? 'remove rotation' : 'apply to display'}
                 </Button>
+              </span>
+            )}
+            {tvPhase && (
+              <span className="text-pl-text" data-testid="synth-phase-profile-result">
+                {phaseAlongText(tvPhase)}
+                {tvPhase.offer && (
+                  <Button variant="link" size="sm"
+                    className={`h-auto p-0 ml-1 ${tvApplied ? 'text-pl-warning-text' : 'text-pl-primary-text'}`}
+                    onClick={() => { setTvApplied((v) => !v); setPhiApplied(false); }} data-testid="synth-phase-profile-apply"
+                  >
+                    {tvApplied ? 'remove the time-variant phase' : 'apply the time-variant phase to the display'}
+                  </Button>
+                )}
               </span>
             )}
             {view.well?.checkshots_derived?.provenance?.qc && (
