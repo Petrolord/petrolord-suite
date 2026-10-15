@@ -30,6 +30,7 @@ import {
   blindWellTable, INVERSION_DEFAULTS, INVERSION_METHODS,
   makeScenarioInverters, blindSensitivity, spreadProducts, makeBlindInverter, blindProtocol, residualTrace, residualPercent,
 } from '../../../../src/pages/apps/QIStudio/services/inversionRun.js';
+import { blindTableProblem, makeSanityCounter } from '../outputSanity.js';
 import { assertFloat32Parent, derivedStorageBytes, derivedSurveyMeta } from '../../../../src/pages/apps/Seismolord/services/attributeSurveyMeta.js';
 import { storageBrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCache.js';
 import { v4BrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCodecV4.js';
@@ -257,6 +258,8 @@ export async function poststackInversion(ctx, deps) {
     return { name, il: w.il, xl: w.xl, ln_ai: packLog(Array.from(m, (v) => (Number.isFinite(v) ? v : NaN))) };
   }).filter((x) => x.ln_ai.n > 0) : [];
   if (ctx.cancelled) { await cleanup(); return null; }
+  const absurd = blindTableProblem(blind);
+  if (absurd) return fail('compute_failed', absurd);
   if (p.mode === 'blind') {
     ctx.progress(1, 'Done');
     return { mode: 'blind', parent_volume_id: parent.id, volume_name: parent.name, settings: summary, blind, blind_protocol: blindProtocolRec, residual_at_wells: residualAtWells, ...(sensitivity ? { sensitivity } : {}) };
@@ -276,18 +279,20 @@ export async function poststackInversion(ctx, deps) {
     inflight.add(task);
     if (inflight.size >= UPLOADS_IN_FLIGHT) await Promise.race(inflight);
   };
-  const put = (out, values) => { for (let k = 0; k < ns; k++) out[k] = Number.isFinite(values[k]) ? values[k] : NULL_VALUE; };
+  const sanity = makeSanityCounter();
+  const liveIn = (v) => Number.isFinite(v) && Math.abs(v) < 1e29;
+  const put = (out, values, trace = null) => { for (let k = 0; k < ns; k++) { if (trace) sanity.add(liveIn(trace[k]), values[k]); out[k] = Number.isFinite(values[k]) ? values[k] : NULL_VALUE; } };
   const compute = scenarioRun
     ? (trace, outs, il, xl) => { spreadProducts(scenarioRun.realise(trace, il, xl)).forEach((v, o) => put(outs[o], v)); }
     : withResidual
       ? (trace, outs, il, xl) => {
         const m = invert(trace, il, xl);
-        put(outs[0], m.map(Math.exp));
+        put(outs[0], m.map(Math.exp), trace);
         put(outs[1], residualTrace(trace, m, blindInv.scaledWavelet));
       }
       : (trace, out, il, xl) => {
         const m = invert(trace, il, xl);
-        put(out, absolute ? m.map(Math.exp) : m);
+        put(out, absolute ? m.map(Math.exp) : m, trace);
       };
   let result;
   try {
@@ -298,6 +303,7 @@ export async function poststackInversion(ctx, deps) {
     });
     await Promise.all(inflight);
     if (uploadError) throw new JobFailure('upload_failed', `Uploading the inversion bricks failed: ${uploadError.message}`);
+    if (sanity.verdict().fail) throw new JobFailure('compute_failed', sanity.verdict('the impedance').fail);
   } catch (e) {
     await Promise.allSettled(inflight);
     await cleanup();
@@ -328,6 +334,7 @@ export async function poststackInversion(ctx, deps) {
       parent_volume_id: parent.id, volume_name: parent.name, settings: summary, blind, blind_protocol: blindProtocolRec, residual_at_wells: residualAtWells,
       ...(sensitivity ? { sensitivity } : {}),
       bricks: uploaded.length, trace_count: result.traceCount, ...(pilot ? { pilot: pilot.record } : {}),
+      ...(sanity.verdict().warning ? { warnings: [sanity.verdict('the impedance').warning] } : {}),
     };
   } catch (e) {
     await cleanup();

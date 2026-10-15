@@ -18,6 +18,7 @@
 // relative AI or a spread). The worker uses the service role, so this
 // handler checks what RLS would: every volume belongs to the job's user,
 // and the outputs fit the user's seismic quota.
+import { propertyRowsProblem } from '../outputSanity.js';
 import { JobFailure } from '../runJob.js';
 import { pilotProblem, pilotOn, pilotBytes } from '../pilot.js';
 import { seismicQuota, overQuotaMessage } from '../quota.js';
@@ -188,6 +189,8 @@ export async function propertyPrediction(ctx, deps) {
   const gate = gated ? propertyGate({ settings: { kind: pr.kind }, rows: cal.rows, blind_protocol: bc.protocol }, pr.gate || {}) : null;
   if (gate) settings.gate = { pass: gate.pass, thresholds: gate.thresholds, reasons: gate.reasons };
   if (ctx.cancelled) { await cleanup(); return null; }
+  const absurd = propertyRowsProblem(cal.rows);
+  if (absurd) return fail('compute_failed', absurd);
   if (p.mode === 'calibrate') {
     ctx.progress(1, 'Done');
     return { mode: 'calibrate', settings, summary: cal.summary, rows: cal.rows, blind_protocol: bc.protocol, ...(gate ? { gate } : {}) };
