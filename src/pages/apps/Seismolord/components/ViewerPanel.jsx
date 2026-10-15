@@ -8,6 +8,7 @@ import { SEISMOLORD_UNIT_APP, SEISMOLORD_UNITS, SEISMOLORD_LEGACY_UNIT_KEYS } fr
 import { appPath as appRoutePath } from '@/components/wells/appLinks';
 import { placementsFor } from '@/lib/localWorkspace/runtime';
 import LocalWorkspacePanel from '@/components/localWorkspace/LocalWorkspacePanel';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { promoteToCloud } from '@/lib/localWorkspace/promote';
 import { assertQuota } from '../services/seismicStorage';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';

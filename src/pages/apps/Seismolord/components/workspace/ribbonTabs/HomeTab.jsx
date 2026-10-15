@@ -3,7 +3,7 @@
 // control rows (everything but the volume select gates on a manifest).
 
 import React from 'react';
-import { Undo2, Redo2, BookMarked } from 'lucide-react';
+import { Undo2, Redo2, BookMarked, HardDrive } from 'lucide-react';
 import {
   RibbonGroup, RibbonButton, RibbonSelect, RibbonSlider, RibbonToggle, RibbonField, RIBBON_FIELD,
 } from '../Ribbon';
@@ -30,7 +30,7 @@ export default function HomeTab({
   onUndo, onRedo, canUndo, canRedo, undoLabel, redoLabel, onOpenSessions,
   sectionDomain, setSectionDomain, depthReady, nativeDepth = null, depthUnit = 'm', setDepthUnit = null, unitNote = null,
   flattenHorizonId = null, setFlattenHorizonId = null, flattenChoices = [], flattenInfo = null,
-  player = null,
+  player = null, onOpenLocalWorkspace = null,
 }) {
   const isTimeSlice = orientation === 'time';
   return (
@@ -56,6 +56,14 @@ export default function HomeTab({
           onClick={onOpenSessions}
           title="Named sessions and viewport bookmarks"
         />
+        {onOpenLocalWorkspace && (
+          <RibbonButton
+            icon={HardDrive}
+            label="Local workspace"
+            onClick={onOpenLocalWorkspace}
+            title="Keep seismic on this computer: the workspace folder, what is stored here, where jobs run and copy requests"
+          />
+        )}
       </RibbonGroup>
 
       <RibbonGroup label="Volume">
