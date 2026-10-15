@@ -28,10 +28,13 @@ test('QI Studio: the recorded tabs are unchanged and Data matrix follows them (u
   const ids = await page.getByRole('tab').evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')));
   expect(ids.slice(0, RECORDED_QI_TABS.length + 1)).toEqual([...RECORDED_QI_TABS, 'datainventory'].map((k) => `qi-tab-${k}`));
   await expect(page.getByTestId('qi-tab-setup')).toHaveAttribute('aria-selected', 'true');
-  // the recorded tabs sit on one line at the recording viewport
+  // the recorded tabs sit on one line, one label line each, at the recording viewport
   await page.setViewportSize({ width: 1440, height: 810 });
-  const heights = await page.getByRole('tab').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
-  expect(new Set(heights).size).toBe(1);
+  const boxes = await page.getByRole('tab').evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.height)]; }));
+  const rec = boxes.slice(0, recorded.length);
+  expect(new Set(rec.map((b) => b[0])).size).toBe(1);
+  expect(new Set(rec.map((b) => b[1])).size).toBe(1);
+  expect(rec[0][1]).toBeLessThan(40);
   expect(errors).toEqual([]);
 });
 
