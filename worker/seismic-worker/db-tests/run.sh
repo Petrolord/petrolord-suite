@@ -14,7 +14,7 @@ docker cp stubs.sql "$NAME":/stubs.sql; docker cp behaviour.sql "$NAME":/b.sql
 # tables (saved_qi_*_projects) need the Suite record-sharing objects the stubs
 # do not have, and are not part of the worker's database, so they are left out;
 # so are app-catalogue seeds (seed_qi_studio_tile writes master_apps).
-cat $(ls ../../../supabase/migrations/*_qi_*.sql | grep -vE '_saved_qi_|_seed_qi_' | sort) > /tmp/qi-migs-$$.sql; docker cp /tmp/qi-migs-$$.sql "$NAME":/mig.sql; rm -f /tmp/qi-migs-$$.sql
+cat $(ls ../../../supabase/migrations/*_qi_*.sql | grep -vE '_saved_qi_|_seed_qi_|_suite_projects_' | sort) > /tmp/qi-migs-$$.sql; docker cp /tmp/qi-migs-$$.sql "$NAME":/mig.sql; rm -f /tmp/qi-migs-$$.sql
 docker exec "$NAME" psql -q -v ON_ERROR_STOP=1 -U postgres -f /stubs.sql
 docker exec "$NAME" psql -q -v ON_ERROR_STOP=1 -U postgres -f /mig.sql 2>/dev/null
 docker exec "$NAME" psql -q -v ON_ERROR_STOP=1 -U postgres -f /mig.sql 2>/dev/null   # idempotent re-apply

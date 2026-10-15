@@ -9,6 +9,7 @@
 // params: { dataset_id (gathers_offset), centre_ms, window_ms? (100), max_shift_ms? (8), name? }
 import { webcrypto } from 'node:crypto';
 import { JobFailure } from '../runJob.js';
+import { projectFrom } from '../project.js';
 import { trimStatics } from '../../../../packages/engines/engines/qi/conditioning.js';
 import { readGather, gatherBlockKey, foldBlockKey, blockLayout } from '../../../../packages/engines/engines/qi/gatherStore.js';
 
@@ -95,7 +96,7 @@ export async function trimGathers(ctx, deps) {
     const manifest = { ...m, name, source: { ...(m.source || {}), conditioned_from: ds.id, trim: { centre_ms: opts.centreMs, window_ms: opts.windowMs, max_shift_ms: opts.maxShiftMs } } };
     await put('manifest.json', new TextEncoder().encode(JSON.stringify(manifest)));
     const { error: insErr } = await admin.from('qi_datasets').insert({
-      id, user_id: uid, name, kind: 'gathers_offset', status: 'uploaded', original_filename: ds.original_filename,
+      id, user_id: uid, ...projectFrom(ds, ctx.job), name, kind: 'gathers_offset', status: 'uploaded', original_filename: ds.original_filename,
       bucket: workBucket, object_key: `${outPrefix}/manifest.json`, bytes, part_size: ds.part_size, part_count: 1,
       uploaded_at: new Date().toISOString(), meta: { ...(ds.meta || {}), source_gathers: ds.id, conditioning: { trim: { centre_ms: opts.centreMs, window_ms: opts.windowMs, max_shift_ms: opts.maxShiftMs }, ...stats } },
     });
