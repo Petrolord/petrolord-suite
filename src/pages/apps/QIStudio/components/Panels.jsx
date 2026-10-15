@@ -8,6 +8,7 @@ import { STATES } from '../services/inventory';
 import {
   ISSUE_STATES, SEVERITIES, FEASIBILITY_VERDICTS, DECISION_GATES, DECISION_OUTCOMES, decisionProblem, runChoices, gateLabel, outcomeLabel,
 } from '../services/model';
+import { timeOnlyReason } from '@/pages/apps/Seismolord/lib/verticalDomain';
 
 const card = 'rounded-lg border border-pl-border bg-pl-surface p-4 space-y-3';
 const h2 = 'text-sm font-semibold text-pl-text';
@@ -69,12 +70,17 @@ export function SetupPanel() {
         <h2 className={h2}>Seismic and dates</h2>
         <p className={muted}>The volumes from Seismolord this study reads, and the dates that decide whether seismic may show depletion near a well.</p>
         <div className="space-y-1 text-xs">
-          {volumes.length ? volumes.map((v) => (
-            <label key={v.id} className="flex items-center gap-2">
-              <input type="checkbox" checked={project.volumeIds.includes(v.id)} onChange={() => toggleVolume(v.id)} disabled={!canWrite} data-testid={`qi-volume-${v.id}`} />
-              <span className="text-pl-text">{v.name}</span>
-            </label>
-          )) : <p className={muted}>No seismic volumes in Seismolord yet.</p>}
+          {volumes.length ? volumes.map((v) => {
+            // P1.6: a depth volume is listed, but QI Studio works in two-way time
+            const depthWhy = timeOnlyReason(v, 'QI Studio');
+            return (
+              <label key={v.id} className="flex items-center gap-2" title={depthWhy || undefined}>
+                <input type="checkbox" checked={!depthWhy && project.volumeIds.includes(v.id)} onChange={() => toggleVolume(v.id)} disabled={!canWrite || Boolean(depthWhy)} data-testid={`qi-volume-${v.id}`} />
+                <span className="text-pl-text">{v.name}</span>
+                {depthWhy && <span className="text-pl-muted" data-testid={`qi-volume-depth-${v.id}`}>(depth: QI Studio works in two-way time)</span>}
+              </label>
+            );
+          }) : <p className={muted}>No seismic volumes in Seismolord yet.</p>}
         </div>
         <label className="flex items-center gap-2 text-xs">
           <span className="text-pl-muted w-40">Seismic acquired</span>

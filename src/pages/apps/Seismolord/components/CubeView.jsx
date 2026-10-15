@@ -325,7 +325,8 @@ function CubeView({
       for (const v of niceTicks(0, msMax, 5)) {
         label([best[0], -(v / Math.max(msMax, 1e-9)) * D, best[1]], String(Math.round(v)));
       }
-      label([best[0], -D / 2, best[1]], 'TWT ms', 40);
+      // P1.6: a depth-domain volume's vertical axis is depth
+      label([best[0], -D / 2, best[1]], geo.vertical?.domain === 'depth' ? `Depth ${geo.vertical.unit === 'ft' ? 'ft' : 'm'}` : 'TWT ms', 40);
     }
 
     // north arrow: world +Y in the survey's local frame (cube X = xl

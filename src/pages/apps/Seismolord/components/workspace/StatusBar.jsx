@@ -72,7 +72,7 @@ export default function StatusBar({
       const parts = [];
       if (info.il != null) parts.push(`IL ${info.il}`);
       if (info.xl != null) parts.push(`XL ${info.xl}`);
-      if (info.ms != null) parts.push(`${info.ms.toFixed(1)} ms`);
+      if (info.ms != null) parts.push(`${info.ms.toFixed(1)} ${info.zUnit || 'ms'}`);
       if (info.z != null) parts.push(depthUnit === 'ft' ? `${(info.z / 0.3048).toFixed(1)} ft TVDSS` : `${info.z.toFixed(1)} m TVDSS`);
       if (info.amp != null) parts.push(`amp ${info.ampApprox ? '≈' : ''}${info.amp.toPrecision(3)}`);
       el.textContent = parts.join('  ·  ');

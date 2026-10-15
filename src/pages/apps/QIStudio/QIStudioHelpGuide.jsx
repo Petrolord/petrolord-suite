@@ -60,7 +60,7 @@ function QIStudioHelpGuideContent() {
       <GuideSection id="quickstart">
         <SectionHeading icon={Zap}>Quick start (10 min)</SectionHeading>
         <Step n={1} title="Create a project">Give the study a name in the project box. Without a project the work stays on the page only.</Step>
-        <Step n={2} title="Setup">Tick the wells and the target intervals (zone names shared by the wells), the seismic volumes, the date the seismic was acquired and each well&apos;s first production date.</Step>
+        <Step n={2} title="Setup">Tick the wells and the target intervals (zone names shared by the wells), the seismic volumes, the date the seismic was acquired and each well&apos;s first production date. A depth volume imported into Seismolord is listed but cannot be ticked: every QI tool works in two-way time.</Step>
         <Step n={3} title="Data inventory">Check each group&apos;s state. Groups the Suite already holds are suggested; change them to what was delivered.</Step>
         <Step n={4} title="Usability and issues">Read the matrix, open a cell for the reasons, then keep, resolve or dismiss the suggested issues.</Step>
         <Step n={5} title="Feasibility and report">Record a verdict per target from Rock Physics Studio, then download the report.</Step>

@@ -15,6 +15,7 @@ import {
 } from './services/model';
 import { usabilityMatrix, suggestedIssues } from './services/usability';
 import { suggestInventory, inventoryRows } from './services/inventory';
+import { isDepthVolume } from '@/pages/apps/Seismolord/lib/verticalDomain';
 
 export const TABLE = 'saved_qi_studio_projects';
 export const service = createSavedProjectsService(TABLE, { signInMessage: 'Sign in to save QI Studio projects.' });
@@ -97,7 +98,8 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
 
   // --- derived: one pure function of the registry and the project
   const matrix = useMemo(() => usabilityMatrix(ready, project.targets, project.dates), [ready, project.targets, project.dates]);
-  const chosenVolumes = useMemo(() => volumes.filter((v) => project.volumeIds.includes(v.id)), [volumes, project.volumeIds]);
+  // a depth volume never enters a study: every QI tool works in two-way time (P1.6)
+  const chosenVolumes = useMemo(() => volumes.filter((v) => project.volumeIds.includes(v.id) && !isDepthVolume(v)), [volumes, project.volumeIds]);
   const suggestions = useMemo(() => suggestInventory({ wells: ready, volumes: chosenVolumes, horizons: surfaceCount }), [ready, chosenVolumes, surfaceCount]);
   const inventory = useMemo(() => inventoryRows(project.inventory, suggestions), [project.inventory, suggestions]);
   const issues = useMemo(() => issueRegister(project.issues, suggestedIssues(matrix)), [project.issues, matrix]);

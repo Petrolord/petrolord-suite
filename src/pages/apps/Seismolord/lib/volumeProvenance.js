@@ -15,13 +15,15 @@ export function cropLines(crop) {
   if (!crop) return [];
   const s = crop.source || {};
   const dt = s.dt_us ? s.dt_us / 1000 : null;
+  // a depth import's window and interval read in its depth unit (P1.6)
+  const u = crop.vertical?.domain === 'depth' ? (crop.vertical.unit === 'ft' ? 'ft' : 'm') : 'ms';
   const lines = [];
   lines.push(`Source file ${s.file_name || 'unknown'}: ${n(s.traces)} traces, inlines ${s.il?.min} to ${s.il?.max}, `
-    + `crosslines ${s.xl?.min} to ${s.xl?.max}, ${n(s.ns)} samples${dt ? ` at ${dt} ms` : ''}.`);
+    + `crosslines ${s.xl?.min} to ${s.xl?.max}, ${n(s.ns)} samples${dt ? ` at ${dt} ${u}` : ''}.`);
   lines.push(`${crop.name ? `Crop "${crop.name}"` : 'Crop'} (${MODE[crop.mode] || 'cropped'}): inlines ${crop.il?.from} to ${crop.il?.to}`
     + `${crop.il?.step > (s.il?.step || 1) ? ` every ${crop.il.step}` : ''}, crosslines ${crop.xl?.from} to ${crop.xl?.to}`
     + `${crop.xl?.step > (s.xl?.step || 1) ? ` every ${crop.xl.step}` : ''}${crop.polygon ? ' inside a polygon' : ''}, `
-    + `${crop.window?.from} to ${crop.window?.to} ms (samples ${crop.samples?.first} to ${crop.samples?.last}), ${n(crop.kept_traces)} traces kept.`);
+    + `${crop.window?.from} to ${crop.window?.to} ${u} (samples ${crop.samples?.first} to ${crop.samples?.last}), ${n(crop.kept_traces)} traces kept.`);
   return lines;
 }
 

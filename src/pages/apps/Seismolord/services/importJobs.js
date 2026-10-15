@@ -21,6 +21,7 @@ import { createTwoStageUpload, UPLOAD_STATUS } from './uploadV4';
 import { v4SurveyMeta } from './v4SurveyMeta';
 import { applyCrsToScan } from './ingestCrs';
 import { scanForManifest } from '../lib/segyDoor';
+import { applyVerticalToManifest } from '../lib/verticalDomain';
 import { publishConversionProgress, clearConversionProgress } from '../sources/conversionProgress';
 
 // The row's survey_meta builder lives in its own module so the seismic
@@ -198,11 +199,12 @@ export function createImportJobManager(deps) {
    * @param {{file: File, mapping: Object, scan: Object, nativeCrs?: string,
    *   name?: string, onRowChange?: (status: string) => void}} p
    */
-  async function start({ file, mapping, scan, nativeCrs, name, onRowChange, crop = null }) {
+  async function start({ file, mapping, scan, nativeCrs, name, onRowChange, crop = null, vertical = null }) {
     // crop ({request, provenance}): the conversion reads only the kept traces
     // and samples (cropImport.js); `scan` is then the crop's conversion view
     const prep = await deps.prepare({
       file, mapping, nativeCrs, name, crop: crop?.provenance || null, ...(crop?.bytes ? { quotaBytes: crop.bytes } : {}),
+      ...(vertical ? { vertical } : {}),
     });
     const { volumeId, userId } = prep;
     const dir = volumeDir(userId, volumeId);
@@ -239,6 +241,7 @@ export function createImportJobManager(deps) {
         });
         manifest.source.fingerprint = prep.ingestRec.fingerprint;
         if (crop?.provenance) manifest.source.crop = crop.provenance;
+        applyVerticalToManifest(manifest, prep.ingestRec.vertical);
         // everything a later session needs to finish the upload without
         // the SEG-Y: written only once the conversion is complete
         await job.spool.putJson('job', {

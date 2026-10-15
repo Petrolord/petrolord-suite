@@ -59,3 +59,9 @@ test('guards: settings, ownership, state and cancel', async () => {
   await expect(seismicQc(ctxFor({ volume_id: VOL }), deps({ ...OWN, status: 'ingesting' }))).rejects.toMatchObject({ stage: 'validate_failed' });
   expect(await seismicQc(ctxFor({ volume_id: VOL }, { cancelled: true }), deps(OWN))).toBeNull();
 });
+
+test('a depth-domain volume is refused with the reason (QI upgrade P1.6)', async () => {
+  const depthManifest = { ...MANIFEST, geometry: { ...MANIFEST.geometry, vertical: { domain: 'depth', unit: 'm', dz: 5 } } };
+  const d = { ...deps(OWN), readManifest: async () => depthManifest };
+  await expect(seismicQc(ctxFor({ volume_id: VOL }), d)).rejects.toMatchObject({ stage: 'validate_failed', message: expect.stringMatching(/depth volume.*two-way time/) });
+});

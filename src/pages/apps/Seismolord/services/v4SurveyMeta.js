@@ -3,6 +3,8 @@
 // seismic worker's stack_to_v4 job both use it, so a server conversion
 // writes exactly the row a browser one does.
 
+import { verticalMeta } from '../lib/verticalDomain.js';
+
 /**
  * The survey_meta a v4 row carries once the display copy is up: the v1
  * fields (so every existing consumer reads it unchanged) plus the v4
@@ -21,6 +23,8 @@ export function v4SurveyMeta(manifest, record, ingestRec) {
     ...(g.affine ? { affine: g.affine } : {}),
     ...(g.coord_scalar != null ? { coord_scalar: g.coord_scalar } : {}),
     ...(g.crs ? { crs: g.crs } : {}),
+    // a depth volume's vertical axis (P1.6); absent for time
+    ...verticalMeta(g),
     sample_format: manifest.source.sample_format,
     il_byte: manifest.source.il_byte,
     xl_byte: manifest.source.xl_byte,

@@ -924,3 +924,10 @@ Closes QI-UPGRADE U2-004 (the persona walk found the app measured gathers it cou
   - **Wells sit at the middle of their first study target** (deviated wells move away from the surface location), else at the surface location; the caption says which.
 - **Tests:** engines `qi.gatherDisplay.test.js` (9); worker `gatherPanel.test.js` (6) and a janitor panel test (with an export of the same age kept as the negative control); `__tests__/qiGathers.test.jsx` (7: decoding, overlays against the engine angle, a 3 ms residual read and a flat event not read, stored QC lookup, well placement, request checks, the tab on the in-memory worker).
 - **Worker redeploy needed** for `gather_panel` and the janitor. **Zip needed** for the tab.
+
+## 2026-10-15: depth-domain import (QI upgrade P1.6)
+
+- Seismolord now imports depth-domain SEG-Y (depth-migrated stacks and depth velocity volumes) on the background, server and link paths, with the crop step and a depth window. The import records the declared unit, interval and, when the user says so, that the volume holds interval, RMS or average velocities (`manifest.geometry.vertical`, `survey_meta.vertical`, `survey_meta.ingest.vertical`; `geometry.dt_us` = interval x 1000). Details in Seismolord-STATUS.
+- **For P2 item 8 (LFM from a velocity volume):** a depth velocity volume carries `geometry.vertical = {domain: 'depth', unit, dz, values: {kind: 'velocity', type: 'interval'|'rms'|'average', unit: 'm/s'|'ft/s'}}`; read it with `verticalOf` (`src/pages/apps/Seismolord/lib/verticalDomain.js`). `sample_volumes` refuses depth volumes today; the LFM work relaxes that for velocity volumes.
+- **QI Studio refuses depth volumes:** Setup lists them as unavailable ("depth: QI Studio works in two-way time"), `chosenVolumes` never includes one, and the worker kinds seismic_qc, poststack_inversion, prestack_inversion, avo_volumes, property_prediction, match_stacks and sample_volumes refuse a depth manifest with the reason. Depth gathers are not uploaded for the Prestack tab.
+- Needs the worker redeploy and the end-of-round Suite zip.

@@ -153,12 +153,23 @@ export default function SeismolordHelpGuide() {
           positions as nulls, and a crossline-sorted file imports after one extra pass over its trace headers. A file
           with one inline is pointed at the 2D Lines import; missing coordinates and coordinates in degrees are named.
         </Para>
-        <Callout tone="warn" title="Time volumes only">
-          Declare the vertical axis of each file. Seismolord interprets volumes in two-way time; a depth-migrated
-          volume is refused with the reason, because its sample axis would read as milliseconds and horizons picked
-          on it would be converted to depth a second time. A textual header that mentions depth or PSDM preselects
-          Depth; the header can be wrong, so check it.
+        <Callout tone="warn" title="Time and depth volumes">
+          Declare the vertical axis of each file. A textual header that mentions depth or PSDM preselects Depth; the
+          header can be wrong, so check it. A depth volume (a depth-migrated stack, or a velocity volume in depth)
+          imports through the background import or the Petrolord server: give its depth unit (metres or feet, prefilled
+          from the header&apos;s measurement system) and its sample interval (prefilled from the header and editable,
+          because depth files store it in different ways; the dialog shows the depth the last sample reaches so you can
+          check it). Tick This volume holds velocities for a velocity volume and say whether it is interval, RMS or
+          average velocity. The crop window of a depth file is typed in its depth unit.
         </Callout>
+        <Para>
+          A depth volume shows on a depth axis (sections, depth slices, the cursor readout and the 3D view read in its
+          unit), and attribute volumes made from it stay in depth. Tools that work in two-way time say so and do not use
+          it: synthetics and well ties, the velocity model and depth conversion, tops to horizons, make surface and the
+          structure and pick exports, frequency attributes (instantaneous frequency, sweetness, spectral decomposition,
+          isofrequency maps), well paths on the seismic, and QI Studio (its Setup lists a depth volume as unavailable).
+          Amplitude maps along a horizon work on it.
+        </Para>
         <SubHeading>Large surveys</SubHeading>
         <Para>
           Before anything is written, check the survey the scan reports (samples per trace, sample interval, format

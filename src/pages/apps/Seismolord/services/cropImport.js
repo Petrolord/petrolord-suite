@@ -95,11 +95,14 @@ export function formatDuration(s) {
  * @param {Object} p.def the crop the user chose
  * @param {{ilByte, xlByte}} p.mapping
  * @param {boolean} [p.fromHeaders] find the kept traces from the headers even for a regular grid
+ * @param {?number} [p.dtUs] the sample interval the window is read in (a depth import's declared interval x 1000)
  */
-export async function planImportCrop({ raw, scan, def, mapping, fromHeaders = false, onProgress, isCancelled }) {
+export async function planImportCrop({ raw, scan, def, mapping, fromHeaders = false, onProgress, isCancelled, dtUs = null }) {
   const door = await inspectSegy(raw);
   const layout = layoutFromDoor(door, raw.size);
-  const crop = normalizeCrop(def, { il: scan.il, xl: scan.xl, ns: door.ns, dtUs: door.dtUs });
+  // dtUs: a depth import's declared interval (x 1000), so a depth window
+  // typed in metres or feet maps to samples by that interval (P1.6)
+  const crop = normalizeCrop(def, { il: scan.il, xl: scan.xl, ns: door.ns, dtUs: dtUs || door.dtUs });
   const gathers = await detectGatherLayout(raw, layout, mapping);
   const regular = !gathers.gathers && !needsTraceLattice(scan) && !fromHeaders;
   const plan = regular
@@ -168,9 +171,14 @@ export function cropFileLike(cropped, { file, crop }) {
 }
 
 /** Provenance kept on the volume (survey_meta.ingest.crop, manifest source.crop). */
-export const importCropProvenance = (prep, { file, mode, definitionId = null }) => cropProvenance(prep.crop, {
-  sourceName: file.name, sourceSize: file.size, keptTraces: prep.plan.keptTraces, sourceTraces: prep.layout.totalTraces, definitionId, mode,
-});
+export const importCropProvenance = (prep, { file, mode, definitionId = null, vertical = null }) => {
+  const rec = cropProvenance(prep.crop, {
+    sourceName: file.name, sourceSize: file.size, keptTraces: prep.plan.keptTraces, sourceTraces: prep.layout.totalTraces, definitionId, mode,
+  });
+  // a depth import's window is in its depth unit (P1.6)
+  if (vertical?.domain === 'depth') rec.vertical = { domain: 'depth', unit: vertical.unit, dz: vertical.dz };
+  return rec;
+};
 
 /** The conversion reader for a crop request: only the kept traces and samples, top padded. */
 export async function cropConversionReader(raw, req) {

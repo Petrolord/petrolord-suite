@@ -22,6 +22,7 @@ import {
 } from '../../../../src/pages/apps/QIStudio/services/prestackRun.js';
 import { horizonsAtFrom } from '../../../../src/pages/apps/QIStudio/services/inversionRun.js';
 import { assertFloat32Parent, derivedStorageBytes, derivedSurveyMeta } from '../../../../src/pages/apps/Seismolord/services/attributeSurveyMeta.js';
+import { assertTimeDomain } from '../../../../src/pages/apps/Seismolord/lib/verticalDomain.js';
 import { storageBrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCache.js';
 import { v4BrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCodecV4.js';
 import { geomFromManifest, brickKey } from '../../../../packages/engines/engines/seismolord/sliceAssembly.js';
@@ -97,7 +98,7 @@ export async function prestackInversion(ctx, deps) {
   const manifests = [];
   for (const s of stacks) {
     const m = await readManifest(`${s.row.storage_path}/manifest.json`);
-    try { assertFloat32Parent(m); } catch (e) { return fail('validate_failed', e.message); }
+    try { assertFloat32Parent(m); assertTimeDomain(m, 'Simultaneous inversion'); } catch (e) { return fail('validate_failed', e.message); }
     manifests.push(m);
   }
   if (!manifests.every((m) => sameLattice(m, manifests[0]))) return fail('validate_failed', 'The stacks are not on one lattice.');

@@ -21,6 +21,7 @@ import { saveHorizonAsSurface, saveAmplitudeAsSurface } from '../services/surfac
 import {
   gridHorizonSurface, gridHorizonAmplitude, exportHorizonPicks,
 } from '../services/surfaceWorkflow';
+import { timeOnlyReason } from '../lib/verticalDomain';
 
 const FORMATS = [
   { key: 'xyz', label: 'XYZ points (.xyz)', ext: 'xyz' },
@@ -222,6 +223,11 @@ export default function ExportPanel({
   /** @param {'download'|'rcp'|'registry'} destination */
   const runExport = async (destination = 'download') => {
     if (!volume || !manifest || !horizonId) return;
+    // P1.6: structures, picks and isofrequency maps assume two-way time
+    const depthWhy = !isAmp || isIso
+      ? timeOnlyReason(manifest, isIso ? 'Isofrequency (a frequency in hertz)' : 'Horizon and surface export in TWT or converted depth', volume.name)
+      : null;
+    if (depthWhy) { setError(depthWhy); return; }
     const horizon = horizons.find((h) => h.id === horizonId);
     setRunning(true);
     setResult(null);

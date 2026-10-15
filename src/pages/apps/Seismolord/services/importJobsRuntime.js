@@ -51,7 +51,7 @@ export async function v4ImportSupport(fileSize) {
  *  identity and CRS decisions so v4 rows carry the same record. Also the
  *  first step of a server import (serverImport.js), so a server-converted
  *  row is registered exactly like a browser-converted one. */
-export async function prepareV4Row({ file, mapping, nativeCrs, name, fingerprint: knownFingerprint = null, crop = null, quotaBytes = null }) {
+export async function prepareV4Row({ file, mapping, nativeCrs, name, fingerprint: knownFingerprint = null, crop = null, quotaBytes = null, vertical = null }) {
   const userId = await currentUserId();
   const volumeId = crypto.randomUUID();
   const displayName = name || file.name;
@@ -69,6 +69,9 @@ export async function prepareV4Row({ file, mapping, nativeCrs, name, fingerprint
   ingestRec.pipeline = V4_PIPELINE;
   // crop before upload: the source file, its original geometry and the crop
   if (crop) ingestRec.crop = crop;
+  // a depth volume's vertical axis (P1.6): every conversion path puts it on
+  // the manifest from here (applyVerticalToManifest)
+  if (vertical?.domain === 'depth') ingestRec.vertical = vertical;
   const { error } = await supabase.from('seismic_volumes')
     .insert(stampProject({
       id: volumeId,
