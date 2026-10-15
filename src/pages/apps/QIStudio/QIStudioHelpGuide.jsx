@@ -425,6 +425,8 @@ function QIStudioHelpGuideContent() {
           stack&apos;s Surfaces and Mapping &amp; Surface Studio opens them; both export XYZ, CPS-3, ZMAP+ and Irap grids. The
           report lists the maps with their ranges.
         </Para>
+              <SubHeading>AVO class maps</SubHeading>
+        <Para>Every AVO product can be mapped like any volume, and each AVO run with an intercept and a gradient offers an AVO class map under AVO classes: the class (1 to 4 for I to IV) of the zone means of A and B, by the classifier Rock Physics Studio uses. A run computed with a calibration is already in reflectivity; otherwise Compare at the wells on the AVO tab first, and its scale takes A and B to reflectivity. Class maps are gridded by the nearest trace so classes are never blended, and are saved as interpretations.</Para>
       </GuideSection>
     </HelpGuideShell>
   );
