@@ -111,7 +111,11 @@ export default function SeismolordHelpGuide() {
         <Step n={3} title="Tie a well first">
           Wells: show a well with checkshots, open the synthetics window, Synthesize with a Ricker, then Extract from
           the well for a wavelet measured at the well. Suggest the bulk shift, add anchors where events clearly
-          match, and read the tie QC. Commit to checkshots: the QC is stored with the tie.
+          match, and read the tie QC. Where the sonic drifts and one shift cannot fit the whole well, Suggest
+          anchors proposes a stretch and squeeze and a constant phase by dynamic warping against the seismic at the
+          well; it suggests nothing when even the warped synthetic does not follow the seismic. Check each anchor
+          on the tracks, drag or remove any that sit on the wrong event, then commit. Commit to checkshots: the QC
+          is stored with the tie, and QI Studio uses the committed tie.
         </Step>
         <Step n={4} title="Pick the key horizon">
           Interpretation: New horizon, pick a seed on the tied event, Track 2D along the line. Where the event

@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 48da27fee7886ca1ac721cc48067817df9815145
+# commit cd6364b534668b91d769c1e11052e274015a2b8c
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 d8bd133c5a081611291cb72e0efd5909a2e23b77 README.md
@@ -227,6 +227,7 @@ ad2320648553d59d8cfcfac1712e614620b9633d __tests__/rockphysics.modelLines.test.j
 7671424c82fb43319770e84d54b3ca3e15e9e5a6 __tests__/scal.u2fits.test.js
 6e36d1d3f5b7a2f48c78708a3234b258d88cd9e0 __tests__/scal.u2swirr.test.js
 a12035dde9b0cb78294a0d7776e1f54dd13e0e8f __tests__/seismolord.attributes.test.js
+eeca8e17e04d998fd1a48c45f17c34f534117bdc __tests__/seismolord.autoAnchors.test.js
 1f4119722db4f1f53731d762f85d54e5df8c9709 __tests__/seismolord.autotie.test.js
 995279d339bcc4044bf7e0895eaeb77e26e4b64d __tests__/seismolord.azimuthref.test.js
 38e86472713b9623a88dd92be5fc636647b5ec80 __tests__/seismolord.brickcodec.test.js
@@ -585,6 +586,7 @@ a3706390e5e5dbe06ae9a793e351e448351e5282 engines/rockphysics/wedge.js
 85b53d5bcc9020dc750c01002d386ffe95257d26 engines/scal/fractionalFlow.js
 89ffa5db7d74b6dc78b6425bb9628c1684fd00d4 engines/scal/scal.js
 7729c027b8918a5556e801f2109283ac8ac1b049 engines/seismolord/attributes.js
+cc6f33a5a27e0105a0601abf39b84913f28d8cc6 engines/seismolord/autoAnchors.js
 9d7dbcf0989ad39f0c213aba2b8f0ce77e6e98d1 engines/seismolord/autoTie.js
 de49eaf2fa7ac219ce9ff0f771135b2fcbd0b98f engines/seismolord/brickCache.js
 8eddc4f357121d21cdc7c727adcc1dfff79ca8c6 engines/seismolord/brickCodec.js
