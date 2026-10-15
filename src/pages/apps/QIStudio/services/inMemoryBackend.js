@@ -68,6 +68,8 @@ export function makeInMemoryBackend() {
     // the inversion inputs: a 16 x 32 survey at 4 ms on a 25 m grid, two horizons, synthetic curves
     async loadVolumeFrame() { return { dtMs: 4, nIl: 16, nXl: 32, ns: 600, affine: { origin: { x: 0, y: 0 }, ilVec: { x: 0, y: 25 }, xlVec: { x: 25, y: 0 } } }; },
     async listHorizons() { return [{ id: 'qi-h1', name: 'Top Sand A', is_own: true }, { id: 'qi-h2', name: 'Base Sand B', is_own: true }]; },
+    // a fault crossing the survey between inline 7 and 8 (QI upgrade P2.8)
+    async listFaults() { return [{ id: 'qi-f1', name: 'Keta Fault 1', is_own: true, sticks: [0, 10, 20, 31].map((xl) => ({ points: [{ il: 7.5, xl, s: 100 }, { il: 7.5, xl, s: 200 }, { il: 7.5, xl, s: 300 }] })) }]; },
     async downloadCurve(l) {
       const n = Math.round((l.stop_md_m - l.start_md_m) / l.step_m) + 1;
       const dt = /^DT/.test(l.mnemonic);
@@ -257,7 +259,7 @@ function makeInMemoryJobs({ removedDatasets = new Set() } = {}) {
           rows: params.inversion.wells.map((w, i) => ({ name: w.name, q10: 3 + i, q50: 5 + i, q90: 8 + i })),
           byScenario: [{ label: 'scenario 1', meanRmsPct: 4.5 }, { label: 'scenario 2', meanRmsPct: 6.1 }, { label: 'scenario 3', meanRmsPct: 9.8 }],
         } : null;
-        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, volume_id: params.volume_id, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}), settings: { method: params.inversion.method, qi_class: 'elastic_estimate', wavelet_scale: 1.2 }, blind, blind_protocol: { version: 'held-back-v2', excluded_from: ['the low-frequency model', 'the wavelet scale', ...(params.inversion.blind_wavelets ? ['the field wavelet average'] : [])] }, ...(sensitivity ? { sensitivity } : {}) } });
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, volume_id: params.volume_id, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}), settings: { method: params.inversion.method, qi_class: 'elastic_estimate', wavelet_scale: 1.2 }, blind, ...(params.inversion.lfm_scenarios ? { lfm_scenarios: params.inversion.lfm_scenarios.map((sc, i) => ({ name: sc.name, meanRmsPct: 9 - 1.5 * i, rows: params.inversion.wells.map((w, j) => ({ name: w.name, corr: 0.9, rmsPct: 9 - 1.5 * i + j })), ...(sc.velocity ? { trend: { a: -1.2, b: 1.25, r2: 0.83 } } : {}) })) } : {}), blind_protocol: { version: 'held-back-v2', excluded_from: ['the low-frequency model', 'the wavelet scale', ...(params.inversion.blind_wavelets ? ['the field wavelet average'] : [])] }, ...(sensitivity ? { sensitivity } : {}) } });
         return id;
       }
       const qc = await runSeismicQc({ getBrick, geom: { nIl, nXl, ns, brickSize: b, grid }, dtMs: 2, inlines: 6 });

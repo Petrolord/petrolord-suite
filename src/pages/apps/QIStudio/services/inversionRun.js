@@ -23,6 +23,7 @@ import {
   modelBased, sparseSpike, colouredOperator, applyColoured, impedanceSpectrumSlope, forwardPoststack,
 } from '../engine/inversion';
 import { lfmTrace, blindWellScore } from '../engine/lfm';
+import { lfmTraceModel, intervalFromRms, fitVelocityTrend, velocityTrendLnAi } from '../engine/lfmModels';
 import {
   halfWindowFor, lowPassFinite, waveletScale, blindWellTable as engineBlindWellTable,
 } from '../engine/inversionQc';
@@ -73,6 +74,8 @@ export function validateInversionParams(p) {
   if (p.mode === 'blind' && wells.length < 2) return 'A blind-well check needs at least two wells.';
   const h = inv.horizon_ids || [];
   if (!Array.isArray(h) || h.length > MAX_HORIZONS) return `Use at most ${MAX_HORIZONS} horizons.`;
+  const lfmWhy = validateLfmOptions(inv);
+  if (lfmWhy) return lfmWhy;
   if (inv.blind_wavelets != null) {
     if (!Array.isArray(inv.blind_wavelets)) return 'The blind wavelets must be a list.';
     for (const bw of inv.blind_wavelets) {
@@ -175,9 +178,21 @@ export function averageAmplitude(traces, dtMs) {
  * @returns {(trace: ArrayLike<number>, il: number, xl: number, exclude?: string) => Float64Array}
  *   ln(AI) for absolute methods, relative impedance for coloured; NaN where the input is null
  */
-export function makeTraceInverter({ inv, wavelet, wells, posOf, horizonsAt, ns, dtMs, coloured = null }) {
+export function makeTraceInverter({ inv, wavelet, wells, posOf, horizonsAt, ns, dtMs, coloured = null, trendFit = null, trendAt = null }) {
   const s = { ...INVERSION_DEFAULTS, ...inv };
   const grid = { t0Ms: 0, dtMs, ns };
+  // QI upgrade P2.8: kriging, faults and a velocity trend (engines qi/lfmModels.js); with none the original model
+  const opts = lfmOptionsOf(inv);
+  const lfmAt = (pos, il, xl, exclude) => {
+    const at = { x: pos.x, y: pos.y, horizons: horizonsAt(il, xl) || undefined };
+    if (!opts && !trendFit) return lfmTrace(wells, at, grid, { power: s.idwPower, exclude });
+    if (trendFit) {
+      const v = trendAt ? trendAt(il, xl) : null;
+      if (!v) throw new Error('The velocity trend has no velocity at this trace.');
+      at.trend = velocityTrendLnAi(v, trendFit);
+    }
+    return lfmTraceModel(wells, at, grid, { ...(opts || {}), power: s.idwPower, exclude });
+  };
   return (trace, il, xl, exclude) => {
     const d = new Float64Array(ns);
     for (let i = 0; i < ns; i++) d[i] = isNull(trace[i]) ? 0 : trace[i];
@@ -186,7 +201,7 @@ export function makeTraceInverter({ inv, wavelet, wells, posOf, horizonsAt, ns, 
       out = Float64Array.from(applyColoured(d, coloured));
     } else {
       const pos = posOf(il, xl);
-      const m0 = lfmTrace(wells, { x: pos.x, y: pos.y, horizons: horizonsAt(il, xl) || undefined }, grid, { power: s.idwPower, exclude });
+      const m0 = lfmAt(pos, il, xl, exclude);
       if (s.method === 'sparse_spike') {
         out = sparseSpike({ d, wavelet, m0, lambda: s.lambda, dtMs, crossoverHz: s.lfmHz, iters: s.iters }).m;
       } else {
@@ -363,10 +378,17 @@ export function scaleTieQuality(pairs, wavelet) {
 }
 export const MIN_SCALE_TIE = 0.3;
 
-export function makeBlindInverter({ inv, wavelet, onGrid = (x) => Float64Array.from(x), wells, traces, posOf, horizonsAt, ns, dtMs }) {
+export function makeBlindInverter({ inv, wavelet, onGrid = (x) => Float64Array.from(x), wells, traces, posOf, horizonsAt, ns, dtMs, velocityAtWells = null, trendAt = null }) {
   const s = { ...INVERSION_DEFAULTS, ...inv };
   const absolute = INVERSION_METHODS[s.method].absolute;
   const lfm = absolute ? lfmWells(wells, { dtMs, lfmHz: s.lfmHz, posOf, horizonsAt }) : [];
+  // QI upgrade P2.8: the velocity trend is calibrated on the wells kept, so a held-back well is out of it too
+  const useTrend = absolute && !!inv.velocity && Array.isArray(velocityAtWells);
+  const trendFor = (keep) => {
+    if (!useTrend) return { fit: null, wellsT: lfm };
+    const fit = fitVelocityTrend(keep.map((k) => ({ lnAi: lfm[k].values, v: velocityAtWells[k] })));
+    return { fit, wellsT: lfm.map((w, k) => ({ ...w, trend: velocityTrendLnAi(velocityAtWells[k], fit) })) };
+  };
   const blindW = new Map((inv.blind_wavelets || []).map((w) => [w.name, onGrid(w.samples, w.dt_ms)]));
   const notes = [];
   const build = (exclude) => {
@@ -375,7 +397,8 @@ export function makeBlindInverter({ inv, wavelet, onGrid = (x) => Float64Array.f
     if (absolute) {
       const scale = waveletScale(keep.map((k) => ({ trace: traces[k], lnAi: wells[k].ln_ai })), w0).scale;
       const scaled = w0.map((v) => v * scale);
-      return { scale, wavelet: scaled, invert: makeTraceInverter({ inv, wavelet: scaled, wells: lfm, posOf, horizonsAt, ns, dtMs }) };
+      const { fit, wellsT } = trendFor(keep);
+      return { scale, wavelet: scaled, trendFit: fit, invert: makeTraceInverter({ inv, wavelet: scaled, wells: wellsT, posOf, horizonsAt, ns, dtMs, trendFit: fit, trendAt }) };
     }
     const c = colouredFromWells({ wellTraces: keep.map((k) => traces[k]), wellLogs: keep.map((k) => wells[k].ln_ai), dtMs, ns, band: s.band });
     return { alpha: c.alpha, invert: makeTraceInverter({ inv, wavelet: w0, wells: lfm, posOf, horizonsAt, ns, dtMs, coloured: c.operator }) };
@@ -408,8 +431,9 @@ export function makeBlindInverter({ inv, wavelet, onGrid = (x) => Float64Array.f
     return out;
   };
   const waveletWell = typeof inv.wavelet_well === 'string' && inv.wavelet_well ? inv.wavelet_well : null;
-  const protocol = { ...blindProtocol({ absolute, blindWavelets: blindW.size > 0, waveletWell }), notes };
-  return { invert, scale: full.scale ?? null, alpha: full.alpha ?? null, scaledWavelet: full.wavelet || null, protocol, scales, blindTraces, scaleTie: tie };
+  const base = blindProtocol({ absolute, blindWavelets: blindW.size > 0, waveletWell });
+  const protocol = { ...base, excluded_from: useTrend ? [...base.excluded_from, 'the velocity trend calibration'] : base.excluded_from, notes };
+  return { invert, scale: full.scale ?? null, alpha: full.alpha ?? null, scaledWavelet: full.wavelet || null, trendFit: full.trendFit || null, protocol, scales, blindTraces, scaleTie: tie };
 }
 
 // ---------------------------------------------------------------------------
@@ -584,4 +608,78 @@ export function residualPercent(trace, residual) {
     sr += residual[i] ** 2; sd += trace[i] ** 2; n += 1;
   }
   return n && sd > 0 ? 100 * Math.sqrt(sr / sd) : NaN;
+}
+
+// ---------------------------------------------------------------------------
+// Low-frequency model options (QI upgrade P2.8, 2026-10-15): kriging in place
+// of inverse distance, faults as barriers between wells, a velocity trend
+// from a velocity volume calibrated at the wells, and named scenarios
+// compared at the blind wells. The maths is engines qi/lfmModels.js.
+
+export const LFM_VARIOGRAMS = ['spherical', 'exponential', 'gaussian'];
+export const MAX_LFM_SCENARIOS = 6;
+
+/** The engine options of an inversion block, or null for the original model. */
+export function lfmOptionsOf(inv) {
+  const l = inv?.lfm;
+  if (!l || (l.method !== 'kriging' && !(l.barriers || []).length)) return null;
+  return {
+    method: l.method === 'kriging' ? 'kriging' : 'idw',
+    ...(l.method === 'kriging' ? { variogram: { model: l.variogram?.model || 'spherical', range: Number(l.variogram?.range), sill: 1, nugget: Number(l.variogram?.nugget ?? 0) } } : {}),
+    barriers: (l.barriers || []).map((line) => line.map((p) => ({ x: Number(p.x), y: Number(p.y) }))),
+  };
+}
+
+/** Why the model options cannot run, or null. */
+export function validateLfmOptions(inv) {
+  const l = inv?.lfm;
+  if (l != null) {
+    if (typeof l !== 'object') return 'The model options must be an object.';
+    if (l.method != null && !['idw', 'kriging'].includes(l.method)) return 'The model is interpolated by inverse distance or kriging.';
+    if (l.method === 'kriging') {
+      const v = l.variogram || {};
+      if (!LFM_VARIOGRAMS.includes(v.model || 'spherical')) return 'The variogram is spherical, exponential or gaussian.';
+      if (!(Number(v.range) > 0)) return 'Give the variogram range in metres, above zero.';
+      if (v.nugget != null && !(Number(v.nugget) >= 0 && Number(v.nugget) < 1)) return 'The nugget is a share of the sill, 0 to below 1.';
+    }
+    if (l.barriers != null && (!Array.isArray(l.barriers) || l.barriers.length > 50 || l.barriers.some((b) => !Array.isArray(b) || b.length < 2 || b.length > 500 || b.some((p) => !fin(Number(p?.x)) || !fin(Number(p?.y)))))) return 'Each fault trace needs two map points or more (at most 50 faults).';
+  }
+  if (inv?.velocity != null) {
+    const v = inv.velocity;
+    if (!v?.volume_id) return 'Choose the velocity volume for the trend.';
+    if (!['interval', 'rms'].includes(v.kind)) return 'The velocity volume holds interval or RMS velocity.';
+    if (!INVERSION_METHODS[inv.method]?.absolute) return 'A velocity trend needs an absolute method.';
+    if (inv.sensitivity) return 'The velocity trend runs with a single inversion; run the uncertainty run on the wells-only or kriged model.';
+  }
+  if (inv?.lfm_scenarios != null) {
+    if (!Array.isArray(inv.lfm_scenarios) || !inv.lfm_scenarios.length || inv.lfm_scenarios.length > MAX_LFM_SCENARIOS) return `Compare one to ${MAX_LFM_SCENARIOS} model scenarios.`;
+    for (const sc of inv.lfm_scenarios) {
+      if (!sc?.name) return 'Each model scenario needs a name.';
+      const why = validateLfmOptions({ method: inv.method, lfm: sc.lfm || null, velocity: sc.velocity ? inv.velocity || {} : null });
+      if (why) return `${sc.name}: ${why}`;
+    }
+  }
+  return null;
+}
+
+/**
+ * A velocity trace ready for the trend: RMS taken to interval by Dix, nulls
+ * as gaps, low-passed at the model cut like the well logs.
+ */
+export function velocityForLfm(trace, { kind, dtMs, lfmHz }) {
+  const v = Float64Array.from(trace, (x) => (isNull(x) || !(x > 0) ? NaN : x));
+  const vi = kind === 'rms' ? intervalFromRms(v, dtMs) : v;
+  return lowPassFinite(vi, halfWindowFor(lfmHz, dtMs));
+}
+
+/** A fault's map trace: the middle point of each stick, in stick order, on the survey's world grid. */
+export function faultTraceXY(fault, posOf) {
+  const pts = [];
+  for (const st of fault?.sticks || []) {
+    const p = st.points || [];
+    if (!p.length) continue;
+    const m = p[Math.floor(p.length / 2)];
+    if (Number.isFinite(m.il) && Number.isFinite(m.xl)) pts.push(posOf(m.il, m.xl));
+  }
+  return pts;
 }

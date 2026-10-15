@@ -114,6 +114,8 @@ export function reportModel({ projectName = '', organizationName = '', project, 
         rows: res.blind.map((w) => [w.name, n(w.blind.corr, 2), rel ? 'n/a' : n(w.blind.rmsPct, 1), n(w.withWell.corr, 2), rel ? 'n/a' : n(w.withWell.rmsPct, 1)]),
         // QI upgrade P1.4: the seismic the inversion leaves unexplained at each well
         residual: (res.residual_at_wells || []).map((w) => `${w.name} ${n(w.pct, 0)}`).join(', '),
+        // QI upgrade P2.8: the model scenarios compared at the blind wells
+        lfmScenarios: (r.lfmScenarios?.result || []).map((x) => [x.name, x.error ? x.error : n(x.meanRmsPct, 1), x.trend ? `ln AI = ${n(x.trend.a, 3)} + ${n(x.trend.b, 3)} ln V` : '']),
         residualVolumes: (r.runs || []).filter((x) => x.status === 'ready' && x.residual).map((x) => `${x.name} ${Number.isFinite(x.residual.percent_of_seismic) ? `${x.residual.percent_of_seismic.toFixed(0)} percent of the seismic RMS` : ''}`.trim()),
         volumes: (r.runs || []).filter((x) => x.status === 'ready').map((x) => x.name),
         spread: r.spread?.result?.sensitivity ? {
@@ -283,6 +285,7 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
     table(`Impedance inversion: ${v.volume}`, ['Well', 'Blind correlation', 'Blind AI error (percent)', 'With the well: correlation', 'With the well: error (percent)'], v.rows, {
       note: `${v.method}, run on the seismic worker${v.at ? ` on ${v.at}` : ''}. Each well is left out of the low-frequency model in turn and compared with its own log after a high cut at ${INVERSION_DEFAULTS.truthHz} Hz${v.relative ? '; relative impedance has no level, so only the correlation is reported' : ''}. ${v.protocol || ''}${v.residual ? ` Seismic residual at the wells, percent of the seismic RMS: ${v.residual}.` : ''}${(v.residualVolumes || []).length ? ` Residual volumes: ${v.residualVolumes.join('; ')}.` : ''} Products are elastic estimates.${v.volumes.length ? ` Impedance volumes: ${v.volumes.join(', ')}.` : ''}`,
     });
+    if ((v.lfmScenarios || []).length) table(`Low-frequency model scenarios: ${v.volume}`, ['Scenario', 'Mean blind AI error (percent)', 'Velocity calibration'], v.lfmScenarios, { note: 'The blind-well check repeated with each way of building the low-frequency model: inverse distance, kriging, faults that stop the model averaging across them, and a velocity trend from a velocity volume calibrated at the wells (each well held back from the calibration too).' });
     if (v.spread) {
       table(`Inversion sensitivity: ${v.volume}`, ['Well', 'Blind AI error Q10 (percent)', 'Q50', 'Q90'], v.spread.rows, { note: 'The blind-well check repeated under each scenario (wavelet, model cut, noise); Q10, Q50 and Q90 are the 10th, 50th and 90th percentiles across the scenarios.' });
       table(`Inversion scenarios: ${v.volume}`, ['Scenario', 'Mean blind AI error (percent)'], v.spread.scenarios, { note: 'The assumption whose scenarios raise the error most is the one the result depends on most.' });
