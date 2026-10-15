@@ -48,6 +48,10 @@ for (const [k, st] of plan.entries()) {
     else if (st.op === 'inversion') r = await page.evaluate(([v, o]) => window.qb.inversion(v, o), [st.volume, st.opts || {}]);
     else if (st.op === 'property') r = await page.evaluate(([a, v, o]) => window.qb.property(a, v, o), [st.ai, st.volume, st.opts || {}]);
     else if (st.op === 'wells') r = await page.evaluate(([v, n]) => window.qb.wells(v, n).then((x) => x.wells.map((w) => ({ name: w.name, ok: w.ok, reason: w.reason, il: w.il, xl: w.xl, samples: w.samples, timeControl: w.timeControl }))), [st.volume, st.names || null]);
+    else if (st.op === 'tie') r = await page.evaluate(([v, o]) => window.qb.tie(v, o), [st.volume, st.opts || {}]);
+    else if (st.op === 'setWellCoords') r = await page.evaluate((l) => window.qb.setWellCoords(l), st.list);
+    else if (st.op === 'cancelActive') r = await page.evaluate(() => window.qb.cancelActive());
+    else if (st.op === 'clearTies') r = await page.evaluate((n) => window.qb.clearTies(n), st.names || null);
     else if (st.op === 'listMine') r = await page.evaluate(() => window.qb.listMine());
     else if (st.op === 'removeVolumes') r = await page.evaluate((p) => window.qb.removeVolumes(p), st.prefix);
     else if (st.op === 'removeWells') r = await page.evaluate((p) => window.qb.removeWells(p), st.prefix);

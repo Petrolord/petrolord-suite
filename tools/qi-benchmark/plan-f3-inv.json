@@ -1,0 +1,6 @@
+[
+ {"key":"signIn","op":"signIn"},
+ {"key":"invBlind2","op":"inversion","volume":"BENCH F3 stack (dGB, wells area)","opts":{"method":"model_based","rickerHz":35},"stopOnError":false},
+ {"key":"invBlocky2","op":"inversion","volume":"BENCH F3 stack (dGB, wells area)","opts":{"method":"blocky","rickerHz":35},"stopOnError":false},
+ {"key":"invColoured2","op":"inversion","volume":"BENCH F3 stack (dGB, wells area)","opts":{"method":"coloured","rickerHz":35},"stopOnError":false}
+]

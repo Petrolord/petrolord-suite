@@ -1,0 +1,12 @@
+[
+ {"key":"signIn","op":"signIn"},
+ {"key":"cancel","op":"cancelActive"},
+ {"key":"clearTies","op":"clearTies"},
+ {"key":"coords","op":"setWellCoords","list":[
+  {"name":"F3 F02-01","x":606457,"y":6079912,"crs":"EPSG:32631","note":"NLOG xutm31Wgs84Crd / yutm31Wgs84Crd (WGS 84 / UTM 31N), the project CRS"},
+  {"name":"F3 F03-02","x":618999,"y":6089304,"crs":"EPSG:32631","note":"NLOG xutm31Wgs84Crd / yutm31Wgs84Crd (WGS 84 / UTM 31N), the project CRS"},
+  {"name":"F3 F03-04","x":623164,"y":6082374,"crs":"EPSG:32631","note":"NLOG xutm31Wgs84Crd / yutm31Wgs84Crd (WGS 84 / UTM 31N), the project CRS"},
+  {"name":"F3 F06-01","x":607810,"y":6077001,"crs":"EPSG:32631","note":"NLOG xutm31Wgs84Crd / yutm31Wgs84Crd (WGS 84 / UTM 31N), the project CRS"}]},
+ {"key":"wellsOnVolume2","op":"wells","volume":"BENCH F3 stack (dGB, wells area)"},
+ {"key":"tieDry2","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"commit":false}}
+]

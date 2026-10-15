@@ -1,0 +1,118 @@
+[
+ {
+  "key": "signIn",
+  "op": "signIn"
+ },
+ {
+  "key": "tieW_500_1900_60",
+  "op": "tie",
+  "volume": "BENCH F3 stack (dGB, wells area)",
+  "opts": {
+   "commit": false,
+   "mdRange": [
+    500,
+    1900
+   ],
+   "maxShiftMs": 60
+  },
+  "stopOnError": false
+ },
+ {
+  "key": "tieW_500_1900_100",
+  "op": "tie",
+  "volume": "BENCH F3 stack (dGB, wells area)",
+  "opts": {
+   "commit": false,
+   "mdRange": [
+    500,
+    1900
+   ],
+   "maxShiftMs": 100
+  },
+  "stopOnError": false
+ },
+ {
+  "key": "tieW_900_1900_60",
+  "op": "tie",
+  "volume": "BENCH F3 stack (dGB, wells area)",
+  "opts": {
+   "commit": false,
+   "mdRange": [
+    900,
+    1900
+   ],
+   "maxShiftMs": 60
+  },
+  "stopOnError": false
+ },
+ {
+  "key": "tieW_900_1900_100",
+  "op": "tie",
+  "volume": "BENCH F3 stack (dGB, wells area)",
+  "opts": {
+   "commit": false,
+   "mdRange": [
+    900,
+    1900
+   ],
+   "maxShiftMs": 100
+  },
+  "stopOnError": false
+ },
+ {
+  "key": "tieW_1200_2000_60",
+  "op": "tie",
+  "volume": "BENCH F3 stack (dGB, wells area)",
+  "opts": {
+   "commit": false,
+   "mdRange": [
+    1200,
+    2000
+   ],
+   "maxShiftMs": 60
+  },
+  "stopOnError": false
+ },
+ {
+  "key": "tieW_1200_2000_100",
+  "op": "tie",
+  "volume": "BENCH F3 stack (dGB, wells area)",
+  "opts": {
+   "commit": false,
+   "mdRange": [
+    1200,
+    2000
+   ],
+   "maxShiftMs": 100
+  },
+  "stopOnError": false
+ },
+ {
+  "key": "tieW_300_1300_60",
+  "op": "tie",
+  "volume": "BENCH F3 stack (dGB, wells area)",
+  "opts": {
+   "commit": false,
+   "mdRange": [
+    300,
+    1300
+   ],
+   "maxShiftMs": 60
+  },
+  "stopOnError": false
+ },
+ {
+  "key": "tieW_300_1300_100",
+  "op": "tie",
+  "volume": "BENCH F3 stack (dGB, wells area)",
+  "opts": {
+   "commit": false,
+   "mdRange": [
+    300,
+    1300
+   ],
+   "maxShiftMs": 100
+  },
+  "stopOnError": false
+ }
+]

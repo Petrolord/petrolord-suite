@@ -1,7 +1,7 @@
 # QI open-dataset benchmark (Volve and F3)
 
-Status: DRAFT, 2026-10-14. Data acquisition is partly blocked (see section 2);
-the full workflow runs wait for the owner's downloads. Plan of record:
+Status: DRAFT, updated 2026-10-15. F3 ran on the live worker (suite-dda896acd,
+before the P1 redeploy); Volve is still downloading on the owner's side. Plan of record:
 `docs/scope/QI-PLAN.md` (Milestone A, B and C acceptance and Q12). Progress
 log: `docs/scope/QI-STATUS.md`.
 
@@ -17,7 +17,7 @@ any public place. All processing happens on the seismic worker host
 |---|---|---|---|
 | F3 Netherlands wells F02-01, F03-02, F03-04, F06-01 (LAS: GR, DT, RHOB, DRHO, NPHI; header, coordinates, lithostratigraphy) | NLOG (www.nlog.nl), the Dutch government's public oil and gas portal, which is the original source of the F3 data that dGB packaged | NLOG terms: information may be copied, downloaded, edited and disclosed provided NLOG.NL is quoted as the source | "Well data: NLOG.NL (Netherlands Oil and Gas Portal), TNO." |
 | F3 Netherlands 3D post-stack time migration (NLOG survey Z3NAM1989E, collection Z3NAM1989E-2, NAM 1987 acquisition, 6.4 GB) | NLOG; only a partial download was possible (section 2) | NLOG terms, as above | "Seismic data: NLOG.NL; original acquisition NAM." |
-| F3 Demo (dGB Earth Sciences, value-added OpendTect project: horizons, AI cube, edited logs) | Not yet obtained (TerraNubis download is captcha-protected) | Creative Commons BY-SA 3.0 | "We thank dGB Earth Sciences for making the data available as an OpendTect project via their TerraNubis portal terranubis.com." Derived products stay under CC BY-SA. |
+| F3 Demo post-stack seismic, as "F3 Dataset sliced" on Kaggle (f3_dataset.sgy, 699,003,060 bytes, SEG-Y rev 1, format 3 (16-bit integer), 462 samples at 4 ms from 4 ms, 600,515 traces, inlines 100 to 750, crosslines 300 to 1250; inlines 701 to 750 are partial) | Downloaded by the owner on 2026-10-15 into `/srv/qi-benchmark/f3/raw/` | Creative Commons BY-SA 3.0 (dGB Earth Sciences and TNO) | "F3 Demo seismic: dGB Earth Sciences and TNO, Creative Commons BY-SA 3.0 (via the Kaggle dataset "F3 Dataset sliced"). We thank dGB Earth Sciences for making the data available via their TerraNubis portal terranubis.com." Derived products stay under CC BY-SA. |
 | Equinor Volve (2008-2016) | Not yet obtained (Equinor's download asks for a human check; the Databricks Marketplace needs a login) | Equinor Open Data Licence | "Contains data from the Volve field, made available by Equinor ASA and the Volve licence partners under the Equinor Open Data Licence." |
 
 ## 2. Acquisition log
@@ -57,7 +57,18 @@ any public place. All processing happens on the seismic worker host
   committed well tie in Seismolord (bulk shift and stretch) is needed before
   inversion; the drift-corrected sonic tool (Well Data Manager, Edit logs)
   can take these survey levels once they are typed in.
-- **F3 seismic (blocked).** NLOG streams Z3NAM1989E-2 as a zip built on the
+- **F3 seismic (2026-10-15, owner download).** The Kaggle copy of the dGB
+  F3 Demo stack. Header check: the textual header gives inline at byte 9 and
+  crossline at byte 21, both also at the rev 1 bytes 189 and 193 (used);
+  X and Y at 73/77 and 181/185 with scalar -10; corners 100/300 =
+  (605835.5, 6073556.5), 100/1250 = (629576.25, 6074220), 750/300 =
+  (605381.8, 6089799.5), which agree with the NLOG survey grid within about
+  25 m, so the CRS is ED50 / UTM 31N (EPSG:23031). 651 inlines x 951
+  crosslines is 619,101 positions; the file has 600,515 traces because
+  inlines 701 to 750 hold only 571 to 666 traces each (crosslines 451 or 664
+  to 1250). The file is inline-sorted. The first sample is at 4 ms (byte 109,
+  textual card 37); see finding F-5.
+- **F3 seismic from NLOG (blocked, 2026-10-14).** NLOG streams Z3NAM1989E-2 as a zip built on the
   fly, and its gateway closes every download after 30 s (about 365 MB, inlines
   99 to 137 of 99 to 824). It has no byte ranges, so it cannot resume. No
   well lies in those inlines. TerraNubis (dGB) hands off to a captcha-gated
@@ -105,6 +116,77 @@ worker host, the Suite's own services, the QA account). Results JSON:
 4. **Wells against the partial volume:** all four refused with "The well is
    outside the survey" (correct: they lie at inlines 244 to 723).
 
+### 3b. F3 run on the dGB stack (2026-10-15, worker suite-dda896acd+engines-eab475c0d)
+
+1. **Import with crop** (server path, CRS declared EPSG:23031, refit into the
+   QA project CRS EPSG:32631): inlines 200 to 750 x crosslines 300 to 1050,
+   the whole 0 to 1844 ms. 460.2 MB cropped file uploaded in 88.9 s;
+   stack_to_v4 converted 395,379 traces (the irregular inlines 701 to 750
+   kept as holes), 1870 bricks, 336.6 MB float and 163.1 MB display copy
+   (job 2349b31b, 269 s end to end). Volume "BENCH F3 stack (dGB, wells
+   area)" 73aaccdb in the QA account (kept for the post-redeploy rerun).
+2. **Seismic QC** (job 742d22bf, 30 s):
+
+   | Window (ms) | Peak (Hz) | -6 dB band (Hz) | Centroid (Hz) | S/N (median) |
+   |---|---|---|---|---|
+   | 0-616 | 60.3 | 19.0-79.1 | 44.4 | 2.1 (3.2 dB) |
+   | 616-1232 | 60.1 | 36.5-68.0 | 47.5 | 19.5 (12.9 dB) |
+   | 1232-1848 | 41.8 | 5.0-64.2 | 34.3 | 10.5 (10.2 dB) |
+
+   No acquisition footprint (largest share 0.029). One issue: low
+   signal-to-noise 0 to 616 ms. The dGB stack has dGB's dip-steered median
+   filter, so it is cleaner than the raw NLOG cube above 1 s (S/N 19.5
+   against 5.1 to 8.1).
+3. **Wells on the volume.** With the wells in the project CRS (NLOG's own
+   WGS 84 / UTM 31N coordinates; finding F-2) the app places F02-01 at
+   inline 362 crossline 336, F03-04 at 442 / 1007 and F03-02 at 723 / 848,
+   exactly dGB's published well positions. F06-01 is refused: "The impedance
+   log covers fewer than 32 samples of the volume" (its density starts at
+   1836 m, below the 1848 ms record). Usable impedance samples: F02-01 402,
+   F03-04 340, F03-02 65.
+4. **Well ties** (Seismolord's automatic tie, engines autoTie: statistical
+   wavelet, bulk shift and constant phase; sonic-integrated time-depth):
+
+   | Well | Whole log | MD 900-1900 m | MD 1200-2000 m | MD 500-1900 m |
+   |---|---|---|---|---|
+   | F02-01 | 0.28 (-28.9 ms) | 0.45 (-29.1 ms) | 0.53 (-28.3 ms, phase -4) | 0.35 |
+   | F03-04 | 0.25 (-31.9 ms) | 0.34 | 0.42 (+36.9 ms, phase -3) | 0.24 |
+   | F03-02 | 0.36 (+19.2 ms) | 0.54 | 0.41 | 0.54 (-7.4 ms, phase -10) |
+
+   Every tie is poor or fair (the app's bands: good 0.7, fair 0.5). The
+   shifts disagree in sign between wells and move with the window, which is
+   the sonic drift (18 to 27 ms over 1.5 km at F03-04) that a bulk shift
+   cannot take out; the shallow section (300 to 1300 m) ties at 0.16 to
+   0.24. Fair ties need stretch and squeeze (finding F-4) or measured
+   checkshots.
+5. **Post-stack inversion, blind check** (poststack_inversion blind mode,
+   Ricker 35 Hz, default settings, three wells; OLD blind protocol, because
+   the worker is not redeployed: each well leaves the low-frequency model
+   only, the wavelet scale uses every well):
+
+   | Run | Wavelet scale | F03-04 blind corr / AI error | F03-02 | F02-01 |
+   |---|---|---|---|---|
+   | Model-based, sonic time-depth (job 8f9ea66d) | -348 | 0.30 / 5.7e29 percent | 0.04 / 1.9e47 | 0.04 / 6.1e47 |
+   | Blocky (job 4c7a277d) | -348 | 0.30 / 1.6e54 | 0.04 / 1.6e65 | 0.04 / 5.4e59 |
+   | Coloured (job abdb7cea; correlation only) | n/a | -0.16 | 0.25 | -0.27 |
+   | Model-based after committing the windowed ties (job 3b592169) | -2901 | 0.09 / 29,424 | 0.02 / 2.4e6 | 0.10 / 2.1e6 |
+   | Coloured after the ties (job 35d3b77f) | n/a | -0.27 | -0.06 | -0.18 |
+
+   The absolute inversions diverge (finding F-3): the trace amplitudes are
+   16-bit integers (RMS about 2545, peak 15692 at F03-04), so a reflectivity
+   series needs a scale of order 10^4 to 10^5, but the least-squares scale at
+   poorly tied wells shrinks towards zero (-348, then -2901). The inverted
+   reflectivity is then tens of times too large and ln(AI) overflows. The
+   run "succeeded" and reported these errors without a warning. The volume
+   run was cancelled (job d6b549c8, removed by the worker) and porosity was
+   not run, because it needs a trustworthy AI volume.
+6. **Steps that wait for the worker redeploy** (merged on main, not live):
+   the truly blind protocol (P1.2: the held-back well also leaves the wavelet
+   scale), NTG and Sw (P1.3), seismic residual volumes and the density gate
+   (P1.4), maps from volumes (P1.5). Rerun:
+   `/srv/qi-benchmark/kit/run.sh plan-f3-inv.json ...` after the redeploy,
+   with better ties first.
+
 Not yet run (waiting for seismic over the wells): ties, rock physics and
 feasibility, inversion with blind wells, properties, and for Volve the
 prestack, AVO and simultaneous steps. `plan-f3-full.template.json` holds the
@@ -119,10 +201,33 @@ model-based and coloured blind checks; volume; porosity 1200 to 2100 ms).
   29 Hz. Suggest reporting the band of the smoothed spectrum, or flagging a
   low-frequency peak separately (engines `qi/seismicQc.js`; issue text in
   `QIStudio/services/qcRun.js`). Not fixed here.
-- **F-2 (data).** The import tags a volume with the project CRS
-  (EPSG:32631 in the QA account) when the plan does not state one, while the
-  F3 coordinates are ED50 / UTM 31N (EPSG:23031). The harness now passes the
-  file's CRS; a user importing F3 must choose EPSG:23031 at the CRS step.
+- **F-2 (CRS, harness and a guard to add).** The seismic import refits a
+  volume declared in EPSG:23031 into the project CRS (EPSG:32631 in the QA
+  account). Well Data Manager's LAS door also places wells into the project
+  CRS, but the harness first saved the wells in EPSG:23031 untransformed, and
+  QI Studio's `prepareWell` compares well XY with the volume frame without
+  checking the tags: every well landed 8 inlines (about 212 m) north, ties
+  fell to 0.2 and the inversion compared the wrong traces. Fixed in the
+  harness (NLOG's WGS 84 / UTM 31N coordinates, EPSG:32631). Suggested guard
+  (QIStudio `services/inversionWells.js`): refuse or transform a well whose
+  CRS tag differs from the volume's.
+- **F-3 (inversion, for the QI lead; `services/inversionRun.js`).** No guard
+  on the wavelet scale or the result. With poorly tied wells the
+  least-squares scale shrinks (regression dilution) and the model-based and
+  blocky inversions overflow (blind AI errors of 1e29 to 1e65 percent) while
+  the job reports success. Repro: QA volume 73aaccdb, wells F3 F02-01,
+  F03-02, F03-04 with their sonic time-depth, method model_based, Ricker
+  35 Hz, defaults (job 8f9ea66d). Suggested: report the synthetic-to-seismic
+  correlation behind the scale and refuse (or warn) below about 0.3; flag a
+  blind error over 100 percent, or any non-finite AI, as a failed check.
+- **F-4 (ties).** The automatic tie is a bulk shift and a constant phase.
+  With a sonic-only time-depth it cannot follow drift, so F3 ties stay at
+  0.42 to 0.54 in the best window. The tie warp (multi-anchor stretch and
+  squeeze, engines `tieWarp.js`) exists for manual anchors; an automatic
+  windowed warp would make the benchmark repeatable.
+- **F-5 (time origin).** The dGB stack's first sample is at 4 ms (trace byte
+  109 and textual card 37). Seismolord takes sample 0 as 0 ms, so the volume
+  sits 4 ms early; the tie shift absorbs it, but the import does not say so.
 
 ## 5. Published results to compare (when the runs exist)
 
@@ -141,8 +246,8 @@ model-based and coloured blind checks; volume; porosity 1200 to 2100 ms).
 
 | Milestone | Criterion | Result |
 |---|---|---|
-| A (Package 1) | Full Package 1 on an open dataset | Not yet: wells and QC done; ties, feasibility and the report need seismic over the wells |
-| B (post-stack study) | Blind wells and prospect table on an open dataset | Not yet |
+| A (Package 1) | Full Package 1 on an open dataset | Partly. Inventory inputs, wells, CRS placement and seismic QC pass on F3. Ties FAIL the quality bands (best 0.42 to 0.54, fair at most) with a sonic-only time-depth. Feasibility and the report not run |
+| B (post-stack study) | Blind wells and prospect table on an open dataset | FAIL on F3 with the live worker: the absolute inversion diverges (F-3); coloured blind correlation -0.27 to 0.25. Rerun after the redeploy, the F-3 guard and better ties |
 | C (prestack study) | Blind-well error in published ranges, AVO class at known wells | Not yet (Volve needed) |
 
 ## 7. Limits

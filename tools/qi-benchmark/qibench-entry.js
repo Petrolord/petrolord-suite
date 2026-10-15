@@ -5,7 +5,7 @@
 // property calibration (QI Studio paths). Rerunnable; every write is named
 // with the prefix "BENCH " so cleanup finds it.
 import { supabase } from '@/lib/customSupabaseClient';
-import { saveWell, saveLogs, saveZone, listWells, deleteWell } from '@/lib/wellsRegistry';
+import { saveWell, saveLogs, saveZone, listWells, deleteWell, updateWell } from '@/lib/wellsRegistry';
 import { parseLas } from '@/pages/apps/WellDataManager/engine/lasParse';
 import { prepareLasForRegistry } from '@/pages/apps/WellDataManager/engine/lasIndex';
 import { fileReader } from '@/pages/apps/Seismolord/engine/reader';
@@ -15,10 +15,20 @@ import { planImportCrop, cropSource, spotCheckCrop, conversionView, scanConversi
 import { startServerImport } from '@/pages/apps/Seismolord/services/serverImport';
 import { getProjectCrs, setProjectCrs } from '@/lib/crs/settingsService';
 import { isTransformableTag, UNKNOWN } from '@/lib/crs/tags';
-import { enqueueJob, getJob } from '@/lib/qiService';
+import { enqueueJob, getJob, listJobs, cancelJob } from '@/lib/qiService';
 import { makeRegistryBackend } from '@/pages/apps/QIStudio/services/registryBackend';
 import { prepareWell } from '@/pages/apps/QIStudio/services/inversionWells';
 import { packLog } from '@/pages/apps/QIStudio/services/logPacking';
+import { getManifest } from '@/pages/apps/Seismolord/services/volumesService';
+import { saveDerivedCheckshots } from '@/pages/apps/Seismolord/services/wellsService';
+import { normalizeInputCurve } from '@/components/wells/curveUnits';
+import { listLogs, downloadCurve } from '@/lib/wellsRegistry';
+import { autoTieWell, tiedCheckshots, fieldTieConvention } from '@/pages/apps/Seismolord/engine/autoTie';
+import { makeTvdssToTwt } from '@/pages/apps/Seismolord/engine/wellSection';
+import { storageBrickFetcher } from '@/pages/apps/Seismolord/engine/brickCache';
+import { v4BrickFetcher } from '@/pages/apps/Seismolord/engine/brickCodecV4';
+import { geomFromManifest, brickKey } from '@/pages/apps/Seismolord/engine/sliceAssembly';
+import { surveyAffine } from '@/pages/apps/Seismolord/engine/surveyGeometry';
 
 const MAP = { ilByte: 189, xlByte: 193 };
 const backend = makeRegistryBackend();
@@ -157,6 +167,77 @@ window.qb = {
     const j = await enqueueJob('property_prediction', { mode: 'calibrate', ai_volume_id: ai.id, property });
     const r = await this.wait(j);
     return { jobId: j, status: r.status, error: r.error_message, summary: r.result_refs?.summary, rows: r.result_refs?.rows, dtMs: frame.dtMs, skipped: prepared.filter((w) => !ok.includes(w)).map((w) => [w.name, w.reason || w[kind]?.reason]) };
+  },
+  /** Seismolord's automatic tie (engines autoTie, as Tops to Horizons runs it) for each benchmark well; commit=true saves the tied relation as derived checkshots, as Commit tie does. */
+  async tie(volumeName, { commit = false, commitAny = false, names = null, maxShiftMs = 60, mdRange = null } = {}) {
+    const volume = await this.volumeByName(volumeName);
+    const manifest = await getManifest(volume);
+    const geom = geomFromManifest(manifest);
+    const affine = surveyAffine(manifest.geometry);
+    const dtUs = Number(manifest.geometry.dt_us);
+    const { data: sess } = await supabase.auth.getSession();
+    const fetcher = v4BrickFetcher(storageBrickFetcher({ supabaseUrl: supabase.supabaseUrl, getToken: async () => sess.session.access_token, bucket: 'seismic' }), manifest);
+    const b = geom.brickSize; const nk = geom.grid[2];
+    const cache = new Map();
+    const brick = async (i, j, k) => { const key = `${i}-${j}-${k}`; if (!cache.has(key)) { if (cache.size > 400) cache.clear(); cache.set(key, new Float32Array(await fetcher(brickKey(volume.storage_path, i, j, k)))); } return cache.get(key); };
+    const getTrace = async (il, xl) => {
+      const bricks = await Promise.all(Array.from({ length: nk }, (_, k) => brick(Math.floor(il / b), Math.floor(xl / b), k)));
+      const base = ((il % b) * b + (xl % b)) * b;
+      return Float32Array.from({ length: geom.ns }, (_, s2) => { const v = bricks[Math.floor(s2 / b)][base + (s2 % b)]; return Math.abs(v) > 1e29 ? 0 : v; });
+    };
+    const out = [];
+    const ties = [];
+    for (const w of await listWells()) {
+      if (names ? !names.includes(w.name) : !w.name.startsWith('F3 ') && !w.name.startsWith('Volve ')) continue;
+      const logs = await listLogs(w.id);
+      const sonic = logs.find((l) => l.mnemonic === 'DT'); const dens = logs.find((l) => l.mnemonic === 'RHOB');
+      if (!sonic) { out.push({ name: w.name, error: 'no DT' }); ties.push(null); continue; }
+      const dt = Float64Array.from(normalizeInputCurve('DT', sonic, await downloadCurve(sonic)).data);
+      let rho = dens ? Float64Array.from(normalizeInputCurve('RHOB', dens, await downloadCurve(dens)).data) : null;
+      if (rho && (rho.length !== dt.length || dens.start_md_m !== sonic.start_md_m)) rho = null;
+      const md = Float64Array.from({ length: dt.length }, (_, i) => Number(sonic.start_md_m) + i * Number(sonic.step_m));
+      // a tie window: logs outside the MD range are left out (NaN), as a user trims the tie interval
+      if (mdRange) for (let i = 0; i < md.length; i++) if (md[i] < mdRange[0] || md[i] > mdRange[1]) { dt[i] = NaN; if (rho) rho[i] = NaN; }
+      const rows = w.checkshots || [];
+      const timeConv = makeTvdssToTwt({ checkshots: rows, dtUs, maxTwtMs: geom.ns * dtUs / 1000 });
+      const well = { name: w.name, surfaceX: w.surface_x, surfaceY: w.surface_y, kbM: w.ref_elev_m ?? w.kb_m, tdMdM: w.td_md_m, deviation: w.deviation, logs: { md, dtUsPerM: Float32Array.from(dt, (v) => (Number.isFinite(v) ? v : NaN)), rho: rho ? Float32Array.from(rho, (v) => (Number.isFinite(v) ? v : NaN)) : null } };
+      let t = null; let err = null;
+      try { t = await autoTieWell({ well, timeConv, affine, geom, dtUs, getTrace, maxShiftMs }); } catch (e) { err = e.message; }
+      ties.push(t);
+      if (!t) { out.push({ name: w.name, error: err || 'not tied (off survey or no overlap)' }); continue; }
+      const rec = { name: w.name, mdRange, shiftMs: t.shiftMs, polarity: t.polarity, phaseDeg: t.phaseDeg, corr: t.corr, corr0: t.corr0, quality: t.quality, cells: t.cells?.length ?? null };
+      if ((commit && t.quality !== 'poor') || commitAny) {
+        await saveDerivedCheckshots(w.id, { rows: tiedCheckshots(rows, t), provenance: { method: 'auto_tie_benchmark', shift_ms: t.shiftMs, corr: t.corr, phase_deg: t.phaseDeg, polarity: t.polarity, volume_id: volume.id, at: new Date().toISOString() } });
+        rec.committed = true;
+      }
+      out.push(rec);
+    }
+    return { ties: out, convention: fieldTieConvention(ties) };
+  },
+  /** Put a well in another CRS with coordinates the source gives for it (no transform here). */
+  async setWellCoords(list) {
+    const out = [];
+    const wells = await listWells();
+    for (const c of list) {
+      const w = wells.find((x) => x.name === c.name);
+      if (!w) { out.push({ name: c.name, error: 'not found' }); continue; }
+      await updateWell(w.id, { surface_x: c.x, surface_y: c.y, crs: c.crs, crs_note: c.note || null });
+      out.push({ name: c.name, from: [w.surface_x, w.surface_y, w.crs], to: [c.x, c.y, c.crs] });
+    }
+    return out;
+  },
+  async cancelActive() {
+    const jobs = (await listJobs({ limit: 50 })).filter((j) => ['queued', 'running'].includes(j.status));
+    for (const j of jobs) await cancelJob(j.id);
+    return jobs.map((j) => [j.id, j.kind, j.status]);
+  },
+  async clearTies(names = null) {
+    const out = [];
+    for (const w of await listWells()) {
+      if (names ? !names.includes(w.name) : !w.name.startsWith('F3 ') && !w.name.startsWith('Volve ')) continue;
+      await saveDerivedCheckshots(w.id, null); out.push(w.name);
+    }
+    return out;
   },
   async listMine() {
     const { data: vols } = await supabase.from('seismic_volumes').select('id,name,status,kind,survey_meta').order('created_at');
