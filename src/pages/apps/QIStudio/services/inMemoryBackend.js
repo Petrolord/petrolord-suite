@@ -109,7 +109,13 @@ export function makeInMemoryBackend() {
       return [
         { id: 'qi-s1', name: 'Top Sand A depth', z_domain: 'elevation', z_unit: 'm', xy_unit: 'm', nx: 81, ny: 81, dx: 25, dy: 25, origin_x: 0, origin_y: 0 },
         { id: 'qi-s2', name: 'Top Sand A RMS amplitude', z_domain: 'attribute', z_unit: null, xy_unit: 'm', nx: 81, ny: 81, dx: 25, dy: 25, origin_x: 0, origin_y: 0 },
+        { id: 'qi-s3', name: 'Top Sand A TWT', z_domain: 'time', z_unit: 'ms', xy_unit: 'm', nx: 81, ny: 81, dx: 25, dy: 25, origin_x: 0, origin_y: 0 },
       ];
+    },
+    // a time dome for depth uncertainty (QI upgrade P2.12)
+    async loadTimeSurface() {
+      const grid = Float32Array.from({ length: 81 * 81 }, (_, i) => { const x = (i % 81) * 25 - 1000; const y = Math.floor(i / 81) * 25 - 1000; return 1700 + 0.0004 * (x * x + y * y); });
+      return { grid, spec: { nx: 81, ny: 81, dx: 25, dy: 25, x0: 0, y0: 0 } };
     },
     async loadSurface(row, { attribute = false } = {}) {
       const elev = Float32Array.from({ length: 81 * 81 }, (_, i) => { const x = (i % 81) * 25 - 1000; const y = Math.floor(i / 81) * 25 - 1000; return -2000 - 0.0004 * (x * x + y * y); });

@@ -123,6 +123,12 @@ export function makeRegistryBackend() {
       if (!paths?.length) return;
       await supabase.storage.from('seismic').remove(paths);
     },
+    /** A time structure from the registry (QI upgrade P2.12): positive TWT ms on its grid. */
+    async loadTimeSurface(row) {
+      if (row?.z_domain !== 'time') throw new Error('Choose a time structure (two-way time).');
+      const grid = await downloadSurfaceGrid(row);
+      return { grid, spec: { nx: row.nx, ny: row.ny, dx: row.dx, dy: row.dy, x0: row.origin_x, y0: row.origin_y } };
+    },
     async countSurfaces() {
       await whenProjectScopeReady();
       const { count, error } = await scopeToProject(supabase.from('geo_surfaces').select('id', { count: 'exact', head: true }));
