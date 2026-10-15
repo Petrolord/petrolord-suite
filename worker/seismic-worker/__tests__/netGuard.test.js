@@ -48,7 +48,7 @@ function fakeRequest(routes, seen) {
   return (u, opts, onRes) => {
     const req = new EventEmitter();
     req.end = () => {
-      opts.lookup(u.hostname, {}, (err, address) => { seen.push({ host: u.hostname, connectedTo: address }); });
+      opts.lookup(u.hostname, {}, (err, address) => { seen.push({ host: u.hostname, connectedTo: address, range: opts.headers?.Range ?? null, headerNames: Object.keys(opts.headers || {}) }); });
       const r = routes[u.toString()];
       const res = new EventEmitter();
       Object.assign(res, { statusCode: r.status, headers: r.headers || {}, resume() {} });
@@ -71,7 +71,7 @@ describe('guardedGet', () => {
     const { res, finalUrl } = await guardedGet('https://data.example/f.sgy', { lookup, request: fakeRequest(routes, seen) });
     expect(res.statusCode).toBe(200);
     expect(finalUrl).toBe('https://cdn.example/real.sgy');
-    expect(seen).toEqual([{ host: 'data.example', connectedTo: '151.101.1.1' }, { host: 'cdn.example', connectedTo: '93.184.216.34' }]);
+    expect(seen.map(({ host, connectedTo }) => ({ host, connectedTo }))).toEqual([{ host: 'data.example', connectedTo: '151.101.1.1' }, { host: 'cdn.example', connectedTo: '93.184.216.34' }]);
   });
 
   test('a redirect into a private network is refused', async () => {
@@ -84,6 +84,20 @@ describe('guardedGet', () => {
     await expect(guardedGet('https://data.example/a', { lookup, request: fakeRequest(r1, []) })).rejects.toThrow(/Only https/);
     const r2 = { 'https://data.example/a': { status: 307, headers: { location: 'https://169.254.169.254/latest/meta-data' } } };
     await expect(guardedGet('https://data.example/a', { lookup, request: fakeRequest(r2, []) })).rejects.toThrow(/private/);
+  });
+
+  test('a range read (linkReader.js) sends its Range on every hop, still vetted; no other header is passed through', async () => {
+    const seen = [];
+    const routes = {
+      'https://data.example/f.sgy': { status: 302, headers: { location: 'https://cdn.example/real.sgy' } },
+      'https://cdn.example/real.sgy': { status: 206 },
+    };
+    const { res } = await guardedGet('https://data.example/f.sgy', { lookup, request: fakeRequest(routes, seen), headers: { Range: 'bytes=10-19', Authorization: 'x', Host: 'internal' } });
+    expect(res.statusCode).toBe(206);
+    expect(seen.map((s) => s.range)).toEqual(['bytes=10-19', 'bytes=10-19']);
+    expect(seen[0].headerNames.sort()).toEqual(['Accept', 'Range', 'User-Agent']);
+    const bad = { 'https://data.example/f.sgy': { status: 302, headers: { location: 'https://internal.example/secret' } } };
+    await expect(guardedGet('https://data.example/f.sgy', { lookup, request: fakeRequest(bad, []), headers: { Range: 'bytes=0-0' } })).rejects.toThrow(/private or reserved/);
   });
 
   test('redirect loops stop after 3 hops', async () => {

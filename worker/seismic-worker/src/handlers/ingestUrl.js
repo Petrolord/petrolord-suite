@@ -8,11 +8,20 @@
 // a qi_datasets row is registered. A scan_dataset job then gives the import
 // dialog its preview.
 //
-// params: { url, name? }
+// Since 2026-10-15 (QI round 3): when the link serves byte ranges, nothing is
+// copied. The dataset records the link (meta.link: url, size, ETag,
+// Last-Modified) and every later read (preview scan, crop plan, conversion)
+// asks the link for only the bytes it needs (linkReader.js), so a crop of an
+// 80 GB stack reads the crop. A link without ranges is copied as before, and
+// copy: true forces the copy. The link's URL was already in the job's params;
+// it is kept on the user's own dataset row so later jobs can read it.
+//
+// params: { url, name?, copy? }
 import { JobFailure } from '../runJob.js';
 import { projectFrom } from '../project.js';
 import { guardedGet, urlProblem } from '../netGuard.js';
 import { s3RangeReader } from '../s3.js';
+import { probeRanges, linkRangeReader } from '../linkReader.js';
 import {
   PART_SIZE, MAX_FILE_BYTES, USER_RAW_QUOTA_BYTES, objectKeyFor, parseUploadId, completeXml,
 } from '../../../../supabase/functions/qi-upload-url/logic.ts';
@@ -54,12 +63,14 @@ export async function ingestUrl(ctx, deps) {
   const room = USER_RAW_QUOTA_BYTES - Number(used || 0);
 
   ctx.progress(0, 'Connecting');
+  const get = deps.get || guardedGet;
   let got;
   try {
-    got = await (deps.get || guardedGet)(p.url);
+    got = p.copy ? { ranged: false, ...(await get(p.url)) } : await probeRanges(p.url, { get });
   } catch (e) {
     throw new JobFailure('fetch_refused', e.message);
   }
+  if (got.ranged) return registerLink(ctx, deps, { url: p.url, name: p.name, probe: got, uid });
   const { res, finalUrl } = got;
   if (res.statusCode !== 200) {
     res.resume?.();
@@ -142,4 +153,32 @@ export async function ingestUrl(ctx, deps) {
   if (error) throw new Error(`The file is stored but could not be registered: ${error.message}`);
   ctx.progress(1, 'Fetched');
   return { dataset_id: id, bytes: total, file_name: fileName, fingerprint };
+}
+
+/**
+ * A link that serves ranges: register it without copying (the dataset's
+ * reads go to the link, datasetReader.js). The fingerprint is the browser's,
+ * from three ranged reads.
+ */
+async function registerLink(ctx, deps, { url, name: given, probe, uid }) {
+  const { admin, rawBucket = 'seismic-raw' } = deps;
+  const size = probe.size;
+  if (size > MAX_FILE_BYTES) throw new JobFailure('too_large', `The file is ${(size / GiB).toFixed(1)} GiB; the limit is ${MAX_FILE_BYTES / GiB} GiB.`);
+  const id = (deps.newId || (() => webcrypto.randomUUID()))();
+  const fileName = fileNameFor(probe.finalUrl, probe.headers['content-disposition']);
+  ctx.progress(0.3, 'The link serves parts of the file; reading only what the import needs');
+  const reader = linkRangeReader({ url, size, version: probe.version, get: deps.get || guardedGet });
+  const pseudoFile = { size, slice: (a, b) => ({ arrayBuffer: () => reader.read(a, b - a) }) };
+  const fingerprint = await fileFingerprint(pseudoFile, (bytes) => webcrypto.subtle.digest('SHA-256', bytes));
+  const name = typeof given === 'string' && given.trim() ? given.trim().slice(0, 200) : fileName.slice(0, 200);
+  const link = { url, size, etag: probe.version.etag, last_modified: probe.version.last_modified, linked_at: new Date().toISOString() };
+  const { error } = await admin.from('qi_datasets').insert({
+    id, user_id: uid, ...projectFrom(ctx.job), name, kind: 'segy_upload', status: 'uploaded', original_filename: fileName.slice(0, 500),
+    // no object is stored: the key is unique and names where a copy would go
+    bucket: rawBucket, object_key: objectKeyFor(uid, id, fileName), bytes: size, part_size: PART_SIZE, part_count: 1,
+    upload_id: null, uploaded_at: new Date().toISOString(), meta: { fingerprint, source: describeSource(probe.finalUrl), link },
+  });
+  if (error) throw new Error(`The link could not be registered: ${error.message}`);
+  ctx.progress(1, 'Linked');
+  return { dataset_id: id, bytes: size, file_name: fileName, fingerprint, linked: true, fetched_bytes: reader.stats.bytes };
 }

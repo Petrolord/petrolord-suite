@@ -27,6 +27,7 @@
 // both belong to the job's user, and the converted volume fits the user's
 // seismic quota.
 import path from 'node:path';
+import fsp from 'node:fs/promises';
 import { JobFailure } from '../runJob.js';
 import { seismicQuota, overQuotaMessage } from '../quota.js';
 import { openSegyDoor, scanForManifest } from '../../../../src/pages/apps/Seismolord/lib/segyDoor.js';
@@ -36,13 +37,15 @@ import { applyCrsToScan } from '../../../../src/pages/apps/Seismolord/services/i
 import { v4SurveyMeta } from '../../../../src/pages/apps/Seismolord/services/v4SurveyMeta.js';
 import { applyVerticalToManifest, depthDtUs } from '../../../../src/pages/apps/Seismolord/lib/verticalDomain.js';
 import { buildManifestV4, volumeDir } from '../../../../packages/engines/engines/seismolord/manifest.js';
-import { s3RangeReader } from '../s3.js';
+import { datasetReader } from '../datasetReader.js';
 import { readTextualHeader } from '../../../../packages/engines/engines/seismolord/segyScan.js';
 import { parseCropCard, padTopReader, croppedSegyReader } from '../../../../packages/engines/engines/seismolord/segyCrop.js';
 import {
   planImportCrop, conversionView, scanConversionView, importCropProvenance,
 } from '../../../../src/pages/apps/Seismolord/services/cropImport.js';
 import { diskSpool } from '../diskSpool.js';
+import { isLinkDataset } from '../datasetReader.js';
+import { copyToScratch } from '../scratchCopy.js';
 
 export const SEISMIC_BUCKET = 'seismic';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -99,12 +102,17 @@ export async function stackToV4(ctx, deps) {
     if (error) throw new Error(`Could not update the volume: ${error.message}`);
   };
 
-  const raw = deps.makeReader
-    ? deps.makeReader(dataset)
-    : s3RangeReader({ sign: deps.sign, bucket: dataset.bucket, key: dataset.object_key, size: Number(dataset.bytes), fetchImpl: deps.fetchImpl });
-  const spool = await diskSpool(path.join(deps.scratchDir, `stack_to_v4-${ctx.job.id}-${ctx.job.attempt}`));
+  // the worker's store, or the link itself for a ranged link import
+  const raw = datasetReader(dataset, deps);
+  const spoolDir = path.join(deps.scratchDir, `stack_to_v4-${ctx.job.id}-${ctx.job.attempt}`);
+  const spool = await diskSpool(spoolDir);
+  // a linked file (ranged link import): what the conversion reads (the
+  // cropped file, or the whole file) is copied from the link once, into scratch
+  const scratch = isLinkDataset(dataset) ? { file: `${spoolDir}.source.sgy`, ctx } : null;
+  let copy = null;
   try {
-    const { reader, scan, cropRecord } = await cropAwareSource(raw, p, dataset, ctx);
+    const { reader, scan, cropRecord, scratchCopy } = await cropAwareSource(raw, p, dataset, ctx, scratch);
+    copy = scratchCopy || null;
     const record = await convertToSpool({
       reader,
       scan,
@@ -179,6 +187,8 @@ export async function stackToV4(ctx, deps) {
     };
   } finally {
     await spool.destroy();
+    await copy?.remove();
+    if (scratch) await fsp.rm(scratch.file, { force: true }); // a copy cut short by a failure
   }
 }
 
@@ -191,7 +201,15 @@ export async function stackToV4(ctx, deps) {
  *  - a crop while converting (import from a link): only the kept traces and
  *    samples of the stored file are read, and the scan is re-measured on them.
  */
-export async function cropAwareSource(raw, p, dataset, ctx = {}) {
+export async function cropAwareSource(raw, p, dataset, ctx = {}, scratch = null) {
+  const toScratch = async (reader) => {
+    if (!scratch) return { reader, scratchCopy: null };
+    const c = await copyToScratch(reader, scratch.file, {
+      isCancelled: () => ctx.cancelled,
+      onProgress: (done, total) => ctx.progress?.(0.02 * (done / total), `Reading ${scratch.what || 'the file'} from the link`),
+    });
+    return { reader: c, scratchCopy: c };
+  };
   if (p.crop?.def) {
     ctx.progress?.(0.01, 'Finding the kept traces');
     let prep;
@@ -205,20 +223,23 @@ export async function cropAwareSource(raw, p, dataset, ctx = {}) {
       throw new JobFailure('validate_failed', `The crop could not be applied: ${e.message}`);
     }
     const name = p.file_name || dataset.original_filename;
-    const cropped = croppedSegyReader(raw, prep.layout, prep.plan, prep.crop, { sourceName: name, mapping: p.scan.mapping });
+    const cropped0 = croppedSegyReader(raw, prep.layout, prep.plan, prep.crop, { sourceName: name, mapping: p.scan.mapping });
+    if (scratch) scratch.what = 'the kept traces';
+    const { reader: cropped, scratchCopy } = await toScratch(cropped0);
     const reader = await conversionView(cropped, prep.crop);
     const scan = await scanConversionView(reader, p.scan.mapping);
     const cropRecord = importCropProvenance(prep, {
       file: { name, size: Number(dataset.bytes) }, mode: 'server', definitionId: p.crop.definition_id || null, vertical: p.ingest_rec?.vertical || null,
     });
-    return { reader, scan, cropRecord };
+    return { reader, scan, cropRecord, scratchCopy };
   }
-  const { reader } = await openSegyDoor(raw);
+  const { reader: whole, scratchCopy } = await toScratch(raw);
+  const { reader } = await openSegyDoor(whole);
   const card = parseCropCard(await readTextualHeader(reader));
   const pad = card ? card.first : 0;
   if (p.pad_top_samples != null && p.pad_top_samples !== pad) {
     throw new JobFailure('validate_failed', `The uploaded file's crop starts at sample ${pad}; the import said ${p.pad_top_samples}. Upload the file again.`);
   }
-  if (!pad) return { reader, scan: p.scan, cropRecord: p.crop_provenance || null };
-  return { reader: await padTopReader(reader, pad), scan: p.scan, cropRecord: p.crop_provenance || null };
+  if (!pad) return { reader, scan: p.scan, cropRecord: p.crop_provenance || null, scratchCopy };
+  return { reader: await padTopReader(reader, pad), scan: p.scan, cropRecord: p.crop_provenance || null, scratchCopy };
 }

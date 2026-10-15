@@ -104,8 +104,10 @@ export function waitForJob(jobId, { onUpdate = () => {}, watch = watchJob, inter
 }
 
 /**
- * Import from a link, step 1: the worker fetches the file into its store.
- * Resolves the remote file the dialog works with from then on.
+ * Import from a link, step 1: the worker registers the link (a server that
+ * serves byte ranges: later jobs read only what they need from it) or
+ * fetches the file into its store. Resolves the remote file the dialog works
+ * with from then on.
  */
 export async function fetchFromLink({ url, name, onProgress, signalJob }, deps = {}) {
   const enqueue = deps.enqueue || enqueueJob;
@@ -114,7 +116,7 @@ export async function fetchFromLink({ url, name, onProgress, signalJob }, deps =
   if (signalJob) signalJob(jobId);
   const job = await wait(jobId, { onUpdate: (j) => onProgress && onProgress({ progress: Number(j.progress) || 0, message: j.progress_message }) });
   const r = job.result_refs || {};
-  return { remote: true, datasetId: r.dataset_id, name: r.file_name, size: Number(r.bytes), fingerprint: r.fingerprint, jobId };
+  return { remote: true, datasetId: r.dataset_id, name: r.file_name, size: Number(r.bytes), fingerprint: r.fingerprint, linked: Boolean(r.linked), jobId };
 }
 
 /** Step 2: the import preview, scanned on the server under the byte mapping. */

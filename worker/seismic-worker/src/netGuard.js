@@ -106,7 +106,7 @@ export async function vetHost(hostname, { lookup = (h) => dns.lookup(h, { all: t
  * the final response (a Node IncomingMessage stream) after at most
  * maxRedirects redirects, each hop vetted again.
  */
-export async function guardedGet(rawUrl, { maxRedirects = 3, lookup, request = https.request, timeoutMs = 60000 } = {}) {
+export async function guardedGet(rawUrl, { maxRedirects = 3, lookup, request = https.request, timeoutMs = 60000, headers = {} } = {}) {
   let url = rawUrl;
   for (let hop = 0; hop <= maxRedirects; hop += 1) {
     const problem = urlProblem(url);
@@ -119,7 +119,8 @@ export async function guardedGet(rawUrl, { maxRedirects = 3, lookup, request = h
         method: 'GET',
         // pin: whatever the resolver says later, connect to the vetted address
         lookup: (_h, opts, cb) => (opts && opts.all ? cb(null, [vetted]) : cb(null, vetted.address, vetted.family)),
-        headers: { 'User-Agent': 'Petrolord-SeismicWorker/1', Accept: '*/*' },
+        // extra headers: only Range is ever sent (linkReader.js)
+        headers: { 'User-Agent': 'Petrolord-SeismicWorker/1', Accept: '*/*', ...(headers.Range ? { Range: headers.Range } : {}) },
         timeout: timeoutMs,
       }, resolve);
       req.on('timeout', () => req.destroy(new Error('The link did not answer in time.')));
