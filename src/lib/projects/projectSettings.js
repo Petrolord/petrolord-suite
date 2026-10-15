@@ -22,7 +22,20 @@ import { XY_UNITS } from '../../../packages/engines/lib/crs/catalog';
 import { DEPTH_REF_KINDS, COMMON_VERTICAL_DATUMS } from '@/lib/wellDatum';
 import { TIMESCALE_VERSIONS } from '../../../packages/engines/engines/stratigraphy/timescale';
 
-export const SETTING_KEYS = Object.freeze(['units', 'crs', 'datum', 'timescale']);
+export const SETTING_KEYS = Object.freeze(['units', 'crs', 'datum', 'timescale', 'seismic']);
+
+// Local Workspace (owner decision 7, 2026-10-15): where new seismic volumes
+// of this project live, asked at project creation, Local by default for new
+// projects; and whether previews of local volumes go to the cloud (decision
+// 4: on unless the project is members-only, per volume override).
+export const SEISMIC_STORAGE = Object.freeze(['local', 'cloud']);
+function cleanSeismic(v) {
+  if (!v || typeof v !== 'object') return null;
+  const storage = SEISMIC_STORAGE.includes(v.storage) ? v.storage : null;
+  const previews = v.previews === 'on' || v.previews === 'off' ? v.previews : null;
+  if (!storage && !previews) return null;
+  return { storage, previews };
+}
 
 function cleanUnits(v) {
   if (!v || typeof v !== 'object') return null;
@@ -61,6 +74,7 @@ export function normalizeProjectSettings(raw) {
     crs: cleanCrs(s.crs),
     datum: cleanDatum(s.datum),
     timescale: cleanTimescale(s.timescale),
+    seismic: cleanSeismic(s.seismic),
   };
 }
 

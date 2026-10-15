@@ -38,6 +38,7 @@ export default function ProjectSettingsCard() {
   const [crsName, setCrsName] = useState(s.crs?.name || '');
   const [datum, setDatum] = useState({ refKind: s.datum?.refKind || '', verticalDatum: s.datum?.verticalDatum || '', srdM: s.datum?.srdM ?? '' });
   const [timescale, setTimescale] = useState(s.timescale || '');
+  const [seismic, setSeismic] = useState({ storage: s.seismic?.storage || 'cloud', previews: s.seismic?.previews || '' });
 
   // re-seed when the project (or its stored settings) changes
   const key = `${p.current?.id}:${JSON.stringify(s)}`;
@@ -47,6 +48,7 @@ export default function ProjectSettingsCard() {
     setCrsTag(s.crs?.tag || ''); setCrsName(s.crs?.name || '');
     setDatum({ refKind: s.datum?.refKind || '', verticalDatum: s.datum?.verticalDatum || '', srdM: s.datum?.srdM ?? '' });
     setTimescale(s.timescale || '');
+    setSeismic({ storage: s.seismic?.storage || 'cloud', previews: s.seismic?.previews || '' });
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const run = async (what, fn, done) => {
@@ -127,6 +129,31 @@ export default function ProjectSettingsCard() {
             <Button size="sm" disabled={busy === 'datum'} data-testid="projects-settings-datum-save"
               onClick={() => run('datum', () => p.saveSettings({ datum: { refKind: datum.refKind || null, verticalDatum: datum.verticalDatum || null, srdM: datum.srdM === '' ? null : datum.srdM } }), 'Datum defaults saved')}>
               Save datum
+            </Button>
+          )}
+        </Section>
+
+        <Section title="Seismic storage" testId="projects-settings-seismic">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="text-xs text-pl-muted">Where new seismic volumes live
+              <NativeSelect value={seismic.storage} disabled={!canEdit} onChange={(e) => setSeismic({ ...seismic, storage: e.target.value })} data-testid="projects-settings-seismic-storage">
+                <option value="local">On each person&apos;s computer (nothing uploaded)</option>
+                <option value="cloud">On Petrolord servers</option>
+              </NativeSelect>
+            </label>
+            <label className="text-xs text-pl-muted">Previews of local volumes
+              <NativeSelect value={seismic.previews} disabled={!canEdit} onChange={(e) => setSeismic({ ...seismic, previews: e.target.value })} data-testid="projects-settings-seismic-previews">
+                <option value="">{p.current.visibility === 'members' ? 'Off (members-only project)' : 'Shared with the project'}</option>
+                <option value="on">Always share small previews</option>
+                <option value="off">Never share previews</option>
+              </NativeSelect>
+            </label>
+          </div>
+          <p className="text-xs text-pl-muted">Volumes already imported stay where they are. Local volumes never leave the computer unless their owner copies them to the cloud; colleagues see their name, geometry, horizons and, if allowed, a small preview.</p>
+          {canEdit && (
+            <Button size="sm" disabled={busy === 'seismic'} data-testid="projects-settings-seismic-save"
+              onClick={() => run('seismic', () => p.saveSettings({ seismic: { storage: seismic.storage, previews: seismic.previews || null } }), 'Seismic storage saved')}>
+              Save seismic storage
             </Button>
           )}
         </Section>

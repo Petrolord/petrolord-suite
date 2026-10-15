@@ -107,6 +107,8 @@ export async function createProject(p) {
     client_id: p.clientId || null,
     name: cleanName(p.name, 'project'),
     description: p.description ? String(p.description).trim() || null : null,
+    // Local Workspace: where this project's seismic lives (asked at creation)
+    ...(p.seismicStorage ? { settings: mergeProjectSettings({}, { seismic: { storage: p.seismicStorage } }) } : {}),
   };
   const { data, error } = await supabase.from('suite_projects').insert(row).select().single();
   if (error) fail('Could not create the project', error);
