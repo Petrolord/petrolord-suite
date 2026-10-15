@@ -71,15 +71,10 @@ export async function getStorageUsage() {
   if (!user) return empty;
   const pooled = await pooledSummary();
   if (pooled) return pooled;
-  // Local Workspace: a volume that lives only on a computer holds no cloud bricks
   const sum = (rows) => (rows || []).reduce(
-    (s, r) => s + (r.storage_location === 'local' ? 0 : (Number(r.survey_meta?.storage_bytes) || 0)), 0);
-  const ownVolumes = async () => {
-    const r = await supabase.from('seismic_volumes').select('survey_meta, storage_location').eq('user_id', user.id);
-    return r.error ? supabase.from('seismic_volumes').select('survey_meta').eq('user_id', user.id) : r;
-  };
+    (s, r) => s + (Number(r.survey_meta?.storage_bytes) || 0), 0);
   const [vols, lines, quotaBytes] = await Promise.all([
-    ownVolumes(),
+    supabase.from('seismic_volumes').select('survey_meta').eq('user_id', user.id),
     supabase.from('seismic_lines').select('survey_meta').eq('user_id', user.id),
     getQuotaBytes(),
   ]);
