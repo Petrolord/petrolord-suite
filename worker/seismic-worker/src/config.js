@@ -15,6 +15,10 @@ export function loadConfig() {
     // How many jobs this process runs at once. CPU-heavy handlers fan out
     // further across worker_threads, so keep this small.
     maxConcurrent: num('MAX_CONCURRENT_JOBS', 2),
+    // Each job's handler runs in its own worker thread (threadJobs.js), so a
+    // CPU-heavy job cannot stall the other's I/O. JOB_THREADS=0 runs them in
+    // the main thread, as before 2026-10-15.
+    jobThreads: env('JOB_THREADS', '1') !== '0',
     pollIntervalMs: num('POLL_INTERVAL_MS', 5000),
     heartbeatIntervalMs: num('HEARTBEAT_INTERVAL_MS', 15000),
     // A running job whose heartbeat is older than this is presumed lost.
