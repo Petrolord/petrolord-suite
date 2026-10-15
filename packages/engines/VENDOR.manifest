@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 9a77fa3445b975e3f9775c98406614f9bd07d237
+# commit d8f13dae5850a4416fa10234ae5b40bc1ad0d0d0
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 d8bd133c5a081611291cb72e0efd5909a2e23b77 README.md
@@ -261,6 +261,7 @@ e6065479bee1475c7da19d807b6e3d6dd279253a __tests__/seismolord.segyWrite.test.js
 bf7806d278a935fac4082f53a7fc2f2f5147e5fe __tests__/seismolord.stratal.test.js
 76069a1f31a767f3e9418accdfe5a6605e72974f __tests__/seismolord.structure.test.js
 e49b3b8491cfd1a54d79dc0d09ccb4c72f758f2a __tests__/seismolord.synthetic.placement.test.js
+44a2eb528a97010e888efd71bc1eae69e3a6feef __tests__/seismolord.tiePhase.test.js
 3778276afdb6625456cc8f5210d492f209661b29 __tests__/seismolord.tiewarp.test.js
 2df3fb281d94422aa89d6ad1d90a1ea494262237 __tests__/seismolord.topstoevents.test.js
 bc3f8e2d139ae574e6023dcb9acb3375bea524a9 __tests__/seismolord.traceDelay.test.js
@@ -631,6 +632,7 @@ b25daf4269bfc3e92a7ece33e6f3e4510ab68cf3 engines/seismolord/surfaceOnLattice.js
 c14b23221d26358ca577cb49b44c1f5f21b41e46 engines/seismolord/surveyGeometry.js
 33822414afea9b704e5c4daf0ea5eeed201115b5 engines/seismolord/syntheticField.js
 869113c2bfa8f0080d4515c924c350f758343175 engines/seismolord/synthetics.js
+9d7de25a8ab87cd10064d14cb6c74ba6e3d3fd6c engines/seismolord/tiePhase.js
 f89aee7ebf3ab9952f2c7835d5ad8fffe2e8a759 engines/seismolord/tieWarp.js
 31899a7eaa69badf0a8d88833c77da45c81fb9ed engines/seismolord/topsToEvents.js
 ece3cd5a62c9a3d839b42c300e5131b5f354e657 engines/seismolord/traceDelay.js

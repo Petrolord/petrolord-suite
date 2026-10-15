@@ -114,8 +114,12 @@ export default function SeismolordHelpGuide() {
           match, and read the tie QC. Where the sonic drifts and one shift cannot fit the whole well, Suggest
           anchors proposes a stretch and squeeze and a constant phase by dynamic warping against the seismic at the
           well; it suggests nothing when even the warped synthetic does not follow the seismic. Check each anchor
-          on the tracks, drag or remove any that sit on the wrong event, then commit. Commit to checkshots: the QC
-          is stored with the tie, and QI Studio uses the committed tie.
+          on the tracks, drag or remove any that sit on the wrong event, then commit. Phase along the tie measures
+          the best constant phase in 300 ms windows down the well and fits a straight line through them: when the
+          phase drifts 30 degrees or more and a phase varying with time raises the correlation, the panel says a
+          constant-phase wavelet fits part of the interval only, and offers that phase for the display. Commit to
+          checkshots: the QC (with the drift, when measured) is stored with the tie, and QI Studio uses the committed
+          tie and flags a drift of 45 degrees or more.
         </Step>
         <Step n={4} title="Pick the key horizon">
           Interpretation: New horizon, pick a seed on the tied event, Track 2D along the line. Where the event

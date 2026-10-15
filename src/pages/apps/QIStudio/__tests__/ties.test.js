@@ -57,3 +57,13 @@ test('no tie, a poor tie, a fair tie and a tie without its wavelet are flagged',
   ]));
   expect(waveletComparison(tieRows([wellWith('a', 'A')]))).toBeNull();
 });
+
+test('a tie whose phase drifts 45 degrees or more is flagged; a small drift and an unmeasured tie are not (QI round 3)', () => {
+  const mk = (id, drift) => ({ well: { id, name: id, checkshots_derived: { provenance: { qc: { mean_corr: 0.8, min_corr: 0.6, ...(drift == null ? {} : { phase_trend: { drift_deg: drift } }) } } } } });
+  const rows = tieRows([mk('A', 70), mk('B', 20), mk('C', null), mk('D', -50)]);
+  expect(rows.map((r) => r.tie.phaseDriftDeg)).toEqual([70, 20, null, -50]);
+  const keys = tieIssues(rows, null).map((i) => i.key);
+  expect(keys).toEqual(expect.arrayContaining(['tie:A:phase-drift', 'tie:D:phase-drift']));
+  expect(keys).not.toContain('tie:B:phase-drift');
+  expect(keys).not.toContain('tie:C:phase-drift');
+});

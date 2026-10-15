@@ -106,7 +106,7 @@ const r1 = (v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null);
  *   the wavelet itself (earlier records carry only its peak and phase).
  */
 export function tieQcRecord({
-  qc, shiftMs = 0, phiDeg = null, anchors = 0, wavelet = null, wellName = null, volumeName = null,
+  qc, shiftMs = 0, phiDeg = null, anchors = 0, wavelet = null, wellName = null, volumeName = null, phaseTrend = null,
 }) {
   const rows = (qc || []).filter((r) => r && Number.isFinite(r.corr));
   const mean = rows.length ? rows.reduce((s, r) => s + r.corr, 0) / rows.length : null;
@@ -123,6 +123,8 @@ export function tieQcRecord({
     bulk_shift_ms: r1(shiftMs),
     phase_deg: r1(phiDeg),
     anchors,
+    // phase along the tie (QI round 3): the straight-line drift of the window phases, and whether the display used it
+    ...(phaseTrend ? { phase_trend: { start_deg: r1(phaseTrend.aDeg), deg_per_s: r1(phaseTrend.bDegPerS), drift_deg: r1(phaseTrend.driftDeg), t0_ms: r1(phaseTrend.t0Ms), t1_ms: r1(phaseTrend.t1Ms), applied: !!phaseTrend.applied } } : {}),
     wavelet: wavelet ? {
       kind: wavelet.kind,
       length_ms: r1(wavelet.lengthMs),
@@ -142,6 +144,7 @@ export function describeTieQc(rec) {
     rec.min_corr != null ? `minimum ${rec.min_corr.toFixed(2)}` : null,
     rec.anchors ? `${rec.anchors} anchors` : null,
     rec.phase_deg != null ? `phase ${rec.phase_deg} deg` : null,
+    rec.phase_trend ? `phase drift ${rec.phase_trend.drift_deg} deg${rec.phase_trend.applied ? ' (applied)' : ''}` : null,
     rec.wavelet ? `${rec.wavelet.kind} wavelet${rec.wavelet.peak_hz != null ? ` ${rec.wavelet.peak_hz} Hz` : ''}${rec.wavelet.phase_deg != null ? ` ${rec.wavelet.phase_deg} deg` : ''}` : null,
   ].filter(Boolean);
   return `Tie QC: ${parts.join(', ')} (${String(rec.measured_at || '').slice(0, 10)})`;
