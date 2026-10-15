@@ -1,11 +1,13 @@
 // Real-browser check of the Gathers tab on the QA account (QI round 3, after
 // the link-signer fix #1172): sign in on the Suite's own login page, open QI
-// Studio, choose the BENCH R3 store with its demultipled copy beside it,
+// Studio (QI_ROUTE; the QA account has no QI Studio licence, so the round 3
+// run used a local dev route rendering <QIStudio /> without the gate), choose the BENCH R3 store with its demultipled copy beside it,
 // Show, and confirm the panel came back from storage (the caption and the
 // drawn panel, no failed request). Run against an isolated dev server on
-// 127.0.0.1:8330 (an origin the storage CORS allows).
+// BASE (default 127.0.0.1:8330; the storage reflects any origin).
 import { chromium } from 'playwright';
-const BASE = 'http://127.0.0.1:8330';
+const BASE = process.env.BASE || 'http://127.0.0.1:8330';
+const ROUTE = process.env.QI_ROUTE || '/dashboard/apps/geoscience/qi-studio';
 const out = { failedRequests: [], consoleErrors: [] };
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -16,7 +18,7 @@ await page.fill('#email', process.env.QA_EMAIL);
 await page.fill('#password', process.env.QA_PASSWORD);
 await page.click('button[type="submit"]');
 await page.waitForURL(/dashboard/, { timeout: 60000 });
-await page.goto(`${BASE}/dashboard/apps/geoscience/qi-studio`);
+await page.goto(`${BASE}${ROUTE}`);
 await page.getByTestId('qi-tab-gathers').click({ timeout: 120000 });
 const store = page.getByTestId('qi-gathers-store');
 await store.waitFor({ timeout: 60000 });
