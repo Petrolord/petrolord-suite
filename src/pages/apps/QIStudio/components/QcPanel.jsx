@@ -84,6 +84,9 @@ function QcResult({ record }) {
         </tbody>
       </table>
       <p className={muted}>{`Sampled ${qc.sampled.inlines} inlines and ${qc.sampled.tracesPerInline} traces per inline for the spectra; the footprint uses RMS maps around each time.`}</p>
+      {qc.windows.some((w) => w.multiples) && (
+        <p className={muted} data-testid="qi-qc-multiples">{`Multiples (autocorrelation of the sampled traces, QI upgrade): ${qc.windows.filter((w) => w.multiples).map((w) => `${Math.round(w.t0Ms)} to ${Math.round(w.t1Ms)} ms ${w.multiples.periodic ? `periodic every ${Math.round(w.multiples.periodMs)} ms` : 'no periodic energy'}`).join('; ')}.`}</p>
+      )}
     </div>
   );
 }
