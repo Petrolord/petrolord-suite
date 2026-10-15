@@ -8,12 +8,10 @@ import { loadConfig, assertRunnable } from './config.js';
 import { createSupa } from './supa.js';
 import { createQueue } from './queue.js';
 import { runJob } from './runJob.js';
-import { createClient } from '@supabase/supabase-js';
 import { createHandlers, KINDS } from './handlers/index.js';
 import { makeSigner } from './s3.js';
-import { retryingStorage } from './retryingStorage.js';
-import { supabaseStorageClient } from '../../../src/pages/apps/Seismolord/services/seismicStorageClient.js';
-import { resolveCodec, DEFLATE_RAW } from '../../../packages/engines/engines/seismolord/brickCodecV4.js';
+import { buildDeps } from './deps.js';
+import { threadHandlers } from './threadJobs.js';
 import { pollOnce } from './loop.js';
 import { runJanitor } from './janitor.js';
 
@@ -29,23 +27,12 @@ async function main() {
   fs.mkdirSync(cfg.scratchDir, { recursive: true });
   const supa = createSupa({ url: cfg.supabaseUrl, key: cfg.serviceRoleKey });
   const queue = createQueue(supa, cfg);
-  const admin = createClient(cfg.supabaseUrl, cfg.serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
-  const handlers = createHandlers({
-    admin,
-    storage: retryingStorage(supabaseStorageClient(admin, 'seismic'), { log }),
-    sign: makeSigner(cfg.s3),
-    scratchDir: cfg.scratchDir,
-    // CompressionStream deflate-raw, the same codec the browser import uses
-    codec: resolveCodec({ compression: DEFLATE_RAW }),
-    memoryBudgetBytes: cfg.convertBudgetBytes,
-    // attribute_volume reads parent bricks the way the browser worker does,
-    // with the service key as its bearer token
-    supabaseUrl: cfg.supabaseUrl,
-    serviceRoleKey: cfg.serviceRoleKey,
-    rawBucket: cfg.s3.rawBucket,
-    workBucket: cfg.s3.workBucket,
-    engineCommit: cfg.engineCommit,
-  });
+  const deps = buildDeps(cfg, log);
+  const { admin } = deps;
+  // each job's handler in its own worker thread (threadJobs.js); JOB_THREADS=0 runs them in this thread
+  const handlers = cfg.jobThreads
+    ? threadHandlers({ kinds: KINDS, entry: new URL(import.meta.url.endsWith('.mjs') ? './jobThread.mjs' : './jobThread.js', import.meta.url), cfg })
+    : createHandlers(deps);
   const running = new Map();
   let lastJanitor = 0;
   const health = { startedAt: new Date().toISOString(), lastPollOk: null, lastPollError: null };
@@ -62,7 +49,7 @@ async function main() {
   http.createServer((req, res) => {
     if (req.url !== '/healthz') { res.writeHead(404).end(); return; }
     res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({
-      worker: cfg.workerId, engineCommit: cfg.engineCommit, kinds: KINDS,
+      worker: cfg.workerId, engineCommit: cfg.engineCommit, jobThreads: cfg.jobThreads, kinds: KINDS,
       running: [...running.keys()], ...health,
     }));
   }).listen(cfg.healthPort, '127.0.0.1');
@@ -77,7 +64,7 @@ async function main() {
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);
 
-  log.info(`seismic worker ${cfg.workerId} starting; engine ${cfg.engineCommit}; kinds ${KINDS.join(', ')}`);
+  log.info(`seismic worker ${cfg.workerId} starting; engine ${cfg.engineCommit}; jobs in ${cfg.jobThreads ? 'worker threads' : 'the main thread'}; kinds ${KINDS.join(', ')}`);
   while (!stopping) {
     try {
       const claimed = await pollOnce({ queue, cfg, running, launch, kinds: KINDS });

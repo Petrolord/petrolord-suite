@@ -19,7 +19,8 @@ const atAlias = {
 };
 
 await build({
-  entryPoints: { main: path.join(here, 'src/main.js'), selfcheck: path.join(here, 'src/selfcheck.js') },
+  // jobThread: each job's handler runs in a worker thread started from it (threadJobs.js)
+  entryPoints: { main: path.join(here, 'src/main.js'), selfcheck: path.join(here, 'src/selfcheck.js'), jobThread: path.join(here, 'src/jobThread.js') },
   outdir,
   outExtension: { '.js': '.mjs' },
   bundle: true,

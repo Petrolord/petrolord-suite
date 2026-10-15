@@ -5,6 +5,7 @@
 import { runJob } from './runJob.js';
 import { createHandlers, KINDS } from './handlers/index.js';
 import { loadConfig } from './config.js';
+import { threadHandlers } from './threadJobs.js';
 import { hasNativeDeflateRaw } from '../../../packages/engines/engines/seismolord/brickCodecV4.js';
 
 const cfg = { ...loadConfig(), heartbeatIntervalMs: 60000, progressMinIntervalMs: 0, workerId: 'selfcheck' };
@@ -19,11 +20,17 @@ const log = { info() {}, warn: console.warn, error: console.error };
 
 const ok = await runJob({ id: 'sc1', kind: 'noop', attempt: 1, params: { seconds: 0.2 } }, { queue, handlers: createHandlers({}), cfg, log });
 const bad = await runJob({ id: 'sc2', kind: 'noop', attempt: 1, params: { fail: true } }, { queue, handlers: createHandlers({}), cfg, log });
+// the same two jobs through a worker thread started from the bundled entry
+// (dist/jobThread.mjs), as main.js runs every job unless JOB_THREADS=0
+const threaded = threadHandlers({ kinds: KINDS, entry: new URL(import.meta.url.endsWith('.mjs') ? './jobThread.mjs' : './jobThread.js', import.meta.url), cfg });
+const tOk = await runJob({ id: 'sc3', kind: 'noop', attempt: 1, params: { seconds: 0.2 } }, { queue, handlers: threaded, cfg, log });
+const tBad = await runJob({ id: 'sc4', kind: 'noop', attempt: 1, params: { fail: true } }, { queue, handlers: threaded, cfg, log });
 // stack_to_v4 compresses with CompressionStream('deflate-raw'), as the
 // browser import does; without it the server would need another codec.
 const nativeDeflate = hasNativeDeflateRaw();
-if (ok !== 'succeeded' || bad !== 'failed' || calls[0][1]?.slept_seconds !== 0.2 || !nativeDeflate || !KINDS.includes('stack_to_v4')) {
-  console.error('SELFCHECK FAILED', JSON.stringify({ ok, bad, calls, nativeDeflate, KINDS }));
+if (ok !== 'succeeded' || bad !== 'failed' || calls[0][1]?.slept_seconds !== 0.2
+  || tOk !== 'succeeded' || tBad !== 'failed' || calls[2]?.[1]?.slept_seconds !== 0.2 || calls[3]?.[1] !== 'requested_failure' || !nativeDeflate || !KINDS.includes('stack_to_v4')) {
+  console.error('SELFCHECK FAILED', JSON.stringify({ ok, bad, tOk, tBad, calls, nativeDeflate, KINDS }));
   process.exit(1);
 }
-console.log(`SELFCHECK OK: node ${process.version}; kinds ${KINDS.join(', ')}; native deflate-raw ${nativeDeflate}`);
+console.log(`SELFCHECK OK: node ${process.version}; kinds ${KINDS.join(', ')}; native deflate-raw ${nativeDeflate}; job threads OK`);
