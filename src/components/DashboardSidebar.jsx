@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import ProjectSwitcher from '@/components/projects/ProjectSwitcher';
+import { useProject } from '@/contexts/ProjectContext';
 import { useSuiteAccess } from '@/hooks/useSuiteAccess';
 import { useHSEAccess } from '@/hooks/useHSEAccess';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -18,7 +19,7 @@ import {
   Flame,
   ScatterChart,
   ShieldCheck, 
-  Settings, 
+  Settings, FolderKanban, 
   Users, 
   CreditCard, 
   BarChart, 
@@ -91,6 +92,7 @@ const DashboardSidebar = ({ onNavigate, className }) => {
   const { isSuperAdmin, actualUser, signOut } = useAuth();
   const { isImpersonating, exitImpersonation } = useImpersonation();
   const navigate = useNavigate();
+  const { available: projectsOn } = useProject();
 
   const handleLogout = async () => {
     await signOut();
@@ -203,6 +205,11 @@ const DashboardSidebar = ({ onNavigate, className }) => {
 
               {canSuite(SUITE_PERMISSIONS.MANAGE_ORGANIZATION) && (
                 <SidebarItem icon={Settings} label="Settings" to="/admin/center" onNavigate={onNavigate} disabled={isImpersonating} />
+              )}
+
+              {/* Suite Projects: last in the list so nothing above it moves; shown once projects are on */}
+              {projectsOn && (
+                <SidebarItem icon={FolderKanban} label="Projects" to="/dashboard/projects" onNavigate={onNavigate} disabled={isImpersonating} />
               )}
             </>
           )}
