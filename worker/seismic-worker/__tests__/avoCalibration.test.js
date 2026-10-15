@@ -73,3 +73,11 @@ test('refusals: C needs three terms, a class needs a calibration, a field needs 
   expect(validateAvoParams({ ...base, products: { A: OUT.A }, scale_field: { wells: [{ name: 'x', scale: 2 }] } })).toMatch(/position/);
   expect(validateAvoParams({ ...base, stacks: base.stacks.slice(0, 2), products: { A: OUT.A }, terms: 3 })).toMatch(/three stacks/);
 });
+
+test('wells by lattice position are placed with the traces: exact at each well', async () => {
+  const byLattice = [0, 2, 5].map((il) => ({ name: `W${il}`, il, xl: 2, scale: gain(il) }));
+  const { at, out } = await run({ terms: 'auto', scale_field: { wells: byLattice } }, { A: OUT.A });
+  expect(out.calibrated).toBe('scale field');
+  for (const il of [0, 2, 5]) for (const s of [3, 11, 25]) expect(at('A', il, 2, s)).toBeCloseTo(Aof(il, 2, s), 5);
+  expect(validateAvoParams({ stacks: S.map((id, k) => ({ volume_id: id, angle: ANG[k] })), products: { A: OUT.A }, scale_field: { wells: [{ name: 'x', il: 1.5, xl: 2, scale: 2 }] } })).toMatch(/position/);
+});

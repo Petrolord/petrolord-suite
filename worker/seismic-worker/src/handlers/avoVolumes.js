@@ -64,7 +64,8 @@ export function validateAvoParams(p) {
   if (p.scale != null && !(Number.isFinite(p.scale) && p.scale !== 0)) return 'The scale must be a number other than zero.';
   if (p.scale_field != null) {
     const w = p.scale_field.wells;
-    if (!Array.isArray(w) || !w.length || w.some((x) => !Number.isFinite(x?.x) || !Number.isFinite(x?.y) || !Number.isFinite(x?.scale) || x.scale === 0)) return 'The scale field needs wells with a position and a scale other than zero.';
+    const placed = (x) => (Number.isFinite(x?.x) && Number.isFinite(x?.y)) || (Number.isInteger(x?.il) && Number.isInteger(x?.xl));
+    if (!Array.isArray(w) || !w.length || w.some((x) => !placed(x) || !Number.isFinite(x?.scale) || x.scale === 0)) return 'The scale field needs wells with a position (x and y, or the lattice il and xl) and a scale other than zero.';
     if (p.scale_field.method === 'kriging' && !(Number(p.scale_field.variogram?.range) > 0)) return 'Kriging the scale field needs a variogram range.';
   }
   if (prod.class && p.scale == null && p.scale_field == null) return 'An AVO class volume needs A and B in reflectivity: give the scale from the wells or a scale field.';
@@ -165,7 +166,9 @@ export async function avoVolumes(ctx, deps) {
   const aff = surveyAffine(manifests[0].geometry);
   const posOf = aff ? (il, xl) => ilxlToWorld(aff, il, xl) : (il, xl) => ({ x: il, y: xl });
   const sf = p.scale_field ? { method: p.scale_field.method === 'kriging' ? 'kriging' : 'idw', ...(p.scale_field.method === 'kriging' ? { variogram: { model: p.scale_field.variogram.model || 'spherical', range: Number(p.scale_field.variogram.range), sill: 1 } } : {}) } : null;
-  const scaleAt = sf ? (il, xl) => scaleFieldAt(p.scale_field.wells, posOf(il, xl), sf) : () => (p.scale ?? 1);
+  // wells given by lattice position are placed with the trace positions, so both use one convention
+  const fieldWells = p.scale_field ? p.scale_field.wells.map((w) => (Number.isFinite(w.x) && Number.isFinite(w.y) ? w : { ...w, ...posOf(w.il, w.xl) })) : null;
+  const scaleAt = sf ? (il, xl) => scaleFieldAt(fieldWells, posOf(il, xl), sf) : () => (p.scale ?? 1);
   const compute = (trace, outs, il, xl) => {
     const base = ((il % b) * b + (xl % b)) * b;
     const scale = scaleAt(il, xl);
@@ -211,7 +214,7 @@ export async function avoVolumes(ctx, deps) {
   try {
     for (let o = 0; o < derived.length; o++) {
       const d = derived[o];
-      const params = { qi_class: 'elastic_estimate', product: keys[o], product_label: AVO_PRODUCTS[keys[o]], stacks: stacks.map((s) => ({ volume_id: s.row.id, name: s.row.name, angle: s.angle })), vs_vp: vsVp, ...(keys[o] === 'chi' ? { chi_deg: chiDeg } : {}), method: terms === 3 ? 'Shuey three-term least squares' : 'Shuey two-term least squares', terms, ...(p.scale_field ? { calibration: { kind: 'scale field', method: sf.method, wells: p.scale_field.wells } } : p.scale != null ? { calibration: { kind: 'one scale', scale: p.scale } } : {}), ...(keys[o] === 'class' ? { qi_class: 'interpretation', classes: { 1: 'I', 2: 'II', 3: 'III', 4: 'IV' } } : {}) };
+      const params = { qi_class: 'elastic_estimate', product: keys[o], product_label: AVO_PRODUCTS[keys[o]], stacks: stacks.map((s) => ({ volume_id: s.row.id, name: s.row.name, angle: s.angle })), vs_vp: vsVp, ...(keys[o] === 'chi' ? { chi_deg: chiDeg } : {}), method: terms === 3 ? 'Shuey three-term least squares' : 'Shuey two-term least squares', terms, ...(p.scale_field ? { calibration: { kind: 'scale field', method: sf.method, wells: fieldWells } } : p.scale != null ? { calibration: { kind: 'one scale', scale: p.scale } } : {}), ...(keys[o] === 'class' ? { qi_class: 'interpretation', classes: { 1: 'I', 2: 'II', 3: 'III', 4: 'IV' } } : {}) };
       const job = derived.length > 1 ? { ...result, stats: result.statsByOutput[o] } : result;
       const out = buildDerivedManifest({ volumeId: d.id, name: d.name, parentManifest: manifests[0], attribute: { name: AVO_ATTRIBUTE, params }, job });
       if (pilot) out.pilot = pilot.record;

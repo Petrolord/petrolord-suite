@@ -23,12 +23,11 @@ const wells = {
 };
 
 test('the calibration block: terms, one scale, a field from each well\'s scale at its position', () => {
-  const posOf = (il, xl) => ({ x: il * 25, y: xl * 25 });
-  expect(avoCalibrationBlock({ cal: { terms: '2', mode: 'none' }, wells, posOf })).toEqual({});
-  expect(avoCalibrationBlock({ cal: { terms: 'auto', mode: 'one' }, wells, posOf })).toEqual({ terms: 'auto', scale: 2000 });
-  const f = avoCalibrationBlock({ cal: { terms: '3', mode: 'field', fieldMethod: 'kriging', range: '1500' }, wells, posOf });
+  expect(avoCalibrationBlock({ cal: { terms: '2', mode: 'none' }, wells })).toEqual({});
+  expect(avoCalibrationBlock({ cal: { terms: 'auto', mode: 'one' }, wells })).toEqual({ terms: 'auto', scale: 2000 });
+  const f = avoCalibrationBlock({ cal: { terms: '3', mode: 'field', fieldMethod: 'kriging', range: '1500' }, wells });
   expect(f.terms).toBe(3);
-  expect(f.scale_field.wells.map(({ name, x, y }) => ({ name, x, y }))).toEqual([{ name: 'W1', x: 50, y: 75 }, { name: 'W2', x: 250, y: 500 }]);
+  expect(f.scale_field.wells.map(({ name, il, xl }) => ({ name, il, xl }))).toEqual([{ name: 'W1', il: 2, xl: 3 }, { name: 'W2', il: 10, xl: 20 }]);
   f.scale_field.wells.forEach((w, i) => expect(w.scale).toBeCloseTo([2000, 3000][i], 9));
   expect(f.scale_field.variogram).toEqual({ model: 'spherical', range: 1500 });
 });

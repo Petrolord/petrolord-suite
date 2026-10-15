@@ -15,7 +15,6 @@ import ExportControls from './ExportControls';
 import { prepareWell } from '../services/inversionWells';
 import { wellPoints, compareAtWells, avoWellIssues } from '../services/avoWells';
 import { wellScale, shueyTermsFor } from '../engine/avoCalibration';
-import { ilxlToWorld } from '../../../../../packages/engines/engines/seismolord/surveyGeometry';
 
 const card = 'rounded-lg border border-pl-border bg-pl-surface p-4 space-y-3';
 const muted = 'text-xs text-pl-muted';
@@ -32,12 +31,13 @@ export const AVO_EXTRA_LABELS = { C: 'Curvature (C)', class: 'AVO class' };
 const ALL_LABELS = { ...AVO_LABELS, ...AVO_EXTRA_LABELS };
 
 /** The calibration block of an AVO job from the panel's choices and the wells comparison, or {} (QI upgrade P2.10). */
-export function avoCalibrationBlock({ cal, wells, posOf }) {
+export function avoCalibrationBlock({ cal, wells }) {
   const out = { ...(cal.terms !== '2' ? { terms: cal.terms === 'auto' ? 'auto' : 3 } : {}) };
   if (cal.mode === 'none' || !wells) return out;
   if (cal.mode === 'one') return Number.isFinite(wells.scale) && wells.scale !== 0 ? { ...out, scale: wells.scale } : out;
   const pts = new Map((wells.points || []).map((q) => [q.name, q]));
-  const field = (wells.wells || []).filter((w) => !w.error && pts.has(w.name)).map((w) => ({ name: w.name, ...posOf(pts.get(w.name).il, pts.get(w.name).xl), scale: wellScale({ modelled: w.modelled, observed: w.observed }) })).filter((w) => Number.isFinite(w.scale) && w.scale !== 0);
+  // each well by its lattice position: the worker places it with the traces
+  const field = (wells.wells || []).filter((w) => !w.error && pts.has(w.name)).map((w) => ({ name: w.name, il: pts.get(w.name).il, xl: pts.get(w.name).xl, scale: wellScale({ modelled: w.modelled, observed: w.observed }) })).filter((w) => Number.isFinite(w.scale) && w.scale !== 0);
   if (!field.length) return out;
   return { ...out, scale_field: { wells: field, ...(cal.fieldMethod === 'kriging' ? { method: 'kriging', variogram: { model: 'spherical', range: Number(cal.range) } } : {}) } };
 }
@@ -66,6 +66,8 @@ export default function AvoPanel() {
   const stops = useRef([]);
   useEffect(() => () => { for (const s of stops.current) s(); }, []);
   const calProblem = (cal.mode !== 'none' || cal.class) && !project.avo?.wells ? 'Compare an AVO run at the wells first: the calibration uses its scales.'
+    : cal.class && cal.mode === 'none' ? 'An AVO class volume needs a calibration to reflectivity.'
+    : cal.mode === 'field' && !project.avo.wells.points ? 'Compare at the wells again: this comparison predates the scale field and has no well positions.'
     : cal.C && cal.terms !== '2' && shueyTermsFor(stacks.filter((x) => x.volumeId && String(x.angle).trim() !== '').map((x) => Number(x.angle))) < 3 && cal.terms === 'auto' ? 'These stacks support two terms only, so the curvature cannot be written.'
       : cal.fieldMethod === 'kriging' && cal.mode === 'field' && !(Number(cal.range) > 0) ? 'Give the kriging range in metres.' : null;
   const problem = avoProblem(stacks) || (!Object.values(products).some(Boolean) && !cal.C && !cal.class ? 'Choose at least one product.' : null) || calProblem;
@@ -96,12 +98,7 @@ export default function AvoPanel() {
     const first = chosenVolumes.find((v) => v.id === live[0].volumeId);
     const keys = [...Object.keys(products).filter((k) => products[k]), ...(cal.C ? ['C'] : []), ...(cal.class ? ['class'] : [])];
     const pp = pilotParam(pilot);
-    let calBlock = {};
-    try {
-      const frame = cal.mode === 'field' ? await backend.loadVolumeFrame(first) : null;
-      const posOf = frame?.affine ? (il, xl) => ilxlToWorld(frame.affine, il, xl) : (il, xl) => ({ x: il, y: xl });
-      calBlock = avoCalibrationBlock({ cal, wells: project.avo?.wells || null, posOf });
-    } catch (e) { setSt({ error: e.message }); return; }
+    const calBlock = avoCalibrationBlock({ cal, wells: project.avo?.wells || null });
     setSt({ job: { status: 'queued' } });
     const rows = [];
     try {
@@ -149,7 +146,7 @@ export default function AvoPanel() {
           return { ...p, observed: q?.values ? { A: q.values[0], B: q.values[1] } : null, error: p.error || q?.error || null };
         });
         const cmp = compareAtWells(rows); // every well, so one with no gather says why
-        setAvo({ wells: { runJobId: runAB.jobId, runName: runAB.name, at: row.finished_at || new Date().toISOString(), scale: cmp.scale, n: cmp.n, agree: cmp.agree, wells: cmp.wells.map(({ name, zone, modelled, substituted, observed, scaled, residual, modelledClass, observedClass, agree, error }) => ({ name, zone, modelled, substituted, observed, scaled, residual, modelledClass, observedClass, agree, error })) } });
+        setAvo({ wells: { runJobId: runAB.jobId, runName: runAB.name, at: row.finished_at || new Date().toISOString(), scale: cmp.scale, n: cmp.n, agree: cmp.agree, points: points.map(({ name, il, xl }) => ({ name, il, xl })), wells: cmp.wells.map(({ name, zone, modelled, substituted, observed, scaled, residual, modelledClass, observedClass, agree, error }) => ({ name, zone, modelled, substituted, observed, scaled, residual, modelledClass, observedClass, agree, error })) } });
         setWellSt(null);
       }));
     } catch (e) {
