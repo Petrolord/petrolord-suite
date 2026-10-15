@@ -6,7 +6,8 @@ import { useAppUnits } from '@/lib/units/useAppUnits';
 import UnitProfileNote from '@/components/units/UnitProfileNote';
 import { SEISMOLORD_UNIT_APP, SEISMOLORD_UNITS, SEISMOLORD_LEGACY_UNIT_KEYS } from '../lib/unitProfile';
 import { appPath as appRoutePath } from '@/components/wells/appLinks';
-import { placementsFor } from '@/lib/localWorkspace/runtime';
+import { placementsFor, uploadPreviewsFor } from '@/lib/localWorkspace/runtime';
+import { setVolumeLocation } from '@/lib/localWorkspace/cloud';
 import LocalWorkspacePanel from '@/components/localWorkspace/LocalWorkspacePanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { promoteToCloud } from '@/lib/localWorkspace/promote';
@@ -3856,8 +3857,26 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
     }
   };
 
+  // Local Workspace (owner decision 4): previews of a local volume, per volume
+  const setVolumePreviews = async (v, mode) => {
+    try {
+      await setVolumeLocation(supabase, v.id, { previews: mode });
+      if (mode === 'off') {
+        await supabase.storage.from('seismic').remove(['inline', 'xline', 'time'].map((n) => `${v.storage_path}/previews/${n}.png`));
+        toast({ title: 'Previews removed', description: `${v.name}: colleagues see its name, geometry and horizons only.` });
+      } else {
+        await uploadPreviewsFor(v.id);
+        toast({ title: 'Previews shared', description: `${v.name}: colleagues in this project see a small preview.` });
+      }
+      setVolumesRefresh((k) => k + 1);
+    } catch (e) {
+      toast({ title: 'Could not change the previews', description: e.message, variant: 'destructive' });
+    }
+  };
+
   const treeActions = {
     promoteVolume,
+    setVolumePreviews,
     selectVolume,
     deleteVolume: deleteVolumeAction,
     shareVolume: onShareVolume,

@@ -273,6 +273,11 @@ export default function SeismicExplorer({ tree, actions }) {
                         Where is this volume?
                       </ContextMenuItem>
                     )}
+                    {[PLACEMENT.HERE, PLACEMENT.BOTH].includes(placeOf(v)?.kind) && v.is_own !== false && actions.setVolumePreviews && (
+                      <ContextMenuItem onSelect={() => actions.setVolumePreviews(v, v.previews === 'off' ? 'on' : 'off')}>
+                        {v.previews === 'off' ? 'Share previews with the project' : 'Stop sharing previews'}
+                      </ContextMenuItem>
+                    )}
                     {placeOf(v)?.kind === PLACEMENT.HERE && v.is_own !== false && actions.promoteVolume && (
                       <ContextMenuItem onSelect={() => actions.promoteVolume(v)}>
                         Copy to the cloud…
