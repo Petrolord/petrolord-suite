@@ -14,7 +14,8 @@
 // params: { volume_ids: [] (1 to 8, one lattice), top_horizon_id,
 //   base_horizon_id? | window_ms?, products: [{ key, kind: 'stat', input: i,
 //   stat: mean|rms|min|max|frac, cutoff?, above? } | { key, kind: 'spread',
-//   q10: i, q50: i, q90: i, relative? } | { key, kind: 'thickness' }] (1 to
+//   q10: i, q50: i, q90: i, relative? } | { key, kind: 'thickness' } | { key,
+//   kind: 'avo_class', a: i, b: i, scale? }] (1 to
 //   16), name? } where i indexes volume_ids.
 // Horizons are the user's own picks on any of their volumes on the same
 // lattice (picks are sample indices on that lattice). Read only, apart from
@@ -58,6 +59,10 @@ export function validateZoneMapParams(p) {
       if (x.stat === 'frac' && !Number.isFinite(x.cutoff)) return `Product ${x.key}: the share beyond a cutoff needs the cutoff.`;
     } else if (x.kind === 'spread') {
       if (![x.q10, x.q50, x.q90].every(idx)) return `Product ${x.key}: the spread needs the Q10, Q50 and Q90 volumes.`;
+    } else if (x.kind === 'avo_class') {
+      // QI upgrade P2.10: the class of the zone means of A and B (divided by the scale to reflectivity)
+      if (!idx(x.a) || !idx(x.b) || x.a === x.b) return `Product ${x.key}: the class map needs the intercept and gradient volumes.`;
+      if (x.scale != null && !(Number.isFinite(x.scale) && x.scale !== 0)) return `Product ${x.key}: the scale must be a number other than zero.`;
     } else if (x.kind !== 'thickness') return `Product ${x.key}: unknown kind ${x.kind}.`;
   }
   return null;

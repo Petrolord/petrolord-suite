@@ -11,6 +11,7 @@ export const FAMILY_LABEL = {
   value: 'Volume',
   triple: 'Q10, Q50 and Q90',
   probability: 'Facies probability',
+  avo: 'AVO classes',
 };
 
 const isUuidish = (v) => typeof v === 'string' && v.length > 0;
@@ -40,6 +41,19 @@ export function mapInputs(project, volumes = []) {
     if (r.status !== 'ready' || !r.volumeIds) continue;
     for (const [k, label, unit] of [['ai', 'AI', 'AI'], ['si', 'SI', 'SI'], ['rho', 'density', 'g/cc'], ['vpvs', 'Vp/Vs', 'ratio']]) {
       if (has(r.volumeIds[k])) out.push({ key: `sim:${r.jobId}:${k}`, family: 'value', name: `${r.name}: ${label}`, seismicId: r.firstVolumeId, ids: { value: r.volumeIds[k] }, unit, kind: k });
+    }
+  }
+  // QI upgrade P2.10: AVO runs, each product a volume, and A with B for class maps
+  for (const r of project.avo?.runs || []) {
+    if (r.status !== 'ready' || !r.volumeIds) continue;
+    const seismicId = r.stacks?.[0]?.volumeId;
+    for (const [k, id] of Object.entries(r.volumeIds)) {
+      if (k === 'class' || !has(id)) continue;
+      out.push({ key: `avo:${r.jobId}:${k}`, family: 'value', name: `${r.name}: ${k}`, seismicId, ids: { value: id }, unit: r.calibration ? 'reflectivity' : 'amplitude', kind: 'avo' });
+    }
+    if (has(r.volumeIds.A) && has(r.volumeIds.B)) {
+      const scale = r.calibration ? 1 : project.avo?.wells?.runJobId === r.jobId ? project.avo.wells.scale : null;
+      out.push({ key: `avoAB:${r.jobId}`, family: 'avo', name: `${r.name}: intercept and gradient`, seismicId, ids: { a: r.volumeIds.A, b: r.volumeIds.B }, unit: 'class', kind: 'avo', calibrated: !!r.calibration, scale });
     }
   }
   for (const [aiId, rec] of Object.entries(project.properties || {})) {
@@ -82,6 +96,9 @@ export function productChoices(input) {
       { key: 'q50_frac', label: 'Share of the zone where Q50 is beyond the cutoff', kind: 'stat', input: 'q50', stat: 'frac', needsCutoff: true, defaultOn: false },
     ];
   }
+  if (input.family === 'avo') {
+    return [{ key: 'avo_class', label: input.calibrated ? 'AVO class map: the class (I to IV) of the zone means of A and B' : 'AVO class map: the class (I to IV) of the zone means of A and B, taken to reflectivity by the wells\' scale', kind: 'avo_class', defaultOn: true }];
+  }
   if (input.family === 'probability') {
     return [
       { key: 'p_mean', label: 'Probability map: zone mean probability (the expected share of the zone)', kind: 'stat', input: 'value', stat: 'mean', defaultOn: true },
@@ -101,6 +118,7 @@ export function productChoices(input) {
 /** Why the choices cannot run, or null. */
 export function zoneMapProblem({ input, picked, zone, cutoffs = {} }) {
   if (!input) return 'Choose a volume to map.';
+  if (input.family === 'avo' && !(Number.isFinite(input.scale) && input.scale !== 0)) return 'Compare this AVO run at the wells first (AVO tab), or compute it calibrated: the class needs A and B in reflectivity.';
   if (!picked?.length) return 'Tick at least one map.';
   if (!zone?.topId) return 'Choose the top horizon of the zone.';
   if (zone.mode === 'base') {
@@ -129,6 +147,7 @@ export function zoneMapParams({ input, picked, zone, cutoffs = {}, above = {}, n
   const products = picked.map((k) => {
     const c = choices.find((x) => x.key === k);
     if (c.kind === 'spread') return { key: k, kind: 'spread', q10: idx('q10'), q50: idx('q50'), q90: idx('q90'), ...(c.relative ? { relative: true } : {}) };
+    if (c.kind === 'avo_class') return { key: k, kind: 'avo_class', a: idx('a'), b: idx('b'), scale: input.scale };
     return { key: k, kind: 'stat', input: idx(c.input), stat: c.stat, ...(c.needsCutoff ? { cutoff: Number(cutoffs[k] ?? c.cutoff), above: above[k] !== false } : {}) };
   });
   return {
@@ -144,17 +163,18 @@ export function zoneMapParams({ input, picked, zone, cutoffs = {}, above = {}, n
 export function zoneMapLabel(input, product, zoneText) {
   const c = productChoices(input).find((x) => x.key === product.key) || {};
   const frac = product.stat === 'frac';
-  const unit = product.kind === 'spread' ? (product.relative ? 'ratio' : input.unit) : frac ? 'fraction' : input.unit;
+  const unit = product.kind === 'avo_class' ? 'class (1 I, 2 II, 3 III, 4 IV)' : product.kind === 'spread' ? (product.relative ? 'ratio' : input.unit) : frac ? 'fraction' : input.unit;
   const cut = frac ? ` (${product.above === false ? 'below' : 'above'} ${product.cutoff})` : '';
   return {
     unit,
     name: `${input.name}: ${shortLabel(c, product)}${cut}, ${zoneText}`,
-    qiClass: input.family === 'seismic' ? 'elastic_estimate' : input.kind === 'facies' || input.family === 'probability' ? 'calibrated_prediction' : input.kind === 'impedance' || ['ai', 'si', 'rho', 'vpvs'].includes(input.kind) ? 'elastic_estimate' : 'calibrated_prediction',
+    qiClass: product.kind === 'avo_class' ? 'interpretation' : input.family === 'seismic' ? 'elastic_estimate' : input.kind === 'facies' || input.family === 'probability' ? 'calibrated_prediction' : input.kind === 'impedance' || ['ai', 'si', 'rho', 'vpvs'].includes(input.kind) ? 'elastic_estimate' : 'calibrated_prediction',
   };
 }
 
 function shortLabel(c, product) {
   if (product.kind === 'spread') return product.relative ? 'relative spread' : 'confidence (Q90 minus Q10)';
+  if (product.kind === 'avo_class') return 'AVO class';
   return {
     q50_mean: 'Q50 mean', q10_mean: 'Q10 mean', q90_mean: 'Q90 mean', q50_frac: 'Q50 share beyond cutoff',
     p_mean: 'mean probability', p_max: 'highest probability', p_frac: 'share with probability over cutoff',

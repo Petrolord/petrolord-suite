@@ -22,7 +22,7 @@ import { DEFAULT_MAPPING } from '../../../../../packages/engines/engines/seismol
 import { stampProject, scopeToProject, whenProjectScopeReady } from '@/lib/projects/projectScope';
 import { saveZoneMapAsSurface } from '@/pages/apps/Seismolord/services/surfacesService';
 import { latticeToWorldGrid } from '../../../../../packages/engines/engines/seismolord/surfaceOnLattice';
-import { surveyAffine, cellSpacing, surveyBounds } from '../../../../../packages/engines/engines/seismolord/surveyGeometry';
+import { surveyAffine, cellSpacing, surveyBounds, worldToIlxl } from '../../../../../packages/engines/engines/seismolord/surveyGeometry';
 import { geomFromManifest } from '../../../../../packages/engines/engines/seismolord/sliceAssembly';
 import { exportGridSpec } from '@/lib/gridding/gridding';
 
@@ -40,6 +40,28 @@ async function registerDerived(parent, name, attributeParams) {
   })).select().single();
   if (error) throw new Error(`Could not register the volume: ${error.message}`);
   return data;
+}
+
+/**
+ * A class map onto the world grid by the nearest lattice trace (QI upgrade
+ * P2.10): class codes are categories, so they are never blended.
+ */
+export function nearestToWorldGrid(values, affine, geom, spec) {
+  const NULL = Math.fround(1e30);
+  const z = new Float32Array(spec.nx * spec.ny).fill(NULL);
+  let live = 0;
+  for (let r = 0; r < spec.ny; r++) {
+    for (let c = 0; c < spec.nx; c++) {
+      const p = worldToIlxl(affine, spec.x0 + c * spec.dx, spec.y0 + r * spec.dy);
+      if (!p) continue;
+      const i = Math.round(p.i); const j = Math.round(p.j);
+      if (i < 0 || j < 0 || i >= geom.nIl || j >= geom.nXl) continue;
+      const v = values[i * geom.nXl + j];
+      if (!Number.isFinite(v) || Math.abs(v) > 1e29) continue;
+      z[r * spec.nx + c] = v; live += 1;
+    }
+  }
+  return { z, live };
 }
 
 export function makeRegistryBackend() {
@@ -107,14 +129,14 @@ export function makeRegistryBackend() {
       return new Float32Array(await data.arrayBuffer());
     },
     /** Grid a lattice zone map onto the survey's world grid and save it as an attribute surface of the stack. */
-    async saveZoneMap({ seismic, values, name, unit, provenance }) {
+    async saveZoneMap({ seismic, values, name, unit, provenance, categorical = false }) {
       const manifest = await getManifest(seismic);
       const affine = surveyAffine(manifest.geometry);
       if (!affine) throw new Error('The volume has no usable survey coordinates for a map.');
       const geom = geomFromManifest(manifest);
       if (values.length !== geom.nIl * geom.nXl) throw new Error('The zone map is not on this volume\'s lattice.');
       const spec = exportGridSpec(surveyBounds(affine, manifest.geometry.il.count, manifest.geometry.xl.count), 0, cellSpacing(affine).xl || 25);
-      const { z, live } = latticeToWorldGrid(values, affine, geom, spec);
+      const { z, live } = categorical ? nearestToWorldGrid(values, affine, geom, spec) : latticeToWorldGrid(values, affine, geom, spec);
       if (!live) throw new Error('The zone map has no values to save.');
       return saveZoneMapAsSurface({ volume: seismic, name, unit, g: { z }, spec, provenance });
     },

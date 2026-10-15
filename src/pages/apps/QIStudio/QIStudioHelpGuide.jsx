@@ -166,6 +166,8 @@ function QIStudioHelpGuideContent() {
           reflectivity. The table and the intercept-gradient crossplot show each well&apos;s model beside its scaled seismic, with the
           AVO class of each. A class that differs, or a scale below zero (a polarity problem), is offered to the issue register.
         </Para>
+              <SubHeading>Terms, calibration and classes</SubHeading>
+        <Para>Under the products, Terms, calibration to reflectivity and class volumes sets three things. Shuey terms: two (the default), three, or three where the angles allow (three stacks or more, the farthest at 35 degrees or more), which adds the curvature C as a product. To reflectivity: as the stacks are, one scale from the wells, or a scale field from the wells, where each well&apos;s own scale (from Compare at the wells) is spread over the map by inverse distance or kriging, so a survey whose amplitude scale drifts is calibrated trace by trace and each well keeps its own scale. With a calibration, the AVO class volume holds the class of each sample, 1 to 4 for classes I to IV, by the same classifier Rock Physics Studio uses; it is an interpretation.</Para>
       </GuideSection>
 
       <GuideSection id="inversion">
@@ -428,6 +430,8 @@ function QIStudioHelpGuideContent() {
           stack&apos;s Surfaces and Mapping &amp; Surface Studio opens them; both export XYZ, CPS-3, ZMAP+ and Irap grids. The
           report lists the maps with their ranges.
         </Para>
+              <SubHeading>AVO class maps</SubHeading>
+        <Para>Every AVO product can be mapped like any volume, and each AVO run with an intercept and a gradient offers an AVO class map under AVO classes: the class (1 to 4 for I to IV) of the zone means of A and B, by the classifier Rock Physics Studio uses. A run computed with a calibration is already in reflectivity; otherwise Compare at the wells on the AVO tab first, and its scale takes A and B to reflectivity. Class maps are gridded by the nearest trace so classes are never blended, and are saved as interpretations.</Para>
       </GuideSection>
     </HelpGuideShell>
   );

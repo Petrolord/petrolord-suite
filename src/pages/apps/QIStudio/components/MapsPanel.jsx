@@ -87,8 +87,8 @@ export default function MapsPanel() {
         if (p.surfaceId || !p.live) { saved.push(p); continue; }
         const values = await backend.downloadZoneMap(p.path);
         const row = await backend.saveZoneMap({
-          seismic: vol, values, name: p.name, unit: p.unit,
-          provenance: { zone: r.zone, input: r.input.name, product: p.key, statistic: p.kind === 'spread' ? (p.relative ? 'relative spread' : 'Q90 minus Q10') : p.stat, ...(p.stat === 'frac' ? { cutoff: p.cutoff, above: p.above !== false } : {}), job_id: r.jobId, qi_class: p.qiClass },
+          seismic: vol, values, name: p.name, unit: p.unit, categorical: p.kind === 'avo_class',
+          provenance: { zone: r.zone, input: r.input.name, product: p.key, statistic: p.kind === 'spread' ? (p.relative ? 'relative spread' : 'Q90 minus Q10') : p.kind === 'avo_class' ? 'AVO class of the zone means of A and B' : p.stat, ...(p.stat === 'frac' ? { cutoff: p.cutoff, above: p.above !== false } : {}), job_id: r.jobId, qi_class: p.qiClass },
         });
         saved.push({ ...p, surfaceId: row.id });
       }
@@ -110,7 +110,7 @@ export default function MapsPanel() {
   const busy = !!job?.job && qiService.isActive(job.job);
 
   if (!inputs.length) return <section className={card} data-testid="qi-maps"><p className={muted}>Choose seismic volumes on Setup, or finish an inversion or property run, to make maps from volumes.</p></section>;
-  const groups = ['seismic', 'value', 'triple', 'probability'].map((f) => [f, inputs.filter((x) => x.family === f)]).filter(([, l]) => l.length);
+  const groups = ['seismic', 'value', 'triple', 'probability', 'avo'].map((f) => [f, inputs.filter((x) => x.family === f)]).filter(([, l]) => l.length);
   return (
     <section className={card} data-testid="qi-maps">
       <h2 className="text-sm font-semibold text-pl-text">Maps from volumes</h2>

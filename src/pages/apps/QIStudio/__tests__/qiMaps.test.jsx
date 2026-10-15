@@ -115,3 +115,36 @@ test('UI: make a confidence map and a property map, save them to the surface reg
   expect(t).toMatch(/Maps from volumes/);
   expect(t).toMatch(/saved to the surface registry/);
 });
+
+test('AVO runs: each product maps as a volume; A with B gives a class map scaled by the wells or calibrated', () => {
+  const avoProject = { ...project, avo: {
+    runs: [
+      { jobId: 'a1', name: 'Raw AVO', status: 'ready', stacks: [{ volumeId: 'v1' }], volumeIds: { A: 'va', B: 'vb', FF: 'vf' } },
+      { jobId: 'a2', name: 'Cal AVO', status: 'ready', stacks: [{ volumeId: 'v1' }], calibration: 'scale field', volumeIds: { A: 'ca', B: 'cb', class: 'cc' } },
+    ],
+    wells: { runJobId: 'a1', scale: 2500 },
+  } };
+  const inputs = mapInputs(avoProject, volumes).filter((x) => x.kind === 'avo');
+  expect(inputs.map((x) => x.key)).toEqual(['avo:a1:A', 'avo:a1:B', 'avo:a1:FF', 'avoAB:a1', 'avo:a2:A', 'avo:a2:B', 'avoAB:a2']);
+  const raw = inputs.find((x) => x.key === 'avoAB:a1'); const cal = inputs.find((x) => x.key === 'avoAB:a2');
+  expect(raw.scale).toBe(2500); expect(cal.scale).toBe(1);
+  expect(inputs.find((x) => x.key === 'avo:a2:A').unit).toBe('reflectivity');
+  const zone = { topId: 'h1', mode: 'window', windowMs: 40 };
+  expect(zoneMapProblem({ input: raw, picked: ['avo_class'], zone })).toBeNull();
+  expect(zoneMapProblem({ input: { ...raw, scale: null }, picked: ['avo_class'], zone })).toMatch(/Compare this AVO run/);
+  const prm = zoneMapParams({ input: raw, picked: ['avo_class'], zone });
+  expect(prm.volume_ids).toEqual(['va', 'vb']);
+  expect(prm.products).toEqual([{ key: 'avo_class', kind: 'avo_class', a: 0, b: 1, scale: 2500 }]);
+  const lab = zoneMapLabel(raw, prm.products[0], 'Top plus 40 ms');
+  expect(lab.qiClass).toBe('interpretation');
+  expect(lab.unit).toMatch(/class/);
+});
+
+test('class maps are gridded by the nearest trace, never blended', async () => {
+  const { nearestToWorldGrid } = await import('../services/registryBackend');
+  const affine = { origin: { x: 0, y: 0 }, ilVec: { x: 10, y: 0 }, xlVec: { x: 0, y: 10 } };
+  const geom = { nIl: 2, nXl: 2 };
+  const { z, live } = nearestToWorldGrid(Float32Array.from([1, 3, 3, 1]), affine, geom, { nx: 3, ny: 3, dx: 5, dy: 5, x0: 0, y0: 0 });
+  expect(live).toBe(9);
+  for (const v of z) expect([1, 3]).toContain(v);
+});

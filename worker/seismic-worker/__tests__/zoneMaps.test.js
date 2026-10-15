@@ -160,3 +160,26 @@ test('a lattice hole gets no map value, not even a thickness', async () => {
   expect(thick[2 * NXL + 3]).not.toBe(Math.fround(1e30));
   expect(out.traces_with_zone).toBe(NIL * NXL - 2);
 });
+
+// QI upgrade P2.10: AVO class maps. Volumes 0 and 1 stand in for scaled A
+// and B; each cell is the classifier's code of the zone means divided by the
+// scale. Negative control: without the scale the classes differ.
+test('AVO class map: the class of the zone means of A and B over the scale', async () => {
+  const { avoClassCode } = await import('../../../packages/engines/engines/qi/avoCalibration.js');
+  const SCALE = 20;
+  const prods = [{ key: 'cls', kind: 'avo_class', a: 0, b: 1, scale: SCALE }, { key: 'raw', kind: 'avo_class', a: 0, b: 1 }];
+  const { d, uploads } = depsFor();
+  await zoneMaps(ctxFor(params({ products: prods })), d);
+  const map = (k) => uploads.get(`${UID}/qi-zone-maps/job-1/${k}.f32`);
+  let differ = 0;
+  for (const c of [20, 101, 207, 333]) {
+    const il = Math.floor(c / NXL); const xl = c % NXL;
+    const range = zoneRange(GRIDS.ht[c], GRIDS.hb[c], NS);
+    const mean = (k) => { const t = trace(k, il, xl); let s = 0; let n = 0; for (let q = range[0]; q <= range[1]; q++) if (Math.abs(t[q]) < 1e29) { s += t[q]; n += 1; } return s / n; };
+    expect(map('cls')[c]).toBe(avoClassCode(mean(0) / SCALE, mean(1) / SCALE));
+    if (map('cls')[c] !== map('raw')[c]) differ += 1;
+  }
+  expect(differ).toBeGreaterThan(0);
+  expect(validateZoneMapParams(params({ products: [{ key: 'x', kind: 'avo_class', a: 0, b: 0 }] }))).toMatch(/intercept and gradient/);
+  expect(validateZoneMapParams(params({ products: [{ key: 'x', kind: 'avo_class', a: 0, b: 1, scale: 0 }] }))).toMatch(/scale/);
+});
