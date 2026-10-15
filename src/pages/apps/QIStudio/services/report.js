@@ -12,7 +12,9 @@ import {
 import { isStripe, snrText } from './qcRun';
 import { tieRows, waveletComparison } from './ties';
 import { INVERSION_METHODS, INVERSION_DEFAULTS, blindProtocolText } from './inversionRun';
-import { faciesClass, propertyProtocolText } from './propertyRun';
+import {
+  faciesClass, propertyProtocolText, propertyName, propertyShort, propertyGate, PROPERTY_KINDS,
+} from './propertyRun';
 import { cropLines, cropOf } from '@/pages/apps/Seismolord/lib/volumeProvenance';
 import { pilotText } from '../components/PilotArea';
 
@@ -120,7 +122,7 @@ export function reportModel({ projectName = '', organizationName = '', project, 
         } : null,
       };
     }),
-    properties: Object.values(project.properties || {}).flatMap((rec) => ['porosity', 'facies'].filter((k) => rec?.[k]?.calibration?.result?.rows).map((k) => {
+    properties: Object.values(project.properties || {}).flatMap((rec) => ['porosity', 'ntg', 'sw', 'facies'].filter((k) => rec?.[k]?.calibration?.result?.rows).map((k) => {
       const c = rec[k].calibration; const res = c.result;
       const n = (v, d) => (Number.isFinite(v) ? v.toFixed(d) : '');
       const p = (v) => (Number.isFinite(v) ? String(Math.round(100 * v)) : '');
@@ -128,9 +130,11 @@ export function reportModel({ projectName = '', organizationName = '', project, 
         kind: k, volume: c.volumeName || '', at: String(c.at || '').slice(0, 10), protocol: propertyProtocolText(res),
         summary: k === 'facies'
           ? res.summary.classes.map((x) => [x.name, String(x.n), n(x.prior, 2), n(x.mean, 0), n(x.sd, 0), faciesClass(x.name) === 'fluid_hypothesis' ? 'fluid hypothesis' : 'calibrated prediction'])
-          : `porosity = ${n(res.summary.a, 4)} ${res.summary.b < 0 ? '-' : '+'} ${Math.abs(res.summary.b).toExponential(3)} x AI (r squared ${n(res.summary.r2, 2)}, ${res.summary.n} samples, residual SD ${n(res.summary.s, 4)}).${Number.isFinite(res.summary.sLoo) && res.summary.sExtra > 0 ? ` The Q10 to Q90 band adds ${n(res.summary.sExtra, 4)} for the inversion's error, from the wells left out (their RMS error ${n(res.summary.sLoo, 4)}).` : ''}`,
+          : `${propertyName(k)} = ${n(res.summary.a, 4)} ${res.summary.b < 0 ? '-' : '+'} ${Math.abs(res.summary.b).toExponential(3)} x AI (r squared ${n(res.summary.r2, 2)}, ${res.summary.n} samples, residual SD ${n(res.summary.s, 4)}).${Number.isFinite(res.summary.sLoo) && res.summary.sExtra > 0 ? ` The Q10 to Q90 band adds ${n(res.summary.sExtra, 4)} for the inversion's error, from the wells left out (their RMS error ${n(res.summary.sLoo, 4)}).` : ''}`,
         rows: res.rows.map((r) => (r.error ? [r.name, r.error, '', '', ''] : k === 'facies' ? [r.name, String(r.n), p(r.accuracy)] : [r.name, String(r.n), n(r.rms, 3), n(r.corr, 2), p(r.coverage)])),
         volumes: (rec[k].runs || []).filter((x) => x.status === 'ready').map((x) => x.name),
+        // QI upgrade P1.3: NTG and Sw say whether their blind check passed the gate
+        gate: PROPERTY_KINDS[k]?.gated ? propertyGate(res, res.settings?.gate?.thresholds || {}).text : '',
       };
     })),
     prospects: (project.prospects || []).filter((p) => p.result).map((p) => {
@@ -180,7 +184,7 @@ export function reportModel({ projectName = '', organizationName = '', project, 
       const inv = Object.values(project.inversion || {}).map((r) => r?.blind?.result?.blind || r?.spread?.result?.blind).filter((b) => b?.length);
       const errs = inv.flat().map((w) => w.blind?.rmsPct).filter(Number.isFinite);
       if (errs.length) out.push(`Impedance inversion was checked at ${errs.length} blind well${errs.length === 1 ? '' : 's'}: mean blind AI error ${(errs.reduce((a, v) => a + v, 0) / errs.length).toFixed(1)} percent (largest ${Math.max(...errs).toFixed(1)}).`);
-      const props = Object.values(project.properties || {}).flatMap((rec) => ['porosity', 'facies'].map((k) => rec?.[k]?.calibration?.result).filter(Boolean));
+      const props = Object.values(project.properties || {}).flatMap((rec) => ['porosity', 'ntg', 'sw', 'facies'].map((k) => rec?.[k]?.calibration?.result).filter(Boolean));
       for (const pr of props) {
         const rows = (pr.rows || []).filter((r) => !r.error);
         if (pr.settings?.kind === 'facies') {
@@ -188,7 +192,9 @@ export function reportModel({ projectName = '', organizationName = '', project, 
           if (acc.length) out.push(`Facies from impedance were predicted right at ${(100 * acc.reduce((a, v) => a + v, 0) / acc.length).toFixed(1)} percent of the samples of left-out wells.`);
         } else {
           const cov = rows.map((r) => r.coverage).filter(Number.isFinite);
-          if (cov.length) out.push(`Porosity from impedance: on average ${(100 * cov.reduce((a, v) => a + v, 0) / cov.length).toFixed(1)} percent of each left-out well falls inside Q10 to Q90 (80 percent is the aim).`);
+          const nm = propertyName(pr.settings?.kind);
+          if (cov.length) out.push(`${nm.charAt(0).toUpperCase()}${nm.slice(1)} from impedance: on average ${(100 * cov.reduce((a, v) => a + v, 0) / cov.length).toFixed(1)} percent of each left-out well falls inside Q10 to Q90 (80 percent is the aim).`);
+          if (PROPERTY_KINDS[pr.settings?.kind]?.gated) out.push(propertyGate(pr, pr.settings?.gate?.thresholds || {}).pass ? `Its blind check passes the gate, so the ${nm} volume can be written.` : `Its blind check does not pass the gate, so the ${nm} volume is withheld.`);
         }
       }
       const pros = (project.prospects || []).filter((p) => p.result);
@@ -203,7 +209,7 @@ export function reportModel({ projectName = '', organizationName = '', project, 
     })(),
     handover: [
       ...Object.values(project.inversion || {}).flatMap((r) => (r.runs || []).filter((x) => x.status === 'ready').map((x) => [x.name, INVERSION_METHODS[x.method]?.label || x.method, 'elastic estimate', 'SEG-Y from the seismic worker; run record'])),
-      ...Object.values(project.properties || {}).flatMap((rec) => ['porosity', 'facies'].flatMap((k) => (rec?.[k]?.runs || []).filter((x) => x.status === 'ready').map((x) => [x.name, k === 'facies' ? 'Bayesian facies' : 'Porosity transform', k === 'facies' ? 'calibrated prediction (fluid facies: fluid hypothesis)' : 'calibrated prediction', 'SEG-Y from the seismic worker; run record']))),
+      ...Object.values(project.properties || {}).flatMap((rec) => ['porosity', 'ntg', 'sw', 'facies'].flatMap((k) => (rec?.[k]?.runs || []).filter((x) => x.status === 'ready').map((x) => [x.name, k === 'facies' ? 'Bayesian facies' : k === 'porosity' ? 'Porosity transform' : `${propertyShort(k)} transform`, k === 'facies' ? 'calibrated prediction (fluid facies: fluid hypothesis)' : k === 'sw' ? 'fluid hypothesis' : 'calibrated prediction', 'SEG-Y from the seismic worker; run record']))),
       ...(project.avo?.runs || []).filter((x) => x.status === 'ready').map((x) => [x.name, 'AVO volumes', 'elastic estimate', 'SEG-Y from the seismic worker; run record']),
       ...(project.simultaneous?.runs || []).filter((x) => x.status === 'ready').map((x) => [x.name, 'Simultaneous inversion', 'elastic estimate', 'SEG-Y from the seismic worker; run record']),
       ...(project.prospects || []).filter((p) => p.result).map((p) => [p.name, 'Prospect QI assessment', 'interpretation', 'qi-prospect-1 record, read by Risked Reserves Valuation']),
@@ -286,7 +292,7 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
       table(`Facies from ${pp.volume}`, ['Facies', 'Samples', 'Prior', 'Mean AI', 'SD', 'Label'], pp.summary, { note: `Bayesian classification in impedance, calibrated on the wells' logs at seismic scale${pp.at ? ` on ${pp.at}` : ''}. Facies named for a fluid are fluid hypotheses.${vols}` });
       table(`Facies check: ${pp.volume}`, ['Well left out', 'Samples', 'Facies right (percent)'], pp.rows, { note: pp.protocol || 'Each well left out of the model and predicted from the inverted impedance at its trace.' });
     } else {
-      table(`Porosity from ${pp.volume}`, ['Well left out', 'Samples', 'RMS error', 'Correlation', 'Inside Q10 to Q90 (percent)'], pp.rows, { note: `${pp.summary} Calibrated on the wells' logs at seismic scale${pp.at ? ` on ${pp.at}` : ''}. ${pp.protocol || ''} Q10 and Q90 bound the 80 percent prediction interval; about 80 percent of a well should fall inside.${vols}` });
+      table(`${pp.kind === 'porosity' ? 'Porosity' : propertyShort(pp.kind)} from ${pp.volume}`, ['Well left out', 'Samples', 'RMS error', 'Correlation', 'Inside Q10 to Q90 (percent)'], pp.rows, { note: `${pp.summary} Calibrated on the wells' logs at seismic scale${pp.at ? ` on ${pp.at}` : ''}. ${pp.protocol || ''} Q10 and Q90 bound the 80 percent prediction interval; about 80 percent of a well should fall inside.${pp.gate ? ` ${pp.gate}` : ''}${vols}` });
     }
   }
   if ((model.prospects || []).length) {

@@ -7,7 +7,9 @@
 // labels; then the guards: an impedance volume from an absolute inversion,
 // ownership, the output ids.
 import { propertyPrediction, validatePropertyJob, outputKeys } from '../src/handlers/propertyPrediction.js';
-import { calibrateProperty, propertyIssues, propertyProtocolText } from '../../../src/pages/apps/QIStudio/services/propertyRun';
+import {
+  calibrateProperty, propertyIssues, propertyProtocolText, predictTrace,
+} from '../../../src/pages/apps/QIStudio/services/propertyRun';
 import { packLog, unpackLog } from '../../../src/pages/apps/QIStudio/services/logPacking';
 import { NULL_VALUE } from '../../../packages/engines/engines/seismolord/manifest';
 import { KINDS } from '../src/handlers/index.js';
@@ -105,6 +107,53 @@ test('truly blind check (QI upgrade P1.2): each well is predicted from the inver
   expect(out2.blind_protocol.fully_blind).toBe(true);
   expect(propertyProtocolText(out2)).toMatch(/never saw it/);
   expect(propertyProtocolText({})).toMatch(/not fully blind/);
+});
+
+describe('net-to-gross and water saturation (QI upgrade P1.3)', () => {
+  // NTG at seismic scale follows AI (low AI is net sand); Sw rises with AI
+  const propOf = (kind) => ({
+    kind, upscaleHz: 50,
+    wells: WELLS.map((w) => ({ name: w.name, il: w.il, xl: w.xl, ln_ai: w.ln_ai, target: w.ln_ai.map((v, s) => (kind === 'ntg' ? (Math.exp(v) < 7000 ? 1 : 0) : Math.min(1, Math.max(0, 0.2 + 1.1e-4 * (Math.exp(v) - 6000) + 0.01 * Math.sin(s)))) ) })),
+  });
+  const ids = { q10: OUT(1), q50: OUT(2), q90: OUT(3) };
+  const vols = () => ({ [AIV]: SRC, [OUT(1)]: outRow(OUT(1)), [OUT(2)]: outRow(OUT(2)), [OUT(3)]: outRow(OUT(3)) });
+  test('a check that passes the gate writes NTG held within 0 and 1; Sw is labelled a fluid hypothesis', async () => {
+    const cal = await propertyPrediction(ctxFor({ mode: 'calibrate', ai_volume_id: AIV, property: propOf('ntg') }), depsFor({ [AIV]: SRC }));
+    expect(cal.gate.pass).toBe(true);
+    expect(cal.settings.gate.pass).toBe(true);
+    const uploads = new Map();
+    const storage = { upload: async (path, bytes) => { uploads.set(path, bytes); return {}; } };
+    await propertyPrediction(ctxFor({ mode: 'volume', ai_volume_id: AIV, volume_ids: ids, property: propOf('ntg') }), depsFor(vols(), undefined, { storage }));
+    const man = JSON.parse(new TextDecoder().decode(uploads.get(`${UID}/${OUT(2)}/manifest.json`)));
+    expect(man.attribute.params).toMatchObject({ product: 'q50', qi_class: 'calibrated_prediction', product_label: 'NTG, Q50 (held within 0 and 1)' });
+    let lo = Infinity; let hi = -Infinity;
+    for (const n of [1, 2, 3]) for (let k = 0; k < GRID[2]; k++) for (const v of new Float32Array(uploads.get(`${UID}/${OUT(n)}/bricks/0-0-${k}.f32`).buffer.slice(0))) if (Math.abs(v) < 1e29) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    expect(lo).toBeGreaterThanOrEqual(0);
+    expect(hi).toBeLessThanOrEqual(1);
+    // negative control: the unclamped transform leaves 0 to 1 here (so the clamp is doing work)
+    const raw = calibrateProperty({ pr: propOf('ntg'), aiTraces: WELLS.map((w) => Float32Array.from({ length: NS }, (_, s) => aiAt(w.il, w.xl, s))), dtMs: DT_MS });
+    const q10 = predictTrace(raw.model, propOf('ntg'), Float32Array.from({ length: NS }, (_, s) => aiAt(1, 2, s)))[0];
+    expect(Math.min(...q10.filter(Number.isFinite))).toBeLessThan(0);
+    const up2 = new Map();
+    await propertyPrediction(ctxFor({ mode: 'volume', ai_volume_id: AIV, volume_ids: ids, property: propOf('sw') }), depsFor(vols(), undefined, { storage: { upload: async (path, bytes) => { up2.set(path, bytes); return {}; } } }));
+    expect(JSON.parse(new TextDecoder().decode(up2.get(`${UID}/${OUT(2)}/manifest.json`))).attribute.params.qi_class).toBe('fluid_hypothesis');
+  });
+  test('a check that fails the gate is refused with its reasons, and the registered rows go', async () => {
+    const strict = { ...propOf('ntg'), gate: { min_corr: 0.9999 } };
+    const cal = await propertyPrediction(ctxFor({ mode: 'calibrate', ai_volume_id: AIV, property: strict }), depsFor({ [AIV]: SRC }));
+    expect(cal.gate.pass).toBe(false);
+    expect(cal.gate.reasons[0]).toMatch(/left-out correlation .* under 0.9999/);
+    const log = { updates: [], deletes: [] };
+    await expect(propertyPrediction(ctxFor({ mode: 'volume', ai_volume_id: AIV, volume_ids: ids, property: strict }), depsFor(vols(), undefined, { log, storage: { upload: async () => ({}) } }))).rejects.toMatchObject({ stage: 'gate_failed' });
+    expect(log.deletes.sort()).toEqual([OUT(1), OUT(2), OUT(3)].sort());
+    // a check that is not blind fails the gate too (the inversion used the wells and recorded no held-back estimate)
+    const notBlind = await propertyPrediction(ctxFor({ mode: 'calibrate', ai_volume_id: AIV, property: propOf('sw') }), depsFor({ [AIV]: SRC }, { output: 'AI', method: 'model_based', wells: WELLS.map((w) => w.name) }));
+    expect(notBlind.gate.pass).toBe(false);
+    expect(notBlind.gate.reasons[0]).toMatch(/not fully blind/);
+    // porosity is not gated (its behaviour is unchanged)
+    const por = await propertyPrediction(ctxFor({ mode: 'calibrate', ai_volume_id: AIV, property: { ...prop('porosity'), gate: { min_corr: 0.9999 } } }), depsFor({ [AIV]: SRC }));
+    expect(por.gate).toBeUndefined();
+  });
 });
 
 test('porosity volumes: Q10 <= Q50 <= Q90, labelled calibrated predictions', async () => {

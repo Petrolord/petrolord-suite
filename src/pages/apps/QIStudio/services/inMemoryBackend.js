@@ -72,6 +72,9 @@ export function makeInMemoryBackend() {
       const n = Math.round((l.stop_md_m - l.start_md_m) / l.step_m) + 1;
       const dt = /^DT/.test(l.mnemonic);
       if (/^PHI/.test(l.mnemonic)) return Float32Array.from({ length: n }, (_, i) => 0.2 + 0.05 * Math.sin(i / 55));
+      // QI upgrade P1.3: shale volume and water saturation for NTG and Sw
+      if (/^VSH/.test(l.mnemonic)) return Float32Array.from({ length: n }, (_, i) => 0.35 - 0.2 * Math.sin(i / 55));
+      if (/^SW/.test(l.mnemonic)) return Float32Array.from({ length: n }, (_, i) => 0.45 - 0.25 * Math.sin(i / 55));
       if (/FACIES/.test(l.mnemonic)) return Float32Array.from({ length: n }, (_, i) => (Math.sin(i / 55) > 0 ? 1 : 2));
       return Float32Array.from({ length: n }, (_, i) => (dt ? 330 - 0.03 * i * l.step_m + 15 * Math.sin(i / 40) : 2.3 + 0.0001 * i * l.step_m + 0.04 * Math.sin(i / 55)));
     },
@@ -186,7 +189,8 @@ function makeInMemoryJobs({ removedDatasets = new Set() } = {}) {
         const summary = pr.kind === 'facies'
           ? { classes: Object.values(pr.names).map((n, i) => ({ name: n, n: 200 - 40 * i, prior: 0.5 - 0.1 * i, mean: 6200 + 900 * i, sd: 450 })), density: pr.density || 'gaussian' }
           : { a: 0.41, b: -3.4e-5, r2: 0.74, n: 600, s: 0.018 };
-        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, settings: { kind: pr.kind }, summary, rows, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}) } });
+        const blindProtocol = { version: 'held-back-v2', fully_blind: true, rows: pr.wells.map((w) => ({ name: w.name, source: 'held_back' })) };
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, settings: { kind: pr.kind, ...(pr.gate ? { gate: { thresholds: pr.gate } } : {}) }, summary, rows, blind_protocol: blindProtocol, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}) } });
         return id;
       }
       if (kind === 'poststack_inversion') {
