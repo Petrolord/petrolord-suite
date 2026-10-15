@@ -52,6 +52,7 @@ for (const [k, st] of plan.entries()) {
     else if (st.op === 'setWellCoords') r = await page.evaluate((l) => window.qb.setWellCoords(l), st.list);
     else if (st.op === 'flatHorizon') r = await page.evaluate(([v, n, t]) => window.qb.flatHorizon(v, n, t), [st.volume, st.name, st.tMs]);
     else if (st.op === 'zoneMaps') r = await page.evaluate(([a, b, c, d2, e]) => window.qb.zoneMaps(a, b, c, d2, e), [st.volumes, st.horizonVolume, st.horizon, st.windowMs, st.products]);
+    else if (st.op === 'importCheckshots') r = await page.evaluate(([n, rows, c, note]) => window.qb.importCheckshots(n, rows, c, note), [st.name, JSON.parse(fs.readFileSync(st.rowsFile, 'utf8')), st.conv, st.note || null]);
     else if (st.op === 'cancelActive') r = await page.evaluate(() => window.qb.cancelActive());
     else if (st.op === 'clearTies') r = await page.evaluate((n) => window.qb.clearTies(n), st.names || null);
     else if (st.op === 'listMine') r = await page.evaluate(() => window.qb.listMine());

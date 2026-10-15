@@ -1,0 +1,12 @@
+[
+ {"key":"cs_signIn","op":"signIn"},
+ {"key":"cs_clearTies","op":"clearTies"},
+ {"key":"cs_F0302","op":"importCheckshots","name":"F3 F03-02","rowsFile":"/srv/qi-benchmark/f3/nlog/td/rows_F03-02.json","conv":{"depthRef":"tvdss","time":"twt","depthUnit":"m"},"note":"NLOG T/Z table (TNO, checkshot-calibrated), TWT ms against TVDSS m, decimated to 4 ms; source NLOG.NL F03-2_TZ_TM5.txt"},
+ {"key":"cs_F0304","op":"importCheckshots","name":"F3 F03-04","rowsFile":"/srv/qi-benchmark/f3/nlog/td/rows_F03-04.json","conv":{"depthRef":"tvdss","time":"twt","depthUnit":"m"},"note":"NLOG T/Z table (TNO, checkshot-calibrated), TWT ms against TVDSS m, decimated to 4 ms; source NLOG.NL F03-4_TZ_TM5.txt"},
+ {"key":"cs_F0601","op":"importCheckshots","name":"F3 F06-01","rowsFile":"/srv/qi-benchmark/f3/nlog/td/rows_F06-01.json","conv":{"depthRef":"tvdss","time":"twt","depthUnit":"m"},"note":"NLOG T/Z table (TNO, checkshot-calibrated), TWT ms against TVDSS m, decimated to 4 ms; source NLOG.NL F06-1_TZ_TM5.txt"},
+ {"key":"cs_tieWhole","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{}},
+ {"key":"cs_tie1200","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"mdRange":[1200,2000]}},
+ {"key":"cs_tie900","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"mdRange":[900,1900]}},
+ {"key":"cs_tie500","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"mdRange":[500,1900]}},
+ {"key":"cs_wells","op":"wells","volume":"BENCH F3 stack (dGB, wells area)"}
+]

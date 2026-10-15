@@ -5,7 +5,10 @@
 // property calibration (QI Studio paths). Rerunnable; every write is named
 // with the prefix "BENCH " so cleanup finds it.
 import { supabase } from '@/lib/customSupabaseClient';
-import { saveWell, saveLogs, saveZone, listWells, deleteWell, updateWell } from '@/lib/wellsRegistry';
+import { saveWell, saveLogs, saveZone, listWells, deleteWell, updateWell, updateWellData } from '@/lib/wellsRegistry';
+import { buildCheckshotInputs } from '@/lib/wellImport';
+import { makeWellFrame } from '@/lib/wellDatum';
+import { toStoredCheckshots, makeCheckshotProvenance } from '@/pages/apps/WellDataManager/engine/checkshots';
 import { parseLas } from '@/pages/apps/WellDataManager/engine/lasParse';
 import { prepareLasForRegistry } from '@/pages/apps/WellDataManager/engine/lasIndex';
 import { fileReader } from '@/pages/apps/Seismolord/engine/reader';
@@ -272,6 +275,18 @@ window.qb = {
     const files = JSON.stringify(r.result_refs || {}).match(/[0-9a-f-]{36}\/qi-zone-maps\/[^"]+\.f32/g) || [];
     if (files.length) { const { error } = await supabase.storage.from('seismic').remove(files); out.removed = error ? error.message : files.length; }
     return out;
+  },
+  /** Well Data Manager's checkshot save (WellDetail, Checkshots tab, paste mode): the pasted rows through
+   *  buildCheckshotInputs, toStoredCheckshots on the well frame, makeCheckshotProvenance, updateWellData. */
+  async importCheckshots(name, rows, conv, note) {
+    const w = (await listWells()).find((x) => x.name === name);
+    if (!w) throw new Error(`No well ${name}`);
+    const inputs = buildCheckshotInputs(rows, { depth: 0, time: 1 });
+    const frame = makeWellFrame(w);
+    const res = toStoredCheckshots(inputs, conv, frame);
+    const prov = makeCheckshotProvenance(conv, { source: 'wdm-edit', kbM: frame.kbM, stations: frame.stations ? frame.stations.length : 0, note });
+    await updateWellData(w.id, { checkshots: res.rows, checkshotsProvenance: prov }, { versioned: true, note: 'Checkshots edited' });
+    return { name, rows: res.rows.length, first: res.rows[0], last: res.rows[res.rows.length - 1], warnings: res.warnings };
   },
   async cancelActive() {
     const jobs = (await listJobs({ limit: 50 })).filter((j) => ['queued', 'running'].includes(j.status));

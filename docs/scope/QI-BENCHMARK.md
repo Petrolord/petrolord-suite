@@ -236,6 +236,84 @@ percent or not a number.
    for the amplitude products; the lattice files were removed after reading.
    Finding F-7.
 
+### 3d. Option 3: measured checkshots (2026-10-15, worker suite-d76677ff6+engines-1b0a7a806)
+
+Owner decision: find measured checkshots for the F3 wells.
+
+**What exists (searched 2026-10-15).**
+
+| Well | Source | File | What it is |
+|---|---|---|---|
+| F03-02 | NLOG borehole log documents (document 359824635) | `F03-2_TZ_TM5.txt` | T/Z table (TWT ms against TVDSS m, 1 ms steps, 0 to 1810.6 ms) from TNO's time-depth set (`A_XGP3TZ_F03-2`) |
+| F03-04 | NLOG (359824841) | `F03-4_TZ_TM5.txt` | the same, 0 to 2564.2 ms (`A_XGP3TZ_F03-4`) |
+| F06-01 | NLOG (359824843) | `F06-1_TZ_TM5.txt` | the same from NAM (`A_NAMTZ_F06-1`), 0 to 2988.9 ms |
+| F06-01 | NLOG (359826021) | `F06001-CS.txt` | 234 measured checkshot levels, 560 to 2880 ms TWT, depth below the rotary table |
+| F06-01 | NLOG (359825609) | `F06001-TZ.txt` | dense T/Z, same datum as the checkshots |
+| F02-01 | none | | NLOG has no time-depth file and no velocity survey for F02-01 |
+| F03-02, F03-04, F06-01 | NLOG well documents | velocity survey reports (TIFF scans) | scanned only, not used |
+
+Licence: NLOG terms (copy, download, edit and disclose freely, quoting
+NLOG.NL as the source). The dGB OpendTect F3 Demo (time-depth curves in the
+project) is behind the TerraNubis captcha and was not fetched; TNO DINOloket
+serves onshore and shallow subsurface data and holds nothing more for these
+offshore wells than NLOG.
+
+**They are checkshot-calibrated.** At F03-04 the T/Z table gives 2501.1 ms
+at 3030 m MD against 2501.8 ms in the corrected column of the scanned 1976
+velocity survey; at F06-01 the 234 measured levels agree with the T/Z table
+within -13 to +5 ms (mean -1.6 ms) once their depth is taken below the
+28.62 m rotary table.
+
+**Imported** through Well Data Manager's checkshot save (WellDetail,
+Checkshots tab, paste mode: `buildCheckshotInputs`, `toStoredCheckshots` on
+the well frame, `makeCheckshotProvenance`, `updateWellData`), entered as
+TVDSS m and TWT ms, decimated to the volume's 4 ms: F03-02 454 rows, F03-04
+643, F06-01 749. The derived best-window ties were cleared first.
+
+**Ties on the measured checkshots** (autoTie, shift and constant phase on
+top; correlation, shift, polarity and phase):
+
+| Well | Whole log | MD 1200-2000 m | MD 900-1900 m | Before (sonic time-depth, best) |
+|---|---|---|---|---|
+| F06-01 | 0.71 (-11.5 ms, normal, -36) | 0.71 | (no sonic in window) | not tied |
+| F03-02 | 0.56 (+42.5 ms, normal, 49) | 0.58 (+41.0 ms, normal, 60) | 0.56 | 0.54 |
+| F03-04 | 0.31 (-48.9 ms, reverse, -5) | 0.41 (-15.7 ms, reverse, 48) | 0.38 | 0.42 |
+| F02-01 (still sonic) | 0.28 | 0.53 (-28.3 ms, reverse, -4) | 0.45 | 0.53 |
+
+F06-01 reaches the good band, but it cannot enter the inversion (its density
+starts at 1836 m, below the 1848 ms record). For the three usable wells the
+measured checkshots do not lift the ties to 0.6: the shift, phase and
+polarity still change from well to well (+41 ms normal at F03-02, -16 ms
+reverse at F03-04), so the mismatch is in the seismic, not the time-depth.
+Candidates: the dGB stack is processed for interpretation (dip-steered
+median filter) with no stated zero-phase or polarity convention, the record
+ends at 1848 ms so the logs with density lie in a short, mostly
+unconsolidated window, and the 1970s sonic logs.
+
+**Milestone B on the measured checkshots** (best-window ties committed on
+top, then cleared again):
+
+| Run | Job | Outcome |
+|---|---|---|
+| Model-based, tie wavelets, whole log | 252101d5 | refused: scale tie 0.107 |
+| Model-based, window 1100-1848 ms | ecb0232e | refused: scale tie 0.139 |
+| Model-based, window 1200-1848 ms | 4b24f7f1 | refused: scale tie 0.106 |
+| Coloured, whole log | 0226dc24 | ran: blind correlation F03-04 0.23, F03-02 0.04, F02-01 0.13 |
+| Coloured, window 1100-1848 ms | 8157cbe3 | ran: F03-04 0.28, F03-02 0.03, F02-01 0.39 |
+
+The scale-tie correlation falls (0.11 to 0.14 against 0.25 to 0.30 before)
+because the wells now disagree on phase and polarity, so their averaged tie
+wavelet fits none of them well. No absolute AI, so no residual volume,
+porosity or AI zone map. The coloured correlations turned positive on this
+build (#1156 takes the polarity from the wells, the fix for F-6), and stay
+far under QI-PLAN's 0.6.
+
+**Tie state left on the four wells** (for the comparison with option 2):
+F03-02, F03-04 and F06-01 carry the NLOG T/Z tables as their imported
+checkshots (provenance `wdm-edit`, note naming the source file);
+F02-01 keeps its sonic-integrated table. No derived (committed) ties on any
+of the four.
+
 Not yet run (waiting for seismic over the wells): ties, rock physics and
 feasibility, inversion with blind wells, properties, and for Volve the
 prestack, AVO and simultaneous steps. `plan-f3-full.template.json` holds the
@@ -309,13 +387,14 @@ model-based and coloured blind checks; volume; porosity 1200 to 2100 ms).
 | Milestone | Criterion | Result |
 |---|---|---|
 | A (Package 1) | Full Package 1 on an open dataset | Partly (2026-10-15, worker 863ee986b). Wells, CRS placement, seismic QC and zone maps pass on F3. Ties stay poor to fair (0.42 to 0.54 in the best window) with a sonic-only time-depth and no stretch tool, under the app's good band (0.7). Feasibility and the report not run |
-| B (post-stack study) | Blind wells and prospect table on an open dataset | FAIL on F3, now refused cleanly: every absolute run is stopped by the scale-tie guard (0.01 to 0.30) or the blind guard (F03-04 244 percent); coloured blind correlation -0.08 to -0.38 (polarity, F-6). Needs a stretch tie or measured checkshots, then a rerun |
+| B (post-stack study) | Blind wells and prospect table on an open dataset | FAIL on F3, refused cleanly. Sonic time-depth: every absolute run stopped by the scale-tie guard (0.01 to 0.30) or the blind guard (F03-04 244 percent). Measured checkshots (option 3, NLOG T/Z on three wells): ties 0.41 to 0.71, scale tie 0.11 to 0.14, refused; coloured blind correlation 0.03 to 0.39 after the polarity fix. The mismatch sits in the seismic (phase and polarity differ by well); Volve is the better test |
 | C (prestack study) | Blind-well error in published ranges, AVO class at known wells | Not yet (Volve needed) |
 
 ## 7. Limits
 
-- Time-depth is sonic-integrated until a tie is committed (drift 18 to 27 ms
-  below 1.5 km at F03-04).
+- F02-01 has no published time-depth; its table is sonic-integrated (drift
+  18 to 27 ms below 1.5 km at F03-04 before the measured tables replaced it
+  there).
 - F03-02 and F06-01 have no density in the shallow section; their
   impedance starts at 1641 m and 1836 m.
 - F02-01 is deviated (about 68 m offset at TD); the import treats it with no
