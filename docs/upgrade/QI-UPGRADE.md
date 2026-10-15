@@ -119,18 +119,20 @@ qi_datasets, SEG-Y exports, the RRV prospect record and `.pld`.
 
 | Rank | ID | Item | Size |
 |---|---|---|---|
-| 1 | U2-002 | Benchmark the whole chain on Volve (prestack, wells with shear) and F3; record blind-well errors in QI-STATUS | L |
+| 1 | U2-002 | Benchmark the whole chain on Volve (prestack, wells with shear) and F3; record blind-well errors in QI-STATUS. F3 run 2026-10-15 (docs/scope/QI-BENCHMARK.md): Milestone A in part, B fails until the wells are tied with stretch and squeeze or measured checkshots; Volve waits for the download | L |
 | 2 | U2-003 | ~~Owner tile and price for QI Studio~~ Done 2026-10-07: own tile, 1690 a month | S |
 | 3 | U2-004 | ~~Gather viewer at a CDP and at wells, with the mute and the trimmed result beside it~~ Done 2026-10-15 (QI upgrade P1.7): the Gathers tab | M |
 | 4 | U2-001 | Radon, f-x and structure-oriented filtering on the worker (engines first) | L |
 | 5 | U2-005 | Per-stack shaping filter that keeps relative amplitudes | M |
 | 6 | U2-006 | Vintage and processing-version linking | M |
-| 7 | U2-007 | Offer the Simultaneous pulls, Vs/Vp and model cut on the tab (the job already takes them) | S |
-| 8 | U2-008 | Simultaneous blind-well results to the issue register | S |
+| 7 | U2-007 | ~~Offer the Simultaneous pulls, Vs/Vp and model cut on the tab (the job already takes them)~~ Done 2026-10-15 (QI upgrade P1.4, #1145) | S |
+| 8 | U2-008 | ~~Simultaneous blind-well results to the issue register~~ Done 2026-10-15 (QI upgrade P1.2, #1142) | S |
+| 9 | U2-009 | Automatic anchor suggestion for the stretch-and-squeeze tie in Seismolord Synthetics (QI reads the committed tie); found by the F3 benchmark | M |
+| 10 | U2-010 | Tie guard on the Simultaneous wavelet scale (post-stack has one, #1154) | S |
 
 ### Owner items
 
 1. ~~Apply `20261006140000_saved_qi_studio_projects.sql`~~ Applied 2026-10-07.
 2. ~~Decide the QI Studio tile and price~~ Done 2026-10-07 (U2-003); apply `20261007130000` before the next zip.
-3. The Volve and F3 licence check for the benchmark (U2-002).
+3. ~~The Volve and F3 licence check for the benchmark (U2-002)~~ Done 2026-10-15: F3 (dGB/TNO, CC BY-SA 3.0) uploaded and run internally; Volve (Equinor Open Data Licence) download in progress.
 4. ~~Cut the Suite zip~~ Live 2026-10-07 (dc206c539).
