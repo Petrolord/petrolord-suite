@@ -1,0 +1,14 @@
+[
+ {"key":"signIn","op":"signIn"},
+ {"key":"upM","op":"uploadRaw","file":"/srv/qi-benchmark/r3/gathers-mult.sgy","name":"BENCH R3 multiples"},
+ {"key":"ingM","op":"job","kind":"ingest_gathers","params":{"dataset_id":"@upM:datasetId","bin_width_m":100,"mapping":{"offsetByte":37},"name":"BENCH R3 multiples gathers"}},
+ {"key":"radon","op":"job","kind":"radon_demultiple","params":{"dataset_id":"@ingM:result.dataset_id","keep_removed":true,"name":"BENCH R3 demultipled"}},
+ {"key":"panelR","op":"panel","params":{"dataset_id":"@ingM:result.dataset_id","compare_dataset_id":"@radon:result.dataset_id","mode":"inline","il":12,"from":0,"to":23,"step":4},"out":"/srv/qi-benchmark/r3/panel-radon.json"},
+ {"key":"radonNeg","op":"job","kind":"radon_demultiple","params":{"dataset_id":"@ingM:result.dataset_id","cut_ms":250,"area":{"il":[1013,1013],"xl":[2001,2024]},"name":"BENCH R3 demultipled cut 250"}},
+ {"key":"panelNeg","op":"panel","params":{"dataset_id":"@ingM:result.dataset_id","compare_dataset_id":"@radonNeg:result.dataset_id","mode":"inline","il":12,"from":0,"to":23,"step":4},"out":"/srv/qi-benchmark/r3/panel-radon-neg.json"},
+ {"key":"upN","op":"uploadRaw","file":"/srv/qi-benchmark/r3/gathers-noise.sgy","name":"BENCH R3 noise"},
+ {"key":"ingN","op":"job","kind":"ingest_gathers","params":{"dataset_id":"@upN:datasetId","bin_width_m":100,"mapping":{"offsetByte":37},"name":"BENCH R3 noise gathers"}},
+ {"key":"fx","op":"job","kind":"fx_denoise","params":{"dataset_id":"@ingN:result.dataset_id","name":"BENCH R3 f-x"}},
+ {"key":"panelF","op":"panel","params":{"dataset_id":"@ingN:result.dataset_id","compare_dataset_id":"@fx:result.dataset_id","mode":"inline","il":12,"from":0,"to":23,"step":4},"out":"/srv/qi-benchmark/r3/panel-fx.json"},
+ {"key":"ds","op":"datasets","prefix":"BENCH R3"}
+]

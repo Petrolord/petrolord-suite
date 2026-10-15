@@ -25,6 +25,13 @@ await page.goto('http://127.0.0.1:8330/');
 await page.waitForFunction(() => document.title === 'qibench ready');
 const results = fs.existsSync(outFile) ? JSON.parse(fs.readFileSync(outFile, 'utf8')) : {};
 const save = () => fs.writeFileSync(outFile, JSON.stringify(results, null, 1));
+// "@key:path.to.value" in a step's params takes that value from an earlier step's result
+const resolveRefs = (v) => {
+  if (typeof v === 'string' && v.startsWith('@')) { const [k, p] = v.slice(1).split(':'); return (p || '').split('.').filter(Boolean).reduce((o, f) => (o == null ? o : o[f]), results[k]?.r); }
+  if (Array.isArray(v)) return v.map(resolveRefs);
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, resolveRefs(x)]));
+  return v;
+};
 for (const [k, st] of plan.entries()) {
   const key = st.key || `${k}:${st.op}`;
   const t0 = Date.now();
@@ -56,6 +63,12 @@ for (const [k, st] of plan.entries()) {
     else if (st.op === 'suggestAnchors') r = await page.evaluate(([v, o]) => window.qb.suggestAnchors(v, o), [st.volume, st.opts || {}]);
     else if (st.op === 'cancelActive') r = await page.evaluate(() => window.qb.cancelActive());
     else if (st.op === 'clearTies') r = await page.evaluate((n) => window.qb.clearTies(n), st.names || null);
+    // QI round 3: prestack conditioning live check. Params may name an earlier result as "@key:path.to.value".
+    else if (st.op === 'uploadRaw') { await page.setInputFiles('#f', st.file); r = await page.evaluate((n) => window.qb.uploadRaw(document.getElementById('f').files[0], n), st.name); }
+    else if (st.op === 'job') r = await page.evaluate(([k, p, m]) => window.qb.job(k, p, m), [st.kind, resolveRefs(st.params || {}), st.maxMin || 240]);
+    else if (st.op === 'datasets') r = await page.evaluate((p) => window.qb.datasets(p), st.prefix || 'BENCH');
+    else if (st.op === 'panel') { const pr = await page.evaluate((p) => window.qb.panel(p), resolveRefs(st.params)); if (st.out && pr.data) fs.writeFileSync(st.out, JSON.stringify(pr)); r = pr.data ? { meta: pr.meta, floats: pr.data.length, out: st.out } : pr; }
+    else if (st.op === 'fetchLink') r = await page.evaluate((u) => window.qb.fetchLink(u), resolveRefs(st.url));
     else if (st.op === 'listMine') r = await page.evaluate(() => window.qb.listMine());
     else if (st.op === 'removeVolumes') r = await page.evaluate((p) => window.qb.removeVolumes(p), st.prefix);
     else if (st.op === 'removeWells') r = await page.evaluate((p) => window.qb.removeWells(p), st.prefix);
