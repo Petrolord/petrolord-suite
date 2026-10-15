@@ -6,6 +6,7 @@
 // is the only difference. Pure apart from the brick reads.
 
 import { averageSpectrum, spectrumStats, snrFromCoherency, footprint } from '../engine/seismicQc';
+import { multipleDiagnosis } from '../engine/qcAdditions';
 import { assembleSlices } from '../../../../../packages/engines/engines/seismolord/sliceAssembly';
 
 const evenly = (n, k) => {
@@ -57,9 +58,17 @@ export async function runSeismicQc({ getBrick, geom, dtMs, inlines = 12, tracesP
     const spec = averageSpectrum(perWindow[k].traces, dtMs);
     const snrs = perWindow[k].snr.map((s) => s.snr).sort((a, b) => a - b);
     const median = snrs.length ? snrs[Math.floor((snrs.length - 1) / 2)] : NaN;
+    // QI upgrade P2.11: periodic energy (a multiple train) in the window's autocorrelation
+    const maxLagMs = Math.min(400, ((w.s1 - w.s0) * dtMs) / 2);
+    let multiples = null;
+    if (maxLagMs > 60) {
+      const m = multipleDiagnosis(perWindow[k].traces, dtMs, { minLagMs: 40, maxLagMs });
+      multiples = { periodic: m.periodic, periodMs: m.periodMs, repeat: m.repeat, peaks: m.peaks.slice(0, 3) };
+    }
     return {
       t0Ms: w.s0 * dtMs,
       t1Ms: w.s1 * dtMs,
+      ...(multiples ? { multiples } : {}),
       stats: spectrumStats(spec),
       spectrum: thin(spec),
       snr: { median, medianDb: median > 0 ? 10 * Math.log10(median) : null, perInline: perWindow[k].snr.map((s) => ({ inline: s.inline, snr: s.snr })) },
@@ -119,7 +128,18 @@ export function qcIssues(result, volumeName = 'the volume') {
     const label = `${Math.round(w.t0Ms)} to ${Math.round(w.t1Ms)} ms`;
     if (w.snr.median < 1) add(`snr-${w.t0Ms}`, 'high', `${volumeName}: signal weaker than noise, ${label}`, `Median signal-to-noise ${w.snr.median.toFixed(2)} (${w.snr.medianDb?.toFixed(1)} dB).`, 'Review the processing (noise attenuation, stacking fold); amplitudes in this window are unreliable for QI.');
     else if (w.snr.median < 3) add(`snr-${w.t0Ms}`, 'medium', `${volumeName}: low signal-to-noise, ${label}`, `Median signal-to-noise ${w.snr.median.toFixed(2)} (${w.snr.medianDb?.toFixed(1)} dB).`, 'Ask the processor for noise attenuation, or use a cleaner stack, before amplitude work; carry the noise into the feasibility models.');
-    if (w.stats.bandwidth6Hz < 10) add(`band-${w.t0Ms}`, 'medium', `${volumeName}: narrow band, ${label}`, `The -6 dB band is ${w.stats.band6[0].toFixed(1)} to ${w.stats.band6[1].toFixed(1)} Hz (${w.stats.bandwidth6Hz.toFixed(1)} Hz wide).`, 'Expect poor vertical resolution: check tuning thickness against the targets in Rock Physics Studio (Wedge).');
+    // QI upgrade P2.11 (benchmark finding F-1): the -6 dB band is measured
+    // around the highest peak, so one narrow low-frequency spike above a broad
+    // spectrum read as a narrow band (F3, deep window: 5.2 to 10.6 Hz with the
+    // centroid at 29 Hz). A narrow band is raised only when the spectral
+    // centroid lies near the band; a centroid well above it is a spike.
+    if (w.stats.bandwidth6Hz < 10) {
+      const [lo, hi] = w.stats.band6;
+      const c = w.stats.centroidHz;
+      if (Number.isFinite(c) && c > hi + (hi - lo)) add(`spike-${w.t0Ms}`, 'low', `${volumeName}: a narrow spectral peak at ${w.stats.peakHz.toFixed(1)} Hz, ${label}`, `The highest peak sits at ${w.stats.peakHz.toFixed(1)} Hz while the spectral centroid is ${c.toFixed(1)} Hz, so most of the energy lies above it; the -6 dB band around the peak (${lo.toFixed(1)} to ${hi.toFixed(1)} Hz) does not describe the signal.`, 'Look for low-frequency noise (swell, ground roll leakage) and judge the bandwidth from the centroid and the spectrum chart.');
+      else add(`band-${w.t0Ms}`, 'medium', `${volumeName}: narrow band, ${label}`, `The -6 dB band is ${lo.toFixed(1)} to ${hi.toFixed(1)} Hz (${w.stats.bandwidth6Hz.toFixed(1)} Hz wide).`, 'Expect poor vertical resolution: check tuning thickness against the targets in Rock Physics Studio (Wedge).');
+    }
+    if (w.multiples?.periodic) add(`multiples-${w.t0Ms}`, 'medium', `${volumeName}: periodic energy every ${Math.round(w.multiples.periodMs)} ms, ${label}`, `The traces' autocorrelation repeats at ${Math.round(w.multiples.periodMs)} ms and again near twice that, the signature of a multiple train (water-bottom or peg-leg).`, 'Ask the processor whether multiples were attenuated (Radon on the gathers); a multiple across the target biases amplitudes and AVO.');
   }
   if (result.windows.length > 1) {
     const first = result.windows[0].stats.peakHz;

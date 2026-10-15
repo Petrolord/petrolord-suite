@@ -15,6 +15,7 @@ import ExportControls from './ExportControls';
 import { prepareWell } from '../services/inversionWells';
 import { wellPoints, compareAtWells, avoWellIssues } from '../services/avoWells';
 import { wellScale, shueyTermsFor } from '../engine/avoCalibration';
+import { amplitudePreservation } from '../engine/qcAdditions';
 
 const card = 'rounded-lg border border-pl-border bg-pl-surface p-4 space-y-3';
 const muted = 'text-xs text-pl-muted';
@@ -146,7 +147,7 @@ export default function AvoPanel() {
           return { ...p, observed: q?.values ? { A: q.values[0], B: q.values[1] } : null, error: p.error || q?.error || null };
         });
         const cmp = compareAtWells(rows); // every well, so one with no gather says why
-        setAvo({ wells: { runJobId: runAB.jobId, runName: runAB.name, at: row.finished_at || new Date().toISOString(), scale: cmp.scale, n: cmp.n, agree: cmp.agree, points: points.map(({ name, il, xl }) => ({ name, il, xl })), wells: cmp.wells.map(({ name, zone, modelled, substituted, observed, scaled, residual, modelledClass, observedClass, agree, error }) => ({ name, zone, modelled, substituted, observed, scaled, residual, modelledClass, observedClass, agree, error })) } });
+        setAvo({ wells: { runJobId: runAB.jobId, runName: runAB.name, at: row.finished_at || new Date().toISOString(), points, scale: cmp.scale, n: cmp.n, agree: cmp.agree, wells: cmp.wells.map(({ name, zone, modelled, substituted, observed, scaled, residual, modelledClass, observedClass, agree, error }) => ({ name, zone, modelled, substituted, observed, scaled, residual, modelledClass, observedClass, agree, error })) } });
         setWellSt(null);
       }));
     } catch (e) {
@@ -155,6 +156,30 @@ export default function AvoPanel() {
   };
   const wells = project.avo?.wells || null;
   const wellIssues = wells ? avoWellIssues(wells, wells.runName) : [];
+  // QI upgrade P2.11: amplitude preservation, each stack at the wells against the model at its angle
+  const [presSt, setPresSt] = useState(null);
+  const checkPreservation = async () => {
+    setPresSt({ busy: true });
+    try {
+      const stacks = (runAB?.stacks || []).filter((x) => x.volumeId);
+      const jobId = await client.enqueueJob('sample_volumes', { volume_ids: stacks.map((x) => x.volumeId), points: wells.points, window_ms: 8, name: `${runAB.name} stacks at the wells` });
+      stops.current.push(client.watchJob(jobId, (row, err) => {
+        if (err) { setPresSt({ error: qiService.friendlyError(err) }); return; }
+        if (row?.status === 'failed') { setPresSt({ error: row.error_message || 'Sampling failed.' }); return; }
+        if (row?.status !== 'succeeded') return;
+        const byName = new Map((row.result_refs.points || []).map((q) => [q.name, q]));
+        const angles = stacks.map((x) => Number(x.angle));
+        const input = wells.wells.filter((w) => !w.error && w.modelled && Number.isFinite(w.modelled.A) && byName.get(w.name)?.values).map((w) => ({
+          name: w.name, angles, observed: byName.get(w.name).values, modelled: angles.map((a) => w.modelled.A + w.modelled.B * Math.sin((a * Math.PI) / 180) ** 2),
+        }));
+        const r = amplitudePreservation(input);
+        setAvo({ preservation: { at: row.finished_at || new Date().toISOString(), runName: runAB.name, angles, k: r.k, flagged: r.flagged, consistent: r.consistent, rows: r.rows } });
+        setPresSt(null);
+      }));
+    } catch (e) { setPresSt({ error: qiService.friendlyError(e) }); }
+  };
+  const pres = project.avo?.preservation || null;
+  const presIssue = pres?.flagged ? [{ key: `avo-preservation:${pres.runName}`, area: 'AVO', severity: 'medium', title: 'Stack amplitudes change with angle against the model at the wells', detail: `The ratio of seismic to modelled amplitude changes as exp(${Number(pres.k).toFixed(2)} sin^2 theta) at the median well${pres.consistent ? ', with the same sign at every well' : ''}.`, remedy: 'Ask whether the processing preserved relative amplitudes with offset (gain, NMO stretch, mutes); correct with one operator per stack before reading AVO gradients.' }] : [];
   const chart = wells ? {
     modelled: wells.wells.filter((w) => w.modelled && Number.isFinite(w.modelled.A)).map((w) => ({ A: w.modelled.A, B: w.modelled.B, name: `${w.name} model, in situ` })),
     substituted: wells.wells.filter((w) => w.substituted && Number.isFinite(w.substituted.A)).map((w) => ({ A: w.substituted.A, B: w.substituted.B, name: `${w.name} model, substituted` })),
@@ -278,6 +303,18 @@ export default function AvoPanel() {
                 <ChartLogo />
               </div>
               {wellIssues.length > 0 && canWrite && <button type="button" className={btn} onClick={() => { for (const i of wellIssues) saveIssue({ ...i, status: 'open', owner: '' }); addNotification(`${wellIssues.length} AVO issue${wellIssues.length === 1 ? '' : 's'} added to the register.`, 'success'); }} data-testid="qi-avo-wells-issues">{`Add ${wellIssues.length} AVO issue${wellIssues.length === 1 ? '' : 's'} to the register`}</button>}
+              {wells.points?.length > 0 && (runAB?.stacks || []).length >= 2 && (
+                <div className="space-y-1" data-testid="qi-avo-preservation">
+                  <button type="button" className={btn} onClick={checkPreservation} disabled={presSt?.busy || !canWrite} data-testid="qi-avo-preservation-run">{presSt?.busy ? 'Checking' : 'Check amplitude preservation at the wells'}</button>
+                  {presSt?.error && <p className="text-xs text-pl-danger-text">{presSt.error}</p>}
+                  {pres && (
+                    <>
+                      <p className="text-xs text-pl-text" data-testid="qi-avo-preservation-result">{`Seismic over modelled amplitude, fitted as exp(c + k sin^2 theta) per well: k = ${pres.rows.map((x) => `${x.name} ${Number.isFinite(x.k) ? x.k.toFixed(2) : EMPTY_VALUE}`).join(', ')}. ${pres.flagged ? 'The amplitudes change with angle against the model: the stacks may not preserve relative amplitudes.' : 'No gain that changes with angle beyond 0.5 in k.'}`}</p>
+                      {presIssue.length > 0 && canWrite && <button type="button" className={btn} onClick={() => { for (const i of presIssue) saveIssue({ ...i, status: 'open', owner: '' }); addNotification('Amplitude preservation issue added to the register.', 'success'); }} data-testid="qi-avo-preservation-issue">Add the issue to the register</button>}
+                    </>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>

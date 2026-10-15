@@ -70,6 +70,8 @@ export function makeInMemoryBackend() {
     async listHorizons() { return [{ id: 'qi-h1', name: 'Top Sand A', is_own: true }, { id: 'qi-h2', name: 'Base Sand B', is_own: true }]; },
     // a fault crossing the survey between inline 7 and 8 (QI upgrade P2.8)
     async listFaults() { return [{ id: 'qi-f1', name: 'Keta Fault 1', is_own: true, sticks: [0, 10, 20, 31].map((xl) => ({ points: [{ il: 7.5, xl, s: 100 }, { il: 7.5, xl, s: 200 }, { il: 7.5, xl, s: 300 }] })) }]; },
+    // picks in samples on the 16 x 32 lattice: flat at 400 samples (1600 ms at 4 ms), deeper to the east (QI upgrade P2.11)
+    async loadHorizonGrid() { return Float32Array.from({ length: 16 * 32 }, (_, c) => 400 + 0.2 * (c % 32)); },
     async downloadCurve(l) {
       const n = Math.round((l.stop_md_m - l.start_md_m) / l.step_m) + 1;
       const dt = /^DT/.test(l.mnemonic);

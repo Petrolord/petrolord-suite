@@ -20,6 +20,7 @@ export const HELP_SECTIONS = [
   { id: 'inventory', icon: ClipboardList, title: 'Data inventory' },
   { id: 'usability', icon: Grid3x3, title: 'Usability matrix' },
   { id: 'qc', icon: Activity, title: 'Seismic QC' },
+  { id: 'qc-additions', icon: Activity, title: 'More seismic QC' },
   { id: 'prestack', icon: Rows, title: 'Prestack gathers and angle stacks' },
   { id: 'gathers', icon: Rows, title: 'Gather viewer' },
   { id: 'avo', icon: TrendingDown, title: 'AVO' },
@@ -103,6 +104,13 @@ function QIStudioHelpGuideContent() {
           10 Hz, a footprint, and a dominant frequency that falls by 40 percent with depth are flagged too. Add the QC
           issues to the register with one click; the results are kept with the project and printed in the report.
         </Para>
+      </GuideSection>
+
+      <GuideSection id="qc-additions">
+        <SectionHeading icon={Activity}>More seismic QC: multiples, amplitudes, alignment</SectionHeading>
+        <Para>Seismic QC now also reads each window&apos;s autocorrelation for periodic energy: a peak that repeats near twice its lag is the signature of a multiple train (water-bottom or peg-leg), and it is offered to the issue register. A narrow spectral spike under a broad spectrum (the centroid well above the band around the peak) is reported as a spike, not a narrow band.</Para>
+        <Para>On the AVO tab, after Compare at the wells, Check amplitude preservation at the wells samples each stack at the wells&apos; zone tops and fits the seismic over the modelled amplitude as exp(c + k sin^2 theta) per well. A shared k over 0.5 means the amplitudes change with angle against the model, so the processing may not have preserved relative amplitudes, and an AVO gradient would read that as geology.</Para>
+        <Para>On the Well ties tab, Depth alignment between wells takes a horizon on the first study volume and the zone top it follows, and gives each well&apos;s mistie (the horizon time at the well minus the top&apos;s time through the well&apos;s tie). A well more than the tolerance (8 ms) from the median is flagged; a shift every well shares is a datum or tie matter for the study.</Para>
       </GuideSection>
 
       <GuideSection id="prestack">

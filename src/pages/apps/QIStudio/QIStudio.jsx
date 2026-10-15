@@ -37,6 +37,7 @@ import DepthCasesSection from './components/DepthCasesSection';
 import MapsPanel from './components/MapsPanel';
 import GathersPanel from './components/GathersPanel';
 import FeasibilitySweepSection from './components/FeasibilitySweepSection';
+import DepthAlignmentSection from './components/DepthAlignmentSection';
 
 const TABS = [
   { value: 'setup', label: 'Setup' },
@@ -179,6 +180,8 @@ function QIStudioContent({ organizationName }) {
         {tab === 'usability' && <UsabilityPanel />}
         {tab === 'qc' && <QcPanel />}
         {tab === 'ties' && <TiesPanel />}
+        {/* QI upgrade P2.11: depth alignment between wells, under the ties */}
+        {tab === 'ties' && <DepthAlignmentSection />}
         {tab === 'prestack' && <PrestackPanel />}
         {tab === 'avo' && <AvoPanel />}
         {tab === 'inversion' && <InversionPanel />}

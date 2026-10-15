@@ -172,6 +172,8 @@ export function reportModel({ projectName = '', organizationName = '', project, 
       runName: project.avo.wells.runName, at: String(project.avo.wells.at || '').slice(0, 10), scale: project.avo.wells.scale, agree: project.avo.wells.agree, n: project.avo.wells.n,
       rows: project.avo.wells.wells.map((w) => (w.error ? [w.name, w.error, '', '', ''] : [w.name, `${w.modelled.A.toFixed(3)}, ${w.modelled.B.toFixed(3)}`, `${w.scaled.A.toFixed(3)}, ${w.scaled.B.toFixed(3)}`, `${w.modelledClass} / ${w.observedClass}`, w.residual.toFixed(3)])),
     } : null,
+    // QI upgrade P2.11: amplitude preservation at the wells
+    avoPreservation: project.avo?.preservation ? `${project.avo.preservation.runName}, stacks at ${project.avo.preservation.angles.join(', ')} degrees: seismic over modelled amplitude fitted as exp(c + k sin^2 theta), k = ${project.avo.preservation.rows.map((r) => `${r.name} ${Number.isFinite(r.k) ? r.k.toFixed(2) : 'n/a'}`).join(', ')}. ${project.avo.preservation.flagged ? 'The amplitudes change with angle against the model: the stacks may not preserve relative amplitudes.' : 'No gain that changes with angle beyond 0.5 in k.'}` : '',
     simultaneous: project.simultaneous?.blind?.result ? {
       volume: project.simultaneous.blind.volumeName, at: String(project.simultaneous.blind.at || '').slice(0, 10),
       rows: project.simultaneous.blind.result.blind.map((r) => [r.name, ...['ai', 'si', 'rho'].map((k) => (Number.isFinite(r.blind[k].rmsPct) ? r.blind[k].rmsPct.toFixed(1) : '')), Number.isFinite(r.blind.rho.corr) ? r.blind.rho.corr.toFixed(2) : '']),
@@ -283,6 +285,7 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
     const w = model.avoWells;
     table(`AVO at the wells: ${w.runName}`, ['Well', 'Model A, B (in situ)', 'Seismic A, B (scaled)', 'Class, model / seismic', 'Misfit'], w.rows, { note: `The intercept and gradient Rock Physics Studio modelled at each zone top against the AVO volumes at the well, the event within 8 ms${w.at ? `, on ${w.at}` : ''}. One least-squares scale (${Number.isFinite(w.scale) ? w.scale.toPrecision(3) : 'none'}) ties the volumes to reflectivity over ${w.n} well${w.n === 1 ? '' : 's'}; the class agrees at ${w.agree}.` });
   }
+  if (model.avoPreservation) section('Amplitude preservation at the wells', model.avoPreservation);
   if (model.angleWavelets) table('Angle wavelets', ['Stack angle', 'Peak (Hz)', 'Phase (degrees)', 'Synthetic against the stack, by well'], model.angleWavelets, { note: 'One wavelet per angle stack, extracted at each well by least squares against the Fatti reflectivity of its logs at that angle, then aligned and averaged across the wells. The correlation is each well\'s synthetic against the stack at the well.' });
   if (model.simultaneous) {
     const v = model.simultaneous;
