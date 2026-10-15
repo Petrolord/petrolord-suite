@@ -127,10 +127,11 @@ function Outline({ scan, crop, mode, onRect, onPoint, polygon, disabled }) {
  * @param {?Object} [p.gathers] detectGatherLayout result
  * @param {boolean} [p.disabled]
  * @param {?string} [p.status] a line under the summary (finding the kept traces...)
+ * @param {number} [p.t0Ms] the time of the file's first sample when the import honours its trace delay (F-5)
  */
 export default function CropPanel({
   scan, door, fileSize, domain, enabled, onEnabled, form, onForm, onDefinitionId = () => {},
-  showUpload, speed, onSpeed, gathers = null, disabled, status = null,
+  showUpload, speed, onSpeed, gathers = null, disabled, status = null, t0Ms = 0,
 }) {
   const [saved, setSaved] = useState({ rows: [], saved: true });
   const [chosen, setChosen] = useState('');
@@ -148,8 +149,8 @@ export default function CropPanel({
 
   const def = defFromForm(form);
   const { crop, error } = useMemo(() => {
-    try { return { crop: normalizeCrop(def, { il: scan.il, xl: scan.xl, ns, dtUs }), error: null }; } catch (e) { return { crop: null, error: e.message }; }
-  }, [JSON.stringify(def), scan, ns, dtUs]); // eslint-disable-line react-hooks/exhaustive-deps
+    try { return { crop: normalizeCrop(def, { il: scan.il, xl: scan.xl, ns, dtUs, t0Ms }), error: null }; } catch (e) { return { crop: null, error: e.message }; }
+  }, [JSON.stringify(def), scan, ns, dtUs, t0Ms]); // eslint-disable-line react-hooks/exhaustive-deps
   const est = useMemo(() => (crop ? cropEstimate({ crop, scan, door, fileSize, gathers }) : null), [crop, scan, door, fileSize, gathers]);
 
   const pick = (id) => {
@@ -233,9 +234,9 @@ export default function CropPanel({
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="w-20">{domain === 'depth' ? `Depth (${unit})` : 'Time (ms)'}</span>
-                <input className={num} inputMode="decimal" aria-label="Window start" placeholder="0" value={form.tFrom} onChange={set('tFrom')} disabled={disabled || form.startAtZero} />
+                <input className={num} inputMode="decimal" aria-label="Window start" placeholder={String(t0Ms)} value={form.tFrom} onChange={set('tFrom')} disabled={disabled || form.startAtZero} />
                 <span>to</span>
-                <input className={num} inputMode="decimal" aria-label="Window end" placeholder={String(((ns - 1) * dtUs) / 1000)} value={form.tTo} onChange={set('tTo')} disabled={disabled} />
+                <input className={num} inputMode="decimal" aria-label="Window end" placeholder={String(t0Ms + ((ns - 1) * dtUs) / 1000)} value={form.tTo} onChange={set('tTo')} disabled={disabled} />
               </div>
               <details className="text-xs text-pl-muted">
                 <summary className="cursor-pointer">Thin out traces (off; for quick looks only)</summary>

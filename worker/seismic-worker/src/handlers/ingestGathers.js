@@ -18,7 +18,7 @@ import { webcrypto } from 'node:crypto';
 import { JobFailure } from '../runJob.js';
 import { projectFrom } from '../project.js';
 import { datasetReader } from '../datasetReader.js';
-import { openSegyDoor } from '../../../../src/pages/apps/Seismolord/lib/segyDoor.js';
+import { openSegyDoor, alignTraceDelay, traceDelayRecord } from '../../../../src/pages/apps/Seismolord/lib/segyDoor.js';
 import { readFileHeaders, readTextualHeader } from '../../../../packages/engines/engines/seismolord/segyScan.js';
 import { parseCropCard, padTopReader } from '../../../../packages/engines/engines/seismolord/segyCrop.js';
 import { decodeSamples, applyCoordScalar } from '../../../../packages/engines/engines/seismolord/segyDecode.js';
@@ -77,9 +77,14 @@ export async function ingestGathers(ctx, deps) {
   let reader;
   try { ({ reader } = await openSegyDoor(raw)); } catch (e) { throw new JobFailure('not_segy', e.message); }
   // a file cropped before upload: the window's top is padded back with nulls,
-  // so the gathers sit on the same time axis as the cropped stacks
+  // so the gathers sit on the same time axis as the cropped stacks. F-5: the
+  // trace delay is honoured (a cropped file's delay is its source's plus the
+  // window's top, so this places a crop too); else the crop card's top
   const crop = parseCropCard(await readTextualHeader(reader));
-  if (crop?.first) reader = await padTopReader(reader, crop.first);
+  const aligned = await alignTraceDelay(reader);
+  if (aligned.traceDelay.applied) reader = aligned.reader;
+  else if (crop?.first) reader = await padTopReader(reader, crop.first);
+  const traceDelay = crop ? null : traceDelayRecord(aligned.traceDelay);
   const h = await readFileHeaders(reader);
   const { ns, dtUs, formatCode } = h;
 
@@ -177,7 +182,7 @@ export async function ingestGathers(ctx, deps) {
         name: g.name, il: g.il, xl: g.xl, ns, dtUs, cb,
         bins: { kind: 'offset', width: binW, centres: Array.from({ length: nBins }, (_, b) => (b + 0.5) * binW) },
         affine: aff ? affineToManifest(aff) : null,
-        source: { dataset_id: ds.id, file: ds.original_filename, mapping: map, nmo_corrected: true, ...(crop ? { crop } : {}) },
+        source: { dataset_id: ds.id, file: ds.original_filename, mapping: map, nmo_corrected: true, ...(crop ? { crop } : {}), ...(traceDelay ? { trace_delay: traceDelay } : {}) },
       }),
       blocks_present: blocks,
       traces: h.totalTraces,

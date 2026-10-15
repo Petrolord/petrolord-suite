@@ -68,6 +68,8 @@ export const COORD_UNITS = Object.freeze({
 });
 
 import { SAMPLE_BYTES } from '../engine/segyDecode';
+import { readFileHeaders } from '../engine/segyScan';
+import { surveyTraceDelays, delayAlignment, alignTopReader } from '../engine/traceDelay';
 import {
   detectByteOrder, binaryHeaderToIeeeBe, transcodeTraces,
 } from '../engine/segyTranscode';
@@ -399,6 +401,33 @@ export async function openSegyDoor(reader) {
   const door = await inspectSegy(reader);
   return { door, reader: doorReader(reader, door) };
 }
+
+/**
+ * QI benchmark F-5: the time of the first sample (trace delay, byte 109)
+ * honoured on the volume's 0 ms axis. A positive delay comes back as null
+ * samples above the trace, a negative one drops the samples before 0 ms.
+ * Delays that differ between traces, depth volumes and a delay under half
+ * a sample are left as they are (`traceDelay.applied` false, with a note).
+ * @param {import('../engine/reader').ByteReader} reader the door's reader
+ * @param {{domain?: 'time'|'depth'}} [opts]
+ * @returns {Promise<{reader, traceDelay: Object}>}
+ */
+export async function alignTraceDelay(reader, { domain = 'time' } = {}) {
+  const traceDelay = delayAlignment(await surveyTraceDelays(reader), { domain });
+  if (!traceDelay.applied) return { reader, traceDelay };
+  return { reader: await alignTopReader(reader, traceDelay.shift_samples), traceDelay };
+}
+
+/** A preview scan carried onto a reader whose traces changed length: the
+ *  header-derived fields re-read, the measured geometry as it was. */
+export async function scanOnReader(scan, reader) {
+  const h = await readFileHeaders(reader);
+  return { ...scan, ns: h.ns, traceBytes: h.traceBytes, totalTraces: h.totalTraces, trailingBytes: h.trailingBytes };
+}
+
+/** The trace delay as the import keeps it (manifest source.trace_delay,
+ *  survey_meta.ingest.trace_delay): null when there was none to report. */
+export const traceDelayRecord = (td) => (td && (td.delay_ms || td.note || !td.uniform) ? { ...td } : null);
 
 /** True when the traces do not fill a full inline-sorted rectangle, so a
  *  conversion must address them through a trace lattice. */

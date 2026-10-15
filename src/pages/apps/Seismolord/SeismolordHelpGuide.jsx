@@ -161,6 +161,15 @@ export default function SeismolordHelpGuide() {
           positions as nulls, and a crossline-sorted file imports after one extra pass over its trace headers. A file
           with one inline is pointed at the 2D Lines import; missing coordinates and coordinates in degrees are named.
         </Para>
+        <Para>
+          A time volume&apos;s first sample is placed at its trace delay (trace header byte 109, with the time scalar at
+          byte 215), as other interpretation software reads it. Seismolord volumes start at 0 ms, so a positive delay is
+          kept as empty samples above the first recorded one and a negative delay drops the samples recorded before
+          0 ms. The scan states the delay under the vertical axis, and the volume&apos;s record keeps it. A delay that is
+          not a whole number of samples moves to the nearest sample, and the scan says by how much. Delays that differ
+          from trace to trace, and depth volumes, are read from 0 as before. The crop window is typed in these true
+          times.
+        </Para>
         <Callout tone="warn" title="Time and depth volumes">
           Declare the vertical axis of each file. A textual header that mentions depth or PSDM preselects Depth; the
           header can be wrong, so check it. A depth volume (a depth-migrated stack, or a velocity volume in depth)
