@@ -14,6 +14,8 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import ExportControls from './ExportControls';
 import { prepareWell } from '../services/inversionWells';
 import { wellPoints, compareAtWells, avoWellIssues } from '../services/avoWells';
+import { wellScale, shueyTermsFor } from '../engine/avoCalibration';
+import { ilxlToWorld } from '../../../../../packages/engines/engines/seismolord/surveyGeometry';
 
 const card = 'rounded-lg border border-pl-border bg-pl-surface p-4 space-y-3';
 const muted = 'text-xs text-pl-muted';
@@ -25,6 +27,20 @@ const AXIS_TICK = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axis
 const LABEL_STYLE = { fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize };
 const f3 = (v) => (Number.isFinite(v) ? v.toFixed(3) : EMPTY_VALUE);
 export const AVO_LABELS = { A: 'Intercept (A)', B: 'Gradient (B)', FF: 'Fluid factor', chi: 'Chi projection' };
+// QI upgrade P2.10: the extra products of the calibration block
+export const AVO_EXTRA_LABELS = { C: 'Curvature (C)', class: 'AVO class' };
+const ALL_LABELS = { ...AVO_LABELS, ...AVO_EXTRA_LABELS };
+
+/** The calibration block of an AVO job from the panel's choices and the wells comparison, or {} (QI upgrade P2.10). */
+export function avoCalibrationBlock({ cal, wells, posOf }) {
+  const out = { ...(cal.terms !== '2' ? { terms: cal.terms === 'auto' ? 'auto' : 3 } : {}) };
+  if (cal.mode === 'none' || !wells) return out;
+  if (cal.mode === 'one') return Number.isFinite(wells.scale) && wells.scale !== 0 ? { ...out, scale: wells.scale } : out;
+  const pts = new Map((wells.points || []).map((q) => [q.name, q]));
+  const field = (wells.wells || []).filter((w) => !w.error && pts.has(w.name)).map((w) => ({ name: w.name, ...posOf(pts.get(w.name).il, pts.get(w.name).xl), scale: wellScale({ modelled: w.modelled, observed: w.observed }) })).filter((w) => Number.isFinite(w.scale) && w.scale !== 0);
+  if (!field.length) return out;
+  return { ...out, scale_field: { wells: field, ...(cal.fieldMethod === 'kriging' ? { method: 'kriging', variogram: { model: 'spherical', range: Number(cal.range) } } : {}) } };
+}
 
 /** Why the stacks cannot run, or null. */
 export function avoProblem(stacks) {
@@ -46,9 +62,13 @@ export default function AvoPanel() {
   const [chi, setChi] = useState(20);
   const [st, setSt] = useState(null);
   const [pilot, setPilot] = useState(EMPTY_PILOT);
+  const [cal, setCal] = useState({ terms: '2', mode: 'none', fieldMethod: 'idw', range: '2000', C: false, class: false });
   const stops = useRef([]);
   useEffect(() => () => { for (const s of stops.current) s(); }, []);
-  const problem = avoProblem(stacks) || (!Object.values(products).some(Boolean) ? 'Choose at least one product.' : null);
+  const calProblem = (cal.mode !== 'none' || cal.class) && !project.avo?.wells ? 'Compare an AVO run at the wells first: the calibration uses its scales.'
+    : cal.C && cal.terms !== '2' && shueyTermsFor(stacks.filter((x) => x.volumeId && String(x.angle).trim() !== '').map((x) => Number(x.angle))) < 3 && cal.terms === 'auto' ? 'These stacks support two terms only, so the curvature cannot be written.'
+      : cal.fieldMethod === 'kriging' && cal.mode === 'field' && !(Number(cal.range) > 0) ? 'Give the kriging range in metres.' : null;
+  const problem = avoProblem(stacks) || (!Object.values(products).some(Boolean) && !cal.C && !cal.class ? 'Choose at least one product.' : null) || calProblem;
   const runs = project.avo?.runs || [];
   // stack matching (Q5): every stack onto a reference, one operator each
   const [matchRef, setMatchRef] = useState('');
@@ -74,15 +94,21 @@ export default function AvoPanel() {
   const run = async () => {
     const live = stacks.filter((s) => s.volumeId);
     const first = chosenVolumes.find((v) => v.id === live[0].volumeId);
-    const keys = Object.keys(products).filter((k) => products[k]);
+    const keys = [...Object.keys(products).filter((k) => products[k]), ...(cal.C ? ['C'] : []), ...(cal.class ? ['class'] : [])];
     const pp = pilotParam(pilot);
+    let calBlock = {};
+    try {
+      const frame = cal.mode === 'field' ? await backend.loadVolumeFrame(first) : null;
+      const posOf = frame?.affine ? (il, xl) => ilxlToWorld(frame.affine, il, xl) : (il, xl) => ({ x: il, y: xl });
+      calBlock = avoCalibrationBlock({ cal, wells: project.avo?.wells || null, posOf });
+    } catch (e) { setSt({ error: e.message }); return; }
     setSt({ job: { status: 'queued' } });
     const rows = [];
     try {
-      for (const k of keys) rows.push({ k, row: await backend.registerAvoVolume({ volume: first, name: pilotName(`${first.name} ${AVO_LABELS[k]}`, pilot), summary: { product: k, qi_class: 'elastic_estimate' } }) });
+      for (const k of keys) rows.push({ k, row: await backend.registerAvoVolume({ volume: first, name: pilotName(`${first.name} ${ALL_LABELS[k]}`, pilot), summary: { product: k, qi_class: k === 'class' ? 'interpretation' : 'elastic_estimate' } }) });
       const ids = Object.fromEntries(rows.map((r) => [r.k, r.row.id]));
-      const jobId = await client.enqueueJob('avo_volumes', { stacks: live.map((s) => ({ volume_id: s.volumeId, angle: Number(s.angle) })), products: ids, vs_vp: Number(vsVp), chi_deg: Number(chi), name: pilotName(`${first.name} AVO`, pilot), ...(pp ? { pilot: pp } : {}) });
-      const rec = { jobId, volumeIds: ids, name: pilotName(`${first.name} AVO`, pilot), ...(pp ? { pilot: pp } : {}), stacks: live.map((s) => ({ volumeId: s.volumeId, name: chosenVolumes.find((v) => v.id === s.volumeId)?.name || s.volumeId, angle: Number(s.angle) })), vsVp: Number(vsVp), chiDeg: Number(chi), at: new Date().toISOString(), status: 'queued' };
+      const jobId = await client.enqueueJob('avo_volumes', { stacks: live.map((s) => ({ volume_id: s.volumeId, angle: Number(s.angle) })), products: ids, vs_vp: Number(vsVp), chi_deg: Number(chi), name: pilotName(`${first.name} AVO`, pilot), ...calBlock, ...(pp ? { pilot: pp } : {}) });
+      const rec = { jobId, volumeIds: ids, name: pilotName(`${first.name} AVO`, pilot), ...(pp ? { pilot: pp } : {}), stacks: live.map((s) => ({ volumeId: s.volumeId, name: chosenVolumes.find((v) => v.id === s.volumeId)?.name || s.volumeId, angle: Number(s.angle) })), vsVp: Number(vsVp), chiDeg: Number(chi), ...(calBlock.terms ? { terms: calBlock.terms } : {}), ...(calBlock.scale_field ? { calibration: 'scale field' } : calBlock.scale != null ? { calibration: 'one scale' } : {}), at: new Date().toISOString(), status: 'queued' };
       setAvo((cur) => ({ runs: [...(cur.runs || []), rec] }));
       stops.current.push(client.watchJob(jobId, (row, err) => {
         setSt(err ? { error: qiService.friendlyError(err) } : { job: row });
@@ -160,6 +186,28 @@ export default function AvoPanel() {
           <label className="flex items-center gap-1">Vs/Vp<input className={`${input} w-16`} type="number" step="0.01" value={vsVp} onChange={(e) => setVsVp(e.target.value)} /></label>
           {products.chi && <label className="flex items-center gap-1">chi (degrees)<input className={`${input} w-16`} type="number" value={chi} onChange={(e) => setChi(e.target.value)} /></label>}
         </div>
+        <details className="rounded border border-pl-border p-2" data-testid="qi-avo-calibration">
+          <summary className="cursor-pointer text-pl-text">Terms, calibration to reflectivity and class volumes</summary>
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            <label className="flex items-center gap-1">Shuey terms
+              <select className={input} value={cal.terms} onChange={(e) => setCal((c) => ({ ...c, terms: e.target.value }))} data-testid="qi-avo-terms"><option value="2">two</option><option value="auto">three where the angles allow</option><option value="3">three</option></select>
+            </label>
+            {cal.terms !== '2' && <span className="text-pl-muted" data-testid="qi-avo-terms-note">{`These stacks support ${shueyTermsFor(stacks.filter((x) => x.volumeId && String(x.angle).trim() !== '').map((x) => Number(x.angle)))} terms (three need three stacks reaching 35 degrees).`}</span>}
+            <label className="flex items-center gap-1">To reflectivity
+              <select className={input} value={cal.mode} onChange={(e) => setCal((c) => ({ ...c, mode: e.target.value }))} data-testid="qi-avo-cal-mode"><option value="none">as the stacks are</option><option value="one">one scale from the wells</option><option value="field">a scale field from the wells</option></select>
+            </label>
+            {cal.mode === 'field' && (
+              <label className="flex items-center gap-1">spread by
+                <select className={input} value={cal.fieldMethod} onChange={(e) => setCal((c) => ({ ...c, fieldMethod: e.target.value }))}><option value="idw">inverse distance</option><option value="kriging">kriging</option></select>
+                {cal.fieldMethod === 'kriging' && <input className={`${input} w-20`} type="number" value={cal.range} onChange={(e) => setCal((c) => ({ ...c, range: e.target.value }))} aria-label="Variogram range (m)" />}
+              </label>
+            )}
+            <label className="flex items-center gap-1"><input type="checkbox" checked={cal.C} onChange={() => setCal((c) => ({ ...c, C: !c.C }))} disabled={cal.terms === '2'} data-testid="qi-avo-product-C" />Curvature (C)</label>
+            <label className="flex items-center gap-1"><input type="checkbox" checked={cal.class} onChange={() => setCal((c) => ({ ...c, class: !c.class }))} disabled={cal.mode === 'none'} data-testid="qi-avo-product-class" />AVO class volume</label>
+          </div>
+          <p className={muted}>The scale comes from Compare at the wells below: the factor that takes the seismic intercept and gradient to the modelled ones, one for the survey, or one per well spread over the map so a drifting amplitude scale is followed trace by trace (at each well it is that well&apos;s scale). Calibrated A, B, fluid factor and chi read in reflectivity; the class volume holds 1 to 4 (classes I to IV, the classifier Rock Physics Studio uses) and is an interpretation.</p>
+          {cal.mode !== 'none' && !project.avo?.wells && <p className="text-pl-warning-text" data-testid="qi-avo-cal-needs-wells">Compare an AVO run at the wells first: the calibration uses its scales.</p>}
+        </details>
         {problem && <p className="text-pl-warning-text">{problem}</p>}
         <div className="flex items-center gap-2">
           <PilotArea value={pilot} onChange={setPilot} volume={chosenVolumes.find((v) => v.id === stacks.find((x) => x.volumeId)?.volumeId) || null} disabled={!canWrite} testId="qi-avo-pilot" />

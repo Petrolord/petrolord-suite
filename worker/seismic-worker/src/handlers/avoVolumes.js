@@ -17,6 +17,8 @@ import { JobFailure } from '../runJob.js';
 import { pilotProblem, pilotOn, pilotBytes } from '../pilot.js';
 import { seismicQuota, overQuotaMessage } from '../quota.js';
 import { fitShuey, contrastsFromAB, chiProjection } from '../../../../packages/engines/engines/qi/avo.js';
+import { scaleFieldAt, avoClassCode, shueyTermsFor } from '../../../../packages/engines/engines/qi/avoCalibration.js';
+import { surveyAffine, ilxlToWorld } from '../../../../packages/engines/engines/seismolord/surveyGeometry.js';
 import { assertFloat32Parent, derivedStorageBytes, derivedSurveyMeta } from '../../../../src/pages/apps/Seismolord/services/attributeSurveyMeta.js';
 import { assertTimeDomain } from '../../../../src/pages/apps/Seismolord/lib/verticalDomain.js';
 import { storageBrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCache.js';
@@ -32,6 +34,9 @@ export const AVO_PRODUCTS = Object.freeze({
   B: 'Gradient (B)',
   FF: 'Fluid factor (Smith and Gidlow)',
   chi: 'Chi projection',
+  // QI upgrade P2.10
+  C: 'Curvature (C, three-term Shuey)',
+  class: 'AVO class (1 to 4, calibrated A and B)',
 });
 export const AVO_ATTRIBUTE = 'qi_avo';
 const UPLOADS_IN_FLIGHT = 4;
@@ -51,16 +56,34 @@ export function validateAvoParams(p) {
   const prod = p.products || {};
   const keys = Object.keys(prod);
   if (!keys.length || keys.some((k) => !AVO_PRODUCTS[k] || !UUID.test(String(prod[k])))) return 'Choose the products, each with its volume.';
+  // QI upgrade P2.10: terms, calibration to reflectivity, class volumes
+  if (p.terms != null && ![2, 3, 'auto'].includes(p.terms)) return 'The terms are 2, 3 or auto.';
+  const terms = p.terms === 'auto' ? shueyTermsFor(angles) : (p.terms || 2);
+  if (terms === 3 && st.length < 3) return 'A three-term fit needs three stacks or more.';
+  if (prod.C && terms !== 3) return 'The curvature needs a three-term fit (three stacks reaching 35 degrees, or terms 3).';
+  if (p.scale != null && !(Number.isFinite(p.scale) && p.scale !== 0)) return 'The scale must be a number other than zero.';
+  if (p.scale_field != null) {
+    const w = p.scale_field.wells;
+    if (!Array.isArray(w) || !w.length || w.some((x) => !Number.isFinite(x?.x) || !Number.isFinite(x?.y) || !Number.isFinite(x?.scale) || x.scale === 0)) return 'The scale field needs wells with a position and a scale other than zero.';
+    if (p.scale_field.method === 'kriging' && !(Number(p.scale_field.variogram?.range) > 0)) return 'Kriging the scale field needs a variogram range.';
+  }
+  if (prod.class && p.scale == null && p.scale_field == null) return 'An AVO class volume needs A and B in reflectivity: give the scale from the wells or a scale field.';
   if (p.vs_vp != null && !(p.vs_vp > 0.2 && p.vs_vp < 0.8)) return 'Vs/Vp must be between 0.2 and 0.8.';
   if (p.chi_deg != null && !(p.chi_deg >= -90 && p.chi_deg <= 90)) return 'Chi must be -90 to 90 degrees.';
   return null;
 }
 
 /** The products of one sample from the stacks' amplitudes. */
-export function avoSample(angles, amps, { vsVp, chiDeg }) {
-  const { A, B } = fitShuey(angles, amps);
+export function avoSample(angles, amps, { vsVp, chiDeg, terms = 2, scale = 1 }) {
+  const fit = fitShuey(angles, amps, { terms });
+  // QI upgrade P2.10: a scale (one, or the field's at this trace) takes the amplitudes to reflectivity
+  const s = Number.isFinite(scale) && scale !== 0 ? scale : 1;
+  const A = fit.A / s; const B = fit.B / s;
   const ff = contrastsFromAB(A, B, vsVp).fluidFactor;
-  return { A, B, FF: ff, chi: Number.isFinite(A) && Number.isFinite(B) ? chiProjection(A, B, chiDeg) : NaN };
+  return {
+    A, B, FF: ff, chi: Number.isFinite(A) && Number.isFinite(B) ? chiProjection(A, B, chiDeg) : NaN,
+    C: terms === 3 ? fit.C / s : NaN, class: avoClassCode(A, B),
+  };
 }
 
 export async function avoVolumes(ctx, deps) {
@@ -138,8 +161,14 @@ export async function avoVolumes(ctx, deps) {
   };
   const angles = stacks.map((s) => s.angle);
   const amps = new Array(stacks.length);
+  const terms = p.terms === 'auto' ? shueyTermsFor(angles) : (p.terms || 2);
+  const aff = surveyAffine(manifests[0].geometry);
+  const posOf = aff ? (il, xl) => ilxlToWorld(aff, il, xl) : (il, xl) => ({ x: il, y: xl });
+  const sf = p.scale_field ? { method: p.scale_field.method === 'kriging' ? 'kriging' : 'idw', ...(p.scale_field.method === 'kriging' ? { variogram: { model: p.scale_field.variogram.model || 'spherical', range: Number(p.scale_field.variogram.range), sill: 1 } } : {}) } : null;
+  const scaleAt = sf ? (il, xl) => scaleFieldAt(p.scale_field.wells, posOf(il, xl), sf) : () => (p.scale ?? 1);
   const compute = (trace, outs, il, xl) => {
     const base = ((il % b) * b + (xl % b)) * b;
+    const scale = scaleAt(il, xl);
     for (let s = 0; s < ns; s++) {
       amps[0] = Math.abs(trace[s]) <= NULL_LIM ? trace[s] : NaN;
       const kk = Math.floor(s / b); const o = others.get(kk);
@@ -147,7 +176,7 @@ export async function avoVolumes(ctx, deps) {
         const v = o[m - 1][base + (s % b)];
         amps[m] = Math.abs(v) <= NULL_LIM ? v : NaN;
       }
-      const r = avoSample(angles, amps, { vsVp, chiDeg });
+      const r = avoSample(angles, amps, { vsVp, chiDeg, terms, scale });
       keys.forEach((k, idx) => { const v = r[k]; (keys.length > 1 ? outs[idx] : outs)[s] = Number.isFinite(v) ? v : NULL_VALUE; });
     }
   };
@@ -182,7 +211,7 @@ export async function avoVolumes(ctx, deps) {
   try {
     for (let o = 0; o < derived.length; o++) {
       const d = derived[o];
-      const params = { qi_class: 'elastic_estimate', product: keys[o], product_label: AVO_PRODUCTS[keys[o]], stacks: stacks.map((s) => ({ volume_id: s.row.id, name: s.row.name, angle: s.angle })), vs_vp: vsVp, ...(keys[o] === 'chi' ? { chi_deg: chiDeg } : {}), method: 'Shuey two-term least squares' };
+      const params = { qi_class: 'elastic_estimate', product: keys[o], product_label: AVO_PRODUCTS[keys[o]], stacks: stacks.map((s) => ({ volume_id: s.row.id, name: s.row.name, angle: s.angle })), vs_vp: vsVp, ...(keys[o] === 'chi' ? { chi_deg: chiDeg } : {}), method: terms === 3 ? 'Shuey three-term least squares' : 'Shuey two-term least squares', terms, ...(p.scale_field ? { calibration: { kind: 'scale field', method: sf.method, wells: p.scale_field.wells } } : p.scale != null ? { calibration: { kind: 'one scale', scale: p.scale } } : {}), ...(keys[o] === 'class' ? { qi_class: 'interpretation', classes: { 1: 'I', 2: 'II', 3: 'III', 4: 'IV' } } : {}) };
       const job = derived.length > 1 ? { ...result, stats: result.statsByOutput[o] } : result;
       const out = buildDerivedManifest({ volumeId: d.id, name: d.name, parentManifest: manifests[0], attribute: { name: AVO_ATTRIBUTE, params }, job });
       if (pilot) out.pilot = pilot.record;
@@ -191,7 +220,7 @@ export async function avoVolumes(ctx, deps) {
       if (error) throw new Error(`AVO computed but registration failed: ${error.message}`);
     }
     ctx.progress(1, 'Done');
-    return { volume_ids: Object.fromEntries(keys.map((k, o) => [k, derived[o].id])), stacks: stacks.map((s) => ({ volume_id: s.row.id, angle: s.angle })), vs_vp: vsVp, chi_deg: chiDeg, trace_count: result.traceCount, ...(pilot ? { pilot: pilot.record } : {}) };
+    return { volume_ids: Object.fromEntries(keys.map((k, o) => [k, derived[o].id])), stacks: stacks.map((s) => ({ volume_id: s.row.id, angle: s.angle })), vs_vp: vsVp, chi_deg: chiDeg, terms, calibrated: p.scale_field ? 'scale field' : p.scale != null ? 'one scale' : null, trace_count: result.traceCount, ...(pilot ? { pilot: pilot.record } : {}) };
   } catch (e) {
     await cleanup();
     throw e;
