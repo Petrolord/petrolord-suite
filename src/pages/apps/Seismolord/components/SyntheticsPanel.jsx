@@ -33,6 +33,7 @@ import {
   makeTieWarp, warpTrace, warpToCheckshots, warpToTiePoints,
   rotateConstantPhase, estimatePhaseRotation, windowedTieQc,
 } from '../engine/tieWarp';
+import { anchorSuggestion } from '../lib/anchorSuggestion';
 import { effectiveCheckshots } from '../services/wellsService';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { readWellDatum, refElevOrNull } from '@/lib/wellDatum';
@@ -414,6 +415,8 @@ export default function SyntheticsPanel({
   const [phase, setPhase] = useState(null);       // estimatePhaseRotation result
   const [phiApplied, setPhiApplied] = useState(false);
   const [commitBusy, setCommitBusy] = useState(false);
+  // automatic anchor suggestion (dynamic warping, QI upgrade 2026-10-15)
+  const [anchorNote, setAnchorNote] = useState(null);
   // U2-020 (second half): the angle gather Rock Physics Studio published for this well
   const [rpGather, setRpGather] = useState(null);
   const [showRpGather, setShowRpGather] = useState(false);
@@ -842,6 +845,21 @@ export default function SyntheticsPanel({
     });
   };
 
+  // Suggest anchors: the stretch and squeeze and a constant phase proposed
+  // by dynamic warping against the corridor centre; the user reviews, drags
+  // or removes them before committing
+  const suggestAnchors = () => {
+    if (!view?.result || !view.corridor?.length) return;
+    const centre = view.corridor[(view.corridor.length - 1) / 2];
+    try {
+      const r = anchorSuggestion(view.result.synthetic, centre, dtMs);
+      setAnchorNote({ ok: r.ok, text: r.message });
+      if (r.ok) { setAnchors(r.anchors); setPhase(r.phase); setPhiApplied(true); }
+    } catch (e) {
+      setAnchorNote({ ok: false, text: e.message });
+    }
+  };
+
   // ---- W3.3 phase + commits ---------------------------------------------
   const estimatePhase = () => {
     if (!view?.result || !view.corridor?.length) return;
@@ -1157,7 +1175,7 @@ export default function SyntheticsPanel({
 
             {anchors.length > 0 && (
               <Button variant="link" size="sm" className="text-pl-muted h-auto p-0"
-                onClick={() => { setAnchors([]); setPhase(null); setPhiApplied(false); }}
+                onClick={() => { setAnchors([]); setPhase(null); setPhiApplied(false); setAnchorNote(null); }}
                 data-testid="synth-anchors-clear"
               >
                 clear
@@ -1168,6 +1186,15 @@ export default function SyntheticsPanel({
             >
               Estimate phase
             </Button>
+            <Button variant="outline" size="sm" onClick={suggestAnchors}
+              disabled={!view.corridor?.length} data-testid="synth-anchors-suggest"
+              title="Propose anchors for a stretch and squeeze tie and a constant phase, by dynamic warping against the seismic at the well. Review them before committing."
+            >
+              Suggest anchors
+            </Button>
+            {anchorNote && (
+              <span className={anchorNote.ok ? 'text-pl-muted' : 'text-pl-warning-text'} data-testid="synth-anchors-suggest-result">{anchorNote.text}</span>
+            )}
             {phase && (
               <span className="text-pl-text" data-testid="synth-phase-result">
                 {`${phase.phiDeg.toFixed(0)}° (r ${phase.corr0.toFixed(2)} → ${phase.corr.toFixed(2)})`}
