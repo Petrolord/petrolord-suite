@@ -88,6 +88,13 @@ select pg_temp.ok((select updated_at > created_at or updated_at = created_at fro
 set role service_role;
 select pg_temp.ok(public.qi_user_storage_bytes('00000000-0000-0000-0000-000000000001') = 1000, 'storage counts live uploads only (deleted excluded)');
 reset role;
+-- a ranged link import stores no object (20261015200000): its row is not counted
+insert into public.qi_datasets (user_id, name, original_filename, bucket, object_key, bytes, part_size, part_count, status, meta)
+values ('00000000-0000-0000-0000-000000000001', 'linked', 'l.sgy', 'seismic-raw', 'u1/d3/l.sgy', 80000000000, 67108864, 1, 'uploaded', '{"link": {"url": "https://x.example/l.sgy", "size": 80000000000}}');
+set role service_role;
+select pg_temp.ok(public.qi_user_storage_bytes('00000000-0000-0000-0000-000000000001') = 1000, 'a linked file (meta.link, no object) does not count against the allowance');
+reset role;
+delete from public.qi_datasets where name = 'linked';
 set role authenticated; set test.uid = '00000000-0000-0000-0000-000000000001';
 select pg_temp.ok((select count(*) from public.qi_datasets) = 2, 'owner sees own datasets');
 do $$ begin perform public.qi_user_storage_bytes('00000000-0000-0000-0000-000000000002'); raise exception 'FAIL: client read another user quota';
