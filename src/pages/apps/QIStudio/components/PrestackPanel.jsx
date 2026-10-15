@@ -8,6 +8,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import * as qiService from '@/lib/qiService';
 import { useQIStudio } from '../QIStudioContext';
+import ConditioningSection, { settingsText } from './ConditioningSection';
 
 const card = 'rounded-lg border border-pl-border bg-pl-surface p-4 space-y-3';
 const muted = 'text-xs text-pl-muted';
@@ -182,7 +183,7 @@ export default function PrestackPanel() {
             {stores.map((d) => (
               <tr key={d.id}>
                 <td className={td}>{d.name}</td>
-                <td className={td}>{`${d.meta?.traces ?? EMPTY_VALUE} traces, ${d.meta?.bins ?? EMPTY_VALUE} offset bins of ${d.meta?.bin_width_m ?? EMPTY_VALUE} m${d.meta?.conditioning?.trim ? `; trimmed at ${d.meta.conditioning.trim.centre_ms} ms (gather correlation ${Number(d.meta.conditioning.corrBefore).toFixed(2)} to ${Number(d.meta.conditioning.corrAfter).toFixed(2)})` : ''}`}</td>
+                <td className={td}>{`${d.meta?.traces ?? EMPTY_VALUE} traces, ${d.meta?.bins ?? EMPTY_VALUE} offset bins of ${d.meta?.bin_width_m ?? EMPTY_VALUE} m${d.meta?.conditioning?.trim ? `; trimmed at ${d.meta.conditioning.trim.centre_ms} ms (gather correlation ${Number(d.meta.conditioning.corrBefore).toFixed(2)} to ${Number(d.meta.conditioning.corrAfter).toFixed(2)})` : ''}${d.meta?.conditioning?.radon ? `; demultipled (${settingsText('radon_demultiple', d.meta.conditioning.radon)})` : ''}${d.meta?.conditioning?.fx ? `; f-x denoised (${settingsText('fx_denoise', d.meta.conditioning.fx)})` : ''}${d.meta?.removed_part_of ? '; what conditioning removed, for QC' : ''}`}</td>
                 <td className={td}><button type="button" className={btn} onClick={() => runTrim(d)} disabled={!canWrite || !(Number(trim.centre) > 0) || job.busy(`t:${d.id}`)} data-testid={`qi-pre-trim-${d.id}`}>Trim statics</button> {job.status(`t:${d.id}`)}</td>
                 <td className={td}><button type="button" className={btn} onClick={() => qc(d)} disabled={!canWrite || job.busy(`q:${d.id}`)} data-testid={`qi-pre-qc-${d.id}`}>QC the gathers</button> {job.status(`q:${d.id}`)}</td>
                 <td className={td}><button type="button" className={btn} onClick={() => stack(d)} disabled={!canWrite || !!vel.error || !!rangeProblem || job.busy(`s:${d.id}`)} data-testid={`qi-pre-stack-${d.id}`}>Make angle stacks</button> {job.status(`s:${d.id}`)}</td>
@@ -207,6 +208,8 @@ export default function PrestackPanel() {
           <p key={id} className="text-xs text-pl-text" data-testid={`qi-pre-result-${id}`}>{`${rec.name}: ${rec.result.stacks.map((s) => `${s.name} ${s.from} to ${s.to} degrees (${s.traces} traces)`).join('; ')}. Usable angle across the CDPs: Q10 ${Number(rec.result.usable_angle.q10).toFixed(1)}, Q50 ${Number(rec.result.usable_angle.q50).toFixed(1)}, Q90 ${Number(rec.result.usable_angle.q90).toFixed(1)} degrees.`}</p>
         ))}
       </div>
+
+      <ConditioningSection stores={stores.filter((d) => !d.meta?.removed_part_of)} onDone={refresh} />
 
       <div className="space-y-1" data-testid="qi-pre-stacks">
         <h3 className="text-xs font-semibold text-pl-text">Angle stacks</h3>

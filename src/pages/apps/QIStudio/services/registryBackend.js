@@ -78,7 +78,7 @@ export function makeRegistryBackend() {
         .order('created_at', { ascending: false });
       if (error) throw new Error(`Could not load seismic volumes: ${error.message}`);
       // seismic volumes, and stacks matched to a reference (Q5), which a study uses as stacks
-      return (data || []).filter((v) => (v.status || 'ready') === 'ready' && (!v.kind || v.kind === 'seismic' || (v.kind === 'attribute' && v.attribute_params?.name === 'qi_matched_stack')));
+      return (data || []).filter((v) => (v.status || 'ready') === 'ready' && (!v.kind || v.kind === 'seismic' || (v.kind === 'attribute' && ['qi_matched_stack', 'qi_balanced_stack'].includes(v.attribute_params?.name))));
     },
     async loadVolumeFrame(volume) {
       const f = volumeFrame(await getManifest(volume));
@@ -101,6 +101,9 @@ export function makeRegistryBackend() {
     },
     async registerMatchedVolume({ volume, name, summary }) {
       return registerDerived(volume, name, { name: 'qi_matched_stack', params: summary });
+    },
+    async registerBalancedVolume({ volume, name, summary }) {
+      return registerDerived(volume, name, { name: 'qi_balanced_stack', params: summary });
     },
     async registerAvoVolume({ volume, name, summary }) {
       return registerDerived(volume, name, { name: 'qi_avo', params: summary });

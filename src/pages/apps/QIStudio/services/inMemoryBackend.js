@@ -85,6 +85,7 @@ export function makeInMemoryBackend() {
     async registerInversionVolume({ volume, name }) { return { id: `mem-inv-${volume.id}`, name, status: 'ingesting' }; },
     async registerPrestackVolume({ volume, name, summary }) { return { id: `mem-sim-${volume.id}-${summary.product}`, name, status: 'ingesting' }; },
     async registerMatchedVolume({ volume, name }) { return { id: `mem-match-${volume.id}`, name, status: 'ingesting' }; },
+    async registerBalancedVolume({ volume, name }) { return { id: `mem-balance-${volume.id}`, name, status: 'ingesting' }; },
     async registerAvoVolume({ volume, name, summary }) { return { id: `mem-avo-${volume.id}-${summary.product}`, name, status: 'ingesting' }; },
     async registerPropertyVolume({ aiVolumeId, name, summary }) { return { id: `mem-prop-${aiVolumeId}-${summary.product}`, name, status: 'ingesting' }; },
     async removeVolume() {},
@@ -198,6 +199,15 @@ function makeInMemoryJobs({ removedDatasets = new Set() } = {}) {
       }
       if (kind === 'match_stacks') {
         results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { reference_volume_id: params.reference_volume_id, stacks: params.stacks.map((sid, k) => ({ stack_id: sid, stack_name: `stack ${sid}`, volume_id: params.volume_ids[sid], shift_ms: -2.5 - k, phase_deg: -12 - 5 * k, scale: 1.1 + 0.2 * k, corr_before: 0.81, corr_after: 0.95 })) } });
+        return id;
+      }
+      if (kind === 'spectral_balance') {
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { target: params.target, f_lo_hz: params.f_lo_hz, f_hi_hz: params.f_hi_hz, stacks: params.stacks.map((sid, k) => ({ stack_id: sid, stack_name: `stack ${sid}`, volume_id: params.volume_ids[sid], centroid_hz_before: 24 - 3 * k, centroid_hz_after: 31.5, centroid_hz_reference: 32, band_half_power_before: [12, 36 - 4 * k], band_half_power_after: [14, 48], operator: [[0, 0], [10, 0.9], [20, 1], [30, 1.3 + 0.2 * k], [40, 1.8 + 0.3 * k], [50, 2.2], [60, 1.1], [70, 0]] })) } });
+        return id;
+      }
+      if (kind === 'radon_demultiple' || kind === 'fx_denoise') {
+        const removed = params.keep_removed ? { removed_dataset_id: 'mem-removed' } : {};
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { dataset_id: kind === 'radon_demultiple' ? 'mem-demultipled' : 'mem-denoised', source_dataset_id: params.dataset_id, ...removed, settings: kind === 'radon_demultiple' ? { cut_ms: params.cut_ms, q_min_ms: params.q_min_ms, q_max_ms: params.q_max_ms, high_res: params.high_res, avo_terms: params.avo_terms, window_ms: params.window_ms, f_max_hz: params.f_max_hz } : { filter_length: params.filter_length, window_ms: params.window_ms, f_lo_hz: params.f_lo_hz }, ...(params.area ? { area: params.area } : {}), cdps: params.area ? 120 : 1400, failed_cdps: 0, removed_share: kind === 'radon_demultiple' ? 0.31 : 0.12, bands: [{ from_ms: 0, to_ms: 1000, removed_db: 0.4, removed_share: 0.09 }, { from_ms: 1000, to_ms: 2000, removed_db: 3.1, removed_share: 0.51 }, { from_ms: 2000, to_ms: 3000, removed_db: 2.2, removed_share: 0.4 }, { from_ms: 3000, to_ms: 4000, removed_db: 1, removed_share: 0.2 }], seconds_per_cdp: 0.82 } });
         return id;
       }
       if (kind === 'trim_gathers') {

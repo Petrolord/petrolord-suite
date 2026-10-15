@@ -55,6 +55,7 @@ export const blankProject = () => ({
   prestackQc: {},
   dataInventory: {},
   maps: {},
+  conditioning: {},
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -105,6 +106,8 @@ export function projectFromPayload(payload) {
     dataInventory: isObj(p.dataInventory) ? { ...p.dataInventory } : {},
     // maps from volumes (QI upgrade P1.5): { runs: [{jobId, at, name, zone, input, products: [{key, label, unit, surfaceId?}]}] }
     maps: isObj(p.maps) ? { ...p.maps } : {},
+    // prestack conditioning (QI round 3): { runs: [{jobId, kind, at, sourceId, sourceName, name, datasetId, removedId, settings, area, cdps, removedShare, bands, secondsPerCdp}] }
+    conditioning: isObj(p.conditioning) ? { ...p.conditioning } : {},
   };
 }
 
@@ -188,6 +191,8 @@ export function runChoices(project) {
   for (const x of project?.avo?.runs || []) add(`avo:${x.jobId || x.name}`, `AVO ${x.name || ''}`.trim(), x.at);
   for (const [id, r] of Object.entries(project?.prestack || {})) if (r?.at) add(`prestack:${id}`, `Angle stacks from ${r.name || 'a gather store'}`, r.at);
   for (const [id, r] of Object.entries(project?.prestackQc || {})) if (r?.at) add(`prestack-qc:${id}`, `Prestack QC of ${r.name || 'a gather store'}`, r.at);
+  for (const r of project?.conditioning?.runs || []) if (r?.at) add(`conditioning:${r.jobId}`, `${r.kind === 'radon_demultiple' ? 'Radon demultiple' : 'f-x noise attenuation'} of ${r.sourceName || 'a gather store'}`, r.at);
+  if (project?.avo?.balancing?.at) add('spectral-balance', `Spectral balancing to ${project.avo.balancing.reference || 'a flat band'}`, project.avo.balancing.at);
   for (const [t, f] of Object.entries(project?.feasibility || {})) if (f?.sweep?.at) add(`feasibility-sweep:${t}`, `Feasibility sweep of ${t}`, f.sweep.at);
   return out.sort((a, b) => b.at.localeCompare(a.at)).map(({ key, label }) => ({ key, label }));
 }
