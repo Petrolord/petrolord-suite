@@ -856,3 +856,39 @@ Owner-approved 2026-10-14 for the client QI study (about 120 km2, six wells; fiv
 - **Gathers:** a 467 MB gather file (120 x 100 locations, fold 12, 751 samples) was recognised (fold 12), cropped to 60 x 50 locations and 400 to 2000 ms (66 MB, 36,000 traces, every trace of each kept location), uploaded, and built by ingest_gathers in 4 s with ns 501 (the 100 samples above the window put back as nulls), crop recorded.
 - **Pilot inversion on the Ekene demo volume** (EKENE3D-full.sgy, 128 x 128 x 601, five wells, model-based): pilot inlines 1040 to 1079, crosslines 2030 to 2089, 800 to 1600 ms ran in 25 s against 116 s for the full run, wrote 16 bricks (16 MiB) against 40, and matched the full run exactly at 100 of 100 points inside the area; 300 of 300 points outside were empty. Both test volumes were removed afterwards.
 - **Found and fixed:** run beside a full inversion, the pilot job failed twice on a brick upload ("fetch failed"): the worker runs two jobs in one Node process, and while one computes the other's uploads can stall until the connection drops; the derived-volume handlers did not retry. `worker/seismic-worker/src/retryingStorage.js` now retries a dropped connection, 408, 429 and 5xx with backoff (fix PR, worker redeploy).
+
+## QI Studio upgrade P1-P2 (owner GO 2026-10-14)
+
+Owner, 2026-10-14: "Go with the light version and start priority 1. I also want the Volve/F3 benchmark included and that you proceed non-stop into Priority 2." Every change is additive: the tabs, default views and test ids the QI videos and the NextGen QI course show are unchanged.
+
+### P1.1 Light governance (2026-10-15)
+- **Objectives and acceptance criteria** on Setup, below the three setup cards: the study's text and an optional line per target (payload `objectives`).
+- **Decisions** in the issue register: gate (Data QC, Feasibility, Pilot, or a named gate), outcome, decision, by whom, date, and the run or version it refers to (chosen from the study's runs and checks, or typed). Stored in `issues` with `type: 'decision'`; shown in a Decisions table under the register; excluded from the issue table, its sort and its counts.
+- **Report:** the objectives after the summary, the decisions after the issue register; the summary adds the count and the latest decision only when there is one, so earlier studies read as before.
+- **Decision:** no workflow engine, no locking and no enforced sign-off (the owner's light version). No migration (project payload).
+- **Tests:** `__tests__/qiGovernance.test.jsx` (7), including the decision kept out of the register as a negative control.
+
+### P1.2 Truly blind wells (2026-10-15; closes U2-008)
+- **Before:** a well left out of the blind check was out of the low-frequency model only. The wavelet scale (and the coloured operator) used every well, the field wavelet averaged its tie, and the property check predicted each left-out well from an impedance volume whose inversion had used it.
+- **Now (protocol `held-back-v2`):**
+  - post-stack: a held-back well is out of the model, the wavelet scale (coloured: the operator's impedance and seismic spectra) and, with the field wavelet, the average itself (the browser sends the other ties' average per well, `blind_wavelets`). Sensitivity scenarios hold the well back from their model and scale.
+  - simultaneous: out of the three models, the wavelet scale, the background Vs/Vp (unless typed) and the angle or field wavelet averages.
+  - property: each well is out of the property model (as before) and predicted from the inversion's held-back estimate at it, which every inversion volume now records (`attribute.params.blind_traces`, packed ln AI; Vp/Vs for the simultaneous Vp/Vs volume). A well the inversion never used is blind by construction. A volume from before the change gives "not blind" rows and a medium issue.
+  - Every result carries `blind_protocol` (what was excluded, the per-well scales, notes); the panels and the report state it. Older results say they held the well out of the model only.
+  - A wavelet that is one well's own tie wavelet is named in the protocol: that well's blind result is not independent of the wavelet.
+- **U2-008:** the Simultaneous tab offers its blind results to the issue register (AI or SI error over 10 percent medium, over 20 high; density correlation under 0.5 medium; density error over 10 percent low).
+- **Gates (call the shipped code):** each worker's blind table equals a hand-built held-back reference exactly; the earlier protocol (one scale on every well) is the negative control and differs when one well's log disagrees; re-breaking the exclusion in the run modules fails 3 post-stack and 2 prestack tests. The property check equals the engine calibration on the held-back traces, and from the volume traces it reads more than twice better at a biased well (negative control).
+- **Worker redeploy needed** (poststack_inversion, prestack_inversion, property_prediction).
+
+### P1.4 Inversion trust outputs (2026-10-15; closes U2-007)
+- **Seismic residual:** post-stack (absolute methods, single runs) writes an optional second volume, the input minus `forwardPoststack` of the inverted ln(AI) through the job's own scaled wavelet; simultaneous writes one residual per stack (the stack minus `forwardFatti` of the inverted logs). Blind and volume results carry `residual_at_wells` (RMS of the residual as a percentage of the seismic RMS at each well); a post-stack residual run also reports it over the volume. Coloured inversion has no forward model, so no residual.
+- **Density gate:** `densityDecision` replaces the 25-degree refusal. Density is written when the farthest stack reaches `min_far_deg` (25) and the median blind density correlation over two or more wells reaches `min_blind_corr` (0.5, set on the tab); otherwise its registered row is removed, nothing is uploaded, and the result says why. AI, SI and Vp/Vs are written either way; near-only stacks now run.
+- **U2-007:** the Simultaneous tab's Settings: pull of AI, SI and density, model cut, Vs/Vp (blank takes the wells' mean, shown), the density gate, the residual option. Cleared boxes hold the run (PL11).
+- **Gates:** the residual plus the synthetic of the stored products returns the input (post-stack and per stack); the unscaled wavelet as the negative control leaves over half the seismic; density written, withheld for near stacks (row removed, no upload) and withheld under a strict gate; the pulls, Vs/Vp and cut change the result and are recorded.
+
+### P1.3 Net-to-gross and water saturation (2026-10-15)
+- **Kinds `ntg` and `sw`** in property prediction, on the porosity path of the engines' calibration (the linear transform with the widened band), each Q10, Q50 and Q90, held within 0 and 1 in the volumes. Sw is labelled `fluid_hypothesis` (SOW section 10); NTG `calibrated_prediction`.
+- **Well side:** NTG from an NTG or net-flag curve (aliases in `inversionWells.js`), or a net flag where Vsh is at most and porosity at least the cutoffs (0.4 and 0.08, set on the tab), named in the wells table; Sw from the SW family. The usability families are unchanged.
+- **Gate (`propertyGate`):** fully blind (P1.2), two wells or more, every left-out well correlating at 0.5 or more with 60 to 95 percent inside Q10 to Q90 (editable). The panel holds Predict the volume with the reasons until the latest check passes the gate as set; the worker recomputes the gate and refuses a failing volume run (`gate_failed`, registered rows removed). Porosity stays ungated.
+- **Gates:** a passing NTG volume is within 0 and 1 while the unclamped transform is not (negative control); a strict gate and a non-blind volume are refused with their reasons; porosity is unaffected.
+- **Worker redeploy needed.**

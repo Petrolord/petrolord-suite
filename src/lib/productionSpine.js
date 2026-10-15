@@ -20,6 +20,7 @@
 // boundary).
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { selectScoped } from '@/lib/projects/projectScope';
 
 // Supabase rejects very large payloads; bulk writes go up in chunks.
 const CHUNK = 500;
@@ -59,7 +60,7 @@ function chunked(rows) {
  *  filters; is_own drives the UI's badges). */
 export async function listFields() {
   const [{ data, error }, { data: { user } }] = await Promise.all([
-    supabase.from('po_fields').select('*').order('created_at', { ascending: false }),
+    selectScoped(() => supabase.from('po_fields').select('*'), (q) => q.order('created_at', { ascending: false })),
     supabase.auth.getUser(),
   ]);
   if (error) throw new Error(`Could not load fields: ${error.message}`);

@@ -14,7 +14,9 @@ import { prepareWell } from '../services/inversionWells';
 import { waveletChoices } from './InversionPanel';
 import ExportControls from './ExportControls';
 import { extractAngleWavelets } from '../services/angleWavelets';
-import { meanVsVp } from '../services/prestackRun';
+import { meanVsVp, simultaneousIssues, PRESTACK_DEFAULTS, DENSITY_GATE_DEFAULTS } from '../services/prestackRun';
+import { blindProtocolText } from '../services/inversionRun';
+import { tieRows, leaveOneOutWavelets } from '../services/ties';
 import { describeWavelet, storedSamples } from '@/pages/apps/Seismolord/lib/wellWavelet';
 import { packLog } from '../services/logPacking';
 
@@ -33,12 +35,29 @@ export function simultaneousProblem(stacks) {
   if (live.length < 3) return 'Choose three to five angle stacks.';
   if (new Set(live.map((s) => s.volumeId)).size !== live.length) return 'Each stack must be a different volume.';
   if (live.some((s) => String(s.angle).trim() === '' || !(Number(s.angle) >= 0 && Number(s.angle) <= 50))) return 'Give each stack its mean angle, 0 to 50 degrees.';
-  if (Math.max(...live.map((s) => Number(s.angle))) < 25) return 'The farthest stack should reach 25 degrees or more: density needs the far angles.';
+  return null;
+}
+
+/** QI upgrade P1.4: a far stack under 25 degrees no longer stops the run; the density gate then withholds density. */
+export function densityNote(stacks, minFar = 25) {
+  const live = stacks.filter((s) => s.volumeId && String(s.angle).trim() !== '' && Number.isFinite(Number(s.angle)));
+  if (live.length < 3) return null;
+  const far = Math.max(...live.map((s) => Number(s.angle)));
+  return far < minFar ? `The farthest stack is ${far} degrees: AI, SI and Vp/Vs will be written, density will not (it needs ${minFar} degrees or more).` : null;
+}
+
+/** Why the advanced settings cannot run (a cleared box would reach the job as 0), or null. */
+export function advancedProblem(a) {
+  const blank = (v) => String(v ?? '').trim() === '';
+  for (const [k, label] of [['epsAi', 'AI'], ['epsSi', 'SI'], ['epsRho', 'density']]) if (blank(a[k]) || !(Number(a[k]) >= 0)) return `Give the pull of ${label} to its model, zero or more.`;
+  if (blank(a.lfmHz) || !(Number(a.lfmHz) >= 2 && Number(a.lfmHz) <= 20)) return 'Give the low-frequency model cut, 2 to 20 Hz.';
+  if (!blank(a.vsVp) && !(Number(a.vsVp) > 0.2 && Number(a.vsVp) < 0.9)) return 'Vs/Vp must be between 0.2 and 0.9, or blank to take it from the wells.';
+  if (blank(a.minRhoCorr) || !(Number(a.minRhoCorr) >= -1 && Number(a.minRhoCorr) <= 1)) return 'Give the blind density correlation density must reach, -1 to 1.';
   return null;
 }
 
 export default function SimultaneousPanel() {
-  const { chosenVolumes, ready, project, setSimultaneous, backend, jobs, canWrite } = useQIStudio();
+  const { chosenVolumes, ready, project, setSimultaneous, backend, jobs, canWrite, saveIssue, addNotification } = useQIStudio();
   const client = jobs || qiService;
   const [stacks, setStacks] = useState(Array.from({ length: 5 }, () => ({ volumeId: '', angle: '' })));
   const [wKey, setWKey] = useState('');
@@ -47,6 +66,9 @@ export default function SimultaneousPanel() {
   const [horizons, setHorizons] = useState([]);
   const [prep, setPrep] = useState(null);
   const [st, setSt] = useState({});
+  // U2-007 (QI upgrade P1.4): the pulls, Vs/Vp, model cut and the density gate on the tab
+  const [adv, setAdv] = useState({ epsAi: String(PRESTACK_DEFAULTS.eps[0]), epsSi: String(PRESTACK_DEFAULTS.eps[1]), epsRho: String(PRESTACK_DEFAULTS.eps[2]), lfmHz: String(PRESTACK_DEFAULTS.lfmHz), vsVp: '', minRhoCorr: String(DENSITY_GATE_DEFAULTS.min_blind_corr) });
+  const [writeResidual, setWriteResidual] = useState(false);
   const stops = useRef([]);
   useEffect(() => () => { for (const s of stops.current) s(); }, []);
   const choices = useMemo(() => waveletChoices(ready), [ready]);
@@ -60,7 +82,8 @@ export default function SimultaneousPanel() {
     backend.listHorizons(first.id).then((h) => { if (ok) setHorizons(h || []); }).catch(() => {});
     return () => { ok = false; };
   }, [first?.id, backend]); // eslint-disable-line react-hooks/exhaustive-deps
-  const problem = simultaneousProblem(stacks) || (!wavelet ? 'No well in the study has a stored tie wavelet.' : null);
+  const problem = simultaneousProblem(stacks) || (!wavelet ? 'No well in the study has a stored tie wavelet.' : null) || advancedProblem(adv);
+  const dNote = densityNote(stacks);
   const saved = project.simultaneous || {};
   const usable = (prep?.wells || []).filter((w) => w.ok && w.elastic?.ln_si);
   const [useAngle, setUseAngle] = useState(true);
@@ -78,7 +101,15 @@ export default function SimultaneousPanel() {
         const thetaDeg = live.map((x) => Number(x.angle));
         const res = extractAngleWavelets({ wells, tracesByWell, thetaDeg, vsVp: meanVsVp(wells) });
         const dtMs = row.result_refs.dt_ms;
-        setSimultaneous({ angleWavelets: { at: row.finished_at || new Date().toISOString(), dtMs, items: res.map((r) => ({ angle: r.angle, samples: r.samples ? Array.from(storedSamples(r.samples)) : null, ...(r.samples ? describeWavelet(r.samples, dtMs) : {}), wells: r.wells })) } });
+        // truly blind (QI upgrade P1.2): the angle wavelets again without each
+        // well, so a held-back well does not shape the wavelets it is judged with
+        const blind = wells.length > 1 ? wells.map((w) => {
+          const keep = wells.map((x, j) => j).filter((j) => wells[j].name !== w.name);
+          let r2 = null;
+          try { r2 = extractAngleWavelets({ wells: keep.map((j) => wells[j]), tracesByWell: keep.map((j) => tracesByWell[j]), thetaDeg, vsVp: meanVsVp(keep.map((j) => wells[j])) }); } catch { r2 = null; }
+          return r2 && r2.every((x) => x.samples) ? { name: w.name, items: r2.map((x) => Array.from(storedSamples(x.samples))) } : null;
+        }).filter(Boolean) : [];
+        setSimultaneous({ angleWavelets: { at: row.finished_at || new Date().toISOString(), dtMs, items: res.map((r) => ({ angle: r.angle, samples: r.samples ? Array.from(storedSamples(r.samples)) : null, ...(r.samples ? describeWavelet(r.samples, dtMs) : {}), wells: r.wells })), blind } });
       });
     } catch (e) { setSt((m) => ({ ...m, aw: { error: qiService.friendlyError(e) } })); }
   };
@@ -92,10 +123,29 @@ export default function SimultaneousPanel() {
       setPrep({ wells });
     } catch (e) { setPrep({ error: e.message }); }
   };
+  // truly blind (QI upgrade P1.2): the wavelets each held-back well is judged with leave it out
+  const blindWaveletBlock = () => {
+    const names = usable.map((w) => w.name);
+    if (useAngle && awMatches) {
+      const bw = (aw.blind || []).filter((b) => names.includes(b.name) && b.items.length === live.length).map((b) => ({ name: b.name, wavelets: b.items.map((x) => ({ samples: x, dt_ms: aw.dtMs })) }));
+      return bw.length ? { blind_wavelets: bw } : {};
+    }
+    if (wavelet?.key === 'field') {
+      const bw = leaveOneOutWavelets(tieRows(ready), names);
+      return bw.length ? { blind_wavelets: bw } : {};
+    }
+    const own = wavelet?.key?.startsWith('well:') ? ready.find((r) => `well:${r.well.id}` === wavelet.key)?.well?.name : null;
+    return own ? { wavelet_well: own } : {};
+  };
   const block = () => ({
     stacks: live.map((s) => ({ volume_id: s.volumeId, angle: Number(s.angle) })),
     wavelet: { samples: wavelet.samples, dt_ms: wavelet.dtMs },
     ...(useAngle && awMatches ? { wavelets: aw.items.map((it) => ({ samples: it.samples, dt_ms: aw.dtMs })) } : {}),
+    ...blindWaveletBlock(),
+    eps: [Number(adv.epsAi), Number(adv.epsSi), Number(adv.epsRho)],
+    lfmHz: Number(adv.lfmHz),
+    ...(String(adv.vsVp).trim() !== '' ? { vs_vp: Number(adv.vsVp) } : {}),
+    density_gate: { min_far_deg: DENSITY_GATE_DEFAULTS.min_far_deg, min_blind_corr: Number(adv.minRhoCorr) },
     wells: usable.map((w) => ({ name: w.name, il: w.il, xl: w.xl, ln_ai: packLog(w.ln_ai), ln_si: packLog(w.elastic.ln_si), ln_rho: packLog(w.elastic.ln_rho) })),
     horizon_ids: hz,
   });
@@ -116,10 +166,18 @@ export default function SimultaneousPanel() {
     const rows = [];
     try {
       for (const [k, label] of [['ai', 'AI'], ['si', 'SI'], ['rho', 'density'], ['vpvs', 'Vp/Vs']]) rows.push({ k, row: await backend.registerPrestackVolume({ volume: first, name: pilotName(`${first.name} ${label}, simultaneous`, pilot), summary: { product: k, qi_class: 'elastic_estimate' } }) });
+      // QI upgrade P1.4: the seismic residual of each stack, when asked
+      if (writeResidual) {
+        for (let k = 0; k < live.length; k++) {
+          const sv = chosenVolumes.find((v) => v.id === live[k].volumeId);
+          rows.push({ k: `res_${k}`, row: await backend.registerPrestackVolume({ volume: first, name: pilotName(`${sv?.name || `stack ${k + 1}`} residual, simultaneous`, pilot), summary: { product: `res_${k}`, qi_class: 'elastic_estimate' } }) });
+        }
+      }
       const ids = Object.fromEntries(rows.map((r) => [r.k, r.row.id]));
-      const jobId = await client.enqueueJob('prestack_inversion', { mode: 'volume', volume_ids: ids, name: pilotName(`${first.name} simultaneous inversion`, pilot), inversion: block(), ...(pp ? { pilot: pp } : {}) });
+      const jobId = await client.enqueueJob('prestack_inversion', { mode: 'volume', volume_ids: ids, name: pilotName(`${first.name} simultaneous inversion`, pilot), inversion: { ...block(), ...(writeResidual ? { residual: true } : {}) }, ...(pp ? { pilot: pp } : {}) });
       setSimultaneous((cur) => ({ runs: [...(cur.runs || []), { jobId, volumeIds: ids, firstVolumeId: first.id, name: pilotName(`${first.name}: AI, SI, density, Vp/Vs`, pilot), at: new Date().toISOString(), status: 'queued', ...(pp ? { pilot: pp } : {}) }] }));
-      watch('volume', jobId, (row) => setSimultaneous((cur) => ({ runs: (cur.runs || []).map((r) => (r.jobId === jobId ? { ...r, status: 'ready', at: row.finished_at || r.at } : r)) })));
+      // the worker returns the volumes it wrote: density goes when the gate withholds it
+      watch('volume', jobId, (row) => setSimultaneous((cur) => ({ runs: (cur.runs || []).map((r) => (r.jobId === jobId ? { ...r, status: 'ready', at: row.finished_at || r.at, ...(row.result_refs?.volume_ids ? { volumeIds: row.result_refs.volume_ids } : {}), ...(row.result_refs?.density ? { density: row.result_refs.density } : {}) } : r)) })));
     } catch (e) {
       for (const r of rows) { try { await backend.removeVolume(r.row); } catch { /* best effort */ } }
       setSt((m) => ({ ...m, volume: { error: qiService.friendlyError(e) } }));
@@ -134,6 +192,11 @@ export default function SimultaneousPanel() {
     return null;
   };
   const busy = (k) => !!st[k]?.job && qiService.isActive(st[k].job);
+  const simIssues = useMemo(() => simultaneousIssues(saved.blind?.result?.blind, saved.blind?.volumeName), [saved.blind]);
+  const addSimIssues = () => {
+    for (const i of simIssues) saveIssue({ ...i, status: 'open', owner: '' });
+    addNotification(`${simIssues.length} simultaneous issue${simIssues.length === 1 ? '' : 's'} added to the register.`, 'success');
+  };
 
   if (chosenVolumes.length < 3) return <section className={card}><p className={muted}>Choose at least three angle stack volumes on Setup for a simultaneous inversion.</p></section>;
   return (
@@ -160,6 +223,21 @@ export default function SimultaneousPanel() {
             {horizons.map((h) => <label key={h.id} className="flex items-center gap-1"><input type="checkbox" checked={hz.includes(h.id)} onChange={() => setHz((x) => (x.includes(h.id) ? x.filter((y) => y !== h.id) : [...x, h.id]))} />{h.name}</label>)}
           </div>
         )}
+        <details className="rounded border border-pl-border p-2" data-testid="qi-sim-advanced">
+          <summary className="cursor-pointer text-pl-text">Settings: pulls, Vs/Vp, model cut and the density gate</summary>
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            <span className="text-pl-muted">Pull to the model:</span>
+            {[['epsAi', 'AI'], ['epsSi', 'SI'], ['epsRho', 'density']].map(([k, label]) => (
+              <label key={k} className="flex items-center gap-1">{label}<input className={`${input} w-16`} type="number" min="0" step="0.01" value={adv[k]} onChange={(e) => setAdv((a) => ({ ...a, [k]: e.target.value }))} data-testid={`qi-sim-${k}`} /></label>
+            ))}
+            <label className="flex items-center gap-1">Model below (Hz)<input className={`${input} w-16`} type="number" min="2" max="20" value={adv.lfmHz} onChange={(e) => setAdv((a) => ({ ...a, lfmHz: e.target.value }))} data-testid="qi-sim-lfm" /></label>
+            <label className="flex items-center gap-1">Vs/Vp<input className={`${input} w-20`} type="number" step="0.01" placeholder="from the wells" value={adv.vsVp} onChange={(e) => setAdv((a) => ({ ...a, vsVp: e.target.value }))} data-testid="qi-sim-vsvp" /></label>
+            {String(adv.vsVp).trim() === '' && usable.length > 0 && <span className="text-pl-muted" data-testid="qi-sim-vsvp-wells">{`the wells give ${meanVsVp(usable.map(logsOf)).toFixed(3)}`}</span>}
+            <label className="flex items-center gap-1">Density needs a blind correlation of<input className={`${input} w-16`} type="number" step="0.05" min="-1" max="1" value={adv.minRhoCorr} onChange={(e) => setAdv((a) => ({ ...a, minRhoCorr: e.target.value }))} data-testid="qi-sim-rho-gate" /></label>
+            <label className="flex items-center gap-1"><input type="checkbox" checked={writeResidual} onChange={() => setWriteResidual((x) => !x)} data-testid="qi-sim-residual" />Also write each stack&apos;s seismic residual</label>
+          </div>
+        </details>
+        {dNote && <p className="text-pl-warning-text" data-testid="qi-sim-density-note">{dNote}</p>}
         {problem && <p className="text-pl-warning-text">{problem}</p>}
         <button type="button" className={btn} onClick={readWells} disabled={!!problem || prep?.busy} data-testid="qi-sim-read">{prep?.busy ? 'Reading the wells' : 'Read the wells'}</button>
         {prep?.error && <p className="text-pl-danger-text">{prep.error}</p>}
@@ -199,12 +277,19 @@ export default function SimultaneousPanel() {
         )}
       </div>
       {saved.blind?.result && (
+        <>
         <table className="text-xs" data-testid="qi-sim-blind-table">
           <thead><tr><th className={th}>Well</th><th className={th}>AI error (percent)</th><th className={th}>SI error</th><th className={th}>Density error</th><th className={th}>Density correlation</th></tr></thead>
           <tbody className="font-mono tabular-nums">
             {saved.blind.result.blind.map((r) => <tr key={r.name}><td className={`${td} font-sans`}>{r.name}</td><td className={td}>{f1(r.blind.ai.rmsPct)}</td><td className={td}>{f1(r.blind.si.rmsPct)}</td><td className={td}>{f1(r.blind.rho.rmsPct)}</td><td className={td}>{f2(r.blind.rho.corr)}</td></tr>)}
           </tbody>
         </table>
+        {/* QI upgrade P1.2: the protocol, and the blind results to the register (U2-008) */}
+        <p className={muted} data-testid="qi-sim-blind-protocol">{blindProtocolText(saved.blind.result)}</p>
+        {saved.blind.result.density && <p className={saved.blind.result.density.produced ? muted : 'text-xs text-pl-warning-text'} data-testid="qi-sim-density">{saved.blind.result.density.reason}</p>}
+        {(saved.blind.result.residual_at_wells || []).length > 0 && <p className={muted} data-testid="qi-sim-residual-wells">{`Seismic residual at the wells, percent of each stack's RMS: ${saved.blind.result.residual_at_wells.map((w) => `${w.name} ${w.pct.map((v) => (Number.isFinite(v) ? v.toFixed(0) : EMPTY_VALUE)).join(' / ')}`).join('; ')}.`}</p>}
+        {simIssues.length > 0 && canWrite && <button type="button" className={btn} onClick={addSimIssues} data-testid="qi-sim-issues">{`Add ${simIssues.length} simultaneous issue${simIssues.length === 1 ? '' : 's'} to the register`}</button>}
+        </>
       )}
       {(saved.runs || []).length > 0 && (
         <table className="text-xs" data-testid="qi-sim-runs">

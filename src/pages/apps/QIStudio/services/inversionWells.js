@@ -50,7 +50,7 @@ export function volumeFrame(manifest) {
  * @returns {Promise<{name, wellId, ok: boolean, reason?: string, il?, xl?, ln_ai?: number[],
  *   curves?: string, timeSource?: string, samples?: number}>}
  */
-export async function prepareWell(loaded, frame, downloadCurve, { extras = [], topsMd = [] } = {}) {
+export async function prepareWell(loaded, frame, downloadCurve, { extras = [], topsMd = [], ntgCutoffs = NTG_CUTOFF_DEFAULTS } = {}) {
   const { well, logs } = loaded;
   const base = { name: well.name, wellId: well.id };
   const no = (reason) => ({ ...base, ok: false, reason });
@@ -132,18 +132,37 @@ export async function prepareWell(loaded, frame, downloadCurve, { extras = [], t
     }
   }
   for (const kind of extras.filter((k) => k !== 'elastic')) {
-    const c = kind === 'facies' ? pickFaciesCurve(logs) : pickCurve(logs, 'porosity');
-    if (!c) { extra[kind] = { reason: kind === 'facies' ? 'No facies curve (draw facies in Rock Physics Studio, Multi-well, and write them back).' : 'No porosity curve.' }; continue; }
+    // net-to-gross (QI upgrade P1.3): an NTG or net-flag curve, or a net flag
+    // from the shale volume and porosity cutoffs on the shale curve's depths
+    let c; let data; let derivedNet = null;
+    if (kind === 'ntg') {
+      c = pickNtgCurve(logs);
+      if (!c) {
+        const v = pickCurve(logs, 'vsh'); const ph = pickCurve(logs, 'porosity');
+        if (!v || !ph) { extra[kind] = { reason: 'No net-to-gross or net flag curve, and no shale volume and porosity to apply cutoffs to.' }; continue; }
+        if (v.log.step_m == null || ph.log.step_m == null) { extra[kind] = { reason: `${v.log.step_m == null ? v.log.mnemonic : ph.log.mnemonic} has an irregular depth grid.` }; continue; }
+        const [vRaw, pRaw] = await Promise.all([downloadCurve(v.log), downloadCurve(ph.log)]);
+        derivedNet = { vsh: v, phi: ph };
+        c = v;
+        data = netFromCutoffs(fractionCurve(vRaw), Number(v.log.start_md_m), Number(v.log.step_m), porosityFraction(pRaw), Number(ph.log.start_md_m), Number(ph.log.step_m), ntgCutoffs);
+      } else data = netFraction(await downloadCurve(c.log));
+    } else {
+      c = kind === 'facies' ? pickFaciesCurve(logs) : pickCurve(logs, kind === 'sw' ? 'sw' : 'porosity');
+      if (!c) { extra[kind] = { reason: kind === 'facies' ? 'No facies curve (draw facies in Rock Physics Studio, Multi-well, and write them back).' : kind === 'sw' ? 'No water saturation curve.' : 'No porosity curve.' }; continue; }
+    }
     if (c.log.step_m == null) { extra[kind] = { reason: `${c.log.mnemonic} has an irregular depth grid.` }; continue; }
-    const raw = await downloadCurve(c.log);
-    const data = kind === 'facies' ? raw : porosityFraction(raw);
+    if (!data) {
+      const raw = await downloadCurve(c.log);
+      data = kind === 'facies' ? raw : kind === 'sw' ? fractionCurve(raw) : porosityFraction(raw);
+    }
     const mdC = Array.from({ length: data.length }, (_, i) => Number(c.log.start_md_m) + i * Number(c.log.step_m));
     const twtC = mdC.map(toTwtLog);
     const values = kind === 'facies'
       ? nearestToDt(twtC, Array.from(data), frame.dtMs, frame.ns)
       : Array.from(resampleToDt(Float64Array.from(twtC, (t) => (Number.isFinite(t) ? t : NaN)), Float64Array.from(data, (v) => (Number.isFinite(v) ? v : NaN)), frame.dtMs, frame.ns));
     extra[kind] = {
-      curve: named(c), values: values.map((v) => (Number.isFinite(v) ? v : NaN)),
+      curve: derivedNet ? `net where ${named(derivedNet.vsh)} is at most ${ntgCutoffs.vsh} and ${named(derivedNet.phi)} at least ${ntgCutoffs.phi}` : named(c),
+      values: values.map((v) => (Number.isFinite(v) ? v : NaN)),
       ...(kind === 'facies' ? { names: c.names } : {}),
     };
   }
@@ -166,6 +185,45 @@ export function controlRange(well, rows) {
   const measured = Array.isArray(well?.checkshots) && well.checkshots.length >= 2 ? well.checkshots : rows;
   const z = (measured || []).map((r) => Number(r.tvdss_m)).filter(Number.isFinite);
   return z.length >= 2 ? [Math.min(...z), Math.max(...z)] : [-Infinity, Infinity];
+}
+
+/** NTG cutoffs for a net flag from the shale volume and the porosity (QI upgrade P1.3). */
+export const NTG_CUTOFF_DEFAULTS = Object.freeze({ vsh: 0.4, phi: 0.08 });
+const NTG_ALIASES = ['NTG', 'NET', 'NETFLAG', 'NET_FLAG', 'NETSAND', 'NET_SAND', 'NETRES', 'NET_RES', 'RESFLAG', 'RES_FLAG', 'NETPAY', 'NET_PAY', 'PAYFLAG', 'PAY_FLAG'];
+
+/** An NTG or net-flag curve (the longest), or null. */
+export function pickNtgCurve(logs) {
+  let best = null;
+  for (const l of logs || []) {
+    const b = String(l.mnemonic || '').toUpperCase().split(':')[0].replace(/_(SPL|ED|DC|DS|DIG)$/, '');
+    if (!NTG_ALIASES.includes(b)) continue;
+    if (!best || span(l) > span(best.log)) best = { log: l, score: span(l), edit: editKind(l.mnemonic) };
+  }
+  return best;
+}
+
+/** A fraction curve (saturation, shale volume): vendor nulls dropped, percent (median over 1.5) divided by 100. */
+export const fractionCurve = (raw) => porosityFraction(raw);
+
+/** A net curve as a fraction: a 0/1 flag stays a flag; an NTG curve in percent becomes a fraction; values held within 0 and 1. */
+export function netFraction(raw) {
+  const v = fractionCurve(raw);
+  return v.map((x) => (Number.isFinite(x) ? Math.min(1, Math.max(0, x)) : NaN));
+}
+
+/**
+ * A net flag (1 net, 0 not) from the shale volume and porosity curves:
+ * net where Vsh is at most the cutoff and porosity at least its cutoff. On
+ * the shale curve's depths; porosity by its nearest sample.
+ */
+export function netFromCutoffs(vsh, v0, vStep, phi, p0, pStep, { vsh: vCut, phi: pCut }) {
+  return Array.from(vsh, (x, i) => {
+    const z = v0 + i * vStep;
+    const j = Math.round((z - p0) / pStep);
+    const ph = j >= 0 && j < phi.length ? phi[j] : NaN;
+    if (!Number.isFinite(x) || !Number.isFinite(ph)) return NaN;
+    return x <= vCut && ph >= pCut ? 1 : 0;
+  });
 }
 
 /** Porosity as a fraction: vendor nulls (-999 and below) dropped; a curve in percent (median over 1.5) divided by 100. */

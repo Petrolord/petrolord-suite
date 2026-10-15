@@ -200,6 +200,21 @@ function QIStudioHelpGuideContent() {
           matches a full run, because every trace is still processed over its whole length. Property runs on a pilot
           impedance volume keep to its area. The report lists the pilot runs with their areas.
         </Para>
+        <SubHeading>Truly blind wells</SubHeading>
+        <Para>
+          A well held back in the blind check is left out of everything the inversion learns from the wells: the
+          low-frequency model, the wavelet scale (for coloured inversion, the operator&apos;s impedance and seismic spectra) and,
+          with the field wavelet, the wavelet average itself, which is rebuilt from the other ties. The with-well column is
+          the full inversion. If the wavelet is one well&apos;s own tie wavelet, that well&apos;s blind result is not independent of
+          the wavelet, and the line under the table says so. Results from before this change say they held the well out of
+          the model only. A volume run records each well&apos;s held-back estimate, so the property check can use it.
+        </Para>
+        <Para>
+          Tick Also write the seismic residual (absolute methods) to get a second volume: the seismic minus the synthetic of
+          the inverted impedance through the same scaled wavelet. Where the inversion explains the seismic it is small;
+          energy left in it marks what the model could not fit. The blind result also gives the residual at each well as a
+          percentage of the seismic RMS.
+        </Para>
       </GuideSection>
 
       <GuideSection id="simultaneous">
@@ -223,6 +238,29 @@ function QIStudioHelpGuideContent() {
           out at a lower frequency (absorption and NMO stretch). The table gives each wavelet&apos;s peak frequency and phase, and
           each well&apos;s synthetic against the stack: the synthetic-against-real check by angle. With Use one wavelet per stack,
           the inversion takes them in place of the single tie wavelet.
+        </Para>
+        <Para>
+          The blind check here is truly blind too: a held-back well is out of all three models, the wavelet scale, the
+          background Vs/Vp (unless you typed it), and the wavelet average (the angle wavelets or the field wavelet are
+          rebuilt from the other wells). Add the blind results to the issue register with the button under the table: an AI
+          or SI error over 10 percent, a density correlation under 0.5, or a density error over 10 percent.
+        </Para>
+        <SubHeading>Settings and the density gate</SubHeading>
+        <Para>
+          Under Settings you can change the pull of AI, SI and density to their models (0.05 each by default; a larger pull
+          keeps that parameter closer to its model), the low-frequency model cut, and the background Vs/Vp of the
+          linearisation (blank takes the wells&apos; mean, shown beside the box). A cleared box holds the run with a message.
+        </Para>
+        <Para>
+          The density gate decides whether a density volume is written, and says why under the blind table. Density is
+          written when the farthest stack reaches 25 degrees and the blind density correlation at the wells (the median, over
+          two wells or more) reaches the gate, 0.5 by default. Otherwise the run still writes AI, SI and Vp/Vs, and density
+          is left out with its reason. Stacks that all sit under 25 degrees no longer stop the run.
+        </Para>
+        <Para>
+          Tick Also write each stack&apos;s seismic residual to get, for every stack, the stack minus the synthetic of the
+          inverted logs through the same wavelet and Fatti operator. The line under the blind table gives the residual at each
+          well as a percentage of each stack&apos;s RMS: structured energy left in the residual is what the inversion could not fit.
         </Para>
       </GuideSection>
 
@@ -248,6 +286,26 @@ function QIStudioHelpGuideContent() {
           much of the well falls inside Q10 to Q90 (about 80 percent is right); facies report the share predicted correctly. A
           poor correlation, a poor facies score or an interval that covers under 60 or over 95 percent is offered to the
           issue register.
+        </Para>
+        <Para>
+          The check is blind. A well is left out of the property model, and it is predicted from the inversion run with that
+          well held back (the estimate the inversion volume recorded at it), or from the volume where the inversion never
+          used the well. An impedance volume made before 2026-10-15 holds no held-back estimate; the check then names the
+          wells where it is not blind and offers an issue to rerun the inversion.
+        </Para>
+        <SubHeading>Net-to-gross and water saturation</SubHeading>
+        <Para>
+          Predict also offers net-to-gross and water saturation from impedance, beside porosity, each as Q10, Q50 and Q90
+          held within 0 and 1. Net-to-gross reads an NTG or net-flag curve (NTG, NET, NET_FLAG, NETSAND, PAYFLAG and similar);
+          a well without one gets a net flag from its shale volume and porosity with the cutoffs you set (Vsh at most 0.4 and
+          porosity at least 0.08 by default), named in the wells table. Water saturation reads the SW curve. Water saturation
+          from the seismic is labelled a fluid hypothesis.
+        </Para>
+        <Para>
+          Each is written only when its blind check passes the gate: the check must be fully blind, at two wells or more, and
+          every well left out must correlate at the set value or more (0.5) with the set share of the well inside Q10 to Q90
+          (60 to 95 percent). Until it passes, Predict the volume stays off and the line under the check says why; change
+          the gate and the line follows. Porosity is not gated, as before.
         </Para>
       </GuideSection>
 
@@ -294,6 +352,10 @@ function QIStudioHelpGuideContent() {
       <GuideSection id="issues">
         <SectionHeading icon={AlertTriangle}>Issue register</SectionHeading>
         <Para>The matrix suggests one issue per well and kind of gap, with a remedy. Keep a suggestion by giving it an owner or a status; a dismissed or resolved issue stays as you left it. Add your own issues at the foot of the table.</Para>
+        <SubHeading>Objectives and decisions</SubHeading>
+        <Para>Write the study's objectives and acceptance criteria on Setup, under the three setup cards: what the study must deliver and how a result will be judged, for example the blind-well error a product must meet before it is used. A line per target is optional.</Para>
+        <Para>Under the issue register, record each decision taken at a gate of the study: the gate (Data QC, Feasibility, Pilot or one you name), the outcome and the decision, who took it, the date, and the run or check it rests on (any blind-well check, inversion, property check or other run the study holds, or a version you type). Decisions are records for the report. Nothing is locked and no sign-off is enforced; a decision never counts as an issue.</Para>
+        <Para>The report prints the objectives after the summary and the decisions after the issue register; the summary says how many decisions were recorded and the latest one.</Para>
       </GuideSection>
 
       <GuideSection id="feasibility">

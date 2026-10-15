@@ -140,3 +140,18 @@ export function _resetProjectScope() {
   listeners.clear();
   pending = null;
 }
+
+/**
+ * Run a select scoped to the current project; when the table has no project
+ * column yet (its migration not applied), run it again unscoped. For the P4
+ * app tables, whose column arrives with a later migration than the registries.
+ * @param {() => Object} build a function returning a fresh filter builder (before order/limit)
+ * @param {(q: Object) => Object} [finish] adds order/limit/range
+ */
+export async function selectScoped(build, finish = (q) => q) {
+  await whenProjectScopeReady();
+  if (!state.enabled || !state.projectId) return finish(build());
+  const first = await finish(scopeToProject(build()));
+  if (!first?.error || !isProjectColumnError(first.error)) return first;
+  return finish(build());
+}

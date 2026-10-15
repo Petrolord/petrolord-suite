@@ -13,9 +13,11 @@ import { useToast } from '@/components/ui/use-toast';
 import { AccountScope, AccountPage, AccountHeader, accountCallout } from '@/components/account/accountChrome';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useProject } from '@/contexts/ProjectContext';
-import { MOVABLE, listMovable, moveToProject } from '@/lib/projects/projectsService';
+import { MOVABLE, APP_MOVABLE, listMovable, moveToProject } from '@/lib/projects/projectsService';
 import { INTERNAL_LABEL, projectLabel } from '@/lib/projects/projectGrouping';
 import ProjectSettingsCard from '@/components/projects/ProjectSettingsCard';
+import ProjectMembersCard from '@/components/projects/ProjectMembersCard';
+import { copyToProject, isCopyable } from '@/lib/projects/copyToProject';
 
 const DEFAULT_COLOUR = '#2563EB';
 
@@ -161,7 +163,7 @@ function MovePanel({ projects, defaultProjectId, userId, onMoved }) {
   }, [source, table, defaultProjectId, userId]);
 
   const toggle = (id) => setPicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const label = MOVABLE.find((m) => m.table === table)?.label || 'Records';
+  const label = [...MOVABLE, ...APP_MOVABLE].find((m) => m.table === table)?.label || 'Records';
   const targets = active.filter((p) => p.id !== source);
 
   const move = () => run('move', async () => {
@@ -171,6 +173,15 @@ function MovePanel({ projects, defaultProjectId, userId, onMoved }) {
     onMoved?.();
     return n;
   }, (n) => `${n} moved to ${projects.find((p) => p.id === target)?.name || 'the project'}`);
+
+  const copy = () => run('copy', async () => {
+    const tgt = projects.find((p) => p.id === target);
+    const src = projects.find((p) => p.id === source);
+    const res = await copyToProject({ table, ids: [...picked], target: tgt, sourceName: src?.name });
+    setPicked(new Set());
+    onMoved?.();
+    return res;
+  }, (res) => `${res.copied} copied to ${projects.find((p) => p.id === target)?.name || 'the project'}${res.notes.length ? `. ${res.notes.join(' ')}` : ''}`);
 
   return (
     <div className="space-y-3" data-testid="projects-move">
@@ -182,7 +193,12 @@ function MovePanel({ projects, defaultProjectId, userId, onMoved }) {
         </label>
         <label className="text-xs text-pl-muted">What
           <NativeSelect value={table} onChange={(e) => setTable(e.target.value)} data-testid="projects-move-kind">
-            {MOVABLE.map((m) => <option key={m.table} value={m.table}>{m.label}</option>)}
+            <optgroup label="Data">
+              {MOVABLE.map((m) => <option key={m.table} value={m.table}>{m.label}</option>)}
+            </optgroup>
+            <optgroup label="App projects">
+              {APP_MOVABLE.map((m) => <option key={m.table} value={m.table}>{m.label}</option>)}
+            </optgroup>
           </NativeSelect>
         </label>
         <label className="text-xs text-pl-muted">To
@@ -213,7 +229,13 @@ function MovePanel({ projects, defaultProjectId, userId, onMoved }) {
         <Button size="sm" disabled={!picked.size || !target || busy === 'move'} onClick={move} data-testid="projects-move-submit">
           <ArrowRightLeft className="mr-1 h-3.5 w-3.5" /> Move {picked.size || ''} {label.toLowerCase()}
         </Button>
-        <span className="text-xs text-pl-muted">Logs, tops, horizons and faults go with their well or volume. Only records you own can be moved.</span>
+        {isCopyable(table) && (
+          <Button size="sm" variant="outline" disabled={!picked.size || !target || busy === 'copy'} onClick={copy} data-testid="projects-copy-submit"
+            title="Copy keeps the originals; the copies record where they came from">
+            Copy {picked.size || ''} {label.toLowerCase()}
+          </Button>
+        )}
+        <span className="text-xs text-pl-muted">Logs, tops, horizons and faults go with their well or volume. Only records you own can be moved; copies record where they came from. Seismic is moved, never copied.</span>
       </div>
     </div>
   );
@@ -268,6 +290,8 @@ export default function ProjectsPage() {
             </Card>
 
             <ProjectSettingsCard />
+
+            <ProjectMembersCard />
 
             <Card>
               <CardHeader>
@@ -338,8 +362,8 @@ export default function ProjectsPage() {
             {p.projects.filter((x) => x.status === 'active').length > 1 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base"><ArrowRightLeft className="h-4 w-4" /> Move to project</CardTitle>
-                  <CardDescription>Move wells, surfaces and seismic you loaded before projects existed out of Default and into a client project.</CardDescription>
+                  <CardTitle className="flex items-center gap-2 text-base"><ArrowRightLeft className="h-4 w-4" /> Move or copy to project</CardTitle>
+                  <CardDescription>Move wells, surfaces and seismic you loaded before projects existed out of Default and into a client project, or copy wells, surfaces and culture into another project.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <MovePanel projects={p.projects} defaultProjectId={p.defaultProjectId} userId={user?.id} onMoved={p.refresh} />

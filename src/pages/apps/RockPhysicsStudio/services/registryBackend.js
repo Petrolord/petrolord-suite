@@ -20,6 +20,7 @@ import { getDepthUnit } from '@/lib/crs/settingsService';
 import { staleOwnCurves } from './publish';
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { supabaseSharingStore } from '@/lib/recordSharing';
+import { selectScoped } from '@/lib/projects/projectScope';
 
 // U2-011: SCAL Studio's saved projects, read only (the saturation-height link)
 const scalProjects = createSavedProjectsService('saved_scal_projects');
@@ -58,8 +59,8 @@ async function currentUserId() {
 async function loadProject() {
   const uid = await currentUserId();
   if (!uid) return null;
-  const { data, error } = await supabase.from('rp_projects')
-    .select('*').eq('user_id', uid).order('updated_at', { ascending: false }).limit(1);
+  const { data, error } = await selectScoped(() => supabase.from('rp_projects')
+    .select('*').eq('user_id', uid), (q) => q.order('updated_at', { ascending: false }).limit(1));
   if (error) throw new Error(`Could not load the project: ${error.message}`);
   return openStateRow(RP_PROJECT_KIND, data?.[0] || null);
 }
@@ -68,8 +69,8 @@ async function loadProject() {
 async function listSharedProjects() {
   const uid = await currentUserId();
   if (!uid) return [];
-  const { data, error } = await supabase.from('rp_projects')
-    .select('*').neq('user_id', uid).order('updated_at', { ascending: false });
+  const { data, error } = await selectScoped(() => supabase.from('rp_projects')
+    .select('*').neq('user_id', uid), (q) => q.order('updated_at', { ascending: false }));
   if (error) throw new Error(`Could not load shared projects: ${error.message}`);
   return (data || []).map((row) => openStateRow(RP_PROJECT_KIND, row));
 }

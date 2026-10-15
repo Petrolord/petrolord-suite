@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit eab475c0d8ae0afbf34eb096a31f9c3084ebb785
+# commit 1b0a7a80612dc9e428f01d0312f7e66c6d7dbea0
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 d8bd133c5a081611291cb72e0efd5909a2e23b77 README.md
@@ -18,7 +18,7 @@ c91937938e3031f16b175ed9dc3b69713a406be6 __tests__/assurance.peerReview.test.js
 08cf37a2403c072de69c04d5523c0d05489b97c5 __tests__/assurance.quality.test.js
 a8c2c7336a4a7636ecdf56915fde5530f3d8d8e4 __tests__/assurance.risk.test.js
 b809a10102bc1602e30553ec33588ce56396c59e __tests__/avoClass.shared.test.js
-124ba156f48d8c16efd50137ccaf398194f269a3 __tests__/basin.deposition.test.js
+8c22b418c05ed64bb69b3a2554114d5f05847a40 __tests__/basin.deposition.test.js
 64c78bc711e48200210995a0b4be3ffd1b38bf1f __tests__/basin.test.js
 285bfe65097236a1c319bd7af962515d5db8f183 __tests__/basin.u2.test.js
 17552372b2f1ad85fd1cd0b6b33ab0e0b50f95fe __tests__/conventions.percentile.test.js
@@ -184,6 +184,7 @@ edb4bba372d3f54b6827865ef991bd6ee530e2f5 __tests__/qi.avo.test.js
 520d51efb30505be1fc44c5d4b5bc677b3e42f57 __tests__/qi.avoWells.golden.test.js
 1cf6c7e83d7e70f1c48561d18bfddc81dcafa47f __tests__/qi.avoWells.test.js
 e1333d257cb20c4d6050f3c2cd7253b9cfdcf1c5 __tests__/qi.conditioning.test.js
+e077c0d94a61f91523dccec8213c80afabbfe654 __tests__/qi.gatherDisplay.test.js
 23abe33ffea75f3a8c917420d66b93614186b30e __tests__/qi.gatherStore.test.js
 519652967f7162c407e1918ca140a996b3c939a1 __tests__/qi.inversion.test.js
 e6d7f81fccfe0c1e8a640246a2210dbc8d473515 __tests__/qi.inversionBenchmark.test.js
@@ -210,6 +211,7 @@ b2e83fda11504d1b4e6d01bf93e3c0564088fb08 __tests__/qi.prospectAssessment.test.js
 6f0764267cadbd534b356cdde264877372b121ab __tests__/qi.wavelets.golden.test.js
 165ed05b60d56afb381c6b55f0b3fece447555b5 __tests__/qi.wavelets.test.js
 ed3270eb17361b5cebbdd0f30eedd01b45cbf111 __tests__/qi.wellWavelet.test.js
+2a28caf41b5952dc6885a9230d8169863748bc36 __tests__/qi.zoneMaps.test.js
 0d7df040715fddf9e2d1ab371ac66511589a7416 __tests__/rockphysics.elasticSet.test.js
 287153d56b19c0135029e9ede8d183df4791375a __tests__/rockphysics.granular.test.js
 40e01f5b5239d0f0ec43e089564ed307724cf229 __tests__/rockphysics.inclusion.test.js
@@ -352,7 +354,7 @@ e243eed36f7591d755372ad82cd59eecf25e7b47 engines/basin/KerogenLibrary.js
 1ce7f1f5e6c83d362050f04da600fe371fad1eed engines/basin/MaturityEngine.js
 50e0375dcd2fa26e4fb4c76f7b87c10b3db12927 engines/basin/PhysicsUtils.js
 dd2cc5dd31e2a03589e4bca67d850a49b98a7b20 engines/basin/PressureEngine.js
-b99ba5b967ba812d370129349d1dcf09ddcedd50 engines/basin/SimulationEngine.js
+b8ea7bada331d0731bc016383331914d02a7fcec engines/basin/SimulationEngine.js
 aef2e1ecf07b9d9301597dd3e6bb6ba7f889ee25 engines/basin/ThermalPropertiesLibrary.js
 aef6b2b6b3a2abfd55c408a4bc8fefc3a1edc0e1 engines/basin/results.js
 7a80ae1b87054cb30df4ba3950d1d77a85f689da engines/dataai/cluster.js
@@ -541,6 +543,7 @@ b7a2a85022f3df59f44051d5202dcf9746502326 engines/production/pumpingUnit.js
 89fc8a8198ce8bee736b3201b98d4d156e4f70f5 engines/qi/avo.js
 fa4a7ffb32ec8e0695c2fced6bf3c113194ebb5c engines/qi/avoWells.js
 9f024a3222d069cb800211bee488d53b18a76d1e engines/qi/conditioning.js
+946a068844430f3ac029cc011f05de832c0098bd engines/qi/gatherDisplay.js
 64558a3ec11060d42e891f44e242b2afdbafadf5 engines/qi/gatherStore.js
 9adb98740539dcefc0bbb0f555abaa5f0f35d37e engines/qi/inversion.js
 b6267b2f9521bfed5a8562dd13fa2e9e7334d9d3 engines/qi/inversionQc.js
@@ -555,6 +558,7 @@ ce6079ddef299f584e8312a190bdc331bf0662e1 engines/qi/prestackInversion.js
 5f159f8215b0bcc5018d0d319f0c50d9b95aaad9 engines/qi/prospectTrap.js
 00816e027603e25d60cd84661a1d32aed42a931b engines/qi/seismicQc.js
 a3e064649c8418634140bd1bb0e006628d8ed728 engines/qi/wavelets.js
+07377464c0e593ae5abe5be8668eab6aa19bd23c engines/qi/zoneMaps.js
 d8c8b2643cb0882aa7dec057c3e5640299037dce engines/rockphysics/avo.js
 ac672eb24b8e3fe0796b8469a90030348fa4014b engines/rockphysics/avoTrend.js
 481b5ed27afe98bc0c4fa2dc836be48cdda97e8c engines/rockphysics/elasticSet.js
@@ -925,6 +929,7 @@ a3394629f03571d772ab4524515bf7f8255279d5 test-data/qi/goldens.prospectAssessment
 3e5f2967957b233c3ad5e643bb43c8622c41d632 test-data/qi/goldens.qiWavelets.json
 d4d7db86331d3553802186e61102e80978516d7b test-data/qi/goldens.seismicQc.json
 ea5bd4e4b84b284b589d9b228122c7ddf16b33cd test-data/qi/goldens.seismicQc2.json
+dcd14c7263e1e45a7b0baf897d4db6f438bc2bc3 test-data/qi/goldens.zoneMaps.json
 24fad5ff79c18941b580e070e62ba933d0e7f39f test-data/rockphysics/README.md
 709118ddc42cd8be25c096e5ca0b9aa7eef68462 test-data/rockphysics/goldens.elastic.json
 08565d2e41c2b603860c944603d49791696abdbd test-data/rockphysics/goldens.granular.json
@@ -1287,6 +1292,7 @@ f98e8220ec2b501eda0b8c2361e070d565178d93 tools/validation/qi/oracle_qi_avo_wells
 6d63cbc5dc100e90959649fb1a9d956fab48b066 tools/validation/qi/oracle_qi_seismic_qc2.py
 625bfdd39b33e9336fce81549883db123debd249 tools/validation/qi/oracle_qi_wavelets.py
 7c802ec4dc4f8e76e0e4d119c3a7c6024a4d0529 tools/validation/qi/oracle_seismic_qc.py
+94d6a6ade14f8a040c0387332c3ee0a84076794f tools/validation/qi/oracle_zone_maps.py
 1d9f0f316ae1c59d449b881071008684d281dcc8 tools/validation/rockphysics/crosscheck_elastic_scipy.py
 784945cc56b622616f012560fc7490828003c042 tools/validation/rockphysics/crosscheck_inclusion_rockphypy.py
 d0eeebb8618e71d32b34fe7416f758bc71d282f7 tools/validation/rockphysics/crosscheck_rockphypy.py

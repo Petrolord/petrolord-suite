@@ -72,6 +72,9 @@ export function makeInMemoryBackend() {
       const n = Math.round((l.stop_md_m - l.start_md_m) / l.step_m) + 1;
       const dt = /^DT/.test(l.mnemonic);
       if (/^PHI/.test(l.mnemonic)) return Float32Array.from({ length: n }, (_, i) => 0.2 + 0.05 * Math.sin(i / 55));
+      // QI upgrade P1.3: shale volume and water saturation for NTG and Sw
+      if (/^VSH/.test(l.mnemonic)) return Float32Array.from({ length: n }, (_, i) => 0.35 - 0.2 * Math.sin(i / 55));
+      if (/^SW/.test(l.mnemonic)) return Float32Array.from({ length: n }, (_, i) => 0.45 - 0.25 * Math.sin(i / 55));
       if (/FACIES/.test(l.mnemonic)) return Float32Array.from({ length: n }, (_, i) => (Math.sin(i / 55) > 0 ? 1 : 2));
       return Float32Array.from({ length: n }, (_, i) => (dt ? 330 - 0.03 * i * l.step_m + 15 * Math.sin(i / 40) : 2.3 + 0.0001 * i * l.step_m + 0.04 * Math.sin(i / 55)));
     },
@@ -149,7 +152,7 @@ function makeInMemoryJobs({ removedDatasets = new Set() } = {}) {
       }
       if (kind === 'prestack_inversion') {
         const blind = params.inversion.wells.map((w, i) => ({ name: w.name, blind: { ai: { rmsPct: 4.1 + i, corr: 0.9 }, si: { rmsPct: 5.2 + i, corr: 0.86 }, rho: { rmsPct: 3.3 + i, corr: 0.62 } }, withWell: { ai: { rmsPct: 2.5 }, si: { rmsPct: 3 }, rho: { rmsPct: 2 } } }));
-        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, settings: { method: 'Fatti three-term simultaneous inversion', vs_vp: 0.52, wavelet_scale: 1.1 }, blind, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}) } });
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, settings: { method: 'Fatti three-term simultaneous inversion', vs_vp: 0.52, wavelet_scale: 1.1 }, blind, blind_protocol: { version: 'held-back-v2', excluded_from: ['the three low-frequency models', 'the wavelet scale', 'the background Vs/Vp'] }, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}) } });
         return id;
       }
       if (kind === 'sample_volumes' && params.traces) {
@@ -186,7 +189,8 @@ function makeInMemoryJobs({ removedDatasets = new Set() } = {}) {
         const summary = pr.kind === 'facies'
           ? { classes: Object.values(pr.names).map((n, i) => ({ name: n, n: 200 - 40 * i, prior: 0.5 - 0.1 * i, mean: 6200 + 900 * i, sd: 450 })), density: pr.density || 'gaussian' }
           : { a: 0.41, b: -3.4e-5, r2: 0.74, n: 600, s: 0.018 };
-        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, settings: { kind: pr.kind }, summary, rows, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}) } });
+        const blindProtocol = { version: 'held-back-v2', fully_blind: true, rows: pr.wells.map((w) => ({ name: w.name, source: 'held_back' })) };
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, settings: { kind: pr.kind, ...(pr.gate ? { gate: { thresholds: pr.gate } } : {}) }, summary, rows, blind_protocol: blindProtocol, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}) } });
         return id;
       }
       if (kind === 'poststack_inversion') {
@@ -198,7 +202,7 @@ function makeInMemoryJobs({ removedDatasets = new Set() } = {}) {
           rows: params.inversion.wells.map((w, i) => ({ name: w.name, q10: 3 + i, q50: 5 + i, q90: 8 + i })),
           byScenario: [{ label: 'scenario 1', meanRmsPct: 4.5 }, { label: 'scenario 2', meanRmsPct: 6.1 }, { label: 'scenario 3', meanRmsPct: 9.8 }],
         } : null;
-        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, volume_id: params.volume_id, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}), settings: { method: params.inversion.method, qi_class: 'elastic_estimate', wavelet_scale: 1.2 }, blind, ...(sensitivity ? { sensitivity } : {}) } });
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, volume_id: params.volume_id, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}), settings: { method: params.inversion.method, qi_class: 'elastic_estimate', wavelet_scale: 1.2 }, blind, blind_protocol: { version: 'held-back-v2', excluded_from: ['the low-frequency model', 'the wavelet scale', ...(params.inversion.blind_wavelets ? ['the field wavelet average'] : [])] }, ...(sensitivity ? { sensitivity } : {}) } });
         return id;
       }
       const qc = await runSeismicQc({ getBrick, geom: { nIl, nXl, ns, brickSize: b, grid }, dtMs: 2, inlines: 6 });

@@ -52,3 +52,12 @@ QI Studio holds the first package of a quantitative interpretation study: the da
 
 1. Apply `20261006140000_saved_qi_studio_projects.sql`.
 2. Decide whether QI Studio gets its own Geoscience tile and price.
+
+## Upgrade P1-P2 (owner GO 2026-10-14)
+
+- **P1.1 Light governance (2026-10-15):** an "Objectives and acceptance criteria" box on Setup (study text, optional line per target; payload `objectives`), and decisions in the issue register (gate Data QC, Feasibility, Pilot or a named gate; outcome, decision, by whom, date, the run or version it rests on; saved in `issues` with `type: 'decision'`, shown in their own table under the register and never counted as issues). Both are printed in the report. No workflow engine and no enforced sign-off. Tests `__tests__/qiGovernance.test.jsx` (7).
+
+- **P1.2 Truly blind wells (2026-10-15):** a held-back well is out of the low-frequency model, the wavelet scale or coloured operator, the background Vs/Vp and the wavelet average (field or angle wavelets rebuilt without it), for post-stack, simultaneous and property checks. Inversion volumes record each well's held-back estimate (`blind_traces`, packed) and the property check predicts from it. The protocol is printed under each blind table and in the report. Simultaneous blind results go to the issue register (U2-008). Tests: worker `poststackInversion`, `prestackInversion`, `propertyPrediction` (hand-built references plus the old protocol as negative control), `__tests__/qiBlindProtocol.test.js`.
+- **P1.4 Inversion trust outputs (2026-10-15):** a seismic residual volume (input minus the synthetic of the inversion) for post-stack and, per stack, simultaneous runs; the residual at each well in the blind results; the density gate decides whether density is written (farthest stack 25 degrees, median blind density correlation 0.5 over two wells or more), with its reason, while AI, SI and Vp/Vs are always written; the Simultaneous tab's Settings offer the pulls, Vs/Vp, model cut and gate (U2-007).
+
+- **P1.3 NTG and Sw (2026-10-15):** net-to-gross (an NTG or net-flag curve, or a net flag from Vsh and porosity cutoffs) and water saturation from impedance beside porosity, Q10/Q50/Q90 held within 0 and 1; each volume is written only when its blind check passes the gate (fully blind, two wells or more, every left-out well at correlation 0.5 or more and 60 to 95 percent inside Q10 to Q90; editable), enforced in the panel and on the worker (`gate_failed`). Sw is a fluid hypothesis.

@@ -160,7 +160,9 @@ export const curvePath = (userId, wellId, logId) => `${userId}/${wellId}/logs/${
 /** Server-backed check used by saveWell and updateWell: reads the wells
  *  the caller can see (RLS: own + org-shared) and applies the rule. */
 export async function assertWellNameFree(name, { exceptId = null, userId = null } = {}) {
-  const { data, error } = await supabase.from('geo_wells').select('id, name, user_id');
+  // Suite Projects P3: a name is unique within a project (migration 20261015120000)
+  await whenProjectScopeReady();
+  const { data, error } = await scopeToProject(supabase.from('geo_wells').select('id, name, user_id'));
   if (error) throw new Error(`Could not check well names: ${error.message}`);
   const msg = wellNameClashMessage(name, data || [], { exceptId, userId });
   if (msg) throw new Error(msg);

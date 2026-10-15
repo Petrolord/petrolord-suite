@@ -31,6 +31,7 @@ export async function listSeismicFaults() {
   });
 }
 import { createSavedProjectsService } from '@/utils/savedProjects';
+import { selectScoped } from '@/lib/projects/projectScope';
 
 // U2-002: the user's saved SCAL Studio projects, read only (Petrophysics reads them the same way)
 const scalProjects = createSavedProjectsService('saved_scal_projects');
@@ -78,8 +79,8 @@ const EM_MODEL_KIND = 'em-model';
 registerStateKind(EM_MODEL_KIND, { current: 1, label: 'earth model' });
 
 async function listProjects() {
-  const { data, error } = await supabase.from('em_models')
-    .select('*').order('updated_at', { ascending: false });
+  const { data, error } = await selectScoped(() => supabase.from('em_models')
+    .select('*'), (q) => q.order('updated_at', { ascending: false }));
   if (error) throw new Error(`Could not load models: ${error.message}`);
   return (data || []).map((row) => openStateRow(EM_MODEL_KIND, row));
 }

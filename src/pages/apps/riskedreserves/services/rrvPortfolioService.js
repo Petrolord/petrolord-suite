@@ -7,6 +7,7 @@
 // changes.
 
 import { buildRrvPortfolioCandidate } from './rrvPortfolioCandidate';
+import { selectScoped } from '@/lib/projects/projectScope';
 
 const isMissingTable = (error) => !!error && (['42P01', 'PGRST205'].includes(String(error.code))
   || /relation .* does not exist|Could not find the table/i.test(String(error.message || '')));
@@ -36,7 +37,7 @@ const assemble = (rows, userId, build) => rows.map((row) => ({
  */
 export async function listRrvPortfolioCandidates(supabase, { limit = 100, build = null } = {}) {
   const userId = await readerId(supabase);
-  const { data, error } = await supabase.from('rrv_valuations').select('*').order('updated_at', { ascending: false }).limit(limit);
+  const { data, error } = await selectScoped(() => supabase.from('rrv_valuations').select('*'), (q) => q.order('updated_at', { ascending: false }).limit(limit));
   if (error) throw fail(error);
   return assemble(data || [], userId, build);
 }

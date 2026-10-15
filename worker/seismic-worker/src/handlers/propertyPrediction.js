@@ -22,7 +22,8 @@ import { JobFailure } from '../runJob.js';
 import { pilotProblem, pilotOn, pilotBytes } from '../pilot.js';
 import { seismicQuota, overQuotaMessage } from '../quota.js';
 import {
-  validatePropertyParams, calibrateProperty, predictTrace, faciesClass, PROPERTY_KINDS,
+  validatePropertyParams, calibrateProperty, predictTrace, faciesClass, PROPERTY_KINDS, blindCheckTraces,
+  propertyGate, propertyClass, propertyShort, clampFraction,
 } from '../../../../src/pages/apps/QIStudio/services/propertyRun.js';
 import { assertFloat32Parent, derivedStorageBytes, derivedSurveyMeta } from '../../../../src/pages/apps/Seismolord/services/attributeSurveyMeta.js';
 import { storageBrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCache.js';
@@ -168,9 +169,12 @@ export async function propertyPrediction(ctx, deps) {
     aiTraces.push(await readTrace(w.il, w.xl));
     if (two) vpvsTraces.push(await readTrace(w.il, w.xl, fetchSecond));
   }
+  // truly blind (QI upgrade P1.2): each left-out well is predicted from the
+  // inversion's held-back estimate at it, when the volume records one
+  const bc = blindCheckTraces({ wells: pr.wells, aiParams: ap, vpvsParams: two ? secondManifest.attribute?.params || {} : null, aiTraces, vpvsTraces });
   let cal;
   try {
-    cal = calibrateProperty({ pr, aiTraces, vpvsTraces, dtMs });
+    cal = calibrateProperty({ pr, aiTraces: bc.aiTraces, vpvsTraces: bc.vpvsTraces, dtMs });
   } catch (e) {
     return fail('compute_failed', e.message);
   }
@@ -179,11 +183,16 @@ export async function propertyPrediction(ctx, deps) {
     wells: pr.wells.map((w) => w.name), window_ms: pr.window_ms || null, upscale_hz: pr.upscaleHz ?? 50,
     ...(pr.kind === 'facies' ? { names: pr.names, density: pr.density || 'gaussian', priors: pr.priors || 'wells', attributes: two ? 'ai_vpvs' : 'ai', ...(two ? { second_volume_id: second.id, second_volume_name: second.name } : {}) } : {}),
   };
+  // QI upgrade P1.3: NTG and Sw are written only when their blind check passes the gate
+  const gated = !!PROPERTY_KINDS[pr.kind].gated;
+  const gate = gated ? propertyGate({ settings: { kind: pr.kind }, rows: cal.rows, blind_protocol: bc.protocol }, pr.gate || {}) : null;
+  if (gate) settings.gate = { pass: gate.pass, thresholds: gate.thresholds, reasons: gate.reasons };
   if (ctx.cancelled) { await cleanup(); return null; }
   if (p.mode === 'calibrate') {
     ctx.progress(1, 'Done');
-    return { mode: 'calibrate', settings, summary: cal.summary, rows: cal.rows };
+    return { mode: 'calibrate', settings, summary: cal.summary, rows: cal.rows, blind_protocol: bc.protocol, ...(gate ? { gate } : {}) };
   }
+  if (gate && !gate.pass) return fail('gate_failed', gate.text);
 
   const keys = outputKeys(pr, pr.kind === 'facies' ? cal.model.classes.map((c) => c.name) : null);
   if (keys.some((k) => !p.volume_ids[k])) return fail('validate_failed', 'A facies present at the wells has no output volume.');
@@ -207,8 +216,9 @@ export async function propertyPrediction(ctx, deps) {
       const base = ((il % b) * b + (xl % b)) * b;
       vp = Float32Array.from({ length: ns }, (_, s) => secondCol.get(Math.floor(s / b))[base + (s % b)]);
     }
+    const frac = !!PROPERTY_KINDS[pr.kind].fraction;
     predictTrace(cal.model, pr, trace, vp).forEach((v, o) => {
-      for (let k = 0; k < ns; k++) outs[o][k] = Number.isFinite(v[k]) ? v[k] : NULL_VALUE;
+      for (let k = 0; k < ns; k++) outs[o][k] = Number.isFinite(v[k]) ? (frac ? clampFraction(v[k]) : v[k]) : NULL_VALUE;
     });
   };
   let result;
@@ -232,8 +242,8 @@ export async function propertyPrediction(ctx, deps) {
       const facies = key.startsWith('p:') ? pr.names[key.slice(2)] : null;
       const product = pr.kind === 'facies'
         ? (facies ? { product: key, product_label: `Probability of ${facies}`, qi_class: faciesClass(facies) } : { product: 'best', product_label: 'Most likely facies (code)', qi_class: 'calibrated_prediction' })
-        : { product: key, product_label: `Porosity, ${key.toUpperCase()}`, qi_class: 'calibrated_prediction' };
-      const attribute = { name: PROPERTY_ATTRIBUTE, params: { ...settings, ...product, summary: cal.summary, check: cal.rows } };
+        : { product: key, product_label: `${propertyShort(pr.kind)}, ${key.toUpperCase()}${PROPERTY_KINDS[pr.kind].fraction ? ' (held within 0 and 1)' : ''}`, qi_class: propertyClass(pr.kind) };
+      const attribute = { name: PROPERTY_ATTRIBUTE, params: { ...settings, ...product, summary: cal.summary, check: cal.rows, blind_protocol: bc.protocol } };
       const out = buildDerivedManifest({ volumeId: d.id, name: d.name, parentManifest: manifest, attribute, job: { ...result, stats: result.statsByOutput[o] } });
       if (pilot) out.pilot = pilot.record;
       await deps.storage.upload(manifestPath(uid, d.id), new TextEncoder().encode(JSON.stringify(out, null, 1)), { contentType: 'application/json', upsert: true });
@@ -245,7 +255,7 @@ export async function propertyPrediction(ctx, deps) {
     // a facies named but absent at the wells has no model class: its registered row goes
     for (const d of derived) if (!targets.includes(d)) await admin.from('seismic_volumes').delete().eq('id', d.id).eq('user_id', uid);
     ctx.progress(1, 'Done');
-    return { mode: 'volume', volume_ids: Object.fromEntries(keys.map((k, o) => [k, targets[o].id])), settings, summary: cal.summary, rows: cal.rows, trace_count: result.traceCount, ...(pilot ? { pilot: pilot.record } : {}) };
+    return { mode: 'volume', volume_ids: Object.fromEntries(keys.map((k, o) => [k, targets[o].id])), settings, summary: cal.summary, rows: cal.rows, blind_protocol: bc.protocol, ...(gate ? { gate } : {}), trace_count: result.traceCount, ...(pilot ? { pilot: pilot.record } : {}) };
   } catch (e) {
     await cleanup();
     throw e;

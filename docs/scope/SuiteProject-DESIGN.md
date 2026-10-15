@@ -314,6 +314,69 @@ byte-identical; a colleague who does not manage the project and another
 organisation's user change nothing; the negative control (editing the well)
 moves the fingerprint. 9 of 9 on production.
 
+## 15. P3 as built (2026-10-14): members, roles, copy, archive, names
+
+- **Members and roles** (Projects page, `ProjectMembersCard`): owners and
+  organisation admins add colleagues from the organisation, set roles (owner,
+  editor, viewer) and remove them; a member may leave. Every change is in the
+  project log, which owners and admins read beside the admin opens. Rules are
+  the P0 tables and triggers; no new policy.
+- **Copy to project** (`src/lib/projects/copyToProject.js`): wells (with logs,
+  tops, zones, intervals), surfaces and culture are copied with the `.pld`
+  round trip run in memory, so curve samples and grids are real copies under
+  new ids and storage paths, every copied row records
+  `provenance.imported_from`, and a name the target already uses arrives as
+  "<name> (imported)". Seismic is moved, never copied.
+- **Archive**: projects and clients (built in P1); archived projects leave the
+  switcher and the insert stamp, nothing is deleted.
+- **Well names unique per project** (migration
+  `20261015120000_geo_wells_name_unique_per_project.sql`): the unique index
+  is now (owner, project, name key) instead of (owner, name key). The app's
+  name check, the `.pld` importer's clash list and Move to project follow the
+  project; a move into a project that already has the name is refused with a
+  plain message.
+
+Gate (live, rolled back, `run_liveprobes.sh E` and `D`): 20 of 20 role probes
+(viewer reads but cannot add data, members, roles or settings; editor adds
+data but not members; another organisation's user cannot be added; an org
+admin adds a member and it is logged; removal ends access while the removed
+member keeps their own rows; leaving works) and 5 of 5 name probes, whose
+negative control (without the migration) fails the second project's name.
+
+## 16. P4 as built (2026-10-14): app project tables adopt the project
+
+Migration `20261015130000_suite_projects_p4_app_tables.sql` gives 77 root
+tables the P0 treatment (column, insert stamp, RESTRICTIVE policies,
+backfill into the creator's default project); child tables follow their
+root. Module by module:
+
+| Module | Root tables | Lists now scoped in |
+|---|---|---|
+| Geoscience apps | petro_projects, pp_projects, rp_projects, em_models, bf_wells, rcp_prospects, rrv_valuations, saved_qi_studio_projects, saved_quickvol_projects | Petrophysics, Pore Pressure, Rock Physics, Earth Modeling, Basin, ReservoirCalc Pro (projects and prospects), Risked Reserves, QI Studio |
+| Every Studio-shell app (Reservoir, Production, Facilities, Economics, Midstream, Downstream) | every `saved_*_projects` and `scm_*_projects` | the shared `createSavedProjectsService` (one change covers them all) |
+| Drilling | wp_sites (every `wp_*` hangs from a site) | Well Design Studio (`wpApi.listSites`) |
+| Economics | epe_cases (cases); epe_assumption_sets (a library: column and stamp, list stays organisation-wide, decision 4) | Petroleum Economics Studio case list |
+| Production | po_fields | Production Operations (`productionSpine.listFields`) |
+| Material balance | rb_cases | Material Balance Studio |
+| Simulation | sim_cases | Reservoir Simulation Studio |
+
+Rules kept from P0: saves never carry a project (a new row is placed by the
+database's insert stamp, and saving an existing row never moves it); lists
+use `selectScoped`, which falls back to the unscoped list if the column is
+not there yet, so the code is safe before the migration is applied; Move to
+project accepts these tables (owner of the rows, editable target, logged).
+
+Gate: rolled-back production dry run (`run_p4_dryrun.sh`): applied twice;
+every persona's view of all 77 tables (counts and md5 of visible ids, demo
+included, 1240 comparisons) unchanged after apply and after rollback; 148
+rows stamped, none left without a project; verify all true; probes 10 of 10
+(saved project lands in the default, or in the current project; an
+org-shared ReservoirCalc Pro project in a members-only project is hidden from
+a non-member until moved to the open default; another organisation never sees
+it; a non-member cannot write into the members-only project; Well Design
+sites and Economics cases land in the default). Each module's jest suites
+green on the branch.
+
 ### Status
 
 | Phase | State |
@@ -321,4 +384,5 @@ moves the fingerprint. 9 of 9 on production.
 | P0 | LIVE 2026-10-14. Second engineer reviewed and approved; the owner applied the three migrations. Before apply: dry run and role pentest on production inside a rolled-back transaction, 94 of 94, negative control fails 6, rollbacks restore the catalog and every persona's rows. After apply: verification queries as expected, live role pentest 94 of 94, and 0 differences between every persona's visible rows (demo account included) and pre-P0 access (`tools/security/suite-projects/probes/run_liveprobes.sh`). |
 | P1 | Built 2026-10-14. PR A: scope, `useProject()`, switcher (hidden until a user has a client or a second project), Projects page at /dashboard/projects, registries filtered and stamped, `.pld` per project, Move to project. PR B: the sidebar "Projects" entry, held until the demo recordings finish. Gate: `src/lib/projects/__tests__/geoscienceChain.test.js`: a consultant with two clients loads a well into each through Well Data Manager, and all 12 Geoscience apps list only the current project's wells (Seismolord volumes too); the negative control (projects off) lists both. User guide `docs/scope/SuiteProjects-GUIDE.md`. |
 | P2 | Built 2026-10-14 (section 14). No migration. Gate: settings change leaves stored data byte-identical, jest and live (9 of 9, rolled back). |
-| P3, P4 | In build. |
+| P3 | Built 2026-10-14 (section 15). Migration 20261015120000 (well names per project) applied by the owner 2026-10-14 and verified. Gate: per-role pentest 20 of 20 and name probes 5 of 5, live and rolled back. |
+| P4 | Built 2026-10-14 (section 16). Migration 20261015130000 (77 app tables) applied by the owner 2026-10-14 and verified; live equivalence 1240 of 1240 identical, probes 10 of 10. Lists scoped module by module. |

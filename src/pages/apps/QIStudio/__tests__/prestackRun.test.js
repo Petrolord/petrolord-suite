@@ -1,4 +1,5 @@
 import {
+  densityDecision,
   validatePrestackParams, meanVsVp, prestackLfm, prestackWaveletScale, makeCdpInverter, prestackBlindTable, prestackProducts, PRESTACK_DEFAULTS,
 } from '../services/prestackRun';
 import { horizonsAtFrom } from '../services/inversionRun';
@@ -41,7 +42,16 @@ test('settings', () => {
   const ok = { mode: 'blind', inversion: { stacks: THETA.map((a) => ({ angle: a })), wavelet: { samples: ricker, dt_ms: dtMs }, wells: WELLS } };
   expect(validatePrestackParams(ok)).toBeNull();
   expect(validatePrestackParams({ ...ok, inversion: { ...ok.inversion, stacks: THETA.slice(0, 2).map((a) => ({ angle: a })) } })).toMatch(/three to six/);
-  expect(validatePrestackParams({ ...ok, inversion: { ...ok.inversion, stacks: [4, 8, 12].map((a) => ({ angle: a })) } })).toMatch(/25 degrees/);
+  // QI upgrade P1.4: near stacks no longer stop the run; the density gate withholds density instead
+  expect(validatePrestackParams({ ...ok, inversion: { ...ok.inversion, stacks: [4, 8, 12].map((a) => ({ angle: a })) } })).toBeNull();
+  expect(densityDecision({ thetaDeg: [4, 8, 12], blind: [] })).toMatchObject({ produced: false });
+  expect(densityDecision({ thetaDeg: [4, 8, 12], blind: [] }).reason).toMatch(/25 or more/);
+  const rho = (c) => ({ blind: { rho: { corr: c } } });
+  expect(densityDecision({ thetaDeg: [5, 15, 30], blind: [rho(0.8)] }).reason).toMatch(/two wells or more/);
+  expect(densityDecision({ thetaDeg: [5, 15, 30], blind: [rho(0.3), rho(0.4), rho(0.9)] }).reason).toMatch(/0.40 \(median of 3\), under 0.5/);
+  expect(densityDecision({ thetaDeg: [5, 15, 30], blind: [rho(0.6), rho(0.7)] })).toMatchObject({ produced: true, checks: { wells: 2, far_deg: 30 } });
+  expect(densityDecision({ thetaDeg: [5, 15, 30], blind: [rho(0.6), rho(0.7)] }).checks.median_blind_corr).toBeCloseTo(0.65, 12);
+  expect(densityDecision({ thetaDeg: [5, 15, 30], blind: [rho(0.6), rho(0.7)], gate: { min_blind_corr: 0.7 } }).produced).toBe(false);
   expect(validatePrestackParams({ ...ok, inversion: { ...ok.inversion, wells: [{ ...WELLS[0], ln_si: [NaN] }, WELLS[1]] } })).toMatch(/no SI log/);
 });
 

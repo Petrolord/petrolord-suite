@@ -15,16 +15,23 @@ jest.mock('@/contexts/SupabaseAuthContext', () => {
 });
 jest.mock('@/lib/projects/projectsService', () => ({
   MOVABLE: [{ table: 'geo_wells', label: 'Wells' }],
+  APP_MOVABLE: [{ table: 'saved_well_test_projects', label: 'Saved well test projects', nameColumn: 'project_name' }],
   listMovable: jest.fn(async () => [{ id: 'w1', name: 'LEGACY-1' }]),
   moveToProject: jest.fn(async () => 1),
+  PROJECT_ROLES: ['owner', 'editor', 'viewer'],
+  listProjectMembers: jest.fn(async () => [{ project_id: 'pa', user_id: 'u1', role: 'owner' }]),
+  listOrgColleagues: jest.fn(async () => [{ user_id: 'u1', full_name: 'Ayo Asaolu', email: 'a@x', status: 'active' }]),
+  listAccessLog: jest.fn(async () => []),
+  addProjectMember: jest.fn(), setProjectMemberRole: jest.fn(), removeProjectMember: jest.fn(),
 }));
 jest.mock('@/lib/crs/settingsService', () => ({ setProjectCrs: jest.fn(async () => ({})) }));
-jest.mock('@/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
+const mockToast = jest.fn();
+jest.mock('@/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
 
 const ProjectsPage = require('@/pages/ProjectsPage').default;
 
 const DEF = { id: 'd', name: 'Default', is_default: true, client_id: null, status: 'active', visibility: 'organisation', owner_user_id: 'u1' };
-const PA = { id: 'pa', name: 'OML 42', is_default: false, client_id: 'c1', status: 'active', visibility: 'members', owner_user_id: 'u1', settings: {} };
+const PA = { id: 'pa', name: 'OML 42', is_default: false, client_id: 'c1', status: 'active', visibility: 'members', owner_user_id: 'u1', organization_id: 'o1', settings: {} };
 const C1 = { id: 'c1', name: 'Breeze Energy', status: 'active', colour: '#123456' };
 
 function setProject(over = {}) {
@@ -46,6 +53,7 @@ test('a consultant sees clients, grouped projects and the project settings', asy
   expect(screen.getByTestId('projects-group-internal')).toBeTruthy();
   expect(screen.getByTestId('projects-settings')).toBeTruthy();
   await waitFor(() => expect(screen.getByTestId('projects-move-pick-w1')).toBeTruthy());
+  await waitFor(() => expect(screen.getByTestId('projects-member-u1').textContent).toContain('Ayo Asaolu'));
 });
 
 test('saving the datum and the chart edition goes through saveSettings only', async () => {

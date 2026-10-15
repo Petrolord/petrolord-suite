@@ -13,6 +13,7 @@ import {
 import { forwardPoststack } from '../../../packages/engines/engines/qi/inversion';
 import { NULL_VALUE } from '../../../packages/engines/engines/seismolord/manifest';
 import { KINDS } from '../src/handlers/index.js';
+import { unpackLog } from '../../../src/pages/apps/QIStudio/services/logPacking';
 import { surveyAffine, ilxlToWorld } from '../../../packages/engines/engines/seismolord/surveyGeometry';
 
 jest.setTimeout(240000);
@@ -104,7 +105,102 @@ const params = (mode, over = {}) => ({
   inversion: { method: 'model_based', wavelet: { samples: ricker, dt_ms: DT_MS }, wells: WELLS, horizon_ids: [HZ1, HZ2], iters: 40, ...over },
 });
 
+/**
+ * The truly blind table built by hand (QI upgrade P1.2): each held-back well
+ * inverted with the wavelet scaled on the OTHER wells only and the model
+ * without it; with the well, the scale on every well.
+ */
+function handBlind(wells, traces, posOf, at, { wavelets = {} } = {}) {
+  const inv = { ...INVERSION_DEFAULTS, method: 'model_based', iters: 40 };
+  const lfm = lfmWells(wells, { dtMs: DT_MS, lfmHz: inv.lfmHz, posOf, horizonsAt: at });
+  const inverterFor = (exclude) => {
+    const keep = wells.map((w, k) => k).filter((k) => wells[k].name !== exclude);
+    const w0 = (exclude && wavelets[exclude]) || ricker;
+    const { scale } = waveletScale(keep.map((k) => ({ trace: traces[k], lnAi: wells[k].ln_ai })), w0);
+    return makeTraceInverter({ inv, wavelet: w0.map((v) => v * scale), wells: lfm, posOf, horizonsAt: at, ns: NS, dtMs: DT_MS });
+  };
+  const full = inverterFor(null);
+  const invert = (trace, il, xl, exclude) => (exclude ? inverterFor(exclude)(trace, il, xl, exclude) : full(trace, il, xl));
+  return blindWellTable({ invert, wells, traces, dtMs: DT_MS, truthHz: inv.truthHz, absolute: true });
+}
+
 test('the job kind is registered', () => expect(KINDS).toContain('poststack_inversion'));
+
+describe('truly blind wells (QI upgrade P1.2)', () => {
+  // well D's log carries a doubled contrast, so a wavelet scale that sees D
+  // differs from one that does not: the held-back well must not set the
+  // scale its own blind result is judged with
+  const odd = (w) => ({ ...w, ln_ai: w.ln_ai.map((v) => (Number.isFinite(v) ? 8.6 + 2 * (v - 8.6) : v)) });
+  const WELLS2 = [WELLS[0], WELLS[1], WELLS[2], odd(WELLS[3])];
+  const geo = () => {
+    const aff = surveyAffine(MANIFEST.geometry);
+    return { posOf: aff ? (il, xl) => ilxlToWorld(aff, il, xl) : (il, xl) => ({ x: il, y: xl }), at: horizonsAtFrom([GRIDS[HZ1], GRIDS[HZ2]], NXL, DT_MS) };
+  };
+  const clean = (ws) => ws.map((w) => ({ ...w, ln_ai: w.ln_ai.map((v) => (Number.isFinite(v) ? v : NaN)) }));
+
+  test('a held-back well is out of the wavelet scale: the table equals the hand-built one, and the old protocol does not', async () => {
+    const out = await poststackInversion(ctxFor(params('blind', { wells: WELLS2 })), depsFor({ volumes: { [VOL]: PARENT }, horizons: HZ_ROWS }));
+    const wells = clean(WELLS2); const { posOf, at } = geo();
+    const traces = wells.map((w) => seis(w.il));
+    expect(out.blind).toEqual(handBlind(wells, traces, posOf, at));
+    // negative control: the earlier protocol (one scale on every well, D included)
+    const inv = { ...INVERSION_DEFAULTS, method: 'model_based', iters: 40 };
+    const { scale } = waveletScale(wells.map((w, k) => ({ trace: traces[k], lnAi: w.ln_ai })), ricker);
+    const old = makeTraceInverter({ inv, wavelet: ricker.map((v) => v * scale), wells: lfmWells(wells, { dtMs: DT_MS, lfmHz: inv.lfmHz, posOf, horizonsAt: at }), posOf, horizonsAt: at, ns: NS, dtMs: DT_MS });
+    const oldTable = blindWellTable({ invert: old, wells, traces, dtMs: DT_MS, truthHz: inv.truthHz, absolute: true });
+    const diff = out.blind.map((r, k) => Math.abs(r.blind.rmsPct - oldTable[k].blind.rmsPct));
+    expect(Math.max(...diff.slice(0, 3))).toBeGreaterThan(0.05);
+    // the with-well column is the full inversion in both
+    expect(out.blind.map((r) => r.withWell)).toEqual(oldTable.map((r) => r.withWell));
+    // every held-back scale is recorded, and D's absence moves the scale back towards the true one
+    const held = Object.fromEntries(out.blind_protocol.held_back.map((h) => [h.name, h.scale]));
+    expect(Math.abs(held.D - SCALE)).toBeLessThan(Math.abs(out.settings.wavelet_scale - SCALE));
+  });
+
+  test('blind wavelets (the other ties\' average) are used for the held-back well', async () => {
+    const other = ricker.map((v, i) => (i < 31 ? v * (1 + 0.2 * Math.cos(i)) : v));
+    const out = await poststackInversion(ctxFor(params('blind', { blind_wavelets: [{ name: 'A', samples: other, dt_ms: DT_MS }] })), depsFor({ volumes: { [VOL]: PARENT }, horizons: HZ_ROWS }));
+    const wells = clean(WELLS); const { posOf, at } = geo();
+    const traces = wells.map((w) => seis(w.il));
+    expect(out.blind).toEqual(handBlind(wells, traces, posOf, at, { wavelets: { A: Float64Array.from(other) } }));
+    expect(out.blind_protocol.excluded_from).toContain('the field wavelet average');
+    // negative control: without it, A's blind row is different
+    expect(out.blind[0].blind.rmsPct).not.toBeCloseTo(handBlind(wells, traces, posOf, at)[0].blind.rmsPct, 6);
+  });
+
+  test('a volume run records each well\'s held-back estimate for the property check', async () => {
+    const uploads = new Map();
+    const storage = { upload: async (path, bytes) => { uploads.set(path, bytes); return {}; } };
+    await poststackInversion(ctxFor(params('volume', { wells: WELLS2 })), depsFor({ volumes: { [VOL]: PARENT, [OUT]: DERIVED }, horizons: HZ_ROWS }, { storage }));
+    const manifest = JSON.parse(new TextDecoder().decode(uploads.get(`${UID}/${OUT}/manifest.json`)));
+    const bt = manifest.attribute.params.blind_traces;
+    expect(bt.map((x) => x.name)).toEqual(['A', 'B', 'C', 'D']);
+    expect(manifest.attribute.params.blind_protocol.version).toBe('held-back-v2');
+    // the recorded trace is the held-back inversion at that well (within the packing step)
+    const wells = clean(WELLS2); const { posOf, at } = geo();
+    const traces = wells.map((w) => seis(w.il));
+    const inv = { ...INVERSION_DEFAULTS, method: 'model_based', iters: 40 };
+    const keep = [0, 1, 2];
+    const { scale } = waveletScale(keep.map((k) => ({ trace: traces[k], lnAi: wells[k].ln_ai })), ricker);
+    const lfm = lfmWells(wells, { dtMs: DT_MS, lfmHz: inv.lfmHz, posOf, horizonsAt: at });
+    const ref = makeTraceInverter({ inv, wavelet: ricker.map((v) => v * scale), wells: lfm, posOf, horizonsAt: at, ns: NS, dtMs: DT_MS })(traces[3], 6, 4, 'D');
+    const got = unpackLog(bt[3].ln_ai);
+    let worst = 0;
+    for (let i = 0; i < NS; i++) if (Number.isFinite(ref[i])) worst = Math.max(worst, Math.abs(got[i] - ref[i]));
+    expect(worst).toBeLessThan(1e-3);
+    // the volume's own trace at D is not blind: it differs from the held-back one
+    const brick = (k) => new Float32Array(uploads.get(`${UID}/${OUT}/bricks/0-0-${k}.f32`).buffer.slice(0));
+    let d = 0;
+    for (let s2 = 40; s2 < 130; s2++) d = Math.max(d, Math.abs(Math.log(brick(Math.floor(s2 / B))[((6 % B) * B + 4) * B + (s2 % B)]) - got[s2]));
+    expect(d).toBeGreaterThan(1e-3);
+  });
+
+  test('coloured inversion holds the well back from its operator', async () => {
+    const out = await poststackInversion(ctxFor(params('blind', { method: 'coloured' })), depsFor({ volumes: { [VOL]: PARENT }, horizons: HZ_ROWS }));
+    expect(out.blind_protocol.excluded_from[1]).toMatch(/coloured operator/);
+    expect(out.blind_protocol.held_back.every((h) => Number.isFinite(h.slope))).toBe(true);
+  });
+});
 
 test('blind mode returns the run module table on the same traces', async () => {
   const out = await poststackInversion(ctxFor(params('blind')), depsFor({ volumes: { [VOL]: PARENT }, horizons: HZ_ROWS }));
@@ -116,12 +212,12 @@ test('blind mode returns the run module table on the same traces', async () => {
   const posOf = aff ? (il, xl) => ilxlToWorld(aff, il, xl) : (il, xl) => ({ x: il, y: xl });
   const at = horizonsAtFrom([GRIDS[HZ1], GRIDS[HZ2]], NXL, DT_MS);
   const traces = wells.map((w) => seis(w.il));
-  const { scale } = waveletScale(wells.map((w, k) => ({ trace: traces[k], lnAi: w.ln_ai })), ricker);
-  const inv = { ...INVERSION_DEFAULTS, method: 'model_based', iters: 40 };
-  const invert = makeTraceInverter({ inv, wavelet: ricker.map((v) => v * scale), wells: lfmWells(wells, { dtMs: DT_MS, lfmHz: inv.lfmHz, posOf, horizonsAt: at }), posOf, horizonsAt: at, ns: NS, dtMs: DT_MS });
-  const ref = blindWellTable({ invert, wells, traces, dtMs: DT_MS, truthHz: inv.truthHz, absolute: true });
+  const ref = handBlind(wells, traces, posOf, at);
   expect(out.blind).toEqual(ref);
   expect(out.settings.wavelet_scale).toBeCloseTo(SCALE, 4);
+  expect(out.blind_protocol.version).toBe('held-back-v2');
+  expect(out.blind_protocol.excluded_from).toEqual(['the low-frequency model', 'the wavelet scale']);
+  expect(out.blind_protocol.held_back.map((h) => h.name)).toEqual(['A', 'B', 'C', 'D']);
   expect(out.settings.qi_class).toBe('elastic_estimate');
   for (const r of out.blind) expect(r.blind.rmsPct).toBeLessThan(5);
 });
@@ -167,6 +263,43 @@ test('the recorded settings carry no logs or wavelet samples', () => {
   const s = inversionSummary(params('blind').inversion);
   expect(JSON.stringify(s)).not.toMatch(/ln_ai|samples/);
   expect(s.wells).toEqual(['A', 'B', 'C', 'D']);
+});
+
+describe('seismic residual (QI upgrade P1.4)', () => {
+  const RES = '77777777-7777-4777-8777-777777777777';
+  test('the residual volume is the input minus the synthetic of the inverted AI, and small where the inversion fits', async () => {
+    const uploads = new Map();
+    const storage = { upload: async (path, bytes) => { uploads.set(path, bytes); return {}; } };
+    const volumes = { [VOL]: PARENT, [OUT]: DERIVED, [RES]: { ...DERIVED, id: RES, storage_path: `${UID}/${RES}` } };
+    const out = await poststackInversion(ctxFor({ ...params('volume', { residual: true }), residual_volume_id: RES }), depsFor({ volumes, horizons: HZ_ROWS }, { storage }));
+    expect(out.residual_volume_id).toBe(RES);
+    const at = (id, il, xl, s) => new Float32Array(uploads.get(`${UID}/${id}/bricks/0-0-${Math.floor(s / B)}.f32`).buffer.slice(0))[((il % B) * B + xl) * B + (s % B)];
+    // identity: the residual plus the synthetic of the stored AI is the input (the synthetic through the job's own scaled wavelet)
+    const scaled = Float64Array.from(ricker, (v) => v * out.settings.wavelet_scale);
+    for (const [il, xl] of [[2, 1], [5, 3]]) {
+      const ln = Float64Array.from({ length: NS }, (_, s) => Math.log(at(OUT, il, xl, s)));
+      const syn = forwardPoststack(ln, scaled);
+      const d = seis(il);
+      let worst = 0; let sr = 0; let sd = 0;
+      for (let s = 20; s < NS - 20; s++) { worst = Math.max(worst, Math.abs(at(RES, il, xl, s) + syn[s] - d[s])); sr += at(RES, il, xl, s) ** 2; sd += d[s] ** 2; }
+      expect(worst).toBeLessThan(2e-3 * Math.sqrt(sd / (NS - 40)));
+      expect(Math.sqrt(sr / sd)).toBeLessThan(0.1); // under 10 percent of the seismic
+      // negative control: with the unscaled wavelet the "residual" is most of the seismic
+      const bad = forwardPoststack(ln, Float64Array.from(ricker));
+      let sb = 0; for (let s = 20; s < NS - 20; s++) sb += (d[s] - bad[s]) ** 2;
+      expect(Math.sqrt(sb / sd)).toBeGreaterThan(0.5);
+    }
+    const man = JSON.parse(new TextDecoder().decode(uploads.get(`${UID}/${RES}/manifest.json`)));
+    expect(man.attribute.params).toMatchObject({ product: 'residual', output: 'seismic residual' });
+    expect(man.attribute.params.blind_traces).toBeUndefined();
+    expect(out.residual_at_wells.map((w) => w.name)).toEqual(['A', 'B', 'C', 'D']);
+    for (const w of out.residual_at_wells) expect(w.pct).toBeLessThan(10);
+  });
+  test('the residual is refused for coloured inversion and for an uncertainty run, and needs its volume id', () => {
+    expect(validatePoststackParams({ ...params('volume', { residual: true }) })).toMatch(/residual_volume_id/);
+    expect(validatePoststackParams({ ...params('volume', { residual: true, method: 'coloured' }), residual_volume_id: RES })).toMatch(/absolute method/);
+    expect(validatePoststackParams({ ...params('volume', { residual: true, sensitivity: { lfm_factors: [0.5, 1] } }), residual_volume_id: RES, volume_ids: {} })).toMatch(/single inversion/);
+  });
 });
 
 describe('sensitivity', () => {

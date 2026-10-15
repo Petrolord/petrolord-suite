@@ -5,7 +5,9 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQIStudio } from '../QIStudioContext';
 import { STATES } from '../services/inventory';
-import { ISSUE_STATES, SEVERITIES, FEASIBILITY_VERDICTS } from '../services/model';
+import {
+  ISSUE_STATES, SEVERITIES, FEASIBILITY_VERDICTS, DECISION_GATES, DECISION_OUTCOMES, decisionProblem, runChoices, gateLabel, outcomeLabel,
+} from '../services/model';
 
 const card = 'rounded-lg border border-pl-border bg-pl-surface p-4 space-y-3';
 const h2 = 'text-sm font-semibold text-pl-text';
@@ -25,7 +27,9 @@ const SEV_CLS = { high: 'text-pl-danger-text', medium: 'text-pl-warning-text', l
 export function SetupPanel() {
   const {
     wells, volumes, project, loaded, toggleWell, toggleVolume, toggleTarget, targetChoices, setSeismicAcquired, setFirstProduction, canWrite,
+    setObjectivesText, setTargetObjective,
   } = useQIStudio();
+  const objectives = project.objectives || { text: '', targets: {} };
   return (
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-4" data-testid="qi-setup">
       <section className={card}>
@@ -86,6 +90,26 @@ export function SetupPanel() {
             </label>
           );
         })}
+      </section>
+      {/* light governance (QI upgrade P1.1): added below the three setup cards */}
+      <section className={`${card} xl:col-span-3`} data-testid="qi-objectives">
+        <h2 className={h2}>Objectives and acceptance criteria</h2>
+        <p className={muted}>What this study must deliver and how its results will be judged (for example the blind-well error a product must meet before it is used). Printed in the report.</p>
+        <textarea
+          className={`${field} w-full h-20`} value={objectives.text} onChange={(e) => setObjectivesText(e.target.value)} disabled={!canWrite}
+          placeholder="For example: map porosity in the main sand with a blind-well error under 0.03; decide whether AVO can tell gas from brine at the prospect." data-testid="qi-objectives-text"
+        />
+        {project.targets.length > 0 && (
+          <div className="space-y-1 text-xs">
+            <p className="text-pl-muted">Per target (optional)</p>
+            {project.targets.map((t) => (
+              <label key={t} className="flex items-center gap-2">
+                <span className="text-pl-muted w-40 truncate">{t}</span>
+                <input className={`${field} flex-1`} value={objectives.targets?.[t] || ''} onChange={(e) => setTargetObjective(t, e.target.value)} disabled={!canWrite} data-testid={`qi-objective-target-${t}`} />
+              </label>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
@@ -169,6 +193,92 @@ export function UsabilityPanel() {
             <p key={it.key}><span className={`inline-block w-16 mr-2 px-1 rounded border text-center ${GRADE_CLS[it.grade]}`}>{GRADE_WORD[it.grade]}</span><span className="text-pl-muted">{it.label}:</span> <span className="text-pl-text">{it.text}</span></p>
           ))}
           {detail.row.depletion && <p className="text-pl-warning-text">{detail.row.depletion}</p>}
+        </div>
+      )}
+    </section>
+  );
+}
+
+const blankDecision = () => ({ gate: 'data_qc', gateOther: '', outcome: 'proceed', decision: '', by: '', date: new Date().toISOString().slice(0, 10), ref: '', refText: '', note: '' });
+
+/** Decisions recorded in the register (QI upgrade P1.1): a record per gate, never an enforced sign-off. */
+export function DecisionsSection() {
+  const { project, decisions, saveDecision, removeDecision, canWrite } = useQIStudio();
+  const [draft, setDraft] = useState(blankDecision);
+  const runs = React.useMemo(() => runChoices(project), [project]);
+  const problem = decisionProblem(draft);
+  const add = () => {
+    if (problem) return;
+    const ref = runs.find((r) => r.key === draft.ref);
+    saveDecision({
+      gate: draft.gate, gateOther: draft.gate === 'other' ? draft.gateOther.trim() : '', outcome: draft.outcome,
+      decision: draft.decision.trim(), by: draft.by.trim(), date: draft.date,
+      ref: ref ? { key: ref.key, label: ref.label } : null, refText: draft.refText.trim(), note: draft.note.trim(),
+    });
+    setDraft(blankDecision());
+  };
+  const set = (patch) => setDraft((d) => ({ ...d, ...patch }));
+  return (
+    <section className={card} data-testid="qi-decisions">
+      <h2 className={h2}>Decisions</h2>
+      <p className={muted}>Record the decision taken at each gate of the study (data QC, feasibility, pilot or another), who took it, when, and the run or version it rests on. A record for the report: nothing is locked or enforced.</p>
+      <table className="text-xs w-full">
+        <thead><tr><th className={th}>Date</th><th className={th}>Gate</th><th className={th}>Decision</th><th className={th}>By</th><th className={th}>Refers to</th><th className={th} aria-label="Remove" /></tr></thead>
+        <tbody>
+          {decisions.map((d) => (
+            <tr key={d.key} data-testid="qi-decision-row">
+              <td className={td}>{d.date}</td>
+              <td className={td}>{gateLabel(d)}</td>
+              <td className={td}>
+                <p className="text-pl-text">{[outcomeLabel(d), d.decision].filter(Boolean).join(': ')}</p>
+                {d.note && <p className="text-pl-muted">{d.note}</p>}
+              </td>
+              <td className={td}>{d.by}</td>
+              <td className={`${td} text-pl-muted`}>{[d.ref?.label, d.refText].filter(Boolean).join('; ')}</td>
+              <td className={td}>{canWrite && <button type="button" className={btn} onClick={() => removeDecision(d.key)} data-testid={`qi-decision-remove-${d.key}`}>Remove</button>}</td>
+            </tr>
+          ))}
+          {!decisions.length && <tr><td colSpan={6} className={`${td} text-pl-muted`}>No decisions recorded yet.</td></tr>}
+        </tbody>
+      </table>
+      {canWrite && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs" data-testid="qi-decision-add">
+          <label className="flex items-center gap-2"><span className="text-pl-muted w-20">Gate</span>
+            <select className={field} value={draft.gate} onChange={(e) => set({ gate: e.target.value })} data-testid="qi-decision-gate">
+              {DECISION_GATES.map((g) => <option key={g.key} value={g.key}>{g.label}</option>)}
+            </select>
+            {draft.gate === 'other' && <input className={`${field} flex-1`} placeholder="Gate name" value={draft.gateOther} onChange={(e) => set({ gateOther: e.target.value })} data-testid="qi-decision-gate-other" />}
+          </label>
+          <label className="flex items-center gap-2"><span className="text-pl-muted w-20">Outcome</span>
+            <select className={field} value={draft.outcome} onChange={(e) => set({ outcome: e.target.value })} data-testid="qi-decision-outcome">
+              {DECISION_OUTCOMES.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+            </select>
+          </label>
+          <label className="flex items-center gap-2"><span className="text-pl-muted w-20">Date</span>
+            <input type="date" className={field} value={draft.date} onChange={(e) => set({ date: e.target.value })} data-testid="qi-decision-date" />
+          </label>
+          <label className="flex items-center gap-2 md:col-span-2"><span className="text-pl-muted w-20">Decision</span>
+            <input className={`${field} flex-1`} placeholder="For example: go to the pilot with the model-based inversion" value={draft.decision} onChange={(e) => set({ decision: e.target.value })} data-testid="qi-decision-text" />
+          </label>
+          <label className="flex items-center gap-2"><span className="text-pl-muted w-20">By</span>
+            <input className={`${field} flex-1`} placeholder="Name or role" value={draft.by} onChange={(e) => set({ by: e.target.value })} data-testid="qi-decision-by" />
+          </label>
+          <label className="flex items-center gap-2 md:col-span-2"><span className="text-pl-muted w-20">Refers to</span>
+            <select className={`${field} flex-1`} value={draft.ref} onChange={(e) => set({ ref: e.target.value })} data-testid="qi-decision-ref">
+              <option value="">{runs.length ? 'Choose a run or check (optional)' : 'No runs in this study yet'}</option>
+              {runs.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
+            </select>
+          </label>
+          <label className="flex items-center gap-2"><span className="text-pl-muted w-20">Version</span>
+            <input className={`${field} flex-1`} placeholder="Other run or version (optional)" value={draft.refText} onChange={(e) => set({ refText: e.target.value })} data-testid="qi-decision-ref-text" />
+          </label>
+          <label className="flex items-center gap-2 md:col-span-2"><span className="text-pl-muted w-20">Note</span>
+            <input className={`${field} flex-1`} placeholder="Conditions or reasons (optional)" value={draft.note} onChange={(e) => set({ note: e.target.value })} data-testid="qi-decision-note" />
+          </label>
+          <div className="flex items-center gap-2">
+            <button type="button" className={btn} onClick={add} disabled={!!problem} data-testid="qi-decision-add-btn">Record the decision</button>
+            {problem && <span className="text-pl-muted" data-testid="qi-decision-problem">{problem}</span>}
+          </div>
         </div>
       )}
     </section>

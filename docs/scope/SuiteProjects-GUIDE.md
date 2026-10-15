@@ -55,6 +55,31 @@ On the Projects page, the owner of a project (or an organisation admin) sets:
 
 A settings change applies from then on. Data already stored never changes.
 
+## Members and roles
+
+On the Projects page the owner (or an organisation admin) adds colleagues to
+a project and gives each a role:
+
+- **Owner** manages the project, its members and settings.
+- **Editor** adds and changes data.
+- **Viewer** reads a members-only project's data and changes nothing.
+
+In a project open to your organisation every colleague already reads it;
+members matter once you make it members only. The project log shows who
+added or removed whom, every role change, and every time an organisation
+admin opened a members-only project.
+
+## Copy between projects
+
+Under **Move or copy to project**, tick wells, surfaces or culture layers and
+choose **Copy**. The copies are complete (logs, tops and grids included),
+record where they came from, and leave the originals in place. A name the
+target project already uses gets "(imported)" added. Seismic is moved, not
+copied.
+
+Well names are unique within a project, so the same name can exist in two
+clients' projects.
+
 ## Packages and backups
 
 - **Export package** (Well Data Manager) packs the current project's data.
@@ -66,8 +91,11 @@ A settings change applies from then on. Data already stored never changes.
 Archive a project or a client when the work ends. It leaves the switcher;
 nothing is deleted. Restore it from the Projects page.
 
-## Not yet project-aware (planned)
+## App projects
 
-Each app's own saved sessions (for example a saved Petrophysics project or a
-Material Balance case) are not yet filed by project; they follow in phase P4.
-Member management arrives in P3.
+Each app's saved work (a Petrophysics interpretation, a Material Balance
+case, a Well Design site, an Economics case, every saved study) belongs to
+the project that was current when it was first saved, and each app lists the
+current project's only. Work saved before projects existed is in Default;
+move it from the Projects page like wells.
+

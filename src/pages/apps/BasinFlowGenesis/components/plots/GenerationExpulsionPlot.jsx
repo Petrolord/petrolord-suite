@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS } from '@/utils/chartTheme';
-import { alignSeriesByAge, seriesColor, ageAxisProps, maxAgeOf, layerKey } from '../../services/resultsView';
+import { alignSeriesByAge, seriesColor, ageAxisProps, maxAgeOf, layerKey, tipNum } from '../../services/resultsView';
 import { phaseSplit, GAS_WINDOW_RO } from '@/lib/basinCharge';
 
 /**
@@ -62,7 +62,7 @@ const GenerationExpulsionPlot = ({ results }) => {
                             tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                             label={{ value: 'Mass (kg HC/m²)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
                         />
-                        <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} />
+                        <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} formatter={(v, n) => [tipNum(v), n]} labelFormatter={(a) => `${a} Ma`} />
                         <Legend verticalAlign="top" wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
                         {sourceLayers.map((layer, idx) => (
                             <React.Fragment key={layer.key}>

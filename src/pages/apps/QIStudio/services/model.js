@@ -16,8 +16,28 @@ export const FEASIBILITY_VERDICTS = Object.freeze([
   { key: 'not-feasible', label: 'Not feasible' },
 ]);
 
+// Light governance (QI upgrade P1.1, 2026-10-15): the study's objectives and
+// acceptance criteria, and decisions recorded in the issue register. No
+// workflow engine and no enforced sign-off: they are records the report prints.
+export const DECISION_GATES = Object.freeze([
+  { key: 'data_qc', label: 'Data QC' },
+  { key: 'feasibility', label: 'Feasibility' },
+  { key: 'pilot', label: 'Pilot' },
+  { key: 'other', label: 'Other' },
+]);
+export const DECISION_OUTCOMES = Object.freeze([
+  { key: 'proceed', label: 'Proceed' },
+  { key: 'conditional', label: 'Proceed with conditions' },
+  { key: 'hold', label: 'Hold' },
+  { key: 'stop', label: 'Stop' },
+]);
+export const isDecision = (row) => row?.type === 'decision';
+
+export const blankObjectives = () => ({ text: '', targets: {} });
+
 export const blankProject = () => ({
   schema: SCHEMA,
+  objectives: blankObjectives(),
   wellIds: [],
   targets: [],
   volumeIds: [],
@@ -45,6 +65,13 @@ export function projectFromPayload(payload) {
   const b = blankProject();
   return {
     schema: SCHEMA,
+    // objectives and acceptance criteria: the study's text and optional lines per target
+    objectives: {
+      text: typeof p.objectives?.text === 'string' ? p.objectives.text : '',
+      targets: isObj(p.objectives?.targets)
+        ? Object.fromEntries(Object.entries(p.objectives.targets).filter(([k, v]) => k && typeof v === 'string'))
+        : {},
+    },
     wellIds: strArr(p.wellIds),
     targets: strArr(p.targets),
     volumeIds: strArr(p.volumeIds),
@@ -88,7 +115,8 @@ export const projectPayload = (project, { id = null, name = '' } = {}) => ({ id,
  */
 export function issueRegister(saved, suggestions) {
   const byKey = new Map((saved || []).filter((i) => i.key).map((i) => [i.key, i]));
-  const rows = (saved || []).map((i) => ({ ...i, suggested: false }));
+  // decisions share the saved list but are not issues: they have their own table
+  const rows = (saved || []).filter((i) => !isDecision(i)).map((i) => ({ ...i, suggested: false }));
   for (const s of suggestions || []) {
     if (byKey.has(s.key)) continue;
     rows.push({ ...s, status: 'open', owner: '', suggested: true });
@@ -107,4 +135,55 @@ export function upsertIssue(saved, issue) {
   const row = { ...clean, key };
   if (at >= 0) list[at] = row; else list.push(row);
   return list;
+}
+
+/**
+ * The decisions recorded in the register, newest date first (undated last).
+ * @returns {Array<{key, type: 'decision', gate, gateOther, outcome, decision, by, date, ref, note}>}
+ */
+export function decisionRows(saved) {
+  return (saved || []).filter(isDecision).map((d) => ({ ...d })).sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+}
+
+export const gateLabel = (d) => (d.gate === 'other' ? (d.gateOther || 'Other') : (DECISION_GATES.find((g) => g.key === d.gate)?.label || d.gate || ''));
+export const outcomeLabel = (d) => DECISION_OUTCOMES.find((o) => o.key === d.outcome)?.label || '';
+
+/** Why a draft decision cannot be recorded, or null. */
+export function decisionProblem(d) {
+  if (!DECISION_GATES.some((g) => g.key === d?.gate)) return 'Choose the gate the decision is for.';
+  if (d.gate === 'other' && !String(d.gateOther || '').trim()) return 'Name the gate.';
+  if (!String(d.decision || '').trim()) return 'Write the decision.';
+  if (!String(d.by || '').trim()) return 'Say who made the decision.';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(d.date || ''))) return 'Give the date of the decision.';
+  return null;
+}
+
+/**
+ * The runs and versions of a study a decision can refer to: every worker run
+ * and check the project keeps, newest first. Each is {key, label}.
+ */
+export function runChoices(project) {
+  const out = [];
+  const day = (at) => String(at || '').slice(0, 10);
+  const add = (key, label, at) => out.push({ key, label: `${label}${at ? `, ${day(at)}` : ''}`, at: String(at || '') });
+  for (const [id, r] of Object.entries(project?.qc || {})) if (r?.jobId || r?.at) add(`qc:${r.jobId || id}`, `Seismic QC of ${r.volumeName || 'a volume'}`, r.at);
+  for (const [id, r] of Object.entries(project?.inversion || {})) {
+    if (r?.blind?.at) add(`inversion-blind:${r.blind.jobId || id}`, `Blind-well check on ${r.blind.volumeName || 'a volume'}`, r.blind.at);
+    if (r?.spread?.at) add(`inversion-spread:${r.spread.jobId || id}`, `Inversion sensitivity on ${r.spread.volumeName || 'a volume'}`, r.spread.at);
+    for (const x of r?.runs || []) add(`inversion:${x.jobId || x.volumeId}`, `Inversion ${x.name || ''}`.trim(), x.at);
+  }
+  for (const [id, rec] of Object.entries(project?.properties || {})) {
+    for (const k of Object.keys(rec || {})) {
+      const c = rec[k]?.calibration;
+      if (c?.at) add(`property-check:${c.jobId || `${id}:${k}`}`, `${k} check on ${c.volumeName || 'an impedance volume'}`, c.at);
+      for (const x of rec[k]?.runs || []) add(`property:${x.jobId || x.name}`, `${k} volumes ${x.name || ''}`.trim(), x.at);
+    }
+  }
+  const sim = project?.simultaneous || {};
+  if (sim.blind?.at) add(`simultaneous-blind:${sim.blind.jobId || 'blind'}`, `Simultaneous blind-well check on ${sim.blind.volumeName || 'the stacks'}`, sim.blind.at);
+  for (const x of sim.runs || []) add(`simultaneous:${x.jobId || x.name}`, `Simultaneous inversion ${x.name || ''}`.trim(), x.at);
+  for (const x of project?.avo?.runs || []) add(`avo:${x.jobId || x.name}`, `AVO ${x.name || ''}`.trim(), x.at);
+  for (const [id, r] of Object.entries(project?.prestack || {})) if (r?.at) add(`prestack:${id}`, `Angle stacks from ${r.name || 'a gather store'}`, r.at);
+  for (const [id, r] of Object.entries(project?.prestackQc || {})) if (r?.at) add(`prestack-qc:${id}`, `Prestack QC of ${r.name || 'a gather store'}`, r.at);
+  return out.sort((a, b) => b.at.localeCompare(a.at)).map(({ key, label }) => ({ key, label }));
 }
