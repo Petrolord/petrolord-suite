@@ -20,7 +20,7 @@
 import { buildManifestV4, volumeDir, withV4Complete } from '../engine/manifest';
 import { v4SurveyMeta } from './v4SurveyMeta';
 import { applyCrsToScan } from './ingestCrs';
-import { scanForManifest } from '../lib/segyDoor';
+import { scanForManifest, traceDelayRecord } from '../lib/segyDoor';
 import { applyVerticalToManifest } from '../lib/verticalDomain';
 import { contentIdOf } from '@/lib/localWorkspace/identity';
 
@@ -64,7 +64,7 @@ export function durationWords(s) {
  * @param {Object} p {file, mapping, scan, nativeCrs, name, crop, vertical, onProgress, cancelToken}
  */
 export async function runLocalImport(deps, {
-  file, mapping, scan, nativeCrs = null, name = null, crop = null, vertical = null,
+  file, mapping, scan, nativeCrs = null, name = null, crop = null, vertical = null, traceDelay = null,
   onProgress = () => {}, onRegistered = () => {}, cancelToken = { cancelled: false },
 }) {
   const dev = await deps.device();
@@ -83,6 +83,8 @@ export async function runLocalImport(deps, {
     const [record, sha256] = await Promise.all([
       deps.convert({
         file, scan, volumeId, spool: store, cancelToken, crop: crop?.request || null,
+        // F-5: the uncropped file's trace delay, as the upload path applies it
+        delayShift: !crop && traceDelay?.applied ? traceDelay.shift_samples : 0,
         onProgress: (q) => onProgress({ ...q, stage: 'convert' }),
       }),
       deps.hashFile(hashTarget, {
@@ -103,6 +105,8 @@ export async function runLocalImport(deps, {
     manifest.source.fingerprint = prep.ingestRec.fingerprint;
     manifest.source.sha256 = sha256;
     if (crop?.provenance) manifest.source.crop = crop.provenance;
+    const td = traceDelayRecord(crop ? crop.provenance?.trace_delay : traceDelay);
+    if (td) manifest.source.trace_delay = td;
     applyVerticalToManifest(manifest, prep.ingestRec.vertical);
     manifest = withV4Complete(manifest, { display: true, f32: true });
     const contentId = await contentIdOf({

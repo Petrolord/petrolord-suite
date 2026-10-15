@@ -16,6 +16,7 @@ import { fileReader } from '../engine/reader';
 import { resolveCodec, hasNativeDeflateRaw, DEFLATE_RAW } from '../engine/brickCodecV4';
 import { convertToSpool } from '../services/conversionV4';
 import { opfsSpool } from '../services/brickSpool';
+import { openLocalVolume } from '@/lib/localWorkspace/workspace';
 import { createDeflatePool } from '../services/deflatePool';
 import { conversionSourceReader } from '../services/cropImport';
 
@@ -33,8 +34,10 @@ function makeCodec(poolSize) {
   return { codec: resolveCodec({ compression: DEFLATE_RAW }), pool: null };
 }
 
-async function handleConvert({ id, file, scan, volumeId, memoryBudgetBytes, poolSize, crop = null, delayShift = 0 }) {
-  const spool = await opfsSpool(volumeId);
+async function handleConvert({ id, file, scan, volumeId, memoryBudgetBytes, poolSize, crop = null, delayShift = 0, local = false }) {
+  // Local Workspace: the bricks go into this computer's workspace pack store
+  // (they are the volume), in place of the upload spool
+  const spool = local ? await openLocalVolume(volumeId, { write: true }) : await opfsSpool(volumeId);
   const { codec, pool } = makeCodec(poolSize);
   try {
     const reader = await conversionSourceReader(fileReader(file), crop, delayShift);
@@ -51,6 +54,7 @@ async function handleConvert({ id, file, scan, volumeId, memoryBudgetBytes, pool
     self.postMessage({ type: 'convert:done', id, record });
   } finally {
     if (pool) pool.close();
+    if (local) await spool.close().catch(() => {});
   }
 }
 

@@ -9,6 +9,22 @@ import {
   Loader2, Pause, Play, RotateCcw, X, CheckCircle2, XCircle, WifiOff, Eye,
 } from 'lucide-react';
 import { useImportJobs, getImportJobs, JOB_PHASE, V4_STATUS } from '../../services/importJobsRuntime';
+import { useLocalImports, dismissLocalImport } from '../../services/localImportRuntime';
+import { useBrowserJobs } from '@/lib/localWorkspace/runtime';
+
+/** One line for an import to this computer (Local Workspace). */
+export function describeLocalImport(job) {
+  const name = job.name || 'SEG-Y import';
+  if (job.phase === 'converting') {
+    const c = job.convert;
+    const conv = !c || c.phase === 'clip' ? 'measuring amplitudes' : `converting ${pct(c.done, c.total)}%`;
+    const h = job.hash ? `, checking the file ${pct(job.hash.done, job.hash.total)}%` : '';
+    return `${name}: to this computer, ${conv}${h}`;
+  }
+  if (job.phase === 'done') return `${name}: on this computer${job.previewError ? ' (preview not shared)' : ''}`;
+  if (job.phase === 'cancelled') return `${name}: cancelled`;
+  return `${name}: import to this computer failed. ${job.error || ''}`.trim();
+}
 
 const MB = 1024 * 1024;
 const pct = (done, total) => (total ? Math.min(100, Math.floor((done / total) * 100)) : 0);
@@ -57,16 +73,34 @@ const Btn = ({ title, onClick, children }) => (
 
 export default function ImportJobsIndicator() {
   const jobs = useImportJobs();
+  const local = useLocalImports();
+  const running = useBrowserJobs().filter((j) => j.phase === 'running' || j.phase === 'waiting');
 
   useEffect(() => {
     getImportJobs().discover().catch(() => {});
   }, []);
 
-  if (!jobs.length) return null;
+  if (!jobs.length && !local.length && !running.length) return null;
   const mgr = getImportJobs();
 
   return (
     <span className="flex items-center gap-3 min-w-0" data-testid="import-jobs">
+      {local.map((job) => (
+        <span key={job.id} className={`flex items-center gap-1.5 min-w-0 ${job.phase === 'failed' ? 'text-pl-danger-text' : job.phase === 'done' ? 'text-pl-success-text' : 'text-pl-primary-text'}`} title={describeLocalImport(job)} data-testid="local-import-job">
+          {job.phase === 'converting' && <Loader2 className="w-3 h-3 animate-spin shrink-0" />}
+          {job.phase === 'done' && <CheckCircle2 className="w-3 h-3 shrink-0" />}
+          {job.phase === 'failed' && <XCircle className="w-3 h-3 shrink-0" />}
+          <span className="truncate max-w-[340px]">{describeLocalImport(job)}</span>
+          {job.phase === 'converting' && job.cancel && <Btn title="Cancel the import" onClick={() => job.cancel()}><X className="w-3 h-3" /></Btn>}
+          {job.phase !== 'converting' && <Btn title="Dismiss" onClick={() => dismissLocalImport(job.id)}><X className="w-3 h-3" /></Btn>}
+        </span>
+      ))}
+      {running.length > 0 && (
+        <span className="flex items-center gap-1.5 text-pl-primary-text" data-testid="local-jobs-running" title={running.map((j) => `${j.name}: ${Math.round((j.fraction || 0) * 100)}%`).join('\n')}>
+          <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+          {`${running.length} job${running.length === 1 ? '' : 's'} on this computer`}
+        </span>
+      )}
       {jobs.map((job) => {
         const text = describeImportJob(job);
         const viewable = job.status === V4_STATUS.DISPLAY_READY || job.status === V4_STATUS.READY;

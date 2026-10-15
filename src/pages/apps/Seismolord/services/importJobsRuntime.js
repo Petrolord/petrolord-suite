@@ -51,11 +51,13 @@ export async function v4ImportSupport(fileSize) {
  *  identity and CRS decisions so v4 rows carry the same record. Also the
  *  first step of a server import (serverImport.js), so a server-converted
  *  row is registered exactly like a browser-converted one. */
-export async function prepareV4Row({ file, mapping, nativeCrs, name, fingerprint: knownFingerprint = null, crop = null, quotaBytes = null, vertical = null }) {
+export async function prepareV4Row({ file, mapping, nativeCrs, name, fingerprint: knownFingerprint = null, crop = null, quotaBytes = null, vertical = null, location = null }) {
   const userId = await currentUserId();
   const volumeId = crypto.randomUUID();
   const displayName = name || file.name;
-  await assertQuota(quotaBytes ?? file.size);
+  // Local Workspace: a volume kept on this computer stores nothing in the
+  // cloud, so the cloud quota does not apply (the disk check runs instead)
+  if (!location) await assertQuota(quotaBytes ?? file.size);
   // a file imported from a link was fingerprinted by the worker that fetched
   // it (same algorithm); a local file is fingerprinted here
   const fingerprint = knownFingerprint || await fileFingerprint(file);
@@ -81,6 +83,7 @@ export async function prepareV4Row({ file, mapping, nativeCrs, name, fingerprint
       status: V4_STATUS.CONVERTING,
       crs: crsPlan.storeTag,
       survey_meta: { ingest: ingestRec },
+      ...(location ? { storage_location: location.storage_location, device_id: location.device_id || null } : {}),
     }))
     .select().single();
   if (error) throw new Error(`Could not register volume: ${error.message}`);
@@ -114,7 +117,7 @@ async function getRow(volumeId) {
 let nextId = 1;
 
 /** Run the conversion worker; resolves the conversion record. */
-function convert({ file, scan, volumeId, onProgress, cancelToken, crop = null, delayShift = 0 }) {
+export function convert({ file, scan, volumeId, onProgress, cancelToken, crop = null, delayShift = 0, local = false }) {
   const worker = newConvertWorker();
   const id = nextId++;
   const deviceMemory = typeof navigator !== 'undefined' ? navigator.deviceMemory : null;
@@ -140,6 +143,7 @@ function convert({ file, scan, volumeId, onProgress, cancelToken, crop = null, d
       volumeId,
       crop,
       delayShift,
+      local,
       memoryBudgetBytes: conversionBudgetBytes(deviceMemory),
       poolSize: deflatePoolSize(cores),
     });
