@@ -89,9 +89,9 @@ re-checked in this round.
 | Capability | Leaders | Ours | Gap |
 |---|---|---|---|
 | Data audit and usability | Done by hand in spreadsheets | Inventory, usability matrix with reasons, issue register | ahead |
-| Seismic and prestack QC | HRS, Petrel | Spectra, SNR, footprint; residual moveout, stretch, fold | partial (no gather display) |
-| Conditioning | HRS: trim, Radon, f-x, SOF, spectral balancing | Trim statics, stack matching | partial (Radon, f-x, SOF deferred) |
-| Ties and wavelets | All | Multi-well field wavelet, per-stack angle wavelets | parity |
+| Seismic and prestack QC | HRS, Petrel | Spectra, SNR, footprint, multiples; residual moveout, stretch, fold; gather viewer with conditioned copies beside | parity |
+| Conditioning | HRS: trim, Radon, f-x, SOF, spectral balancing | Trim statics, high-resolution AVO-compliant parabolic Radon demultiple, f-x deconvolution, survey shaping filter per stack, stack matching (QI round 3) | partial (structure-oriented filtering deferred) |
+| Ties and wavelets | All | Multi-well field wavelet, per-stack angle wavelets, suggested anchors, phase along the tie | parity |
 | AVO | HRS AVO | Intercept, gradient, fluid factor, chi, at the wells against modelled | parity on stacks; no gather-based AVO |
 | Post-stack inversion | Strata, Jason | Coloured, model-based, blocky, sparse spike, blind wells, spread | parity |
 | Prestack inversion | Strata, Jason | Fatti simultaneous with per-stack wavelets, blind wells | partial (no geostatistical inversion) |
@@ -103,10 +103,10 @@ re-checked in this round.
 
 | Item | Source | Decision |
 |---|---|---|
-| Radon multiple attenuation, f-x deconvolution, structure-oriented filtering | QI-STATUS C9 | Still wanted once a client delivers gathers with multiples (U2-001) |
+| Radon multiple attenuation, f-x deconvolution, structure-oriented filtering | QI-STATUS C9 | Radon and f-x done 2026-10-15 (QI round 3, #1169); structure-oriented filtering still deferred (U2-001) |
 | Vintage and processing-version linking (stack family) | QI-PLAN Q3 | The per-stack angles, matching and wavelets cover a single survey; linking waits for a 4D client (U2-006) |
 | Gather panels at wells and prospects | QI-STATUS C8 | Done 2026-10-15: the Gathers tab (U2-004) |
-| Survey-wide spectral shaping per stack | QI-STATUS C9 | Only if a study needs bandwidth matching (U2-005) |
+| Survey-wide spectral shaping per stack | QI-STATUS C9 | Done 2026-10-15: Balance the spectra on the AVO tab (U2-005, #1169) |
 | Open-dataset benchmark (Volve, F3) | QI-PLAN | Waits on the owner's licence check (U2-002) |
 
 ### 2c. Suite integration
@@ -122,13 +122,13 @@ qi_datasets, SEG-Y exports, the RRV prospect record and `.pld`.
 | 1 | U2-002 | Benchmark the whole chain on Volve (prestack, wells with shear) and F3; record blind-well errors in QI-STATUS. F3 run 2026-10-15 (docs/scope/QI-BENCHMARK.md): Milestone A in part, B fails until the wells are tied with stretch and squeeze or measured checkshots; Volve waits for the download | L |
 | 2 | U2-003 | ~~Owner tile and price for QI Studio~~ Done 2026-10-07: own tile, 1690 a month | S |
 | 3 | U2-004 | ~~Gather viewer at a CDP and at wells, with the mute and the trimmed result beside it~~ Done 2026-10-15 (QI upgrade P1.7): the Gathers tab | M |
-| 4 | U2-001 | Radon, f-x and structure-oriented filtering on the worker (engines first) | L |
-| 5 | U2-005 | Per-stack shaping filter that keeps relative amplitudes | M |
+| 4 | U2-001 | Radon, f-x and structure-oriented filtering on the worker (engines first). Radon and f-x done 2026-10-15 (QI round 3: engines #377, Suite #1169, live-checked); structure-oriented filtering open | L |
+| 5 | U2-005 | ~~Per-stack shaping filter that keeps relative amplitudes~~ Done 2026-10-15 (QI round 3, #1169) | M |
 | 6 | U2-006 | Vintage and processing-version linking | M |
 | 7 | U2-007 | ~~Offer the Simultaneous pulls, Vs/Vp and model cut on the tab (the job already takes them)~~ Done 2026-10-15 (QI upgrade P1.4, #1145) | S |
 | 8 | U2-008 | ~~Simultaneous blind-well results to the issue register~~ Done 2026-10-15 (QI upgrade P1.2, #1142) | S |
-| 9 | U2-009 | Automatic anchor suggestion for the stretch-and-squeeze tie in Seismolord Synthetics (QI reads the committed tie); found by the F3 benchmark | M |
-| 10 | U2-010 | Tie guard on the Simultaneous wavelet scale (post-stack has one, #1154) | S |
+| 9 | U2-009 | ~~Automatic anchor suggestion for the stretch-and-squeeze tie in Seismolord Synthetics~~ Done 2026-10-15 (#1159); phase along the tie added in round 3 (#1170) | M |
+| 10 | U2-010 | ~~Tie guard on the Simultaneous wavelet scale~~ Done 2026-10-15 (QI round 3, #1163) | S |
 
 ### Owner items
 

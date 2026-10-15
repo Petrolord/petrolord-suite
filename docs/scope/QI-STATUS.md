@@ -978,3 +978,100 @@ P2 PRs: #1150 (P2.8), #1155 (P2.9), #1152 (P2.10), #1151 (P2.11), #1153 (P2.12).
 - **Option 3, measured checkshots:** NLOG T/Z tables for F03-02, F03-04, F06-01 imported through Well Data Manager (QA account); ties 0.41 to 0.71 (F06-01 has no density in the record).
 - **Option 2, Suggest anchors** in Seismolord Synthetics (engines #373 to #375, Suite #1159): dynamic warping; validated on known warps within one sample, noise suggests nothing. On F3 it aligned the events but did not raise the correlation.
 - **Milestone B on F3 stays FAIL, refused cleanly** under every tie state; shift, phase and polarity disagree from well to well even on measured checkshots, which places the mismatch in the dGB stack and the 1970s sonic logs. Volve is the better test. Detail: docs/scope/QI-BENCHMARK.md.
+
+## QI Studio round 3 (owner OK 2026-10-15, without Volve or client data)
+
+Owner, 2026-10-15: "Can we proceed with the remaining feature developments of QI Studio without the Volve data? ... before then I want to see some more progress." The same day the owner dropped the rule that tabs, default views and test ids stay unchanged ("Further development and improvements will be a constant in this platform"); demo-account data stays untouched.
+
+### R3.1 Prestack conditioning (the Q5 remainder; closes U2-001 in part and U2-005)
+- **Engines #377 `qi/prestackConditioning.js`:**
+  - `radonDemultiple`: parabolic Radon (Hampson 1986) with AVO terms, so each moveout carries an intercept and a gradient (Ng and Perz 2004). High resolution by sparse reweighting along q (Sacchi and Ulrych 1995), solved by warm-started conjugate gradients on the block Toeplitz normal equations (Levinson for the plain least-squares case). Overlapping 300 ms windows at 75 percent overlap, normalised to sum to one. The multiples (q at or above the cut, in ms at the far offset) are rebuilt and subtracted, so the primaries never pass through the transform.
+  - `fxDecon`: f-x prediction (Canales 1984), forward and backward, in 200 ms windows.
+  - `shapingOperator` / `applyShaping` / `meanAmplitudeSpectrum`: one zero-phase operator per stack, from its mean spectrum to a target (another stack's, or flat in a band), with the boost capped and the stack's band energy kept.
+- **Gates (16; synthetic gather with 31 offsets, three AVO primaries and three parabolic multiples, one starting on a primary):**
+  - over 20 dB of multiple energy removed;
+  - isolated primaries: A within 2 percent, B within 5;
+  - the primary under a multiple: A within 6 percent, B within 14 (over 40 percent before);
+  - negative controls: plain least-squares Radon biases B by over 25 percent; a cut below q = 0 removes the primaries; re-breaking the gradient term fails 2 gates;
+  - f-x: noise-free A within 1 percent; S/N gain of 4.5 dB or more with intercept bias within 4 percent over 10 realisations; an over-damped filter loses over 20 percent (negative control);
+  - shaping: a 20 Hz far stack given the 35 Hz near bandwidth raises its correlation with the truth from under 0.75 to over 0.94; a trace twice as bright stays exactly twice as bright; per-trace balancing equalises it (negative control).
+- **Worker kinds (#1169):**
+  - `radon_demultiple` and `fx_denoise` (`conditionGathers.js`): each NMO-corrected gather of a store is conditioned across its offset bins into a new store beside the input. Options: the removed part as a third store, and an inline and crossline area (CDPs outside are left out). The result gives the energy removed per quarter of the trace and the seconds per gather.
+  - `spectral_balance` (`balanceStacks.js`): derived volumes `qi_balanced_stack`, offered as study stacks.
+  - Gated through the real `ingest_gathers` on a synthetic prestack SEG-Y:
+    - over 15 dB of multiples removed;
+    - isolated primaries: A within 2 percent, B within 5;
+    - the primary under a multiple: A within 6, B within 14;
+    - input = output + removed, sample by sample;
+    - negative control: a cut above the multiples removes under 3 dB;
+    - f-x at S/N about 6 dB: over 4 dB of gain, intercepts within 7 percent;
+    - balancing: correlation with the truth from under 0.8 to over 0.93, the centroid closes over 80 percent of the gap, the bright trace stays twice as bright; negative control: a narrow flat band misses the truth.
+- **QI Studio:**
+  - Prestack tab: Conditioning: multiples and noise (Radon or f-x, the settings, an area, keep what was removed, a table of the runs per quarter of the trace).
+  - AVO tab: Balance the spectra, before Match the stacks (a table of band centroid and half-power band, and a chart of the operators).
+  - Gathers tab: a store's conditioned copies, or its source, can sit beside it.
+  - The report gets both tables, the decision register lists the runs, and the help covers both.
+- **Live check (QA account, synthetic 24 x 24 CDP survey with 24 offsets uploaded through Seismolord's upload path; tools/qi-benchmark gen-prestack.mjs, analyse-prestack.mjs, plan-r3-*.json):**
+  - `radon_demultiple` took 0.79 s per gather (576 CDPs in 7.7 minutes). It removed 49 and 53 percent of the energy in the two windows holding the multiples, and under 1 percent in the windows with primaries only.
+  - Read back through the Gathers panel (worker suite-3f9ab286b, after R3.6) and compared with the truth:
+    - 24.8 dB of the multiples removed;
+    - isolated primaries: A within 0.8 percent, B within 1.4;
+    - the primary under a multiple: A from 27 to 6.0 percent error, B from 63 to 14.6;
+    - negative control, a cut at 250 ms above the multiples: 0.0 dB removed and the AVO unchanged.
+  - `fx_denoise` (0.03 s per gather): 5.6 dB of noise removed, intercepts within 2.5 to 4.6 percent.
+  - The real-browser walk of the Gathers tab (Chromium, the Suite's own login, the real services) listed the conditioned copies and the multiple model beside the store and drew the panel. The QA account has no QI Studio licence, so the walk used a local route without the gate, uncommitted.
+  - The test data was removed afterwards (eight worker files, the SEG-Y files and the panels).
+- **Decisions:**
+  - Conditioning writes new stores and never changes the input.
+  - f-x works across offsets within a gather. Common-offset f-x across CDPs, and structure-oriented filtering, are deferred.
+  - Radon is about a second per gather, so the area option is the pilot.
+  - Balancing keeps each stack's band energy; Match the stacks then sets time, phase and scale.
+
+### R3.4 Tie quality: Phase along the tie (engines #378, Suite #1170)
+- `seismolord/tiePhase.js`: the constant phase in 300 ms windows (every 100 ms; exact window correlations from the whole-trace Hilbert transform, in the tieWarp convention), a correlation-weighted straight-line drift, the time-variant rotation, and the check: offered when the drift reaches 30 degrees and the correlation rises by 0.03 or more.
+- Seismolord Synthetics has a Phase along the tie button, with an option to apply the time-variant phase to the display. The committed tie's QC keeps `phase_trend`. In QI Studio, Ties gets a Phase drift column, and a drift of 45 degrees or more is a medium issue.
+- Gates: a known 10 to 70 degree drift is measured within 6 degrees per window. The time-variant phase gains over 0.03 of correlation for 60 degrees of drift and over 0.12 for 120. Negative controls: a constant phase is not offered; noise offers nothing; flipping the Hilbert sign fails the gates.
+- **Decision:** a display and QC aid. Inversion keeps one wavelet per well or stack; a drifting tie is flagged so the target window is tied on its own.
+
+### R3.6 Worker links for the browser (#1172; found by the live check)
+- The worker signed the links it hands to the browser (the gather panel, the SEG-Y export) for its internal endpoint, http://seaweedfs:8333. The browser cannot resolve that host, so the Gathers tab and the SEG-Y export download never opened in production.
+- Live recheck after the redeploy: the panels downloaded through storage.petrolord.com, and the SEG-Y export link returned 200 with all 511,504 bytes (EBCDIC header "C 1 Petrolord Suite export of dome_ieee.sgy").
+- `makeLinkSigner` signs those two links for `S3_PUBLIC_ENDPOINT` (storage.petrolord.com); the worker's own reads and writes stay internal. They are the only signed URLs the worker returns: report PDFs and wavelet text are made in the browser, zone maps and pilot volumes are read through Supabase storage, and uploads are presigned by the edge function for the public host.
+
+### R3.2 Deferred QI items (#1163)
+- **Simultaneous inversion tie guard:** refused under a 0.3 correlation between the synthetic and the stacks at the wells, as post-stack is (#1154). The tie is recorded in `settings.wavelet_scale_tie` and shown on the tab. Gated: over 0.99 on the synthetic study, under 0.3 with foreign logs (refused).
+- **F-10:** coloured blind runs record the polarity each held-out run took from its kept wells. It is shown in a Polarity used column of the blind table and in the blind-check description, which warns when the wells disagree.
+- **F-2:** prepareWell compares the well's CRS tag with the volume's.
+  - The same CRS places the well as before.
+  - Another known CRS is converted: an EPSG:32631 well lands on the right trace of an EPSG:32630 volume; without the conversion (the negative control) it misses.
+  - An untagged well or volume is placed with a note.
+  - A local grid against another CRS is refused, with the reason.
+- **Job warnings** (a few samples lost as nulls) show under each run on the Inversion, Simultaneous and Properties tabs.
+- **AVO calibration:** the calibrated run is held until the wells comparison matches the stacks being computed. An older comparison without well positions must be rerun; before this, two of those cases sent an uncalibrated job silently.
+
+### R3.3 Worker throughput (#1162, #1165, #1166, #1168)
+- **Worker threads (#1162):** each job's handler runs in its own worker thread, so a CPU-heavy job no longer stalls another job's uploads. In tests the main-loop lag went from 1501 ms to 6 ms. `JOB_THREADS=0` runs jobs in the main thread as before, and the in-image selfcheck runs jobs through the bundled thread entry.
+- **Link import by byte ranges (#1165):** the link is registered without a copy when its server serves ranges; linking a 26 MB file read 0.84 MB. A cropped conversion reads only the kept traces, once, into scratch, with bricks identical to the copy path. A link without range support is copied as before. A changed, expired or no-longer-ranged link fails with its reason.
+- **#1166:** linked files do not count against the raw allowance. Migration 20261015200000, applied 2026-10-15 by the owner after second-engineer approval.
+- **Cropped browser uploads (#1168):** each part is read in 8 MiB pieces into Blobs. In Chromium the renderer peak fell from about 1.49 GB to 238 to 292 MB, and the 1.18 GB test upload went from about 100 s to 25 s.
+
+### R3.5 SEG-Y trace delay, F-5 (engines #376, Suite #1167)
+- Seismolord honours the trace delay (byte 109, time scalar at byte 215) on every import path: browser, server, link and gathers.
+  - A positive delay is put back as null samples above the trace; a negative one drops the samples before 0 ms.
+  - Volumes keep the 0 ms axis, because every consumer assumes it, and crop windows are typed in true times.
+  - Not applied, with a note: delays that differ between traces, depth files, and shifts under half a sample.
+- Gates: 10 in the engines, where ignoring the delay (the negative control) puts events 40 ms out; 12 in the worker, where every path stores identical bricks.
+- Volumes imported before this keep their old placement until reimported (the F3 stack in the QA account sits 4 ms early).
+
+### Round 3: deploys, zip and recorded videos
+- **Worker:** live suite-3f9ab286b+engines-d8f13dae5 (2026-10-15), with every round 3 kind and fix.
+- **Next Suite zip** (after a3c457056) for the UI: #1163, #1165 (link-import copy), #1167, #1168, #1169, #1170.
+- **Recorded QI videos and NextGen QI course steps** stay valid, since nothing was renamed or removed. These additions appear in new recordings:
+  - the Prestack tab's Conditioning section;
+  - the AVO tab's Balance the spectra above Match the stacks;
+  - the wider Beside it list on the Gathers tab;
+  - the Phase drift column on Well ties;
+  - Polarity used in the blind table;
+  - job warnings under runs;
+  - the Phase along the tie button in Seismolord Synthetics;
+  - the trace-delay note in the import dialog.
