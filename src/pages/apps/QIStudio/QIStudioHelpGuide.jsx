@@ -333,6 +333,8 @@ function QIStudioHelpGuideContent() {
           retained. QI does not set the chance of success: open the prospect in Risked Reserves Valuation from its row and the
           QI evidence is shown there beside it, read only.
         </Para>
+              <SubHeading>Depth uncertainty and a suggested Pg</SubHeading>
+        <Para>Under the prospects, each analysed prospect has a Depth uncertainty block. Choose its time structure from the surface registry and give velocity cases (a constant average velocity, or v0 + k z, each with a weight; Slow, Mid and Fast to start). Convert and close each case takes the structure to depth under every case, finds the crest and spill point on each, and gives the GRV to spill per case, its low and high, and weighted Q10, Q50 and Q90 for ranking. Give your own Pg and the block suggests a change from the QI assessment by a stated rule: times 1.3 when the QI matures the prospect with conformance of 0.7 or more and a feasible target, times 0.7 when it argues against, otherwise no change, held within 0.01 and 0.9. It is a suggestion for discussion; you set Pg in Risked Reserves Valuation.</Para>
       </GuideSection>
 
       <GuideSection id="handover">

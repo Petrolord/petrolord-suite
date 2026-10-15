@@ -33,6 +33,7 @@ import PrestackPanel from './components/PrestackPanel';
 import AvoPanel from './components/AvoPanel';
 import SimultaneousPanel from './components/SimultaneousPanel';
 import ProjectInventoryTab from './components/ProjectInventoryTab';
+import DepthCasesSection from './components/DepthCasesSection';
 import MapsPanel from './components/MapsPanel';
 import GathersPanel from './components/GathersPanel';
 
@@ -183,6 +184,8 @@ function QIStudioContent({ organizationName }) {
         {tab === 'simultaneous' && <SimultaneousPanel />}
         {tab === 'properties' && <PropertiesPanel />}
         {tab === 'prospects' && <ProspectsPanel />}
+        {/* QI upgrade P2.12: depth uncertainty and a suggested Pg, under the prospects */}
+        {tab === 'prospects' && <DepthCasesSection />}
         {tab === 'issues' && <IssuesPanel />}
         {/* decisions (QI upgrade P1.1) below the issue register, which is unchanged */}
         {tab === 'issues' && <DecisionsSection />}
