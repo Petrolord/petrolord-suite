@@ -1,0 +1,353 @@
+{
+ "location_coords": null,
+ "surface_elevation": null,
+ "water_depth": null,
+ "stratigraphy": [
+  {
+   "id": "import-1792012405394-0",
+   "name": "Seabed",
+   "color": "#f4a261",
+   "ageEnd": 0,
+   "ageStart": 2.6,
+   "lithology": "sandstone",
+   "thickness": 335.28000000000003,
+   "provenance": {
+    "top_tvd_m": 0,
+    "base_tvd_m": 335.28000000000003,
+    "lithology_from": "column file",
+    "thickness_basis": "file",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyGuessed": false
+  },
+  {
+   "id": "import-1792012405394-1",
+   "name": "Benin Formation",
+   "color": "#f4a261",
+   "ageEnd": 2.6,
+   "ageStart": 5.3,
+   "lithology": "sandstone",
+   "thickness": 841.248,
+   "provenance": {
+    "top_tvd_m": 335.28000000000003,
+    "base_tvd_m": 1176.528,
+    "lithology_from": "column file",
+    "thickness_basis": "file",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyGuessed": false
+  },
+  {
+   "id": "import-1792012405394-2",
+   "name": "Agbada Formation",
+   "color": "#8d99ae",
+   "ageEnd": 5.3,
+   "ageStart": 12.5,
+   "lithology": "mixed",
+   "thickness": 335.28,
+   "provenance": {
+    "top_tvd_m": 1176.528,
+    "base_tvd_m": 1511.808,
+    "lithology_from": "column file",
+    "thickness_basis": "file",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyMix": {
+    "shale": 55,
+    "limestone": 0,
+    "sandstone": 45
+   },
+   "lithologyGuessed": false
+  },
+  {
+   "id": "import-1792012405394-3",
+   "name": "Ogbia Shale",
+   "color": "#264653",
+   "ageEnd": 12.5,
+   "ageStart": 14.8,
+   "lithology": "shale",
+   "thickness": 384.048,
+   "provenance": {
+    "top_tvd_m": 1511.808,
+    "base_tvd_m": 1895.856,
+    "lithology_from": "column file",
+    "thickness_basis": "file",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyGuessed": false
+  },
+  {
+   "id": "import-1792012405394-4",
+   "name": "Ekene Sand",
+   "color": "#f4a261",
+   "ageEnd": 14.8,
+   "ageStart": 15.4,
+   "lithology": "sandstone",
+   "thickness": 70.10400000000004,
+   "provenance": {
+    "top_tvd_m": 1895.856,
+    "base_tvd_m": 1965.96,
+    "lithology_from": "column file",
+    "thickness_basis": "file",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyGuessed": false
+  },
+  {
+   "id": "import-1792012405394-5",
+   "name": "Ekene Sand Base",
+   "color": "#8d99ae",
+   "ageEnd": 15.4,
+   "ageStart": 21,
+   "lithology": "mixed",
+   "thickness": 414.52800000000025,
+   "provenance": {
+    "top_tvd_m": 1965.96,
+    "base_tvd_m": 2380.4880000000003,
+    "lithology_from": "column file",
+    "thickness_basis": "file",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyMix": {
+    "shale": 65,
+    "limestone": 0,
+    "sandstone": 35
+   },
+   "lithologyGuessed": false
+  },
+  {
+   "id": "import-1792012405394-6",
+   "name": "Oboro Sand",
+   "color": "#f4a261",
+   "ageEnd": 21,
+   "ageStart": 22.2,
+   "lithology": "sandstone",
+   "thickness": 149.35199999999986,
+   "provenance": {
+    "top_tvd_m": 2380.4880000000003,
+    "base_tvd_m": 2529.84,
+    "lithology_from": "column file",
+    "thickness_basis": "file",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyGuessed": false
+  },
+  {
+   "id": "import-1792012405394-7",
+   "name": "Oboro Sand Base",
+   "color": "#8d99ae",
+   "ageEnd": 22.2,
+   "ageStart": 28,
+   "lithology": "mixed",
+   "thickness": 521.2080000000001,
+   "provenance": {
+    "top_tvd_m": 2529.84,
+    "base_tvd_m": 3051.0480000000002,
+    "lithology_from": "column file",
+    "thickness_basis": "file",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyMix": {
+    "shale": 75,
+    "limestone": 0,
+    "sandstone": 25
+   },
+   "lithologyGuessed": false
+  },
+  {
+   "id": "import-1792012405394-8",
+   "name": "Akata Formation",
+   "color": "#264653",
+   "ageEnd": 28,
+   "ageStart": 33,
+   "lithology": "shale",
+   "thickness": 399.288,
+   "provenance": {
+    "top_tvd_m": 3051.0480000000002,
+    "base_tvd_m": 3450.3360000000002,
+    "lithology_from": "column file",
+    "thickness_basis": "file",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyGuessed": false
+  },
+  {
+   "id": "import-1792012405394-9",
+   "name": "Upper Akata source",
+   "color": "#7f4f24",
+   "ageEnd": 33,
+   "ageStart": 35,
+   "lithology": "shale",
+   "thickness": 201.16800000000012,
+   "provenance": {
+    "top_tvd_m": 3450.3360000000002,
+    "base_tvd_m": 3651.5040000000004,
+    "lithology_from": "column file",
+    "thickness_basis": "file",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 330,
+    "toc": 2.4,
+    "kerogen": "pc-B",
+    "isSource": true
+   },
+   "agesGuessed": false,
+   "lithologyGuessed": false
+  },
+  {
+   "id": "import-1792012405394-10",
+   "name": "Akata middle",
+   "color": "#264653",
+   "ageEnd": 35,
+   "ageStart": 42,
+   "lithology": "shale",
+   "thickness": 600.4559999999997,
+   "provenance": {
+    "top_tvd_m": 3651.5040000000004,
+    "base_tvd_m": 4251.96,
+    "lithology_from": "column file",
+    "thickness_basis": "file",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 0,
+    "toc": 0,
+    "kerogen": "type2",
+    "isSource": false
+   },
+   "agesGuessed": false,
+   "lithologyGuessed": false
+  },
+  {
+   "id": "import-1792012405394-11",
+   "name": "Lower Akata source",
+   "color": "#7f4f24",
+   "ageEnd": 42,
+   "ageStart": 45,
+   "lithology": "shale",
+   "thickness": 201.16800000000057,
+   "provenance": {
+    "top_tvd_m": 4251.96,
+    "base_tvd_m": 4453.128000000001,
+    "lithology_from": "column file",
+    "thickness_basis": "file",
+    "lithology_guessed": false
+   },
+   "sourceRock": {
+    "hi": 220,
+    "toc": 2.2,
+    "kerogen": "pc-F",
+    "isSource": true
+   },
+   "agesGuessed": false,
+   "lithologyGuessed": false
+  }
+ ],
+ "thermal_history": null,
+ "status": "in-progress",
+ "calibration_data": {
+  "ro": [],
+  "temp": []
+ },
+ "heat_flow": {
+  "type": "constant",
+  "value": 58.5
+ },
+ "erosion_events": [],
+ "settings": {
+  "traps": [
+   {
+    "id": "trap-mv8lx9ei-0",
+    "name": "Ekene",
+    "inPlace": 12.14,
+    "fetchKm2": 25,
+    "formedMa": 12,
+    "sourceIds": [
+     "import-1792012405394-9"
+    ],
+    "efficiency": 0.1,
+    "inPlaceUnit": "MMstb"
+   },
+   {
+    "id": "trap-mv8lx9ei-1",
+    "name": "Oboro",
+    "inPlace": 60,
+    "fetchKm2": 15,
+    "formedMa": 16,
+    "sourceIds": [
+     "import-1792012405394-11"
+    ],
+    "efficiency": 0.1,
+    "inPlaceUnit": "Bcf"
+   }
+  ],
+  "deposition": "continuous",
+  "timeStepMa": 0.25,
+  "surfaceTemp": 25
+ },
+ "scenarios": []
+}
