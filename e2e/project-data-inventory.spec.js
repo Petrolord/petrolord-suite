@@ -23,10 +23,10 @@ async function openQi(page) {
   return errors;
 }
 
-test('QI Studio: the recorded tabs are unchanged and Data matrix comes last', async ({ page }) => {
+test('QI Studio: the recorded tabs are unchanged and Data matrix follows them (upgrade tabs come after)', async ({ page }) => {
   const errors = await openQi(page);
   const ids = await page.getByRole('tab').evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')));
-  expect(ids).toEqual([...RECORDED_QI_TABS, 'datainventory'].map((k) => `qi-tab-${k}`));
+  expect(ids.slice(0, RECORDED_QI_TABS.length + 1)).toEqual([...RECORDED_QI_TABS, 'datainventory'].map((k) => `qi-tab-${k}`));
   await expect(page.getByTestId('qi-tab-setup')).toHaveAttribute('aria-selected', 'true');
   // the recorded tabs sit on one line at the recording viewport
   await page.setViewportSize({ width: 1440, height: 810 });

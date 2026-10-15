@@ -3,8 +3,6 @@
   "canonical": {
     "repo": "git@github.com:Petrolord/petrolord-engines.git",
     "commit": "1b0a7a80612dc9e428f01d0312f7e66c6d7dbea0",
-
-    "commit": "d6c4d601587414aea06b6fba5e55f8c1b3615f8e",
     "manifest": "VENDOR.manifest"
   },
   "vendoring": {
@@ -12,8 +10,6 @@
     "$comment": "NOT a whole-tree `git subtree pull`. That silently DELETED 24 Suite-only downstream files on 2026-09-14. Vendor the paths the canonical range actually touched, then run the guard, which is what proves nothing else moved.",
     "lastVendored": "2026-10-15",
     "lastVendoredRange": "eab475c0d8ae0afbf34eb096a31f9c3084ebb785..1b0a7a80612dc9e428f01d0312f7e66c6d7dbea0 (engines PR #367: Basin eroded section laid on top of a layer that ends at its deposit age; QI zone maps and gather display, PRs #365 and #366)"
-
-    "lastVendoredRange": "eab475c0d8ae0afbf34eb096a31f9c3084ebb785..d6c4d601587414aea06b6fba5e55f8c1b3615f8e (engines PR #365: qi gather display maths, NMO correction, angle field and contours, stretch-mute line; PR #366: qi/zoneMaps.js zone maps from volumes; gates qi.gatherDisplay, qi.zoneMaps)"
   },
   "testing": {
     "$comment": "The Suite needs no equivalent of NextGen's tools/run-vendored-engine-tests.mjs. jest.config.js uses testMatch '**/__tests__/**/*.test.(js|jsx|ts)' with no testPathIgnorePatterns, so all 179 suites under packages/engines/__tests__ already run in `npm test` beside the Suite's own. There is no allow-list of known engine test failures because there are none: the vendored suites are green.",
