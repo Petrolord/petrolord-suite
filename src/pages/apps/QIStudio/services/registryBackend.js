@@ -8,6 +8,7 @@ import { listWells, listLogs, listZones, listTops, downloadCurve } from '@/lib/w
 import { supabase } from '@/lib/customSupabaseClient';
 import { getManifest, deleteVolume } from '@/pages/apps/Seismolord/services/volumesService';
 import { listHorizons } from '@/pages/apps/Seismolord/services/horizonsService';
+import { listFaults } from '@/pages/apps/Seismolord/services/faultsService';
 import { assertQuota } from '@/pages/apps/Seismolord/services/seismicStorage';
 import { assertFloat32Parent, derivedStorageBytes } from '@/pages/apps/Seismolord/services/attributeSurveyMeta';
 import { volumeDir } from '../../../../../packages/engines/engines/seismolord/manifest';
@@ -64,6 +65,8 @@ export function makeRegistryBackend() {
       return (await listHorizons(volumeId)).filter((h) => h.is_own);
     },
     downloadCurve,
+    // QI upgrade P2.8: faults as barriers in the low-frequency model
+    async listFaults(volumeId) { return listFaults(volumeId); },
     async registerInversionVolume({ volume, name, summary }) {
       return registerDerived(volume, name, { name: 'qi_inversion', params: summary });
     },

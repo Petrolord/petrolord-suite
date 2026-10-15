@@ -15,7 +15,9 @@ import { tieRows, waveletComparison, leaveOneOutWavelets } from '../services/tie
 import { prepareWell } from '../services/inversionWells';
 import {
   INVERSION_METHODS, INVERSION_DEFAULTS, inversionIssues, validateSensitivity, MAX_SCENARIOS, blindProtocolText,
+  faultTraceXY, validateLfmOptions, LFM_VARIOGRAMS,
 } from '../services/inversionRun';
+import { ilxlToWorld } from '../../../../../packages/engines/engines/seismolord/surveyGeometry';
 import ExportControls from './ExportControls';
 import { packLog } from '../services/logPacking';
 
@@ -99,7 +101,7 @@ function BlindTable({ result }) {
 }
 
 export default function InversionPanel() {
-  const { chosenVolumes, ready, project, setInversion, saveIssue, canWrite, jobs, backend, addNotification } = useQIStudio();
+  const { chosenVolumes, volumes, ready, project, setInversion, saveIssue, canWrite, jobs, backend, addNotification } = useQIStudio();
   const client = jobs || qiService;
   const [volumeId, setVolumeId] = useState('');
   const volume = chosenVolumes.find((v) => v.id === volumeId) || chosenVolumes[0] || null;
@@ -107,6 +109,7 @@ export default function InversionPanel() {
   const [settings, setSettings] = useState(null);
   const s = settings || { method: 'model_based', lfmHz: INVERSION_DEFAULTS.lfmHz, eps: INVERSION_DEFAULTS.eps, lambda: INVERSION_DEFAULTS.lambda, horizonIds: [], wavelet: '', ...(saved.settings || {}) };
   const [horizons, setHorizons] = useState([]);
+  const [faults, setFaults] = useState([]); // QI upgrade P2.8
   const [prep, setPrep] = useState(null); // {busy} | {frame, wells} | {error}
   const [job, setJob] = useState({}); // mode -> {job} | {error}
   const [outName, setOutName] = useState('');
@@ -124,6 +127,7 @@ export default function InversionPanel() {
     if (!volume || !backend?.listHorizons) return;
     let live = true;
     backend.listHorizons(volume.id).then((h) => { if (live) setHorizons(h || []); }).catch(() => { if (live) setHorizons([]); });
+    if (backend.listFaults) backend.listFaults(volume.id).then((f) => { if (live) setFaults(f || []); }).catch(() => { if (live) setFaults([]); });
     return () => { live = false; };
   }, [volume?.id, backend]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -155,7 +159,17 @@ export default function InversionPanel() {
     const own = wavelet?.key?.startsWith('well:') ? ready.find((r) => `well:${r.well.id}` === wavelet.key)?.well?.name : null;
     return own ? { wavelet_well: own } : {};
   };
+  // QI upgrade P2.8: the low-frequency model options (kriging, faults, a velocity trend)
+  const lfmBlock = () => {
+    const posOf = prep?.frame?.affine ? (il, xl) => ilxlToWorld(prep.frame.affine, il, xl) : null;
+    const barriers = posOf ? faults.filter((f) => (s.faultIds || []).includes(f.id)).map((f) => faultTraceXY(f, posOf)).filter((l) => l.length >= 2) : [];
+    const lfm = s.lfmMethod === 'kriging' || barriers.length
+      ? { method: s.lfmMethod === 'kriging' ? 'kriging' : 'idw', ...(s.lfmMethod === 'kriging' ? { variogram: { model: s.lfmModel || 'spherical', range: Number(s.lfmRange) } } : {}), ...(barriers.length ? { barriers } : {}) }
+      : null;
+    return { ...(lfm ? { lfm } : {}), ...(s.velocityId && INVERSION_METHODS[s.method].absolute ? { velocity: { volume_id: s.velocityId, kind: s.velocityKind || 'interval' } } : {}) };
+  };
   const inversionBlock = () => ({
+    ...lfmBlock(),
     method: s.method,
     wavelet: { samples: wavelet.samples, dt_ms: wavelet.dtMs },
     ...blindWaveletBlock(),
@@ -200,6 +214,25 @@ export default function InversionPanel() {
       if (row) { try { await backend.removeVolume(row); } catch { /* best effort */ } }
       if (residualRow) { try { await backend.removeVolume(residualRow); } catch { /* best effort */ } }
       setJob((j) => ({ ...j, volume: { error: qiService.friendlyError(e) } }));
+    }
+  };
+  // the model scenarios compared at the blind wells (P2.8)
+  const scenarioBlock = () => {
+    const b = lfmBlock();
+    const out = [{ name: 'Inverse distance' }];
+    if (s.lfmMethod === 'kriging') out.push({ name: `Kriging, ${s.lfmModel || 'spherical'} ${s.lfmRange} m`, lfm: { method: 'kriging', variogram: { model: s.lfmModel || 'spherical', range: Number(s.lfmRange) } } });
+    if (b.lfm?.barriers?.length) out.push({ name: `With ${b.lfm.barriers.length} fault${b.lfm.barriers.length === 1 ? '' : 's'}`, lfm: { method: 'idw', barriers: b.lfm.barriers } });
+    if (b.velocity) out.push({ name: 'Velocity trend', velocity: true });
+    return out;
+  };
+  const lfmProblem = validateLfmOptions({ method: s.method, ...lfmBlock() });
+  const runScenarios = async () => {
+    setJob((j) => ({ ...j, scenarios: { job: { status: 'queued', progress: 0 } } }));
+    try {
+      const jobId = await client.enqueueJob('poststack_inversion', { mode: 'blind', parent_volume_id: volume.id, name: `${volume.name} model scenarios at the wells`, inversion: { ...inversionBlock(), lfm_scenarios: scenarioBlock() } });
+      watch('scenarios', jobId, (row) => setInversion(volume.id, { lfmScenarios: { jobId, at: row.finished_at || new Date().toISOString(), result: row.result_refs?.lfm_scenarios || [] } }));
+    } catch (e) {
+      setJob((j) => ({ ...j, scenarios: { error: qiService.friendlyError(e) } }));
     }
   };
   const sensBlock = sensitivityBlock(spreadOpts, choices);
@@ -254,7 +287,7 @@ export default function InversionPanel() {
   const settingsProblem = (blank(s.lfmHz) || !(Number(s.lfmHz) >= 2 && Number(s.lfmHz) <= 20)) ? 'Give the low-frequency model cut, 2 to 20 Hz.'
     : (s.method === 'sparse_spike' ? (blank(s.lambda) || !(Number(s.lambda) >= 0)) : (s.method !== 'coloured' && (blank(s.eps) || !(Number(s.eps) >= 0)))) ? 'Give the regularisation weight, zero or more.'
       : null;
-  const canRun = canWrite && wavelet && usable.length >= 1 && !settingsProblem;
+  const canRun = canWrite && wavelet && usable.length >= 1 && !settingsProblem && !lfmProblem;
 
   return (
     <section className={card} data-testid="qi-inversion">
@@ -337,6 +370,60 @@ export default function InversionPanel() {
         )}
       </div>
 
+      {prep?.wells && INVERSION_METHODS[s.method].absolute && (
+        <details className="rounded border border-pl-border p-3 text-xs space-y-2" data-testid="qi-inv-lfm-options">
+          <summary className="cursor-pointer text-pl-text">Low-frequency model options: kriging, faults, a velocity trend</summary>
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            <label className="flex items-center gap-1">Between the wells
+              <select className={input} value={s.lfmMethod || 'idw'} onChange={(e) => change({ lfmMethod: e.target.value })} data-testid="qi-inv-lfm-method">
+                <option value="idw">Inverse distance</option><option value="kriging">Kriging</option>
+              </select>
+            </label>
+            {s.lfmMethod === 'kriging' && (
+              <>
+                <label className="flex items-center gap-1">Variogram
+                  <select className={input} value={s.lfmModel || 'spherical'} onChange={(e) => change({ lfmModel: e.target.value })}>{LFM_VARIOGRAMS.map((m) => <option key={m} value={m}>{m}</option>)}</select>
+                </label>
+                <label className="flex items-center gap-1">range (m)<input className={`${input} w-20`} type="number" min="1" value={s.lfmRange ?? ''} onChange={(e) => change({ lfmRange: e.target.value })} data-testid="qi-inv-lfm-range" /></label>
+              </>
+            )}
+          </div>
+          {faults.length > 0 && (
+            <div className="flex flex-wrap items-center gap-3"><span className="text-pl-muted">Faults the model does not average across:</span>
+              {faults.map((f) => <label key={f.id} className="flex items-center gap-1"><input type="checkbox" checked={(s.faultIds || []).includes(f.id)} onChange={() => change({ faultIds: (s.faultIds || []).includes(f.id) ? s.faultIds.filter((x) => x !== f.id) : [...(s.faultIds || []), f.id] })} data-testid={`qi-inv-lfm-fault-${f.id}`} />{f.name}</label>)}
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-1">Velocity trend from
+              <select className={input} value={s.velocityId || ''} onChange={(e) => change({ velocityId: e.target.value })} data-testid="qi-inv-lfm-velocity">
+                <option value="">none (the wells only)</option>
+                {(volumes || []).filter((v) => v.id !== volume.id).map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+              </select>
+            </label>
+            {s.velocityId && (
+              <label className="flex items-center gap-1">holding
+                <select className={input} value={s.velocityKind || 'interval'} onChange={(e) => change({ velocityKind: e.target.value })} data-testid="qi-inv-lfm-velocity-kind"><option value="interval">interval velocity</option><option value="rms">RMS velocity (taken to interval by Dix)</option></select>
+              </label>
+            )}
+          </div>
+          <p className={muted}>Kriging spreads the wells by a variogram in map distance. A fault stops the model averaging wells on its two sides. A velocity trend maps a velocity volume on this lattice, in two-way time, to impedance by a line in ln V calibrated at the wells (the held-back well is left out of it), and adds the wells&apos; differences from it. These options apply to the checks and runs below; compare them first.</p>
+          {lfmProblem && <p className="text-pl-warning-text" data-testid="qi-inv-lfm-problem">{lfmProblem}</p>}
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" className={btn} onClick={runScenarios} disabled={!canRun || usable.length < 2 || busy('scenarios')} data-testid="qi-inv-lfm-compare">Compare model scenarios at the wells</button>
+            {status('scenarios')}
+          </div>
+          {saved.lfmScenarios?.result?.length > 0 && (
+            <table className="text-xs" data-testid="qi-inv-lfm-scenarios">
+              <thead><tr><th className={th}>Model scenario</th><th className={th}>Mean blind AI error (percent)</th><th className={th}>By well</th></tr></thead>
+              <tbody>
+                {saved.lfmScenarios.result.map((r) => (
+                  <tr key={r.name}><td className={td}>{r.name}</td><td className={`${td} font-mono`}>{r.error ? EMPTY_VALUE : f(r.meanRmsPct, 1)}</td><td className={td}>{r.error || r.rows.map((w) => `${w.name} ${f(w.rmsPct, 1)}`).join(', ')}{r.trend ? `; ln AI = ${f(r.trend.a, 3)} + ${f(r.trend.b, 3)} ln V (r squared ${f(r.trend.r2, 2)})` : ''}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </details>
+      )}
       {prep?.wells && (
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <button type="button" className={btn} onClick={runBlind} disabled={!canRun || usable.length < 2 || busy('blind')} data-testid="qi-inv-blind">Check at the wells (blind)</button>

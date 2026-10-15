@@ -202,6 +202,23 @@ function QIStudioHelpGuideContent() {
           matches a full run, because every trace is still processed over its whole length. Property runs on a pilot
           impedance volume keep to its area. The report lists the pilot runs with their areas.
         </Para>
+        <SubHeading>Low-frequency model options</SubHeading>
+        <Para>
+          Open Low-frequency model options under the wells to change how the model is spread between the wells. Kriging
+          uses a variogram (spherical, exponential or gaussian) with the range you give in metres, in place of inverse
+          distance. Faults picked in Seismolord on this volume can be ticked: the model never averages wells on the two sides
+          of a fault (a trace whose every well is cut off falls back to all of them). A velocity trend reads a velocity
+          volume on the same lattice, in two-way time (interval velocity, or RMS velocity taken to interval by Dix), maps it
+          to impedance by a straight line in ln V fitted at the wells, and adds back each well&apos;s difference from it, so the
+          model follows the velocity away from the wells and returns each well at its own trace. In the blind check the
+          held-back well is left out of that fit too.
+        </Para>
+        <Para>
+          Compare model scenarios at the wells runs the blind check once per scenario (inverse distance, kriging, with the
+          faults, the velocity trend) and lists each scenario&apos;s mean blind error and the calibration line; the report prints
+          the table. The chosen options apply to the checks and runs below. The uncertainty run uses the wells-only or kriged
+          model.
+        </Para>
         <SubHeading>Truly blind wells</SubHeading>
         <Para>
           A well held back in the blind check is left out of everything the inversion learns from the wells: the

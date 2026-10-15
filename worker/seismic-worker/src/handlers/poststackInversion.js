@@ -29,6 +29,7 @@ import {
   validateInversionParams, horizonsAtFrom,
   blindWellTable, INVERSION_DEFAULTS, INVERSION_METHODS,
   makeScenarioInverters, blindSensitivity, spreadProducts, makeBlindInverter, blindProtocol, residualTrace, residualPercent,
+  velocityForLfm,
 } from '../../../../src/pages/apps/QIStudio/services/inversionRun.js';
 import { blindTableProblem, makeSanityCounter } from '../outputSanity.js';
 import { assertFloat32Parent, derivedStorageBytes, derivedSurveyMeta } from '../../../../src/pages/apps/Seismolord/services/attributeSurveyMeta.js';
@@ -36,7 +37,7 @@ import { assertTimeDomain } from '../../../../src/pages/apps/Seismolord/lib/vert
 import { storageBrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCache.js';
 import { v4BrickFetcher } from '../../../../packages/engines/engines/seismolord/brickCodecV4.js';
 import { geomFromManifest, brickKey } from '../../../../packages/engines/engines/seismolord/sliceAssembly.js';
-import { surveyAffine, ilxlToWorld } from '../../../../packages/engines/engines/seismolord/surveyGeometry.js';
+import { surveyAffine, ilxlToWorld, sameLattice } from '../../../../packages/engines/engines/seismolord/surveyGeometry.js';
 import { runVolumeJob } from '../../../../packages/engines/engines/seismolord/volumeJob.js';
 import { resampleWavelet } from '../../../../packages/engines/engines/qi/wavelets.js';
 import {
@@ -89,6 +90,11 @@ export function inversionSummary(inv, extra = {}) {
     ...(s.method === 'coloured' ? { band_hz: s.band } : {}),
     wavelet_dt_ms: inv.wavelet.dt_ms,
     wavelet_length: inv.wavelet.samples.length,
+    // QI upgrade P2.8: the model options
+    lfm_method: inv.lfm?.method === 'kriging' ? 'kriging' : 'inverse distance',
+    ...(inv.lfm?.method === 'kriging' ? { lfm_variogram: inv.lfm.variogram } : {}),
+    ...((inv.lfm?.barriers || []).length ? { lfm_faults: inv.lfm.barriers.length } : {}),
+    ...(inv.velocity ? { lfm_velocity: { volume_id: inv.velocity.volume_id, kind: inv.velocity.kind } } : {}),
     ...extra,
   };
 }
@@ -204,13 +210,44 @@ export async function poststackInversion(ctx, deps) {
   ctx.progress(0.01, 'Reading the well traces');
   const traces = [];
   for (const w of inv.wells) traces.push(await readTrace(w.il, w.xl));
+
+  // QI upgrade P2.8: a velocity volume on the same lattice for the model's trend
+  let velocityAtWells = null; let trendAt = null; let velFetch = null; let velCol = null; let velKey = null;
+  if (inv.velocity) {
+    const vRow = await rowOf(inv.velocity.volume_id);
+    if (!vRow || vRow.user_id !== uid) return fail('not_found', 'The velocity volume was not found in your account.');
+    if (vRow.status !== 'ready') return fail('validate_failed', `The velocity volume is ${vRow.status}; it must be complete.`);
+    const vMan = await readManifest(`${vRow.storage_path}/manifest.json`);
+    try { assertFloat32Parent(vMan); } catch (e) { return fail('validate_failed', e.message); }
+    if (vMan.geometry?.vertical?.domain === 'depth') return fail('validate_failed', 'The velocity volume is in depth; the model trend needs a velocity volume in two-way time on the seismic lattice.');
+    if (!sameLattice(vMan, manifest)) return fail('validate_failed', 'The velocity volume is not on the seismic volume\'s lattice; crop or resample it to the same inlines, crosslines and samples.');
+    const vf = deps.makeFetcher ? deps.makeFetcher(vMan, 1) : v4BrickFetcher(storageBrickFetcher({ supabaseUrl: deps.supabaseUrl, getToken: async () => deps.serviceRoleKey, bucket: 'seismic' }), vMan);
+    velFetch = async (i, j, k) => new Float32Array(await vf(brickKey(vRow.storage_path, i, j, k)));
+    const prepV = (tr) => velocityForLfm(tr, { kind: inv.velocity.kind, dtMs, lfmHz: s.lfmHz });
+    const readVel = async (il, xl) => {
+      const bricks = await Promise.all(Array.from({ length: geom.grid[2] }, (_, k) => velFetch(Math.floor(il / b), Math.floor(xl / b), k)));
+      const base = ((il % b) * b + (xl % b)) * b;
+      return Float32Array.from({ length: ns }, (_, x) => bricks[Math.floor(x / b)][base + (x % b)]);
+    };
+    const atWells = new Map();
+    velocityAtWells = [];
+    for (const w of inv.wells) { const v = prepV(await readVel(w.il, w.xl)); velocityAtWells.push(v); atWells.set(`${w.il},${w.xl}`, v); }
+    // at the wells from the map; over the volume from the column the run is on
+    trendAt = (il, xl) => {
+      const k = `${il},${xl}`;
+      if (atWells.has(k)) return atWells.get(k);
+      if (!velCol || velKey !== `${Math.floor(il / b)}-${Math.floor(xl / b)}`) return null;
+      const base = ((il % b) * b + (xl % b)) * b;
+      return prepV(Float32Array.from({ length: ns }, (_, x) => velCol.get(Math.floor(x / b))?.[base + (x % b)] ?? NaN));
+    };
+  }
   // truly blind (QI upgrade P1.2): the inverter is rebuilt for each held-back
   // well without it (wavelet scale or coloured operator, the field wavelet
   // average when the browser sent the others' average, and the model)
   let blindInv;
   try {
     blindInv = makeBlindInverter({
-      inv, wavelet, onGrid: (samples, dt) => onGrid({ samples, dt_ms: dt }), wells: inv.wells, traces, posOf, horizonsAt, ns, dtMs,
+      inv, wavelet, onGrid: (samples, dt) => onGrid({ samples, dt_ms: dt }), wells: inv.wells, traces, posOf, horizonsAt, ns, dtMs, velocityAtWells, trendAt,
     });
   } catch (e) {
     return fail('compute_failed', e.message);
@@ -222,6 +259,23 @@ export async function poststackInversion(ctx, deps) {
     ? blindWellTable({ invert, wells: inv.wells, traces, dtMs, truthHz: s.truthHz, absolute, lowCutHz: s.band[0] })
     : [];
   const blindTraces = blindInv.blindTraces;
+  // QI upgrade P2.8: named model scenarios compared at the blind wells
+  let lfmScenarios = null;
+  if (inv.lfm_scenarios && inv.wells.length >= 2) {
+    ctx.progress(0.035, 'Model scenarios at the wells');
+    lfmScenarios = [];
+    for (const sc of inv.lfm_scenarios) {
+      const invS = { ...inv, lfm: sc.lfm || null, velocity: sc.velocity ? inv.velocity : null, lfm_scenarios: undefined };
+      try {
+        const bi = makeBlindInverter({ inv: invS, wavelet, onGrid: (samples, dt) => onGrid({ samples, dt_ms: dt }), wells: inv.wells, traces, posOf, horizonsAt, ns, dtMs, velocityAtWells: sc.velocity ? velocityAtWells : null, trendAt });
+        const t = blindWellTable({ invert: bi.invert, wells: inv.wells, traces, dtMs, truthHz: s.truthHz, absolute, lowCutHz: s.band[0] });
+        const errs = t.map((r) => r.blind.rmsPct).filter(Number.isFinite);
+        lfmScenarios.push({ name: sc.name, rows: t.map((r) => ({ name: r.name, corr: r.blind.corr, rmsPct: r.blind.rmsPct })), meanRmsPct: errs.length ? errs.reduce((a, v) => a + v, 0) / errs.length : null, ...(bi.trendFit ? { trend: { a: bi.trendFit.a, b: bi.trendFit.b, r2: bi.trendFit.r2 } } : {}) });
+      } catch (e) {
+        lfmScenarios.push({ name: sc.name, error: e.message });
+      }
+    }
+  }
   // QI upgrade P1.4: how much of the seismic the full inversion leaves unexplained at each well
   const residualAtWells = absolute && blindInv.scaledWavelet ? inv.wells.map((w, k) => {
     const res = residualTrace(traces[k], invert(traces[k], w.il, w.xl), blindInv.scaledWavelet);
@@ -250,6 +304,7 @@ export async function poststackInversion(ctx, deps) {
   const summary = inversionSummary(inv, {
     ...(scale != null ? { wavelet_scale: scale } : {}), ...(blindInv.scaleTie ? { wavelet_scale_tie: { corr: blindInv.scaleTie.corr, samples: blindInv.scaleTie.samples } } : {}), ...(alpha != null ? { impedance_slope: alpha } : {}), ...(sensitivity ? { scenarios: sensitivity.scenarios } : {}),
     blind_protocol: blindProtocolRec,
+    ...(blindInv.trendFit ? { lfm_trend: { a: blindInv.trendFit.a, b: blindInv.trendFit.b, r2: blindInv.trendFit.r2, n: blindInv.trendFit.n } } : {}),
   });
   // the held-back estimate at each well (ln AI, packed), recorded with a
   // volume so the property check can predict each well from an inversion
@@ -263,7 +318,7 @@ export async function poststackInversion(ctx, deps) {
   if (absurd) return fail('compute_failed', absurd);
   if (p.mode === 'blind') {
     ctx.progress(1, 'Done');
-    return { mode: 'blind', parent_volume_id: parent.id, volume_name: parent.name, settings: summary, blind, blind_protocol: blindProtocolRec, residual_at_wells: residualAtWells, ...(sensitivity ? { sensitivity } : {}) };
+    return { mode: 'blind', parent_volume_id: parent.id, volume_name: parent.name, settings: summary, blind, blind_protocol: blindProtocolRec, residual_at_wells: residualAtWells, ...(lfmScenarios ? { lfm_scenarios: lfmScenarios } : {}), ...(sensitivity ? { sensitivity } : {}) };
   }
 
   // the whole volume, published like an attribute volume
@@ -297,8 +352,15 @@ export async function poststackInversion(ctx, deps) {
       };
   let result;
   try {
+    // with a velocity trend, the velocity bricks of the column the run is on are read beside the seismic ones
+    const fetchWithVelocity = velFetch ? async (i, j, k) => {
+      const key = `${i}-${j}`;
+      if (velKey !== key) { velKey = key; velCol = new Map(); }
+      velCol.set(k, await velFetch(i, j, k));
+      return fetchBrick(i, j, k);
+    } : fetchBrick;
     result = await runVolumeJob({
-      geom, compute, fetchBrick, onBrick, outputs: derived.length, window: pilot?.window || null,
+      geom, compute, fetchBrick: fetchWithVelocity, onBrick, outputs: derived.length, window: pilot?.window || null,
       shouldCancel: () => ctx.cancelled,
       onProgress: (done, total) => ctx.progress(0.03 + 0.92 * (total ? done / total : 0), 'Inverting'),
     });
