@@ -931,3 +931,13 @@ Closes QI-UPGRADE U2-004 (the persona walk found the app measured gathers it cou
 - **For P2 item 8 (LFM from a velocity volume):** a depth velocity volume carries `geometry.vertical = {domain: 'depth', unit, dz, values: {kind: 'velocity', type: 'interval'|'rms'|'average', unit: 'm/s'|'ft/s'}}`; read it with `verticalOf` (`src/pages/apps/Seismolord/lib/verticalDomain.js`). `sample_volumes` refuses depth volumes today; the LFM work relaxes that for velocity volumes.
 - **QI Studio refuses depth volumes:** Setup lists them as unavailable ("depth: QI Studio works in two-way time"), `chosenVolumes` never includes one, and the worker kinds seismic_qc, poststack_inversion, prestack_inversion, avo_volumes, property_prediction, match_stacks and sample_volumes refuse a depth manifest with the reason. Depth gathers are not uploaded for the Prestack tab.
 - Needs the worker redeploy and the end-of-round Suite zip.
+
+## 2026-10-15: Priority 1 closed, worker live, benchmark (QI upgrade)
+
+- **P1 on main** 863ee986b (#1139, #1142, #1145, #1146, #1147, #1148, #1141, #1154, #1140); seismic worker deployed suite-863ee986b+engines-1b0a7a806, then again after #1156.
+- **Guards from the F3 benchmark (#1154):** an absolute post-stack run is refused when the tie behind the wavelet scale is under 0.3 (`settings.wavelet_scale_tie`); post-stack, simultaneous and property jobs fail on a blind error over 100 percent or not a number, a left-out property RMS over 0.5, or more than 0.1 percent of live samples not a number (`worker/seismic-worker/src/outputSanity.js`); fewer lost samples are a `warnings` entry.
+- **Benchmark fixes (#1156):** coloured inversion takes its polarity from the wells (F-6); zone maps leave lattice holes empty (F-7); guard copy (F-8).
+- **Benchmark (internal, docs/scope/QI-BENCHMARK.md):**
+  - Milestone A (data, placement, QC, ties): in part. CRS, placement on dGB's published positions, QC (S/N 2.1, 19.5, 10.5 by window) and zone maps pass; ties 0.42 to 0.54 with sonic drift, under the 0.7 good band.
+  - Milestone B (blind absolute inversion on F3): fails, now refused cleanly by the guards (the old build reported blind errors of 1e29 percent as success). Needs the wells tied with stretch and squeeze in Seismolord Synthetics (QI reads the committed tie) or measured checkshots, then a rerun.
+  - Milestone C (Volve prestack): waits for the owner's download.
