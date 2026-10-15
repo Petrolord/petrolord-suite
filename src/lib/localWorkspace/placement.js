@@ -42,7 +42,9 @@ const ready = (r) => r && r.state === 'ready';
 export function placementOf(row, { local = null, userId = null, deviceId = null, now = Date.now() } = {}) {
   const loc = row?.storage_location || 'cloud';
   const replicas = (row?.replicas || row?.seismic_volume_replicas || []).filter((r) => r.state !== 'deleted');
-  const here = local && local.state === 'ready';
+  // a product being written by a job on this computer is here too (routing), not yet openable
+  const writing = local && local.state === 'writing';
+  const here = local && (local.state === 'ready' || writing);
   const owner = row?.user_id && userId && row.user_id === userId;
   const other = replicas.filter(ready).sort((a, b) => Date.parse(b.last_seen_at || 0) - Date.parse(a.last_seen_at || 0))[0] || null;
   const deviceLabel = other?.device_label || null;
@@ -69,7 +71,7 @@ export function placementOf(row, { local = null, userId = null, deviceId = null,
   if (here) {
     return loc === 'both'
       ? { kind: PLACEMENT.BOTH, badge: 'Both', title: 'On this computer and on Petrolord servers.', canOpen: true, canComputeHere: true, canRequestCopy: false, deviceLabel: local.label || null, lastSeen: null }
-      : { kind: PLACEMENT.HERE, badge: 'This computer', title: 'Stored on this computer only. Nothing was uploaded.', canOpen: true, canComputeHere: true, canRequestCopy: false, deviceLabel: local.label || null, lastSeen: null };
+      : { kind: PLACEMENT.HERE, badge: 'This computer', title: writing ? 'Being written on this computer.' : 'Stored on this computer only. Nothing was uploaded.', canOpen: !writing, canComputeHere: true, canRequestCopy: false, deviceLabel: local.label || null, lastSeen: null };
   }
   if (loc === 'both') {
     return { kind: PLACEMENT.CLOUD_COPY, badge: 'Cloud', title: `Stored on Petrolord servers and on ${where}.`, canOpen: true, canComputeHere: true, canRequestCopy: false, deviceLabel, lastSeen };

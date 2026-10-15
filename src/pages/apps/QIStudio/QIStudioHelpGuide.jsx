@@ -5,6 +5,7 @@
 // Copy rule: no em dashes, no "X, not Y" contrastives.
 // Guard: __tests__/helpGuide.test.jsx.
 import React from 'react';
+import LocalWorkspaceHelp, { LOCAL_WORKSPACE_SECTION } from '@/components/localWorkspace/LocalWorkspaceHelp';
 import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity, Layers, Gauge, MapPin, PackageCheck, Rows, TrendingDown, Combine, MapIcon } from 'lucide-react';
 import { HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Step, Table } from '@/components/helpguide/HelpGuideLayout';
 import SharingHelp from '@/components/recordSharing/SharingHelp';
@@ -32,6 +33,7 @@ export const HELP_SECTIONS = [
   { id: 'feasibility', icon: Scale, title: 'Feasibility per target' },
   { id: 'handover', icon: PackageCheck, title: 'Handover' },
   { id: 'report', icon: FileText, title: 'The report' },
+  LOCAL_WORKSPACE_SECTION,
   { id: 'sharing', icon: Share2, title: 'Saving and sharing' },
   { id: 'maps', icon: MapIcon, title: 'Maps from volumes' },
 ];
@@ -438,6 +440,8 @@ function QIStudioHelpGuideContent() {
         <SectionHeading icon={FileText}>The report</SectionHeading>
         <Para>The Report tab builds the quantitative interpretation report: an executive summary, the inventory, the usability matrix with the reasons for every limited or missing item, depletion notes, the well ties, the AVO volumes and angle wavelets, the prospect QI assessment, the handover list, the issue register (dismissed issues left out), the feasibility of each target and the assumptions behind them. The data section names where each seismic volume came from: its source file, its original geometry and the crop it was cut to before upload; pilot runs are listed with their areas.</Para>
       </GuideSection>
+
+      <LocalWorkspaceHelp />
 
       <GuideSection id="sharing">
         <SectionHeading icon={Share2}>Saving and sharing</SectionHeading>

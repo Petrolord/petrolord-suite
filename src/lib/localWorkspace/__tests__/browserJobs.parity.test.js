@@ -251,6 +251,8 @@ describe('routing and placement', () => {
   });
   test('placement badges', () => {
     expect(placementOf({ storage_location: 'cloud' }).badge).toBe('Cloud');
+    // a job's output being written here routes here (found live on the Ekene bench)
+    expect(placementOf({ storage_location: 'local' }, { local: { state: 'writing' } })).toMatchObject({ kind: PLACEMENT.HERE, canOpen: false });
     expect(placementOf({ storage_location: 'local', user_id: UID }, { local: { state: 'ready' }, userId: UID }).badge).toBe('This computer');
     const away = placementOf({ storage_location: 'local', user_id: UID, replicas: [{ state: 'ready', device_label: "Ayo's PC", last_seen_at: new Date(Date.now() - 2 * 3600e3).toISOString() }] }, { userId: 'colleague' });
     expect(away).toMatchObject({ kind: PLACEMENT.ELSEWHERE, canOpen: false, canRequestCopy: true, badge: "Ayo's PC" });

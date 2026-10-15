@@ -4,6 +4,7 @@
 // workspace today. Copy rule: no em dashes. Guard: __tests__/helpGuide.test.jsx.
 import SharingHelp from '@/components/recordSharing/SharingHelp';
 import React from 'react';
+import LocalWorkspaceHelp, { LOCAL_WORKSPACE_SECTION } from '@/components/localWorkspace/LocalWorkspaceHelp';
 import {
   BookOpen, Zap, Database, Layers, Activity, GitBranch, CircleDot, Map as MapIcon, Box, Rows, Ruler, Link2, AlertTriangle, BookMarked,
   Waves, Sparkles, GraduationCap,
@@ -29,6 +30,7 @@ export const HELP_SECTIONS = [
   { id: 'maps', icon: MapIcon, title: 'The Map window, surfaces and export' },
   { id: 'cube', icon: Box, title: 'The 3D window' },
   { id: 'lines', icon: Rows, title: '2D lines and misties' },
+  LOCAL_WORKSPACE_SECTION,
   { id: 'units', icon: Ruler, title: 'Domains and units' },
   { id: 'links', icon: Link2, title: 'Working with the other apps' },
   { id: 'pitfalls', icon: AlertTriangle, title: 'Pitfalls and FAQ' },
@@ -567,6 +569,8 @@ export default function SeismolordHelpGuide() {
           </Para>
         </SharingHelp>
       </GuideSection>
+
+      <LocalWorkspaceHelp />
 
       <GuideSection id="pitfalls">
         <SectionHeading icon={AlertTriangle}>Pitfalls and FAQ</SectionHeading>
