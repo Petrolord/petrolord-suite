@@ -23,3 +23,11 @@ create or replace function storage.foldername(name text) returns text[] language
 grant usage on schema storage to anon, authenticated, service_role;
 create table if not exists public.pricing_config (key text primary key, value jsonb);
 update public.organizations set name = 'Org BB' where id = '00000000-0000-0000-0000-0000000000bb';
+-- seismic_volumes stand-in for the local workspace migration (20261016100000):
+-- the columns and the owner-or-org read rule the replica policies lean on
+create table if not exists public.seismic_volumes (
+  id uuid primary key default gen_random_uuid(), user_id uuid not null, name text not null default 'v',
+  status text not null default 'ready', organization_id uuid);
+alter table public.seismic_volumes enable row level security;
+create policy "seismic_volumes_select_own_or_org" on public.seismic_volumes for select
+  using (auth.uid() = user_id or (organization_id is not null and public.is_org_member(organization_id)));
