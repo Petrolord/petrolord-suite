@@ -117,7 +117,7 @@ export function buildBrowserDeps({
             const rest = [];
             for (const p of paths) {
               const parts = splitBrickPath(p);
-              // eslint-disable-next-line no-await-in-loop
+               
               if (parts && await isLocalTarget(parts.volumeId)) continue; // the local store is removed whole on failure
               rest.push(p);
             }
@@ -148,9 +148,9 @@ export function buildBrowserDeps({
     /** close every local writer (flush the open packs) */
     async closeWriters() {
       for (const p of writers.values()) {
-        // eslint-disable-next-line no-await-in-loop
+         
         const s = await p.catch(() => null);
-        // eslint-disable-next-line no-await-in-loop
+         
         if (s) await s.close();
       }
     },

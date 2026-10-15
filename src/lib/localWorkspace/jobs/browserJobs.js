@@ -94,29 +94,29 @@ export function createBrowserJobRunner({
   async function seal(job) {
     const out = [];
     for (const volumeId of job.targets) {
-      // eslint-disable-next-line no-await-in-loop
+       
       const rec = await registry.getVolume(volumeId);
       if (!rec) continue;
-      // eslint-disable-next-line no-await-in-loop
+       
       const store = await openLocalVolume(volumeId, { registry });
-      // eslint-disable-next-line no-await-in-loop
+       
       const brickRoot = await store.brickRoot();
-      // eslint-disable-next-line no-await-in-loop
+       
       const bytes = await store.bytes();
-      // eslint-disable-next-line no-await-in-loop
+       
       const contentId = await contentIdOf({ parent: job.parentContent || null, job: { kind: job.kind, params: recipeOf(job.params, job.contentOf, new Set(job.targets)), output: job.targets.indexOf(volumeId) }, engine: engineCommit });
-      // eslint-disable-next-line no-await-in-loop
+       
       await registry.patchVolume(volumeId, { state: 'ready', bytes, brickRoot, contentId });
       const dev = job.device;
       try {
-        // eslint-disable-next-line no-await-in-loop
+         
         await setVolumeLocation(supabase, volumeId, { contentId, brickRoot });
-        // eslint-disable-next-line no-await-in-loop
+         
         if (dev?.deviceId) await upsertReplica(supabase, { volumeId, deviceId: dev.deviceId, deviceLabel: dev.label, state: 'ready', bytes, verified: true });
       } catch (e) {
         job.warnings.push(e.message);
       }
-      // eslint-disable-next-line no-await-in-loop
+       
       try { await afterSeal(volumeId, { brickRoot, bytes, contentId }); } catch (e) { job.warnings.push(`Preview: ${e.message}`); }
       out.push({ volume_id: volumeId, brick_root: brickRoot, content_id: contentId, bytes });
     }
@@ -125,7 +125,7 @@ export function createBrowserJobRunner({
 
   async function discard(job) {
     for (const volumeId of job.targets) {
-      // eslint-disable-next-line no-await-in-loop
+       
       await removeLocalVolume(volumeId, { registry }).catch(() => {});
     }
   }
@@ -208,7 +208,7 @@ export function createBrowserJobRunner({
       const ids = [...uuidsIn(params)];
       const targets = [];
       for (const id of ids) {
-        // eslint-disable-next-line no-await-in-loop
+         
         const rec = await registry.getVolume(id).catch(() => null);
         if (rec && rec.state === 'writing') targets.push(id);
       }
@@ -259,16 +259,16 @@ export function createBrowserJobRunner({
       for (const row of data || []) {
         if (jobs.has(row.id)) continue;
         for (const vid of uuidsIn(row.params)) {
-          // eslint-disable-next-line no-await-in-loop
+           
           const rec = await registry.getVolume(vid).catch(() => null);
           if (rec && rec.state === 'writing') {
-            // eslint-disable-next-line no-await-in-loop
+             
             await removeLocalVolume(vid, { registry }).catch(() => {});
-            // eslint-disable-next-line no-await-in-loop
+             
             await supabase.from('seismic_volumes').delete().eq('id', vid).eq('status', 'ingesting');
           }
         }
-        // eslint-disable-next-line no-await-in-loop
+         
         await rpcUpdate(row.id, { p_status: 'failed', p_failure_stage: 'browser_closed', p_error_message: 'The browser closed before this job finished. Run it again; nothing partial was kept.' }).catch(() => {});
         n += 1;
       }

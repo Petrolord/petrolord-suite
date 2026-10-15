@@ -17,6 +17,7 @@
 
 import { BrickCache, storageBrickFetcher } from '../engine/brickCache';
 import { v4BrickFetcher } from '../engine/brickCodecV4';
+import { withLocalBricks } from '@/lib/localWorkspace/localBricks';
 import { assembleTrace, brickKey } from '../engine/sliceAssembly';
 import { cacheBudgetBytes, reportedDeviceMemory } from '../sources/memoryBudget';
 import { withBrickTimeout } from '../lib/fetchWithTimeout';
@@ -55,9 +56,9 @@ self.onmessage = async (e) => {
   });
   const shouldCancel = () => cancelled.has(id);
   try {
-    const cache = new BrickCache(withBrickTimeout(v4BrickFetcher(storageBrickFetcher({
+    const cache = new BrickCache(withBrickTimeout(v4BrickFetcher(withLocalBricks(storageBrickFetcher({
       supabaseUrl: config.supabaseUrl, getToken, bucket: config.bucket,
-    }), config.v4)), {
+    })), config.v4)), {
       maxBytes: config.maxBytes || cacheBudgetBytes(reportedDeviceMemory(self)),
       dtype: config.dtype,
     });
@@ -80,9 +81,9 @@ self.onmessage = async (e) => {
       let getInputTrace = null;
       const input = config.input;
       if (input?.storagePath) {
-        const inCache = new BrickCache(withBrickTimeout(v4BrickFetcher(storageBrickFetcher({
+        const inCache = new BrickCache(withBrickTimeout(v4BrickFetcher(withLocalBricks(storageBrickFetcher({
           supabaseUrl: config.supabaseUrl, getToken, bucket: config.bucket,
-        }), input.v4)), {
+        })), input.v4)), {
           maxBytes: config.maxBytes || cacheBudgetBytes(reportedDeviceMemory(self)),
           dtype: input.dtype,
         });

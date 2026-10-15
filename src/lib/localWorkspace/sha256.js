@@ -139,7 +139,7 @@ export async function sha256File(file, { chunkBytes = 8 * 1024 * 1024, onProgres
   const size = file.size;
   for (let off = 0; off < size; off += chunkBytes) {
     if (isCancelled()) throw new Error('Hashing cancelled.');
-    // eslint-disable-next-line no-await-in-loop
+     
     const buf = await file.slice(off, Math.min(size, off + chunkBytes)).arrayBuffer();
     h.update(new Uint8Array(buf));
     onProgress(Math.min(size, off + chunkBytes), size);

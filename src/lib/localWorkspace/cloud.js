@@ -99,7 +99,7 @@ export async function volumeLocations(supabase, ids) {
   if (!list.length) return out;
   for (let i = 0; i < list.length; i += 200) {
     const chunk = list.slice(i, i + 200);
-    // eslint-disable-next-line no-await-in-loop
+     
     const { data, error } = await supabase.from('seismic_volumes')
       .select('id, user_id, storage_location, device_id, previews, content_id, brick_root, seismic_volume_replicas(device_id, device_label, state, bytes, last_seen_at, verified_at, user_id)')
       .in('id', chunk);

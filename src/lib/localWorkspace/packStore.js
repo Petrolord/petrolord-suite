@@ -93,7 +93,7 @@ export async function openPackStore(dir, {
   async function loadIndex() {
     const seenPacks = new Set();
     const seenIdx = new Set();
-    // eslint-disable-next-line no-restricted-syntax
+     
     for await (const name of packs.keys()) {
       let m = PACK_RE.exec(name);
       if (m) { seenPacks.add(Number(m[1])); continue; }
@@ -101,7 +101,7 @@ export async function openPackStore(dir, {
       if (m) seenIdx.add(Number(m[1]));
     }
     for (const n of [...seenIdx].sort((a, b) => a - b)) {
-      // eslint-disable-next-line no-await-in-loop
+       
       const rec = await readJsonFile(packs, idxName(n));
       if (!rec || !Array.isArray(rec.entries)) continue;
       for (const [key, off, len, sha] of rec.entries) index.set(key, { pack: n, off, len, sha });
@@ -115,10 +115,10 @@ export async function openPackStore(dir, {
   if (write) {
     // a pack with no index never closed: its bricks are not in the index, so drop it
     for (const n of orphans) {
-      // eslint-disable-next-line no-await-in-loop
+       
       await packs.removeEntry(packName(n)).catch(() => {});
     }
-    // eslint-disable-next-line no-restricted-syntax
+     
     for await (const name of packs.keys()) {
       if (name.endsWith('.crswap')) await packs.removeEntry(name).catch(() => {});
     }
@@ -282,7 +282,7 @@ export async function openPackStore(dir, {
         if (isCancelled()) throw new Error('Verification cancelled.');
         let sha = null;
         try {
-          // eslint-disable-next-line no-await-in-loop
+           
           sha = await hash(await readPack(e.pack, e.off, e.len));
         } catch { sha = 'unreadable'; }
         if (sha !== e.sha) bad.push(key);
