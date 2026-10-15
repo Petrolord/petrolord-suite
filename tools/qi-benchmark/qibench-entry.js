@@ -33,7 +33,7 @@ import { denseTieWarp } from '@/pages/apps/Seismolord/components/SyntheticsPanel
 import { buildSynthetic, extractStatisticalWavelet } from '@/pages/apps/Seismolord/engine/synthetics';
 import { effectiveCheckshots } from '@/pages/apps/Seismolord/services/wellsService';
 // option 2 (Suite PR #1159, not on main yet): the engine as vendored on that branch
-import { suggestTieAnchors } from '/root/wt-anchors/packages/engines/engines/seismolord/autoAnchors.js';
+import { suggestTieAnchors } from '@/pages/apps/Seismolord/engine/autoAnchors';
 import { makeTvdssToTwt } from '@/pages/apps/Seismolord/engine/wellSection';
 import { storageBrickFetcher } from '@/pages/apps/Seismolord/engine/brickCache';
 import { v4BrickFetcher } from '@/pages/apps/Seismolord/engine/brickCodecV4';
