@@ -135,7 +135,7 @@ export async function exportSegy(ctx, deps) {
     throw e;
   }
   const expiresAt = new Date(Date.now() + LINK_TTL_S * 1000).toISOString();
-  const url = await sign('GET', workBucket, key, { 'response-content-disposition': `attachment; filename="${fileName}"` }, LINK_TTL_S);
+  const url = await (deps.linkSign || sign)('GET', workBucket, key, { 'response-content-disposition': `attachment; filename="${fileName}"` }, LINK_TTL_S);
   ctx.progress(1, 'Done');
   return { volume_id: vol.id, volume_name: vol.name, bucket: workBucket, key, file_name: fileName, bytes: total, traces, url, expires_at: expiresAt };
 }

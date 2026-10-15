@@ -11,6 +11,17 @@ export function makeSigner(s3, { now = () => new Date() } = {}) {
   });
 }
 
+/**
+ * A signer for links handed to the user's browser (SEG-Y exports, gather
+ * panels): the same keys, the public endpoint. The worker's own reads and
+ * writes go to the internal endpoint (http://seaweedfs:8333 on the storage
+ * network), which a browser cannot resolve; a link signed for it never opens
+ * (found 2026-10-15 by the QI round 3 live check).
+ */
+export function makeLinkSigner(s3, opts = {}) {
+  return makeSigner({ ...s3, endpoint: s3.publicEndpoint || s3.endpoint }, opts);
+}
+
 export async function headObject(sign, bucket, key, fetchImpl = fetch) {
   const r = await fetchImpl(await sign('HEAD', bucket, key), { method: 'HEAD' });
   if (!r.ok) throw Object.assign(new Error(`The stored file could not be found (${r.status}).`), { status: r.status });

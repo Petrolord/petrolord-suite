@@ -168,7 +168,7 @@ export async function gatherPanel(ctx, deps) {
   const bytes = new Uint8Array(panel.buffer);
   const r = await fetchImpl(await sign('PUT', workBucket, key), { method: 'PUT', body: bytes, headers: { 'content-type': 'application/octet-stream' } });
   if (!r.ok) throw new Error(`Could not store the panel (${r.status}).`);
-  const url = await sign('GET', workBucket, key, {}, PANEL_LINK_TTL_S);
+  const url = await (deps.linkSign || sign)('GET', workBucket, key, {}, PANEL_LINK_TTL_S);
   ctx.progress(1, 'Done');
   return {
     dataset_id: stores[0].ds.id, name: stores[0].ds.name,
