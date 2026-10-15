@@ -305,6 +305,36 @@ export function blindProtocolText(result) {
  * @param {Array<ArrayLike<number>>} p.traces the seismic at each well
  * @returns {{invert, scale: ?number, alpha: ?number, protocol, scales: Array<{name, scale}>, blindTraces: Map<string, Float64Array>}}
  */
+/**
+ * How well the scaled synthetic follows the seismic at the wells, over the
+ * samples the wavelet scale was fitted on (the log covered within the
+ * wavelet's half length): the magnitude of their correlation. The least
+ * squares scale shrinks towards zero as the tie degrades, and an absolute
+ * inversion with a near-zero wavelet scale overflows (F3 benchmark F-3,
+ * 2026-10-15), so a poor tie refuses the run.
+ * @returns {{corr: number, samples: number}}
+ */
+export function scaleTieQuality(pairs, wavelet) {
+  const half = (wavelet.length - 1) / 2;
+  let sxy = 0; let sxx = 0; let syy = 0; let n = 0;
+  for (const { trace, lnAi } of pairs) {
+    const v = Array.from(lnAi, (x) => (Number.isFinite(x) ? x : NaN));
+    const first = v.findIndex(Number.isFinite);
+    if (first < 0) continue;
+    for (let i = 0; i < first; i++) v[i] = v[first];
+    for (let i = first + 1; i < v.length; i++) if (!Number.isFinite(v[i])) v[i] = v[i - 1];
+    const syn = forwardPoststack(Float64Array.from(v), wavelet);
+    for (let i = 0; i < trace.length; i++) {
+      let ok = Number.isFinite(trace[i]) && Math.abs(trace[i]) < 1e29;
+      for (let j = i - half - 1; ok && j <= i + half + 1; j++) ok = j >= 0 && j < lnAi.length && Number.isFinite(lnAi[j]);
+      if (!ok) continue;
+      sxy += syn[i] * trace[i]; sxx += syn[i] * syn[i]; syy += trace[i] * trace[i]; n += 1;
+    }
+  }
+  return { corr: sxx > 0 && syy > 0 ? Math.abs(sxy) / Math.sqrt(sxx * syy) : 0, samples: n };
+}
+export const MIN_SCALE_TIE = 0.3;
+
 export function makeBlindInverter({ inv, wavelet, onGrid = (x) => Float64Array.from(x), wells, traces, posOf, horizonsAt, ns, dtMs }) {
   const s = { ...INVERSION_DEFAULTS, ...inv };
   const absolute = INVERSION_METHODS[s.method].absolute;
@@ -322,6 +352,11 @@ export function makeBlindInverter({ inv, wavelet, onGrid = (x) => Float64Array.f
     const c = colouredFromWells({ wellTraces: keep.map((k) => traces[k]), wellLogs: keep.map((k) => wells[k].ln_ai), dtMs, ns, band: s.band });
     return { alpha: c.alpha, invert: makeTraceInverter({ inv, wavelet: w0, wells: lfm, posOf, horizonsAt, ns, dtMs, coloured: c.operator }) };
   };
+  let tie = null;
+  if (absolute) {
+    tie = scaleTieQuality(wells.map((w, k) => ({ trace: traces[k], lnAi: w.ln_ai })), wavelet);
+    if (!(tie.corr >= MIN_SCALE_TIE)) throw new Error(`The wells tie too poorly to scale the wavelet: the synthetic follows the seismic at a correlation of ${tie.corr.toFixed(2)} over the wells, under ${MIN_SCALE_TIE}. An absolute inversion scaled on it would not be trustworthy. Improve the ties (Well ties tab: commit a shift, a phase and a stretch) or run a coloured inversion.`);
+  }
   const full = build(null);
   const held = new Map();
   const scales = [];
@@ -346,7 +381,7 @@ export function makeBlindInverter({ inv, wavelet, onGrid = (x) => Float64Array.f
   };
   const waveletWell = typeof inv.wavelet_well === 'string' && inv.wavelet_well ? inv.wavelet_well : null;
   const protocol = { ...blindProtocol({ absolute, blindWavelets: blindW.size > 0, waveletWell }), notes };
-  return { invert, scale: full.scale ?? null, alpha: full.alpha ?? null, scaledWavelet: full.wavelet || null, protocol, scales, blindTraces };
+  return { invert, scale: full.scale ?? null, alpha: full.alpha ?? null, scaledWavelet: full.wavelet || null, protocol, scales, blindTraces, scaleTie: tie };
 }
 
 // ---------------------------------------------------------------------------

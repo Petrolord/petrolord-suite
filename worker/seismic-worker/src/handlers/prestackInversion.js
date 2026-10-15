@@ -12,6 +12,7 @@
 // params: { mode, inversion: { stacks: [{volume_id, angle}], wavelet: {samples, dt_ms},
 //   wells: [{name, il, xl, ln_ai, ln_si, ln_rho}], horizon_ids?, lfmHz?, eps?, iters?, vs_vp? },
 //   volume_ids?: {ai, si, rho, vpvs} (volume mode) }
+import { blindTableProblem, makeSanityCounter } from '../outputSanity.js';
 import { JobFailure } from '../runJob.js';
 import { pilotProblem, pilotOn, pilotBytes } from '../pilot.js';
 import { seismicQuota, overQuotaMessage } from '../quota.js';
@@ -179,6 +180,8 @@ export async function prestackInversion(ctx, deps) {
     return { name, il: w.il, xl: w.xl, ...(key === 'ai' ? { ln_ai: pack(values) } : { vpvs: pack(values) }) };
   }).filter((x) => (x.ln_ai || x.vpvs).n > 0);
   if (ctx.cancelled) { await cleanup(); return null; }
+  const absurd = blindTableProblem(blind);
+  if (absurd) return fail('compute_failed', absurd);
   if (p.mode === 'blind') { ctx.progress(1, 'Done'); return { mode: 'blind', settings, blind, blind_protocol: blindProtocol, density, residual_at_wells: residualAtWells }; }
 
   // every CDP: the other stacks' bricks for the column beside the first
@@ -189,11 +192,13 @@ export async function prestackInversion(ctx, deps) {
     others.set(kk, await Promise.all(fetchers.slice(1).map((f) => f(i, j, kk))));
     return fetchers[0](i, j, kk);
   };
+  const sanity = makeSanityCounter();
   const compute = (trace, outs, il, xl) => {
     const base = ((il % b) * b + (xl % b)) * b;
     const traces = [trace, ...stacks.slice(1).map((_, m) => Float32Array.from({ length: ns }, (_, s) => others.get(Math.floor(s / b))[m][base + (s % b)]))];
     const m = invert(traces, il, xl);
     const prods = prestackProducts(m);
+    for (let k = 0; k < ns; k++) sanity.add(Number.isFinite(trace[k]) && Math.abs(trace[k]) < 1e29, prods[0][k]);
     if (inv.residual) prods.push(...prestackResiduals(traces, m, thetaDeg, blindInv.scaledWavelet, vsVp));
     prods.forEach((v, o) => {
       // a withheld density is still computed (it is part of the fit) but its output is dropped
@@ -217,6 +222,7 @@ export async function prestackInversion(ctx, deps) {
     result = await runVolumeJob({ geom, compute, fetchBrick, onBrick: (x) => (x.output === 2 && !density.produced ? undefined : onBrick(x)), outputs: outKeys.length, window: pilot?.window || null, shouldCancel: () => ctx.cancelled, onProgress: (done, total) => ctx.progress(0.03 + 0.92 * (total ? done / total : 0), 'Inverting') });
     await Promise.all(inflight);
     if (uploadError) throw new JobFailure('upload_failed', `Uploading the inversion bricks failed: ${uploadError.message}`);
+    if (sanity.verdict().fail) throw new JobFailure('compute_failed', sanity.verdict('the AI').fail);
   } catch (e) {
     await Promise.allSettled(inflight);
     await cleanup();
@@ -242,7 +248,7 @@ export async function prestackInversion(ctx, deps) {
     }
     ctx.progress(1, 'Done');
     const written = Object.fromEntries(outKeys.filter((k) => k !== 'rho' || density.produced).map((k) => [k, p.volume_ids[k]]));
-    return { mode: 'volume', volume_ids: written, settings, blind, blind_protocol: blindProtocol, density, residual_at_wells: residualAtWells, trace_count: result.traceCount, ...(pilot ? { pilot: pilot.record } : {}) };
+    return { mode: 'volume', volume_ids: written, settings, blind, blind_protocol: blindProtocol, density, residual_at_wells: residualAtWells, trace_count: result.traceCount, ...(pilot ? { pilot: pilot.record } : {}), ...(sanity.verdict().warning ? { warnings: [sanity.verdict('the AI').warning] } : {}) };
   } catch (e) {
     await cleanup();
     throw e;
