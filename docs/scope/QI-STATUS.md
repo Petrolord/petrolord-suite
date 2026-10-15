@@ -941,3 +941,40 @@ Closes QI-UPGRADE U2-004 (the persona walk found the app measured gathers it cou
   - Milestone A (data, placement, QC, ties): in part. CRS, placement on dGB's published positions, QC (S/N 2.1, 19.5, 10.5 by window) and zone maps pass; ties 0.42 to 0.54 with sonic drift, under the 0.7 good band.
   - Milestone B (blind absolute inversion on F3): fails, now refused cleanly by the guards (the old build reported blind errors of 1e29 percent as success). Needs the wells tied with stretch and squeeze in Seismolord Synthetics (QI reads the committed tie) or measured checkshots, then a rerun.
   - Milestone C (Volve prestack): waits for the owner's download.
+
+## 2026-10-15: Priority 2 merged (QI upgrade)
+
+P2 PRs: #1150 (P2.8), #1155 (P2.9), #1152 (P2.10), #1151 (P2.11), #1153 (P2.12). Seismic worker redeployed after them (suite-f2ac8c235+engines-cd6364b53). The UI reaches production with the next zip after d76677ff6.
+
+### P2.8 Low-frequency model options (2026-10-15)
+- **Engines #368 `qi/lfmModels.js`** (qi/lfm.js unchanged, so the NextGen QI course grades stay valid): ordinary-kriging weights (numpy oracle), fault polylines as barriers, Dix interval from RMS, `fitVelocityTrend` (ln AI = a + b ln V at the wells) and the trend-plus-residual model; default options equal `lfmTrace` bit for bit. Negative controls: inverse distance is not kriging, no fault mixes the blocks, a shuffled velocity loses the trend's advantage.
+- **Suite:** `inversion.lfm` (kriging variogram, fault barriers from Seismolord faults: the middle point of each stick on the world grid), `inversion.velocity` (a velocity volume on the same lattice in time, interval or RMS), `inversion.lfm_scenarios` (up to 6, compared at the blind wells). The worker reads the velocity bricks beside each column; the held-back well is left out of the velocity calibration (protocol line). Refused: a velocity volume on another lattice or in depth, the trend with an uncertainty run, the trend with coloured inversion.
+- **QI Studio Inversion tab:** a Low-frequency model options section under the wells (method, variogram, faults, velocity volume and kind, Compare model scenarios at the wells, the scenario table); the report prints the table.
+- **Gates:** kriging and a fault give the hand-built engine model exactly (no fault as the negative control); a velocity trend beats inverse distance at the middle well and over the volume between wells by more than half (known truth); scenarios returned in order.
+- **Worker:** redeployed with P2.
+
+### P2.9 Automatic feasibility sweeps (2026-10-15)
+- **Engines #369 `qi/feasibilitySweep.js`:** Backus averaging, the saturated sand from porosity, shale volume and effective stress (soft or stiff sand, Gassmann), the bed response under a Ricker at 0 and 30 degrees, d' and Phi(-d'/2), sweeps of porosity, Vsh, effective stress and thickness, separable ranges. Gated on a stdlib oracle from the Rock Physics Handbook, the wedge tuning, and physical truths (thin beds separate nothing, porosity raises separation; the same fluid twice gives exactly zero).
+- **QI Studio Feasibility tab:** an Automatic feasibility sweeps section under the target cards (one collapsible block per target): Batzle-Wang fluids at the reservoir temperature and pressure, the noise as a thick bed's brine amplitude over the stated S/N, the sweep table, the suggested verdict (feasible, feasible with conditions with the ranges, not feasible). The user takes the verdict or the text with a click; nothing is set by itself. Sweeps join the decision register's run list and the report. Runs in the browser; no worker change.
+
+### P2.10 AVO calibration, three terms and classes (2026-10-15)
+- **Engines #370 `qi/avoCalibration.js`:** `wellScale` (observed = s x modelled at one well, the avoWells convention), `scaleFieldAt` (inverse distance or kriging through qi/lfmModels, exact at the wells), `avoClassCode` (1 to 4, the one classifier), `shueyTermsFor` (three terms with three angles reaching 35 degrees); `qi/zoneMaps.js` gains an `avo_class` product for class maps. Negative controls: one pooled scale misses a drifting survey the field follows; two terms bias the gradient a three-term fit recovers.
+- **Worker `avo_volumes`:** `terms` (2, 3 or auto), `scale` or `scale_field` (per-trace calibration to reflectivity), products `C` (curvature) and `class` (interpretation); recorded in each manifest. Gated: with terms auto and a scale field, A, B and C come back in reflectivity at the wells and the class volume equals the classifier's code; two terms bias B and a pooled scale misses the far side (negative controls); refusals.
+- **AVO tab:** a Terms, calibration to reflectivity and class volumes block (needs Compare at the wells for the scales). AVO class maps from volumes are on the Maps tab (nearest-trace gridding, saved as interpretations).
+- **Worker:** redeployed with P2.
+
+### P2.11 Seismic QC additions (2026-10-15)
+- **Engines #371 `qi/qcAdditions.js`:** `autocorrelation` (numpy oracle), `multipleDiagnosis` (|acf| peaks past the wavelet, periodic when a peak at L repeats near 2L), `amplitudePreservation` (per-well ln(observed/modelled) = c + k sin^2 theta, shared slope over 0.5 flagged), `depthAlignment` (well misties against the median, 8 ms). Designed truths with negative controls (peg-leg train at 120 ms; primaries alone not periodic; designed angle gain recovered, true amplitudes not flagged; designed mistie flagged, shared shift not).
+- **Seismic QC (runner shared by the worker and the browser):** each window gets `multiples` and a periodic-energy issue; the narrow-band rule now needs the spectral centroid near the band, otherwise a low "narrow spectral peak" note (benchmark finding F-1 on F3's deep window: band 5.2 to 10.6 Hz, centroid 29 Hz).
+- **AVO tab:** Check amplitude preservation at the wells (the stacks sampled at the stored well points against the model at each stack angle), with an issue and a report section.
+- **Well ties tab:** Depth alignment between wells (horizon pick at the well against the top through the tie), with issues.
+- **Worker:** redeployed with P2 (seismic_qc carries the multiples).
+
+### P2.12 Depth uncertainty and a suggested Pg (2026-10-15)
+- **Engines #372 `qi/depthUncertainty.js`:** time to depth per velocity case (constant or v0 + k z), the closure engine per case, GRV to spill per case with low, high and weighted Q10/Q50/Q90; `suggestPg` (stated factor rule on the user's own Pg). Gated against analytic paraboloid volumes with a negative control.
+- **Prospects tab:** a Depth uncertainty for prospects section under the existing table (per analysed prospect: time structure, cases, GRV range, suggested Pg kept with the study only on request). QI never sets Pg. No worker change.
+
+### Tie options for F3 (owner decision 2026-10-15)
+- **Option 3, measured checkshots:** NLOG T/Z tables for F03-02, F03-04, F06-01 imported through Well Data Manager (QA account); ties 0.41 to 0.71 (F06-01 has no density in the record).
+- **Option 2, Suggest anchors** in Seismolord Synthetics (engines #373 to #375, Suite #1159): dynamic warping; validated on known warps within one sample, noise suggests nothing. On F3 it aligned the events but did not raise the correlation.
+- **Milestone B on F3 stays FAIL, refused cleanly** under every tie state; shift, phase and polarity disagree from well to well even on measured checkshots, which places the mismatch in the dGB stack and the 1970s sonic logs. Volve is the better test. Detail: docs/scope/QI-BENCHMARK.md.
