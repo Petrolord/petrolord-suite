@@ -173,4 +173,54 @@ set role service_role;
 select pg_temp.ok((select id from public.qi_claim_job('w2', array['noop'])) = '00000000-0000-0000-0000-00000000f004', 'fair claim: the user with nothing running goes first, though their job is newest');
 select pg_temp.ok((select id from public.qi_claim_job('w3', array['noop'])) = '00000000-0000-0000-0000-00000000f002', 'fair claim: then oldest first among equals');
 reset role;
+-- ------------------------------------------------- local workspace L1 (20261016100000)
+delete from public.qi_jobs;
+insert into public.seismic_volumes (id, user_id, name) values ('00000000-0000-0000-0000-0000000010c1', '00000000-0000-0000-0000-000000000001', 'local stack');
+update public.seismic_volumes set storage_location = 'local' where id = '00000000-0000-0000-0000-0000000010c1';
+select pg_temp.ok((select count(*) from public.seismic_volumes where storage_location = 'cloud') = 0
+  and (select column_default from information_schema.columns where table_name = 'seismic_volumes' and column_name = 'storage_location') like '''cloud''%', 'storage_location defaults to cloud');
+select pg_temp.ok((select column_default from information_schema.columns where table_name = 'qi_jobs' and column_name = 'executor') like '''server''%', 'executor defaults to server');
+set role authenticated; set test.uid = '00000000-0000-0000-0000-000000000001';
+insert into public.seismic_devices (label) values ('Test PC');
+select id as dev from public.seismic_devices limit 1 \gset
+do $$ begin perform public.qi_enqueue_job('attribute_volume', '{"parent_volume_id":"00000000-0000-0000-0000-0000000010c1"}');
+  raise exception 'FAIL: server job on a local volume accepted';
+  exception when sqlstate 'P0001' then raise notice 'ok  server enqueue naming a local volume is refused'; end $$;
+set test.dev = :'dev';
+select public.qi_start_local_job('attribute_volume', '{"parent_volume_id":"00000000-0000-0000-0000-0000000010c1"}', '{}', 'browser', :'dev') as lj \gset
+select pg_temp.ok((select status || '/' || executor from public.qi_jobs where id = :'lj') = 'running/browser', 'a browser job is recorded running');
+select pg_temp.ok((public.qi_update_local_job(:'lj', 0.25, 'Computing') ->> 'found')::boolean, 'browser heartbeat');
+select pg_temp.ok(public.qi_cancel_job(:'lj') = 'cancel_requested', 'cancel flags a running browser job');
+select pg_temp.ok((public.qi_update_local_job(:'lj', 0.5) ->> 'cancel_requested')::boolean, 'the browser reads the cancel back');
+select public.qi_start_local_job('noop') \gset
+select public.qi_start_local_job('noop') \gset
+select public.qi_start_local_job('noop') \gset
+select public.qi_start_local_job('noop') \gset
+select public.qi_enqueue_job('noop') as sj \gset
+select pg_temp.ok(:'sj' is not null, 'five running browser jobs do not count toward the server cap of 4');
+do $$ begin perform public.qi_start_local_job('noop', '{}', '{}', 'server'); raise exception 'FAIL: server executor recorded';
+  exception when sqlstate '22023' then raise notice 'ok  a browser record cannot claim the server executor'; end $$;
+do $$ begin perform public.qi_update_local_job(gen_random_uuid(), null, null, 'queued'); raise exception 'FAIL: bad status';
+  exception when sqlstate '22023' then raise notice 'ok  a browser job ends only as succeeded, failed or cancelled'; end $$;
+set test.uid = '00000000-0000-0000-0000-000000000002';
+select pg_temp.ok(not (public.qi_update_local_job(:'lj', 1, null, 'succeeded') ->> 'found')::boolean, 'another user cannot finish the browser job');
+do $$ begin perform public.qi_start_local_job('noop', '{}', '{}', 'browser', current_setting('test.dev')::uuid); raise exception 'FAIL: foreign device';
+  exception when sqlstate '42501' then raise notice 'ok  another user''s device cannot be named'; end $$;
+select pg_temp.ok((select count(*) from public.seismic_devices) = 0, 'devices are private');
+set test.uid = '00000000-0000-0000-0000-000000000001';
+select pg_temp.ok((public.qi_update_local_job(:'lj', null, null, 'succeeded', '{"bricks":3}') ->> 'status') = 'succeeded', 'browser job finishes');
+reset role;
+-- a queued row that is not the server's (no client path makes one; the filter must hold anyway)
+insert into public.qi_jobs (user_id, kind, status, executor, queued_at) values ('00000000-0000-0000-0000-000000000001', 'noop', 'queued', 'browser', now() - interval '1 day');
+set role service_role;
+select pg_temp.ok((select count(*) from public.qi_claim_job('wL', array['noop'])) = 1, 'the server claims its own queued job');
+select pg_temp.ok((select count(*) from public.qi_claim_job('wL', array['noop'])) = 0, 'and never a browser job');
+reset role;
+update public.qi_jobs set heartbeat_at = now() - interval '7 hours' where executor = 'browser' and status = 'running' and params = '{}'::jsonb;
+set role service_role;
+select public.qi_sweep_stale_jobs(120, 2) \gset
+reset role;
+select pg_temp.ok((select count(*) from public.qi_jobs where executor = 'browser' and failure_stage = 'browser_closed') = 4
+  and (select count(*) from public.qi_jobs where executor = 'browser' and status = 'queued') = 1, 'sweep fails stale browser jobs, never requeues them');
+select pg_temp.ok((select status from public.qi_jobs where id = :'lj') = 'succeeded', 'a finished browser job is left alone');
 select 'ALL BEHAVIOUR CHECKS PASSED' as result;
