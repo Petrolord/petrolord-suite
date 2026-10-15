@@ -275,3 +275,11 @@ export function withLayerRoles(results, stratigraphy = []) {
     });
     return { ...results, meta: { ...meta, layers } };
 }
+
+/** A chart tooltip number: whole above 100, one decimal above 10, else three significant figures (2026-10-15: tooltips printed raw floats). */
+export function tipNum(v) {
+    const x = Number(v);
+    if (!Number.isFinite(x)) return v;
+    const a = Math.abs(x);
+    return (a >= 100 ? Math.round(x) : a >= 10 ? Number(x.toFixed(1)) : Number(x.toPrecision(3))).toLocaleString('en-US');
+}

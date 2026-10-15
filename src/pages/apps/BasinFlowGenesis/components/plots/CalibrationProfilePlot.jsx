@@ -1,5 +1,6 @@
 import React from 'react';
 import { ComposedChart, Line, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { tipNum } from '../../services/resultsView';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, CHART_TYPOGRAPHY } from '@/utils/chartTheme';
 
@@ -36,7 +37,7 @@ const CalibrationProfilePlot = ({ title, xLabel, modeled, measured, color, depth
                             tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                             label={{ value: depthLabel, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }}
                         />
-                        <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} />
+                        <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} formatter={(v, n) => [tipNum(v), n]} />
                         <Legend verticalAlign="top" wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize }} />
                         <Line dataKey="modeled" name="Modeled" stroke={color} strokeWidth={2} dot={{ r: 2 }} connectNulls />
                         <Scatter dataKey="measured" name="Measured" fill="#0f172a" shape="diamond" />

@@ -1,5 +1,6 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { tipNum } from '../../services/resultsView';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, CHART_TYPOGRAPHY } from '@/utils/chartTheme';
 
@@ -23,7 +24,7 @@ const ResidualPlot = ({ roStats, tempStats, depthLabel = 'Depth (m)', tempUnit =
                                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
                                 <XAxis type="number" {...axisProps} label={{ value: 'Residual', position: 'bottom', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
                                 <YAxis type="number" dataKey="depth" {...axisProps} label={{ value: depthLabel, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-                                <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} />
+                                <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} formatter={(v, n) => [tipNum(v), n]} />
                                 <Bar dataKey="residual" fill="#db2777" name="Ro Residual" />
                             </BarChart>
                         </ResponsiveContainer>
@@ -38,7 +39,7 @@ const ResidualPlot = ({ roStats, tempStats, depthLabel = 'Depth (m)', tempUnit =
                                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
                                 <XAxis type="number" {...axisProps} label={{ value: 'Residual', position: 'bottom', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
                                 <YAxis type="number" dataKey="depth" {...axisProps} />
-                                <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} />
+                                <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} formatter={(v, n) => [tipNum(v), n]} />
                                 <Bar dataKey="residual" fill="#d97706" name="Temp Residual" />
                             </BarChart>
                         </ResponsiveContainer>

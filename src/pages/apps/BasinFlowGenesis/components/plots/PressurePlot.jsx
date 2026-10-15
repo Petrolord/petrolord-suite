@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { tipNum } from '../../services/resultsView';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, CHART_TYPOGRAPHY } from '@/utils/chartTheme';
 import { depthToDisplay, depthLabel } from '../../services/units';
@@ -40,7 +41,7 @@ const PressurePlot = ({ results, units = { depth: 'm' }, onSend = null, sendHref
                         <YAxis type="number" dataKey="depth" domain={[0, 'auto']} stroke={CHART_COLORS.axisLine}
                             tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                             label={{ value: depthLabel(units.depth), angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }} />
-                        <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} />
+                        <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} formatter={(v, n) => [tipNum(v), n]} />
                         <Legend verticalAlign="top" wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
                         <Line dataKey="hydrostatic" name="Hydrostatic" stroke="#2a9d8f" strokeWidth={1.5} dot={false} isAnimationActive={false} />
                         <Line dataKey="pore" name="Pore pressure" stroke="#c1121f" strokeWidth={2.5} dot={false} isAnimationActive={false} />

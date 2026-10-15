@@ -53,3 +53,9 @@ describe('Basin T1 view helpers', () => {
     expect(criticalMoment).toBe(80);
   });
 });
+
+test('the burial tooltip reads whole depths with the unit (it printed thirteen decimals)', async () => {
+  const { burialTip } = await import('../components/plots/BurialHistoryPlot');
+  expect(burialTip([2591.2932656874314, 3317.945584145729], 'ft')).toBe('2,591 to 3,318 ft');
+  expect(burialTip(4998.6, 'ft')).toBe('4,999 ft');
+});
