@@ -5,15 +5,19 @@
 // the quota's authoritative layer is the bucket policy either way.
 import React, { useEffect, useState } from 'react';
 import { getStorageUsage } from '../services/seismicStorage';
+import { localUsage } from '@/lib/localWorkspace/runtime';
 
 export default function StorageMeter({ className = '', refreshKey = 0 }) {
   const [usage, setUsage] = useState(null);
+  const [local, setLocal] = useState(null);
 
   useEffect(() => {
     let stale = false;
     getStorageUsage()
       .then((u) => { if (!stale) setUsage(u); })
       .catch(() => {});
+    // Local Workspace: what lives on this computer, beside the cloud figure
+    localUsage().then((u) => { if (!stale) setLocal(u); }).catch(() => {});
     return () => { stale = true; };
   }, [refreshKey]);
 
@@ -43,6 +47,15 @@ export default function StorageMeter({ className = '', refreshKey = 0 }) {
       <div className="h-1 mt-1 rounded bg-pl-border/60 overflow-hidden">
         <div className={`h-full ${bar}`} style={{ width: `${Math.max(frac * 100, usage.usedBytes > 0 ? 2 : 0)}%` }} />
       </div>
+      {local && (
+        <div className="flex items-center justify-between gap-2 mt-1 text-pl-muted" data-testid="seismic-storage-local">
+          <span>This computer</span>
+          <span className="font-mono">
+            {`${(local.bytes / 1e9).toFixed(local.bytes < 1e10 ? 2 : 0)} GB in ${local.count} volume${local.count === 1 ? '' : 's'}`}
+            {local.free != null && local.backend === 'opfs' ? `, ${(local.free / 1e9).toFixed(0)} GB free` : ''}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

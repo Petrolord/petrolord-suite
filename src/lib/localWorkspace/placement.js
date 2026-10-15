@@ -39,7 +39,7 @@ const ready = (r) => r && r.state === 'ready';
  * @returns {{kind: string, badge: string, title: string, canOpen: boolean,
  *   canComputeHere: boolean, canRequestCopy: boolean, deviceLabel: ?string, lastSeen: ?string}}
  */
-export function placementOf(row, { local = null, userId = null, now = Date.now() } = {}) {
+export function placementOf(row, { local = null, userId = null, deviceId = null, now = Date.now() } = {}) {
   const loc = row?.storage_location || 'cloud';
   const replicas = (row?.replicas || row?.seismic_volume_replicas || []).filter((r) => r.state !== 'deleted');
   const here = local && local.state === 'ready';
@@ -52,7 +52,9 @@ export function placementOf(row, { local = null, userId = null, now = Date.now()
   if (loc === 'cloud') {
     return { kind: PLACEMENT.CLOUD, badge: 'Cloud', title: 'Stored on Petrolord servers.', canOpen: true, canComputeHere: true, canRequestCopy: false, deviceLabel: null, lastSeen: null };
   }
-  if (local && local.state === 'missing') {
+  // this computer's replica is on record but its files are gone (site data or the folder cleared)
+  const mineOnRecord = deviceId && !here && replicas.some((r) => r.device_id === deviceId && r.state === 'ready');
+  if ((local && local.state === 'missing') || mineOnRecord) {
     return {
       kind: PLACEMENT.MISSING,
       badge: 'Missing here',

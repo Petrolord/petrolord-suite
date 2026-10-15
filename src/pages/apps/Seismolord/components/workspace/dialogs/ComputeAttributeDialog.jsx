@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/customSupabaseClient';
 import { serverAttributeAdvice, startServerAttribute } from '../../../services/serverAttribute';
+import { useVolumePlacement, PLACEMENT } from '@/lib/localWorkspace/runtime';
 import { useToast } from '@/components/ui/use-toast';
 import {
   ALL_ATTRIBUTE_DEFS, attributePrecheck, computeAttributeVolume, defaultDerivedName, derivedStorageBytes,
@@ -55,7 +56,13 @@ export default function ComputeAttributeDialog({
       .then(({ data }) => { if (live) setUserId(data?.user?.id || null); }).catch(() => {});
     return () => { live = false; };
   }, []);
-  const serverAdvice = serverAttributeAdvice({ parentManifest: manifest, isOwnVolume: Boolean(userId && volume?.user_id === userId) });
+  // Local Workspace: a volume on this computer is computed here, by the
+  // job route (the server's own handler in a browser worker), into the
+  // workspace folder; nothing is uploaded
+  const placement = useVolumePlacement(open ? volume : null);
+  const onThisComputer = placement?.kind === PLACEMENT.HERE;
+  const serverAdvice = onThisComputer ? { offer: false, preferred: false }
+    : serverAttributeAdvice({ parentManifest: manifest, isOwnVolume: Boolean(userId && volume?.user_id === userId) });
   const [onServer, setOnServer] = useState(false);
   useEffect(() => { if (open) setOnServer(serverAdvice.preferred); }, [open, serverAdvice.preferred]);
 
@@ -114,7 +121,9 @@ export default function ComputeAttributeDialog({
         attribute: { name: attr, params, ...(north ? { north } : {}) },
         name: name.trim() || (north ? `${placeholder} (true north)` : undefined),
       });
-      toast({ title: 'Computing on the Petrolord server', description: `${placeholder}: follow it under Server jobs. You can keep working or close this tab.` });
+      toast(onThisComputer
+        ? { title: 'Computing on this computer', description: `${placeholder}: follow it under Jobs. Keep this tab open until it finishes; the result is saved to your workspace folder.` }
+        : { title: 'Computing on the Petrolord server', description: `${placeholder}: follow it under Server jobs. You can keep working or close this tab.` });
       if (onServerJobStarted) onServerJobStarted();
       onOpenChange(false);
     } catch (e) {
@@ -125,7 +134,7 @@ export default function ComputeAttributeDialog({
   };
 
   const run = async () => {
-    if (onServer) { await runOnServer(); return; }
+    if (onServer || onThisComputer) { await runOnServer(); return; }
     setBusy(true);
     cancelRef.current = { cancelled: false };
     try {
@@ -234,10 +243,15 @@ export default function ComputeAttributeDialog({
 
           <p className="text-[11px] text-pl-muted">
             Derived from “{volume?.name}” on the identical lattice
-            {sizeText ? ` (~${sizeText} of brick storage, counted against your quota)` : ''}.
+            {sizeText ? (onThisComputer ? ` (~${sizeText} on this computer's disk)` : ` (~${sizeText} of brick storage, counted against your quota)`) : ''}.
             Stored amplitudes of the parent are never modified.
           </p>
 
+          {onThisComputer && (
+            <p className="rounded border border-pl-border p-2 text-xs" data-testid="sl-attr-local">
+              This volume lives on this computer, so the attribute is computed here with the same code the Petrolord servers run and saved to your workspace folder. Nothing is uploaded. Keep this tab open until it finishes.
+            </p>
+          )}
           {serverAdvice.offer && (
             <fieldset className="rounded border border-pl-border p-2 space-y-1 text-xs" data-testid="sl-attr-where">
               <legend className="px-1 text-pl-muted">Where to compute</legend>

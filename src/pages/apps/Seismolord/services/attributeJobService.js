@@ -17,6 +17,7 @@ import {
   ALL_ATTRIBUTE_DEFS, attributePrecheck, assertFloat32Parent, derivedStorageBytes, derivedSurveyMeta,
 } from './attributeSurveyMeta';
 import { stampProject } from '@/lib/projects/projectScope';
+import { derivedTarget, markDerivedLocal, forgetLocal } from '@/lib/localWorkspace/runtime';
 
 // moved to a pure module so the seismic worker can share them
 export {
@@ -79,7 +80,9 @@ export async function registerAttributeVolume({ parent, parentManifest, attribut
   assertFloat32Parent(parentManifest);
   const why = attributePrecheck(attribute.name, parentManifest);
   if (why) throw new Error(why);
-  await assertQuota(derivedStorageBytes(parentManifest));
+  // Local Workspace: a product of a volume on this computer stays on this computer
+  const target = await derivedTarget(parent.id);
+  if (target.location !== 'local') await assertQuota(derivedStorageBytes(parentManifest));
 
   const volumeId = crypto.randomUUID();
   const dir = volumeDir(userId, volumeId);
@@ -100,7 +103,16 @@ export async function registerAttributeVolume({ parent, parentManifest, attribut
     }))
     .select().single();
   if (insertError) throw new Error(`Could not register the attribute volume: ${insertError.message}`);
-  return { row, volumeId, userId, dir, displayName };
+  if (target.location === 'local') {
+    try {
+      await markDerivedLocal(row, derivedStorageBytes(parentManifest));
+    } catch (e) {
+      await supabase.from('seismic_volumes').delete().eq('id', volumeId);
+      await forgetLocal(volumeId);
+      throw e;
+    }
+  }
+  return { row, volumeId, userId, dir, displayName, local: target.location === 'local' };
 }
 
 /**

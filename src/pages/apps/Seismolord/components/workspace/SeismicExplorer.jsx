@@ -8,6 +8,9 @@
 // (ViewerPanel) and arrives through `tree` + `actions`.
 
 import React, { useState } from 'react';
+import LocationBadge from '@/components/localWorkspace/LocationBadge';
+import LocalElsewhereDialog from '@/components/localWorkspace/LocalElsewhereDialog';
+import { useVolumePlacements, PLACEMENT } from '@/lib/localWorkspace/runtime';
 import {
   Database, Layers, Slash, CircleDot, Route, Eye, EyeOff, Loader2, Upload,
   Plus, RefreshCw, ChevronDown, ChevronRight, Pencil, ArrowLeft,
@@ -162,9 +165,17 @@ export default function SeismicExplorer({ tree, actions }) {
     slicePlanes, horizonColorById, faultColorById,
     appPaths = {},
   } = tree;
+  const placements = useVolumePlacements(volumes);
+  const [elsewhere, setElsewhere] = useState(null);
 
   return (
     <div className="h-full min-h-0 flex flex-col bg-pl-surface">
+      <LocalElsewhereDialog
+        open={!!elsewhere}
+        onOpenChange={(o) => { if (!o) setElsewhere(null); }}
+        volume={elsewhere?.volume}
+        placement={elsewhere?.placement}
+      />
       <div className="shrink-0 flex items-center gap-1 px-2 py-1.5 border-b border-pl-border">
         <Link
           to="/dashboard/geoscience"
@@ -206,6 +217,15 @@ export default function SeismicExplorer({ tree, actions }) {
               (v) => !(v.parent_volume_id && ids.has(v.parent_volume_id)),
             );
             const childrenOf = (id) => volumes.filter((v) => v.parent_volume_id === id);
+            // Local Workspace: where each volume lives; one that lives on another
+            // computer opens a notice (previews, ask for a copy) instead of the seismic
+            const placeOf = (v) => placements.get(v.id) || null;
+            const openable = (v) => isOpenableVolume(v) && (placeOf(v)?.canOpen ?? true);
+            const pick = (v) => {
+              const pl = placeOf(v);
+              if (pl && !pl.canOpen) { setElsewhere({ volume: v, placement: pl }); return; }
+              if (isOpenableVolume(v)) actions.selectVolume(v.id);
+            };
             const volumeRow = (v, depth = 0) => (
               <Row
                 icon={v.kind === 'attribute' ? Activity : Database}
@@ -217,8 +237,9 @@ export default function SeismicExplorer({ tree, actions }) {
                 meta={v.status === 'display_ready' ? 'display copy'
                   : v.status !== 'ready' ? v.status
                     : (depth > 0 && v.attribute_params?.name) || ''}
-                badge={(v.organization_id || cropOf(v) || v.survey_meta?.pilot) ? (
+                badge={(v.organization_id || cropOf(v) || v.survey_meta?.pilot || (placeOf(v) && placeOf(v).kind !== PLACEMENT.CLOUD)) ? (
                   <>
+                    <LocationBadge placement={placeOf(v)} compact />
                     {(cropOf(v) || v.survey_meta?.pilot) && (
                       <span title={provenanceLines(v).join('\n')} className="shrink-0" data-testid="sl-volume-cropped">
                         <Crop className="w-3 h-3 text-pl-muted" />
@@ -238,15 +259,25 @@ export default function SeismicExplorer({ tree, actions }) {
                   </>
                 ) : null}
                 selected={v.id === activeVolumeId}
-                onClick={() => isOpenableVolume(v) && actions.selectVolume(v.id)}
+                onClick={() => pick(v)}
                 menu={(
                   <>
                     <ContextMenuItem
-                      disabled={!isOpenableVolume(v)}
+                      disabled={!openable(v)}
                       onSelect={() => actions.selectVolume(v.id)}
                     >
                       Set active
                     </ContextMenuItem>
+                    {placeOf(v) && !placeOf(v).canOpen && (
+                      <ContextMenuItem onSelect={() => setElsewhere({ volume: v, placement: placeOf(v) })}>
+                        Where is this volume?
+                      </ContextMenuItem>
+                    )}
+                    {placeOf(v)?.kind === PLACEMENT.HERE && v.is_own !== false && actions.promoteVolume && (
+                      <ContextMenuItem onSelect={() => actions.promoteVolume(v)}>
+                        Copy to the cloud…
+                      </ContextMenuItem>
+                    )}
                     <ContextMenuItem
                       disabled={v.id !== activeVolumeId}
                       onSelect={() => actions.openAttribute()}

@@ -212,7 +212,11 @@ export async function openPackStore(dir, {
           if (cur && cur.size > 0 && cur.size + b.byteLength > packBytes) await closePack();
           if (!cur) await openPack();
           const off = cur.size;
-          if (cur.access) cur.access.write(b, { at: off });
+          if (cur.access) {
+            // Firefox returns a short count at its quota instead of throwing (L0 spike)
+            const n = cur.access.write(b, { at: off });
+            if (typeof n === 'number' && n !== b.byteLength) throw Object.assign(new Error(`Short write: ${n} of ${b.byteLength} bytes.`), { name: 'QuotaExceededError' });
+          }
           else await cur.writable.write(b);
           cur.size += b.byteLength;
           cur.entries.push({ key, off, len: b.byteLength, shaP });

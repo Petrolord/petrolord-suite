@@ -100,7 +100,10 @@ export async function createWorkspace({ userId, label, backend, handle = null, r
   await registry.putWorkspace(rec);
   if (backend === 'opfs' && globalThis.navigator?.storage?.persist) {
     // best effort: without it Firefox and Safari may evict under pressure
-    try { rec.persisted = await globalThis.navigator.storage.persist(); } catch { rec.persisted = false; }
+    // Firefox may never settle this promise (it waits on a prompt): race it (L0 spike)
+    try {
+      rec.persisted = await Promise.race([globalThis.navigator.storage.persist(), new Promise((r) => { setTimeout(() => r(false), 3000); })]);
+    } catch { rec.persisted = false; }
     await registry.putWorkspace(rec);
   }
   return rec;
@@ -212,14 +215,16 @@ export async function reportedFreeBytes(g = globalThis) {
  * @param {number} needBytes
  * @param {Object} rec workspace record
  */
-export async function checkLocalSpace(needBytes, rec, { freeBytes = reportedFreeBytes } = {}) {
+export async function checkLocalSpace(needBytes, rec, { freeBytes = reportedFreeBytes, hard = typeof globalThis.showDirectoryPicker !== 'function' } = {}) {
   const free = await freeBytes();
   const gb = (v) => `${(v / 1e9).toFixed(1)} GB`;
   if (rec?.backend === 'opfs') {
-    if (free != null && free < needBytes) {
+    // Chromium's estimate grows with use (L0 spike), so it is a guide there;
+    // Firefox and Safari stop at it, so they refuse up front (hard: true)
+    if (free != null && free < needBytes && hard) {
       return { ok: false, free, message: `This needs about ${gb(needBytes)} and the browser can store ${gb(free)} more. Free some disk space, delete local volumes you no longer need, or use Chrome or Edge with a workspace folder on a larger drive.` };
     }
-    return { ok: true, free, message: null };
+    return { ok: true, free, message: free != null && free < needBytes ? `This needs about ${gb(needBytes)}. The browser reports ${gb(free)} free for its own storage, which may grow; make sure the disk has room.` : null };
   }
   // a folder: the browser cannot see that drive's free space, so ask the user to check
   return { ok: true, free: null, message: `This needs about ${gb(needBytes)} free on the drive that holds your workspace folder.` };

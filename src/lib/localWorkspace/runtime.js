@@ -7,7 +7,7 @@
 // applies 20261016100000, and then every helper here answers "cloud" and
 // nothing local is offered.
 
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useState as useStateSafe, useSyncExternalStore } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { currentProjectId, currentProjectSettings, getProjectScope } from '@/lib/projects/projectScope';
 import { PLATFORM_BUILD } from '@/lib/platformBuild';
@@ -15,7 +15,7 @@ import vendor from '../../../packages/engines/VENDOR.json';
 import { defaultRegistry } from './registry';
 import {
   localWorkspaceSupport, createWorkspace, workspacePermission, requestWorkspacePermission, setWorkspaceDevice,
-  checkLocalSpace, removeLocalVolume, openLocalVolume,
+  checkLocalSpace, removeLocalVolume, openLocalVolume, reportedFreeBytes,
 } from './workspace';
 import {
   localSchemaReady, registerDevice, touchDevice, volumeLocations, upsertReplica, setVolumeLocation,
@@ -24,6 +24,7 @@ import { placementOf, PLACEMENT, previewsAllowed } from './placement';
 import { chooseExecutor, uuidsIn, EXECUTOR, executorFor } from './router';
 import { createBrowserJobRunner } from './jobs/browserJobs';
 import { browserEngineCommit } from './identity';
+import { buildPreviews, encodePng } from './previews';
 
 export const ENGINE_COMMIT = browserEngineCommit(PLATFORM_BUILD.sha, vendor?.canonical?.commit);
 const PREF_KEY = 'petrolord.localWorkspace.runOn';
@@ -141,7 +142,7 @@ export async function placementsFor(rows) {
     const loc = locs.get(r.id) || r;
     // eslint-disable-next-line no-await-in-loop
     const local = state.schemaReady ? await reg.getVolume(r.id).catch(() => null) : null;
-    out.set(r.id, placementOf({ ...r, ...loc }, { local: local ? { ...local, label: state.workspace?.label } : null, userId: state.userId }));
+    out.set(r.id, placementOf({ ...r, ...loc }, { local: local ? { ...local, label: state.workspace?.label } : null, userId: state.userId, deviceId: state.workspace?.deviceId || null }));
   }
   return out;
 }
@@ -261,7 +262,23 @@ export async function previewsOn(volumeRow) {
   return previewsAllowed({ volumePreviews: volumeRow?.previews || 'auto', projectVisibility: visibility, projectPreviews });
 }
 
-let previewMaker = null;
+async function defaultPreviewMaker(row) {
+  const store = await openLocalVolume(row.id);
+  const manifest = await store.getJson('manifest');
+  if (!manifest) return null;
+  const images = await buildPreviews({ manifest, read: (k) => store.get(k) });
+  const done = [];
+  for (const img of images) {
+    // eslint-disable-next-line no-await-in-loop
+    const png = await encodePng(img);
+    // eslint-disable-next-line no-await-in-loop
+    const { error } = await supabase.storage.from('seismic').upload(`${row.storage_path}/previews/${img.name}.png`, new Blob([png], { type: 'image/png' }), { contentType: 'image/png', upsert: true });
+    if (error) throw new Error(`Could not upload the preview: ${error.message}`);
+    done.push(img.name);
+  }
+  return done;
+}
+let previewMaker = defaultPreviewMaker;
 /** Seismolord installs the preview renderer (it owns the slice engine). */
 export function setPreviewMaker(fn) { previewMaker = fn; }
 export async function uploadPreviewsFor(volumeId) {
@@ -272,3 +289,47 @@ export async function uploadPreviewsFor(volumeId) {
 }
 
 export { PLACEMENT };
+
+/** React: the placement of one volume (null while unknown). */
+export function useVolumePlacement(volume) {
+  const [p, setP] = useStateSafe(null);
+  const id = volume?.id || null;
+  const loc = volume?.storage_location || null;
+  useEffect(() => {
+    let live = true;
+    if (!id) { setP(null); return undefined; }
+    placementsFor([volume]).then((m) => { if (live) setP(m.get(id) || null); }).catch(() => { if (live) setP(null); });
+    return () => { live = false; };
+  }, [id, loc]); // eslint-disable-line react-hooks/exhaustive-deps
+  return p;
+}
+
+/** Bytes and count of this user's volumes on this computer, and what the browser reports free. */
+export async function localUsage() {
+  if (!state.loaded) await refreshLocalState().catch(() => {});
+  if (!state.workspace) return null;
+  const vols = await defaultRegistry().listVolumes(state.userId).catch(() => []);
+  const ready = vols.filter((v) => v.state === 'ready');
+  return {
+    bytes: ready.reduce((a, v) => a + (Number(v.bytes) || 0), 0),
+    count: ready.length,
+    missing: vols.filter((v) => v.state === 'missing').length,
+    free: await reportedFreeBytes(),
+    backend: state.workspace.backend,
+    label: state.workspace.label,
+  };
+}
+
+/** React: placements of a list of volumes (Map id -> placement; empty until known). */
+export function useVolumePlacements(volumes) {
+  const [m, setM] = useStateSafe(() => new Map());
+  const key = (volumes || []).map((v) => `${v.id}:${v.status}:${v.storage_location || ''}`).join(',');
+  const s = useSyncExternalStore(subscribeLocal, getLocalState, getLocalState);
+  useEffect(() => {
+    let live = true;
+    if (!volumes?.length) { setM(new Map()); return undefined; }
+    placementsFor(volumes).then((x) => { if (live) setM(x); }).catch(() => {});
+    return () => { live = false; };
+  }, [key, s.schemaReady, s.workspace, s.permission]); // eslint-disable-line react-hooks/exhaustive-deps
+  return m;
+}

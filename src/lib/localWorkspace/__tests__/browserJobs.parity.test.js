@@ -256,6 +256,8 @@ describe('routing and placement', () => {
     expect(away).toMatchObject({ kind: PLACEMENT.ELSEWHERE, canOpen: false, canRequestCopy: true, badge: "Ayo's PC" });
     expect(away.title).toMatch(/Lives on Ayo's PC, last seen 2 hours ago/);
     expect(placementOf({ storage_location: 'local' }, { local: { state: 'missing' } }).kind).toBe(PLACEMENT.MISSING);
+    // site data cleared: no local record, but this computer's replica is on record
+    expect(placementOf({ storage_location: 'local', user_id: UID, replicas: [{ device_id: 'dev-1', state: 'ready', device_label: 'PC' }] }, { userId: UID, deviceId: 'dev-1' }).kind).toBe(PLACEMENT.MISSING);
   });
   test('previews: on by default, off for members-only projects, per-volume override wins', () => {
     expect(previewsAllowed({})).toBe(true);

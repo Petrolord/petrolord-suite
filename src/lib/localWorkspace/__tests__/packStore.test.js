@@ -142,6 +142,21 @@ describe('pack store', () => {
     expect(localWriteError({ name: 'NotAllowedError' }).message).toMatch(/permission/);
   });
 
+  test('a short sync-handle write (Firefox at its quota) fails instead of truncating the pack', async () => {
+    const dir = memoryDirectory('vol');
+    const packs = await dir.getDirectoryHandle('packs', { create: true });
+    const real = packs.getFileHandle.bind(packs);
+    packs.getFileHandle = async (n, o) => {
+      const h = await real(n, o);
+      if (n.endsWith('.pack')) h.createSyncAccessHandle = async () => ({ truncate() {}, write: (b) => b.byteLength - 1, flush() {}, close() {}, read() { return 0; } });
+      return h;
+    };
+    const g = globalThis.window; delete globalThis.window;
+    const s = await openPackStore(dir, { write: true });
+    await expect(s.put('a', bytesOf(100, 1))).rejects.toThrow(/not enough free space/);
+    if (g) globalThis.window = g;
+  });
+
   test('read-only stores refuse writes', async () => {
     const dir = memoryDirectory('vol');
     await (await openPackStore(dir, { write: true })).flush();
