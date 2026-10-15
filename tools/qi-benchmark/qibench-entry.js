@@ -21,9 +21,11 @@ import { prepareWell } from '@/pages/apps/QIStudio/services/inversionWells';
 import { packLog } from '@/pages/apps/QIStudio/services/logPacking';
 import { getManifest } from '@/pages/apps/Seismolord/services/volumesService';
 import { saveDerivedCheckshots } from '@/pages/apps/Seismolord/services/wellsService';
+import { saveHorizon } from '@/pages/apps/Seismolord/services/horizonsService';
 import { normalizeInputCurve } from '@/components/wells/curveUnits';
 import { listLogs, downloadCurve } from '@/lib/wellsRegistry';
 import { autoTieWell, tiedCheckshots, fieldTieConvention } from '@/pages/apps/Seismolord/engine/autoTie';
+import { rotateConstantPhase } from '@/pages/apps/Seismolord/engine/tieWarp';
 import { makeTvdssToTwt } from '@/pages/apps/Seismolord/engine/wellSection';
 import { storageBrickFetcher } from '@/pages/apps/Seismolord/engine/brickCache';
 import { v4BrickFetcher } from '@/pages/apps/Seismolord/engine/brickCodecV4';
@@ -134,19 +136,29 @@ window.qb = {
       const hs = await backend.listHorizons(volume.id);
       for (const n of opts.horizons) { const h = hs.find((x) => x.name === n); if (h) horizonIds.push(h.id); }
     }
-    const wavelet = opts.wavelet || { samples: ricker(opts.rickerHz || 25, frame.dtMs), dt_ms: frame.dtMs };
+    let wavelet = opts.wavelet && opts.wavelet !== 'tie' ? opts.wavelet : { samples: ricker(opts.rickerHz || 25, frame.dtMs), dt_ms: frame.dtMs };
+    if (opts.wavelet === 'tie') {
+      const ws = Object.values(window.__tieW || {});
+      if (!ws.length) throw new Error('no tie wavelets in this session: run a tie step first');
+      const n = Math.min(...ws.map((x) => x.samples.length));
+      const avg = Array.from({ length: n }, (_, i) => ws.reduce((a, x) => a + x.samples[i + (x.samples.length - n) / 2], 0) / ws.length);
+      wavelet = { samples: avg, dt_ms: ws[0].dt_ms };
+    }
+    // an inversion window: logs outside it are left out of the scaling and the check
+    if (opts.windowMs) for (const w of ok) w.ln_ai = w.ln_ai.map((v, i) => (i * frame.dtMs >= opts.windowMs[0] && i * frame.dtMs <= opts.windowMs[1] ? v : NaN));
     const inversion = { method: opts.method || 'model_based', wavelet, wells: ok.map((w) => ({ name: w.name, il: w.il, xl: w.xl, ln_ai: packLog(w.ln_ai) })), horizon_ids: horizonIds, ...(opts.settings || {}) };
     const res = { wells: wells.map((w) => ({ name: w.name, ok: w.ok, reason: w.reason, il: w.il, xl: w.xl, timeSource: w.timeSource, curves: w.curves })) };
     if (ok.length < 2) return { ...res, error: 'fewer than two usable wells' };
     const jb = await enqueueJob('poststack_inversion', { mode: 'blind', parent_volume_id: volume.id, inversion });
     const rb = await this.wait(jb);
-    res.blind = { jobId: jb, status: rb.status, error: rb.error_message, table: rb.result_refs?.blind, settings: rb.result_refs?.settings, engine: rb.engine_commit };
+    res.blind = { jobId: jb, status: rb.status, error: rb.error_message, stage: rb.failure_stage, table: rb.result_refs?.blind, settings: rb.result_refs?.settings, protocol: rb.result_refs?.blind_protocol, residualAtWells: rb.result_refs?.residual_at_wells, engine: rb.engine_commit };
     if (opts.volume && rb.status === 'succeeded') {
       const summary = { qi_class: 'elastic_estimate', method: inversion.method, wells: ok.map((w) => w.name), horizon_ids: horizonIds };
       const row = await backend.registerInversionVolume({ volume, name: opts.volumeName || `BENCH ${volumeName} AI`, summary });
-      const jv = await enqueueJob('poststack_inversion', { mode: 'volume', parent_volume_id: volume.id, volume_id: row.id, name: row.name, inversion });
+      const resRow = opts.residual ? await backend.registerInversionVolume({ volume, name: `${row.name} residual`, summary: { ...summary, product: 'residual' } }) : null;
+      const jv = await enqueueJob('poststack_inversion', { mode: 'volume', parent_volume_id: volume.id, volume_id: row.id, name: row.name, inversion: { ...inversion, ...(resRow ? { residual: true } : {}) }, ...(resRow ? { residual_volume_id: resRow.id } : {}) });
       const rv = await this.wait(jv);
-      res.volume = { jobId: jv, status: rv.status, error: rv.error_message, volumeId: row.id, name: row.name, traces: rv.result_refs?.trace_count };
+      res.volume = { jobId: jv, status: rv.status, error: rv.error_message, volumeId: row.id, name: row.name, traces: rv.result_refs?.trace_count, residual: rv.result_refs?.residual, residualVolumeId: rv.result_refs?.residual_volume_id, blind: rv.result_refs?.blind, settings: rv.result_refs?.settings };
     }
     return res;
   },
@@ -205,6 +217,15 @@ window.qb = {
       try { t = await autoTieWell({ well, timeConv, affine, geom, dtUs, getTrace, maxShiftMs }); } catch (e) { err = e.message; }
       ties.push(t);
       if (!t) { out.push({ name: w.name, error: err || 'not tied (off survey or no overlap)' }); continue; }
+      // the tie's own wavelet with its phase and polarity, as the inversion should see it (seismic = rotated synthetic)
+      {
+        const wav = Array.from(t.wavelet); const pad = wav.length; const z = new Float32Array(3 * pad); z.set(wav, pad);
+        const phi = ((t.phaseDeg + (t.polarity === 'reverse' ? 180 : 0)) * Math.PI) / 180;
+        const rot = Array.from(rotateConstantPhase(z, phi).slice(pad, 2 * pad));
+        const mx = Math.max(...rot.map(Math.abs)) || 1;
+        const odd = rot.length % 2 ? rot : rot.slice(0, -1);
+        window.__tieW = window.__tieW || {}; window.__tieW[w.name] = { samples: odd.map((v) => v / mx), dt_ms: dtUs / 1000 };
+      }
       const rec = { name: w.name, mdRange, shiftMs: t.shiftMs, polarity: t.polarity, phaseDeg: t.phaseDeg, corr: t.corr, corr0: t.corr0, quality: t.quality, cells: t.cells?.length ?? null };
       if ((commit && t.quality !== 'poor') || commitAny) {
         await saveDerivedCheckshots(w.id, { rows: tiedCheckshots(rows, t), provenance: { method: 'auto_tie_benchmark', shift_ms: t.shiftMs, corr: t.corr, phase_deg: t.phaseDeg, polarity: t.polarity, volume_id: volume.id, at: new Date().toISOString() } });
@@ -224,6 +245,32 @@ window.qb = {
       await updateWell(w.id, { surface_x: c.x, surface_y: c.y, crs: c.crs, crs_note: c.note || null });
       out.push({ name: c.name, from: [w.surface_x, w.surface_y, w.crs], to: [c.x, c.y, c.crs] });
     }
+    return out;
+  },
+  /** A flat 'horizon' at a constant time on a volume (stands in where no interpreted horizon exists; named as such). */
+  async flatHorizon(volumeName, name, tMs) {
+    const volume = await this.volumeByName(volumeName);
+    const manifest = await getManifest(volume);
+    const g = manifest.geometry; const dtUs = Number(g.dt_us);
+    const hs = await backend.listHorizons(volume.id);
+    const old = hs.find((h) => h.name === name);
+    if (old) return { id: old.id, existing: true };
+    const picks = new Float32Array(g.il.count * g.xl.count).fill(tMs * 1000 / dtUs);
+    const h = await saveHorizon({ volume, name, picks, seed: { ilIdx: 0, xlIdx: 0, sample: tMs * 1000 / dtUs }, params: { mode: 'flat', note: 'constant-time window top, benchmark' }, dtUs });
+    return { id: h.id };
+  },
+  /** zone_maps on volumes (by name) between a horizon and a window below it; the lattice files are removed after reading their stats. */
+  async zoneMaps(volumeNames, horizonOnVolume, horizonName, windowMs, products) {
+    const ids = [];
+    for (const n of volumeNames) { const { data } = await supabase.from('seismic_volumes').select('id').eq('name', n).maybeSingle(); if (!data) throw new Error(`No volume ${n}`); ids.push(data.id); }
+    const hv = await this.volumeByName(horizonOnVolume);
+    const h = (await backend.listHorizons(hv.id)).find((x) => x.name === horizonName);
+    if (!h) throw new Error(`No horizon ${horizonName}`);
+    const j = await enqueueJob('zone_maps', { volume_ids: ids, top_horizon_id: h.id, window_ms: windowMs, products, name: 'BENCH zone maps' });
+    const r = await this.wait(j);
+    const out = { jobId: j, status: r.status, error: r.error_message, result: r.result_refs };
+    const files = JSON.stringify(r.result_refs || {}).match(/[0-9a-f-]{36}\/qi-zone-maps\/[^"]+\.f32/g) || [];
+    if (files.length) { const { error } = await supabase.storage.from('seismic').remove(files); out.removed = error ? error.message : files.length; }
     return out;
   },
   async cancelActive() {

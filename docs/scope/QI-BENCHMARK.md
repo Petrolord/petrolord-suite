@@ -187,6 +187,55 @@ worker host, the Suite's own services, the QA account). Results JSON:
    `/srv/qi-benchmark/kit/run.sh plan-f3-inv.json ...` after the redeploy,
    with better ties first.
 
+### 3c. F3 rerun on the redeployed worker (2026-10-15, suite-863ee986b+engines-1b0a7a806)
+
+The build carries the truly blind protocol (held-back-v2), NTG and Sw behind
+their gate, residual volumes, the density gate, zone_maps, gather_panel,
+depth import, and the two guards from F-3 (#1154): an absolute post-stack
+run is refused when the tie behind the wavelet scale is under 0.3, and any
+post-stack, simultaneous or property job fails on a blind error over 100
+percent or not a number.
+
+1. **Negative control (the F-3 repro, sonic time-depth, model-based,
+   Ricker 35 Hz, defaults):** REFUSED, job 539d9605: "The wells tie too poorly
+   to scale the wavelet: the synthetic follows the seismic at a correlation
+   of 0.01 over the wells, under 0.3." Before the guard the same run reported
+   blind AI errors of 1e29 to 1e47 percent as a success.
+2. **Best ties the current tools allow** (bulk shift and constant phase per
+   well, best window, committed as derived checkshots): F02-01 0.53
+   (-28.3 ms, reverse, -4 degrees, MD 1200 to 2000 m), F03-04 0.42 (+36.9 ms,
+   reverse, -3 degrees, MD 1200 to 2000 m), F03-02 0.54 (-7.4 ms, reverse,
+   -10 degrees, MD 500 to 1900 m). No stretch tool yet.
+3. **Absolute blind checks on the tied wells** (scale-tie correlation, the
+   guard's number, then the outcome):
+
+   | Wavelet | Inversion window (ms) | Wells | Scale tie | Outcome |
+   |---|---|---|---|---|
+   | Ricker 35 Hz | whole log | 3 | 0.11 | refused (job 0ad2ed33) |
+   | Tie wavelets (phase and polarity applied, averaged) | whole log | 3 | 0.16 | refused (285c2cea) |
+   | Ricker 35 Hz | 1100-1848 | 3 | 0.25 | refused (67ed3a0c) |
+   | Tie wavelets | 1000-1848 | 3 | 0.29 | refused (e06e9af7) |
+   | Tie wavelets | 1100-1848 | 3 | 0.30 (just under) | refused (4bb98cee) |
+   | Tie wavelets | 1100-1848 | F02-01, F03-02 | 0.23 | refused (65dd2416) |
+   | Tie wavelets | 1200-1848 | 3 | over 0.3 | passed the scale guard, then FAILED the blind guard: "F3 F03-04: blind error 244 percent" (ca3eebb1) |
+
+   No absolute AI volume is trustworthy on F3 with these ties, so no residual
+   volume, porosity or AI zone map was produced. Both guards behave as
+   intended on real data.
+4. **Coloured (relative) blind checks**, held-back-v2 (each well out of the
+   low-frequency model and the coloured operator): whole log (fb96f679)
+   F03-04 -0.26, F03-02 -0.08, F02-01 -0.17; window 1100 to 1848 ms with the
+   tie wavelets (4a652f8e) F03-04 -0.32, F03-02 -0.08, F02-01 -0.38. The
+   correlations are consistently negative while every tie says the polarity
+   is reversed: finding F-6.
+5. **Zone map machinery check** (zone_maps on the seismic itself, between a
+   constant-time top at 1200 ms and a 400 ms window, because no interpreted
+   F3 horizon is in the account; job e236373a, 21 s): RMS amplitude mean
+   2401 (0 to 5441), mean amplitude 6.2 (-490 to 518), share of samples
+   above 5000 mean 0.025 (up to 0.149), thickness 400 ms. 395,379 live traces
+   for the amplitude products; the lattice files were removed after reading.
+   Finding F-7.
+
 Not yet run (waiting for seismic over the wells): ties, rock physics and
 feasibility, inversion with blind wells, properties, and for Volve the
 prestack, AVO and simultaneous steps. `plan-f3-full.template.json` holds the
@@ -225,6 +274,19 @@ model-based and coloured blind checks; volume; porosity 1200 to 2100 ms).
   0.42 to 0.54 in the best window. The tie warp (multi-anchor stretch and
   squeeze, engines `tieWarp.js`) exists for manual anchors; an automatic
   windowed warp would make the benchmark repeatable.
+- **F-6 (coloured inversion polarity, for the QI lead).** Model-based
+  inversion takes the polarity from the sign of the wavelet scale; the
+  coloured operator does not, so a reversed-polarity volume (F3: every tie
+  reverse) gives relative impedance of the wrong sign, blind correlations
+  of -0.26 to -0.38. Suggest taking the polarity from the ties (or the sign
+  of the scale fit) into the coloured operator, or reporting |corr| with the
+  polarity stated.
+- **F-7 (zone maps, minor).** The thickness product counts lattice cells
+  with no traces (413,801 against 395,379 live traces on the irregular F3
+  outline). Suggest nulling thickness where the volume has no trace.
+- **F-8 (copy, minor).** The guard message read "a correlation of 0.30 ...
+  under 0.3" for a value just below 0.3; print two more decimals or round
+  down.
 - **F-5 (time origin).** The dGB stack's first sample is at 4 ms (trace byte
   109 and textual card 37). Seismolord takes sample 0 as 0 ms, so the volume
   sits 4 ms early; the tie shift absorbs it, but the import does not say so.
@@ -246,8 +308,8 @@ model-based and coloured blind checks; volume; porosity 1200 to 2100 ms).
 
 | Milestone | Criterion | Result |
 |---|---|---|
-| A (Package 1) | Full Package 1 on an open dataset | Partly. Inventory inputs, wells, CRS placement and seismic QC pass on F3. Ties FAIL the quality bands (best 0.42 to 0.54, fair at most) with a sonic-only time-depth. Feasibility and the report not run |
-| B (post-stack study) | Blind wells and prospect table on an open dataset | FAIL on F3 with the live worker: the absolute inversion diverges (F-3); coloured blind correlation -0.27 to 0.25. Rerun after the redeploy, the F-3 guard and better ties |
+| A (Package 1) | Full Package 1 on an open dataset | Partly (2026-10-15, worker 863ee986b). Wells, CRS placement, seismic QC and zone maps pass on F3. Ties stay poor to fair (0.42 to 0.54 in the best window) with a sonic-only time-depth and no stretch tool, under the app's good band (0.7). Feasibility and the report not run |
+| B (post-stack study) | Blind wells and prospect table on an open dataset | FAIL on F3, now refused cleanly: every absolute run is stopped by the scale-tie guard (0.01 to 0.30) or the blind guard (F03-04 244 percent); coloured blind correlation -0.08 to -0.38 (polarity, F-6). Needs a stretch tie or measured checkshots, then a rerun |
 | C (prestack study) | Blind-well error in published ranges, AVO class at known wells | Not yet (Volve needed) |
 
 ## 7. Limits
