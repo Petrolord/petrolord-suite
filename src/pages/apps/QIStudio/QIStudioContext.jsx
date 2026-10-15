@@ -147,6 +147,7 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
     return { ...p, prospects: list };
   }), [edit]);
   const removeProspect = useCallback((id) => edit((p) => ({ ...p, prospects: (p.prospects || []).filter((x) => x.id !== id) })), [edit]);
+  const setMaps = useCallback((patch) => edit((p) => ({ ...p, maps: { ...(p.maps || {}), ...(typeof patch === 'function' ? patch(p.maps || {}) : patch) } })), [edit]);
   const setDataInventory = useCallback((next) => edit((p) => ({ ...p, dataInventory: next })), [edit]);
   const setInversion = useCallback((volumeId, patch) => edit((p) => ({ ...p, inversion: { ...p.inversion, [volumeId]: { ...(p.inversion?.[volumeId] || {}), ...(typeof patch === 'function' ? patch(p.inversion?.[volumeId] || {}) : patch) } } })), [edit]);
 
@@ -281,7 +282,7 @@ export function QIStudioProvider({ children, backend, sharingStore = null }) {
   const value = {
     project, wells, volumes, chosenVolumes, loaded, ready, loading, matrix, inventory, issues, decisions, targetChoices,
     setObjectivesText, setTargetObjective, saveDecision, removeDecision,
-    toggleWell, toggleVolume, toggleTarget, setSeismicAcquired, setFirstProduction, setInventory, saveIssue, setFeasibility, setQcResult, setInversion, setProperty, saveProspect, removeProspect, setPrestack, setPrestackQc, dropPrestackStore, setAvo, setSimultaneous, setDataInventory,
+    toggleWell, toggleVolume, toggleTarget, setSeismicAcquired, setFirstProduction, setInventory, saveIssue, setFeasibility, setQcResult, setInversion, setProperty, saveProspect, removeProspect, setPrestack, setPrestackQc, dropPrestackStore, setAvo, setSimultaneous, setDataInventory, setMaps,
     jobs: backend.jobs || null, backend,
     projects, sharedProjects, currentProjectId, projectName, projectRow: shared.projectRow, sharing: shared.sharing,
     viewingShared: shared.viewingShared, canWrite, savingAvailable: saving.available, savingReason: saving.reason,

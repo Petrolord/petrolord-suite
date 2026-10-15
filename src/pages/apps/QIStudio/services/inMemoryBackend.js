@@ -98,6 +98,10 @@ export function makeInMemoryBackend() {
       return { ok: true, gather: { zone: { name: 'SAND A', top_md_m: 2000 }, cases: [{ key: 'in-situ', intercept: -0.05, gradient: -0.12 }, { key: 'substituted', intercept: -0.02, gradient: -0.03 }] } };
     },
     async convertStack() { return { jobId: 'mem-convert', volumeId: 'mem-vol' }; },
+    // maps from volumes (QI upgrade P1.5): the lattice grid the worker wrote, and a saved surface
+    async downloadZoneMap() { return Float32Array.from({ length: 16 * 32 }, (_, c) => 0.18 + 0.002 * (c % 32)); },
+    async saveZoneMap({ name }) { return { id: `mem-surface-${name.length}`, name }; },
+    async removeZoneMapFiles() {},
     // a dome (Top Sand A) and an RMS amplitude map bright above a flat contact at 2100 m
     async listSurfaces() {
       return [
@@ -180,6 +184,12 @@ function makeInMemoryJobs({ removedDatasets = new Set() } = {}) {
       }
       if (kind === 'export_segy') {
         results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), engine_commit: 'suite-harness+engines-harness', result_refs: { volume_id: params.volume_id, file_name: 'export.sgy', bytes: 1024, traces: 512, url: 'https://storage.petrolord.com/harness/export.sgy', expires_at: new Date(Date.now() + 864e5).toISOString() } });
+        return id;
+      }
+      if (kind === 'zone_maps') {
+        // an illustrative result in the worker's shape (the maths is gated in the worker and engine tests)
+        const products = params.products.map((pr, k) => ({ ...pr, path: `mem/qi-zone-maps/${id}/${pr.key}.f32`, live: 480, min: 0.12 + 0.01 * k, max: 0.31 + 0.01 * k, mean: 0.21 + 0.01 * k }));
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { volume_ids: params.volume_ids, lattice: { n_il: 16, n_xl: 32, dt_ms: 4 }, traces_with_zone: 480, products } });
         return id;
       }
       if (kind === 'property_prediction') {

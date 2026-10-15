@@ -21,8 +21,9 @@ import { prestackQc } from './prestackQc.js';
 import { trimGathers } from './trimGathers.js';
 import { matchStacksJob } from './matchStacks.js';
 import { removeDataset } from './removeDataset.js';
+import { zoneMaps } from './zoneMaps.js';
 
-export const KINDS = Object.freeze(['noop', 'stack_to_v4', 'attribute_volume', 'ingest_url', 'scan_dataset', 'seismic_qc', 'poststack_inversion', 'property_prediction', 'export_segy', 'ingest_gathers', 'angle_stacks', 'avo_volumes', 'sample_volumes', 'prestack_inversion', 'prestack_qc', 'trim_gathers', 'match_stacks', 'remove_dataset']);
+export const KINDS = Object.freeze(['noop', 'stack_to_v4', 'attribute_volume', 'ingest_url', 'scan_dataset', 'seismic_qc', 'poststack_inversion', 'property_prediction', 'export_segy', 'ingest_gathers', 'angle_stacks', 'avo_volumes', 'sample_volumes', 'prestack_inversion', 'prestack_qc', 'trim_gathers', 'match_stacks', 'remove_dataset', 'zone_maps']);
 
 export function createHandlers(deps = {}) {
   return Object.freeze({
@@ -44,5 +45,6 @@ export function createHandlers(deps = {}) {
     trim_gathers: (ctx) => trimGathers(ctx, deps),
     match_stacks: (ctx) => matchStacksJob(ctx, deps),
     remove_dataset: (ctx) => removeDataset(ctx, deps),
+    zone_maps: (ctx) => zoneMaps(ctx, deps),
   });
 }

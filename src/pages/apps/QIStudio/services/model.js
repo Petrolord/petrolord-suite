@@ -54,6 +54,7 @@ export const blankProject = () => ({
   simultaneous: {},
   prestackQc: {},
   dataInventory: {},
+  maps: {},
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -102,6 +103,8 @@ export function projectFromPayload(payload) {
     // inventory tab (cell overrides, remarks, items outside Petrolord, note
     // comments); the inventory itself is rebuilt from the registries
     dataInventory: isObj(p.dataInventory) ? { ...p.dataInventory } : {},
+    // maps from volumes (QI upgrade P1.5): { runs: [{jobId, at, name, zone, input, products: [{key, label, unit, surfaceId?}]}] }
+    maps: isObj(p.maps) ? { ...p.maps } : {},
   };
 }
 

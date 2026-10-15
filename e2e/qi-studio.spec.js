@@ -19,7 +19,7 @@ const SHOTS = process.env.QI_SHOTS || 'test-results';
 const VIEWPORT = { width: 1366, height: 768 };
 // the first page of a cold dev server compiles the whole app: give it room
 test.describe.configure({ timeout: 360000 });
-const TABS = ['setup', 'inventory', 'usability', 'qc', 'ties', 'prestack', 'avo', 'inversion', 'simultaneous', 'properties', 'prospects', 'issues', 'feasibility', 'report'];
+const TABS = ['setup', 'inventory', 'usability', 'qc', 'ties', 'prestack', 'avo', 'inversion', 'simultaneous', 'properties', 'prospects', 'issues', 'feasibility', 'report', 'maps'];
 
 async function open(page) {
   const errors = [];

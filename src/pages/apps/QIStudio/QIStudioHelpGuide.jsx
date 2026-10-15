@@ -5,7 +5,7 @@
 // Copy rule: no em dashes, no "X, not Y" contrastives.
 // Guard: __tests__/helpGuide.test.jsx.
 import React from 'react';
-import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity, Layers, Gauge, MapPin, PackageCheck, Rows, TrendingDown, Combine } from 'lucide-react';
+import { BookOpen, Zap, ClipboardList, Grid3x3, AlertTriangle, Scale, FileText, Share2, Activity, Layers, Gauge, MapPin, PackageCheck, Rows, TrendingDown, Combine, MapIcon } from 'lucide-react';
 import { HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Step, Table } from '@/components/helpguide/HelpGuideLayout';
 import SharingHelp from '@/components/recordSharing/SharingHelp';
 import { GROUPS, STATES } from './services/inventory';
@@ -31,6 +31,7 @@ export const HELP_SECTIONS = [
   { id: 'handover', icon: PackageCheck, title: 'Handover' },
   { id: 'report', icon: FileText, title: 'The report' },
   { id: 'sharing', icon: Share2, title: 'Saving and sharing' },
+  { id: 'maps', icon: MapIcon, title: 'Maps from volumes' },
 ];
 
 function QIStudioHelpGuideContent() {
@@ -372,6 +373,31 @@ function QIStudioHelpGuideContent() {
         <SectionHeading icon={Share2}>Saving and sharing</SectionHeading>
         <Para>A project saves 10 seconds after your last change once it is created. Saving needs the QI Studio projects table on the database; until it is switched on the page says so and the work stays on screen.</Para>
         <SharingHelp record="project" where="The sharing control is under the project box once the project is saved." />
+      </GuideSection>
+
+      <GuideSection id="maps">
+        <SectionHeading icon={MapIcon}>Maps from volumes</SectionHeading>
+        <Para>
+          The Maps tab turns a volume into maps over a zone: between two horizons, or a horizon and a window below it. Pick
+          the volume (a stack, an impedance, the Q10, Q50 and Q90 of an uncertainty run, or a facies probability), tick the
+          maps and choose the zone. The seismic worker computes every trace&apos;s statistic over the zone.
+        </Para>
+        <Table
+          headers={['Map', 'What it shows']}
+          rows={[
+            ['Property map', 'The zone mean of a Q50 volume (porosity, impedance), or the zone mean of any volume.'],
+            ['Confidence map', 'The zone mean of Q90 minus Q10: the width of the 80 percent band. Narrower is more confident. The relative spread divides it by Q50.'],
+            ['Probability map', 'The zone mean of a facies probability, which is the expected share of the zone in that facies; the highest probability in the zone; or the share of the zone where the probability is over a cutoff.'],
+            ['Zone statistics', 'Mean, RMS, minimum, maximum, and the share of the zone above or below a cutoff.'],
+          ]}
+        />
+        <Para>
+          The zone takes the samples from the top pick to the base pick, rounded to the nearest sample, the same window as
+          Seismolord&apos;s interval attributes. Save the maps to the surface registry: each becomes an attribute surface of the
+          stack, gridded on the survey&apos;s own cell, with its unit and the zone in its name. Seismolord lists them under the
+          stack&apos;s Surfaces and Mapping &amp; Surface Studio opens them; both export XYZ, CPS-3, ZMAP+ and Irap grids. The
+          report lists the maps with their ranges.
+        </Para>
       </GuideSection>
     </HelpGuideShell>
   );

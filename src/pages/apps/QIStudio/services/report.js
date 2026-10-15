@@ -179,6 +179,8 @@ export function reportModel({ projectName = '', organizationName = '', project, 
       rows: r.result.times.map((t) => [String(t.t_ms), Number.isFinite(t.coherentShare) ? (100 * t.coherentShare).toFixed(0) : '', ...(t.noEvent ? ['no coherent event', '', ''] : [Number(t.rmoMedian).toFixed(1), Number(t.rmoQ90).toFixed(1), (100 * t.rmoShareOver4).toFixed(0)]), t.stretchMuteM ? String(Math.round(t.stretchMuteM)) : '']),
     })),
     matching: project.avo?.matching ? { reference: project.avo.matching.reference, rows: project.avo.matching.stacks.map((m) => [m.stack_name, Number(m.shift_ms).toFixed(1), Number(m.phase_deg).toFixed(0), Number(m.scale).toFixed(3), `${Number(m.corr_before).toFixed(2)} to ${Number(m.corr_after).toFixed(2)}`]) } : null,
+    // maps from volumes (QI upgrade P1.5)
+    maps: (project.maps?.runs || []).flatMap((r) => (r.products || []).map((p) => [p.name, p.unit || '', p.live != null ? String(p.live) : '', [p.min, p.mean, p.max].map((v) => (Number.isFinite(v) ? Number(v).toPrecision(3) : '')).join(' / '), p.surfaceId ? 'saved to the surface registry' : 'not saved'])),
     executive: (() => {
       const out = [];
       const inv = Object.values(project.inversion || {}).map((r) => r?.blind?.result?.blind || r?.spread?.result?.blind).filter((b) => b?.length);
@@ -302,6 +304,7 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
     });
     for (const p of model.prospects) section(`Prospect: ${p.name}`, p.text);
   }
+  if ((model.maps || []).length) table('Maps from volumes', ['Map', 'Unit', 'Traces', 'Min / mean / max', 'Registry'], model.maps, { fontSize: 6.5, note: 'Each map is a statistic of a volume over a zone between two horizons, or a horizon and a window below it, computed on the seismic worker. A confidence map is the zone mean of Q90 minus Q10 (narrower is more confident); a probability map is the zone mean of a facies probability (the expected share of the zone in that facies). Saved maps are attribute surfaces of the stack in the shared registry, shown and exported by Seismolord and Mapping & Surface Studio.' });
   if ((model.handover || []).length) table('Handover', ['Product', 'Method', 'Label', 'Delivered as'], model.handover, { note: 'SEG-Y of each volume comes from the seismic worker (rev 1, IEEE float, inline 189, crossline 193); LAS of the logs from Well Data Manager; each run has a run record of its settings, inputs and engine.' });
   if (model.issues.rows.length) table('Issue register', model.issues.head, model.issues.rows, { fontSize: 6.5 });
   else section('Issue register', 'No open or resolved issues.');
