@@ -1,0 +1,11 @@
+[
+ {"key":"signIn","op":"signIn"},
+ {"key":"seismic","op":"importSeismic","file":"/srv/qi-benchmark/f3/raw/REPLACE_WITH_F3.sgy","crs":"EPSG:23031","name":"BENCH F3 full stack (crop)","def":{"schema":1,"name":"BENCH F3 wells area","il":{"from":200,"to":750,"step":1},"xl":{"from":300,"to":1050,"step":1},"polygon":null,"decimate":{"il":1,"xl":1},"window":{"from":0,"to":2400},"startAtZero":false},"wait":true},
+ {"key":"qc","op":"qc","volume":"BENCH F3 full stack (crop)"},
+ {"key":"wellsOnVolume","op":"wells","volume":"BENCH F3 full stack (crop)"},
+ {"key":"invBlind","op":"inversion","volume":"BENCH F3 full stack (crop)","opts":{"method":"model_based","rickerHz":30},"stopOnError":false},
+ {"key":"invColoured","op":"inversion","volume":"BENCH F3 full stack (crop)","opts":{"method":"coloured","rickerHz":30},"stopOnError":false},
+ {"key":"invVolume","op":"inversion","volume":"BENCH F3 full stack (crop)","opts":{"method":"model_based","rickerHz":30,"volume":true,"volumeName":"BENCH F3 AI model-based"},"stopOnError":false},
+ {"key":"porosity","op":"property","ai":"BENCH F3 AI model-based","volume":"BENCH F3 full stack (crop)","opts":{"kind":"porosity","window_ms":[1200,2100]},"stopOnError":false},
+ {"key":"mine","op":"listMine"}
+]

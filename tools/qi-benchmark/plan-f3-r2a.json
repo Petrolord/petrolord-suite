@@ -1,0 +1,9 @@
+[
+ {"key":"r2_signIn","op":"signIn"},
+ {"key":"r2_negControl","op":"inversion","volume":"BENCH F3 stack (dGB, wells area)","opts":{"method":"model_based","rickerHz":35},"stopOnError":false},
+ {"key":"r2_tieBestF0201","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"commitAny":true,"names":["F3 F02-01"],"mdRange":[1200,2000]}},
+ {"key":"r2_tieBestF0304","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"commitAny":true,"names":["F3 F03-04"],"mdRange":[1200,2000]}},
+ {"key":"r2_tieBestF0302","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"commitAny":true,"names":["F3 F03-02"],"mdRange":[500,1900]}},
+ {"key":"r2_invTied","op":"inversion","volume":"BENCH F3 stack (dGB, wells area)","opts":{"method":"model_based","rickerHz":35},"stopOnError":false},
+ {"key":"r2_invTiedColoured","op":"inversion","volume":"BENCH F3 stack (dGB, wells area)","opts":{"method":"coloured","rickerHz":35},"stopOnError":false}
+]

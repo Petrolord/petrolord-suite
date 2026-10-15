@@ -1,0 +1,9 @@
+[
+ {"key":"r2c_signIn","op":"signIn"},
+ {"key":"r2c_w1","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"names":["F3 F02-01"],"mdRange":[1200,2000]}},
+ {"key":"r2c_w2","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"names":["F3 F03-04"],"mdRange":[1200,2000]}},
+ {"key":"r2c_w3","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"names":["F3 F03-02"],"mdRange":[500,1900]}},
+ {"key":"r2c_win1200","op":"inversion","volume":"BENCH F3 stack (dGB, wells area)","opts":{"method":"model_based","wavelet":"tie","windowMs":[1200,1848]},"stopOnError":false},
+ {"key":"r2c_two","op":"inversion","volume":"BENCH F3 stack (dGB, wells area)","opts":{"method":"model_based","wavelet":"tie","windowMs":[1100,1848],"wells":["F3 F02-01","F3 F03-02"]},"stopOnError":false},
+ {"key":"r2c_win1000","op":"inversion","volume":"BENCH F3 stack (dGB, wells area)","opts":{"method":"model_based","wavelet":"tie","windowMs":[1000,1848]},"stopOnError":false}
+]

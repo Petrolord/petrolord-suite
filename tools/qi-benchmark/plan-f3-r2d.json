@@ -1,0 +1,5 @@
+[
+ {"key":"r2d_signIn","op":"signIn"},
+ {"key":"r2d_flat","op":"flatHorizon","volume":"BENCH F3 stack (dGB, wells area)","name":"BENCH flat 1200 ms","tMs":1200},
+ {"key":"r2d_zone","op":"zoneMaps","volumes":["BENCH F3 stack (dGB, wells area)"],"horizonVolume":"BENCH F3 stack (dGB, wells area)","horizon":"BENCH flat 1200 ms","windowMs":400,"products":[{"key":"rms","kind":"stat","input":0,"stat":"rms"},{"key":"mean","kind":"stat","input":0,"stat":"mean"},{"key":"frac","kind":"stat","input":0,"stat":"frac","cutoff":5000,"above":true},{"key":"thick","kind":"thickness"}]}
+]

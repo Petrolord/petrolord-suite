@@ -1,0 +1,9 @@
+[
+ {"key":"signIn","op":"signIn"},
+ {"key":"commitF0201","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"commitAny":true,"names":["F3 F02-01"],"mdRange":[1200,2000]}},
+ {"key":"commitF0304","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"commitAny":true,"names":["F3 F03-04"],"mdRange":[1200,2000]}},
+ {"key":"commitF0302","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"commitAny":true,"names":["F3 F03-02"],"mdRange":[500,1900]}},
+ {"key":"tieAfter","op":"tie","volume":"BENCH F3 stack (dGB, wells area)","opts":{"commit":false,"maxShiftMs":20}},
+ {"key":"invTied","op":"inversion","volume":"BENCH F3 stack (dGB, wells area)","opts":{"method":"model_based","rickerHz":35},"stopOnError":false},
+ {"key":"invTiedColoured","op":"inversion","volume":"BENCH F3 stack (dGB, wells area)","opts":{"method":"coloured","rickerHz":35},"stopOnError":false}
+]
