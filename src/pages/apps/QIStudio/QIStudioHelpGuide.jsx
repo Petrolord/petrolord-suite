@@ -147,6 +147,26 @@ function QIStudioHelpGuideContent() {
           with how much flatter it came out. Judge the trim against the synthetic gathers at the wells, never only by how
           clean the gathers look.
         </Para>
+        <Para>
+          Conditioning removes multiples and random noise from a gather store, again written as a new store beside the
+          input, with what was removed as a third store when you keep it. Compare the three on the Gathers tab before you
+          make angle stacks. Radon demultiple models each NMO-corrected gather as events with parabolic residual moveout;
+          multiples, under-corrected by the primary velocity, sit at large moveout, so everything past the cut (in ms at the
+          far offset) is rebuilt and subtracted, and the primaries never pass through the transform. AVO terms give each
+          moveout an intercept and a gradient, so a primary whose amplitude changes with offset stays at zero moveout; high
+          resolution reweights the transform toward its strongest moveouts; the gather is worked in overlapping time windows.
+          On the test gathers this removed over 20 dB of multiple energy with isolated primaries&apos; intercepts within 2
+          percent and gradients within 5 percent. A multiple that starts on a primary is the hard case: its intercept came
+          back within 6 percent and its gradient within 14, from 40 percent or more before. Radon costs about a second per
+          gather, so try an area first (an inline and crossline range; the CDPs outside are left out of the new store).
+        </Para>
+        <Para>
+          f-x noise attenuation predicts each frequency slice from trace to trace across the offsets and keeps the
+          predictable part. Random noise is not predictable, so it drops by 4 to 6 dB on the test gathers. The prediction
+          weakens a noisy event a little: intercepts came back 2 to 7 percent low at signal-to-noise of 6 to 0 dB and within
+          1 percent on clean data, so use it where noise hides the events, and check the AVO at the wells afterwards. The
+          report lists each run with its settings and the energy removed in each quarter of the trace.
+        </Para>
       </GuideSection>
 
       <GuideSection id="avo">
@@ -161,7 +181,17 @@ function QIStudioHelpGuideContent() {
         </Para>
         <Para>The stacks must be balanced against each other, since A, B and the fluid factor carry their amplitude scale. The products are elastic estimates and open in Seismolord.</Para>
         <Para>
-          Match the stacks first: each stack is brought onto a reference stack in time shift and constant phase together,
+          Balance the spectra before matching: far stacks carry lower frequencies, so the same interface looks different on
+          each. One zero-phase operator per stack takes its mean amplitude spectrum (about 300 traces across the survey) to
+          the reference stack&apos;s, or to flat inside a band, with the boost capped where a stack has little energy. Each stack
+          keeps its own energy in the band, and one operator for every trace keeps each trace&apos;s amplitude relative to its
+          neighbours (a trace twice as bright stays exactly twice as bright), so AVO still reads the differences. The table
+          shows each stack&apos;s band centroid and half-power band before and after, and the chart shows the operators. On the
+          test stacks a 20 Hz far stack came out correlating over 0.93 with the same geology through the 35 Hz near
+          wavelet, from under 0.8.
+        </Para>
+        <Para>
+          Then match the stacks: each stack is brought onto a reference stack in time shift and constant phase together,
           then in amplitude, with one operator per stack for the whole survey (the median shift and scale and the circular
           mean phase of about 300 traces). A per-trace match would remove the very amplitude differences AVO reads, so the
           survey operator is the one applied. The matched stacks join the study&apos;s volumes for AVO and the simultaneous

@@ -1,6 +1,6 @@
 // Gather viewer (QI upgrade P1.7, 2026-10-15; closes QI-UPGRADE U2-004): the
 // prestack gathers of a worker gather store at one CDP, along a stretch of an
-// inline or crossline, or at the study wells, with a trimmed copy beside the
+// inline or crossline, or at the study wells, with a conditioned copy beside the
 // source when one exists. The seismic worker reads the store (gather_panel);
 // the overlays come from the engines (services/gatherViewer.js): Walden angle
 // contours, the stretch mute and the angle mute from the velocity table, NMO
@@ -176,7 +176,11 @@ export default function GathersPanel() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const stores = (datasets || []).filter((d) => d.kind === 'gathers_offset' && d.status === 'uploaded');
   useEffect(() => { if (!storeId && stores.length) setStoreId(stores[0].id); }, [stores.length]); // eslint-disable-line react-hooks/exhaustive-deps
-  const trimmed = stores.filter((d) => d.meta?.source_gathers === storeId);
+  // a store's conditioned copies (trimmed, demultipled, denoised, what was
+  // removed), its source, and its source's other copies: all on one lattice
+  const current = stores.find((d) => d.id === storeId);
+  const src = current?.meta?.source_gathers || null;
+  const trimmed = stores.filter((d) => d.id !== storeId && (d.meta?.source_gathers === storeId || d.id === src || (src && d.meta?.source_gathers === src)));
   const prestackRec = project.prestack?.[storeId];
   const qcRec = project.prestackQc?.[storeId];
   useEffect(() => {
@@ -241,7 +245,7 @@ export default function GathersPanel() {
   return (
     <section className={card} data-testid="qi-gathers">
       <h2 className={h2}>Gather viewer</h2>
-      <p className={muted}>Look at the prestack gathers in a worker gather store: at one CDP, along part of an inline or crossline, or at the study wells. Overlays show the incidence angle (Walden straight ray from the velocity table), the stretch mute and the angle mute, and the residual moveout at the event times with the fitted parabola. A trimmed copy of the store can sit beside it.</p>
+      <p className={muted}>Look at the prestack gathers in a worker gather store: at one CDP, along part of an inline or crossline, or at the study wells. Overlays show the incidence angle (Walden straight ray from the velocity table), the stretch mute and the angle mute, and the residual moveout at the event times with the fitted parabola. A conditioned copy of the store (trimmed, demultipled or denoised, or what conditioning removed) can sit beside it, or the store it came from.</p>
       {datasets === null ? <p className={muted}>Loading the worker stores</p> : !stores.length ? <p className={muted} data-testid="qi-gathers-none">No gather store yet. Build one from an uploaded prestack SEG-Y on the Prestack tab.</p> : (
         <>
           <div className="flex flex-wrap items-center gap-3 text-xs">

@@ -17,6 +17,7 @@ import {
 } from './propertyRun';
 import { cropLines, cropOf } from '@/pages/apps/Seismolord/lib/volumeProvenance';
 import { pilotText } from '../components/PilotArea';
+import { settingsText } from '../components/ConditioningSection';
 
 export const REPORT_TITLE = 'Quantitative Interpretation Report';
 export const APP_NAME = 'Petrolord QI Studio';
@@ -189,6 +190,12 @@ export function reportModel({ projectName = '', organizationName = '', project, 
       name: r.name, at: String(r.at || '').slice(0, 10), cdps: r.result.cdps, fold: r.result.fold,
       rows: r.result.times.map((t) => [String(t.t_ms), Number.isFinite(t.coherentShare) ? (100 * t.coherentShare).toFixed(0) : '', ...(t.noEvent ? ['no coherent event', '', ''] : [Number(t.rmoMedian).toFixed(1), Number(t.rmoQ90).toFixed(1), (100 * t.rmoShareOver4).toFixed(0)]), t.stretchMuteM ? String(Math.round(t.stretchMuteM)) : '']),
     })),
+    conditioning: (project.conditioning?.runs || []).map((r) => ({
+      title: `${r.kind === 'radon_demultiple' ? 'Radon demultiple' : 'f-x noise attenuation'}: ${r.sourceName}`,
+      note: `${String(r.at || '').slice(0, 10)}: ${r.cdps} CDPs${r.area ? ` in inlines ${r.area.il[0]} to ${r.area.il[1]}, crosslines ${r.area.xl[0]} to ${r.area.xl[1]}` : ''}, written as "${r.name}" beside the input. ${settingsText(r.kind, r.settings)}. ${Number.isFinite(r.removedShare) ? `${(100 * r.removedShare).toFixed(0)} percent of the energy removed overall.` : ''}`,
+      rows: (r.bands || []).map((b) => [`${b.from_ms} to ${b.to_ms}`, Number.isFinite(b.removed_share) ? (100 * b.removed_share).toFixed(0) : '', Number.isFinite(b.removed_db) ? b.removed_db.toFixed(1) : '']),
+    })),
+    balancing: project.avo?.balancing ? { target: project.avo.balancing.target === 'reference' ? `the spectrum of ${project.avo.balancing.reference}` : `flat between ${project.avo.balancing.f_lo_hz} and ${project.avo.balancing.f_hi_hz} Hz`, rows: project.avo.balancing.stacks.map((s) => [s.stack_name, `${Number.isFinite(s.centroid_hz_before) ? s.centroid_hz_before.toFixed(1) : ''} to ${Number.isFinite(s.centroid_hz_after) ? s.centroid_hz_after.toFixed(1) : ''}`, Number.isFinite(s.centroid_hz_reference) ? s.centroid_hz_reference.toFixed(1) : '', Array.isArray(s.band_half_power_after) ? `${s.band_half_power_after[0].toFixed(0)} to ${s.band_half_power_after[1].toFixed(0)}` : '']) } : null,
     matching: project.avo?.matching ? { reference: project.avo.matching.reference, rows: project.avo.matching.stacks.map((m) => [m.stack_name, Number(m.shift_ms).toFixed(1), Number(m.phase_deg).toFixed(0), Number(m.scale).toFixed(3), `${Number(m.corr_before).toFixed(2)} to ${Number(m.corr_after).toFixed(2)}`]) } : null,
     // maps from volumes (QI upgrade P1.5)
     maps: (project.maps?.runs || []).flatMap((r) => (r.products || []).map((p) => [p.name, p.unit || '', p.live != null ? String(p.live) : '', [p.min, p.mean, p.max].map((v) => (Number.isFinite(v) ? Number(v).toPrecision(3) : '')).join(' / '), p.surfaceId ? 'saved to the surface registry' : 'not saved'])),
@@ -279,6 +286,10 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
       note: `From the gather store on the seismic worker${ps.at ? ` on ${ps.at}` : ''}: Walden straight-ray angles from an RMS velocity table of ${ps.velocityRows} row${ps.velocityRows === 1 ? '' : 's'}, a fold-weighted mean of the offset bins in each range; gathers taken as NMO-corrected. Usable angle across the CDPs: Q10 ${n(u.q10)}, Q50 ${n(u.q50)}, Q90 ${n(u.q90)} degrees.`,
     });
   }
+  for (const c of model.conditioning || []) {
+    table(c.title, ['Time (ms)', 'Energy removed (percent)', 'Removed (dB)'], c.rows, { note: `${c.note} Each NMO-corrected gather is conditioned across its offset bins on the seismic worker (engines qi/prestackConditioning.js): Radon is parabolic with AVO terms and sparse reweighting, the multiples rebuilt from the large residual moveouts and subtracted; f-x keeps what is predictable from trace to trace.` });
+  }
+  if (model.balancing) table(`Stacks balanced to ${model.balancing.target}`, ['Stack', 'Band centroid (Hz), before and after', 'Reference centroid (Hz)', 'Half-power band after (Hz)'], model.balancing.rows, { note: 'One zero-phase operator per stack, from its mean amplitude spectrum over about 300 traces to the target, scaled so the stack keeps its band energy; relative amplitudes between traces are unchanged.' });
   if (model.matching) table(`Stacks matched to ${model.matching.reference}`, ['Stack', 'Shift (ms)', 'Phase (degrees)', 'Scale', 'Correlation, before and after'], model.matching.rows, { note: 'One operator per stack for the whole survey (the median shift and scale and the circular mean phase of about 300 per-trace matches), so the relative amplitudes AVO reads are kept.' });
   if ((model.avo || []).length) table('AVO volumes', ['Run', 'Stacks (mean angle)', 'Products', 'Vs/Vp'], model.avo, { note: 'Two-term Shuey least squares over the stacks at every sample; the fluid factor is Smith and Gidlow\'s, from A and B with Gardner\'s density and the stated Vs/Vp. The stacks are taken as balanced against each other, so A and B share their amplitude scale. Elastic estimates.' });
   if (model.avoWells) {

@@ -12,6 +12,7 @@ import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import ExportControls from './ExportControls';
+import SpectralBalanceSection from './SpectralBalanceSection';
 import { prepareWell } from '../services/inversionWells';
 import { wellPoints, compareAtWells, avoWellIssues } from '../services/avoWells';
 import { wellScale, shueyTermsFor } from '../engine/avoCalibration';
@@ -260,6 +261,7 @@ export default function AvoPanel() {
           {st?.job && qiService.isActive(st.job) && <span className="text-pl-muted">{st.job.status}</span>}
         </div>
       </div>
+      <SpectralBalanceSection chosenVolumes={chosenVolumes} stackIds={stacks.filter((x) => x.volumeId).map((x) => x.volumeId)} />
       <div className="rounded border border-pl-border p-3 space-y-2 text-xs" data-testid="qi-avo-match">
         <h3 className="text-xs font-semibold text-pl-text">Match the stacks</h3>
         <p className={muted}>Before AVO, bring every stack chosen above onto a reference stack in time, phase and amplitude: one operator per stack, measured on about 300 traces across the survey, so the stacks compare like with like and their relative amplitudes stay as they are. The matched stacks join the study&apos;s volumes; choose them on Setup.</p>
