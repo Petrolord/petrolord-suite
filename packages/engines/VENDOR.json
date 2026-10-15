@@ -9,7 +9,7 @@
     "method": "file-by-file reconciliation against a canonical clone, verified by blob hash with this guard, hashed from the files on disk rather than from the git index",
     "$comment": "NOT a whole-tree `git subtree pull`. That silently DELETED 24 Suite-only downstream files on 2026-09-14. Vendor the paths the canonical range actually touched, then run the guard, which is what proves nothing else moved.",
     "lastVendored": "2026-10-15",
-    "lastVendoredRange": "f321aa3b3b68e001975379787ec8c5ca4cece6f8..48da27fee7886ca1ac721cc48067817df9815145 (engines PRs #368 to #372)"
+    "lastVendoredRange": "1b0a7a80612dc9e428f01d0312f7e66c6d7dbea0..48da27fee7886ca1ac721cc48067817df9815145 (engines PRs #368 lfmModels, #369 feasibilitySweep, #370 avoCalibration and zone-map class, #371 qcAdditions, #372 depthUncertainty)"
   },
   "testing": {
     "$comment": "The Suite needs no equivalent of NextGen's tools/run-vendored-engine-tests.mjs. jest.config.js uses testMatch '**/__tests__/**/*.test.(js|jsx|ts)' with no testPathIgnorePatterns, so all 179 suites under packages/engines/__tests__ already run in `npm test` beside the Suite's own. There is no allow-list of known engine test failures because there are none: the vendored suites are green.",
