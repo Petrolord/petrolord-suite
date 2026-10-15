@@ -79,7 +79,14 @@ export function reportModel({ projectName = '', organizationName = '', project, 
     },
     feasibility: project.targets.map((t, k) => {
       const f = project.feasibility[t] || {};
-      return { target: t, verdict: verdicts[k], separability: f.separability || '', detectability: f.detectability || '', route: f.route || '' };
+      const sw = f.sweep;
+      const VN = { phi: 'Porosity', vsh: 'Shale volume', peffMPa: 'Effective stress (MPa)', thicknessM: 'Thickness (m)' };
+      const g1 = (v, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : '');
+      return {
+        target: t, verdict: verdicts[k], separability: f.separability || '', detectability: f.detectability || '', route: f.route || '',
+        // QI upgrade P2.9: the automatic sweep, when run
+        sweep: sw ? { at: String(sw.at || '').slice(0, 10), suggestion: sw.suggestion, rows: [sw.base, ...sw.rows].map((r) => [r.variable ? VN[r.variable] : 'Base case', r.variable ? String(r.value) : '', g1(r.dprime[0]), g1(r.dprime[1]), r.separable ? 'yes' : 'no']) } : null,
+      };
     }),
     qc: Object.values(project.qc || {}).filter((r) => r?.result?.qc).map((r) => ({
       volume: r.volumeName || r.result.volume_name || 'volume',
@@ -319,6 +326,7 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
       f.detectability ? `Detectability: ${f.detectability}` : '',
       f.route ? `Recommended route: ${f.route}` : '',
     ].filter(Boolean).join(' '));
+    if (f.sweep) table(`Feasibility sweep: ${f.target}`, ['Varied', 'Value', "d' at 0 degrees", "d' at 30 degrees", 'Separable'], f.sweep.rows, { note: `Automatic sweep${f.sweep.at ? ` of ${f.sweep.at}` : ''}: a modelled sand (granular model, Gassmann, Backus thin beds) in shale under a Ricker wavelet; d' is the brine and hydrocarbon amplitude difference over the noise, separable at 2. Suggested verdict: ${(FEASIBILITY_VERDICTS.find((v) => v.key === f.sweep.suggestion?.verdict) || {}).label || ''}. ${f.sweep.suggestion?.text || ''}` });
   }
   report.limits({ assumptions: model.assumptions, flags: [], noFlagsText: 'No further flags.', flagsTitle: 'Flags' });
   return report.finish({ footer: REPORT_TITLE });

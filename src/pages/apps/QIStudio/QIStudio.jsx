@@ -36,6 +36,7 @@ import ProjectInventoryTab from './components/ProjectInventoryTab';
 import DepthCasesSection from './components/DepthCasesSection';
 import MapsPanel from './components/MapsPanel';
 import GathersPanel from './components/GathersPanel';
+import FeasibilitySweepSection from './components/FeasibilitySweepSection';
 
 const TABS = [
   { value: 'setup', label: 'Setup' },
@@ -190,6 +191,8 @@ function QIStudioContent({ organizationName }) {
         {/* decisions (QI upgrade P1.1) below the issue register, which is unchanged */}
         {tab === 'issues' && <DecisionsSection />}
         {tab === 'feasibility' && <FeasibilityPanel />}
+        {/* QI upgrade P2.9: automatic sweeps under the feasibility cards */}
+        {tab === 'feasibility' && <FeasibilitySweepSection />}
         {tab === 'report' && <ReportTab organizationName={organizationName} />}
         {tab === 'datainventory' && <ProjectInventoryTab />}
         {tab === 'maps' && <MapsPanel />}

@@ -389,6 +389,9 @@ function QIStudioHelpGuideContent() {
       <GuideSection id="feasibility">
         <SectionHeading icon={Scale}>Feasibility per target</SectionHeading>
         <Para>For each target record a verdict (feasible, feasible with conditions or not feasible) and the reasoning: which properties separate the cases, whether the change is detectable against tuning and noise, and the recommended route. The evidence is built in Rock Physics Studio (fluid substitution, rock model lines, the multi-well crossplot).</Para>
+        <SubHeading>Automatic feasibility sweeps</SubHeading>
+        <Para>Under the target cards, open a target&apos;s automatic feasibility sweep. Give the base rock (porosity, shale volume, net-to-gross, thickness), the stresses (overburden and pore pressure give the effective stress), the reservoir temperature and brine salinity, the hydrocarbon (gas gravity, or oil API and GOR), the shale, the wavelet peak and the signal-to-noise ratio (the seismic QC median is a good start). The sand is modelled with a soft or stiff sand model and Gassmann, thin-bedded with the shale by Backus averaging, and set in the shale under a Ricker wavelet. Each row varies one of porosity, shale volume, effective stress or thickness and gives d&apos;, how far apart the brine and hydrocarbon amplitudes are against the noise (the brine amplitude of a thick bed over the signal-to-noise ratio), at normal incidence and 30 degrees, and the chance one measurement lands in the wrong case. The cases separate at d&apos; of 2.</Para>
+        <Para>The sweep suggests a verdict: feasible when the base case separates, feasible with conditions when only some swept values do (the ranges are named), not feasible when none does. Use the suggested verdict or add its text to the reasoning; nothing changes until you do. The report prints each target&apos;s sweep, and a Feasibility decision can refer to it.</Para>
       </GuideSection>
 
       <GuideSection id="report">
