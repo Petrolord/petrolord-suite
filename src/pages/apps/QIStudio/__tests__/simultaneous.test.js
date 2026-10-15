@@ -1,4 +1,4 @@
-import { simultaneousProblem } from '../components/SimultaneousPanel';
+import { simultaneousProblem, densityNote, advancedProblem } from '../components/SimultaneousPanel';
 import { reportModel, buildQIStudioPdf } from '../services/report';
 import { blankProject } from '../services/model';
 import { readPdf, flat } from '@/lib/reportKit/testKit';
@@ -6,7 +6,13 @@ import { readPdf, flat } from '@/lib/reportKit/testKit';
 test('three to five distinct stacks, one past 25 degrees', () => {
   const s = (v, a) => ({ volumeId: v, angle: a });
   expect(simultaneousProblem([s('a', 5), s('b', 15)])).toMatch(/three to five/);
-  expect(simultaneousProblem([s('a', 5), s('b', 12), s('c', 20)])).toMatch(/25 degrees/);
+  // QI upgrade P1.4: near stacks run; the density gate withholds density and the tab says so
+  expect(simultaneousProblem([s('a', 5), s('b', 12), s('c', 20)])).toBeNull();
+  expect(densityNote([s('a', 5), s('b', 12), s('c', 20)])).toMatch(/farthest stack is 20 degrees: AI, SI and Vp\/Vs will be written, density will not/);
+  expect(densityNote([s('a', 5), s('b', 15), s('c', 30)])).toBeNull();
+  expect(advancedProblem({ epsAi: '0.05', epsSi: '0.05', epsRho: '', lfmHz: '8', vsVp: '', minRhoCorr: '0.5' })).toMatch(/pull of density/);
+  expect(advancedProblem({ epsAi: '0.05', epsSi: '0.05', epsRho: '0.05', lfmHz: '8', vsVp: '1.5', minRhoCorr: '0.5' })).toMatch(/Vs\/Vp/);
+  expect(advancedProblem({ epsAi: '0.05', epsSi: '0.05', epsRho: '0.05', lfmHz: '8', vsVp: '', minRhoCorr: '0.5' })).toBeNull();
   expect(simultaneousProblem([s('a', 5), s('a', 15), s('c', 30)])).toMatch(/different volume/);
   expect(simultaneousProblem([s('a', 5), s('b', 15), s('c', 30)])).toBeNull();
 });

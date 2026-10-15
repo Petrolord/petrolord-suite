@@ -110,6 +110,9 @@ export function reportModel({ projectName = '', organizationName = '', project, 
         relative: rel,
         protocol: blindProtocolText(res),
         rows: res.blind.map((w) => [w.name, n(w.blind.corr, 2), rel ? 'n/a' : n(w.blind.rmsPct, 1), n(w.withWell.corr, 2), rel ? 'n/a' : n(w.withWell.rmsPct, 1)]),
+        // QI upgrade P1.4: the seismic the inversion leaves unexplained at each well
+        residual: (res.residual_at_wells || []).map((w) => `${w.name} ${n(w.pct, 0)}`).join(', '),
+        residualVolumes: (r.runs || []).filter((x) => x.status === 'ready' && x.residual).map((x) => `${x.name} ${Number.isFinite(x.residual.percent_of_seismic) ? `${x.residual.percent_of_seismic.toFixed(0)} percent of the seismic RMS` : ''}`.trim()),
         volumes: (r.runs || []).filter((x) => x.status === 'ready').map((x) => x.name),
         spread: r.spread?.result?.sensitivity ? {
           rows: r.spread.result.sensitivity.rows.map((w) => [w.name, n(w.q10, 1), n(w.q50, 1), n(w.q90, 1)]),
@@ -161,6 +164,10 @@ export function reportModel({ projectName = '', organizationName = '', project, 
       rows: project.simultaneous.blind.result.blind.map((r) => [r.name, ...['ai', 'si', 'rho'].map((k) => (Number.isFinite(r.blind[k].rmsPct) ? r.blind[k].rmsPct.toFixed(1) : '')), Number.isFinite(r.blind.rho.corr) ? r.blind.rho.corr.toFixed(2) : '']),
       runs: (project.simultaneous.runs || []).filter((r) => r.status === 'ready').map((r) => r.name),
       protocol: blindProtocolText(project.simultaneous.blind.result),
+      // QI upgrade P1.4: the density gate's decision and the residual at the wells
+      density: project.simultaneous.blind.result.density?.reason || '',
+      runDensity: (project.simultaneous.runs || []).filter((r) => r.status === 'ready' && r.density).map((r) => `${r.name}: ${r.density.reason}`),
+      residual: (project.simultaneous.blind.result.residual_at_wells || []).map((w) => `${w.name} ${w.pct.map((v) => (Number.isFinite(v) ? v.toFixed(0) : '')).join('/')}`).join('; '),
     } : null,
     angleWavelets: project.simultaneous?.angleWavelets ? project.simultaneous.angleWavelets.items.map((it) => [String(it.angle), Number.isFinite(it.peakHz) ? it.peakHz.toFixed(1) : '', Number.isFinite(it.phaseDeg) ? it.phaseDeg.toFixed(0) : '', it.samples ? it.wells.map((w) => `${w.name} ${Number.isFinite(w.synthCorr) ? w.synthCorr.toFixed(2) : ''}`).join(', ') : 'none']) : null,
     prestackQc: Object.values(project.prestackQc || {}).filter((r) => r?.result?.times).map((r) => ({
@@ -262,11 +269,11 @@ export function buildQIStudioPdf(model, { logo = null, generatedAt = new Date() 
   if (model.angleWavelets) table('Angle wavelets', ['Stack angle', 'Peak (Hz)', 'Phase (degrees)', 'Synthetic against the stack, by well'], model.angleWavelets, { note: 'One wavelet per angle stack, extracted at each well by least squares against the Fatti reflectivity of its logs at that angle, then aligned and averaged across the wells. The correlation is each well\'s synthetic against the stack at the well.' });
   if (model.simultaneous) {
     const v = model.simultaneous;
-    table(`Simultaneous inversion: ${v.volume}`, ['Well', 'Blind AI error (percent)', 'SI error', 'Density error', 'Density correlation'], v.rows, { note: `Fatti three-term inversion of the angle stacks${v.at ? ` on ${v.at}` : ''}, each parameter pulled to its own low-frequency model; each well left out of all three in turn. ${v.protocol} Density is the least resolved parameter and leans on the far angles.${v.runs.length ? ` Volumes: ${v.runs.join(', ')}.` : ''} Elastic estimates.` });
+    table(`Simultaneous inversion: ${v.volume}`, ['Well', 'Blind AI error (percent)', 'SI error', 'Density error', 'Density correlation'], v.rows, { note: `Fatti three-term inversion of the angle stacks${v.at ? ` on ${v.at}` : ''}, each parameter pulled to its own low-frequency model; each well left out of all three in turn. ${v.protocol} Density is the least resolved parameter and leans on the far angles.${v.density ? ` ${v.density}` : ''}${(v.runDensity || []).length ? ` ${v.runDensity.join(' ')}` : ''}${v.residual ? ` Seismic residual at the wells, percent of each stack's RMS: ${v.residual}.` : ''}${v.runs.length ? ` Volumes: ${v.runs.join(', ')}.` : ''} Elastic estimates.` });
   }
   for (const v of model.inversion || []) {
     table(`Impedance inversion: ${v.volume}`, ['Well', 'Blind correlation', 'Blind AI error (percent)', 'With the well: correlation', 'With the well: error (percent)'], v.rows, {
-      note: `${v.method}, run on the seismic worker${v.at ? ` on ${v.at}` : ''}. Each well is left out of the low-frequency model in turn and compared with its own log after a high cut at ${INVERSION_DEFAULTS.truthHz} Hz${v.relative ? '; relative impedance has no level, so only the correlation is reported' : ''}. ${v.protocol || ''} Products are elastic estimates.${v.volumes.length ? ` Impedance volumes: ${v.volumes.join(', ')}.` : ''}`,
+      note: `${v.method}, run on the seismic worker${v.at ? ` on ${v.at}` : ''}. Each well is left out of the low-frequency model in turn and compared with its own log after a high cut at ${INVERSION_DEFAULTS.truthHz} Hz${v.relative ? '; relative impedance has no level, so only the correlation is reported' : ''}. ${v.protocol || ''}${v.residual ? ` Seismic residual at the wells, percent of the seismic RMS: ${v.residual}.` : ''}${(v.residualVolumes || []).length ? ` Residual volumes: ${v.residualVolumes.join('; ')}.` : ''} Products are elastic estimates.${v.volumes.length ? ` Impedance volumes: ${v.volumes.join(', ')}.` : ''}`,
     });
     if (v.spread) {
       table(`Inversion sensitivity: ${v.volume}`, ['Well', 'Blind AI error Q10 (percent)', 'Q50', 'Q90'], v.spread.rows, { note: 'The blind-well check repeated under each scenario (wavelet, model cut, noise); Q10, Q50 and Q90 are the 10th, 50th and 90th percentiles across the scenarios.' });

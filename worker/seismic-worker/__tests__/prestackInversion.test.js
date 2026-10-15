@@ -136,6 +136,57 @@ test('a volume run records the held-back AI and Vp/Vs at each well for the prope
   expect(si.attribute.params.blind_traces).toBeUndefined();
 });
 
+describe('trust outputs (QI upgrade P1.4)', () => {
+  const RES = THETA.map((_, k) => `5${k}111111-1111-4111-8111-111111111111`);
+  const rowsWithRes = () => { const r = rows(); RES.forEach((id) => { r[id] = { id, user_id: UID, status: 'ingesting', name: `res ${id}`, kind: 'attribute', parent_volume_id: S[0], storage_path: `${UID}/${id}` }; }); return r; };
+  test('the density gate: written when it passes, withheld with its reason when the stacks are near or the blind check is weak', async () => {
+    const ok = depsFor(); const out = await prestackInversion(ctxFor(P('volume')), ok.d);
+    expect(out.density.produced).toBe(true);
+    expect(out.density.reason).toMatch(/^Density is written: the farthest stack is 36 degrees/);
+    expect(Object.keys(out.volume_ids)).toEqual(['ai', 'si', 'rho', 'vpvs']);
+    // the stacks only to 20 degrees: the run goes ahead, density is withheld and its row removed
+    const near = P('volume'); near.inversion.stacks = near.inversion.stacks.slice(0, 3);
+    const deleted = [];
+    const n = depsFor(); const del = n.d.admin.from; n.d.admin.from = (t) => { const b = del(t); b.delete = () => ({ eq: (c, v) => { deleted.push(v); return { eq: async () => ({ error: null }) }; } }); return b; };
+    const out2 = await prestackInversion(ctxFor(near), n.d);
+    expect(out2.density).toMatchObject({ produced: false });
+    expect(out2.density.reason).toMatch(/farthest stack is 20 degrees and density needs 25 or more/);
+    expect(Object.keys(out2.volume_ids)).toEqual(['ai', 'si', 'vpvs']);
+    expect(deleted).toContain(OUT.rho);
+    expect([...n.uploads.keys()].some((k) => k.includes(OUT.rho))).toBe(false);
+    expect([...n.uploads.keys()].some((k) => k.includes(`${OUT.ai}/manifest.json`))).toBe(true);
+    // a gate above what the wells reach withholds it too
+    const strict = P('blind'); strict.inversion.density_gate = { min_blind_corr: 0.999 };
+    const out3 = await prestackInversion(ctxFor(strict), depsFor().d);
+    expect(out3.density.produced).toBe(false);
+    expect(out3.density.reason).toMatch(/blind correlation at the wells is .* under 0.999/);
+  });
+  test('the pulls, Vs/Vp and model cut reach the inversion', async () => {
+    const a = await prestackInversion(ctxFor(P('blind')), depsFor().d);
+    const pulled = P('blind'); pulled.inversion.eps = [0.5, 0.5, 5]; pulled.inversion.vs_vp = 0.55; pulled.inversion.lfmHz = 4;
+    const b = await prestackInversion(ctxFor(pulled), depsFor().d);
+    expect(b.settings).toMatchObject({ eps: [0.5, 0.5, 5], vs_vp: 0.55, lfm_hz: 4 });
+    expect(b.blind[0].blind.rho.rmsPct).not.toBeCloseTo(a.blind[0].blind.rho.rmsPct, 3);
+    expect(validatePrestackJob({ ...P('blind'), inversion: { ...P('blind').inversion, vs_vp: 1.2 } })).toMatch(/Vs\/Vp/);
+  });
+  test('each stack\'s seismic residual is the stack minus the Fatti synthetic of the inverted logs', async () => {
+    const p = P('volume'); p.inversion.residual = true; p.volume_ids = { ...OUT, ...Object.fromEntries(RES.map((id, k) => [`res_${k}`, id])) };
+    const { d, uploads } = depsFor(rowsWithRes());
+    const out = await prestackInversion(ctxFor(p), d);
+    expect(Object.keys(out.volume_ids)).toEqual(['ai', 'si', 'rho', 'vpvs', 'res_0', 'res_1', 'res_2', 'res_3', 'res_4']);
+    const at = (id, il, xl, s) => new Float32Array(uploads.get(`${UID}/${id}/bricks/0-0-${Math.floor(s / BS)}.f32`).buffer.slice(0))[((il % BS) * BS + xl) * BS + (s % BS)];
+    const m = { lnAi: Float64Array.from({ length: NS }, (_, s) => Math.log(at(OUT.ai, 2, 3, s))), lnSi: Float64Array.from({ length: NS }, (_, s) => Math.log(at(OUT.si, 2, 3, s))), lnRho: Float64Array.from({ length: NS }, (_, s) => Math.log(at(OUT.rho, 2, 3, s))) };
+    const syn = forwardFatti(m, THETA, Float64Array.from(ricker).map((v) => v * out.settings.wavelet_scale), out.settings.vs_vp);
+    const tr = tracesOf([{ il: 2, xl: 3 }])[0];
+    for (let k = 0; k < THETA.length; k++) {
+      let worst = 0; let sd = 0;
+      for (let s = 20; s < NS - 20; s++) { worst = Math.max(worst, Math.abs(at(RES[k], 2, 3, s) + syn[k][s] - tr[k][s])); sd = Math.max(sd, Math.abs(tr[k][s])); }
+      expect(worst).toBeLessThan(5e-3 * sd);
+    }
+    expect(out.residual_at_wells[0].pct).toHaveLength(THETA.length);
+  });
+});
+
 test('simultaneous blind results become register issues (U2-008)', () => {
   const blind = [
     { name: 'A', blind: { ai: { rmsPct: 4 }, si: { rmsPct: 12 }, rho: { rmsPct: 3, corr: 0.8 } } },

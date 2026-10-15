@@ -265,6 +265,43 @@ test('the recorded settings carry no logs or wavelet samples', () => {
   expect(s.wells).toEqual(['A', 'B', 'C', 'D']);
 });
 
+describe('seismic residual (QI upgrade P1.4)', () => {
+  const RES = '77777777-7777-4777-8777-777777777777';
+  test('the residual volume is the input minus the synthetic of the inverted AI, and small where the inversion fits', async () => {
+    const uploads = new Map();
+    const storage = { upload: async (path, bytes) => { uploads.set(path, bytes); return {}; } };
+    const volumes = { [VOL]: PARENT, [OUT]: DERIVED, [RES]: { ...DERIVED, id: RES, storage_path: `${UID}/${RES}` } };
+    const out = await poststackInversion(ctxFor({ ...params('volume', { residual: true }), residual_volume_id: RES }), depsFor({ volumes, horizons: HZ_ROWS }, { storage }));
+    expect(out.residual_volume_id).toBe(RES);
+    const at = (id, il, xl, s) => new Float32Array(uploads.get(`${UID}/${id}/bricks/0-0-${Math.floor(s / B)}.f32`).buffer.slice(0))[((il % B) * B + xl) * B + (s % B)];
+    // identity: the residual plus the synthetic of the stored AI is the input (the synthetic through the job's own scaled wavelet)
+    const scaled = Float64Array.from(ricker, (v) => v * out.settings.wavelet_scale);
+    for (const [il, xl] of [[2, 1], [5, 3]]) {
+      const ln = Float64Array.from({ length: NS }, (_, s) => Math.log(at(OUT, il, xl, s)));
+      const syn = forwardPoststack(ln, scaled);
+      const d = seis(il);
+      let worst = 0; let sr = 0; let sd = 0;
+      for (let s = 20; s < NS - 20; s++) { worst = Math.max(worst, Math.abs(at(RES, il, xl, s) + syn[s] - d[s])); sr += at(RES, il, xl, s) ** 2; sd += d[s] ** 2; }
+      expect(worst).toBeLessThan(2e-3 * Math.sqrt(sd / (NS - 40)));
+      expect(Math.sqrt(sr / sd)).toBeLessThan(0.1); // under 10 percent of the seismic
+      // negative control: with the unscaled wavelet the "residual" is most of the seismic
+      const bad = forwardPoststack(ln, Float64Array.from(ricker));
+      let sb = 0; for (let s = 20; s < NS - 20; s++) sb += (d[s] - bad[s]) ** 2;
+      expect(Math.sqrt(sb / sd)).toBeGreaterThan(0.5);
+    }
+    const man = JSON.parse(new TextDecoder().decode(uploads.get(`${UID}/${RES}/manifest.json`)));
+    expect(man.attribute.params).toMatchObject({ product: 'residual', output: 'seismic residual' });
+    expect(man.attribute.params.blind_traces).toBeUndefined();
+    expect(out.residual_at_wells.map((w) => w.name)).toEqual(['A', 'B', 'C', 'D']);
+    for (const w of out.residual_at_wells) expect(w.pct).toBeLessThan(10);
+  });
+  test('the residual is refused for coloured inversion and for an uncertainty run, and needs its volume id', () => {
+    expect(validatePoststackParams({ ...params('volume', { residual: true }) })).toMatch(/residual_volume_id/);
+    expect(validatePoststackParams({ ...params('volume', { residual: true, method: 'coloured' }), residual_volume_id: RES })).toMatch(/absolute method/);
+    expect(validatePoststackParams({ ...params('volume', { residual: true, sensitivity: { lfm_factors: [0.5, 1] } }), residual_volume_id: RES, volume_ids: {} })).toMatch(/single inversion/);
+  });
+});
+
 describe('sensitivity', () => {
   const O = ['66666666-6666-4666-8666-666666666661', '66666666-6666-4666-8666-666666666662', '66666666-6666-4666-8666-666666666663', '66666666-6666-4666-8666-666666666664'];
   const SENS = { lfm_factors: [0.5, 1, 1.5] };

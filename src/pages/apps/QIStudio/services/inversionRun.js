@@ -20,7 +20,7 @@
 export { halfWindowFor, lowPassFinite, waveletScale };
 
 import {
-  modelBased, sparseSpike, colouredOperator, applyColoured, impedanceSpectrumSlope,
+  modelBased, sparseSpike, colouredOperator, applyColoured, impedanceSpectrumSlope, forwardPoststack,
 } from '../engine/inversion';
 import { lfmTrace, blindWellScore } from '../engine/lfm';
 import {
@@ -316,7 +316,8 @@ export function makeBlindInverter({ inv, wavelet, onGrid = (x) => Float64Array.f
     const w0 = (exclude && blindW.get(exclude)) || wavelet;
     if (absolute) {
       const scale = waveletScale(keep.map((k) => ({ trace: traces[k], lnAi: wells[k].ln_ai })), w0).scale;
-      return { scale, invert: makeTraceInverter({ inv, wavelet: w0.map((v) => v * scale), wells: lfm, posOf, horizonsAt, ns, dtMs }) };
+      const scaled = w0.map((v) => v * scale);
+      return { scale, wavelet: scaled, invert: makeTraceInverter({ inv, wavelet: scaled, wells: lfm, posOf, horizonsAt, ns, dtMs }) };
     }
     const c = colouredFromWells({ wellTraces: keep.map((k) => traces[k]), wellLogs: keep.map((k) => wells[k].ln_ai), dtMs, ns, band: s.band });
     return { alpha: c.alpha, invert: makeTraceInverter({ inv, wavelet: w0, wells: lfm, posOf, horizonsAt, ns, dtMs, coloured: c.operator }) };
@@ -345,7 +346,7 @@ export function makeBlindInverter({ inv, wavelet, onGrid = (x) => Float64Array.f
   };
   const waveletWell = typeof inv.wavelet_well === 'string' && inv.wavelet_well ? inv.wavelet_well : null;
   const protocol = { ...blindProtocol({ absolute, blindWavelets: blindW.size > 0, waveletWell }), notes };
-  return { invert, scale: full.scale ?? null, alpha: full.alpha ?? null, protocol, scales, blindTraces };
+  return { invert, scale: full.scale ?? null, alpha: full.alpha ?? null, scaledWavelet: full.wavelet || null, protocol, scales, blindTraces };
 }
 
 // ---------------------------------------------------------------------------
@@ -475,4 +476,49 @@ export function spreadProducts(realisations) {
   const ai = realisations.map((m) => m.map(Math.exp));
   const [q10, q50, q90] = quantilesAcross(ai, [0.1, 0.5, 0.9]);
   return [q10, q50, q90, relativeSpread(q10, q50, q90)];
+}
+
+// ---------------------------------------------------------------------------
+// Seismic reconstruction residual (QI upgrade P1.4, 2026-10-15): the input
+// trace minus the synthetic of the inverted ln(AI) through the same scaled
+// wavelet and operator the inversion fitted (engines qi/inversion.js
+// forwardPoststack). Where the inversion explains the seismic the residual
+// is small; structured energy left in it marks what the model could not fit
+// (a wrong wavelet, a tuning or noise problem). Absolute methods only: the
+// coloured operator is not a forward model.
+
+const holdFillLn = (m) => {
+  const out = Float64Array.from(m, (v) => (fin(v) ? v : NaN));
+  let first = -1;
+  for (let i = 0; i < out.length; i++) if (fin(out[i])) { first = i; break; }
+  if (first < 0) return null;
+  for (let i = 0; i < first; i++) out[i] = out[first];
+  for (let i = first + 1; i < out.length; i++) if (!fin(out[i])) out[i] = out[i - 1];
+  return out;
+};
+
+/**
+ * The residual trace. NaN where the input is null or there is no estimate.
+ * @param {ArrayLike<number>} trace the input seismic
+ * @param {ArrayLike<number>} lnAi the inverted ln(AI)
+ * @param {ArrayLike<number>} wavelet the scaled wavelet the inversion used
+ */
+export function residualTrace(trace, lnAi, wavelet) {
+  const n = trace.length;
+  const out = new Float64Array(n).fill(NaN);
+  const m = holdFillLn(lnAi);
+  if (!m) return out;
+  const syn = forwardPoststack(m, wavelet);
+  for (let i = 0; i < n; i++) if (!isNull(trace[i]) && fin(lnAi[i])) out[i] = trace[i] - syn[i];
+  return out;
+}
+
+/** The residual's RMS as a percentage of the input's RMS over the same samples. */
+export function residualPercent(trace, residual) {
+  let sr = 0; let sd = 0; let n = 0;
+  for (let i = 0; i < trace.length; i++) {
+    if (!fin(residual[i]) || isNull(trace[i])) continue;
+    sr += residual[i] ** 2; sd += trace[i] ** 2; n += 1;
+  }
+  return n && sd > 0 ? 100 * Math.sqrt(sr / sd) : NaN;
 }
