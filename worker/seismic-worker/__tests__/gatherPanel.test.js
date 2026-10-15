@@ -113,3 +113,19 @@ test('refusals: another user, too many gathers, a bad window, a non-store', asyn
   expect(validateGatherPanelParams({ dataset_id: GATH, mode: 'points', points: [] })).toMatch(/at least one/);
   expect(validateGatherPanelParams({ dataset_id: GATH, compare_dataset_id: GATH, mode: 'cdp' })).toMatch(/another store/);
 });
+
+// Links for the browser are signed for the public endpoint (found by the QI
+// round 3 live check: links signed for the internal seaweedfs host never opened).
+import { makeSigner, makeLinkSigner } from '../src/s3.js';
+test('browser links use the public endpoint; the worker keeps the internal one for its own I/O', async () => {
+  const s3 = { endpoint: 'http://seaweedfs:8333', publicEndpoint: 'https://storage.petrolord.com', region: 'us-east-1', accessKeyId: 'k', secretAccessKey: 's' };
+  expect(new URL(await makeLinkSigner(s3)('GET', 'seismic-work', 'panels/a/b.f32', {}, 7200)).host).toBe('storage.petrolord.com');
+  expect(new URL(await makeSigner(s3)('GET', 'seismic-work', 'panels/a/b.f32')).host).toBe('seaweedfs:8333');
+});
+
+test('the panel link comes from the link signer; the panel itself is written through the worker signer', async () => {
+  const d2 = { ...d, linkSign: async (method, bucket, key) => `https://public/${bucket}/${key}?m=${method}` };
+  const r = await gatherPanel(ctxFor({ dataset_id: GATH, mode: 'cdp', il: 4, xl: 3 }), d2);
+  expect(r.url).toMatch(/^https:\/\/public\/seismic-work\/panels\/.*panel\.f32\?m=GET$/);
+  expect(panelOf(d, r).length).toBe(8 * NS);
+});

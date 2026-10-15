@@ -4,7 +4,7 @@
 // same deps whichever way it runs. Without Supabase settings (the in-image
 // selfcheck) only the settings-free entries are present.
 import { createClient } from '@supabase/supabase-js';
-import { makeSigner } from './s3.js';
+import { makeSigner, makeLinkSigner } from './s3.js';
 import { retryingStorage } from './retryingStorage.js';
 import { supabaseStorageClient } from '../../../src/pages/apps/Seismolord/services/seismicStorageClient.js';
 import { resolveCodec, DEFLATE_RAW } from '../../../packages/engines/engines/seismolord/brickCodecV4.js';
@@ -12,6 +12,8 @@ import { resolveCodec, DEFLATE_RAW } from '../../../packages/engines/engines/sei
 export function buildDeps(cfg, log) {
   const base = {
     sign: makeSigner(cfg.s3),
+    // links for the browser are signed for the public endpoint
+    linkSign: makeLinkSigner(cfg.s3),
     scratchDir: cfg.scratchDir,
     // CompressionStream deflate-raw, the same codec the browser import uses
     codec: resolveCodec({ compression: DEFLATE_RAW }),
