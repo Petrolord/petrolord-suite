@@ -15,10 +15,10 @@ import { fileReader } from '@/pages/apps/Seismolord/engine/reader';
 import { openSegyDoor } from '@/pages/apps/Seismolord/lib/segyDoor';
 import { scanGeometry } from '@/pages/apps/Seismolord/engine/segyScan';
 import { planImportCrop, cropSource, spotCheckCrop, conversionView, scanConversionView, cropFileLike, importCropProvenance } from '@/pages/apps/Seismolord/services/cropImport';
-import { startServerImport } from '@/pages/apps/Seismolord/services/serverImport';
+import { startServerImport, uploadForQi } from '@/pages/apps/Seismolord/services/serverImport';
 import { getProjectCrs, setProjectCrs } from '@/lib/crs/settingsService';
 import { isTransformableTag, UNKNOWN } from '@/lib/crs/tags';
-import { enqueueJob, getJob, listJobs, cancelJob } from '@/lib/qiService';
+import { enqueueJob, getJob, listJobs, cancelJob, listDatasets } from '@/lib/qiService';
 import { makeRegistryBackend } from '@/pages/apps/QIStudio/services/registryBackend';
 import { prepareWell } from '@/pages/apps/QIStudio/services/inversionWells';
 import { packLog } from '@/pages/apps/QIStudio/services/logPacking';
@@ -372,6 +372,32 @@ window.qb = {
       await saveDerivedCheckshots(w.id, null); out.push(w.name);
     }
     return out;
+  },
+  // QI round 3, prestack conditioning live check: a raw upload to the worker
+  // store (Seismolord's upload-only path), any job by kind, and a gather
+  // panel read back through its link
+  async uploadRaw(file, name) { return uploadForQi({ file, name }); },
+  async job(kind, params, maxMin = 240) {
+    const id = await enqueueJob(kind, params);
+    const j = await this.wait(id, maxMin);
+    return { id, status: j.status, error: j.error_message || null, result: j.result_refs || null, warnings: j.warnings || null, cost_seconds: j.cost_seconds ?? null };
+  },
+  async datasets(prefix = 'BENCH') { return (await listDatasets({ allProjects: true })).filter((d) => d.name?.startsWith(prefix)).map((d) => ({ id: d.id, name: d.name, kind: d.kind, status: d.status, bytes: d.bytes, meta: d.meta })); },
+  async panel(params) {
+    const j = await this.job('gather_panel', params, 30);
+    if (j.status !== 'succeeded') return j;
+    const r = await fetch(j.result.url);
+    const data = Array.from(new Float32Array(await r.arrayBuffer()));
+    return { meta: j.result, data };
+  },
+  /** Download a link the worker returned, as the app's own download would: status, bytes and the first bytes as text. */
+  async fetchLink(url) {
+    const r = await fetch(url);
+    const buf = new Uint8Array(await r.arrayBuffer());
+    // the SEG-Y textual header is EBCDIC or ASCII; return both readings of its first 80 bytes
+    const head = buf.subarray(0, 80);
+    const E = ' '.repeat(64) + ' ' + '.'.repeat(9) + '.<(+|&' + '.'.repeat(9) + '!$*);^-/' + '.'.repeat(8) + '|,%_>?' + '.'.repeat(9) + '`:#@\'="' + ' abcdefghi' + '.'.repeat(7) + 'jklmnopqr' + '.'.repeat(7) + '~stuvwxyz' + '.'.repeat(22) + '{ABCDEFGHI' + '.'.repeat(6) + '}JKLMNOPQR' + '.'.repeat(6) + '\\ STUVWXYZ' + '.'.repeat(6) + '0123456789' + '.'.repeat(6);
+    return { status: r.status, ok: r.ok, host: new URL(url).host, bytes: buf.length, ascii: String.fromCharCode(...head), ebcdic: Array.from(head, (c) => E[c] || '.').join('') };
   },
   async listMine() {
     const { data: vols } = await supabase.from('seismic_volumes').select('id,name,status,kind,survey_meta').order('created_at');
