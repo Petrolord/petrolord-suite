@@ -20,7 +20,7 @@ import { buildManifestV4, volumeDir } from '../engine/manifest';
 import { createTwoStageUpload, UPLOAD_STATUS } from './uploadV4';
 import { v4SurveyMeta } from './v4SurveyMeta';
 import { applyCrsToScan } from './ingestCrs';
-import { scanForManifest } from '../lib/segyDoor';
+import { scanForManifest, traceDelayRecord } from '../lib/segyDoor';
 import { applyVerticalToManifest } from '../lib/verticalDomain';
 import { publishConversionProgress, clearConversionProgress } from '../sources/conversionProgress';
 
@@ -199,7 +199,9 @@ export function createImportJobManager(deps) {
    * @param {{file: File, mapping: Object, scan: Object, nativeCrs?: string,
    *   name?: string, onRowChange?: (status: string) => void}} p
    */
-  async function start({ file, mapping, scan, nativeCrs, name, onRowChange, crop = null, vertical = null }) {
+  async function start({ file, mapping, scan, nativeCrs, name, onRowChange, crop = null, vertical = null, traceDelay = null }) {
+    // traceDelay (F-5): the uncropped file's delay as segyDoor.alignTraceDelay
+    // found it; `scan` is then the scan of the shifted file (scanOnReader)
     // crop ({request, provenance}): the conversion reads only the kept traces
     // and samples (cropImport.js); `scan` is then the crop's conversion view
     const prep = await deps.prepare({
@@ -221,6 +223,7 @@ export function createImportJobManager(deps) {
           spool: job.spool,
           cancelToken: job.cancelToken,
           crop: crop?.request || null,
+          delayShift: !crop && traceDelay?.applied ? traceDelay.shift_samples : 0,
           onProgress: (p) => {
             setView(job, { convert: p });
             publish({
@@ -241,11 +244,13 @@ export function createImportJobManager(deps) {
         });
         manifest.source.fingerprint = prep.ingestRec.fingerprint;
         if (crop?.provenance) manifest.source.crop = crop.provenance;
+        const td = traceDelayRecord(crop ? crop.provenance?.trace_delay : traceDelay);
+        if (td) manifest.source.trace_delay = td;
         applyVerticalToManifest(manifest, prep.ingestRec.vertical);
         // everything a later session needs to finish the upload without
         // the SEG-Y: written only once the conversion is complete
         await job.spool.putJson('job', {
-          volumeId, userId, dir, name: prep.name, fileName: file.name, manifest, record, ingestRec: prep.ingestRec,
+          volumeId, userId, dir, name: prep.name, fileName: file.name, manifest, record, ingestRec: td ? { ...prep.ingestRec, trace_delay: td } : prep.ingestRec,
         });
         setView(job, { phase: JOB_PHASE.UPLOADING });
         await runUpload(job);

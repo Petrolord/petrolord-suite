@@ -3,8 +3,9 @@
 // services/conversionV4.convertToSpool; the numerics are in the engines.
 //
 // Protocol (main -> worker):
-//   {type:'convert', id, file, scan, volumeId, memoryBudgetBytes, poolSize, crop?}
-//   (crop: cropImport.cropRequest, only the kept traces and samples are read)
+//   {type:'convert', id, file, scan, volumeId, memoryBudgetBytes, poolSize, crop?, delayShift?}
+//   (crop: cropImport.cropRequest, only the kept traces and samples are read;
+//   delayShift: samples the trace delay moves an uncropped file by, F-5)
 //   {type:'cancel', id}
 // (worker -> main):
 //   {type:'progress', id, phase, done, total, bricksDone, totalBricks}
@@ -16,8 +17,7 @@ import { resolveCodec, hasNativeDeflateRaw, DEFLATE_RAW } from '../engine/brickC
 import { convertToSpool } from '../services/conversionV4';
 import { opfsSpool } from '../services/brickSpool';
 import { createDeflatePool } from '../services/deflatePool';
-import { openSegyDoor } from '../lib/segyDoor';
-import { cropConversionReader } from '../services/cropImport';
+import { conversionSourceReader } from '../services/cropImport';
 
 const cancelled = new Set();
 
@@ -33,17 +33,11 @@ function makeCodec(poolSize) {
   return { codec: resolveCodec({ compression: DEFLATE_RAW }), pool: null };
 }
 
-/** The reader a conversion runs on: the file, or only its crop (top padded back). */
-async function sourceReader(file, crop) {
-  if (!crop) return (await openSegyDoor(fileReader(file))).reader;
-  return cropConversionReader(fileReader(file), crop);
-}
-
-async function handleConvert({ id, file, scan, volumeId, memoryBudgetBytes, poolSize, crop = null }) {
+async function handleConvert({ id, file, scan, volumeId, memoryBudgetBytes, poolSize, crop = null, delayShift = 0 }) {
   const spool = await opfsSpool(volumeId);
   const { codec, pool } = makeCodec(poolSize);
   try {
-    const reader = await sourceReader(file, crop);
+    const reader = await conversionSourceReader(fileReader(file), crop, delayShift);
     const record = await convertToSpool({
       reader,
       scan,

@@ -19,7 +19,9 @@ import { fileReader } from '../engine/reader';
 import { readTextualHeader, scanGeometry, previewTraceHeaders } from '../engine/segyScan';
 import { transcodeToBricks } from '../engine/brickTranscode';
 import { createBrickChannel } from './brickAckChannel';
-import { openSegyDoor, doorScanWarnings, depthDomainHint } from '../lib/segyDoor';
+import {
+  openSegyDoor, doorScanWarnings, depthDomainHint, alignTraceDelay,
+} from '../lib/segyDoor';
 
 const channel = createBrickChannel((msg, transfer) => self.postMessage(msg, transfer));
 
@@ -42,11 +44,14 @@ async function handleScan({ id, file, mapping, maxTraces }) {
     zeroCoordinates: door.zeroCoordinates, patches: door.patches,
   };
   scan.depthHint = depthDomainHint(textLines);
+  // F-5: the trace delay a time import honours (the preview reads the file as it is)
+  scan.door.traceDelay = (await alignTraceDelay(reader)).traceDelay;
   self.postMessage({ type: 'scan:done', id, scan, textLines, preview });
 }
 
 async function handleIngest({ id, file, mapping, memoryBudgetBytes }) {
-  const { reader } = await openSegyDoor(fileReader(file));
+  // F-5: the trace delay honoured here too, so both import paths agree
+  const { reader } = await alignTraceDelay((await openSegyDoor(fileReader(file))).reader);
   const scan = await scanGeometry(reader, mapping, {
     onProgress: (done, total) => self.postMessage({ type: 'progress', id, phase: 'scan', done, total }),
   });

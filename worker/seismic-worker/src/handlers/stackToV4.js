@@ -30,7 +30,9 @@ import path from 'node:path';
 import fsp from 'node:fs/promises';
 import { JobFailure } from '../runJob.js';
 import { seismicQuota, overQuotaMessage } from '../quota.js';
-import { openSegyDoor, scanForManifest } from '../../../../src/pages/apps/Seismolord/lib/segyDoor.js';
+import {
+  openSegyDoor, scanForManifest, alignTraceDelay, scanOnReader, traceDelayRecord,
+} from '../../../../src/pages/apps/Seismolord/lib/segyDoor.js';
 import { convertToSpool } from '../../../../src/pages/apps/Seismolord/services/conversionV4.js';
 import { createTwoStageUpload } from '../../../../src/pages/apps/Seismolord/services/uploadV4.js';
 import { applyCrsToScan } from '../../../../src/pages/apps/Seismolord/services/ingestCrs.js';
@@ -111,7 +113,7 @@ export async function stackToV4(ctx, deps) {
   const scratch = isLinkDataset(dataset) ? { file: `${spoolDir}.source.sgy`, ctx } : null;
   let copy = null;
   try {
-    const { reader, scan, cropRecord, scratchCopy } = await cropAwareSource(raw, p, dataset, ctx, scratch);
+    const { reader, scan, cropRecord, scratchCopy, traceDelay } = await cropAwareSource(raw, p, dataset, ctx, scratch);
     copy = scratchCopy || null;
     const record = await convertToSpool({
       reader,
@@ -130,7 +132,8 @@ export async function stackToV4(ctx, deps) {
     if (ctx.cancelled) return null;
 
     const { scan: placed, crsBlock } = applyCrsToScan(scanForManifest(scan, record), p.crs_plan, p.custom_defs || {});
-    const ingestRec = cropRecord ? { ...p.ingest_rec, crop: cropRecord } : p.ingest_rec;
+    const td = traceDelayRecord(traceDelay);
+    const ingestRec = { ...p.ingest_rec, ...(cropRecord ? { crop: cropRecord } : {}), ...(td ? { trace_delay: td } : {}) };
     const manifest = buildManifestV4({
       volumeId,
       name: p.name || volume.name,
@@ -142,6 +145,7 @@ export async function stackToV4(ctx, deps) {
     });
     manifest.source.fingerprint = p.ingest_rec.fingerprint;
     if (cropRecord) manifest.source.crop = cropRecord;
+    if (td) manifest.source.trace_delay = td;
     // a depth import (P1.6): the vertical axis the user declared
     applyVerticalToManifest(manifest, p.ingest_rec?.vertical);
 
@@ -195,9 +199,12 @@ export async function stackToV4(ctx, deps) {
 /**
  * The reader and scan a conversion runs on:
  *  - a plain upload: the file through the SEG-Y door;
+ *  - a plain upload's trace delay (byte 109) is honoured (F-5): the
+ *    samples move onto their true times on the 0 ms axis;
  *  - a file cropped before upload: the same, with the window's top padded
- *    back so the volume keeps the 0 ms origin; the pad comes from the file's
- *    crop card (textual header card 35) and must agree with the browser's;
+ *    back so the volume keeps the 0 ms origin (from the cropped file's
+ *    delay, else the crop card's first sample, which must agree with the
+ *    browser's);
  *  - a crop while converting (import from a link): only the kept traces and
  *    samples of the stored file are read, and the scan is re-measured on them.
  */
@@ -231,7 +238,7 @@ export async function cropAwareSource(raw, p, dataset, ctx = {}, scratch = null)
     const cropRecord = importCropProvenance(prep, {
       file: { name, size: Number(dataset.bytes) }, mode: 'server', definitionId: p.crop.definition_id || null, vertical: p.ingest_rec?.vertical || null,
     });
-    return { reader, scan, cropRecord, scratchCopy };
+    return { reader, scan, cropRecord, scratchCopy, traceDelay: prep.traceDelay };
   }
   const { reader: whole, scratchCopy } = await toScratch(raw);
   const { reader } = await openSegyDoor(whole);
@@ -240,6 +247,16 @@ export async function cropAwareSource(raw, p, dataset, ctx = {}, scratch = null)
   if (p.pad_top_samples != null && p.pad_top_samples !== pad) {
     throw new JobFailure('validate_failed', `The uploaded file's crop starts at sample ${pad}; the import said ${p.pad_top_samples}. Upload the file again.`);
   }
-  if (!pad) return { reader, scan: p.scan, cropRecord: p.crop_provenance || null, scratchCopy };
-  return { reader: await padTopReader(reader, pad), scan: p.scan, cropRecord: p.crop_provenance || null, scratchCopy };
+  const cropRecord = p.crop_provenance || null;
+  // F-5: the trace delay honoured. A cropped file's delay is its source's
+  // plus the window's top (the crop writes byte 109), so this places the
+  // window too, at its true times; the scan follows the shifted traces.
+  const domain = p.ingest_rec?.vertical?.domain === 'depth' ? 'depth' : 'time';
+  const aligned = await alignTraceDelay(reader, { domain });
+  const traceDelay = card ? (cropRecord?.trace_delay || null) : aligned.traceDelay;
+  if (aligned.traceDelay.applied) {
+    return { reader: aligned.reader, scan: await scanOnReader(p.scan, aligned.reader), cropRecord, traceDelay, scratchCopy };
+  }
+  if (!pad) return { reader, scan: p.scan, cropRecord, traceDelay, scratchCopy };
+  return { reader: await padTopReader(reader, pad), scan: p.scan, cropRecord, traceDelay, scratchCopy };
 }

@@ -32,7 +32,9 @@ import { sanityCheck, crsDisplayName } from '@/lib/crs';
 import { getProjectCrs, addCustomDef } from '@/lib/crs/settingsService';
 import { isTransformableTag, normalizeTag, UNKNOWN } from '@/lib/crs/tags';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
-import { COORD_UNITS, SAMPLE_FORMATS, needsTraceLattice, inspectSegy } from '../lib/segyDoor';
+import {
+  COORD_UNITS, SAMPLE_FORMATS, needsTraceLattice, inspectSegy, openSegyDoor, alignTraceDelay, scanOnReader,
+} from '../lib/segyDoor';
 import { depthDeclaration, depthDtUs, depthPrefill, VELOCITY_TYPES } from '../lib/verticalDomain';
 
 const fmtInt = (v) => (v == null ? EMPTY_VALUE : v.toLocaleString('en-US'));
@@ -258,16 +260,26 @@ export default function ImportPanel({
     if (file && !file.remote && onFilePicked) onFilePicked(file, m); // a remote file has no local bytes to view
   };
 
+  // F-5: an uncropped file's trace delay, and the scan of the shifted file
+  // the conversion reads (a crop applies it in its own conversion view)
+  const delayedScan = async () => {
+    const { reader } = await openSegyDoor(fileReader(file));
+    const { reader: aligned, traceDelay } = await alignTraceDelay(reader, { domain: vertical ? 'depth' : 'time' });
+    return { traceDelay, scan: traceDelay.applied ? await scanOnReader(scanData.scan, aligned) : scanData.scan };
+  };
+
   const startBackground = async () => {
     setPhase('ingesting');
     setError(null);
     setProgress(null);
     try {
       const cropped = cropOn ? await buildCrop({ forUpload: false }) : null;
+      const delayed = cropped ? null : await delayedScan();
       await getImportJobs().start({
         file,
         mapping,
-        scan: cropped ? cropped.convScan : scanData.scan,
+        scan: cropped ? cropped.convScan : delayed.scan,
+        ...(delayed ? { traceDelay: delayed.traceDelay } : {}),
         crop: cropped ? { request: cropRequest(cropped.prep, file.name, mapping), provenance: cropped.provenance, bytes: cropped.cropped.size } : null,
         nativeCrs: crsTag,
         ...(vertical ? { vertical } : {}),
@@ -494,6 +506,8 @@ export default function ImportPanel({
   }, [domain, depthForm]);
   // the sample interval a depth window is read in (x 1000); null for time
   const cropDtUs = vertical ? depthDtUs(vertical) : null;
+  // F-5: a time import reads the crop window from the file's first sample time
+  const cropT0Ms = domain === 'time' && scan?.door?.traceDelay?.applied ? scan.door.traceDelay.applied_ms : 0;
 
   // the file's layout and gathers check (local files), for the crop step
   useEffect(() => {
@@ -514,15 +528,15 @@ export default function ImportPanel({
   // a link import's crop is applied on the server; checked here against the scan
   const remoteCrop = useMemo(() => {
     if (!file?.remote || !cropOn || !scan) return null;
-    try { return normalizeCrop(defFromForm(cropForm), { il: scan.il, xl: scan.xl, ns: scan.ns, dtUs: cropDtUs || scan.dtUs }); } catch { return null; }
-  }, [file, cropOn, scan, cropForm, cropDtUs]);
+    try { return normalizeCrop(defFromForm(cropForm), { il: scan.il, xl: scan.xl, ns: scan.ns, dtUs: cropDtUs || scan.dtUs, t0Ms: cropT0Ms }); } catch { return null; }
+  }, [file, cropOn, scan, cropForm, cropDtUs, cropT0Ms]);
   const cropProblem = useMemo(() => {
     if (!cropOn || !scan) return null;
     try {
-      normalizeCrop(defFromForm(cropForm), { il: scan.il, xl: scan.xl, ns: layoutInfo?.door?.ns || scan.ns, dtUs: cropDtUs || layoutInfo?.door?.dtUs || scan.dtUs });
+      normalizeCrop(defFromForm(cropForm), { il: scan.il, xl: scan.xl, ns: layoutInfo?.door?.ns || scan.ns, dtUs: cropDtUs || layoutInfo?.door?.dtUs || scan.dtUs, t0Ms: cropT0Ms });
       return null;
     } catch (e) { return e.message; }
-  }, [cropOn, scan, cropForm, layoutInfo, cropDtUs]);
+  }, [cropOn, scan, cropForm, layoutInfo, cropDtUs, cropT0Ms]);
 
   useEffect(() => {
     if (onBusyChange) onBusyChange(phase === 'ingesting' || phase === 'uploading' || phase === 'fetching');
@@ -979,6 +993,9 @@ export default function ImportPanel({
                     : <>The textual header mentions &quot;{scan.depthHint.word}&quot; and also time, so Two-way time stays chosen. Check the header below if the volume is in depth.</>}
                 </div>
               )}
+              {domain === 'time' && scan.door?.traceDelay?.note && (
+                <div className="text-xs text-pl-muted" data-testid="sl-import-trace-delay">{scan.door.traceDelay.note}</div>
+              )}
               {domain === 'depth' && (
                 <div className="space-y-2 text-sm text-pl-text" data-testid="sl-import-depth">
                   <div className="flex flex-wrap items-center gap-3">
@@ -1103,6 +1120,7 @@ export default function ImportPanel({
               door={layoutInfo?.door && cropDtUs ? { ...layoutInfo.door, dtUs: cropDtUs } : layoutInfo?.door || null}
               fileSize={file?.size || 0}
               domain={domain}
+              t0Ms={cropT0Ms}
               enabled={cropOn}
               onEnabled={(on) => { setCropOn(on); setCropRestored(false); }}
               form={cropForm}

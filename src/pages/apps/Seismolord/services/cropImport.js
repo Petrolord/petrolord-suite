@@ -11,7 +11,8 @@
 //                    so a file that only looked regular stops before upload
 //   conversionView   the cropped file as the converters read it: through
 //                    the SEG-Y door, with the window's top padded with nulls
-//                    so the volume keeps the 0 ms origin
+//                    so the volume keeps the 0 ms origin (and the source's
+//                    trace delay honoured, F-5)
 //   cropFileLike     the cropped file as a File-like for the resumable upload
 //
 // The engines do the byte work (packages/engines/engines/seismolord/segyCrop.js).
@@ -19,8 +20,11 @@ import {
   normalizeCrop, planRegularCrop, planCropFromHeaders, croppedSegyReader, padTopReader,
   detectGatherLayout, croppedFileBytes, cropKeeps, cropProvenance, cropIsWhole,
 } from '../engine/segyCrop';
+import { alignTopReader, delayAlignment, traceTimes } from '../engine/traceDelay';
 import { scanGeometry } from '../engine/segyScan';
-import { inspectSegy, openSegyDoor, needsTraceLattice, doorScanWarnings } from '../lib/segyDoor';
+import {
+  inspectSegy, openSegyDoor, needsTraceLattice, doorScanWarnings, doorReader, traceDelayRecord,
+} from '../lib/segyDoor';
 
 const MB = 1e6;
 
@@ -87,6 +91,20 @@ export function formatDuration(s) {
   return `${(h / 24).toFixed(1)} days`;
 }
 
+/** The trace delays of the first traces only, in one read (surveyTraceDelays' shape). */
+async function headTraceDelays(reader, door, n = 8) {
+  const traceBytes = 240 + door.ns * 4; // the door presents 4-byte samples
+  const total = Math.max(0, Math.floor((reader.size - 3600) / traceBytes));
+  const k = Math.min(n, total);
+  const base = { lagAMs: 0, ns: door.ns, dtUs: door.dtUs, totalTraces: total };
+  if (!k) return { ...base, delayMs: 0, uniform: true, min: 0, max: 0, sampled: 0 };
+  const dv = new DataView(await reader.read(3600, (k - 1) * traceBytes + 240));
+  const t = Array.from({ length: k }, (_, j) => traceTimes(dv, j * traceBytes));
+  const d = t.map((x) => x.delayMs);
+  const min = Math.min(...d); const max = Math.max(...d);
+  return { ...base, delayMs: d[0], lagAMs: t[0].lagAMs, uniform: min === max, min, max, sampled: k };
+}
+
 /**
  * Snap the crop to this file and find its kept traces.
  * @param {Object} p
@@ -97,18 +115,30 @@ export function formatDuration(s) {
  * @param {boolean} [p.fromHeaders] find the kept traces from the headers even for a regular grid
  * @param {?number} [p.dtUs] the sample interval the window is read in (a depth import's declared interval x 1000)
  */
-export async function planImportCrop({ raw, scan, def, mapping, fromHeaders = false, onProgress, isCancelled, dtUs = null }) {
+export async function planImportCrop({
+  raw, scan, def, mapping, fromHeaders = false, onProgress, isCancelled, dtUs = null, domain = dtUs ? 'depth' : 'time',
+}) {
   const door = await inspectSegy(raw);
   const layout = layoutFromDoor(door, raw.size);
+  // F-5: the file's first sample sits at its trace delay when the import
+  // honours it, so the window (typed on the volume's axis) is read from there.
+  // The preview scan's survey is used when it has one (the dialog showed it);
+  // otherwise the first traces are read, in one request (a link reads
+  // scattered headers a block at a time)
+  const traceDelay = domain !== 'time' ? null
+    : (scan?.door?.traceDelay || delayAlignment(await headTraceDelays(doorReader(raw, door), door)));
+  const t0Ms = traceDelay?.applied ? traceDelay.applied_ms : 0;
   // dtUs: a depth import's declared interval (x 1000), so a depth window
   // typed in metres or feet maps to samples by that interval (P1.6)
-  const crop = normalizeCrop(def, { il: scan.il, xl: scan.xl, ns: door.ns, dtUs: dtUs || door.dtUs });
+  const crop = normalizeCrop(def, { il: scan.il, xl: scan.xl, ns: door.ns, dtUs: dtUs || door.dtUs, t0Ms });
   const gathers = await detectGatherLayout(raw, layout, mapping);
   const regular = !gathers.gathers && !needsTraceLattice(scan) && !fromHeaders;
   const plan = regular
     ? planRegularCrop({ ...scan, totalTraces: layout.totalTraces }, crop)
     : await planCropFromHeaders(raw, layout, mapping, crop, { inlineSorted: scan.inlineSorted !== false, onProgress, isCancelled });
-  return { door, layout, crop, plan, gathers, whole: cropIsWhole(crop) && plan.keptTraces === layout.totalTraces };
+  return {
+    door, layout, crop, plan, gathers, domain, traceDelay, whole: cropIsWhole(crop) && plan.keptTraces === layout.totalTraces,
+  };
 }
 
 export const cropSource = (raw, { layout, plan, crop }, { sourceName, mapping }) => croppedSegyReader(raw, layout, plan, crop, { sourceName, mapping });
@@ -124,10 +154,18 @@ export async function spotCheckCrop(cropped, plan, maxRuns = 200) {
   await cropped.read(3600 + (plan.keptTraces - 1) * tb, 240);
 }
 
-/** The cropped file as the converters read it (door, then the top padded). */
+/**
+ * The cropped file as the converters read it (door, then the top padded).
+ * Sample k of the cropped file is the source's sample first + k, which sits
+ * at t0 + (first + k) x dt when the import honours the source's trace delay
+ * (F-5; t0 is crop.source.t0Ms), so the samples move by first + t0 / dt.
+ * Without a delay this is the window's top padded back, as before.
+ */
 export async function conversionView(cropped, crop) {
   const { reader } = await openSegyDoor(cropped);
-  return padTopReader(reader, crop.samples.first);
+  const t0 = crop.source?.t0Ms || 0;
+  if (!t0) return padTopReader(reader, crop.samples.first);
+  return alignTopReader(reader, crop.samples.first + Math.round((t0 * 1000) / crop.source.dtUs));
 }
 
 /** The preview scan of the conversion view (what stack_to_v4 and the browser conversion are given). */
@@ -177,6 +215,9 @@ export const importCropProvenance = (prep, { file, mode, definitionId = null, ve
   });
   // a depth import's window is in its depth unit (P1.6)
   if (vertical?.domain === 'depth') rec.vertical = { domain: 'depth', unit: vertical.unit, dz: vertical.dz };
+  // F-5: the source's trace delay, and the window read from it
+  const td = traceDelayRecord(prep.traceDelay);
+  if (td) rec.trace_delay = td;
   return rec;
 };
 
@@ -184,6 +225,16 @@ export const importCropProvenance = (prep, { file, mode, definitionId = null, ve
 export async function cropConversionReader(raw, req) {
   const cropped = croppedSegyReader(raw, req.layout, req.plan, req.crop, { sourceName: req.sourceName, mapping: req.mapping });
   return conversionView(cropped, req.crop);
+}
+
+/**
+ * The reader a browser conversion runs on: the file through the door with
+ * its trace delay honoured (delayShift from segyDoor.alignTraceDelay, F-5),
+ * or only its crop (top padded back).
+ */
+export async function conversionSourceReader(raw, crop, delayShift = 0) {
+  if (!crop) return alignTopReader((await openSegyDoor(raw)).reader, delayShift || 0);
+  return cropConversionReader(raw, crop);
 }
 
 /** What crosses to the conversion worker (typed arrays clone cheaply). */

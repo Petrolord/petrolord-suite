@@ -114,7 +114,7 @@ async function getRow(volumeId) {
 let nextId = 1;
 
 /** Run the conversion worker; resolves the conversion record. */
-function convert({ file, scan, volumeId, onProgress, cancelToken, crop = null }) {
+function convert({ file, scan, volumeId, onProgress, cancelToken, crop = null, delayShift = 0 }) {
   const worker = newConvertWorker();
   const id = nextId++;
   const deviceMemory = typeof navigator !== 'undefined' ? navigator.deviceMemory : null;
@@ -139,6 +139,7 @@ function convert({ file, scan, volumeId, onProgress, cancelToken, crop = null })
       scan,
       volumeId,
       crop,
+      delayShift,
       memoryBudgetBytes: conversionBudgetBytes(deviceMemory),
       poolSize: deflatePoolSize(cores),
     });

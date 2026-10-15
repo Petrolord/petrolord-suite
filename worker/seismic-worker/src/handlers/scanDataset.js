@@ -8,7 +8,9 @@
 // params: { dataset_id, mapping }
 import { JobFailure } from '../runJob.js';
 import { datasetReader } from '../datasetReader.js';
-import { openSegyDoor, doorScanWarnings, depthDomainHint } from '../../../../src/pages/apps/Seismolord/lib/segyDoor.js';
+import {
+  openSegyDoor, doorScanWarnings, depthDomainHint, alignTraceDelay,
+} from '../../../../src/pages/apps/Seismolord/lib/segyDoor.js';
 import { readTextualHeader, previewTraceHeaders, scanGeometry } from '../../../../packages/engines/engines/seismolord/segyScan.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -44,5 +46,7 @@ export async function scanDataset(ctx, deps) {
     zeroCoordinates: door.zeroCoordinates, patches: door.patches,
   };
   scan.depthHint = depthDomainHint(textLines);
+  // F-5: the trace delay a time import honours (the preview reads the file as it is)
+  scan.door.traceDelay = (await alignTraceDelay(reader)).traceDelay;
   return { dataset_id: ds.id, scan, textLines, preview };
 }
