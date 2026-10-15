@@ -22,6 +22,9 @@ const wells = {
   wells: [{ name: 'W1', modelled: { A: -0.05, B: -0.1 }, observed: { A: -100, B: -200 }, scaled: { A: -0.05, B: -0.1 }, residual: 0, modelledClass: 'III', observedClass: 'III', agree: true }, { name: 'W2', modelled: { A: -0.04, B: -0.12 }, observed: { A: -120, B: -360 }, scaled: { A: -0.06, B: -0.18 }, residual: 0.01, modelledClass: 'III', observedClass: 'III', agree: true }, { name: 'W3', error: 'No gather' }],
 };
 
+// the AVO run the comparison was made on (round 3: the calibration checks it against the stacks)
+const RUN_R1 = { jobId: 'r1', name: 'Keta AVO', status: 'ready', volumeIds: { A: 'a1', B: 'b1' }, stacks: [{ volumeId: 'qi-near', angle: 8 }, { volumeId: 'qi-mid', angle: 22 }, { volumeId: 'qi-far', angle: 38 }] };
+
 test('the calibration block: terms, one scale, a field from each well\'s scale at its position', () => {
   expect(avoCalibrationBlock({ cal: { terms: '2', mode: 'none' }, wells })).toEqual({});
   expect(avoCalibrationBlock({ cal: { terms: 'auto', mode: 'one' }, wells })).toEqual({ terms: 'auto', scale: 2000 });
@@ -40,7 +43,7 @@ test('UI: a scale field and a class volume reach the AVO job', async () => {
   const Probe = () => { api = useQIStudio(); return null; };
   render(<MemoryRouter><QIStudioProvider backend={backend}><Probe /><AvoPanel /></QIStudioProvider></MemoryRouter>);
   await waitFor(() => expect(api.volumes.length).toBe(3));
-  await waitFor(() => { for (const v of api.volumes) api.toggleVolume(v.id); api.setAvo({ wells }); });
+  await waitFor(() => { for (const v of api.volumes) api.toggleVolume(v.id); api.setAvo({ wells, runs: [RUN_R1] }); });
   [['qi-near', 8], ['qi-mid', 22], ['qi-far', 38]].forEach(([id, a], k) => {
     fireEvent.change(screen.getByTestId(`qi-avo-stack-${k}`), { target: { value: id } });
     fireEvent.change(screen.getByTestId(`qi-avo-angle-${k}`), { target: { value: String(a) } });
@@ -57,4 +60,49 @@ test('UI: a scale field and a class volume reach the AVO job', async () => {
   expect(p.terms).toBe('auto');
   expect(Object.keys(p.products)).toEqual(['A', 'B', 'FF', 'C', 'class']);
   p.scale_field.wells.forEach((w, i) => expect(w.scale).toBeCloseTo([2000, 3000][i], 9));
+});
+
+// QI round 3 (2026-10-15): a scale is never used from a comparison that no
+// longer describes the stacks, and a chosen calibration never drops out of
+// the job silently. Negative control: the matching comparison passes.
+test('a stale or empty comparison blocks the calibrated run', async () => {
+  const { avoCalibrationProblem } = await import('../components/AvoPanel');
+  const stacks = RUN_R1.stacks.map((x) => ({ ...x, angle: String(x.angle) }));
+  const field = { terms: '2', mode: 'field', fieldMethod: 'idw', range: '2000' };
+  expect(avoCalibrationProblem({ cal: field, wells, runs: [RUN_R1], stacks })).toBe(null);
+  expect(avoCalibrationProblem({ cal: { ...field, mode: 'one' }, wells, runs: [RUN_R1], stacks })).toBe(null);
+  // an older comparison without positions
+  const { points, ...old } = wells;
+  expect(avoCalibrationProblem({ cal: field, wells: old, runs: [RUN_R1], stacks })).toMatch(/no well positions/);
+  // other stacks or angles than the comparison's run
+  expect(avoCalibrationProblem({ cal: field, wells, runs: [RUN_R1], stacks: stacks.map((x, k) => (k === 2 ? { ...x, angle: '34' } : x)) })).toMatch(/stacks or angles differ/);
+  expect(avoCalibrationProblem({ cal: field, wells, runs: [RUN_R1], stacks: stacks.map((x, k) => (k === 0 ? { ...x, volumeId: 'qi-near-matched' } : x)) })).toMatch(/stacks or angles differ/);
+  // the run is gone
+  expect(avoCalibrationProblem({ cal: field, wells, runs: [], stacks })).toMatch(/no longer in the study/);
+  // positions for none of the wells with a scale: the field would be empty
+  expect(avoCalibrationProblem({ cal: field, wells: { ...wells, points: [{ name: 'W9', il: 1, xl: 1 }] }, runs: [RUN_R1], stacks })).toMatch(/both a scale and a position/);
+  expect(avoCalibrationProblem({ cal: { ...field, mode: 'one' }, wells: { ...wells, scale: NaN }, runs: [RUN_R1], stacks })).toMatch(/no usable survey scale/);
+});
+
+test('UI: an older comparison without well positions holds the scale-field run', async () => {
+  const backend = makeInMemoryBackend();
+  backend.listVolumes = async () => ['near', 'mid', 'far'].map((n) => ({ id: `qi-${n}`, name: `Keta ${n}`, kind: 'seismic', status: 'ready' }));
+  const enqueue = jest.spyOn(backend.jobs, 'enqueueJob');
+  let api;
+  const Probe = () => { api = useQIStudio(); return null; };
+  const { points, ...old } = wells;
+  render(<MemoryRouter><QIStudioProvider backend={backend}><Probe /><AvoPanel /></QIStudioProvider></MemoryRouter>);
+  await waitFor(() => expect(api.volumes.length).toBe(3));
+  await waitFor(() => { for (const v of api.volumes) api.toggleVolume(v.id); api.setAvo({ wells: old, runs: [RUN_R1] }); });
+  [['qi-near', 8], ['qi-mid', 22], ['qi-far', 38]].forEach(([id, a], k) => {
+    fireEvent.change(screen.getByTestId(`qi-avo-stack-${k}`), { target: { value: id } });
+    fireEvent.change(screen.getByTestId(`qi-avo-angle-${k}`), { target: { value: String(a) } });
+  });
+  const box = screen.getByTestId('qi-avo-calibration');
+  fireEvent.change(within(box).getByTestId('qi-avo-cal-mode'), { target: { value: 'field' } });
+  expect(screen.getByTestId('qi-avo-run')).toBeDisabled();
+  expect(screen.getByText(/no well positions/)).toBeInTheDocument();
+  fireEvent.click(screen.getByTestId('qi-avo-run'));
+  await new Promise((r) => setTimeout(r, 50));
+  expect(enqueue.mock.calls.some(([k]) => k === 'avo_volumes')).toBe(false);
 });

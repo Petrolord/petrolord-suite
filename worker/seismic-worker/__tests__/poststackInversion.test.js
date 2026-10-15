@@ -420,3 +420,27 @@ test('coloured inversion takes its polarity from the wells: reversed seismic giv
   expect(colouredFromWells(args(1)).polarity).toBe(1);
   expect(colouredFromWells(args(-1)).polarity).toBe(-1);
 });
+
+// F3 benchmark F-10 (QI round 3, 2026-10-15): each held-out coloured run
+// takes its polarity from the wells it kept; the blind protocol records it per
+// well so the blind table can show it. Each recorded polarity equals the
+// operator built on the kept wells alone, and reversed seismic flips them all
+// (negative control: the recorded value is not a constant).
+test('coloured blind runs record the polarity each held-out well used', async () => {
+  const flipped = () => async (path) => Float32Array.from(new Float32Array(STORE.get(path.match(/bricks\/(\d+-\d+-\d+)\.f32$/)[1]).slice().buffer), (v) => (Math.abs(v) < 1e29 ? -v : v)).buffer;
+  const run = (extra) => poststackInversion(ctxFor(params('blind', { method: 'coloured' })), depsFor({ volumes: { [VOL]: PARENT }, horizons: HZ_ROWS }, extra));
+  const a = await run({});
+  const b = await run({ makeFetcher: flipped });
+  const { colouredFromWells } = await import('../../../src/pages/apps/QIStudio/services/inversionRun.js');
+  const logs = WELLS.map((w) => w.ln_ai.map((v) => (v == null ? NaN : v)));
+  expect(a.blind_protocol.held_back.map((h) => h.name).sort()).toEqual(WELLS.map((w) => w.name).sort());
+  for (const h of a.blind_protocol.held_back) {
+    const keep = WELLS.map((w, k) => k).filter((k) => WELLS[k].name !== h.name);
+    const ref = colouredFromWells({ wellTraces: keep.map((k) => seis(WELLS[k].il)), wellLogs: keep.map((k) => logs[k]), dtMs: DT_MS, ns: NS, band: [5, 60] }).polarity;
+    expect(h.polarity).toBe(ref);
+    expect(h.polarity).toBe(1);
+  }
+  for (const h of b.blind_protocol.held_back) expect(h.polarity).toBe(-1);
+  expect(a.settings.coloured_polarity).toBe(1);
+  expect(b.settings.coloured_polarity).toBe(-1);
+});

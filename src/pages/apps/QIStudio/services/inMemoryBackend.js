@@ -29,15 +29,15 @@ export function makeInMemoryBackend() {
   const removedDatasets = new Set(); // remove_dataset jobs take files off the list
   const wells = [
     {
-      well: { id: 'qi-w1', name: 'KETA-1', checkshots_derived: tieRecord(0.82, 0, 30), kb_m: 30, depth_ref_elev_m: 30, depth_ref_kind: 'KB', checkshots: [{ tvdss_m: 1500, twt_ms: 1300 }, { tvdss_m: 2400, twt_ms: 1950 }], deviation: [{ md: 0, inc: 0, azi: 0 }, { md: 3000, inc: 0, azi: 0 }], surface_x: 200, surface_y: 125, is_own: true },
+      well: { id: 'qi-w1', crs: 'EPSG:32630', name: 'KETA-1', checkshots_derived: tieRecord(0.82, 0, 30), kb_m: 30, depth_ref_elev_m: 30, depth_ref_kind: 'KB', checkshots: [{ tvdss_m: 1500, twt_ms: 1300 }, { tvdss_m: 2400, twt_ms: 1950 }], deviation: [{ md: 0, inc: 0, azi: 0 }, { md: 3000, inc: 0, azi: 0 }], surface_x: 200, surface_y: 125, is_own: true },
       logs: [log('GR', 1500, 2800), log('DT', 1500, 2800), log('DTSM', 1500, 2800), log('RHOB', 1500, 2800), log('PHIE', 1500, 2800), log('VSH', 1500, 2800), log('SW', 1500, 2800)],
     },
     {
-      well: { id: 'qi-w2', name: 'AKOMA-2', checkshots_derived: tieRecord(0.58, 45, 26), kb_m: 28, depth_ref_elev_m: 28, depth_ref_kind: 'KB', checkshots: [], deviation: [], is_own: true },
+      well: { id: 'qi-w2', crs: 'EPSG:32630', name: 'AKOMA-2', checkshots_derived: tieRecord(0.58, 45, 26), kb_m: 28, depth_ref_elev_m: 28, depth_ref_kind: 'KB', checkshots: [], deviation: [], is_own: true },
       logs: [log('GR', 1800, 2500), log('DTCO', 1800, 2500), log('RHOZ', 1800, 2500), log('PHIT', 1800, 2500), log('VSH', 1800, 2500), log('SW', 1800, 2500)],
     },
     {
-      well: { id: 'qi-w3', name: 'BONSU-3', depth_ref_kind: 'KB', depth_ref_elev_m: null, ground_elev_m: null, checkshots: [{ tvdss_m: 1900, twt_ms: 1600 }, { tvdss_m: 2300, twt_ms: 1880 }], deviation: [], is_own: true },
+      well: { id: 'qi-w3', crs: 'EPSG:32630', name: 'BONSU-3', depth_ref_kind: 'KB', depth_ref_elev_m: null, ground_elev_m: null, checkshots: [{ tvdss_m: 1900, twt_ms: 1600 }, { tvdss_m: 2300, twt_ms: 1880 }], deviation: [], is_own: true },
       logs: [log('GR', 1900, 2340), log('DT', 1900, 2340), log('RHOB_DIG', 1900, 2340, { provenance: { digitized: true } })],
     },
   ];
@@ -66,7 +66,7 @@ export function makeInMemoryBackend() {
     },
     async countSurfaces() { return 2; },
     // the inversion inputs: a 16 x 32 survey at 4 ms on a 25 m grid, two horizons, synthetic curves
-    async loadVolumeFrame() { return { dtMs: 4, nIl: 16, nXl: 32, ns: 600, affine: { origin: { x: 0, y: 0 }, ilVec: { x: 0, y: 25 }, xlVec: { x: 25, y: 0 } } }; },
+    async loadVolumeFrame() { return { dtMs: 4, nIl: 16, nXl: 32, ns: 600, crs: 'EPSG:32630', affine: { origin: { x: 0, y: 0 }, ilVec: { x: 0, y: 25 }, xlVec: { x: 25, y: 0 } } }; },
     async listHorizons() { return [{ id: 'qi-h1', name: 'Top Sand A', is_own: true }, { id: 'qi-h2', name: 'Base Sand B', is_own: true }]; },
     // a fault crossing the survey between inline 7 and 8 (QI upgrade P2.8)
     async listFaults() { return [{ id: 'qi-f1', name: 'Keta Fault 1', is_own: true, sticks: [0, 10, 20, 31].map((xl) => ({ points: [{ il: 7.5, xl, s: 100 }, { il: 7.5, xl, s: 200 }, { il: 7.5, xl, s: 300 }] })) }]; },
@@ -211,7 +211,7 @@ function makeInMemoryJobs({ removedDatasets = new Set() } = {}) {
       }
       if (kind === 'prestack_inversion') {
         const blind = params.inversion.wells.map((w, i) => ({ name: w.name, blind: { ai: { rmsPct: 4.1 + i, corr: 0.9 }, si: { rmsPct: 5.2 + i, corr: 0.86 }, rho: { rmsPct: 3.3 + i, corr: 0.62 } }, withWell: { ai: { rmsPct: 2.5 }, si: { rmsPct: 3 }, rho: { rmsPct: 2 } } }));
-        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, settings: { method: 'Fatti three-term simultaneous inversion', vs_vp: 0.52, wavelet_scale: 1.1 }, blind, blind_protocol: { version: 'held-back-v2', excluded_from: ['the three low-frequency models', 'the wavelet scale', 'the background Vs/Vp'] }, ...(params.volume_ids ? { volume_ids: params.volume_ids } : {}) } });
+        results.set(id, { id, kind, params, status: 'succeeded', progress: 1, finished_at: new Date().toISOString(), result_refs: { mode: params.mode, settings: { method: 'Fatti three-term simultaneous inversion', vs_vp: 0.52, wavelet_scale: 1.1, wavelet_scale_tie: { corr: 0.86, samples: 900 } }, blind, blind_protocol: { version: 'held-back-v2', excluded_from: ['the three low-frequency models', 'the wavelet scale', 'the background Vs/Vp'] }, ...(params.volume_ids ? { volume_ids: params.volume_ids, warnings: ['6 of 245760 samples of the AI (0.0024 percent) came out as no number where the seismic had data and were written as nulls.'] } : {}) } });
         return id;
       }
       if (kind === 'sample_volumes' && params.traces) {

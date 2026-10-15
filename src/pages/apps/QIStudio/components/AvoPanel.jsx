@@ -43,6 +43,28 @@ export function avoCalibrationBlock({ cal, wells }) {
   return { ...out, scale_field: { wells: field, ...(cal.fieldMethod === 'kriging' ? { method: 'kriging', variogram: { model: 'spherical', range: Number(cal.range) } } : {}) } };
 }
 
+/**
+ * Why the calibration cannot run, or null (QI upgrade P2.10; round 3 adds
+ * the stale and empty cases, so a scale is never used from a comparison that
+ * no longer describes the stacks, and a chosen calibration never drops out
+ * silently).
+ */
+export function avoCalibrationProblem({ cal, wells, runs = [], stacks = [] }) {
+  if (cal.mode === 'none' && !cal.class) return null;
+  if (!wells) return 'Compare an AVO run at the wells first: the calibration uses its scales.';
+  if (cal.class && cal.mode === 'none') return 'An AVO class volume needs a calibration to reflectivity.';
+  if (cal.mode === 'field' && !wells.points) return 'Compare at the wells again: this comparison predates the scale field and has no well positions.';
+  const src = runs.find((r) => r.jobId === wells.runJobId);
+  const live = stacks.filter((x) => x.volumeId);
+  const key = (list) => list.map((x) => `${x.volumeId}@${Number(x.angle)}`).sort().join('|');
+  if (!src?.stacks) return `Compare at the wells again: the AVO run the comparison was made on (${wells.runName || 'an earlier run'}) is no longer in the study, so its scales cannot be checked against these stacks.`;
+  if (key(src.stacks) !== key(live)) return `Compare at the wells again on these stacks: the comparison was made on ${wells.runName || 'another run'}, whose stacks or angles differ, so its scales do not apply.`;
+  const block = avoCalibrationBlock({ cal, wells });
+  if (cal.mode === 'one' && block.scale == null) return 'The comparison at the wells gave no usable survey scale; compare at the wells again.';
+  if (cal.mode === 'field' && !block.scale_field) return 'No well of the comparison has both a scale and a position; compare at the wells again.';
+  return null;
+}
+
 /** Why the stacks cannot run, or null. */
 export function avoProblem(stacks) {
   const live = stacks.filter((s) => s.volumeId);
@@ -66,11 +88,9 @@ export default function AvoPanel() {
   const [cal, setCal] = useState({ terms: '2', mode: 'none', fieldMethod: 'idw', range: '2000', C: false, class: false });
   const stops = useRef([]);
   useEffect(() => () => { for (const s of stops.current) s(); }, []);
-  const calProblem = (cal.mode !== 'none' || cal.class) && !project.avo?.wells ? 'Compare an AVO run at the wells first: the calibration uses its scales.'
-    : cal.class && cal.mode === 'none' ? 'An AVO class volume needs a calibration to reflectivity.'
-    : cal.mode === 'field' && !project.avo.wells.points ? 'Compare at the wells again: this comparison predates the scale field and has no well positions.'
-    : cal.C && cal.terms !== '2' && shueyTermsFor(stacks.filter((x) => x.volumeId && String(x.angle).trim() !== '').map((x) => Number(x.angle))) < 3 && cal.terms === 'auto' ? 'These stacks support two terms only, so the curvature cannot be written.'
-      : cal.fieldMethod === 'kriging' && cal.mode === 'field' && !(Number(cal.range) > 0) ? 'Give the kriging range in metres.' : null;
+  const calProblem = avoCalibrationProblem({ cal, wells: project.avo?.wells, runs: project.avo?.runs || [], stacks })
+    || (cal.C && cal.terms !== '2' && shueyTermsFor(stacks.filter((x) => x.volumeId && String(x.angle).trim() !== '').map((x) => Number(x.angle))) < 3 && cal.terms === 'auto' ? 'These stacks support two terms only, so the curvature cannot be written.'
+      : cal.fieldMethod === 'kriging' && cal.mode === 'field' && !(Number(cal.range) > 0) ? 'Give the kriging range in metres.' : null);
   const problem = avoProblem(stacks) || (!Object.values(products).some(Boolean) && !cal.C && !cal.class ? 'Choose at least one product.' : null) || calProblem;
   const runs = project.avo?.runs || [];
   // stack matching (Q5): every stack onto a reference, one operator each
@@ -95,6 +115,7 @@ export default function AvoPanel() {
   };
 
   const run = async () => {
+    if (problem) return; // the button is disabled too; a stale calibration never reaches the job
     const live = stacks.filter((s) => s.volumeId);
     const first = chosenVolumes.find((v) => v.id === live[0].volumeId);
     const keys = [...Object.keys(products).filter((k) => products[k]), ...(cal.C ? ['C'] : []), ...(cal.class ? ['class'] : [])];

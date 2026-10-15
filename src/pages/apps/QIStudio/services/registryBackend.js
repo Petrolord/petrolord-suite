@@ -81,7 +81,9 @@ export function makeRegistryBackend() {
       return (data || []).filter((v) => (v.status || 'ready') === 'ready' && (!v.kind || v.kind === 'seismic' || (v.kind === 'attribute' && v.attribute_params?.name === 'qi_matched_stack')));
     },
     async loadVolumeFrame(volume) {
-      return volumeFrame(await getManifest(volume));
+      const f = volumeFrame(await getManifest(volume));
+      // the volume row's crs column is the registry's tag (QI round 3, F-2)
+      return volume?.crs ? { ...f, crs: volume.crs } : f;
     },
     async listHorizons(volumeId) {
       return (await listHorizons(volumeId)).filter((h) => h.is_own);

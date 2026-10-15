@@ -11,7 +11,7 @@
 
 import { forwardFatti, simultaneousInversion } from '../engine/prestackInversion';
 import { lfmTrace, blindWellScore } from '../engine/lfm';
-import { lfmWells, lowPassFinite, halfWindowFor } from './inversionRun';
+import { lfmWells, lowPassFinite, halfWindowFor, MIN_SCALE_TIE } from './inversionRun';
 
 export const PRESTACK_PARAMS = Object.freeze([
   { key: 'ai', log: 'ln_ai', label: 'AI' },
@@ -91,7 +91,7 @@ const holdFill = (values) => {
  * @param {Array<{traces: ArrayLike<number>[], well}>} pairs
  */
 export function prestackWaveletScale(pairs, thetaDeg, wavelet, vsVp) {
-  let sxy = 0; let sxx = 0; let n = 0;
+  let sxy = 0; let sxx = 0; let syy = 0; let n = 0;
   const perAngle = Array.isArray(wavelet[0]) || ArrayBuffer.isView(wavelet[0]);
   const half = perAngle ? Math.max(...wavelet.map((w) => (w.length - 1) / 2)) : (wavelet.length - 1) / 2;
   for (const { traces, well } of pairs) {
@@ -102,12 +102,30 @@ export function prestackWaveletScale(pairs, thetaDeg, wavelet, vsVp) {
     for (let k = 0; k < traces.length; k++) {
       for (let i = 0; i < traces[k].length; i++) {
         if (isNull(traces[k][i]) || !covered(i)) continue;
-        sxy += syn[k][i] * traces[k][i]; sxx += syn[k][i] * syn[k][i]; n += 1;
+        sxy += syn[k][i] * traces[k][i]; sxx += syn[k][i] * syn[k][i]; syy += traces[k][i] * traces[k][i]; n += 1;
       }
     }
   }
   if (n < 20 || !(sxx > 0)) throw new Error('The wells overlap too little seismic to scale the wavelet.');
-  return { scale: sxy / sxx, samples: n };
+  // corr: how well the Fatti synthetic follows the stacks over the samples
+  // the scale was fitted on (round 3, 2026-10-15: the tie guard post-stack
+  // has had since #1154)
+  return { scale: sxy / sxx, samples: n, corr: syy > 0 ? Math.abs(sxy) / Math.sqrt(sxx * syy) : 0 };
+}
+
+/**
+ * The tie guard on the simultaneous wavelet scale (QI round 3, 2026-10-15),
+ * as post-stack's (F3 benchmark F-3): a poor tie shrinks the least-squares
+ * scale towards zero and the absolute inversion is untrustworthy. Measured
+ * on every well; under MIN_SCALE_TIE the run is refused.
+ * @returns {{corr: number, samples: number}}
+ */
+export function prestackScaleTie(pairs, thetaDeg, wavelet, vsVp) {
+  const { corr, samples } = prestackWaveletScale(pairs, thetaDeg, wavelet, vsVp);
+  if (!(corr >= MIN_SCALE_TIE)) {
+    throw new Error(`The wells tie too poorly to scale the wavelet: the Fatti synthetic follows the stacks at a correlation of ${(Math.floor(corr * 1000) / 1000).toFixed(3)} over the wells, under ${MIN_SCALE_TIE}. A simultaneous inversion scaled on it would not be trustworthy. Improve the ties (Well ties tab: commit a shift and a phase, or load measured checkshots) and check the stacks are matched.`);
+  }
+  return { corr, samples };
 }
 
 /**
@@ -190,6 +208,7 @@ export function makeBlindCdpInverter({ inv, thetaDeg, wavelet, onGrid = (x) => F
     const scaled = Array.isArray(w0) ? w0.map((w) => w.map((v) => v * scale)) : w0.map((v) => v * scale);
     return { scale, vsVp, wavelet: scaled, invert: makeCdpInverter({ inv: s, thetaDeg, wavelet: scaled, lfm, posOf, horizonsAt, ns, dtMs, vsVp }) };
   };
+  const scaleTie = prestackScaleTie(wells.map((w, k) => ({ well: w, traces: tracesByWell[k] })), thetaDeg, wavelet, typedVsVp ?? meanVsVp(wells));
   const full = build(null);
   const held = new Map();
   const heldBack = [];
@@ -216,7 +235,7 @@ export function makeBlindCdpInverter({ inv, thetaDeg, wavelet, onGrid = (x) => F
   if (blindW.size) excluded.push(perStack ? 'the angle wavelet averages' : 'the field wavelet average');
   const waveletWell = typeof inv.wavelet_well === 'string' && inv.wavelet_well ? inv.wavelet_well : null;
   const protocol = { version: PRESTACK_BLIND_PROTOCOL, excluded_from: excluded, notes, ...(waveletWell ? { wavelet_from_well: waveletWell } : {}) };
-  return { invert, scale: full.scale, vsVp: full.vsVp, scaledWavelet: full.wavelet, protocol, heldBack, blindTraces };
+  return { invert, scale: full.scale, vsVp: full.vsVp, scaledWavelet: full.wavelet, protocol, heldBack, blindTraces, scaleTie };
 }
 
 /**

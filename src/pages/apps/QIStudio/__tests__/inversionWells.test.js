@@ -88,3 +88,58 @@ describe('property curves in time', () => {
     expect(r.facies.names).toEqual({ 1: 'sand', 2: 'shale' });
   });
 });
+
+// F3 benchmark F-2 (QI round 3, 2026-10-15): prepareWell compares the well's
+// CRS tag with the volume's before placing it. A well in another known CRS is
+// converted (as Seismolord's displays do); an untagged one is placed with a
+// note; a local grid against a projected CRS is refused. Negative control:
+// the same coordinates read as if they were already in the volume's CRS (the
+// behaviour before) land on another trace or off the survey.
+describe('well CRS against the volume (F-2)', () => {
+  const setup = async () => {
+    const { transformPoint } = await import('@/lib/crs');
+    const b = makeInMemoryBackend();
+    const [w1] = await b.listWells();
+    const loaded = await b.loadWell(w1);
+    const src = { x: 450000, y: 5900000 }; // EPSG:32631 (F3 is in UTM 31N)
+    const inVol = transformPoint('EPSG:32631', 'EPSG:32630', src.x, src.y);
+    const frame0 = await frameOf();
+    // the volume (EPSG:32630) has the well's converted position at inline 5, crossline 8
+    const frame = { ...frame0, crs: 'EPSG:32630', affine: { ...frame0.affine, origin: { x: inVol.x - 200, y: inVol.y - 125 } } };
+    const withCrs = (crs, xy = src) => ({ ...loaded, well: { ...loaded.well, crs, surface_x: xy.x, surface_y: xy.y } });
+    return { b, loaded, frame, withCrs, src, inVol };
+  };
+  test('another known CRS is converted to the volume\'s and lands on the right trace', async () => {
+    const { b, frame, withCrs, src, inVol } = await setup();
+    expect(Math.hypot(inVol.x - src.x, inVol.y - src.y)).toBeGreaterThan(1000);
+    const r = await prepareWell(withCrs('EPSG:32631'), frame, b.downloadCurve);
+    expect(r.ok).toBe(true);
+    expect([r.il, r.xl]).toEqual([5, 8]);
+    expect(r.crs.status).toBe('converted');
+    expect(r.crs.note).toMatch(/EPSG:32631.*EPSG:32630.*converted/);
+    // negative control: the same numbers taken as EPSG:32630 (no conversion) do not land there
+    const wrong = await prepareWell(withCrs('EPSG:32630'), frame, b.downloadCurve);
+    expect(wrong.ok && wrong.il === 5 && wrong.xl === 8).toBe(false);
+  });
+  test('the same CRS places as before, with no note', async () => {
+    const { b, frame, withCrs, inVol } = await setup();
+    const r = await prepareWell(withCrs('EPSG:32630', inVol), frame, b.downloadCurve);
+    expect([r.il, r.xl]).toEqual([5, 8]);
+    expect(r.crs).toEqual({ status: 'same' });
+  });
+  test('an untagged well is placed unverified with a note; a local grid is refused', async () => {
+    const { b, frame, withCrs, inVol } = await setup();
+    const r = await prepareWell(withCrs(null, inVol), frame, b.downloadCurve);
+    expect(r.ok).toBe(true);
+    expect(r.crs.status).toBe('unverified');
+    expect(r.crs.note).toMatch(/the well has no CRS \(the volume is in EPSG:32630\)/);
+    const loc = await prepareWell(withCrs('LOCAL', inVol), frame, b.downloadCurve);
+    expect(loc.ok).toBe(false);
+    expect(loc.reason).toMatch(/local grid cannot be placed/);
+  });
+  test('volumeFrame reads the CRS tag from the manifest\'s crs block', () => {
+    const g = { dt_us: 4000, il: { count: 2 }, xl: { count: 2 }, ns: 10, corners: [[0, 0], [1, 0], [0, 1]] };
+    expect(volumeFrame({ geometry: { ...g, crs: { project: 'EPSG:32631', native: 'EPSG:23031' } } }).crs).toBe('EPSG:32631');
+    expect(volumeFrame({ geometry: g }).crs).toBe(null);
+  });
+});

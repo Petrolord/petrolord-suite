@@ -18,6 +18,9 @@ import { makeTvdssToTwt, normalizeStations } from '../../../../../packages/engin
 import { computeWellPath, positionAtMd } from '../../../../../packages/engines/engines/seismolord/wellPath';
 import { surveyAffine, worldToIlxl } from '../../../../../packages/engines/engines/seismolord/surveyGeometry';
 import { familyOf, editKind } from './usability';
+import { compareTags, normalizeTag } from '@/lib/crs/tags';
+import { cachedTransformer } from '@/lib/crs/guards';
+import { rowDatumTransform } from '@/lib/crs';
 
 const span = (l) => Math.max(0, Number(l.stop_md_m) - Number(l.start_md_m)) || 0;
 
@@ -39,7 +42,35 @@ export function volumeFrame(manifest) {
   const dtMs = Number(g.dt_us) / 1000;
   const nIl = g.il?.count; const nXl = g.xl?.count; const ns = g.ns;
   if (!(dtMs > 0) || !(nIl > 0) || !(nXl > 0) || !(ns > 0)) throw new Error('The volume manifest has no usable geometry.');
-  return { dtMs, nIl, nXl, ns, affine: surveyAffine(g) };
+  // the volume's CRS tag (the manifest's crs block names the project CRS the survey was placed in)
+  const crs = typeof g.crs === 'string' ? g.crs : g.crs?.project || null;
+  return { dtMs, nIl, nXl, ns, affine: surveyAffine(g), crs };
+}
+
+/**
+ * The well's CRS against the volume's (QI round 3, F3 benchmark F-2: a well
+ * saved in another CRS landed about 200 m off without a word). Same tags
+ * place as they are; known different tags convert the well's position into
+ * the volume's CRS (as Seismolord's displays do); an untagged well or volume
+ * places unverified, with a note; a local grid against anything else is
+ * refused.
+ * @returns {{status: 'same'|'converted'|'unverified'|'refused', note: ?string, toVolume: ?(x, y) => {x, y}}}
+ */
+export function wellCrsCheck(well, volumeTag, customDefs = {}) {
+  const wt = normalizeTag(well?.crs); const vt = normalizeTag(volumeTag);
+  const rel = compareTags(wt, vt);
+  if (rel === 'same') return { status: 'same', note: null, toVolume: null };
+  if (rel === 'local-mismatch') return { status: 'refused', note: `The well is in ${wt} and the volume in ${vt}; a local grid cannot be placed on another CRS. Set the well's CRS in Well Data Manager.`, toVolume: null };
+  if (rel === 'unknown') {
+    const which = wt === 'UNKNOWN' && vt === 'UNKNOWN' ? 'neither the well nor the volume has a CRS' : wt === 'UNKNOWN' ? `the well has no CRS (the volume is in ${vt})` : `the volume has no CRS (the well is in ${wt})`;
+    return { status: 'unverified', note: `CRS not checked: ${which}, so the well is placed on its coordinates as they are. Tag the CRS so a well in another CRS cannot land off position.`, toVolume: null };
+  }
+  try {
+    const t = cachedTransformer(wt, vt, customDefs, rowDatumTransform(well));
+    return { status: 'converted', note: `The well is in ${wt} and the volume in ${vt}: its position was converted to the volume's CRS.`, toVolume: (x, y) => t.forward(x, y) };
+  } catch (e) {
+    return { status: 'refused', note: `The well is in ${wt} and the volume in ${vt}, and ${wt} cannot be converted (${e.message}).`, toVolume: null };
+  }
 }
 
 /**
@@ -50,7 +81,7 @@ export function volumeFrame(manifest) {
  * @returns {Promise<{name, wellId, ok: boolean, reason?: string, il?, xl?, ln_ai?: number[],
  *   curves?: string, timeSource?: string, samples?: number}>}
  */
-export async function prepareWell(loaded, frame, downloadCurve, { extras = [], topsMd = [], ntgCutoffs = NTG_CUTOFF_DEFAULTS } = {}) {
+export async function prepareWell(loaded, frame, downloadCurve, { extras = [], topsMd = [], ntgCutoffs = NTG_CUTOFF_DEFAULTS, customDefs = {} } = {}) {
   const { well, logs } = loaded;
   const base = { name: well.name, wellId: well.id };
   const no = (reason) => ({ ...base, ok: false, reason });
@@ -64,6 +95,8 @@ export async function prepareWell(loaded, frame, downloadCurve, { extras = [], t
   const kb = refElevOrNull(well);
   if (kb == null) return no('The well has no depth reference elevation (Well Data Manager, Header).');
   if (!frame.affine) return no('The volume has no survey geometry to place the well.');
+  const crsCheck = wellCrsCheck(well, frame.crs, customDefs);
+  if (crsCheck.status === 'refused') return no(crsCheck.note);
   const stations = normalizeStations({ deviation: well.deviation, tdMdM: well.td_md_m ?? Number(sonic.log.stop_md_m) });
   if (!stations) return no('The well has no deviation survey or total depth.');
   let path;
@@ -99,7 +132,8 @@ export async function prepareWell(loaded, frame, downloadCurve, { extras = [], t
   // the trace at the middle of the impedance log
   let lo = Infinity; let hi = -Infinity;
   for (let i = 0; i < md.length; i++) if (Number.isFinite(imp[i]) && Number.isFinite(twt[i])) { lo = Math.min(lo, md[i]); hi = Math.max(hi, md[i]); }
-  const pos = positionAtMd(stations, path, (lo + hi) / 2);
+  const pos0 = positionAtMd(stations, path, (lo + hi) / 2);
+  const pos = pos0 && crsCheck.toVolume ? { ...pos0, ...crsCheck.toVolume(pos0.x, pos0.y) } : pos0;
   const ij = pos ? worldToIlxl(frame.affine, pos.x, pos.y) : null;
   const il = ij ? Math.round(ij.i) : NaN; const xl = ij ? Math.round(ij.j) : NaN;
   if (!(il >= 0 && il < frame.nIl && xl >= 0 && xl < frame.nXl)) return no('The well is outside the survey.');
@@ -172,6 +206,7 @@ export async function prepareWell(loaded, frame, downloadCurve, { extras = [], t
     curves: `${named(sonic)} and ${named(density)}`,
     timeSource: cs.derived ? 'the committed well tie' : 'imported checkshots',
     timeControl: { fromTvdssM: control[0], toTvdssM: control[1] },
+    crs: { status: crsCheck.status, ...(crsCheck.note ? { note: crsCheck.note } : {}) },
     ...extra,
   };
 }
