@@ -400,3 +400,23 @@ test('the wavelet scale needs a tie: recorded when good, refused when the logs d
   expect(ok.settings.wavelet_scale_tie.corr).toBeGreaterThan(0.99);
   await expect(poststackInversion(ctxFor(params('blind', { wells: wrong })), depsFor({ volumes: { [VOL]: PARENT }, horizons: HZ_ROWS }))).rejects.toThrow(/tie too poorly/);
 });
+
+// F3 benchmark F-6 (2026-10-15): the coloured operator is built from
+// amplitude spectra, so on reversed-polarity seismic its output ran against
+// the logs. The polarity now comes from the wells. Negative control: the
+// same seismic with its sign flipped gives the same blind correlations.
+test('coloured inversion takes its polarity from the wells: reversed seismic gives the same blind correlations', async () => {
+  const flipped = () => async (path) => Float32Array.from(new Float32Array(STORE.get(path.match(/bricks\/(\d+-\d+-\d+)\.f32$/)[1]).slice().buffer), (v) => (Math.abs(v) < 1e29 ? -v : v)).buffer;
+  const run = (extra) => poststackInversion(ctxFor(params('blind', { method: 'coloured' })), depsFor({ volumes: { [VOL]: PARENT }, horizons: HZ_ROWS }, extra));
+  const a = await run({});
+  const b = await run({ makeFetcher: flipped });
+  for (let k = 0; k < a.blind.length; k++) {
+    expect(a.blind[k].blind.corr).toBeGreaterThan(0.3);
+    expect(b.blind[k].blind.corr).toBeCloseTo(a.blind[k].blind.corr, 6);
+  }
+  const { colouredFromWells } = await import('../../../src/pages/apps/QIStudio/services/inversionRun.js');
+  const logs = WELLS.map((w) => w.ln_ai.map((v) => (v == null ? NaN : v)));
+  const args = (sign) => ({ wellTraces: WELLS.map((w) => seis(w.il).map((v) => sign * v)), wellLogs: logs, dtMs: DT_MS, ns: NS, band: [5, 60] });
+  expect(colouredFromWells(args(1)).polarity).toBe(1);
+  expect(colouredFromWells(args(-1)).polarity).toBe(-1);
+});

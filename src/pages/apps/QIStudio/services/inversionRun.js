@@ -209,7 +209,35 @@ export function colouredFromWells({ wellTraces, wellLogs, dtMs, ns, band }) {
   if (!slopes.length) throw new Error('Coloured inversion needs at least one impedance log of 64 samples or more.');
   const alpha = slopes.reduce((a, b) => a + b, 0) / slopes.length;
   const seismicAmp = averageAmplitude(wellTraces, dtMs);
-  return { alpha, operator: colouredOperator({ seismicAmp, alpha, n: ns, dtMs, band }) };
+  const operator = colouredOperator({ seismicAmp, alpha, n: ns, dtMs, band });
+  // polarity from the wells (F3 benchmark F-6, 2026-10-15): the operator is
+  // built from amplitude spectra, so on reversed-polarity seismic its output
+  // was anticorrelated with the logs. Each well's output is compared with its
+  // log in the inversion band; a negative sum flips the operator.
+  const polarity = colouredPolarity({ operator, wellTraces, wellLogs, dtMs, band, ns });
+  if (polarity < 0) for (let k = 0; k < operator.gain.length; k++) operator.gain[k] = -operator.gain[k];
+  return { alpha, operator, polarity };
+}
+
+/** The sign that makes the coloured output follow the logs at the wells: 1, or -1 for reversed polarity. */
+export function colouredPolarity({ operator, wellTraces, wellLogs, dtMs, band, ns }) {
+  let total = 0;
+  wellTraces.forEach((trace, k) => {
+    const log = wellLogs[k];
+    const d = new Float64Array(ns);
+    for (let i = 0; i < ns; i++) d[i] = isNull(trace[i]) ? 0 : trace[i];
+    const out = applyColoured(d, operator);
+    const hi = lowPassFinite(log, halfWindowFor(band[1], dtMs));
+    const lo = lowPassFinite(log, halfWindowFor(band[0], dtMs));
+    let sxy = 0; let sxx = 0; let syy = 0;
+    for (let i = 0; i < ns; i++) {
+      const y = hi[i] - lo[i];
+      if (!fin(y) || !fin(out[i]) || isNull(trace[i])) continue;
+      sxy += out[i] * y; sxx += out[i] * out[i]; syy += y * y;
+    }
+    if (sxx > 0 && syy > 0) total += sxy / Math.sqrt(sxx * syy);
+  });
+  return total < 0 ? -1 : 1;
 }
 
 function longestFiniteRun(values) {
@@ -355,7 +383,7 @@ export function makeBlindInverter({ inv, wavelet, onGrid = (x) => Float64Array.f
   let tie = null;
   if (absolute) {
     tie = scaleTieQuality(wells.map((w, k) => ({ trace: traces[k], lnAi: w.ln_ai })), wavelet);
-    if (!(tie.corr >= MIN_SCALE_TIE)) throw new Error(`The wells tie too poorly to scale the wavelet: the synthetic follows the seismic at a correlation of ${tie.corr.toFixed(2)} over the wells, under ${MIN_SCALE_TIE}. An absolute inversion scaled on it would not be trustworthy. Improve the ties (Well ties tab: commit a shift, a phase and a stretch) or run a coloured inversion.`);
+    if (!(tie.corr >= MIN_SCALE_TIE)) throw new Error(`The wells tie too poorly to scale the wavelet: the synthetic follows the seismic at a correlation of ${(Math.floor(tie.corr * 1000) / 1000).toFixed(3)} over the wells, under ${MIN_SCALE_TIE}. An absolute inversion scaled on it would not be trustworthy. Improve the ties (Well ties tab: commit a shift and a phase, or load measured checkshots) or run a coloured inversion.`);
   }
   const full = build(null);
   const held = new Map();

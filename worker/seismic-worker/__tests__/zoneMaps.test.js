@@ -143,3 +143,20 @@ test('guards: settings, one lattice, own horizons on the lattice, quota, cancel'
   await expect(zoneMaps(ctxFor(params()), depsFor({ quota: 10 }).d)).rejects.toMatchObject({ stage: 'over_quota' });
   expect(await zoneMaps(ctxFor(params(), { cancelled: true }), depsFor().d)).toBeNull();
 });
+
+// F3 benchmark F-7 (2026-10-15): a lattice hole (no trace) got a thickness
+// from the horizons alone. It now gets no value; its neighbours keep theirs.
+test('a lattice hole gets no map value, not even a thickness', async () => {
+  const { d, uploads } = depsFor();
+  const base = d.makeFetcher;
+  d.makeFetcher = (m, k) => async (path) => {
+    const buf = new Float32Array(await base(m, k)(path));
+    if (/\/0-0-\d+\.f32$/.test(path)) for (let s = 0; s < B; s++) buf[((2 % B) * B + (2 % B)) * B + s] = NULL_VALUE;
+    return buf.buffer;
+  };
+  const out = await zoneMaps(ctxFor(params()), d);
+  const thick = uploads.get(`${UID}/qi-zone-maps/job-1/thick.f32`);
+  expect(thick[2 * NXL + 2]).toBe(Math.fround(1e30));
+  expect(thick[2 * NXL + 3]).not.toBe(Math.fround(1e30));
+  expect(out.traces_with_zone).toBe(NIL * NXL - 2);
+});
