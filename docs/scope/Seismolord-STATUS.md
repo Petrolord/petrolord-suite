@@ -2814,3 +2814,11 @@ drawing as they did. The engine and the display math are untouched.
 - **Allowance:** a linked file still counts its size against the 150 GiB raw allowance, as a copied file did, until the separate migration PR (`20261015200000_qi_link_datasets_quota.sql`, function body only) is applied by the owner.
 - Not changed: gathers from a link (not detected by the dialog yet) read the link directly, twice.
 - Needs the worker redeploy (worker) and the next Suite zip (the dialog copy only; the old dialog works with linked files unchanged).
+
+## 2026-10-15: cropped uploads hold a fraction of the memory (QI round 3)
+
+- The crop build's live test measured the renderer at about 1.3 GB during a cropped upload: each 64 MiB part was read from the cropped file at once (the cropped reader allocates the output, a whole-trace block and the source chunks, about three times the read), two lanes, and the part was handed to XHR as a Uint8Array.
+- Now a cropped (virtual) file's part is read in 8 MiB pieces (`src/lib/qiUploadParts.js`); in the browser each piece goes into a Blob at once and the part is a Blob of the pieces, which XHR sends from the browser's Blob storage. Part numbers, sizes and bytes are unchanged, so resume (local and server-side fingerprint) is unaffected. Two lanes as before.
+- **Measured in Chromium** (Playwright 1.61.1 on the worker host; a 4.7 GB generated stack cropped to 1.18 GB, 19 parts of 64 MiB, real XHR PUTs to a local sink reading at about 40 MB/s): before, JS heap peak 677 and 770 MB, renderer RSS peak 1,487 and 1,493 MB, 109 and 99 s; after, heap 195 and 184 MB, renderer RSS 238 and 292 MB, 24.6 s both runs. Every byte arrived in both modes.
+- Tests: `src/lib/__tests__/qiUpload.test.js` (a part read in pieces assembles the same bytes and keeps the part layout; one read per part is the negative control; the Blob path holds the same bytes).
+- Needs the next Suite zip (browser code).

@@ -5,6 +5,7 @@
 // the qi-upload-url function and the S3 store. The bytes the "store"
 // assembles must equal the file, across an interruption and a resume.
 import { uploadLargeFile, abandonUpload, fileFingerprint } from '../qiUpload';
+import { readVirtualPart } from '../qiUploadParts';
 
 jest.mock('@/lib/customSupabaseClient', () => ({ supabase: {} }));
 
@@ -228,3 +229,40 @@ describe('abandonUpload', () => {
     expect(storage.m.size).toBe(0);
   });
 });
+
+// A cropped (virtual) file's parts are read in pieces (2026-10-15, QI round 3):
+// the cropped reader allocates about three times each read, so the read size,
+// not the part size, sets the page's memory per lane.
+describe('virtual file parts', () => {
+  function virtualFile(size) {
+    const bytes = Uint8Array.from({ length: size }, (_, i) => (i * 13 + 5) % 253);
+    const reads = [];
+    return {
+      name: 'survey_crop.sgy', size, lastModified: 1, cropKey: 'k', virtual: true, bytes, reads,
+      read: async (o, n) => { reads.push(n); return bytes.slice(o, o + n).buffer; },
+      slice: (a, b) => ({ arrayBuffer: async () => bytes.slice(a, b).buffer }),
+    };
+  }
+
+  test('a part is read in pieces and the store assembles the same bytes; one read per part is the negative control', async () => {
+    const s = fakeServer(); const f = virtualFile(4321);
+    const ds = await uploadLargeFile(f, { invoke: s.invoke, fetchImpl: s.fetchImpl, storage: memStorage(), sleep: noSleep, virtualPieceBytes: 256 });
+    expect(same(s.uploads.get(ds.id).assembled, f.bytes)).toBe(true);
+    expect(Math.max(...f.reads)).toBe(256);
+    expect(s.uploads.get(ds.id).partCount).toBe(5); // the part layout the resume protocol records is unchanged
+    const s2 = fakeServer(); const g = virtualFile(4321);
+    await uploadLargeFile(g, { invoke: s2.invoke, fetchImpl: s2.fetchImpl, storage: memStorage(), sleep: noSleep, virtualPieceBytes: Infinity });
+    expect(Math.max(...g.reads)).toBe(PART);
+  });
+
+  test('as Blobs (the browser path) the part holds the same bytes, built from pieces', async () => {
+    const f = virtualFile(3000);
+    const blob = await readVirtualPart(f, 1000, 1500, { pieceBytes: 400, asBlob: true });
+    expect(blob.size).toBe(1500);
+    expect(same(new Uint8Array(await blob.arrayBuffer()), f.bytes.subarray(1000, 2500))).toBe(true);
+    expect(f.reads).toEqual([400, 400, 400, 300]);
+    const bytes = await readVirtualPart(f, 2999, 1, { pieceBytes: 400 });
+    expect(Array.from(bytes)).toEqual([f.bytes[2999]]);
+  });
+});
+

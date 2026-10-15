@@ -9,6 +9,7 @@
 //   fetchImpl     -> fetch for the part PUTs
 //   storage       -> localStorage-like (getItem/setItem/removeItem); may throw
 import { supabase } from '@/lib/customSupabaseClient';
+import { readVirtualPart, VIRTUAL_PIECE_BYTES } from './qiUploadParts';
 
 export const UPLOAD_FUNCTION = 'qi-upload-url';
 const KEY_PREFIX = 'qi-upload:';
@@ -71,13 +72,15 @@ export async function uploadLargeFile(file, {
   organizationId = null,
   sleep = sleepMs,
   fingerprint = null, // async (file) => {algo, hash, size}: lets the server resume across browsers
+  virtualPieceBytes = VIRTUAL_PIECE_BYTES, // a cropped file's parts are read in pieces (qiUploadParts.js)
+  blobParts = null, // a cropped file's part bodies as Blobs (default: when sending with XHR, in a browser)
 } = {}) {
   const store = safeStorage(storage);
   const memoKey = KEY_PREFIX + fileFingerprint(file);
   let datasetId = store.get(memoKey);
   const useXhr = !fetchImpl && typeof XMLHttpRequest !== 'undefined';
   const doFetch = fetchImpl || ((...a) => fetch(...a));
-  // a cropped file's parts are assembled in memory: keep two in flight
+  // a cropped file's parts are produced in memory: keep two in flight
   const lanes = file.virtual ? Math.min(concurrency, 2) : concurrency;
   let partSize;
   let partCount;
@@ -139,7 +142,9 @@ export async function uploadLargeFile(file, {
 
   async function putPart(n) {
     const start = (n - 1) * partSize;
-    const blob = file.virtual ? new Uint8Array(await file.read(start, sizeOf(n))) : file.slice(start, start + sizeOf(n));
+    const blob = file.virtual
+      ? await readVirtualPart(file, start, sizeOf(n), { pieceBytes: virtualPieceBytes, asBlob: blobParts ?? useXhr })
+      : file.slice(start, start + sizeOf(n));
     for (let attempt = 1; ; attempt += 1) {
       if (signal?.aborted) throw new DOMException('Upload paused', 'AbortError');
       const url = await urlFor(n, attempt > 1);
