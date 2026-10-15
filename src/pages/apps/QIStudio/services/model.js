@@ -188,5 +188,6 @@ export function runChoices(project) {
   for (const x of project?.avo?.runs || []) add(`avo:${x.jobId || x.name}`, `AVO ${x.name || ''}`.trim(), x.at);
   for (const [id, r] of Object.entries(project?.prestack || {})) if (r?.at) add(`prestack:${id}`, `Angle stacks from ${r.name || 'a gather store'}`, r.at);
   for (const [id, r] of Object.entries(project?.prestackQc || {})) if (r?.at) add(`prestack-qc:${id}`, `Prestack QC of ${r.name || 'a gather store'}`, r.at);
+  for (const [t, f] of Object.entries(project?.feasibility || {})) if (f?.sweep?.at) add(`feasibility-sweep:${t}`, `Feasibility sweep of ${t}`, f.sweep.at);
   return out.sort((a, b) => b.at.localeCompare(a.at)).map(({ key, label }) => ({ key, label }));
 }
