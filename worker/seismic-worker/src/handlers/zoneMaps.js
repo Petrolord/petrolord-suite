@@ -164,6 +164,11 @@ export async function zoneMaps(ctx, deps) {
           for (let s = r[0]; s <= r[1]; s++) out[s] = bricks[m][Math.floor(s / b) - k0][off + (s % b)];
           traces[m] = out;
         }
+        // a lattice hole (no trace in any volume over the zone) gets no map value,
+        // so the thickness is not mapped where there is no seismic (F3 benchmark F-7)
+        let seen = false;
+        for (let m = 0; m < vols.length && !seen; m++) for (let s = r[0]; s <= r[1]; s++) { const v = tr[m][s]; if (Number.isFinite(v) && Math.abs(v) < 1e29) { seen = true; break; } }
+        if (!seen) continue;
         const vals = zoneProducts({ traces, products: p.products, range: r, top: t, base: base ? bs : null, dtMs });
         let any = false;
         vals.forEach((v, o) => { if (Number.isFinite(v)) { maps[o][c] = v; any = true; } });
