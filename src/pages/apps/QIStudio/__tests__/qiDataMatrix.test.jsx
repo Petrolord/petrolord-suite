@@ -39,11 +39,11 @@ jest.setTimeout(90000);
 beforeEach(() => { mockStore.rows = new Map(); });
 const cell = (well, col) => screen.getByTestId(`pdi-cell-${well}-${col}`);
 
-test('the tab is last; the recorded tabs keep their names and order', async () => {
+test('the tab follows the recorded tabs, which keep their names and order (later upgrade tabs come after it)', async () => {
   render(<MemoryRouter><QIStudio backend={makeInMemoryBackend()} sharingStore={null} /></MemoryRouter>);
   await screen.findByTestId('qi-well-qi-w1', {}, { timeout: 30000 });
   const tabs = within(screen.getByRole('tablist')).getAllByRole('tab').map((t) => t.getAttribute('data-testid'));
-  expect(tabs).toEqual(['setup', 'inventory', 'usability', 'qc', 'ties', 'prestack', 'avo', 'inversion', 'simultaneous', 'properties', 'prospects', 'issues', 'feasibility', 'report', 'datainventory'].map((k) => `qi-tab-${k}`));
+  expect(tabs.slice(0, 15)).toEqual(['setup', 'inventory', 'usability', 'qc', 'ties', 'prestack', 'avo', 'inversion', 'simultaneous', 'properties', 'prospects', 'issues', 'feasibility', 'report', 'datainventory'].map((k) => `qi-tab-${k}`));
   expect(screen.getByTestId('qi-tab-setup')).toHaveAttribute('aria-selected', 'true');
 });
 

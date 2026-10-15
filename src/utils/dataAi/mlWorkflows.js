@@ -24,6 +24,9 @@ import { MAX_IMPORTANCE_ROWS } from '@/utils/dataAi/mlData';
 export const ENGINE_VERSION = 'petrolord-engines 1b0a7a8 (engines/dataai/ml.js, PR #252; PR #254 added the rowNoun option, default messages unchanged; ml.js unchanged since ef4058f)';
 export const ENGINE_COMMIT = '1b0a7a80612dc9e428f01d0312f7e66c6d7dbea0';
 
+export const ENGINE_VERSION = 'petrolord-engines d6c4d60 (engines/dataai/ml.js, PR #252; PR #254 added the rowNoun option, default messages unchanged; ml.js unchanged since ef4058f)';
+export const ENGINE_COMMIT = 'd6c4d601587414aea06b6fba5e55f8c1b3615f8e';
+
 export const DEFAULT_SEED = 42;
 
 export const MODEL_KINDS = {

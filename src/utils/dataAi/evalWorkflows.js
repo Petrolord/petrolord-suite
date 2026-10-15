@@ -35,6 +35,9 @@ import { APP_CAPS, cmpId, judgedQueryIds } from '@/utils/dataAi/evalData';
 export const ENGINE_VERSION = 'petrolord-engines 1b0a7a8 (engines/dataai/evaluate.js, PR #257; PR #258 note and basis wording, no numeric change)';
 export const ENGINE_COMMIT = '1b0a7a80612dc9e428f01d0312f7e66c6d7dbea0';
 
+export const ENGINE_VERSION = 'petrolord-engines d6c4d60 (engines/dataai/evaluate.js, PR #257; PR #258 note and basis wording, no numeric change)';
+export const ENGINE_COMMIT = 'd6c4d601587414aea06b6fba5e55f8c1b3615f8e';
+
 export const ENGINE_DEFAULTS = EV.DEFAULTS;
 export const DEFAULT_SEED = 20260925;
 export const ASSIST_MAX_PASSAGES = 10;
