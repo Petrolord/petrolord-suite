@@ -805,7 +805,7 @@ export default function ImportPanel({
               </Button>
             </div>
             <p className="text-xs text-pl-muted">
-              The Petrolord server downloads the file itself, so nothing passes through this computer. The link must be https and serve the file directly.
+              The Petrolord server reads the file from the link itself, so nothing passes through this computer. When the link's server allows partial downloads, only what the import needs is read (with a crop, just the kept traces); otherwise the whole file is copied to the server first. The link must be https and serve the file directly.
             </p>
             {phase === 'fetching' && linkProgress && (
               <div className="space-y-1">
@@ -820,7 +820,7 @@ export default function ImportPanel({
             )}
             {file?.remote && (
               <div className="text-sm text-pl-muted">
-                {file.name}: {(file.size / (1024 * 1024)).toFixed(1)} MB, stored on the Petrolord server
+                {file.name}: {(file.size / (1024 * 1024)).toFixed(1)} MB, {file.linked ? 'read from the link as needed (nothing copied yet)' : 'stored on the Petrolord server'}
               </div>
             )}
           </div>

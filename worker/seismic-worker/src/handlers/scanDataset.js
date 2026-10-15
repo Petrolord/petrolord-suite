@@ -7,7 +7,7 @@
 //
 // params: { dataset_id, mapping }
 import { JobFailure } from '../runJob.js';
-import { s3RangeReader } from '../s3.js';
+import { datasetReader } from '../datasetReader.js';
 import { openSegyDoor, doorScanWarnings, depthDomainHint } from '../../../../src/pages/apps/Seismolord/lib/segyDoor.js';
 import { readTextualHeader, previewTraceHeaders, scanGeometry } from '../../../../packages/engines/engines/seismolord/segyScan.js';
 
@@ -24,9 +24,8 @@ export async function scanDataset(ctx, deps) {
   if (ds.status !== 'uploaded') throw new JobFailure('validate_failed', `The file is ${ds.status}, not ready to scan.`);
 
   ctx.progress(0.05, 'Reading headers');
-  const raw = deps.makeReader
-    ? deps.makeReader(ds)
-    : s3RangeReader({ sign: deps.sign, bucket: ds.bucket, key: ds.object_key, size: Number(ds.bytes), fetchImpl: deps.fetchImpl });
+  // the worker's store, or the link itself for a ranged link import
+  const raw = datasetReader(ds, deps);
   let door; let reader;
   try {
     ({ door, reader } = await openSegyDoor(raw));

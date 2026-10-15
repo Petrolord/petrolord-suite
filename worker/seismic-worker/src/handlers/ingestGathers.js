@@ -17,7 +17,7 @@
 import { webcrypto } from 'node:crypto';
 import { JobFailure } from '../runJob.js';
 import { projectFrom } from '../project.js';
-import { s3RangeReader } from '../s3.js';
+import { datasetReader } from '../datasetReader.js';
 import { openSegyDoor } from '../../../../src/pages/apps/Seismolord/lib/segyDoor.js';
 import { readFileHeaders, readTextualHeader } from '../../../../packages/engines/engines/seismolord/segyScan.js';
 import { parseCropCard, padTopReader } from '../../../../packages/engines/engines/seismolord/segyCrop.js';
@@ -72,7 +72,8 @@ export async function ingestGathers(ctx, deps) {
   if (!ds || ds.user_id !== uid) throw new JobFailure('not_found', 'The file was not found in your account.');
   if (ds.status !== 'uploaded' || ds.kind !== 'segy_upload') throw new JobFailure('validate_failed', 'Choose an uploaded SEG-Y file.');
 
-  const raw = deps.makeReader ? deps.makeReader(ds) : s3RangeReader({ sign, bucket: ds.bucket, key: ds.object_key, size: Number(ds.bytes), fetchImpl });
+  // the worker's store, or the link itself for a ranged link import
+  const raw = datasetReader(ds, { ...deps, sign, fetchImpl });
   let reader;
   try { ({ reader } = await openSegyDoor(raw)); } catch (e) { throw new JobFailure('not_segy', e.message); }
   // a file cropped before upload: the window's top is padded back with nulls,
