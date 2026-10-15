@@ -1075,3 +1075,9 @@ Owner, 2026-10-15: "Can we proceed with the remaining feature developments of QI
   - job warnings under runs;
   - the Phase along the tie button in Seismolord Synthetics;
   - the trace-delay note in the import dialog.
+
+### Local workspace L1 (2026-10-15)
+- QI jobs route by where their volumes live (`src/lib/localWorkspace/router.js`, through `qiService.enqueueJob`): a local volume's QC, post-stack inversion, AVO, stack matching, simultaneous inversion of angle stacks, property prediction, stack sampling and zone maps run in this browser with the seismic worker's own handler files, recorded in qi_jobs with executor 'browser' and the device; prestack gather kinds wait for Petrolord Local (after NAPE). The server queue never claims a browser row, and the enqueue RPC refuses a server job on a local volume (migration 20261016100000, applied).
+- Setup tab: location badges on the volumes and a Local workspace card. Products of a local volume are registered local (no cloud quota, disk check).
+- **Measured on Ekene (live, QA):** coloured inversion from a local copy (browser) and a cloud copy (server) have equal brick roots and identical blind-well tables; model-based was refused identically on both sides by the wavelet-scale tie guard (the bench wells were synthetic). Ten attribute volumes equal brick for brick (Seismolord status).
+- Pilot readiness (decision 8): five 80 GB angle stacks plus velocity import locally with zero upload (about 20 min each at the measured 69 MB/s on the worker host; the owner's laptop drive sets the real figure); QC, attributes, post-stack and simultaneous inversion, AVO and properties then run locally.
