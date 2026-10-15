@@ -45,8 +45,8 @@ export default {
         await d.highlight(t(d, 'bf-layer-k-field')); await d.sleep(4000); await d.unhighlight();
       } },
     { id: 'thermal', chapter: 'The temperature history', chapterSub: 'Each layer through time',
-      say: 'Simulate and open Thermal: the temperature of each layer through time. The Akata at the bottom of the well is now at two hundred and twenty one degrees at sixty milliwatts. Every layer has been heating as the delta buried it.',
-      sub: 'Simulate and open Thermal: the temperature of each layer through time. The Akata at the bottom of the well is now at 221 °F at sixty milliwatts. Every layer has been heating as the delta buried it.',
+      say: 'Simulate and open Thermal: the temperature of each layer through time. The Akata at the bottom of the well is now at two hundred and twenty five degrees at sixty milliwatts. Every layer has been heating as the delta buried it.',
+      sub: 'Simulate and open Thermal: the temperature of each layer through time. The Akata at the bottom of the well is now at 225 °F at sixty milliwatts. Every layer has been heating as the delta buried it.',
       do: async (d) => {
         await simulate(d, { onCamera: true });
         await resultsTab(d, 'temperature', { onCamera: true });
@@ -54,6 +54,10 @@ export default {
       } },
     { id: 'what', chapter: 'What sets the heat flow', chapterSub: 'The calibration data',
       say: 'Which heat flow is right comes from the well: the measured temperatures and vitrinite decide it. The next two lessons correct the bottom-hole temperatures and fit the heat flow to the data.',
-      do: async (d) => { await resultsTab(d, 'summary', { onCamera: true }); await d.sleep(3500); } },
+      do: async (d) => {
+        await resultsTab(d, 'summary', { onCamera: true });
+        await expectText(d, 'bf-present-table', /Akata Formation\s*6627\s*7185\s*225\.1/, 'akata 60');
+        await d.sleep(3500);
+      } },
   ],
 };
