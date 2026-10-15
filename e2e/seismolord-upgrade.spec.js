@@ -39,7 +39,8 @@ const CASES = [
   ['no_coordinates.sgy', { text: /no coordinates \(CDP and source X\/Y are zero\)/ }],
   ['degrees_coords.sgy', { text: /decimal degrees \(byte 89 = 3\)/ }],
   ['line2d_cdp21.sgy', { text: /looks like a 2D line/ }],
-  ['depth_psdm.sgy', { text: /Seismolord interprets volumes in two-way time/, blocked: true }],
+  // QI upgrade P1.6: depth files import (declared unit and interval); the dialog says which tools refuse them
+  ['depth_psdm.sgy', { text: /Seismolord shows a depth volume on a depth axis/ }],
   ['bin_ns_lies.sgy', { error: /disagree on the number of samples per trace.*fits 40/ }],
   // U2-009: little-endian and integer files import, converted on read
   ['rev2_little_endian.sgy', { text: /Byte-swapped \(little-endian\) SEG-Y with 4-byte IEEE floating point samples/ }],
