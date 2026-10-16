@@ -96,6 +96,36 @@ describe('import from a link', () => {
   });
 });
 
+// QI showcase dry run (2026-10-16): six "Convert to a Seismolord volume"
+// clicks in a row; the sixth conversion was refused by the queue ("You
+// already have 4 worker jobs queued or running") after its row was
+// registered, so the row sat in "converting" for ever.
+describe('a conversion the queue refuses leaves no row behind', () => {
+  const refused = () => jest.fn(async () => { throw new Error('You already have 4 worker jobs queued or running. Wait for one to finish.'); });
+  const prep = { volumeId: 'v-orphan', name: 'mid', crsPlan: {}, customDefs: {}, ingestRec: {} };
+  test('remote conversion: the row is removed and the queue message reaches the user', async () => {
+    const discard = jest.fn(async () => {});
+    const remote = { remote: true, datasetId: 'ds-1', name: 'mid.sgy', size: 9 };
+    await expect(startRemoteConversion({ remote, mapping: {}, scan: {}, nativeCrs: null }, { prepare: async () => prep, enqueue: refused(), discard }))
+      .rejects.toThrow(/4 worker jobs/);
+    expect(discard).toHaveBeenCalledWith('v-orphan');
+  });
+  test('server import: the same after the upload', async () => {
+    const discard = jest.fn(async () => {});
+    const file = { name: 'big.sgy', size: 10 };
+    await expect(startServerImport({ file, mapping: {}, scan: {}, nativeCrs: null }, {
+      upload: async () => ({ id: 'ds-2' }), fingerprint: async () => 'fp', prepare: async () => prep, enqueue: refused(), discard,
+    })).rejects.toThrow(/4 worker jobs/);
+    expect(discard).toHaveBeenCalledWith('v-orphan');
+  });
+  test('a queued conversion keeps its row', async () => {
+    const discard = jest.fn(async () => {});
+    const remote = { remote: true, datasetId: 'ds-1', name: 'mid.sgy', size: 9 };
+    await startRemoteConversion({ remote, mapping: {}, scan: {}, nativeCrs: null }, { prepare: async () => prep, enqueue: async () => 'job', discard });
+    expect(discard).not.toHaveBeenCalled();
+  });
+});
+
 const job = (over = {}) => ({
   id: 'j1', kind: 'stack_to_v4', status: 'running', progress: 0.42, progress_message: 'Converting',
   params: { name: 'Survey A', volume_id: 'vol-1' }, result_refs: null, cancel_requested: false, ...over,

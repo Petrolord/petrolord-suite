@@ -9,6 +9,26 @@ import { uploadLargeFile } from '@/lib/qiUpload';
 import { enqueueJob, watchJob } from '@/lib/qiService';
 import { prepareV4Row } from './importJobsRuntime';
 import { fileFingerprint } from './ingestResume';
+import { supabase } from '@/lib/customSupabaseClient';
+
+/** Drop a just-registered volume row whose conversion job was never queued (it holds no storage yet). */
+async function discardRow(volumeId) {
+  await supabase.from('seismic_volumes').delete().eq('id', volumeId);
+}
+
+/**
+ * Queue the conversion of a registered row. If the queue refuses it (four
+ * jobs already queued or running, the daily limit), the row is removed,
+ * because nothing would ever convert it and it would sit in "converting".
+ */
+async function enqueueConversion(enqueue, params, prep, deps) {
+  try {
+    return await enqueue('stack_to_v4', params);
+  } catch (e) {
+    try { await (deps.discard || discardRow)(prep.volumeId); } catch { /* best effort: the error below is what matters */ }
+    throw e;
+  }
+}
 
 const GiB = 1024 ** 3;
 
@@ -61,7 +81,7 @@ export async function startServerImport({
   const prep = await prepare(crop
     ? { file: { ...sent, name: file.name }, mapping, nativeCrs, name, crop: crop.provenance, ...v }
     : { file, mapping, nativeCrs, name, ...v });
-  const jobId = await enqueue('stack_to_v4', {
+  const jobId = await enqueueConversion(enqueue, {
     dataset_id: dataset.id,
     volume_id: prep.volumeId,
     name: prep.name,
@@ -71,7 +91,7 @@ export async function startServerImport({
     custom_defs: prep.customDefs || {},
     ingest_rec: prep.ingestRec,
     ...(crop ? { pad_top_samples: crop.padTop, crop_provenance: crop.provenance } : {}),
-  });
+  }, prep, deps);
   return { jobId, volumeId: prep.volumeId, datasetId: dataset.id };
 }
 
@@ -141,7 +161,7 @@ export async function startRemoteConversion({ remote, mapping, scan, nativeCrs, 
   const prep = await prepare({
     file: { name: remote.name, size: crop?.estimatedBytes || remote.size }, mapping, nativeCrs, name, fingerprint: remote.fingerprint, ...(vertical ? { vertical } : {}),
   });
-  const jobId = await enqueue('stack_to_v4', {
+  const jobId = await enqueueConversion(enqueue, {
     dataset_id: remote.datasetId,
     volume_id: prep.volumeId,
     name: prep.name,
@@ -151,6 +171,6 @@ export async function startRemoteConversion({ remote, mapping, scan, nativeCrs, 
     custom_defs: prep.customDefs || {},
     ingest_rec: prep.ingestRec,
     ...(crop ? { crop: { def: crop.def, definition_id: crop.definitionId || null } } : {}),
-  });
+  }, prep, deps);
   return { jobId, volumeId: prep.volumeId, datasetId: remote.datasetId };
 }
