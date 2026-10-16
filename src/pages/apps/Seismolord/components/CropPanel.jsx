@@ -131,7 +131,7 @@ function Outline({ scan, crop, mode, onRect, onPoint, polygon, disabled }) {
  */
 export default function CropPanel({
   scan, door, fileSize, domain, enabled, onEnabled, form, onForm, onDefinitionId = () => {},
-  showUpload, speed, onSpeed, gathers = null, disabled, status = null, t0Ms = 0,
+  showUpload, speed, onSpeed, gathers = null, disabled, status = null, t0Ms = 0, onEstimate = null,
 }) {
   const [saved, setSaved] = useState({ rows: [], saved: true });
   const [chosen, setChosen] = useState('');
@@ -152,6 +152,8 @@ export default function CropPanel({
     try { return { crop: normalizeCrop(def, { il: scan.il, xl: scan.xl, ns, dtUs, t0Ms }), error: null }; } catch (e) { return { crop: null, error: e.message }; }
   }, [JSON.stringify(def), scan, ns, dtUs, t0Ms]); // eslint-disable-line react-hooks/exhaustive-deps
   const est = useMemo(() => (crop ? cropEstimate({ crop, scan, door, fileSize, gathers }) : null), [crop, scan, door, fileSize, gathers]);
+  // the import dialog's local and upload estimates follow the crop
+  useEffect(() => { if (onEstimate) onEstimate(enabled ? est : null); }, [est, enabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pick = (id) => {
     setChosen(id);
