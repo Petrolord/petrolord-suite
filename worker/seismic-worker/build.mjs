@@ -6,6 +6,7 @@
 import { build } from 'esbuild';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { copyFileSync } from 'node:fs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
@@ -34,6 +35,8 @@ await build({
   logLevel: 'warning',
   metafile: true,
 }).then((r) => {
+  // the ZFP decoder for compressed ZGY (zgySource.js reads it beside the bundle)
+  copyFileSync(path.join(repo, 'node_modules/wasm-zfp/dist/wasm-zfp.wasm'), path.join(outdir, 'wasm-zfp.wasm'));
   const inputs = Object.keys(r.metafile.inputs);
   const count = (re) => inputs.filter((i) => re.test(i)).length;
   console.log(`bundled ${inputs.length} modules (engines ${count(/packages\/engines/)}, seismolord ${count(/apps\/Seismolord/)}, react ${count(/node_modules\/react\//)}) into ${outdir}`);

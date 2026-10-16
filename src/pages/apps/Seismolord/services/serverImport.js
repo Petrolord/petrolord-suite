@@ -62,13 +62,11 @@ export function serverImportAdvice(fileSize, v4Support) {
  *   cropImport.cropFileLike), scan (the preview scan of its conversion view),
  *   padTop (samples above the window), provenance}. Only the cropped file is
  *   uploaded; the server pads the top back so the volume keeps 0 ms.
- * @param {?Object} [p.source] what is uploaded in place of the file itself:
- *   a Petrel ZGY's SEG-Y view (zgySource.zgyFileLike)
  * @param {Object} [deps] injected for tests: upload, prepare, enqueue
  * @returns {Promise<{jobId: string, volumeId: string, datasetId: string}>}
  */
 export async function startServerImport({
-  file, mapping, scan, nativeCrs, name, onUploadProgress, signal, crop = null, vertical = null, source = null,
+  file, mapping, scan, nativeCrs, name, onUploadProgress, signal, crop = null, vertical = null,
 }, deps = {}) {
   const upload = deps.upload || uploadLargeFile;
   const prepare = deps.prepare || prepareV4Row;
@@ -76,14 +74,13 @@ export async function startServerImport({
   // the same sampled fingerprint the volume row records: with it the server
   // resumes this user's unfinished upload of the file from any browser
   const fingerprint = deps.fingerprint || fileFingerprint;
-  const sent = crop ? crop.fileLike : (source || file);
+  const sent = crop ? crop.fileLike : file;
   const dataset = await upload(sent, { name: name || file.name, onProgress: onUploadProgress, signal, fingerprint });
   // the row records the source file's name; its size and fingerprint are the uploaded file's
   const v = vertical ? { vertical } : {};
   const prep = await prepare(crop
     ? { file: { ...sent, name: file.name }, mapping, nativeCrs, name, crop: crop.provenance, ...v }
-    : source ? { file: { ...sent, name: file.name }, mapping, nativeCrs, name, ...v }
-      : { file, mapping, nativeCrs, name, ...v });
+    : { file, mapping, nativeCrs, name, ...v });
   const jobId = await enqueueConversion(enqueue, {
     dataset_id: dataset.id,
     volume_id: prep.volumeId,

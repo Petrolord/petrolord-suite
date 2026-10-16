@@ -18,7 +18,7 @@ import {
   serverImportAdvice, startServerImport, fetchFromLink, scanRemoteFile, startRemoteConversion, uploadForQi,
 } from '../services/serverImport';
 import {
-  importSourceReader, isZgyFile, zgySummary, zgyFileLike, VOLUME_ACCEPT,
+  importSourceReader, isZgyFile, zgySummary, VOLUME_ACCEPT,
 } from '../services/zgySource';
 import { detectGatherLayout, normalizeCrop } from '../engine/segyCrop';
 import {
@@ -351,11 +351,6 @@ export default function ImportPanel({
   };
 
   const fetchLink = async () => {
-    if (/\.zgy([?#]|$)/i.test(linkUrl.trim())) {
-      setError('A ZGY is read on this computer: download the file, then choose it under From this computer.');
-      setPhase('error');
-      return;
-    }
     setPhase('fetching');
     setError(null);
     setLinkProgress({ progress: 0, message: 'Queued on the server' });
@@ -459,11 +454,10 @@ export default function ImportPanel({
         };
         rememberCropFor(file, cropForm);
       }
-      // a ZGY goes up as the SEG-Y it holds (the server converts SEG-Y)
-      const source = !crop && isZgyFile(file) ? zgyFileLike(await importSourceReader(file), file) : null;
-      setUpload({ bytesDone: 0, bytesTotal: crop ? crop.fileLike.size : srcBytes });
+      // a ZGY goes up as it is: the worker reads it as the SEG-Y it holds
+      setUpload({ bytesDone: 0, bytesTotal: crop ? crop.fileLike.size : file.size });
       await startServerImport({
-        file, mapping, scan: scanData.scan, nativeCrs: crsTag, onUploadProgress: uploadProgress(meter), signal: ctl.signal, crop, source,
+        file, mapping, scan: scanData.scan, nativeCrs: crsTag, onUploadProgress: uploadProgress(meter), signal: ctl.signal, crop,
         ...(vertical ? { vertical } : {}),
       });
       forgetCropFor(file);
@@ -899,7 +893,7 @@ export default function ImportPanel({
                 type="url"
                 value={linkUrl}
                 onChange={(e) => setLinkUrl(e.target.value)}
-                placeholder="https://… link to a .sgy or .segy file"
+                placeholder="https://… link to a .sgy, .segy or .zgy file"
                 aria-label="Link to the SEG-Y file"
                 disabled={busy || phase === 'scanning'}
                 className="flex-1 rounded border border-pl-border bg-pl-sunken px-2 py-1.5 text-sm text-pl-text"
@@ -1368,7 +1362,7 @@ export default function ImportPanel({
 
         {file && !file.remote && scan && localOffered && phase !== 'background' && (() => {
           // a crop keeps only its traces and samples: estimate on the kept bytes
-          const bytes = cropOn && cropEst?.croppedBytes ? cropEst.croppedBytes : srcBytes;
+          const bytes = cropOn && cropEst?.croppedBytes ? cropEst.croppedBytes : file.size;
           const est = localVsUploadEstimate({ bytes, readMBps: 60, uploadMBps: speed || null });
           return (
             <fieldset className="rounded-lg border border-pl-border p-3 space-y-2 text-sm text-pl-text" data-testid="sl-import-keep">

@@ -181,8 +181,8 @@ export default function SeismolordHelpGuide() {
           SEG-Y (or save it again as ZGY in Petrel 2022.1 or later) and import that. A ZGY that starts below 0 gets
           empty samples above its first sample, as a SEG-Y trace delay does. Petrel rarely records in the file whether
           the vertical axis is time or depth, or the CRS, so declare both in the steps below. A server import uploads
-          the SEG-Y the ZGY holds, with 32-bit samples (up to four times the size of an 8-bit ZGY); importing to this
-          computer uploads nothing.
+          the ZGY as it is and a link may point at a ZGY: the Petrolord server reads it the same way. A cropped ZGY
+          uploads only the kept traces, as SEG-Y. Importing to this computer uploads nothing.
         </Para>
         <Callout tone="warn" title="Time and depth volumes">
           Declare the vertical axis of each file. A textual header that mentions depth or PSDM preselects Depth; the

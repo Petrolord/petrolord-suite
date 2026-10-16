@@ -12,7 +12,11 @@ Owner request 2026-10-16: a client's legacy seismic is in Petrel ZGY. The import
 - ZFP: a ZFP decoder (LLNL zfp in WebAssembly, wasm-zfp 3.0.0, MIT) is vendored as an ES module by `tools/vendor/wasm-zfp.mjs`, at `src/lib/zfp`. It loads only for a compressed file. A compressed file's display clip comes from whole bricks (`zgyAmplitudeClip`).
 - Refused with the reason: legacy Petrel compressed ZGY ("VCS", no open reader, so re-export from Petrel) and ZGY links (download and pick the file).
 - Validation: the engines suite matches the OpenZGY reference reader bit for bit (SHA-256 of full level-0 and level-1 reads) and reads OpenZGY's own v1/v3 test files. In the Suite, a ZGY and a SEG-Y written from the same samples give identical scans and v4 bricks (`__tests__/zgyImport.test.js`).
-- Not done (deferred register): the worker does not read ZGY itself. A server import uploads 32-bit SEG-Y, up to 4x an 8-bit ZGY; Local Workspace uploads nothing. No real client ZGY has been tested yet.
+- Phase B: the seismic worker reads ZGY itself (`worker/seismic-worker/src/zgySource.js`, known by its signature). `stack_to_v4` and `scan_dataset` read an uploaded or linked ZGY through the same view; a linked one is first copied to scratch. A compressed one takes its clip from whole bricks. The ZFP wasm ships beside the bundle and the selfcheck loads it. `ingest_gathers` refuses a ZGY.
+  - The server import now uploads the ZGY as it is, up to 4x smaller than its SEG-Y. A cropped ZGY still uploads its cropped SEG-Y.
+  - ZGY links are accepted.
+  - Parity: stack_to_v4 on the raw ZGY stores byte-identical bricks, manifest and survey_meta to the browser import, for int8 and ZFP (`worker/.../__tests__/zgyImport.parity.test.js`).
+- No real client ZGY has been tested yet.
 
 ## 2026-10-14: crop before upload
 

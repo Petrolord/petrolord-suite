@@ -40,6 +40,7 @@ import { v4SurveyMeta } from '../../../../src/pages/apps/Seismolord/services/v4S
 import { applyVerticalToManifest, depthDtUs } from '../../../../src/pages/apps/Seismolord/lib/verticalDomain.js';
 import { buildManifestV4, volumeDir } from '../../../../packages/engines/engines/seismolord/manifest.js';
 import { datasetReader } from '../datasetReader.js';
+import { zgyAwareSource } from '../zgySource.js';
 import { readTextualHeader } from '../../../../packages/engines/engines/seismolord/segyScan.js';
 import { parseCropCard, padTopReader, croppedSegyReader } from '../../../../packages/engines/engines/seismolord/segyCrop.js';
 import {
@@ -112,12 +113,25 @@ export async function stackToV4(ctx, deps) {
   // cropped file, or the whole file) is copied from the link once, into scratch
   const scratch = isLinkDataset(dataset) ? { file: `${spoolDir}.source.sgy`, ctx } : null;
   let copy = null;
+  const zgyCopyFile = `${spoolDir}.source.zgy`;
   try {
-    const { reader, scan, cropRecord, scratchCopy, traceDelay } = await cropAwareSource(raw, p, dataset, ctx, scratch);
-    copy = scratchCopy || null;
+    // a Petrel ZGY (uploaded as it is, or linked) is read as the SEG-Y it
+    // holds, from a scratch copy: its view reads many small ranges, which
+    // the store or a link would serve one request each (zgySource.js)
+    const zgySrc = await zgyAwareSource(raw, {
+      name: p.file_name || dataset.original_filename,
+      toScratch: (r) => copyToScratch(r, zgyCopyFile, {
+        isCancelled: () => ctx.cancelled,
+        onProgress: (done, total) => ctx.progress(0.02 * (done / total), 'Copying the ZGY to the worker'),
+      }),
+    }, deps);
+    copy = zgySrc.scratchCopy;
+    const { reader, scan, cropRecord, scratchCopy, traceDelay } = await cropAwareSource(zgySrc.reader, p, dataset, ctx, zgySrc.zgy ? null : scratch);
+    copy = copy || scratchCopy || null;
     const record = await convertToSpool({
       reader,
       scan,
+      ...(zgySrc.clip ? { clip: zgySrc.clip } : {}),
       spool,
       codec: deps.codec,
       ...(deps.convertOptions || {}),
@@ -193,6 +207,7 @@ export async function stackToV4(ctx, deps) {
     await spool.destroy();
     await copy?.remove();
     if (scratch) await fsp.rm(scratch.file, { force: true }); // a copy cut short by a failure
+    await fsp.rm(zgyCopyFile, { force: true });
   }
 }
 

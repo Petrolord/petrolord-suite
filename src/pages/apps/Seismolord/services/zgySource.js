@@ -1,9 +1,11 @@
 // ZGY import (owner request 2026-10-16: a client's legacy seismic is in
 // Petrel ZGY). A picked .zgy is read in place and presented to the import as
 // the SEG-Y it holds (engines zgySegy.js), so every door works on it as on
-// any SEG-Y: the preview scan, crop before upload, the browser conversion,
-// Local Workspace and the server import (which uploads that SEG-Y).
-// Nothing is converted to disk first.
+// any SEG-Y: the preview scan, crop before upload, the browser conversion and
+// Local Workspace. Nothing is converted to disk first. The server import
+// uploads the ZGY as it is and the seismic worker reads it the same way
+// (worker/seismic-worker/src/zgySource.js); a cropped ZGY uploads its
+// cropped SEG-Y.
 //
 // Workers receive the picked File and open it here again: a ZGY is known by
 // its name and confirmed by its signature.
@@ -72,24 +74,5 @@ export function zgySummary(reader) {
     segyBytes: reader.size,
     hasCoordinates: Boolean(meta.corners),
     projection: meta.hprjsys || null,
-  };
-}
-
-const stemOf = (name) => String(name || 'volume.zgy').replace(/\.zgy$/i, '');
-
-/**
- * The ZGY's SEG-Y view as the resumable upload reads it (the server import
- * converts SEG-Y). Same shape as cropImport.cropFileLike: `slice` serves the
- * fingerprint, the upload reads parts with `read`.
- */
-export function zgyFileLike(reader, file) {
-  return {
-    name: `${stemOf(file.name)}.sgy`,
-    size: reader.size,
-    lastModified: file.lastModified || 0,
-    cropKey: `zgy:${file.name}|${file.size}`,
-    virtual: true,
-    read: (offset, length) => reader.read(offset, length),
-    slice: (a, b) => ({ arrayBuffer: () => reader.read(a, Math.min(b, reader.size) - a) }),
   };
 }
