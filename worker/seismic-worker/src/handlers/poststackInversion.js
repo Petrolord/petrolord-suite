@@ -22,6 +22,7 @@
 // The worker uses the service role, so this handler checks what RLS would:
 // the parent, the derived row and every horizon belong to the job's user,
 // and the derived volume fits the user's seismic quota.
+import { horizonLatticeProblem } from '../horizonLattice.js';
 import { JobFailure } from '../runJob.js';
 import { pilotProblem, pilotOn, pilotBytes } from '../pilot.js';
 import { seismicQuota, overQuotaMessage } from '../quota.js';
@@ -168,12 +169,13 @@ export async function poststackInversion(ctx, deps) {
     if (q.used + need > q.quota) return fail('over_quota', overQuotaMessage(derived.length > 1 ? 'The inversion volumes' : 'The inversion volume', need, q));
   }
 
-  // horizons: the user's own picks on this volume
+  // horizons: the user's own picks on this volume or on any volume of its lattice (horizonLattice.js)
   const grids = [];
   for (const id of inv.horizon_ids || []) {
     const { data: h, error } = await admin.from('seismic_horizons').select('id,user_id,volume_id,name,storage_path').eq('id', id).maybeSingle();
     if (error) throw new Error(`Could not read horizon ${id}: ${error.message}`);
-    if (!h || h.user_id !== uid || h.volume_id !== parent.id) return fail('not_found', 'A chosen horizon was not found on this volume in your account.');
+    const why = await horizonLatticeProblem(h, { uid, volumeId: parent.id, manifest: manifest, rowOf, readManifest });
+    if (why) return fail(why.stage, why.message);
     const buf = deps.readBlob ? await deps.readBlob(h.storage_path) : await (async () => {
       const { data, error: e } = await admin.storage.from('seismic').download(h.storage_path);
       if (e) throw new Error(`Could not read horizon ${h.name}: ${e.message}`);

@@ -250,7 +250,9 @@ test('guards: settings, ownership, horizons, state and cancel', async () => {
   expect(validatePoststackParams(params('blind'))).toBeNull();
   const own = { volumes: { [VOL]: PARENT }, horizons: HZ_ROWS };
   await expect(poststackInversion(ctxFor(params('blind')), depsFor({ ...own, volumes: { [VOL]: { ...PARENT, user_id: 'x' } } }))).rejects.toMatchObject({ stage: 'not_found' });
-  await expect(poststackInversion(ctxFor(params('blind')), depsFor({ ...own, horizons: { [HZ1]: { ...HZ_ROWS[HZ1], volume_id: OUT }, [HZ2]: HZ_ROWS[HZ2] } }))).rejects.toMatchObject({ stage: 'not_found' });
+  // a horizon on a volume that is not the user's
+  const foreign = { ...PARENT, id: OUT, user_id: 'someone-else' };
+  await expect(poststackInversion(ctxFor(params('blind')), depsFor({ ...own, volumes: { [VOL]: PARENT, [OUT]: foreign }, horizons: { [HZ1]: { ...HZ_ROWS[HZ1], volume_id: OUT }, [HZ2]: HZ_ROWS[HZ2] } }))).rejects.toMatchObject({ stage: 'not_found' });
   const far = { ...WELLS[0], il: 99 };
   await expect(poststackInversion(ctxFor(params('blind', { wells: [far, WELLS[1]] })), depsFor(own))).rejects.toMatchObject({ stage: 'validate_failed' });
   const deletes = [];
@@ -443,4 +445,27 @@ test('coloured blind runs record the polarity each held-out well used', async ()
   for (const h of b.blind_protocol.held_back) expect(h.polarity).toBe(-1);
   expect(a.settings.coloured_polarity).toBe(1);
   expect(b.settings.coloured_polarity).toBe(-1);
+});
+
+
+// QI showcase (2026-10-16): the framework is picked on the full stack while
+// the angle stacks are inverted; horizons on any of the user's volumes of the
+// same lattice now guide the model (worker/seismic-worker/src/horizonLattice.js).
+describe('horizons picked on another volume of the lattice', () => {
+  const SIB = '99999999-9999-4999-8999-999999999999';
+  const SIBLING = { ...PARENT, id: SIB, name: 'Full stack', storage_path: `${UID}/${SIB}` };
+  const onSibling = { [HZ1]: { ...HZ_ROWS[HZ1], volume_id: SIB }, [HZ2]: { ...HZ_ROWS[HZ2], volume_id: SIB } };
+  test('give exactly the inversion the same picks give on the volume itself', async () => {
+    const a = await poststackInversion(ctxFor(params('blind')), depsFor({ volumes: { [VOL]: PARENT }, horizons: HZ_ROWS }));
+    const b = await poststackInversion(ctxFor(params('blind')), depsFor({ volumes: { [VOL]: PARENT, [SIB]: SIBLING }, horizons: onSibling }));
+    expect(b.blind).toEqual(a.blind);
+  });
+  test('a volume with another lattice is refused, and the guide matters (negative control)', async () => {
+    const other = { ...MANIFEST, geometry: { ...MANIFEST.geometry, il: { ...MANIFEST.geometry.il, count: MANIFEST.geometry.il.count + 1, max: MANIFEST.geometry.il.max + MANIFEST.geometry.il.step } } };
+    const readManifest = async (path) => (path.startsWith(`${UID}/${SIB}`) ? other : MANIFEST);
+    await expect(poststackInversion(ctxFor(params('blind')), depsFor({ volumes: { [VOL]: PARENT, [SIB]: SIBLING }, horizons: onSibling }, { readManifest }))).rejects.toMatchObject({ stage: 'validate_failed', message: expect.stringMatching(/another lattice/) });
+    const none = await poststackInversion(ctxFor(params('blind', { horizon_ids: [] })), depsFor({ volumes: { [VOL]: PARENT }, horizons: {} }));
+    const withH = await poststackInversion(ctxFor(params('blind')), depsFor({ volumes: { [VOL]: PARENT, [SIB]: SIBLING }, horizons: onSibling }));
+    expect(withH.blind).not.toEqual(none.blind);
+  });
 });
