@@ -1,6 +1,6 @@
 {
   "rule": "Only the video keys listed under series[].keys may ever be proposed for the public YouTube channel. Everything else is members-only (NextGen Academy and the Suite) and is never proposed. To add a video, add its key here in a reviewed PR.",
-  "recordedOn": "2026-10-11",
+  "recordedOn": "2026-10-16",
   "sources": "Keys found under /root/demo-videos/<key>/ on the studio box (folders holding youtube.mp4) and matched to tools/demo-video/storyboards on origin/main (petro-01..03, qi-01..03, lessons/petro-a1..a4). The seis-01..03 storyboards were on a feature branch, not yet on main, on that date; the finished videos exist. QI Module A (lesson-qi-a1..a3) was added by owner decision on 2026-10-11; the module boundary comes from tools/demo-video/storyboards/lessons/QI-LESSON-PLAN.md.",
   "links": {
     "suite": "https://petrolord.com",
@@ -77,6 +77,207 @@
         "seis-02",
         "seis-03"
       ]
+    },
+    {
+      "id": "rcp-demos",
+      "label": "ReservoirCalc Pro sales demos",
+      "kind": "demo",
+      "playlist": "ReservoirCalc Pro",
+      "categoryId": "28",
+      "keys": [
+        "rcp-01",
+        "rcp-02",
+        "rcp-03"
+      ]
+    },
+    {
+      "id": "rcp-lessons-module-a",
+      "label": "Volumetrics with Petrolord, Module A (lessons 1 to 4)",
+      "kind": "lesson",
+      "playlist": "Volumetrics with Petrolord",
+      "categoryId": "27",
+      "keys": [
+        "lesson-rcp-a1",
+        "lesson-rcp-a2",
+        "lesson-rcp-a3",
+        "lesson-rcp-a4"
+      ],
+      "note": "Owner decision 2026-10-16: demos and Module A public, later modules members-only (NextGen)."
+    },
+    {
+      "id": "mbal-demos",
+      "label": "Material Balance Studio sales demos",
+      "kind": "demo",
+      "playlist": "Material Balance Studio",
+      "categoryId": "28",
+      "keys": [
+        "mbal-01",
+        "mbal-02",
+        "mbal-03"
+      ]
+    },
+    {
+      "id": "mbal-lessons-module-a",
+      "label": "Material Balance with Petrolord, Module A (lessons 1 to 3)",
+      "kind": "lesson",
+      "playlist": "Material Balance with Petrolord",
+      "categoryId": "27",
+      "keys": [
+        "lesson-mbal-a1",
+        "lesson-mbal-a2",
+        "lesson-mbal-a3"
+      ],
+      "note": "Owner decision 2026-10-16: demos and Module A public, later modules members-only (NextGen)."
+    },
+    {
+      "id": "wds-demos",
+      "label": "Well Design Studio sales demos",
+      "kind": "demo",
+      "playlist": "Well Design Studio",
+      "categoryId": "28",
+      "keys": [
+        "wds-01",
+        "wds-02",
+        "wds-03"
+      ]
+    },
+    {
+      "id": "wds-lessons-module-a",
+      "label": "Well Design with Petrolord, Module A (lessons 1 to 3)",
+      "kind": "lesson",
+      "playlist": "Well Design with Petrolord",
+      "categoryId": "27",
+      "keys": [
+        "lesson-wds-a1",
+        "lesson-wds-a2",
+        "lesson-wds-a3"
+      ],
+      "note": "Owner decision 2026-10-16: demos and Module A public, later modules members-only (NextGen)."
+    },
+    {
+      "id": "epe-demos",
+      "label": "Petroleum Economics Studio sales demos",
+      "kind": "demo",
+      "playlist": "Petroleum Economics Studio",
+      "categoryId": "28",
+      "keys": [
+        "epe-01",
+        "epe-02",
+        "epe-03"
+      ]
+    },
+    {
+      "id": "epe-lessons-module-a",
+      "label": "Petroleum Economics with Petrolord, Module A (lessons 1 to 3)",
+      "kind": "lesson",
+      "playlist": "Petroleum Economics with Petrolord",
+      "categoryId": "27",
+      "keys": [
+        "lesson-epe-a1",
+        "lesson-epe-a2",
+        "lesson-epe-a3"
+      ],
+      "note": "Owner decision 2026-10-16: demos and Module A public, later modules members-only (NextGen)."
+    },
+    {
+      "id": "pps-demos",
+      "label": "Pore Pressure Studio sales demos",
+      "kind": "demo",
+      "playlist": "Pore Pressure Studio",
+      "categoryId": "28",
+      "keys": [
+        "pps-01",
+        "pps-02",
+        "pps-03"
+      ]
+    },
+    {
+      "id": "pps-lessons-module-a",
+      "label": "Pore Pressure with Petrolord, Module A (lessons 1 to 3)",
+      "kind": "lesson",
+      "playlist": "Pore Pressure with Petrolord",
+      "categoryId": "27",
+      "keys": [
+        "lesson-pps-a1",
+        "lesson-pps-a2",
+        "lesson-pps-a3"
+      ],
+      "note": "Owner decision 2026-10-16: demos and Module A public, later modules members-only (NextGen)."
+    },
+    {
+      "id": "em-demos",
+      "label": "Earth Modeling sales demos",
+      "kind": "demo",
+      "playlist": "Earth Modeling",
+      "categoryId": "28",
+      "keys": [
+        "em-01",
+        "em-02",
+        "em-03"
+      ]
+    },
+    {
+      "id": "em-lessons-module-a",
+      "label": "Earth Modelling with Petrolord, Module A (lessons 1 to 3)",
+      "kind": "lesson",
+      "playlist": "Earth Modelling with Petrolord",
+      "categoryId": "27",
+      "keys": [
+        "lesson-em-a1",
+        "lesson-em-a2",
+        "lesson-em-a3"
+      ],
+      "note": "Owner decision 2026-10-16: demos and Module A public, later modules members-only (NextGen)."
+    },
+    {
+      "id": "wt-demos",
+      "label": "Well Test Analysis Studio sales demos",
+      "kind": "demo",
+      "playlist": "Well Test Analysis Studio",
+      "categoryId": "28",
+      "keys": [
+        "wt-01",
+        "wt-02",
+        "wt-03"
+      ]
+    },
+    {
+      "id": "wt-lessons-module-a",
+      "label": "Well Testing with Petrolord, Module A (lessons 1 to 3)",
+      "kind": "lesson",
+      "playlist": "Well Testing with Petrolord",
+      "categoryId": "27",
+      "keys": [
+        "lesson-wt-a1",
+        "lesson-wt-a2",
+        "lesson-wt-a3"
+      ],
+      "note": "Owner decision 2026-10-16: demos and Module A public, later modules members-only (NextGen)."
+    },
+    {
+      "id": "bf-demos",
+      "label": "Basin & Charge Modeling sales demos",
+      "kind": "demo",
+      "playlist": "Basin & Charge Modeling",
+      "categoryId": "28",
+      "keys": [
+        "bf-01",
+        "bf-02",
+        "bf-03"
+      ]
+    },
+    {
+      "id": "bf-lessons-module-a",
+      "label": "Basin Modelling with Petrolord, Module A (lessons 1 to 3)",
+      "kind": "lesson",
+      "playlist": "Basin Modelling with Petrolord",
+      "categoryId": "27",
+      "keys": [
+        "lesson-bf-a1",
+        "lesson-bf-a2",
+        "lesson-bf-a3"
+      ],
+      "note": "Owner decision 2026-10-16: demos and Module A public, later modules members-only (NextGen)."
     }
   ],
   "fallbackListings": {
