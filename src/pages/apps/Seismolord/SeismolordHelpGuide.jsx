@@ -20,7 +20,7 @@ export const HELP_SECTIONS = [
   { id: 'overview', icon: BookOpen, title: 'What Seismolord is' },
   { id: 'quickstart', icon: Zap, title: 'Quick start (15 min)' },
   { id: 'first-project', icon: GraduationCap, title: 'Your first project, step by step' },
-  { id: 'volumes', icon: Database, title: 'Volumes and SEG-Y import' },
+  { id: 'volumes', icon: Database, title: 'Volumes, SEG-Y and ZGY import' },
   { id: 'viewing', icon: Layers, title: 'Sections, slices and display' },
   { id: 'horizons', icon: Activity, title: 'Horizon interpretation' },
   { id: 'faults', icon: GitBranch, title: 'Fault interpretation' },
@@ -144,7 +144,7 @@ export default function SeismolordHelpGuide() {
       </GuideSection>
 
       <GuideSection id="volumes">
-        <SectionHeading icon={Database}>Volumes and SEG-Y import</SectionHeading>
+        <SectionHeading icon={Database}>Volumes, SEG-Y and ZGY import</SectionHeading>
         <Para>
           The import scan reads the binary and textual headers, proposes the byte positions of inline, crossline and
           coordinates from the traces themselves (the textual header is only a hint), detects IBM or IEEE samples and
@@ -171,6 +171,18 @@ export default function SeismolordHelpGuide() {
           not a whole number of samples moves to the nearest sample, and the scan says by how much. Delays that differ
           from trace to trace, and depth volumes, are read from 0 as before. The crop window is typed in these true
           times.
+        </Para>
+        <Para>
+          Petrel ZGY volumes import too: choose the .zgy file where you would choose a SEG-Y. Seismolord reads it in
+          place, as the SEG-Y it holds, so the scan, the crop, the import to this computer and the upload all work as
+          for a SEG-Y and nothing is written to disk first. ZGY versions 1 to 4 are read, stored as 8-bit, 16-bit or
+          32-bit samples (scaled with the file&apos;s own coding range) and the compressed volumes Petrel 2022.1 and
+          later writes. Older Petrel compressed ZGY files can only be read by Petrel: export the volume from Petrel as
+          SEG-Y (or save it again as ZGY in Petrel 2022.1 or later) and import that. A ZGY that starts below 0 gets
+          empty samples above its first sample, as a SEG-Y trace delay does. Petrel rarely records in the file whether
+          the vertical axis is time or depth, or the CRS, so declare both in the steps below. A server import uploads
+          the SEG-Y the ZGY holds, with 32-bit samples (up to four times the size of an 8-bit ZGY); importing to this
+          computer uploads nothing.
         </Para>
         <Callout tone="warn" title="Time and depth volumes">
           Declare the vertical axis of each file. A textual header that mentions depth or PSDM preselects Depth; the

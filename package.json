@@ -132,6 +132,7 @@
     "tailwindcss-animate": "^1.0.7",
     "terser": "^5.37.0",
     "uuid": "^9.0.1",
+    "wasm-zfp": "3.0.0",
     "xlsx": "^0.18.5",
     "zustand": "^5.0.14"
   },

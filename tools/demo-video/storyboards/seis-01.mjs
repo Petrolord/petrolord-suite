@@ -100,7 +100,7 @@ export default {
       say: 'We choose the file. Seismolord reads it in windows, so a large survey is never loaded whole.',
       do: async (d) => {
         const chooser = d.page.waitForEvent('filechooser');
-        await d.click(dialog(d).getByRole('button', { name: 'Choose SEG-Y file' }));
+        await d.click(dialog(d).getByRole('button', { name: 'Choose a SEG-Y or ZGY file' }));
         await (await chooser).setFiles(path.join(KIT, '04-seismic', SMALL));
         await dialog(d).getByText('Vertical axis of this file').waitFor({ timeout: 120000 });
         await d.sleep(1200);

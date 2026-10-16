@@ -55,7 +55,7 @@ export default {
         await d.hideSlide();
         await d.click('sl-start-go-import');
         await dialog(d).waitFor();
-        await chooseFile(d, dialog(d).getByRole('button', { name: 'Choose SEG-Y file' }), path.join(KIT, '04-seismic', FULL));
+        await chooseFile(d, dialog(d).getByRole('button', { name: 'Choose a SEG-Y or ZGY file' }), path.join(KIT, '04-seismic', FULL));
         await dialog(d).getByText('Vertical axis of this file').waitFor({ timeout: 120000 });
         await d.sleep(1200);
       } },

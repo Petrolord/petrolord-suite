@@ -162,7 +162,7 @@ export default {
         await d.click('sl-start-go-import');
         await dialog(d).waitFor();
         const chooser = d.page.waitForEvent('filechooser');
-        await d.click(dialog(d).getByRole('button', { name: 'Choose SEG-Y file' }));
+        await d.click(dialog(d).getByRole('button', { name: 'Choose a SEG-Y or ZGY file' }));
         await (await chooser).setFiles(path.join(KIT, '04-seismic', FULL));
         await dialog(d).getByText('Vertical axis of this file').waitFor({ timeout: 120000 });
         await d.sleep(1000);

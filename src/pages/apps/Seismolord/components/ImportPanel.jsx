@@ -17,7 +17,9 @@ import { getImportJobs, v4ImportSupport, V4_STATUS } from '../services/importJob
 import {
   serverImportAdvice, startServerImport, fetchFromLink, scanRemoteFile, startRemoteConversion, uploadForQi,
 } from '../services/serverImport';
-import { fileReader } from '../engine/reader';
+import {
+  importSourceReader, isZgyFile, zgySummary, zgyFileLike, VOLUME_ACCEPT,
+} from '../services/zgySource';
 import { detectGatherLayout, normalizeCrop } from '../engine/segyCrop';
 import {
   planImportCrop, cropSource, spotCheckCrop, conversionView, scanConversionView, cropFileLike,
@@ -42,6 +44,26 @@ import {
   COORD_UNITS, SAMPLE_FORMATS, needsTraceLattice, inspectSegy, openSegyDoor, alignTraceDelay, scanOnReader,
 } from '../lib/segyDoor';
 import { depthDeclaration, depthDtUs, depthPrefill, VELOCITY_TYPES } from '../lib/verticalDomain';
+
+/** What a picked Petrel ZGY holds and how it is read. */
+function ZgyNote({ info }) {
+  const vertical = info.vertical === 'time' ? `two-way time${info.verticalUnit ? ` in ${info.verticalUnit}` : ''}`
+    : info.vertical === 'depth' ? `depth${info.verticalUnit ? ` in ${info.verticalUnit}` : ''}` : null;
+  return (
+    <div className="mt-2 rounded border border-pl-border bg-pl-sunken px-3 py-2 text-xs text-pl-muted space-y-1" data-testid="sl-import-zgy">
+      <div className="text-pl-text">
+        Petrel ZGY (version {info.version}), stored as {info.stored}{info.compressed ? ', compressed' : ''}.
+        It is read in place as SEG-Y with 32-bit samples ({fmtBytes(info.segyBytes)}); nothing is written to disk first.
+      </div>
+      <div>
+        {vertical ? `The file records its vertical axis as ${vertical}.` : 'The file does not record whether its vertical axis is time or depth: declare it below.'}
+        {info.hasCoordinates ? '' : ' It holds no world coordinates.'}
+        {info.projection ? ` Projection named in the file: ${info.projection}.` : ' Declare its CRS below.'}
+      </div>
+      {info.notes.map((n) => <div key={n}>{n}</div>)}
+    </div>
+  );
+}
 
 const fmtInt = (v) => (v == null ? EMPTY_VALUE : v.toLocaleString('en-US'));
 const fmtBytes = (b) => (b >= 1024 ** 3 ? `${(b / 1024 ** 3).toFixed(2)} GB` : `${(b / 1024 ** 2).toFixed(1)} MB`);
@@ -154,6 +176,18 @@ export default function ImportPanel({
   const resumeRowRef = useRef(null); // row whose Resume opened the picker
 
   const [file, setFile] = useState(null);
+  // a Petrel ZGY is read in place as the SEG-Y it holds (zgySource.js);
+  // everything sized by the file (advice, estimates, the upload) uses that SEG-Y's size
+  const [zgyInfo, setZgyInfo] = useState(null);
+  useEffect(() => {
+    if (!isZgyFile(file)) { setZgyInfo(null); return undefined; }
+    let stale = false;
+    importSourceReader(file)
+      .then((r) => { if (!stale) setZgyInfo(zgySummary(r)); })
+      .catch(() => { if (!stale) setZgyInfo(null); }); // the scan reports why
+    return () => { stale = true; };
+  }, [file]);
+  const srcBytes = zgyInfo?.segyBytes ?? file?.size ?? 0;
   const [mapping, setMapping] = useState({ ilByte: DEFAULT_MAPPING.ilByte, xlByte: DEFAULT_MAPPING.xlByte });
   const [showBytes, setShowBytes] = useState(false);
   const [phase, setPhase] = useState('idle'); // idle|scanning|scanned|ingesting|done|error
@@ -185,14 +219,14 @@ export default function ImportPanel({
   useEffect(() => {
     if (!file) { setV4Support(null); return undefined; }
     let stale = false;
-    v4ImportSupport(file.size)
+    v4ImportSupport(srcBytes)
       .then((r) => { if (!stale) setV4Support(r); })
       .catch(() => { if (!stale) setV4Support({ ok: false, reason: 'no-opfs' }); });
     return () => { stale = true; };
-  }, [file]);
+  }, [file, srcBytes]);
   // Server import (QI programme Q0): offered for every file, chosen by
   // default from 2 GB or when this browser cannot run the background import
-  const serverAdvice = useMemo(() => (file ? serverImportAdvice(file.size, v4Support) : null), [file, v4Support]);
+  const serverAdvice = useMemo(() => (file ? serverImportAdvice(srcBytes, v4Support) : null), [file, srcBytes, v4Support]);
   const [useServer, setUseServer] = useState(false);
   // a remote file only exists on the server: it is always converted there
   useEffect(() => { setUseServer(Boolean(file?.remote) || Boolean(serverAdvice?.preferred)); }, [serverAdvice, file]);
@@ -280,7 +314,7 @@ export default function ImportPanel({
   // F-5: an uncropped file's trace delay, and the scan of the shifted file
   // the conversion reads (a crop applies it in its own conversion view)
   const delayedScan = async () => {
-    const { reader } = await openSegyDoor(fileReader(file));
+    const { reader } = await openSegyDoor(await importSourceReader(file));
     const { reader: aligned, traceDelay } = await alignTraceDelay(reader, { domain: vertical ? 'depth' : 'time' });
     return { traceDelay, scan: traceDelay.applied ? await scanOnReader(scanData.scan, aligned) : scanData.scan };
   };
@@ -317,6 +351,11 @@ export default function ImportPanel({
   };
 
   const fetchLink = async () => {
+    if (/\.zgy([?#]|$)/i.test(linkUrl.trim())) {
+      setError('A ZGY is read on this computer: download the file, then choose it under From this computer.');
+      setPhase('error');
+      return;
+    }
     setPhase('fetching');
     setError(null);
     setLinkProgress({ progress: 0, message: 'Queued on the server' });
@@ -366,7 +405,7 @@ export default function ImportPanel({
    * spot check), the cropped file and the scan its conversion runs on.
    */
   const buildCrop = async ({ forUpload, gathersOnly = false }) => {
-    const raw = fileReader(file);
+    const raw = await importSourceReader(file);
     const def = defFromForm(cropForm);
     setCropStatus('Finding the kept traces');
     try {
@@ -420,9 +459,11 @@ export default function ImportPanel({
         };
         rememberCropFor(file, cropForm);
       }
-      setUpload({ bytesDone: 0, bytesTotal: crop ? crop.fileLike.size : file.size });
+      // a ZGY goes up as the SEG-Y it holds (the server converts SEG-Y)
+      const source = !crop && isZgyFile(file) ? zgyFileLike(await importSourceReader(file), file) : null;
+      setUpload({ bytesDone: 0, bytesTotal: crop ? crop.fileLike.size : srcBytes });
       await startServerImport({
-        file, mapping, scan: scanData.scan, nativeCrs: crsTag, onUploadProgress: uploadProgress(meter), signal: ctl.signal, crop,
+        file, mapping, scan: scanData.scan, nativeCrs: crsTag, onUploadProgress: uploadProgress(meter), signal: ctl.signal, crop, source,
         ...(vertical ? { vertical } : {}),
       });
       forgetCropFor(file);
@@ -564,7 +605,7 @@ export default function ImportPanel({
     let stale = false;
     (async () => {
       try {
-        const raw = fileReader(file);
+        const raw = await importSourceReader(file);
         const door = await inspectSegy(raw);
         const layout = layoutFromDoor(door, raw.size);
         const gathers = await detectGatherLayout(raw, layout, mapping);
@@ -804,7 +845,7 @@ export default function ImportPanel({
             <input
               ref={resumeFileRef}
               type="file"
-              accept=".sgy,.segy,.SGY,.SEGY"
+              accept={VOLUME_ACCEPT}
               className="hidden"
               onChange={onResumePick}
             />
@@ -832,7 +873,7 @@ export default function ImportPanel({
             <input
               ref={fileRef}
               type="file"
-              accept=".sgy,.segy,.SGY,.SEGY"
+              accept={VOLUME_ACCEPT}
               className="hidden"
               onChange={onPickFile}
             />
@@ -842,13 +883,14 @@ export default function ImportPanel({
               disabled={phase === 'ingesting' || phase === 'scanning'}
             >
               <FileText className="w-4 h-4 mr-2" />
-              {file ? file.name : 'Choose SEG-Y file'}
+              {file ? file.name : 'Choose a SEG-Y or ZGY file'}
             </Button>
             {file && (
               <span className="ml-3 text-sm text-pl-muted">
                 {(file.size / (1024 * 1024)).toFixed(1)} MB, processed in windows and not loaded whole
               </span>
             )}
+            {zgyInfo && <ZgyNote info={zgyInfo} />}
           </div>
         ) : (
           <div className="space-y-2" data-testid="sl-import-link">
@@ -1167,7 +1209,7 @@ export default function ImportPanel({
             <CropPanel
               scan={cropDtUs ? { ...scan, dtUs: cropDtUs } : scan}
               door={layoutInfo?.door && cropDtUs ? { ...layoutInfo.door, dtUs: cropDtUs } : layoutInfo?.door || null}
-              fileSize={file?.size || 0}
+              fileSize={srcBytes}
               domain={domain}
               t0Ms={cropT0Ms}
               enabled={cropOn}
@@ -1303,7 +1345,7 @@ export default function ImportPanel({
         )}
         {file && scan && useV4 && !useServer && !busy && phase !== 'background' && (
           <div className="text-xs text-pl-muted leading-relaxed" data-testid="import-expectation">
-            {importExpectation(file.size, typeof navigator !== 'undefined' ? navigator.deviceMemory : null).text}
+            {importExpectation(srcBytes, typeof navigator !== 'undefined' ? navigator.deviceMemory : null).text}
           </div>
         )}
         {file && v4Support && !v4Support.ok && !useServer && (
@@ -1326,7 +1368,7 @@ export default function ImportPanel({
 
         {file && !file.remote && scan && localOffered && phase !== 'background' && (() => {
           // a crop keeps only its traces and samples: estimate on the kept bytes
-          const bytes = cropOn && cropEst?.croppedBytes ? cropEst.croppedBytes : file.size;
+          const bytes = cropOn && cropEst?.croppedBytes ? cropEst.croppedBytes : srcBytes;
           const est = localVsUploadEstimate({ bytes, readMBps: 60, uploadMBps: speed || null });
           return (
             <fieldset className="rounded-lg border border-pl-border p-3 space-y-2 text-sm text-pl-text" data-testid="sl-import-keep">
