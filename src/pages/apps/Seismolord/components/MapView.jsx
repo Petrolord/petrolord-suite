@@ -179,6 +179,31 @@ const fmtZ = (v, step) => (step >= 1
  *   values in their own unit — mappable layers alongside the horizons
  *   (fixed domain: no TWT/depth conversion, isochron or amplitude)
  */
+/** Legend of the spectral RGB blend: one swatch per channel with its frequency. */
+function drawRgbLegend(ctx, { x, y, info, dpr }) {
+  const cols = ['rgb(239, 68, 68)', 'rgb(34, 197, 94)', 'rgb(59, 130, 246)'];
+  const words = ['Red', 'Green', 'Blue'];
+  ctx.save();
+  ctx.font = `${Math.round(10 * dpr)}px ui-monospace, monospace`;
+  // a dark backing so the labels read over a bright blend
+  const w = Math.max(...info.map((ch, c) => ctx.measureText(`${words[c]} ${ch.freqHz} Hz`).width), ctx.measureText('Spectral decomposition').width);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.72)';
+  ctx.fillRect(x - w - 10 * dpr, y - 6 * dpr, w + 24 * dpr, 3 * 18 * dpr + 18 * dpr);
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (let c = 0; c < 3; c++) {
+    const yy = y + c * 18 * dpr;
+    ctx.fillStyle = cols[c];
+    ctx.fillRect(x, yy, 12 * dpr, 12 * dpr);
+    ctx.fillStyle = INK;
+    ctx.fillText(`${words[c]} ${info[c].freqHz} Hz`, x - 4 * dpr, yy + 6 * dpr);
+  }
+  ctx.textAlign = 'right';
+  ctx.fillStyle = INK_DIM;
+  ctx.fillText('Spectral decomposition', x + 12 * dpr, y + 3 * 18 * dpr + 4 * dpr);
+  ctx.restore();
+}
+
 function MapView({
   manifest, geom, horizons, faults, velocity, velocityBoundaries,
   onNavigate, onEraseRegion, traverse, onTraverse, savedTraverses,
@@ -186,6 +211,7 @@ function MapView({
   timeSlice = null, sliceVis = null, indices = null, display = null,
   onHorizonSettings = null, onToggleHorizon = null, surfaces = null,
   cameraApi = null, cultureLayers = null, depthUnit = null, exportCaption = null,
+  rgbSlice = null, rgbInfo = null, onRgbHorizon = null,
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -251,9 +277,13 @@ function MapView({
     () => (display ? buildLut(display.colormap, Boolean(display.reverse)) : null),
     [display],
   );
+  // spectral RGB blend: the three channel volumes' slice at the same
+  // time replaces the amplitude raster (useSpectralRgb shades it)
+  const rgbTs = showTimeSlice && rgbSlice && rgbSlice.index === timeSlice.index
+    && rgbSlice.width === timeSlice.width && rgbSlice.height === timeSlice.height ? rgbSlice : null;
   const tsBitmap = useMemo(() => {
     if (!showTimeSlice || !tsLut) return null;
-    const px = shadeAmpPixels(
+    const px = rgbTs ? rgbTs.pixels : shadeAmpPixels(
       timeSlice.data, timeSlice.width, timeSlice.height, tsLut, display,
     );
     const bmp = document.createElement('canvas');
@@ -263,7 +293,7 @@ function MapView({
       new ImageData(new Uint8ClampedArray(px), timeSlice.width, timeSlice.height), 0, 0,
     );
     return bmp;
-  }, [showTimeSlice, timeSlice, tsLut, display]);
+  }, [showTimeSlice, timeSlice, tsLut, display, rgbTs]);
 
   // right-click target: resolved in onContextMenu (before Radix opens
   // the menu) so the menu can name the horizon under the cursor
@@ -337,6 +367,29 @@ function MapView({
       .finally(() => { if (!stale) setAmpBusy(false); });
     return () => { stale = true; };
   }, [ampMode, activeGrid, attrWindow, onAmplitude]);
+
+  // spectral RGB along the mapped horizon: the three channel volumes
+  // sampled at its picks; drawn as the fill over the structure contours
+  const rgbHorizonOn = effAttr === 'rgb' && Boolean(onRgbHorizon);
+  const [rgbHorizon, setRgbHorizon] = useState(null);   // {grid, pixels, ranges, dominant, bitmap}
+  useEffect(() => {
+    if (!rgbHorizonOn || !activeGrid || !geom) { setRgbHorizon(null); return undefined; }
+    let stale = false;
+    setAmpBusy(true);
+    onRgbHorizon(activeGrid)
+      .then((res) => {
+        if (stale) return;
+        const bmp = document.createElement('canvas');
+        bmp.width = geom.nXl;
+        bmp.height = geom.nIl;
+        bmp.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(res.pixels), geom.nXl, geom.nIl), 0, 0);
+        setRgbHorizon({ grid: activeGrid, ...res, bitmap: bmp });
+      })
+      .catch(() => { if (!stale) setRgbHorizon(null); })
+      .finally(() => { if (!stale) setAmpBusy(false); });
+    return () => { stale = true; };
+  }, [rgbHorizonOn, activeGrid, geom, onRgbHorizon]);
+  const rgbH = rgbHorizonOn && rgbHorizon && rgbHorizon.grid === activeGrid ? rgbHorizon : null;
 
   /** (Re)build a layer's fill bitmap when its colormap changes. */
   const ensureBitmap = useCallback((c, mapKey) => {
@@ -536,7 +589,7 @@ function MapView({
     northDir, velocity, depthConv, effDomain, traverse, savedTraverses,
     effAttr, ampLayer, wells, faultTraceLayer, faultObjectsLayer, lines2dLayer, onCursor,
     timeSlice, showTimeSlice, tsBitmap, tsLut, sliceVis, indices, display,
-    surfaces, activeSurface, cultureLayers,
+    surfaces, activeSurface, cultureLayers, rgbTs, rgbH, rgbInfo,
   };
 
   // ---- drawing -----------------------------------------------------------
@@ -580,12 +633,12 @@ function MapView({
       ctx.drawImage(p.tsBitmap, o.x, o.y, p.geom.nXl * t.ppx, p.geom.nIl * t.ppy);
     }
 
-    if (p.prefs.fill && layer && layer.bitmap) {
+    if (p.prefs.fill && layer && (layer.bitmap || p.rgbH)) {
       const o = t.worldToScreen(0, 0);
       ctx.imageSmoothingEnabled = true;
       const fillAlpha = p.active?.display?.opacity;
       if (fillAlpha != null && fillAlpha < 1) ctx.globalAlpha = fillAlpha;
-      ctx.drawImage(layer.bitmap, o.x, o.y, p.geom.nXl * t.ppx, p.geom.nIl * t.ppy);
+      ctx.drawImage(p.rgbH ? p.rgbH.bitmap : layer.bitmap, o.x, o.y, p.geom.nXl * t.ppx, p.geom.nIl * t.ppy);
       ctx.globalAlpha = 1;
     }
 
@@ -1094,7 +1147,11 @@ function MapView({
 
     // amplitude legend for the time-slice raster (the shared drawColorbar
     // used by the section windows; ±clip/gain at the ends)
-    if (p.prefs.colorbar && p.showTimeSlice && p.tsLut && p.display) {
+    if (p.prefs.colorbar && p.rgbInfo && (p.rgbTs || p.rgbH)) {
+      drawRgbLegend(ctx, {
+        x: canvas.width - 24 * dpr, y: gt + 60 * dpr, info: p.rgbInfo, dpr,
+      });
+    } else if (p.prefs.colorbar && p.showTimeSlice && p.tsLut && p.display) {
       drawColorbar(ctx, {
         x: canvas.width - 24 * dpr,
         y: gt + 60 * dpr,
@@ -1106,7 +1163,7 @@ function MapView({
       });
     }
 
-    if (p.prefs.colorbar && layer && layer.zMin != null && layer.bitmap) {
+    if (p.prefs.colorbar && layer && layer.zMin != null && layer.bitmap && !p.rgbH) {
       // Z legend: shallow (zMin) at the top, matching the fill's LUT ends
       const barLut = layer.lut || lut;
       const h = Math.min(150 * dpr, canvas.height * 0.4);
@@ -1256,7 +1313,7 @@ function MapView({
   useEffect(() => { scheduleDraw(); }, [horizons, faults, prefs, colormap, active, vs, lines2dLayer,
     effDomain, velocity, traverse, savedTraverses, effAttr, ampLayer, wells,
     timeSlice, tsBitmap, showTimeSlice, sliceVis, indices, display,
-    surfaces, activeSurface, cultureLayers, scheduleDraw]);
+    surfaces, activeSurface, cultureLayers, rgbTs, rgbH, rgbInfo, scheduleDraw]);
 
   // model removed -> fall back to TWT so the select never lies
   useEffect(() => {
@@ -1342,6 +1399,11 @@ function MapView({
     }
     // seismic amplitude under the cursor when the time slice is showing
     // (the horizon-attribute readout keeps priority — one A per line)
+    const rgbSrc = p.rgbH || p.rgbTs;
+    if (rgbSrc && p.rgbInfo && rgbSrc.dominant) {
+      const k = rgbSrc.dominant[hit.ilIdx * p.geom.nXl + hit.xlIdx];
+      if (k >= 0) z += `   strongest ${p.rgbInfo[k].freqHz} Hz`;
+    }
     if (!z.includes('A ') && p.showTimeSlice && p.timeSlice) {
       const v = p.timeSlice.data[hit.ilIdx * p.geom.nXl + hit.xlIdx];
       z += `   A ${Math.abs(v) > 1.0e29 ? 'null' : v.toExponential(3)}`;
@@ -1712,6 +1774,7 @@ function MapView({
             <option value="structure">Structure</option>
             {AMP_MODES.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
             <option value="confidence">Tracker confidence</option>
+            {onRgbHorizon && <option value="rgb">Spectral RGB blend</option>}
           </select>
         )}
         {ampMode?.windowed && (
