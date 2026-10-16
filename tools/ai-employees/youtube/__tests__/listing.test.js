@@ -31,13 +31,16 @@ describe('public allowlist (owner decisions 2026-10-11)', () => {
       'petro-01', 'petro-02', 'petro-03',
       'qi-01', 'qi-02', 'qi-03',
       'seis-01', 'seis-02', 'seis-03',
+      // Round 2 (owner 2026-10-16): demos and Module A of eight more apps.
+      ...['rcp', 'mbal', 'wds', 'epe', 'pps', 'em', 'wt', 'bf'].flatMap((a) => [`${a}-01`, `${a}-02`, `${a}-03`, `lesson-${a}-a1`, `lesson-${a}-a2`, `lesson-${a}-a3`]),
+      'lesson-rcp-a4',
     ].sort());
     expect(seriesFor(allowlist, 'well-data-manager')).toBeNull();
     expect(allowlist.series.find((s) => s.id === 'well-data-manager')).toBeTruthy();
   });
 
   test('negative controls: later modules, QI Module B onwards and old takes are members-only', () => {
-    for (const k of ['lesson-b5', 'lesson-c8', 'lesson-f22', 'lesson-qi-b4', 'lesson-qi-c8', 'lesson-qi-f18', 'petro-01-v1', 'qi-smoke', 'smoke-home', 'anything-else']) {
+    for (const k of ['lesson-epe-b4', 'lesson-rcp-b5', 'lesson-bf-d12', 'lesson-b5', 'lesson-c8', 'lesson-f22', 'lesson-qi-b4', 'lesson-qi-c8', 'lesson-qi-f18', 'petro-01-v1', 'qi-smoke', 'smoke-home', 'anything-else']) {
       expect(isPublicKey(allowlist, k)).toBe(false);
     }
     for (const k of allowlist.membersOnly.keys) expect(isPublicKey(allowlist, k)).toBe(false);
