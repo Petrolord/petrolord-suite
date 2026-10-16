@@ -11,6 +11,7 @@ import { propertyPrediction } from '../../../../worker/seismic-worker/src/handle
 import { sampleVolumes } from '../../../../worker/seismic-worker/src/handlers/sampleVolumes.js';
 import { avoVolumes } from '../../../../worker/seismic-worker/src/handlers/avoVolumes.js';
 import { matchStacksJob } from '../../../../worker/seismic-worker/src/handlers/matchStacks.js';
+import { balanceStacksJob } from '../../../../worker/seismic-worker/src/handlers/balanceStacks.js';
 import { prestackInversion } from '../../../../worker/seismic-worker/src/handlers/prestackInversion.js';
 import { zoneMaps } from '../../../../worker/seismic-worker/src/handlers/zoneMaps.js';
 import { JobFailure } from '../../../../worker/seismic-worker/src/runJob.js';
@@ -27,6 +28,7 @@ export function createBrowserHandlers(deps) {
     sample_volumes: (ctx) => sampleVolumes(ctx, deps),
     avo_volumes: (ctx) => avoVolumes(ctx, deps),
     match_stacks: (ctx) => matchStacksJob(ctx, deps),
+    spectral_balance: (ctx) => balanceStacksJob(ctx, deps),
     prestack_inversion: (ctx) => prestackInversion(ctx, deps),
     zone_maps: (ctx) => zoneMaps(ctx, deps),
   };
