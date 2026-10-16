@@ -105,7 +105,22 @@ checked YouTube Studio and reruns with `--force`.
 `tools/demo-video/thumbs.mjs` writes `thumbnail.jpg` (1280x720, under 2 MB)
 into each public video folder, and the proposal names it. After the upload,
 `execute.mjs` calls `thumbnails.set` with retries. A refused thumbnail never
-fails the upload: the task is marked done with a warning.
+fails the upload: the task is marked done with a warning. A task proposed
+before thumbnails existed has no `thumbnail_file`; `execute.mjs` then uses the
+folder's `thumbnail.jpg` (or `thumbnail.png`) the same way. Shorts never get
+one.
+
+## Files freed by housekeeping
+
+`tools/ops/housekeeping.sh` deletes a folder's `youtube.mp4` 30 days after
+`r2.json` records its R2 backup, but upload slots run further out than that.
+When a due task's video or thumbnail is missing locally, `execute.mjs`
+downloads it from R2 (the key in `r2.json`), checks size and MD5 against the
+`r2.json` record, and only then uploads it (logged as `master_restored`).
+Housekeeping frees it again on a later pass. A download that does not match,
+or a file in neither place, fails the task with the reason in its result; a
+thumbnail problem is only a warning. `--dry-run` says which files would come
+from R2 and fetches nothing.
 
 YouTube only accepts custom thumbnails from a channel with intermediate
 features. If `thumbnails.set` answers 403, the owner opens YouTube Studio,
