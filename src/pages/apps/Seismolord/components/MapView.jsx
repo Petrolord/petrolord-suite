@@ -185,6 +185,10 @@ function drawRgbLegend(ctx, { x, y, info, dpr }) {
   const words = ['Red', 'Green', 'Blue'];
   ctx.save();
   ctx.font = `${Math.round(10 * dpr)}px ui-monospace, monospace`;
+  // a dark backing so the labels read over a bright blend
+  const w = Math.max(...info.map((ch, c) => ctx.measureText(`${words[c]} ${ch.freqHz} Hz`).width), ctx.measureText('Spectral decomposition').width);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.72)';
+  ctx.fillRect(x - w - 10 * dpr, y - 6 * dpr, w + 24 * dpr, 3 * 18 * dpr + 18 * dpr);
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
   for (let c = 0; c < 3; c++) {
