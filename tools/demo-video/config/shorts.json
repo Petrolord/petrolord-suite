@@ -1,0 +1,53 @@
+{
+  "note": "Shorts cut from the public demo masters. Each entry is a run of storyboard steps (from..to) on the parent's timeline.json; the clip starts and ends on whole narrated sentences and runs 30 to 60 s with the closing card. hook is the title card for the first 2 s and the Short's title (plain facts, no em dashes). crop (optional) is { w: fraction of the source width shown in the panel, focus: 0 left to 1 right }; without it shorts.mjs looks for the busiest part of the frame. Short keys are <parent>-short<n> and are only ever published when listed under shorts in the public allowlist.",
+  "shorts": {
+    "petro-01": [{ "n": 1, "from": "why", "to": "result", "hook": "Same logs, net pay doubled. Why?" }],
+    "petro-02": [{ "n": 1, "from": "rwtools", "to": "pay", "hook": "Is the log Rw right? Ask the water" }],
+    "petro-03": [{ "n": 1, "from": "pcases", "to": "tornado", "hook": "Which measurement is worth paying for?" }],
+    "qi-01": [
+      { "n": 1, "from": "avo", "to": "dims", "hook": "Can the seismic see a thin oil column?" },
+      { "n": 2, "from": "result", "to": "crossplot", "hook": "Swap the oil for brine and watch" }
+    ],
+    "qi-02": [{ "n": 1, "from": "synth", "to": "commit", "hook": "How good is this well tie?" }],
+    "qi-03": [{ "n": 1, "from": "wells", "to": "wells-table", "hook": "Does the AVO match the wells?" }],
+    "seis-01": [
+      { "n": 1, "from": "seed", "to": "tracked", "hook": "One seed pick, 13,580 traces" },
+      { "n": 2, "from": "fullview", "to": "well", "hook": "Reading a rollover trap" }
+    ],
+    "seis-02": [{ "n": 1, "from": "faults", "to": "pick", "hook": "Faults picked over the whole survey" }],
+    "seis-03": [{ "n": 1, "from": "contact", "to": "volume", "hook": "From seismic maps to barrels" }],
+    "rcp-01": [{ "n": 1, "from": "booked", "to": "volume", "hook": "Where 12.14 million barrels comes from" }],
+    "rcp-02": [{ "n": 1, "from": "run2", "to": "tornado2", "hook": "Same rock, more evidence. What changes?" }],
+    "rcp-03": [{ "n": 1, "from": "notice", "to": "refresh", "hook": "A new well. Does your volume know?" }],
+    "mbal-01": [
+      { "n": 1, "from": "run", "to": "ho", "hook": "Oil in place from pressure alone" },
+      { "n": 2, "from": "cf", "to": "cf3", "hook": "How sure is the oil in place?" }
+    ],
+    "mbal-02": [{ "n": 1, "from": "play", "to": "result", "hook": "Watch the oil column thin" }],
+    "mbal-03": [{ "n": 1, "from": "without", "to": "campbell", "hook": "Leave the injection out and see" }],
+    "wds-01": [{ "n": 1, "from": "design", "to": "kpis", "hook": "A well path to the target in one solve" }],
+    "wds-02": [{ "n": 1, "from": "run", "to": "ladder", "hook": "Too close to the neighbours?" }],
+    "wds-03": [{ "n": 1, "from": "notice", "to": "refresh", "hook": "The map moved. Does the well plan know?" }],
+    "epe-01": [
+      { "n": 1, "from": "compare", "to": "increment", "hook": "Is one more well worth drilling?" },
+      { "n": 2, "from": "run", "to": "irr", "hook": "Why this field has no single IRR" }
+    ],
+    "epe-02": [{ "n": 1, "from": "range", "to": "fan", "hook": "Reading a Monte Carlo on a field" }],
+    "epe-03": [{ "n": 1, "from": "rerun", "to": "compare", "hook": "A forecast cut, priced in minutes" }],
+    "pps-01": [{ "n": 1, "from": "readouts", "to": "window", "hook": "Reading a pore pressure prognosis" }],
+    "pps-02": [{ "n": 1, "from": "mw", "to": "evidence", "hook": "Does the prognosis explain the kick?" }],
+    "pps-03": [{ "n": 1, "from": "misfit", "to": "fit", "hook": "The logs read high. Pressure tests fix it" }],
+    "em-01": [{ "n": 1, "from": "volume", "to": "save", "hook": "A static model, cell by cell" }],
+    "em-02": [{ "n": 1, "from": "shm", "to": "shmresult", "hook": "Why the model and the booking differ" }],
+    "em-03": [{ "n": 1, "from": "mc", "to": "mcresult", "hook": "500 static models, one range" }],
+    "wt-01": [
+      { "n": 1, "from": "loglog", "to": "loglog", "hook": "How to read a well test derivative" },
+      { "n": 2, "from": "horner", "to": "second", "hook": "A second straight line finds a fault" }
+    ],
+    "wt-02": [{ "n": 1, "from": "horner", "to": "superposition", "hook": "Same buildup, two answers for skin" }],
+    "wt-03": [{ "n": 1, "from": "tested", "to": "ideal", "hook": "What does skin cost in barrels?" }],
+    "bf-01": [{ "n": 1, "from": "fit", "to": "maturity", "hook": "Is the source rock mature here?" }],
+    "bf-02": [{ "n": 1, "from": "charge", "to": "events", "hook": "Did enough oil reach the trap?" }],
+    "bf-03": [{ "n": 1, "from": "trapage", "to": "trapage-read", "hook": "When the trap formed decides the charge" }]
+  }
+}

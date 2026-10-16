@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8">
+<style>
+/* Layers for a vertical Short, 1080x1920, local fonts only.
+   mode=chrome  transparent: the wordmark and app chip above the app panel
+   mode=hook    the opening title card (semi-transparent over the clip)
+   mode=outro   the closing card
+   Other parameters: mark, text, chip, tag, accent. */
+:root{--ink:#0b1d14;--accent:#e8b923;--paper:#fff}
+*{box-sizing:border-box}
+html,body{margin:0;width:1080px;height:1920px;overflow:hidden;background:transparent;font-family:"Inter Display",Inter,system-ui,sans-serif;color:var(--paper)}
+.layer{position:absolute;inset:0;display:none}
+body[data-mode=chrome] #chrome,body[data-mode=hook] #hook,body[data-mode=outro] #outro{display:block}
+#chrome .mark{position:absolute;top:214px;left:50%;transform:translateX(-50%);height:52px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.6))}
+#chrome .chip{position:absolute;top:278px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:30px;font-weight:700;color:var(--paper);text-shadow:0 2px 8px rgba(0,0,0,.8);letter-spacing:.02em}
+#chrome .chip b{color:var(--accent);font-weight:800}
+#hook{background:rgba(11,29,20,.84)}
+#outro{background:radial-gradient(900px 900px at 50% 40%,#1d3a2b 0%,var(--ink) 70%)}
+.center{position:absolute;left:90px;right:90px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:44px}
+.big{font-weight:900;font-size:112px;line-height:1.02;letter-spacing:-.01em;text-wrap:balance}
+.pill{background:var(--accent);color:#10150f;font-weight:800;font-size:40px;padding:14px 32px;border-radius:999px}
+.mark2{height:70px}
+.url{font-weight:800;font-size:72px;color:var(--accent)}
+.small{font-size:40px;font-weight:600;color:#cfd8d1}
+</style></head>
+<body>
+<div class="layer" id="chrome"><img class="mark" data-mark alt="Petrolord Suite"><div class="chip"><b data-chip></b> <span data-tag></span></div></div>
+<div class="layer" id="hook"><div class="center"><img class="mark2" data-mark alt="Petrolord Suite"><div class="big" data-text></div><div class="pill" data-chip></div></div></div>
+<div class="layer" id="outro"><div class="center"><img class="mark2" data-mark alt="Petrolord Suite"><div class="big">Full demo on the channel</div><div class="small" data-chip></div><div class="url">petrolord.com</div></div></div>
+<script>
+const q = new URLSearchParams(location.hash.slice(1));
+document.body.dataset.mode = q.get('mode') || 'chrome';
+document.documentElement.style.setProperty('--accent', q.get('accent') || '#e8b923');
+for (const el of document.querySelectorAll('[data-mark]')) el.src = q.get('mark') || '';
+for (const k of ['text', 'chip', 'tag']) for (const el of document.querySelectorAll(`[data-${k}]`)) el.textContent = q.get(k) || '';
+// shrink the hook until it fits
+const big = document.querySelector('#hook .big');
+let size = 112;
+while (size > 64 && big.scrollHeight > 760) { size -= 4; big.style.fontSize = `${size}px`; }
+</script>
+</body></html>
