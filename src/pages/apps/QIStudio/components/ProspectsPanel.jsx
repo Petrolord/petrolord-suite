@@ -13,6 +13,7 @@ import { useQIStudio } from '../QIStudioContext';
 import { analyseProspect, COMPETING, COMPETING_STATES } from '../services/prospects';
 import { EVIDENCE_SOURCES } from '../engine/prospectAssessment';
 import { FEASIBILITY_VERDICTS } from '../services/model';
+import { useAppUnits } from '@/lib/units/useAppUnits';
 
 const card = 'rounded-lg border border-pl-border bg-pl-surface p-4 space-y-3';
 const muted = 'text-xs text-pl-muted';
@@ -23,6 +24,11 @@ const input = 'rounded border border-pl-border bg-pl-surface px-2 py-0.5 text-xs
 const f = (v, d = 0) => (Number.isFinite(v) ? v.toFixed(d) : EMPTY_VALUE);
 const RRV_ROUTE = '/dashboard/apps/reservoir/risked-reserves-valuation';
 const VERDICT = Object.fromEntries(FEASIBILITY_VERDICTS.map((v) => [v.key, v.label]));
+// depths in the Suite unit profile's depth unit (oilfield profiles read feet)
+export const QI_DEPTH_UNITS = Object.freeze({ depth: { family: 'depth', allowed: ['m', 'ft'] } });
+export const M_PER_FT = 0.3048;
+/** A depth in metres in the display unit. */
+export const depthIn = (m, unit) => (Number.isFinite(m) ? (unit === 'ft' ? m / M_PER_FT : m) : NaN);
 const REC_WORD = { mature: 'Mature', retain: 'Retain', investigate: 'Investigate', downgrade: 'Downgrade' };
 
 const blank = (target) => ({
@@ -122,6 +128,8 @@ export default function ProspectsPanel() {
     return () => { live = false; };
   }, [backend]);
   const prospects = project.prospects || [];
+  const depthUnit = useAppUnits('qi-studio', QI_DEPTH_UNITS, { fallback: { depth: 'm' } }).units.depth || 'm';
+  const dz = (m) => f(depthIn(m, depthUnit));
 
   const analyse = async () => {
     setBusy(true); setError(null);
@@ -172,7 +180,7 @@ export default function ProspectsPanel() {
         <table className="text-xs" data-testid="qi-pros-table">
           <thead>
             <tr>
-              <th className={th}>Prospect</th><th className={th}>Target</th><th className={th}>Crest / spill (m)</th><th className={th}>Column (m)</th>
+              <th className={th}>Prospect</th><th className={th}>Target</th><th className={th}>{`Crest / spill (${depthUnit})`}</th><th className={th}>{`Column (${depthUnit})`}</th>
               <th className={th}>Closure (km2)</th><th className={th}>Anomaly fit</th><th className={th}>Independent evidence</th>
               <th className={th}>Competing open / likely</th><th className={th}>Feasibility</th><th className={th}>Seismic support</th><th className={th}>Recommendation</th><th className={th} />
             </tr>
@@ -186,10 +194,10 @@ export default function ProspectsPanel() {
                 <tr key={p.id} data-testid={`qi-pros-row-${p.id}`}>
                   <td className={td}>{p.name}</td>
                   <td className={td}>{p.target || EMPTY_VALUE}</td>
-                  <td className={`${td} font-mono`}>{r ? `${f(r.trap.crest.depthM)} / ${f(r.trap.spill.depthM)}${r.trap.limitedByEdge ? ' (edge)' : ''}` : EMPTY_VALUE}</td>
-                  <td className={`${td} font-mono`}>{r ? f(r.trap.columnM) : EMPTY_VALUE}</td>
+                  <td className={`${td} font-mono`}>{r ? `${dz(r.trap.crest.depthM)} / ${dz(r.trap.spill.depthM)}${r.trap.limitedByEdge ? ' (edge)' : ''}` : EMPTY_VALUE}</td>
+                  <td className={`${td} font-mono`}>{r ? dz(r.trap.columnM) : EMPTY_VALUE}</td>
                   <td className={`${td} font-mono`}>{r ? f(r.trap.areaKm2, 2) : EMPTY_VALUE}</td>
-                  <td className={td}>{r?.anomaly ? `${f(r.anomaly.conformance, 2)}, ${f(100 * r.anomaly.insideClosure)} percent inside, contact ${f(r.anomaly.impliedContactDepthM)} m` : 'no anomaly'}</td>
+                  <td className={td}>{r?.anomaly ? `${f(r.anomaly.conformance, 2)}, ${f(100 * r.anomaly.insideClosure)} percent inside, contact ${dz(r.anomaly.impliedContactDepthM)} ${depthUnit}` : 'no anomaly'}</td>
                   <td className={`${td} font-mono`}>{r ? r.evidence.independent : EMPTY_VALUE}</td>
                   <td className={`${td} font-mono`}>{`${open} / ${likely}`}</td>
                   <td className={td}>{VERDICT[project.feasibility?.[p.target]?.verdict || ''] || 'Not assessed'}</td>
