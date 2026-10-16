@@ -26,6 +26,7 @@ import { latticeToWorldGrid } from '../../../../../packages/engines/engines/seis
 import { surveyAffine, cellSpacing, surveyBounds, worldToIlxl } from '../../../../../packages/engines/engines/seismolord/surveyGeometry';
 import { geomFromManifest } from '../../../../../packages/engines/engines/seismolord/sliceAssembly';
 import { exportGridSpec } from '@/lib/gridding/gridding';
+import { latticeSiblings, mergeLatticeHorizons } from './horizonSources';
 
 /** A new derived row ('ingesting', kind 'attribute') on a parent volume, as Seismolord registers an attribute volume. */
 async function registerDerived(parent, name, attributeParams) {
@@ -98,7 +99,21 @@ export function makeRegistryBackend() {
       return volume?.crs ? { ...f, crs: volume.crs } : f;
     },
     async listHorizons(volumeId) {
-      return (await listHorizons(volumeId)).filter((h) => h.is_own);
+      const own = (await listHorizons(volumeId)).filter((h) => h.is_own);
+      // and the user's picks on any other volume of this lattice (horizonSources.js)
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: target } = await supabase.from('seismic_volumes').select('id, name, survey_meta').eq('id', volumeId).maybeSingle();
+        await whenProjectScopeReady();
+        const { data: rows } = await scopeToProject(supabase.from('seismic_volumes').select('id, name, kind, status, survey_meta').eq('status', 'ready'));
+        const siblings = latticeSiblings(target, rows).filter((v) => v.kind !== 'attribute');
+        if (!siblings.length || !user) return own;
+        const { data: hs, error } = await supabase.from('seismic_horizons').select('*').in('volume_id', siblings.map((v) => v.id)).eq('user_id', user.id).order('created_at', { ascending: false });
+        if (error) return own;
+        return mergeLatticeHorizons(own, (hs || []).map((h) => ({ ...h, is_own: true })), siblings);
+      } catch {
+        return own;
+      }
     },
     downloadCurve,
     // QI upgrade P2.8: faults as barriers in the low-frequency model

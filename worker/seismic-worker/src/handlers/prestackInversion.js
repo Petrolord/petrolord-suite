@@ -12,6 +12,7 @@
 // params: { mode, inversion: { stacks: [{volume_id, angle}], wavelet: {samples, dt_ms},
 //   wells: [{name, il, xl, ln_ai, ln_si, ln_rho}], horizon_ids?, lfmHz?, eps?, iters?, vs_vp? },
 //   volume_ids?: {ai, si, rho, vpvs} (volume mode) }
+import { horizonLatticeProblem } from '../horizonLattice.js';
 import { blindTableProblem, makeSanityCounter } from '../outputSanity.js';
 import { JobFailure } from '../runJob.js';
 import { pilotProblem, pilotOn, pilotBytes } from '../pilot.js';
@@ -115,12 +116,13 @@ export async function prestackInversion(ctx, deps) {
     const q = await seismicQuota(admin, uid);
     if (q.used + need > q.quota) return fail('over_quota', overQuotaMessage('The prestack inversion volumes', need, q));
   }
-  // horizons: the user's own picks on the first stack
+  // horizons: the user's own picks on the first stack or on any volume of its lattice (horizonLattice.js)
   const grids = [];
   for (const id of inv.horizon_ids || []) {
     const { data: h, error } = await admin.from('seismic_horizons').select('id,user_id,volume_id,name,storage_path').eq('id', id).maybeSingle();
     if (error) throw new Error(`Could not read horizon ${id}: ${error.message}`);
-    if (!h || h.user_id !== uid || h.volume_id !== parent.id) return fail('not_found', 'A chosen horizon was not found on the first stack in your account.');
+    const why = await horizonLatticeProblem(h, { uid, volumeId: parent.id, manifest: manifests[0], rowOf, readManifest });
+    if (why) return fail(why.stage, why.message);
     const buf = deps.readBlob ? await deps.readBlob(h.storage_path) : await (async () => {
       const { data, error: e } = await admin.storage.from('seismic').download(h.storage_path);
       if (e) throw new Error(`Could not read horizon ${h.name}: ${e.message}`);
