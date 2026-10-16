@@ -71,15 +71,11 @@ export function viewerParams(req, { storeId, compareId, geometry, points }) {
   return p;
 }
 
-function drawGather(canvas, { gather, offsets, window: w, clip, display, overlays, rmo, stored, traceW: TRACE_W = 14 }) {
-  const ctx = canvas?.getContext?.('2d');
-  if (!ctx) return;
-  const nb = offsets.length; const W = AXIS_L + nb * TRACE_W + 8; const H = PANEL_H;
-  canvas.width = W; canvas.height = H;
-  const plotH = H - AXIS_T - AXIS_B; const ns = w.ns;
+/** Paint one gather's traces and overlays with its first trace at x0 (shared by the one-gather and line panels). */
+function paintGather(ctx, x0, { gather, offsets, window: w, clip, display, overlays, rmo, stored, traceW: TRACE_W = 14, plotH }) {
+  const nb = offsets.length; const ns = w.ns;
   const yOf = (tMs) => AXIS_T + ((tMs - w.t0_ms) / ((ns - 1) * w.dt_ms || 1)) * plotH;
-  const xOf = (b) => AXIS_L + (b + 0.5) * TRACE_W;
-  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+  const xOf = (b) => x0 + (b + 0.5) * TRACE_W;
   if (display === 'density') {
     const img = ctx.createImageData(nb * TRACE_W, plotH);
     for (let y = 0; y < plotH; y++) {
@@ -97,17 +93,17 @@ function drawGather(canvas, { gather, offsets, window: w, clip, display, overlay
         }
       }
     }
-    ctx.putImageData(img, AXIS_L, AXIS_T);
+    ctx.putImageData(img, x0, AXIS_T);
   } else {
     ctx.strokeStyle = '#0f172a'; ctx.fillStyle = '#0f172a'; ctx.lineWidth = 0.8;
     for (let b = 0; b < nb; b++) {
-      const x0 = xOf(b); const tr = gather.traces[b];
+      const xc = xOf(b); const tr = gather.traces[b];
       ctx.beginPath();
       let pen = false;
       for (let s = 0; s < ns; s++) {
         const v = tr[s]; const y = yOf(w.t0_ms + s * w.dt_ms);
         if (!Number.isFinite(v)) { pen = false; continue; }
-        const x = x0 + Math.max(-1.5, Math.min(1.5, v / clip)) * (TRACE_W / 2);
+        const x = xc + Math.max(-1.5, Math.min(1.5, v / clip)) * (TRACE_W / 2);
         if (pen) ctx.lineTo(x, y); else { ctx.moveTo(x, y); pen = true; }
       }
       ctx.stroke();
@@ -141,13 +137,71 @@ function drawGather(canvas, { gather, offsets, window: w, clip, display, overlay
     const far = offsets[offsets.length - 1];
     line(offsets.map((x) => t.t_ms + t.rmoFarMs * (x / far) ** 2), '#f97316', [2, 2]);
   }
+  return { yOf, xOf };
+}
+
+/** The time axis on the left of a panel. */
+function timeAxis(ctx, w, yOf, plotH) {
+  const ns = w.ns;
   ctx.fillStyle = '#334155'; ctx.font = '10px sans-serif'; ctx.textAlign = 'right';
   const tickMs = Math.max(w.dt_ms, Math.ceil(((ns - 1) * w.dt_ms) / 8 / 50) * 50);
   for (let t = Math.ceil(w.t0_ms / tickMs) * tickMs; t <= w.t0_ms + (ns - 1) * w.dt_ms; t += tickMs) ctx.fillText(String(t), AXIS_L - 4, yOf(t) + 3);
-  ctx.textAlign = 'center';
-  for (let b = 0; b < nb; b += Math.max(1, Math.ceil(nb / 6))) ctx.fillText(String(Math.round(offsets[b])), xOf(b), H - 10);
+  ctx.save(); ctx.translate(10, AXIS_T + plotH / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.fillText('time (ms)', 0, 0); ctx.restore();
+}
+
+function drawGather(canvas, props) {
+  const ctx = canvas?.getContext?.('2d');
+  if (!ctx) return;
+  const { offsets, window: w, traceW: TRACE_W = 14 } = props;
+  const nb = offsets.length; const W = AXIS_L + nb * TRACE_W + 8; const H = PANEL_H;
+  canvas.width = W; canvas.height = H;
+  const plotH = H - AXIS_T - AXIS_B;
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+  const { yOf, xOf } = paintGather(ctx, AXIS_L, { ...props, plotH });
+  timeAxis(ctx, w, yOf, plotH);
+  ctx.fillStyle = '#334155'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+  // offset ticks spaced by width so the labels never run together
+  const every = Math.max(1, Math.ceil(34 / TRACE_W));
+  for (let b = 0; b < nb; b += every) ctx.fillText(String(Math.round(offsets[b])), xOf(b), H - 10);
   ctx.fillText('offset (m)', AXIS_L + (nb * TRACE_W) / 2, H - 1);
-  ctx.save(); ctx.translate(10, AXIS_T + plotH / 2); ctx.rotate(-Math.PI / 2); ctx.fillText('time (ms)', 0, 0); ctx.restore();
+}
+
+/** Gather spacing in a line panel (px between gathers). */
+export const LINE_GAP = 3;
+
+/**
+ * A line of gathers in ONE panel: side by side on a shared time axis, each
+ * labelled by its crossline (along an inline) or inline (along a crossline),
+ * so the input and a conditioned copy drawn the same way line up trace for
+ * trace. Returns the panel width.
+ */
+export function drawGatherLine(canvas, { gathers, offsets, window: w, clip, display, overlays, traceW = 4, labelOf }) {
+  const ctx = canvas?.getContext?.('2d');
+  if (!ctx) return 0;
+  const nb = offsets.length; const gw = nb * traceW;
+  const W = AXIS_L + gathers.length * (gw + LINE_GAP) + 8; const H = PANEL_H;
+  canvas.width = W; canvas.height = H;
+  const plotH = H - AXIS_T - AXIS_B;
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+  let yOf = null;
+  gathers.forEach((g, q) => {
+    const x0 = AXIS_L + q * (gw + LINE_GAP);
+    ({ yOf } = paintGather(ctx, x0, { gather: g, offsets, window: w, clip, display, overlays: overlays ? { angleMute: overlays.angleMute } : null, traceW, plotH }));
+  });
+  if (yOf) timeAxis(ctx, w, yOf, plotH);
+  ctx.fillStyle = '#334155'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+  const every = Math.max(1, Math.ceil(46 / (gw + LINE_GAP)));
+  gathers.forEach((g, q) => {
+    if (q % every) return;
+    ctx.fillText(labelOf(g), AXIS_L + q * (gw + LINE_GAP) + gw / 2, H - 10);
+  });
+  return W;
+}
+
+function GatherLineCanvas(props) {
+  const ref = useRef(null);
+  useEffect(() => { drawGatherLine(ref.current, props); });
+  return <canvas ref={ref} data-testid={props.testid} aria-label={props.title} />;
 }
 
 function GatherCanvas(props) {
@@ -331,12 +385,25 @@ export default function GathersPanel() {
             {qcRec && <span style={{ color: '#f97316' }}>- - stored prestack QC reading</span>}
           </div>
           <div className="relative overflow-x-auto rounded border border-pl-border bg-white p-2">
-            {view.stores.map((gs, st) => (
+            {view.stores.length && view.stores[0].length > 2 ? view.stores.map((gs, st) => {
+              // a line of gathers: one panel per store, the rows aligned trace for trace
+              const alongInline = gs.length > 1 && gs[0].il === gs[1].il;
+              const storeName = st ? view.r.compare_name : view.r.name;
+              const traceW = Math.max(2, Math.min(8, Math.floor(1400 / (gs.length * view.offsets.length))));
+              const title = `${storeName}: ${alongInline ? `inline ${gs[0].il}, crosslines ${gs[0].xl} to ${gs[gs.length - 1].xl}` : `crossline ${gs[0].xl}, inlines ${gs[0].il} to ${gs[gs.length - 1].il}`}`;
+              return (
+                <figure key={st} className="mb-2" data-testid={`qi-gathers-line-${st}`}>
+                  <figcaption className="text-[11px] text-slate-700">{title}</figcaption>
+                  <GatherLineCanvas testid={`qi-gathers-canvas-${st}-line`} title={title} gathers={gs} offsets={view.offsets} window={view.r.window} clip={view.clip} display={opts.display} overlays={view.overlays} traceW={traceW} labelOf={(g) => (alongInline ? `XL ${g.xl}` : `IL ${g.il}`)} />
+                  <p className="text-[11px] text-slate-600" data-testid={`qi-gathers-fold-${st}-line`}>{`${gs.length} gathers of ${view.offsets.length} offsets, ${view.offsets[0]} to ${view.offsets[view.offsets.length - 1]} m, left to right in each`}</p>
+                </figure>
+              );
+            }) : view.stores.map((gs, st) => (
               <div key={st} className="flex gap-2 mb-2">
                 {gs.map((g, q) => {
                   const rmo = opts.rmo && view.times.length ? gatherRmo({ traces: g.traces, fold: g.fold, offsets: view.offsets, window: view.r.window, times: view.times }) : null;
                   const stored = st === 0 ? storedQcAt(qcRec, g.i, g.j) : null;
-                  const title = `${st ? 'Trimmed: ' : ''}${g.label ? `${g.label}, ` : ''}inline ${g.il}, crossline ${g.xl}`;
+                  const title = `${st ? `${view.r.compare_name}: ` : ''}${g.label ? `${g.label}, ` : ''}inline ${g.il}, crossline ${g.xl}`;
                   // one or two gathers get wide traces; a line of gathers fits about 1,200 px
                   const traceW = Math.max(4, Math.min(40, Math.floor((gs.length <= 2 ? 520 : 1200 / gs.length) / view.offsets.length)));
                   return (

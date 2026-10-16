@@ -26,7 +26,7 @@ import { makeInMemoryBackend, inMemoryGatherPanel } from '../services/inMemoryBa
 import {
   decodePanel, gatherOverlays, gatherRmo, storedQcAt, wellPoint,
 } from '../services/gatherViewer';
-import { viewerRequestProblem, viewerParams } from '../components/GathersPanel';
+import { viewerRequestProblem, viewerParams, drawGatherLine, LINE_GAP } from '../components/GathersPanel';
 import { waldenAngle } from '../engine/prestack';
 /* eslint-enable import/first */
 
@@ -124,6 +124,44 @@ test('the Gathers tab is appended last and shows the store\'s gathers with the m
   fireEvent.change(screen.getByTestId('qi-gathers-mode'), { target: { value: 'inline' } });
   fireEvent.change(screen.getByTestId('qi-gathers-line'), { target: { value: '1003' } });
   fireEvent.click(screen.getByTestId('qi-gathers-show'));
-  await waitFor(() => expect(screen.getByTestId('qi-gathers-canvas-0-7')).toBeInTheDocument(), { timeout: 20000 });
+  // a line of gathers is one panel per store, labelled by its crosslines
+  await waitFor(() => expect(screen.getByTestId('qi-gathers-canvas-0-line')).toBeInTheDocument(), { timeout: 20000 });
+  expect(screen.getByTestId('qi-gathers-line-0')).toHaveTextContent(/inline 1003, crosslines \d+ to \d+/);
+  expect(screen.queryByTestId('qi-gathers-canvas-0-7')).toBeNull();
   expect(enqueue).toHaveBeenLastCalledWith('gather_panel', { dataset_id: 'qi-d2', mode: 'inline', il: 2 });
+});
+
+// QI showcase (2026-10-16): along a line every gather had its own chart and
+// axes, the offset labels ran together, the conditioned row did not line up
+// with the input and was labelled "Trimmed" whatever the conditioning was.
+describe('a line of gathers in one panel', () => {
+  const recorder = () => {
+    const calls = { text: [], images: [] };
+    const ctx = {
+      fillRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, setLineDash() {}, save() {}, restore() {}, translate() {}, rotate() {},
+      createImageData: (w, h) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }),
+      putImageData: (img, x, y) => calls.images.push([x, y, img.width]),
+      fillText: (t, x) => calls.text.push([t, x]),
+    };
+    return { canvas: { getContext: () => ctx, width: 0, height: 0 }, calls };
+  };
+  const offsets = [100, 300, 500, 700];
+  const window = { t0_ms: 900, dt_ms: 4, ns: 11 };
+  const gather = (xl) => ({ il: 1027, xl, traces: offsets.map(() => Float32Array.from({ length: 11 }, (_, s) => Math.sin(s))), fold: offsets.map(() => 1) });
+
+  test('gathers side by side on one time axis, labelled by crossline, the same width for every store', () => {
+    const gs = [2044, 2045, 2046, 2047, 2048, 2049].map(gather);
+    const a = recorder(); const b = recorder();
+    const wa = drawGatherLine(a.canvas, { gathers: gs, offsets, window, clip: 1, display: 'density', overlays: null, traceW: 3, labelOf: (g) => `XL ${g.xl}` });
+    const wb = drawGatherLine(b.canvas, { gathers: gs, offsets, window, clip: 1, display: 'density', overlays: null, traceW: 3, labelOf: (g) => `XL ${g.xl}` });
+    expect(wa).toBe(44 + 6 * (4 * 3 + LINE_GAP) + 8);
+    expect(wb).toBe(wa);   // the input and the conditioned rows line up
+    // each gather painted at its own x, one after the other
+    expect(a.calls.images.map(([x]) => x)).toEqual([0, 1, 2, 3, 4, 5].map((q) => 44 + q * (12 + LINE_GAP)));
+    // crossline labels spaced so they never touch, and one time axis
+    const labels = a.calls.text.filter(([t]) => /^XL /.test(t));
+    expect(labels.length).toBeGreaterThan(0);
+    for (let k = 1; k < labels.length; k++) expect(labels[k][1] - labels[k - 1][1]).toBeGreaterThanOrEqual(46);
+    expect(a.calls.text.filter(([t]) => t === 'time (ms)')).toHaveLength(1);
+  });
 });
