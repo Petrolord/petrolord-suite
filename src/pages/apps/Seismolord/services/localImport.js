@@ -39,6 +39,14 @@ export function localVsUploadEstimate({ bytes, readMBps = 60, uploadMBps = null 
   return { keepSeconds: keepS, uploadSeconds: upS, diskBytes: localImportBytes(bytes) };
 }
 
+/** Plain size words: "350 MB", "2.4 GB", "104 GB" (never "0 GB" for a small file). */
+export function sizeWords(bytes) {
+  if (!Number.isFinite(bytes) || bytes < 0) return 'unknown';
+  if (bytes < 1e9) return `${Math.max(1, Math.round(bytes / 1e6))} MB`;
+  if (bytes < 10e9) return `${(bytes / 1e9).toFixed(1)} GB`;
+  return `${Math.round(bytes / 1e9)} GB`;
+}
+
 /** Plain duration words: "about 25 min", "about 22 h", "about 4.6 days". */
 export function durationWords(s) {
   if (!Number.isFinite(s)) return 'unknown';

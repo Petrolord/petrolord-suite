@@ -12,7 +12,7 @@
 import zlib from 'node:zlib';
 import { createHash } from 'node:crypto';
 import { TextEncoder, TextDecoder } from 'node:util';
-import { runLocalImport, localImportBytes, localVsUploadEstimate, durationWords } from '../services/localImport';
+import { runLocalImport, localImportBytes, localVsUploadEstimate, durationWords, sizeWords } from '../services/localImport';
 import { convertToSpool } from '../services/conversionV4';
 import { memorySpool } from '../services/brickSpool';
 import { DEFLATE_RAW, v4BrickFetcher } from '../engine/brickCodecV4';
@@ -157,4 +157,12 @@ test('disk and time estimates', () => {
   expect(durationWords(e.keepSeconds)).toBe('about 20 min');
   expect(durationWords(e.uploadSeconds)).toBe('about 22 h');
   expect(durationWords(400e9 / 1e6)).toBe('about 4.6 days');
+});
+
+test('size words: a small file reads in MB, never "0 GB"', () => {
+  // the 80.5 MB Ekene stack used to read "needs about 0 GB"
+  expect(sizeWords(localImportBytes(80.5e6))).toBe('105 MB');
+  expect(sizeWords(2.4e9)).toBe('2.4 GB');
+  expect(sizeWords(104e9)).toBe('104 GB');
+  expect(sizeWords(3e5)).toBe('1 MB');
 });

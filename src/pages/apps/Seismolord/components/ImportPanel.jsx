@@ -32,7 +32,7 @@ import { useLocalWorkspace, localReady } from '@/lib/localWorkspace/runtime';
 import { currentProjectSettings, currentProjectId } from '@/lib/projects/projectScope';
 import { saveProjectSettings } from '@/lib/projects/projectsService';
 import { startLocalImport } from '../services/localImportRuntime';
-import { localVsUploadEstimate, durationWords } from '../services/localImport';
+import { localVsUploadEstimate, durationWords, sizeWords } from '../services/localImport';
 import CrsBadge from '@/components/crs/CrsBadge';
 import { sanityCheck, crsDisplayName } from '@/lib/crs';
 import { getProjectCrs, addCustomDef } from '@/lib/crs/settingsService';
@@ -219,6 +219,7 @@ export default function ImportPanel({
   // Crop before upload (2026-10-14): the crop step, the file's layout and
   // whether it holds prestack gathers (both read from the first traces)
   const [cropOn, setCropOn] = useState(false);
+  const [cropEst, setCropEst] = useState(null);   // the crop's size estimate, for the where-it-lives choice
   const [cropForm, setCropForm] = useState(EMPTY_FORM);
   const [cropDefId, setCropDefId] = useState(null);
   const [cropStatus, setCropStatus] = useState(null);
@@ -1178,6 +1179,7 @@ export default function ImportPanel({
               speed={speed}
               onSpeed={(v) => { setSpeed(v); if (v) saveUploadSpeed(v); }}
               gathers={layoutInfo?.gathers || null}
+              onEstimate={setCropEst}
               disabled={busy}
               status={cropStatus}
             />
@@ -1323,7 +1325,8 @@ export default function ImportPanel({
         )}
 
         {file && !file.remote && scan && localOffered && phase !== 'background' && (() => {
-          const bytes = file.size;
+          // a crop keeps only its traces and samples: estimate on the kept bytes
+          const bytes = cropOn && cropEst?.croppedBytes ? cropEst.croppedBytes : file.size;
           const est = localVsUploadEstimate({ bytes, readMBps: 60, uploadMBps: speed || null });
           return (
             <fieldset className="rounded-lg border border-pl-border p-3 space-y-2 text-sm text-pl-text" data-testid="sl-import-keep">
@@ -1333,7 +1336,7 @@ export default function ImportPanel({
                 <span>
                   Keep on this computer
                   <span className="block text-xs text-pl-muted">
-                    {`Nothing is uploaded. About ${durationWords(est.keepSeconds)} on a typical laptop drive, needs about ${(est.diskBytes / 1e9).toFixed(0)} GB on the drive with your workspace folder. Attributes and inversion run here; colleagues see it as living on ${lws.workspace?.label || 'this computer'}.`}
+                    {`Nothing is uploaded. It takes ${durationWords(est.keepSeconds)} on a typical laptop drive and needs about ${sizeWords(est.diskBytes)} on the drive with your workspace folder. Attributes and inversion run here; colleagues see it as living on ${lws.workspace?.label || 'this computer'}.`}
                   </span>
                 </span>
               </label>
@@ -1342,7 +1345,7 @@ export default function ImportPanel({
                 <span>
                   Upload to Petrolord
                   <span className="block text-xs text-pl-muted">
-                    {est.uploadSeconds != null ? `About ${durationWords(est.uploadSeconds)} at your measured upload speed. ` : ''}Opens on any computer and counts against the cloud storage.
+                    {est.uploadSeconds != null ? `The upload takes ${durationWords(est.uploadSeconds)} at your measured upload speed. ` : ''}Opens on any computer and counts against the cloud storage.
                   </span>
                 </span>
               </label>
