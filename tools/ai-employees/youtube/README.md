@@ -92,10 +92,56 @@ node tools/ai-employees/youtube/execute.mjs                  # upload approved t
 ```
 
 `propose.mjs` only reads `/root/demo-videos/<key>/` (`youtube.mp4`,
-`youtube-description.txt`, `chapters.txt`, `youtube.srt`) and skips keys that
+`youtube-description.txt`, `chapters.txt`, `youtube.srt`, `thumbnail.jpg` or
+`thumbnail.png`) and skips keys that
 already have a proposed, approved or done listing. If an upload starts and
 the process dies, `execute.mjs` will not retry that task until a person has
 checked YouTube Studio and reruns with `--force`.
+
+## Thumbnails
+
+`tools/demo-video/thumbs.mjs` writes `thumbnail.jpg` (1280x720, under 2 MB)
+into each public video folder, and the proposal names it. After the upload,
+`execute.mjs` calls `thumbnails.set` with retries. A refused thumbnail never
+fails the upload: the task is marked done with a warning.
+
+YouTube only accepts custom thumbnails from a channel with intermediate
+features. If `thumbnails.set` answers 403, the owner opens YouTube Studio,
+Settings, Channel, Feature eligibility, and verifies the channel's phone
+number under Intermediate features. Then, for videos already uploaded:
+
+```
+node tools/ai-employees/youtube/set-thumbnails.mjs --dry-run   # what it would set; no API, no writes
+node tools/ai-employees/youtube/set-thumbnails.mjs             # every done listing still without a thumbnail
+node tools/ai-employees/youtube/set-thumbnails.mjs --video petro-01=_aBSe9V8W3o --video petro-02=eC_UIq_Abec
+```
+
+Each success is logged as `thumbnail_set`; `thumbnails.set` costs 50 quota
+units.
+
+## Shorts
+
+`tools/demo-video/shorts.mjs` cuts vertical Shorts (1080x1920, 30 to 60 s,
+captions burned in) from the demo masters into
+`/root/demo-videos/<demo>-short<n>/`. They are listed in the allowlist under
+the series of kind `short`, and a Short is public only while its parent is a
+public demo there: a Short of a lesson or a members-only video is refused by
+`propose.mjs` and `execute.mjs` even if someone lists it.
+
+A Short is a normal `youtube_listing` task with `payload.format = "short"` and
+`payload.parent_key`. Its description carries `Full demo: {{parent_url}}`;
+`propose.mjs` fills it in when the parent is already uploaded, and otherwise
+`execute.mjs` fills it in at upload time and holds the Short until its parent
+is on the channel. Shorts are scheduled between the main uploads: at least a
+day after the parent's slot and two days after the previous Short, so the
+daily run stays within `DAILY_UPLOAD_CAP` and the quota. A Short whose parent
+has not been proposed yet waits for a later `propose.mjs` run.
+
+```
+node tools/ai-employees/youtube/propose.mjs --db --only shorts      # queue the Shorts once their parents are proposed
+node tools/ai-employees/youtube/propose.mjs --db --privacy public   # proposals default to private
+node tools/ai-employees/youtube/execute.mjs --dry-run --local <proposals.json>   # a plan from a local file: no DB, no API
+```
 
 No npm dependencies: Node 18+ `fetch` only. Tests run in the repo's jest:
 `npx jest tools/ai-employees`.
