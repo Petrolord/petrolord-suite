@@ -30,6 +30,8 @@ to `lesson-a4`), QI with Petrolord Module A (`lesson-qi-a1` to
 `lesson-qi-a3`), the Petrophysics Studio demos (`petro-01` to `petro-03`),
 the QI Studio demos (`qi-01` to `qi-03`) and the Seismolord demos (`seis-01`
 to `seis-03`). Well Data Manager is approved but has no finished video yet.
+Since 2026-10-16 (owner): the demos and Module A of eight more apps, and
+38 Shorts cut from the public demos (series `demo-shorts`).
 
 ## Copy rules
 

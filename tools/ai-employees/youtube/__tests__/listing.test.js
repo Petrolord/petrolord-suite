@@ -35,6 +35,18 @@ describe('public allowlist (owner decisions 2026-10-11)', () => {
       // Round 2 (owner 2026-10-16): demos and Module A of eight more apps.
       ...['rcp', 'mbal', 'wds', 'epe', 'pps', 'em', 'wt', 'bf'].flatMap((a) => [`${a}-01`, `${a}-02`, `${a}-03`, `lesson-${a}-a1`, `lesson-${a}-a2`, `lesson-${a}-a3`]),
       'lesson-rcp-a4',
+      // Shorts (owner 2026-10-16), cut from the public demos only.
+      'petro-01-short1', 'petro-02-short1', 'petro-03-short1',
+      'qi-01-short1', 'qi-01-short2', 'qi-02-short1', 'qi-03-short1',
+      'seis-01-short1', 'seis-01-short2', 'seis-02-short1', 'seis-03-short1',
+      'rcp-01-short1', 'rcp-02-short1', 'rcp-03-short1',
+      'mbal-01-short1', 'mbal-01-short2', 'mbal-02-short1', 'mbal-03-short1',
+      'wds-01-short1', 'wds-02-short1', 'wds-03-short1',
+      'epe-01-short1', 'epe-01-short2', 'epe-02-short1', 'epe-03-short1',
+      'pps-01-short1', 'pps-02-short1', 'pps-03-short1',
+      'em-01-short1', 'em-02-short1', 'em-03-short1',
+      'wt-01-short1', 'wt-01-short2', 'wt-02-short1', 'wt-03-short1',
+      'bf-01-short1', 'bf-02-short1', 'bf-03-short1',
     ].sort());
     expect(seriesFor(allowlist, 'well-data-manager')).toBeNull();
     expect(allowlist.series.find((s) => s.id === 'well-data-manager')).toBeTruthy();
@@ -45,6 +57,11 @@ describe('public allowlist (owner decisions 2026-10-11)', () => {
       expect(isPublicKey(allowlist, k)).toBe(false);
     }
     for (const k of allowlist.membersOnly.keys) expect(isPublicKey(allowlist, k)).toBe(false);
+    // no Short of a lesson or of a members-only video, listed or not
+    for (const k of ['lesson-a1-short1', 'lesson-qi-a1-short1', 'lesson-rcp-b5-short1', 'lesson-b5-short1', 'petro-01-v1-short1', 'qi-01-short9']) {
+      expect(isPublicKey(allowlist, k)).toBe(false);
+    }
+    for (const k of allowlist.membersOnly.keys) expect(isPublicKey(allowlist, `${k}-short1`)).toBe(false);
   });
 
   test('lesson series carry the NextGen line; demos do not', () => {
