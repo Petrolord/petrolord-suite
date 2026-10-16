@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 3051032749a89c425b8585f09fc713d0ca1e8e83
+# commit 52935a5c2980c3cd36dc3e1b68ecfe970b963b6e
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 d8bd133c5a081611291cb72e0efd5909a2e23b77 README.md
@@ -195,7 +195,7 @@ dc4ffa23cf08b2d3f627f43184692c18046895f2 __tests__/qi.inversionQc.golden.test.js
 2c5550fdef163b3f6de963b6a9c51ddffa67b4bf __tests__/qi.inversionQc.test.js
 3dd96b2f13da86780abf303e80742c0cfd804442 __tests__/qi.inversionSpread.test.js
 30228fc8999010a56ecb83b21c18050178c191d6 __tests__/qi.lfm.golden.test.js
-0232580f706161ddee67e1a44b85c58377ab5d54 __tests__/qi.lfm.test.js
+be962a9c8cb48894e25c100c9c3ba5445fcbc590 __tests__/qi.lfm.test.js
 f50982641654cd24c0ca395d418ca27cdbd62428 __tests__/qi.lfmModels.test.js
 5eed197c3ade6a9f3984d9c533a7515f23244d9a __tests__/qi.prestack.golden.test.js
 55583129f3a8d89b1ca9638ee3e5845cee75f673 __tests__/qi.prestack.test.js
@@ -561,7 +561,7 @@ cbfe88d6c47d9cc81f80363986a2f9b57745e593 engines/qi/feasibilitySweep.js
 9adb98740539dcefc0bbb0f555abaa5f0f35d37e engines/qi/inversion.js
 b6267b2f9521bfed5a8562dd13fa2e9e7334d9d3 engines/qi/inversionQc.js
 d00a00ca01a9fd9c18ad49ffbc686797120dc04f engines/qi/inversionSpread.js
-19a4bd8d6a5ecf71fd2f29de80d3928375b33a0c engines/qi/lfm.js
+c95d9f6fbf0ccaf96da83c06bb0d19bb6b235f0a engines/qi/lfm.js
 04fbcc12d3e7b5d53c8d76e4f27c0546438c431e engines/qi/lfmModels.js
 a2fc41975f55e508e0e3076b36a34763706a1610 engines/qi/prestack.js
 fe3ed0df9ec1011692d4cefd148d62d64d5f929b engines/qi/prestackConditioning.js

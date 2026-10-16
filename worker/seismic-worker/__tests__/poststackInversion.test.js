@@ -469,3 +469,18 @@ describe('horizons picked on another volume of the lattice', () => {
     expect(withH.blind).not.toEqual(none.blind);
   });
 });
+
+// QI showcase (2026-10-16): a guiding horizon with a hole (untracked across a
+// fault) stopped a survey run at the first trace in the hole with "The trace
+// and the well need the same horizons". Engines #380: the model takes constant
+// time there.
+test('a volume run completes when a guiding horizon has a hole away from the wells', async () => {
+  const holed = GRIDS[HZ1].slice();
+  holed[2 * NXL + 2] = 1.0e30;   // inline index 2, crossline 2: no well there
+  const uploads = new Map();
+  const storage = { upload: async (path, bytes) => { uploads.set(path, bytes); return {}; } };
+  const readBlob = async (path) => (path === 'h1' ? holed : GRIDS[HZ2]).slice().buffer;
+  const out = await poststackInversion(ctxFor(params('volume', { wells: WELLS })), depsFor({ volumes: { [VOL]: PARENT, [OUT]: DERIVED }, horizons: HZ_ROWS }, { storage, readBlob }));
+  expect(out).toBeTruthy();
+  expect([...uploads.keys()].some((k) => k.endsWith('.f32'))).toBe(true);
+});
