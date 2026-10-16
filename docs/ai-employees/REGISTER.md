@@ -73,6 +73,17 @@ Each review is logged here with the date, the decision and who made it.
 | Date | Reviewer | Decision |
 |---|---|---|
 | 2026-10-11 | Owner | Approved at step 1 (shadow). Public: Petrophysics Module A, QI Module A, and the Petrophysics, QI and Seismolord demos. |
+| 2026-10-16 | Owner | Round 2 public (demos and Module A of eight more apps). Custom thumbnails and Shorts added to the pipeline; Shorts are cut from public demos only and go through the same approval queue. |
+
+### Status (2026-10-16)
+
+- Google's API compliance review passed (2026-10-14), so approved uploads
+  can be public.
+- Thumbnails (`tools/demo-video/thumbs.mjs`) and Shorts
+  (`tools/demo-video/shorts.mjs`) are made beside the masters; proposals
+  name the thumbnail, and Shorts are proposed like other listings with a
+  link to their parent demo. Custom thumbnails need the channel's
+  intermediate features (phone verification in YouTube Studio).
 
 ### Status (2026-10-11)
 
