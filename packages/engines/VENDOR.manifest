@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 8c5b74e20bf1fd94e218fcf743c7f7696fed3613
+# commit ca2f54bb6a7b0c434b07cf490cb0af1b0da84305
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 60b4ce810b88f5d407025c721eed304e20994b54 README.md
@@ -647,8 +647,8 @@ f924511b2b7bbd9126412ff6b0553b035a643db8 engines/seismolord/wellPath.js
 0d1e8c5a0370d977250f355b3167734c8da6ec1f engines/seismolord/wellSection.js
 52883680abe22b6d6a2e690560f8b4beca69a882 engines/seismolord/wellTie.js
 757db7c35a10501397eb0b25ab2a9bb401b6ee43 engines/seismolord/wellWavelet.js
-35389a1925de4b0566bf48c1bfcf5aa225d81178 engines/seismolord/zgy.js
-1d63cc8f08705dfbd4991283aea6869a2835ce53 engines/seismolord/zgySegy.js
+ee0799c2d529adf6607f0af053be2276a48bd5e6 engines/seismolord/zgy.js
+be24d057a50d18876aed9dd14cebbf1bb698bcc2 engines/seismolord/zgySegy.js
 aafbc202635f2721c32b5f192253b3c471b6c9e5 engines/sim/composeDeck.js
 18293322bc032451a88d14ff491f3eebc030de5f engines/sim/deckFormat.js
 8023537c89dc12690f249ebe48594b7c6fcfa735 engines/sim/emitAquifer.js
