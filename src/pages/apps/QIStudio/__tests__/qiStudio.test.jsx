@@ -26,6 +26,8 @@ jest.mock('@/utils/savedProjects', () => {
 jest.mock('@/contexts/SupabaseAuthContext', () => ({ useAuth: () => ({ organization: { name: 'Lordsway Energy' } }) }));
 
 // eslint-disable-next-line import/first
+import { makeProfile } from '@/lib/units/presets';
+import { StaticUnitProfileProvider } from '@/lib/units/UnitProfileContext';
 import QIStudio from '../QIStudio';
 // eslint-disable-next-line import/first
 import { makeInMemoryBackend } from '../services/inMemoryBackend';
@@ -258,6 +260,25 @@ test('prospects: a trap on the dome, a conforming anomaly, the assessment table 
   expect(screen.getAllByText(/does not say the case is visible/).length).toBeGreaterThan(0);
   const model = reportModel({ ...api, project: { ...api.project, prospects: [] }, projectName: 'x' });
   expect(model.prospects).toEqual([]);
+});
+
+// QI showcase (2026-10-16): the prospect table printed metres on an oilfield
+// profile; depths now follow the Suite unit profile's depth unit.
+test('prospects: depths in feet on an oilfield profile', async () => {
+  const backend = makeInMemoryBackend();
+  render(<MemoryRouter><StaticUnitProfileProvider layers={{ organization: makeProfile('oilfield'), tableAvailable: true }}><QIStudio backend={backend} sharingStore={null} /></StaticUnitProfileProvider></MemoryRouter>);
+  fireEvent.click(await screen.findByTestId('qi-tab-prospects', {}, { timeout: 20000 }));
+  fireEvent.click(await screen.findByTestId('qi-pros-add', {}, { timeout: 20000 }));
+  fireEvent.change(screen.getByTestId('qi-pros-name'), { target: { value: 'Keta Dome' } });
+  fireEvent.change(screen.getByTestId('qi-pros-surface'), { target: { value: 'qi-s1' } });
+  fireEvent.change(screen.getByTestId('qi-pros-attr'), { target: { value: 'qi-s2' } });
+  fireEvent.change(screen.getByTestId('qi-pros-threshold'), { target: { value: '0.5' } });
+  fireEvent.click(screen.getByTestId('qi-pros-analyse'));
+  const table = await screen.findByTestId('qi-pros-table', {}, { timeout: 20000 });
+  expect(table).toHaveTextContent(/Crest \/ spill \(ft\)/);
+  expect(table).toHaveTextContent(/Column \(ft\)/);
+  expect(table).toHaveTextContent(/6562 \/ \d{4} \(edge\)/);   // 2000 m
+  expect(table).toHaveTextContent(/contact 68[89]\d ft/);       // about 2100 m
 });
 
 test('prestack: build gathers, angle stacks with a velocity table, the usable angle, and conversion to a volume', async () => {
