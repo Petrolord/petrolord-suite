@@ -7,6 +7,7 @@ import { createHandlers, KINDS } from './handlers/index.js';
 import { loadConfig } from './config.js';
 import { threadHandlers } from './threadJobs.js';
 import { hasNativeDeflateRaw } from '../../../packages/engines/engines/seismolord/brickCodecV4.js';
+import { nodeZfpDecode } from './zgySource.js';
 
 const cfg = { ...loadConfig(), heartbeatIntervalMs: 60000, progressMinIntervalMs: 0, workerId: 'selfcheck' };
 const calls = [];
@@ -28,9 +29,12 @@ const tBad = await runJob({ id: 'sc4', kind: 'noop', attempt: 1, params: { fail:
 // stack_to_v4 compresses with CompressionStream('deflate-raw'), as the
 // browser import does; without it the server would need another codec.
 const nativeDeflate = hasNativeDeflateRaw();
-if (ok !== 'succeeded' || bad !== 'failed' || calls[0][1]?.slept_seconds !== 0.2
+// compressed ZGY imports decode bricks with the ZFP wasm shipped beside the bundle
+let zfp = false;
+try { zfp = typeof (await nodeZfpDecode()) === 'function'; } catch (e) { console.error('ZFP decoder:', e.message); }
+if (!zfp || ok !== 'succeeded' || bad !== 'failed' || calls[0][1]?.slept_seconds !== 0.2
   || tOk !== 'succeeded' || tBad !== 'failed' || calls[2]?.[1]?.slept_seconds !== 0.2 || calls[3]?.[1] !== 'requested_failure' || !nativeDeflate || !KINDS.includes('stack_to_v4')) {
-  console.error('SELFCHECK FAILED', JSON.stringify({ ok, bad, tOk, tBad, calls, nativeDeflate, KINDS }));
+  console.error('SELFCHECK FAILED', JSON.stringify({ ok, bad, tOk, tBad, calls, nativeDeflate, zfp, KINDS }));
   process.exit(1);
 }
-console.log(`SELFCHECK OK: node ${process.version}; kinds ${KINDS.join(', ')}; native deflate-raw ${nativeDeflate}; job threads OK`);
+console.log(`SELFCHECK OK: node ${process.version}; kinds ${KINDS.join(', ')}; native deflate-raw ${nativeDeflate}; ZFP decoder ${zfp}; job threads OK`);

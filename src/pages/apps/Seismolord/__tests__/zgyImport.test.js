@@ -4,11 +4,10 @@
 // repository's own writer from the same samples (the reader itself is
 // validated against OpenZGY in the engines suite). Also: the ZFP decoder
 // over the real wasm, the display clip of a compressed file, the server
-// upload of the SEG-Y view, and the non-ZGY path left as it was.
+// upload of the ZGY itself, and the non-ZGY path left as it was.
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { webcrypto } from 'node:crypto';
 import { TextEncoder, TextDecoder } from 'node:util';
 import { bufferReader } from '../engine/reader';
 import { scanGeometry } from '../engine/segyScan';
@@ -18,10 +17,9 @@ import { memorySpool } from '../services/brickSpool';
 import { convertToSpool } from '../services/conversionV4';
 import { openSegyDoor, inspectSegy } from '../lib/segyDoor';
 import {
-  importSourceReader, isZgyFile, zgySummary, zgyFileLike, sourceClip, VOLUME_ACCEPT,
+  importSourceReader, isZgyFile, zgySummary, sourceClip, VOLUME_ACCEPT,
 } from '../services/zgySource';
 import { startServerImport } from '../services/serverImport';
-import { fileFingerprint } from '../services/ingestResume';
 
 if (!global.TextEncoder) global.TextEncoder = TextEncoder;
 if (!global.TextDecoder) global.TextDecoder = TextDecoder;
@@ -125,29 +123,17 @@ describe('a picked ZGY is read as the SEG-Y it holds', () => {
     await expect(importSourceReader(fileOf(u8.buffer, 'old.zgy'))).rejects.toThrow(/export the volume as SEG-Y/);
   });
 
-  test('the server import uploads the SEG-Y view; the row keeps the ZGY name', async () => {
+  test('the server import uploads the ZGY as it is (the worker reads it); the row records the ZGY', async () => {
     const file = fileOf(bytesOf('gen-int8'), 'legacy.zgy');
-    const view = await importSourceReader(file);
-    const source = zgyFileLike(view, file);
-    expect(source.size).toBe(view.size);
-    // the sampled fingerprint reads the view, so a resume finds the same parts
-    const digest = async (b) => new Uint8Array(await webcrypto.subtle.digest('SHA-256', b));
-    const fp = await fileFingerprint(source, digest);
-    expect(fp.size).toBe(view.size);
     let uploaded = null;
     let prepared = null;
-    await startServerImport({
-      file, mapping: {}, scan: {}, nativeCrs: null, source,
-    }, {
+    await startServerImport({ file, mapping: {}, scan: {}, nativeCrs: null }, {
       upload: async (sent) => { uploaded = sent; return { id: 'ds1' }; },
       prepare: async (p) => { prepared = p; return { volumeId: 'v1', name: 'legacy', crsPlan: null, ingestRec: {} }; },
       enqueue: async () => 'job1',
-      fingerprint: async () => fp,
+      fingerprint: async () => ({ algo: 'x' }),
     });
-    expect(uploaded).toBe(source);
-    expect(prepared.file.name).toBe('legacy.zgy');
-    expect(prepared.file.size).toBe(view.size);
-    const head = new Uint8Array(await uploaded.read(3200, 400));
-    expect(new DataView(head.buffer).getInt16(24, false)).toBe(5);
+    expect(uploaded).toBe(file);
+    expect(prepared.file).toBe(file);
   });
 });

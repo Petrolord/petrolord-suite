@@ -8,6 +8,7 @@
 // params: { dataset_id, mapping }
 import { JobFailure } from '../runJob.js';
 import { datasetReader } from '../datasetReader.js';
+import { zgyAwareSource } from '../zgySource.js';
 import {
   openSegyDoor, doorScanWarnings, depthDomainHint, alignTraceDelay,
 } from '../../../../src/pages/apps/Seismolord/lib/segyDoor.js';
@@ -27,7 +28,8 @@ export async function scanDataset(ctx, deps) {
 
   ctx.progress(0.05, 'Reading headers');
   // the worker's store, or the link itself for a ranged link import
-  const raw = datasetReader(ds, deps);
+  // a Petrel ZGY is scanned as the SEG-Y it holds (zgySource.js)
+  const { reader: raw } = await zgyAwareSource(datasetReader(ds, deps), { name: ds.original_filename || '' }, deps);
   let door; let reader;
   try {
     ({ door, reader } = await openSegyDoor(raw));

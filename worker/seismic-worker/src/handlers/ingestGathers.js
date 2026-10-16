@@ -18,6 +18,7 @@ import { webcrypto } from 'node:crypto';
 import { JobFailure } from '../runJob.js';
 import { projectFrom } from '../project.js';
 import { datasetReader } from '../datasetReader.js';
+import { zgySignature } from '../zgySource.js';
 import { openSegyDoor, alignTraceDelay, traceDelayRecord } from '../../../../src/pages/apps/Seismolord/lib/segyDoor.js';
 import { readFileHeaders, readTextualHeader } from '../../../../packages/engines/engines/seismolord/segyScan.js';
 import { parseCropCard, padTopReader } from '../../../../packages/engines/engines/seismolord/segyCrop.js';
@@ -74,6 +75,7 @@ export async function ingestGathers(ctx, deps) {
 
   // the worker's store, or the link itself for a ranged link import
   const raw = datasetReader(ds, { ...deps, sign, fetchImpl });
+  if (await zgySignature(raw)) throw new JobFailure('validate_failed', 'This file is a ZGY volume, which holds a stacked volume and no prestack gathers. Import it in Seismolord as a volume.');
   let reader;
   try { ({ reader } = await openSegyDoor(raw)); } catch (e) { throw new JobFailure('not_segy', e.message); }
   // a file cropped before upload: the window's top is padded back with nulls,
