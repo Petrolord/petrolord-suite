@@ -26,6 +26,7 @@ import { surveyAffine } from '../../../engine/surveyGeometry';
 import { geomFromManifest } from '../../../engine/sliceAssembly';
 import { convergenceAt } from '@/lib/crs';
 import { isTransformableTag } from '@/lib/crs/tags';
+import { RGB_DEFAULT_FREQS, RGB_DEFAULT_WINDOW_MS, tripletProblem } from '../../../engine/spectralBlend';
 
 /** A typed parameter value: blank or unreadable falls back to the default;
  *  0 is a real value where the parameter allows it (Edge's window). */
@@ -45,6 +46,10 @@ export default function ComputeAttributeDialog({
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(null);
+  // spectral decomposition: one run makes the low, middle and high
+  // frequency volumes of an RGB blend (Spectral RGB on the Home ribbon)
+  const [rgbSet, setRgbSet] = useState(false);
+  const [rgbFreqText, setRgbFreqText] = useState(RGB_DEFAULT_FREQS.join(', '));
   const cancelRef = useRef({ cancelled: false });
   // QI Q0b: the Petrolord server computes attribute volumes of your own
   // volumes; chosen by default from 1 GiB of output
@@ -73,6 +78,7 @@ export default function ComputeAttributeDialog({
     if (!open) return;
     setProgress(null);
     setName('');
+    setRgbSet(false);
     if (initialAttribute && ALL_ATTRIBUTE_DEFS[initialAttribute]) setAttr(initialAttribute);
     cancelRef.current = { cancelled: false };
   }, [open]);
@@ -81,7 +87,17 @@ export default function ComputeAttributeDialog({
     key, paramValues[key] ?? p.default,
   ]));
   const placeholder = volume ? defaultDerivedName(volume.name, attr, params) : '';
-  const blocked = manifest ? attributePrecheck(attr, manifest) : null;
+  const rgbOn = attr === 'spectral' && rgbSet;
+  const rgbFreqs = rgbFreqText.split(/[\s,]+/).filter(Boolean).map(Number);
+  const rgbProblem = rgbOn ? tripletProblem(rgbFreqs, manifest?.geometry?.dt_us) : null;
+  /** The runs to make: one, or three for an RGB set (each named by its frequency). */
+  const runsToMake = () => (rgbOn
+    ? rgbFreqs.map((freqHz) => {
+      const ps = { ...params, freqHz };
+      return { params: ps, name: defaultDerivedName(volume.name, attr, ps) };
+    })
+    : [{ params, name: name.trim() || (north ? `${placeholder} (true north)` : undefined) }]);
+  const blocked = manifest ? (attributePrecheck(attr, manifest) || rgbProblem) : null;
 
   let sizeText = null;
   try {
@@ -115,15 +131,19 @@ export default function ComputeAttributeDialog({
   const runOnServer = async () => {
     setBusy(true);
     try {
-      await startServerAttribute({
-        parent: volume,
-        parentManifest: manifest,
-        attribute: { name: attr, params, ...(north ? { north } : {}) },
-        name: name.trim() || (north ? `${placeholder} (true north)` : undefined),
-      });
+      const runs = runsToMake();
+      for (const r of runs) {
+        await startServerAttribute({
+          parent: volume,
+          parentManifest: manifest,
+          attribute: { name: attr, params: r.params, ...(north ? { north } : {}) },
+          name: r.name,
+        });
+      }
+      const what = runs.length > 1 ? `${runs.length} spectral volumes (${rgbFreqs.join(', ')} Hz)` : placeholder;
       toast(onThisComputer
-        ? { title: 'Computing on this computer', description: `${placeholder}: follow it under Jobs. Keep this tab open until it finishes; the result is saved to your workspace folder.` }
-        : { title: 'Computing on the Petrolord server', description: `${placeholder}: follow it under Server jobs. You can keep working or close this tab.` });
+        ? { title: 'Computing on this computer', description: `${what}: follow it under Jobs. Keep this tab open until it finishes; the result is saved to your workspace folder.` }
+        : { title: 'Computing on the Petrolord server', description: `${what}: follow it under Server jobs. You can keep working or close this tab.` });
       if (onServerJobStarted) onServerJobStarted();
       onOpenChange(false);
     } catch (e) {
@@ -138,14 +158,16 @@ export default function ComputeAttributeDialog({
     setBusy(true);
     cancelRef.current = { cancelled: false };
     try {
-      await computeAttributeVolume({
-        parent: volume,
-        parentManifest: manifest,
-        attribute: { name: attr, params, ...(north ? { north } : {}) },
-        name: name.trim() || (north ? `${placeholder} (true north)` : undefined),
-        cancelToken: cancelRef.current,
-        onProgress: (p) => setProgress(p),
-      });
+      for (const r of runsToMake()) {
+        await computeAttributeVolume({
+          parent: volume,
+          parentManifest: manifest,
+          attribute: { name: attr, params: r.params, ...(north ? { north } : {}) },
+          name: r.name,
+          cancelToken: cancelRef.current,
+          onProgress: (p) => setProgress(p),
+        });
+      }
       toast({ title: 'Attribute volume ready', description: placeholder });
       if (onComputed) onComputed();
       onOpenChange(false);
@@ -225,14 +247,48 @@ export default function ComputeAttributeDialog({
                 </span>
               </label>
             )}
+            {attr === 'spectral' && (
+              <div className="col-span-2 rounded border border-pl-border p-2 space-y-1" data-testid="sl-attr-rgb">
+                <label className="flex items-center gap-2 text-xs text-pl-text">
+                  <input
+                    type="checkbox"
+                    data-testid="sl-attr-rgb-set"
+                    checked={rgbSet}
+                    onChange={(e) => {
+                      setRgbSet(e.target.checked);
+                      if (e.target.checked && paramValues.windowMs == null) {
+                        setParamValues((v) => ({ ...v, windowMs: RGB_DEFAULT_WINDOW_MS }));
+                      }
+                    }}
+                    disabled={busy}
+                  />
+                  Three frequencies for an RGB blend (low, middle and high, one volume each)
+                </label>
+                {rgbSet && (
+                  <label className="block">
+                    <span className="text-xs text-pl-muted">Frequencies (Hz): red, green, blue</span>
+                    <input
+                      data-testid="sl-attr-rgb-freqs"
+                      value={rgbFreqText}
+                      onChange={(e) => setRgbFreqText(e.target.value)}
+                      className={selCls}
+                      disabled={busy}
+                    />
+                    <span className="block text-[11px] text-pl-muted mt-0.5">
+                      The frequency field above is not used. Show them together with Spectral RGB on the Home ribbon, then the Map window.
+                    </span>
+                  </label>
+                )}
+              </div>
+            )}
             <label className="block col-span-2">
               <span className="text-xs text-pl-muted">Volume name</span>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={placeholder}
+                placeholder={rgbOn ? 'Named by frequency' : placeholder}
                 className={selCls}
-                disabled={busy}
+                disabled={busy || rgbOn}
               />
             </label>
           </div>

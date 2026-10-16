@@ -3,7 +3,7 @@
 // control rows (everything but the volume select gates on a manifest).
 
 import React from 'react';
-import { Undo2, Redo2, BookMarked, HardDrive } from 'lucide-react';
+import { Undo2, Redo2, BookMarked, HardDrive, Palette } from 'lucide-react';
 import {
   RibbonGroup, RibbonButton, RibbonSelect, RibbonSlider, RibbonToggle, RibbonField, RIBBON_FIELD,
 } from '../Ribbon';
@@ -30,7 +30,7 @@ export default function HomeTab({
   onUndo, onRedo, canUndo, canRedo, undoLabel, redoLabel, onOpenSessions,
   sectionDomain, setSectionDomain, depthReady, nativeDepth = null, depthUnit = 'm', setDepthUnit = null, unitNote = null,
   flattenHorizonId = null, setFlattenHorizonId = null, flattenChoices = [], flattenInfo = null,
-  player = null, onOpenLocalWorkspace = null,
+  player = null, onOpenLocalWorkspace = null, spectralRgb = null,
 }) {
   const isTimeSlice = orientation === 'time';
   return (
@@ -316,6 +316,47 @@ export default function HomeTab({
           </>
         )}
       </RibbonGroup>
+
+      {spectralRgb && (
+        <RibbonGroup label="Spectral RGB">
+          {['Red', 'Green', 'Blue'].map((word, c) => (
+            <RibbonSelect
+              key={word}
+              label={word}
+              testId={`sl-rgb-${word.toLowerCase()}`}
+              value={spectralRgb.ids[c] || ''}
+              onChange={(e) => spectralRgb.setChannel(c, e.target.value)}
+              disabled={!manifest || !spectralRgb.candidates.length}
+              title={spectralRgb.candidates.length
+                ? `${word}: the ${['low', 'middle', 'high'][c]} frequency of the blend on the Map's time slice and horizons`
+                : 'Compute spectral decomposition volumes of this volume (Attributes, three frequencies) to blend them'}
+              className="w-28"
+            >
+              <option value="">None</option>
+              {spectralRgb.candidates.map((v) => (
+                <option key={v.id} value={v.id}>{v.name}</option>
+              ))}
+            </RibbonSelect>
+          ))}
+          <RibbonButton
+            icon={Palette}
+            label="Auto"
+            testId="sl-rgb-auto"
+            onClick={() => spectralRgb.autoPick()}
+            disabled={!manifest || spectralRgb.candidates.length < 3}
+            active={spectralRgb.active}
+            title="Pick a low, a middle and a high frequency of this volume's spectral decomposition volumes"
+          />
+          {spectralRgb.ids.some(Boolean) && (
+            <RibbonButton
+              label="Clear"
+              testId="sl-rgb-clear"
+              onClick={() => spectralRgb.clear()}
+              title="Back to the amplitude time slice"
+            />
+          )}
+        </RibbonGroup>
+      )}
     </>
   );
 }

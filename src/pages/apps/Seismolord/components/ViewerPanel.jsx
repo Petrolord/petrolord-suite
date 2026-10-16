@@ -79,6 +79,7 @@ import { flattenOffsets, datumForHorizon } from '../engine/flatten';
 import { buildWellSections, corridorCells } from '../lib/wellDisplay';
 import { boundaryGridForDepth } from '../lib/velocityBoundaries';
 import { suggestedColormap } from '../lib/attributeDisplay';
+import useSpectralRgb from '../hooks/useSpectralRgb';
 import { makeTvdssToTwt } from '../engine/wellSection';
 import {
   depthAxisFor, depthStretchSlice, depthRowGrid, depthRowOfSample,
@@ -1580,6 +1581,29 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
       mode: overlayBlend,
     };
   }, [overlayInfo, overlayColormap, overlayOpacity, overlayBlend, clipRms]);
+
+  // ---- spectral decomposition RGB blend (Map window) --------------------
+  const openRgbSource = useCallback(async (row) => {
+    const m = await getManifest(row);
+    const source = await getSliceClient().openBricks({
+      manifest: m, storagePath: row.storage_path, supabaseUrl: storageBase(), getToken: accessToken,
+    });
+    return { source, manifest: m };
+  }, []);
+  const rgbError = useCallback((title, description) => {
+    toast({ title, description, variant: 'destructive' });
+  }, [toast]);
+  const spectralRgb = useSpectralRgb({
+    volumes,
+    volume,
+    manifest,
+    geom,
+    timeOn: Boolean(sliceVis.time),
+    timeIndex: indices.time,
+    openSource: openRgbSource,
+    isOpenable: isOpenableVolume,
+    onError: rgbError,
+  });
 
   // ---- synthetics window (G5) -------------------------------------------
   // pipeline runs in a dedicated worker (big sonic logs never block the
@@ -4059,6 +4083,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
               setOverlayOpacity={setOverlayOpacity}
               overlayBlend={overlayBlend}
               setOverlayBlend={setOverlayBlend}
+              spectralRgb={spectralRgb}
               onUndo={undoAction}
               onRedo={redoAction}
               canUndo={edit.undo > 0 || undoStack.canUndo}
@@ -4689,6 +4714,9 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
                   wells={wells}
                   onCursor={handleCursor}
                   timeSlice={mapTimeSlice}
+                  rgbSlice={spectralRgb.slice}
+                  rgbInfo={spectralRgb.info}
+                  onRgbHorizon={spectralRgb.active ? spectralRgb.horizon : null}
                   sliceVis={sliceVis}
                   indices={indices}
                   display={display}

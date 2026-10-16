@@ -373,6 +373,16 @@ export default function SeismolordHelpGuide() {
           Attributes along a horizon, between two horizons and at one frequency (isofrequency) are made in the
           Export dialog's amplitude section and in the Map window.
         </Para>
+        <Para>
+          Spectral RGB shows three spectral decomposition volumes at once, a low frequency as red, a middle one as
+          green and a high one as blue. In the attribute dialog choose Spectral decomposition and tick Three
+          frequencies for an RGB blend (12, 25 and 40 Hz with a 120 ms window to start). Then pick them in the
+          Spectral RGB group on the Home ribbon (Auto takes this volume&apos;s low, middle and high), show the time
+          slice in the Map window, and choose Spectral RGB blend as the mapped attribute to see it along a horizon.
+          Each colour is stretched over its own range (2 to 98 percent). Where one colour wins, the beds tune at that
+          frequency: thinner beds tune higher, so a thinning sand shifts from red through green to blue. The cursor
+          readout names the strongest frequency.
+        </Para>
         <Callout tone="info" title="Attributes need full precision">
           A volume imported with 16-bit storage, or a large survey still uploading its full-precision copy, cannot
           be used as a parent. Wait for the upload, or re-import without compression.

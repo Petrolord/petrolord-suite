@@ -144,6 +144,9 @@ const rootOfObjects = async (objects) => brickRootOf(await Promise.all([...objec
 describe.each([
   ['per-trace', { name: 'envelope', params: {} }],
   ['neighbourhood', { name: 'variance', params: {} }],
+  // QI showcase: the spectral RGB blend's frequency volumes; a 16 ms window
+  // (hw 2) runs the fast interior path and the shrinking edge windows
+  ['spectral decomposition', { name: 'spectral', params: { freqHz: 25, windowMs: 16 } }],
 ])('browser job equals the server job, %s attribute', (_l, attribute) => {
   let srv; let br;
   beforeAll(async () => { srv = await serverRun(attribute); br = await browserRun(attribute); });
