@@ -6,12 +6,16 @@
 //   node tools/ai-employees/youtube/execute.mjs                 # upload approved tasks whose slot is due (cron, daily)
 //   node tools/ai-employees/youtube/execute.mjs --max 2 --lead-hours 0
 //   node tools/ai-employees/youtube/execute.mjs --task <uuid>   # one task
+//   node tools/ai-employees/youtube/execute.mjs --dry-run --local [file]  # plan from the local proposals JSON, no DB, no API
+// A Short (payload.format "short") waits until its parent demo is uploaded,
+// then goes up with the parent's watch URL in its description. A thumbnail
+// that YouTube refuses never fails the upload; it is logged as a warning.
 // Shadow-mode rule: only tasks a person approved in /admin/ai-employees run,
 // only while the employee is active, and only for allowlisted videos.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { executeBlocker, videoResource, dueTasks, DAILY_UPLOAD_CAP } from './lib/listing.mjs';
+import { executeBlocker, videoResource, dueTasks, DAILY_UPLOAD_CAP, withParentUrl, thumbnailHint } from './lib/listing.mjs';
 import { loadServiceEnv, createDb } from './lib/supabase.mjs';
 import { tokenProvider } from './lib/oauth.mjs';
 import { createYouTubeClient } from './lib/youtube.mjs';
@@ -44,10 +48,24 @@ async function findOrCreatePlaylist(yt, title, cache) {
   return cache.get(title);
 }
 
-async function runTask({ task, employee, allowlist, db, yt, dryRun, force, playlists }) {
-  const blocker = executeBlocker({ task, employee, allowlist });
+const IMAGE_TYPES = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png' };
+
+/** thumbnails.set with retry; returns null on success or the warning text. */
+async function setThumbnail(yt, videoId, file) {
+  try {
+    await withRetry(() => yt.thumbnailsSet({ videoId, filePath: file, contentType: IMAGE_TYPES[path.extname(file).toLowerCase()] || 'image/jpeg' }));
+    return null;
+  } catch (e) {
+    return `thumbnail: ${e.message} (${thumbnailHint(e.message)})`;
+  }
+}
+
+async function runTask({ task, employee, allowlist, db, yt, dryRun, force, playlists, uploaded }) {
+  const parentVideoId = task.payload?.parent_key ? uploaded.get(task.payload.parent_key) || null : null;
+  const blocker = executeBlocker({ task, employee, allowlist, parentVideoId });
   if (blocker) { console.log(`skip ${task.id}: ${blocker}`); return; }
-  const p = task.payload;
+  const p = { ...task.payload };
+  if (p.format === 'short') p.description = withParentUrl(p.description, parentVideoId);
   const dir = p.source_dir;
   const video = path.join(dir, p.video_file || 'youtube.mp4');
   if (!fs.existsSync(video)) throw new Error(`${video} is missing`);
@@ -56,7 +74,7 @@ async function runTask({ task, employee, allowlist, db, yt, dryRun, force, playl
 
   if (dryRun) {
     console.log(`[dry run] ${task.id} ${p.video_key}: would upload ${video} (${(fs.statSync(video).size / 1e6).toFixed(1)} MB) as "${p.title}", ${p.privacy}`);
-    console.log(`          playlist "${p.playlist}", captions ${srt && fs.existsSync(srt) ? 'yes' : 'no'}, thumbnail ${thumb && fs.existsSync(thumb) ? 'yes' : 'no'}`);
+    console.log(`          playlist ${p.playlist ? `"${p.playlist}"` : 'none'}, captions ${srt && fs.existsSync(srt) ? 'yes' : 'no'}, thumbnail ${thumb && fs.existsSync(thumb) ? path.basename(thumb) : 'no'}${p.format === 'short' ? `, Short of ${p.parent_key} (${parentVideoId})` : ''}`);
     return;
   }
 
@@ -86,7 +104,8 @@ async function runTask({ task, employee, allowlist, db, yt, dryRun, force, playl
       try { await yt.captionsInsert({ videoId: v.id, filePath: srt }); result.captions = true; } catch (e) { extras.push(`captions: ${e.message}`); }
     }
     if (thumb && fs.existsSync(thumb)) {
-      try { await yt.thumbnailsSet({ videoId: v.id, filePath: thumb }); result.thumbnail = true; } catch (e) { extras.push(`thumbnail: ${e.message}`); }
+      const warn = await setThumbnail(yt, v.id, thumb);
+      if (warn) extras.push(warn); else result.thumbnail = true;
     }
     if (p.playlist) {
       try {
@@ -98,6 +117,7 @@ async function runTask({ task, employee, allowlist, db, yt, dryRun, force, playl
     }
     if (extras.length) result.warnings = extras;
     result.completed_at = new Date().toISOString();
+    uploaded.set(p.video_key, v.id);
     await db.updateTask(task.id, { status: 'done', result }, { fromStatus: 'approved' });
     await db.logAction({ employee_id: employee.id, task_id: task.id, action: 'task_done', detail: { video_id: v.id, warnings: extras } });
     console.log(`done ${p.video_key}: ${result.url}${extras.length ? ` (warnings: ${extras.join('; ')})` : ''}`);
@@ -110,9 +130,45 @@ async function runTask({ task, employee, allowlist, db, yt, dryRun, force, playl
   }
 }
 
+/** Uploaded video ids by key, from done tasks: the parents a Short links to. */
+function uploadedMap(doneTasks) {
+  const m = new Map();
+  for (const t of doneTasks || []) if (t.payload?.video_key && t.result?.video_id) m.set(t.payload.video_key, t.result.video_id);
+  return m;
+}
+
+// --dry-run --local: the plan for the local proposals file, as if each
+// proposal had been approved. Reads files only; no DB, no API.
+function localPlan(allowlist, file) {
+  const local = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const employee = { status: 'active' };
+  const all = (local.tasks || []).map((t) => ({ ...t, status: t.status === 'proposed' ? 'approved' : t.status, reviewer_email: t.reviewer_email || 'local-dry-run', reviewed_at: t.reviewed_at || new Date().toISOString() }));
+  const uploaded = uploadedMap(all.filter((t) => t.status === 'done'));
+  const pending = all.filter((t) => t.status === 'approved').sort((a, b) => Date.parse(a.payload.scheduled_at) - Date.parse(b.payload.scheduled_at));
+  console.log(`[local dry run] ${pending.length} proposal(s) in ${file}, treated as approved for this plan only.`);
+  const byDay = new Map();
+  for (const t of pending) {
+    const day = String(t.payload.scheduled_at).slice(0, 10);
+    byDay.set(day, (byDay.get(day) || 0) + 1);
+    // in order, a parent ahead of its Short counts as uploaded by then
+    const parentVideoId = t.payload.parent_key ? uploaded.get(t.payload.parent_key) || null : null;
+    const blocker = executeBlocker({ task: t, employee, allowlist, parentVideoId });
+    console.log(`${t.payload.scheduled_at} ${t.payload.video_key.padEnd(18)} ${blocker ? `BLOCKED: ${blocker}` : `upload, thumbnail ${t.payload.thumbnail_file || 'none'}${t.payload.format === 'short' ? `, Short of ${t.payload.parent_key}` : ''}`}`);
+    if (!blocker) uploaded.set(t.payload.video_key, `(uploaded ${day})`);
+  }
+  const busiest = Math.max(0, ...byDay.values());
+  console.log(`busiest day: ${busiest} upload(s); daily cap ${DAILY_UPLOAD_CAP}.`);
+}
+
 async function main() {
   const dryRun = flag('dry-run');
   const allowlist = JSON.parse(fs.readFileSync(path.join(HERE, 'config/public-allowlist.json'), 'utf8'));
+  if (flag('local')) {
+    if (!dryRun) throw new Error('--local only plans (--dry-run); uploads run from tasks approved in the database.');
+    const next = argv[argv.indexOf('--local') + 1];
+    localPlan(allowlist, next && !next.startsWith('--') ? next : '/root/ai-employees/youtube-proposals.json');
+    return;
+  }
   const env = loadServiceEnv();
   if (!env) throw new Error('No /root/.ai-employees.env with SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. execute.mjs only acts on tasks approved in the database.');
   const db = createDb(env);
@@ -133,11 +189,12 @@ async function main() {
 
   const yt = dryRun ? null : createYouTubeClient({ getToken: tokenProvider() });
   const playlists = new Map();
+  const uploaded = uploadedMap(await db.tasks(employee.id, { status: 'done' }));
   for (const task of tasks) {
     // re-read the register before each task so a pause stops the run
     const current = await db.employee(SLUG);
     if (current?.status !== 'active') { console.log(`${SLUG} was ${current?.status || 'removed'} mid-run. Stopping.`); return; }
-    await runTask({ task, employee: current, allowlist, db, yt, dryRun, force: flag('force'), playlists });
+    await runTask({ task, employee: current, allowlist, db, yt, dryRun, force: flag('force'), playlists, uploaded });
   }
 }
 

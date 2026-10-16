@@ -1,0 +1,230 @@
+{
+  "note": "Thumbnail text (3 to 6 words, *word* in the accent colour), an optional app chip, and an optional frame (a storyboard step id, or a time in seconds on youtube.mp4) per public video key. Without a frame, thumbs.mjs takes the most colourful, detailed step. focus (0 to 1) anchors the frame horizontally and zoom enlarges it. Plain facts only, no em dashes.",
+  "chips": {
+    "petrophysics-lessons-module-a": "Petrophysics Studio",
+    "petrophysics-demos": "Petrophysics Studio",
+    "qi-lessons-module-a": "QI Studio",
+    "qi-demos": "QI Studio",
+    "seismolord-demos": "Seismolord",
+    "rcp-demos": "ReservoirCalc Pro",
+    "rcp-lessons-module-a": "ReservoirCalc Pro",
+    "mbal-demos": "Material Balance Studio",
+    "mbal-lessons-module-a": "Material Balance Studio",
+    "wds-demos": "Well Design Studio",
+    "wds-lessons-module-a": "Well Design Studio",
+    "epe-demos": "Petroleum Economics",
+    "epe-lessons-module-a": "Petroleum Economics",
+    "pps-demos": "Pore Pressure Studio",
+    "pps-lessons-module-a": "Pore Pressure Studio",
+    "em-demos": "Earth Modelling",
+    "em-lessons-module-a": "Earth Modelling",
+    "wt-demos": "Well Test Analysis",
+    "wt-lessons-module-a": "Well Test Analysis",
+    "bf-demos": "Basin Modelling",
+    "bf-lessons-module-a": "Basin Modelling"
+  },
+  "keys": {
+    "petro-01": {
+      "text": "Raw Logs to *Net Pay*"
+    },
+    "petro-02": {
+      "text": "Is Our *Rw* Right?"
+    },
+    "petro-03": {
+      "text": "*P90, P50, P10* Net Pay",
+      "frame": "curves"
+    },
+    "qi-01": {
+      "text": "Does the Seismic *See the Oil?*"
+    },
+    "qi-02": {
+      "text": "Tie Wells, Build *Angle Stacks*"
+    },
+    "qi-03": {
+      "text": "AVO, Then the *Inversion*"
+    },
+    "seis-01": {
+      "text": "SEG-Y to a *First Horizon*"
+    },
+    "seis-02": {
+      "text": "Wells Build the *Framework*"
+    },
+    "seis-03": {
+      "text": "Horizons to *Volumes*"
+    },
+    "lesson-a1": {
+      "text": "Loading *Well Logs* Right",
+      "frame": "plot"
+    },
+    "lesson-a2": {
+      "text": "*MD, TVD, TVDSS* Explained"
+    },
+    "lesson-a3": {
+      "text": "Log QC: *Washouts* and DRHO"
+    },
+    "lesson-a4": {
+      "text": "Read a *Triple Combo*"
+    },
+    "lesson-qi-a1": {
+      "text": "What a *QI Study* Asks",
+      "frame": "targets"
+    },
+    "lesson-qi-a2": {
+      "text": "The *Usability Matrix*",
+      "frame": "matrix"
+    },
+    "lesson-qi-a3": {
+      "text": "*Seismic QC* Basics"
+    },
+    "rcp-01": {
+      "text": "Interpretation to *Volumes*"
+    },
+    "rcp-02": {
+      "text": "How Sure *Are We?*"
+    },
+    "rcp-03": {
+      "text": "When the *Data Changes*"
+    },
+    "mbal-01": {
+      "text": "Pressure History to *Oil in Place*"
+    },
+    "mbal-02": {
+      "text": "Gas Cap, *Aquifer*, Contacts"
+    },
+    "mbal-03": {
+      "text": "Waterflood and the *Volumetric Check*",
+      "frame": "campbell"
+    },
+    "wds-01": {
+      "text": "Map to a *Well Path*",
+      "frame": "plots"
+    },
+    "wds-02": {
+      "text": "Who Else Is *Down There?*"
+    },
+    "wds-03": {
+      "text": "When the *Map Moves*"
+    },
+    "epe-01": {
+      "text": "Is Ekene-11 *Worth Drilling?*"
+    },
+    "epe-02": {
+      "text": "*Tornado and Monte Carlo*"
+    },
+    "epe-03": {
+      "text": "When the *Forecast Changes*"
+    },
+    "pps-01": {
+      "text": "Logs to a *Pore Pressure* Prognosis"
+    },
+    "pps-02": {
+      "text": "Shoe Tests and the *Mud Window*"
+    },
+    "pps-03": {
+      "text": "When the *Prognosis Changes*"
+    },
+    "em-01": {
+      "text": "Logs to a *Static Model*"
+    },
+    "em-02": {
+      "text": "Check the Model *Against RCP*"
+    },
+    "em-03": {
+      "text": "*Uncertainty* and Hand-offs"
+    },
+    "wt-01": {
+      "text": "Permeability, *Skin* and a Fault"
+    },
+    "wt-02": {
+      "text": "Reading a *Clean-Up Test*"
+    },
+    "wt-03": {
+      "text": "Well Test to *Deliverability*"
+    },
+    "bf-01": {
+      "text": "A Calibrated *Thermal History*"
+    },
+    "bf-02": {
+      "text": "From the Kitchen to the *Traps*"
+    },
+    "bf-03": {
+      "text": "What the *Charge* Depends On"
+    },
+    "lesson-rcp-a1": {
+      "text": "The *Four Methods*",
+      "frame": "chain"
+    },
+    "lesson-rcp-a2": {
+      "text": "Getting *Surfaces* In"
+    },
+    "lesson-rcp-a3": {
+      "text": "Where the *Oil Stops*"
+    },
+    "lesson-rcp-a4": {
+      "text": "Reading *Area-Depth* Tables"
+    },
+    "lesson-mbal-a1": {
+      "text": "Material Balance: *A New Case*"
+    },
+    "lesson-mbal-a2": {
+      "text": "Production *Data In*"
+    },
+    "lesson-mbal-a3": {
+      "text": "*PVT and Rock* Inputs"
+    },
+    "lesson-wds-a1": {
+      "text": "*Sites and Slots*"
+    },
+    "lesson-wds-a2": {
+      "text": "The *Three Norths*"
+    },
+    "lesson-wds-a3": {
+      "text": "*Drilling Targets* Three Ways"
+    },
+    "lesson-epe-a1": {
+      "text": "*Cases* and Data Slots"
+    },
+    "lesson-epe-a2": {
+      "text": "*Prices* and Escalation"
+    },
+    "lesson-epe-a3": {
+      "text": "Discounting and *Sunk Cost*"
+    },
+    "lesson-pps-a1": {
+      "text": "The *Water Column*"
+    },
+    "lesson-pps-a2": {
+      "text": "*Overburden* and Hydrostatic"
+    },
+    "lesson-pps-a3": {
+      "text": "The Normal *Compaction Trend*"
+    },
+    "lesson-em-a1": {
+      "text": "Building the *Framework*"
+    },
+    "lesson-em-a2": {
+      "text": "Tying *Surfaces to Wells*"
+    },
+    "lesson-em-a3": {
+      "text": "*Contacts* and the Volume Table"
+    },
+    "lesson-wt-a1": {
+      "text": "A First *Buildup*"
+    },
+    "lesson-wt-a2": {
+      "text": "*Gauge Data* QC"
+    },
+    "lesson-wt-a3": {
+      "text": "Well Test *Inputs*"
+    },
+    "lesson-bf-a1": {
+      "text": "A New *Basin Model*"
+    },
+    "lesson-bf-a2": {
+      "text": "Building the *Column*"
+    },
+    "lesson-bf-a3": {
+      "text": "*Burial History* Explained"
+    }
+  }
+}

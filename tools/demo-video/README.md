@@ -37,6 +37,35 @@ node tools/demo-video/r2.mjs ls [prefix]
 `tools/ops/housekeeping.sh` frees the local `youtube.mp4` and `nape.mp4` 30
 days after upload, and only when the bucket still holds the identical file.
 
+## Thumbnails and Shorts
+
+```
+node tools/demo-video/thumbs.mjs [key...] [--force] [--sheet <png>] [--upload]
+node tools/demo-video/shorts.mjs [demo...] [--plan] [--force] [--upload]
+```
+
+`thumbs.mjs` makes `thumbnail.jpg` (1280x720 JPEG, under 2 MB) for every key
+on the public allowlist. It scores one frame per storyboard step (late in the
+step, when the result is on screen) for colour and detail, takes the best
+unless `config/thumbs.json` names a step or a time, frames the busiest part of
+it on the right, and draws `cards/thumb.html` over it in headless Chromium:
+3 to 6 words of text from the config, the wordmark, the app chip and a
+Demo or Lesson tag (gold for demos, teal for lessons).
+
+`shorts.mjs` cuts the Shorts listed in `config/shorts.json` from the demo
+masters into `<demo>-short<n>/`: a run of storyboard steps that starts and
+ends on whole narrated sentences, 30 to 60 s with the closing card. The app
+panel is cropped from the 4K picture over a blurred fill, the captions come
+from the master's own `youtube.srt` (re-chunked to two short lines, placed
+clear of YouTube's own controls), a hook card covers the first 2 s, and the
+Short ends on "Full demo on the channel" and petrolord.com. It writes
+`youtube.mp4`, `youtube-description.txt` (the hook and a link to the full demo)
+and `short.json` (the window and crop), and no chapters. Only demos on the
+public allowlist are cut.
+
+`--upload` copies the new files to R2 beside the masters (`thumbnail.jpg`,
+`youtube-description.txt` and `short.json` are master files too).
+
 ## How it works
 
 1. **Narration** (`lib/tts.mjs`): ElevenLabs, voice Daniel (British English,

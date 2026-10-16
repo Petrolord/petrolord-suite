@@ -47,10 +47,11 @@ async function call(cfg, method, key, { body, payloadHash = EMPTY_SHA256, header
   return res;
 }
 
-const TYPES = { '.mp4': 'video/mp4', '.srt': 'application/x-subrip', '.vtt': 'text/vtt', '.txt': 'text/plain; charset=utf-8', '.json': 'application/json' };
-// What goes to the bucket: the finished cuts and their small companions.
+const TYPES = { '.mp4': 'video/mp4', '.srt': 'application/x-subrip', '.vtt': 'text/vtt', '.txt': 'text/plain; charset=utf-8', '.json': 'application/json', '.jpg': 'image/jpeg' };
+// What goes to the bucket: the finished cuts and their small companions
+// (the thumbnail from thumbs.mjs; a Short's description and short.json).
 // raw.mkv and work files stay local; the storyboard can re-record them.
-export const MASTER_FILES = ['youtube.mp4', 'nape.mp4', 'youtube.srt', 'youtube.vtt', 'chapters.txt', 'timeline.json'];
+export const MASTER_FILES = ['youtube.mp4', 'nape.mp4', 'youtube.srt', 'youtube.vtt', 'chapters.txt', 'timeline.json', 'thumbnail.jpg', 'youtube-description.txt', 'short.json'];
 export const MANIFEST = 'r2.json';
 
 export async function head(cfg, key) {
