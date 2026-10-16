@@ -15,7 +15,7 @@
 //   {type:'ingest:done', id, scan, result}
 //   {type:'error', id, message}
 
-import { fileReader } from '../engine/reader';
+import { importSourceReader } from '../services/zgySource';
 import { readTextualHeader, scanGeometry, previewTraceHeaders } from '../engine/segyScan';
 import { transcodeToBricks } from '../engine/brickTranscode';
 import { createBrickChannel } from './brickAckChannel';
@@ -29,7 +29,8 @@ async function handleScan({ id, file, mapping, maxTraces }) {
   // SEIS-U1: the door checks the headers first (refusing with the reason)
   // and presents extended-header and unset-interval files in the layout
   // the engines read
-  const { reader, door } = await openSegyDoor(fileReader(file));
+  // a Petrel ZGY is read as the SEG-Y it holds (zgySource.js)
+  const { reader, door } = await openSegyDoor(await importSourceReader(file));
   const [textLines, preview, scan] = [
     await readTextualHeader(reader),
     await previewTraceHeaders(reader, mapping),
@@ -51,7 +52,7 @@ async function handleScan({ id, file, mapping, maxTraces }) {
 
 async function handleIngest({ id, file, mapping, memoryBudgetBytes }) {
   // F-5: the trace delay honoured here too, so both import paths agree
-  const { reader } = await alignTraceDelay((await openSegyDoor(fileReader(file))).reader);
+  const { reader } = await alignTraceDelay((await openSegyDoor(await importSourceReader(file))).reader);
   const scan = await scanGeometry(reader, mapping, {
     onProgress: (done, total) => self.postMessage({ type: 'progress', id, phase: 'scan', done, total }),
   });

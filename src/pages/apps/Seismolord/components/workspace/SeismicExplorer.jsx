@@ -458,7 +458,7 @@ export default function SeismicExplorer({ tree, actions }) {
             );
           })()}
           {!volumes.length && (
-            <Hint>No volumes yet. Import a SEG-Y file to get started.</Hint>
+            <Hint>No volumes yet. Import a SEG-Y or ZGY file to get started.</Hint>
           )}
         </Section>
 

@@ -189,7 +189,7 @@ export function cropKeyOf(crop, file) {
   return shortHash(JSON.stringify([file.name, file.size, file.lastModified || 0, rest]));
 }
 
-const stemOf = (name) => String(name || 'volume.sgy').replace(/\.(sgy|segy)$/i, '');
+const stemOf = (name) => String(name || 'volume.sgy').replace(/\.(sgy|segy|zgy)$/i, '');
 
 /**
  * The cropped file as the resumable upload reads it. `slice` serves the

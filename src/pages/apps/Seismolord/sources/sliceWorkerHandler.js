@@ -18,7 +18,7 @@
 //   error { id, code, message } | token-request { id, sourceId, force }
 
 import { SliceEngine } from './sliceEngine';
-import { fileReader } from '../engine/reader';
+import { importSourceReader } from '../services/zgySource';
 import { openSegyDoor } from '../lib/segyDoor';
 import { storageBrickFetcher, ABORTED as BRICK_ABORTED } from '../engine/brickCache';
 import { v4BrickFetcher } from '../engine/brickCodecV4';
@@ -80,7 +80,7 @@ export function createSliceWorkerHandler(post, env = {}) {
   const tokenWaiters = new Map();
   let tokenSeq = 0;
   // SEIS-U1: the local view reads through the same SEG-Y door as the import
-  const makeReader = env.makeReader || (async (file) => (await openSegyDoor(fileReader(file))).reader);
+  const makeReader = env.makeReader || (async (file) => (await openSegyDoor(await importSourceReader(file))).reader);
   const makeFetcher = env.makeFetcher || ((cfg) => storageBrickFetcher(cfg));
 
   const ensureEngine = (budgetBytes) => {

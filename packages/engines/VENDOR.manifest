@@ -1,9 +1,9 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 52935a5c2980c3cd36dc3e1b68ecfe970b963b6e
+# commit 8c5b74e20bf1fd94e218fcf743c7f7696fed3613
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
-d8bd133c5a081611291cb72e0efd5909a2e23b77 README.md
+60b4ce810b88f5d407025c721eed304e20994b54 README.md
 6373485efb6baa9226953a76a3d6ebb740541d1c __tests__/aquifer.test.js
 168f6cedfc18af932ba587f2ff882b7571966986 __tests__/assurance.audit.test.js
 fc5248e0239b0841f542a3cba95ef72db34296d1 __tests__/assurance.compliance.test.js
@@ -270,6 +270,7 @@ bdd830e777c0c944e07668c8e00e6ef22f3df987 __tests__/seismolord.tracker2.test.js
 9a7c585967122edb38db31edd06f3b02d1656b5c __tests__/seismolord.v4bricks.test.js
 4ea432c987fe308b2753370af37f06d2527b4c07 __tests__/seismolord.volumejob.pilot.test.js
 e8b323c2fa467161e71a6cde3f3ee03e6289a529 __tests__/seismolord.volumejob.test.js
+1c98178173363cde71ae03abb15b560916d15eb5 __tests__/seismolord.zgy.test.js
 bfbf553fdf6db8892a4df9b27b82f23a3526e9b0 __tests__/seismolordSegyFixture.js
 2a86b019108a1ff5cf80f100b4bc62ef3a97b87e __tests__/sim.deckgen.test.js
 07c7b1702ac088f849737b8e32982b0254264f6d __tests__/sim.ekene.test.js
@@ -646,6 +647,8 @@ f924511b2b7bbd9126412ff6b0553b035a643db8 engines/seismolord/wellPath.js
 0d1e8c5a0370d977250f355b3167734c8da6ec1f engines/seismolord/wellSection.js
 52883680abe22b6d6a2e690560f8b4beca69a882 engines/seismolord/wellTie.js
 757db7c35a10501397eb0b25ab2a9bb401b6ee43 engines/seismolord/wellWavelet.js
+35389a1925de4b0566bf48c1bfcf5aa225d81178 engines/seismolord/zgy.js
+1d63cc8f08705dfbd4991283aea6869a2835ce53 engines/seismolord/zgySegy.js
 aafbc202635f2721c32b5f192253b3c471b6c9e5 engines/sim/composeDeck.js
 18293322bc032451a88d14ff491f3eebc030de5f engines/sim/deckFormat.js
 8023537c89dc12690f249ebe48594b7c6fcfa735 engines/sim/emitAquifer.js
@@ -746,8 +749,8 @@ d2f96efc8d4f16d1c07a09c1e387f13d114ad682 lib/units/fieldUnits.js
 1f6ef51476d22b47b8a59323477462cde78c09fd lib/welltest/models/dualPorosity.js
 7e75466fb3a7300e2d8fbcc9547bce9c2d0a885f lib/welltest/models/radial.js
 bacb719fe875660012a85d6a21da4a1679111fae lib/welltest/numerics.js
-08986bd58c7c5b1b5e9c7592a46952bf1204d28e package-lock.json
-f402932d09329ba5a87f59f439165329a06cb564 package.json
+be4d75a7ee37ccf88abb8c90e53b123731c91b4c package-lock.json
+099a48ebcde44a3f7d2aeedbca85a7c7e48cda63 package.json
 7203e2419e8a90dba932506805eca5c23f4dcd53 test-data/aquifer/dake92-we.json
 b94f64b13b4363a74e27b794efc1512929af51e4 test-data/assurance/goldens/auditManagement_cases.json
 2ba9b9654cedb9d24f5332990bddf43eb435ad31 test-data/assurance/goldens/calendar_cases.json
@@ -993,6 +996,22 @@ f06c0be237a710065e6e211b2ebf88eb07730d8c test-data/seismolord/segy_formats/fmt8_
 70b570af41992b216065b2e86b4bf4fd6c3ba2ad test-data/seismolord/segy_formats/goldens.json
 f213312d11270f77f03b152d7967bd49c07760f8 test-data/seismolord/structure/gen_structure.py
 fbd8bfb1f097f02e83efcc528074ae91339ee898 test-data/seismolord/structure/structure_golden.json
+78f591dd2d3593155dc43d62867b42fb23d9ed68 test-data/seismolord/zgy/Empty-v1.zgy.gz
+3655a1287b3a7e40c6dcb1b6e6d68f6716cd2ecd test-data/seismolord/zgy/Empty-v3.zgy.gz
+032072fa9a6326d19bea92404e9a2436d4def638 test-data/seismolord/zgy/EmptyOldFile.zgy.gz
+cfb159a2253aede21c3383534b6596623d4f59f9 test-data/seismolord/zgy/Fancy-int8.zgy.gz
+4dfa14a1e7a2cbc14bfd7328278b28577b82c21f test-data/seismolord/zgy/LICENSE-OpenZGY.txt
+a815dc4a3277b22fd456c139f48b5e9d54fb57ba test-data/seismolord/zgy/README.md
+697fd7b6b4018b08f8cc5609af509808322f5888 test-data/seismolord/zgy/gen-depth-ft.json
+8bf82568b3888042a01baec07714d2ec681f2d35 test-data/seismolord/zgy/gen-depth-ft.zgy.gz
+1b6938211b770752290e487e94a678daaf62fdf2 test-data/seismolord/zgy/gen-float32.json
+8813f988f57a127cd1917c633e8dcd7e3d6e456c test-data/seismolord/zgy/gen-float32.zgy.gz
+e5677bf371a8306abbde218cb3ba2a1bd6e3405f test-data/seismolord/zgy/gen-int16.json
+112fe995ffe4476f2bc0ec40f73a72748393258e test-data/seismolord/zgy/gen-int16.zgy.gz
+4b312180bfca665139b2cd5e9951db3285d9b9d5 test-data/seismolord/zgy/gen-int8.json
+7c9522e9c7595bc8f37ad8dcfe02d52c7520866a test-data/seismolord/zgy/gen-int8.zgy.gz
+0001471c5e98520278c9ec74f45ac0d94c8f8853 test-data/seismolord/zgy/gen-zfp-snr30.json
+8b9dc3e69e79d0a522b5b71f6a69392afc38f843 test-data/seismolord/zgy/gen-zfp-snr30.zgy.gz
 5144b15883705461f9c29323038cc2e9dd131eb0 test-data/stats/simple_statistics_pins.json
 941148fbe6fed90b1b4b774dbc45eca4851334a7 test-data/stratigraphy/README.md
 3841c2e06ae3a3c1f01d8f8a5f9c9fa3a40c6ed1 test-data/stratigraphy/ics-chart-2023-09-numbers.txt
@@ -1330,6 +1349,7 @@ e06406c36ff743cae42ef3b48b98161ddc9a964a tools/validation/rockphysics/oracle_ela
 ab78abe3ca4d45aa7ef017db0889db20189d3b14 tools/validation/rockphysics/oracle_inclusion.py
 480487e6085a46b00a5d0e21ab647904f5a8b321 tools/validation/rockphysics/oracle_u2.py
 cdb2d22d81a20c788992d724c5e4d97f47abab89 tools/validation/seismolord/gen_segy_formats.py
+9aa369cf350fdd4c149792dcc141ffabce74e9b7 tools/validation/seismolord/gen_zgy_fixtures.py
 7cc3bf86619ef843a0495e2d799f824fb67d52b6 tools/validation/seismolord/oracle_segy_write.py
 2684f84e96b4a1a63064a07b7feb2b7b7f62ced9 tools/validation/seismolord/segy_write_sample.mjs
 711f86582f9f59357245cd679b6e47be74396b3a tools/validation/supplychain/FINDINGS-inventory.md

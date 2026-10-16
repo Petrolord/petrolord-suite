@@ -12,7 +12,7 @@
 //   {type:'convert:done', id, record}
 //   {type:'error', id, message}
 
-import { fileReader } from '../engine/reader';
+import { importSourceReader, sourceClip } from '../services/zgySource';
 import { resolveCodec, hasNativeDeflateRaw, DEFLATE_RAW } from '../engine/brickCodecV4';
 import { convertToSpool } from '../services/conversionV4';
 import { opfsSpool } from '../services/brickSpool';
@@ -40,10 +40,15 @@ async function handleConvert({ id, file, scan, volumeId, memoryBudgetBytes, pool
   const spool = local ? await openLocalVolume(volumeId, { write: true }) : await opfsSpool(volumeId);
   const { codec, pool } = makeCodec(poolSize);
   try {
-    const reader = await conversionSourceReader(fileReader(file), crop, delayShift);
+    // a Petrel ZGY is read as the SEG-Y it holds; a compressed one gives its
+    // display clip from whole bricks (zgySource.js)
+    const source = await importSourceReader(file);
+    const clip = await sourceClip(source);
+    const reader = await conversionSourceReader(source, crop, delayShift);
     const record = await convertToSpool({
       reader,
       scan,
+      ...(clip ? { clip } : {}),
       spool,
       codec,
       memoryBudgetBytes,
