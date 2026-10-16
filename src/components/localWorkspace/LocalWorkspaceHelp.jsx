@@ -15,6 +15,7 @@ const KIND_WORDS = {
   sample_volumes: 'Stack traces at the wells',
   avo_volumes: 'AVO from angle stacks',
   match_stacks: 'Stack matching',
+  spectral_balance: 'Balancing the stack spectra',
   prestack_inversion: 'Simultaneous inversion of angle stacks',
   zone_maps: 'Zone maps',
 };

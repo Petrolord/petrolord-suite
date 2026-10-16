@@ -11,6 +11,7 @@
 // Then the page-side runner: qi_jobs audit rows, the seal (registry ready,
 // replica row, content id) and the clean-up of a failed job.
 import { attributeVolume } from '../../../../worker/seismic-worker/src/handlers/attributeVolume.js';
+import { balanceStacksJob } from '../../../../worker/seismic-worker/src/handlers/balanceStacks.js';
 import { NULL_VALUE } from '../../../../packages/engines/engines/seismolord/manifest';
 import { memoryDirectory } from '../memoryDir';
 import { memoryRegistry } from '../registry';
@@ -235,6 +236,50 @@ describe('page-side runner', () => {
   });
 });
 
+// QI showcase (2026-10-16): Balance the stacks on stacks kept on this computer
+// was refused ("needs Petrolord Local") because the helper list named kinds
+// that do not exist (balance_stacks, condition_gathers). It is a post-stack,
+// volume in volume out job, so it runs in the browser on the server's handler.
+describe('browser job equals the server job, spectral balance', () => {
+  const params = { stacks: [PARENT], volume_ids: { [PARENT]: DERIVED }, target: 'flat', f_lo_hz: 8, f_hi_hz: 60 };
+  const job = { id: 'j1', kind: 'spectral_balance', user_id: UID, params };
+  async function serverBalance(tweak = null) {
+    const store = parentBricks(tweak);
+    const objects = new Map();
+    await balanceStacksJob({ job: { id: 'j1', attempt: 1, user_id: UID }, params, progress: () => {}, cancelled: false, log: { warn() {} } }, {
+      admin: fakeClient(rowsFor()),
+      storage: { async upload(path, bytes) { objects.set(path, new Uint8Array(bytes)); return 'uploaded'; } },
+      makeFetcher: () => async (path) => store.get(path.match(/bricks\/(\d+-\d+-\d+)\.f32$/)[1]).slice().buffer,
+      readManifest: async () => structuredClone(MANIFEST),
+    });
+    return objects;
+  }
+  async function browserBalance(tweak = null) {
+    const registry = await localSetup(tweak);
+    const client = fakeClient(rowsFor());
+    const deps = buildBrowserDeps({ client, supabaseUrl: 'http://x', getToken: async () => 'tok', registry, source: createLocalBrickSource({ registry }) });
+    const outcome = await runBrowserHandler({ job, deps });
+    await deps.closeWriters();
+    return { outcome, store: await openLocalVolume(DERIVED, { registry }), client };
+  }
+  test('the job runs in the browser and every brick equals the server\'s', async () => {
+    const srv = await serverBalance();
+    const br = await browserBalance();
+    expect(br.outcome).toMatchObject({ ok: true });
+    const bricks = [...srv].filter(([p]) => p.endsWith('.f32'));
+    expect(bricks.length).toBe(12);
+    for (const [path, bytes] of bricks) {
+      const local = await br.store.get(rel(path));
+      expect(Buffer.compare(Buffer.from(local), Buffer.from(bytes))).toBe(0);
+    }
+    expect([...br.client.bucket.keys()].some((k) => k.endsWith('.f32'))).toBe(false);
+    // negative control: one changed parent sample changes the browser root
+    const tweaked = await browserBalance([1, 1, 4]);
+    const rootOf = async (store) => brickRootOf(await Promise.all(bricks.map(async ([p]) => [rel(p), await sha256Hex(await store.get(rel(p)))])));
+    expect(await rootOf(tweaked.store)).not.toBe(await rootOf(br.store));
+  });
+});
+
 describe('routing and placement', () => {
   const here = { kind: PLACEMENT.HERE };
   const cloud = { kind: PLACEMENT.CLOUD };
@@ -244,6 +289,12 @@ describe('routing and placement', () => {
     expect(chooseExecutor({ kind: 'poststack_inversion', inputs: [{ id: 'a', placement: cloud }], preference: 'browser' }).executor).toBe('browser');
     expect(chooseExecutor({ kind: 'angle_stacks', inputs: [{ id: 'a', placement: here }] }).error).toMatch(/Petrolord Local/);
     expect(chooseExecutor({ kind: 'angle_stacks', inputs: [{ id: 'a', placement: here }], helperPaired: true }).executor).toBe('local');
+    // stack balancing runs here; the gather conditioning kinds wait for the helper
+    expect(chooseExecutor({ kind: 'spectral_balance', inputs: [{ id: 'a', placement: here }] }).executor).toBe('browser');
+    for (const kind of ['radon_demultiple', 'fx_denoise']) {
+      expect(chooseExecutor({ kind, inputs: [{ id: 'a', placement: here }] }).error).toMatch(/Petrolord Local/);
+      expect(chooseExecutor({ kind, inputs: [{ id: 'a', placement: here }], helperPaired: true }).executor).toBe('local');
+    }
     expect(chooseExecutor({ kind: 'seismic_qc', inputs: [{ id: 'a', name: 'Near stack', placement: { kind: PLACEMENT.ELSEWHERE, deviceLabel: "Ayo's PC" } }] }).error).toMatch(/Near stack lives on Ayo's PC/);
   });
   test('uuids anywhere in params', () => {

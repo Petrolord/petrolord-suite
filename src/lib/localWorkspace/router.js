@@ -16,13 +16,13 @@ import { PLACEMENT } from './placement';
 /** Kinds the browser runs with the seismic worker's own handlers (post-stack, volume in, volume out). */
 export const BROWSER_KINDS = Object.freeze([
   'attribute_volume', 'seismic_qc', 'poststack_inversion', 'property_prediction', 'sample_volumes',
-  'avo_volumes', 'match_stacks', 'prestack_inversion', 'zone_maps',
+  'avo_volumes', 'match_stacks', 'spectral_balance', 'prestack_inversion', 'zone_maps',
 ]);
 
 /** Kinds that need the helper (L2) when their input is local: gathers and raw files. */
 export const HELPER_ONLY_KINDS = Object.freeze([
   'ingest_gathers', 'angle_stacks', 'trim_gathers', 'prestack_qc', 'gather_panel', 'export_segy',
-  'condition_gathers', 'balance_stacks', 'stack_to_v4', 'scan_dataset', 'ingest_url', 'remove_dataset',
+  'radon_demultiple', 'fx_denoise', 'stack_to_v4', 'scan_dataset', 'ingest_url', 'remove_dataset',
 ]);
 
 export const EXECUTOR = Object.freeze({ BROWSER: 'browser', LOCAL: 'local', SERVER: 'server' });
