@@ -8,7 +8,7 @@
 // Music: any licensed file; swap `music.file` (see music/LICENSE.md).
 const card = (title, sub) => ({ eyebrow: 'Petrolord Suite · Geoscience', title, sub, footL: 'Geoscience module' });
 
-export default {
+const mod = {
   kind: 'module',
   id: 'geo-module',
   title: 'Geoscience in the Petrolord Suite',
@@ -40,3 +40,8 @@ export default {
     { card: 'outro', seconds: 6, fields: card('Geoscience *with Petrolord*', 'See it on your own data at petrolord.com') },
   ],
 };
+
+// GEO_SKIP=geo-s08,geo-s06c (comma list) leaves scenes out, for a preview before every scene is recorded
+const skip = new Set((process.env.GEO_SKIP || '').split(',').filter(Boolean));
+mod.sequence = mod.sequence.filter((x) => !skip.has(x.scene));
+export default mod;

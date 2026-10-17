@@ -81,7 +81,7 @@ export default {
       say: 'After a Radon transform the multiples are gone, and the primaries, with their A V O, are left untouched.',
       sub: 'After a Radon transform the multiples are gone, and the primaries, with their AVO, are left untouched.',
       do: async (d) => {
-        await d.scroll(t(d, 'qi-gathers-line-1'), 520, { ms: 1800 });
+        await d.scroll(t(d, 'qi-gathers-line-1'), 760, { ms: 1800 });
         await expectText(d, 'qi-gathers-line-1', /demultipled \(area\): inline 1027, crosslines 2044 to 2059/, 'demultipled line');
         const c = d.page.locator('[data-testid="qi-gathers-canvas-1-line"]');
         const b = await c.boundingBox();

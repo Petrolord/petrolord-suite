@@ -184,9 +184,10 @@ export async function composeModule(mod, scenes, { outDir }) {
   const lowmem = ['-x264-params', 'rc-lookahead=20', '-threads', '4'];
   const enc = ['-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-profile:v', 'high', '-level', '5.1', '-pix_fmt', 'yuv420p', '-r', '30', '-movflags', '+faststart', ...lowmem];
   const up = 'scale=3840:2160:flags=lanczos,setsar=1';
-  ff(['-i', joined, '-i', mixWav, '-i', path.join(outDir, 'youtube.srt'), '-vf', up, '-map', '0:v', '-map', '1:a', '-map', '2:s', ...enc,
+  const preview = !!process.env.PREVIEW; // PREVIEW=1: the review copy only (fast iteration)
+  if (!preview) ff(['-i', joined, '-i', mixWav, '-i', path.join(outDir, 'youtube.srt'), '-vf', up, '-map', '0:v', '-map', '1:a', '-map', '2:s', ...enc,
     '-c:a', 'aac', '-b:a', '192k', '-c:s', 'mov_text', '-metadata:s:s:0', 'language=eng', '-shortest', path.join(outDir, 'youtube.mp4')]);
-  ff(['-i', joined, ...(napeBed ? ['-i', napeBed] : []), '-vf', `${up},subtitles=${ass}:fontsdir=/usr/share/fonts`, '-map', '0:v',
+  if (!preview) ff(['-i', joined, ...(napeBed ? ['-i', napeBed] : []), '-vf', `${up},subtitles=${ass}:fontsdir=/usr/share/fonts`, '-map', '0:v',
     ...(napeBed ? ['-map', '1:a', '-c:a', 'aac', '-b:a', '128k'] : ['-an']), ...enc, path.join(outDir, 'nape.mp4')]);
   ff(['-i', joined, '-i', mixWav, '-vf', 'scale=1920:1080:flags=lanczos', '-map', '0:v', '-map', '1:a', '-c:v', 'libx264', '-preset', 'slow', '-crf', String(mod.reviewCrf ?? 30),
     '-pix_fmt', 'yuv420p', '-r', '30', '-movflags', '+faststart', ...lowmem, '-c:a', 'aac', '-b:a', '96k', '-shortest', path.join(outDir, 'review.mp4')]);

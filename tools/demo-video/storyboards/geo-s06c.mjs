@@ -19,8 +19,8 @@ export default {
     await d.page.locator('button[title="Tabs (one window at a time)"]').click().catch(() => {});
     await onlyVisible(d, LAYERS);
     if (await t(d, 'sl-rgb-clear').count()) await t(d, 'sl-rgb-clear').click();
-    // impedance is all positive: scale by percentiles (RMS multiple suits zero-mean seismic)
-    await combo(d, 'Amplitude scale').selectOption({ label: 'Percentile' });
+    // impedance is all positive: Value range (#1209) maps P2 to P98 onto the colour scale
+    await combo(d, 'Amplitude scale').selectOption({ label: 'Value range' });
     await combo(d, 'Colormap').selectOption({ label: 'Spectrum' });
     await combo(d, 'Orientation').selectOption({ label: 'Inline' }); await goTo(d, 1027, { quiet: true });
     await fullscreenBtn(d, 'section').click(); await d.sleep(2500);
@@ -28,7 +28,7 @@ export default {
   },
   steps: [
     { id: 'ai', chapterSub: 'QI Studio · inversion',
-      say: 'The inversion turns the seismic into acoustic impedance, guided by the horizons and tied to the wells. The soft, oil filled sand stands out on the crest.',
+      say: 'The inversion turns the seismic into acoustic impedance, guided by the horizons and tied to the wells. The soft sand shows in blue at the top of the reservoir.',
       do: async (d) => {
         const c = d.page.locator('[data-testid="window-section"] canvas').first();
         const b = await c.boundingBox();
