@@ -42,6 +42,7 @@ export const MAP_THEMES = Object.freeze({
   },
 });
 const LABEL_FONT = '10px sans-serif';
+const LABEL_LINE = 12; // px between stacked labels of wells at one spot
 const MAX_CONTOUR_LEVELS = 400;
 
 /** World extent of the grid NODES. */
@@ -335,9 +336,19 @@ export function paintWells(ctx, {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.lineJoin = 'round';
+  // wells at one spot (a pad, a re-entry, a copy of a well) stack their
+  // labels one line apart instead of overprinting each other
+  const heads = [];
+  const lineFor = (s) => {
+    const h = heads.find((q) => Math.hypot(q.x - s.x, q.y - s.y) < 6);
+    if (h) { h.n += 1; return h.n; }
+    heads.push({ x: s.x, y: s.y, n: 0 });
+    return 0;
+  };
   for (const w of wells || []) {
     if (!Number.isFinite(w.surface_x) || !Number.isFinite(w.surface_y)) continue;
     const s = transform.worldToScreen(w.surface_x, w.surface_y);
+    const dy = lineFor(s) * LABEL_LINE;
     const p = posted?.[w.name];
     let bore = null;
     if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) {
@@ -367,11 +378,11 @@ export function paintWells(ctx, {
     // a borehole within a label's reach of the wellhead keeps one label
     if (bore && Math.hypot(bore.x - s.x, bore.y - s.y) < 36) bore = null;
     if (bore) {
-      if (showNames) put(w.name, s.x + 5, s.y + 3);
+      if (showNames) put(w.name, s.x + 5, s.y + 3 + dy);
       if (value) put(value, bore.x + 5, bore.y + 3);
     } else if (showNames || value) {
       const text = `${showNames ? w.name : ''}${value ? `${showNames ? '  ' : ''}${value}` : ''}`;
-      if (text) put(text, s.x + 5, s.y + 3);
+      if (text) put(text, s.x + 5, s.y + 3 + dy);
     }
   }
   ctx.restore();
