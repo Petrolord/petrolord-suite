@@ -44,7 +44,7 @@ export default {
         const b = await d.page.locator('[data-testid="window-3d"] canvas').first().boundingBox();
         await d.page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
         for (let i = 0; i < 2; i++) { await d.page.mouse.wheel(0, -200); await d.sleep(250); }
-        await drag3d(d, -300, 0, 80);
+        await drag3d(d, -260, 0, 35);
       },
       hold: 0.5 },
     { id: 'rgb',
