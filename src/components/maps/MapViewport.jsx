@@ -24,7 +24,7 @@ import { MapTransform, FIT_PAD } from './mapTransform';
 import { lutOf } from './lut';
 import {
   MAP_THEMES, rasterUpsample, paintWellLegend, nodeExtent, rasterBitmap, paintRaster, contourPaths, paintContours, paintWells,
-  paintPolygons, paintCulture, paintMarkers, paintColorbar, paintScaleBar, paintNorthArrow, paintAxes, sampleAtScreen,
+  paintPolygons, paintCulture, paintMarkers, paintColorbar, fillBitmaps, paintLayerLegend, paintScaleBar, paintNorthArrow, paintAxes, sampleAtScreen,
 } from './mapPainter';
 import { mapPlotPng } from './mapPng';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
@@ -35,15 +35,25 @@ function paintOverlays(ctx, { overlays, transform }) {
   for (const o of overlays) {
     const pts = o?.points;
     if (!pts || pts.length < 4) continue;
+    const path = () => {
+      ctx.beginPath();
+      for (let i = 0; i < pts.length; i += 2) {
+        const s = transform.worldToScreen(pts[i], pts[i + 1]);
+        if (i) ctx.lineTo(s.x, s.y); else ctx.moveTo(s.x, s.y);
+      }
+    };
+    ctx.lineJoin = 'round';
+    if (o.halo) {
+      // a dark casing so a bright line reads over any colour map
+      ctx.strokeStyle = 'rgba(2, 6, 23, 0.75)';
+      ctx.lineWidth = (o.width || 2) + 2.5;
+      ctx.setLineDash([]);
+      path(); ctx.stroke();
+    }
     ctx.strokeStyle = o.color || '#f472b6';
     ctx.lineWidth = o.width || 2;
     ctx.setLineDash(o.dash || []);
-    ctx.beginPath();
-    for (let i = 0; i < pts.length; i += 2) {
-      const s = transform.worldToScreen(pts[i], pts[i + 1]);
-      if (i) ctx.lineTo(s.x, s.y); else ctx.moveTo(s.x, s.y);
-    }
-    ctx.stroke();
+    path(); ctx.stroke();
   }
   ctx.restore();
 }
@@ -63,6 +73,9 @@ const MapViewport = forwardRef(function MapViewport({
   // with world points. `overlays` are extra world polylines painted over
   // the contours ([{points: flat [x, y, ...], color, width, dash}]).
   onDragStart = null, onDrag = null, onDragEnd = null, overlays = [],
+  // translucent node-mask fills over the raster ([{mask, color:[r,g,b,a]}],
+  // e.g. a measured closure) and a key for them ([{kind:'fill'|'line', color, label, dash?}])
+  fills = [], layerLegend = [],
   // Mapping T1: round colour-bar levels chosen by the caller in its
   // display unit ((zMin, zMax, ticks) -> data-unit levels)
   colorbarLevels = null,
@@ -89,6 +102,10 @@ const MapViewport = forwardRef(function MapViewport({
     () => (contours && grid && spec ? contourPaths(contourGrid || grid, spec, { step: contourStep }) : null),
     [contours, grid, contourGrid, spec, contourStep],
   );
+  const fillLayers = useMemo(() => {
+    if (!spec || !fills.length || typeof document === 'undefined') return [];
+    try { return fillBitmaps(fills, spec); } catch { return []; }
+  }, [fills, spec]);
 
   const bump = useCallback(() => {
     setCamTick((k) => k + 1);
@@ -127,6 +144,7 @@ const MapViewport = forwardRef(function MapViewport({
     ctx.fillRect(0, 0, w, h);
     if (!spec || !grid || !range) return;
     if (bitmap) paintRaster(ctx, { bitmap, spec, transform: t });
+    for (const fb of fillLayers) paintRaster(ctx, { bitmap: fb, spec, transform: t });
     if (contourData) paintContours(ctx, { contours: contourData, transform: t, labels: contourLabels, fmt: contourFormat || zFormat, ink: th.contourInk, halo: th.contourHalo });
     if (overlays.length) paintOverlays(ctx, { overlays, transform: t });
     if (cultureLayers.length) paintCulture(ctx, { layers: cultureLayers, transform: t });
@@ -142,6 +160,7 @@ const MapViewport = forwardRef(function MapViewport({
         ink: th.ink, inkDim: th.inkDim, levelsOf: colorbarLevels,
       });
     }
+    if (showLegend && layerLegend.length) paintLayerLegend(ctx, { items: layerLegend, x: 8, y: showNorth ? 56 : 22, ink: th.ink, bg: themeName === 'print' ? 'rgba(255, 255, 255, 0.85)' : 'rgba(2, 6, 23, 0.6)' });
     if (showLegend) paintWellLegend(ctx, { wells, x: 8, bottom: h - 34, ink: th.ink, bg: themeName === 'print' ? 'rgba(255, 255, 255, 0.85)' : 'rgba(2, 6, 23, 0.6)' });
     // a geographic frame has no metre scale: no bar rather than a wrong one
     if (showScaleBar && xyToM > 0) paintScaleBar(ctx, { x: 12, y: h - 12, transform: t, maxPx: Math.min(180, w / 3), ink: th.ink, xyToM });
@@ -155,7 +174,7 @@ const MapViewport = forwardRef(function MapViewport({
       ctx.fillText(label, showNorth ? 48 : 8, 6);
       ctx.restore();
     }
-  }, [spec, grid, range, bitmap, contourData, contourLabels, zFormat, contourFormat, cultureLayers, polygons, pendingVertices, wells, showNames, posted, markers, showAxes, showLegend, lut, zUnit, showScaleBar, showNorth, label, overlays, colorbarLevels, xyToM]);
+  }, [spec, grid, range, bitmap, contourData, contourLabels, zFormat, contourFormat, cultureLayers, polygons, pendingVertices, wells, showNames, posted, markers, showAxes, showLegend, lut, zUnit, showScaleBar, showNorth, label, overlays, colorbarLevels, xyToM, fillLayers, layerLegend]);
 
   // paint the live canvas
   useLayoutEffect(() => {

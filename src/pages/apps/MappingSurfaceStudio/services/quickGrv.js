@@ -95,6 +95,9 @@ export function quickGrv({ spec, gridM, contactM, seedIndex = null, levels = 30,
       merges: spill.merges.map((m) => ({ saddleZ: m.saddleZ, x: m.saddle.x, y: m.saddle.y, culminationZ: m.culminationZ })),
     },
     curve,
+    // the engine's flood from the crest (order, running minimum): the map
+    // reads the closed area at any level off it (services/closureDisplay)
+    spillFlood: spill,
     others: closures.filter((k) => k.id !== target.id).map(scaled).map((k) => ({ crestZ: k.crest.z, x: k.crest.x, y: k.crest.y, grvM3: k.grvM3, open: k.open })),
   };
 }

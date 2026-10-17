@@ -103,12 +103,13 @@ const fmtLen = (m) => (m >= 1000 ? `${Number((m / 1000).toFixed(2))} km` : `${Nu
  * @param {{stepM:?number, stepText:string, format:(v:number)=>string}} p.contours the display contour plan
  * @param {Array<{name:string, x:number, y:number}>} [p.wells]
  * @param {Array<{name:string, kind:string, rings:Array<Array<[number,number]>>}>} [p.polygons]
+ * @param {?{lines:Array, markers:Array, legend:Array}} [p.closure] the measured closure (services/closureDisplay)
  * @param {number} [p.xyToM] @param {string} [p.paper] @param {string} [p.orientation] @param {?number} [p.scale]
  * @param {string} [p.xyUnitLabel] e.g. 'metres', 'US survey feet'
  * @returns {Promise<{doc: jsPDF, plan: object, fileName: string, contourLevels: number}>}
  */
 export async function buildMapPdf({
-  surface, grid, spec, caption, contours, wells = [], polygons = [], xyToM = 1,
+  surface, grid, spec, caption, contours, wells = [], polygons = [], closure = null, xyToM = 1,
   paper = 'A3', orientation = 'landscape', scale = null, xyUnitLabel = 'metres', logo = undefined,
 }) {
   const plan = planMapPlot({ spec, xyToM, paper, orientation, scale });
@@ -174,6 +175,47 @@ export async function buildMapPdf({
       }
     }
   });
+
+  // the measured closure: translucent area inside each closed outline, the
+  // outlines (spill solid, contacts dashed) and the crest
+  if (closure?.lines?.length) {
+    const hex = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16));
+    for (const ln of closure.lines) {
+      const pts = ln.points;
+      if (!pts || pts.length < 6) continue;
+      const pagePts = [];
+      for (let k = 0; k < pts.length; k += 2) pagePts.push(w2p(pts[k], pts[k + 1]));
+      const closedLoop = Math.hypot(pts[0] - pts[pts.length - 2], pts[1] - pts[pts.length - 1]) < 1e-6 * Math.max(1, Math.abs(pts[0]));
+      const fc = ln.fill; // [r, g, b, opacity] of the area inside this outline
+      if (closedLoop && fc && typeof doc.GState === 'function' && pagePts.every(inFrame)) {
+        doc.saveGraphicsState();
+        doc.setGState(new doc.GState({ opacity: fc[3] }));
+        doc.setFillColor(fc[0], fc[1], fc[2]);
+        const deltas = pagePts.slice(1).map((q, k) => [q.x - pagePts[k].x, q.y - pagePts[k].y]);
+        doc.lines(deltas, pagePts[0].x, pagePts[0].y, [1, 1], 'F', true);
+        doc.restoreGraphicsState();
+      }
+      const [r, g, b] = ln.color === '#fde047' ? [161, 98, 7] : hex(ln.color); // gold reads poorly on white paper: dark gold
+      doc.setDrawColor(r, g, b);
+      doc.setLineWidth(ln.width >= 3 ? 0.6 : 0.45);
+      if (ln.dash && typeof doc.setLineDashPattern === 'function') doc.setLineDashPattern([1.6, 1], 0);
+      for (let k = 1; k < pagePts.length; k++) {
+        if (inFrame(pagePts[k - 1]) && inFrame(pagePts[k])) doc.line(pagePts[k - 1].x, pagePts[k - 1].y, pagePts[k].x, pagePts[k].y);
+      }
+      if (ln.dash && typeof doc.setLineDashPattern === 'function') doc.setLineDashPattern([], 0);
+    }
+    doc.setFontSize(6.5);
+    for (const m of closure.markers || []) {
+      const p = w2p(m.x, m.y);
+      if (!inFrame(p)) continue;
+      doc.setDrawColor(161, 98, 7);
+      doc.setLineWidth(0.4);
+      doc.line(p.x - 1.4, p.y, p.x + 1.4, p.y);
+      doc.line(p.x, p.y - 1.4, p.x, p.y + 1.4);
+      doc.setTextColor(120, 70, 0);
+      if (m.label) doc.text(latin1(m.label), p.x + 1.8, p.y - 0.8);
+    }
+  }
 
   // polygons: faults and boundaries
   for (const poly of polygons) {
