@@ -169,7 +169,7 @@ test('no save when clean, on every way out', async () => {
   expect(save).not.toHaveBeenCalled();
 });
 
-test('Activity: an unsaved item while dirty, which the leave guard blocks on; cleared after the save', async () => {
+test('Activity: an unsaved item while dirty, which leaving does not block on (it is saved on the way out); cleared after the save', async () => {
   const view = renderHook(() => useStudio({ save }));
   act(() => { view.result.current.setValue(2); });
   const items = getActivity();
@@ -178,8 +178,8 @@ test('Activity: an unsaved item while dirty, which the leave guard blocks on; cl
     appId: 'test-studio', appName: 'Test Studio', kind: 'unsaved', state: 'dirty',
     href: HREF, onLeave: 'continues', title: 'Unsaved changes in Alpha',
   });
-  expect(leaveVerdict(items, HREF, '/dashboard/apps/production/other').block).toHaveLength(1);
-  // the leave guard's "Save and leave" runs the item's save
+  expect(leaveVerdict(items, HREF, '/dashboard/apps/production/other').block).toHaveLength(0);
+  // the item's save action (Activity list) writes the edits
   await act(async () => { await items[0].actions.save(); });
   expect(store.get('p1')).toBe(2);
   expect(getActivity()).toEqual([]);
