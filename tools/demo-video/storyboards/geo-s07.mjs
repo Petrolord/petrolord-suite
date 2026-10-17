@@ -1,10 +1,12 @@
 // Geoscience module showcase, scene 7: Mapping & Surface Studio. The depth
-// map of the top of the Ekene Sand (Seismolord demos, 201 x 177 at 25 m),
+// map of the top of the Ekene Sand (Seismolord demos, 201 x 177 at 25 m, the
+// conditioned copy),
 // the measured closure drawn on the map (#1201: fill to spill, spill
 // contour, crest, contact), then the isochore of the sand. Nothing is saved.
 import { login, scene, t, park, openApp, expectText, note } from './geo-common.mjs';
 
-// two registry surfaces share the name; the Seismolord demos' 201 x 177 grid lists first (checked by its z-range line)
+// the conditioned copy of the Seismolord demos' depth map (Earth Modeling agent, 2026-10-17: tracking spots removed; the original stays)
+const SURFACE = 'Ekene Sand (depth ft, conditioned)';
 const row = (d, name) => d.page.locator(`[data-testid="map-surface-row"][data-surface-name="${name}"]`).first();
 const CREST = { x: 400837, y: 521762 };
 
@@ -27,7 +29,7 @@ export default {
     { id: 'depth', chapter: 'Maps and closures', chapterSub: 'Mapping & Surface Studio',
       say: 'Mapping and Surface Studio contours the top of the Ekene Sand in depth: a rollover, closing against the growth fault.',
       do: async (d, shared) => {
-        await d.click(row(d, 'Ekene Sand (depth ft)'));
+        await d.click(row(d, SURFACE));
         await t(d, 'map-zrange').first().waitFor({ timeout: 30000 });
         await d.sleep(2500);
         await expectText(d, t(d, 'map-zrange').first(), /201×177/, 'the 201 x 177 depth grid');
@@ -52,10 +54,10 @@ export default {
         await note(d, shared, 'grv', 'map-grv-result');
       } },
     { id: 'numbers',
-      say: 'The crest at four thousand nine hundred and fifty six feet, the spill at five thousand and eighty two, and the contact at five thousand and one.',
-      sub: 'The crest at 4,956 ft, the spill at 5,082 ft, and the contact at 5,001 ft.',
+      say: 'The crest at four thousand nine hundred and fifty nine feet, the spill at five thousand and eighty five, and the contact at five thousand and one.',
+      sub: 'The crest at 4,959 ft, the spill at 5,085 ft, and the contact at 5,001 ft.',
       do: async (d) => {
-        await expectText(d, 'map-grv-result', /crest -4956\.3 ft; it spills at -5081\.6 ft/, 'crest and spill');
+        await expectText(d, 'map-grv-result', /crest -4958\.5 ft; it spills at -5084\.6 ft/, 'crest and spill');
         await d.highlight('map-grv-result');
         await d.sleep(2500);
         await d.unhighlight();

@@ -3,7 +3,7 @@
 // Ekene-1's logs on a track template round the Ekene Sand.
 import { login, scene, t, park, openApp, expectText } from './geo-common.mjs';
 
-const SURFACE_ID = '39c0a365-9296-4d96-922d-f504828bfff9'; // "Ekene Sand (depth ft)", 201 x 177 at 25 m (Seismolord demos)
+const SURFACE_ID = 'daf5905d-1ce6-4457-8ee8-d49d86922085'; // "Ekene Sand (depth ft, conditioned)", 201 x 177 at 25 m
 
 export default {
   ...scene('geo-s02'),

@@ -23,6 +23,7 @@ export default {
     await onlyVisible(d, LAYERS);
     await showSlicePlanes(d);
     if (await t(d, 'sl-rgb-clear').count()) await t(d, 'sl-rgb-clear').click();
+    await combo(d, 'Amplitude scale').selectOption({ label: 'RMS multiple' });
     await combo(d, 'Colormap').selectOption({ label: 'Grayscale' });
     await combo(d, 'Orientation').selectOption({ label: 'Crossline' }); await goTo(d, 2051, { quiet: true });
     await combo(d, 'Orientation').selectOption({ label: 'Time slice' }); await goTo(d, 1292, { quiet: true });
