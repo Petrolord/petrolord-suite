@@ -158,7 +158,7 @@ function soup() {
  * @param {{lo: number, hi: number}|null} [opts.filter] cells shown in filter mode
  * @param {number} [opts.maxCells] cells drawn in filter mode (columns are skipped past it)
  */
-export function gridScene(built, { toModel, prop = 'zone', mode = 'shell', slices = {}, density = 5, filter = null, maxCells = 250000, hiddenZones = null } = {}) {
+export function gridScene(built, { toModel, prop = 'zone', mode = 'shell', slices = {}, density = 5, filter = null, maxCells = 250000, hiddenZones = null, outline = built?.outline || null } = {}) {
   const spec = built.spec;
   const { nx, ny } = spec;
   const allLayers = cellLayers(built);
@@ -182,23 +182,10 @@ export function gridScene(built, { toModel, prop = 'zone', mode = 'shell', slice
   const cx = (c) => spec.x0 + (c - 0.5) * spec.dx; // corner c sits half a cell before node c
   const cy = (r) => spec.y0 + (r - 0.5) * spec.dy;
   const cd = (K, c, r) => cornersOf(K)[r * (nx + 1) + c];
-  // display interpolation at the edge: a corner of a step (one live column of
-  // four, or three) moves half way towards the live (or the empty) column, so
-  // the cell steps along the model edge draw as a straight chamfer
-  const cornerShift = new Float32Array((nx + 1) * (ny + 1) * 2);
-  for (let r = 0; r <= ny; r++) {
-    for (let c = 0; c <= nx; c++) {
-      let n = 0; let sx = 0; let sy = 0; let ox = 0; let oy = 0;
-      for (const [cc, rr, ddx, ddy] of [[c - 1, r - 1, -1, -1], [c, r - 1, 1, -1], [c - 1, r, -1, 1], [c, r, 1, 1]]) {
-        const inGrid = cc >= 0 && rr >= 0 && cc < nx && rr < ny;
-        if (inGrid && live(rr * nx + cc)) { n += 1; sx += ddx; sy += ddy; } else { ox += ddx; oy += ddy; }
-      }
-      const q = (r * (nx + 1) + c) * 2;
-      if (n === 1) { cornerShift[q] = 0.25 * sx * spec.dx; cornerShift[q + 1] = 0.25 * sy * spec.dy; }
-      if (n === 3) { cornerShift[q] = 0.25 * ox * spec.dx; cornerShift[q + 1] = 0.25 * oy * spec.dy; }
-    }
-  }
-  const P = (K, c, r) => { const q = (r * (nx + 1) + c) * 2; return toModel(cx(c) + cornerShift[q], cy(r) + cornerShift[q + 1], cd(K, c, r)); };
+  // display interpolation at the edge (edgeCorners): the corners on the model
+  // edge sit on the traced data limit, so the cells along it draw a smooth line
+  const corXY = edgeCorners(spec, live, outline);
+  const P = (K, c, r) => { const q = (r * (nx + 1) + c) * 2; return toModel(corXY[q], corXY[q + 1], cd(K, c, r)); };
   const S = soup();
   const d = Math.max(0, Math.floor(density));
   const on = (n) => d > 0 && n % d === 0;
@@ -248,6 +235,9 @@ export function gridScene(built, { toModel, prop = 'zone', mode = 'shell', slice
 
   if (mode === 'slices' && nK) {
     const { i: si = null, j: sj = null, k: sk = null } = slices || {};
+    // where the slice lines cross the traced edge (an end cell stops there)
+    const crossI = Number.isInteger(si) ? ringCrossings(outline, 'x', spec.x0 + si * spec.dx) : [];
+    const crossJ = Number.isInteger(sj) ? ringCrossings(outline, 'y', spec.y0 + sj * spec.dy) : [];
     if (Number.isInteger(si) && si >= 0 && si < nx) {
       // the I slice: the column of cells at node column si, cut through the cell centres
       for (let r = 0; r < ny; r++) {
@@ -258,7 +248,8 @@ export function gridScene(built, { toModel, prop = 'zone', mode = 'shell', slice
           const x = spec.x0 + si * spec.dx;
           const zT = (rr) => midDepth(layers[K].top, nx, ny, si, r, 0, rr);
           const zB = (rr) => midDepth(layers[K].base, nx, ny, si, r, 0, rr);
-          const p = [toModel(x, cy(r), zT(-1)), toModel(x, cy(r + 1), zT(1)), toModel(x, cy(r + 1), zB(1)), toModel(x, cy(r), zB(-1))];
+          const y0 = endAt(crossI, cy(r), r === 0 || !live((r - 1) * nx + si), spec.dy); const y1 = endAt(crossI, cy(r + 1), r === ny - 1 || !live((r + 1) * nx + si), spec.dy);
+          const p = [toModel(x, y0, zT(-1)), toModel(x, y1, zT(1)), toModel(x, y1, zB(1)), toModel(x, y0, zB(-1))];
           S.quad(p, col(K, j));
           if (d) { if (on(layers[K].k) || layers[K].k === 0) S.line(p[0], p[1]); if (K === nK - 1) S.line(p[3], p[2]); if (on(r)) S.line(p[0], p[3]); }
         }
@@ -273,7 +264,8 @@ export function gridScene(built, { toModel, prop = 'zone', mode = 'shell', slice
           const y = spec.y0 + sj * spec.dy;
           const zT = (cc) => midDepth(layers[K].top, nx, ny, c, sj, cc, 0);
           const zB = (cc) => midDepth(layers[K].base, nx, ny, c, sj, cc, 0);
-          const p = [toModel(cx(c), y, zT(-1)), toModel(cx(c + 1), y, zT(1)), toModel(cx(c + 1), y, zB(1)), toModel(cx(c), y, zB(-1))];
+          const x0 = endAt(crossJ, cx(c), c === 0 || !live(sj * nx + c - 1), spec.dx); const x1 = endAt(crossJ, cx(c + 1), c === nx - 1 || !live(sj * nx + c + 1), spec.dx);
+          const p = [toModel(x0, y, zT(-1)), toModel(x1, y, zT(1)), toModel(x1, y, zB(1)), toModel(x0, y, zB(-1))];
           S.quad(p, col(K, j));
           if (d) { if (on(layers[K].k) || layers[K].k === 0) S.line(p[0], p[1]); if (K === nK - 1) S.line(p[3], p[2]); if (on(c)) S.line(p[0], p[3]); }
         }
@@ -365,6 +357,9 @@ export function contactScene(built, { toModel, hiddenZones = null } = {}) {
     }
   });
   const out = [];
+  const lastH = built.clamped.length - 1;
+  const corXY = edgeCorners(spec, (j) => !isNull(built.clamped[0][j]) && !isNull(built.clamped[lastH][j]), built.outline || null);
+  const cxy = (c2, r2) => { const q = (r2 * (nx + 1) + c2) * 2; return [corXY[q], corXY[q + 1]]; };
   for (const { kind, c, zones } of groups.values()) {
     const S = soup();
     let any = false; let depth = null;
@@ -382,15 +377,15 @@ export function contactScene(built, { toModel, hiddenZones = null } = {}) {
         const j = r * nx + cc;
         if (!ins[j]) continue;
         const v = at(j); depth = depth ?? v; any = true;
-        const x0 = spec.x0 + (cc - 0.5) * spec.dx; const x1 = x0 + spec.dx;
-        const y0 = spec.y0 + (r - 0.5) * spec.dy; const y1 = y0 + spec.dy;
-        S.quad([toModel(x0, y0, v), toModel(x1, y0, v), toModel(x1, y1, v), toModel(x0, y1, v)], kind === 'owc' ? [0.15, 0.39, 0.92] : [0.86, 0.15, 0.15]);
+        const [ax, ay] = cxy(cc, r); const [bx, by] = cxy(cc + 1, r); const [ex, ey] = cxy(cc + 1, r + 1); const [fx, fy] = cxy(cc, r + 1);
+        const A = toModel(ax, ay, v); const B = toModel(bx, by, v); const E = toModel(ex, ey, v); const F = toModel(fx, fy, v);
+        S.quad([A, B, E, F], kind === 'owc' ? [0.3, 0.58, 1] : [0.95, 0.3, 0.3]);
         // the outline where the plane leaves the reservoir
         const edge = (c2, r2) => c2 < 0 || r2 < 0 || c2 >= nx || r2 >= ny || !ins[r2 * nx + c2];
-        if (edge(cc - 1, r)) S.line(toModel(x0, y0, v), toModel(x0, y1, v));
-        if (edge(cc + 1, r)) S.line(toModel(x1, y0, v), toModel(x1, y1, v));
-        if (edge(cc, r - 1)) S.line(toModel(x0, y0, v), toModel(x1, y0, v));
-        if (edge(cc, r + 1)) S.line(toModel(x0, y1, v), toModel(x1, y1, v));
+        if (edge(cc - 1, r)) S.line(A, F);
+        if (edge(cc + 1, r)) S.line(B, E);
+        if (edge(cc, r - 1)) S.line(A, B);
+        if (edge(cc, r + 1)) S.line(F, E);
       }
     }
     if (any) out.push({ kind, zone: zones[0], zones, depth, mesh: S.mesh(), lines: S.lines() });
@@ -448,4 +443,73 @@ export function wellLogScene(built, prop, { toModel, width, range }) {
     }
   });
   return S.mesh();
+}
+
+/** The nearest point on the rings' segments to (x, y), with its distance. */
+export function nearestOnRings(rings, x, y) {
+  let best = null;
+  for (const ring of rings || []) {
+    for (let q = 0; q < ring.length; q++) {
+      const [ax, ay] = ring[q]; const [bx, by] = ring[(q + 1) % ring.length];
+      const vx = bx - ax; const vy = by - ay; const L2 = vx * vx + vy * vy;
+      const t = L2 > 0 ? Math.max(0, Math.min(1, ((x - ax) * vx + (y - ay) * vy) / L2)) : 0;
+      const px = ax + t * vx; const py = ay + t * vy; const d = Math.hypot(px - x, py - y);
+      if (!best || d < best.d) best = { x: px, y: py, d };
+    }
+  }
+  return best;
+}
+
+/** Where the rings cross the line x = v (axis 'x', returning ys) or y = v (axis 'y', returning xs). */
+export function ringCrossings(rings, axis, v) {
+  const out = [];
+  for (const ring of rings || []) {
+    for (let q = 0; q < ring.length; q++) {
+      const a = ring[q]; const b = ring[(q + 1) % ring.length];
+      const [ua, wa] = axis === 'x' ? [a[0], a[1]] : [a[1], a[0]];
+      const [ub, wb] = axis === 'x' ? [b[0], b[1]] : [b[1], b[0]];
+      if ((ua - v) * (ub - v) > 0 || ua === ub) continue;
+      out.push(wa + ((v - ua) / (ub - ua)) * (wb - wa));
+    }
+  }
+  return out;
+}
+
+/** An end edge at `edge` moves to the nearest crossing within a cell (otherwise it stays). */
+export function endAt(crossings, edge, isEnd, cell) {
+  if (!isEnd || !crossings.length) return edge;
+  let best = edge; let bd = 0.8 * cell;
+  for (const c of crossings) { const d = Math.abs(c - edge); if (d < bd) { bd = d; best = c; } }
+  return best;
+}
+
+/**
+ * Corner positions for the display (corner c, r sits half a cell before node
+ * c, r): a corner on the model edge (one to three of its four columns live)
+ * moves onto the traced data limit when that is within 0.8 of a cell, so the
+ * cells along the edge draw the smooth line instead of steps; without an
+ * outline, a step corner moves a quarter cell (a chamfer). Volumes never use
+ * these positions.
+ * @returns {Float64Array} x, y per corner
+ */
+export function edgeCorners(spec, live, outline = null) {
+  const { nx, ny } = spec;
+  const out = new Float64Array((nx + 1) * (ny + 1) * 2);
+  for (let r = 0; r <= ny; r++) {
+    for (let c = 0; c <= nx; c++) {
+      const q = (r * (nx + 1) + c) * 2;
+      let x = spec.x0 + (c - 0.5) * spec.dx; let y = spec.y0 + (r - 0.5) * spec.dy;
+      let n = 0; let sx = 0; let sy = 0; let ox = 0; let oy = 0;
+      for (const [cc, rr, ddx, ddy] of [[c - 1, r - 1, -1, -1], [c, r - 1, 1, -1], [c - 1, r, -1, 1], [c, r, 1, 1]]) {
+        const inGrid = cc >= 0 && rr >= 0 && cc < nx && rr < ny;
+        if (inGrid && live(rr * nx + cc)) { n += 1; sx += ddx; sy += ddy; } else { ox += ddx; oy += ddy; }
+      }
+      if (n > 0 && n < 4) {
+        const hit = outline && outline.length ? nearestOnRings(outline, x, y) : null;
+        if (hit && hit.d <= 0.8 * Math.max(spec.dx, spec.dy)) { x = hit.x; y = hit.y; } else if (n === 1) { x += 0.25 * sx * spec.dx; y += 0.25 * sy * spec.dy; } else if (n === 3) { x += 0.25 * ox * spec.dx; y += 0.25 * oy * spec.dy; }
+      }
+      out[q] = x; out[q + 1] = y;
+    }
+  }
+  return out;
 }

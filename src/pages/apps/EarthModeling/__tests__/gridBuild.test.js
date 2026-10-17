@@ -39,8 +39,8 @@ const typedDef = (over = {}) => ({
 const sum = (b, key) => b.zones.reduce((a, z) => a + (z.volumes.total?.[key] || 0), 0);
 const stoiip = (b) => sum(b, 'stoiip_m3') / M3_PER_BBL / 1e6;
 const curves = Object.fromEntries(Object.entries(G.curves).map(([w, c]) => [w, Object.fromEntries(
-  Object.entries({ phi: c.PHIE, sw: c.SW, vsh: c.VSH, perm: c.KPERM, facies: c.RP_FACIES }).filter(([, v]) => v)
-    .map(([k, v]) => [k, { start: v.start_md_m, step: v.step_m, values: v.values, unit: v.unit, mnemonic: v.mnemonic }]),
+  Object.entries({ phi: c.PHIE, sw: c.SW, vsh: c.VSH, perm: c.KPERM, facies: c.RP_FACIES, coreK: c.CKH, corePhi: c.CPOR }).filter(([, v]) => v)
+    .map(([k, v]) => [k, { start: v.start_md_m, step: v.step_m, values: v.unit === '%' ? v.values.map((x) => (x === null ? NaN : x / 100)) : v.values.map((x) => (x === null ? NaN : x)), unit: v.unit, mnemonic: v.mnemonic }]),
 )]));
 const ekeneGrid = (over = {}) => ({
   ...newModelDefinition(), name: 'Ekene grid', surfaceIds: ['ekene-top', 'ekene-base'], topNames: ['Ekene Sand', 'Ekene Sand Base'],
@@ -155,11 +155,22 @@ describe('Ekene: the cap, three zones from the well tops, SGS porosity and facie
     for (const L of z.layers) for (const c of L.props.facies) if (c !== 255) seen.add(c);
     expect([...seen].every((c) => [0, 1, 2, 3].includes(c))).toBe(true);
   });
-  test('permeability follows the simulated porosity through the wells\' phi-k transform', () => {
+  test('permeability follows the simulated porosity through a cloud transform with the core plugs\' scatter', () => {
     const z = b.zones[1];
     expect(z.phiK.b).toBeGreaterThan(5);
-    const L = z.layers[3]; const j = L.props.phi.findIndex((v) => v < 1e29);
-    expect(Math.log10(L.props.perm[j])).toBeCloseTo(z.phiK.a + z.phiK.b * L.props.phi[j], 4);
+    expect(z.phiK.sigmaSource).toMatch(/core plugs/);
+    expect(z.phiK.sigma).toBeGreaterThan(0.05); expect(z.phiK.sigma).toBeLessThan(0.4);
+    // residuals about the facies line scatter by about sigma (the well KPERM log itself is a pure transform)
+    const res = [];
+    for (const L of z.layers) {
+      for (let j = 0; j < L.props.phi.length; j += 7) {
+        const v = L.props.phi[j]; if (!(v < 1e29)) continue;
+        const t = (L.props.facies && z.phiK.byFacies[L.props.facies[j]]) || z.phiK;
+        res.push(Math.log10(L.props.perm[j]) - (t.a + t.b * v));
+      }
+    }
+    const sd = Math.sqrt(res.reduce((a, x) => a + x * x, 0) / res.length);
+    expect(sd / z.phiK.sigma).toBeGreaterThan(0.7); expect(sd / z.phiK.sigma).toBeLessThan(1.3);
   });
   test('GRDECL carries every fine layer (61 cell layers)', () => {
     const g = grdeclText(b, { name: 'Ekene grid', now: new Date('2026-10-17T00:00:00Z'), build: 'test' });

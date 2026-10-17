@@ -22,8 +22,8 @@ const ALL = [...FX.surfaces, ...G.surfaces];
 const backend = { downloadSurfaceGrid: async (s) => Float32Array.from(ALL.find((x) => x.id === s.id).grid) };
 const surfaces = ALL.map(({ grid, ...s }) => s);
 const curves = Object.fromEntries(Object.entries(G.curves).map(([w, c]) => [w, Object.fromEntries(
-  Object.entries({ phi: c.PHIE, sw: c.SW, vsh: c.VSH, perm: c.KPERM, facies: c.RP_FACIES }).filter(([, v]) => v)
-    .map(([k, v]) => [k, { start: v.start_md_m, step: v.step_m, values: v.values, unit: v.unit, mnemonic: v.mnemonic }]),
+  Object.entries({ phi: c.PHIE, sw: c.SW, vsh: c.VSH, perm: c.KPERM, facies: c.RP_FACIES, coreK: c.CKH, corePhi: c.CPOR }).filter(([, v]) => v)
+    .map(([k, v]) => [k, { start: v.start_md_m, step: v.step_m, values: v.unit === '%' ? v.values.map((x) => (x === null ? NaN : x / 100)) : v.values.map((x) => (x === null ? NaN : x)), unit: v.unit, mnemonic: v.mnemonic }]),
 )]));
 const booked = { phi: '0.2', sw: '0.35', ntg: '0.8' };
 const base = {

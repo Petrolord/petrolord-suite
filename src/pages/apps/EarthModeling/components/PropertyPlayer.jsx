@@ -27,8 +27,8 @@ const css = (rgb, a = 1) => `rgba(${Math.round(rgb[0] * 255)},${Math.round(rgb[1
  */
 export function sectionCells(spec, kind, index, wellXY = []) {
   const out = [];
-  if (kind === 'i') { for (let r = 0; r < spec.ny; r++) out.push({ j: r * spec.nx + index, s: r * spec.dy }); return out; }
-  if (kind === 'j') { for (let c = 0; c < spec.nx; c++) out.push({ j: index * spec.nx + c, s: c * spec.dx }); return out; }
+  if (kind === 'i') { for (let r = 0; r < spec.ny; r++) out.push({ j: r * spec.nx + index, s: r * spec.dy, x: spec.x0 + index * spec.dx, y: spec.y0 + r * spec.dy }); return out; }
+  if (kind === 'j') { for (let c = 0; c < spec.nx; c++) out.push({ j: index * spec.nx + c, s: c * spec.dx, x: spec.x0 + c * spec.dx, y: spec.y0 + index * spec.dy }); return out; }
   let s0 = 0;
   const step = Math.min(spec.dx, spec.dy);
   for (let q = 0; q + 1 < wellXY.length; q++) {
@@ -39,11 +39,51 @@ export function sectionCells(spec, kind, index, wellXY = []) {
       const x = x1 + ((x2 - x1) * t) / n; const y = y1 + ((y2 - y1) * t) / n;
       const c = Math.round((x - spec.x0) / spec.dx); const r = Math.round((y - spec.y0) / spec.dy);
       if (c < 0 || r < 0 || c >= spec.nx || r >= spec.ny) continue;
-      out.push({ j: r * spec.nx + c, s: s0 + (L * t) / n });
+      out.push({ j: r * spec.nx + c, s: s0 + (L * t) / n, x, y });
     }
     s0 += L;
   }
   return out;
+}
+
+/** Even-odd point in the rings. */
+export function inRings(rings, x, y) {
+  let inside = false;
+  for (const ring of rings || []) {
+    for (let a = 0, b = ring.length - 1; a < ring.length; b = a++) {
+      const [xa, ya] = ring[a]; const [xb, yb] = ring[b];
+      if ((ya > y) !== (yb > y) && x < ((xb - xa) * (y - ya)) / (yb - ya) + xa) inside = !inside;
+    }
+  }
+  return inside;
+}
+
+/**
+ * The span each section cell draws (from, to along the line): half way to its
+ * neighbours, and at the ends of a run of live cells, out to where the line
+ * crosses the traced edge (found by bisection), so the section ends smoothly.
+ */
+export function sectionSpans(cells, isLive, rings) {
+  const n = cells.length;
+  const half = (q) => (q + 1 < n ? (cells[q + 1].s - cells[q].s) / 2 : (q > 0 ? (cells[q].s - cells[q - 1].s) / 2 : 1));
+  const cross = (q, dir) => {
+    // from the live cell q towards its neighbour (or a cell's width beyond the line's end)
+    const o = cells[q]; const nb = cells[q + dir];
+    const tx = nb ? nb.x : o.x + (o.x - cells[q - dir].x); const ty = nb ? nb.y : o.y + (o.y - cells[q - dir].y);
+    const ts = nb ? nb.s : o.s + (o.s - cells[q - dir].s);
+    if (!rings?.length || inRings(rings, tx, ty) || !inRings(rings, o.x, o.y)) return o.s + (ts - o.s) / 2;
+    let a = 0; let b = 1;
+    for (let it = 0; it < 24; it++) { const m = (a + b) / 2; if (inRings(rings, o.x + m * (tx - o.x), o.y + m * (ty - o.y))) a = m; else b = m; }
+    return o.s + a * (ts - o.s);
+  };
+  return cells.map((c, q) => {
+    if (!isLive(c.j)) return null;
+    const startEnd = q === 0 || !isLive(cells[q - 1].j);
+    const endEnd = q === n - 1 || !isLive(cells[q + 1].j);
+    const from = startEnd && n > 1 ? cross(q, q === 0 ? 1 : -1) : c.s - (q > 0 ? half(q - 1) : half(q));
+    const to = endEnd && n > 1 ? cross(q, q === n - 1 ? -1 : 1) : c.s + half(q);
+    return { from: Math.min(from, to), to: Math.max(from, to) };
+  });
 }
 
 export default function PropertyPlayer({ built, wells = [], surfaceNames = [], faultPolygons = [], depthUnit = 'ft', onStatus }) {
@@ -231,9 +271,12 @@ function SectionPane({ built, layers, contacts, cells, value, prop, range, passe
     const Y = (z) => PAD.t + ((z - zMin) / (zMax - zMin)) * (H - PAD.t - PAD.b);
     const half = (q) => (q + 1 < cells.length ? (cells[q + 1].s - cells[q].s) / 2 : (q > 0 ? (cells[q].s - cells[q - 1].s) / 2 : 1));
     geomRef.current = { X, Y, cells, sMax, zMin, zMax, PAD, W };
+    const isLive = (j) => !isNull(layers[0].top[j]) && !isNull(layers[layers.length - 1].base[j]);
+    const spans = sectionSpans(cells, isLive, built.outline || []);
     for (let q = 0; q < cells.length; q++) {
-      const { j, s } = cells[q];
-      const a = X(s - (q > 0 ? half(q - 1) : half(q))); const b = X(s + half(q));
+      const { j } = cells[q];
+      if (!spans[q]) continue;
+      const a = X(spans[q].from); const b = X(spans[q].to);
       for (let K = 0; K < layers.length; K++) {
         const t = layers[K].top[j]; const bb = layers[K].base[j];
         if (isNull(t) || isNull(bb)) continue;
@@ -249,12 +292,15 @@ function SectionPane({ built, layers, contacts, cells, value, prop, range, passe
       const bound = K === layers.length || Lr.k === 0;
       if (!bound && !(density > 0 && Lr.k % density === 0)) continue;
       ctx.strokeStyle = bound ? 'rgba(226,232,240,0.9)' : 'rgba(2,6,23,0.55)'; ctx.lineWidth = bound ? 1.2 : 0.5;
-      ctx.beginPath(); let pen = false;
-      for (const { j, s } of cells) {
+      ctx.beginPath(); let pen = false; let lastZ = null; let lastQ = -1;
+      cells.forEach(({ j, s }, q) => {
         const z = K < layers.length ? Lr.top[j] : Lr.base[j];
-        if (isNull(z)) { pen = false; continue; }
-        if (pen) ctx.lineTo(X(s), Y(z)); else { ctx.moveTo(X(s), Y(z)); pen = true; }
-      }
+        if (isNull(z) || !spans[q]) { if (pen && lastQ >= 0) ctx.lineTo(X(spans[lastQ].to), Y(lastZ)); pen = false; return; }
+        // a run starts and ends at the traced edge, flat over the half cell
+        if (pen) ctx.lineTo(X(s), Y(z)); else { ctx.moveTo(X(spans[q].from), Y(z)); ctx.lineTo(X(s), Y(z)); pen = true; }
+        lastZ = z; lastQ = q;
+      });
+      if (pen && lastQ >= 0) ctx.lineTo(X(spans[lastQ].to), Y(lastZ));
       ctx.stroke();
     }
     if (density > 0) {
@@ -346,14 +392,26 @@ function MapPane({ built, layers, contacts, K, value, prop, range, passes, densi
     if (!L) return;
     const cw = spec.dx * sc; const ch = spec.dy * sc;
     const fl = new Int8Array(nx * ny).fill(-1);
+    // the model edge is the traced data limit: the cells are clipped to it, and
+    // an empty cell just inside it takes its live neighbour's colour (no steps)
+    const rings = built.outline || [];
+    const ringPath = () => { ctx.beginPath(); for (const ring of rings) ring.forEach(([x, y], q) => (q ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y)))); ctx.closePath(); };
+    if (rings.length) { ctx.save(); ringPath(); ctx.clip('evenodd'); }
+    const liveAt = (c, r) => c >= 0 && r >= 0 && c < nx && r < ny && !isNull(L.top[r * nx + c]);
     for (let r = 0; r < ny; r++) {
       for (let c = 0; c < nx; c++) {
         const j = r * nx + c;
-        if (isNull(L.top[j])) continue;
-        const v = value(K, j);
+        let src = j;
+        if (isNull(L.top[j])) {
+          if (!rings.length) continue;
+          const nb = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]].find(([dc, dr]) => liveAt(c + dc, r + dr));
+          if (!nb) continue;
+          src = (r + nb[1]) * nx + c + nb[0];
+        }
+        const v = value(K, src);
         ctx.fillStyle = css(colourOf(prop, v, range), passes(v) ? 1 : 0.12);
         ctx.fillRect(X(spec.x0 + c * spec.dx) - cw / 2, Y(spec.y0 + r * spec.dy) - ch / 2, cw + 0.5, ch + 0.5);
-        fl[j] = cellValue(built, layers, contacts, K, j, 'fluid');
+        if (src === j) fl[j] = cellValue(built, layers, contacts, K, j, 'fluid');
       }
     }
     if (density > 0 && cw * density > 3) {
@@ -373,6 +431,10 @@ function MapPane({ built, layers, contacts, K, value, prop, range, passes, densi
       }
     }
     ctx.stroke();
+    if (rings.length) {
+      ctx.restore();
+      ringPath(); ctx.strokeStyle = 'rgba(226,232,240,0.8)'; ctx.lineWidth = 1; ctx.stroke();
+    }
     // the section line
     if (line?.length >= 2) {
       ctx.strokeStyle = '#facc15'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 3]); ctx.beginPath();

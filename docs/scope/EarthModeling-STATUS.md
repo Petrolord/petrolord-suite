@@ -440,3 +440,19 @@ as "within the realisation spread". The cap adds no oil (NTG 0).
 Also: Seismolord depth surfaces with bullseye cones were conditioned into new
 registry rows "Ekene Sand (depth ft, conditioned)" and "Ekene Sand Base (depth
 ft, conditioned)" (originals untouched; method in the row provenance).
+
+## 2026-10-17: display and permeability fixes before the re-recording (coordinator review)
+
+- Smooth edges in every view: the 3D shell, side walls, I/J slice ends and the
+  contact plane take their edge corners from the traced data limit
+  (`grid3d/scene.js` `edgeCorners`, `ringCrossings`); the player's layer map is
+  clipped to the traced edge (cells just inside it take their neighbour's
+  colour); the player's section ends where the line crosses the edge. Display
+  only: volumes are unchanged.
+- Permeability by cloud transform: per-facies phi-k lines from the upscaled
+  well cells plus a seeded, smoothly varying scatter whose spread comes from the
+  core plugs (Ekene-1 CPOR/CKH: about 0.1 decade); 0.25 decades is assumed and
+  said when a field has no core. The crossplot subtitle says the KPERM log is a
+  porosity transform.
+- 3D: the camera fits the model's cells (the player's 3D panel was small); the
+  contact plane is a lighter translucent blue with a pale outline.

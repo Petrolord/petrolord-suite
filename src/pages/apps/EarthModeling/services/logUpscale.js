@@ -35,6 +35,9 @@ export const LOG_KEYS = Object.freeze({
   perm: ['KPERM', 'PERM', 'K'],
   // 3D grid upgrade: the rock-physics facies code (Ekene-1 to Ekene-4 carry RP_FACIES)
   facies: ['RP_FACIES', 'FACIES', 'LITHOFACIES'],
+  // core plugs (Ekene-1): the scatter of the permeability cloud transform
+  coreK: ['CKH', 'KCORE', 'CORE_K'],
+  corePhi: ['CPOR', 'PHICORE', 'CORE_PHI'],
 });
 
 /** Default net reservoir cutoffs (Petrophysics Studio's own defaults). */

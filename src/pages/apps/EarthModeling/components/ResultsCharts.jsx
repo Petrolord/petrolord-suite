@@ -93,7 +93,11 @@ export default function ResultsCharts({ built, volumeUnits = 'field', depthUnit 
         </ChartCard>
 
         <ChartCard title="Porosity against permeability, coloured by facies" testid="em-chart-phik"
-          subtitle={`${xp.wells.length} upscaled well cells (large) and ${xp.model.length.toLocaleString('en-US')} model cells (small)`}>
+          subtitle={(() => {
+            const pk = built.zones.find((z) => z.phiK)?.phiK;
+            const base = `${xp.wells.length} upscaled well cells (large), ${xp.model.length.toLocaleString('en-US')} model cells (small)`;
+            return pk ? `${base}. The wells' permeability log is a porosity transform, so its cells lie on a line; the model scatters about it by ${pk.sigma.toFixed(2)} decades from ${pk.sigmaSource} (seeded).` : base;
+          })()}>
           {(xp.wells.length > 0 || xp.model.length > 0) && (
             <ResponsiveContainer width="100%" height="100%">
               <ScatterChart margin={{ top: 10, right: 20, left: 10, bottom: 34 }}>
