@@ -1,335 +1,549 @@
 # Guided Journey: design for stages 1 and 2
 
-Status: DESIGN, 2026-10-17. Owner idea and decisions of the same day:
-stages 1 and 2 ship before NAPE (9 to 11 November); Seismolord is the first
-workflow for AI delegation (stage 5); AI delegation and autopilot are a
-premium tier; the second engineer has agreed the journey table.
+Status: DESIGN, revision 2, 2026-10-17.
+
+Owner decisions of 2026-10-17:
+- stages 1 and 2 ship before NAPE (9 to 11 November);
+- Seismolord is the first workflow for AI delegation (stage 5);
+- AI delegation and autopilot are a premium tier;
+- the second engineer has agreed the journey table.
+
+Revision 2 adds three things the owner asked for the same day:
+1. **Guidance by discipline.** Drilling, production, facilities, refinery and
+   other staff are never shown seismic or log steps.
+2. **A Suite-wide Activity indicator.** Running work can be found from any
+   app.
+3. **One leave guard for every app.** Leaving never silently stops or loses
+   work.
+
+The owner's own case is the reason for 2 and 3. A preview closed the import
+dialog before anything was imported, and a visit to Well Data Manager
+cleared it. The immediate Seismolord fix is #1192.
 
 ## 1. What this is
 
 Petrolord greets every user by name on every login. It knows where each
-person is in their journey and always points to one sensible next step:
+person is in their journey and in their own discipline, and points to one
+sensible next step:
 
-- someone just added to an organisation is welcomed into it and told what to
-  do first;
+- someone just added to an organisation is welcomed and told what to do first;
 - someone with no project of their own is shown how to make one;
-- someone with a project but no data is told what to load and exactly where;
-- someone who has just loaded data is asked what they want to do next, from a
-  short list with one recommended.
+- someone with a project but no work in it is told what to start with and
+  exactly where. This depends on their discipline: a well plan for a drilling
+  engineer, a crude assay for refinery staff, seismic for a geophysicist;
+- someone who has just started their first piece of work is asked what they
+  want to do next, from a short list with one recommended.
 
 Anyone can say "I'll find my way, I'll call you when I need you". From then
-on the greeting stays, the cards and prompts stop, and a Guide button in the
-shell brings help back on demand.
+on the greeting stays, the cards and prompts stop, and a Guide button brings
+help back on demand.
 
-Stage 1 is the journey record (one table and one read function). Stage 2 is
-everything the user sees: the greeting, the guide card, the guide drawer, the
-quiet switch, and the "what next" prompt after a first import in Seismolord
-and Well Data Manager. Stages 3 to 6 (the workflow maps, Ask Petrolord, AI
-delegation, autopilot) build on these two and are out of scope here.
+Whatever is running (uploads, conversions, server jobs) or unsaved shows in
+one Activity indicator in every app. Leaving an app never silently stops or
+loses work.
 
-## 2. What exists today (main e648de626)
+Stage 1 is the journey record (one table, one config table, three
+functions). Stage 2 is everything the user sees:
+
+- the greeting;
+- the discipline choice;
+- the guide card and drawer;
+- the quiet switch;
+- the "what next" prompt;
+- the Activity indicator and the leave guard.
+
+Stages 3 to 6 (workflow maps, Ask Petrolord, AI delegation, autopilot) build
+on these and are out of scope here.
+
+## 2. What exists today (main e648de626, plus #1192)
 
 | Piece | Where | Use in this design |
 |---|---|---|
 | Landing greeting "Welcome back, {first name of full_name} or Explorer" | `src/pages/Dashboard.jsx:134` | Replaced by the shared greeting |
-| First-run gate: invited user without profile goes to /profile | `src/components/OnboardingRoute.jsx:17` | Kept; the guide starts after it |
+| First-run gate: an invited user without a profile goes to /profile | `src/components/OnboardingRoute.jsx:17` | Kept; the guide starts after it |
 | Shell content area `<DashboardScope><OrgClosureBanner/><Outlet/>` | `src/layouts/DashboardLayout.jsx:86-89` | The guide card mounts here |
-| Sidebar, Projects, Employees, Profile links | `src/components/DashboardSidebar.jsx` | Guide button added in the footer |
-| Membership with `status`, `invited_at`, `joined_at`, `role` | `organization_members` | "Just added" detection |
-| Every org (or solo user) gets a Default project | `suite_project_bootstrap` RPC | "Has a project" means a non-default active one |
-| Projects service and context | `src/lib/projects/*`, `ProjectContext.useProject()` | Create project, current project |
-| Data registries with `user_id`, `organization_id`, `suite_project_id` | `seismic_volumes`, `geo_wells`, `geo_surfaces`, `qi_datasets`, `seismic_lines` | "Has data" detection |
+| Sidebar (hidden inside full-screen apps) | `src/components/DashboardSidebar.jsx` | Guide and Activity buttons |
+| Ten modules, 105 apps | `src/data/suiteCatalog.js` `SUITE_MODULES` | The discipline list and starter packs |
+| Membership: `status`, `invited_at`, `joined_at`, `role` | `organization_members` | "Just added" detection |
+| A Default project for every org or solo user | `suite_project_bootstrap` | "Has a project" means a non-default active one |
+| Per-app saved-work tables with a project column | `projectsService.APP_MOVABLE`, `MOVABLE` | "Has work in this app" |
+| Seismic and well registries | `seismic_volumes`, `geo_wells`, `geo_surfaces`, `qi_datasets` | "Has data" for geoscience |
 | Entitlements | `usePurchasedModules`, `useUserEntitlements` | Recommend only apps the user can open |
-| Seismolord Start-here panel and tour (pure `buildStartHere`) | `src/pages/apps/Seismolord/lib/startHere.js` | The pattern this design generalises |
-| Display name in auth `user_metadata.display_name`, `full_name` | `SupabaseAuthContext`, `Profile.jsx` | Greeting name |
-
-There is no Suite-wide tour, notification centre or help button, and no
-per-user settings table outside geoscience.
+| Seismolord Start-here panel (pure `buildStartHere`) | `src/pages/apps/Seismolord/lib/startHere.js` | The pattern this design generalises |
+| Seismolord background runtimes | `importJobsRuntime`, `localImportRuntime`, `serverUploadsRuntime` (#1192), `localWorkspace/jobs` | First Activity sources |
+| 10 s debounced autosave cancelled on unmount, in 31 studio contexts and `useFluidStudioProjects` | `src/contexts/*Context.jsx` | Closed by the shared pending-save hook (section 6.3) |
+| Router | `BrowserRouter` (not a data router, so no `useBlocker`) | The leave guard intercepts links itself (section 6.4) |
 
 ## 3. Principles
 
-1. **Derive, do not duplicate.** Journey state is computed from the tables
-   that already hold the facts (membership, projects, volumes, wells). The new
-   table holds only what cannot be derived: the user's guidance choice and
-   what they have acknowledged or dismissed. Nothing can go stale.
-2. **One next step, not a checklist wall.** The card shows the single best
-   step and a short "also possible" list. The drawer shows the whole path.
-3. **Only what the user can do.** Steps respect entitlements and role. A
-   member with no Seismolord licence is never sent to Seismolord; an admin may
-   be told to add it.
+1. **Only what this person needs.** Every step, card and prompt is filtered
+   by the person's disciplines and by the apps they can open. A drilling
+   engineer never sees seismic, logs or wells-for-correlation. A refinery
+   planner never sees upstream steps. When nothing applies, the card shows
+   nothing.
+2. **Derive, do not duplicate.** Journey state is computed from the tables
+   that hold the facts. The journey table holds only the person's choices
+   (disciplines, guidance mode) and what they have seen or dismissed.
+3. **One next step, not a checklist wall.** The card shows the single best
+   step and at most three alternatives.
 4. **Respect the no.** Quiet mode removes every card and prompt everywhere,
-   across devices, until the user asks for help again.
-5. **Pure engine, thin UI.** `buildJourney(state)` is a pure, jest-tested
-   function (the `buildStartHere` precedent); components only render it.
-6. **Copy rules.** No em dashes and no "X, not Y" contrasts in user-facing
-   text; depth in feet by default (oilfield preset) where depth appears.
+   across devices, until the person turns guidance back on.
+5. **Work is never lost silently.** Anything running, or not yet saved, is
+   visible from anywhere. Leaving says what will continue and what would be
+   lost.
+6. **Pure engine, thin UI.** `buildJourney` and `buildActivity` are pure,
+   jest-tested functions; components only render them.
+7. **Copy rules.** No em dashes and no "X, not Y" contrasts. Depth is in feet
+   by default (oilfield preset) wherever it appears.
 
-## 4. Stage 1: the journey record
+## 4. Disciplines
 
-### 4.1 Table `suite_user_journey` (one migration)
+### 4.1 The choice
+
+The disciplines are the ten Suite modules plus one role:
+
+| Key | Shown as |
+|---|---|
+| geoscience | Geoscience (seismic, wells, maps, petrophysics) |
+| reservoir | Reservoir engineering |
+| drilling | Drilling and completion |
+| production | Production operations |
+| facilities | Facilities engineering |
+| process-safety | Process safety |
+| midstream-downstream | Midstream, refining and downstream |
+| economics | Economics and project management |
+| assurance | Assurance, risk and compliance |
+| data-ai | Data and AI |
+| management | Management and overview (no single discipline) |
+
+How a person's disciplines are set:
+
+- **Asked once,** in the welcome (J1) or on the first login after this ships:
+  "What do you mainly work on? Choose one or more." The question has a
+  "Skip" button.
+- **Pre-ticked** from the modules the person can open. A user with only
+  Drilling apps sees Drilling ticked and the rest available.
+- **If they skip,** the disciplines are inferred from the modules they can
+  open, and recorded as `disciplines_inferred`. The question is not asked
+  again.
+- **Changeable at any time** in Profile and in the Guide drawer.
+
+A person with no answer and access to every module gets only
+discipline-neutral steps (project, team), plus a gentle "Tell us what you
+work on and we'll point you to the right apps". Nothing discipline-specific
+is pushed.
+
+### 4.2 Starter packs
+
+Each discipline has a starter pack. It names the recommended first app and
+action, the alternatives, and the "what next" list that follows the first
+piece of work. This is the stage 2 table, owner-reviewable. Stage 3 replaces
+it with full workflow maps.
+
+| Discipline | Recommended first step (where) | Alternatives |
+|---|---|---|
+| Geoscience | Load seismic: SEG-Y or ZGY (Seismolord, import) | Load wells and logs: LAS (Well Data Manager); load surfaces (Mapping & Surface Studio) |
+| Reservoir | Describe your fluid: import a PVT report or start from correlations (Fluid Systems Studio) | Load production history (Decline Curve Analysis); pressure and production history (Material Balance Studio); interpret a well test (Well Test Analysis Studio) |
+| Drilling | Plan a well: start a trajectory or import a survey (Well Design Studio) | Casing design (Casing & Tubing Design Studio); cost and time (Well Cost & Time Estimator) |
+| Production | Build a well model (Nodal Analysis Studio) | Load production data (Production Surveillance Studio); choose a lift method (Artificial Lift Advisor) |
+| Facilities | Size a line (Pipeline & Line Sizing Studio) | Separator (Separator & Slug Catcher Studio); relief and flare (Relief & Flare Studio) |
+| Process safety | Start a LOPA study (LOPA & SIL Studio) | Consequence modelling; QRA |
+| Midstream and downstream | Load a crude assay (Crude Assay & Blending Studio) | Refinery planning; terminal and depot |
+| Economics | Build a project case (Petroleum Economics Studio) | Fiscal regime; NPV scenarios |
+| Assurance | Open the risk register (Risk Register) | Management of change; audits |
+| Data and AI | Check a dataset (Data Quality Studio) | ML Workbench |
+| Management | See your team and projects (Dashboard, Projects) | Invite your team (admins) |
+
+The "what next" lists for the pilot pair, seismic and wells, are in 5.5. For
+the other disciplines, stage 2 ships the starter step and its alternatives.
+Their "what next" lists come with stage 3. Until then those disciplines get
+no "what next" prompt rather than a guessed one.
+
+Every pack entry names an app id. An entry is shown only when the person can
+open that app; otherwise the next alternative is used. When none of a
+discipline's apps can be opened, the card says "Your organisation has no
+{discipline} apps yet". Members are told to ask their admin. Admins get
+"Choose apps" (Modules page).
+
+### 4.3 What counts as "started"
+
+Each starter step has a work source that shows the person has started:
+
+| Discipline | Counts as started |
+|---|---|
+| Geoscience | Rows in `seismic_volumes`, `geo_wells` or `geo_surfaces` |
+| Every other discipline | A saved case in the app's own table, from `APP_MOVABLE` (for example `saved_well_design_projects`, `saved_crude_assay_projects`, `saved_mbal_projects`) |
+
+The mapping lives in a small config table (4.4.2), so adding an app needs no
+code change in the journey function.
+
+## 5. Stage 1: the journey record
+
+### 5.1 Table `suite_user_journey`
 
 | Column | Type | Meaning |
 |---|---|---|
-| `user_id` | uuid PK, FK auth.users on delete cascade | One row per person |
+| `user_id` | uuid PK, FK auth.users, on delete cascade | One row per person |
+| `disciplines` | text[] default '{}' | Keys from 4.1 |
+| `disciplines_source` | text, check in ('chosen','inferred'), null | How they were set |
 | `guidance` | text, check in ('guide','quiet'), default 'guide' | Guide me, or I'll call you |
 | `guidance_changed_at` | timestamptz | When the choice was last made |
-| `welcomed_orgs` | uuid[] default '{}' | Organisations whose welcome the user has seen (a person can join a second org later and is welcomed again) |
-| `dismissed` | text[] default '{}' | Step keys the user dismissed ("not for me") |
-| `acknowledged` | jsonb default '{}' | Prompts answered, e.g. `{"after_import:seismic": "2026-10-20T..."}` |
-| `last_greeted_at` | timestamptz | Last greeting shown (for "welcome back after a while") |
+| `welcomed_orgs` | uuid[] default '{}' | Organisations whose welcome the person has seen |
+| `dismissed` | text[] default '{}' | Step keys dismissed ("not for me") |
+| `acknowledged` | jsonb default '{}' | Prompts answered, for example `{"after_first:seismic": "2026-10-20T..."}` |
+| `last_greeted_at` | timestamptz | For "welcome back after a while" |
 | `created_at`, `updated_at` | timestamptz | |
 
-RLS: a user selects, inserts and updates only their own row. No delete
-policy (the row goes with the auth user). Impersonating sessions never write
-(the client checks `isImpersonating`; the RPCs check that `auth.uid()` is the
-real user).
+Row-level security:
 
-Why a new table and not `suite_user_state` or `user_metadata`: the second
-engineer agreed a dedicated table; it keeps guidance out of the project state
-row and out of auth metadata (which every session token carries).
+- a person selects, inserts and updates only their own row;
+- there is no delete policy (the row goes with the auth user);
+- impersonating sessions never write, checked by the client and by the RPCs.
 
-### 4.2 Read function `suite_journey_state()`
+### 5.2 Config table `suite_journey_work_sources`
 
-`security invoker`, `stable`, returns one jsonb, one round trip:
+| Column | Type | Meaning |
+|---|---|---|
+| `app_id` | text PK | As in `master_apps` and the routes |
+| `discipline` | text | Key from 4.1 |
+| `table_name` | text | A table with `user_id`, and `organization_id` or `suite_project_id` |
+| `kind` | text | 'data' (loaded files) or 'case' (saved work) |
+
+- It is read-only to clients and seeded from `APP_MOVABLE` plus the
+  geoscience registries.
+- A jest guard keeps it equal to `APP_MOVABLE`, so a new app's table is not
+  forgotten.
+
+### 5.3 Functions
+
+**`suite_journey_state(p_project uuid default null)`.** Security invoker,
+stable, returns one jsonb in one round trip:
 
 ```
 {
   "now": ...,
   "user": { "display_name", "full_name", "email", "created_at", "last_sign_in_at", "invited_at" },
-  "org": { "id", "name", "role", "status", "joined_at", "member_count", "solo": bool },
-  "projects": { "real": n, "shared_with_me": n, "current_id", "current_is_default": bool, "newest_real": {id, name, owner_is_me} },
-  "data": {
-    "seismic_volumes": n, "seismic_ready": n, "seismic_lines": n,
-    "wells": n, "wells_with_logs": n, "surfaces": n, "qi_datasets": n,
-    "in_current_project": { "seismic_volumes": n, "wells": n, "surfaces": n }
-  },
+  "org": { "id", "name", "role", "status", "joined_at", "member_count", "solo" },
+  "projects": { "real", "shared_with_me", "current_id", "current_is_default" },
+  "work": { "<app_id>": { "any": bool, "in_project": bool, "first_at": ts } , ... },
   "journey": { the suite_user_journey row, or defaults }
 }
 ```
 
-Counts read the user's own rows plus rows shared with them, using the same
-RLS the apps use (security invoker), so a colleague's shared volume counts as
-"data you can work with". Each count is an `exists`-style capped count (stop
-at 1000) on indexed columns, so it stays cheap on large accounts.
+- `work` is computed only for the work sources of the person's disciplines,
+  or inferred disciplines, or every entitled app when neither is known.
+  Each one is an `exists` probe on indexed columns, so cost does not grow
+  with account size.
+- Because the function runs as security invoker, RLS decides what counts,
+  exactly as in the apps. Colleagues' shared rows count; other orgs' never do.
 
-Writes go through two small RPCs, so the client never builds array updates:
+**Writes.** Two small RPCs, so the client never builds array updates:
 
-- `suite_journey_set_guidance(mode text)`
-- `suite_journey_mark(kind text, key text)`, where kind is one of
+- `suite_journey_set(p_guidance text default null, p_disciplines text[] default null, p_source text default null)`
+- `suite_journey_mark(p_kind text, p_key text)`, where kind is one of
   `welcomed_org`, `dismissed`, `acknowledged`, `greeted`
 
-### 4.3 Migration hygiene
+### 5.4 Migration hygiene
 
-One file `2026MMDD_suite_user_journey.sql`, staging first, a rolled-back dry
-run against prod (no nested commit), logged in MIGRATIONS.md, applied by the
-owner. Second engineer review: agreed.
+- One file, `2026MMDD_suite_user_journey.sql`, covering both tables, the
+  three functions, grants and the seed.
+- Applied staging first, then a rolled-back dry run against prod (grep for
+  begin and commit first: no nested commit).
+- Logged in MIGRATIONS.md and applied by the owner.
+- Second engineer: agreed on the table. This revision adds the `disciplines`
+  columns and the config table, so they see the revision before G0.
 
-## 5. Stage 2: what the user sees
+## 6. Stage 2: what the user sees
 
-### 5.1 The greeting (every login, always, even in quiet mode)
+### 6.1 The greeting (every login, always, even in quiet mode)
 
-- **Name.** `display_name`, else the first word of `full_name`, else the part
-  of the email before "@". Impersonation shows the impersonated user's name.
-- **Words.** By the time of day in the user's own time zone: "Good morning,
-  Ayo", "Good afternoon", "Good evening". After 14 days away: "Welcome back,
-  Ayo. It has been a while." On the first ever login: "Welcome to Petrolord,
-  Ayo."
-- **Where.**
-  - The Dashboard header (replacing today's "Welcome back, Explorer").
-  - After sign-in, when the user lands anywhere else (a deep link into an
-    app), a small greeting toast, once per session.
-- **Line two** (guide mode only) is the one-line next step, e.g. "Your next
-  step: load your first seismic volume."
+- **Name:** `display_name`, else the first word of `full_name`, else the part
+  of the email before "@".
+- **Words:** by the time of day in the person's own time zone, "Good morning,
+  Ayo". The first ever login gets "Welcome to Petrolord, Ayo". After 14 days
+  away it adds "It has been a while".
+- **Where:**
+  - the Dashboard header, replacing "Welcome back, Explorer";
+  - after sign-in, when the person lands inside an app, a small toast once
+    per session.
+- **Line two** (guide mode only) is the one-line next step from the person's
+  own starter pack.
 
-### 5.2 Journey states
+### 6.2 Journey states
 
-`buildJourney(state, { entitlements, role, now })` returns
-`{ stage, headline, next: Step, also: Step[], path: Step[], prompts: Prompt[] }`.
-States, first match wins:
+`buildJourney(state, { entitlements, role, disciplines, now })` returns
+`{ stage, headline, next, also, path, prompts }`. The first matching state
+wins:
 
-| # | State | Detected by | Next step (recommended) | Also possible |
-|---|---|---|---|---|
-| J0 | Profile not set up | existing `OnboardingRoute` gate | (gate handles it) | |
-| J1 | Just added to an organisation | `org.joined_at` within 30 days and org id not in `welcomed_orgs` | Welcome card: "Welcome to {Org}. You were added as {role}. Here is how to start." then J2 to J4 for this org | Meet your team (members list) |
-| J2 | No project of my own or shared with me | `projects.real = 0 and shared_with_me = 0` | Admin or solo: "Create your first project" (Projects page, with the Create form open). Member: "Ask your admin to add you to a project, or create your own" | Work in the Default project for now |
-| J3 | Project, no data in it | `in_current_project` all zero | "Load your data", with the place: Seismolord for SEG-Y or ZGY, Well Data Manager for LAS and well headers, Mapping for surfaces. Recommended item picked from what the user can open (seismic first if Seismolord is entitled) | The other load doors the user can open |
-| J4 | Data loading or converting | `seismic_volumes` with status converting | "Your volume is being prepared. You can keep working." | |
-| J5 | First data loaded | a data count went from 0 to 1 or more and the matching `after_import:*` prompt is unanswered | The "what next" prompt (5.5) | |
-| J6 | Working | none of the above | Nothing pushed. The drawer shows the path and the step most likely next, from the same rules | |
+| # | State | Detected by | Next step |
+|---|---|---|---|
+| J0 | Profile not set up | existing `OnboardingRoute` gate | (the gate) |
+| J1 | Just added to an organisation | `joined_at` within 30 days, org not in `welcomed_orgs` | Welcome: org, role, team size, the discipline question, then J2 to J4 as live-ticking steps |
+| J2 | No project of my own or shared with me | `projects.real = 0 and shared_with_me = 0` | Admin or solo: "Create your first project". Member: "Ask your admin to add you to a project, or create your own". Also possible: "Work in the Default project for now" |
+| J3 | Project, no work started in it for the person's disciplines | every `work.*.in_project` false | The starter step for each chosen discipline (4.2), primary first |
+| J4 | Something running | Activity has a running item | "Your {thing} is being prepared. You can keep working; it is under Activity." |
+| J5 | First work just started in a discipline | `work[app].first_at` is new, and `after_first:<discipline>` is unanswered | The "what next" prompt (6.5), for disciplines that have one |
+| J6 | Working | none of the above | Nothing pushed. The drawer shows the path |
 
-Admins and owners have extra steps woven into J1 to J3 where they apply:
-invite your team (Employees page), choose your apps (Modules page). Solo
-users (an org of one) skip the team steps. A user whose org has no app that
-handles any data type sees "Your organisation has no data app yet. Ask your
-admin" (member) or "Add an app" (admin).
+Admins and owners have extra steps folded into J1 to J3 where they apply:
+"invite your team" (Employees) and "choose your apps" (Modules). Solo users
+skip the team steps.
 
-### 5.3 The guide card (guide mode)
+### 6.3 Guide card, Guide button, drawer, quiet mode
 
-- Mounted once, in `DashboardLayout`'s content area under
-  `OrgClosureBanner`, so it shows on the Dashboard and Suite pages. It is
-  hidden inside full-screen apps, which have their own Start-here panels.
-- One headline, one primary button that takes the user exactly there, up to
-  three "also possible" links, and two small actions: "Not now" (hides it
-  for this session) and "I'll find my way" (quiet mode, with a one-line
-  confirmation saying where the Guide button is).
-- Every primary button is a deep link that opens the right dialog, not only
-  the right page:
-  - `/dashboard/projects?new=1` opens the Create project form;
-  - `/dashboard/apps/geoscience/seismolord?do=import` opens the volume import
-    (SEG-Y or ZGY);
-  - `/dashboard/apps/geoscience/well-data-manager?do=import` opens the LAS
-    import;
-  - `/dashboard/employees?invite=1` opens the invite form.
+**Guide card** (guide mode only):
 
-  These query parameters are new. Each app reads its own once and clears it.
+- Shown once, in `DashboardLayout` under `OrgClosureBanner`, so it appears
+  on the Dashboard and Suite pages. It is hidden inside full-screen apps,
+  which have their own Start-here panels.
+- One headline, one primary button, up to three alternatives.
+- "Not now" hides it for the session.
+- "I'll find my way" switches to quiet mode and shows a one-line note saying
+  where the Guide button is.
 
-### 5.4 The Guide button and drawer (always available)
+**Deep links.** Primary buttons open the right dialog, not only the page.
+Each app reads its own parameter once, then clears it:
 
-- A "Guide" button sits in the sidebar footer, above Profile, and in the
-  phone top bar. It is visible in both modes.
-- It opens a right-hand drawer showing:
-  - the greeting;
-  - "Where you are" (org, role, current project, what data the project holds);
-  - the path as a short list of steps marked done, next or later;
-  - the guidance switch: "Guide me" or "I'll call you when I need you".
-- In quiet mode the drawer is the only guidance surface. Opening it does not
-  turn guide mode back on; the switch does.
-- Profile page: the same switch under a "Guidance" heading.
+| Link | Opens |
+|---|---|
+| `/dashboard/projects?new=1` | Create project |
+| `/dashboard/employees?invite=1` | Invite |
+| `...?do=import` | The import, in Seismolord, Well Data Manager and the reservoir data apps |
+| `...?do=new` | A new case, in case-based apps (Well Design Studio, Pipeline & Line Sizing Studio, Crude Assay & Blending Studio, and others) |
 
-### 5.5 "What next" after a first import (the pilot of stage 3)
+Apps without a handler simply open; adding handlers is a small, per-app
+follow-up.
 
-When the first volume of a kind reaches ready, a small dialog asks what the
-user wants to do next. It covers seismic in Seismolord and wells in Well
-Data Manager. It appears in guide mode only and once per kind, recorded as
-`after_import:seismic` or `after_import:wells`.
+**Guide button.** In the sidebar footer, in the phone top bar, and as a small
+floating button inside full-screen apps, where the sidebar is hidden. It is
+visible in both modes.
+
+**Drawer.** It shows:
+
+- the greeting;
+- "where you are" (org, role, current project, what work it holds);
+- the path for each discipline;
+- the discipline choice;
+- the switch, "Guide me" or "I'll call you when I need you".
+
+Opening the drawer does not turn guide mode back on; the switch does. The
+same switch and the discipline choice are also on the Profile page.
+
+### 6.4 Activity and the leave guard (new in revision 2)
+
+**Activity registry.** `src/lib/activity/activity.js` is a Suite-wide
+in-memory registry for the tab. Each item is:
+
+```
+{ id, appId, appName, kind: 'upload'|'conversion'|'server-job'|'unsaved',
+  title, progress: 0..1|null, state: 'running'|'paused'|'failed'|'done'|'dirty',
+  href (where to go back to), onLeave: 'continues'|'stops'|'loses', actions: {pause, resume, cancel, save} }
+```
+
+Sources, in this order:
+
+1. **Seismolord** publishes through adapters on its existing runtimes:
+   browser imports, imports to this computer, server uploads (#1192), and
+   browser jobs (attributes, QI on this computer).
+2. **Server jobs.** The person's queued or running `qi_jobs` are read on
+   sign-in and polled every 20 s only while any are running.
+3. **Unsaved work.** The shared `usePendingSave` hook registers each studio
+   that has edits not yet saved.
+
+**Activity indicator:**
+
+- In the sidebar and phone top bar: a count, with a spinner while anything
+  runs.
+- Inside full-screen apps: the same floating button as the Guide, showing
+  "2 running".
+- A popover lists the items with progress and actions. Clicking an item goes
+  to its `href`; for a Seismolord import that opens Seismolord on the import
+  progress.
+- Finished items stay for the session, so "your upload finished" is not
+  missed.
+
+**`usePendingSave` (closes the autosave hazard).** One hook replaces the
+pattern in the 31 contexts and `useFluidStudioProjects`:
+
+- it keeps the dirty flag and the save function;
+- it flushes on unmount, `visibilitychange` and `beforeunload`;
+- it registers an 'unsaved' Activity item while dirty;
+- it is adopted context by context, with one generic jest test and a per-app
+  smoke test.
+
+**Leave guard.** The app uses `BrowserRouter`, so the guard intercepts links
+itself:
+
+- a capture-phase click listener on internal links, plus the app's own Back
+  links;
+- `beforeunload` for closing the tab;
+- a re-push on `popstate` for the browser's Back button.
+
+When the person would leave an app that has items:
+
+- **`continues`** (background uploads and jobs): no dialog. A toast says
+  "Your upload carries on in the background. It is under Activity."
+- **`loses`** (unsaved edits that cannot flush, or a preview of an
+  unimported file): a dialog. "Leaving now loses: {list}. Save and leave /
+  Leave anyway / Stay." Save and leave runs the flush first.
+- **`stops`** (work that genuinely ends with the page, such as an in-dialog
+  v1 import): a dialog naming what stops.
+
+**Guidance link.** J4 ("something running") reads Activity, so the guide and
+the indicator never disagree.
+
+### 6.5 "What next" after the first work
+
+- Shown in guide mode only, once per discipline, and recorded as
+  `after_first:<discipline>`.
+- Stage 2 ships it for the geoscience pair; other disciplines get theirs
+  with stage 3.
+- In Seismolord it hands over to the Start-here panel.
 
 | After | Recommended | Also possible |
 |---|---|---|
-| First seismic volume ready | Open it and look at an inline (opens the volume; the Start-here panel takes over) | Load wells to tie (Well Data Manager or Seismolord's well import); Crop or check the survey outline; Learn Seismolord in 5 minutes (the lesson video) |
-| First wells loaded | Check the logs (Well Data Manager QC view) | Correlate wells (Well Correlation); Interpret logs (Petrophysics Studio); Show them on seismic (Seismolord), if a volume exists |
+| First seismic volume ready | Open it and look at an inline | Load wells to tie; check the survey outline; the 5-minute Seismolord lesson |
+| First wells loaded | Check the logs (Well Data Manager) | Correlate wells; interpret logs (Petrophysics Studio); show them on seismic (Seismolord), if a volume exists |
 
-The recommendation follows simple rules. If the other half of a pair is
-missing (wells without seismic, or seismic without wells), loading it comes
-second. Choices are logged in `acknowledged`, which is how stage 3 learns
-what people pick.
+### 6.6 New organisation member: the welcome
 
-In Seismolord the dialog hands over to the existing Start-here panel rather
-than duplicating it. "Open it" opens the volume and shows Start-here.
+> Welcome to Lordsway Energy, Chidi. You were added as a member on
+> 14 October, and your team has 6 people. What do you mainly work on?
+> [Drilling and completion ✓] [Production operations] ... [Skip]
+> Then: choose or create a project, start your first piece of work in
+> Well Design Studio, and open your first app.
 
-### 5.6 New organisation member: the welcome
+The welcome is acknowledged when its steps are done, or when the person
+chooses "I'll find my way". A person who later joins a second organisation is
+welcomed into that one too.
 
-When J1 fires, the card becomes a short welcome:
+### 6.7 Demo, QA and video accounts
 
-> Welcome to Lordsway Energy, Chidi. Your admin added you as a member on
-> 14 October. Here is how to start: choose or create a project, load your
-> data, and open your first app. Your team has 6 people.
+- The demo account used for recordings is set to quiet before any further
+  recording, so no card appears in takes.
+- Storyboards that show the guide set guide mode explicitly.
+- The QA account keeps guide mode: it has no licences, so it exercises the
+  "no apps" branch.
 
-It has three numbered steps (J2 to J4 for this org) with live ticks as each
-completes. It is acknowledged when all three are done, or when the user
-chooses "I'll find my way". A person who joins a second organisation later is
-welcomed into that one as well.
-
-### 5.7 Demo, QA and video accounts
-
-The demo account used for recorded videos is set to quiet before any further
-recording, so no card appears in takes. Storyboards that open the Guide
-drawer set it explicitly. The QA account keeps guide mode, because its lack
-of licences exercises the no-app branch.
-
-## 6. Client architecture
+## 7. Client architecture
 
 | Module | Role |
 |---|---|
-| `src/lib/journey/journeyService.js` | RPC calls: `fetchJourneyState`, `setGuidance`, `mark` |
-| `src/lib/journey/buildJourney.js` | Pure rules engine (states, steps, prompts, recommendation) |
-| `src/lib/journey/greeting.js` | Pure: name choice, time-of-day words, first-login and long-absence variants |
-| `src/lib/journey/deepLinks.js` | The `?new=1`, `?do=import`, `?invite=1` builders and a `useDeepLinkAction(key, fn)` hook apps call once |
-| `src/contexts/JourneyContext.jsx` | Loads state after sign-in. Refreshes on window focus and when the project changes. Imports publish to it through the existing import-job events, so J4 to J5 move without a reload. Exposes `journey`, `guidance`, `setGuidance`, `mark`, `refresh` |
-| `src/components/journey/GreetingHeader.jsx`, `GuideCard.jsx`, `GuideDrawer.jsx`, `WhatNextDialog.jsx`, `GuidanceSwitch.jsx` | UI on the design system (light and dark, grey panel) |
+| `src/lib/journey/disciplines.js` | Keys, labels, starter packs (4.2), pure lookup by entitlements |
+| `src/lib/journey/buildJourney.js` | Pure rules engine (states, steps, prompts) |
+| `src/lib/journey/greeting.js` | Pure name and words |
+| `src/lib/journey/journeyService.js` | The three RPCs |
+| `src/lib/journey/deepLinks.js` | Link builders and `useDeepLinkAction(key, fn)` |
+| `src/lib/activity/activity.js` | Registry, `useActivity()`, pure `buildActivity` summary |
+| `src/lib/activity/usePendingSave.js` | The shared save hook |
+| `src/lib/activity/leaveGuard.js` | Link, Back button and tab-close interception |
+| `src/lib/activity/sources/seismolord.js` | Adapters for the Seismolord runtimes |
+| `src/lib/activity/sources/serverJobs.js` | `qi_jobs` reader |
+| `src/contexts/JourneyContext.jsx` | Loads state after sign-in, refreshes on focus (at most once a minute), on project change and on Activity changes |
+| `src/components/journey/*` | GreetingHeader, GuideCard, GuideDrawer, DisciplinePicker, WhatNextDialog, GuidanceSwitch |
+| `src/components/activity/*` | ActivityButton, ActivityPopover, LeaveDialog, FloatingShellButtons (inside apps) |
 
-Wiring:
+Cost: one RPC per sign-in, per focus (throttled) and per project switch.
+Server jobs are polled only while some are running. There is no other
+polling.
 
-- `JourneyProvider` sits inside `ProjectProvider` in `App.jsx`.
-- `GuideCard` goes in `DashboardLayout`; the Guide button in `DashboardSidebar`.
-- Dashboard uses `GreetingHeader`.
-- Seismolord, Well Data Manager, Projects and Employees each read their own
-  deep-link parameter.
-- The Seismolord and Well Data Manager import-completion paths call
-  `journey.refresh()`.
+## 8. Tests and acceptance
 
-Cost: one RPC per sign-in, per focus (throttled to one a minute) and per
-project switch. No polling.
+**jest:**
 
-## 7. Tests and acceptance
+- `buildJourney`: every state for owner, admin, member and solo roles. Each
+  discipline, single and mixed, with and without each app's entitlement.
+  Quiet mode suppressing everything but the drawer.
+- Negative controls:
+  - a drilling-only person never gets a seismic, log or well-correlation
+    step;
+  - a refinery-only person never gets an upstream step;
+  - an unentitled app is never recommended;
+  - a member never gets an admin step.
+- `greeting`: the name fallbacks, time zones around the hour boundaries,
+  first login, a 14-day absence, impersonation.
+- `activity`: registry, summary, and the leave decision per `onLeave`.
+- `usePendingSave`: flush on unmount and on visibility change, and the dirty
+  item appearing and clearing.
+- Guard: the work-sources seed equals `APP_MOVABLE` plus the registries.
 
-- **jest, buildJourney.** Every state J1 to J6 for owner, admin, member and
-  solo roles; with and without each entitlement; quiet mode suppressing
-  cards and prompts while the drawer still answers. Negative controls: a
-  member never gets an admin step; an unentitled app is never recommended.
-- **jest, greeting.** The name fallbacks (display name, full name, email),
-  time zones around the hour boundaries, first login, the 14-day absence, and
-  impersonation.
-- **Database tests** (worker db-tests pattern, real Postgres):
-  - RLS: own row only.
-  - Counts include shared rows and exclude another org's rows.
-  - The default project is not counted as real.
-  - The mark RPCs are idempotent.
-  - Impersonated sessions cannot write.
-- **e2e** on a signed-out harness `/dev/guided-journey` with an in-memory
-  backend:
-  - the card for each state;
-  - "I'll find my way" hides the card and the Guide button brings the drawer;
-  - each deep link opens its dialog;
-  - the "what next" dialog appears once.
-- **Live probes** (QA account and a throwaway org, cleaned after):
-  - new member invited, then accepted, gets the J1 welcome;
-  - creating a project moves to J3;
-  - a ZGY import moves to J5 and shows the prompt.
-- **Acceptance (owner walk on staging):**
-  - a brand-new invited user reaches a loaded volume through the guide
-    alone, without help;
-  - an existing user switches to quiet and is never prompted again on any
-    device;
-  - the greeting by name appears on every login.
+**Database tests** (real Postgres):
 
-## 8. Delivery plan (before NAPE)
+- RLS: own row only;
+- shared rows count and other orgs' rows do not;
+- the default project is not "real";
+- the RPCs are idempotent;
+- impersonated sessions cannot write;
+- an unknown discipline key is refused.
+
+**e2e** (signed-out harness `/dev/guided-journey`, in-memory backend):
+
+- the card for each state and each discipline;
+- the discipline question;
+- "I'll find my way";
+- the deep links;
+- the Activity popover;
+- the leave dialog for unsaved edits.
+
+Plus #1192's import-trap spec, extended to the Activity indicator.
+
+**Live probes** (QA account and a throwaway org, cleaned afterwards):
+
+- an invited member gets the welcome and the discipline question;
+- a drilling-only member's first step is Well Design Studio;
+- a ZGY import shows in Activity from Well Data Manager.
+
+**Acceptance (owner walk on staging):**
+
+- a brand-new drilling engineer reaches a saved well plan through the guide
+  alone and never sees seismic;
+- a geoscientist starts a ZGY import, wanders to two other apps, sees it
+  under Activity, and returns to it;
+- quiet mode holds across devices;
+- the greeting by name appears on every login.
+
+## 9. Delivery plan (before NAPE)
 
 | Step | Content | PR |
 |---|---|---|
-| G0 | Migration (table, RPCs, grants), db-tests, MIGRATIONS.md; owner applies after the rolled-back prod dry run | 1 |
-| G1 | `buildJourney`, `greeting`, `journeyService`, `JourneyContext`, jest | 2 |
-| G2 | Greeting header and toast, GuideCard, Guide button and drawer, switch on Profile; deep links in Projects, Employees, Seismolord, Well Data Manager | 3 |
-| G3 | "What next" dialog for seismic and wells; demo account set to quiet; help text in the Suite help | 4 |
-| G4 | e2e harness, live probes, STATUS doc, deferred register | 5 |
+| 0 | Seismolord import-trap fix: start-and-view, setup kept, background server uploads, reopen where you were | #1192 |
+| G0 | Migration (journey table, work sources, functions, grants, seed), db-tests, MIGRATIONS.md; the owner applies it after a rolled-back prod dry run | 1 |
+| G1 | `disciplines`, `buildJourney`, `greeting`, `journeyService`, `JourneyContext`, jest | 2 |
+| G2a | Activity registry, Seismolord adapters, server-jobs source, Activity button and popover, floating buttons inside apps, leave guard | 3 |
+| G2b | `usePendingSave`, adopted by the 31 contexts and Fluid Studio (closes the autosave hazard) | 4 |
+| G2c | Greeting, discipline picker, guide card, drawer, switch, deep links (projects, employees, Seismolord, Well Data Manager, the starter apps) | 5 |
+| G3 | "What next" for seismic and wells; demo account set to quiet; Suite help | 6 |
+| G4 | e2e harness, live probes, STATUS doc, deferred register | 7 |
 
-About 8 to 10 working days. Target: merged and in one Suite zip by
-30 October, which leaves NAPE week for demo rehearsal. Merge on green under
-the programme's authority. The migration is applied by the owner; the zip
-upload is the owner's.
+About 11 to 13 working days. Target: merged and in one Suite zip by
+31 October, leaving NAPE week for rehearsal. Merge on green under the
+programme's authority. The migration and the zip upload are the owner's.
 
-## 9. Defaults chosen (change any of them)
+## 10. Defaults chosen (change any of them)
 
-1. New users start in guide mode. Existing users also start in guide mode,
-   but J6 pushes nothing, so the change for a working user is only the
-   greeting and the Guide button.
-2. The greeting is by time of day, in the user's own time zone.
-3. The "just added" window is 30 days from `joined_at`.
-4. The welcome names the organisation and role, and does not name who sent
-   the invitation (the table does not record the inviter reliably).
-5. The "what next" prompt shows once per data kind, in guide mode only.
-6. Nothing in stages 1 and 2 is premium. The premium tier begins with stage 5
-   (AI delegation), where the card will later offer "Let Petrolord do it" to
-   entitled organisations.
+1. Everyone starts in guide mode. A working user (J6) only sees the greeting,
+   the Guide button and Activity; nothing is pushed.
+2. Greeting words follow the time of day in the person's own time zone.
+3. "Just added" means within 30 days of `joined_at`.
+4. The welcome names the organisation and role, not the inviter (the
+   inviter is not recorded reliably).
+5. "What next" appears once per discipline, in guide mode, only where a list
+   exists (geoscience first).
+6. The discipline question is asked once, can be skipped (disciplines are
+   then inferred from the apps the person can open), and can be changed any
+   time.
+7. Nothing in stages 1 and 2 is premium. The premium tier starts at stage 5,
+   where cards will offer "Let Petrolord do it" to entitled organisations.
 
-## 10. Later stages hook in here
+## 11. Later stages hook in here
 
-- **Stage 3 (workflow maps)** replaces the hand-written tables in 5.2 and
-  5.5 with per-workflow maps. It uses the same `Step` shape and the same
+- **Stage 3, workflow maps:** one per discipline. They replace the starter
+  packs and "what next" tables with the same `Step` shape and the same
   `acknowledged` record.
-- **Stage 4 (Ask Petrolord)** is a tab in the Guide drawer, fed the same
-  `suite_journey_state` as context.
-- **Stage 5 (Seismolord delegation, premium)** adds "Let Petrolord do it" to
-  the relevant steps (pick faults, then track horizons from seeds), each with
-  a review gate.
-- **Stage 6 (autopilot, premium)** is a workflow map run end to end, with the
-  gates the user chooses.
+- **Stage 4, Ask Petrolord:** a tab in the Guide drawer, given the journey
+  state and Activity as context.
+- **Stage 5, Seismolord delegation (premium):** "Let Petrolord do it" on
+  steps such as picking faults, then tracking horizons from seeds. Each runs
+  as an Activity item with a review gate.
+- **Stage 6, autopilot (premium):** a workflow map run end to end as a chain
+  of Activity items, with the gates the person chooses.
