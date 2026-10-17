@@ -102,6 +102,9 @@ export async function buildModelReportPdf({ built, name = 'Earth model', volumeU
     ['XY unit', built.xyUnit || 'm'],
     ['Depth reference', 'TVDSS, metres below mean sea level, positive down'],
     ['Frame', `${built.spec.nx} x ${built.spec.ny} nodes at ${frameM.dx.toFixed(2)} x ${frameM.dy.toFixed(2)} m${built.boundary ? `, clipped to ${built.boundary.name}` : ''}`],
+    // 3D grid upgrade: the fine grid, its zones and the porosity simulation
+    ...(built.grid ? [['3D grid', `${built.grid.cells.toLocaleString('en-US')} cells: ${built.zones.map((z, i) => `${z.name} ${built.grid.layers[i]}`).join(', ')} layers of ${(built.grid.layerM / 0.3048).toFixed(1)} ft (${built.grid.style === 'top' ? 'follow top' : built.grid.style === 'base' ? 'follow base' : 'proportional'}); edge ${built.edge === 'smooth' ? 'traced at the data limit' : 'node cells'}`]] : []),
+    ...(built.zones.some((z) => z.sgs) ? [['Porosity', (() => { const z = built.zones.find((q) => q.sgs); const g = z.sgs; return `sequential Gaussian simulation, seed ${g.seed} (plus 101 per zone), ${g.model} ${Math.round(g.rangeM)} m across and ${(g.rangeVM / 0.3048).toFixed(1)} ft down, nugget ${g.nugget}`; })()]] : []),
     ['Zones', built.zones.map((z) => z.name).join(', ')],
     ['Volume units', `${volumeUnits}: rock in ${volumeUnitLabel('bulk_m3', volumeUnits)}, pore in ${volumeUnitLabel('pore_m3', volumeUnits)}, oil in ${volumeUnitLabel('stoiip_m3', volumeUnits)}, gas in ${volumeUnitLabel('giip_m3', volumeUnits)}`],
   ];

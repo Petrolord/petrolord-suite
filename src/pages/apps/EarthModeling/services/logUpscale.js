@@ -104,7 +104,7 @@ export async function resolveLogCurves(wells, backend, cache = new Map()) {
  * @returns {Array<{layer, x, y, tvdss, grossM, netM, ntg, phi, sw, perm, vsh, facies, samples, hcSamples}>}
  *   vsh is the thickness-weighted mean over the gross interval, facies the code that fills the most of it
  */
-export function upscaleZoneAtWell({ traj, topMd, baseMd, curves, layers = 1, cutoffs = DEFAULT_CUTOFFS, owcM = null, layering = null }) {
+export function upscaleZoneAtWell({ traj, topMd, baseMd, curves, layers = 1, cutoffs = DEFAULT_CUTOFFS, owcM = null, layering = null, collect = null }) {
   const n = Math.max(1, Math.floor(Number(layers) || 1));
   if (!(baseMd > topMd)) return [];
   const path = extendTrajectory(traj, baseMd + 50);
@@ -144,18 +144,22 @@ export function upscaleZoneAtWell({ traj, topMd, baseMd, curves, layers = 1, cut
     const phi = at(curves.phi, md); const vsh = at(curves.vsh, md);
     if (!NULLISH(vsh)) { L.vshH += h * Math.min(1, Math.max(0, vsh)); L.vshG += h; }
     if (!NULLISH(phi)) { L.phiGH += h * phi; L.phiG += h; }
+    // the raw samples behind the upscaled cells (the histograms compare them)
+    if (collect && !NULLISH(vsh)) collect.vsh.push(Math.min(1, Math.max(0, vsh)));
     const fc = at(curves.facies, md);
     if (!NULLISH(fc)) { const code = Math.round(fc); L.fac.set(code, (L.fac.get(code) || 0) + h); }
     if (NULLISH(phi) || NULLISH(vsh)) continue;
     if (!(vsh <= cutoffs.vsh && phi >= cutoffs.phi)) continue;
     L.net += h;
     L.phiH += h * phi;
+    if (collect) collect.phi.push(phi);
     const sw = at(curves.sw, md);
     if (!NULLISH(sw) && (owcM === null || !Number.isFinite(owcM) || z < owcM)) {
       L.pv += h * phi; L.pvSw += h * phi * Math.min(1, Math.max(0, sw)); L.hc += 1;
+      if (collect) collect.sw.push(Math.min(1, Math.max(0, sw)));
     }
     const kv = at(curves.perm, md);
-    if (!NULLISH(kv) && kv > 0) { L.lnk += h * Math.log(kv); L.kH += h; }
+    if (!NULLISH(kv) && kv > 0) { L.lnk += h * Math.log(kv); L.kH += h; if (collect) collect.perm.push(kv); }
   }
   return acc.map((L, k) => {
     const midZ = layering ? layerMidDepth(k, top.tvdss, base.tvdss, n, layering.layerM, layering.style) : top.tvdss + span * (k + 0.5) / n;
@@ -224,6 +228,8 @@ export function zoneLogControl(wells, curvesByWell, zone, { layers = 1, cutoffs 
   // (a deep layer wholly below the OWC in every well has no Sw)
   const whole = empty();
   const rows = [];
+  // raw log samples over the zone (net rock for porosity and permeability, net above the OWC for Sw)
+  const samples = { phi: [], sw: [], ntg: [], perm: [], vsh: [] };
   for (const w of wells) {
     const curves = curvesByWell?.[w.name];
     if (!curves || !(curves.phi && curves.vsh)) continue;
@@ -244,7 +250,7 @@ export function zoneLogControl(wells, curvesByWell, zone, { layers = 1, cutoffs 
     const traj = extendTrajectory(minCurvature(w.deviation, w.kb_m, w.x, w.y), baseMd + 50);
     const mid = positionAtMd(traj, (topMd + baseMd) / 2);
     const owc = owcAt ? owcAt(mid.x, mid.y) : owcM;
-    const ups = upscaleZoneAtWell({ traj, topMd, baseMd, curves, layers: n, cutoffs, owcM: Number.isFinite(owc) ? owc : null, layering });
+    const ups = upscaleZoneAtWell({ traj, topMd, baseMd, curves, layers: n, cutoffs, owcM: Number.isFinite(owc) ? owc : null, layering, collect: samples });
     for (const u of ups) {
       // a follow-top or follow-base layer the zone truncates at this well holds no log
       if (!(u.grossM > 0)) continue;
@@ -262,5 +268,7 @@ export function zoneLogControl(wells, curvesByWell, zone, { layers = 1, cutoffs 
       if (z) for (const k of KEYS) if (Number.isFinite(z[k])) whole[k].push({ well: w.name, x: z.x, y: z.y, v: k === 'perm' ? Math.log10(z[k]) : z[k], w: Math.max(z.grossM, 1e-6) });
     }
   }
-  return { layers: out, zone: n > 1 ? whole : out[0], rows };
+  // at most 4000 samples per curve travel with the model
+  for (const k of Object.keys(samples)) if (samples[k].length > 4000) { const st = samples[k].length / 4000; samples[k] = Array.from({ length: 4000 }, (_, i) => samples[k][Math.floor(i * st)]); }
+  return { layers: out, zone: n > 1 ? whole : out[0], rows, samples };
 }

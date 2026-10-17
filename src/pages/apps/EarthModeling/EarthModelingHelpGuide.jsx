@@ -8,7 +8,7 @@ import SharingHelp from '@/components/recordSharing/SharingHelp';
 import React from 'react';
 import {
   BookOpen, Zap, Layers3, Ruler, Crosshair, GitBranch, Pentagon, Rows, Grid3x3, ClipboardCheck,
-  UploadCloud, Link2, AlertTriangle, BookMarked, Dice5,
+  UploadCloud, Link2, AlertTriangle, BookMarked, Dice5, Box,
 } from 'lucide-react';
 import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Code, Callout, Step, Table,
@@ -24,6 +24,7 @@ export const HELP_SECTIONS = [
   { id: 'overview', icon: BookOpen, title: 'What Earth Modeling is' },
   { id: 'quickstart', icon: Zap, title: 'Quick start (10 min)' },
   { id: 'stack', icon: Layers3, title: 'The stack, zones and the frame' },
+  { id: 'grid3d', icon: Box, title: 'The 3D grid, the player and the charts' },
   { id: 'units', icon: Ruler, title: 'Depth and volume units' },
   { id: 'ties', icon: Crosshair, title: 'Well ties and adjustment' },
   { id: 'derived', icon: GitBranch, title: 'Derived horizons' },
@@ -51,6 +52,45 @@ export default function EarthModelingHelpGuide() {
       backLabel="Back to Earth Modeling"
       sections={HELP_SECTIONS}
     >
+      <GuideSection id="grid3d">
+        <SectionHeading icon={Box}>The 3D grid, the player and the charts</SectionHeading>
+        <Para>
+          A new model is a fine 3D grid: cells of 25 m across (change it under Model frame) and 2.5 ft down (2 or 3 ft
+          in the dock under 3D grid). Layers are proportional (the same number everywhere, thinning with the zone),
+          follow the top (hung from the zone top and cut by the base) or follow the base (stacked up from the base and
+          cut by the top). The edge is traced at the data limit of the top surface, halfway past the last mapped node,
+          so the model has no steps and a fine cell keeps the map&apos;s area. Untick the 3D grid for the layer-cake of
+          earlier releases; saved models open as they were saved.
+        </Para>
+        <SubHeading>Zones from tops and the cap</SubHeading>
+        <Para>
+          Tops picked inside a zone (Ekene Sand Middle and Ekene Sand Lower) can split it: tick them under the zone and
+          the build makes Ekene Sand Upper, Middle and Lower, each top at its place in the zone at the wells and
+          interpolated between them. Tick the cap to add a slab of the seal above the top surface (50 ft by default).
+          The cap is seal rock: its porosity is the logs&apos; over the whole rock, its Sw is 1 and its permeability
+          0.001 md.
+        </Para>
+        <SubHeading>Porosity by sequential Gaussian simulation</SubHeading>
+        <Para>
+          Porosity is simulated over each zone from the logs upscaled into the well cells: it honours them, keeps their
+          histogram and follows the variogram (900 m across and 10 ft down by default). The same seed gives the same
+          model; another seed gives another equally likely one. Kriging stays in the list. Permeability follows the
+          simulated porosity through the wells&apos; porosity and permeability trend, and facies come from the RP_FACIES log
+          (the most likely code from the wells around each cell).
+        </Para>
+        <SubHeading>3D, the player and the charts</SubHeading>
+        <Para>
+          The 3D window shows the grid&apos;s cells with the grid skeleton (lines every 1, 2, 5 or 10 cells), coloured by
+          zone, a property, facies or fluid. Slices cut I, J and K planes; the cell filter keeps the cells inside a
+          range. Contacts are planes in 3D and lines in the section and on the maps; faults are planes; the wells carry
+          their upscaled logs. The Player links a section (an I line, a J line or through the wells), a map of one layer
+          and the 3D window: slide or press Play to sweep the layers. Results open on the charts: histograms of the logs,
+          the upscaled cells and the model; porosity against permeability by facies; volumes by zone; the STOIIP tornado;
+          and the probability curve with P90, P50 and P10 once the volume distribution has run. The tables are under
+          Details. The GRDECL carries every fine layer and the report PDF the pictures.
+        </Para>
+      </GuideSection>
+
       <GuideSection id="overview">
         <SectionHeading icon={BookOpen}>What Earth Modeling is</SectionHeading>
         <Para>

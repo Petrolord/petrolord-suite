@@ -69,50 +69,71 @@ export async function runVolumeDistribution(built, cfg = {}, { onProgress = null
   const seed = Math.floor(Number(cfg.seed) || 1);
   const rng = mulberry32(seed);
   const spec = built.specM || built.spec;
-  const out = [];
-  const totalWork = iterations * built.zones.length;
-  let done = 0;
-  for (let i = 0; i < built.zones.length; i++) {
-    const zone = built.zones[i];
-    const top = built.clamped[i]; const base = built.clamped[i + 1];
-    const labels = zone.labels || built.labels || null;
-    const inputs = zoneInputs(zone, cfg);
-    const sampler = createCorrelatedSampler({
-      inputs, paramOrder: ['owcShift', 'gocShift', 'bo', 'bg', 'phiZ', 'swZ', 'ntgZ'],
-      correlations: Number.isFinite(Number(cfg.rhoPhiSw)) && Number(cfg.rhoPhiSw) !== 0 ? [{ a: 'phiZ', b: 'swZ', rho: Number(cfg.rhoPhiSw) }] : [],
-      rng,
-    });
-    const base0 = zone.mc?.fluids || null;
-    const samples = Object.fromEntries(QUANTITIES.map((q) => [q, []]));
-    for (let t = 0; t < iterations; t++) {
-      const { values } = sampler.sample();
-      const zs = { phi: values.phiZ || 0, sw: values.swZ || 0, ntg: values.ntgZ || 0 };
+  // 3D grid upgrade: ONE draw per trial for the whole model, so zones that share
+  // a contact (Ekene Sand Upper, Middle and Lower) move together and the trial's
+  // field total is a real outcome. Each zone's FVF moves by the same factor;
+  // a zone with no FVF or no contact ignores that draw. Porosity and NTG
+  // factors (triangular, +- percent) cover a simulated porosity, which has no
+  // kriging variance to shift.
+  const zIn = built.zones.map((z) => zoneInputs(z, cfg));
+  const pick = (k) => zIn.find((x) => x[k])?.[k];
+  const rel = (k, pct) => (zIn.some((x) => x[k]) && pct > 0 ? tri(1 - pct / 100, 1, 1 + pct / 100) : null);
+  const inputs = {};
+  for (const k of ['owcShift', 'gocShift', 'phiZ', 'swZ', 'ntgZ']) { const v = pick(k); if (v) inputs[k] = v; }
+  const boR = rel('bo', Number(cfg.boPct) || 0); if (boR) inputs.bo = boR;
+  const bgR = rel('bg', Number(cfg.bgPct) || 0); if (bgR) inputs.bg = bgR;
+  const phiPct = Number(cfg.phiPct) || 0; const ntgPct = Number(cfg.ntgPct) || 0;
+  if (phiPct > 0) inputs.phiF = tri(1 - phiPct / 100, 1, 1 + phiPct / 100);
+  if (ntgPct > 0) inputs.ntgF = tri(1 - ntgPct / 100, 1, 1 + ntgPct / 100);
+  const sampler = createCorrelatedSampler({
+    inputs, paramOrder: ['owcShift', 'gocShift', 'bo', 'bg', 'phiZ', 'swZ', 'ntgZ', 'phiF', 'ntgF'],
+    correlations: Number.isFinite(Number(cfg.rhoPhiSw)) && Number(cfg.rhoPhiSw) !== 0 && inputs.phiZ && inputs.swZ ? [{ a: 'phiZ', b: 'swZ', rho: Number(cfg.rhoPhiSw) }] : [],
+    rng,
+  });
+  const zs = built.zones.map(() => Object.fromEntries(QUANTITIES.map((q) => [q, []])));
+  const totals = Object.fromEntries(QUANTITIES.map((q) => [q, []]));
+  for (let t = 0; t < iterations; t++) {
+    const { values } = sampler.sample();
+    const fac = (values.phiF || 1) * (values.ntgF || 1);
+    const tot = {};
+    for (let i = 0; i < built.zones.length; i++) {
+      const zone = built.zones[i];
+      const top = built.clamped[i]; const base = built.clamped[i + 1];
+      const labels = zone.labels || built.labels || null;
+      const zIns = zIn[i];
+      const zsh = { phi: zIns.phiZ ? values.phiZ || 0 : 0, sw: zIns.swZ ? values.swZ || 0 : 0, ntg: zIns.ntgZ ? values.ntgZ || 0 : 0 };
+      const base0 = zone.mc?.fluids || null;
       let v;
       if (zone.mc?.hasFluids && base0) {
         const fl = { ...base0 };
-        if (values.owcShift) {
+        if (values.owcShift && zIns.owcShift) {
           if (zone.mc.trap && zone.mc.owcBase) fl.owc = boundLegByClosure(spec, top, shiftContact(zone.mc.owcBase, values.owcShift)).owc;
           else fl.owc = shiftContact(base0.owc, values.owcShift);
         }
-        if (values.gocShift) fl.goc = shiftContact(base0.goc, values.gocShift);
-        if (Number.isFinite(values.bo)) fl.bo = values.bo;
-        if (Number.isFinite(values.bg)) fl.bg = values.bg;
-        v = layeredVolumes(spec, zone, labels, fl, top, base, { zs, useContacts: true }).total;
+        if (values.gocShift && zIns.gocShift) fl.goc = shiftContact(base0.goc, values.gocShift);
+        if (Number.isFinite(values.bo) && Number.isFinite(base0.bo) && zIns.bo) fl.bo = base0.bo * values.bo;
+        if (Number.isFinite(values.bg) && Number.isFinite(base0.bg) && zIns.bg) fl.bg = base0.bg * values.bg;
+        v = layeredVolumes(spec, zone, labels, fl, top, base, { zs: zsh, useContacts: true }).total;
       } else {
-        v = layeredVolumes(spec, zone, labels, null, top, base, { zs, useContacts: false }).total;
+        v = layeredVolumes(spec, zone, labels, null, top, base, { zs: zsh, useContacts: false }).total;
       }
-      for (const q of QUANTITIES) if (v && Number.isFinite(v[q])) samples[q].push(v[q]);
-      done += 1;
-      if (t % 50 === 49) {
-        if (signal?.aborted) throw new Error('Volume distribution cancelled.');
-        if (onProgress) onProgress({ fraction: done / totalWork, label: `${zone.name}: trial ${t + 1} of ${iterations}` });
-        await new Promise((r) => setTimeout(r, 0));
+      for (const q of QUANTITIES) {
+        if (v && Number.isFinite(v[q])) { const x = v[q] * fac; zs[i][q].push(x); tot[q] = (tot[q] || 0) + x; }
       }
     }
-    const stats = {};
-    for (const q of QUANTITIES) if (samples[q].length) { const s = basicStats(samples[q]); stats[q] = { p90: s.p90, p50: s.p50, p10: s.p10, mean: s.mean, min: s.min, max: s.max }; }
-    out.push({ name: zone.name, varying: sampler.varKeys, stats });
+    for (const q of QUANTITIES) if (Number.isFinite(tot[q])) totals[q].push(tot[q]);
+    if (t % 10 === 9) {
+      if (signal?.aborted) throw new Error('Volume distribution cancelled.');
+      if (onProgress) onProgress({ fraction: (t + 1) / iterations, label: `trial ${t + 1} of ${iterations}` });
+      await new Promise((r) => setTimeout(r, 0));
+    }
   }
+  const statsOf = (samples) => {
+    const stats = {};
+    for (const q of QUANTITIES) if (samples[q].length) { const st = basicStats(samples[q]); stats[q] = { p90: st.p90, p50: st.p50, p10: st.p10, mean: st.mean, min: st.min, max: st.max }; }
+    return stats;
+  };
+  const out = built.zones.map((zone, i) => ({ name: zone.name, varying: Object.keys(zIn[i]).filter((k) => sampler.varKeys.includes(k)).concat(sampler.varKeys.filter((k) => k === 'phiF' || k === 'ntgF')), stats: statsOf(zs[i]) }));
   if (onProgress) onProgress({ fraction: 1, label: 'done' });
-  return { iterations, seed, config: { ...cfg }, zones: out };
+  return { iterations, seed, config: { ...cfg }, zones: out, total: { stats: statsOf(totals), samples: totals } };
 }

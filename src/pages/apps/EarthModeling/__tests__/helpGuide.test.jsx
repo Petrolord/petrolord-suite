@@ -17,7 +17,7 @@ describe('EarthModelingHelpGuide', () => {
     renderGuide();
     expect(screen.getByRole('heading', { level: 1, name: /Earth Modeling Help Guide/ })).toBeInTheDocument();
     for (const { id } of HELP_SECTIONS) expect(document.getElementById(`section-${id}`)).not.toBeNull();
-    expect(HELP_SECTIONS.length).toBe(15);
+    expect(HELP_SECTIONS.length).toBe(16);
   });
 
   test('quotes the live methods, derived kinds and units', () => {

@@ -22,7 +22,9 @@ export const spreadToM = (v, unit) => {
 };
 
 export default function DistributionCard({ built, volumeUnits = 'metric', depthUnit = 'm', onResult }) {
-  const [cfg, setCfg] = useState(() => ({ owcPlusMinus: depthUnit === 'ft' ? '30' : '10', gocPlusMinus: '', boPct: '5', bgPct: '5', properties: true, rhoPhiSw: '-0.5', iterations: '500', seed: '1' }));
+  // 3D grid upgrade: a simulated porosity has no kriging variance, so it varies by a factor (+- percent)
+  const simulated = (built?.zones || []).some((z) => (z.provenance?.phi || []).some((r) => r.methodUsed === 'sgs'));
+  const [cfg, setCfg] = useState(() => ({ owcPlusMinus: depthUnit === 'ft' ? '30' : '10', gocPlusMinus: '', boPct: '5', bgPct: '5', phiPct: simulated ? '5' : '', ntgPct: '', properties: true, rhoPhiSw: '-0.5', iterations: simulated ? '200' : '500', seed: '1' }));
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
   const set = (k) => (e) => setCfg((c) => ({ ...c, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
@@ -47,6 +49,8 @@ export default function DistributionCard({ built, volumeUnits = 'metric', depthU
         <label className="flex items-center gap-1">GOC ± {depthUnit} <input className={inCls} data-testid="em-dist-goc" value={cfg.gocPlusMinus} onChange={set('gocPlusMinus')} /></label>
         <label className="flex items-center gap-1">Bo ± % <input className={inCls} data-testid="em-dist-bo" value={cfg.boPct} onChange={set('boPct')} /></label>
         <label className="flex items-center gap-1">Bg ± % <input className={inCls} data-testid="em-dist-bg" value={cfg.bgPct} onChange={set('bgPct')} /></label>
+        <label className="flex items-center gap-1" title="Porosity times a triangular factor (for a simulated porosity, which has no kriging variance)">porosity ± % <input className={inCls} data-testid="em-dist-phi" value={cfg.phiPct} onChange={set('phiPct')} /></label>
+        <label className="flex items-center gap-1" title="NTG times a triangular factor">NTG ± % <input className={inCls} data-testid="em-dist-ntg" value={cfg.ntgPct} onChange={set('ntgPct')} /></label>
         <label className="flex items-center gap-1" title="Shift each kriged property by a standard normal number of kriging standard deviations per trial">
           <input type="checkbox" data-testid="em-dist-props" checked={cfg.properties} onChange={set('properties')} /> kriged properties
         </label>
@@ -73,7 +77,7 @@ export default function DistributionCard({ built, volumeUnits = 'metric', depthU
           </tbody>
         </table>
       )}
-      {d && <p className="px-2 py-1 text-[10px] text-pl-muted">{d.iterations} trials, seed {d.seed}. Varying: {d.zones.map((z) => `${z.name}: ${z.varying.length ? z.varying.join(', ') : 'nothing'}`).join('; ')}. P90 is the low case (the 10th percentile of outcomes).</p>}
+      {d && <p className="px-2 py-1 text-[10px] text-pl-muted">{d.iterations} trials, seed {d.seed}; one draw per trial for every zone, so zones that share a contact move together. Varying: {d.zones.map((z) => `${z.name}: ${z.varying.length ? z.varying.join(', ') : 'nothing'}`).join('; ')}. P90 is the low case (the 10th percentile of outcomes).</p>}
     </div>
   );
 }

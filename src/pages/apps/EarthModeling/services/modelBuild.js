@@ -1032,6 +1032,17 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       // Vsh is shown, never in a volume: inverse distance keeps a 1.5 M cell build quick
       if (prop === 'vsh') method = 'idw';
       if (method === 'typed') return typedGrid(specM, zLabels, typedV, prop, zdef.name);
+      // the cap with no control (zone averages: no registry zone for a slab of seal) is seal rock
+      if (isCap && !all.length && ['phi', 'sw', 'ntg'].includes(prop)) {
+        const v = prop === 'sw' ? 1 : 0;
+        return { z: new Float64Array(specM.nx * specM.ny).fill(v), provenance: [{ block: 0, methodUsed: 'typed', wells: 0, fellBack: false, note: `${v} (the cap has no control of its own: seal rock; read the logs for its porosity)` }] };
+      }
+      // 3D grid upgrade: every well reads the same value (the cap's NTG is 0 at every
+      // well): the field is that value, said plainly instead of a variogram that cannot fit
+      if (['okrige', 'krige', 'trend'].includes(method) && all.length >= 2 && all.every((p) => Math.abs(p.v - all[0].v) < 1e-12)) {
+        const z = new Float64Array(specM.nx * specM.ny).fill(all[0].v);
+        return { z, provenance: [{ block: 0, methodUsed: 'constant', wells: new Set(all.map((p) => p.well)).size, fellBack: false, note: `every well reads ${Number(all[0].v.toPrecision(4))}` }] };
+      }
       if (method === 'idw') return populateZonePropertyIdw(specM, zLabels, byBlock, all, { power: definition.idw?.power });
       // EM4: ordinary kriging with a fitted variogram and a variance grid
       if (method === 'okrige') return populateZonePropertyOk(specM, zLabels, byBlock, all, definition.krige || DEFAULT_KRIGE);
@@ -1182,7 +1193,7 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       props: layered ? aggregateLayerProps(layerOut) : layerOut[0].props,
       variance: layered ? {} : layerOut[0].variance,
       provenance: layered ? mergeLayerProvenance(layerOut) : layerOut[0].provenance,
-      ...(logControl ? { logRows: logControl.rows } : {}),
+      ...(logControl ? { logRows: logControl.rows, logSamples: logControl.samples } : {}),
       kind: ez.kind, parent: ez.parent, topName: ez.topName, baseName: ez.baseName,
       ...(gridOn ? { grid: { layers: nL, layerM: gridLayerM, style: gridStyle } } : {}),
       ...(sgsOut ? { sgs: sgsOut.stats } : {}),
