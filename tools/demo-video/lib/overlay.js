@@ -32,7 +32,7 @@
   #__demo .slide svg text{fill:${PAPER};font-family:Inter,system-ui,sans-serif}
   /* the service-worker "ready offline" note is for real users, not the camera */
   [data-testid="pwa-prompt"]{display:none!important}
-  [data-testid="guide-button-floating"]{display:none!important}
+  [data-testid="guide-button-floating"],[data-testid="activity-button-floating"]{display:none!important}
   `;
   const arrow = `<svg viewBox="0 0 24 24" width="34" height="34"><path d="M3 2 L3 19 L7.6 14.8 L10.6 21.6 L13.6 20.3 L10.7 13.6 L17 13.4 Z" fill="${PAPER}" stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
   let layer; let cur; let ring; let lt; let pos = { x: 960, y: 540 };

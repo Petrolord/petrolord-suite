@@ -55,21 +55,33 @@ export default {
   },
   steps: [
     { id: 'gathers', chapterSub: 'QI Studio · prestack gathers',
-      say: 'In QI Studio, the prestack gathers along the line through Ekene one: on the left, the input with its multiples, and on the right, after a Radon transform.',
-      sub: 'In QI Studio, the prestack gathers along the line through Ekene-1: on the left, the input with its multiples, and on the right, after a Radon transform.',
+      say: 'In QI Studio, the prestack gathers along the line through Ekene one.',
+      sub: 'In QI Studio, the prestack gathers along the line through Ekene-1.',
       do: async (d, shared) => {
         const opts = await t(d, 'qi-gathers-compare').locator('option').allInnerTexts();
         await d.select('qi-gathers-compare', { label: opts.find((o) => o === DEMULT) });
         shared.values.capBefore = await t(d, 'qi-gathers-caption').innerText().catch(() => '');
         await d.click('qi-gathers-show');
       },
-      wait: async (d, shared) => { await waitPanel(d, shared.values.capBefore, DEMULT); },
+      wait: async (d, shared) => {
+        await waitPanel(d, shared.values.capBefore, DEMULT);
+        await t(d, 'qi-gathers-line-0').evaluate((e) => e.scrollIntoView({ block: 'center' }));
+        await d.sleep(1000);
+      },
       waitLabel: 'Seconds later' },
-    { id: 'clean',
-      say: 'The multiples are gone, and the primaries, with their A V O, are left untouched.',
-      sub: 'The multiples are gone, and the primaries, with their AVO, are left untouched.',
+    { id: 'multiples',
+      say: 'Below the top of the sand, the multiples curve down across the offsets.',
       do: async (d) => {
-        await t(d, 'qi-gathers-line-0').scrollIntoViewIfNeeded();
+        const c = d.page.locator('[data-testid="qi-gathers-canvas-0-line"]');
+        const b = await c.boundingBox();
+        await d.moveTo({ x: b.x + b.width * 0.3, y: b.y + b.height * 0.62 }, { ms: 1400 });
+        await d.moveTo({ x: b.x + b.width * 0.7, y: b.y + b.height * 0.66 }, { ms: 1800 });
+      } },
+    { id: 'clean',
+      say: 'After a Radon transform the multiples are gone, and the primaries, with their A V O, are left untouched.',
+      sub: 'After a Radon transform the multiples are gone, and the primaries, with their AVO, are left untouched.',
+      do: async (d) => {
+        await d.scroll(t(d, 'qi-gathers-line-1'), 520, { ms: 1800 });
         await expectText(d, 'qi-gathers-line-1', /demultipled \(area\): inline 1027, crosslines 2044 to 2059/, 'demultipled line');
         const c = d.page.locator('[data-testid="qi-gathers-canvas-1-line"]');
         const b = await c.boundingBox();
