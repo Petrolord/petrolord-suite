@@ -12,7 +12,7 @@ import { copyName } from '@/lib/recordSharing/rules';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
-import { Mountain, Loader2, Hammer, UploadCloud, Map as MapIcon, Rows, ClipboardCheck, ImageDown, Route, FileDown, ExternalLink, HelpCircle, Box, FileText } from 'lucide-react';
+import { Mountain, Loader2, Hammer, UploadCloud, Map as MapIcon, Rows, ClipboardCheck, ImageDown, Route, FileDown, ExternalLink, HelpCircle, Box, FileText, PlayCircle } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -21,6 +21,8 @@ import BuilderDock from './BuilderDock';
 import MapView from './MapView';
 import SectionView from './SectionView';
 import FrameworkView3D from './FrameworkView3D';
+import PropertyPlayer from './PropertyPlayer';
+import { contourPolylines } from '@/lib/gridding/mapContours';
 import QcPanel from './QcPanel';
 import { emptyDefinition, newModelDefinition, MISTIE_WARN_M, publishPayload, BG_UNITS, upgradeDefinition, specOf } from '../services/modelBuild';
 import { runBuild } from '../services/buildClient';
@@ -357,6 +359,27 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   }, [built, layer, zoneIdx]);
 
   // the built framework names its own horizons (the cap and the split tops join the stack)
+  // 3D grid upgrade: the zone's contacts as lines on the map, where they meet the zone top and base
+  const contactOverlays = useMemo(() => {
+    if (!built || layer === 'blocks') return [];
+    const z = built.zones[zoneIdx];
+    const f = z?.mc?.fluids || z?.fluids;
+    const out = [];
+    for (const [kind, colour] of [['owc', '#38bdf8'], ['goc', '#f87171']]) {
+      const c = f?.[kind];
+      if (!Number.isFinite(c) || Math.abs(c) > 1e11) continue;
+      for (const [g, dash] of [[built.clamped[zoneIdx], null], [built.clamped[zoneIdx + 1], [5, 4]]]) {
+        if (!g) continue;
+        const f32 = Float32Array.from(g);
+        for (const pl of contourPolylines(f32, built.spec.ny, built.spec.nx, c)) {
+          const pts = new Float64Array(pl.length);
+          for (let q = 0; q < pl.length; q += 2) { pts[q] = built.spec.x0 + pl[q] * built.spec.dx; pts[q + 1] = built.spec.y0 + pl[q + 1] * built.spec.dy; }
+          out.push({ points: pts, color: colour, width: 2, ...(dash ? { dash } : {}) });
+        }
+      }
+    }
+    return out;
+  }, [built, zoneIdx, layer]);
   const surfaceNames = built?.horizonNames || definition.surfaceIds
     .map((id) => rows.find((s) => s.id === id)?.name || '?');
   // EM2: derived horizons
@@ -539,6 +562,9 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
         </button>
         <button type="button" data-testid="em-view-3d" className={viewBtn(view === '3d')} onClick={() => setView('3d')} title="The framework in 3D">
           <Box className="w-3.5 h-3.5" /> 3D
+        </button>
+        <button type="button" data-testid="em-view-player" className={viewBtn(view === 'player')} onClick={() => setView('player')} title="Section, layer map and 3D linked: slide or play through the grid">
+          <PlayCircle className="w-3.5 h-3.5" /> Player
         </button>
       </div>
       <div className="ml-auto flex flex-wrap items-center gap-1">
@@ -815,6 +841,12 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   ) : view === 'qc' ? (
     <QcPanel built={built} surfaceNames={surfaceNames} depthUnit={depthUnit} volumeUnits={volumeUnits}
       onDistribution={(d) => { setBuilt((b) => (b ? { ...b, distribution: d } : b)); setStatus(`Volume distribution: ${d.iterations} trials, seed ${d.seed}. P90 is the low case.`); }} />
+  ) : view === 'player' ? (
+    built && (built.zones || []).some((z) => z.layers?.length > 1) ? (
+      <PropertyPlayer built={built} wells={wells} surfaceNames={surfaceNames} faultPolygons={definition.faultPolygons || []} depthUnit={depthUnit} onStatus={setStatus} />
+    ) : (
+      <div className="h-full flex items-center justify-center text-pl-muted text-sm" data-testid="em-player-empty">{built ? 'The player needs layers: tick the fine 3D grid in the dock and build again.' : 'Build the model to play through its grid.'}</div>
+    )
   ) : view === '3d' ? (
     <div className="p-3 h-full min-h-0">
       {built ? (
@@ -864,7 +896,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
         pendingVertices={pending}
         drawing={drawing || sectionDrawing}
         onMapClick={({ x, y }) => (sectionDrawing ? setSectionPending((p) => [...p, [x, y]]) : setPending((p) => [...p, [x, y]]))}
-        overlays={[...sectionOverlays, ...clampOverlays]}
+        overlays={[...sectionOverlays, ...clampOverlays, ...contactOverlays]}
         contours={layer !== 'blocks'}
         label={`${zoneName} · ${layerLabel}${isDepthLayer ? ` (${depthUnit})` : ''}`}
         zFormat={isDepthLayer ? (v) => (depthSign * toDisplay(v, depthUnit)).toFixed(1) : (v) => v.toFixed(3)}

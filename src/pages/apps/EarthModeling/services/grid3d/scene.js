@@ -47,6 +47,8 @@ export function cellValue(built, layers, contacts, K, j, prop) {
   if (isNull(L.top[j]) || isNull(L.base[j])) return null;
   if (prop === 'zone') return L.zone;
   if (prop === 'fluid') {
+    // the cap is seal rock: no fluid zone (drawn grey)
+    if (built.zones[L.zone]?.kind === 'cap') return null;
     const c = contacts[L.zone] || {};
     const lab = built.zones[L.zone]?.labels ? built.zones[L.zone].labels[j] : (built.labels ? built.labels[j] : 0);
     return fluidCode((L.top[j] + L.base[j]) / 2, contactAtNode(c.goc, j, lab), contactAtNode(c.owc, j, lab));
