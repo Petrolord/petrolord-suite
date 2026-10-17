@@ -34,6 +34,11 @@ export const LAYOUTS_VERSION = 2;
 export const FILL_MODES = ['threshold', 'crossover', 'ramp'];
 export const RAMP_PRESETS = {
   lithology: { label: 'Lithology (clean sand to shale)', stops: [{ value: 15, color: '#f5e6a8' }, { value: 150, color: '#5c3a1e' }] },
+  // 2026-10-17 (Geoscience showcase): the bright correlation-panel GR fill
+  sandShale: {
+    label: 'Sand to shale, colour (yellow, orange, green, grey-brown)',
+    stops: [{ value: 15, color: '#fde047' }, { value: 50, color: '#f59e0b' }, { value: 80, color: '#84cc16' }, { value: 110, color: '#6b8e4e' }, { value: 150, color: '#6b5b4b' }],
+  },
 };
 
 export const INPUT_SOURCES = ['input:GR', 'input:RHOB', 'input:NPHI', 'input:DT', 'input:RT', 'input:PEF'];
@@ -97,6 +102,7 @@ export function applySourceScale(track, source) {
 export const STRIP_SOURCES = [
   { value: 'facies', label: 'Crossplot facies (this session)' },
   { value: 'rulefacies', label: 'Rule facies (this interpretation)' },
+  { value: 'log', label: 'Facies curve (registry log, such as RP_FACIES)' },
   { value: 'intervals:lithology', label: 'Lithology (registry)' },
   { value: 'intervals:core_description', label: 'Core description (registry)' },
   { value: 'intervals:facies', label: 'Facies (registry)' },
@@ -267,6 +273,43 @@ export function buildDefaultTemplates() {
             { source: 'input:NPHI', label: 'NPHI', color: '#3b82f6', min: 0.45, max: -0.15, style: 'dash' },
           ],
           fills: [{ mode: 'crossover', a: 'input:NPHI', b: 'input:RHOB', positiveColor: '#facc15', negativeColor: '#9ca3af', opacity: 0.35 }],
+        },
+      ],
+    },
+    {
+      // 2026-10-17 (Geoscience showcase): a colourful correlation panel.
+      // GR coloured by its own value from clean sand (yellow) to shale
+      // (grey-brown), the facies code curve of the well (RP_FACIES), RT with
+      // the resistive side shaded, the standard density-neutron crossover
+      // and effective porosity in blue (computed curves come from the
+      // registry logs on the section).
+      id: 'correlation-colour',
+      name: 'Correlation colour',
+      builtin: true,
+      tracks: [
+        {
+          id: 'c-gr', title: 'GR (API)', type: 'curves', width: 1.1, scale: 'linear', min: 0, max: 150,
+          curves: [{ source: 'input:GR', label: 'GR', color: '#1f2937', lineWidth: 0.9 }],
+          fills: [{ mode: 'ramp', a: 'input:GR', fillTo: 'right', stops: RAMP_PRESETS.sandShale.stops, opacity: 0.9 }],
+        },
+        { id: 'c-facies', title: 'Facies', type: 'strip', width: 0.45, source: 'log' },
+        {
+          id: 'c-rt', title: 'RT (ohm·m)', type: 'curves', width: 1, scale: 'log', min: 0.2, max: 2000,
+          curves: [{ source: 'input:RT', label: 'RT', color: '#dc2626' }],
+          fills: [{ mode: 'threshold', a: 'input:RT', threshold: { value: 20 }, side: 'above', color: '#f87171', opacity: 0.3 }],
+        },
+        {
+          id: 'c-dn', title: 'Density–Neutron', type: 'curves', width: 1.2, scale: 'linear', min: 1.95, max: 2.95,
+          curves: [
+            { source: 'input:RHOB', label: 'RHOB', color: '#dc2626', min: 1.95, max: 2.95 },
+            { source: 'input:NPHI', label: 'NPHI', color: '#3b82f6', min: 0.45, max: -0.15, style: 'dash' },
+          ],
+          fills: [{ mode: 'crossover', a: 'input:NPHI', b: 'input:RHOB', positiveColor: '#facc15', negativeColor: '#9ca3af', opacity: 0.4 }],
+        },
+        {
+          id: 'c-phi', title: 'φe (v/v)', type: 'curves', width: 0.9, scale: 'linear', min: 0, max: 0.4,
+          curves: [{ source: 'output:PHIE', label: 'φe', color: '#1d4ed8' }],
+          fills: [{ mode: 'threshold', a: 'output:PHIE', threshold: { value: 0 }, side: 'above', color: '#3b82f6', opacity: 0.45 }],
         },
       ],
     },

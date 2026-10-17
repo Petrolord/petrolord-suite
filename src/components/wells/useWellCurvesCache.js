@@ -33,6 +33,7 @@ export function useWellCurvesCache(backend, { unitOverridesFor = null } = {}) {
         curves,
         inputNotes: notes,
         logs: raw,
+        logRows: logs, // registry rows (unit, provenance) for code-curve strips
         inventory: Object.entries(mapped).map(([key, log]) => ({ key, log })),
       };
     };

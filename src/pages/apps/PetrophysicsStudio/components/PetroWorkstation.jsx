@@ -663,6 +663,7 @@ export default function PetroWorkstation({
     return resolveTracks(labelSaturation(activeTemplate(layouts), swSystemOf(params, zoneParams)), {
       curves: wellData.curves,
       logs: wellData.logs,
+      logRows: wellData.allLogs || [],
       outputs: { ...computed.outputs, ...scenarioTwins, ...probTwins, ...mineralTwins, ...coreOutputs, ...(shmResult ? { SW_SHM: shmResult.data } : {}) },
       faciesData,
       facies,

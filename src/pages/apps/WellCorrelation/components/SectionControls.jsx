@@ -116,7 +116,7 @@ export default function SectionControls({
   layouts, onLayoutsChange, logSources, onStatus,
   shownTops, onToggleTop, onShowAllTops,
   pickMode, onPickMode, onReloadTops, onRenameTop, onDeleteTop,
-  zoneMode, onZoneMode, zonePair, onZonePair,
+  zoneMode, onZoneMode, zonePair, onZonePair, zoneStrength = 'light', onZoneStrength,
   onPropagate, canEdit, propRefLabel = 'MD',
   mapHrefFor = null, isochoreFor = null,
   ghost = null, onGhost = null, sectionWells = [],
@@ -410,6 +410,13 @@ export default function SectionControls({
             <option value="consecutive">between shown tops</option>
             <option value="pair">one pair</option>
           </select>
+          {zoneMode !== 'none' && onZoneStrength && (
+            <select className={selCls} value={zoneStrength} data-testid="corr-zone-strength" title="How strongly the zones are tinted"
+              onChange={(e) => onZoneStrength(e.target.value)}>
+              <option value="light">light tint</option>
+              <option value="bold">bold tint</option>
+            </select>
+          )}
           {zoneMode === 'pair' && (
             <>
               <select className={selCls} value={zonePair?.[0] || ''} data-testid="corr-zone-top"

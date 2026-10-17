@@ -10,7 +10,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, ArrowUp, ArrowDown, Trash2, Plus } from 'lucide-react';
 import {
   activeTemplate, updateTemplate, newId, applySourceScale,
-  INPUT_SOURCES, OUTPUT_SOURCES, PROBABILISTIC_SOURCES, MINERAL_FIXED_SOURCES, isMineralSource, THRESHOLD_PARAMS, STRIP_SOURCES,
+  INPUT_SOURCES, OUTPUT_SOURCES, PROBABILISTIC_SOURCES, MINERAL_FIXED_SOURCES, isMineralSource, THRESHOLD_PARAMS, STRIP_SOURCES, RAMP_PRESETS,
 } from './layout/layoutSchema';
 
 
@@ -412,6 +412,12 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                             <option value="left">to left edge</option>
                             <option value="right">to right edge</option>
                             <option value="track">whole track</option>
+                          </select>
+                          <select className={mini} value="" title="Replace the stops with a preset colour ramp"
+                            data-testid={`petro-layout-ramp-preset-${fi}`}
+                            onChange={(e) => { const pr = RAMP_PRESETS[e.target.value]; if (pr) editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, stops: pr.stops.map((z) => ({ ...z })) } : y)) })); }}>
+                            <option value="">preset…</option>
+                            {Object.entries(RAMP_PRESETS).map(([k, pr]) => <option key={k} value={k}>{pr.label}</option>)}
                           </select>
                           {(f.stops || []).map((st, si) => (
                             // stops are positional in the editor

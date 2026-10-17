@@ -17,6 +17,26 @@ import { useAppUnits } from '@/lib/units/useAppUnits';
 
 export const CORR_PARAMS = { grClean: 30, grClay: 120, cutPhi: 0.08, cutVsh: 0.4, cutSw: 0.6 };
 export const DEFAULT_TEMPLATE = 'quicklook';
+
+/** Computed curves a section well can show without a petrophysical run: the ones published to the registry. */
+export const PUBLISHED_OUTPUTS = ['PHIE', 'PHIT', 'VSH', 'SW', 'KPERM', 'PAY', 'BVW'];
+
+/**
+ * The section has no petrophysical pipeline, so template tracks addressed
+ * `output:PHIE` and the like read the well's published registry logs of the
+ * same mnemonic (Petrophysics Studio's Publish writes them), on the well's
+ * own depth grid only.
+ * @param {{logs?: Object, curves?: Object}} d a section well's data
+ */
+export function publishedOutputs(d) {
+  const out = {};
+  const n = d?.curves?.DEPT?.length;
+  for (const k of PUBLISHED_OUTPUTS) {
+    const c = d?.logs?.[k];
+    if (c && (!n || c.length === n)) out[k] = c;
+  }
+  return out;
+}
 const defaultLayouts = () => ({ ...buildDefaultLayouts(), activeTemplateId: DEFAULT_TEMPLATE });
 
 /**
@@ -36,6 +56,7 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
   const [shownTops, setShownTops] = useState([]);
   const [zoneMode, setZoneMode] = useState('consecutive');
   const [zonePair, setZonePair] = useState(null);
+  const [zoneStrength, setZoneStrength] = useState('light');
   // Suite unit profile: the depth unit starts from the profile. A saved
   // section (or a host's saved view) opens in the unit it was saved with,
   // like a saved project; the toolbar choice is a session view override.
@@ -82,6 +103,7 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
     if (['none', 'consecutive', 'pair'].includes(tl.zoneMode)) setZoneMode(tl.zoneMode);
     if (Array.isArray(tl.shownTops)) setShownTops(tl.shownTops);
     if (Array.isArray(tl.zonePair) && tl.zonePair.length === 2) setZonePair(tl.zonePair);
+    setZoneStrength(tl.zoneStrength === 'bold' ? 'bold' : 'light');
   }, []);
 
   // a stored row into the state; wells gone from the registry are left out
@@ -173,7 +195,7 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
       const [tops, cwRaw, intervals, zones] = await Promise.all([backend.listTops(wellId), curvesCache.getCurves(wellId), backend.listIntervals ? backend.listIntervals(wellId).catch(() => []) : Promise.resolve([]),
         backend.listZones ? backend.listZones(wellId).catch(() => []) : Promise.resolve([])]); // U2-008: published zones
       const cw = orientSectionCurves(cwRaw); // WC-U1-003: G1-era bottom-up curves read top-down
-      setWellData((m) => ({ ...m, [wellId]: { tops, intervals: intervals || [], zones: zones || [], curves: cw.curves, logs: cw.logs, inventory: cw.inventory, reoriented: cw.reoriented } }));
+      setWellData((m) => ({ ...m, [wellId]: { tops, intervals: intervals || [], zones: zones || [], curves: cw.curves, logs: cw.logs, logRows: cwRaw.logRows || [], inventory: cw.inventory, reoriented: cw.reoriented } }));
     } catch (e) {
       onStatus(e.message);
     } finally {
@@ -234,7 +256,7 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
         frame = makeWellFrame(w); // WDM-U2-007: the shared datum module; frame.datum says when TVDSS is withheld
       } catch { frame = null; }
       const tracks = resolveTracks(template, {
-        curves: d.curves || {}, logs: d.logs || {}, outputs: {}, faciesData: null, facies: [], params: CORR_PARAMS,
+        curves: d.curves || {}, logs: d.logs || {}, logRows: d.logRows || [], outputs: publishedOutputs(d), faciesData: null, facies: [], params: CORR_PARAMS,
         intervals: d.intervals || [], depth: d.curves?.DEPT || null,
       });
       return {
@@ -263,7 +285,7 @@ export function useSectionWells(backend, { deepLinkWells = [], onStatus = () => 
 
   return {
     wells, order, setOrder, wellData, setWellData, loading, sectionLoaded,
-    datum, setDatum, shownTops, setShownTops, zoneMode, setZoneMode, zonePair, setZonePair,
+    datum, setDatum, shownTops, setShownTops, zoneMode, setZoneMode, zonePair, setZonePair, zoneStrength, setZoneStrength,
     depthUnit, setDepthUnit, restoreDepthUnit, unitNote, depthRef, setDepthRef, spacing, setSpacing, columnWidth, setColumnWidth, layouts, setLayouts,
     template, sectionWells, topNames, logSources, ensureWellData, refreshTops, toggleWell, moveWell, applySaved,
     sectionRefused, savedRow, setSavedRow,
