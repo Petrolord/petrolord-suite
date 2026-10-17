@@ -64,3 +64,11 @@ test('a contact shared by two zones is one plane, drawn where it cuts them, with
   expect(c[0].mesh.quads).toBe(N);
   expect(c[0].lines.length / 6).toBe(2 * (nx + ny));
 });
+
+test('the Details histograms take a 3D grid\'s half a million cells (no spread into Math.min)', async () => {
+  const { histogram, minMax } = await import('../components/PropertyQc');
+  const vals = Array.from({ length: 500000 }, (_, i) => (i % 1000) / 1000);
+  expect(minMax(vals)).toEqual([0, 0.999]);
+  const h = histogram(vals, 10);
+  expect(h.counts.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
+});

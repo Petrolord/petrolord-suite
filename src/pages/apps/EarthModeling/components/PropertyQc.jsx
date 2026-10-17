@@ -38,10 +38,18 @@ export function modelValues(zone, prop) {
   return out;
 }
 
+/** Min and max of a long list (a 3D grid's cells overflow Math.min(...values)). */
+export function minMax(values) {
+  let lo = Infinity; let hi = -Infinity;
+  for (const v of values) { if (v < lo) lo = v; if (v > hi) hi = v; }
+  return [lo, hi];
+}
+
 /** Equal-width bins over [lo, hi]; counts as fractions of the total. */
 export function histogram(values, bins = 20, lo = null, hi = null) {
   if (!values.length) return { lo: 0, hi: 1, counts: [] };
-  let a = lo ?? Math.min(...values); let b = hi ?? Math.max(...values);
+  const [mn, mx] = lo === null || hi === null ? minMax(values) : [lo, hi];
+  let a = lo ?? mn; let b = hi ?? mx;
   if (!(b > a)) { a -= 0.005; b += 0.005; }
   const counts = new Array(bins).fill(0);
   for (const v of values) counts[Math.min(bins - 1, Math.max(0, Math.floor(((v - a) / (b - a)) * bins)))] += 1;
@@ -51,8 +59,8 @@ export function histogram(values, bins = 20, lo = null, hi = null) {
 function Histogram({ zone, prop, wellValues }) {
   const vals = modelValues(zone, prop);
   if (!vals.length) return null;
-  const all = [...vals, ...wellValues];
-  const h = histogram(vals, 20, Math.min(...all), Math.max(...all));
+  const [vLo, vHi] = minMax(vals); const [wLo, wHi] = minMax(wellValues);
+  const h = histogram(vals, 20, Math.min(vLo, wLo), Math.max(vHi, wHi));
   const W = 260; const H = 120; const P = { l: 30, r: 8, t: 8, b: 26 };
   const pw = W - P.l - P.r; const ph = H - P.t - P.b;
   const top = Math.max(...h.counts, 1e-9);
