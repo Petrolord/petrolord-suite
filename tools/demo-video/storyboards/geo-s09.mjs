@@ -25,15 +25,15 @@ export default {
   },
   steps: [
     { id: 'run', chapter: 'Volumes', chapterSub: 'ReservoirCalc Pro',
-      say: 'The volumes go to ReservoirCalc Pro: the mapped structure, the contact and the rock properties, sampled fifty thousand times.',
+      say: 'ReservoirCalc Pro carries the booked case: the mapped structure and the contact, with typed averages for the rock, sampled fifty thousand times.',
       do: async (d) => {
         await d.click('rcp-mc-run');
         await t(d, 'rcp-mc-last-seed').waitFor({ timeout: 180000 });
         await d.sleep(1200);
       } },
     { id: 'dist',
-      say: 'P ninety, eleven point three two; P fifty, twelve point one four; and P ten, thirteen million stock tank barrels.',
-      sub: 'P90, 11.32; P50, 12.14; and P10, 13.00 million stock tank barrels.',
+      say: 'P ninety, eleven point three two; P fifty, twelve point one four; and P ten, thirteen million stock tank barrels. The log driven 3D model is more conservative at ten point three one, mostly because the logs read higher water saturation, which alone takes three point two million barrels off the booked case.',
+      sub: 'P90, 11.32; P50, 12.14; and P10, 13.00 million stock tank barrels. The log-driven 3D model is more conservative at 10.31, mostly because the logs read higher water saturation, which alone takes 3.2 million barrels off the booked case.',
       do: async (d, shared) => {
         await expectText(d, body(d), /12\.14[\s\S]{0,120}11\.32[\s\S]{0,120}13\.00/, 'P50, P90 and P10');
         await d.click(d.page.getByRole('button', { name: /View Full Analysis/ }));

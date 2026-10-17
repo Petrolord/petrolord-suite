@@ -123,8 +123,6 @@ export default {
         await d.sleep(6000);
       } },
     { id: 'tie', chapter: 'Well ties', chapterSub: 'Seismolord · Synthetics',
-      say: 'And every well is tied. At Ekene one, the wavelet is extracted from the seismic itself.',
-      sub: 'And every well is tied. At Ekene-1, the wavelet is extracted from the seismic itself.',
       do: async (d) => {
         await d.click(mapWin(d).locator('button[title="Fullscreen"]'));
         await d.sleep(600);
@@ -132,25 +130,24 @@ export default {
         await t(d, 'synth').waitFor({ timeout: 30000 });
         const wells = await t(d, 'synth-well').locator('option').allInnerTexts();
         await d.select('synth-well', { label: wells.find((x) => /^Ekene-1(?!\d)/.test(x)) });
-        await d.sleep(1500);
+        await d.sleep(800);
         await d.click('synth-extract');
       },
+      hold: 0.3,
       wait: async (d) => {
         await expectText(d, 'synth-wavelet-info', /peak 26\.3 Hz, phase 0 deg/, 'wavelet');
         await t(d, 'synth-run').click();
         await d.sleep(6000);
         await t(d, 'synth-suggest').click();
         await expectText(d, 'synth-suggest-result', /best 0 ms \(r = 0\.73\)/, 'bulk shift');
-        await d.sleep(1500);
+        await d.sleep(1200);
       },
       waitLabel: 'Seconds later' },
     { id: 'tie-result',
-      say: 'The synthetic ties at zero milliseconds, with a correlation of zero point seven three.',
-      sub: 'The synthetic ties at 0 ms, with a correlation of 0.73.',
+      say: 'And every well is tied: at Ekene one, with a wavelet from the seismic, the synthetic ties at zero milliseconds, a correlation of zero point seven three.',
+      sub: 'And every well is tied: at Ekene-1, with a wavelet from the seismic, the synthetic ties at 0 ms, a correlation of 0.73.',
       do: async (d) => {
         await d.highlight('synth-suggest-result');
-        await d.sleep(1500);
-        await d.moveTo(d.page.locator('[data-testid="window-synthetic"] canvas').first(), { ms: 1400, dx: 0.8, dy: 0.5 }).catch(() => {});
       } },
   ],
 };
