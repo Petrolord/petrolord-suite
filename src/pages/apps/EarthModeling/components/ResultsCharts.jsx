@@ -82,7 +82,7 @@ export default function ResultsCharts({ built, volumeUnits = 'field', depthUnit 
                 <CartesianGrid {...GRID_STYLE} />
                 <XAxis dataKey="x" tick={axisTick} tickFormatter={tick3} label={axisLabel(PROP_LABEL[hProp])} />
                 <YAxis tick={axisTick} tickFormatter={(x) => `${x}`} label={axisLabel('Percent of each set', -90)} />
-                <Tooltip {...TOOLTIP_STYLE} formatter={(val, name) => [Number.isFinite(val) ? `${val.toFixed(1)}%` : 'none', name]} labelFormatter={(x) => `${PROP_LABEL[hProp]} ${tick3(x)}`} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(val, name) => [Number.isFinite(val) ? `${val.toFixed(1)}%` : 'none', name]} labelFormatter={(x) => `${PROP_LABEL[hProp]} ${tick3(x)}`} />
                 <Legend verticalAlign="top" height={22} wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize }} />
                 <Bar dataKey="model" name="Model cells" fill="#93c5fd" isAnimationActive={false} />
                 <Line dataKey="upscaled" name="Upscaled cells" stroke="#059669" strokeWidth={2} dot={{ r: 2 }} isAnimationActive={false} connectNulls />
@@ -101,7 +101,7 @@ export default function ResultsCharts({ built, volumeUnits = 'field', depthUnit 
                 <XAxis type="number" dataKey="phi" name="Porosity" domain={[0, 'auto']} tick={axisTick} tickFormatter={tick3} label={axisLabel('Porosity (v/v)')} />
                 <YAxis type="number" dataKey="perm" name="Permeability" scale="log" domain={['auto', 'auto']} allowDataOverflow tick={axisTick} tickFormatter={tick3} label={axisLabel('Permeability (md)', -90)} />
                 <ZAxis range={[14, 14]} />
-                <Tooltip {...TOOLTIP_STYLE} formatter={(val, name) => [tick3(val), name]} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(val, name) => [tick3(val), name]} />
                 <Legend verticalAlign="top" height={22} wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize }} />
                 {(faciesCodes.length ? faciesCodes : [null]).map((c) => (
                   <Scatter key={`m${c}`} name={c === null ? 'model cells' : faciesName(c)} data={xp.model.filter((p) => p.facies === c)} fill={c === null ? '#64748b' : faciesColor(c)} fillOpacity={0.45} isAnimationActive={false} shape="circle" />
@@ -121,7 +121,7 @@ export default function ResultsCharts({ built, volumeUnits = 'field', depthUnit 
               <CartesianGrid {...GRID_STYLE} />
               <XAxis dataKey="zone" tick={{ ...axisTick, fontSize: 10 }} interval={0} angle={-12} textAnchor="end" height={44} />
               <YAxis tick={axisTick} tickFormatter={tickVol} label={axisLabel(volUnit, -90)} />
-              <Tooltip {...TOOLTIP_STYLE} formatter={(val) => [`${tickVol(val)} ${volUnit}`, oil ? 'STOIIP' : 'HCPV']} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(val) => [`${tickVol(val)} ${volUnit}`, oil ? 'STOIIP' : 'HCPV']} />
               <Bar dataKey="value" isAnimationActive={false}>
                 {vols.map((z, i) => <Cell key={z.zone} fill={['#64748b', '#059669', '#2563eb', '#d97706', '#7c3aed'][i % 5]} />)}
                 <LabelList dataKey="value" position="top" formatter={tickVol} style={{ fontSize: 11, fill: CHART_COLORS.axisText }} />
@@ -139,7 +139,7 @@ export default function ResultsCharts({ built, volumeUnits = 'field', depthUnit 
                 <CartesianGrid {...GRID_STYLE} />
                 <XAxis type="number" tick={axisTick} tickFormatter={(x) => tickVol(x + v(tornado.base))} label={axisLabel(`STOIIP (${volUnit})`)} />
                 <YAxis type="category" dataKey="label" tick={axisTick} width={150} />
-                <Tooltip {...TOOLTIP_STYLE} formatter={(val, name, p) => [`${tickVol(name === 'low case' ? p.payload.lowAbs : p.payload.highAbs)} ${volUnit}`, name]} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(val, name, p) => [`${tickVol(name === 'low case' ? p.payload.lowAbs : p.payload.highAbs)} ${volUnit}`, name]} />
                 <ReferenceLine x={0} stroke="#0f172a" />
                 <Bar dataKey="low" name="low case" stackId="t" fill="#dc2626" isAnimationActive={false} />
                 <Bar dataKey="high" name="high case" stackId="t" fill="#059669" isAnimationActive={false} />
@@ -157,7 +157,7 @@ export default function ResultsCharts({ built, volumeUnits = 'field', depthUnit 
               <CartesianGrid {...GRID_STYLE} />
               <XAxis type="number" dataKey="v" domain={['auto', 'auto']} tick={axisTick} tickFormatter={tickVol} label={axisLabel(`${oil ? 'STOIIP' : 'HCPV'} (${volUnit})`)} />
               <YAxis type="number" domain={[0, 100]} ticks={[0, 10, 25, 50, 75, 90, 100]} tick={axisTick} label={axisLabel('Probability (%)', -90)} />
-              <Tooltip {...TOOLTIP_STYLE} formatter={(val, name) => (name === 'p' ? [`${val.toFixed(0)}%`, 'probability'] : [tickVol(val), volUnit])} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(val, name) => (name === 'p' ? [`${val.toFixed(0)}%`, 'probability'] : [tickVol(val), volUnit])} />
               <Line dataKey="p" stroke="#2563eb" strokeWidth={2.5} dot={false} isAnimationActive={false} />
               {[['P90', curve.p90, 90], ['P50', curve.p50, 50], ['P10', curve.p10, 10]].map(([lab, x, p]) => (
                 <ReferenceLine key={lab} x={v(x)} stroke="#d97706" strokeDasharray="4 3" label={{ value: `${lab} ${tickVol(v(x))}`, position: 'top', fill: '#92400e', fontSize: 11 }} ifOverflow="extendDomain" segment={undefined} />
