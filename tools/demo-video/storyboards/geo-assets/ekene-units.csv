@@ -1,0 +1,8 @@
+name,rank,parent,top_age_ma,base_age_ma,colour
+Niger Delta Complex,group,,2.6,34.0,#c9b28a
+Benin Formation,formation,Niger Delta Complex,2.6,5.3,#f2d16b
+Agbada Formation,formation,Niger Delta Complex,5.3,16.4,#e39b3b
+Ogbia Shale,member,Agbada Formation,12.5,14.8,#7d8a8c
+Ekene Sand,member,Agbada Formation,14.8,15.4,#f7dc4f
+Oboro Sand,formation,Niger Delta Complex,21.0,22.2,#e6c35c
+Akata Formation,formation,Niger Delta Complex,28.0,34.0,#5d6d7e
