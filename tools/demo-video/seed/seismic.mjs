@@ -10,6 +10,12 @@
 // --volumes gathers uploads the NMO-corrected gathers the same way: QI
 // Studio's Prestack tab builds its gather store from that upload. The tab is
 // held open for --hold minutes (default 8) while the 109 MB upload runs.
+// --gathers-file <path> uploads that gathers file instead of the kit's (the
+// QI showcase's multiples variant, seed/qi_showcase_assets.mjs); it keeps its
+// own file name, and the dialog's "Upload gathers for QI Studio" is used when
+// the build offers it.
+// Builds with the local workspace ask where the seismic lives and default to
+// this computer: the seed always chooses Upload to Petrolord.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -25,6 +31,7 @@ const KIT = process.env.EKENE_KIT || path.resolve(HERE, `../../../dist-demo/eken
 const PREFIX = kitVersion === 'v3' ? 'EKENE3D' : `EKENE3D-${kitVersion}`;
 const baseUrl = opt('base-url', 'https://petrolord.com');
 const volumes = opt('volumes', 'full,near,mid,far').split(',');
+const gathersFile = opt('gathers-file', null);
 const env = loadEnv();
 
 const b = await chromium.launch({
@@ -43,17 +50,23 @@ try {
   await page.waitForTimeout(5000);
   if (await t('sl-tour-skip').count()) await t('sl-tour-skip').click();
   for (const v of volumes) {
-    const name = v === 'gathers' ? `${PREFIX}-gathers-nmo` : `${PREFIX}-${v}`;
-    const file = v === 'gathers' ? `04-seismic/gathers/${name}.sgy` : `04-seismic/${name}.sgy`;
+    const name = v === 'gathers' ? (gathersFile ? path.basename(gathersFile, '.sgy') : `${PREFIX}-gathers-nmo`) : `${PREFIX}-${v}`;
+    const file = v === 'gathers' ? (gathersFile ? path.resolve(gathersFile) : `04-seismic/gathers/${name}.sgy`) : `04-seismic/${name}.sgy`;
     if (v !== 'gathers' && await ready(name)) { console.log(`${name}: already imported`); continue; }
     if (!(await t('sl-start-go-import').isVisible())) await t('sl-start-toggle').click();
     await t('sl-start-go-import').click();
     const dialog = page.getByRole('dialog');
     await dialog.waitFor();
-    await dialog.locator('input[type="file"][accept*=".sgy"]').first().setInputFiles(path.join(KIT, file));
+    await dialog.locator('input[type="file"][accept*=".sgy"]').first().setInputFiles(path.isAbsolute(file) ? file : path.join(KIT, file));
     await dialog.getByText('Vertical axis of this file').waitFor({ timeout: 120000 });
-    await dialog.getByText('On the Petrolord server').click();
-    await dialog.getByRole('button', { name: 'Start import', exact: true }).click();
+    await page.waitForTimeout(1500);
+    if (await t('sl-import-keep-cloud').count()) { await t('sl-import-keep-cloud').click(); await page.waitForTimeout(800); }
+    if (v === 'gathers' && await t('sl-upload-gathers').count()) {
+      await t('sl-upload-gathers').click();
+    } else {
+      await dialog.getByText('On the Petrolord server').click();
+      await dialog.getByRole('button', { name: 'Start import', exact: true }).click();
+    }
     const started = Date.now();
     // the upload runs in this tab and the dialog closes; the server converts;
     // the volume then appears in the picker

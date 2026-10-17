@@ -43,7 +43,7 @@ export async function recordStoryboard(sb, clips, { baseUrl, env, outDir }) {
         const to = now() - 0.3;
         if (to > from) cuts.push({ from, to });
         await d.lowerThird(s.waitLabel || 'Minutes later', '');
-        await d.sleep(2200);
+        await d.sleep((sb.waitChip ?? 2.2) * 1000);
         await d.lowerThird(null);
       }
       timeline.push({ id: s.id, chapter: s.chapter || null, start, sayAt, end: now() });
