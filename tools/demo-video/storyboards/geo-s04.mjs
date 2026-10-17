@@ -6,7 +6,6 @@ import { login, scene, t, park, openApp } from './geo-common.mjs';
 
 const WELLS = ['Ekene-3', 'Ekene-1', 'Ekene-2', 'Ekene-4'];
 const TOPS = ['Ogbia Shale', 'Ekene Sand', 'Ekene Sand Middle', 'Ekene Sand Lower', 'Ekene Sand Base', 'Oboro Unconformity'];
-const section = (d) => d.page.locator('[data-testid="corr-section"], canvas').first();
 
 const pickOpt = async (d, id, re) => {
   const o = (await t(d, id).locator('option').allInnerTexts()).find((x) => re.test(x));
@@ -32,8 +31,8 @@ export default {
         await d.sleep(3000);
         // the reservoir tops only (off the shared registry, nothing changes)
         const names = await d.page.locator('[data-testid^="corr-toggle-"]').evaluateAll((els) => els.map((e) => e.getAttribute('data-testid').slice('corr-toggle-'.length)));
-        for (const n of names) {
-          const box = t(d, `corr-toggle-${n}`);
+        for (const n of names.filter((x) => x !== 'dock')) {
+          const box = t(d, `corr-toggle-${n}`).locator('input[type=checkbox]');
           const want = TOPS.includes(n);
           if ((await box.isChecked()) !== want) await box.click();
         }
@@ -53,12 +52,16 @@ export default {
         await d.sleep(800);
         await pickOpt(d, 'corr-datum-top', /^Ekene Sand$/);
         await d.sleep(2500);
-        const c = d.page.locator('[data-testid="corr-datum-line"]').first();
-        const box = (await c.count()) ? await c.boundingBox() : null;
-        const area = await d.page.locator('canvas').first().boundingBox();
-        const p = box ? { x: box.x + box.width / 2, y: box.y } : { x: area.x + area.width / 2, y: area.y + area.height * 0.66 };
-        await d.moveTo(p, { ms: 900 });
-        for (let i = 0; i < 6; i++) { await d.page.mouse.wheel(0, -200); await d.sleep(300); }
+        // zoom on the reservoir: a few notches about a point below it lift it
+        // to mid-height, then the rest about the reservoir itself (fractions
+        // of the section canvas from the dry run on the demo wells)
+        const area = await t(d, 'corr-section-canvas').boundingBox();
+        const at = (f) => ({ x: area.x + area.width * 0.45, y: area.y + area.height * f });
+        await d.moveTo(at(0.95), { ms: 900 });
+        for (let i = 0; i < 3; i++) { await d.page.mouse.wheel(0, -200); await d.sleep(300); }
+        await d.moveTo(at(Number(process.env.ZF || 0.515)), { ms: 700 });
+        for (let i = 0; i < 11; i++) { await d.page.mouse.wheel(0, -200); await d.sleep(280); }
+        await d.moveTo({ x: area.x + area.width * 0.98, y: area.y + area.height * 0.3 }, { ms: 700 });
         await d.sleep(1500);
       } },
     { id: 'shared',

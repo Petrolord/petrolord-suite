@@ -24,7 +24,7 @@ export default {
     await ensureZones(d);
     await pickOpt(d, 'petro-layout-template', /^Standard triple combo/, { quiet: true });
     await d.sleep(1500);
-    await zoomTracks(d, 5110, 9);
+    await zoomTracks(d, 5130, 13);
     await d.sleep(1200);
     await park(d);
   },
