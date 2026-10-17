@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from '@/components/ui/use-toast';
 import InviteEmployee from '@/components/InviteEmployee';
 import { AccountScope, AccountPage, AccountHeader } from '@/components/account/accountChrome';
+import { useDeepLinkAction } from '@/lib/journey/deepLinks';
 
 function EmployeeManagementPage() {
   const navigate = useNavigate();
@@ -31,6 +32,8 @@ function EmployeeManagementPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [orgId, setOrgId] = useState(null);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+  // the guide's "Invite your team" opens the invite (?invite=1)
+  useDeepLinkAction('invite', '1', () => setIsInviteOpen(true));
   const [seatStats, setSeatStats] = useState({ used: 0, limit: 5 });
 
   useEffect(() => {

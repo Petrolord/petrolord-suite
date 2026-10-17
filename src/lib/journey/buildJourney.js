@@ -11,9 +11,32 @@ const DAY = 24 * 60 * 60 * 1000;
 const ADMIN_ROLES = new Set(['owner', 'admin', 'org_admin', 'super_admin']);
 
 /** "What next" prompts (stage 2 ships the geoscience pair; others come with stage 3). */
+const A = '/dashboard/apps/geoscience';
 export const AFTER_FIRST = Object.freeze([
-  { key: 'after_first:seismic', discipline: 'geoscience', appId: 'seismolord' },
-  { key: 'after_first:wells', discipline: 'geoscience', appId: 'well-data-manager' },
+  {
+    key: 'after_first:seismic',
+    discipline: 'geoscience',
+    appId: 'seismolord',
+    title: 'Your first seismic volume is in. What would you like to do next?',
+    options: [
+      { key: 'open', title: 'Open it and look at an inline', detail: 'Start here then shows what the volume holds and the usual next steps.', appId: 'seismolord', module: 'geoscience', href: `${A}/seismolord?panel=start`, recommended: true },
+      { key: 'wells', title: 'Load wells to tie', detail: 'LAS files and well headers, so the seismic can be tied to the wells.', appId: 'well-data-manager', module: 'geoscience', href: `${A}/well-data-manager?do=import`, unlessWork: 'well-data-manager' },
+      { key: 'outline', title: 'Check the survey outline and geometry', appId: 'seismolord', module: 'geoscience', href: `${A}/seismolord?panel=start` },
+      { key: 'learn', title: 'Read the 5-minute Seismolord guide', appId: 'seismolord', module: 'geoscience', href: `${A}/seismolord/help` },
+    ],
+  },
+  {
+    key: 'after_first:wells',
+    discipline: 'geoscience',
+    appId: 'well-data-manager',
+    title: 'Your first wells are in. What would you like to do next?',
+    options: [
+      { key: 'qc', title: 'Check the logs', detail: 'Curves, units and depth ranges, in Well Data Manager.', appId: 'well-data-manager', module: 'geoscience', href: `${A}/well-data-manager`, recommended: true },
+      { key: 'correlate', title: 'Correlate the wells', appId: 'well-correlation', module: 'geoscience', href: `${A}/well-correlation` },
+      { key: 'petro', title: 'Interpret the logs', appId: 'petrophysics-studio', module: 'geoscience', href: `${A}/petrophysics-studio` },
+      { key: 'seismic', title: 'Show them on seismic', appId: 'seismolord', module: 'geoscience', href: `${A}/seismolord`, ifWork: 'seismolord' },
+    ],
+  },
 ]);
 
 const projectsStep = (isAdminOrSolo) => ({
@@ -85,7 +108,14 @@ export function buildJourney(state, { canOpen, moduleOpen, activityRunning = fal
   const alsoFrom = (list, n = 3) => list.filter(visible).slice(0, n);
 
   // "what next" prompts: first work in a discipline, not yet answered
-  const prompts = AFTER_FIRST.filter((p) => disciplines.includes(p.discipline) && Boolean(work[p.appId]?.any) && !acknowledged[p.key]);
+  const prompts = AFTER_FIRST
+    .filter((p) => disciplines.includes(p.discipline) && Boolean(work[p.appId]?.any) && !acknowledged[p.key])
+    .map((p) => ({
+      ...p,
+      options: p.options.filter((o) => (canOpen || (() => false))(o.appId, o.module)
+        && (!o.ifWork || Boolean(work[o.ifWork]?.any)) && (!o.unlessWork || !work[o.unlessWork]?.any)),
+    }))
+    .filter((p) => p.options.length > 0);
 
   const base = { guidance, disciplines, disciplinesSource, askDisciplines, path, prompts: guidance === 'guide' ? prompts : [] };
 
@@ -100,7 +130,7 @@ export function buildJourney(state, { canOpen, moduleOpen, activityRunning = fal
       ...base,
       stage: 'welcome',
       headline: `Welcome to ${org.name || 'your organisation'}.`,
-      detail: `You were added as ${articleRole(role)}${solo ? '' : `, and your team has ${org.member_count} people`}.`,
+      detail: `${role === 'owner' ? 'You are its owner' : `You were added as ${articleRole(role)}`}${solo ? '' : `, and your team has ${org.member_count} people`}.`,
       next: !hasProject ? projectStep : firstStart || (askDisciplines ? disciplineStep : null),
       also: alsoFrom([firstStart && !hasProject ? firstStart : null, isAdmin && solo ? inviteStep : null].filter(Boolean)),
       welcomeSteps: [projectStep, firstStart ? { ...firstStart, done: started(firstStart.appId) } : null].filter(Boolean),

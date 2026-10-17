@@ -13,14 +13,23 @@ import { usePurchasedModules } from '@/hooks/usePurchasedModules';
 import { fetchJourneyState, setJourney, markJourney } from '@/lib/journey/journeyService';
 import { buildJourney, baselineAcknowledgements } from '@/lib/journey/buildJourney';
 import { greeting } from '@/lib/journey/greeting';
+import { useActivity, buildActivity } from '@/lib/activity/activity';
 
 const JourneyContext = createContext(null);
 const FOCUS_REFRESH_MS = 60 * 1000;
 
-export function JourneyProvider({ children, activityRunning = false, service = null }) {
-  const { user, isImpersonating } = useAuth();
+export function JourneyProvider({
+  children, activityRunning: runningProp, service = null, auth: authOverride = null, entitlements: entOverride = null,
+}) {
+  // J4 reads the Suite-wide Activity list unless a caller says otherwise (tests)
+  const activityItems = useActivity();
+  const activityRunning = runningProp ?? buildActivity(activityItems).running;
+  // harnesses pass a signed-in person and their entitlements; the app uses the real ones
+  const realAuth = useAuth();
+  const { user, isImpersonating } = authOverride || realAuth;
   const { current } = useProject();
-  const { isAllowed, isModuleActive, loading: entLoading } = usePurchasedModules();
+  const realEnt = usePurchasedModules();
+  const { isAllowed, isModuleActive, loading: entLoading } = entOverride || realEnt;
   const svc = useMemo(() => service || { fetchJourneyState, setJourney, markJourney }, [service]);
   const [state, setState] = useState(null);
   const [error, setError] = useState(null);

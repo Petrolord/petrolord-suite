@@ -18,6 +18,7 @@ import { usePurchasedModules } from '@/hooks/usePurchasedModules';
 import { isValidUUID } from '@/lib/utils';
 import ImpersonationBanner from '@/components/ImpersonationBanner';
 import { HubHeader, HubPage, HubSectionTitle } from '@/components/hubs/HubChrome';
+import { useJourney } from '@/contexts/JourneyContext';
 
 const modules = [
   { id: 'geoscience', name: 'Geoscience', icon: Layers3 },
@@ -43,6 +44,8 @@ const modules = [
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, organization, isSuperAdmin } = useAuth();
+  // Guided Journey: the greeting by name, every login (time of day, first login, long absence)
+  const { greeting } = useJourney();
   const { isImpersonating } = useImpersonation();
   const { toast } = useToast();
   
@@ -131,7 +134,7 @@ export default function Dashboard() {
       <HubPage className="flex-1">
         <HubHeader
           eyebrow="Petrolord Suite"
-          title={`Welcome back, ${user?.user_metadata?.full_name?.split(' ')[0] || 'Explorer'}`}
+          title={greeting?.line || `Welcome back, ${user?.user_metadata?.display_name || user?.user_metadata?.full_name?.split(' ')[0] || 'Explorer'}`}
           description="Here's what's happening across your operations today."
           actions={(
             <>

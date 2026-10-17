@@ -44,6 +44,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { FixedTheme } from '@/design/ThemeProvider';
 import ActivityButton from '@/components/activity/ActivityButton';
+import GuideButton from '@/components/journey/GuideDrawer';
 
 // Design system, lead decision 1 (2026-09-27): the dashboard sidebar stays
 // a dark brand rail in the homepage ink green in both themes. The root
@@ -219,6 +220,7 @@ const DashboardSidebar = ({ onNavigate, className }) => {
       
       {/* User Profile Link + Logout (always visible) */}
       <div className="mt-auto p-4 border-t border-pl-border space-y-1">
+        <GuideButton variant="sidebar" />
         <ActivityButton variant="sidebar" />
         <NavLink to="/profile" onClick={onNavigate} className={cn(ITEM, "text-pl-muted hover:text-pl-text hover:bg-pl-raised/60")}>
           <div className="h-8 w-8 rounded-full bg-pl-raised flex items-center justify-center">

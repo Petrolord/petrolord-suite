@@ -34,6 +34,7 @@ import HubScope from '@/components/hubs/HubScope';
 import PaymentVerification from '@/pages/PaymentVerification';
 import AcceptInvite from '@/pages/auth/AcceptInvite';
 import ConfirmationPage from '@/pages/auth/ConfirmationPage';
+import { JourneyProvider } from '@/contexts/JourneyContext';
 
 // Lazy loaded Module Hubs
 const DrillingCompletionsHub = lazy(() => import('@/pages/dashboard/DrillingCompletionsHub'));
@@ -169,6 +170,7 @@ const SeismolordSyntheticsHarness = lazy(() => import('@/pages/apps/Seismolord/S
 const SeismolordCubeViewHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordCubeViewHarness'));
 const SeismolordLargeSurveyHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordLargeSurveyHarness'));
 const SeismolordWorkspaceHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordWorkspaceHarness'));
+const GuidedJourneyHarness = lazy(() => import('@/dev/GuidedJourneyHarness'));
 const WellDataManagerHarness = lazy(() => import('@/pages/apps/WellDataManager/WellDataManagerHarness'));
 const PetrophysicsStudioHarness = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsStudioHarness'));
 const WellCorrelationHarness = lazy(() => import('@/pages/apps/WellCorrelation/WellCorrelationHarness'));
@@ -392,6 +394,7 @@ function App() {
     <AuthProvider>
       <HSEProvider> 
         <ProjectProvider>
+          <JourneyProvider>
           <UnitProfileProvider>
           <AuthGuard>
             <PwaUpdatePrompt />
@@ -1023,6 +1026,7 @@ function App() {
                                     <Route path="/dev/seismolord-welltie" element={<SeismolordWellTieHarness />} />
                                     <Route path="/dev/seismolord-synthetics" element={<SeismolordSyntheticsHarness />} />
                                     <Route path="/dev/seismolord-workspace" element={<SeismolordWorkspaceHarness />} />
+                                    <Route path="/dev/guided-journey" element={<GuidedJourneyHarness />} />
                                     <Route path="/dev/seismolord-u2" element={<SeismolordU2Harness />} />
                                     <Route path="/dev/seismolord-help" element={<SeismolordHelpGuide />} />
                                     <Route path="/dev/seismolord-server-import" element={<SeismolordServerImportHarness />} />
@@ -1096,6 +1100,7 @@ function App() {
             </ErrorBoundary>
           </AuthGuard>
           </UnitProfileProvider>
+          </JourneyProvider>
         </ProjectProvider>
           <Toaster richColors closeButton />
       </HSEProvider>

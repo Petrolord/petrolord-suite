@@ -12,6 +12,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info, CheckCircle } from "lucide-react";
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { AccountScope } from '@/components/account/accountChrome';
+import { useJourney } from '@/contexts/JourneyContext';
+import { disciplineLabel } from '@/lib/journey/disciplines';
+import GuidanceSwitch from '@/components/journey/GuidanceSwitch';
+import DisciplinePicker from '@/components/journey/DisciplinePicker';
 
 const Profile = () => {
   const { user, loading: authLoading, setProfileSetupComplete } = useAuth();
@@ -164,7 +168,7 @@ const Profile = () => {
         <title>{isOnboarding ? 'Complete Your Profile' : 'My Profile'} - Petrolord Suite</title>
         <meta name="description" content="Manage your Petrolord Suite profile and account settings." />
       </Helmet>
-      <div className="flex items-center justify-center min-h-screen p-4">
+      <div className="flex flex-col items-center justify-center gap-4 min-h-screen p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
             <div className="flex items-start justify-between gap-3">
@@ -244,10 +248,31 @@ const Profile = () => {
             </Button>
           </CardFooter>
         </Card>
+        {!isOnboarding && <ProfileGuidance />}
       </div>
     </>
   );
 };
+
+/** Guided Journey (design 6.3): how much guidance, and what the person works on. */
+function ProfileGuidance() {
+  const { journey } = useJourney();
+  const [picker, setPicker] = useState(false);
+  if (!journey) return null;
+  return (
+    <Card className="w-full max-w-md" data-testid="profile-guidance">
+      <CardHeader>
+        <CardTitle className="text-lg text-pl-text">Guidance</CardTitle>
+        <CardDescription>
+          Your work: {journey.disciplines?.length ? journey.disciplines.map(disciplineLabel).join(', ') : 'not chosen yet'}.{' '}
+          <button type="button" className="underline" onClick={() => setPicker(true)} data-testid="profile-change-disciplines">Change</button>
+        </CardDescription>
+      </CardHeader>
+      <CardContent><GuidanceSwitch /></CardContent>
+      <DisciplinePicker open={picker} onOpenChange={setPicker} />
+    </Card>
+  );
+}
 
 const ProfilePage = () => (
   <AccountScope testId="profile-theme-scope">

@@ -63,6 +63,10 @@ describe('buildJourney', () => {
     expect(j.headline).toBe('Welcome to Lordsway Energy.');
     expect(j.detail).toBe('You were added as a member, and your team has 6 people.');
   });
+  test('J1 for the owner who set the organisation up, on their own', () => {
+    const j = buildJourney(state({ org: { id: 'o', name: 'Breeze Energy', role: 'owner', joined_at: daysAgo(1), member_count: 1 } }), ctx());
+    expect(j.detail).toBe('You are its owner.');
+  });
   test('J1 is not repeated once the welcome is seen, nor after 30 days', () => {
     const seen = withJourney({ welcomed_orgs: ['org-1'] }, { org: { id: 'org-1', name: 'L', role: 'member', joined_at: daysAgo(3), member_count: 6 } });
     expect(buildJourney(seen, ctx()).stage).not.toBe('welcome');
@@ -142,6 +146,18 @@ describe('buildJourney', () => {
     expect(buildJourney(quiet, ctx()).prompts).toEqual([]);
     const drilling = withJourney({ disciplines: ['drilling'], disciplines_source: 'chosen' }, { work: { seismolord: { any: true } } });
     expect(buildJourney(drilling, ctx()).prompts).toEqual([]);
+  });
+  test('"what next" options: only apps the person can open, and nothing already done', () => {
+    const geo = { disciplines: ['geoscience'], disciplines_source: 'chosen' };
+    const seis = buildJourney(withJourney(geo, { work: { seismolord: { any: true } } }), ctx());
+    expect(seis.prompts[0].options.map((o) => o.key)).toEqual(['open', 'wells', 'outline', 'learn']);
+    expect(seis.prompts[0].options[0]).toMatchObject({ recommended: true, href: '/dashboard/apps/geoscience/seismolord?panel=start' });
+    // wells already loaded: "Load wells to tie" is not offered
+    const both = buildJourney(withJourney({ ...geo, acknowledged: { 'after_first:wells': 'x' } }, { work: { seismolord: { any: true }, 'well-data-manager': { any: true } } }), ctx());
+    expect(both.prompts[0].options.map((o) => o.key)).not.toContain('wells');
+    // wells first, no seismic yet: "Show them on seismic" is not offered; no Petrophysics licence: not offered
+    const wells = buildJourney(withJourney(geo, { work: { 'well-data-manager': { any: true } } }), ctx((appId) => appId !== 'petrophysics-studio'));
+    expect(wells.prompts[0].options.map((o) => o.key)).toEqual(['qc', 'correlate']);
   });
   test('baseline: work that existed before the record is acknowledged up front', () => {
     expect(baselineAcknowledgements({ work: { seismolord: { any: true }, 'well-data-manager': { any: false } } })).toEqual(['after_first:seismic']);

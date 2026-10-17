@@ -3,7 +3,7 @@
 // project, archive and restore, make a project members only, and move wells,
 // surfaces and seismic out of the Default project into a client project.
 // Theme roles only.
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FolderKanban, Building2, Plus, Archive, ArchiveRestore, ArrowRightLeft, Lock, Unlock, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,7 @@ import { INTERNAL_LABEL, projectLabel } from '@/lib/projects/projectGrouping';
 import ProjectSettingsCard from '@/components/projects/ProjectSettingsCard';
 import ProjectMembersCard from '@/components/projects/ProjectMembersCard';
 import { copyToProject, isCopyable } from '@/lib/projects/copyToProject';
+import { useDeepLinkAction } from '@/lib/journey/deepLinks';
 
 const DEFAULT_COLOUR = '#2563EB';
 
@@ -81,6 +82,9 @@ function NewProjectForm({ clients, onCreate, busy, defaultClientId }) {
   // Local Workspace (owner decision 7): where this project's seismic lives, Local by default
   const [seismicStorage, setSeismicStorage] = useState('local');
   useEffect(() => { if (defaultClientId) setClientId(defaultClientId); }, [defaultClientId]);
+  // the guide's "Create your first project" lands here (?new=1): the name box takes the focus
+  const nameRef = useRef(null);
+  useDeepLinkAction('new', '1', () => { setTimeout(() => { nameRef.current?.scrollIntoView({ block: 'center' }); nameRef.current?.focus(); }, 50); });
   const submit = async (e) => {
     e.preventDefault();
     const ok = await onCreate({ name, clientId: clientId || null, description, seismicStorage });
@@ -88,7 +92,7 @@ function NewProjectForm({ clients, onCreate, busy, defaultClientId }) {
   };
   return (
     <form onSubmit={submit} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,14rem)_auto]" data-testid="projects-new-project">
-      <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Project name, for example OML 42 field study" aria-label="Project name" data-testid="projects-new-project-name" />
+      <Input ref={nameRef} value={name} onChange={(e) => setName(e.target.value)} placeholder="Project name, for example OML 42 field study" aria-label="Project name" data-testid="projects-new-project-name" />
       <NativeSelect value={clientId} onChange={(e) => setClientId(e.target.value)} aria-label="Client" data-testid="projects-new-project-client">
         <option value="">{INTERNAL_LABEL} (no client)</option>
         {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
