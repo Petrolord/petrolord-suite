@@ -22,7 +22,7 @@ import MapView from './MapView';
 import SectionView from './SectionView';
 import FrameworkView3D from './FrameworkView3D';
 import QcPanel from './QcPanel';
-import { emptyDefinition, MISTIE_WARN_M, publishPayload, BG_UNITS, upgradeDefinition, specOf } from '../services/modelBuild';
+import { emptyDefinition, newModelDefinition, MISTIE_WARN_M, publishPayload, BG_UNITS, upgradeDefinition, specOf } from '../services/modelBuild';
 import { runBuild } from '../services/buildClient';
 import { resolveShm } from '../services/shmResolve';
 import { hangingWallBlock } from '@/lib/seismicFaultsReader';
@@ -74,13 +74,14 @@ const LAYERS = [
 ];
 
 /** @param {Object<string,string>} [p.appPaths] route overrides for the launchers (harness) */
-export default function EarthWorkstation({ sample = false, backend, appPaths = {} }) {
+export default function EarthWorkstation({ sample = false, backend, appPaths = {}, legacyDefaults = false }) {
   const [wells, setWells] = useState(null);
   const [surfaces, setSurfaces] = useState([]);
   const [culturePolygons, setCulturePolygons] = useState([]);
   const [seismicFaults, setSeismicFaults] = useState({ faults: [], skipped: [] }); // Seismolord U2-003 reader; U2-001 per zone top
   const [projects, setProjects] = useState([]);
-  const [definition, setDefinition] = useState(emptyDefinition);
+  // 3D grid upgrade: a new model starts on the fine grid (25 m, 2.5 ft, SGS porosity)
+  const [definition, setDefinition] = useState(legacyDefaults ? emptyDefinition : newModelDefinition);
   const [built, setBuilt] = useState(null);
   const [building, setBuilding] = useState(false);
   const [view, setView] = useState('map');
@@ -302,7 +303,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       const open = result.zones.filter((z) => z.openEdge?.open);
       const openText = open.length ? ` ${open.map((z) => z.name).join(', ')}: the hydrocarbon leg reaches the model edge, so the volume depends on where the frame stops (see QC).` : '';
       const noteText = (result.notes || []).length ? ` ${result.notes.join(' ')}` : '';
-      const frameText = `${result.spec.nx}×${result.spec.ny} frame at ${fmtCell(result.specM.dx)} m${result.xyToM !== 1 ? ` (${fmtCell(result.spec.dx)} ${result.xyUnit})` : ''}`;
+      const frameText = `${result.spec.nx}×${result.spec.ny} frame at ${fmtCell(result.specM.dx)} m${result.xyToM !== 1 ? ` (${fmtCell(result.spec.dx)} ${result.xyUnit})` : ''}${result.grid ? `, ${result.grid.cells.toLocaleString('en-US')} cells in ${result.grid.layers.reduce((a, b) => a + b, 0)} layers of ${(result.grid.layerM / 0.3048).toFixed(1)} ft (${result.grid.style === 'top' ? 'follow top' : result.grid.style === 'base' ? 'follow base' : 'proportional'})` : ''}`;
       setStatus(`Built ${definition.name}: ${frameText}, ${result.zones.length} zones, ${blocks} block${blocks > 1 ? 's' : ''}, ${clamps} clamped nodes${result.boundary ? `, clipped to ${result.boundary.name}` : ''}${adjText}.${clampText}${mtText}${fbText}${tpText}${pcText}${openText}${noteText}`);
     } catch (e) {
       setStatus(e.cancelled ? 'Build cancelled. The previous model, if any, is unchanged.' : e.message);
@@ -355,7 +356,8 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     return out;
   }, [built, layer, zoneIdx]);
 
-  const surfaceNames = definition.surfaceIds
+  // the built framework names its own horizons (the cap and the split tops join the stack)
+  const surfaceNames = built?.horizonNames || definition.surfaceIds
     .map((id) => rows.find((s) => s.id === id)?.name || '?');
   // EM2: derived horizons
   const addDerived = (form) => {
@@ -524,7 +526,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       <ModuleHomeLink module="geoscience" />
       <Mountain className="w-4 h-4 text-pl-primary-text" />
       <span className="text-sm font-semibold text-pl-text whitespace-nowrap">Earth Modeling</span>
-      <span className="hidden 2xl:inline text-[11px] text-pl-muted">layer-cake framework on the shared registry</span>
+      <span className="hidden 2xl:inline text-[11px] text-pl-muted">3D grid on the shared registry</span>
       <div className="ml-4 flex flex-wrap items-center gap-1">
         <button type="button" data-testid="em-view-map" className={viewBtn(view === 'map')} onClick={() => setView('map')}>
           <MapIcon className="w-3.5 h-3.5" /> Map
@@ -623,7 +625,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     <div className="flex items-center gap-3 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">
       <span data-testid="em-status" className="truncate">{building && buildProgress ? `Building: ${buildProgress.label} (${Math.round(100 * buildProgress.fraction)}%)` : status}</span>
       <span className="ml-auto whitespace-nowrap" data-testid="em-frame">
-        {built ? `${built.spec.nx}×${built.spec.ny} @ ${fmtCell(built.specM.dx)} m` : `${definition.surfaceIds.length} surfaces stacked`}
+        {built ? `${built.spec.nx}×${built.spec.ny} @ ${fmtCell(built.specM.dx)} m${built.grid ? `, ${built.grid.cells.toLocaleString('en-US')} cells` : ''}` : `${definition.surfaceIds.length} surfaces stacked`}
       </span>
       <span className="whitespace-nowrap text-pl-muted">{depthPositive ? 'TVDSS' : 'elevation'} {depthUnit}, SI internal</span>
     </div>

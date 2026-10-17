@@ -23,10 +23,13 @@ export default function EarthModelingHarness() {
   // ?sharing=off behaves as the database before the migration
   const shared = params.get('shared') === '1';
   const beforeApply = params.get('sharing') === 'off';
+  // 3D grid upgrade: the harness starts on the earlier layer-cake (its oracle
+  // goldens are node-frame numbers); ?grid=1 starts on the new model defaults
+  const grid = params.get('grid') === '1';
   const backend = useMemo(() => makeInMemoryBackend({ savedModels: saved, propertyMaps: maps, sharedModels: shared, sharing: { applied: !beforeApply } }), [saved, maps, shared, beforeApply]);
   return (
     <div className="h-screen w-full overflow-hidden" data-testid="em-theme-scope">
-      <EarthWorkstation backend={backend} appPaths={{ 'mapping-surface-studio': '/dev/mapping-surface-studio', 'reservoircalc-pro': '/dev/reservoircalc-pro', 'earth-modeling': '/dev/earth-modeling' }} />
+      <EarthWorkstation backend={backend} legacyDefaults={!grid} appPaths={{ 'mapping-surface-studio': '/dev/mapping-surface-studio', 'reservoircalc-pro': '/dev/reservoircalc-pro', 'earth-modeling': '/dev/earth-modeling' }} />
     </div>
   );
 }

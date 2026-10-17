@@ -2,5 +2,5 @@
 // thread; the protocol lives in services/buildWorkerProtocol.js.
 import { serveBuild } from '../services/buildWorkerProtocol';
 
-const handle = serveBuild((m) => self.postMessage(m));
+const handle = serveBuild((m, transfer) => self.postMessage(m, transfer || []));
 self.onmessage = (ev) => { handle(ev.data); };

@@ -10,13 +10,13 @@ import { adjustSurfaces, defaultRadius } from '../engine/adjust';
 import { computeDerivedGrid, allSurfaceRows } from './derivedSurfaces';
 import { populateZonePropertyOk } from './propertyKriging';
 import { labelBlocks, blockCensus, pointInPolygon, validatePolygon } from '../engine/blocks';
-import { wellTies, zoneControlPoints } from '../engine/wellties';
+import { wellTies, zoneControlPoints, minCurvature, positionAtMd } from '../engine/wellties';
 import { populateZoneProperty } from '../engine/properties';
 import { zoneVolumes, zoneVolumesWithContacts } from '../engine/volumes';
 import { normalizeTag, isTransformableTag, consensusTag } from '@/lib/crs/tags';
 import { depthDownToSurfaceZ } from '@/lib/surfaceConvention';
 import { maskOutsidePolygon, gridBBox, isNull, sampleAtXY } from '@/lib/gridding/gridmath';
-import { zoneLogControl, DEFAULT_CUTOFFS } from './logUpscale';
+import { zoneLogControl, DEFAULT_CUTOFFS, mdAtTvdss, extendTrajectory } from './logUpscale';
 import { populateZonePropertyIdw } from './propertyIdw';
 import { NULL_VALUE } from '@/lib/gridding/numeric';
 import { readDepthSurface } from '@/lib/readDepthSurface';
@@ -33,8 +33,6 @@ import { GRID_DEFAULTS, FT as M_PER_FT, gridLayerFrames } from './grid3d/layerin
 import { resampleSmooth, smoothFrame, dataLimitRings } from './grid3d/boundary';
 import { expandFramework, DEFAULT_CAP } from './grid3d/zonesFromTops';
 import { sgsZonePorosity, sgsParams, faciesLayer } from './grid3d/properties';
-import { mdAtTvdss, extendTrajectory } from './logUpscale';
-import { minCurvature, positionAtMd } from '../engine/wellties';
 
 /** Registry property keys for the three populated properties. */
 export const PROP_KEYS = { phi: 'phi_avg', sw: 'sw_avg', ntg: 'ntg' };
