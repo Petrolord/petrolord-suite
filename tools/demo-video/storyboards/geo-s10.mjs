@@ -35,6 +35,6 @@ export default {
   steps: [
     { id: 'close', chapter: 'One project', chapterSub: 'Petrolord Suite · Geoscience',
       say: 'Wells, logs, seismic, maps and the model, on one shared project, in the browser. That is geoscience with Petrolord.',
-      do: async (d) => { await drag3d(d, 260, 0, 90); } },
+      do: async (d) => { await drag3d(d, 160, 0, 8); } },
   ],
 };
