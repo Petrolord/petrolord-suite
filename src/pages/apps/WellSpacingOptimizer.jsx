@@ -108,7 +108,7 @@ const download = (content, type, name) => {
 };
 
 function WellSpacingContent() {
-  const { inputs, results, u, setUnitSystem, isSaving, saveError, lastSaveTime, manualSave } = useWellSpacing();
+  const { inputs, results, u, setUnitSystem, isSaving, saveError, lastSaveTime, dirty, manualSave } = useWellSpacing();
   const [tab, setTab] = useState('study');
   const downloadCSV = () => results && download(generateCSV(results, u), 'text/csv', 'well_spacing_results.csv');
   const downloadJSON = () => results && download(JSON.stringify(generateJSON(inputs.form, results), null, 2), 'application/json', 'well_spacing_summary.json');
@@ -135,7 +135,7 @@ function WellSpacingContent() {
                 <SelectItem value="si">SI</SelectItem>
               </SelectContent>
             </Select>
-            <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />
+            <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} dirty={dirty} />
             <Button asChild variant="outline" size="sm">
               <Link to="/dashboard/apps/reservoir/well-spacing-optimizer/help">
                 <HelpCircle className="w-4 h-4 mr-2" /> Help guide

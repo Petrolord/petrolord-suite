@@ -7,6 +7,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
+import { usePendingSave } from '@/lib/activity/usePendingSave';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjects';
 import { getModel, evaluateModelTest, evaluateBuildup, toDimensionlessGroups } from '@/utils/welltest/models/modelCatalog';
@@ -571,12 +572,6 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   const [saveError, setSaveError] = useState(null);
   const [lastSaveTime, setLastSaveTime] = useState(null);
   const [hydrated, setHydrated] = useState(false);
-  // 2026-10-14: edits since the last save, the print of that save, and the
-  // flush that writes pending edits before leaving the project
-  const [dirty, setDirty] = useState(false);
-  const savedPrintRef = useRef('');
-  const baselinePendingRef = useRef(false);
-  const flushRef = useRef(null);
 
   // Persisted inputs
   const [wellName, setWellName] = useState('');
@@ -1326,13 +1321,13 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
 
   const openProject = useCallback(async (id) => {
     try {
-      await flushRef.current?.();
+      await flush();
       const payload = await shared.loadForOpen(id);
       if (!payload) {
         addNotification('Project not found', 'error');
         return;
       }
-      baselinePendingRef.current = true;
+      rebaseline();
       setCurrentProjectId(id);
       setProjectName(payload.name || 'Untitled project');
       hydrate(payload);
@@ -1359,8 +1354,7 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   const createProject = useCallback(async (name) => {
     const id = uuidv4();
     try {
-      await flushRef.current?.();
-      baselinePendingRef.current = true;
+      await flush();
       await service.save(id, { ...serializeInputs(), id, name });
       await shared.adoptRow(id);
       setCurrentProjectId(id);
@@ -1406,8 +1400,6 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
         addNotification(res.message, res.readOnly ? 'info' : 'error');
         return false;
       }
-      savedPrintRef.current = wtPayloadPrint(sent);
-      setDirty(false);
       setLastSaveTime(new Date());
       setSaveError(null);
       return true;
@@ -1441,77 +1433,38 @@ export const WellTestStudioProvider = ({ children, organizationName = '', sharin
   // inputs differ from the last save, and pending edits are written before
   // another project is opened or created, when the page is hidden, and when
   // the studio unmounts. Before, creating or opening a project within 10 s of
-  // an edit lost the edit while the header said "Saved".
-  const autosaveRef = useRef(serializeInputs);
-  autosaveRef.current = serializeInputs;
-  const writeRef = useRef(shared.write);
-  writeRef.current = shared.write;
-  const writePending = useCallback(async (projectId) => {
-    const sent = autosaveRef.current();
-    const res = await writeRef.current(projectId, sent);
-    if (res.ok) {
-      savedPrintRef.current = wtPayloadPrint(sent);
-      setDirty(false);
-      setLastSaveTime(new Date());
-      setSaveError(null);
-    }
-    return res;
-  }, []);
-  useEffect(() => {
-    if (!currentProjectId || !hydrated) return undefined;
-    const print = wtPayloadPrint(autosaveRef.current());
-    if (baselinePendingRef.current) {
-      baselinePendingRef.current = false;
-      savedPrintRef.current = print;
-      setDirty(false);
-      return undefined;
-    }
-    const changed = print !== savedPrintRef.current;
-    setDirty(changed);
-    if (!changed || !canWrite) return undefined;
-    const projectId = currentProjectId;
-    const timer = setTimeout(async () => {
+  // an edit lost the edit while the header said "Saved". 2026-10-17: the
+  // shared usePendingSave hook (Guided Journey 6.4), which also lists the
+  // pending edits under Activity.
+  const { dirty, flush, rebaseline } = usePendingSave({
+    appId: 'well-test-analyzer',
+    appName: 'Well Test Analysis Studio',
+    projectName,
+    projectKey: hydrated ? currentProjectId : null,
+    canWrite,
+    changeKey: [wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, rateSkinRows, unitSystem, rtaRows, rtaWindows, rtaImport],
+    payload: () => serializeInputs(),
+    print: wtPayloadPrint,
+    save: async (payload) => {
       setIsSaving(true);
       try {
-        const res = await writePending(projectId);
-        if (!res.ok && !res.readOnly) setSaveError('Auto-save failed');
+        const res = await shared.write(currentProjectId, payload);
+        if (res.ok) {
+          setLastSaveTime(new Date());
+          setSaveError(null);
+        } else if (!res.readOnly) setSaveError('Auto-save failed');
+        return res;
       } catch (e) {
         console.error(e);
         setSaveError('Auto-save failed');
+        return false;
       } finally {
         setIsSaving(false);
       }
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, [wellName, fieldName, analyst, identification, completion, inputMeta, periodMeta, pvtIntake, gaugeImport, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, rateSkinRows, unitSystem, rtaRows, rtaWindows, rtaImport, currentProjectId, hydrated, canWrite, writePending]);
-
-  const pendingRef = useRef(null);
-  pendingRef.current = dirty && canWrite && hydrated && currentProjectId ? currentProjectId : null;
-  flushRef.current = async () => {
-    const id = pendingRef.current;
-    if (!id) return;
-    pendingRef.current = null;
-    try { await writePending(id); } catch (e) { console.error(e); }
-  };
-  useEffect(() => {
-    const onHide = () => { if (document.visibilityState === 'hidden') flushRef.current?.(); };
-    // closing or reloading the tab cannot wait for a save: start it and ask
-    // the browser to confirm leaving
-    const onUnload = (e) => {
-      if (!pendingRef.current) return undefined;
-      flushRef.current?.();
-      e.preventDefault();
-      e.returnValue = '';
-      return '';
-    };
-    document.addEventListener('visibilitychange', onHide);
-    window.addEventListener('beforeunload', onUnload);
-    return () => {
-      document.removeEventListener('visibilitychange', onHide);
-      window.removeEventListener('beforeunload', onUnload);
-      flushRef.current?.();
-    };
-  }, []);
+    },
+    saving: isSaving,
+    savedAt: lastSaveTime,
+  });
 
   const value = {
     // shell plumbing

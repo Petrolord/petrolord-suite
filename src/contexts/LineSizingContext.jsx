@@ -10,10 +10,11 @@
 // you type, and a saved project is inputs only — results are re-derived
 // on load so a reopened study answers with today's engines.
 import React, {
-  createContext, useContext, useCallback, useEffect, useMemo, useRef, useState,
+  createContext, useContext, useCallback, useEffect, useMemo, useState,
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
+import { usePendingSave } from '@/lib/activity/usePendingSave';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import {
   liquidLineDrop, liquidLineTraverse, gasOutletPressure, gasLineTraverse,
@@ -442,6 +443,7 @@ export const LineSizingProvider = ({ children }) => {
   }, [addNotification]);
 
   const createProject = useCallback(async (name) => {
+    await flush();
     const id = uuidv4();
     try {
       await service.save(id, { ...serialize(name), id });
@@ -459,6 +461,7 @@ export const LineSizingProvider = ({ children }) => {
   }, [serialize, addNotification]);
 
   const openProject = useCallback(async (id) => {
+    await flush();
     try {
       const payload = await service.load(id);
       const restored = inputsFromPayload(payload);
@@ -512,25 +515,34 @@ export const LineSizingProvider = ({ children }) => {
     }
   }, [currentProjectId, projectName, serialize, addNotification]);
 
-  const autosaveRef = useRef(null);
-  autosaveRef.current = () => serialize(projectName);
-  useEffect(() => {
-    if (!currentProjectId || !hydrated) return undefined;
-    const timer = setTimeout(async () => {
+  // Autosave 10 s after the last edit; pending edits are also written when
+  // the studio unmounts, the page is hidden, or another one is opened
+  // (usePendingSave, Guided Journey 6.4).
+  const { dirty, flush } = usePendingSave({
+    appId: 'facility-network-hydraulics',
+    appName: 'Pipeline & Line Sizing Studio',
+    projectName,
+    projectKey: hydrated ? currentProjectId : null,
+    changeKey: [inputs],
+    payload: () => serialize(projectName),
+    save: async (payload) => {
       setIsSaving(true);
       try {
-        await service.save(currentProjectId, autosaveRef.current());
+        await service.save(currentProjectId, payload);
         setLastSaveTime(new Date());
         setSaveError(null);
+        return true;
       } catch (e) {
         console.error(e);
         setSaveError('Auto-save failed');
+        return false;
       } finally {
         setIsSaving(false);
       }
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, [inputs, currentProjectId, hydrated]);
+    },
+    saving: isSaving,
+    savedAt: lastSaveTime,
+  });
 
   const value = {
     inputs,
@@ -566,6 +578,7 @@ export const LineSizingProvider = ({ children }) => {
     isSaving,
     saveError,
     lastSaveTime,
+    dirty,
     // notifications
     notifications,
     addNotification,

@@ -50,7 +50,7 @@ const SurveillanceContent = () => {
   );
   const {
     projects, currentProjectId, createProject, openProject, deleteProject,
-    manualSave, isSaving, saveError, lastSaveTime,
+    manualSave, isSaving, saveError, lastSaveTime, dirty,
     notifications, removeNotification, loadingField, importing,
     setTrendsField,
   } = useSurveillance();
@@ -147,7 +147,7 @@ const SurveillanceContent = () => {
           <>
             <StudioAutoSave
               isSaving={isSaving} saveError={saveError}
-              lastSaveTime={lastSaveTime} onSave={manualSave}
+              lastSaveTime={lastSaveTime} onSave={manualSave} dirty={dirty}
             />
             <div className="hidden sm:block h-4 w-[1px] bg-pl-border mx-1" aria-hidden="true"></div>
             <StudioHelp

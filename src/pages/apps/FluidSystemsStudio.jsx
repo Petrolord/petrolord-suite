@@ -139,7 +139,7 @@ const FluidSystemsStudioContent = () => {
   const {
     projects, sharedProjects, currentProjectId, projectName, projectRow, sharing, viewingShared,
     createProject, openProject, deleteProject, manualSave, saveCopy,
-    isSaving, saveError, lastSaveTime,
+    isSaving, saveError, lastSaveTime, dirty,
     notifications, removeNotification, addNotification,
   } = useFluidStudioProjects({
     inputs: inputsForSave,
@@ -306,7 +306,7 @@ const FluidSystemsStudioContent = () => {
             >
               <Beaker size={18} />
             </Button>
-            <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />
+            <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} dirty={dirty} />
             <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Fluid Systems & Flow Behavior Studio Guide"

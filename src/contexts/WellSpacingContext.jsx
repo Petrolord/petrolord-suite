@@ -17,6 +17,7 @@
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
+import { usePendingSave } from '@/lib/activity/usePendingSave';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjects';
 import { setProvenanceField } from '@/lib/inputProvenance/model';
@@ -173,6 +174,7 @@ export const WellSpacingProvider = ({ children, sharingStore = null, profileSyst
   const sharedProjects = useMemo(() => (sharingStore && myId ? projectRows.filter((p) => p.userId && p.userId !== myId) : []), [projectRows, sharingStore, myId]);
 
   const createProject = useCallback(async (name) => {
+    await flush();
     const id = uuidv4();
     try {
       await service.save(id, projectPayload({ id, name, inputs }));
@@ -191,6 +193,7 @@ export const WellSpacingProvider = ({ children, sharingStore = null, profileSyst
   }, [inputs, shared, refresh, addNotification]);
 
   const openProject = useCallback(async (id) => {
+    await flush();
     try {
       const payload = await shared.loadForOpen(id);
       const restored = inputsFromPayload(payload);
@@ -272,22 +275,30 @@ export const WellSpacingProvider = ({ children, sharingStore = null, profileSyst
   }, [shared, projectName, inputs, refresh, openProject, addNotification]);
 
   // debounced autosave (10 s), only once a project is open and hydrated, never read-only
-  const autosaveRef = useRef(null);
-  autosaveRef.current = writeNow;
-  useEffect(() => {
-    if (!currentProjectId || !hydrated || !canWrite) return undefined;
-    const timer = setTimeout(async () => {
+  // Pending edits are also written when the studio unmounts, the page is
+  // hidden, or another project is opened (usePendingSave, Guided Journey 6.4).
+  const { dirty, flush } = usePendingSave({
+    appId: 'well-spacing-optimizer',
+    appName: 'Well Spacing Optimizer',
+    projectName,
+    projectKey: hydrated ? currentProjectId : null,
+    canWrite,
+    changeKey: [inputs],
+    payload: () => serialize(projectName),
+    save: async () => {
       setIsSaving(true);
       try {
-        await autosaveRef.current();
+        return await writeNow();
       } catch (e) {
         setSaveError('Auto-save failed');
+        return false;
       } finally {
         setIsSaving(false);
       }
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, [inputs, currentProjectId, hydrated, canWrite]);
+    },
+    saving: isSaving,
+    savedAt: lastSaveTime,
+  });
 
   const value = {
     inputs,
@@ -326,6 +337,7 @@ export const WellSpacingProvider = ({ children, sharingStore = null, profileSyst
     isSaving,
     saveError,
     lastSaveTime,
+    dirty,
     notifications,
     addNotification,
     removeNotification,

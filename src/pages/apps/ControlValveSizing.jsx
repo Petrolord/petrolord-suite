@@ -64,7 +64,7 @@ const StudioContent = () => {
   );
   const {
     projects, currentProjectId, createProject, openProject, deleteProject,
-    manualSave, isSaving, saveError, lastSaveTime,
+    manualSave, isSaving, saveError, lastSaveTime, dirty,
     notifications, removeNotification,
   } = useValve();
 
@@ -128,7 +128,7 @@ const StudioContent = () => {
           <>
             <StudioAutoSave
               isSaving={isSaving} saveError={saveError}
-              lastSaveTime={lastSaveTime} onSave={manualSave}
+              lastSaveTime={lastSaveTime} onSave={manualSave} dirty={dirty}
             />
             <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp

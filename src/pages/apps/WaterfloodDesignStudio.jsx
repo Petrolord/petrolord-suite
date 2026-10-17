@@ -71,7 +71,7 @@ const WaterfloodDesignContent = () => {
     projects, sharedProjects, currentProjectId, createProject, openProject, deleteProject,
     projectRow, sharing, viewingShared, canWrite, saveCopy,
     unitSystem, setUnitSystem, followsProfile,
-    manualSave, isSaving, saveError, lastSaveTime,
+    manualSave, isSaving, saveError, lastSaveTime, dirty,
     notifications, addNotification, removeNotification,
     setDisplacementField, setDisplacementInputs,
   } = useWaterfloodDesign();
@@ -226,7 +226,7 @@ const WaterfloodDesignContent = () => {
         }
         headerActions={
           <>
-            <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />
+            <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} dirty={dirty} />
             <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Waterflood Design Studio Guide"

@@ -6,6 +6,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
+import { usePendingSave } from '@/lib/activity/usePendingSave';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { analyzeDisplacement, validateKrTable } from '@/utils/fractionalFlowCalculations';
 import { forecastPattern } from '@/utils/patternForecastCalculations';
@@ -422,6 +423,7 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
   }, [addNotification]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openProject = useCallback(async (id) => {
+    await flush();
     try {
       const payload = await shared.loadForOpen(id);
       if (!payload) {
@@ -440,6 +442,7 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
   }, [addNotification, hydrate, shared.loadForOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const createProject = useCallback(async (name) => {
+    await flush();
     const id = uuidv4();
     try {
       await service.save(id, { ...serializeInputs(), id, name });
@@ -511,32 +514,39 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
   }, [projectName, serializeInputs, refreshProjects, openProject, addNotification]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounced autosave (10 s after the last change), only once a project is
-  // open and never while it is open read-only.
-  const autosaveRef = useRef(serializeInputs);
-  autosaveRef.current = serializeInputs;
-  const writeRef = useRef(shared.write);
-  writeRef.current = shared.write;
-  useEffect(() => {
-    if (!currentProjectId || !hydrated || !canWrite) return undefined;
-    const timer = setTimeout(async () => {
+  // open and never while it is open read-only. Pending edits are also written
+  // when the studio unmounts, the page is hidden, or another project is
+  // opened (usePendingSave, Guided Journey 6.4).
+  const { dirty, flush } = usePendingSave({
+    appId: 'fractional-flow-calculator',
+    appName: 'Waterflood Design Studio',
+    projectName,
+    projectKey: hydrated ? currentProjectId : null,
+    canWrite,
+    changeKey: [displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, surveillanceImport, identification, inputMeta, unitSystemSaved, pvtIntake, mcSummary, floodStart, hallWindows, chanWindows],
+    payload: () => serializeInputs(),
+    save: async (payload) => {
       setIsSaving(true);
       try {
-        const res = await writeRef.current(currentProjectId, autosaveRef.current());
+        const res = await shared.write(currentProjectId, payload);
         if (res.ok) {
           setLastSaveTime(new Date());
           setSaveError(null);
         } else if (!res.readOnly) {
           setSaveError('Auto-save failed');
         }
+        return res;
       } catch (e) {
         console.error(e);
         setSaveError('Auto-save failed');
+        return false;
       } finally {
         setIsSaving(false);
       }
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, [displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, surveillanceImport, identification, inputMeta, unitSystemSaved, pvtIntake, mcSummary, floodStart, hallWindows, chanWindows, currentProjectId, hydrated, canWrite]);
+    },
+    saving: isSaving,
+    savedAt: lastSaveTime,
+  });
 
   // ---- Scenarios: named snapshots of all input groups ----
   const saveScenario = useCallback((name) => {
@@ -585,7 +595,7 @@ export const WaterfloodDesignProvider = ({ children, sharingStore = null, profil
     floodStart, setFloodStart,
     hallWindows, setHallWindow,
     chanWindows, setChanWindow,
-    isSaving, saveError, lastSaveTime,
+    isSaving, saveError, lastSaveTime, dirty,
     // inputs
     displacementInputs, setDisplacementField, setDisplacementInputs,
     layers, setLayers,

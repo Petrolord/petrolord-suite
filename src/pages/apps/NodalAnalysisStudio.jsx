@@ -84,6 +84,7 @@ const NodalStudioContent = () => {
     isSaving,
     saveError,
     lastSaveTime,
+    dirty,
     manualSave,
     isScreening,
     loadWellTestSource,
@@ -188,6 +189,7 @@ const NodalStudioContent = () => {
               isSaving={isSaving}
               saveError={saveError}
               lastSaveTime={lastSaveTime}
+              dirty={dirty}
               onSave={manualSave}
               disabled={!currentProjectId}
             />

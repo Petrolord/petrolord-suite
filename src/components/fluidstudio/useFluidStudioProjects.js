@@ -22,6 +22,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
+import { usePendingSave, payloadPrint } from '@/lib/activity/usePendingSave';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { useRecordSharing } from '@/lib/recordSharing/useRecordSharing';
 import { copyName, isRecordConflict } from '@/lib/recordSharing/rules';
@@ -120,6 +121,7 @@ export function useFluidStudioProjects({ inputs, setInputs, extra, sharingStore 
   }, [sharingStore]);
 
   const createProject = useCallback(async (name, payloadInputs = null) => {
+    await flush();
     const id = uuidv4();
     try {
       const payload = payloadFor(id, name);
@@ -141,6 +143,7 @@ export function useFluidStudioProjects({ inputs, setInputs, extra, sharingStore 
   }, [payloadFor, addNotification, listProjects, readRow]);
 
   const openProject = useCallback(async (id) => {
+    await flush();
     try {
       let payload;
       let row = null;
@@ -243,15 +246,23 @@ export function useFluidStudioProjects({ inputs, setInputs, extra, sharingStore 
   }, [projectName, projects, createProject]);
 
   // Debounced autosave (10 s), only once a project is open and hydrated, and
-  // never while the record is open read-only.
-  const autosaveRef = useRef(null);
-  autosaveRef.current = { payload: () => serialize(projectName), write: writeProject };
-  useEffect(() => {
-    if (!currentProjectId || !hydrated || !canWrite) return undefined;
-    const timer = setTimeout(async () => {
+  // never while the record is open read-only. Pending edits are also written
+  // when the studio unmounts, the page is hidden, or another project is
+  // opened or created (usePendingSave, Guided Journey 6.4). An edit is a
+  // change of the inputs (the pvt-1 block beside them is derived from them).
+  const { dirty, flush } = usePendingSave({
+    appId: 'fluid-systems-studio',
+    appName: 'Fluid Systems Studio',
+    projectName,
+    projectKey: hydrated ? currentProjectId : null,
+    canWrite,
+    changeKey: [inputs],
+    payload: () => serialize(projectName),
+    print: (p) => payloadPrint(p?.inputs),
+    save: async (payload) => {
       setIsSaving(true);
       try {
-        const res = await autosaveRef.current.write(autosaveRef.current.payload());
+        const res = await writeProject(payload);
         if (res.ok) {
           setLastSaveTime(new Date());
           setSaveError(null);
@@ -259,15 +270,18 @@ export function useFluidStudioProjects({ inputs, setInputs, extra, sharingStore 
           setSaveError('Auto-save failed');
           addNotification(res.message, 'error');
         }
+        return res;
       } catch (e) {
         console.error(e);
         setSaveError('Auto-save failed');
+        return false;
       } finally {
         setIsSaving(false);
       }
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, [inputs, currentProjectId, hydrated, canWrite, addNotification]);
+    },
+    saving: isSaving,
+    savedAt: lastSaveTime,
+  });
 
   return {
     projects: sharingStore ? ownProjects : projects,
@@ -285,6 +299,7 @@ export function useFluidStudioProjects({ inputs, setInputs, extra, sharingStore 
     isSaving,
     saveError,
     lastSaveTime,
+    dirty,
     notifications,
     addNotification,
     removeNotification,

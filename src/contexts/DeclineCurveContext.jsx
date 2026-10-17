@@ -8,6 +8,7 @@ import {
   saveProject, loadProject, listProjects, deleteProject as deleteProjectRow, service as dcaService,
   migrateLegacyLocalProjects,
 } from '@/utils/declineCurve/dcaDataPersistence';
+import { usePendingSave } from '@/lib/activity/usePendingSave';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { getErrorMessage } from '@/utils/declineCurve/dcaErrorHandling';
 import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjects';
@@ -176,14 +177,21 @@ export const DeclineCurveProvider = ({ children, sharingStore = null }) => {
   });
 
   // Auto-Save: never while the project is open read-only (a colleague's,
-  // or shared for editing and not checked out by me)
-  useEffect(() => {
-    if (!currentProjectId || !canWrite) return;
-    
-    const saveTimer = setTimeout(async () => {
+  // or shared for editing and not checked out by me). Pending edits are also
+  // written when the studio unmounts, the page is hidden, or another project
+  // is opened (usePendingSave, Guided Journey 6.4).
+  const { dirty, flush } = usePendingSave({
+    appId: 'decline-curve-analysis',
+    appName: 'Decline Curve Analysis',
+    projectName: currentProject?.name || '',
+    projectKey: currentProjectId,
+    canWrite,
+    changeKey: [wells, scenarios, typeCurves, wellGroups, dataQuality],
+    payload: () => projectPayload(),
+    save: async (payload) => {
       setIsSaving(true);
       try {
-        const res = await shared.write(currentProjectId, projectPayload());
+        const res = await shared.write(currentProjectId, payload);
         if (res.ok) {
           setLastSaveTime(new Date());
           setSaveError(null);
@@ -191,16 +199,18 @@ export const DeclineCurveProvider = ({ children, sharingStore = null }) => {
           setSaveError('Auto-save failed');
           addNotification(res.message, 'error');
         }
+        return res;
       } catch (err) {
         setSaveError("Auto-save failed");
         console.error(err);
+        return false;
       } finally {
         setIsSaving(false);
       }
-    }, 10000);
-
-    return () => clearTimeout(saveTimer);
-  }, [wells, scenarios, typeCurves, wellGroups, dataQuality, currentProjectId, canWrite]); // eslint-disable-line react-hooks/exhaustive-deps
+    },
+    saving: isSaving,
+    savedAt: lastSaveTime,
+  });
 
   const manualSave = async () => {
     if (!currentProjectId) return false;
@@ -240,6 +250,7 @@ export const DeclineCurveProvider = ({ children, sharingStore = null }) => {
   };
 
   const createProject = async (name) => {
+    await flush();
     const newProject = { id: uuidv4(), name, createdAt: new Date().toISOString(), wellIds: [] };
     try {
       await persistence.save(newProject.id, { id: newProject.id, name, payloadVersion: DCA_PAYLOAD_VERSION, wells: {}, scenarios: [], typeCurves: [], wellGroups: [] });
@@ -310,6 +321,7 @@ export const DeclineCurveProvider = ({ children, sharingStore = null }) => {
   };
 
   const openProject = async (id) => {
+    await flush();
     setIsSaving(true);
     try {
       const raw = await shared.loadForOpen(id);
@@ -866,6 +878,7 @@ export const DeclineCurveProvider = ({ children, sharingStore = null }) => {
     isSaving,
     saveError,
     lastSaveTime,
+    dirty,
     
     // Actions
     setCurrentProjectId, // FIXED: Added missing export

@@ -10,10 +10,11 @@
 // type. The insulation sweep is a march per U value, so it is an
 // explicit run with a stale flag.
 import React, {
-  createContext, useContext, useCallback, useEffect, useMemo, useRef, useState,
+  createContext, useContext, useCallback, useEffect, useMemo, useState,
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
+import { usePendingSave } from '@/lib/activity/usePendingSave';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import * as spine from '@/lib/productionSpine';
 import { num } from '@/utils/nodal/numerics';
@@ -331,6 +332,7 @@ export const FlowAssuranceProvider = ({ children }) => {
   }, [addNotification]);
 
   const createProject = useCallback(async (name) => {
+    await flush();
     const id = uuidv4();
     try {
       await service.save(id, { id, name, schema: 1, inputs, modified: new Date().toISOString() });
@@ -348,6 +350,7 @@ export const FlowAssuranceProvider = ({ children }) => {
   }, [inputs, addNotification]);
 
   const openProject = useCallback(async (id) => {
+    await flush();
     try {
       const payload = await service.load(id);
       const restored = inputsFromPayload(payload);
@@ -402,25 +405,34 @@ export const FlowAssuranceProvider = ({ children }) => {
     }
   }, [currentProjectId, projectName, serialize, addNotification]);
 
-  const autosaveRef = useRef(null);
-  autosaveRef.current = () => serialize(projectName);
-  useEffect(() => {
-    if (!currentProjectId || !hydrated) return undefined;
-    const timer = setTimeout(async () => {
+  // Autosave 10 s after the last edit; pending edits are also written when
+  // the studio unmounts, the page is hidden, or another one is opened
+  // (usePendingSave, Guided Journey 6.4).
+  const { dirty, flush } = usePendingSave({
+    appId: 'flow-assurance-studio',
+    appName: 'Flow Assurance Studio',
+    projectName,
+    projectKey: hydrated ? currentProjectId : null,
+    changeKey: [inputs],
+    payload: () => serialize(projectName),
+    save: async (payload) => {
       setIsSaving(true);
       try {
-        await service.save(currentProjectId, autosaveRef.current());
+        await service.save(currentProjectId, payload);
         setLastSaveTime(new Date());
         setSaveError(null);
+        return true;
       } catch (e) {
         console.error(e);
         setSaveError('Auto-save failed');
+        return false;
       } finally {
         setIsSaving(false);
       }
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, [inputs, currentProjectId, hydrated]);
+    },
+    saving: isSaving,
+    savedAt: lastSaveTime,
+  });
 
   const value = {
     inputs,
@@ -463,6 +475,7 @@ export const FlowAssuranceProvider = ({ children }) => {
     isSaving,
     saveError,
     lastSaveTime,
+    dirty,
     // notifications
     notifications,
     addNotification,
