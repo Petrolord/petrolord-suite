@@ -20,7 +20,9 @@
 import { isNull } from '@/lib/gridding/gridmath';
 import { buildLabel } from '@/lib/platformBuild';
 
-const fmt = (v) => (Number.isInteger(v) ? String(v) : Number(v).toFixed(4).replace(/0+$/, '').replace(/\.$/, ''));
+// four decimals, trailing zeros dropped (the 3D grid's 1 M cells made toFixed and a
+// regular expression per corner the slowest part of the export)
+const fmt = (v) => (Number.isInteger(v) ? String(v) : String(Math.round(v * 1e4) / 1e4));
 
 /** "n*v" runs for repeated values; lines of at most 8 tokens. */
 export function packValues(values) {
@@ -68,7 +70,9 @@ export function grdeclText(built, { name = 'earth-model', now = new Date(), buil
     }
   }
   // ZCORN and the cell properties
-  const zc = [];
+  // 8 corners per cell; filled in Eclipse order below
+  const zc = new Float64Array(8 * NX * NY * NZ);
+  let zn = 0;
   const actnum = []; const poro = []; const ntg = []; const swat = []; const permx = [];
   const hasPerm = cellLayers.every((L) => L.props?.perm);
   const corner = (g, i, j) => g[node(i, j)];
@@ -80,7 +84,7 @@ export function grdeclText(built, { name = 'earth-model', now = new Date(), buil
           for (let i = 0; i < NX; i++) {
             for (const ii of [i, i + 1]) {
               const v = corner(face, ii, jj);
-              zc.push(isNull(v) ? zMax : v);
+              zc[zn++] = isNull(v) ? zMax : v;
             }
           }
         }
@@ -115,7 +119,11 @@ export function grdeclText(built, { name = 'earth-model', now = new Date(), buil
   }
   const active = actnum.reduce((a, b) => a + b, 0);
   const zcLines = [];
-  for (let q = 0; q < zc.length; q += 6) zcLines.push(`  ${zc.slice(q, q + 6).map(fmt).join(' ')}`);
+  for (let q = 0; q < zn; q += 6) {
+    let line = ' ';
+    for (let r = q; r < q + 6 && r < zn; r++) line += ` ${fmt(zc[r])}`;
+    zcLines.push(line);
+  }
   const header = [
     `-- ${name}: corner-point grid from Petrolord Earth Modeling`,
     `-- ${build}; written ${now.toISOString().slice(0, 10)}`,

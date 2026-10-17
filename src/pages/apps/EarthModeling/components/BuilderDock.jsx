@@ -12,6 +12,7 @@ import { DERIVED_KINDS, describeDerived } from '../services/derivedSurfaces';
 import { POPULATION_METHODS, parseFluidsInput, BG_UNITS, MAX_LAYERS } from '../services/modelBuild';
 import { VARIOGRAM_MODELS } from '../services/propertyKriging';
 import { mapKind } from '../services/propertyMaps';
+import { LAYER_FT_OPTIONS, LAYERING_STYLES } from '../services/grid3d/layering';
 
 const selCls = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
 const inCls = selCls;
@@ -83,6 +84,38 @@ export default function BuilderDock({
             {boundaries.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
         </div>
+        <div className="flex items-center gap-1">
+          <span className="w-24 text-pl-muted">edge</span>
+          <select className={selCls} data-testid="em-frame-edge" value={definition.frame?.edge === 'smooth' ? 'smooth' : 'nodes'}
+            title="Smooth: the model ends at the data limit traced halfway past the last mapped node, so a fine cell keeps the map's area and the edge has no steps. Node cells: each mapped node of the top surface is one whole cell (earlier releases)."
+            onChange={(e) => patch({ frame: { ...(definition.frame || {}), edge: e.target.value } })}>
+            <option value="smooth">smooth (traced data limit)</option>
+            <option value="nodes">node cells (stepped)</option>
+          </select>
+        </div>
+
+        <div className={secCls}>3D grid</div>
+        <label className="flex items-center gap-1 text-pl-muted" title="Cut every zone into thin layers of cells, so properties vary down the zone as well as across it">
+          <input type="checkbox" data-testid="em-grid-on" checked={!!definition.grid?.enabled}
+            onChange={(e) => patch({ grid: { ...(definition.grid || {}), enabled: e.target.checked } })} />
+          fine 3D grid (layers of cells in every zone)
+        </label>
+        {definition.grid?.enabled && (
+          <div className="grid grid-cols-2 gap-1" data-testid="em-grid-settings">
+            <label className="flex items-center gap-1 text-pl-muted">layers
+              <select className={selCls} data-testid="em-grid-layer" value={String(definition.grid?.layerFt ?? 2.5)}
+                title="Layer thickness in feet"
+                onChange={(e) => patch({ grid: { ...(definition.grid || {}), layerFt: Number(e.target.value) } })}>
+                {LAYER_FT_OPTIONS.map((v) => <option key={v} value={String(v)}>{v} ft</option>)}
+              </select>
+            </label>
+            <select className={selCls} data-testid="em-grid-style" value={definition.grid?.style || 'proportional'}
+              title="Proportional: the same number of layers everywhere, thinning with the zone. Follow top: layers of this thickness hung from the zone top, cut by the base. Follow base: stacked up from the base, cut by the top (onlap)."
+              onChange={(e) => patch({ grid: { ...(definition.grid || {}), style: e.target.value } })}>
+              {LAYERING_STYLES.map((st) => <option key={st.key} value={st.key}>{st.label}</option>)}
+            </select>
+          </div>
+        )}
 
         <div className={secCls}>Tie tops (per stacked surface)</div>
         {stackRows.map((s, i) => (
@@ -157,6 +190,25 @@ export default function BuilderDock({
         </div>
 
         <div className={secCls}>Zones (between consecutive surfaces)</div>
+        <div className="space-y-1 rounded border border-pl-border p-1.5" data-testid="em-cap">
+          <label className="flex items-center gap-1 text-pl-muted" title="A slab of the seal above the top surface, parallel to it, modelled as a zone of its own (the cap rock over the reservoir)">
+            <input type="checkbox" data-testid="em-cap-on" checked={!!definition.cap?.on}
+              onChange={(e) => patch({ cap: { ...(definition.cap || {}), on: e.target.checked, unit: definition.cap?.unit || depthUnit } })} />
+            cap above the top surface
+          </label>
+          {definition.cap?.on && (
+            <div className="grid grid-cols-2 gap-1">
+              <input className={inCls} data-testid="em-cap-name" value={definition.cap?.name ?? 'Cap'} placeholder="name"
+                onChange={(e) => patch({ cap: { ...(definition.cap || {}), name: e.target.value } })} />
+              <label className="flex items-center gap-1 text-pl-muted">
+                <input className={inCls} data-testid="em-cap-thickness" type="number" min="1" step="any" value={definition.cap?.thickness ?? '50'}
+                  title="Cap thickness above the top surface"
+                  onChange={(e) => patch({ cap: { ...(definition.cap || {}), thickness: e.target.value, unit: depthUnit } })} />
+                {definition.cap?.unit || depthUnit}
+              </label>
+            </div>
+          )}
+        </div>
         {definition.zones.map((z, i) => (
           <div key={i} className="flex items-center gap-1">
             <input className={inCls} value={z.name} data-testid={`em-zone-name-${i}`}
@@ -166,12 +218,38 @@ export default function BuilderDock({
               <option value="">registry zone…</option>
               {zoneNames.map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
-            <input className="w-12 shrink-0 rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs" type="number" min="1" max={MAX_LAYERS} step="1" data-testid={`em-layers-${i}`}
-              value={z.layers ?? 1} title="Proportional layers in the zone: each layer gets its own properties from the wells, and the volumes add up layer by layer"
-              onChange={(e) => patchZone(i, { layers: e.target.value })} />
+            {!definition.grid?.enabled && (
+              <input className="w-12 shrink-0 rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs" type="number" min="1" max={MAX_LAYERS} step="1" data-testid={`em-layers-${i}`}
+                value={z.layers ?? 1} title="Proportional layers in the zone: each layer gets its own properties from the wells, and the volumes add up layer by layer"
+                onChange={(e) => patchZone(i, { layers: e.target.value })} />
+            )}
           </div>
         ))}
-        {definition.zones.length > 0 && <p className="text-[10px] text-pl-muted">The number after each zone is its proportional layers (1 = the zone as one layer).</p>}
+        {definition.zones.map((z, i) => {
+          // tops picked between the zone's two tie tops can split it
+          const tTop = definition.topNames[i]; const tBase = definition.topNames[i + 1];
+          const a = topNames.indexOf(tTop); const b = topNames.indexOf(tBase);
+          const inside = a >= 0 && b > a ? topNames.slice(a + 1, b) : [];
+          if (!inside.length) return null;
+          const chosen = z.splitTops || [];
+          const toggle = (t) => {
+            const next = chosen.includes(t) ? chosen.filter((x) => x !== t) : [...chosen, t];
+            patchZone(i, { splitTops: next.sort((x, y) => topNames.indexOf(x) - topNames.indexOf(y)) });
+          };
+          return (
+            <div key={`split-${i}`} className="rounded border border-pl-border p-1.5 space-y-0.5" data-testid={`em-split-${i}`}
+              title="Cut the zone at well tops picked inside it: each top's place in the zone at the wells is interpolated between them, so the new zones follow the stacked surfaces">
+              <div className="text-[10px] text-pl-muted">{z.name}: split at the well tops</div>
+              {inside.map((t) => (
+                <label key={t} className="flex items-center gap-1 text-pl-text">
+                  <input type="checkbox" data-testid={`em-split-${i}-${t}`} checked={chosen.includes(t)} onChange={() => toggle(t)} /> {t}
+                </label>
+              ))}
+              {chosen.length > 0 && <div className="text-[10px] text-pl-muted" data-testid={`em-split-names-${i}`}>makes {chosen.length === 2 ? `${z.name} Upper, Middle and Lower` : chosen.length === 1 ? `${z.name} Upper and Lower` : `${chosen.length + 1} zones`}</div>}
+            </div>
+          );
+        })}
+        {definition.zones.length > 0 && !definition.grid?.enabled && <p className="text-[10px] text-pl-muted">The number after each zone is its proportional layers (1 = the zone as one layer).</p>}
 
         <div className={secCls}>Fluid contacts and FVF (per zone)</div>
         <label className="flex items-center gap-1 text-pl-muted" title="The unit Bg is typed in from now on; values already typed keep the unit they were typed in">
@@ -274,6 +352,21 @@ export default function BuilderDock({
           </div>
         ))}
         <p className="text-[10px] text-pl-muted">Per fault block; short blocks fall back kriging to trend to constant (recorded in QC).</p>
+        {definition.methods.phi === 'sgs' && (
+          <div className="space-y-1 rounded border border-pl-border p-1.5" data-testid="em-sgs">
+            <div className="text-[10px] text-pl-muted">Sequential Gaussian simulation of porosity over each zone: honours the upscaled wells, reproduces their histogram and this variogram. One seed gives one realisation.</div>
+            <div className="grid grid-cols-2 gap-1">
+              <label className="flex items-center gap-1 text-pl-muted">seed
+                <input className={inCls} data-testid="em-sgs-seed" value={definition.sgs?.seed ?? '2026'} onChange={(e) => patch({ sgs: { ...(definition.sgs || {}), seed: e.target.value } })} /></label>
+              <label className="flex items-center gap-1 text-pl-muted">nugget
+                <input className={inCls} data-testid="em-sgs-nugget" value={definition.sgs?.nugget ?? '0.1'} title="Nugget as a fraction of the sill" onChange={(e) => patch({ sgs: { ...(definition.sgs || {}), nugget: e.target.value } })} /></label>
+              <label className="flex items-center gap-1 text-pl-muted">across
+                <input className={inCls} data-testid="em-sgs-range" value={definition.sgs?.rangeM ?? ''} placeholder={String(definition.krige?.range ?? 900)} title="Range across the layers in metres (blank: the variogram range)" onChange={(e) => patch({ sgs: { ...(definition.sgs || {}), rangeM: e.target.value } })} />m</label>
+              <label className="flex items-center gap-1 text-pl-muted">down
+                <input className={inCls} data-testid="em-sgs-vrange" value={definition.sgs?.rangeVFt ?? '10'} title="Range down the layers in feet" onChange={(e) => patch({ sgs: { ...(definition.sgs || {}), rangeVFt: e.target.value } })} />ft</label>
+            </div>
+          </div>
+        )}
         {Object.values(definition.methods).includes('idw') && (
           <label className="flex items-center gap-1 text-pl-muted" title="Weights fall as one over the distance to this power">
             <span className="w-24">IDW power</span>

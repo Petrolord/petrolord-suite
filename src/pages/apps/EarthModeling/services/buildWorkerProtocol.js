@@ -24,6 +24,22 @@ import { buildModel, BuildCancelled } from './modelBuild';
 export const WORKER_BACKEND_METHODS = Object.freeze(['downloadSurfaceGrid', 'listBoundaries']);
 
 /**
+ * Every typed array buffer in a built model, once each (3D grid upgrade): a
+ * 1 M cell model is moved to the page instead of copied.
+ */
+export function transferables(obj) {
+  const seen = new Set();
+  const walk = (v, depth) => {
+    if (!v || typeof v !== 'object' || depth > 8) return;
+    if (ArrayBuffer.isView(v)) { if (v.buffer instanceof ArrayBuffer) seen.add(v.buffer); return; }
+    if (Array.isArray(v)) { for (const x of v) walk(x, depth + 1); return; }
+    for (const x of Object.values(v)) walk(x, depth + 1);
+  };
+  walk(obj, 0);
+  return [...seen];
+}
+
+/**
  * Worker side: returns the onmessage handler.
  * @param {(msg: object) => void} post
  */
@@ -50,7 +66,7 @@ export function serveBuild(post, { build = buildModel } = {}) {
       const built = await build(data.definition, data.wells, data.surfaces, backend, {
         onProgress: (p) => post({ type: 'progress', ...p }),
       });
-      post({ type: 'done', built });
+      post({ type: 'done', built }, transferables(built));
     } catch (e) {
       post({ type: 'error', message: e?.message || String(e) });
     }

@@ -25,6 +25,7 @@
 // them in plain arrays (the build runs on a worker).
 
 import { minCurvature, positionAtMd } from '../engine/wellties';
+import { layerAtDepth, layerMidDepth } from './grid3d/layering';
 
 /** The curves the model reads, by mnemonic, latest row of each first. */
 export const LOG_KEYS = Object.freeze({
@@ -32,6 +33,8 @@ export const LOG_KEYS = Object.freeze({
   sw: ['SW', 'SWE'],
   vsh: ['VSH', 'VCL'],
   perm: ['KPERM', 'PERM', 'K'],
+  // 3D grid upgrade: the rock-physics facies code (Ekene-1 to Ekene-4 carry RP_FACIES)
+  facies: ['RP_FACIES', 'FACIES', 'LITHOFACIES'],
 });
 
 /** Default net reservoir cutoffs (Petrophysics Studio's own defaults). */
@@ -96,9 +99,12 @@ export async function resolveLogCurves(wells, backend, cache = new Map()) {
  * @param {number} [p.layers] proportional layers in the zone (>= 1)
  * @param {{vsh:number, phi:number}} [p.cutoffs]
  * @param {number|null} [p.owcM] the zone OWC at the well, TVDSS m positive down
- * @returns {Array<{layer, x, y, tvdss, grossM, netM, ntg, phi, sw, perm, samples, hcSamples}>}
+ * @param {{layerM: number, style: string}|null} [p.layering] the 3D grid's layering (follow top, follow
+ *   base or proportional at a layer thickness); null keeps proportional layers
+ * @returns {Array<{layer, x, y, tvdss, grossM, netM, ntg, phi, sw, perm, vsh, facies, samples, hcSamples}>}
+ *   vsh is the thickness-weighted mean over the gross interval, facies the code that fills the most of it
  */
-export function upscaleZoneAtWell({ traj, topMd, baseMd, curves, layers = 1, cutoffs = DEFAULT_CUTOFFS, owcM = null }) {
+export function upscaleZoneAtWell({ traj, topMd, baseMd, curves, layers = 1, cutoffs = DEFAULT_CUTOFFS, owcM = null, layering = null }) {
   const n = Math.max(1, Math.floor(Number(layers) || 1));
   if (!(baseMd > topMd)) return [];
   const path = extendTrajectory(traj, baseMd + 50);
@@ -113,7 +119,10 @@ export function upscaleZoneAtWell({ traj, topMd, baseMd, curves, layers = 1, cut
     const i = Math.round((md - c.start) / c.step);
     return i >= 0 && i < c.values.length ? c.values[i] : NaN;
   };
-  const acc = Array.from({ length: n }, () => ({ g: 0, net: 0, phiH: 0, pv: 0, pvSw: 0, lnk: 0, kH: 0, samples: 0, hc: 0 }));
+  const acc = Array.from({ length: n }, () => ({ g: 0, net: 0, phiH: 0, pv: 0, pvSw: 0, lnk: 0, kH: 0, samples: 0, hc: 0, vshH: 0, vshG: 0, fac: new Map(), phiG: 0, phiGH: 0 }));
+  const layerOf = layering
+    ? (z) => layerAtDepth(z, top.tvdss, base.tvdss, n, layering.layerM, layering.style)
+    : (z) => Math.min(n - 1, Math.max(0, Math.floor(((z - top.tvdss) / span) * n)));
   const step = ref.step;
   // every sample stands for [md - step/2, md + step/2], clipped to the zone,
   // so the thicknesses add up to the zone exactly
@@ -128,12 +137,15 @@ export function upscaleZoneAtWell({ traj, topMd, baseMd, curves, layers = 1, cut
     const b = positionAtMd(path, hi).tvdss;
     const h = Math.max(0, b - a);
     const z = positionAtMd(path, (lo + hi) / 2).tvdss;
-    const f = (z - top.tvdss) / span;
-    const k = Math.min(n - 1, Math.max(0, Math.floor(f * n)));
+    const k = layerOf(z);
     const L = acc[k];
     L.g += h;
     L.samples += 1;
     const phi = at(curves.phi, md); const vsh = at(curves.vsh, md);
+    if (!NULLISH(vsh)) { L.vshH += h * Math.min(1, Math.max(0, vsh)); L.vshG += h; }
+    if (!NULLISH(phi)) { L.phiGH += h * phi; L.phiG += h; }
+    const fc = at(curves.facies, md);
+    if (!NULLISH(fc)) { const code = Math.round(fc); L.fac.set(code, (L.fac.get(code) || 0) + h); }
     if (NULLISH(phi) || NULLISH(vsh)) continue;
     if (!(vsh <= cutoffs.vsh && phi >= cutoffs.phi)) continue;
     L.net += h;
@@ -146,7 +158,10 @@ export function upscaleZoneAtWell({ traj, topMd, baseMd, curves, layers = 1, cut
     if (!NULLISH(kv) && kv > 0) { L.lnk += h * Math.log(kv); L.kH += h; }
   }
   return acc.map((L, k) => {
-    const mid = positionAtMd(path, mdAtTvdss(path, topMd, baseMd, top.tvdss + span * (k + 0.5) / n));
+    const midZ = layering ? layerMidDepth(k, top.tvdss, base.tvdss, n, layering.layerM, layering.style) : top.tvdss + span * (k + 0.5) / n;
+    const mid = positionAtMd(path, mdAtTvdss(path, topMd, baseMd, midZ));
+    let facies = null; let best = -1;
+    for (const [code, hh] of L.fac) if (hh > best) { best = hh; facies = code; }
     return {
       layer: k,
       x: mid.x, y: mid.y, tvdss: mid.tvdss,
@@ -155,6 +170,9 @@ export function upscaleZoneAtWell({ traj, topMd, baseMd, curves, layers = 1, cut
       phi: L.net > 0 ? L.phiH / L.net : null,
       sw: L.pv > 0 ? L.pvSw / L.pv : null,
       perm: L.kH > 0 ? Math.exp(L.lnk / L.kH) : null,
+      vsh: L.vshG > 0 ? L.vshH / L.vshG : null,
+      phiGross: L.phiG > 0 ? L.phiGH / L.phiG : null,
+      facies,
       samples: L.samples, hcSamples: L.hc,
     };
   });
@@ -197,12 +215,14 @@ export function mdAtTvdss(traj, mdA, mdB, tvdss) {
  * @returns {{layers: Array<{phi: Array, sw: Array, ntg: Array, perm: Array}>, rows: Array}} control
  *   points per layer and property ({well, x, y, v, w}) and one row per well and layer for QC
  */
-export function zoneLogControl(wells, curvesByWell, zone, { layers = 1, cutoffs = DEFAULT_CUTOFFS, owcM = null, owcAt = null } = {}) {
+export function zoneLogControl(wells, curvesByWell, zone, { layers = 1, cutoffs = DEFAULT_CUTOFFS, owcM = null, owcAt = null, layering = null, grossFill = false } = {}) {
   const n = Math.max(1, Math.floor(Number(layers) || 1));
-  const out = Array.from({ length: n }, () => ({ phi: [], sw: [], ntg: [], perm: [] }));
+  const KEYS = ['phi', 'sw', 'ntg', 'perm', 'vsh', 'facies'];
+  const empty = () => Object.fromEntries(KEYS.map((k) => [k, []]));
+  const out = Array.from({ length: n }, empty);
   // the zone as one layer: the fallback of a layer no well can speak for
   // (a deep layer wholly below the OWC in every well has no Sw)
-  const whole = { phi: [], sw: [], ntg: [], perm: [] };
+  const whole = empty();
   const rows = [];
   for (const w of wells) {
     const curves = curvesByWell?.[w.name];
@@ -211,7 +231,12 @@ export function zoneLogControl(wells, curvesByWell, zone, { layers = 1, cutoffs 
     let topMd = zone.topName ? pick(zone.topName) : undefined;
     let baseMd = zone.baseName ? pick(zone.baseName) : undefined;
     let source = 'tie tops';
-    if (!(Number.isFinite(topMd) && Number.isFinite(baseMd) && baseMd > topMd)) {
+    // the 3D grid's cap: an interval the zone defines at each well (a slab above the top pick)
+    if (zone.intervalAt) {
+      const iv = zone.intervalAt(w);
+      topMd = iv?.topMd; baseMd = iv?.baseMd; source = iv?.source || 'cap';
+    }
+    if (!(Number.isFinite(topMd) && Number.isFinite(baseMd) && baseMd > topMd) && !zone.intervalAt) {
       const rz = (w.zones || []).find((z) => z.name === zone.registryZone);
       topMd = rz?.top_md_m; baseMd = rz?.base_md_m; source = 'registry zone';
     }
@@ -219,17 +244,22 @@ export function zoneLogControl(wells, curvesByWell, zone, { layers = 1, cutoffs 
     const traj = extendTrajectory(minCurvature(w.deviation, w.kb_m, w.x, w.y), baseMd + 50);
     const mid = positionAtMd(traj, (topMd + baseMd) / 2);
     const owc = owcAt ? owcAt(mid.x, mid.y) : owcM;
-    const ups = upscaleZoneAtWell({ traj, topMd, baseMd, curves, layers: n, cutoffs, owcM: Number.isFinite(owc) ? owc : null });
+    const ups = upscaleZoneAtWell({ traj, topMd, baseMd, curves, layers: n, cutoffs, owcM: Number.isFinite(owc) ? owc : null, layering });
     for (const u of ups) {
+      // a follow-top or follow-base layer the zone truncates at this well holds no log
+      if (!(u.grossM > 0)) continue;
+      // a non-reservoir interval (the cap): porosity over the gross rock, and water
+      if (grossFill && u.phi === null) u.phi = u.phiGross;
+      if (grossFill && u.sw === null && !(u.netM > 0)) u.sw = 1;
       const wgt = Math.max(u.grossM, 1e-6);
-      for (const k of ['phi', 'sw', 'ntg', 'perm']) {
+      for (const k of KEYS) {
         if (Number.isFinite(u[k])) out[u.layer][k].push({ well: w.name, x: u.x, y: u.y, v: k === 'perm' ? Math.log10(u[k]) : u[k], w: wgt });
       }
-      rows.push({ well: w.name, layer: u.layer, source, topMd, baseMd, grossM: u.grossM, netM: u.netM, ntg: u.ntg, phi: u.phi, sw: u.sw, perm: u.perm, x: u.x, y: u.y });
+      rows.push({ well: w.name, layer: u.layer, source, topMd, baseMd, grossM: u.grossM, netM: u.netM, ntg: u.ntg, phi: u.phi, sw: u.sw, perm: u.perm, vsh: u.vsh, facies: u.facies, x: u.x, y: u.y, tvdss: u.tvdss });
     }
     if (n > 1) {
       const [z] = upscaleZoneAtWell({ traj, topMd, baseMd, curves, layers: 1, cutoffs, owcM: Number.isFinite(owc) ? owc : null });
-      if (z) for (const k of ['phi', 'sw', 'ntg', 'perm']) if (Number.isFinite(z[k])) whole[k].push({ well: w.name, x: z.x, y: z.y, v: k === 'perm' ? Math.log10(z[k]) : z[k], w: Math.max(z.grossM, 1e-6) });
+      if (z) for (const k of KEYS) if (Number.isFinite(z[k])) whole[k].push({ well: w.name, x: z.x, y: z.y, v: k === 'perm' ? Math.log10(z[k]) : z[k], w: Math.max(z.grossM, 1e-6) });
     }
   }
   return { layers: out, zone: n > 1 ? whole : out[0], rows };

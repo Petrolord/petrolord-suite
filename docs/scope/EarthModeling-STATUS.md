@@ -327,3 +327,52 @@ The section opens at VE "fit" (the window's height; the Ekene Sand, 106 ft over
 the zones by porosity, Sw, NTG or permeability (layers as bands, colour bar);
 each zone's OWC and GOC are drawn dashed where the zone crosses them; the line
 length reads in feet in a feet session. Tests: `__tests__/sectionFit.test.js`.
+
+## 2026-10-17: the fine 3D grid (owner GO 2026-10-17), PR 1 of 4: the engine
+
+Owner decisions: 25 m cells by default; 2.5 ft layers (2 or 3 ft) with
+proportional, follow-top and follow-base layering; Ekene Sand Upper, Middle and
+Lower from well tops plus the shale above as a cap; porosity by sequential
+Gaussian simulation (seeded), kriging kept. Code in `services/grid3d/`.
+
+- **New models start on the grid** (`newModelDefinition`: cell 25 m, smooth
+  edge, 2.5 ft proportional, porosity SGS). `emptyDefinition` and saved rows
+  stay the layer-cake (grid off), so saved models, goldens and the dev harness
+  keep their numbers; the harness opts in with `?grid=1`.
+- **Layering** (`layering.js`): each zone's horizons in one buffer, layers as
+  views; proportional n = mean thickness / layer, follow top/base n = max
+  thickness / layer with truncated cells. Logs upscale into the same layer rule
+  (`logUpscale.js`, plus VSH as a gross mean and RP_FACIES as the dominant code).
+- **Smooth edge** (`boundary.js`): the frame grows by half the top surface's
+  cell; each surface is extrapolated one ring and kept where its bilinear live
+  mask is at least 0.5, so the model ends on the traced data limit (no steps)
+  and a fine cell keeps the map's area. `built.outline` holds the traced rings.
+- **Zones from tops and the cap** (`zonesFromTops.js`): a zone's `splitTops`
+  cut it at the fraction of the zone each top sits at in the wells (inverse
+  distance between wells, held in order); two tops make Upper, Middle, Lower.
+  The cap is a slab of typed thickness (50 ft default) above the top surface;
+  the Ogbia Shale is ~850 ft, so a slab rather than the whole seal. A sub-zone
+  with no control borrows its parent's upscaled values; the cap uses gross
+  porosity, Sw 1 and 0.001 md.
+- **SGS** (`sgs.js`, GSLIB-style): normal scores, multiple-grid random path,
+  simple kriging from 12 simulated cells and 4 data cells, spherical 900 m
+  across and 10 ft down, nugget 0.1, mulberry32 seed. Validation
+  (`__tests__/sgs.test.js`): 8 unconditional realisations reproduce the
+  variogram within 0.12 at every lag (both directions and vertically), the
+  histogram P10/P50/P90 within 0.01; negative control (no neighbours) fails
+  the gate. Permeability follows SGS porosity through the wells' log-linear
+  phi-k transform; Vsh by inverse distance (shown only).
+- **Facies** (our call): indicator inverse distance of the upscaled RP_FACIES
+  codes, the most likely code (0 shale, 1 oil sand, 2 brine sand, 3 shaly sand).
+- **Reconciliation** (`__tests__/gridBuild.test.js`): the RCP booked case on
+  the six-well maps is 12.14 MMstb on the old frame and 12.09 MMstb on the
+  25 m x 2.5 ft grid, GRV, HC area and STOIIP within the stated 1 percent;
+  negative control: without the smooth edge the 25 m grid loses ~10 percent.
+  On the old frame, layers add up to the old volumes (rock 1e-12, pore 1e-6:
+  grid properties are float32).
+- **Ekene sizes**: six-well maps with the cap and three zones 195,810 cells
+  (100 x 80 x 61), ~8 s in the browser; the Seismolord depth maps (201 x 177)
+  1.35 M cells, ~45 s on the worker. Worker results move as transferred buffers.
+- **Demo data** (additive): tops "Ekene Sand Middle" and "Ekene Sand Lower" on
+  Ekene-1, -2, -3, -4, -8, -9 at the GR peaks of the two shale breaks
+  (interpreter "Earth Modeling demo").
