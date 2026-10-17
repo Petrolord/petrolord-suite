@@ -1,36 +1,44 @@
-// Earth Modelling with Petrolord, Lesson A3: zones, contacts and the volume
-// table. With no contact the whole zone counts; the OWC and Bo; bulk against
-// the rock above the contact and the area with oil; the open edge; bounding
-// the leg by the closure and spill.
-import { login, expectText, openEm, stackEkene, fluids, build, t, vol, emLessonMeta } from './em-common.mjs';
+// Earth Modelling with Petrolord, Lesson A3: zones, contacts and the volumes
+// (3D grid upgrade, 2026-10-17). Zones from the well tops and the cap; the
+// contact typed per zone; the volumes by zone and the Details table (bulk
+// against rock above the contact and HC area); the contact as a plane in 3D,
+// the fluid zone of every cell and the contact lines on the map; the open edge.
+import {
+  login, expectText, openEm, stackEkene, zonesAndCap, fluids, build, results, grid3d, t, zvol, emLessonMeta,
+} from './em-common.mjs';
 
 export default {
   id: 'lesson-em-a3',
-  ...emLessonMeta(3, 'A', 'Zones, contacts and *the volume table*', 'The OWC, rock above the contact, the area with oil and the open edge'),
+  ...emLessonMeta(3, 'A', 'Zones, contacts and *the volumes*', 'Zones from the well tops, the cap, the contact in 3D and on the maps, and the volume of each zone'),
   async setup(d, shared) {
     d.page.on('dialog', (dg) => dg.accept().catch(() => {}));
     await login(d.page, shared.baseUrl, shared.env);
     await openEm(d, shared);
     await stackEkene(d);
-    await build(d);
     await d.page.evaluate(() => window.__demo.moveTo(900, 500, 10));
   },
   steps: [
-    { id: 'nocontact', chapter: 'With no contact', chapterSub: 'The whole zone counts',
-      say: 'The volume table gives each zone\'s bulk rock, net rock, pore volume and hydrocarbon pore volume. With no contact, the amber line says the whole zone counts as hydrocarbon, all fifty two thousand five hundred and fifty nine acre feet of it.',
-      sub: 'The volume table gives each zone\'s bulk rock, net rock, pore volume and hydrocarbon pore volume. With no contact, the amber line says the whole zone counts as hydrocarbon, all 52,559 acre-feet of it.',
+    { id: 'tops', chapter: 'Zones from the well tops', chapterSub: 'Two shale breaks in the sand',
+      say: 'Every Ekene well picks two shale breaks inside the sand: Ekene Sand Middle, about a fifth of the way down, and Ekene Sand Lower, at seven tenths. The builder lists the tops picked between the zone\'s top and base. Ticking both splits the sand into Upper, Middle and Lower.',
       do: async (d) => {
-        await d.click('em-view-qc');
-        await d.sleep(1200);
-        await vol(d, 'total', 'bulk').scrollIntoViewIfNeeded();
-        await expectText(d, vol(d, 'total', 'bulk'), /^52559\.4$/, 'bulk');
-        await d.highlight(t(d, 'em-nocontact-ekene-sand'));
-        await d.sleep(3000);
+        await t(d, 'em-split-0').scrollIntoViewIfNeeded();
+        await d.highlight('em-split-0');
+        await d.sleep(2500);
+        await d.unhighlight();
+        await zonesAndCap(d, { onCamera: true, cap: false });
+        await expectText(d, t(d, 'em-split-names-0'), /Upper, Middle and Lower/, 'split names');
+        await d.sleep(1500);
+      } },
+    { id: 'cap', chapter: 'The cap', chapterSub: 'A slab of the seal',
+      say: 'The cap adds a slab of the seal above the top surface, fifty feet thick by default, as a zone of its own. The Ogbia Shale over the Ekene Sand is about eight hundred and fifty feet thick, so the cap is the part next to the reservoir.',
+      do: async (d) => {
+        await zonesAndCap(d, { onCamera: true, split: false });
+        await d.highlight('em-cap');
+        await d.sleep(2500);
         await d.unhighlight();
       } },
-    { id: 'contact', chapter: 'The contact', chapterSub: 'OWC and Bo',
-      say: 'The contacts are typed per zone as depth below sea level, in feet here: the oil water contact at five thousand and thirty six point one, and Bo of one point two. The line beneath says how each value was read.',
-      sub: 'The contacts are typed per zone as depth below sea level, in feet here: the oil-water contact at 5,036.1, and Bo of 1.2. The line beneath says how each value was read.',
+    { id: 'contact', chapter: 'Contacts per zone', chapterSub: 'Typed in feet',
+      say: 'Contacts are typed per zone as depth below sea level, in feet here: the oil water contact at five thousand and thirty six point one, and Bo of one point two. The line beneath says how each value was read. The cap and the three zones take the contact of the sand.',
       do: async (d) => {
         await fluids(d, { onCamera: true });
         await expectText(d, t(d, 'em-fluids-read-0'), /OWC 1535\.0 m, Bo 1\.2/, 'fluids read');
@@ -39,42 +47,46 @@ export default {
         await d.unhighlight();
         await build(d, { onCamera: true });
       } },
-    { id: 'hc', chapter: 'Above the contact', chapterSub: 'HC bulk and HC area',
-      say: 'Now two more columns: the rock above the contact, eighteen thousand and fifty eight acre feet, and the area that holds oil, four hundred and eighteen acres. These are the numbers ReservoirCalc Pro reports from the same maps. The hydrocarbon pore volume counts only the oil leg, and with Bo the table gives the stock tank oil initially in place.',
-      sub: 'Now two more columns: the rock above the contact, 18,058 acre-feet, and the area that holds oil, 418 acres. These are the numbers ReservoirCalc Pro reports from the same maps. The hydrocarbon pore volume counts only the oil leg, and with Bo the table gives the stock tank oil initially in place.',
+    { id: 'byzone', chapter: 'The volume of each zone', chapterSub: 'STOIIP by zone',
+      say: 'The results open on charts. The volume by zone shows six point one nine million barrels in the Upper sand and six point one four in the Middle, none in the Lower, which lies below the contact, and none in the cap: twelve point three three in all. These properties are the published zone averages; module B builds them from the logs.',
       do: async (d) => {
-        await d.click('em-view-qc');
-        await d.sleep(1200);
-        await vol(d, 'total', 'hcbulk').scrollIntoViewIfNeeded();
-        await expectText(d, vol(d, 'total', 'hcbulk'), /^18058\.3$/, 'HC bulk');
-        await expectText(d, vol(d, 'total', 'hcarea'), /^418$/, 'HC area');
-        await d.highlight(vol(d, 'total', 'hcbulk'));
-        await d.sleep(2000);
-        await d.highlight(vol(d, 'total', 'hcarea'));
-        await d.sleep(2000);
-        await d.highlight(vol(d, 'total', 'stoiip'));
-        await d.sleep(2000);
-        await d.unhighlight();
-      } },
-    { id: 'edge', chapter: 'The open edge', chapterSub: 'Where the map stops',
-      say: 'The amber note says the oil leg reaches the edge of the model at thirty four nodes. The maps stop at the outer wells, so the accumulation is not closed inside them, and the volume depends on where the frame stops. It is a minimum.',
-      sub: 'The amber note says the oil leg reaches the edge of the model at 34 nodes. The maps stop at the outer wells, so the accumulation is not closed inside them, and the volume depends on where the frame stops. It is a minimum.',
-      do: async (d) => {
-        await expectText(d, t(d, 'em-openedge-ekene-sand'), /at 34 nodes/, 'open edge');
-        await d.highlight(t(d, 'em-openedge-ekene-sand'));
+        await results(d, 'charts', { onCamera: true });
+        await t(d, 'em-chart-volumes').scrollIntoViewIfNeeded();
+        await expectText(d, t(d, 'em-chart-volumes'), /Total 12\.33 MMstb[\s\S]*0\.006\.196\.140\.00/, 'volumes by zone');
+        await d.highlight('em-chart-volumes');
         await d.sleep(4000);
         await d.unhighlight();
       } },
-    { id: 'trap', chapter: 'Closure and spill', chapterSub: 'Bound the leg by the trap',
-      say: 'Bound the leg by the closure and spill asks Mapping\'s closure engine where the trap spills. On these maps it spills at the edge, only a few feet below the crest, so the bounded leg is tiny. That says the map is too small for the trap: the structure needs mapping beyond the outer wells.',
+    { id: 'table', chapter: 'The volume table', chapterSub: 'Bulk and the rock above the contact',
+      say: 'The Details tab has each zone\'s table: bulk rock, net rock, pore volume and hydrocarbon pore volume, then the rock above the contact and the area that holds oil. In the Upper sand the bulk is eleven thousand six hundred and eighty two acre feet, and nine thousand one hundred and eighty four of it lies above the contact.',
       do: async (d) => {
-        await t(d, 'em-trap-0').scrollIntoViewIfNeeded();
-        await d.click('em-trap-0');
-        await build(d, { onCamera: true });
-        await d.click('em-view-qc');
-        await d.sleep(1200);
-        await t(d, 'em-trap-ekene-sand').scrollIntoViewIfNeeded();
-        await d.highlight(t(d, 'em-trap-ekene-sand'));
+        await results(d, 'details', { onCamera: true });
+        await t(d, 'em-vol-ekene-sand-upper').scrollIntoViewIfNeeded();
+        await expectText(d, zvol(d, 'Ekene Sand Upper', 'total', 'bulk'), /^11682\.0$/, 'upper bulk');
+        await expectText(d, zvol(d, 'Ekene Sand Upper', 'total', 'hcbulk'), /^9183\.7$/, 'upper hc bulk');
+        await d.highlight('em-vol-ekene-sand-upper');
+        await d.sleep(4000);
+        await d.unhighlight();
+      } },
+    { id: 'plane', chapter: 'The contact in 3D', chapterSub: 'A plane where it cuts the sand',
+      say: 'In 3D the contact is a blue plane drawn where it cuts the reservoir, with its outline. Coloured by fluid zone, the cells above it are oil and the cells below are water. The cap is seal rock, so it is grey.',
+      do: async (d) => {
+        await grid3d(d, { ve: 10, prop: 'fluid' });
+        await d.sleep(4500);
+      } },
+    { id: 'maplines', chapter: 'The contact on the map', chapterSub: 'Where it meets the zone top and base',
+      say: 'On the map of a zone, the contact is drawn where it meets the zone top, solid, and the zone base, dashed. Between the two lines the column is part oil and part water.',
+      do: async (d) => {
+        await d.click('em-view-map');
+        await d.sleep(800);
+        await d.select(t(d, 'em-map-zone'), '1');
+        await d.sleep(3500);
+      } },
+    { id: 'edge', chapter: 'The open edge', chapterSub: 'A minimum volume',
+      say: 'The status line warns that the oil leg reaches the model edge. The six well maps stop at the outer wells, so the accumulation is not closed inside them, and the volume depends on where the frame stops. It is a minimum.',
+      do: async (d) => {
+        await expectText(d, 'em-status', /reaches the model edge/, 'open edge');
+        await d.highlight('em-status');
         await d.sleep(3500);
         await d.unhighlight();
       } },

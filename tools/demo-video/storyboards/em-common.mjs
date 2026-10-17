@@ -5,6 +5,10 @@
 // published on Ekene-1 to Ekene-4. Nothing here changes registry data: the
 // videos only save models named "EM demo: ..." or "Lesson ...", and the
 // setups delete those before a take.
+// 3D grid upgrade (2026-10-17): a new model is a fine grid (25 m cells, 2.5 ft
+// layers, porosity by sequential Gaussian simulation); the Ekene Sand splits at
+// the "Ekene Sand Middle" and "Ekene Sand Lower" tops (added to the demo wells
+// on 2026-10-17) into Upper, Middle and Lower, under a 50 ft cap.
 // The booked case (ReservoirCalc Pro, rcp-01): OWC 5,036.1 ft TVDSS,
 // NTG 0.8, porosity 0.2, Sw 0.35, Bo 1.2 = GRV 18,058 acre-ft over 418 acres,
 // STOIIP 12.14 MMstb.
@@ -153,3 +157,79 @@ export const modelRow = (d, name) => d.page.getByTestId('em-model-row').filter({
 
 /** The view buttons in the ribbon. */
 export const view = (d, v, onCamera = true) => (onCamera ? d.click(`em-view-${v}`) : t(d, `em-view-${v}`).click());
+
+export const CAP = 'Ogbia Shale cap';
+export const SPLITS = ['Ekene Sand Middle', 'Ekene Sand Lower'];
+export const ZONES = [CAP, 'Ekene Sand Upper', 'Ekene Sand Middle', 'Ekene Sand Lower'];
+export const slug = (s) => s.replace(/\s+/g, '-').toLowerCase();
+/** A zone's volume cell in the Details table. */
+export const zvol = (d, zone, block, col) => t(d, `em-vol-${slug(zone)}-${block}-${col}`);
+
+/** Split the sand at the Middle and Lower tops, and the 50 ft cap above it. */
+export async function zonesAndCap(d, { onCamera = false, cap = true, split = true } = {}) {
+  const m = maybe(d, onCamera);
+  if (split) {
+    for (const top of SPLITS) {
+      const box = t(d, `em-split-0-${top}`);
+      await box.scrollIntoViewIfNeeded();
+      if (!(await box.isChecked())) await m.click(box);
+    }
+  }
+  if (cap) {
+    const on = t(d, 'em-cap-on');
+    await on.scrollIntoViewIfNeeded();
+    if (!(await on.isChecked())) await m.click(on);
+    await m.type(t(d, 'em-cap-name'), CAP);
+  }
+}
+
+/**
+ * The Ekene grid model the 3D videos build: the two maps, the zones and the cap,
+ * the logs, porosity by SGS, NTG kriged, Sw by inverse distance, the contact and Bo.
+ */
+export async function gridModel(d, { onCamera = false, phi = 'sgs', ntg = 'okrige', sw = 'idw', cap = true, split = true } = {}) {
+  const m = maybe(d, onCamera);
+  await stackEkene(d, { onCamera });
+  await zonesAndCap(d, { onCamera, cap, split });
+  await t(d, 'em-control').scrollIntoViewIfNeeded();
+  if ((await t(d, 'em-control').inputValue()) !== 'logs') await m.select(t(d, 'em-control'), 'logs');
+  await methods(d, { phi, ntg, sw }, { onCamera });
+  if (sw === 'shm') {
+    const sel = t(d, 'em-shm-project');
+    await sel.scrollIntoViewIfNeeded();
+    const v = await sel.locator('option', { hasText: 'Ekene Sand J-function' }).first().getAttribute('value');
+    await m.select(sel, v);
+  }
+  await fluids(d, { onCamera });
+}
+
+/** The Results view on a tab ('charts' or 'details'). */
+export async function results(d, tab = 'charts', { onCamera = false } = {}) {
+  if (onCamera) await d.click('em-view-qc'); else await t(d, 'em-view-qc').click();
+  await d.sleep(800);
+  const b = t(d, `em-results-${tab}`);
+  if ((await b.getAttribute('aria-selected')) !== 'true') { if (onCamera) await d.click(b); else await b.click(); }
+  await d.sleep(1200);
+}
+
+/** The 3D view with the grid toolbar set ({prop, mode, density, ve}). */
+export async function grid3d(d, { prop = null, mode = null, density = null, ve = null, onCamera = true } = {}) {
+  const m = maybe(d, onCamera);
+  if ((await t(d, 'em-view-3d').getAttribute('class') || '').indexOf('border-pl-primary') < 0) await m.click(t(d, 'em-view-3d'));
+  await d.sleep(1500);
+  if (ve) await m.click(t(d, `em-3d-ve-${ve}`));
+  if (mode) await m.select(t(d, 'em-3d-mode'), mode);
+  if (prop) await m.select(t(d, 'em-3d-gridprop'), prop);
+  if (density !== null) await m.select(t(d, 'em-3d-density'), String(density));
+  await d.sleep(1500);
+}
+
+/** Move a range slider to a value (React reads the native input event). */
+export async function setRange(locator, v) {
+  await locator.evaluate((el, val) => {
+    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    set.call(el, String(val));
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }, v);
+}
