@@ -1087,6 +1087,12 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       const props = {}; const variance = {}; const provenance = {};
       for (const prop of ['phi', 'sw', 'ntg', ...(control === 'logs' ? ['perm', 'vsh'] : [])]) {
         if (prop === 'phi' && sgsOut) { props.phi = sgsOut.grids[kL]; provenance.phi = [sgsOut.provenance]; continue; }
+        // the cap: shale has no permeability log over net rock, so it is a seal of 0.001 md
+        if (prop === 'perm' && isCap && !pointsFor('perm', kL).length) {
+          props.perm = Float32Array.from(F.thickness, (v) => (isNull(v) ? NULL_VALUE : 0.001));
+          provenance.perm = [{ block: 0, methodUsed: 'typed', wells: 0, fellBack: false, note: '0.001 (no permeability log over net rock in the cap: a seal)' }];
+          continue;
+        }
         if (prop === 'perm' && phiK) {
           const pg = props.phi;
           props.perm = Float32Array.from(pg, (v) => (isNull(v) ? NULL_VALUE : 10 ** (phiK.a + phiK.b * v)));
