@@ -20,6 +20,7 @@ const mod = {
   },
   sequence: [
     { scene: 'geo-s01', chapter: 'Opening' },
+    { scene: 'geo-s01c' },
     { card: 'intro', seconds: 4.5,
       fields: card('From the first log *to the last cell*', 'Wells, petrophysics, correlation, seismic, QI, maps, the 3D model and volumes, on one shared project') },
     { scene: 'geo-s02', chapter: 'The wells' },

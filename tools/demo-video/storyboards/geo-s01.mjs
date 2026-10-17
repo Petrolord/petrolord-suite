@@ -1,7 +1,6 @@
 // Geoscience module showcase, scene 1: the cold open (about 30 s, mostly
 // music). The 3D chair through the Ekene crest turning, the spectral RGB
-// along the top of the sand, then the Earth Modeling grid (scene geo-s01c,
-// recorded after the Earth Modeling upgrade lands).
+// along the top of the sand, then the Earth Modeling grid (scene geo-s01c).
 import { login, scene, t, park } from './geo-common.mjs';
 import {
   FULL, combo, mapSel, activate, onlyVisible, goTo, showWindow, drag3d, cubeLayers, closeWindow, showSlicePlanes, fullscreenBtn,
