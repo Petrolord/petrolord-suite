@@ -99,7 +99,7 @@ export class CubeRenderer {
     this.lineSets = new Map();    // id -> {vao, buf, count, color}
     this.scale = [1, 1, 1];       // (X, D, Z) applied to mesh/lineSet space
     this.display = {
-      gain: 1, polarity: 1, clip: 1, traceBalance: false, interpolate: true,
+      gain: 1, polarity: 1, clip: 1, centre: 0, traceBalance: false, interpolate: true,
     };
     this.colormapKey = null;
     this.lut = null;
@@ -158,7 +158,7 @@ export class CubeRenderer {
     this.pu = {};
     for (const n of ['u_mvp', 'u_origin', 'u_du', 'u_dv', 'u_data', 'u_lut',
       'u_traceRms', 'u_traceBalance', 'u_interp', 'u_gain', 'u_polarity',
-      'u_clip', 'u_nullColor',
+      'u_clip', 'u_centre', 'u_nullColor',
       // U2-017 overlay family (same names as the 2D renderer)
       'u_dataB', 'u_lutB', 'u_traceRmsB', 'u_agcB', 'u_traceBalanceB',
       'u_useAgcB', 'u_interpB', 'u_gainB', 'u_polarityB', 'u_clipB',
@@ -460,6 +460,7 @@ export class CubeRenderer {
     gl.uniform1f(this.pu.u_gain, display.gain);
     gl.uniform1f(this.pu.u_polarity, display.polarity);
     gl.uniform1f(this.pu.u_clip, Math.max(display.clip, 1e-30));
+    gl.uniform1f(this.pu.u_centre, Number.isFinite(display.centre) ? display.centre : 0);
     gl.uniform1i(this.pu.u_traceBalance, display.traceBalance ? 1 : 0);
     gl.uniform1i(this.pu.u_interp, display.interpolate ? 1 : 0);
     gl.activeTexture(gl.TEXTURE1);

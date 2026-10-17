@@ -84,7 +84,7 @@ export class SliceRenderer {
     this.gl = gl;
     this.canvas = canvas;
     this.params = {
-      gain: 1, polarity: 1, clip: 1, traceBalance: false, transpose: true,
+      gain: 1, polarity: 1, clip: 1, centre: 0, traceBalance: false, transpose: true,
       interpolate: false,
     };
     this.view = [0, 0, 1, 1];   // normalized visible rect (ViewTransform)
@@ -152,7 +152,7 @@ export class SliceRenderer {
 
     this.u = {};
     for (const name of ['u_data', 'u_lut', 'u_traceRms', 'u_agc', 'u_gain',
-      'u_polarity', 'u_clip', 'u_traceBalance', 'u_useAgc', 'u_transpose',
+      'u_polarity', 'u_clip', 'u_centre', 'u_traceBalance', 'u_useAgc', 'u_transpose',
       'u_interp', 'u_nullColor', 'u_view', 'u_bgColor',
       // ST5 flatten
       'u_offset', 'u_flattenOn', 'u_offsetScale',
@@ -406,6 +406,7 @@ export class SliceRenderer {
     gl.uniform1f(u.u_gain, params.gain);
     gl.uniform1f(u.u_polarity, params.polarity);
     gl.uniform1f(u.u_clip, Math.max(params.clip, 1e-30));
+    gl.uniform1f(u.u_centre, Number.isFinite(params.centre) ? params.centre : 0);
     gl.uniform1i(u.u_traceBalance, params.traceBalance ? 1 : 0);
     // the AGC flag re-applies wherever params do (init / setSlice /
     // setParams), so a cleared map can never leave a stale flag behind
@@ -487,7 +488,7 @@ export class SliceRenderer {
           scale = r > 0 ? 1 / r : 0;
         }
         if (this.agcMap) scale *= this.agcMap[sy * slice.width + sx];
-        const a = amp * scale * params.gain * params.polarity;
+        const a = (amp - (params.centre || 0)) * scale * params.gain * params.polarity;
         const t = Math.min(1, Math.max(0, 0.5 + (0.5 * a) / params.clip));
         const li = Math.min(255, Math.floor(t * 256));
         let r8 = lut[li * 4];
