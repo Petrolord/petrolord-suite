@@ -14,6 +14,7 @@ import { fileReader } from '../engine/reader';
 import { openZgy } from '../engine/zgy';
 import { zgySegyReader, zgyAmplitudeClip } from '../engine/zgySegy';
 import { loadZfpDecode } from '@/lib/zfp/zfpWasmLoader';
+import { zgyHeadersOnlyReader } from '../lib/zgyHeaders';
 
 /** File types the volume import accepts. */
 export const VOLUME_ACCEPT = '.sgy,.segy,.SGY,.SEGY,.zgy,.ZGY';
@@ -33,13 +34,17 @@ export async function openZgyFile(raw, { zfp = loadZfpDecode } = {}) {
 
 /**
  * The SEG-Y bytes of a picked file: the file itself, or a ZGY's SEG-Y view
- * (with the open ZGY as `zgyHandle`).
+ * (with the open ZGY as `zgyHandle`). `{headersOnly: true}` gives a view
+ * whose sample bytes are zeros, for readers that only read trace headers.
  * @param {File|Blob} file
  * @returns {Promise<import('../engine/reader').ByteReader>}
  */
 export async function importSourceReader(file, opts = {}) {
   const raw = fileReader(file);
   if (!isZgyFile(file)) return raw;
+  // header-only readers (scan, door, trace delay, gathers check) never decode
+  // a brick, so they need no ZFP decoder and no brick reads (zgyHeaders.js)
+  if (opts.headersOnly) return zgyHeadersOnlyReader(zgySegyReader(await openZgy(raw), { sourceName: file.name }));
   const zgy = await openZgyFile(raw, opts);
   const reader = zgySegyReader(zgy, { sourceName: file.name });
   reader.zgyHandle = zgy;

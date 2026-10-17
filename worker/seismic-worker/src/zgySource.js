@@ -11,6 +11,7 @@ import { JobFailure } from './runJob.js';
 import { openZgy, ZgyRefusal } from '../../../packages/engines/engines/seismolord/zgy.js';
 import { zgySegyReader, zgyAmplitudeClip } from '../../../packages/engines/engines/seismolord/zgySegy.js';
 import { createZfpDecode } from '../../../src/lib/zfp/zfpDecoder.js';
+import { zgyHeadersOnlyReader } from '../../../src/pages/apps/Seismolord/lib/zgyHeaders.js';
 
 /** 'zgy' (readable), 'legacy' (old Petrel compression) or null (not a ZGY). */
 export async function zgySignature(reader) {
@@ -49,13 +50,18 @@ export function nodeZfpDecode(deps = {}) {
  *   linked file once before the many ranged reads a ZGY view makes
  * @returns {Promise<{reader, zgy: ?Object, clip: ?Object, scratchCopy: ?Object}>}
  */
-export async function zgyAwareSource(raw, { name = '', toScratch = null } = {}, deps = {}) {
+export async function zgyAwareSource(raw, { name = '', toScratch = null, headersOnly = false } = {}, deps = {}) {
   const sig = await zgySignature(raw);
   if (!sig) return { reader: raw, zgy: null, clip: null, scratchCopy: null };
   let src = raw;
   let scratchCopy = null;
   try {
     if (sig === 'legacy') await openZgy(raw); // throws the refusal with its advice
+    // a scan reads trace headers only: no brick is read or decoded (zgyHeaders.js)
+    if (headersOnly) {
+      const z = await openZgy(raw);
+      return { reader: zgyHeadersOnlyReader(zgySegyReader(z, { sourceName: name })), zgy: z, clip: null, scratchCopy: null };
+    }
     if (toScratch) { scratchCopy = await toScratch(raw); src = scratchCopy; }
     let z = await openZgy(src);
     if (z.meta.compressedBricks) z = await openZgy(src, { zfpDecode: await nodeZfpDecode(deps) });
