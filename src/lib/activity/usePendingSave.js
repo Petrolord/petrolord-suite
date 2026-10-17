@@ -220,7 +220,9 @@ export function usePendingSave({
       state: 'dirty',
       progress: null,
       href: hrefRef.current,
-      onLeave: 'loses',
+      // leaving the studio saves these edits (the unmount flush above), so the
+      // leave guard does not ask; a failed save shows the studio's own error
+      onLeave: 'continues',
       actions: {
         save: async () => {
           const ok = await flush();

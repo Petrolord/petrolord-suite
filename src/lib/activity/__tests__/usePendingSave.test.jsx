@@ -176,7 +176,7 @@ test('Activity: an unsaved item while dirty, which the leave guard blocks on; cl
   expect(items).toHaveLength(1);
   expect(items[0]).toMatchObject({
     appId: 'test-studio', appName: 'Test Studio', kind: 'unsaved', state: 'dirty',
-    href: HREF, onLeave: 'loses', title: 'Unsaved changes in Alpha',
+    href: HREF, onLeave: 'continues', title: 'Unsaved changes in Alpha',
   });
   expect(leaveVerdict(items, HREF, '/dashboard/apps/production/other').block).toHaveLength(1);
   // the leave guard's "Save and leave" runs the item's save
@@ -285,4 +285,13 @@ describe('negative control: the old pattern', () => {
     await act(async () => { jest.advanceTimersByTime(20000); });
     expect(save).toHaveBeenCalledTimes(1);
   });
+});
+
+// owner report 2026-10-17 follow-up: leaving a studio with fresh edits saves them,
+// so the leave guard never asks about them (no needless dialog)
+test('unsaved edits never block leaving: the leave decision lets the link through', () => {
+  // eslint-disable-next-line global-require
+  const { leaveVerdict } = require('../activity');
+  const item = { id: 'x', appId: 'separator', href: '/dashboard/apps/facilities/separator-slug-catcher-designer', kind: 'unsaved', state: 'dirty', onLeave: 'continues' };
+  expect(leaveVerdict([item], item.href, '/dashboard').block).toEqual([]);
 });
