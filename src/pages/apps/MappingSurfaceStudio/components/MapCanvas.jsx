@@ -22,6 +22,7 @@ export const DEFAULT_MAP_DISPLAY = Object.freeze({
   scaleBar: true,
   north: true,
   axes: false,
+  closure: true,     // the measured closure (fill, spill contour, contact) once Quick GRV has run
 });
 
 /**
@@ -65,6 +66,7 @@ const MapCanvas = forwardRef(function MapCanvas({
   surface, grid, wells = [], cultureLayers = [], posted = null, markers = [],
   pendingVertices = [], drawing = false, onMapClick,
   onDragStart = null, onDrag = null, onDragEnd = null, overlays = [],
+  fills = [], layerLegend = [],
   display = { unit: 'ft', isLength: true }, settings = DEFAULT_MAP_DISPLAY,
   contourOverlay = null, // T1: {surface, grid} resampled onto this surface's frame
 }, ref) {
@@ -106,6 +108,8 @@ const MapCanvas = forwardRef(function MapCanvas({
       onDrag={onDrag}
       onDragEnd={onDragEnd}
       overlays={overlays}
+      fills={fills}
+      layerLegend={layerLegend}
       posted={settings.posted ? posted : null}
       contourStep={ovPlan ? ovPlan.stepM : plan.stepM}
       contourFormat={ovPlan ? ovPlan.format : plan.format}

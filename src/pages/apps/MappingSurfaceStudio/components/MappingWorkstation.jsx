@@ -51,6 +51,7 @@ import {
 import { runArithmetic, ARITH_OPS } from '../services/arithmetic';
 import { quickGrv, describeGrv, interpretContact, nodeAt } from '../services/quickGrv';
 import { contactVolumes, describeContactVolumes } from '../services/contactVolumes';
+import { closureLayers } from '../services/closureDisplay';
 import ClosureCurveChart from './ClosureCurveChart';
 import SectionChart from './SectionChart';
 import { sectionProfile } from '../services/sectionLine';
@@ -83,6 +84,7 @@ import { placeWellsForHost } from '@/lib/crs/guards';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { orderZoneKeys, isLengthKey } from '../services/zoneProperties'; // PETRO-U2-008
 
+const NO_LAYERS = Object.freeze([]);
 const selCls = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
 
 export const DEPTH_UNIT_KEY = 'mapping.depthUnit';
@@ -235,6 +237,12 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
     if (!Number.isFinite(v)) return EMPTY_VALUE;
     return isLengthSurface(s) ? `${(displaySign(s, depthPositive) * toDisplay(v, depthUnit)).toFixed(1)} ${depthUnit}` : v.toFixed(3);
   }, [depthUnit, displaySurface, depthPositive]);
+  // closure labels read as depth below datum ("spill 5,105 ft"), whichever sign the map shows
+  const fmtDepthLabel = useCallback((m) => {
+    if (!Number.isFinite(m)) return EMPTY_VALUE;
+    const v = Math.round(Math.abs(toDisplay(m, depthUnit))).toLocaleString('en-US');
+    return m <= 0 ? `${v} ${depthUnit}` : `${v} ${depthUnit} above datum`;
+  }, [depthUnit]);
   const zConventionText = depthPositive ? 'depth positive down' : 'elevation, negative down';
 
   const refresh = useCallback(async () => {
@@ -1259,7 +1267,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         surface: displaySurface, grid: displayGrid, spec: specOfSurface(displaySurface), caption: { title, caption },
         contours: { stepM: plan.stepM, stepText, format: plan.format },
         wells: (displayWells || []).map((w) => ({ name: w.name, x: w.surface_x, y: w.surface_y })),
-        polygons, xyToM: metresPerXy(xyUnit), xyUnitLabel: XY_UNIT_LABEL[xyUnit] || xyUnit || 'metres (no CRS declared)',
+        polygons, closure: closureView, xyToM: metresPerXy(xyUnit), xyUnitLabel: XY_UNIT_LABEL[xyUnit] || xyUnit || 'metres (no CRS declared)',
         paper: pdfOpts.paper, scale: String(pdfOpts.scale).trim() ? Number(String(pdfOpts.scale).replace(/[, ]/g, '').replace(/^1:/, '')) : null,
       });
       doc.save(fileName);
@@ -1348,6 +1356,14 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
     return r.wells.map((w) => ({ ...w, surface_x: w.surfaceX, surface_y: w.surfaceY }));
   }, [wells, displaySurface, linkedWellIds]);
 
+  // the measured closure drawn on the map (Display: Closure)
+  const closureView = useMemo(() => {
+    if (!mapSettings.closure || grvData?.kind !== 'closure' || !displayGrid || !displaySurface) return null;
+    try {
+      return closureLayers({ grv: grvData, gridM: displayGrid, spec: specOfSurface(displaySurface), fmtDepth: fmtDepthLabel, gocM: grvData.split?.gocM ?? null });
+    } catch { return null; }
+  }, [mapSettings.closure, grvData, displayGrid, displaySurface, fmtDepthLabel]);
+
   const center = !wells ? (
     <div className="h-full flex items-center justify-center text-pl-muted text-sm"><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading registry…</div>
   ) : !displayGrid ? (
@@ -1371,7 +1387,8 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         markers={[
           ...guidePoints.map((gp) => ({ x: gp.x, y: gp.y, label: `${gp.label} ${fmtZ(gp.z)}` })),
           ...(guideAt ? [{ x: guideAt.x, y: guideAt.y, label: 'value?' }] : []),
-          ...(grvData?.kind === 'closure' ? [{ x: grvData.spill.x, y: grvData.spill.y, label: `spill ${fmtZ(grvData.spill.z, { kind: 'structure', z_domain: 'depth' })}` }] : []),
+          ...(grvData?.kind === 'closure' ? [{ x: grvData.spill.x, y: grvData.spill.y, label: `spill ${fmtDepthLabel(grvData.spill.z)}` }] : []),
+          ...(closureView?.markers || []),
         ]}
         pendingVertices={pending}
         drawing={!!drawMode}
@@ -1379,7 +1396,9 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
         onDragStart={onDragStart}
         onDrag={onDrag}
         onDragEnd={onDragEnd}
-        overlays={editOverlays}
+        overlays={closureView ? [...editOverlays, ...closureView.lines] : editOverlays}
+        fills={closureView?.fills || NO_LAYERS}
+        layerLegend={closureView?.legend || NO_LAYERS}
         display={{ unit: depthUnit, isLength: isLengthSurface(displaySurface), depthPositive }}
         contourOverlay={contourOverlay}
         settings={mapSettings}
@@ -1467,10 +1486,12 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
               {[
                 ['reverse', 'Reverse colours'], ['labels', 'Contour labels'], ['names', 'Well names'],
                 ['posted', 'Posted values'], ['legend', 'Legend'], ['scaleBar', 'Scale bar'],
-                ['north', 'North arrow'], ['axes', 'Axes'],
+                ['north', 'North arrow'], ['axes', 'Axes'], ['closure', 'Closure'],
               ].map(([key, text]) => (
-                <label key={key} className="flex items-center gap-1.5 cursor-pointer">
+                <label key={key} className="flex items-center gap-1.5 cursor-pointer"
+                  title={key === 'closure' ? 'The closure measured by Quick GRV: its area to the spill, the spill contour, the crest and the contact' : undefined}>
                   <input type="checkbox" data-testid={`map-show-${key}`} checked={!!mapSettings[key]}
+                    disabled={key === 'closure' && grvData?.kind !== 'closure'}
                     onChange={(e) => setSetting(key, e.target.checked)} />
                   <span>{text}</span>
                 </label>

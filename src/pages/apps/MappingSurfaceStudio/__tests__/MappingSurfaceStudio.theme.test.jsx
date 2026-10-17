@@ -82,6 +82,14 @@ describe('Mapping & Surface Studio themed states', () => {
     expectNegativeControl(scope);
   });
 
+  test('Display has a Closure toggle: on by default, waiting for a Quick GRV closure', async () => {
+    await openSurface();
+    const box = screen.getByTestId('map-show-closure');
+    expect(box).toBeChecked();
+    expect(box).toBeDisabled();
+    expect(box.closest('label')).toHaveTextContent('Closure');
+  });
+
   test('dark: the open surface reads in dark with no legacy chrome', async () => {
     window.localStorage.setItem(themeStorageKey(null), 'dark');
     const scope = await openSurface();

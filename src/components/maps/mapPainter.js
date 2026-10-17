@@ -423,20 +423,85 @@ export function paintMarkers(ctx, { markers = [], transform, color = '#f472b6', 
     if (!Number.isFinite(m.x) || !Number.isFinite(m.y)) continue;
     const s = transform.worldToScreen(m.x, m.y);
     ctx.fillStyle = m.color || color;
-    ctx.beginPath();
-    ctx.moveTo(s.x, s.y - 5);
-    ctx.lineTo(s.x + 4.5, s.y + 3);
-    ctx.lineTo(s.x - 4.5, s.y + 3);
-    ctx.closePath();
-    ctx.fill();
+    if (m.shape === 'cross') {
+      // a crest: a bold cross with a dark halo
+      for (const [w, c] of [[5, halo], [2.5, m.color || color]]) {
+        ctx.strokeStyle = c; ctx.lineWidth = w;
+        ctx.beginPath();
+        ctx.moveTo(s.x - 6, s.y); ctx.lineTo(s.x + 6, s.y);
+        ctx.moveTo(s.x, s.y - 6); ctx.lineTo(s.x, s.y + 6);
+        ctx.stroke();
+      }
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y - 5);
+      ctx.lineTo(s.x + 4.5, s.y + 3);
+      ctx.lineTo(s.x - 4.5, s.y + 3);
+      ctx.closePath();
+      ctx.fill();
+    }
     if (m.label) {
       ctx.lineWidth = 3;
       ctx.strokeStyle = halo;
-      ctx.strokeText(m.label, s.x + 6, s.y + 3);
-      ctx.fillStyle = '#fbcfe8';
-      ctx.fillText(m.label, s.x + 6, s.y + 3);
+      ctx.strokeText(m.label, s.x + 8, s.y + 3);
+      ctx.fillStyle = m.labelColor || (m.shape === 'cross' ? (m.color || color) : '#fbcfe8');
+      ctx.fillText(m.label, s.x + 8, s.y + 3);
     }
   }
+  ctx.restore();
+}
+
+/**
+ * Translucent area fills over the colour raster, one per 0/1 node mask
+ * (a closure, the area above a contact). Each fill becomes a one-pixel-per-
+ * node bitmap drawn through the grid frame like the raster, smoothed, so
+ * the edge is soft and the outline line on top carries the exact edge.
+ * @param {Array<{mask:Uint8Array, color:[number,number,number,number]}>} fills
+ */
+export function fillBitmaps(fills, spec, makeCanvas = () => document.createElement('canvas')) {
+  return fills.map((f) => {
+    const { nx, ny } = spec;
+    const rgba = new Uint8ClampedArray(nx * ny * 4);
+    const [r, g, b, a] = f.color;
+    const A = Math.round(255 * a);
+    for (let i = 0; i < nx * ny; i++) {
+      if (!f.mask[i]) continue;
+      rgba[i * 4] = r; rgba[i * 4 + 1] = g; rgba[i * 4 + 2] = b; rgba[i * 4 + 3] = A;
+    }
+    const c = makeCanvas();
+    c.width = nx; c.height = ny;
+    c.getContext('2d').putImageData(new ImageData(rgba, nx, ny), 0, 0);
+    return c;
+  });
+}
+
+/** A small key for map layers (fills and lines) in a dark or light box. */
+export function paintLayerLegend(ctx, { items = [], x, y, ink = INK, bg = 'rgba(2, 6, 23, 0.6)' }) {
+  if (!items.length) return;
+  ctx.save();
+  ctx.font = LABEL_FONT;
+  const rowH = 14;
+  const w = 26 + Math.max(...items.map((it) => ctx.measureText(it.label).width));
+  const h = items.length * rowH + 8;
+  ctx.fillStyle = bg;
+  ctx.fillRect(x, y, w + 8, h);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  items.forEach((it, k) => {
+    const cy = y + 4 + rowH * k + rowH / 2;
+    if (it.kind === 'fill') {
+      ctx.fillStyle = it.color;
+      ctx.fillRect(x + 5, cy - 4, 16, 8);
+    } else {
+      ctx.strokeStyle = it.color;
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash(it.dash || []);
+      ctx.beginPath(); ctx.moveTo(x + 5, cy); ctx.lineTo(x + 21, cy); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.fillStyle = ink;
+    ctx.fillText(it.label, x + 26, cy);
+  });
   ctx.restore();
 }
 

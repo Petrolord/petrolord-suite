@@ -32,6 +32,25 @@ harness; full run 194 suites / 2468 green, build green.
 
 Time to depth reads a Seismolord layer cake: LAYER_CAKE_HOOK is wired to `src/lib/velocityModels.js`, which resolves each boundary to the time surface Seismolord published (Publish boundaries) and names any that is missing. Velocity models are listed from the volume row first (W0.2), so models saved since then appear.
 
+## 2026-10-17: the measured closure on the map (Geoscience video Part B)
+
+Branch `feat/map-closure-outline`. After Quick GRV (`map-grv-run`, or a
+picked closure with `map-grv-pick`) the map now draws the trap: the closed
+area down to the spill as a translucent gold fill with the spill contour as
+a bold gold line, the crest as a labelled cross ("crest 4,956 ft"), the
+spill marker ("spill 5,105 ft", now in depth below datum), and with a
+contact inside the closure the area above it in green with the contact as a
+dashed blue line (a GOC adds the gas cap in red with a dashed red line). A
+contact below the spill fills the whole trap. A key sits under the north
+arrow. Display has a **Closure** toggle (`map-show-closure`, on by default,
+disabled until a closure exists). PNG exports carry everything; the PDF
+carries the outlines, the crest and the translucent fills.
+The masks are read off the closure engine's spill flood (the first N nodes
+of `spillAnalysis.order`, N from `closureAt`), so no closure geometry was
+re-implemented: `services/closureDisplay.js`, tests
+`__tests__/closureDisplay.test.js` (analytic cone areas, the contact ring
+radius, a two-cone negative control).
+
 ## Phase status
 
 | Phase | Status | Landed |
