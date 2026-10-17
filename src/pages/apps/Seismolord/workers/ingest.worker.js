@@ -30,7 +30,7 @@ async function handleScan({ id, file, mapping, maxTraces }) {
   // and presents extended-header and unset-interval files in the layout
   // the engines read
   // a Petrel ZGY is read as the SEG-Y it holds (zgySource.js)
-  const { reader, door } = await openSegyDoor(await importSourceReader(file));
+  const { reader, door } = await openSegyDoor(await importSourceReader(file, { headersOnly: true }));
   const [textLines, preview, scan] = [
     await readTextualHeader(reader),
     await previewTraceHeaders(reader, mapping),

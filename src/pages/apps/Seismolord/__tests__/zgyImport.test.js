@@ -137,3 +137,50 @@ describe('a picked ZGY is read as the SEG-Y it holds', () => {
     expect(prepared.file).toBe(file);
   });
 });
+
+// owner report 2026-10-17: a real ZGY hung at "Scanning headers". The scan,
+// the door and the trace-delay check read only trace headers; the header-only
+// view must give the same answers while reading no brick at all.
+describe('header-only ZGY view (scan)', () => {
+  const counting = (buf) => {
+    const reads = [];
+    return {
+      reads,
+      file: {
+        name: 'big.zgy', size: buf.byteLength, lastModified: 1,
+        slice: (a, b) => ({ arrayBuffer: async () => { reads.push([a, b - a]); return buf.slice(a, b); } }),
+      },
+    };
+  };
+
+  test.each(['gen-zfp-snr30', 'gen-int16', 'Empty-v1'])('%s: same scan as the full view, no brick read', async (name) => {
+    const buf = bytesOf(name);
+    const full = await importSourceReader(fileOf(buf, `${name}.zgy`));
+    const { reads, file } = counting(buf);
+    const lite = await importSourceReader(file, { headersOnly: true });
+    expect(lite.headersOnly).toBe(true);
+    const a = await scanGeometry((await openSegyDoor(full)).reader, {}, { maxTraces: 500 });
+    reads.length = 0;   // opening reads the header and brick table; the scan itself must read nothing
+    const b = await scanGeometry((await openSegyDoor(lite)).reader, {}, { maxTraces: 500 });
+    expect(b).toEqual(a);
+    expect(reads).toEqual([]);
+  });
+
+  test('headers are the full view\'s bytes, samples are zeros', async () => {
+    const buf = bytesOf('gen-int8');
+    const full = await importSourceReader(fileOf(buf, 'a.zgy'));
+    const lite = await importSourceReader(fileOf(buf, 'a.zgy'), { headersOnly: true });
+    const tb = full.zgy.layout.traceBytes;
+    const off = 3600 + 7 * tb - 100;
+    const len = 3 * tb + 50;
+    const f = new Uint8Array(await full.read(off, len));
+    const l = new Uint8Array(await lite.read(off, len));
+    for (let p = 0; p < len; p++) {
+      const inTrace = (off + p - 3600) % tb;
+      if (inTrace < 240) expect(l[p]).toBe(f[p]);
+      else expect(l[p]).toBe(0);
+    }
+    // negative control: the full view's samples are not all zero here
+    expect(f.some((v, p) => (off + p - 3600) % tb >= 240 && v !== 0)).toBe(true);
+  });
+});

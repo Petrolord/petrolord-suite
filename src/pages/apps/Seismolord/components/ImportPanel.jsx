@@ -186,7 +186,7 @@ export default function ImportPanel({
   useEffect(() => {
     if (!isZgyFile(file)) { setZgyInfo(null); return undefined; }
     let stale = false;
-    importSourceReader(file)
+    importSourceReader(file, { headersOnly: true })
       .then((r) => { if (!stale) setZgyInfo(zgySummary(r)); })
       .catch(() => { if (!stale) setZgyInfo(null); }); // the scan reports why
     return () => { stale = true; };
@@ -322,7 +322,7 @@ export default function ImportPanel({
   // F-5: an uncropped file's trace delay, and the scan of the shifted file
   // the conversion reads (a crop applies it in its own conversion view)
   const delayedScan = async () => {
-    const { reader } = await openSegyDoor(await importSourceReader(file));
+    const { reader } = await openSegyDoor(await importSourceReader(file, { headersOnly: true }));
     const { reader: aligned, traceDelay } = await alignTraceDelay(reader, { domain: vertical ? 'depth' : 'time' });
     return { traceDelay, scan: traceDelay.applied ? await scanOnReader(scanData.scan, aligned) : scanData.scan };
   };
@@ -655,7 +655,7 @@ export default function ImportPanel({
     let stale = false;
     (async () => {
       try {
-        const raw = await importSourceReader(file);
+        const raw = await importSourceReader(file, { headersOnly: true });
         const door = await inspectSegy(raw);
         const layout = layoutFromDoor(door, raw.size);
         const gathers = await detectGatherLayout(raw, layout, mapping);

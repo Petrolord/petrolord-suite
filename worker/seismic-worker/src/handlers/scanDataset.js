@@ -29,7 +29,7 @@ export async function scanDataset(ctx, deps) {
   ctx.progress(0.05, 'Reading headers');
   // the worker's store, or the link itself for a ranged link import
   // a Petrel ZGY is scanned as the SEG-Y it holds (zgySource.js)
-  const { reader: raw } = await zgyAwareSource(datasetReader(ds, deps), { name: ds.original_filename || '' }, deps);
+  const { reader: raw } = await zgyAwareSource(datasetReader(ds, deps), { name: ds.original_filename || '', headersOnly: true }, deps);
   let door; let reader;
   try {
     ({ door, reader } = await openSegyDoor(raw));
