@@ -130,6 +130,7 @@ import ExportTab from './workspace/ribbonTabs/ExportTab';
 import AiTab from './workspace/ribbonTabs/AiTab';
 import VelocityModelEditor from './workspace/VelocityModelEditor';
 import ImportSegyDialog from './workspace/dialogs/ImportSegyDialog';
+import { startSeismolordActivity } from '../services/activityBridge';
 import ImportDraftChip from './workspace/ImportDraftChip';
 import {
   getViewerMemory, rememberVolume, rememberLocalFile,
@@ -283,6 +284,25 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
     setDockPanel(panel);
     setDockOpen((open) => !(open && dockPanel === panel));
   }, [dockPanel]);
+
+  // Activity (Guided Journey design 6.4): Seismolord's imports, uploads and
+  // jobs stay visible from every app. Deep links: ?panel=jobs opens the Jobs
+  // dock (from Activity), ?do=import opens the import (from the guide).
+  useEffect(() => {
+    startSeismolordActivity();
+    if (typeof window === 'undefined') return;
+    const q = new URLSearchParams(window.location.search);
+    const panel = q.get('panel');
+    const action = q.get('do');
+    if (!panel && !action) return;
+    if (panel) openDockPanel(panel);
+    if (action === 'import') setOpenDialog('import');
+    q.delete('panel'); q.delete('do');
+    const rest = q.toString();
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${rest ? `?${rest}` : ''}${window.location.hash}`);
+    // mount only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // discoverability: the first visit in a browser opens Start here and
   // runs the tour; both can be reopened (dock button, Take the tour)
   const [tourOpen, setTourOpen] = useState(false);

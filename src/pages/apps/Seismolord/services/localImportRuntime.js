@@ -23,8 +23,10 @@ const listeners = new Set();
 let snapshot = [];
 const emit = () => { snapshot = [...jobs.values()].map((j) => ({ ...j })); for (const l of listeners) l(); };
 const setJob = (id, patch) => { jobs.set(id, { ...(jobs.get(id) || {}), ...patch }); emit(); };
+export const subscribeLocalImports = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
+export const getLocalImports = () => snapshot;
 export function useLocalImports() {
-  return useSyncExternalStore((fn) => { listeners.add(fn); return () => listeners.delete(fn); }, () => snapshot, () => snapshot);
+  return useSyncExternalStore(subscribeLocalImports, getLocalImports, getLocalImports);
 }
 export function dismissLocalImport(id) { jobs.delete(id); emit(); }
 
