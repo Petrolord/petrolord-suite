@@ -11,6 +11,8 @@ import { DashboardScope } from '@/design/DashboardScope';
 import { ThemedLoadingScreen } from '@/design/coldLoad';
 import { FixedTheme, readLastTheme } from '@/design/ThemeProvider';
 import { DEFAULT_THEME } from '@/design/tokens';
+import ActivityButton from '@/components/activity/ActivityButton';
+import ActivityRoot from '@/components/activity/ActivityRoot';
 
 // Inner layout component that consumes the Application Context
 const DashboardLayoutInner = () => {
@@ -68,6 +70,7 @@ const DashboardLayoutInner = () => {
                         </button>
                         <img src="/petrolord-icon.png" alt="" className="h-7 w-7 rounded-md object-contain" />
                         <span className="text-sm font-bold tracking-tight">Petrolord Suite</span>
+                        <span className="ml-auto"><ActivityButton variant="bar" /></span>
                     </div>
                 )}
                 {!isInApplication && (
@@ -83,6 +86,9 @@ const DashboardLayoutInner = () => {
                 <DashboardScope>
                     <OrgClosureBanner />
                     <Outlet />
+                    <ActivityRoot />
+                    {/* inside full-screen apps the sidebar is hidden: Activity floats */}
+                    {isInApplication && <ActivityButton variant="floating" />}
                 </DashboardScope>
             </main>
         </div>

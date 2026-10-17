@@ -34,6 +34,8 @@ async function serverEnqueue(kind, params, inputRefs, organizationId) {
 export async function enqueueJob(kind, params = {}, inputRefs = {}, organizationId = null) {
   const { routeJob } = await import('@/lib/localWorkspace/runtime');
   const { jobId } = await routeJob(kind, params, inputRefs, organizationId, () => serverEnqueue(kind, params, inputRefs, organizationId));
+  // the Suite-wide Activity list picks the new job up at once (lib/activity/sources/serverJobs.js)
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('petrolord:server-job'));
   return jobId;
 }
 
