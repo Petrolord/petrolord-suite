@@ -312,7 +312,7 @@ for (const [name, vp] of [['rev2_little_endian.sgy', { width: 1366, height: 768 
     await expect(dialog.getByText('Vertical axis of this file')).toBeVisible({ timeout: 30000 });
     await expect(dialog).toContainText('converted to 32-bit float on import');
     await expect(dialog).toContainText('1001');
-    await dialog.getByRole('button', { name: /View it now/ }).click();
+    await dialog.getByTestId('sl-import-preview').click();
     await expect(dialog).toBeHidden();
     const section = page.locator('[data-testid="window-section"]');
     await expect(section.getByTitle('Save PNG snapshot')).toBeEnabled({ timeout: 60000 });

@@ -108,7 +108,7 @@ test('crop step: typed ranges, drawing, polygon, velocity preset and an invalid 
   await dialog.getByLabel('Last inline').fill('5005');
   await expect(dialog.getByTestId('sl-crop-error')).toContainText('holds no inline of this volume');
   await expect(dialog.getByTestId('sl-import-blocked')).toContainText('The crop is not valid');
-  await expect(dialog.getByRole('button', { name: 'Start import' })).toBeDisabled();
+  await expect(dialog.getByRole('button', { name: 'Start import', exact: true })).toBeDisabled();
 });
 
 test('prestack gathers are recognised and offered for QI Studio with the crop', async ({ page }, info) => {
@@ -117,7 +117,7 @@ test('prestack gathers are recognised and offered for QI Studio with the crop', 
   await dialog.locator('input[type="file"][accept*=".sgy"]').first().setInputFiles(file);
   await expect(dialog.getByTestId('sl-crop')).toBeVisible({ timeout: 30000 });
   await expect(dialog.getByTestId('sl-import-blocked')).toContainText('prestack gathers', { timeout: 30000 });
-  await expect(dialog.getByRole('button', { name: 'Start import' })).toBeDisabled();
+  await expect(dialog.getByRole('button', { name: 'Start import', exact: true })).toBeDisabled();
   await expect(dialog.getByTestId('sl-upload-gathers')).toBeVisible();
   await dialog.getByTestId('sl-crop-on').check();
   await dialog.getByLabel('First inline').fill('301');

@@ -106,7 +106,9 @@ export default function SeismolordHelpGuide() {
           positions and press Enter. Declare the vertical axis (<em>TWT</em> for a time-migrated volume) and the CRS.
         </Step>
         <Step n={2} title="Look at the data">
-          View it now opens the file before the upload finishes. Step through inlines and crosslines and open a time
+          Start import and view now starts the import and shows the file before the upload finishes. Preview without
+          importing shows it without importing anything; the setup waits under Not imported yet in the ribbon until you
+          continue or discard it. Step through inlines and crosslines and open a time
           slice. The display is <em>SEG normal polarity</em> as recorded in the file; reverse it for display only if
           the processing report says so. Gain, clip and AGC never change the stored amplitudes.
         </Step>
@@ -205,8 +207,10 @@ export default function SeismolordHelpGuide() {
         <Para>
           Before anything is written, check the survey the scan reports (samples per trace, sample interval, format
           code, trace count, inline and crossline ranges) against what you know of the data; stop if they disagree.
-          View it now in the import dialog shows inlines and crosslines straight from the file on your computer while
-          it converts. The conversion then uploads in two stages in the background, with progress in the status bar:
+          Start import and view now in the import dialog shows inlines and crosslines straight from the file on your
+          computer while it converts. An upload to the Petrolord server runs in the background too: its progress,
+          pause and resume are in the status bar, and it carries on while you work in another app. When you come back
+          to Seismolord, it opens what you were looking at. The conversion then uploads in two stages in the background, with progress in the status bar:
           first a compact display copy, after which the volume opens (its explorer row says display copy, and cursor
           readouts mark its amplitudes with a leading approximately sign), then the full-precision copy. Uploads can be
           paused, resumed and carried on in a later session without the SEG-Y file. Attribute volumes wait for the

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Upload, FileText, AlertTriangle, CheckCircle2, Loader2, XCircle, Play, Ban,
-  RotateCcw, Trash2, Eye, Server, Pause, Link2,
+  RotateCcw, Trash2, Eye, Server, Link2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,9 +24,13 @@ import { detectGatherLayout, normalizeCrop } from '../engine/segyCrop';
 import {
   planImportCrop, cropSource, spotCheckCrop, conversionView, scanConversionView, cropFileLike,
   importCropProvenance, cropRequest, layoutFromDoor, rememberCropFor, recallCropFor, forgetCropFor,
-  savedUploadSpeed, saveUploadSpeed, speedMeter, formatDuration, cropEstimate,
+  savedUploadSpeed, saveUploadSpeed, cropEstimate,
 } from '../services/cropImport';
 import CropPanel, { EMPTY_FORM, defFromForm } from './CropPanel';
+import {
+  beginImportDraft, updateImportDraft, clearImportDraft, getImportDraft,
+} from '../services/importDraft';
+import { startServerUpload } from '../services/serverUploadsRuntime';
 import CrsPicker from '@/components/crs/CrsPicker';
 import StorageMeter from './StorageMeter';
 import LocalWorkspacePanel from '@/components/localWorkspace/LocalWorkspacePanel';
@@ -229,10 +233,12 @@ export default function ImportPanel({
   const serverAdvice = useMemo(() => (file ? serverImportAdvice(srcBytes, v4Support) : null), [file, srcBytes, v4Support]);
   const [useServer, setUseServer] = useState(false);
   // a remote file only exists on the server: it is always converted there
-  useEffect(() => { setUseServer(Boolean(file?.remote) || Boolean(serverAdvice?.preferred)); }, [serverAdvice, file]);
-  const [upload, setUpload] = useState(null);       // {bytesDone, bytesTotal}
+  const userChoseWhereRef = useRef(false);
+  useEffect(() => {
+    if (file?.remote) { setUseServer(true); return; }
+    if (!userChoseWhereRef.current) setUseServer(Boolean(serverAdvice?.preferred));
+  }, [serverAdvice, file]);
   const [serverStarted, setServerStarted] = useState(false);
-  const uploadAbortRef = useRef(null);
   // QI Q0b-3: import from a link. The worker fetches the file; the dialog
   // then works with a remote file {remote, datasetId, name, size, fingerprint}
   // and scans and converts it on the server.
@@ -260,7 +266,6 @@ export default function ImportPanel({
   const [cropRestored, setCropRestored] = useState(false);
   const [layoutInfo, setLayoutInfo] = useState(null); // {door, gathers}
   const [speed, setSpeed] = useState(() => savedUploadSpeed());
-  const [measured, setMeasured] = useState(null);
 
   const runScan = async (f, m) => {
     // rapid mapping edits fire overlapping scans; only the LATEST result
@@ -301,6 +306,9 @@ export default function ImportPanel({
     setDepthForm({ unit: 'm', dz: '', velocity: false, velocityType: 'interval' });
     domainPrefilledRef.current = false;
     runScan(f, mapping);
+    // the picked file and its choices outlive the dialog until the import starts
+    beginImportDraft(f, mapping);
+    userChoseWhereRef.current = false;
     if (onFilePicked) onFilePicked(f, mapping);
   };
 
@@ -337,6 +345,7 @@ export default function ImportPanel({
         // the viewer re-lists volumes as the row becomes openable
         onRowChange: (status) => { if (onIngested) onIngested({ status, name: file.name }); },
       });
+      clearImportDraft();
       setPhase('background');
       toast({
         title: 'Import running in the background',
@@ -430,20 +439,14 @@ export default function ImportPanel({
     }
   };
 
-  const uploadProgress = (meter) => (p) => {
-    setUpload(p);
-    meter.add(p.bytesDone + (p.bytesSending || 0));
-    const v = meter.mbPerSecond();
-    if (v) { setMeasured(v); saveUploadSpeed(v); }
-  };
 
+
+  // The upload runs as a background job (serverUploadsRuntime): the dialog
+  // closes, the status bar shows the progress, and leaving Seismolord does
+  // not stop it.
   const startServer = async () => {
     setPhase('uploading');
     setError(null);
-    setMeasured(null);
-    const ctl = new AbortController();
-    uploadAbortRef.current = ctl;
-    const meter = speedMeter();
     try {
       let crop = null;
       if (cropOn) {
@@ -455,42 +458,37 @@ export default function ImportPanel({
         rememberCropFor(file, cropForm);
       }
       // a ZGY goes up as it is: the worker reads it as the SEG-Y it holds
-      setUpload({ bytesDone: 0, bytesTotal: crop ? crop.fileLike.size : file.size });
-      await startServerImport({
-        file, mapping, scan: scanData.scan, nativeCrs: crsTag, onUploadProgress: uploadProgress(meter), signal: ctl.signal, crop,
-        ...(vertical ? { vertical } : {}),
+      const args = {
+        file, mapping, scan: scanData.scan, nativeCrs: crsTag, crop, ...(vertical ? { vertical } : {}),
+      };
+      const picked = file;
+      startServerUpload({
+        name: picked.name,
+        bytesTotal: crop ? crop.fileLike.size : picked.size,
+        task: ({ signal, onUploadProgress }) => startServerImport({ ...args, signal, onUploadProgress }),
+        onDone: () => {
+          forgetCropFor(picked);
+          toast({ title: 'Converting on the server', description: `${picked.name} is uploaded. The server converts it; follow it under Server jobs.` });
+          if (onIngested) onIngested({ status: V4_STATUS.CONVERTING, name: picked.name });
+          if (onServerImportStarted) onServerImportStarted();
+        },
+        onError: (e) => toast({ title: 'Upload stopped', description: `${picked.name}: ${e.message} Resume it from the status bar.`, variant: 'destructive' }),
       });
-      forgetCropFor(file);
+      clearImportDraft();
       setServerStarted(true);
       setPhase('background');
-      toast({
-        title: 'Converting on the server',
-        description: `${file.name} is uploaded. The server converts it; follow it under Server jobs.`,
-      });
-      if (onIngested) onIngested({ status: V4_STATUS.CONVERTING, name: file.name });
-      if (onServerImportStarted) onServerImportStarted();
+      toast({ title: 'Uploading in the background', description: `${picked.name}: progress, pause and resume are in the status bar. You can keep working.` });
+      if (onBackgroundStarted) onBackgroundStarted();
     } catch (e) {
-      if (e?.name === 'AbortError') {
-        setError(cropOn
-          ? 'Upload paused. Pick the same file again (its crop comes back) and start the import to continue from where it stopped.'
-          : 'Upload paused. Pick the same file again and start the import to continue from where it stopped.');
-      } else {
-        setError(e.message);
-      }
+      setError(e.message);
       setPhase('error');
-    } finally {
-      uploadAbortRef.current = null;
     }
   };
 
-  /** Prestack gathers: upload (cropped or not) for QI Studio's gather store. */
+  /** Prestack gathers: upload (cropped or not) for QI Studio's gather store, in the background. */
   const startGatherUpload = async () => {
     setPhase('uploading');
     setError(null);
-    setMeasured(null);
-    const ctl = new AbortController();
-    uploadAbortRef.current = ctl;
-    const meter = speedMeter();
     try {
       let crop = null;
       if (cropOn) {
@@ -498,17 +496,25 @@ export default function ImportPanel({
         crop = { fileLike: cropFileLike(c.cropped, { file, crop: c.prep.crop }) };
         rememberCropFor(file, cropForm);
       }
-      setUpload({ bytesDone: 0, bytesTotal: crop ? crop.fileLike.size : file.size });
-      await uploadForQi({ file, onUploadProgress: uploadProgress(meter), signal: ctl.signal, crop });
-      forgetCropFor(file);
+      const picked = file;
+      startServerUpload({
+        name: picked.name,
+        kind: 'gathers',
+        bytesTotal: crop ? crop.fileLike.size : picked.size,
+        task: ({ signal, onUploadProgress }) => uploadForQi({ file: picked, onUploadProgress, signal, crop }),
+        onDone: () => {
+          forgetCropFor(picked);
+          toast({ title: 'Gathers uploaded', description: `${picked.name}: build the gather store in QI Studio, Prestack tab.` });
+        },
+        onError: (e) => toast({ title: 'Upload stopped', description: `${picked.name}: ${e.message} Resume it from the status bar.`, variant: 'destructive' }),
+      });
+      clearImportDraft();
       setServerStarted(true);
       setPhase('background');
-      toast({ title: 'Gathers uploaded', description: `${file.name}: build the gather store in QI Studio, Prestack tab.` });
+      if (onBackgroundStarted) onBackgroundStarted();
     } catch (e) {
-      setError(e?.name === 'AbortError' ? 'Upload paused. Pick the same file again and upload it to continue from where it stopped.' : e.message);
+      setError(e.message);
       setPhase('error');
-    } finally {
-      uploadAbortRef.current = null;
     }
   };
 
@@ -531,6 +537,7 @@ export default function ImportPanel({
         ...(vertical ? { vertical } : {}),
         onDone: () => { if (onIngested) onIngested({ status: V4_STATUS.READY, name: file.name }); },
       });
+      clearImportDraft();
       setPhase('background');
       toast({ title: 'Importing to this computer', description: `${file.name}: nothing is uploaded. Progress is in the status bar; keep this tab open until it finishes.` });
       if (onBackgroundStarted) onBackgroundStarted();
@@ -565,6 +572,7 @@ export default function ImportPanel({
         },
         cancelToken,
       });
+      clearImportDraft();
       setPhase('done');
       toast({ title: 'Volume ingested', description: `${row.name} is ready.` });
       if (onIngested) onIngested(row);
@@ -576,6 +584,54 @@ export default function ImportPanel({
       clearConversionProgress();
     }
   };
+
+  /** Start the import, then show the file while it converts (the viewer reads it from disk). */
+  const startAndView = async () => {
+    const picked = file;
+    const m = mapping;
+    await startIngest();
+    if (!getImportDraft() && onViewNow) onViewNow(picked, m);
+  };
+
+  // The dialog's choices travel with the draft, so reopening the dialog
+  // (here, or after a visit to another app) finds them as they were.
+  useEffect(() => {
+    if (!file || file.remote || phase === 'background' || phase === 'done') return;
+    updateImportDraft(file, {
+      mapping,
+      choices: {
+        crsTag, sanityOverride, domain, depthForm, keepLocal, useServer, compress16, cropOn, cropForm, cropDefId,
+      },
+    });
+  }, [file, mapping, crsTag, sanityOverride, domain, depthForm, keepLocal, useServer, compress16, cropOn, cropForm, cropDefId, phase]);
+
+  // Reopened with a draft: the same file, mapping and choices, scanned again.
+  useEffect(() => {
+    const d = getImportDraft();
+    if (!d?.file || file) return;
+    const c = d.choices;
+    setFile(d.file);
+    setMapping(d.mapping);
+    if (c) {
+      setCrsTag(c.crsTag);
+      setSanityOverride(Boolean(c.sanityOverride));
+      setDomain(c.domain);
+      setDepthForm(c.depthForm);
+      setKeepLocal(c.keepLocal);
+      setUseServer(c.useServer);
+      userChoseWhereRef.current = true;
+      setCompress16(Boolean(c.compress16));
+      setCropOn(Boolean(c.cropOn));
+      setCropForm(c.cropForm || EMPTY_FORM);
+      setCropDefId(c.cropDefId || null);
+      // the restored choices are the user's: the one-time prefills stay off
+      crsPrefilledRef.current = Boolean(c.crsTag);
+      domainPrefilledRef.current = true;
+    }
+    runScan(d.file, d.mapping);
+    // mount only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const scan = scanData?.scan;
   // P1.6: the depth declaration (null for time), or why it cannot be used
@@ -703,6 +759,13 @@ export default function ImportPanel({
         });
   const busy = phase === 'ingesting' || phase === 'uploading' || phase === 'fetching';
   const sanityBlocks = Boolean(sanity && !sanity.ok && sanity.verdict === 'out-of-area' && !sanityOverride);
+  const startDisabled = !scan || busy || phase === 'scanning' || phase === 'background' || !crsChosen || sanityBlocks
+    || Boolean(blockReason) || (goLocal && !localReady(lws));
+  const startTitle = !scan ? undefined
+    : blockReason ? blockReason
+      : !crsChosen ? 'Choose the coordinate reference system of this file first'
+        : sanityBlocks ? 'The coordinates are implausible for the chosen CRS. Fix the choice or confirm the override.'
+          : undefined;
   const projectSet = Boolean(project?.tag && isTransformableTag(project.tag));
   const willConvert = projectSet && crsTag && isTransformableTag(crsTag)
     && normalizeTag(crsTag) !== normalizeTag(project.tag);
@@ -1307,33 +1370,17 @@ export default function ImportPanel({
           </div>
         )}
 
-        {phase === 'uploading' && upload && (
-          <div className="space-y-2" data-testid="sl-server-upload">
-            <div className="flex items-center text-pl-text text-sm">
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              {`Uploading to the Petrolord server: ${fmtBytes(upload.bytesDone + (upload.bytesSending || 0))} of ${fmtBytes(upload.bytesTotal)}`}
-            </div>
-            <div className="h-2 rounded bg-pl-sunken overflow-hidden">
-              <div
-                className="h-full bg-pl-primary transition-all"
-                style={{ width: `${Math.round(((upload.bytesDone + (upload.bytesSending || 0)) / Math.max(1, upload.bytesTotal)) * 100)}%` }}
-              />
-            </div>
-            {measured && (
-              <div className="text-xs text-pl-text" data-testid="sl-upload-speed">
-                {`Measured ${measured.toFixed(2)} MB/s: about ${formatDuration((upload.bytesTotal - upload.bytesDone - (upload.bytesSending || 0)) / (measured * 1e6))} left.`}
-              </div>
-            )}
-            <div className="text-xs text-pl-muted">
-              Keep this tab open until the upload finishes. If it stops, pick the same file again: the upload continues from where it stopped.
-            </div>
+        {phase === 'uploading' && (
+          <div className="flex items-center text-pl-text text-sm" data-testid="sl-server-upload">
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Preparing the upload
           </div>
         )}
         {phase === 'background' && (
           <div className="flex items-center text-pl-success-text text-sm">
             <CheckCircle2 className="w-4 h-4 mr-2" />
             {serverStarted
-              ? 'Uploaded. The server is converting it; follow it under Server jobs. You can close this tab.'
+              ? 'Uploading in the background. Progress, pause and resume are in the status bar; you can keep working.'
               : 'Import started. It continues in the background; progress is in the status bar.'}
           </div>
         )}
@@ -1400,7 +1447,7 @@ export default function ImportPanel({
           <fieldset className="rounded-lg border border-pl-border p-3 space-y-2 text-sm text-pl-text" data-testid="sl-import-where">
             <legend className="px-1 text-pl-muted">Where to convert</legend>
             <label className="flex items-start gap-2">
-              <input type="radio" name="sl-import-where" checked={useServer} onChange={() => setUseServer(true)} disabled={busy} />
+              <input type="radio" name="sl-import-where" checked={useServer} onChange={() => { userChoseWhereRef.current = true; setUseServer(true); }} disabled={busy} />
               <span>
                 <Server className="inline w-4 h-4 mr-1 -mt-0.5" />
                 On the Petrolord server
@@ -1413,7 +1460,7 @@ export default function ImportPanel({
               </span>
             </label>
             <label className="flex items-start gap-2">
-              <input type="radio" name="sl-import-where" checked={!useServer} onChange={() => setUseServer(false)} disabled={busy} />
+              <input type="radio" name="sl-import-where" checked={!useServer} onChange={() => { userChoseWhereRef.current = true; setUseServer(false); }} disabled={busy} />
               <span>
                 In this browser
                 <span className="block text-xs text-pl-muted">Converts on this computer, then uploads the result.</span>
@@ -1442,12 +1489,8 @@ export default function ImportPanel({
         <div className="flex gap-3">
           <Button
             onClick={startIngest}
-            disabled={!scan || busy || phase === 'scanning' || phase === 'background' || !crsChosen || sanityBlocks || Boolean(blockReason) || (goLocal && !localReady(lws))}
-            title={!scan ? undefined
-              : blockReason ? blockReason
-              : !crsChosen ? 'Choose the coordinate reference system of this file first'
-                : sanityBlocks ? 'The coordinates are implausible for the chosen CRS. Fix the choice or confirm the override.'
-                  : undefined}
+            disabled={startDisabled}
+            title={startTitle}
             className="bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg"
           >
             <Play className="w-4 h-4 mr-2" />
@@ -1465,23 +1508,28 @@ export default function ImportPanel({
               Upload gathers for QI Studio
             </Button>
           )}
-          {file && onViewNow && (
-            // Stream L: the viewer already shows this file; the import
-            // keeps running with the dialog closed and its progress
-            // shows in the viewer (sources/conversionProgress)
+          {file && !file.remote && onViewNow && phase !== 'background' && !busy && (goLocal || useServer || useV4) && (
+            // owner report 2026-10-17: viewing used to close the dialog before
+            // the import started. This starts it, then shows the file.
             <Button
               variant="outline"
-              onClick={onViewNow}
-              title="Inlines and crosslines are shown straight from this file while it converts"
+              onClick={startAndView}
+              disabled={startDisabled}
+              title={startTitle || 'Starts the import in the background and shows inlines and crosslines straight from this file while it converts'}
+              data-testid="sl-import-start-view"
             >
               <Eye className="w-4 h-4 mr-2" />
-              View it now
+              Start import and view now
             </Button>
           )}
-          {phase === 'uploading' && (
-            <Button variant="outline" onClick={() => uploadAbortRef.current?.abort()}>
-              <Pause className="w-4 h-4 mr-2" />
-              Pause upload
+          {file && !file.remote && onViewNow && phase !== 'background' && !busy && (
+            <Button
+              variant="ghost"
+              onClick={() => onViewNow(file, mapping)}
+              title="Shows inlines and crosslines straight from the file. Nothing is imported until you start the import; this setup stays under Import until then."
+              data-testid="sl-import-preview"
+            >
+              Preview without importing
             </Button>
           )}
           {phase === 'ingesting' && (

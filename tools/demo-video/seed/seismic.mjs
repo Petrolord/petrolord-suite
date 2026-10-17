@@ -53,7 +53,7 @@ try {
     await dialog.locator('input[type="file"][accept*=".sgy"]').first().setInputFiles(path.join(KIT, file));
     await dialog.getByText('Vertical axis of this file').waitFor({ timeout: 120000 });
     await dialog.getByText('On the Petrolord server').click();
-    await dialog.getByRole('button', { name: 'Start import' }).click();
+    await dialog.getByRole('button', { name: 'Start import', exact: true }).click();
     const started = Date.now();
     // the upload runs in this tab and the dialog closes; the server converts;
     // the volume then appears in the picker

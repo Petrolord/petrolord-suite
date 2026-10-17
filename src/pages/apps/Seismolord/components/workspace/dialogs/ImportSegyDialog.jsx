@@ -14,7 +14,7 @@ import ImportPanel from '../../ImportPanel';
  * @param {Object} p
  * @param {(file: File, mapping: Object) => void} [p.onFilePicked] Stream L:
  *   the viewer opens the picked file straight from disk
- * @param {() => void} [p.onViewNow] close the dialog to look at it
+ * @param {(file: File, mapping: Object) => void} [p.onViewNow] close the dialog and show the file
  */
 export default function ImportSegyDialog({
   open, onOpenChange, onIngested, onFilePicked, onViewNow,

@@ -172,8 +172,8 @@ export default {
         await d.highlight(exp);
       } },
     { id: 'server', chapter: 'On the server', chapterSub: 'Files of 2 GB or more',
-      say: 'For files of two gigabytes or more, Seismolord recommends converting on the Petrolord server: the file uploads straight to the seismic worker, which converts it, and the tab can be closed once the upload finishes. Sixteen bit storage halves the size again. And View it now shows lines straight from the file on your computer while it converts.',
-      sub: 'For files of 2 GB or more, Seismolord recommends converting on the Petrolord server: the file uploads straight to the seismic worker, which converts it, and the tab can be closed once the upload finishes. 16-bit storage halves the size again. And View it now shows lines straight from the file on your computer while it converts.',
+      say: 'For files of two gigabytes or more, Seismolord recommends converting on the Petrolord server: the file uploads straight to the seismic worker, which converts it, and the tab can be closed once the upload finishes. Sixteen bit storage halves the size again. And Start import and view now shows lines straight from the file on your computer while it converts.',
+      sub: 'For files of 2 GB or more, Seismolord recommends converting on the Petrolord server: the file uploads straight to the seismic worker, which converts it, and the tab can be closed once the upload finishes. 16-bit storage halves the size again. And Start import and view now shows lines straight from the file on your computer while it converts.',
       do: async (d) => {
         await d.unhighlight();
         const where = dialog(d).getByTestId('sl-import-where');
@@ -183,7 +183,7 @@ export default {
         await b16.scrollIntoViewIfNeeded(); await d.sleep(500);
         await d.highlight(b16);
         await d.sleep(2500);
-        await d.highlight(dialog(d).getByRole('button', { name: 'View it now' }));
+        await d.highlight(dialog(d).getByTestId('sl-import-start-view'));
       } },
     { id: 'end', chapter: 'The series', chapterSub: 'From SEG-Y to a volume',
       say: 'We close without importing. That completes the series: from a SEG-Y file, through horizons, faults, wells, depth and attributes, to a volume in ReservoirCalc Pro, all on one synthetic field whose answers are known. The Ekene kit is free to download; follow along with the same data.',
