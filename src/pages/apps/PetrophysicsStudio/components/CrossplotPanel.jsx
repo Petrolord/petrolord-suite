@@ -23,6 +23,7 @@ import {
   pointInPolygon,
 } from '../engine/crossplot';
 import { COLOR_MAPS } from '@/utils/colorMaps';
+import { isCodeLog, codeCategories } from '@/components/wells/faciesPalette';
 import { trackPlotPng } from '@/components/wells/plotPng';
 import { makeDepthAxes, toDisplay, fromDisplay, DEPTH_TRACK_TITLE } from '@/components/wells/depthModes';
 import { planZoneFilter } from '../services/zoneFilter';
@@ -63,6 +64,10 @@ const DEFAULT_DOMAINS = {
   hingle: { x: [0, 0.4], y: [0, 2.5] },
 };
 const DIMMED = '#d8dde4';
+// a sample with no facies code (0 = inside no class, or null) under a code colouring
+const NO_CODE = '#cbd5e1';
+/** The colour-by value of a facies code curve. */
+export const codeKey = (mnemonic) => `code:${mnemonic}`;
 
 // Colour maps offered for a property colouring (2026-10-08, owner review:
 // bright colours that carry information). Turbo by default: vivid and still
@@ -84,13 +89,14 @@ const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-t
  * PT10b props: `logs` (raw registry curves by mnemonic), `well` (the
  * selected geo_wells row, for the TVD/TVDSS frame), `depthUnit`, `wells`
  * + `currentWellId` + `curvesCache` (the overlay well, the histogram's
- * pattern).
+ * pattern). `logRows` (the registry log rows) name the well's facies code
+ * curves (RP_FACIES or any facies / CODE log) for a categorical colouring.
  */
 export default function CrossplotPanel({
   curves, outputs, params, facies, onFaciesChange, onApplyParams, onStatus,
   selection = null, onSelectionChange, initialConfig = null, onConfigChange,
   zones = [], wellName = 'Well',
-  logs = {}, well = null, depthUnit = 'm', wells = [], currentWellId = null, curvesCache = null,
+  logs = {}, well = null, depthUnit = 'm', wells = [], currentWellId = null, curvesCache = null, logRows = [],
 }) {
   const [plot, setPlot] = useState(initialConfig?.plot || 'nd'); // 'nd' | 'pickett' | 'buckles' | 'hingle' | 'density'
   // PT10b: the depth density configuration (persisted under crossplots.density)
@@ -188,8 +194,21 @@ export default function CrossplotPanel({
     return out;
   }, [curves, outputs]);
 
+  // facies code curves of this well, on its own depth grid (2026-10-17)
+  const codeSources = useMemo(() => {
+    const n = curves?.DEPT?.length;
+    return (logRows || []).filter((r) => isCodeLog(r) && logs?.[r.mnemonic] && (!n || logs[r.mnemonic].length === n))
+      .map((r) => ({ key: codeKey(r.mnemonic), row: r, data: logs[r.mnemonic] }));
+  }, [logRows, logs, curves]);
+  const codeInfo = useMemo(() => {
+    const src = codeSources.find((c) => c.key === colorBy);
+    if (!src) return null;
+    const { categories, index } = codeCategories(src.row, src.data);
+    return categories.length ? { mnemonic: src.row.mnemonic, categories, index } : null;
+  }, [codeSources, colorBy]);
+
   const zInfo = useMemo(() => {
-    if (colorBy === 'facies' || colorBy === 'none') return null;
+    if (colorBy === 'facies' || colorBy === 'none' || String(colorBy).startsWith('code:')) return null;
     // depth colours in the session's unit (it read m in a feet session)
     const ftF = depthUnit === 'ft' ? 1 / 0.3048 : 1;
     const data = colorBy === 'depth'
@@ -210,6 +229,10 @@ export default function CrossplotPanel({
   }, [colorBy, curves, zSources, depthUnit]);
 
   const colorFor = useMemo(() => (s) => {
+    if (codeInfo) {
+      const k = codeInfo.index[s.i];
+      return Number.isFinite(k) ? codeInfo.categories[k].color : NO_CODE;
+    }
     if (zInfo) {
       const v = zInfo.data[s.i];
       if (!Number.isFinite(v)) return POINT_COLOR;
@@ -219,7 +242,7 @@ export default function CrossplotPanel({
       return facies[ndTags[s.i]].color;
     }
     return POINT_COLOR;
-  }, [zInfo, colorBy, ndTags, facies, mapFn]);
+  }, [zInfo, codeInfo, colorBy, ndTags, facies, mapFn]);
 
   const withZ = (s, color) => ({
     x: s.x,
@@ -228,6 +251,8 @@ export default function CrossplotPanel({
     color: selection && !selection.has(s.i) ? DIMMED : color,
     depthM: s.depthM,
     zv: zInfo ? zInfo.data[s.i] : undefined,
+    // no code under a code colouring: a small grey dot drawn under the classes
+    small: codeInfo ? !Number.isFinite(codeInfo.index[s.i]) : undefined,
   });
 
   // PT8/PT9b: every plot shows only the selected zones, and colours by
@@ -236,7 +261,7 @@ export default function CrossplotPanel({
   // drive the same dot; facies colouring loses to zone colouring, and
   // comes back as soon as a single zone (or all) is shown.
   const shownOf = (samples) => (zoneFilter.filtering ? samples.filter((s) => zoneFilter.inFilter(s.depthM)) : samples);
-  const zoneOrDefault = (s) => (zInfo ? null : zoneFilter.colorOf(s.depthM)) || colorFor(s);
+  const zoneOrDefault = (s) => (zInfo || codeInfo ? null : zoneFilter.colorOf(s.depthM)) || colorFor(s);
 
   const ndShown = useMemo(() => shownOf(ndSamples), [ndSamples, zoneFilter]); // eslint-disable-line react-hooks/exhaustive-deps
   const ndPoints = useMemo(
@@ -469,6 +494,23 @@ export default function CrossplotPanel({
     return counts;
   }, [ndTags]);
 
+  // facies code colouring: a chip and an in-plot key per category with the
+  // number of points of it on the plot shown (zone filter applied)
+  const codeCounts = useMemo(() => {
+    if (!codeInfo) return null;
+    const shown = { nd: ndShown, pickett: pickettShown, buckles: bucklesShown, hingle: hingleShown }[plot] || [];
+    const counts = new Array(codeInfo.categories.length).fill(0);
+    let none = 0;
+    for (const smp of shown) {
+      const k = codeInfo.index[smp.i];
+      if (Number.isFinite(k)) counts[k] += 1; else none += 1;
+    }
+    return { counts, none };
+  }, [codeInfo, plot, ndShown, pickettShown, bucklesShown, hingleShown]);
+  const codeLegend = useMemo(() => (codeInfo && codeCounts
+    ? codeInfo.categories.map((c, k) => ({ name: `${c.name} (${codeCounts.counts[k]})`, color: c.color }))
+    : null), [codeInfo, codeCounts]);
+
   // PT8: PNG of the plot as shown, through the same composer the track
   // plot and the correlation section use. The caption states the zone
   // filter, so a saved Pickett cannot be mistaken for the whole well.
@@ -482,7 +524,7 @@ export default function CrossplotPanel({
         ? `${densityGrid?.n || 0} samples · ${densityCaption()}`
         : `${shown.length} points`
         + ` · zones: ${zoneFilter.label}`
-        + (colorBy !== 'facies' && colorBy !== 'none' ? ` · coloured by ${colorBy}` : '')
+        + (colorBy !== 'facies' && colorBy !== 'none' ? ` · coloured by ${codeInfo ? `facies curve ${codeInfo.mnemonic}` : colorBy}` : '')
         + (!zInfo && zoneFilter.colouring ? ' · coloured by zone' : '');
       const blob = await trackPlotPng({
         canvas,
@@ -549,10 +591,11 @@ export default function CrossplotPanel({
             <option value="none">None</option>
             <option value="depth">Depth</option>
             {zSources.map((s) => <option key={s.key} value={s.key}>{Z_LABELS[s.key] || s.key}</option>)}
+            {codeSources.map((c) => <option key={c.key} value={c.key}>{`Facies curve ${c.row.mnemonic}`}</option>)}
           </select>
         </label>
         )}
-        {plot !== 'density' && colorBy !== 'facies' && colorBy !== 'none' && (
+        {plot !== 'density' && colorBy !== 'facies' && colorBy !== 'none' && !codeInfo && (
         <label className="flex items-center gap-1 text-pl-muted">
           Colours
           <select className={inputCls} data-testid="petro-colormap" value={colorMap} onChange={(e) => setColorMap(e.target.value)}>
@@ -613,6 +656,23 @@ export default function CrossplotPanel({
           </button>
         )}
 
+        {codeInfo && codeCounts && plot !== 'density' && (
+          <div className="flex items-center gap-1.5 flex-wrap" data-testid="petro-code-legend">
+            {codeInfo.categories.map((c, k) => (
+              <span key={c.code} className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 border border-pl-border"
+                data-testid={`petro-code-chip-${c.name}`}>
+                <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />
+                <span className="text-pl-text">{c.name}</span>
+                <span className="text-pl-muted" data-testid={`petro-code-count-${c.name}`}>{codeCounts.counts[k]}</span>
+              </span>
+            ))}
+            {codeCounts.none > 0 && (
+              <span className="inline-flex items-center gap-1 text-pl-muted" data-testid="petro-code-none" title="Samples outside every class or without a code">
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: NO_CODE }} />no code {codeCounts.none}
+              </span>
+            )}
+          </div>
+        )}
         {plot === 'nd' && (
           <div className="ml-auto flex items-center gap-1.5">
             {facies.map((f, i) => (
@@ -827,7 +887,7 @@ export default function CrossplotPanel({
               yDomain={dom('nd').y}
               yReverse
               overlays={ND_LITHOLOGY_LINES.map((l) => ({ ...l, color: '#94a3b8' }))}
-              legend={zInfo ? [] : zoneFilter.legend}
+              legend={codeLegend || (zInfo ? [] : zoneFilter.legend)}
               polygons={facies}
               draftPolygon={selecting ? selDraft : (drawing ? draft : null)}
               onPlotClick={selecting
@@ -854,7 +914,7 @@ export default function CrossplotPanel({
               yLog
               overlays={pickettOverlays}
               colorbar={colorbar}
-              legend={zInfo ? [] : zoneFilter.legend}
+              legend={codeLegend || (zInfo ? [] : zoneFilter.legend)}
               draftPolygon={selecting ? selDraft : null}
               onPlotClick={selecting ? ({ x, y }) => setSelDraft((d) => [...d, [x, y]]) : undefined}
               onDomainsChange={setDom('pickett')}
@@ -875,7 +935,7 @@ export default function CrossplotPanel({
               yDomain={dom('buckles').y}
               overlays={bucklesOverlays}
               colorbar={colorbar}
-              legend={zInfo ? [] : zoneFilter.legend}
+              legend={codeLegend || (zInfo ? [] : zoneFilter.legend)}
               draftPolygon={selecting ? selDraft : null}
               onPlotClick={selecting ? ({ x, y }) => setSelDraft((d) => [...d, [x, y]]) : undefined}
               onDomainsChange={setDom('buckles')}
@@ -921,7 +981,7 @@ export default function CrossplotPanel({
               yDomain={dom('hingle').y}
               overlays={hingleOverlays}
               colorbar={colorbar}
-              legend={zInfo ? [] : zoneFilter.legend}
+              legend={codeLegend || (zInfo ? [] : zoneFilter.legend)}
               draftPolygon={selecting ? selDraft : null}
               onPlotClick={selecting ? ({ x, y }) => setSelDraft((d) => [...d, [x, y]]) : undefined}
               onDomainsChange={setDom('hingle')}

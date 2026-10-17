@@ -244,28 +244,34 @@ export default function Crossplot({
     const screenPts = [];
     const big = points.length > BIG_CLOUD;
     const byColor = big ? new Map() : null;
-    for (const pt of points) {
+    // `small` points (no class under a categorical colouring) draw first and
+    // smaller, so the classes sit on top of them
+    const ordered = points.some((p) => p.small) ? [...points.filter((p) => p.small), ...points.filter((p) => !p.small)] : points;
+    for (const pt of ordered) {
       const x = X(pt.x);
       const y = Y(pt.y);
       if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
       if (x < M.l || x > M.l + plotW || y < M.t || y > M.t + plotH) continue;
       if (big) {
-        let list = byColor.get(pt.color);
-        if (!list) { list = []; byColor.set(pt.color, list); }
+        const key = pt.small ? `${pt.color}|s` : pt.color;
+        let list = byColor.get(key);
+        if (!list) { list = []; byColor.set(key, list); }
         list.push(x, y);
       } else {
         ctx.fillStyle = pt.color;
         ctx.beginPath();
-        ctx.arc(x, y, 2.4, 0, Math.PI * 2);
+        ctx.arc(x, y, pt.small ? 1.3 : 2.4, 0, Math.PI * 2);
         ctx.fill();
       }
       screenPts.push({ sx: x, sy: y, pt });
     }
     if (big) {
-      for (const [col, xy] of byColor) {
-        ctx.fillStyle = col;
+      for (const [key, xy] of byColor) {
+        const small = key.endsWith('|s');
+        ctx.fillStyle = small ? key.slice(0, -2) : key;
+        const r = small ? 0.75 : 1.25;
         ctx.beginPath();
-        for (let k = 0; k < xy.length; k += 2) ctx.rect(xy[k] - 1.25, xy[k + 1] - 1.25, 2.5, 2.5);
+        for (let k = 0; k < xy.length; k += 2) ctx.rect(xy[k] - r, xy[k + 1] - r, 2 * r, 2 * r);
         ctx.fill();
       }
     }
