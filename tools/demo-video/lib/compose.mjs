@@ -175,15 +175,21 @@ export async function composeModule(mod, scenes, { outDir }) {
     last = `x${k}`; acc = off + items[k].dur;
   }
   const ass = path.join(work, 'booth.ass'); fs.writeFileSync(ass, boothAss(cues, mod.boothFontSize ?? 104));
-  const graph = `${chains.join(';')};[${last}]scale=3840:2160:flags=lanczos,split=3[y][n0][r0];[n0]subtitles=${ass}:fontsdir=/usr/share/fonts[n];[r0]scale=1920:1080:flags=lanczos[r]`;
-  fs.writeFileSync(path.join(work, 'graph.txt'), graph);
-  const enc = ['-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-profile:v', 'high', '-level', '5.1', '-pix_fmt', 'yuv420p', '-r', '30', '-movflags', '+faststart'];
-  const ai = items.length; // audio inputs follow the picture inputs
-  ff([...inputs, '-i', mixWav, ...(napeBed ? ['-i', napeBed] : []), '-i', path.join(outDir, 'youtube.srt'),
-    '-filter_complex_script', path.join(work, 'graph.txt'),
-    '-map', '[y]', '-map', `${ai}:a`, '-map', `${ai + (napeBed ? 2 : 1)}:s`, ...enc, '-c:a', 'aac', '-b:a', '192k', '-c:s', 'mov_text', '-metadata:s:s:0', 'language=eng', path.join(outDir, 'youtube.mp4'),
-    '-map', '[n]', ...(napeBed ? ['-map', `${ai + 1}:a`, '-c:a', 'aac', '-b:a', '128k'] : ['-an']), ...enc, path.join(outDir, 'nape.mp4'),
-    '-map', '[r]', '-map', `${ai}:a`, '-c:v', 'libx264', '-preset', 'slow', '-crf', '30', '-pix_fmt', 'yuv420p', '-r', '30', '-movflags', '+faststart', '-c:a', 'aac', '-b:a', '96k', path.join(outDir, 'review.mp4')]);
+  // Serial passes keep memory low (a one-pass three-output 4K encode was
+  // OOM-killed on the 15 GB host): join at capture size first, then one
+  // encode per output.
+  const joined = path.join(work, 'joined.mkv');
+  fs.writeFileSync(path.join(work, 'graph.txt'), `${chains.join(';')};[${last}]null[j]`);
+  ff([...inputs, '-filter_complex_script', path.join(work, 'graph.txt'), '-map', '[j]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '12', '-pix_fmt', 'yuv420p', '-r', '30', joined]);
+  const lowmem = ['-x264-params', 'rc-lookahead=20', '-threads', '4'];
+  const enc = ['-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-profile:v', 'high', '-level', '5.1', '-pix_fmt', 'yuv420p', '-r', '30', '-movflags', '+faststart', ...lowmem];
+  const up = 'scale=3840:2160:flags=lanczos,setsar=1';
+  ff(['-i', joined, '-i', mixWav, '-i', path.join(outDir, 'youtube.srt'), '-vf', up, '-map', '0:v', '-map', '1:a', '-map', '2:s', ...enc,
+    '-c:a', 'aac', '-b:a', '192k', '-c:s', 'mov_text', '-metadata:s:s:0', 'language=eng', '-shortest', path.join(outDir, 'youtube.mp4')]);
+  ff(['-i', joined, ...(napeBed ? ['-i', napeBed] : []), '-vf', `${up},subtitles=${ass}:fontsdir=/usr/share/fonts`, '-map', '0:v',
+    ...(napeBed ? ['-map', '1:a', '-c:a', 'aac', '-b:a', '128k'] : ['-an']), ...enc, path.join(outDir, 'nape.mp4')]);
+  ff(['-i', joined, '-i', mixWav, '-vf', 'scale=1920:1080:flags=lanczos', '-map', '0:v', '-map', '1:a', '-c:v', 'libx264', '-preset', 'slow', '-crf', String(mod.reviewCrf ?? 30),
+    '-pix_fmt', 'yuv420p', '-r', '30', '-movflags', '+faststart', ...lowmem, '-c:a', 'aac', '-b:a', '96k', '-shortest', path.join(outDir, 'review.mp4')]);
 
   fs.writeFileSync(path.join(outDir, 'module.json'), JSON.stringify({ id: mod.id, total, items: items.map(({ rec, clips, sb, ...x }) => x), chapters }, null, 2));
   return { total, cues: cues.length, chapters };
