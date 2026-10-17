@@ -3,6 +3,8 @@
 // the review patch written when a human approves or rejects a proposal, a
 // readable preview of a task payload, and the weekly scorecard.
 // No Supabase or React here, so all of it is unit tested.
+// Email tasks (the email marketer, 2026-10-17) use src/lib/aiEmailDraft.js.
+import { isEmailKind, applyEmailEdits, emailPreview } from './aiEmailDraft.js';
 
 export const AUTONOMY_STEPS = Object.freeze({
   1: { label: 'Shadow', detail: 'Proposes only. A human approves every item.' },
@@ -64,7 +66,13 @@ export function reviewPatch(task, { decision, note, reviewerEmail, edits, now = 
     reviewed_at: new Date(now).toISOString(),
   };
 
-  if (to === 'approved' && edits) {
+  if (to === 'approved' && edits && isEmailKind(task.kind)) {
+    const payload = applyEmailEdits(task.payload, edits);
+    if (payload) {
+      patch.payload = payload;
+      patch.title = payload.subject || task.title;
+    }
+  } else if (to === 'approved' && edits) {
     const payload = { ...(task.payload || {}) };
     let changed = false;
     if (typeof edits.title === 'string') {
@@ -125,7 +133,8 @@ export function listingPreview(payload = {}) {
 }
 
 /**
- * A task's preview: { kind: 'youtube_listing', listing } for listings, or
+ * A task's preview: { kind: 'youtube_listing', listing } for listings,
+ * { kind: 'email', email } for the email marketer's drafts, or
  * { kind: 'generic', fields: [[key, text]] } for anything else.
  */
 export function taskPreview(task) {
@@ -133,6 +142,7 @@ export function taskPreview(task) {
   if (task.kind === 'youtube_listing' || task.kind === 'youtube_upload') {
     return { kind: 'youtube_listing', listing: listingPreview(task.payload) };
   }
+  if (isEmailKind(task.kind)) return { kind: 'email', email: emailPreview(task.payload) };
   const fields = Object.entries(task.payload || {}).map(([k, v]) => [
     k.replace(/_/g, ' '),
     v != null && typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v ?? ''),

@@ -13,12 +13,16 @@ import { AccountScope, AccountPage, AccountHeader, accountCallout, accountEmpty 
 import {
   autonomyLabel, toggledEmployeeStatus, reviewPatch, taskPreview, weeklyScorecard, pct, LIMITS,
 } from '@/lib/aiEmployees';
+import { isEmailKind, emailPreview, EMAIL_LIMITS } from '@/lib/aiEmailDraft';
 
 // AI employees register, approval queue and action log. Super-admin only:
 // the route is wrapped in SuperAdminRoute and every ai_* table's policies
 // are public.is_super_admin(), so nobody else can read or review.
 // Shadow mode: the worker proposes, a human approves here, and only then
-// does tools/ai-employees/youtube/execute.mjs act on the task.
+// does tools/ai-employees/youtube/execute.mjs act on the task. Email drafts
+// (tools/ai-employees/email) show a sandboxed preview (no scripts) and the
+// facts the reviewer must fill in before tools/ai-employees/email/execute.mjs
+// will create the Brevo campaign.
 
 const day = (iso) => (iso ? String(iso).slice(0, 10) : 'Not set');
 const when = (iso) => (iso ? String(iso).slice(0, 16).replace('T', ' ') : '');
@@ -65,10 +69,109 @@ function ListingPreview({ listing, editable, edits, setEdits }) {
   );
 }
 
+function EmailPreview({ email, editable, edits, setEdits }) {
+  const facts = { ...email.facts, ...(edits.facts || {}) };
+  const setFact = (ph, v) => setEdits((s) => ({ ...s, facts: { ...(s.facts || {}), [ph]: v } }));
+  const localValue = (iso) => (iso ? new Date(new Date(iso).getTime() + 3600e3).toISOString().slice(0, 16) : '');
+  return (
+    <div className="space-y-3 text-sm" data-testid="ai-email-preview">
+      {editable ? (
+        <>
+          <label className="block">
+            <span className="text-xs font-medium text-pl-muted">Subject ({(edits.subject ?? email.subject).length}/{EMAIL_LIMITS.subject})</span>
+            <Input value={edits.subject ?? email.subject} maxLength={EMAIL_LIMITS.subject} onChange={(e) => setEdits((s) => ({ ...s, subject: e.target.value }))} data-testid="ai-email-edit-subject" />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-pl-muted">Preheader (the line after the subject in the inbox)</span>
+            <Input value={edits.preheader ?? email.preheader} maxLength={EMAIL_LIMITS.preheader} onChange={(e) => setEdits((s) => ({ ...s, preheader: e.target.value }))} data-testid="ai-email-edit-preheader" />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-pl-muted">Send at (Lagos time)</span>
+            <Input
+              type="datetime-local"
+              value={edits.scheduled_local ?? localValue(email.scheduledAt)}
+              onChange={(e) => setEdits((s) => ({ ...s, scheduled_local: e.target.value, scheduled_at: e.target.value ? new Date(`${e.target.value}:00+01:00`).toISOString() : undefined }))}
+              data-testid="ai-email-edit-time"
+            />
+          </label>
+        </>
+      ) : (
+        <>
+          <p className="font-medium text-pl-text">{email.subject}</p>
+          <p className="text-pl-muted">{email.preheader}</p>
+        </>
+      )}
+      <dl className="grid grid-cols-1 gap-x-4 gap-y-1">
+        <div><dt className="inline text-pl-muted">Scheduled: </dt><dd className="inline">{email.scheduledLabel}</dd></div>
+        <div><dt className="inline text-pl-muted">From: </dt><dd className="inline">{email.sender || 'Not set'}{email.replyTo ? `, reply-to ${email.replyTo}` : ''}</dd></div>
+        <div>
+          <dt className="text-pl-muted">Audience</dt>
+          <dd><ul className="list-disc pl-5">{email.audience.map((a) => <li key={a.key}>{a.label} <span className="text-pl-muted">({a.key})</span></li>)}</ul></dd>
+        </div>
+      </dl>
+      {email.placeholders.length > 0 && (
+        <div className={accountCallout(email.unfilled.length ? 'warning' : 'info')} data-testid="ai-email-placeholders">
+          <p className="font-medium">Facts to fill in before approving ({email.unfilled.length ? `${email.unfilled.length} still missing; the email will not be sent until they are filled` : 'all filled'})</p>
+          <div className="mt-2 space-y-2">
+            {email.placeholders.map((ph) => (
+              <label key={ph} className="block">
+                <span className="text-xs font-medium">{ph}</span>
+                {editable ? (
+                  <Input value={facts[ph] || ''} onChange={(e) => setFact(ph, e.target.value)} data-testid="ai-email-fact" />
+                ) : <span className="ml-2">{facts[ph] || 'Not filled'}</span>}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+      {email.notes.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-pl-muted">Notes for the reviewer</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5">{email.notes.map((n) => <li key={n}>{n}</li>)}</ul>
+        </div>
+      )}
+      <div>
+        <p className="text-xs font-medium text-pl-muted">Preview</p>
+        <iframe
+          title={`Email preview: ${email.subject}`}
+          srcDoc={email.html}
+          sandbox=""
+          className="mt-1 h-[36rem] w-full rounded-md border border-pl-border bg-white"
+          data-testid="ai-email-iframe"
+        />
+      </div>
+      <details>
+        <summary className="cursor-pointer text-xs font-medium text-pl-muted">Text version</summary>
+        <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-pl-sunken p-3 font-sans text-pl-text" data-testid="ai-email-text">{email.text}</pre>
+      </details>
+      {editable && (
+        <details>
+          <summary className="cursor-pointer text-xs font-medium text-pl-muted">Edit the HTML or text directly (rarely needed)</summary>
+          <label className="mt-2 block">
+            <span className="text-xs font-medium text-pl-muted">HTML (keep the {'{{ unsubscribe }}'} link)</span>
+            <Textarea rows={8} className="font-mono text-xs" value={edits.html ?? email.html} onChange={(e) => setEdits((s) => ({ ...s, html: e.target.value }))} />
+          </label>
+          <label className="mt-2 block">
+            <span className="text-xs font-medium text-pl-muted">Text version</span>
+            <Textarea rows={8} value={edits.text ?? email.text} onChange={(e) => setEdits((s) => ({ ...s, text: e.target.value }))} />
+          </label>
+        </details>
+      )}
+    </div>
+  );
+}
+
 function TaskCard({ task, reviewerEmail, onReviewed }) {
   const { toast } = useToast();
-  const preview = taskPreview(task);
   const [edits, setEdits] = useState({});
+  // email drafts preview with the reviewer's facts and edits applied, so the iframe shows what will be sent
+  const preview = useMemo(() => {
+    if (!isEmailKind(task.kind) || !Object.keys(edits).length) return taskPreview(task);
+    const merged = { ...task.payload };
+    for (const k of ['subject', 'preheader', 'html', 'text', 'scheduled_at']) if (typeof edits[k] === 'string' && edits[k]) merged[k] = edits[k];
+    merged.facts = { ...(task.payload?.facts || {}), ...(edits.facts || {}) };
+    return { kind: 'email', email: emailPreview(merged) };
+  }, [task, edits]);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const proposed = task.status === 'proposed';
@@ -76,7 +179,8 @@ function TaskCard({ task, reviewerEmail, onReviewed }) {
   const review = async (decision) => {
     setBusy(true);
     try {
-      const patch = reviewPatch(task, { decision, note, reviewerEmail, edits: decision === 'approve' ? edits : null });
+      const { scheduled_local: _local, ...cleanEdits } = edits;
+      const patch = reviewPatch(task, { decision, note, reviewerEmail, edits: decision === 'approve' ? cleanEdits : null });
       const { error } = await supabase.from('ai_employee_tasks').update(patch).eq('id', task.id).eq('status', 'proposed');
       if (error) throw error;
       await supabase.from('ai_employee_actions').insert({
@@ -105,6 +209,8 @@ function TaskCard({ task, reviewerEmail, onReviewed }) {
       </div>
       {preview.kind === 'youtube_listing' ? (
         <ListingPreview listing={preview.listing} editable={proposed} edits={edits} setEdits={setEdits} />
+      ) : preview.kind === 'email' ? (
+        <EmailPreview email={preview.email} editable={proposed} edits={edits} setEdits={setEdits} />
       ) : (
         <dl className="space-y-1 text-sm">
           {preview.fields.map(([k, v]) => (
