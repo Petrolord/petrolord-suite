@@ -1,0 +1,11 @@
+{
+  "_comment": "The only two audiences the email marketer may use (owner, 2026-10-17). nape-optins: the Brevo list(s) of people who opted in at the last NAPE exhibition; put their Brevo list id(s) here (Contacts, Lists, the number in the list's row). nape-2026-leads: built by sync-leads.mjs from event_leads and found by name, so it needs no id here.",
+  "nape-optins": {
+    "list_ids": [],
+    "list_names_hint": "[NAPE OPT-IN LIST NAME IN BREVO]"
+  },
+  "nape-2026-leads": {
+    "list_name": "NAPE 2026 leads",
+    "interest_lists": "NAPE 2026 leads: suite | nextgen | hse | consulting | other"
+  }
+}
