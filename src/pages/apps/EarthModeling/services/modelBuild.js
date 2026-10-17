@@ -1182,7 +1182,7 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       props: layered ? aggregateLayerProps(layerOut) : layerOut[0].props,
       variance: layered ? {} : layerOut[0].variance,
       provenance: layered ? mergeLayerProvenance(layerOut) : layerOut[0].provenance,
-      ...(logControl ? { logRows: logControl.rows } : {}),
+      ...(logControl ? { logRows: logControl.rows, logSamples: logControl.samples } : {}),
       kind: ez.kind, parent: ez.parent, topName: ez.topName, baseName: ez.baseName,
       ...(gridOn ? { grid: { layers: nL, layerM: gridLayerM, style: gridStyle } } : {}),
       ...(sgsOut ? { sgs: sgsOut.stats } : {}),

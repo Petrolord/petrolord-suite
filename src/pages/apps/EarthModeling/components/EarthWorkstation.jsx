@@ -22,6 +22,7 @@ import MapView from './MapView';
 import SectionView from './SectionView';
 import FrameworkView3D from './FrameworkView3D';
 import PropertyPlayer from './PropertyPlayer';
+import ResultsCharts from './ResultsCharts';
 import { contourPolylines } from '@/lib/gridding/mapContours';
 import QcPanel from './QcPanel';
 import { emptyDefinition, newModelDefinition, MISTIE_WARN_M, publishPayload, BG_UNITS, upgradeDefinition, specOf } from '../services/modelBuild';
@@ -87,6 +88,10 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   const [built, setBuilt] = useState(null);
   const [building, setBuilding] = useState(false);
   const [view, setView] = useState('map');
+  // 3D grid upgrade: results as charts, the tables in a Details tab
+  // (a model on the fine grid opens on the charts; a layer-cake on the tables, as before)
+  const [resultsTabPick, setResultsTab] = useState(null);
+  const resultsTab = resultsTabPick || (built?.grid ? 'charts' : 'details');
   const [zoneIdx, setZoneIdx] = useState(0);
   const [layer, setLayer] = useState('top');
   const [subLayer, setSubLayer] = useState(-1); // a proportional layer of the zone, -1 = the whole zone
@@ -558,7 +563,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
           <Rows className="w-3.5 h-3.5" /> Section
         </button>
         <button type="button" data-testid="em-view-qc" className={viewBtn(view === 'qc')} onClick={() => setView('qc')}>
-          <ClipboardCheck className="w-3.5 h-3.5" /> QC &amp; volumes
+          <ClipboardCheck className="w-3.5 h-3.5" /> Results
         </button>
         <button type="button" data-testid="em-view-3d" className={viewBtn(view === '3d')} onClick={() => setView('3d')} title="The framework in 3D">
           <Box className="w-3.5 h-3.5" /> 3D
@@ -746,6 +751,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     setStatus(`Section line set: ${sectionPending.length} vertices, ${total.toFixed(0)} m. Wells within ${(projectionM * k).toFixed(0)} m project onto it.`);
   };
   const cancelSection = () => { setSectionDrawing(false); setSectionPending([]); setStatus('Section drawing cancelled.'); };
+  const onDistribution = (d) => { setBuilt((b) => (b ? { ...b, distribution: d } : b)); setStatus(`Volume distribution: ${d.iterations} trials, seed ${d.seed}. P90 is the low case.`); };
   const exportVolumesCsv = () => {
     try {
       const { text, fileName } = volumesCsv(built, { name: definition.name, volumeUnits, report });
@@ -776,16 +782,46 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   const exportReportPdf = async () => {
     if (!built) return;
     setReporting(true);
+    const back = view;
     try {
       const images = [];
-      const canvas = document.querySelector('[data-testid="em-map-canvas"] canvas') || document.querySelector('canvas[data-testid="em-map-canvas"]');
-      if (canvas && canvas.width > 0) {
-        try { images.push({ title: `Map: ${zoneName} ${layerLabel}`, dataUrl: canvas.toDataURL('image/png'), w: canvas.width, h: canvas.height }); } catch { /* a tainted canvas is skipped */ }
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const grabCanvas = (sel, title) => {
+        const c = document.querySelector(sel);
+        if (!c || !(c.width > 0)) return;
+        try { images.push({ title, dataUrl: c.toDataURL('image/png'), w: c.width, h: c.height }); } catch { /* a tainted canvas is skipped */ }
+      };
+      // an SVG chart (Recharts) drawn onto a white canvas at twice its size
+      const grabSvg = async (card, title) => {
+        const svg = card?.querySelector('svg.recharts-surface');
+        if (!svg) return;
+        const w = svg.clientWidth || Number(svg.getAttribute('width')); const h = svg.clientHeight || Number(svg.getAttribute('height'));
+        if (!(w > 0 && h > 0)) return;
+        const xml = new XMLSerializer().serializeToString(svg);
+        const img = new Image();
+        await new Promise((res) => { img.onload = res; img.onerror = res; img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(xml)}`; });
+        const c = document.createElement('canvas'); c.width = 2 * w; c.height = 2 * h;
+        const ctx = c.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height);
+        try { ctx.drawImage(img, 0, 0, c.width, c.height); images.push({ title, dataUrl: c.toDataURL('image/png'), w: c.width, h: c.height }); } catch { /* skipped */ }
+      };
+      // the map on screen, then (3D grid upgrade) the 3D window, the player and the charts
+      if (view === 'map') grabCanvas('[data-testid="em-map-canvas"] canvas, canvas[data-testid="em-map-canvas"]', `Map: ${zoneName} ${layerLabel}`);
+      if (built.grid) {
+        setStatus('Collecting the report pictures (3D, player, charts)...');
+        setView('3d'); await wait(1800);
+        grabCanvas('[data-testid="em-3d-canvas"]', '3D grid: cells, grid skeleton, contacts and wells');
+        setView('player'); await wait(2200);
+        grabCanvas('[data-testid="em-player-section-canvas"]', 'Property player: section');
+        grabCanvas('[data-testid="em-player-map-canvas"]', 'Property player: layer map');
+        setView('qc'); setResultsTab('charts'); await wait(1800);
+        for (const [id, title] of [['em-chart-hist', 'Histograms: well logs, upscaled cells and the model'], ['em-chart-phik', 'Porosity against permeability by facies'], ['em-chart-volumes', 'Volumes by zone'], ['em-chart-tornado', 'STOIIP tornado'], ['em-chart-probability', 'Probability curve']]) {
+          await grabSvg(document.querySelector(`[data-testid="${id}"]`), title);
+        }
       }
       const { doc, fileName } = await buildModelReportPdf({ built, name: definition.name, volumeUnits, report, images });
       downloadBlob(doc.output('blob'), fileName);
-      setStatus(`Model report exported as ${fileName}.`);
-    } catch (e) { setStatus(e.message); } finally { setReporting(false); }
+      setStatus(`Model report exported as ${fileName}${images.length ? ` with ${images.length} picture${images.length === 1 ? '' : 's'}` : ''}.`);
+    } catch (e) { setStatus(e.message); } finally { setReporting(false); setView(back); }
   };
   const exportSectionPng = async () => {
     try {
@@ -839,8 +875,20 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading registry…
     </div>
   ) : view === 'qc' ? (
-    <QcPanel built={built} surfaceNames={surfaceNames} depthUnit={depthUnit} volumeUnits={volumeUnits}
-      onDistribution={(d) => { setBuilt((b) => (b ? { ...b, distribution: d } : b)); setStatus(`Volume distribution: ${d.iterations} trials, seed ${d.seed}. P90 is the low case.`); }} />
+    <div className="h-full min-h-0 flex flex-col">
+      <div className="flex items-center gap-1 px-3 pt-2" role="tablist">
+        {[['charts', 'Charts'], ['details', 'Details (tables)']].map(([k, label]) => (
+          <button key={k} type="button" role="tab" data-testid={`em-results-${k}`} aria-selected={resultsTab === k} className={viewBtn(resultsTab === k)} onClick={() => setResultsTab(k)}>{label}</button>
+        ))}
+      </div>
+      <div className="flex-1 min-h-0">
+        {resultsTab === 'charts' && built ? (
+          <div className="h-full overflow-auto p-3"><ResultsCharts built={built} volumeUnits={volumeUnits} depthUnit={depthUnit} onDistribution={onDistribution} /></div>
+        ) : (
+          <QcPanel built={built} surfaceNames={surfaceNames} depthUnit={depthUnit} volumeUnits={volumeUnits} onDistribution={onDistribution} />
+        )}
+      </div>
+    </div>
   ) : view === 'player' ? (
     built && (built.zones || []).some((z) => z.layers?.length > 1) ? (
       <PropertyPlayer built={built} wells={wells} surfaceNames={surfaceNames} faultPolygons={definition.faultPolygons || []} depthUnit={depthUnit} onStatus={setStatus} />

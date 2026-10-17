@@ -168,3 +168,32 @@ describe('Ekene: the cap, three zones from the well tops, SGS porosity and facie
     expect(g.active).toBeGreaterThan(100000);
   });
 });
+
+describe('the charts read the built grid', () => {
+  let b;
+  beforeAll(async () => { b = await buildModel(ekeneGrid(), G.wells, surfaces, backend); }, 180000);
+  test('histograms: each set sums to 100 percent; the upscaled cells hold the logs\' mean porosity within 0.01', async () => {
+    const { histogramData } = await import('../services/grid3d/charts');
+    const h = histogramData(b, 'phi');
+    for (const k of ['logs', 'upscaled', 'model']) expect(h.bins.reduce((a, x) => a + (x[k] || 0), 0)).toBeCloseTo(100, 6);
+    expect(Math.abs(h.means.upscaled - h.means.logs)).toBeLessThan(0.01);
+  });
+  test('tornado: porosity, NTG and GRV move STOIIP by exactly 10 percent; a deeper contact holds more oil', async () => {
+    const { tornadoData, stoiipWithContactShift } = await import('../services/grid3d/charts');
+    const t = tornadoData(b, { contactM: 30 * FT, pct: 10 });
+    for (const key of ['phi', 'ntg', 'grv']) {
+      const bar = t.bars.find((x) => x.key === key);
+      expect(bar.low / t.base).toBeCloseTo(0.9, 12); expect(bar.high / t.base).toBeCloseTo(1.1, 12);
+    }
+    const c = t.bars.find((x) => x.key === 'contact');
+    expect(c.low).toBeLessThan(t.base); expect(c.high).toBeGreaterThan(t.base);
+    expect(stoiipWithContactShift(b, 0) / t.base).toBeCloseTo(1, 9);
+    const sw = t.bars.find((x) => x.key === 'sw');
+    expect(sw.low).toBeLessThan(t.base); expect(sw.high).toBeGreaterThan(t.base);
+  });
+  test('probability curve: P90, P50 and P10 at the 10th, 50th and 90th percentiles of the totals', async () => {
+    const { exceedanceCurve } = await import('../services/grid3d/charts');
+    const c = exceedanceCurve(Array.from({ length: 1000 }, (_, i) => i + 1));
+    expect([c.p90, c.p50, c.p10]).toEqual([101, 501, 901]);
+  });
+});
