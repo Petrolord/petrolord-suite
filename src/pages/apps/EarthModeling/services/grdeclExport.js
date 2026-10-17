@@ -131,7 +131,7 @@ export function grdeclText(built, { name = 'earth-model', now = new Date(), buil
     `-- ${NX} x ${NY} columns on vertical pillars at the model nodes, ${NZ} layer${NZ === 1 ? '' : 's'}: ${built.zones.map((z) => `${z.name} (${z.layers?.length || 1})`).join(', ')}`,
     `-- PORO, NTG and SWAT are the mean of the four node values; ${active} of ${NX * NY * NZ} cells active`,
     hasPerm
-      ? '-- PERMX and PERMY: geometric mean of the four node values, from the wells\' permeability logs; PERMZ = 0.1 x PERMX (an assumption, change it in the deck)'
+      ? '-- PERMX and PERMY: geometric mean of the four node values, the modelled permeability (the logs, or the phi-k cloud transform of a simulated porosity); PERMZ = 0.1 x PERMX (an assumption, change it in the deck)'
       : '-- Permeability is not modelled in Earth Modeling: add PERMX, PERMY and PERMZ in the deck',
     '-- GRID section include; the initial Sw (SWAT) is the SOLUTION include written beside it',
   ];
