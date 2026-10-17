@@ -1532,6 +1532,7 @@ export default function PetroWorkstation({
         zones={zones}
         wellName={selected?.name}
         logs={wellData.logs}
+        logRows={wellData.allLogs || []}
         well={selected}
         depthUnit={depthUnit}
         wells={wells || []}

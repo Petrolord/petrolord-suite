@@ -1036,3 +1036,16 @@ The owner asked for an auto-populated, presentation-ready project data inventory
 - **What it shows:** every registry well against 26 data columns, with coverage of the interval of interest (the logged interval, or a chosen zone) read from the curve samples. Hole condition comes from caliper against bit size and from DRHO. It also shows the seismic and interpretation registries, rule-based notes (impact, workaround, uncertainty, mitigation), readiness for seven workflows and items held outside Petrolord. Presentation view, PNG, PDF and CSV.
 - **Saving:** hand-set states, remarks, items outside Petrolord and note comments are saved with the interpretation as `facies._dataInventory`, the `_rules`/`_scenarios` sibling pattern, so no migration. It is excluded from the per-well facies on open.
 - **Code:** shared core `src/lib/projectInventory` (pure, 57 jest tests), board `src/components/projectInventory`. Tests: `__tests__/dataInventoryView.test.jsx` and `e2e/project-data-inventory.spec.js`.
+
+## 2026-10-17: crossplot colour by a facies code curve (Geoscience showcase polish)
+
+Crossplots (Density-Neutron, Pickett, Buckles, Hingle) can colour by a facies
+code curve of the well (Rock Physics Studio's RP_FACIES or any facies / CODE
+log): "Color by" lists it as **Facies curve RP_FACIES**. Each class takes its
+colour from the shared `src/components/wells/faciesPalette.js` (hydrocarbon
+orange-red, brine blue, shale grey-green), with a chip and a point count per
+class (`petro-code-legend`, `petro-code-chip-<name>`, `petro-code-count-<name>`)
+and the same key inside the plot. Samples with no code draw small and grey
+under the classes and are counted apart (`petro-code-none`). Tracks can show
+the same curve as a strip (layout source "Facies curve (registry log, such as
+RP_FACIES)"). Tests: `__tests__/crossplotFaciesCurve.test.jsx`.
