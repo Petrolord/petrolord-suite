@@ -77,10 +77,10 @@ function SurfaceRow({
           }}
           onBlur={commitRename} />
       ) : (
-        <span className="truncate">{s.name}</span>
+        <span className="truncate min-w-0">{s.name}</span>
       )}
-      <span className="text-[10px] text-pl-muted whitespace-nowrap" data-testid="map-row-badge">{domainBadge(s)}</span>
-      <span className={`text-[10px] whitespace-nowrap ${crsOk ? 'text-pl-muted' : 'text-pl-warning-text'}`}
+      <span className="text-[10px] text-pl-muted whitespace-nowrap shrink-0" data-testid="map-row-badge">{domainBadge(s)}</span>
+      <span className={`text-[10px] whitespace-nowrap shrink-0 ${crsOk ? 'text-pl-muted' : 'text-pl-warning-text'}`}
         title={crsOk ? `Grid frame: ${normalizeTag(s.crs)}` : 'Placement unverified: no CRS on this surface'}>
         {crsOk ? normalizeTag(s.crs).replace('EPSG:', 'E') : 'no CRS'}
       </span>
@@ -345,7 +345,8 @@ export default function SurfacesExplorer({
           </button>
         )}
       </div>
-      <ScrollArea className="flex-1 min-h-0">
+      {/* Radix lays the viewport out as a table, which lets long names widen the list past the panel (and the panel then scrolls sideways on a click); a block layout keeps them truncated */}
+      <ScrollArea className="flex-1 min-h-0 [&_[data-radix-scroll-area-viewport]>div]:!block">
         {surfaces.map((s) => (
           <SurfaceRow key={s.id} s={s} selected={s.id === selectedId} onSelect={onSelect} onDelete={onDelete}
             onToggleShare={onToggleShare} sharingId={sharingId} onExport={onExport} onPointsCsv={onPointsCsv}
