@@ -26,7 +26,8 @@ const tickVol = (v) => (Number.isFinite(v) ? (Math.abs(v) >= 100 ? v.toFixed(0) 
 
 function ChartCard({ title, subtitle, testid, children, controls = null, height = 280 }) {
   return (
-    <div className="rounded border border-pl-border bg-white" data-testid={testid}>
+    // the chart surface stays white in both themes (house chart standard), like a canvas
+    <div className="rounded border border-pl-border bg-white" data-testid={testid} data-canvas="light">
       <div className="flex items-center gap-2 px-3 pt-2">
         <div className="min-w-0">
           <div className="text-[12px] font-semibold text-slate-900">{title}</div>

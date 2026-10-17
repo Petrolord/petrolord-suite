@@ -376,3 +376,42 @@ Gaussian simulation (seeded), kriging kept. Code in `services/grid3d/`.
 - **Demo data** (additive): tops "Ekene Sand Middle" and "Ekene Sand Lower" on
   Ekene-1, -2, -3, -4, -8, -9 at the GR peaks of the two shale breaks
   (interpreter "Earth Modeling demo").
+
+## 2026-10-17: the fine 3D grid, PR 2: 3D, the player and the charts
+
+- **3D** (`components/FrameworkView3D.jsx`, geometry `services/grid3d/scene.js`):
+  grid cells as a shell, I/J/K slices or a cell filter by property range; the
+  grid skeleton every 1, 2, 5 or 10 cells (layer lines every n layers, zone
+  boundaries always); colour by zone, porosity, Sw, NTG, permeability, Vsh,
+  facies or fluid zone (the cap is grey seal); zones can be hidden (the cap);
+  contacts as translucent planes where they cut the reservoir (one plane per
+  shared contact) with their outline; fault planes (Seismolord rails lofted,
+  polygons as vertical walls); the wells' upscaled logs as ribbons. Cell corners
+  take the mean of the live nodes around them; corners of an edge step move a
+  quarter cell, so the model edge draws as a chamfer. Colour ranges span the
+  2nd to 98th percentile of the cells. The renderer is unchanged.
+- **Player** (`components/PropertyPlayer.jsx`, ribbon "Player"): a section (I
+  line, J line or through Ekene-1, -3, -4), a map of one layer and the 3D
+  window linked; I/J and K sliders, Play sweeps the layers or the section, the
+  cell filter dims the map and section and filters 3D; contacts dashed in the
+  section with their depth, the contact in the layer as a line on the map;
+  hover readouts.
+- **Map**: the zone's OWC and GOC are drawn where they meet the zone top (solid)
+  and base (dashed).
+- **Results** (ribbon "Results"): Charts (house template) and Details (the
+  tables, as before). Histograms of the raw log samples, the upscaled cells and
+  the model; porosity against permeability by facies (cap excluded); STOIIP by
+  zone; STOIIP tornado (contact 30 ft up and down, porosity, NTG, Sw and GRV
+  10 percent; Sw case S0 (1 - (f - 1) Sw / (1 - Sw)), contact case a rerun);
+  probability curve from the volume distribution. A layer-cake model opens on
+  Details, a grid model on Charts.
+- **Volume distribution**: one draw per trial for every zone (zones that share
+  a contact move together; FVFs by a common factor), totals per trial kept for
+  the curve, porosity and NTG factors (+- percent; 5 percent porosity by default
+  for a simulated porosity, 200 trials).
+- **Report PDF**: a 3D grid line and the SGS settings in the header; pictures
+  of the 3D window, the player's section and map and the five charts (the
+  workstation switches views to collect them).
+- Tests: `__tests__/gridScene.test.js` (counts by hand on a synthetic grid),
+  chart data in `__tests__/gridBuild.test.js` (histograms sum to 100 percent,
+  tornado factors exact, contact rerun at zero shift equals the build).
