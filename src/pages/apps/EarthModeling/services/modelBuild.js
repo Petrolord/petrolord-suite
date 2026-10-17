@@ -30,7 +30,7 @@ import { ntgFromNetMap, swFromHcpvMap, isMdKey } from './propertyMaps';
 import { resampleTo } from '@/lib/gridding/gridmath';
 import { isopach } from '@/lib/gridding/isopach';
 import { GRID_DEFAULTS, FT as M_PER_FT, gridLayerFrames } from './grid3d/layering';
-import { resampleSmooth, smoothFrame, dataLimitRings } from './grid3d/boundary';
+import { resampleSmooth, smoothFrame, dataLimitRings, chaikin } from './grid3d/boundary';
 import { expandFramework, DEFAULT_CAP } from './grid3d/zonesFromTops';
 import { sgsZonePorosity, sgsParams, faciesLayer } from './grid3d/properties';
 import { mulberry32, makeGaussian } from './grid3d/sgs';
@@ -810,7 +810,7 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
     ? grids.map((z, i) => resampleSmooth(z, specOfRow(stack[i]), specM))
     : resampleStack(grids.map((z, i) => ({ z, spec: specOfRow(stack[i]) })), specM);
   // the data limit of the top surface, for the map, section and 3D outline (native units)
-  const outline = dataLimitRings(grids[0], specOfRow(stack[0])).map((ring) => ring.map(([x, y]) => [x / k, y / k]));
+  const outline = dataLimitRings(grids[0], specOfRow(stack[0])).map((ring) => chaikin(ring, 3).map(([x, y]) => [x / k, y / k]));
   let adjustment = null;
   if (definition.adjust?.enabled) {
     const tiesBefore = wellTies(eWells, resampled, specM, surfIndexByTop)

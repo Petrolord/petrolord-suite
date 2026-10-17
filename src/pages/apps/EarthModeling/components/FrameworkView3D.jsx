@@ -25,7 +25,7 @@ export const DEFAULT_GRID_VIEW = Object.freeze({ mode: 'shell', prop: 'zone', de
  * the six-well model covers part of its frame, and a fit to the frame left it
  * small in the window. Without cells, the frame.
  */
-export function fitCamera(c, scene, grid3d) {
+export function fitCamera(c, scene, grid3d, tight = 1) {
   const pos = grid3d?.mesh?.positions;
   if (!pos || pos.length < 9) { c.fitTo(scene.ext); return; }
   const lo = [Infinity, Infinity, Infinity]; const hi = [-Infinity, -Infinity, -Infinity];
@@ -33,7 +33,7 @@ export function fitCamera(c, scene, grid3d) {
   for (let q = 0; q < pos.length; q += 3) for (let a = 0; a < 3; a++) { const v = pos[q + a] * sc[a]; if (v < lo[a]) lo[a] = v; if (v > hi[a]) hi[a] = v; }
   c.target = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
   const radius = 0.5 * Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
-  c.dist = Math.max(c.minDist ?? 0.01, Math.min(c.maxDist ?? 100, (radius / Math.sin(c.fov / 2)) * 0.95));
+  c.dist = Math.max(c.minDist ?? 0.01, Math.min(c.maxDist ?? 100, (radius / Math.sin(c.fov / 2)) * 0.95 * tight));
 }
 const hasGrid = (built) => (built?.zones || []).some((z) => z.layers?.length > 1) || !!built?.grid;
 const rgbCss = (c) => `rgb(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)})`;
@@ -144,13 +144,13 @@ export default function FrameworkView3D({
     if (scene.faults.length) { keep.add('faults'); renderer.setLineSet('faults', { positions: scene.faults, color: hexToRgb('#eab308'), alpha: 1 }); }
     keep.add('edges'); renderer.setLineSet('edges', { positions: scene.axes.edges, color: AXIS, alpha: 0.9, scaled: false });
     renderer.prune(keep);
-    if (!fittedRef.current) { fitCamera(c, scene, grid3d); fittedRef.current = true; }
+    if (!fittedRef.current) { fitCamera(c, scene, grid3d, compact ? 0.62 : 1); fittedRef.current = true; }
     redraw();
-  }, [scene, grid3d, redraw]);
+  }, [scene, grid3d, redraw, compact]);
 
   useEffect(() => {
     const c = cameraRef.current;
-    if (c && scene && fittedRef.current) { fitCamera(c, scene, grid3d); redraw(); }
+    if (c && scene && fittedRef.current) { fitCamera(c, scene, grid3d, compact ? 0.62 : 1); redraw(); }
   }, [ve]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -207,7 +207,7 @@ export default function FrameworkView3D({
     a.click();
     onStatus?.('3D view exported as PNG.');
   };
-  const fit = () => { const c = cameraRef.current; if (c && scene) { fitCamera(c, scene, grid3d); redraw(); } };
+  const fit = () => { const c = cameraRef.current; if (c && scene) { fitCamera(c, scene, grid3d, compact ? 0.62 : 1); redraw(); } };
   const toggleSurface = (i) => setHidden((h) => { const n = new Set(h); if (n.has(i)) n.delete(i); else n.add(i); return n; });
 
   if (glError) {

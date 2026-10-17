@@ -478,7 +478,7 @@ export function ringCrossings(rings, axis, v) {
 /** An end edge at `edge` moves to the nearest crossing within a cell (otherwise it stays). */
 export function endAt(crossings, edge, isEnd, cell) {
   if (!isEnd || !crossings.length) return edge;
-  let best = edge; let bd = 0.8 * cell;
+  let best = edge; let bd = 1.5 * cell;
   for (const c of crossings) { const d = Math.abs(c - edge); if (d < bd) { bd = d; best = c; } }
   return best;
 }
@@ -486,7 +486,7 @@ export function endAt(crossings, edge, isEnd, cell) {
 /**
  * Corner positions for the display (corner c, r sits half a cell before node
  * c, r): a corner on the model edge (one to three of its four columns live)
- * moves onto the traced data limit when that is within 0.8 of a cell, so the
+ * moves onto the traced data limit (smoothed) when that is within 1.5 cells, so the
  * cells along the edge draw the smooth line instead of steps; without an
  * outline, a step corner moves a quarter cell (a chamfer). Volumes never use
  * these positions.
@@ -506,7 +506,7 @@ export function edgeCorners(spec, live, outline = null) {
       }
       if (n > 0 && n < 4) {
         const hit = outline && outline.length ? nearestOnRings(outline, x, y) : null;
-        if (hit && hit.d <= 0.8 * Math.max(spec.dx, spec.dy)) { x = hit.x; y = hit.y; } else if (n === 1) { x += 0.25 * sx * spec.dx; y += 0.25 * sy * spec.dy; } else if (n === 3) { x += 0.25 * ox * spec.dx; y += 0.25 * oy * spec.dy; }
+        if (hit && hit.d <= 1.5 * Math.max(spec.dx, spec.dy)) { x = hit.x; y = hit.y; } else if (n === 1) { x += 0.25 * sx * spec.dx; y += 0.25 * sy * spec.dy; } else if (n === 3) { x += 0.25 * ox * spec.dx; y += 0.25 * oy * spec.dy; }
       }
       out[q] = x; out[q + 1] = y;
     }

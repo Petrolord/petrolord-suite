@@ -119,5 +119,23 @@ export function dataLimitRings(z, spec) {
   }).filter((ring) => ring.length >= 4);
 }
 
+/**
+ * Corner cutting (Chaikin): each pass replaces every segment by its quarter
+ * and three-quarter points, so the 45-degree steps a marching-squares line
+ * keeps on a coarse map round off into a smooth curve. Display only.
+ */
+export function chaikin(ring, passes = 3) {
+  let r = ring;
+  for (let p = 0; p < passes; p++) {
+    const out = [];
+    for (let q = 0; q < r.length; q++) {
+      const [ax, ay] = r[q]; const [bx, by] = r[(q + 1) % r.length];
+      out.push([0.75 * ax + 0.25 * bx, 0.75 * ay + 0.25 * by], [0.25 * ax + 0.75 * bx, 0.25 * ay + 0.75 * by]);
+    }
+    r = out;
+  }
+  return r;
+}
+
 /** The data limit of a model-frame grid itself (the built model's outline). */
 export const modelOutline = (z, spec) => dataLimitRings(z, spec);
