@@ -242,11 +242,26 @@ function lutBitmap(lut) {
 }
 
 /**
+ * The colour bar's three labels. Seismic (centre 0): +a, 0, -a as always.
+ * Value range: the values at the top, middle and bottom of the LUT (the
+ * LUT's top end is centre + a; reversed polarity swaps the ends).
+ */
+export function colorbarLabels({ ampAtEnds, centre = 0, polarity = 1, fmt = (v) => v.toPrecision(3) }) {
+  if (!centre) return { top: `+${fmt(ampAtEnds)}`, mid: '0', bottom: `-${fmt(ampAtEnds)}` };
+  const hi = centre + ampAtEnds; const lo = centre - ampAtEnds;
+  return polarity < 0
+    ? { top: fmt(lo), mid: fmt(centre), bottom: fmt(hi) }
+    : { top: fmt(hi), mid: fmt(centre), bottom: fmt(lo) };
+}
+
+/**
  * Vertical colorbar with the effective amplitude range at its ends
- * (amplitude that maps to the LUT extremes: +/- clip / gain).
+ * (amplitude that maps to the LUT extremes: +/- clip / gain). With a
+ * centre (Value range for property volumes) the ends read the values
+ * themselves: centre + and - clip / gain, the high one on top.
  * @param {Uint8Array} lut 256x4 RGBA (SliceRenderer.lut)
  */
-export function drawColorbar(ctx, { x, y, w, h, lut, ampAtEnds, dpr }) {
+export function drawColorbar(ctx, { x, y, w, h, lut, ampAtEnds, dpr, centre = 0, polarity = 1 }) {
   ctx.save();
   ctx.drawImage(lutBitmap(lut), x, y, w, h);
   ctx.strokeStyle = INK_DIM;
@@ -260,10 +275,11 @@ export function drawColorbar(ctx, { x, y, w, h, lut, ampAtEnds, dpr }) {
     const a = Math.abs(v);
     return a !== 0 && (a >= 1e4 || a < 1e-2) ? v.toExponential(1) : v.toPrecision(3);
   };
-  ctx.fillText(`+${fmt(ampAtEnds)}`, x - 4 * dpr, y);
+  const labels = colorbarLabels({ ampAtEnds, centre, polarity, fmt });
+  ctx.fillText(labels.top, x - 4 * dpr, y);
   ctx.textBaseline = 'middle';
-  ctx.fillText('0', x - 4 * dpr, y + h / 2);
+  ctx.fillText(labels.mid, x - 4 * dpr, y + h / 2);
   ctx.textBaseline = 'bottom';
-  ctx.fillText(`-${fmt(ampAtEnds)}`, x - 4 * dpr, y + h);
+  ctx.fillText(labels.bottom, x - 4 * dpr, y + h);
   ctx.restore();
 }

@@ -1159,6 +1159,7 @@ function MapView({
         h: Math.min(120 * dpr, canvas.height * 0.3),
         lut: p.tsLut,
         ampAtEnds: p.display.clip / (p.display.gain || 1),
+        centre: p.display.centre || 0, polarity: p.display.polarity,
         dpr,
       });
     }

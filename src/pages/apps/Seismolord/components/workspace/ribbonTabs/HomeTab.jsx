@@ -22,6 +22,7 @@ export default function HomeTab({
   colormap, setColormap, gain, setGain, clipRms, setClipRms,
   polarity, setPolarity, traceBalance, setTraceBalance,
   scaleMode, setScaleMode, clipPct, setClipPct, manualClip, setManualClip,
+  rangeLow = null, setRangeLow = () => {}, rangeHigh = null, setRangeHigh = () => {}, sliceRange = null,
   agcOn, setAgcOn, agcWindowMs, setAgcWindowMs,
   wiggleMode, setWiggleMode, reverseCmap, setReverseCmap,
   overlayCandidates, overlayVolumeId, selectOverlayVolume,
@@ -182,9 +183,10 @@ export default function HomeTab({
           {polarity === 1 ? 'SEG normal' : 'Reversed'}
         </RibbonToggle>
         <RibbonToggle
-          on={traceBalance}
+          on={traceBalance && scaleMode !== 'range'}
           onClick={() => setTraceBalance((t) => !t)}
-          disabled={!manifest}
+          disabled={!manifest || scaleMode === 'range'}
+          title={scaleMode === 'range' ? 'Trace balance rescales seismic amplitudes by trace energy, so it is off while values show as they are (Value range)' : undefined}
         >
           Trace balance
         </RibbonToggle>
@@ -196,11 +198,12 @@ export default function HomeTab({
           value={scaleMode}
           onChange={(e) => setScaleMode(e.target.value)}
           disabled={!manifest}
-          title="How the color range maps to amplitude"
+          title="How the color range maps to amplitude; Value range spans a property volume's own low to high (impedance, porosity, probability)"
         >
           <option value="rms">RMS multiple</option>
           <option value="pct">Percentile</option>
           <option value="manual">Manual clip</option>
+          <option value="range">Value range</option>
         </RibbonSelect>
         {scaleMode === 'rms' && (
           <RibbonSlider
@@ -236,13 +239,52 @@ export default function HomeTab({
             />
           </RibbonField>
         )}
+        {scaleMode === 'range' && (
+          <>
+            <RibbonSlider
+              label={`P${(100 - clipPct).toFixed(1).replace(/\.0$/, '')} to P${String(clipPct)} of current slice`}
+              min={80} max={100} step={0.5}
+              value={clipPct}
+              onChange={(e) => setClipPct(Number(e.target.value))}
+              disabled={!manifest}
+              className="w-40"
+            />
+            <RibbonField label="Low">
+              <input
+                type="number"
+                step="any"
+                data-testid="sl-range-low"
+                value={Number.isFinite(rangeLow) ? rangeLow : ''}
+                placeholder={sliceRange ? Number(sliceRange.low.toPrecision(4)).toString() : 'auto'}
+                title="The value at the low end of the colormap; empty = from the slice"
+                onChange={(e) => setRangeLow(e.target.value === '' ? null : Number(e.target.value))}
+                disabled={!manifest}
+                className={`${RIBBON_FIELD} w-20`}
+              />
+            </RibbonField>
+            <RibbonField label="High">
+              <input
+                type="number"
+                step="any"
+                data-testid="sl-range-high"
+                value={Number.isFinite(rangeHigh) ? rangeHigh : ''}
+                placeholder={sliceRange ? Number(sliceRange.high.toPrecision(4)).toString() : 'auto'}
+                title="The value at the high end of the colormap; empty = from the slice"
+                onChange={(e) => setRangeHigh(e.target.value === '' ? null : Number(e.target.value))}
+                disabled={!manifest}
+                className={`${RIBBON_FIELD} w-20`}
+              />
+            </RibbonField>
+          </>
+        )}
         <span className="flex items-center gap-1">
           <RibbonToggle
-            on={agcOn}
+            on={agcOn && scaleMode !== 'range'}
             onClick={() => setAgcOn((a) => !a)}
-            disabled={!manifest || isTimeSlice}
-            title={isTimeSlice ? 'AGC applies to sections and traverses'
-              : 'Windowed automatic gain control (display only)'}
+            disabled={!manifest || isTimeSlice || scaleMode === 'range'}
+            title={scaleMode === 'range' ? 'AGC rescales seismic amplitudes, so it is off while values show as they are (Value range)'
+              : isTimeSlice ? 'AGC applies to sections and traverses'
+                : 'Windowed automatic gain control (display only)'}
           >
             AGC
           </RibbonToggle>

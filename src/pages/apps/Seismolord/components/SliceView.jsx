@@ -854,6 +854,7 @@ function SliceView({
         x: anno.width - 24 * dpr, y: anno.height - h - 24 * dpr,
         w: 12 * dpr, h, lut: rendererRef.current.lut,
         ampAtEnds: p.display.clip / Math.max(p.display.gain, 1e-12), dpr,
+        centre: p.display.centre || 0, polarity: p.display.polarity,
       });
     }
 
@@ -1043,6 +1044,7 @@ function SliceView({
       gain: display.gain,
       polarity: display.polarity,
       clip: display.clip,
+      centre: display.centre || 0,
       traceBalance: display.traceBalance,
       interpolate: prefs.interpolate,
     });

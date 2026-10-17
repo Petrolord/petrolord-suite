@@ -117,7 +117,11 @@ vec2 flattenT(vec2 t, out bool outside) {
 
 /**
  * Display chunk on top of SAMPLING_GLSL: symmetric clip around zero into
- * the 256x1 LUT (playbook display default).
+ * the 256x1 LUT (playbook display default). u_centre shifts the middle of
+ * the LUT for property volumes (impedance, porosity, probability), so
+ * [centre - clip, centre + clip] spans the colormap ("Value range"); a
+ * centre of 0, the default for every seismic display, is the plain
+ * symmetric clip.
  *   vec4 shadeAmp(vec2 t)
  */
 export const DISPLAY_GLSL = `
@@ -125,13 +129,14 @@ uniform sampler2D u_lut;       // 256x1 RGBA colormap
 uniform float u_gain;          // display gain multiplier
 uniform float u_polarity;      // +1 SEG normal, -1 reversed
 uniform float u_clip;          // symmetric clip amplitude (maps to LUT ends)
+uniform float u_centre;        // value at the LUT middle (0 = seismic display)
 uniform vec4  u_nullColor;
 
 vec4 shadeAmp(vec2 t) {
   bool isNull;
   float balanced = sampleBalanced(t, isNull);
   if (isNull) return u_nullColor;
-  float a = balanced * u_gain * u_polarity;
+  float a = (balanced - u_centre) * u_gain * u_polarity;
   float x = clamp(0.5 + 0.5 * a / u_clip, 0.0, 1.0);
   return texture(u_lut, vec2(x, 0.5));
 }
@@ -194,16 +199,17 @@ export { buildLut } from '@/components/maps/lut';
  * @param {number} width
  * @param {number} height
  * @param {Uint8Array} lut 256x4 RGBA from buildLut()
- * @param {{gain: number, polarity: number, clip: number}} display
+ * @param {{gain: number, polarity: number, clip: number, centre?: number}} display
+ *   centre: the value at the LUT middle (Value range; 0 for seismic)
  * @returns {Uint8ClampedArray} width*height*4 RGBA, null cells alpha 0
  */
-export function shadeAmpPixels(data, width, height, lut, { gain, polarity, clip }) {
+export function shadeAmpPixels(data, width, height, lut, { gain, polarity, clip, centre = 0 }) {
   const out = new Uint8ClampedArray(width * height * 4);
   const safeClip = Math.max(clip, 1e-12);
   for (let c = 0; c < width * height; c++) {
     const amp = data[c];
     if (Math.abs(amp) > 1.0e29) continue;          // null: transparent
-    const a = amp * gain * polarity;
+    const a = (amp - centre) * gain * polarity;
     const x = Math.min(1, Math.max(0, 0.5 + (0.5 * a) / safeClip));
     // LUT texel pick matches SliceRenderer.referenceRender: floor(x*256)
     const li = Math.min(255, Math.floor(x * 256)) * 4;

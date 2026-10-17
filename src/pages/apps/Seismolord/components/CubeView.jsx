@@ -494,6 +494,7 @@ function CubeView({
       gain: display.gain,
       polarity: display.polarity,
       clip: display.clip,
+      centre: display.centre || 0,
       traceBalance: display.traceBalance,
       interpolate: prefs.smooth,
     });

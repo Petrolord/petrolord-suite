@@ -93,6 +93,7 @@ import {
 } from '../engine/velocityModel';
 import { NULL_VALUE } from '../engine/manifest';
 import { amplitudePercentile, percentileOfSorted } from '../engine/displayEnhance';
+import { valueRange, rangeToCentreClip, wantsValueRange } from '../lib/valueRange';
 import { UndoStack } from '../lib/undoStack';
 import { EditHistory } from '../lib/horizonEditHistory';
 import { createdHorizonCommand, rewriteHorizonCommand } from '../lib/horizonUndoCommands';
@@ -392,6 +393,14 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
   const [scaleMode, setScaleMode] = useState('rms');
   const [clipPct, setClipPct] = useState(98);
   const [manualClip, setManualClip] = useState(0);   // 0 = unset (rms fallback)
+  // Value range (property volumes): manual low / high, null = from the slice
+  const [rangeLow, setRangeLow] = useState(null);
+  const [rangeHigh, setRangeHigh] = useState(null);
+  // a property volume opens in Value range with a sequential colormap; going
+  // back to seismic restores the previous mode unless the user changed it
+  const scaleModeRef = useRef(scaleMode);
+  scaleModeRef.current = scaleMode;
+  const autoScaleRef = useRef({ volumeId: null, decided: true, applied: null, previous: null, cmap: null });
   const [agcOn, setAgcOn] = useState(false);
   const [agcWindowMs, setAgcWindowMs] = useState(120);
   const [wiggleMode, setWiggleMode] = useState('off');
@@ -1146,6 +1155,8 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
       scaleMode,
       clipPct,
       manualClip,
+      rangeLow,
+      rangeHigh,
       agcOn,
       agcWindowMs,
       wiggleMode,
@@ -1190,7 +1201,9 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
     if (Number.isFinite(d.clipRms)) setClipRms(d.clipRms);
     if (d.polarity === 1 || d.polarity === -1) setPolarity(d.polarity);
     if (typeof d.traceBalance === 'boolean') setTraceBalance(d.traceBalance);
-    if (['rms', 'pct', 'manual'].includes(d.scaleMode)) setScaleMode(d.scaleMode);
+    if (['rms', 'pct', 'manual', 'range'].includes(d.scaleMode)) setScaleMode(d.scaleMode);
+    setRangeLow(Number.isFinite(d.rangeLow) ? d.rangeLow : null);
+    setRangeHigh(Number.isFinite(d.rangeHigh) ? d.rangeHigh : null);
     if (Number.isFinite(d.clipPct)) setClipPct(d.clipPct);
     if (Number.isFinite(d.manualClip)) setManualClip(d.manualClip);
     if (typeof d.agcOn === 'boolean') setAgcOn(d.agcOn);
@@ -1307,6 +1320,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
       // stale layer ids are filtered against the fresh lists)
       const pr = pendingRestoreRef.current;
       if (pr && pr.volume_id === v.id) {
+        autoScaleRef.current = { ...autoScaleRef.current, volumeId: v.id, decided: true };
         setOrientation(['inline', 'xline', 'time'].includes(pr.orientation)
           ? pr.orientation : 'inline');
         setIndices(clampIndices(pr.indices, m.geometry));
@@ -1328,6 +1342,12 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
         // suggested colormap; going back to a plain volume puts the
         // previous one back unless the user changed it meanwhile
         const cm = suggestedColormap(v.kind === 'attribute' ? v.attribute_params?.name : null);
+        // Value range is decided on the first slice (lib/valueRange); a volume
+        // that was opened in it goes back to the previous mode if untouched
+        const sAuto = autoScaleRef.current;
+        if (sAuto.applied && scaleModeRef.current === sAuto.applied) setScaleMode(sAuto.previous);
+        if (sAuto.cmap && colormapRef.current === sAuto.cmap.applied && !cm) setColormap(sAuto.cmap.previous);
+        autoScaleRef.current = { volumeId: v.id, decided: false, applied: null, previous: null, cmap: null, suggested: Boolean(cm) };
         const auto = autoCmapRef.current;
         if (cm) {
           autoCmapRef.current = { applied: cm, previous: auto ? auto.previous : colormapRef.current };
@@ -3365,27 +3385,62 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
     return rms;
   }, [manifest, slice, volume]);
 
+  // Value range: the signed low and high of the slice on screen at the
+  // percentile pair (P(100 - pct) to P(pct)), unless typed by hand
+  const sliceRange = useMemo(() => (
+    scaleMode === 'range' && slice ? valueRange(slice.data, clipPct) : null
+  ), [scaleMode, slice, clipPct]);
+
+  // first slice of a freshly opened volume: property volumes (QI products,
+  // one-signed data) open in Value range with Spectrum
+  useEffect(() => {
+    const a = autoScaleRef.current;
+    if (!slice || a.decided || !volume || a.volumeId !== volume.id) return;
+    a.decided = true;
+    if (!wantsValueRange({ name: volume.name, data: slice.data })) return;
+    if (scaleModeRef.current !== 'range') {
+      a.applied = 'range';
+      a.previous = scaleModeRef.current;
+      setScaleMode('range');
+    }
+    if (!a.suggested && colormapRef.current !== 'spectrum') {
+      a.cmap = { applied: 'spectrum', previous: colormapRef.current };
+      setColormap('spectrum');
+    }
+  }, [slice, volume]);
+
   const display = useMemo(() => {
     const rmsClip = Math.max((manifest?.stats?.rms || fallbackRms || 1) * clipRms, 1e-12);
     let clip = rmsClip;
+    let centre = 0;
+    const range = scaleMode === 'range';
     if (scaleMode === 'pct' && pctClip > 0) clip = pctClip;
     else if (scaleMode === 'manual' && manualClip > 0) clip = manualClip;
+    else if (range) {
+      const lo = Number.isFinite(rangeLow) ? rangeLow : sliceRange?.low;
+      const hi = Number.isFinite(rangeHigh) ? rangeHigh : sliceRange?.high;
+      if (Number.isFinite(lo) && Number.isFinite(hi) && hi > lo) ({ centre, clip } = rangeToCentreClip(lo, hi));
+    }
     const dtMs = manifest ? manifest.geometry.dt_us / 1000 : 4;
     return {
       colormap,
       gain,
       polarity,
       clip,
-      traceBalance,
+      centre,
+      // trace balance and AGC rescale by trace energy: seismic tools, off
+      // while property values are shown as they are (Value range)
+      traceBalance: range ? false : traceBalance,
       reverse: reverseCmap,
       wiggle: wiggleMode,
       // window length in ms -> half-window in samples (AGC is display-only)
-      agc: agcOn
+      agc: agcOn && !range
         ? { halfWindow: Math.max(1, Math.round(agcWindowMs / 2 / dtMs)) }
         : null,
     };
   }, [colormap, gain, polarity, clipRms, traceBalance, manifest, scaleMode,
-    pctClip, manualClip, reverseCmap, wiggleMode, agcOn, agcWindowMs, fallbackRms]);
+    pctClip, manualClip, reverseCmap, wiggleMode, agcOn, agcWindowMs, fallbackRms,
+    sliceRange, rangeLow, rangeHigh]);
 
   // U2-007: fault polygons for the 3D window, visible faults x visible
   // horizons (the W3.1 cutoff polygons the map draws)
@@ -4109,6 +4164,11 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
               setClipPct={setClipPct}
               manualClip={manualClip}
               setManualClip={setManualClip}
+              rangeLow={rangeLow}
+              setRangeLow={setRangeLow}
+              rangeHigh={rangeHigh}
+              setRangeHigh={setRangeHigh}
+              sliceRange={sliceRange}
               agcOn={agcOn}
               setAgcOn={setAgcOn}
               agcWindowMs={agcWindowMs}
