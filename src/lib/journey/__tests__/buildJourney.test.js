@@ -147,6 +147,18 @@ describe('buildJourney', () => {
     const drilling = withJourney({ disciplines: ['drilling'], disciplines_source: 'chosen' }, { work: { seismolord: { any: true } } });
     expect(buildJourney(drilling, ctx()).prompts).toEqual([]);
   });
+  test('"what next" options: only apps the person can open, and nothing already done', () => {
+    const geo = { disciplines: ['geoscience'], disciplines_source: 'chosen' };
+    const seis = buildJourney(withJourney(geo, { work: { seismolord: { any: true } } }), ctx());
+    expect(seis.prompts[0].options.map((o) => o.key)).toEqual(['open', 'wells', 'outline', 'learn']);
+    expect(seis.prompts[0].options[0]).toMatchObject({ recommended: true, href: '/dashboard/apps/geoscience/seismolord?panel=start' });
+    // wells already loaded: "Load wells to tie" is not offered
+    const both = buildJourney(withJourney({ ...geo, acknowledged: { 'after_first:wells': 'x' } }, { work: { seismolord: { any: true }, 'well-data-manager': { any: true } } }), ctx());
+    expect(both.prompts[0].options.map((o) => o.key)).not.toContain('wells');
+    // wells first, no seismic yet: "Show them on seismic" is not offered; no Petrophysics licence: not offered
+    const wells = buildJourney(withJourney(geo, { work: { 'well-data-manager': { any: true } } }), ctx((appId) => appId !== 'petrophysics-studio'));
+    expect(wells.prompts[0].options.map((o) => o.key)).toEqual(['qc', 'correlate']);
+  });
   test('baseline: work that existed before the record is acknowledged up front', () => {
     expect(baselineAcknowledgements({ work: { seismolord: { any: true }, 'well-data-manager': { any: false } } })).toEqual(['after_first:seismic']);
     expect(AFTER_FIRST.every((p) => p.discipline === 'geoscience')).toBe(true);

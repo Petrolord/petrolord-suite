@@ -10,6 +10,7 @@ import { useJourney } from '@/contexts/JourneyContext';
 import ActivityButton from '@/components/activity/ActivityButton';
 import GuideCard from './GuideCard';
 import GuideButton from './GuideDrawer';
+import WhatNextDialog from './WhatNextDialog';
 
 const GREETED = 'petrolord.greeted';
 
@@ -34,8 +35,9 @@ export default function JourneyShell({ inApp }) {
       <div className="fixed bottom-10 right-3 z-50 flex items-center gap-2" data-testid="floating-shell-buttons">
         <ActivityButton variant="floating" />
         <GuideButton variant="floating" />
+        <WhatNextDialog />
       </div>
     );
   }
-  return <GuideCard />;
+  return <><GuideCard /><WhatNextDialog /></>;
 }
