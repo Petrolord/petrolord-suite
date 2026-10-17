@@ -77,6 +77,10 @@ const nearestIdx = (arr, d) => {
 
 const fmtDist = (m) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.round(m)} m`);
 
+/** Zone tint alpha (hex byte) for a strength: light is the historic 0x1f, bold about a third. */
+export const ZONE_STRENGTHS = ['light', 'bold'];
+export const zoneAlphaHex = (strength) => (strength === 'bold' ? '55' : '1f');
+
 /**
  * @param {Object} p
  * @param {Array} p.wells section order: {id, name, is_own, tops, depth (MD), tracks, frame, surface_x, surface_y, kb_m}
@@ -89,6 +93,7 @@ const fmtDist = (m) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.roun
  * @param {'equal'|'proportional'|'line'} [p.spacing] 'line' (U2-012): by distance along the drawn section line (p.lineDistances)
  * @param {'none'|'consecutive'|'pair'} [p.zoneMode]
  * @param {?[string,string]} [p.zonePair]
+ * @param {'light'|'bold'} [p.zoneStrength] zone tint: light (default) or bold
  * @param {string[]} p.shownTops
  * @param {?'top'} [p.pickMode]
  * @param {(top, mdM: number) => void} [p.onTopMove] own wells only
@@ -102,7 +107,7 @@ const fmtDist = (m) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.roun
  * @param {?{data, ns, nTraces, dtMs, rms, anchors: {id, col}[]}} [p.backdrop] Seismolord U2-002: a seismic traverse through the section wells, drawn between the columns on a TWT section
  */
 const CrossSection = forwardRef(function CrossSection({
-  wells, datum, depthUnit = 'm', depthRef = 'md', spacing = 'equal', zoneMode = 'consecutive', zonePair = null,
+  wells, datum, depthUnit = 'm', depthRef = 'md', spacing = 'equal', zoneMode = 'consecutive', zonePair = null, zoneStrength = 'light',
   shownTops, pickMode = null, onTopMove, onTopCreate, onPickCancel, onNotice, topNames = [],
   bands = null, ghost = null, columnWidth = 'auto', printSize = null, onPainted = null, strips = null, lineDistances = null,
   view: viewProp, onViewChange, backdrop = null,
@@ -342,7 +347,7 @@ const CrossSection = forwardRef(function CrossSection({
           const y0 = yOf(Math.max(z.top, vTop));
           const y1 = yOf(Math.min(z.base, vBase));
           if (y1 <= y0) continue;
-          ctx.fillStyle = `${colorOf(z.upper)}1f`;
+          ctx.fillStyle = `${colorOf(z.upper)}${zoneAlphaHex(zoneStrength)}`;
           ctx.fillRect(box.x0, y0, box.w, y1 - y0);
         }
       });
@@ -569,7 +574,7 @@ const CrossSection = forwardRef(function CrossSection({
     ctx.restore();
     setTick((t) => t + 1);
     if (onPainted) onPainted(canvas, { plotTop, plotH, vTop, vBase });
-  }, [backdropImage, bdSpans, backdrop, size.w, size.h, printSize, onPainted, strips, stripW, wells, columns, columnNotes, boxes, colVisible, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, datum, depthRef, F, unitTxt, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove, scheme, bands, bandSpans, ghost]);
+  }, [backdropImage, bdSpans, backdrop, size.w, size.h, printSize, onPainted, strips, stripW, wells, columns, columnNotes, boxes, colVisible, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, zoneStrength, datum, depthRef, F, unitTxt, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove, scheme, bands, bandSpans, ghost]);
 
   // ---- CURSOR layer -------------------------------------------------------
   useEffect(() => {

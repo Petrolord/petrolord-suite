@@ -62,6 +62,6 @@ test('the lithology quicklook template carries a registry lithology strip and re
 
 test('strip sources list the crossplot facies, the rule facies and every registry kind an editor offers', () => {
   expect(STRIP_SOURCES.map((s) => s.value)).toEqual([
-    'facies', 'rulefacies', 'intervals:lithology', 'intervals:core_description', 'intervals:facies', 'intervals:electrofacies', 'intervals:environment', 'intervals:motif', 'intervals:systems_tract',
+    'facies', 'rulefacies', 'log', 'intervals:lithology', 'intervals:core_description', 'intervals:facies', 'intervals:electrofacies', 'intervals:environment', 'intervals:motif', 'intervals:systems_tract',
   ]);
 });

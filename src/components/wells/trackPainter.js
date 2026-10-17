@@ -125,7 +125,11 @@ export function paintTrackHeader(ctx, { track, x0, w, headerH, palette = PALETTE
   ctx.textAlign = 'center';
   ctx.fillStyle = palette.text;
   ctx.fillText(track.title, x0 + w / 2, 12, Math.max(8, w - 4));
-  if (track.type === 'strip') return;
+  if (track.type === 'strip') {
+    // code-curve strips carry a legend: a chip per category (name when wide enough)
+    if (track.legend && track.labels?.length) paintStripLegend(ctx, { track, x0, w, headerH, palette });
+    return;
+  }
   ctx.font = '9px sans-serif';
   const rows = [];
   const seen = new Set();
@@ -152,6 +156,64 @@ export function paintTrackHeader(ctx, { track, x0, w, headerH, palette = PALETTE
   });
 }
 
+/** Dark or light text for a fill colour (#rrggbb). */
+export function textOn(hex) {
+  const m = /^#?([0-9a-f]{6})/i.exec(String(hex || ''));
+  if (!m) return '#111827';
+  const n = parseInt(m[1], 16);
+  const lum = (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+  return lum > 0.55 ? '#111827' : '#ffffff';
+}
+
+/** Legend rows under a strip's title: chip + name (initials on a narrow strip). */
+export function paintStripLegend(ctx, { track, x0, w, headerH, palette = PALETTES.light }) {
+  const rows = Math.max(1, Math.floor((headerH - 18) / 9));
+  const n = Math.min(track.labels.length, rows);
+  ctx.font = '8px sans-serif';
+  ctx.textAlign = 'left';
+  for (let k = 0; k < n; k++) {
+    const y = 16 + k * 9;
+    ctx.fillStyle = track.colors[k % track.colors.length];
+    ctx.fillRect(x0 + 3, y, 7, 7);
+    ctx.fillStyle = palette.text;
+    const name = track.labels[k];
+    const room = w - 15;
+    const text = room >= 40 ? name : name.split(/\s+/).map((p) => p[0]).join('').toUpperCase();
+    if (room > 6) ctx.fillText(text, x0 + 12, y + 6.5, room);
+  }
+}
+
+/** Names written down each run of one category, where the run is tall enough. */
+export function paintStripRunLabels(ctx, { track, depth, yOf, i0, i1, x0, w }) {
+  const data = track.curves[0].data;
+  if (w < 14) return;
+  ctx.save();
+  ctx.font = `${Math.min(11, Math.max(8, Math.floor(w * 0.4)))}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  let start = i0;
+  for (let i = i0 + 1; i <= i1 + 1; i++) {
+    const v = data[start];
+    if (i <= i1 && data[i] === v) continue;
+    if (Number.isFinite(v)) {
+      const yA = yOf(depth[start]);
+      const yB = yOf(depth[Math.min(i, depth.length - 1)]);
+      const name = track.labels?.[Math.round(v)] || '';
+      const tw = ctx.measureText(name).width;
+      if (name && yB - yA > tw + 8) {
+        ctx.save();
+        ctx.translate(x0 + w / 2, (yA + yB) / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = textOn(track.colors[Math.round(v) % track.colors.length]);
+        ctx.fillText(name, 0, 0);
+        ctx.restore();
+      }
+    }
+    start = i;
+  }
+  ctx.restore();
+}
+
 /**
  * Track plot body: frame, then a strip track's bands, or the fills (under
  * the lines) and the curves. `headerH` places a ramp fill's legend bar
@@ -176,6 +238,7 @@ export function paintTrackBody(ctx, {
       const y2 = yOf(depth[i + 1]);
       ctx.fillRect(x0 + 2, y, w - 4, Math.max(1, y2 - y));
     }
+    if (track.runLabels) paintStripRunLabels(ctx, { track, depth, yOf, i0, i1, x0, w });
     return;
   }
 

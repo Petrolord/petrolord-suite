@@ -6,6 +6,7 @@
 // parameter-bound thresholds into live values.
 
 import { rasterizeIntervals } from '@/lib/stratigraphy/intervals';
+import { pickCodeLog, codeCategories } from '@/components/wells/faciesPalette';
 
 /** Resolve one curve address against the workspace. */
 function resolveSource(source, { curves, outputs, logs }) {
@@ -59,6 +60,7 @@ export const sourceLabel = (source) => (typeof source === 'string' ? source.slic
  * @param {Object} ctx {curves, outputs, logs, faciesData, facies, params, intervals, depth, keepUnresolved}
  *   logs: raw registry curves keyed by mnemonic (for `log:` addresses)
  *   intervals: registry interval rows of the well (for `intervals:<kind>` strips), depth: its MD vector
+ *   logRows: the well's registry log rows (metadata, for `log` code-curve strips: unit, provenance.codes)
  *   keepUnresolved (PT10a, Petrophysics single-well only): a curves track
  *   whose every source resolves to nothing is KEPT with `curves: []` and a
  *   `note` from sourceStatus saying why, instead of vanishing. Well
@@ -90,6 +92,28 @@ export function resolveTracks(template, ctx) {
           labels: ctx.ruleFacies.map((r) => r.name),
           curves: [{ name: 'rulefacies', data: ctx.ruleFaciesData }],
         });
+      } else if (typeof track.source === 'string' && (track.source === 'log' || track.source.startsWith('log:')) && ctx.logs) {
+        // a discrete code curve from the registry (Rock Physics Studio's
+        // RP_FACIES or any facies / CODE log): coloured runs, labelled, with
+        // a legend in the header; 0 (inside no class) and nulls draw blank
+        const row = pickCodeLog(ctx.logRows, ctx.logs, track.source === 'log' ? null : track.source.slice(4));
+        const data = row ? ctx.logs[row.mnemonic] : null;
+        if (row && data && (!ctx.depth || data.length === ctx.depth.length)) {
+          const { categories, index } = codeCategories(row, data);
+          if (categories.length) {
+            out.push({
+              key: track.id,
+              title: track.title,
+              type: 'strip',
+              width: track.width || 0.5,
+              colors: categories.map((c) => c.color),
+              labels: categories.map((c) => c.name),
+              curves: [{ name: row.mnemonic, data: index }],
+              legend: true,
+              runLabels: true,
+            });
+          }
+        }
       } else if (typeof track.source === 'string' && track.source.startsWith('intervals:') && ctx.intervals && ctx.depth) {
         // ST1: registry interval logs (lithology, core description, facies ...)
         // rasterized onto the well's depth vector; absent kinds draw nothing

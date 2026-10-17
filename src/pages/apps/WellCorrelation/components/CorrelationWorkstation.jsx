@@ -68,7 +68,7 @@ export default function CorrelationWorkstation({
   const [dockOpen, setDockOpen] = useState(true);
   const exportRef = useRef(null);
   const {
-    wells, order, setOrder, wellData, loading, datum, setDatum, shownTops, setShownTops, zoneMode, setZoneMode, zonePair, setZonePair,
+    wells, order, setOrder, wellData, loading, datum, setDatum, shownTops, setShownTops, zoneMode, setZoneMode, zonePair, setZonePair, zoneStrength, setZoneStrength,
     depthUnit, setDepthUnit, unitNote, depthRef, setDepthRef, spacing, setSpacing, columnWidth, setColumnWidth, layouts, setLayouts,
     template, sectionWells, topNames, logSources, ensureWellData, refreshTops, toggleWell, moveWell,
     sectionLoaded, sectionRefused, savedRow,
@@ -237,8 +237,8 @@ export default function CorrelationWorkstation({
   const payload = useMemo(() => ({
     well_ids: order,
     datum,
-    track_layout: { layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report, horizons: hzOn, strips: stripsOn, line, lineAlong: line ? lineAlong : null, pickBy, ...(seis.volumeId ? { backdrop: seis.volumeId } : {}) },
-  }), [order, datum, layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, shownTops, zonePair, ghost, report, hzOn, stripsOn, line, lineAlong, pickBy, seis.volumeId]);
+    track_layout: { layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, zoneStrength, shownTops, zonePair, ghost, report, horizons: hzOn, strips: stripsOn, line, lineAlong: line ? lineAlong : null, pickBy, ...(seis.volumeId ? { backdrop: seis.volumeId } : {}) },
+  }), [order, datum, layouts, depthUnit, depthRef, spacing, columnWidth, zoneMode, zoneStrength, shownTops, zonePair, ghost, report, hzOn, stripsOn, line, lineAlong, pickBy, seis.volumeId]);
   const snapshot = useMemo(() => {
     const all = !shownTops.length || (topNames.length > 0 && topNames.every((n) => shownTops.includes(n)));
     const tl = payload.track_layout;
@@ -793,6 +793,7 @@ export default function CorrelationWorkstation({
       columnWidth={columnWidth}
       zoneMode={zoneMode}
       zonePair={zonePair}
+      zoneStrength={zoneStrength}
       shownTops={horizonPicks.names.length ? [...shownTops, ...horizonPicks.names] : shownTops}
       topNames={topNames}
       pickMode={pickMode}
@@ -811,7 +812,7 @@ export default function CorrelationWorkstation({
     <div aria-hidden="true" data-testid="corr-print-host" style={{ position: 'fixed', left: -100000, top: 0, width: printJob.w, height: printJob.h, pointerEvents: 'none' }}>
       <CrossSection
         wells={viewWells} datum={datum} depthUnit={depthUnit} depthRef={depthRef} spacing={spacing}
-        columnWidth={printJob.colW} zoneMode={zoneMode} zonePair={zonePair} shownTops={horizonPicks.names.length ? [...shownTops, ...horizonPicks.names] : shownTops} topNames={topNames}
+        columnWidth={printJob.colW} zoneMode={zoneMode} zonePair={zonePair} zoneStrength={zoneStrength} shownTops={horizonPicks.names.length ? [...shownTops, ...horizonPicks.names] : shownTops} topNames={topNames}
         ghost={ghost} strips={stripsByWell} lineDistances={lineDistances} backdrop={seis.backdrop} view={printJob.view} onViewChange={() => {}}
         printSize={{ w: printJob.w, h: printJob.h, pixelRatio: printJob.pixelRatio }} onPainted={onPrintPainted}
       />
@@ -909,6 +910,8 @@ export default function CorrelationWorkstation({
             }}
             zoneMode={zoneMode}
             onZoneMode={setZoneMode}
+            zoneStrength={zoneStrength}
+            onZoneStrength={setZoneStrength}
             zonePair={zonePair}
             onZonePair={setZonePair}
             onPropagate={propagate}

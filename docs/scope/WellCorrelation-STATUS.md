@@ -258,3 +258,26 @@ with no reference elevation is not drawn in TVDSS or in time and says
 `no depth reference: TVDSS withheld`; a TVDSS tops file is refused for it,
 a TVD file is read. Wells saved before the model keep `no KB: TVDSS = TVD`.
 The same change reaches Stratigraphy Studio through the shared section kit.
+
+## 2026-10-17: colourful correlation panel (Geoscience showcase polish)
+
+- **Correlation colour** built-in template: GR coloured by its own value (new
+  ramp preset "Sand to shale, colour": yellow, orange, green, grey-brown), the
+  well's facies code curve, RT with the resistive side shaded, the standard
+  density-neutron crossover and effective porosity in blue.
+- New strip source **Facies curve (registry log, such as RP_FACIES)**: any code
+  curve (provenance kind facies or unit CODE) draws as coloured runs, named from
+  provenance.codes, labelled down tall runs, with a legend in the track header.
+  Colours come from the shared `src/components/wells/faciesPalette.js`
+  (hydrocarbon orange-red, brine blue, shale grey-green, sand yellow).
+- Section wells read their **published registry logs** (PHIE, PHIT, VSH, SW,
+  KPERM, PAY, BVW) for `output:` tracks, so the computed tracks of the
+  templates draw on the section.
+- Zone fill **tint strength** (`corr-zone-strength`: light tint, bold tint)
+  beside the zone mode; saved in `track_layout.zoneStrength`, printed in the
+  PNG and PDF.
+- The layout editor's ramp fill gains a preset picker
+  (`petro-layout-ramp-preset-<i>`).
+
+Tests: `src/components/wells/__tests__/colourCorrelation.test.js`,
+`__tests__/zoneStrength.test.jsx`.

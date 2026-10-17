@@ -120,7 +120,7 @@ test('topStyles ride in layouts without a migration: show-all, per-name colour a
 test('lithology quicklook resolves a two-colour cutoff and a GR ramp; t-dn keeps its leg order with the standard colours', () => {
   const layouts = buildDefaultLayouts();
   expect(layouts.version).toBe(2);
-  expect(layouts.templates.map((t) => t.id)).toEqual(['std-triple-combo', 'quicklook', 'borehole-qc', 'lithology-quicklook']);
+  expect(layouts.templates.map((t) => t.id)).toEqual(['std-triple-combo', 'quicklook', 'borehole-qc', 'lithology-quicklook', 'correlation-colour']);
   const litho = layouts.templates.find((t) => t.id === 'lithology-quicklook');
   const tracks = resolveTracks(litho, fullCtx);
   expect(tracks.map((t) => t.key)).toEqual(['l-gr', 'l-litho', 'l-rt', 'l-dn']);
@@ -152,7 +152,7 @@ test('migrateLayouts stamps version 2, keeps a v1 user fork byte-identical and a
   const fork = { id: 'mine', name: 'Mine', builtin: false, tracks: [{ id: 'a', title: 'a', type: 'curves', width: 1, scale: 'linear', min: 0, max: 1, curves: [{ source: 'input:GR', color: '#000' }], fills: [{ mode: 'threshold', a: 'input:GR', threshold: { param: 'grClean' }, side: 'above', color: '#a3a065', opacity: 0.22 }] }] };
   const m = migrateLayouts({ version: 1, activeTemplateId: 'mine', templates: [JSON.parse(JSON.stringify(fork))] });
   expect(m.version).toBe(2);
-  expect(m.templates.map((t) => t.id)).toEqual(['std-triple-combo', 'quicklook', 'borehole-qc', 'lithology-quicklook', 'mine']);
+  expect(m.templates.map((t) => t.id)).toEqual(['std-triple-combo', 'quicklook', 'borehole-qc', 'lithology-quicklook', 'correlation-colour', 'mine']);
   expect(m.templates.find((t) => t.id === 'mine')).toEqual(fork);
   expect(m.activeTemplateId).toBe('mine');
 });
