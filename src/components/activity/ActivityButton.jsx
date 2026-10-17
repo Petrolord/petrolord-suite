@@ -61,7 +61,7 @@ export default function ActivityButton({ variant = 'sidebar', collapsed = false 
   if (variant === 'floating' && !items.length) return null;
 
   const trigger = variant === 'floating'
-    ? 'fixed bottom-10 right-3 z-50 flex items-center gap-1.5 rounded-full border border-pl-border bg-pl-surface px-3 py-1.5 text-xs text-pl-text shadow-lg hover:bg-pl-raised'
+    ? 'flex items-center gap-1.5 rounded-full border border-pl-border bg-pl-surface px-3 py-1.5 text-xs text-pl-text shadow-lg hover:bg-pl-raised'
     : variant === 'bar'
       ? 'relative inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-sm text-pl-muted hover:bg-pl-raised hover:text-pl-text'
       : 'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-pl-muted hover:bg-pl-raised hover:text-pl-text';

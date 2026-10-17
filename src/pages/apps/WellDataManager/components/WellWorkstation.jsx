@@ -28,6 +28,7 @@ import { AuthContext } from '@/contexts/SupabaseAuthContext';
 import { readDisplayUnit, displayUnitKey, unitText, DEPTH_UNITS } from '../engine/displayUnits';
 import { useAppUnits } from '@/lib/units/useAppUnits';
 import UnitProfileNote from '@/components/units/UnitProfileNote';
+import { useDeepLinkAction } from '@/lib/journey/deepLinks';
 
 /** @param {Object} [p.appPaths] route overrides for the "Open in" launchers
  *  (the harness points them at the other /dev harnesses) */
@@ -44,6 +45,8 @@ export default function WellWorkstation({ backend, appPaths = {}, helpPath = '/d
   const [view, setView] = useState('map');        // 'map' | 'detail' | 'inventory' | 'tops'
   const [status, setStatus] = useState('Ready.');
   const [lasOpen, setLasOpen] = useState(false);
+  // the guide's "Load your wells and logs" opens the LAS import (?do=import)
+  useDeepLinkAction('do', 'import', () => setLasOpen(true));
   const [batchOpen, setBatchOpen] = useState(false); // WDM-U2-004
   const [packageOpen, setPackageOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);

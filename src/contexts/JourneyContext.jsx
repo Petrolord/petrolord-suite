@@ -13,11 +13,15 @@ import { usePurchasedModules } from '@/hooks/usePurchasedModules';
 import { fetchJourneyState, setJourney, markJourney } from '@/lib/journey/journeyService';
 import { buildJourney, baselineAcknowledgements } from '@/lib/journey/buildJourney';
 import { greeting } from '@/lib/journey/greeting';
+import { useActivity, buildActivity } from '@/lib/activity/activity';
 
 const JourneyContext = createContext(null);
 const FOCUS_REFRESH_MS = 60 * 1000;
 
-export function JourneyProvider({ children, activityRunning = false, service = null }) {
+export function JourneyProvider({ children, activityRunning: runningProp, service = null }) {
+  // J4 reads the Suite-wide Activity list unless a caller says otherwise (tests)
+  const activityItems = useActivity();
+  const activityRunning = runningProp ?? buildActivity(activityItems).running;
   const { user, isImpersonating } = useAuth();
   const { current } = useProject();
   const { isAllowed, isModuleActive, loading: entLoading } = usePurchasedModules();

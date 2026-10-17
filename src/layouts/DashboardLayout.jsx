@@ -13,6 +13,8 @@ import { FixedTheme, readLastTheme } from '@/design/ThemeProvider';
 import { DEFAULT_THEME } from '@/design/tokens';
 import ActivityButton from '@/components/activity/ActivityButton';
 import ActivityRoot from '@/components/activity/ActivityRoot';
+import JourneyShell from '@/components/journey/JourneyShell';
+import GuideButton from '@/components/journey/GuideDrawer';
 
 // Inner layout component that consumes the Application Context
 const DashboardLayoutInner = () => {
@@ -70,7 +72,7 @@ const DashboardLayoutInner = () => {
                         </button>
                         <img src="/petrolord-icon.png" alt="" className="h-7 w-7 rounded-md object-contain" />
                         <span className="text-sm font-bold tracking-tight">Petrolord Suite</span>
-                        <span className="ml-auto"><ActivityButton variant="bar" /></span>
+                        <span className="ml-auto flex items-center gap-1"><GuideButton variant="bar" /><ActivityButton variant="bar" /></span>
                     </div>
                 )}
                 {!isInApplication && (
@@ -85,10 +87,11 @@ const DashboardLayoutInner = () => {
                 )}
                 <DashboardScope>
                     <OrgClosureBanner />
+                    {/* the guide card on Suite pages; inside full-screen apps (no sidebar) Guide and Activity float */}
+                    {!isInApplication && <JourneyShell inApp={false} />}
                     <Outlet />
                     <ActivityRoot />
-                    {/* inside full-screen apps the sidebar is hidden: Activity floats */}
-                    {isInApplication && <ActivityButton variant="floating" />}
+                    {isInApplication && <JourneyShell inApp />}
                 </DashboardScope>
             </main>
         </div>

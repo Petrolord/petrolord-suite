@@ -34,6 +34,7 @@ import HubScope from '@/components/hubs/HubScope';
 import PaymentVerification from '@/pages/PaymentVerification';
 import AcceptInvite from '@/pages/auth/AcceptInvite';
 import ConfirmationPage from '@/pages/auth/ConfirmationPage';
+import { JourneyProvider } from '@/contexts/JourneyContext';
 
 // Lazy loaded Module Hubs
 const DrillingCompletionsHub = lazy(() => import('@/pages/dashboard/DrillingCompletionsHub'));
@@ -392,6 +393,7 @@ function App() {
     <AuthProvider>
       <HSEProvider> 
         <ProjectProvider>
+          <JourneyProvider>
           <UnitProfileProvider>
           <AuthGuard>
             <PwaUpdatePrompt />
@@ -1096,6 +1098,7 @@ function App() {
             </ErrorBoundary>
           </AuthGuard>
           </UnitProfileProvider>
+          </JourneyProvider>
         </ProjectProvider>
           <Toaster richColors closeButton />
       </HSEProvider>

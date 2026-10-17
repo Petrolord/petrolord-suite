@@ -100,7 +100,7 @@ export function buildJourney(state, { canOpen, moduleOpen, activityRunning = fal
       ...base,
       stage: 'welcome',
       headline: `Welcome to ${org.name || 'your organisation'}.`,
-      detail: `You were added as ${articleRole(role)}${solo ? '' : `, and your team has ${org.member_count} people`}.`,
+      detail: `${role === 'owner' ? 'You are its owner' : `You were added as ${articleRole(role)}`}${solo ? '' : `, and your team has ${org.member_count} people`}.`,
       next: !hasProject ? projectStep : firstStart || (askDisciplines ? disciplineStep : null),
       also: alsoFrom([firstStart && !hasProject ? firstStart : null, isAdmin && solo ? inviteStep : null].filter(Boolean)),
       welcomeSteps: [projectStep, firstStart ? { ...firstStart, done: started(firstStart.appId) } : null].filter(Boolean),
