@@ -42,19 +42,36 @@ test('only the two allowed audiences; the product email goes to leads who chose 
   expect(tasks[1].payload.audience).toEqual(['nape-optins', 'nape-2026-leads:suite', 'nape-2026-leads:nextgen']);
 });
 
-test('the copy carries the repo facts: dates, quiz days, prizes, counts, WhatsApp and /nape', () => {
+test('the copy leads with the platform and carries only repo facts', () => {
   const [a, b, c, d] = tasks.map((t) => t.payload.text);
-  expect(a).toContain('Monday 9 to Wednesday 11 November 2026');
+  // email 1: why Petrolord, then the date
   expect(a).toContain('105 apps across ten modules');
+  expect(a).toContain('Nothing to install');
+  expect(a).toContain('Oilfield units (ft, psi, bbl)');
+  expect(a).toContain('Minna');
+  expect(a).toContain('Monday 9 to Wednesday 11 November 2026');
+  // email 2: a tour of every module, recent features only as proof
+  for (const m of ['Geoscience', 'Reservoir', 'Drilling and completion', 'Production', 'Facilities and process safety', 'Midstream and downstream', 'Economics', 'Assurance and data']) expect(b).toContain(`${m}: `);
+  expect(b).toContain('SPE 75354');
+  expect(b).toContain('Lee (1982) Example 2.1');
   expect(b).toMatch(/ZGY/);
   expect(b).toMatch(/Local Workspace/);
-  expect(b).toMatch(/QI Studio/);
-  expect(b).toContain('80 courses, 73 of them');
-  expect(b).toContain('https://www.youtube.com/@PetrolordSuite');
+  expect(b).toContain('@PetrolordSuite');
+  expect(b.indexOf('Geoscience: ')).toBeLessThan(b.indexOf('ZGY'));
+  // email 3: quiz, prizes and what visitors can try
   expect(c).toContain('Day 1: Exploration');
   expect(c).toContain('Day 3: Reservoir Modelling and Field Development');
   expect(c).toContain('50% discount code');
+  expect(c).toContain('Try the Suite while you are there');
+  expect(c).toContain('free to start');
+  // email 4: three reasons and the WhatsApp booking
+  expect(d).toContain('three reasons');
   expect(d).toContain('+234 901 556 6981');
-  expect(d).toContain('https://petrolord.com/nape?');
   expect(tasks.map((t) => t.payload.text).join('\n')).not.toMatch(/\bprice|NGN|\$\d|₦/i); // never a price
+});
+
+test('one call to action per email', () => {
+  for (const t of tasks) expect(t.payload.html.match(/bgcolor="#2f6b48"/g)).toHaveLength(1);
+  expect(tasks[1].payload.html).toContain('https://wa.me/2349015566981?text=');
+  expect(tasks[3].payload.html).toContain('https://wa.me/2349015566981?text=');
 });
