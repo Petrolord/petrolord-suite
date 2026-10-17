@@ -277,8 +277,8 @@ export default function WellWorkstation({ backend, appPaths = {}, helpPath = '/d
       ) : view === 'tops' ? (
         <TopsSheetView backend={backend} wells={filtered} unit={unit} onStatus={setStatus} onChanged={onWellChanged} reloadKey={wells} />
       ) : view === 'map' || !selected ? (
-        <div className="p-3">
-          <WellsMap wells={list} selectedId={selectedId} onSelect={select} />
+        <div className="p-3 h-full">
+          <WellsMap wells={list} selectedId={selectedId} onSelect={select} backend={backend} unit={unit} />
         </div>
       ) : (
         <>

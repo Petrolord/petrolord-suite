@@ -478,3 +478,18 @@ Studio, pp-1.1.0, 2026-10-14"; testid `wdm-log-source-<mnemonic>`), and the badg
 Rock Physics Studio and Geomechanics in words ("pressure prognosis" for a Pore Pressure Studio curve).
 `curveSource` in `engine/provenance.js`; tests `__tests__/curveSource.test.js` (negative control: a row with
 neither a file nor computed provenance says nothing).
+
+## 2026-10-17: the well map fills the view with a surface backdrop; the Logs tab draws track templates
+
+Geoscience module video, Part B polish.
+- **Map:**
+  - The well map now fills the view's height.
+  - Backdrop select `wdm-map-surface` (default None). It lists registry structure surfaces and draws the chosen one under the wells through Mapping & Surface Studio's shared painters: colour-filled grid, labelled contours and a colour bar. z values show in the session depth unit.
+  - Wells have larger symbols with a white outline. Wells at one location stack their labels (`stackLabels`), so Ekene-1 and its "PPS demo" copy no longer overprint.
+  - The backend gained read-only `listSurfaces` and `downloadSurfaceGrid`.
+- **Logs:**
+  - View select `wdm-log-template`: Raw quicklook (the default), Lithology quicklook, Standard triple combo, Borehole QC, or Custom (ticked curves).
+  - The template view (`TemplateTracks.jsx`) uses the shared track painter, so GR fills, the density-neutron crossover and log-scale RT read the same as in Petrophysics Studio and Well Correlation. Computed curves published to the registry (PHIE, VSH, SW, PAY...) stand in for the template's outputs.
+  - Depth select `wdm-log-window`: Whole well, or "Around <top>" (150 ft either side). Wheel zooms, drag pans, double-click resets.
+  - Ticking a curve in the table switches to the original quick view (Custom); the `wdm-log-tracks` canvas testid is kept in both views.
+- **Tests:** `__tests__/partBMapLogs.test.jsx` (9; negative controls: wells further apart than the tolerance never stack; without the published PHIE, the triple combo has no PHIE curve to draw).

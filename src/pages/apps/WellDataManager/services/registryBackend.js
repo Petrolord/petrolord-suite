@@ -24,6 +24,7 @@ import {
   listCoreImages, uploadCoreImage, updateCoreImage, deleteCoreImage, coreImageUrl,
 } from '@/lib/stratRegistry';
 import { supabaseSharingStore } from '@/lib/recordSharing';
+import { listSurfaces, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
 
 export function makeRegistryBackend() {
   let orgId; // resolved once per session (undefined = not yet)
@@ -72,6 +73,9 @@ export function makeRegistryBackend() {
     listAllTops,
     rewriteLogSamples,
     listZones,
+    // Part B 2026-10-17: a structure surface under the well map (read only)
+    listSurfaces,
+    downloadSurfaceGrid,
 
     /** null when the user belongs to no organization — the share
      *  toggle renders disabled with an explanation instead of failing. */

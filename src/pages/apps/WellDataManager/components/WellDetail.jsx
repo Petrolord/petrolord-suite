@@ -10,6 +10,10 @@ import { Link } from 'react-router-dom';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Trash2, Building2, Lock, Pencil, Download } from 'lucide-react';
 import LogTracks from './LogTracks';
+import TemplateTracks from './TemplateTracks';
+import { useWellCurvesCache } from '@/components/wells/useWellCurvesCache';
+import { orientSectionCurves } from '@/components/wells/section/sectionFrame';
+import { CUSTOM_VIEW, DEFAULT_VIEW, wdmTemplates, resolveWellTemplate, dataExtent, depthWindows } from '../services/logTemplates';
 import LogEditPanel from './LogEditPanel';
 import ExportDialog from './ExportDialog';
 import ZonesPanel from './ZonesPanel';
@@ -119,6 +123,13 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
   const [topsUndo, setTopsUndo] = useState(null);           // WDM-U2-016: {wellId, tops, what} before the last tops save
   const curveCache = useRef(new Map());         // log id -> Float32Array
   const [editOpen, setEditOpen] = useState(false); // QI A3: the Edit logs panel
+  // Part B 2026-10-17: the Logs tab draws a built-in template by default;
+  // ticking a curve switches to the custom quick view
+  const [logView, setLogView] = useState(DEFAULT_VIEW);
+  const [windowKey, setWindowKey] = useState('all');
+  const [tplData, setTplData] = useState(null); // {wellId, cw} curves for the template view
+  const templateCache = useWellCurvesCache(backend);
+  const templates = useMemo(() => wdmTemplates(), []);
 
   const refreshChildren = useCallback(async () => {
     setTops(null);
@@ -442,8 +453,33 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
     return () => { cancelled = true; };
   }, [plotted, logs, backend, onStatus]);
 
-  const togglePlot = (id) => setPlotted((p) => (
-    p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  const togglePlot = (id) => {
+    setLogView(CUSTOM_VIEW);
+    setPlotted((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  };
+
+  // curves for the template view (every curve of the well, oriented top-down)
+  useEffect(() => {
+    if (!logs || tab !== 'Logs' || logView === CUSTOM_VIEW) return undefined;
+    let cancelled = false;
+    templateCache.invalidate(well.id); // logs were (re)listed: edits and imports show
+    (async () => {
+      try {
+        const cw = orientSectionCurves(await templateCache.getCurves(well.id));
+        if (!cancelled) setTplData({ wellId: well.id, cw });
+      } catch (e) {
+        if (!cancelled) onStatus(e.message);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [logs, tab, logView, well.id, templateCache]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const template = templates.find((t) => t.id === logView) || null;
+  const tplTracks = useMemo(() => (template && tplData?.wellId === well.id ? resolveWellTemplate(template, tplData.cw, intervals) : []),
+    [template, tplData, well.id, intervals]);
+  const tplDepth = tplData?.wellId === well.id ? tplData.cw.curves?.DEPT || null : null;
+  const tplWindows = useMemo(() => depthWindows(dataExtent(tplDepth, tplTracks), tops || []), [tplDepth, tplTracks, tops]);
+  const tplWindow = tplWindows.find((w) => w.key === windowKey) || tplWindows[0] || null;
 
   const deleteLog = async (log) => {
     try {
@@ -853,7 +889,36 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
                       loading curves…
                     </div>
                   )}
-                  <LogTracks tracks={tracks} unit={unit} />
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-pl-muted mb-1">
+                    <label className="flex items-center gap-1">View
+                      <select className="rounded border border-pl-border bg-pl-surface px-1 py-0.5 text-pl-text" value={logView}
+                        onChange={(e) => setLogView(e.target.value)} data-testid="wdm-log-template">
+                        {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        <option value={CUSTOM_VIEW}>Custom (ticked curves)</option>
+                      </select>
+                    </label>
+                    {logView !== CUSTOM_VIEW && tplWindows.length > 0 && (
+                      <label className="flex items-center gap-1">Depth
+                        <select className="rounded border border-pl-border bg-pl-surface px-1 py-0.5 text-pl-text" value={tplWindow?.key || 'all'}
+                          onChange={(e) => setWindowKey(e.target.value)} data-testid="wdm-log-window">
+                          {tplWindows.map((w) => <option key={w.key} value={w.key}>{w.label}</option>)}
+                        </select>
+                      </label>
+                    )}
+                    {logView !== CUSTOM_VIEW && <span>Wheel to zoom, drag to pan, double-click to reset. Tick a curve for the custom view.</span>}
+                  </div>
+                  {logView === CUSTOM_VIEW ? (
+                    <LogTracks tracks={tracks} unit={unit} />
+                  ) : tplDepth && tplTracks.length ? (
+                    <TemplateTracks depth={tplDepth} tracks={tplTracks} tops={tops || []} window={tplWindow} unit={unit} templateId={logView} />
+                  ) : (
+                    <div data-canvas="chart">
+                      <p className="text-xs text-pl-muted py-2" data-testid="wdm-log-template-empty">
+                        {tplData?.wellId === well.id ? `This well has none of the curves ${template?.name || 'this template'} draws. Tick curves for the custom view.` : 'Loading curves…'}
+                      </p>
+                      <canvas data-testid="wdm-log-tracks" width="1" height="1" className="hidden" />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
