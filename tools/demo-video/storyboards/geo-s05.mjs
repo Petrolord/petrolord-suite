@@ -43,6 +43,9 @@ export default {
       if (await item.count() && ((await item.getAttribute('aria-checked')) === 'true') !== on) { await item.click(); await d.sleep(400); }
     }
     await d.page.keyboard.press('Escape'); await d.sleep(600);
+    await setVisible(d, 'Top Ekene Sand', true);
+    await mapSel(d, 0).selectOption({ label: 'Top Ekene Sand' }).catch(() => {});
+    await d.sleep(1500);
     await closeWindow(d, 'Map');
     const close = d.page.locator('button[aria-label="Close"], button[title="Close panel"]').first();
     if (await d.page.getByText('Start here', { exact: true }).nth(1).isVisible().catch(() => false)) await t(d, 'sl-start-toggle').click().catch(() => {});
@@ -88,8 +91,8 @@ export default {
         await drag3d(d, 0, 16, 15);
       } },
     { id: 'rms', chapter: 'Attributes', chapterSub: 'Seismolord · Map',
-      say: 'On the map, the R M S amplitude along the top of the Ekene Sand lights up the reservoir over the crest.',
-      sub: 'On the map, the RMS amplitude along the top of the Ekene Sand lights up the reservoir over the crest.',
+      say: 'On the map, the R M S amplitude along the top of the Ekene Sand, across the rollover.',
+      sub: 'On the map, the RMS amplitude along the top of the Ekene Sand, across the rollover.',
       do: async (d) => {
         await d.click(fullscreenBtn(d, '3d'));
         await showWindow(d, 'Map', 'map');
@@ -98,7 +101,12 @@ export default {
         await d.sleep(1000);
         await d.select(mapSel(d, 2), { label: 'RMS amplitude' });
         await d.click(mapWin(d).locator('button[title="Fullscreen"]'));
-        await d.sleep(5000);
+        await d.sleep(1500);
+        // in on the hanging wall, where the horizon is tracked
+        const c = mapWin(d).locator('canvas').first(); const b = await c.boundingBox();
+        await d.moveTo({ x: b.x + b.width * 0.66, y: b.y + b.height * 0.5 }, { ms: 900 });
+        for (let i = 0; i < 2; i++) { await d.page.mouse.wheel(0, -120); await d.sleep(500); }
+        await d.sleep(2500);
       } },
     { id: 'rgb',
       say: 'Spectral decomposition at twelve, twenty five and forty hertz, blended as red, green and blue. Thin beds tune by thickness, so the colour maps the sand across the closure.',

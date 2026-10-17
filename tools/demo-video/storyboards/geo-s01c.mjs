@@ -28,7 +28,7 @@ export default {
         const b = await c.boundingBox();
         const cx = b.x + b.width / 2; const cy = b.y + b.height / 2;
         await d.page.mouse.move(cx, cy); await d.page.mouse.down();
-        for (let i = 1; i <= 60; i++) { await d.page.mouse.move(cx - (220 * i) / 60, cy); await d.sleep(45); }
+        for (let i = 1; i <= 30; i++) { await d.page.mouse.move(cx - (200 * i) / 30, cy); await d.sleep(45); }
         await d.page.mouse.up();
       },
       hold: 0.6 },
