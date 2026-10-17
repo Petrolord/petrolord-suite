@@ -157,7 +157,7 @@ export default {
         // the server choice is offered only where the server upload is allowed
         const where = dialog(d).locator('label:has(input[name="sl-import-where"])').nth(1);
         if (await where.count()) { await where.scrollIntoViewIfNeeded(); await d.click(where); }
-        await d.click(dialog(d).getByRole('button', { name: 'Start import' }));
+        await d.click(dialog(d).getByRole('button', { name: 'Start import', exact: true }));
         await dialog(d).waitFor({ state: 'hidden', timeout: 60000 });
       },
       wait: async (d) => {

@@ -3,7 +3,7 @@
 //  - PL2/PL4: the hostile SEG-Y set through the real import dialog and
 //    scan worker (e2e/fixtures/seis/hostile): what each file says, and
 //    which ones may start;
-//  - PL6: an irregular-outline file viewed locally ("View it now"), in
+//  - PL6: an irregular-outline file viewed locally ("Preview without importing"), in
 //    two viewports and both themes: the canvas has ink, stays dark, TWT
 //    increases downward, the page never scrolls;
 //  - PL7: the section PNG is downloaded and read back: caption band on
@@ -83,7 +83,7 @@ for (const vp of [{ width: 1366, height: 768 }, { width: 1440, height: 900 }]) {
       const dialog = await openImport(page);
       await pick(dialog, 'irregular_outline.sgy');
       await expect(dialog.getByText('Vertical axis of this file')).toBeVisible({ timeout: 30000 });
-      await dialog.getByRole('button', { name: /View it now/ }).click();
+      await dialog.getByTestId('sl-import-preview').click();
       await expect(dialog).toBeHidden();
       const section = page.locator('[data-testid="window-section"]');
       const png = section.getByTitle('Save PNG snapshot');

@@ -8,6 +8,9 @@ import React, { useEffect } from 'react';
 import {
   Loader2, Pause, Play, RotateCcw, X, CheckCircle2, XCircle, WifiOff, Eye,
 } from 'lucide-react';
+import {
+  useServerUploads, pauseServerUpload, resumeServerUpload, dismissServerUpload, UPLOAD_PHASE,
+} from '../../services/serverUploadsRuntime';
 import { useImportJobs, getImportJobs, JOB_PHASE, V4_STATUS } from '../../services/importJobsRuntime';
 import { useLocalImports, dismissLocalImport } from '../../services/localImportRuntime';
 import { useBrowserJobs } from '@/lib/localWorkspace/runtime';
@@ -65,6 +68,24 @@ export function describeImportJob(job) {
   }
 }
 
+/** One line for a background upload to the Petrolord server (exported for tests). */
+export function describeServerUpload(u) {
+  const what = u.kind === 'gathers' ? 'gathers' : 'to the server';
+  const pctDone = pct(u.bytesDone, u.bytesTotal);
+  const size = u.bytesTotal ? ` (${mb(u.bytesDone || 0)} of ${mb(u.bytesTotal)})` : '';
+  switch (u.phase) {
+    case UPLOAD_PHASE.UPLOADING: {
+      const left = u.mbps && u.bytesTotal ? Math.max(0, (u.bytesTotal - (u.bytesDone || 0)) / (u.mbps * MB)) : null;
+      const eta = left == null ? '' : left < 90 ? `, about ${Math.ceil(left)} s left` : `, about ${Math.ceil(left / 60)} min left`;
+      return `${u.name}: uploading ${what} ${pctDone}%${size}${eta}`;
+    }
+    case UPLOAD_PHASE.PAUSED: return `${u.name}: upload paused at ${pctDone}%`;
+    case UPLOAD_PHASE.FAILED: return `${u.name}: upload stopped. ${u.error || ''}`.trim();
+    case UPLOAD_PHASE.DONE: return u.kind === 'gathers' ? `${u.name}: gathers uploaded` : `${u.name}: uploaded, converting on the server`;
+    default: return u.name;
+  }
+}
+
 const Btn = ({ title, onClick, children }) => (
   <button type="button" title={title} aria-label={title} onClick={onClick} className="hover:text-pl-text p-0.5">
     {children}
@@ -75,16 +96,36 @@ export default function ImportJobsIndicator() {
   const jobs = useImportJobs();
   const local = useLocalImports();
   const running = useBrowserJobs().filter((j) => j.phase === 'running' || j.phase === 'waiting');
+  const uploads = useServerUploads();
 
   useEffect(() => {
     getImportJobs().discover().catch(() => {});
   }, []);
 
-  if (!jobs.length && !local.length && !running.length) return null;
+  if (!jobs.length && !local.length && !running.length && !uploads.length) return null;
   const mgr = getImportJobs();
 
   return (
     <span className="flex items-center gap-3 min-w-0" data-testid="import-jobs">
+      {uploads.map((u) => {
+        const text = describeServerUpload(u);
+        const color = u.phase === UPLOAD_PHASE.FAILED ? 'text-pl-danger-text'
+          : u.phase === UPLOAD_PHASE.DONE ? 'text-pl-success-text'
+            : u.phase === UPLOAD_PHASE.PAUSED ? 'text-pl-warning-text' : 'text-pl-primary-text';
+        return (
+          <span key={u.id} className={`flex items-center gap-1.5 min-w-0 ${color}`} title={text} data-testid="server-upload-job">
+            {u.phase === UPLOAD_PHASE.UPLOADING && <Loader2 className="w-3 h-3 animate-spin shrink-0" />}
+            {u.phase === UPLOAD_PHASE.DONE && <CheckCircle2 className="w-3 h-3 shrink-0" />}
+            {u.phase === UPLOAD_PHASE.FAILED && <XCircle className="w-3 h-3 shrink-0" />}
+            <span className="truncate max-w-[340px]">{text}</span>
+            {u.phase === UPLOAD_PHASE.UPLOADING && <Btn title="Pause the upload" onClick={() => pauseServerUpload(u.id)}><Pause className="w-3 h-3" /></Btn>}
+            {(u.phase === UPLOAD_PHASE.PAUSED || u.phase === UPLOAD_PHASE.FAILED) && (
+              <Btn title="Resume: the parts already stored are not sent again" onClick={() => resumeServerUpload(u.id)}><Play className="w-3 h-3" /></Btn>
+            )}
+            {u.phase !== UPLOAD_PHASE.UPLOADING && <Btn title="Dismiss" onClick={() => dismissServerUpload(u.id)}><X className="w-3 h-3" /></Btn>}
+          </span>
+        );
+      })}
       {local.map((job) => (
         <span key={job.id} className={`flex items-center gap-1.5 min-w-0 ${job.phase === 'failed' ? 'text-pl-danger-text' : job.phase === 'done' ? 'text-pl-success-text' : 'text-pl-primary-text'}`} title={describeLocalImport(job)} data-testid="local-import-job">
           {job.phase === 'converting' && <Loader2 className="w-3 h-3 animate-spin shrink-0" />}

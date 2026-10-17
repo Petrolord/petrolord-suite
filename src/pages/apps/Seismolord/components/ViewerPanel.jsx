@@ -130,6 +130,10 @@ import ExportTab from './workspace/ribbonTabs/ExportTab';
 import AiTab from './workspace/ribbonTabs/AiTab';
 import VelocityModelEditor from './workspace/VelocityModelEditor';
 import ImportSegyDialog from './workspace/dialogs/ImportSegyDialog';
+import ImportDraftChip from './workspace/ImportDraftChip';
+import {
+  getViewerMemory, rememberVolume, rememberLocalFile,
+} from '../services/importDraft';
 import ExportDialog from './workspace/dialogs/ExportDialog';
 import ImportSurfaceDialog from './workspace/dialogs/ImportSurfaceDialog';
 import MakeSurfaceDialog from './workspace/dialogs/MakeSurfaceDialog';
@@ -532,6 +536,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
         setAllVolumes(vs);
         const ready = vs.filter(isOpenableVolume);   // display_ready opens too
         setVolumes(ready);
+        setVolumesListed(true);
         // the selected volume was deleted elsewhere: clear the whole
         // viewer instead of letting every brick fetch 404 until the
         // user happens to reselect (L7)
@@ -544,6 +549,21 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
     // selectVolume intentionally omitted: the '' path only clears state
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [volumesRefresh]);
+
+  // Coming back to Seismolord (owner report 2026-10-17): open what was on
+  // screen when the user left, a stored volume or the local file being
+  // previewed or imported (kept in memory for the life of the tab).
+  const [volumesListed, setVolumesListed] = useState(false);
+  const restoredViewRef = useRef(false);
+  useEffect(() => {
+    if (!volumesListed || restoredViewRef.current) return;
+    restoredViewRef.current = true;
+    if (volumeIdRef.current) return;
+    const mem = getViewerMemory();
+    if (mem.localFile?.file) openLocalFile(mem.localFile.file, mem.localFile.mapping);
+    else if (mem.volumeId && volumes.some((v) => v.id === mem.volumeId)) selectVolume(mem.volumeId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [volumesListed]);
 
   // Jobs dock (QI programme Q0): Open on a server import re-lists volumes and
   // selects the volume once it appears in the list
@@ -1174,6 +1194,8 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
     setSliceError(null);
     setMapTimeNotice(false);
     volumeIdRef.current = v?.id || null;
+    // where you were, for coming back to Seismolord (importDraft.js)
+    if (v && !v.local) rememberVolume(v.id);
     setVolume(v);
     setManifest(null);
     setSlice(null);
@@ -3300,7 +3322,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
       : null
   ), [scaleMode, slice, clipPct]);
 
-  // SEIS-U1-014: a local file (View it now) has no survey statistics yet,
+  // SEIS-U1-014: a local file (previewed or importing) has no survey statistics yet,
   // so the RMS clip fell back to 1 x 3 and real data (RMS in the hundreds)
   // showed saturated. The first section's RMS stands in, frozen per volume
   // so stepping lines keeps one display scale.
@@ -3978,6 +4000,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
         >
           <HelpIcon className="w-4 h-4" /> Help
         </RouterLink>
+        <ImportDraftChip onContinue={() => setOpenDialog('import')} />
         <button
           type="button"
           title="Start here: what this volume has and what to do next"
@@ -4237,7 +4260,9 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
       });
       if (ac.signal.aborted) { src.close(); return; }
       const prev = localVolumeRef.current;
+      rememberLocalFile(file, mapping);
       localVolumeRef.current = {
+        file,
         id: `local:${src.id}`,
         name: `${file.name} (local file)`,
         storage_path: null,
@@ -4806,7 +4831,11 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true, projectsBa
           setDockOpen(true);
         }}
         onFilePicked={openLocalFile}
-        onViewNow={() => setOpenDialog(null)}
+        onViewNow={(file, mapping) => {
+          setOpenDialog(null);
+          // the viewer shows this file unless it already does (a reopened setup)
+          if (file && localVolumeRef.current?.file !== file && !localOpen) openLocalFile(file, mapping);
+        }}
       />
 
       <ExportDialog
