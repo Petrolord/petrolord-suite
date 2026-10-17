@@ -29,6 +29,12 @@ import { hangingWallAtSurface } from './seismicFaultZones';
 import { ntgFromNetMap, swFromHcpvMap, isMdKey } from './propertyMaps';
 import { resampleTo } from '@/lib/gridding/gridmath';
 import { isopach } from '@/lib/gridding/isopach';
+import { GRID_DEFAULTS, FT as M_PER_FT, gridLayerFrames } from './grid3d/layering';
+import { resampleSmooth, smoothFrame, dataLimitRings } from './grid3d/boundary';
+import { expandFramework, DEFAULT_CAP } from './grid3d/zonesFromTops';
+import { sgsZonePorosity, sgsParams, faciesLayer } from './grid3d/properties';
+import { mdAtTvdss, extendTrajectory } from './logUpscale';
+import { minCurvature, positionAtMd } from '../engine/wellties';
 
 /** Registry property keys for the three populated properties. */
 export const PROP_KEYS = { phi: 'phi_avg', sw: 'sw_avg', ntg: 'ntg' };
@@ -88,6 +94,8 @@ export const POPULATION_METHODS = Object.freeze([
   { key: 'constant', label: 'constant (weighted mean)' },
   { key: 'trend', label: 'trend (LSQ plane)' },
   { key: 'okrige', label: 'ordinary kriging (fitted variogram)' },
+  // 3D grid upgrade (owner decision 4): porosity by sequential Gaussian simulation
+  { key: 'sgs', label: 'sequential Gaussian simulation (seeded)', only: 'phi' },
   // Ekene walk: inverse distance for few wells, and a typed (booked) value
   { key: 'idw', label: 'inverse distance (power 2)' },
   { key: 'typed', label: 'typed value (the same everywhere)' },
@@ -124,7 +132,30 @@ export const emptyDefinition = () => ({
   control: 'zones',
   cutoffs: { vsh: '', phi: '' },
   idw: { power: 2 },
+  // 3D grid upgrade (2026-10-17): the fine grid (layer thickness in feet and
+  // the layering style; off keeps the layer-cake of earlier releases), the cap
+  // slab above the top surface, and the SGS variogram and seed. A zone's
+  // splitTops cut it at well tops ({splitTops: ['Ekene Sand Middle', ...]}).
+  grid: { enabled: false, layerFt: GRID_DEFAULTS.layerFt, style: GRID_DEFAULTS.style },
+  cap: { ...DEFAULT_CAP },
+  sgs: { seed: '2026', rangeM: '', rangeVFt: '10', nugget: '0.1', model: 'spherical' },
 });
+
+/**
+ * A new model in the workstation (owner decisions 1 and 2, 2026-10-17): the
+ * fine grid on, 25 m cells with the smooth edge, 2.5 ft proportional layers,
+ * porosity by SGS. emptyDefinition stays the earlier layer-cake so saved
+ * rows, the engine goldens and the dev harness keep their numbers.
+ */
+export const newModelDefinition = () => {
+  const e = emptyDefinition();
+  return {
+    ...e,
+    frame: { ...e.frame, cellM: String(GRID_DEFAULTS.cellM), edge: 'smooth' },
+    grid: { ...e.grid, enabled: true },
+    methods: { ...e.methods, phi: 'sgs' },
+  };
+};
 
 /**
  * A saved definition from any earlier release in today's shape (U1,
@@ -148,6 +179,7 @@ export function upgradeDefinition(def) {
     zones: Array.isArray(d.zones) ? d.zones.filter(Boolean).map((z, i) => ({
       name: z.name || `Zone ${i + 1}`, registryZone: z.registryZone || '', ...(z.maps ? { maps: z.maps } : {}),
       ...(z.layers ? { layers: z.layers } : {}), ...(z.typed ? { typed: z.typed } : {}),
+      ...(Array.isArray(z.splitTops) ? { splitTops: z.splitTops.filter((t) => typeof t === 'string' && t) } : {}),
     })) : [],
     faultPolygons: Array.isArray(d.faultPolygons) ? d.faultPolygons.filter((p) => Array.isArray(p?.vertices)).map((p, i) => ({ ...p, name: p.name || `Fault ${i + 1}`, vertices: p.vertices.map(vert) })) : [],
     methods: { ...e.methods, ...(d.methods || {}) },
@@ -159,6 +191,9 @@ export function upgradeDefinition(def) {
     control: d.control === 'logs' ? 'logs' : 'zones',
     cutoffs: { ...e.cutoffs, ...(d.cutoffs || {}) },
     idw: { ...e.idw, ...(d.idw || {}) },
+    grid: { ...e.grid, ...(d.grid || {}) },
+    cap: { ...e.cap, ...(d.cap || {}) },
+    sgs: { ...e.sgs, ...(d.sgs || {}) },
   };
 }
 
@@ -648,7 +683,7 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
   // U2-004: progress in steps (surfaces read, framework, each zone's three
   // properties and its volumes), and a cancel checked between steps
   const nZones = Math.max(0, (definition.surfaceIds || []).length - 1);
-  const totalSteps = (definition.surfaceIds || []).length + 1 + nZones * 4;
+  let totalSteps = (definition.surfaceIds || []).length + 1 + nZones * 4;
   let step = 0;
   const progress = (label) => {
     if (signal?.aborted) throw new BuildCancelled();
@@ -712,7 +747,12 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
   // the model frame: the TOP surface's frame at its cell or the one the
   // definition asks for (EM0), in metres for the engine
   const specOfRow = (s) => scaleSpec(specOf(s), k);
-  const specM = modelFrame(specOfRow(stack[0]), definition.frame?.cellM);
+  // 3D grid upgrade: the smooth edge traces the data limit halfway past the
+  // last live node, on a frame grown by half the top surface's cell (a
+  // rotated lattice keeps the node edge)
+  const smooth = definition.frame?.edge === 'smooth' && !stack.some((s) => s.rotation_deg);
+  if (definition.frame?.edge === 'smooth' && !smooth) notes.push('A stacked surface is rotated, so the model keeps the node edge (the smooth edge needs an unrotated lattice).');
+  const specM = smooth ? smoothFrame(specOfRow(stack[0]), definition.frame?.cellM) : modelFrame(specOfRow(stack[0]), definition.frame?.cellM);
   const spec = scaleSpec(specM, 1 / k);
   if (stack[0].rotation_deg) notes.push(`The top surface is rotated ${stack[0].rotation_deg} degrees; the model frame is its unrotated extent.`);
 
@@ -740,7 +780,11 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
   // residuals, then clamp: the adjustment is a geometric correction of
   // the input surfaces, the clamp stays the stacking rule
   // a derived row carries its source's frame (allSurfaceRows)
-  let resampled = resampleStack(grids.map((z, i) => ({ z, spec: specOfRow(stack[i]) })), specM);
+  let resampled = smooth
+    ? grids.map((z, i) => resampleSmooth(z, specOfRow(stack[i]), specM))
+    : resampleStack(grids.map((z, i) => ({ z, spec: specOfRow(stack[i]) })), specM);
+  // the data limit of the top surface, for the map, section and 3D outline (native units)
+  const outline = dataLimitRings(grids[0], specOfRow(stack[0])).map((ring) => ring.map(([x, y]) => [x / k, y / k]));
   let adjustment = null;
   if (definition.adjust?.enabled) {
     const tiesBefore = wellTies(eWells, resampled, specM, surfIndexByTop)
@@ -757,10 +801,32 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
     for (let j = 0; j < z.length; j++) if (z[j] !== resampled[i][j]) m[j] = 1;
     return m;
   });
+  // 3D grid upgrade: the cap slab above the top and zones split at well tops
+  // join the framework as horizons of their own
+  const exp = expandFramework({
+    spec: specM, clamped, topNames: definition.topNames || [], surfaceNames: stack.map((s) => s.name),
+    zones: definition.zones || [], cap: definition.cap, wells: eWells,
+  });
+  for (const n of exp.notes) notes.push(n);
+  {
+    let q = 0;
+    const map = exp.inserted.map((ins) => (ins ? -1 : q++));
+    const xGrids = []; const xMasks = []; const xCounts = [];
+    exp.clamped.forEach((g, i) => {
+      xGrids.push(map[i] < 0 ? g : resampled[map[i]]);
+      xMasks.push(map[i] < 0 ? new Uint8Array(g.length) : clampMasks[map[i]]);
+      xCounts.push(map[i] < 0 ? 0 : counts[map[i]]);
+    });
+    resampled = xGrids; clampMasks.length = 0; clampMasks.push(...xMasks); counts.length = 0; counts.push(...xCounts);
+  }
+  const xClamped = exp.clamped;
+  totalSteps += (exp.zones.length - nZones) * 4;
   const thickness = [];
-  for (let i = 0; i + 1 < clamped.length; i++) thickness.push(zoneThickness(clamped[i], clamped[i + 1]));
+  for (let i = 0; i + 1 < xClamped.length; i++) thickness.push(zoneThickness(xClamped[i], xClamped[i + 1]));
   progress('Framework stacked and clamped');
-  const framework = { grids: resampled, clamped, counts, thickness };
+  const framework = { grids: resampled, clamped: xClamped, counts, thickness };
+  const surfIndexX = {};
+  exp.topNames.forEach((t, i) => { if (t) surfIndexX[t] = i; });
 
   // EM0: a boundary polygon (geo_culture kind boundary) clips the model:
   // nodes outside it are null on every surface and thickness, so the
@@ -815,7 +881,7 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
   }
   const labelsByZone = polygonsByZone ? polygonsByZone.map((ps) => labelBlocks(specM, ps)) : null;
 
-  const ties = wellTies(eWells, framework.clamped, specM, surfIndexByTop).map((t) => {
+  const ties = wellTies(eWells, framework.clamped, specM, surfIndexX).map((t) => {
     const before = adjustment?.tiesBefore.find((b) => b.well === t.well && b.top === t.top);
     const native = { ...t, x: t.x / k, y: t.y / k };
     return before ? { ...native, residualBeforeM: before.residualM } : native;
@@ -840,7 +906,15 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
   const propertyClamps = [];
   const parsedFluids = definition.fluidsInput ? parseFluidsInput(definition.fluidsInput) : (definition.fluids || []);
   for (const f of parsedFluids) for (const n of f?.notes || []) notes.push(n);
-  const zones = (definition.zones || []).map((zdef, i) => {
+  const gridOn = !!definition.grid?.enabled;
+  const gridLayerM = (Number(definition.grid?.layerFt) > 0 ? Number(definition.grid.layerFt) : GRID_DEFAULTS.layerFt) * M_PER_FT;
+  const gridStyle = ['proportional', 'top', 'base'].includes(definition.grid?.style) ? definition.grid.style : 'proportional';
+  const zones = exp.zones.map((ez, i) => {
+    const zdef = ez.def;
+    // the definition zone this one comes from (a sub-zone shares its parent's
+    // methods, typed values, maps and fluids; the cap takes the first zone's fluids)
+    const pi = ez.parent < 0 ? 0 : ez.parent;
+    const isCap = ez.kind === 'cap';
     const zThickness = framework.thickness[i];
     // U2-001: this zone's own blocks when a fault slopes
     const zLabels = labelsByZone ? labelsByZone[i] : labels;
@@ -849,10 +923,17 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
     const base = framework.clamped[i + 1];
     const nNodes = specM.nx * specM.ny;
     // Ekene walk: proportional layers inside the zone (1 = the zone itself)
-    const nL = zoneLayerCount(zdef);
-    const frames = proportionalLayers(top, base, nL);
+    let nL; let frames;
+    if (gridOn) {
+      const g = gridLayerFrames(top, base, { layerM: gridLayerM, style: gridStyle });
+      nL = g.count; frames = g.frames;
+    } else {
+      nL = zoneLayerCount(zdef);
+      frames = proportionalLayers(top, base, nL);
+    }
+    const layering = gridOn ? { layerM: gridLayerM, style: gridStyle } : null;
 
-    const fluids = parsedFluids[i] || null;
+    const fluids = parsedFluids[pi] || null;
     const eng = engineFluids(fluids, zLabels, nNodes);
     // U2-006: the leg bounded by Mapping's closure and spill engine
     let trap = null;
@@ -877,8 +958,16 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       const owcAt = owc === null || owc === undefined ? null
         : typeof owc === 'number' ? () => owc
           : (x, y) => { const v = sampleAtXY(owc, specM, x, y); return Number.isFinite(v) ? v : null; };
-      logControl = zoneLogControl(eWells, curves, { topName: definition.topNames?.[i] || '', baseName: definition.topNames?.[i + 1] || '', registryZone: zdef.registryZone }, {
-        layers: nL, cutoffs: { ...DEFAULT_CUTOFFS, ...cutoffsOf(definition.cutoffs) }, owcAt,
+      // the cap's interval at a well: the slab of its thickness above the top pick
+      const intervalAt = isCap ? (w) => {
+        const baseMd = (w.tops || []).find((t) => t.name === ez.baseName)?.md_m;
+        if (!Number.isFinite(baseMd)) return null;
+        const traj = extendTrajectory(minCurvature(w.deviation || [], w.kb_m, w.x, w.y), baseMd + 50);
+        const tv = positionAtMd(traj, baseMd).tvdss;
+        return { topMd: mdAtTvdss(traj, 0, baseMd, tv - ez.capM), baseMd, source: `${ez.capM.toFixed(1)} m above ${ez.baseName}` };
+      } : null;
+      logControl = zoneLogControl(eWells, curves, { topName: ez.topName || '', baseName: ez.baseName || '', registryZone: zdef.registryZone, ...(intervalAt ? { intervalAt } : {}) }, {
+        layers: nL, cutoffs: { ...DEFAULT_CUTOFFS, ...cutoffsOf(definition.cutoffs) }, owcAt, layering,
       });
       if (!logControl.rows.length) notes.push(`${zdef.name}: no well has PHIE and VSH over the zone, so its properties have no log control.`);
     }
@@ -918,9 +1007,11 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
         }
         (byBlock[lab] = byBlock[lab] || []).push(p);
       }
-      let method = definition.methods?.[prop === 'perm' ? 'phi' : prop] || 'constant';
-      if (prop === 'perm' && method === 'typed') method = 'constant';
+      let method = definition.methods?.[prop === 'perm' ? 'phi' : prop === 'vsh' ? 'ntg' : prop] || 'constant';
+      if ((prop === 'perm' || prop === 'vsh') && method === 'typed') method = 'constant';
       if (method === 'map' || method === 'shm') method = 'constant'; // no map for this zone: the weighted mean, said in provenance
+      // SGS is porosity's; anything else it reaches (no data, permeability without a transform) is kriged
+      if (method === 'sgs') method = 'okrige';
       if (method === 'typed') return typedGrid(specM, zLabels, typedV, prop, zdef.name);
       if (method === 'idw') return populateZonePropertyIdw(specM, zLabels, byBlock, all, { power: definition.idw?.power });
       // EM4: ordinary kriging with a fitted variogram and a variance grid
@@ -930,11 +1021,11 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
 
     // U2-008: zone maps (net pay for NTG) are zone-wide and shared by the layers
     let ntgFromMap = null;
-    if (definition.methods?.ntg === 'map' && zoneMaps[i].ntg) {
-      ntgFromMap = ntgFromNetMap(zoneMaps[i].ntg, zThickness);
+    if (definition.methods?.ntg === 'map' && !isCap && zoneMaps[pi]?.ntg) {
+      ntgFromMap = ntgFromNetMap(zoneMaps[pi].ntg, zThickness);
       if (ntgFromMap.clamped) propertyClamps.push({ zone: zdef.name, prop: 'ntg', nodes: ntgFromMap.clamped });
     }
-    const swMapPending = definition.methods?.sw === 'map' && !!zoneMaps[i].sw;
+    const swMapPending = definition.methods?.sw === 'map' && !isCap && !!zoneMaps[pi]?.sw;
     const shmPending = definition.methods?.sw === 'shm';
     const shmR = shmPending ? definition.shmResolved : null;
     let fwlM = null;
@@ -949,9 +1040,37 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
 
     const clampSum = {};
     let transitionNodes = 0;
+    // 3D grid upgrade: porosity of the whole zone by sequential Gaussian simulation
+    let sgsOut = null;
+    if (definition.methods?.phi === 'sgs') {
+      const meanT = (() => { let s2 = 0; let n2 = 0; for (const v of zThickness) if (!isNull(v)) { s2 += v; n2 += 1; } return n2 ? s2 / n2 : 0; })();
+      const dz = gridOn && gridStyle !== 'proportional' ? gridLayerM : Math.max(1e-3, meanT / nL);
+      const params = sgsParams(definition.sgs, definition.krige);
+      sgsOut = sgsZonePorosity({ spec: specM, frames, pointsAt: (kL) => pointsFor('phi', kL), layerM: dz, params: { ...params, seed: params.seed + 101 * i } });
+      if (!sgsOut) notes.push(`${zdef.name}: no well gives porosity, so the simulation had no data and porosity was kriged instead.`);
+    }
+    // with simulated porosity, permeability follows it through the wells' phi-k transform
+    let phiK = null;
+    if (sgsOut && control === 'logs') {
+      const pairs = (logControl.rows || []).filter((r) => Number.isFinite(r.phi) && Number.isFinite(r.perm) && r.perm > 0);
+      if (pairs.length >= 3) {
+        const mx = pairs.reduce((a, r) => a + r.phi, 0) / pairs.length; const my = pairs.reduce((a, r) => a + Math.log10(r.perm), 0) / pairs.length;
+        let sxy = 0; let sxx = 0;
+        for (const r of pairs) { sxy += (r.phi - mx) * (Math.log10(r.perm) - my); sxx += (r.phi - mx) ** 2; }
+        if (sxx > 0) { const b = sxy / sxx; phiK = { a: my - b * mx, b, n: pairs.length }; }
+      }
+    }
+    const f32 = (g) => (gridOn && g && !(g instanceof Float32Array) ? Float32Array.from(g) : g);
     const layerOut = frames.map((F, kL) => {
       const props = {}; const variance = {}; const provenance = {};
-      for (const prop of ['phi', 'sw', 'ntg', ...(control === 'logs' ? ['perm'] : [])]) {
+      for (const prop of ['phi', 'sw', 'ntg', ...(control === 'logs' ? ['perm', 'vsh'] : [])]) {
+        if (prop === 'phi' && sgsOut) { props.phi = sgsOut.grids[kL]; provenance.phi = [sgsOut.provenance]; continue; }
+        if (prop === 'perm' && phiK) {
+          const pg = props.phi;
+          props.perm = Float32Array.from(pg, (v) => (isNull(v) ? NULL_VALUE : 10 ** (phiK.a + phiK.b * v)));
+          provenance.perm = [{ block: 0, methodUsed: 'phik', wells: phiK.n, fellBack: false, note: `log10 k = ${phiK.a.toFixed(3)} + ${phiK.b.toFixed(2)} x porosity, from ${phiK.n} well cells` }];
+          continue;
+        }
         if (prop === 'ntg' && ntgFromMap) {
           props.ntg = ntgFromMap.z;
           provenance.ntg = [{ block: 0, methodUsed: 'map', wells: 0, fellBack: false, note: 'net pay map / zone thickness' }];
@@ -960,21 +1079,21 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
         if (prop === 'sw' && (swMapPending || shmPending)) continue; // after porosity and NTG
         const out = populateOne(prop, pointsFor(prop, kL), zdef.typed?.[prop]);
         if (prop === 'perm') {
-          props.perm = Float64Array.from(out.z, (v) => (isNull(v) ? v : 10 ** v));
+          props.perm = (gridOn ? Float32Array : Float64Array).from(out.z, (v) => (isNull(v) ? v : 10 ** v));
         } else {
           // EM-U1-005: a trend or kriging extrapolated past the wells stays a fraction
           const n = clampFractionGrid(out.z);
-          if (n) clampSum[prop] = (clampSum[prop] || 0) + n;
-          props[prop] = out.z;
+          if (n && prop !== 'vsh') clampSum[prop] = (clampSum[prop] || 0) + n;
+          props[prop] = f32(out.z);
         }
-        if (out.variance) variance[prop] = out.variance;
+        if (out.variance) variance[prop] = f32(out.variance);
         if (borrowed.has(`${prop}|${kL}`)) out.provenance = out.provenance.map((r) => ({ ...r, note: `${r.note ? `${r.note}; ` : ''}no well has a value in this layer, so the zone's upscaled values` }));
         provenance[prop] = definition.methods?.[prop] === 'map'
           ? out.provenance.map((r) => ({ ...r, fellBack: true, note: `no Petrophysics map picked for this zone${r.note ? `; ${r.note}` : ''}` }))
           : out.provenance;
       }
       if (swMapPending) {
-        const r = swFromHcpvMap(zoneMaps[i].sw, zThickness, props.ntg, props.phi);
+        const r = swFromHcpvMap(zoneMaps[pi].sw, zThickness, props.ntg, props.phi);
         props.sw = r.z;
         if (r.clamped) clampSum.sw = (clampSum.sw || 0) + r.clamped;
         provenance.sw = [{ block: 0, methodUsed: 'map', wells: 0, fellBack: false, note: '1 - HCPV map / (thickness x NTG x porosity)' }];
@@ -984,6 +1103,11 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
         transitionNodes = Math.max(transitionNodes, g.transitionNodes || 0);
         // SCAL-U2-009: the kr-1 source words of the J function travel with the zone into the report
         provenance.sw = [{ block: 0, methodUsed: 'shm', wells: 0, fellBack: false, note: `${shmR.name || 'SCAL project'}, FWL ${fwlM.toFixed(1)} m, rock from ${definition.shm?.rock === 'model' ? 'the modelled porosity' : 'the project'}${shmR.sourceText ? `; SCAL source: ${shmR.sourceText}` : ''}` }];
+      }
+      // facies by indicator from the upscaled facies log (see grid3d/properties.js)
+      if (control === 'logs') {
+        const fac = faciesLayer(specM, F.thickness, pointsFor('facies', kL));
+        if (fac) { props.facies = fac; provenance.facies = [{ block: 0, methodUsed: 'indicator', wells: new Set(pointsFor('facies', kL).map((p) => p.well)).size, fellBack: false, note: 'indicator inverse distance of the upscaled RP_FACIES codes, the most likely code' }]; }
       }
       return { ...F, props, variance, provenance };
     });
@@ -1030,6 +1154,10 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       variance: layered ? {} : layerOut[0].variance,
       provenance: layered ? mergeLayerProvenance(layerOut) : layerOut[0].provenance,
       ...(logControl ? { logRows: logControl.rows } : {}),
+      kind: ez.kind, parent: ez.parent, topName: ez.topName, baseName: ez.baseName,
+      ...(gridOn ? { grid: { layers: nL, layerM: gridLayerM, style: gridStyle } } : {}),
+      ...(sgsOut ? { sgs: sgsOut.stats } : {}),
+      ...(phiK ? { phiK } : {}),
     };
     const volumes = layeredVolumes(specM, zone, zLabels, volFluids, top, base, { useContacts });
     // Ekene walk: rock volume and area above the contacts, the numbers RCP prints
@@ -1096,8 +1224,16 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
   }
   const misties = ties.filter((t) => Number.isFinite(t.residualM) && Math.abs(t.residualM) > MISTIE_WARN_M);
 
+  // the fine grid's size: every layer of every zone over the live columns
+  let cells = 0;
+  for (const z of zones) {
+    const live = z.thickness.reduce((a, v) => a + (isNull(v) ? 0 : 1), 0);
+    cells += live * (z.layers?.length || 1);
+  }
   return {
     spec, specM, xyToM: k, xyUnit, crs, ...framework, clampMasks, labels, census, ties, zones, boundary, adjustment,
+    horizonNames: exp.horizonNames, outline, edge: smooth ? 'smooth' : 'nodes',
+    grid: gridOn ? { layerM: gridLayerM, style: gridStyle, cells, layers: zones.map((z) => z.layers?.length || 1) } : null,
     ...(polygonsByZone ? { polygonsByZone: polygonsByZone.map((ps) => ps.map((ring) => ring.map(([x, y]) => [x / k, y / k]))) } : {}),
     fallbacks, misties, totalPhi, propertyClamps, notes,
   };
