@@ -363,6 +363,7 @@ export function shiftProps(zone, zs = {}) {
 export function volumeRange(spec, zone, labels, fluids, top, base, useContacts = hasFluids(fluids)) {
   const frames = zoneLayerFrames(zone, top, base);
   if (!frames.some((L) => ['phi', 'sw', 'ntg'].some((k) => L.variance?.[k]))) return null;
+  if (!zone.volumes?.total) return null;
   const K = 1.2815515655446004;
   const vol = (sgn) => layeredVolumes(spec, zone, labels, fluids, top, base, { useContacts, zs: { phi: sgn * K, sw: -sgn * K, ntg: sgn * K } }).total;
   const low = vol(-1);
@@ -690,6 +691,10 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
     step += 1;
     if (onProgress) onProgress({ label, step: Math.min(step, totalSteps), total: totalSteps, fraction: Math.min(1, step / totalSteps) });
   };
+  // a long step (the simulation of a 1 M cell zone) reports its own fraction
+  const subProgress = (label, f) => {
+    if (onProgress) onProgress({ label, step: Math.min(step, totalSteps), total: totalSteps, fraction: Math.min(1, (step + Math.max(0, Math.min(1, f))) / totalSteps) });
+  };
   // registry rows plus the definition's derived horizons (EM2)
   const rows = allSurfaceRows(surfaces, definition);
   const stack = definition.surfaceIds.map((id) => {
@@ -907,6 +912,7 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
   const parsedFluids = definition.fluidsInput ? parseFluidsInput(definition.fluidsInput) : (definition.fluids || []);
   for (const f of parsedFluids) for (const n of f?.notes || []) notes.push(n);
   const gridOn = !!definition.grid?.enabled;
+  const parentControl = new Map();
   const gridLayerM = (Number(definition.grid?.layerFt) > 0 ? Number(definition.grid.layerFt) : GRID_DEFAULTS.layerFt) * M_PER_FT;
   const gridStyle = ['proportional', 'top', 'base'].includes(definition.grid?.style) ? definition.grid.style : 'proportional';
   const zones = exp.zones.map((ez, i) => {
@@ -967,8 +973,19 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
         return { topMd: mdAtTvdss(traj, 0, baseMd, tv - ez.capM), baseMd, source: `${ez.capM.toFixed(1)} m above ${ez.baseName}` };
       } : null;
       logControl = zoneLogControl(eWells, curves, { topName: ez.topName || '', baseName: ez.baseName || '', registryZone: zdef.registryZone, ...(intervalAt ? { intervalAt } : {}) }, {
-        layers: nL, cutoffs: { ...DEFAULT_CUTOFFS, ...cutoffsOf(definition.cutoffs) }, owcAt, layering,
+        layers: nL, cutoffs: { ...DEFAULT_CUTOFFS, ...cutoffsOf(definition.cutoffs) }, owcAt, layering, grossFill: isCap,
       });
+      // a zone split at well tops falls back on its parent zone's upscaled values
+      // (Ekene Sand Lower is below the OWC in every well, so it has no Sw of its own)
+      if (ez.kind === 'subzone') {
+        const key = `${ez.parent}`;
+        if (!parentControl.has(key)) {
+          parentControl.set(key, zoneLogControl(eWells, curves, { topName: definition.topNames?.[ez.parent] || '', baseName: definition.topNames?.[ez.parent + 1] || '', registryZone: zdef.registryZone }, {
+            layers: 1, cutoffs: { ...DEFAULT_CUTOFFS, ...cutoffsOf(definition.cutoffs) }, owcAt,
+          }).zone);
+        }
+        logControl.parent = parentControl.get(key);
+      }
       if (!logControl.rows.length) notes.push(`${zdef.name}: no well has PHIE and VSH over the zone, so its properties have no log control.`);
     }
     const zoneBases = new Set();
@@ -990,12 +1007,14 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
     // a layer no well can speak for (Sw in a layer below the OWC in every
     // well) takes the zone's upscaled values, and the provenance says so
     const borrowed = new Set();
+    const borrowedParent = new Set();
     const pointsFor = (prop, kLayer) => {
       if (control !== 'logs') return zoneAveragePoints(prop);
       const own = logControl.layers[kLayer][prop];
-      if (own.length || !logControl.zone[prop].length) return own;
-      borrowed.add(`${prop}|${kLayer}`);
-      return logControl.zone[prop];
+      if (own.length) return own;
+      if (logControl.zone[prop].length) { borrowed.add(`${prop}|${kLayer}`); return logControl.zone[prop]; }
+      if (logControl.parent?.[prop]?.length) { borrowedParent.add(`${prop}|${kLayer}`); return logControl.parent[prop]; }
+      return own;
     };
 
     const populateOne = (prop, all, typedV) => {
@@ -1012,6 +1031,8 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       if (method === 'map' || method === 'shm') method = 'constant'; // no map for this zone: the weighted mean, said in provenance
       // SGS is porosity's; anything else it reaches (no data, permeability without a transform) is kriged
       if (method === 'sgs') method = 'okrige';
+      // Vsh is shown, never in a volume: inverse distance keeps a 1.5 M cell build quick
+      if (prop === 'vsh') method = 'idw';
       if (method === 'typed') return typedGrid(specM, zLabels, typedV, prop, zdef.name);
       if (method === 'idw') return populateZonePropertyIdw(specM, zLabels, byBlock, all, { power: definition.idw?.power });
       // EM4: ordinary kriging with a fitted variogram and a variance grid
@@ -1046,7 +1067,10 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       const meanT = (() => { let s2 = 0; let n2 = 0; for (const v of zThickness) if (!isNull(v)) { s2 += v; n2 += 1; } return n2 ? s2 / n2 : 0; })();
       const dz = gridOn && gridStyle !== 'proportional' ? gridLayerM : Math.max(1e-3, meanT / nL);
       const params = sgsParams(definition.sgs, definition.krige);
-      sgsOut = sgsZonePorosity({ spec: specM, frames, pointsAt: (kL) => pointsFor('phi', kL), layerM: dz, params: { ...params, seed: params.seed + 101 * i } });
+      sgsOut = sgsZonePorosity({
+        spec: specM, frames, pointsAt: (kL) => pointsFor('phi', kL), layerM: dz, params: { ...params, seed: params.seed + 101 * i },
+        onProgress: (f) => subProgress(`${zdef.name}: simulating porosity (${frames.length} layers)`, 0.7 * f),
+      });
       if (!sgsOut) notes.push(`${zdef.name}: no well gives porosity, so the simulation had no data and porosity was kriged instead.`);
     }
     // with simulated porosity, permeability follows it through the wells' phi-k transform
@@ -1088,6 +1112,7 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
         }
         if (out.variance) variance[prop] = f32(out.variance);
         if (borrowed.has(`${prop}|${kL}`)) out.provenance = out.provenance.map((r) => ({ ...r, note: `${r.note ? `${r.note}; ` : ''}no well has a value in this layer, so the zone's upscaled values` }));
+        if (borrowedParent.has(`${prop}|${kL}`)) out.provenance = out.provenance.map((r) => ({ ...r, note: `${r.note ? `${r.note}; ` : ''}no well has a value in this zone, so the whole ${definition.zones?.[ez.parent]?.name || 'parent zone'}'s upscaled values` }));
         provenance[prop] = definition.methods?.[prop] === 'map'
           ? out.provenance.map((r) => ({ ...r, fellBack: true, note: `no Petrophysics map picked for this zone${r.note ? `; ${r.note}` : ''}` }))
           : out.provenance;

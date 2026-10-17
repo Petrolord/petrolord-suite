@@ -130,7 +130,7 @@ export function structure(model, h) {
 export const covariance = (model, nugget, h) => (h <= 0 ? 1 : (1 - nugget) * (1 - structure(model, h)));
 
 /** The SGS defaults: spherical, 900 m across the layers (the kriging default), 10 ft down them, nugget 0.1 of the sill. */
-export const SGS_DEFAULTS = Object.freeze({ model: 'spherical', rangeM: 900, rangeVM: 3.048, nugget: 0.1, seed: 2026, neighbours: 12, maxData: 8 });
+export const SGS_DEFAULTS = Object.freeze({ model: 'spherical', rangeM: 900, rangeVM: 3.048, nugget: 0.1, seed: 2026, neighbours: 12, maxData: 4 });
 
 /** Cholesky solve of the SPD system A x = b (A n x n, row-major, overwritten). Returns false when A is not positive definite. */
 function choleskySolve(A, b, n, x) {
@@ -187,6 +187,19 @@ export function sgs3d({
   const nug = Math.min(0.999, Math.max(0, Number(vg.nugget) || 0));
   const reach = model === 'spherical' ? 1 : 1.5; // normalised search radius
   const hn = (di, dj, dk) => Math.sqrt(((di * dx) / aH) ** 2 + ((dj * dy) / aH) ** 2 + ((dk * dz) / aV) ** 2);
+  // every lag between two cells is a whole number of cells, so the covariance
+  // comes from a table over the lags inside twice the search radius
+  const Ri = 2 * Math.ceil((reach * aH) / dx); const Rj = 2 * Math.ceil((reach * aH) / dy); const Rk = Math.min(Math.max(0, nk - 1), 2 * Math.ceil((reach * aV) / dz));
+  const tableOk = (Ri + 1) * (Rj + 1) * (Rk + 1) <= 4_000_000;
+  const covTable = tableOk ? new Float64Array((Ri + 1) * (Rj + 1) * (Rk + 1)) : null;
+  if (covTable) {
+    for (let dk = 0; dk <= Rk; dk++) for (let dj = 0; dj <= Rj; dj++) for (let di = 0; di <= Ri; di++) covTable[(dk * (Rj + 1) + dj) * (Ri + 1) + di] = covariance(model, nug, hn(di, dj, dk));
+  }
+  const cov = (di, dj, dk) => {
+    const a = di < 0 ? -di : di; const b2 = dj < 0 ? -dj : dj; const c = dk < 0 ? -dk : dk;
+    if (covTable && a <= Ri && b2 <= Rj && c <= Rk) return covTable[(c * (Rj + 1) + b2) * (Ri + 1) + a];
+    return covariance(model, nug, hn(di, dj, dk));
+  };
 
   // the histogram to reproduce: the data's, or a reference sample (an unconditional run)
   const table = normalScoreTable(reference || data.map((d) => d.v), bounds);
@@ -217,6 +230,7 @@ export function sgs3d({
     cols.get(key).cells.push(d);
   }
   const columns = [...cols.values()];
+  for (const col of columns) col.cells.sort((a, b) => a.k - b.k);
 
   const rng = mulberry32(seed);
   const gauss = makeGaussian(rng);
@@ -267,8 +281,9 @@ export function sgs3d({
 
   const maxN = Math.max(0, Math.floor(neighbours)) + Math.max(0, Math.floor(maxData));
   const ni = new Int32Array(maxN); const nj = new Int32Array(maxN); const nkk = new Int32Array(maxN); const ny_ = new Float64Array(maxN);
-  const A = new Float64Array(maxN * maxN); const b = new Float64Array(maxN); const w = new Float64Array(maxN);
-  const dataSel = []; // reused
+  const A = new Float64Array(maxN * maxN); const b = new Float64Array(maxN); const w = new Float64Array(maxN); const b0 = new Float64Array(maxN);
+  const selH = new Float64Array(Math.max(1, maxData)); const selD = new Array(Math.max(1, maxData));
+  const vReachK = Math.ceil((reach * aV) / dz);
   let solved = 0; let fallbacks = 0;
   const total = pathC.length;
   const tick = Math.max(1, Math.floor(total / 50));
@@ -286,20 +301,36 @@ export function sgs3d({
         if (state[cc] !== 1) continue;
         ni[n] = ii; nj[n] = jj; nkk[n] = kk; ny_[n] = Y[cc]; n += 1;
       }
-      // data cells, closest first, by well column
+      // data cells, closest first, by well column: within a column only the
+      // layers inside the vertical reach can count, so a window of layers
+      // around this one is scanned and the best maxData kept in order
       if (maxData > 0 && columns.length) {
-        dataSel.length = 0;
-        for (const col of columns) {
-          const hh = hn(col.i - i, col.j - j, 0);
-          if (hh > reach) continue;
-          for (const d of col.cells) {
-            const h = hn(d.i - i, d.j - j, d.k - k);
-            if (h <= reach) dataSel.push({ d, h });
+        let m = 0;
+        for (let q = 0; q < columns.length; q++) {
+          const col = columns[q];
+          const hx = ((col.i - i) * dx) / aH; const hy = ((col.j - j) * dy) / aH;
+          const h2 = hx * hx + hy * hy;
+          if (h2 > reach * reach) continue;
+          const cells = col.cells;
+          // the column's cells sorted by layer; start at the first one at or above k - vReach
+          let lo = 0; let hi = cells.length;
+          const kMin = k - vReachK;
+          while (lo < hi) { const mid = (lo + hi) >> 1; if (cells[mid].k < kMin) lo = mid + 1; else hi = mid; }
+          for (let t = lo; t < cells.length && cells[t].k <= k + vReachK; t++) {
+            const d = cells[t];
+            const hz = ((d.k - k) * dz) / aV;
+            const hh = h2 + hz * hz;
+            if (hh > reach * reach) continue;
+            // insertion into the kept list (ascending distance)
+            let pos = m < maxData ? m : maxData - 1;
+            if (m === maxData && hh >= selH[maxData - 1]) continue;
+            while (pos > 0 && selH[pos - 1] > hh) { selH[pos] = selH[pos - 1]; selD[pos] = selD[pos - 1]; pos -= 1; }
+            selH[pos] = hh; selD[pos] = d;
+            if (m < maxData) m += 1;
           }
         }
-        dataSel.sort((x, y) => x.h - y.h);
-        for (let q = 0; q < dataSel.length && q < maxData; q++) {
-          const { d } = dataSel[q];
+        for (let q = 0; q < m; q++) {
+          const d = selD[q];
           ni[n] = d.i; nj[n] = d.j; nkk[n] = d.k; ny_[n] = d.y; n += 1;
         }
       }
@@ -309,18 +340,18 @@ export function sgs3d({
       for (let a = 0; a < n; a++) {
         A[a * n + a] = 1;
         for (let bq = 0; bq < a; bq++) {
-          const cv = covariance(model, nug, hn(ni[a] - ni[bq], nj[a] - nj[bq], nkk[a] - nkk[bq]));
+          const cv = cov(ni[a] - ni[bq], nj[a] - nj[bq], nkk[a] - nkk[bq]);
           A[a * n + bq] = cv; A[bq * n + a] = cv;
         }
-        b[a] = covariance(model, nug, hn(ni[a] - i, nj[a] - j, nkk[a] - k));
+        b[a] = cov(ni[a] - i, nj[a] - j, nkk[a] - k);
       }
       // a small ridge keeps duplicated positions solvable
-      for (let a = 0; a < n; a++) A[a * n + a] += 1e-9;
+      for (let a = 0; a < n; a++) { A[a * n + a] += 1e-9; b0[a] = b[a]; }
       if (choleskySolve(A, b, n, w)) {
         let m = 0; let v = 0;
         for (let a = 0; a < n; a++) {
           m += w[a] * ny_[a];
-          v += w[a] * covariance(model, nug, hn(ni[a] - i, nj[a] - j, nkk[a] - k));
+          v += w[a] * b0[a];
         }
         mean = m; variance = Math.max(0, 1 - v);
         solved += 1;

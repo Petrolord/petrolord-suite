@@ -119,7 +119,7 @@ export function upscaleZoneAtWell({ traj, topMd, baseMd, curves, layers = 1, cut
     const i = Math.round((md - c.start) / c.step);
     return i >= 0 && i < c.values.length ? c.values[i] : NaN;
   };
-  const acc = Array.from({ length: n }, () => ({ g: 0, net: 0, phiH: 0, pv: 0, pvSw: 0, lnk: 0, kH: 0, samples: 0, hc: 0, vshH: 0, vshG: 0, fac: new Map() }));
+  const acc = Array.from({ length: n }, () => ({ g: 0, net: 0, phiH: 0, pv: 0, pvSw: 0, lnk: 0, kH: 0, samples: 0, hc: 0, vshH: 0, vshG: 0, fac: new Map(), phiG: 0, phiGH: 0 }));
   const layerOf = layering
     ? (z) => layerAtDepth(z, top.tvdss, base.tvdss, n, layering.layerM, layering.style)
     : (z) => Math.min(n - 1, Math.max(0, Math.floor(((z - top.tvdss) / span) * n)));
@@ -143,6 +143,7 @@ export function upscaleZoneAtWell({ traj, topMd, baseMd, curves, layers = 1, cut
     L.samples += 1;
     const phi = at(curves.phi, md); const vsh = at(curves.vsh, md);
     if (!NULLISH(vsh)) { L.vshH += h * Math.min(1, Math.max(0, vsh)); L.vshG += h; }
+    if (!NULLISH(phi)) { L.phiGH += h * phi; L.phiG += h; }
     const fc = at(curves.facies, md);
     if (!NULLISH(fc)) { const code = Math.round(fc); L.fac.set(code, (L.fac.get(code) || 0) + h); }
     if (NULLISH(phi) || NULLISH(vsh)) continue;
@@ -170,6 +171,7 @@ export function upscaleZoneAtWell({ traj, topMd, baseMd, curves, layers = 1, cut
       sw: L.pv > 0 ? L.pvSw / L.pv : null,
       perm: L.kH > 0 ? Math.exp(L.lnk / L.kH) : null,
       vsh: L.vshG > 0 ? L.vshH / L.vshG : null,
+      phiGross: L.phiG > 0 ? L.phiGH / L.phiG : null,
       facies,
       samples: L.samples, hcSamples: L.hc,
     };
@@ -213,7 +215,7 @@ export function mdAtTvdss(traj, mdA, mdB, tvdss) {
  * @returns {{layers: Array<{phi: Array, sw: Array, ntg: Array, perm: Array}>, rows: Array}} control
  *   points per layer and property ({well, x, y, v, w}) and one row per well and layer for QC
  */
-export function zoneLogControl(wells, curvesByWell, zone, { layers = 1, cutoffs = DEFAULT_CUTOFFS, owcM = null, owcAt = null, layering = null } = {}) {
+export function zoneLogControl(wells, curvesByWell, zone, { layers = 1, cutoffs = DEFAULT_CUTOFFS, owcM = null, owcAt = null, layering = null, grossFill = false } = {}) {
   const n = Math.max(1, Math.floor(Number(layers) || 1));
   const KEYS = ['phi', 'sw', 'ntg', 'perm', 'vsh', 'facies'];
   const empty = () => Object.fromEntries(KEYS.map((k) => [k, []]));
@@ -246,6 +248,9 @@ export function zoneLogControl(wells, curvesByWell, zone, { layers = 1, cutoffs 
     for (const u of ups) {
       // a follow-top or follow-base layer the zone truncates at this well holds no log
       if (!(u.grossM > 0)) continue;
+      // a non-reservoir interval (the cap): porosity over the gross rock, and water
+      if (grossFill && u.phi === null) u.phi = u.phiGross;
+      if (grossFill && u.sw === null && !(u.netM > 0)) u.sw = 1;
       const wgt = Math.max(u.grossM, 1e-6);
       for (const k of KEYS) {
         if (Number.isFinite(u[k])) out[u.layer][k].push({ well: w.name, x: u.x, y: u.y, v: k === 'perm' ? Math.log10(u[k]) : u[k], w: wgt });
