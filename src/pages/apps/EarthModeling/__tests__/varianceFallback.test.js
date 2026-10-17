@@ -21,13 +21,16 @@ test('through buildModel: a fallback zone keeps a sensible range (negative contr
   const wells = await backend.listWells();
   const surfaces = await backend.listSurfaces();
   const byName = Object.fromEntries(surfaces.map((s) => [s.name, s]));
-  // every well gives the same NTG, so ordinary kriging falls back to a trend
+  // every well gives the same NTG: since the 3D grid upgrade (2026-10-17) that
+  // field is the constant itself, said in the provenance, with no variance to shift
+  // (it used to fall back to a trend with the null marker as its variance)
   const flat = wells.map((w) => ({ ...w, zones: (w.zones || []).map((z) => ({ ...z, properties: { ...(z.properties || {}), ntg: 0.9 } })) }));
   const def = { ...emptyDefinition(), surfaceIds: [byName.TopA.id, byName.TopB.id], topNames: ['TopA', 'TopB'],
     zones: [{ name: 'Zone 1', registryZone: 'A' }], methods: { phi: 'okrige', sw: 'okrige', ntg: 'okrige' } };
   const b = await buildModel(def, flat, surfaces, backend);
   const z = b.zones[0];
-  expect(z.provenance.ntg.some((r) => r.fellBack)).toBe(true);
+  expect(z.provenance.ntg.every((r) => r.methodUsed === 'constant' && /every well reads 0\.9/.test(r.note))).toBe(true);
+  expect(z.variance.ntg).toBeUndefined();
   if (z.range) {
     const { p90, p50, p10 } = z.range;
     expect(p90.hcpv_m3).toBeGreaterThan(0.5 * p50.hcpv_m3);

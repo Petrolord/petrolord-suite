@@ -28,7 +28,9 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
       </div>
     );
   }
-  const blockKeys = Object.keys(built.zones[0]?.volumes || { total: 1 })
+  // every block any zone has (the cap of a 3D grid can hold no volume, so the
+  // first zone alone could leave the other tables without rows)
+  const blockKeys = [...new Set(['total', ...built.zones.flatMap((z) => Object.keys(z.volumes || {}))])]
     .sort((a, b) => (a === 'total' ? 1 : b === 'total' ? -1 : a.localeCompare(b)));
 
   return (

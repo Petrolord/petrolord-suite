@@ -1032,6 +1032,11 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
       // Vsh is shown, never in a volume: inverse distance keeps a 1.5 M cell build quick
       if (prop === 'vsh') method = 'idw';
       if (method === 'typed') return typedGrid(specM, zLabels, typedV, prop, zdef.name);
+      // the cap with no control (zone averages: no registry zone for a slab of seal) is seal rock
+      if (isCap && !all.length && ['phi', 'sw', 'ntg'].includes(prop)) {
+        const v = prop === 'sw' ? 1 : 0;
+        return { z: new Float64Array(specM.nx * specM.ny).fill(v), provenance: [{ block: 0, methodUsed: 'typed', wells: 0, fellBack: false, note: `${v} (the cap has no control of its own: seal rock; read the logs for its porosity)` }] };
+      }
       // 3D grid upgrade: every well reads the same value (the cap's NTG is 0 at every
       // well): the field is that value, said plainly instead of a variogram that cannot fit
       if (['okrige', 'krige', 'trend'].includes(method) && all.length >= 2 && all.every((p) => Math.abs(p.v - all[0].v) < 1e-12)) {
