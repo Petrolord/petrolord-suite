@@ -332,7 +332,8 @@ function GridLegend({ built, gv, grid3d, setGv, layersAll, depthUnit }) {
       {grid3d.contacts.map((c) => (
         <span key={`${c.kind}-${c.zone}`} className="flex items-center gap-1" data-testid={`em-3d-contact-${c.kind}`}>
           <span className="inline-block h-2 w-3 rounded-sm" style={{ background: c.kind === 'owc' ? '#2563eb' : '#dc2626', opacity: 0.7 }} />
-          {c.kind.toUpperCase()} {Number.isFinite(c.depth) ? `${Math.round(depthUnit === 'ft' ? c.depth / 0.3048 : c.depth).toLocaleString('en-US')} ${depthUnit}` : ''} ({built.zones[c.zone]?.name})
+          {c.kind.toUpperCase()} {Number.isFinite(c.depth) ? `${Math.round(depthUnit === 'ft' ? c.depth / 0.3048 : c.depth).toLocaleString('en-US')} ${depthUnit}` : ''}
+          {' '}({(c.zones || [c.zone]).filter((zi) => built.zones[zi]?.kind !== 'cap').map((zi) => built.zones[zi]?.name).join(', ') || built.zones[c.zone]?.name})
         </span>
       ))}
     </div>

@@ -157,7 +157,9 @@ export function buildFrameworkScene(built, wells, opts = {}) {
     const soup = [];
     for (let i = 0; i + 1 < pts.length; i++) soup.push(...pts[i], ...pts[i + 1]);
     if (soup.length) wellSets.push({ id: `well-${w.id}`, name: w.name, positions: Float32Array.from(soup), color: [0.9, 0.93, 0.96] });
-    if (pts.length) labels.push({ kind: 'well', text: w.name, pos: pts[0], color: '#e2e8f0' });
+    // a copy of a well at the same place ("PPS demo: Ekene-1") does not print over its name
+    const twin = String(w.name).includes(':') && (wells || []).some((o) => o !== w && !String(o.name).includes(':') && o.surface_x === w.surface_x && o.surface_y === w.surface_y);
+    if (pts.length && !twin) labels.push({ kind: 'well', text: w.name, pos: pts[0], color: '#e2e8f0' });
     for (const t of w.tops || []) {
       const idx = traj.findIndex((st) => st.md >= t.md_m);
       const st = idx <= 0 ? traj[0] : traj[idx];
