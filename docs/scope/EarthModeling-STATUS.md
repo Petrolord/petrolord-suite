@@ -415,3 +415,44 @@ Gaussian simulation (seeded), kriging kept. Code in `services/grid3d/`.
 - Tests: `__tests__/gridScene.test.js` (counts by hand on a synthetic grid),
   chart data in `__tests__/gridBuild.test.js` (histograms sum to 100 percent,
   tornado factors exact, contact rerun at zero shift equals the build).
+
+## 2026-10-17: from the booked 12.14 to the grid's 10.31 MMstb (the waterfall)
+
+Asked by the coordinator so viewers of the ReservoirCalc Pro videos (12.14)
+are not confused. `__tests__/waterfall.test.js` builds each step with
+buildModel on the live Ekene rows (six-well maps, OWC 5,036.1 ft, Bo 1.2):
+
+| Step | Change | STOIIP (MMstb) | Move |
+|---|---|---|---|
+| 1 | booked NTG 0.8, porosity 0.2, Sw 0.35 on the maps' 100 m nodes (RCP) | 12.142 | |
+| 2 | the same on the 25 m x 2.5 ft grid with the traced edge | 12.088 | -0.055 |
+| 3 | NTG from the logs (kriged; the sand is nearly all net) | 14.905 | +2.817 |
+| 4 | porosity by SGS from the logs | 14.092 | -0.813 |
+| 5 | Sw from the logs (inverse distance; transition zone, ~0.46 over the leg) | 10.896 | -3.196 |
+| 6 | the sand split at its two shale breaks into Upper, Middle, Lower (Lower below the OWC) under a 50 ft cap | 10.305 | -0.591 |
+
+Step 2 is the reconciliation gate (within 1 percent, `gridBuild.test.js`).
+Step 6 also changes the SGS realisation (each zone has its own seed stream);
+seed-to-seed spread on this grid is of the same order (seed 7 gives 10.35 with
+Sw from saturation height against 9.59 for seed 2026), so step 6 should be read
+as "within the realisation spread". The cap adds no oil (NTG 0).
+
+Also: Seismolord depth surfaces with bullseye cones were conditioned into new
+registry rows "Ekene Sand (depth ft, conditioned)" and "Ekene Sand Base (depth
+ft, conditioned)" (originals untouched; method in the row provenance).
+
+## 2026-10-17: display and permeability fixes before the re-recording (coordinator review)
+
+- Smooth edges in every view: the 3D shell, side walls, I/J slice ends and the
+  contact plane take their edge corners from the traced data limit
+  (`grid3d/scene.js` `edgeCorners`, `ringCrossings`); the player's layer map is
+  clipped to the traced edge (cells just inside it take their neighbour's
+  colour); the player's section ends where the line crosses the edge. Display
+  only: volumes are unchanged.
+- Permeability by cloud transform: per-facies phi-k lines from the upscaled
+  well cells plus a seeded, smoothly varying scatter whose spread comes from the
+  core plugs (Ekene-1 CPOR/CKH: about 0.1 decade); 0.25 decades is assumed and
+  said when a field has no core. The crossplot subtitle says the KPERM log is a
+  porosity transform.
+- 3D: the camera fits the model's cells (the player's 3D panel was small); the
+  contact plane is a lighter translucent blue with a pale outline.

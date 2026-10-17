@@ -58,6 +58,12 @@ export default function ResultsCharts({ built, volumeUnits = 'field', depthUnit 
   const curve = useMemo(() => exceedanceCurve(dist?.total?.samples?.[volKey]), [dist, volKey]);
   const v = (m3) => volumeValue(m3, volKey, volumeUnits);
 
+  // the log axis spans the decades the points fill (Recharts' auto range ran to 50,000 md)
+  const permDomain = (() => {
+    let lo = Infinity; let hi = -Infinity;
+    for (const p of [...xp.wells, ...xp.model]) { if (p.perm > 0) { lo = Math.min(lo, p.perm); hi = Math.max(hi, p.perm); } }
+    return Number.isFinite(lo) ? [10 ** Math.floor(Math.log10(lo)), 10 ** Math.ceil(Math.log10(hi))] : ['auto', 'auto'];
+  })();
   const faciesCodes = [...new Set([...xp.wells, ...xp.model].map((p) => p.facies).filter((c) => c !== null))].sort((a, b) => a - b);
   const contactText = depthUnit === 'ft' ? '30 ft' : '10 m';
   return (
@@ -93,13 +99,17 @@ export default function ResultsCharts({ built, volumeUnits = 'field', depthUnit 
         </ChartCard>
 
         <ChartCard title="Porosity against permeability, coloured by facies" testid="em-chart-phik"
-          subtitle={`${xp.wells.length} upscaled well cells (large) and ${xp.model.length.toLocaleString('en-US')} model cells (small)`}>
+          subtitle={(() => {
+            const pk = built.zones.find((z) => z.phiK)?.phiK;
+            const base = `${xp.wells.length} upscaled well cells (large), ${xp.model.length.toLocaleString('en-US')} model cells (small)`;
+            return pk ? `${base}. The wells' permeability log is a porosity transform, so its cells lie on a line; the model scatters about it by ${pk.sigma.toFixed(2)} decades from ${pk.sigmaSource} (seeded).` : base;
+          })()}>
           {(xp.wells.length > 0 || xp.model.length > 0) && (
             <ResponsiveContainer width="100%" height="100%">
               <ScatterChart margin={{ top: 10, right: 20, left: 10, bottom: 34 }}>
                 <CartesianGrid {...GRID_STYLE} />
                 <XAxis type="number" dataKey="phi" name="Porosity" domain={[0, 'auto']} tick={axisTick} tickFormatter={tick3} label={axisLabel('Porosity (v/v)')} />
-                <YAxis type="number" dataKey="perm" name="Permeability" scale="log" domain={['auto', 'auto']} allowDataOverflow tick={axisTick} tickFormatter={tick3} label={axisLabel('Permeability (md)', -90)} />
+                <YAxis type="number" dataKey="perm" name="Permeability" scale="log" domain={permDomain} allowDataOverflow tick={axisTick} tickFormatter={tick3} label={axisLabel('Permeability (md)', -90)} />
                 <ZAxis range={[14, 14]} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(val, name) => [tick3(val), name]} />
                 <Legend verticalAlign="top" height={22} wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize }} />

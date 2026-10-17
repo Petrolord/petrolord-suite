@@ -20,6 +20,21 @@ const AXIS = [0.58, 0.64, 0.72];
 const SKELETON_DENSITY = [0, 1, 2, 5, 10];
 /** The grid view's default state (the player drives it when the 3D window is linked). */
 export const DEFAULT_GRID_VIEW = Object.freeze({ mode: 'shell', prop: 'zone', density: 5, slices: { i: null, j: null, k: null }, filter: null, contacts: true, faults: true, logs: true, hiddenZones: [] });
+/**
+ * Fit the camera to the model's cells (the grid's live columns), not the frame:
+ * the six-well model covers part of its frame, and a fit to the frame left it
+ * small in the window. Without cells, the frame.
+ */
+export function fitCamera(c, scene, grid3d, tight = 1) {
+  const pos = grid3d?.mesh?.positions;
+  if (!pos || pos.length < 9) { c.fitTo(scene.ext); return; }
+  const lo = [Infinity, Infinity, Infinity]; const hi = [-Infinity, -Infinity, -Infinity];
+  const sc = [scene.ext.X, scene.ext.D, scene.ext.Z];
+  for (let q = 0; q < pos.length; q += 3) for (let a = 0; a < 3; a++) { const v = pos[q + a] * sc[a]; if (v < lo[a]) lo[a] = v; if (v > hi[a]) hi[a] = v; }
+  c.target = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
+  const radius = 0.5 * Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
+  c.dist = Math.max(c.minDist ?? 0.01, Math.min(c.maxDist ?? 100, (radius / Math.sin(c.fov / 2)) * 0.95 * tight));
+}
 const hasGrid = (built) => (built?.zones || []).some((z) => z.layers?.length > 1) || !!built?.grid;
 const rgbCss = (c) => `rgb(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)})`;
 
@@ -115,8 +130,8 @@ export default function FrameworkView3D({
       if (grid3d.logs?.indices?.length) { keep.add('logs'); renderer.setMesh('logs', { ...grid3d.logs, alpha: 1 }); }
       if (grid3d.skeleton.length) { keep.add('skeleton'); renderer.setLineSet('skeleton', { positions: grid3d.skeleton, color: [0.04, 0.05, 0.08], alpha: 0.55 }); }
       grid3d.contacts.forEach((c, q) => {
-        keep.add(`contact-${q}`); renderer.setMesh(`contact-${q}`, { ...c.mesh, alpha: 0.5 });
-        if (c.lines.length) { keep.add(`contact-line-${q}`); renderer.setLineSet(`contact-line-${q}`, { positions: c.lines, color: c.kind === 'owc' ? [0.38, 0.65, 0.98] : [0.98, 0.45, 0.45], alpha: 1 }); }
+        keep.add(`contact-${q}`); renderer.setMesh(`contact-${q}`, { ...c.mesh, alpha: 0.42 });
+        if (c.lines.length) { keep.add(`contact-line-${q}`); renderer.setLineSet(`contact-line-${q}`, { positions: c.lines, color: c.kind === 'owc' ? [0.75, 0.88, 1] : [1, 0.75, 0.75], alpha: 1 }); }
       });
       if (grid3d.faults?.mesh.indices.length) { keep.add('fault-planes'); renderer.setMesh('fault-planes', { ...grid3d.faults.mesh, alpha: 0.45 }); }
     }
@@ -129,13 +144,13 @@ export default function FrameworkView3D({
     if (scene.faults.length) { keep.add('faults'); renderer.setLineSet('faults', { positions: scene.faults, color: hexToRgb('#eab308'), alpha: 1 }); }
     keep.add('edges'); renderer.setLineSet('edges', { positions: scene.axes.edges, color: AXIS, alpha: 0.9, scaled: false });
     renderer.prune(keep);
-    if (!fittedRef.current) { c.fitTo(scene.ext); fittedRef.current = true; }
+    if (!fittedRef.current) { fitCamera(c, scene, grid3d, compact ? 0.62 : 1); fittedRef.current = true; }
     redraw();
-  }, [scene, grid3d, redraw]);
+  }, [scene, grid3d, redraw, compact]);
 
   useEffect(() => {
     const c = cameraRef.current;
-    if (c && scene && fittedRef.current) { c.fitTo(scene.ext); redraw(); }
+    if (c && scene && fittedRef.current) { fitCamera(c, scene, grid3d, compact ? 0.62 : 1); redraw(); }
   }, [ve]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -192,7 +207,7 @@ export default function FrameworkView3D({
     a.click();
     onStatus?.('3D view exported as PNG.');
   };
-  const fit = () => { const c = cameraRef.current; if (c && scene) { c.fitTo(scene.ext); redraw(); } };
+  const fit = () => { const c = cameraRef.current; if (c && scene) { fitCamera(c, scene, grid3d, compact ? 0.62 : 1); redraw(); } };
   const toggleSurface = (i) => setHidden((h) => { const n = new Set(h); if (n.has(i)) n.delete(i); else n.add(i); return n; });
 
   if (glError) {
@@ -332,7 +347,8 @@ function GridLegend({ built, gv, grid3d, setGv, layersAll, depthUnit }) {
       {grid3d.contacts.map((c) => (
         <span key={`${c.kind}-${c.zone}`} className="flex items-center gap-1" data-testid={`em-3d-contact-${c.kind}`}>
           <span className="inline-block h-2 w-3 rounded-sm" style={{ background: c.kind === 'owc' ? '#2563eb' : '#dc2626', opacity: 0.7 }} />
-          {c.kind.toUpperCase()} {Number.isFinite(c.depth) ? `${Math.round(depthUnit === 'ft' ? c.depth / 0.3048 : c.depth).toLocaleString('en-US')} ${depthUnit}` : ''} ({built.zones[c.zone]?.name})
+          {c.kind.toUpperCase()} {Number.isFinite(c.depth) ? `${Math.round(depthUnit === 'ft' ? c.depth / 0.3048 : c.depth).toLocaleString('en-US')} ${depthUnit}` : ''}
+          {' '}({(c.zones || [c.zone]).filter((zi) => built.zones[zi]?.kind !== 'cap').map((zi) => built.zones[zi]?.name).join(', ') || built.zones[c.zone]?.name})
         </span>
       ))}
     </div>

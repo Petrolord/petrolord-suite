@@ -30,9 +30,10 @@ import { ntgFromNetMap, swFromHcpvMap, isMdKey } from './propertyMaps';
 import { resampleTo } from '@/lib/gridding/gridmath';
 import { isopach } from '@/lib/gridding/isopach';
 import { GRID_DEFAULTS, FT as M_PER_FT, gridLayerFrames } from './grid3d/layering';
-import { resampleSmooth, smoothFrame, dataLimitRings } from './grid3d/boundary';
+import { resampleSmooth, smoothFrame, dataLimitRings, chaikin } from './grid3d/boundary';
 import { expandFramework, DEFAULT_CAP } from './grid3d/zonesFromTops';
 import { sgsZonePorosity, sgsParams, faciesLayer } from './grid3d/properties';
+import { mulberry32, makeGaussian } from './grid3d/sgs';
 
 /** Registry property keys for the three populated properties. */
 export const PROP_KEYS = { phi: 'phi_avg', sw: 'sw_avg', ntg: 'ntg' };
@@ -313,6 +314,28 @@ export function engineFluids(f, labels = null, n = 0) {
   }
   if (gasZone) return { ...rest, goc: rest.owc === null ? 1e12 : rest.owc };
   return rest;
+}
+
+/**
+ * A seeded standard-normal field on the frame that varies smoothly over a few
+ * cells (white noise, two 3 x 3 box passes, rescaled to unit variance): the
+ * scatter of the permeability cloud transform.
+ */
+export function correlatedNoise(nx, ny, seed) {
+  const rng = mulberry32(seed); const g = makeGaussian(rng);
+  let a = Float64Array.from({ length: nx * ny }, () => g());
+  for (let pass = 0; pass < 2; pass++) {
+    const b = new Float64Array(nx * ny);
+    for (let r = 0; r < ny; r++) for (let c = 0; c < nx; c++) {
+      let s2 = 0; let n2 = 0;
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const rr = r + dr; const cc = c + dc; if (rr < 0 || cc < 0 || rr >= ny || cc >= nx) continue; s2 += a[rr * nx + cc]; n2++; }
+      b[r * nx + c] = s2 / n2;
+    }
+    a = b;
+  }
+  let m = 0; for (const v of a) m += v; m /= a.length;
+  let v2 = 0; for (const v of a) v2 += (v - m) ** 2; const sd = Math.sqrt(v2 / a.length) || 1;
+  return Float32Array.from(a, (v) => (v - m) / sd);
 }
 
 /** Thrown when a build is cancelled (U2-004). */
@@ -787,7 +810,7 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
     ? grids.map((z, i) => resampleSmooth(z, specOfRow(stack[i]), specM))
     : resampleStack(grids.map((z, i) => ({ z, spec: specOfRow(stack[i]) })), specM);
   // the data limit of the top surface, for the map, section and 3D outline (native units)
-  const outline = dataLimitRings(grids[0], specOfRow(stack[0])).map((ring) => ring.map(([x, y]) => [x / k, y / k]));
+  const outline = dataLimitRings(grids[0], specOfRow(stack[0])).map((ring) => chaikin(ring, 3).map(([x, y]) => [x / k, y / k]));
   let adjustment = null;
   if (definition.adjust?.enabled) {
     const tiesBefore = wellTies(eWells, resampled, specM, surfIndexByTop)
@@ -1092,10 +1115,49 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
         for (const r of pairs) { sxy += (r.phi - mx) * (Math.log10(r.perm) - my); sxx += (r.phi - mx) ** 2; }
         if (sxx > 0) { const b = sxy / sxx; phiK = { a: my - b * mx, b, n: pairs.length }; }
       }
+      if (phiK) {
+        // per facies where a facies has its own spread of well cells (cloud transform by facies)
+        phiK.byFacies = {};
+        const fit = (ps) => {
+          const mx2 = ps.reduce((a, r) => a + r.phi, 0) / ps.length; const my2 = ps.reduce((a, r) => a + Math.log10(r.perm), 0) / ps.length;
+          let sxy2 = 0; let sxx2 = 0;
+          for (const r of ps) { sxy2 += (r.phi - mx2) * (Math.log10(r.perm) - my2); sxx2 += (r.phi - mx2) ** 2; }
+          return sxx2 > 1e-6 ? { a: my2 - (sxy2 / sxx2) * mx2, b: sxy2 / sxx2, n: ps.length } : null;
+        };
+        for (const code of new Set(pairs.map((r) => r.facies).filter((c) => c !== null && c !== undefined))) {
+          const ps = pairs.filter((r) => r.facies === code);
+          if (ps.length >= 5) { const f = fit(ps); if (f) phiK.byFacies[code] = f; }
+        }
+        // the scatter about the transform: from core plugs (CPOR, CKH) when the wells
+        // have them, because a porosity-transform KPERM log has none of its own
+        const core = [];
+        for (const c of Object.values(definition.logsResolved?.curves || {})) {
+          if (!c.coreK || !c.corePhi) continue;
+          const n2 = Math.min(c.coreK.values.length, c.corePhi.values.length);
+          for (let q = 0; q < n2; q++) {
+            const md = c.coreK.start + q * c.coreK.step;
+            const qi = Math.round((md - c.corePhi.start) / c.corePhi.step);
+            const k = c.coreK.values[q]; const ph = c.corePhi.values[qi];
+            if (Number.isFinite(k) && k > 0 && k < 1e5 && Number.isFinite(ph) && ph > 0.02 && ph < 0.5) core.push({ phi: ph, perm: k });
+          }
+        }
+        const cf = core.length >= 5 ? fit(core) : null;
+        if (cf) {
+          const res = core.map((r) => Math.log10(r.perm) - (cf.a + cf.b * r.phi));
+          const sd = Math.sqrt(res.reduce((a, v) => a + v * v, 0) / Math.max(1, res.length - 2));
+          phiK.sigma = Math.max(0.05, sd); phiK.sigmaSource = `${core.length} core plugs`;
+        } else { phiK.sigma = 0.25; phiK.sigmaSource = 'no core plugs: 0.25 decades assumed'; }
+        phiK.seed = sgsParams(definition.sgs, definition.krige).seed + 7 + 101 * i;
+      }
     }
     const f32 = (g) => (gridOn && g && !(g instanceof Float32Array) ? Float32Array.from(g) : g);
     const layerOut = frames.map((F, kL) => {
       const props = {}; const variance = {}; const provenance = {};
+      // facies by indicator from the upscaled facies log (see grid3d/properties.js); first, so permeability can follow it
+      if (control === 'logs') {
+        const fac = faciesLayer(specM, F.thickness, pointsFor('facies', kL));
+        if (fac) { props.facies = fac; provenance.facies = [{ block: 0, methodUsed: 'indicator', wells: new Set(pointsFor('facies', kL).map((p) => p.well)).size, fellBack: false, note: 'indicator inverse distance of the upscaled RP_FACIES codes, the most likely code' }]; }
+      }
       for (const prop of ['phi', 'sw', 'ntg', ...(control === 'logs' ? ['perm', 'vsh'] : [])]) {
         if (prop === 'phi' && sgsOut) { props.phi = sgsOut.grids[kL]; provenance.phi = [sgsOut.provenance]; continue; }
         // the cap: shale has no permeability log over net rock, so it is a seal of 0.001 md
@@ -1105,9 +1167,19 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
           continue;
         }
         if (prop === 'perm' && phiK) {
-          const pg = props.phi;
-          props.perm = Float32Array.from(pg, (v) => (isNull(v) ? NULL_VALUE : 10 ** (phiK.a + phiK.b * v)));
-          provenance.perm = [{ block: 0, methodUsed: 'phik', wells: phiK.n, fellBack: false, note: `log10 k = ${phiK.a.toFixed(3)} + ${phiK.b.toFixed(2)} x porosity, from ${phiK.n} well cells` }];
+          // cloud transform: the facies' phi-k line plus a seeded, smoothly varying
+          // scatter of the core's spread (log10 k = a + b phi + sigma e)
+          const pg = props.phi; const N2 = pg.length;
+          const eps = correlatedNoise(specM.nx, specM.ny, phiK.seed + kL * 7919);
+          const fac = props.facies || null;
+          props.perm = new Float32Array(N2);
+          for (let j = 0; j < N2; j++) {
+            const v = pg[j];
+            if (isNull(v)) { props.perm[j] = NULL_VALUE; continue; }
+            const t = (fac && phiK.byFacies[fac[j]]) || phiK;
+            props.perm[j] = 10 ** (t.a + t.b * v + phiK.sigma * eps[j]);
+          }
+          provenance.perm = [{ block: 0, methodUsed: 'phik', wells: phiK.n, fellBack: false, note: `cloud transform: log10 k = ${phiK.a.toFixed(3)} + ${phiK.b.toFixed(2)} x porosity from ${phiK.n} well cells (per facies where a facies has five), scatter ${phiK.sigma.toFixed(2)} decades from ${phiK.sigmaSource}, seed ${phiK.seed}` }];
           continue;
         }
         if (prop === 'ntg' && ntgFromMap) {
@@ -1143,11 +1215,6 @@ export async function buildModel(definition, wells, surfaces, backend, { onProgr
         transitionNodes = Math.max(transitionNodes, g.transitionNodes || 0);
         // SCAL-U2-009: the kr-1 source words of the J function travel with the zone into the report
         provenance.sw = [{ block: 0, methodUsed: 'shm', wells: 0, fellBack: false, note: `${shmR.name || 'SCAL project'}, FWL ${fwlM.toFixed(1)} m, rock from ${definition.shm?.rock === 'model' ? 'the modelled porosity' : 'the project'}${shmR.sourceText ? `; SCAL source: ${shmR.sourceText}` : ''}` }];
-      }
-      // facies by indicator from the upscaled facies log (see grid3d/properties.js)
-      if (control === 'logs') {
-        const fac = faciesLayer(specM, F.thickness, pointsFor('facies', kL));
-        if (fac) { props.facies = fac; provenance.facies = [{ block: 0, methodUsed: 'indicator', wells: new Set(pointsFor('facies', kL).map((p) => p.well)).size, fellBack: false, note: 'indicator inverse distance of the upscaled RP_FACIES codes, the most likely code' }]; }
       }
       return { ...F, props, variance, provenance };
     });
