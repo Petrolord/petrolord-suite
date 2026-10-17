@@ -26,7 +26,11 @@ const stage = opt('stage', 'compose');
 const scenes = {};
 let talk = 0;
 for (const it of mod.sequence.filter((x) => x.scene)) {
-  const sb = await load(it.scene);
+  let sb;
+  try { sb = await load(it.scene); } catch (e) {
+    if (stage !== 'tts') throw e;
+    console.log(`${it.scene.padEnd(14)} NOT WRITTEN`); continue;
+  }
   const clips = await synthStoryboard(sb, { apiKey: env.ELEVENLABS_API_KEY, cacheDir: path.join(OUT_ROOT, '.tts-cache') });
   const t = clips.reduce((a, c) => a + (c?.duration || 0), 0); talk += t;
   const rec = path.join(OUT_ROOT, sb.id, 'timeline.json');

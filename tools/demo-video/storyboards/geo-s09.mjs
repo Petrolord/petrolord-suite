@@ -2,7 +2,7 @@
 // The booked Ekene Sand case on the six-well map (RCP 12.14) run as a Monte
 // Carlo with the evidenced ranges of rcp-02 (50,000 realisations, fixed seed).
 import { bookedCase, stoiip, toProbabilistic, setDist, runSettings, RANGES, openRcp, dialog } from './rcp-common.mjs';
-import { login, expectText, scene, t, park, note } from './geo-common.mjs';
+import { login, expectText, scene, t, park } from './geo-common.mjs';
 
 const next = (d) => d.page.getByRole('button', { name: /^Next/ });
 const body = (d) => d.page.locator('body');
@@ -32,14 +32,13 @@ export default {
         await d.sleep(1200);
       } },
     { id: 'dist',
-      say: 'P ninety eleven point three, P fifty twelve point one, and P ten thirteen million stock tank barrels.',
-      sub: 'P90 11.3, P50 12.1 and P10 13.0 million stock tank barrels.',
+      say: 'P ninety, eleven point three two; P fifty, twelve point one four; and P ten, thirteen million stock tank barrels.',
+      sub: 'P90, 11.32; P50, 12.14; and P10, 13.00 million stock tank barrels.',
       do: async (d, shared) => {
         await expectText(d, body(d), /12\.14[\s\S]{0,120}11\.32[\s\S]{0,120}13\.00/, 'P50, P90 and P10');
         await d.click(d.page.getByRole('button', { name: /View Full Analysis/ }));
         await dialog(d).waitFor({ timeout: 30000 });
         await d.sleep(2500);
-        await note(d, shared, 'analysis', dialog(d));
       } },
   ],
 };

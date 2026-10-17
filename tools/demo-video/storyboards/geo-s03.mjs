@@ -47,14 +47,15 @@ export default {
         await d.sleep(2500);
       } },
     { id: 'pickett',
-      say: 'The Pickett plot fits the water line through the water leg, below the contact.',
+      say: 'The Pickett plot fits the water line through the water leg, below the contact: a cementation exponent of one point six one five.',
+      sub: 'The Pickett plot fits the water line through the water leg, below the contact: a cementation exponent of 1.615.',
       do: async (d, shared) => {
         await d.click('petro-plot-pickett');
         await d.type('petro-pickett-top', '5118.1');
         await d.type('petro-pickett-base', '5183.7');
         await d.click('petro-pickett-fit');
         await d.sleep(1500);
-        await note(d, shared, 'pickett', 'petro-pickett-result');
+        await expectText(d, 'petro-pickett-result', /m = 1\.615 · a·Rw = 0\.1329/, 'Pickett fit');
         await d.highlight('petro-pickett-result');
       } },
     { id: 'netpay',
