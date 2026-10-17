@@ -48,7 +48,7 @@ const RfEstimatorContent = () => {
     projects, sharedProjects, currentProjectId, createProject, openProject, deleteProject,
     projectRow, sharing, viewingShared, canWrite, saveCopy,
     unitSystem, setUnitSystem, followsProfile,
-    manualSave, isSaving, saveError, lastSaveTime,
+    manualSave, isSaving, saveError, lastSaveTime, dirty,
     notifications, removeNotification, loadSample,
   } = useRfEstimator();
   const [activeTab, setActiveTab] = useState('estimate');
@@ -156,7 +156,7 @@ const RfEstimatorContent = () => {
             <Button variant="ghost" size="sm" onClick={loadSample} className="h-8 text-xs text-pl-muted hover:text-pl-text">
               <Beaker className="w-3.5 h-3.5 mr-1" /> Sample
             </Button>
-            <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />
+            <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} dirty={dirty} />
             <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Recovery Factor Estimator Guide"

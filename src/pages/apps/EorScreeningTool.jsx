@@ -101,7 +101,7 @@ const ProjectCard = () => {
 };
 
 function EorScreeningContent() {
-  const { inputs, setUnitSystem, isSaving, saveError, lastSaveTime, manualSave } = useEorScreening();
+  const { inputs, setUnitSystem, isSaving, saveError, lastSaveTime, dirty, manualSave } = useEorScreening();
   const [tab, setTab] = useState('screening');
   return (
     <>
@@ -128,7 +128,7 @@ function EorScreeningContent() {
                   <SelectItem value="si">SI</SelectItem>
                 </SelectContent>
               </Select>
-              <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />
+              <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} dirty={dirty} />
               <ThemeToggle />
             </div>
           </div>

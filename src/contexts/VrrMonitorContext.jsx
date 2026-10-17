@@ -15,6 +15,7 @@
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
+import { usePendingSave } from '@/lib/activity/usePendingSave';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjects';
 import { sampleVRRData } from '@/utils/vrrCalculations';
@@ -321,6 +322,7 @@ export const VrrMonitorProvider = ({ children, sharingStore = null, profileSyste
   const sharedProjects = useMemo(() => (sharingStore && myId ? projectRows.filter((p) => p.userId && p.userId !== myId) : []), [projectRows, sharingStore, myId]);
 
   const createProject = useCallback(async (name) => {
+    await flush();
     const id = uuidv4();
     try {
       await service.save(id, projectPayload({ id, name, inputs }));
@@ -339,6 +341,7 @@ export const VrrMonitorProvider = ({ children, sharingStore = null, profileSyste
   }, [inputs, shared, refresh, addNotification]);
 
   const openProject = useCallback(async (id) => {
+    await flush();
     try {
       const payload = await shared.loadForOpen(id);
       const restored = inputsFromPayload(payload);
@@ -424,23 +427,31 @@ export const VrrMonitorProvider = ({ children, sharingStore = null, profileSyste
 
   // Debounced autosave (10 s), only once a project is open and hydrated, and
   // never while it is open read-only (a colleague's, or not checked out by me)
-  const autosaveRef = useRef(null);
-  autosaveRef.current = writeNow;
-  useEffect(() => {
-    if (!currentProjectId || !hydrated || !canWrite) return undefined;
-    const timer = setTimeout(async () => {
+  // Pending edits are also written when the studio unmounts, the page is
+  // hidden, or another project is opened (usePendingSave, Guided Journey 6.4).
+  const { dirty, flush } = usePendingSave({
+    appId: 'voidage-replacement-monitor',
+    appName: 'Voidage Replacement Monitor',
+    projectName,
+    projectKey: hydrated ? currentProjectId : null,
+    canWrite,
+    changeKey: [inputs],
+    payload: () => serialize(projectName),
+    save: async () => {
       setIsSaving(true);
       try {
-        await autosaveRef.current();
+        return await writeNow();
       } catch (e) {
         console.error(e);
         setSaveError('Auto-save failed');
+        return false;
       } finally {
         setIsSaving(false);
       }
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, [inputs, currentProjectId, hydrated, canWrite]);
+    },
+    saving: isSaving,
+    savedAt: lastSaveTime,
+  });
 
   const value = {
     // inputs + derived
@@ -496,6 +507,7 @@ export const VrrMonitorProvider = ({ children, sharingStore = null, profileSyste
     isSaving,
     saveError,
     lastSaveTime,
+    dirty,
     // notifications
     notifications,
     addNotification,

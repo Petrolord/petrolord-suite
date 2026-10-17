@@ -71,7 +71,7 @@ const DeclineCurveContent = () => {
   const {
     projects, sharedProjects, currentProjectId, createProject, openProject, deleteProject,
     projectRow, sharing, viewingShared, canWrite, saveCopy,
-    manualSave, isSaving, saveError, lastSaveTime,
+    manualSave, isSaving, saveError, lastSaveTime, dirty,
     isFitting, isForecasting,
     notifications, removeNotification,
   } = useDeclineCurve();
@@ -246,7 +246,7 @@ const DeclineCurveContent = () => {
         }
         headerActions={
           <>
-            <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />
+            <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} dirty={dirty} />
             <div className="hidden sm:block h-4 w-[1px] bg-pl-border mx-1" aria-hidden="true"></div>
             <StudioHelp
               title="DCA User Guide"

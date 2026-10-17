@@ -22,6 +22,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
+import { usePendingSave } from '@/lib/activity/usePendingSave';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { UNIT_SYSTEMS } from '@/utils/nodal/units';
 import { useProfileSystem } from '@/lib/units/useProfileSystem';
@@ -584,6 +585,7 @@ export const NodalAnalysisStudioProvider = ({ children }) => {
 
   const openProject = useCallback(
     async (id) => {
+      await flush();
       try {
         const payload = await service.load(id);
         if (!payload) {
@@ -602,6 +604,7 @@ export const NodalAnalysisStudioProvider = ({ children }) => {
 
   const createProject = useCallback(
     async (name) => {
+      await flush();
       const id = uuidv4();
       const payload = { ...autosaveRef.current(), id, name };
       try {
@@ -654,23 +657,33 @@ export const NodalAnalysisStudioProvider = ({ children }) => {
     }
   }, [currentProjectId, addNotification]);
 
-  // debounced autosave
-  useEffect(() => {
-    if (!currentProjectId || !hydrated) return undefined;
-    const timer = setTimeout(async () => {
+  // debounced autosave; pending edits are also written when the studio
+  // unmounts, the page is hidden, or another project is opened
+  // (usePendingSave, Guided Journey 6.4)
+  const { dirty, flush } = usePendingSave({
+    appId: 'nodal-analysis-engine',
+    appName: 'Nodal Analysis Studio',
+    projectName,
+    projectKey: hydrated ? currentProjectId : null,
+    changeKey: [unitSystem, fluid, inflow, well, completion, traverseView, sensitivityConfig, gasLiftConfig, choke, wellTestIntake],
+    payload: () => serializeInputs(),
+    save: async (payload) => {
       setIsSaving(true);
       setSaveError(null);
       try {
-        await service.save(currentProjectId, autosaveRef.current());
+        await service.save(currentProjectId, payload);
         setLastSaveTime(new Date());
+        return true;
       } catch (e) {
         setSaveError(e.message || 'Autosave failed');
+        return false;
       } finally {
         setIsSaving(false);
       }
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, [currentProjectId, hydrated, unitSystem, fluid, inflow, well, completion, traverseView, sensitivityConfig, gasLiftConfig, choke, wellTestIntake]);
+    },
+    saving: isSaving,
+    savedAt: lastSaveTime,
+  });
 
   // ---------------------------------------------------------------------
   // Well Test intake (wta-1 productivity, read by id)
@@ -717,6 +730,7 @@ export const NodalAnalysisStudioProvider = ({ children }) => {
     isSaving,
     saveError,
     lastSaveTime,
+    dirty,
     openProject,
     createProject,
     deleteProject,

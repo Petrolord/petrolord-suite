@@ -9,9 +9,10 @@
 // and the in-place intake; record sharing (saved_rf_projects is under the
 // sharing rules of 20261002130000): own projects, then those shared with me,
 // view only or edit with the check-out.
-import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
+import { usePendingSave } from '@/lib/activity/usePendingSave';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { useSharedSavedProjects } from '@/lib/recordSharing/useSharedSavedProjects';
 import { setProvenanceField, serializeProvenance, deserializeProvenance } from '@/lib/inputProvenance';
@@ -203,6 +204,7 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
   }, [addNotification]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const createProject = useCallback(async (name) => {
+    await flush();
     const id = uuidv4();
     try {
       await service.save(id, { ...serialize(name, id), id, name });
@@ -221,6 +223,7 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
   }, [serialize, addNotification, refreshProjects]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openProject = useCallback(async (id) => {
+    await flush();
     try {
       const payload = await shared.loadForOpen(id);
       if (!payload || !hydrate(payload)) {
@@ -297,31 +300,38 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
   }, [projectName, serialize, refreshProjects, openProject, addNotification]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounced autosave (10 s), only once a project is open and hydrated, never read-only.
-  const autosaveRef = useRef(null);
-  autosaveRef.current = () => serialize(projectName);
-  const writeRef = useRef(shared.write);
-  writeRef.current = shared.write;
-  useEffect(() => {
-    if (!currentProjectId || !hydrated || !canWrite) return undefined;
-    const timer = setTimeout(async () => {
+  // Pending edits are also written when the studio unmounts, the page is
+  // hidden, or another project is opened (usePendingSave, Guided Journey 6.4).
+  const { dirty, flush } = usePendingSave({
+    appId: 'recovery-factor-estimator',
+    appName: 'Recovery Factor Estimator',
+    projectName,
+    projectKey: hydrated ? currentProjectId : null,
+    canWrite,
+    changeKey: [inputs, identification, inputMeta, unitSystemSaved, pvtIntake, inPlaceIntake, dcaCheck, eorContext, krIntake],
+    payload: () => serialize(projectName),
+    save: async (payload) => {
       setIsSaving(true);
       try {
-        const res = await writeRef.current(currentProjectId, autosaveRef.current());
+        const res = await shared.write(currentProjectId, payload);
         if (res.ok) {
           setLastSaveTime(new Date());
           setSaveError(null);
         } else if (!res.readOnly) {
           setSaveError('Auto-save failed');
         }
+        return res;
       } catch (e) {
         console.error(e);
         setSaveError('Auto-save failed');
+        return false;
       } finally {
         setIsSaving(false);
       }
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, [inputs, identification, inputMeta, unitSystemSaved, pvtIntake, inPlaceIntake, dcaCheck, eorContext, krIntake, currentProjectId, hydrated, canWrite]);
+    },
+    saving: isSaving,
+    savedAt: lastSaveTime,
+  });
 
   const value = {
     // inputs + derived
@@ -370,6 +380,7 @@ export const RfEstimatorProvider = ({ children, sharingStore = null, profileSyst
     isSaving,
     saveError,
     lastSaveTime,
+    dirty,
     // notifications
     notifications,
     addNotification,
