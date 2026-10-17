@@ -12,6 +12,8 @@ export default {
   outroTitle: 'Quantitative interpretation *with Petrolord*',
   outroSub: 'Seismolord and QI Studio · petrolord.com',
   viewport: { w: 1440, h: 810 },
+  // silent tails after the narration play as a marked time-lapse
+  timelapse: { min: 1.5, max: 5, base: 1.5, div: 5, keepAfter: 0.6, keepBefore: 0.5 },
   async setup(d, shared) {
     await commonSetup(d, shared);
     await extendedCleanup(d, shared);

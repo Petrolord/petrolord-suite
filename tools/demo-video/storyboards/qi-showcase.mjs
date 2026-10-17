@@ -14,10 +14,14 @@ export default {
   outroTitle: 'Quantitative interpretation *with Petrolord*',
   outroSub: 'Seismolord and QI Studio · petrolord.com',
   viewport: { w: 1440, h: 810 },
+  // 5:00 budget: a shorter 'Minutes later' chip, and silent tails after the
+  // narration are cut (seismic views play as a marked time-lapse instead)
+  waitChip: 1.4,
+  timelapse: { min: 1, max: 0, keepAfter: 0.4, keepBefore: 0.3, rampScale: 0.6 },
   async setup(d, shared) {
     await commonSetup(d, shared);
     await seismolordLayout(d, shared);
     await startHere(d, shared);
   },
-  steps: showcaseSteps('main'),
+  steps: showcaseSteps('main').map((s) => ({ tail: 0.3, ...s })),
 };

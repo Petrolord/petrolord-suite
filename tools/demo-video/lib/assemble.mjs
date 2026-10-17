@@ -10,7 +10,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { cutTime, cutFilter, cutTotal } from './cuts.mjs';
+import { mapTime, rampFilter, rampWindows, planRamps } from './cuts.mjs';
 import { wordsFromAlignment, wordsFromText, buildCues, toSrt, toVtt, chaptersText } from './captions.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -38,9 +38,15 @@ function assStyle(cues, offset) {
 export async function assemble(sb, clips, rec, { outDir }) {
   const raw = path.join(outDir, 'raw.mkv');
   // a step's `wait` was logged as a cut: times move to the cut picture's clock
-  const cuts = rec.cuts || [];
-  const rawDur = probeDur(raw) - cutTotal(cuts);
-  const ct = (t) => cutTime(t, cuts);
+  // a storyboard with `timelapse` plays the silent stretch after a step's
+  // narration (the action still running) faster, marked 'Sped up' on screen;
+  // a stretch planned at no length at all is cut like a wait
+  const planned = sb.timelapse ? planRamps(sb, clips, rec, sb.timelapse) : [];
+  const cuts = [...(rec.cuts || []), ...planned.filter((r) => r.speed === Infinity).map(({ from, to }) => ({ from, to }))];
+  const ramps = planned.filter((r) => r.speed !== Infinity);
+  const rawEnd = probeDur(raw);
+  const rawDur = mapTime(rawEnd, cuts, ramps);
+  const ct = (t) => mapTime(t, cuts, ramps);
   const INTRO = sb.introSeconds ?? 4.5; const OUTRO = sb.outroSeconds ?? 5;
   const work = path.join(outDir, 'work'); fs.mkdirSync(work, { recursive: true });
 
@@ -73,7 +79,7 @@ export async function assemble(sb, clips, rec, { outDir }) {
   // 4. picture: intro card, upscaled screen, outro card
   const enc = ['-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-profile:v', 'high', '-level', '5.1', '-pix_fmt', 'yuv420p', '-r', '30', '-movflags', '+faststart'];
   const pic = (sub) => `[0:v]loop=loop=-1:size=1:start=0,trim=duration=${INTRO},fps=30,format=yuv420p,fade=t=in:st=0:d=0.6,fade=t=out:st=${INTRO - 0.5}:d=0.5,setsar=1[i];`
-    + `[1:v]fps=30${cutFilter(cuts)},scale=3840:2160:flags=lanczos,format=yuv420p,setsar=1${sub}[s];`
+    + `[1:v]fps=30${rampFilter(cuts, ramps)}${badge(cuts, ramps)},scale=3840:2160:flags=lanczos,format=yuv420p,setsar=1${sub}[s];`
     + `[2:v]loop=loop=-1:size=1:start=0,trim=duration=${OUTRO},fps=30,format=yuv420p,fade=t=in:st=0:d=0.6,setsar=1[o];[i][s][o]concat=n=3:v=1:a=0[v]`;
   const vin = ['-i', path.join(work, 'intro.png'), '-i', raw, '-i', path.join(work, 'outro.png')];
   if (sb.captions === false) {
@@ -90,5 +96,13 @@ export async function assemble(sb, clips, rec, { outDir }) {
       '-map', '[vn]', '-an', ...enc, path.join(outDir, 'nape.mp4')]);
   }
 
-  return { duration: INTRO + rawDur + OUTRO, cues: cues.length, chapters };
+  return { duration: INTRO + rawDur + OUTRO, cues: cues.length, chapters, ramps: ramps.length, tailCuts: planned.length - ramps.length };
+}
+
+// a small 'Sped up' chip at the top centre while a ramp plays
+function badge(cuts, ramps) {
+  const w = rampWindows(cuts, ramps);
+  if (!w.length) return '';
+  const on = w.map((x) => `between(t,${x.from.toFixed(3)},${x.to.toFixed(3)})`).join('+');
+  return `,drawtext=fontfile=/usr/share/fonts/opentype/inter/Inter-SemiBold.otf:text='Sped up':fontsize=34:fontcolor=white:box=1:boxcolor=0x0B0F19@0.72:boxborderw=18:x=(w-tw)/2:y=40:enable='${on}'`;
 }

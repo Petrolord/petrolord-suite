@@ -97,6 +97,15 @@ The director `d` has `click`, `type`, `select`, `moveTo`, `scroll`,
 (`lib/director.mjs`). Write `say` the way it should be spoken: spell out
 acronyms (R. W.) and numbers (two point six five).
 
+A step's `wait` (a worker job) is cut from the video and marked with a chip
+(`waitChip` seconds on the storyboard, default 2.2). A storyboard with
+`timelapse: { min, max, base, div, keepAfter, keepBefore, rampScale }` plays
+the silent stretch after each step's narration, while the action is still
+running, faster and marked 'Sped up'; a tail longer than `min` seconds plays in
+min(max, base + (L - base) / div) seconds, and `max: 0` cuts it. A step's
+`rampMax` overrides `max` (scaled by `rampScale`), and `ramp: false` keeps it
+at real speed (`lib/cuts.mjs` planRamps).
+
 Narration is written after a dry run on the real data, so every number spoken
 is the number on screen.
 

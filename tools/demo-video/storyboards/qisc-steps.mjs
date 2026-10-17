@@ -108,8 +108,8 @@ export function showcaseSteps(cut) {
     { id: 'scan', in: ['main', 'x'], chapter: 'Import', chapterSub: 'Header scan, crop, and where the seismic lives',
       say: 'The header scan measures the survey: twenty one thousand five hundred and four traces, inlines one thousand to eleven twenty seven, and eight hundred and seventy six samples at four milliseconds.',
       sub: 'The header scan measures the survey: 21,504 traces, inlines 1000 to 1127, and 876 samples at 4 ms.',
-      sayMain: 'The header scan measures it: twenty one thousand five hundred and four traces, and eight hundred and seventy six samples at four milliseconds.',
-      subMain: 'The header scan measures it: 21,504 traces, and 876 samples at 4 ms.',
+      sayMain: 'The header scan: twenty one thousand five hundred and four traces, eight hundred and seventy six samples at four milliseconds.',
+      subMain: 'The header scan: 21,504 traces, 876 samples at 4 ms.',
       do: async (d) => {
         const chooser = d.page.waitForEvent('filechooser');
         await d.click(dialog(d).getByRole('button', { name: 'Choose SEG-Y file' }));
@@ -159,7 +159,7 @@ export function showcaseSteps(cut) {
       } },
     { id: 'keep-local', in: ['main', 'x'],
       say: 'Keep on this computer: nothing is uploaded, and every attribute and inversion of it runs here.',
-      sayMain: 'Keep on this computer: nothing is uploaded, and every attribute and inversion of it runs here.',
+      sayMain: 'Keep on this computer, and every attribute and inversion runs here.',
       do: async (d) => {
         await d.unhighlight();
         await t(d, 'sl-import-keep').scrollIntoViewIfNeeded();
@@ -198,7 +198,7 @@ export function showcaseSteps(cut) {
         await d.highlight(row);
       } },
     // ---------------------------------------------------------- seismic views
-    { id: 'inline', in: ['main', 'x'], chapter: 'The seismic', chapterSub: 'Inline, crossline, time slice and 3D',
+    { id: 'inline', in: ['main', 'x'], rampMax: 4, chapter: 'The seismic', chapterSub: 'Inline, crossline, time slice and 3D',
       say: 'The full survey is in the project. Inline ten twenty seven runs down dip through the discovery well, Ekene one: the listric growth fault, and the rollover against it.',
       sub: 'The full survey is in the project. Inline 1027 runs down dip through the discovery well, Ekene-1: the listric growth fault, and the rollover against it.',
       sayMain: 'The full survey: inline ten twenty seven through the discovery well, the growth fault and the rollover.',
@@ -213,7 +213,7 @@ export function showcaseSteps(cut) {
         await d.click(fullscreenBtn(d, 'section'));
         await d.sleep(1500);
       } },
-    { id: 'xline', in: ['x'],
+    { id: 'xline', in: ['x'], rampMax: 4,
       say: 'Crossline twenty fifty one runs along the fault through the same well, and the sand arches over the crest.',
       sub: 'Crossline 2051 runs along the fault through the same well, and the sand arches over the crest.',
       do: async (d) => {
@@ -223,7 +223,7 @@ export function showcaseSteps(cut) {
         await d.click(fullscreenBtn(d, 'section'));
         await d.sleep(1200);
       } },
-    { id: 'tslice', in: ['main', 'x'],
+    { id: 'tslice', in: ['main', 'x'], rampMax: 4,
       say: 'At twelve ninety two milliseconds the time slice cuts the top of the sand in rings round the crest, cut off by the growth fault.',
       sub: 'At 1292 ms the time slice cuts the top of the sand in rings round the crest, cut off by the growth fault.',
       sayMain: 'At twelve ninety two milliseconds the rings close round the crest.',
@@ -235,7 +235,7 @@ export function showcaseSteps(cut) {
         await d.click(fullscreenBtn(d, 'section'));
         await d.sleep(1200);
       } },
-    { id: 'cube', in: ['main', 'x'],
+    { id: 'cube', in: ['main', 'x'], rampMax: 4,
       say: 'The three D window: a chair display through the discovery well, with the rings on the slice.',
       sub: 'The 3D window: a chair display through the discovery well, with the rings on the slice.',
       sayMain: 'In three D, a chair display through the discovery.',
@@ -248,7 +248,7 @@ export function showcaseSteps(cut) {
         await d.click(fullscreenBtn(d, '3d'));
         await d.sleep(2500);
       } },
-    { id: 'orbit', in: ['main', 'x'],
+    { id: 'orbit', in: ['main', 'x'], rampMax: 6,
       say: 'We swing round the crest. On the slice the rings close against the fault, and the sections show the rollover in both directions.',
       sayMain: 'We swing round the crest.',
       do: async (d) => {
@@ -380,7 +380,7 @@ export function showcaseSteps(cut) {
       waitLabel: 'Seconds later' },
     { id: 'removed', in: ['main', 'x'],
       say: 'The multiple model holds only curved energy, and is empty at the top of the sand, so the primaries and their AVO are untouched.',
-      sayMain: 'The multiple model holds only curved energy, and is empty at the top of the sand, so the primaries and their AVO are untouched.',
+      sayMain: 'The multiple model is empty at the top of the sand, so the primaries and their AVO are untouched.',
       do: async (d) => {
         await t(d, 'qi-gathers-line-0').scrollIntoViewIfNeeded();
         await d.sleep(1500);
@@ -463,7 +463,7 @@ export function showcaseSteps(cut) {
         for (const [c, f] of [['red', 12], ['green', 25], ['blue', 40]]) await expectText(d, t(d, `sl-rgb-${c}`).locator('option:checked'), new RegExp(`Spectral decomposition ${f} Hz`), `${c} channel`);
         await d.highlight(d.page.locator('[data-ribbon-group="Spectral RGB"]'));
       } },
-    { id: 'rgb-slice', in: ['main', 'x'],
+    { id: 'rgb-slice', in: ['main', 'x'], rampMax: 4,
       say: 'Thin beds tune at a frequency set by their thickness, so on the time slice the colour maps the sand across the closure.',
       sayMain: 'Thin beds tune at a frequency set by their thickness, so the colour maps the sand across the closure.',
       do: async (d) => {
@@ -474,7 +474,7 @@ export function showcaseSteps(cut) {
         await d.click(d.page.locator('[data-testid="window-map"] button[title="Fullscreen"]'));
         await d.sleep(3500);
       } },
-    { id: 'rgb-horizon', in: ['main', 'x'],
+    { id: 'rgb-horizon', in: ['main', 'x'], rampMax: 3,
       say: 'Along the top of the sand, under the structure contours, the readout names the strongest frequency.',
       sayMain: 'Along the top of the sand, the readout names the strongest frequency.',
       do: async (d) => {
@@ -708,7 +708,7 @@ export function showcaseSteps(cut) {
         await d.click('qi-prop-run');
       },
       wait: async (d, shared) => { await moreReady(d, 'qi-prop-runs', shared.values.propReady); } },
-    { id: 'ntg', in: ['main', 'x'],
+    { id: 'ntg', in: ['x'], // main cut: dropped for length (5:00)
       say: 'Net to gross follows impedance well.',
       sub: 'Net-to-gross follows impedance well.',
       sayMain: 'And net to gross.',
@@ -721,7 +721,7 @@ export function showcaseSteps(cut) {
       },
       wait: async (d, shared) => { await calibrated(d, shared, /net-to-gross =/); },
       waitLabel: 'Seconds later' },
-    { id: 'ntg-result', in: ['main', 'x'],
+    { id: 'ntg-result', in: ['x'],
       say: 'R squared is zero point six five, but left out, Ekene one correlates only zero point four four, under the gate, so the volume is withheld, with the reason recorded.',
       sub: 'R squared is 0.65, but left out, Ekene-1 correlates only 0.44, under the gate, so the volume is withheld, with the reason recorded.',
       sayMain: 'Net to gross fails the left out gate at Ekene one, so its volume is withheld.',
@@ -786,7 +786,7 @@ export function showcaseSteps(cut) {
         await d.page.locator('[data-testid="qi-maps-runs"] >> text=/saved/i').first().waitFor({ timeout: 120000 });
         await d.highlight('qi-maps-runs');
       } },
-    { id: 'map-view', in: ['main', 'x'],
+    { id: 'map-view', in: ['main', 'x'], rampMax: 4,
       say: 'In Seismolord\'s Map window: the hydrocarbon sand probability over the Ekene Sand, contoured and ready for the prospect.',
       sayMain: 'In Seismolord, the probability map, contoured and ready for the prospect.',
       do: async (d, shared) => {
