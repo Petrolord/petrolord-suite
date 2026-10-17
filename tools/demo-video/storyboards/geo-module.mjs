@@ -25,6 +25,7 @@ export default {
     { scene: 'geo-s02', chapter: 'The wells' },
     { scene: 'geo-s03', chapter: 'Petrophysics' },
     { scene: 'geo-s04', chapter: 'Well correlation' },
+    { scene: 'geo-s04b' },
     { scene: 'geo-s05', chapter: 'Seismic interpretation' },
     { scene: 'geo-s06', chapter: 'Quantitative interpretation' },
     { scene: 'geo-s07', chapter: 'Maps and closures' },
