@@ -163,14 +163,19 @@ export default function ResultsCharts({ built, volumeUnits = 'field', depthUnit 
         subtitle={curve ? `${curve.n} trials, seed ${dist.seed}: P90 ${tickVol(v(curve.p90))}, P50 ${tickVol(v(curve.p50))}, P10 ${tickVol(v(curve.p10))} ${volUnit}. P90 is the low case.` : 'Run the volume distribution below to draw the curve'}>
         {curve && (
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={curve.points.map((p) => ({ v: v(p.v), p: p.p }))} margin={{ top: 16, right: 30, left: 10, bottom: 34 }}>
+            <ComposedChart data={curve.points.map((p) => ({ v: v(p.v), p: p.p }))} margin={{ top: 30, right: 30, left: 10, bottom: 34 }}>
               <CartesianGrid {...GRID_STYLE} />
               <XAxis type="number" dataKey="v" domain={['auto', 'auto']} tick={axisTick} tickFormatter={tickVol} label={axisLabel(`${oil ? 'STOIIP' : 'HCPV'} (${volUnit})`)} />
               <YAxis type="number" domain={[0, 100]} ticks={[0, 10, 25, 50, 75, 90, 100]} tick={axisTick} label={axisLabel('Probability (%)', -90)} />
               <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(val, name) => (name === 'p' ? [`${val.toFixed(0)}%`, 'probability'] : [tickVol(val), volUnit])} />
               <Line dataKey="p" stroke="#2563eb" strokeWidth={2.5} dot={false} isAnimationActive={false} />
               {[['P90', curve.p90, 90], ['P50', curve.p50, 50], ['P10', curve.p10, 10]].map(([lab, x, p]) => (
-                <ReferenceLine key={lab} x={v(x)} stroke="#d97706" strokeDasharray="4 3" label={{ value: `${lab} ${tickVol(v(x))}`, position: 'top', fill: '#92400e', fontSize: 11 }} ifOverflow="extendDomain" segment={undefined} />
+                <ReferenceLine key={lab} x={v(x)} stroke="#d97706" strokeDasharray="4 3" ifOverflow="extendDomain"
+                  // P90 to the left of its line, P10 to the right, P50 a row higher, so close values never overprint
+                  label={({ viewBox }) => (
+                    <text x={viewBox.x + (lab === 'P90' ? -4 : lab === 'P10' ? 4 : 0)} y={viewBox.y - (lab === 'P50' ? 16 : 4)}
+                      textAnchor={lab === 'P90' ? 'end' : lab === 'P10' ? 'start' : 'middle'} fill="#92400e" fontSize={11}>{`${lab} ${tickVol(v(x))}`}</text>
+                  )} />
               ))}
               {[90, 50, 10].map((p) => <ReferenceLine key={`h${p}`} y={p} stroke="#94a3b8" strokeDasharray="2 3" />)}
             </ComposedChart>
